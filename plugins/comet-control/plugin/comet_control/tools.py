@@ -258,7 +258,7 @@ def _install_info() -> dict[str, Any]:
         "steps": [
             f"1. Start the Comet-only broker: {WIP_ROOT / 'scripts' / 'ensure-wip-broker.sh'} start",
             f"2. Launch the logged-in runtime: {WIP_ROOT / 'scripts' / 'launch-wip-comet.sh'}",
-            f"3. Load unpacked once from {WIP_ROOT / 'deploy' / 'extension'} only in Comet.",
+            f"3. Load unpacked once from {WIP_ROOT / 'plugin' / 'comet_control' / 'extension'} only in Comet.",
             "4. Require broker status, then session_preflight before every run.",
         ],
     }

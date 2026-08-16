@@ -27,7 +27,7 @@ Decision history stays in the source repo, not this portable package.
 
 Require the probe's broker-attested `user_data_dir`; Preferences and cached
 profile names are diagnostics, never ownership proof. The unpacked target is
-`deploy/extension`; its transport is the repository-owned loopback broker.
+`plugin/comet_control/extension`; its transport is the repository-owned loopback broker.
 
 ## Per-agent campaign driver
 
@@ -180,7 +180,7 @@ screenshot proof for each cursor; inspect those PNGs before a visual claim.
 
 ```bash
 cd <plugin-root>
-./scripts/sync-wip.sh   # after code changes; then reload extension
+# after code changes, reload plugin/comet_control/extension
 COMET_CONTROL_BRIDGE_SOCKET="$PWD/run/comet-control.sock" \
   python3 plugin/comet_control/tests/test_multi_agent_isolation.py
 # Two consecutive exit 0 required

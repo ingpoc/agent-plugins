@@ -16,7 +16,6 @@ CUA_SLICE = WIP_ROOT / "skills" / "comet-control" / "scripts" / "cua_slice.py"
 SERVICE_WORKER = (
     WIP_ROOT / "plugin" / "comet_control" / "extension" / "service_worker.js"
 )
-DEPLOY_SW = WIP_ROOT / "deploy" / "extension" / "service_worker.js"
 
 
 class HandoffHardeningTests(unittest.TestCase):
@@ -52,11 +51,6 @@ class HandoffHardeningTests(unittest.TestCase):
         self.assertIn("sameSession", source)
         self.assertIn("reclaimed", source)
         self.assertIn("message.reclaim !== false", source)
-        self.assertEqual(
-            SERVICE_WORKER.read_text(),
-            DEPLOY_SW.read_text(),
-            "deploy/extension service_worker must match plugin source",
-        )
 
     def test_controller_skips_legacy_run_diagnostic_lines(self) -> None:
         source = CTRL.read_text()

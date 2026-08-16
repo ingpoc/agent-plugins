@@ -12,23 +12,23 @@ Read before editing the plugin or debugging deeper than `optimize.md`.
 ## Architecture map
 
 ```text
-Comet ──────────────────────────┬─ deploy/extension (Load unpacked)
+Comet ──────────────────────────┬─ plugin/comet_control/extension (Load unpacked)
                                 │       │ exact-origin loopback WebSocket
                                 │       ▼
-                                │   deploy/native/broker.py
+                                │   plugin/comet_control/native/broker.py
                                 │       │ AF_UNIX
                                 │       ▼
                                 └── run/comet-control.sock
 ```
 
-Source: `plugin/comet_control/`. `scripts/sync-wip.sh` deploys to `deploy/`.
+One owner: `plugin/comet_control/`.
 
-| Piece | Source | Deploy | Role |
-| --- | --- | --- | --- |
-| Extension | `plugin/comet_control/extension/` | `deploy/extension/` | SW, cursor, leases |
-| Broker | `plugin/comet_control/native/broker.py` | `deploy/native/broker.py` | WebSocket ↔ socket |
-| Skill | `comet-control/` | this tree | Agent instructions |
-| Isolation suite | `plugin/comet_control/tests/test_multi_agent_isolation.py` | — | 2× green gate |
+| Piece | Path | Role |
+| --- | --- | --- |
+| Extension | `plugin/comet_control/extension/` | SW, cursor, leases |
+| Broker | `plugin/comet_control/native/broker.py` | WebSocket ↔ socket |
+| Skill | `skills/comet-control/` | Agent instructions |
+| Isolation suite | `plugin/comet_control/tests/test_multi_agent_isolation.py` | 2× green gate |
 
 ---
 
@@ -129,8 +129,8 @@ Traces → `console.debug` or remove.
 
 1. Send WIP `status` through `run/comet-control.sock`.
 2. Start a leased `session_preflight` on a real `https://` URL.
-3. If both fail after an extension edit, run the repo-root `sync-wip.sh`, reload
-   the unpacked extension, and retry with a new lease.
+3. If both fail after an extension edit, reload the unpacked
+   `plugin/comet_control/extension` and retry with a new lease.
 
 The copied production `plugin/comet_control/scripts/preflight.sh` and `sync.sh`
 are outside the WIP control path and must not be used here.
@@ -155,9 +155,8 @@ Use leases ([`multi-agent.md`](multi-agent.md)), not `sessionName` alone.
 ## Editing conventions
 
 - Edit **`plugin/comet_control/`** only.
-- Never hand-edit **`deploy/`**.
-- After changes, run **`scripts/sync-wip.sh`** and reload the unpacked
-  extension. `bridge({"type":"reload"})` is safe only with no leases.
+- After changes, reload the unpacked `plugin/comet_control/extension`.
+  `bridge({"type":"reload"})` is safe only with no leases.
 - Never sync into `~/.codex` / `~/.comet-control` until cutover.
 - New action → SW + content script if needed + `tools.py` + `operate.md`.
   Update `multi-agent.md` only for lease behavior.
@@ -185,5 +184,5 @@ Use leases ([`multi-agent.md`](multi-agent.md)), not `sessionName` alone.
   and pending work at 64, and fails stale-generation work without replay.
 - Failure records are local, mode-0600, retain at most 20 commands, and capture
   a screenshot only after failure.
-- Loaded broker/extension hashes must match `deploy/` before acceptance. A
+- Loaded broker/extension hashes must match `plugin/comet_control/` before acceptance. A
   stale broker may restart only after an authoritative empty lease inventory.

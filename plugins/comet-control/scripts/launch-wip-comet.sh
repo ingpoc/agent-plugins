@@ -18,5 +18,5 @@ for _ in {1..60}; do
 done
 
 echo "Comet opened, but its Comet Control extension did not connect." >&2
-echo "Reload the unpacked extension from $ROOT/deploy/extension in Comet, then retry." >&2
+echo "Reload the unpacked extension from $ROOT/plugin/comet_control/extension in Comet, then retry." >&2
 exit 2

@@ -144,10 +144,11 @@ broker and the normal logged-in Comet profile explicitly:
 ```
 
 The launcher uses the existing logged-in Comet profile. First
-installation may require `$macos-cua` to visibly load `deploy/extension` at
-`chrome://extensions`. Never inspect or copy profile credentials. After source
-changes, run `./scripts/sync-wip.sh`, launch, re-probe,
-then rerun the original workflow. Fix behavior in `plugin/comet_control/`.
+installation may require `$macos-cua` to visibly load
+`plugin/comet_control/extension` at `chrome://extensions`. Never inspect or copy
+profile credentials. After source changes, reload that unpacked extension,
+launch, re-probe, then rerun the original workflow. Fix behavior in
+`plugin/comet_control/`.
 
 ## When to use `$macos-cua` (ownership, not retry)
 

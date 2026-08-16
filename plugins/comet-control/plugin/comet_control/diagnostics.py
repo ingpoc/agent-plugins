@@ -1,8 +1,7 @@
 """Compact deterministic diagnostics for the repository-owned Comet Control runtime.
 
 Ownership, socket, and lease discovery are delegated to the canonical
-read-only probe. This module adds source/deploy checks without duplicating that
-runtime policy.
+read-only probe. This module checks the single packaged extension and broker.
 """
 
 from __future__ import annotations
@@ -18,9 +17,7 @@ PLUGIN_DIR = Path(__file__).resolve().parent
 WIP_ROOT = PLUGIN_DIR.parents[1]
 PROBE = WIP_ROOT / "scripts" / "ensure-wip-broker.sh"
 SOURCE_EXTENSION = PLUGIN_DIR / "extension"
-DEPLOY_EXTENSION = WIP_ROOT / "deploy" / "extension"
 SOURCE_BROKER = PLUGIN_DIR / "native" / "broker.py"
-DEPLOY_BROKER = WIP_ROOT / "deploy" / "native" / "broker.py"
 DRIFT_FILES = (
     "manifest.json",
     "service_worker.js",
@@ -101,8 +98,8 @@ def _runtime_check(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _loaded_build_check(payload: dict[str, Any]) -> dict[str, Any]:
     broker = payload.get("broker") or {}
-    expected_broker = _sha(DEPLOY_BROKER)
-    expected_extension = _sha(DEPLOY_EXTENSION / "service_worker.js")
+    expected_broker = _sha(SOURCE_BROKER)
+    expected_extension = _sha(SOURCE_EXTENSION / "service_worker.js")
     loaded_broker = broker.get("broker_build_sha256")
     loaded_extension = broker.get("extension_build_sha256")
     ok = bool(
@@ -120,7 +117,7 @@ def _loaded_build_check(payload: dict[str, Any]) -> dict[str, Any]:
         detail=(
             f"protocol=1 broker={str(loaded_broker)[:12]} extension={str(loaded_extension)[:12]}"
             if ok
-            else "loaded broker or extension differs from the deployed protocol-1 build"
+            else "loaded broker or extension differs from the packaged protocol-1 build"
         ),
         surface="running Comet Control broker and extension",
         fix="-" if ok else "With no active leases, restart the broker and reload the Comet extension.",
@@ -128,47 +125,32 @@ def _loaded_build_check(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def _broker_check() -> dict[str, Any]:
-    missing = [str(path) for path in (SOURCE_BROKER, DEPLOY_BROKER) if not path.is_file()]
-    drifted = _sha(SOURCE_BROKER) != _sha(DEPLOY_BROKER)
-    ok = not missing and not drifted
-    detail = "source and deployed broker match" if ok else (
-        f"missing: {', '.join(missing)}" if missing else "broker source differs from deploy"
-    )
+    ok = SOURCE_BROKER.is_file()
     return _check(
-        "broker_synced",
+        "broker_present",
         ok,
         severity="blocking",
-        detail=detail,
-        surface="plugin/comet_control/native + deploy/native",
-        fix="-" if ok else "Run scripts/sync-wip.sh with an empty lease inventory.",
+        detail="broker present" if ok else f"missing: {SOURCE_BROKER}",
+        surface="plugin/comet_control/native/broker.py",
+        fix="-" if ok else "Restore plugin/comet_control/native/broker.py.",
     )
 
 
 def _extension_check() -> dict[str, Any]:
-    missing = [name for name in DRIFT_FILES if not (DEPLOY_EXTENSION / name).is_file()]
-    drifted = [
-        name
-        for name in DRIFT_FILES
-        if not missing and _sha(SOURCE_EXTENSION / name) != _sha(DEPLOY_EXTENSION / name)
-    ]
-    ok = not missing and not drifted
-    detail = "extension source matches deploy" if ok else (
-        f"missing deploy files: {', '.join(missing)}"
-        if missing
-        else f"source differs from deploy: {', '.join(drifted)}"
-    )
+    missing = [name for name in DRIFT_FILES if not (SOURCE_EXTENSION / name).is_file()]
+    ok = not missing
     return _check(
-        "extension_synced",
+        "extension_present",
         ok,
         severity="blocking",
-        detail=detail,
-        surface="plugin/comet_control/extension + deploy/extension",
-        fix="-" if ok else "Run scripts/sync-wip.sh with an empty lease inventory.",
+        detail="extension present" if ok else f"missing: {', '.join(missing)}",
+        surface="plugin/comet_control/extension",
+        fix="-" if ok else "Restore plugin/comet_control/extension.",
     )
 
 
 def _cursor_assets_check() -> dict[str, Any]:
-    manifest_path = DEPLOY_EXTENSION / "manifest.json"
+    manifest_path = SOURCE_EXTENSION / "manifest.json"
     try:
         manifest = json.loads(manifest_path.read_text())
         resources = [
@@ -182,18 +164,18 @@ def _cursor_assets_check() -> dict[str, Any]:
             "cursor_assets_present",
             False,
             severity="blocking",
-            detail=f"deployed manifest unreadable: {error}",
-            surface="deploy/extension/manifest.json",
-            fix="Run scripts/sync-wip.sh.",
+            detail=f"extension manifest unreadable: {error}",
+            surface="plugin/comet_control/extension/manifest.json",
+            fix="Restore plugin/comet_control/extension/manifest.json.",
         )
-    missing = [resource for resource in resources if not (DEPLOY_EXTENSION / resource).is_file()]
+    missing = [resource for resource in resources if not (SOURCE_EXTENSION / resource).is_file()]
     return _check(
         "cursor_assets_present",
         not missing,
         severity="blocking",
         detail=(f"{len(resources)} cursor assets present" if not missing else f"missing: {', '.join(missing)}"),
-        surface="deploy/extension/images",
-        fix="-" if not missing else "Restore source assets and run scripts/sync-wip.sh.",
+        surface="plugin/comet_control/extension/images",
+        fix="-" if not missing else "Restore plugin/comet_control/extension/images.",
     )
 
 

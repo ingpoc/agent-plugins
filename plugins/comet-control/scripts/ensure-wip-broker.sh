@@ -8,7 +8,7 @@ MODE="${1:-probe}"
 [[ "${1:-}" == "--json" ]] && shift
 [[ $# -eq 0 ]] || { echo "Usage: ensure-wip-broker.sh [probe|start] [--json]" >&2; exit 2; }
 
-BROKER="$ROOT/deploy/native/broker.py"
+BROKER="$ROOT/plugin/comet_control/native/broker.py"
 RUN="$ROOT/run"
 SOCKET="$RUN/comet-control.sock"
 PID_FILE="$RUN/comet-control-broker.pid"

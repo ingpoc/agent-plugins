@@ -7,7 +7,7 @@ This is the suite that guards the three trust-breaking defects fixed on
 2026-05-28 — see references/optimize.md "Click-reliability invariants".
 
 Prerequisites:
-  1. WIP bridge deployed + running: scripts/sync-wip.sh (Comet open,
+  1. Broker running and extension loaded from plugin/comet_control/extension (Comet open,
      extension loaded)
   2. A compatible dashboard reachable at COMET_CONTROL_TEST_URL (default
      http://localhost:9876 — the Autonomous Agent Builder dashboard, whose nav
@@ -93,7 +93,7 @@ def check(name, ok, detail=""):
 def bridge_or_skip() -> None:
     if not os.path.exists(SOCK):
         raise SkipSuite(
-            f"bridge socket not found at {SOCK} — run scripts/sync-wip.sh with Comet open"
+            f"bridge socket not found at {SOCK} — start the broker with Comet open"
         )
     try:
         st = bridge({"type": "status", "timeoutSeconds": 5}, timeout=7)

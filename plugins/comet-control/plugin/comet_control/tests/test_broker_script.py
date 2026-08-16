@@ -22,9 +22,9 @@ class BrokerScriptTests(unittest.TestCase):
     def test_start_owns_only_repo_runtime_and_probe_is_read_only(self) -> None:
         with tempfile.TemporaryDirectory(prefix="ccb-", dir="/tmp") as raw:
             root = Path(raw)
-            deploy = root / "deploy/native"
-            deploy.mkdir(parents=True)
-            shutil.copy2(BROKER, deploy / "broker.py")
+            native = root / "plugin/comet_control/native"
+            native.mkdir(parents=True)
+            shutil.copy2(BROKER, native / "broker.py")
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as port_probe:
                 port_probe.bind(("127.0.0.1", 0))
                 port = port_probe.getsockname()[1]

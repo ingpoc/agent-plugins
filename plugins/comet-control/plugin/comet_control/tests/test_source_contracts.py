@@ -777,23 +777,7 @@ class SourceContractTests(unittest.TestCase):
             source.split("async function probeContentScript", 1)[1],
         )
 
-    def test_deploy_extension_mirrors_plugin_service_worker(self) -> None:
-        deploy = ROOT.parents[1] / "deploy" / "extension" / "service_worker.js"
-        self.assertTrue(deploy.is_file())
-        self.assertEqual(
-            SERVICE_WORKER.read_text(),
-            deploy.read_text(),
-            "deploy/extension/service_worker.js is stale; run scripts/sync-wip.sh",
-        )
-
-    def test_deploy_extension_mirrors_plugin_parity_capabilities(self) -> None:
-        deploy = ROOT.parents[1] / "deploy" / "extension" / "parity_capabilities.js"
-        self.assertTrue(deploy.is_file(), "deploy/extension/parity_capabilities.js missing")
-        self.assertEqual(
-            PARITY_CAPABILITIES.read_text(),
-            deploy.read_text(),
-            "deploy/extension is stale; run scripts/sync-wip.sh after editing plugin/",
-        )
+    def test_parity_capabilities_resolve_named_targets(self) -> None:
         self.assertIn("resolveNamed", PARITY_CAPABILITIES.read_text())
 
     def test_preflight_failure_uses_verified_cleanup_without_dropping_ownership(self) -> None:

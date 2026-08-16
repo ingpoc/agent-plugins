@@ -9,9 +9,8 @@ belongs in [`operate.md`](operate.md); plugin invariants belong in
 
 This skill controls only the plugin root (the directory with `plugin.json`):
 
-Source lives in `plugin/comet_control/`, deployment lives in `deploy/`, and the
-socket lives at `run/comet-control.sock`. Use `scripts/sync-wip.sh` after source
-changes. Never run the copied production `plugin/comet_control/scripts/sync.sh`
+Source and the unpacked extension live in `plugin/comet_control/`. The
+socket lives at `run/comet-control.sock`. Never run the copied production `plugin/comet_control/scripts/sync.sh`
 or `preflight.sh`; both target live paths under `~/.codex` / `~/.comet-control` and are
 outside this WIP runtime.
 
@@ -49,7 +48,7 @@ For a debugger/extension-URL error, first run `page_context` alone. If it works
 and only `screenshot` fails, inspect the deployed viewport screenshot path: it
 must use `chrome.tabs.captureVisibleTab`, not CDP. If `page_context` also fails,
 use `$macos-cua` only inside Comet for visible `chrome://extensions`
-administration. Load `deploy/extension` there once; do not copy, inspect,
+administration. Load `plugin/comet_control/extension` there once; do not copy, inspect,
 export, or print the Comet profile or credential
 database.
 
@@ -101,7 +100,7 @@ should identify the owning layer.
 | Agents collide | Missing/invalid lease identity | Require distinct ids and matching private tokens; no active-tab fallback |
 | Lease vanishes | Owned-window grouping or lifecycle | Confirm owned windows are never tab-grouped |
 | Extension reload rejected | Live leases exist | Close leases first; reload only from an empty inventory |
-| Source edit has no effect | WIP deploy is stale | Run `scripts/sync-wip.sh`, reload extension, rerun the original proof |
+| Source edit has no effect | Comet still has the old unpacked build | Reload `plugin/comet_control/extension`, rerun the original proof |
 | `LEASE_HELD` after driver died; `busy: true` orphan | Orphan reclaim in `sessionPreflight` / reap | Confirm `stuckBusyStale` + busy-past-ttl reap; close orphan window if targets still present; never invent a new session id |
 | `already leased by another caller` / `Invalid browser lease token` after a short `python3 -c` / one-shot `comet_control_run`; `sessions` still shows the id with `busy: false` | Lease token is **process-local**. The shell exited before closeout; extension still owns the window; next process has no token | Same session id only. Start `durable_lease_controller.py` (or keep one `lease_driver` alive) for the whole campaign; wait for orphan reclaim — do **not** invent a second session id, and do not drive multi-step fills with one-shot shells |
 | `EXTENSION_TIMEOUT` / “content script missing” after Seller Dispatch click | `window.prompt` freezes the content-script click reply; mislabeled as missing; reload dismisses the prompt | Comet Control owns JS prompts: `click_text` returns `dialog_opened` → batch/next `dialog_handle` + `promptText`. Never reload while a JS dialog is open. OS-native UI is `$macos-cua` ownership, not a Comet Control retry |
@@ -120,9 +119,9 @@ should identify the owning layer.
 | Tool argument mapping | `plugin/comet_control/tools.py` | Unit tests plus one live mapped action |
 | Skill routing or payloads | `skills/comet-control/` | `skills/comet-control/scripts/validate.sh --strict` plus live path named by the edit |
 
-Edit the owner, run `scripts/sync-wip.sh` for runtime code, reload the unpacked
-extension only when the sessions inventory is empty, and rerun the complete
-failing workflow. Do not compensate for code defects with skill prose.
+Edit the owner, reload `plugin/comet_control/extension` only when the sessions
+inventory is empty, and rerun the complete failing workflow. Do not compensate
+for code defects with skill prose.
 
 ## Validation matrix
 

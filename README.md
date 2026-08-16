@@ -13,8 +13,7 @@ plugins/agent-computer-use/
 plugins/comet-control/
 ├── plugin.json
 ├── skills/comet-control/
-├── plugin/comet_control/   # extension + broker source
-└── deploy/                 # unpacked Comet extension
+└── plugin/comet_control/   # extension + broker
 ```
 
 ## Add another plugin
