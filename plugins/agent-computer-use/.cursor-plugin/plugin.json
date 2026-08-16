@@ -1,9 +1,8 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agent-computer-use",
+  "displayName": "Agent Computer Use",
   "version": "0.2.9",
   "description": "Native macOS computer use through a 5-tool MCP facade over compact AX-first macos-cua workflows.",
-  "logo": "assets/logo.svg",
   "author": {
     "name": "ingpoc",
     "url": "https://github.com/ingpoc"
@@ -16,5 +15,8 @@
     "computer-use",
     "accessibility",
     "automation"
-  ]
+  ],
+  "logo": "assets/logo.svg",
+  "skills": "./skills/",
+  "mcpServers": "./mcp.json"
 }

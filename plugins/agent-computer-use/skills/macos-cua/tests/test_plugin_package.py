@@ -29,8 +29,14 @@ class PluginPackageTests(unittest.TestCase):
             "license",
             "keywords",
             "extensions",
+            "logo",
         }
         self.assertEqual(extra, set())
+        self.assertEqual(data["logo"], "assets/logo.svg")
+        self.assertTrue((PLUGIN_ROOT / data["logo"]).is_file())
+        cursor = json.loads((PLUGIN_ROOT / ".cursor-plugin/plugin.json").read_text())
+        self.assertEqual(cursor["logo"], "assets/logo.svg")
+        self.assertEqual(cursor["name"], "agent-computer-use")
 
     def test_mcp_uses_packaged_relative_command(self):
         config = json.loads((PLUGIN_ROOT / "mcp.json").read_text())
