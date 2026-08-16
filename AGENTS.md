@@ -16,6 +16,7 @@ Install target is `plugins/<name>/` (the directory with `plugin.json`). Never th
 | Trigger | First hop |
 | --- | --- |
 | Install a plugin | Agent install. Do not dump steps. |
+| Create or add a plugin | `$agent-plugin-creator`. Fetch [spec](https://github.com/agentplugins/agent-plugins-spec), [plugin-authors](https://agent-plugins.org/plugin-authors), and [manifest](https://agent-plugins.org/plugin-authors/manifest) first. Land in `plugins/<name>/` and update this table. |
 | Add or rename a plugin | `plugins/<name>/` → update the Plugins table here in the same pass |
 | Change plugin behavior | That plugin's `SKILL.md` and `mcp.json` |
 
@@ -38,6 +39,6 @@ Do not add `.cursor-plugin/`, `.codex-plugin/`, or a dual marketplace catalog. I
 
 ## Repo Rules
 
-- One portable package per `plugins/<name>/`.
+- One portable package per `plugins/<name>/`. Shape comes from the live spec, not this file.
 - Adding a plugin without updating the Plugins table is incomplete.
 - This repo is public. No personal case data.

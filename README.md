@@ -14,4 +14,4 @@ plugins/agent-computer-use/
 
 ## Add another plugin
 
-Use `$agent-plugin-creator` so the package lands in `plugins/<name>/` and the `AGENTS.md` Plugins table is updated. Do not add `.cursor-plugin/` or `.codex-plugin/` manifests.
+Use `$agent-plugin-creator`. It fetches the live [spec](https://github.com/agentplugins/agent-plugins-spec) and [plugin-authors](https://agent-plugins.org/plugin-authors) docs, writes `plugins/<name>/`, and updates the `AGENTS.md` Plugins table. Do not add `.cursor-plugin/` or `.codex-plugin/` manifests.
