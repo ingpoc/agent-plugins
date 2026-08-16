@@ -4,3 +4,4 @@ __pycache__/
 .session/
 .cache/
 *.egg-info/
+plugins/*/run/

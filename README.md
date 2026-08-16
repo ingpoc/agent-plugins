@@ -10,6 +10,11 @@ plugins/agent-computer-use/
 ├── mcp.json
 ├── skills/macos-cua/
 └── bin/
+plugins/comet-control/
+├── plugin.json
+├── skills/comet-control/
+├── plugin/comet_control/   # extension + broker source
+└── deploy/                 # unpacked Comet extension
 ```
 
 ## Add another plugin

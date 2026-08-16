@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#103247"/>
+      <stop offset="0.55" stop-color="#0b2230"/>
+      <stop offset="1" stop-color="#06141d"/>
+    </linearGradient>
+    <radialGradient id="bgglow" cx="0.42" cy="0.4" r="0.62">
+      <stop offset="0" stop-color="#1fa6d6" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#1684b4" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#1684b4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ptr" x1="0.15" y1="0.1" x2="0.85" y2="0.95">
+      <stop offset="0" stop-color="#9fe9ff"/>
+      <stop offset="0.4" stop-color="#3fc9ef"/>
+      <stop offset="1" stop-color="#0c93c9"/>
+    </linearGradient>
+    <linearGradient id="ptrrim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d6f6ff" stop-opacity="0.9"/>
+      <stop offset="0.5" stop-color="#d6f6ff" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#d6f6ff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="topshine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.4" result="b"/>
+      <feColorMatrix in="b" type="matrix"
+        values="0 0 0 0 0.18
+                0 0 0 0 0.78
+                0 0 0 0 0.95
+                0 0 0 0.95 0" result="g"/>
+      <feMerge>
+        <feMergeNode in="g"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- app squircle -->
+  <path id="sq" d="M64 4 C 28 4, 4 28, 4 64 C 4 100, 28 124, 64 124 C 100 124, 124 100, 124 64 C 124 28, 100 4, 64 4 Z" fill="url(#bg)"/>
+  <use href="#sq" fill="url(#bgglow)"/>
+
+  <!-- pointer (same shape as the cursor SVG), glowing cyan, centered & balanced -->
+  <g transform="translate(28.5 22) scale(0.1485)" filter="url(#glow)">
+    <path d="M27.4 4.8
+             C15.9 1.2 5.1 8.1 2.7 20.0
+             C1.5 25.5 2.1 31.4 4.0 36.7
+             L164.9 486.1
+             C169.0 497.7 177.2 507.2 188.1 507.2
+             C198.5 507.2 204.0 499.0 207.5 488.8
+             L275.9 277.9
+             L493.6 201.8
+             C504.2 198.1 511.1 191.4 510.6 183.6
+             C510.1 176.2 503.4 170.6 493.1 167.2
+             L38.5 8.1
+             C34.9 6.8 31.1 5.9 27.4 4.8
+             Z"
+          fill="url(#ptr)"
+          stroke="#bff0ff"
+          stroke-width="7"
+          stroke-linejoin="round"
+          stroke-opacity="0.55"/>
+    <!-- inner specular edge along the upper-left -->
+    <path d="M27.4 4.8 C15.9 1.2 5.1 8.1 2.7 20.0 C1.5 25.5 2.1 31.4 4.0 36.7 L120 372 L150 250 L300 200 Z"
+          fill="url(#ptrrim)" opacity="0.55"/>
+  </g>
+
+  <!-- glass shine -->
+  <path d="M64 4 C 28 4, 4 28, 4 64 C 30 36, 98 36, 124 64 C 124 28, 100 4, 64 4 Z" fill="url(#topshine)"/>
+</svg>

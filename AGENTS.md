@@ -25,6 +25,7 @@ Install target is `plugins/<name>/` (the directory with `plugin.json`). Never th
 | Name | Path | Extra the agent must also do |
 | --- | --- | --- |
 | `agent-computer-use` | `plugins/agent-computer-use/` | After a Cursor local copy, run `skills/macos-cua/scripts/install_harness.py cursor-plugin` (Cursor resolves `./bin` against the workspace, not the plugin root). Install [cua-driver](https://cua.ai/docs/cua-driver) if missing. Stop only for the OS prompt that grants Accessibility / Screen Recording to **Cua Driver.app**. |
+| `comet-control` | `plugins/comet-control/` | Requires Comet.app. First load: unpack deploy/extension in the logged-in Comet profile at chrome://extensions (use agent-computer-use for that chrome:// page). Never load it in Google Chrome. |
 
 ## Agent install
 

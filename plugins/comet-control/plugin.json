@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "comet-control",
+  "version": "0.1.0",
+  "author": {
+    "name": "ingpoc",
+    "url": "https://github.com/ingpoc"
+  },
+  "homepage": "https://github.com/ingpoc/agent-plugins",
+  "repository": "https://github.com/ingpoc/agent-plugins",
+  "license": "MIT",
+  "description": "Drive web apps through one leased visible Comet window. Use when an agent must control or verify pages in Comet without touching Google Chrome or Chrome profiles."
+}
