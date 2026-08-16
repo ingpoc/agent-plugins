@@ -12,7 +12,7 @@ plugins/agent-computer-use/
 
 That is the whole contract: root `plugin.json`, skills under `skills/`, MCP in `mcp.json`. Clients load the directory. Installation UX stays with the client.
 
-Agents: follow [`AGENTS.md`](AGENTS.md). You install the plugin. Fetch the current client's setup URL from [compatible-clients](https://agent-plugins.org/compatible-clients) and do the work. Do not hand the user an install recipe.
+Agents: follow [`AGENTS.md`](AGENTS.md). Find your client on [compatible-clients](https://agent-plugins.org/compatible-clients), open its setup link, and install `plugins/<name>/`. Do not hand the user a recipe.
 
 ## Add another plugin
 
