@@ -12,6 +12,8 @@ plugins/agent-computer-use/
 
 That is the whole contract: root `plugin.json`, skills under `skills/`, MCP in `mcp.json`. Clients load the directory. Installation UX stays with the client.
 
+Agents: follow [`AGENTS.md`](AGENTS.md). Detect the current client, open its setup link, install `plugins/<name>/`.
+
 ## Add another plugin
 
 Create `plugins/<name>/` with the same three files. Do not add `.cursor-plugin/` or `.codex-plugin/` manifests. Client extras, if ever needed, go in a reverse-domain folder the client documents (`com.example.client/`).
