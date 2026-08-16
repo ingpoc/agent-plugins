@@ -11,13 +11,196 @@ import json
 import os
 import re
 import shlex
+import socket
 import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
 
+_DRIVER_CALL_STATS = {"calls": 0, "stdout_bytes": 0}
+_DRIVER_SOCKET_STATE = {"sock": None}
+
+
+def reset_driver_call_stats():
+    _DRIVER_CALL_STATS["calls"] = 0
+    _DRIVER_CALL_STATS["stdout_bytes"] = 0
+
+
+def driver_call_stats():
+    return dict(_DRIVER_CALL_STATS)
+
+
+def _note_driver_call(stdout):
+    _DRIVER_CALL_STATS["calls"] += 1
+    if stdout is None:
+        return
+    if isinstance(stdout, bytes):
+        _DRIVER_CALL_STATS["stdout_bytes"] += len(stdout)
+    else:
+        _DRIVER_CALL_STATS["stdout_bytes"] += len(str(stdout).encode())
+
+
+def reset_driver_socket():
+    sock = _DRIVER_SOCKET_STATE["sock"]
+    _DRIVER_SOCKET_STATE["sock"] = None
+    if sock is None:
+        return
+    try:
+        sock.close()
+    except OSError:
+        pass
+
+
+def _driver_socket_path():
+    override = os.environ.get("MACOS_CUA_DRIVER_SOCKET")
+    if override:
+        return Path(override)
+    return Path.home() / "Library" / "Caches" / "cua-driver" / "cua-driver.sock"
+
+
+def _connect_driver_socket(timeout):
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    try:
+        sock.connect(os.fspath(_driver_socket_path()))
+    except OSError:
+        sock.close()
+        raise
+    return sock
+
+
+def _socket_recv_line(sock):
+    chunks = []
+    while True:
+        chunk = sock.recv(4096)
+        if not chunk:
+            raise OSError("cua-driver socket closed")
+        chunks.append(chunk)
+        if b"\n" in chunk:
+            break
+    return b"".join(chunks).split(b"\n", 1)[0].decode()
+
+
+def _socket_call(tool_name, params, timeout):
+    sock = _DRIVER_SOCKET_STATE["sock"]
+    if sock is None:
+        sock = _connect_driver_socket(timeout)
+        _DRIVER_SOCKET_STATE["sock"] = sock
+    else:
+        sock.settimeout(timeout)
+    sock.sendall(
+        (
+            json.dumps(
+                {
+                    "method": "call",
+                    "name": tool_name,
+                    "args": params or {},
+                }
+            )
+            + "\n"
+        ).encode()
+    )
+    line = _socket_recv_line(sock)
+    try:
+        envelope = json.loads(line)
+    except json.JSONDecodeError as exc:
+        raise ValueError("cua-driver socket returned invalid JSON") from exc
+    if not isinstance(envelope, dict):
+        raise ValueError("cua-driver socket returned a non-object")
+    return envelope
+
+
+def _timeout_error(tool_name, timeout):
+    return {
+        "error": f"cua-driver socket call '{tool_name}' timed out after {timeout}s"
+    }
+
+
+def _socket_error(tool_name, exc):
+    return {"error": str(exc) or f"cua-driver socket call '{tool_name}' failed"}
+
+
+def _translate_socket_envelope(envelope):
+    if envelope.get("ok") is True:
+        result = envelope.get("result")
+        structured = (
+            result.get("structuredContent") if isinstance(result, dict) else None
+        )
+        if isinstance(structured, dict):
+            return structured
+        if isinstance(result, dict) and result.get("isError"):
+            content = result.get("content")
+            text = ""
+            if isinstance(content, list) and content:
+                first = content[0]
+                if isinstance(first, dict):
+                    text = str(first.get("text") or "").strip()
+            return {"error": text or "cua-driver reported an error with no text"}
+        return {
+            "error": "cua-driver socket response had no structuredContent",
+            "raw": json.dumps(envelope)[:500],
+        }
+    if envelope.get("ok") is False:
+        return {"error": str(envelope.get("error") or "").strip()}
+    raise ValueError("cua-driver socket returned an invalid envelope")
+
+
+def _attempt_socket_call(tool_name, params, timeout):
+    return _translate_socket_envelope(_socket_call(tool_name, params, timeout))
+
+
+def _retry_after_restart(tool_name, params, timeout):
+    if not _restart_driver_daemon():
+        return None
+    try:
+        return _attempt_socket_call(tool_name, params, timeout)
+    except TimeoutError:
+        reset_driver_socket()
+        return _timeout_error(tool_name, timeout)
+    except OSError as exc:
+        reset_driver_socket()
+        return _socket_error(tool_name, exc)
+    except (ValueError, UnicodeDecodeError) as exc:
+        reset_driver_socket()
+        return {"error": str(exc)}
+
+
+def _call_driver_socket(tool_name, params, timeout, recover_timeout):
+    try:
+        return _attempt_socket_call(tool_name, params, timeout)
+    except TimeoutError:
+        reset_driver_socket()
+        if recover_timeout:
+            recovered = _retry_after_restart(tool_name, params, timeout)
+            if recovered is not None:
+                return recovered
+        return _timeout_error(tool_name, timeout)
+    except OSError:
+        reset_driver_socket()
+        try:
+            return _attempt_socket_call(tool_name, params, timeout)
+        except TimeoutError:
+            reset_driver_socket()
+            if recover_timeout:
+                recovered = _retry_after_restart(tool_name, params, timeout)
+                if recovered is not None:
+                    return recovered
+            return _timeout_error(tool_name, timeout)
+        except OSError as retry_exc:
+            reset_driver_socket()
+            if recover_timeout:
+                recovered = _retry_after_restart(tool_name, params, timeout)
+                if recovered is not None:
+                    return recovered
+            return _socket_error(tool_name, retry_exc)
+    except (ValueError, UnicodeDecodeError) as exc:
+        reset_driver_socket()
+        return {"error": str(exc)}
+
+
 def _restart_driver_daemon():
+    reset_driver_socket()
     try:
         result = subprocess.run(
             [
@@ -36,48 +219,11 @@ def _restart_driver_daemon():
 
 
 def call_driver(tool_name, params=None, timeout=30, _recover_timeout=True):
-    # ALWAYS pass a params argv (even "{}") and close stdin: without an argv
-    # params the CLI reads params from stdin and blocks forever on inherited
-    # agent-shell pipes. This was the entire "wedged daemon" failure mode.
-    cmd = [CUA_DRIVER, "call", tool_name, json.dumps(params or {})]
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            stdin=subprocess.DEVNULL,
-        )
-    except subprocess.TimeoutExpired:
-        if _recover_timeout and _restart_driver_daemon():
-            return call_driver(
-                tool_name, params, timeout=timeout, _recover_timeout=False
-            )
-        return {"error": f"cua-driver call '{tool_name}' timed out after {timeout}s"}
-    if result.returncode != 0:
-        return {"error": (result.stderr or result.stdout).strip()}
-    try:
-        return json.loads(result.stdout)
-    except json.JSONDecodeError:
-        # cua-driver 0.8.x still emits an explicit human success sentinel for
-        # a few AX mutations (notably set_value). Preserve that documented
-        # transport contract without treating arbitrary non-JSON output as a
-        # successful tool result.
-        raw = result.stdout.strip()
-        if raw.startswith("✅ "):
-            return {"ok": True, "message": raw[2:].strip()}
-        if tool_name == "right_click" and re.fullmatch(
-            r"(?:Shown menu for \[\d+\] .+ \(AXShowMenu\)\."
-            r"|Right-clicked \[\d+\] .+ at element center \([^)]+\) "
-            r"\(pixel right-click; element advertises no AXShowMenu\)\.)",
-            raw,
-        ):
-            return {"ok": True, "message": raw}
-        return {
-            "ok": False,
-            "error": "cua-driver returned invalid JSON",
-            "raw": raw[:500],
-        }
+    started = time.monotonic()
+    result = _call_driver_socket(tool_name, params, timeout, _recover_timeout)
+    telemetry_record_driver(time.monotonic() - started)
+    _note_driver_call(json.dumps(result))
+    return result
 
 
 def _driver_max_image_dimension():

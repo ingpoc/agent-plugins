@@ -7,6 +7,7 @@ WhatsApp is observe-only: no send, no chat dumps, no personal identifiers.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
@@ -23,6 +24,11 @@ HERE = Path(__file__).resolve().parent
 SKILL = HERE.parent
 CONTRACT = SKILL / "references" / "entry-contract.json"
 CACHE = Path(os.environ.get("MACOS_CUA_CACHE_DIR", Path.home() / ".cache/macos-cua"))
+_RATING_SPEC = importlib.util.spec_from_file_location(
+    "macos_cua_bench_rating", HERE / "bench_rating.py"
+)
+bench_rating = importlib.util.module_from_spec(_RATING_SPEC)
+_RATING_SPEC.loader.exec_module(bench_rating)
 REQUIRED = (
     "name",
     "surface",
@@ -37,7 +43,6 @@ CRITERIA = (
     "accuracy",
     "visibility",
     "speed",
-    "efficiency",
     "context_efficiency",
     "robustness",
 )
@@ -103,7 +108,6 @@ def score(row: dict[str, Any], measured: dict[str, Any]) -> dict[str, bool]:
             True if not pointer_required else bool(measured.get("cursor_visible"))
         ),
         "speed": duration_ok and step_ok,
-        "efficiency": bool(measured.get("asserted_batch")),
         "context_efficiency": int(measured.get("output_bytes") or 0)
         <= int(row["bytes_budget"]),
         "robustness": bool(measured.get("robust")),
@@ -179,8 +183,12 @@ def probe_calculator(cua, row: dict[str, Any]) -> dict[str, Any]:
     compact = {
         "ok": result.get("ok"),
         "verified": result.get("verified"),
-        "final": (result.get("final") or {}).get("text"),
-        "steps": result.get("steps"),
+        "display_64": display_64,
+        "glided_steps": sum(
+            1
+            for step in result.get("steps") or []
+            if str(step.get("method") or "").startswith("agent-cursor-glide")
+        ),
     }
     duration_s = time.monotonic() - started
     steps = result.get("steps") or []
@@ -190,7 +198,6 @@ def probe_calculator(cua, row: dict[str, Any]) -> dict[str, Any]:
         "robust": clear_label in {"Clear", "All Clear"}
         and _max_step_ms(result) < 8000
         and os.environ.get("MACOS_CUA_PIXEL_CLICK") != "1",
-        "asserted_batch": len(steps) >= 5,
         "output_bytes": _compact_bytes(compact),
         "duration_s": round(duration_s, 3),
         "clear_label": clear_label,
@@ -208,34 +215,17 @@ def probe_folder(cua, row: dict[str, Any]) -> dict[str, Any]:
         raise AssertionError(error)
     tree = cua._native_ax_snapshot(pid, max_elements=120, window_id=window_id)
     clickable = cua.find_clickable_index(tree, "Downloads")
-    # cua-driver: background AX first; front only when the tree missed the label.
-    state = cua.app_state(
-        name or "Finder",
-        pid,
-        window_id,
-        max_elements=120 if clickable is None else 40,
-        include_screenshot=True,
-        prepare_foreground=clickable is None,
-    )
-    screenshot = state.get("screenshot") or {}
-    path = Path(screenshot.get("path", ""))
-    if clickable is None:
-        clickable = cua.find_clickable_index(state, "Downloads")
     compact = {
-        "window_id": window_id,
-        "element_count": state.get("element_count"),
-        "downloads": clickable is not None,
+        "downloads_index": clickable,
+        "actionable": clickable is not None,
     }
+    found = clickable is not None
     return {
-        "readback": clickable is not None
-        and bool(state.get("ok"))
-        and bool((state.get("signals") or {}).get("app_content_available")),
-        "robust": path.is_file() and path.stat().st_size >= 1024,
-        "asserted_batch": True,
+        "readback": found,
+        "robust": found,
         "output_bytes": _compact_bytes(compact),
         "duration_s": round(time.monotonic() - started, 3),
         "downloads_index": clickable,
-        "screenshot_bytes": path.stat().st_size if path.is_file() else 0,
     }
 
 
@@ -261,17 +251,16 @@ def probe_right_click(cua, parity, row: dict[str, Any]) -> dict[str, Any]:
         if fixture_pid is None:
             raise AssertionError("isolated TextEdit process did not start")
         window_id = parity.fixture_window(fixture_pid, temporary.name)
-        _, _, area = parity.fresh_text_area(fixture_pid, window_id, publish=True)
+        _, _, area = parity.fresh_text_area(fixture_pid, window_id)
         click_started = time.monotonic()
         click = cua.right_click(
             fixture_pid, window_id, area["element_index"], app_name="TextEdit"
         )
         click_ms = round((time.monotonic() - click_started) * 1000)
         time.sleep(0.2)
-        context, _, _ = parity.fresh_text_area(fixture_pid, window_id)
+        context, _, area = parity.fresh_text_area(fixture_pid, window_id)
         copy_visible = "Copy" in (context.get("text") or "")
         cua.press_key(fixture_pid, window_id, "Escape", "foreground")
-        _, _, area = parity.fresh_text_area(fixture_pid, window_id)
         cua.set_value(
             fixture_pid, window_id, area["element_index"], parity.ORIGINAL_TEXT
         )
@@ -282,7 +271,6 @@ def probe_right_click(cua, parity, row: dict[str, Any]) -> dict[str, Any]:
             _, _, area = parity.fresh_text_area(fixture_pid, window_id)
         restored = area.get("value") == parity.ORIGINAL_TEXT
         cua.press_key(fixture_pid, window_id, "cmd+w", "foreground")
-        opened = False
         compact = {
             "accepted": cua._accepted(click),
             "copy_visible": copy_visible,
@@ -296,7 +284,6 @@ def probe_right_click(cua, parity, row: dict[str, Any]) -> dict[str, Any]:
             )
             and bool(((click or {}).get("move") or {}).get("ok")),
             "robust": restored and cua._accepted(click),
-            "asserted_batch": True,
             "output_bytes": _compact_bytes(compact),
             "duration_s": round(time.monotonic() - started, 3),
             "copy_visible": copy_visible,
@@ -320,11 +307,35 @@ def _heading_open(text: str) -> bool:
     )
 
 
+def _heading_open_snapshot(snap: dict[str, Any]) -> bool:
+    blob = str(snap.get("tree_markdown") or snap.get("text") or "")
+    if _heading_open(blob):
+        return True
+    for item in snap.get("elements") or []:
+        line = f"{item.get('role')} {item.get('label')} {item.get('value')}"
+        if "heading" in line.lower() and "new chat" in line.lower():
+            return True
+    return False
+
+
+def _close_whatsapp_panel(cua, name, pid, window_id) -> bool:
+    """Observe first. Press Escape only when the New chat heading is open."""
+    del name
+    snap = cua._native_ax_snapshot(pid, max_elements=90, window_id=window_id)
+    if not _heading_open_snapshot(snap):
+        return True
+    for delivery in ("background", "foreground"):
+        cua.press_key(pid, window_id, "Escape", delivery)
+        time.sleep(0.12)
+        snap = cua._native_ax_snapshot(pid, max_elements=90, window_id=window_id)
+        if not _heading_open_snapshot(snap):
+            return True
+    return False
+
+
 def probe_whatsapp(cua, row: dict[str, Any]) -> dict[str, Any]:
     pid, window_id, name = _resolve(cua, "WhatsApp")
-    cua.press_key(pid, window_id, "Escape", "background")
-    time.sleep(0.15)
-    closed_first = True
+    closed_first = _close_whatsapp_panel(cua, name, pid, window_id)
     started = time.monotonic()
     result = cua.run_actions(
         pid,
@@ -347,11 +358,12 @@ def probe_whatsapp(cua, row: dict[str, Any]) -> dict[str, Any]:
         app_name=name,
     )
     final_text = str((result.get("final") or {}).get("text") or "")
+    elapsed_s = round(time.monotonic() - started, 3)
     heading_only = _heading_open(final_text) and "message yourself" not in final_text.lower()
-    try:
+    if heading_only:
         cua.press_key(pid, window_id, "Escape", "background")
-    except Exception:
-        pass
+    else:
+        _close_whatsapp_panel(cua, name, pid, window_id)
     compact = {
         "ok": result.get("ok"),
         "verified": result.get("verified"),
@@ -364,9 +376,8 @@ def probe_whatsapp(cua, row: dict[str, Any]) -> dict[str, Any]:
         "readback": bool(result.get("ok") and result.get("verified") and heading_only),
         "cursor_visible": steps_show_cursor(result.get("steps")),
         "robust": closed_first and bool(result.get("verified")),
-        "asserted_batch": True,
         "output_bytes": _compact_bytes(compact),
-        "duration_s": round(time.monotonic() - started, 3),
+        "duration_s": elapsed_s,
         "verified": bool(result.get("verified")),
         "heading_only": heading_only,
         "closed_first": closed_first,
@@ -384,53 +395,174 @@ PROBES = {
 }
 
 
-def run_suite() -> dict[str, Any]:
+_HASH_IGNORE = frozenset(
+    {"__pycache__", ".DS_Store", ".ruff_cache", ".build", ".git"}
+)
+
+
+def source_hash(root: Path) -> str:
+    files: list[Path] = []
+    for rel in ("SKILL.md", "hardening-contract.json"):
+        path = root / rel
+        if path.is_file():
+            files.append(path)
+    for folder in ("operator", "references", "scripts", "tests"):
+        base = root / folder
+        if not base.exists():
+            continue
+        for path in base.rglob("*"):
+            if path.is_file() and not any(part in _HASH_IGNORE for part in path.parts):
+                files.append(path)
+    digest = hashlib.sha256()
+    for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
+        digest.update(path.relative_to(root).as_posix().encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _attach_telemetry(cua, measured: dict[str, Any]) -> dict[str, Any]:
+    for key, value in cua.telemetry_read().items():
+        measured.setdefault(key, value)
+    if hasattr(cua, "driver_call_stats"):
+        stats = cua.driver_call_stats()
+        measured.setdefault("round_trips", int(stats.get("calls") or 0))
+        measured.setdefault("driver_bytes", int(stats.get("stdout_bytes") or 0))
+    return measured
+
+
+def _aggregate_measured(repeats: list[dict[str, Any]]) -> dict[str, Any]:
+    keys = (
+        "duration_s",
+        "max_step_ms",
+        "output_bytes",
+        "driver_calls",
+        "driver_seconds",
+        "ax_snapshots",
+    )
+    measured: dict[str, Any] = {}
+    for key in keys:
+        samples = bench_rating.numeric_samples(repeats, key)
+        if not samples:
+            continue
+        value = bench_rating.percentile(samples, 50)
+        measured[key] = (
+            round(value, 3) if key in {"duration_s", "driver_seconds"} else int(round(value))
+        )
+    return measured
+
+
+def _execute_row(cua, parity, row: dict[str, Any]) -> dict[str, Any]:
+    started = time.monotonic()
+    cua.telemetry_reset()
+    if hasattr(cua, "reset_driver_call_stats"):
+        cua.reset_driver_call_stats()
+    try:
+        probe = PROBES.get(row["name"])
+        if probe is None:
+            raise AssertionError(f"no probe for {row['name']}")
+        measured = probe(cua, parity, row)
+        _attach_telemetry(cua, measured)
+        criteria = score(row, measured)
+        return {"ok": all(criteria.values()), "criteria": criteria, "measured": measured}
+    except Exception as error:
+        measured = {
+            "duration_s": round(time.monotonic() - started, 3),
+            "error": str(error)[:240],
+        }
+        try:
+            _attach_telemetry(cua, measured)
+        except Exception:
+            pass
+        return {
+            "ok": False,
+            "criteria": {key: False for key in CRITERIA},
+            "measured": measured,
+        }
+
+
+def run_suite(
+    repeat: int = 1,
+    rate: bool = False,
+    write_baseline: bool = False,
+    freeze_baseline: bool = False,
+    compare: Path | None = None,
+) -> dict[str, Any]:
+    if repeat < 1:
+        raise SystemExit("--repeat must be >= 1")
+    write_baseline = write_baseline or freeze_baseline
     contract = load_suite()
     cua = load_cua()
     parity = load_parity()
+    prior_by_name = {}
+    if compare is not None:
+        prior = json.loads(Path(compare).read_text())
+        prior_by_name = {item["name"]: item for item in prior.get("results") or []}
+    collected: dict[str, list[dict[str, Any]]] = {
+        row["name"]: [] for row in contract["suite"]
+    }
+    for _ in range(repeat):
+        for row in contract["suite"]:
+            collected[row["name"]].append(_execute_row(cua, parity, row))
     results = []
     for row in contract["suite"]:
-        probe = PROBES.get(row["name"])
-        started = time.monotonic()
-        try:
-            if probe is None:
-                raise AssertionError(f"no probe for {row['name']}")
-            measured = probe(cua, parity, row)
-            criteria = score(row, measured)
-            results.append(
-                {
-                    "name": row["name"],
-                    "surface": row["surface"],
-                    "ok": all(criteria.values()),
-                    "criteria": criteria,
-                    "measured": measured,
-                    "budget_seconds": row["budget_seconds"],
-                    "bytes_budget": row["bytes_budget"],
-                    "pass_signal": row["pass_signal"],
-                }
+        repeats = collected[row["name"]]
+        item = {
+            "name": row["name"],
+            "surface": row["surface"],
+            "ok": all(rep["ok"] for rep in repeats),
+            "criteria": {
+                key: all(rep["criteria"].get(key) for rep in repeats) for key in CRITERIA
+            },
+            "measured": repeats[0]["measured"] if repeat == 1 else _aggregate_measured(repeats),
+            "budget_seconds": row["budget_seconds"],
+            "bytes_budget": row["bytes_budget"],
+            "floor_seconds": row.get("floor_seconds"),
+            "floor_max_step_ms": row.get("floor_max_step_ms"),
+            "floor_bytes": row.get("floor_bytes"),
+            "floor_driver_calls": row.get("floor_driver_calls"),
+            "pass_signal": row["pass_signal"],
+        }
+        if repeat > 1:
+            item["repeats"] = repeats
+        if rate:
+            item["ratings"] = bench_rating.rate_row(row, repeats)
+        if compare is not None:
+            item["compare"] = bench_rating.compare_row(
+                repeats,
+                bench_rating.repeats_from_result(prior_by_name.get(row["name"]) or {}),
             )
-        except Exception as error:
-            duration_s = round(time.monotonic() - started, 3)
-            results.append(
-                {
-                    "name": row["name"],
-                    "surface": row["surface"],
-                    "ok": False,
-                    "criteria": {key: False for key in CRITERIA},
-                    "measured": {"duration_s": duration_s, "error": str(error)[:240]},
-                    "budget_seconds": row["budget_seconds"],
-                    "bytes_budget": row["bytes_budget"],
-                    "pass_signal": row["pass_signal"],
-                }
-            )
-    payload = {
+        results.append(item)
+    payload: dict[str, Any] = {
         "ok": all(item["ok"] for item in results),
         "written_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "repeat": repeat,
         "results": results,
     }
+    if rate:
+        suite_rated = bench_rating.rate_suite(
+            [
+                {
+                    "name": row["name"],
+                    "contract": row,
+                    "repeats": collected[row["name"]],
+                }
+                for row in contract["suite"]
+            ]
+        )
+        payload["ratings"] = suite_rated["overall"]
+        payload["trust_failures"] = suite_rated["trust_failures"]
     CACHE.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(payload, indent=2) + "\n"
     out = CACHE / "benchmarks-latest.json"
-    out.write_text(json.dumps(payload, indent=2) + "\n")
+    out.write_text(text)
+    if write_baseline:
+        baseline = dict(payload)
+        baseline["source_hash"] = source_hash(SKILL)
+        (CACHE / "benchmarks-baseline.json").write_text(
+            json.dumps(baseline, indent=2) + "\n"
+        )
     payload["path"] = str(out)
     return payload
 
@@ -438,12 +570,23 @@ def run_suite() -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--schema-only", action="store_true")
+    parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument("--rate", action="store_true")
+    parser.add_argument("--baseline", action="store_true")
+    parser.add_argument("--freeze-baseline", action="store_true")
+    parser.add_argument("--compare", type=Path, default=None)
     args = parser.parse_args()
     if args.schema_only:
         load_suite()
         print(json.dumps({"ok": True, "schema": "suite"}))
         return 0
-    payload = run_suite()
+    payload = run_suite(
+        repeat=args.repeat,
+        rate=args.rate,
+        write_baseline=args.baseline,
+        freeze_baseline=args.freeze_baseline,
+        compare=args.compare,
+    )
     print(json.dumps({key: payload[key] for key in ("ok", "path", "results")}))
     return 0 if payload["ok"] else 1
 

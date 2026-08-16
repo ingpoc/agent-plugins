@@ -377,7 +377,10 @@ def _main():
             result.update(apply_diff(result.get("app") or args.app, result.get("pid"), getattr(args, "query", None), result.get("text") or "", enabled=bool(getattr(args, "diff", False))))
         _emit_json(result, require_ok=True)
     elif args.command == "click":
-        _emit_json(click(pid, wid, args.element), require_accepted=True)
+        _emit_json(
+            click(pid, wid, args.element, app_name=name or args.app),
+            require_accepted=True,
+        )
     elif args.command == "click-point":
         _emit_json(
             click_point(
@@ -406,6 +409,7 @@ def _main():
                 x=args.x,
                 y=args.y,
                 delivery_mode="foreground" if args.foreground else "background",
+                app_name=name or args.app,
             ),
             require_accepted=True,
         )
@@ -414,11 +418,20 @@ def _main():
         element = args.element
         if element is None:
             element = find_clickable_index(fresh, args.label)
-        _emit_json(
-            perform_action(pid, wid, element, args.action, snapshot_data=fresh)
-            if element is not None
-            else {"error": "element not found"}
+        pre = pointer_preflight(
+            True, name or args.app, pid, wid, fresh, element,
+            f"Moving to {args.label or element}",
         )
+        if element is None:
+            outcome = {"error": "element not found"}
+        elif pre and not pre.get("ok"):
+            outcome = pre
+        else:
+            outcome = merge_pointer_proof(
+                perform_action(pid, wid, element, args.action, snapshot_data=fresh),
+                pre,
+            )
+        _emit_json(outcome)
     elif args.command == "drag":
         _emit_json(
             drag(
@@ -432,12 +445,6 @@ def _main():
                 duration_ms=args.duration_ms,
                 steps=args.steps,
                 app_name=name or args.app,
-            )
-        )
-    elif args.command == "type":
-        print(
-            json.dumps(
-                type_text(pid, wid, args.element, args.text), indent=2, default=str
             )
         )
     elif args.command == "type-text":
@@ -485,7 +492,7 @@ def _main():
             )
         )
     elif args.command == "right-click":
-        _emit_json(right_click(pid, wid, args.element))
+        _emit_json(right_click(pid, wid, args.element, app_name=name or args.app))
     elif args.command == "set-value":
         _emit_json(set_value(pid, wid, args.element, args.value))
     elif args.command == "select-text":
@@ -511,12 +518,7 @@ def _main():
         snap = snapshot(pid, wid, args.max_elements)
         idx = find_clickable_index(snap, args.text)
         print(json.dumps({"found": idx is not None, "element": idx, "text": args.text}))
-    elif args.command == "click-label":
-        _emit_json(
-            click_label_action(pid, wid, args.label, args.max_elements),
-            require_accepted=True,
-        )
-    elif args.command == "click-label-pointer":
+    elif args.command in ("click-label", "click-label-pointer"):
         result = click_label_pointer(
             pid,
             wid,
@@ -538,7 +540,9 @@ def _main():
             require_accepted=True,
         )
     elif args.command == "list-buttons":
-        snap = snapshot(pid, wid, args.max_elements)
+        snap = _native_ax_snapshot(pid, max_elements=args.max_elements, window_id=wid)
+        if snapshot_content_error(snap):
+            snap = snapshot(pid, wid, args.max_elements)
         if snapshot_content_error(snap):
             snap = _native_ax_snapshot_after_activation(pid, args.max_elements)
         if snapshot_content_error(snap):

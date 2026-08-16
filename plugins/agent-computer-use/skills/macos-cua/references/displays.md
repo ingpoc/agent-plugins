@@ -105,5 +105,4 @@ proof.
 ## Do not
 
 - Prepare, align, show, or move the cua-driver cursor before a primary pointer action.
-- Use `click-label` when operator must **see** the pointer.
 - Accept `publish` as movement proof; require the operator's rendered acknowledgement.

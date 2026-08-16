@@ -44,6 +44,24 @@
     "context_efficiency": 1,
     "robustness": 1
   },
+  "rating_model": {
+    "scale": "floats 0..10, rounded to 1 decimal",
+    "accuracy": "trust gate, not averaged into overall: 10.0 if readback passed every repeat else 0.0",
+    "visibility": "trust gate, not averaged into overall: 10.0 if visibility passed every repeat else 0.0; None when pointer_required is false",
+    "speed": "_floor_score(p50_duration, floor_seconds); when both floor_max_step_ms and measured p50 max step exist, average with _floor_score(p50_max_step, floor_max_step_ms)",
+    "reliability": "10 * pass_rate; if p95_duration/p50_duration > 1.5 subtract 2.0; never below 0",
+    "robustness": "10 * fraction of repeats with measured.robust true",
+    "efficiency": "_floor_score(p50_ax_snapshots, floor_ax_snapshots); None if floor_ax_snapshots is absent or null",
+    "token_efficiency": "_floor_score(p50_driver_calls, floor_driver_calls); None if floor_driver_calls is null",
+    "floor_score": "None if floor is null (unrated, not 0); 10.0 if p50<=0 (nothing spent); 0.0 if floor<=0 and p50>0; else 10 * clamp01(floor / p50)",
+    "overall": "unweighted mean of GRADED_KEYS (speed, reliability, robustness, efficiency, token_efficiency) that are not None; never count None as 0",
+    "unrated": "sorted GRADED_KEYS whose score is None",
+    "gated": "true when any trust gate (accuracy, visibility) is 0; trust_failures lists those rows",
+    "budget_gate": "budget_* is the fail-closed pass/fail gate in score_measured() and is never a rating denominator",
+    "floor_bytes": "len(json.dumps(minimal proof-bearing payload, separators=(',', ':')).encode()); calculator 52, folder 40, textedit 51, whatsapp 49. Bytes stay a budget gate, not a GRADED_KEYS axis",
+    "floor_ax_snapshots": "irreducible _native_ax_snapshot calls for the pass_signal: calculator 2 (button tree + independent AXStaticText 64), folder 1 (Downloads tree), textedit 3 (textarea, Copy menu, restore), whatsapp 2 (closed tree + AXHeading)",
+    "floor_driver_calls": "irreducible driver RPCs after native AX press: calculator 1 (cursor), folder 0 (observe-only), textedit 1 (glide), whatsapp 1 (glide). Do not count 5 calculator clicks as 5 driver calls"
+  },
   "suite": [
     {
       "name": "calculator-8x8",
@@ -55,7 +73,13 @@
       "budget_seconds": 25,
       "max_step_ms": 2500,
       "timeout_seconds": 60,
-      "bytes_budget": 12000
+      "bytes_budget": 12000,
+      "floor_seconds": 1.582,
+      "floor_max_step_ms": 106,
+      "floor_bytes": 52,
+      "floor_ax_snapshots": 2,
+      "floor_driver_calls": 1,
+      "floor_derivation": "launch 1.010 + snap 0.021 + 5x(native press 5.1ms + dwell 80ms + verify 21.3ms) + final query 0.021. AX floor 2. driver floor 1. bytes 52"
     },
     {
       "name": "folder-downloads",
@@ -66,7 +90,13 @@
       "pointer_required": false,
       "budget_seconds": 20,
       "timeout_seconds": 40,
-      "bytes_budget": 4000
+      "bytes_budget": 4000,
+      "floor_seconds": 0.358,
+      "floor_max_step_ms": null,
+      "floor_bytes": 40,
+      "floor_ax_snapshots": 1,
+      "floor_driver_calls": 0,
+      "floor_derivation": "one AX tree to resolve Downloads. Extra app_state+screenshot is waste. bytes 40"
     },
     {
       "name": "textedit-right-click",
@@ -78,7 +108,13 @@
       "budget_seconds": 30,
       "max_step_ms": 5000,
       "timeout_seconds": 60,
-      "bytes_budget": 8000
+      "bytes_budget": 8000,
+      "floor_seconds": 1.284,
+      "floor_max_step_ms": 85,
+      "floor_bytes": 51,
+      "floor_ax_snapshots": 3,
+      "floor_driver_calls": 1,
+      "floor_derivation": "launch 0.869 + 3 proof snaps (textarea, Copy, restore) + glide 0.085 + probe sleep 0.200. Extra snaps are waste. bytes 51"
     },
     {
       "name": "whatsapp-new-chat",
@@ -90,7 +126,13 @@
       "budget_seconds": 15,
       "max_step_ms": 4000,
       "timeout_seconds": 30,
-      "bytes_budget": 800
+      "bytes_budget": 800,
+      "floor_seconds": 0.125,
+      "floor_max_step_ms": 115,
+      "floor_bytes": 49,
+      "floor_ax_snapshots": 2,
+      "floor_driver_calls": 1,
+      "floor_derivation": "closed-tree snap + heading verify. Extra Escape/app_state loops are waste. bytes 49"
     }
   ],
   "gate": {

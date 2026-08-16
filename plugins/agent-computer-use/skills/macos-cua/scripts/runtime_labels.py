@@ -180,13 +180,13 @@ def click_label_pointer(
     return payload
 
 
-def click_with_retry(pid, window_id, element_index, max_elements=120):
-    res = click(pid, window_id, element_index)
+def click_with_retry(pid, window_id, element_index, max_elements=120, *, app_name=None):
+    res = click(pid, window_id, element_index, app_name=app_name)
     if isinstance(res, dict) and any(
         marker in str(res) for marker in ("not found in cache", "AX action failed")
     ):
         snapshot(pid, window_id, max_elements=max_elements)
-        res = click(pid, window_id, element_index)
+        res = click(pid, window_id, element_index, app_name=app_name)
     return res
 
 
@@ -220,68 +220,6 @@ def _native_ax_press_label_with_retry(
             snap, idx = fresh, fresh_idx
             res = _native_ax_press(snap, idx)
     return res, snap, idx
-
-
-def click_label_action(pid, window_id, label, max_elements=120):
-    snap = _native_ax_snapshot(pid, max_elements=max_elements, window_id=window_id)
-    idx = find_clickable_index(snap, label)
-    native_fallback = idx is not None
-    visual_fallback = False
-    force_pixel = os.environ.get("MACOS_CUA_PIXEL_CLICK") == "1"
-    if snapshot_content_error(snap) or idx is None:
-        snap = snapshot(pid, window_id, max_elements=max_elements)
-        idx = find_clickable_index(snap, label)
-        native_fallback = False
-    if idx is None and force_pixel:
-        visual = _vision_snapshot_after_activation(
-            pid,
-            window_id,
-            max_elements=max_elements,
-        )
-        visual_idx = find_visual_index(visual, label)
-        if visual_idx is not None:
-            snap = visual
-            idx = visual_idx
-            visual_fallback = True
-    if idx is None:
-        return {
-            "ok": False,
-            "error": "not found",
-            "label": label,
-            "snapshot_error": snapshot_content_error(snap),
-        }
-    center = element_center(snap, idx)
-    if visual_fallback and center and force_pixel:
-        res = click_at_desktop(center[0], center[1])
-    elif visual_fallback:
-        return {
-            "ok": False,
-            "error": (
-                "label is vision-only; coordinate clicking is user-interruptive "
-                "and requires MACOS_CUA_PIXEL_CLICK=1"
-            ),
-            "error_code": "pointer_interruption_required",
-            "label": label,
-            "coords": {"x": center[0], "y": center[1]} if center else None,
-        }
-    elif native_fallback:
-        res, snap, idx = _native_ax_press_label_with_retry(
-            pid, window_id, label, snap, idx, max_elements
-        )
-    else:
-        res = click_with_retry(pid, window_id, idx, max_elements)
-    err = res.get("error") if isinstance(res, dict) else None
-    return {
-        "ok": not err,
-        "label": label,
-        "element": idx,
-        "result": res,
-        "method": (
-            "vision-desktop-click-fallback"
-            if visual_fallback
-            else "native-axpress-fallback" if native_fallback else "driver-ax-click"
-        ),
-    }
 
 
 def type_label_action(
@@ -363,11 +301,107 @@ def type_label_action(
     }
 
 
-def click(pid, window_id, element_index):
-    return call_driver(
-        "click",
-        {"pid": pid, "window_id": window_id, "element_index": element_index},
+def click(pid, window_id, element_index, *, app_name=None):
+    maximum = max(120, int(element_index) + 1)
+    native_snap = _native_ax_snapshot(pid, max_elements=maximum, window_id=window_id)
+    move = None
+    normalized = None
+    if app_name and not snapshot_content_error(native_snap):
+        glide = glide_operator_to_element(
+            app_name,
+            pid,
+            window_id,
+            native_snap,
+            element_index,
+            message=f"Moving to element {element_index}",
+        )
+        if not glide.get("ok"):
+            return {
+                "ok": False,
+                "accepted": False,
+                "error": glide.get("error")
+                or "visible operator cursor did not reach the target",
+                "element": element_index,
+                "cursor_normalized": glide.get("cursor_normalized"),
+                "move": glide.get("move"),
+            }
+        move = glide.get("move")
+        normalized = glide.get("cursor_normalized")
+    native = _native_ax_press(native_snap, element_index)
+    if isinstance(native, dict) and native.get("ok"):
+        return {
+            **native,
+            "accepted": True,
+            "element": element_index,
+            "cursor_normalized": normalized,
+            "move": move,
+            "method": (
+                "agent-cursor-glide+native-axpress" if move else "native-axpress"
+            ),
+        }
+    before = snapshot(pid, window_id, max_elements=maximum, retries=1, delay=0.1)
+    if not isinstance(before, dict) or before.get("error"):
+        return {
+            "ok": False,
+            "accepted": False,
+            "error": (before or {}).get("error") or "snapshot failed before click",
+            "element": element_index,
+        }
+    if app_name and move is None:
+        glide = glide_operator_to_element(
+            app_name,
+            pid,
+            window_id,
+            before,
+            element_index,
+            message=f"Moving to element {element_index}",
+        )
+        if not glide.get("ok"):
+            return {
+                "ok": False,
+                "accepted": False,
+                "error": glide.get("error")
+                or "visible operator cursor did not reach the target",
+                "element": element_index,
+                "cursor_normalized": glide.get("cursor_normalized"),
+                "move": glide.get("move"),
+            }
+        move = glide.get("move")
+        normalized = glide.get("cursor_normalized")
+    target = next(
+        (
+            item
+            for item in before.get("elements", [])
+            if item.get("element_index") == element_index
+        ),
+        None,
     )
+    params = {
+        "pid": pid,
+        "window_id": window_id,
+        "element_index": element_index,
+    }
+    if before.get("snapshot_id"):
+        params["snapshot_id"] = before["snapshot_id"]
+    elif (target or {}).get("element_token"):
+        params["element_token"] = target["element_token"]
+        params.pop("element_index", None)
+    else:
+        return {
+            "ok": False,
+            "accepted": False,
+            "error": "click requires snapshot_id or element_token",
+            "element": element_index,
+        }
+    result = call_driver("click", params)
+    if not isinstance(result, dict) or move is None:
+        return result
+    return {
+        **result,
+        "cursor_normalized": normalized,
+        "move": move,
+        "method": "agent-cursor-glide+ax-click",
+    }
 
 
 def perform_action(pid, window_id, element_index, action, snapshot_data=None):

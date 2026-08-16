@@ -14,6 +14,32 @@ from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 
+_PREV_SOCKET_PATH = None
+_ORIGINAL_RESTART = None
+_RESTART_GUARD = None
+
+
+def _structured_envelope(structured, text="x"):
+    return {
+        "ok": True,
+        "result": {
+            "content": [{"text": text, "type": "text"}],
+            "structuredContent": structured,
+        },
+    }
+
+
+def _envelope_line(structured, text="x"):
+    return json.dumps(_structured_envelope(structured, text)).encode() + b"\n"
+
+
+def _assert_no_tool_call_spawn(run_mock):
+    for call in run_mock.call_args_list:
+        argv = list(call.args[0]) if call.args else []
+        if "call" in argv:
+            raise AssertionError(f"tool call spawned subprocess: {argv}")
+
+
 SCRIPT = Path(__file__).parents[1] / "scripts" / "macos-cua.py"
 SPEC = importlib.util.spec_from_file_location("macos_cua", SCRIPT)
 macos_cua = importlib.util.module_from_spec(SPEC)
@@ -39,43 +65,81 @@ WORKFLOW_SPEC = importlib.util.spec_from_file_location("workflow", WORKFLOW_SCRI
 workflow = importlib.util.module_from_spec(WORKFLOW_SPEC)
 WORKFLOW_SPEC.loader.exec_module(workflow)
 
+_ORIGINAL_RESTART = macos_cua._restart_driver_daemon
+
+
+def setUpModule():
+    global _PREV_SOCKET_PATH, _RESTART_GUARD
+    _PREV_SOCKET_PATH = os.environ.get("MACOS_CUA_DRIVER_SOCKET")
+    handle, path = tempfile.mkstemp(prefix="macos-cua-test-", suffix=".sock")
+    os.close(handle)
+    os.unlink(path)
+    os.environ["MACOS_CUA_DRIVER_SOCKET"] = path
+    _RESTART_GUARD = mock.patch.object(
+        macos_cua, "_restart_driver_daemon", return_value=False
+    )
+    _RESTART_GUARD.start()
+
+
+def tearDownModule():
+    if _RESTART_GUARD is not None:
+        _RESTART_GUARD.stop()
+    path = os.environ.get("MACOS_CUA_DRIVER_SOCKET")
+    if _PREV_SOCKET_PATH is None:
+        os.environ.pop("MACOS_CUA_DRIVER_SOCKET", None)
+    else:
+        os.environ["MACOS_CUA_DRIVER_SOCKET"] = _PREV_SOCKET_PATH
+    if path and path != _PREV_SOCKET_PATH:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+
+def _allow_daemon_restart():
+    return mock.patch.object(
+        macos_cua, "_restart_driver_daemon", side_effect=_ORIGINAL_RESTART
+    )
+
 
 class DriverTransportTests(unittest.TestCase):
+    def setUp(self):
+        macos_cua.reset_driver_socket()
+        macos_cua.reset_driver_call_stats()
+        macos_cua.telemetry_reset()
+
+    def tearDown(self):
+        macos_cua.reset_driver_socket()
+
     def test_timed_out_rpc_restarts_the_daemon_and_retries_once(self):
-        recovered = SimpleNamespace(
-            returncode=0,
-            stdout='{"ok": true}\n',
-            stderr="",
-        )
-        with mock.patch.object(
-            macos_cua.subprocess,
-            "run",
-            side_effect=[
-                macos_cua.subprocess.TimeoutExpired(["cua-driver"], 5),
-                SimpleNamespace(returncode=0, stdout="", stderr=""),
-                recovered,
-            ],
-        ) as run:
-            result = macos_cua.call_driver("get_window_state", timeout=5)
+        timed_out = _FakeDriverSocket(recv_error=TimeoutError("timed out"))
+        recovered = _FakeDriverSocket(chunks=[_envelope_line({"ok": True})])
+        with _allow_daemon_restart():
+            with mock.patch.object(
+                macos_cua,
+                "_connect_driver_socket",
+                side_effect=[timed_out, recovered],
+            ):
+                with mock.patch.object(
+                    macos_cua.subprocess,
+                    "run",
+                    return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+                ) as run:
+                    result = macos_cua.call_driver("get_window_state", timeout=5)
 
         self.assertTrue(result["ok"])
-        self.assertEqual(run.call_count, 3)
-        self.assertEqual(
-            run.call_args_list[1].args[0][:3], ["launchctl", "kickstart", "-k"]
-        )
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0][:3], ["launchctl", "kickstart", "-k"])
+        _assert_no_tool_call_spawn(run)
 
     def test_explicit_human_success_sentinel_is_normalized(self):
-        completed = SimpleNamespace(
-            returncode=0,
-            stdout="✅ Set AXValue on [1] AXTextArea.\n",
-            stderr="",
-        )
-        with mock.patch.object(macos_cua.subprocess, "run", return_value=completed):
-            result = macos_cua.call_driver("set_value", {"pid": 42})
-        self.assertEqual(
-            result,
-            {"ok": True, "message": "Set AXValue on [1] AXTextArea."},
-        )
+        payload = {"ok": True, "message": "Set AXValue on [1] AXTextArea."}
+        fake = _FakeDriverSocket(chunks=[_envelope_line(payload)])
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver("set_value", {"pid": 42})
+        self.assertEqual(result, payload)
+        run.assert_not_called()
 
     def test_screen_region_capture_retries_once_after_transient_failure(self):
         header = (
@@ -104,40 +168,62 @@ class DriverTransportTests(unittest.TestCase):
         sleep.assert_called_once_with(0.05)
 
     def test_arbitrary_non_json_driver_output_fails_closed(self):
-        completed = SimpleNamespace(
-            returncode=0,
-            stdout="operation probably worked\n",
-            stderr="",
-        )
-        with mock.patch.object(macos_cua.subprocess, "run", return_value=completed):
-            result = macos_cua.call_driver("set_value", {"pid": 42})
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["error"], "cua-driver returned invalid JSON")
+        fake = _FakeDriverSocket(chunks=[b"operation probably worked\n"])
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver("set_value", {"pid": 42})
+        self.assertIn("error", result)
+        self.assertEqual(result["error"], "cua-driver socket returned invalid JSON")
+        run.assert_not_called()
 
     def test_right_click_legacy_success_grammar_is_tool_scoped(self):
-        completed = SimpleNamespace(
-            returncode=0,
-            stdout='Shown menu for [1] AXTextArea "" (AXShowMenu).\n',
-            stderr="",
+        accepted_sock = _FakeDriverSocket(
+            chunks=[
+                _envelope_line(
+                    {
+                        "ok": True,
+                        "message": 'Shown menu for [1] AXTextArea "" (AXShowMenu).',
+                    }
+                )
+            ]
         )
-        with mock.patch.object(macos_cua.subprocess, "run", return_value=completed):
-            accepted = macos_cua.call_driver("right_click", {"pid": 42})
-            rejected = macos_cua.call_driver("click", {"pid": 42})
+        rejected_sock = _FakeDriverSocket(
+            chunks=[
+                json.dumps(
+                    {
+                        "ok": True,
+                        "result": {"content": [{"text": "x", "type": "text"}]},
+                    }
+                ).encode()
+                + b"\n"
+            ]
+        )
+        with mock.patch.object(
+            macos_cua,
+            "_connect_driver_socket",
+            side_effect=[accepted_sock, rejected_sock],
+        ):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                accepted = macos_cua.call_driver("right_click", {"pid": 42})
+                rejected = macos_cua.call_driver("click", {"pid": 42})
         self.assertTrue(accepted["ok"])
-        self.assertFalse(rejected["ok"])
+        self.assertIn("error", rejected)
+        run.assert_not_called()
 
     def test_right_click_pixel_fallback_success_grammar_is_normalized(self):
-        completed = SimpleNamespace(
-            returncode=0,
-            stdout=(
+        payload = {
+            "ok": True,
+            "message": (
                 'Right-clicked [5] AXButton "" at element center (2714, 618) '
-                '(pixel right-click; element advertises no AXShowMenu).\n'
+                "(pixel right-click; element advertises no AXShowMenu)."
             ),
-            stderr="",
-        )
-        with mock.patch.object(macos_cua.subprocess, "run", return_value=completed):
-            result = macos_cua.call_driver("right_click", {"pid": 42})
+        }
+        fake = _FakeDriverSocket(chunks=[_envelope_line(payload)])
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver("right_click", {"pid": 42})
         self.assertTrue(result["ok"])
+        run.assert_not_called()
 
 
 class BrowserCoexistenceTests(unittest.TestCase):
@@ -3636,6 +3722,119 @@ class PrimitiveContractTests(unittest.TestCase):
         self.assertEqual(click.call_count, 2)
         snapshot.assert_called_once_with(10, 20, max_elements=120)
 
+    def test_click_uses_native_ax_press_when_available(self):
+        with (
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_snapshot",
+                return_value={"source": "native_ax", "elements": []},
+            ) as native_snap,
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_press",
+                return_value={"ok": True, "path": "native_ax", "action": "press"},
+            ) as native_press,
+            mock.patch.object(macos_cua, "snapshot") as snapshot,
+            mock.patch.object(macos_cua, "call_driver") as call_driver,
+        ):
+            result = macos_cua.click(10, 20, 3)
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["accepted"])
+        self.assertEqual(result["path"], "native_ax")
+        native_snap.assert_called_once_with(10, max_elements=120, window_id=20)
+        native_press.assert_called_once()
+        snapshot.assert_not_called()
+        call_driver.assert_not_called()
+
+    def test_index_click_glides_visible_cursor_before_pressing(self):
+        order = []
+        native_snap = {
+            "source": "native_ax",
+            "tree_markdown": "[3] AXButton 7",
+            "elements": [{"element_index": 3, "role": "AXButton", "label": "7"}],
+        }
+        with (
+            mock.patch.object(
+                macos_cua, "_native_ax_snapshot", return_value=native_snap
+            ),
+            mock.patch.object(
+                macos_cua,
+                "glide_operator_to_element",
+                side_effect=lambda *a, **k: order.append("glide")
+                or {"ok": True, "move": {"ok": True}, "cursor_normalized": {"x": 0.5, "y": 0.5}},
+            ) as glide,
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_press",
+                side_effect=lambda *a, **k: order.append("press")
+                or {"ok": True, "path": "native_ax"},
+            ),
+        ):
+            result = macos_cua.click(10, 20, 3, app_name="Calculator")
+
+        self.assertEqual(order, ["glide", "press"])
+        self.assertEqual(result["method"], "agent-cursor-glide+native-axpress")
+        self.assertEqual(result["move"], {"ok": True})
+        self.assertEqual(glide.call_args.args[0], "Calculator")
+
+    def test_index_click_refuses_to_press_when_cursor_is_not_visible(self):
+        with (
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_snapshot",
+                return_value={
+                    "source": "native_ax",
+                    "tree_markdown": "[3] AXButton 7",
+                    "elements": [{"element_index": 3, "role": "AXButton"}],
+                },
+            ),
+            mock.patch.object(
+                macos_cua,
+                "glide_operator_to_element",
+                return_value={
+                    "ok": False,
+                    "error": "visible operator cursor did not reach the target",
+                },
+            ),
+            mock.patch.object(macos_cua, "_native_ax_press") as press,
+            mock.patch.object(macos_cua, "call_driver") as call_driver,
+        ):
+            result = macos_cua.click(10, 20, 3, app_name="Calculator")
+
+        self.assertFalse(result["accepted"])
+        press.assert_not_called()
+        call_driver.assert_not_called()
+
+    def test_click_sends_fresh_snapshot_id(self):
+        before = {
+            "snapshot_id": "snap-click-1",
+            "elements": [{"element_index": 3, "role": "AXButton", "label": "7"}],
+        }
+        with (
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_snapshot",
+                return_value={"error": "native unavailable", "elements": []},
+            ),
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_press",
+                return_value={"error": "native AX element 3 is unavailable"},
+            ),
+            mock.patch.object(macos_cua, "snapshot", return_value=before) as snapshot,
+            mock.patch.object(
+                macos_cua, "call_driver", return_value={"ok": True, "accepted": True}
+            ) as call_driver,
+        ):
+            result = macos_cua.click(10, 20, 3)
+
+        self.assertTrue(result["ok"])
+        snapshot.assert_called_once_with(10, 20, max_elements=120, retries=1, delay=0.1)
+        self.assertEqual(call_driver.call_args.args[0], "click")
+        self.assertEqual(call_driver.call_args.args[1]["snapshot_id"], "snap-click-1")
+        self.assertEqual(call_driver.call_args.args[1]["element_index"], 3)
+
     def test_set_value_on_text_requires_matching_ax_readback(self):
         before = {
             "snapshot_id": "snapshot-1",
@@ -3934,12 +4133,18 @@ class PrimitiveContractTests(unittest.TestCase):
                 20,
                 element_index=2,
                 snapshot_data=state,
+                app_name="Calculator",
             )
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["path"], "native-ax-double-press")
         self.assertEqual(click.call_count, 2)
-        click.assert_has_calls([mock.call(10, 20, 2), mock.call(10, 20, 2)])
+        click.assert_has_calls(
+            [
+                mock.call(10, 20, 2, app_name="Calculator"),
+                mock.call(10, 20, 2, app_name=None),
+            ]
+        )
         self.assertEqual(sleep.call_count, 2)
 
     def test_secondary_action_uses_click_action_field(self):
@@ -4938,6 +5143,250 @@ class ListButtonsTests(unittest.TestCase):
             [json.loads(line) for line in stdout.getvalue().splitlines()],
             [{"index": 4, "label": "Upcoming", "value": "Selected"}],
         )
+
+
+class _FakeDriverSocket:
+    def __init__(self, chunks=(), send_error=None, recv_error=None):
+        self._chunks = list(chunks)
+        self.send_error = send_error
+        self.recv_error = recv_error
+        self.sent = []
+        self.closed = False
+        self.timeout = None
+
+    def settimeout(self, timeout):
+        self.timeout = timeout
+
+    def sendall(self, data):
+        if self.send_error is not None:
+            raise self.send_error
+        self.sent.append(data)
+
+    def recv(self, _n):
+        if self.recv_error is not None:
+            raise self.recv_error
+        if not self._chunks:
+            return b""
+        return self._chunks.pop(0)
+
+    def close(self):
+        self.closed = True
+
+
+class DriverSocketTransportTests(unittest.TestCase):
+    def setUp(self):
+        macos_cua.reset_driver_socket()
+        macos_cua.reset_driver_call_stats()
+        macos_cua.telemetry_reset()
+
+    def tearDown(self):
+        macos_cua.reset_driver_socket()
+
+    def test_socket_success_returns_structured_content_only(self):
+        envelope = {
+            "ok": True,
+            "result": {
+                "content": [{"text": "x", "type": "text"}],
+                "structuredContent": {"x": 1731, "y": 1398},
+            },
+        }
+        fake = _FakeDriverSocket(chunks=[json.dumps(envelope).encode() + b"\n"])
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver("get_cursor_position", {})
+        self.assertEqual(result, {"x": 1731, "y": 1398})
+        run.assert_not_called()
+
+    def test_socket_success_without_structured_content_returns_error(self):
+        envelope = {
+            "ok": True,
+            "result": {"content": [{"text": "x", "type": "text"}]},
+        }
+        fake = _FakeDriverSocket(chunks=[json.dumps(envelope).encode() + b"\n"])
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver("get_cursor_position", {})
+        self.assertEqual(
+            result["error"],
+            "cua-driver socket response had no structuredContent",
+        )
+        self.assertIn("raw", result)
+        run.assert_not_called()
+
+    def test_socket_error_envelope_matches_error_convention(self):
+        fake = _FakeDriverSocket(
+            chunks=[
+                json.dumps({"ok": False, "error": "boom", "exit_code": 1}).encode()
+                + b"\n"
+            ]
+        )
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver("press_key", {"key": "a"})
+        self.assertEqual(result, {"error": "boom"})
+        run.assert_not_called()
+
+    def test_reconnect_failure_restarts_daemon_then_retries(self):
+        fresh = _FakeDriverSocket(chunks=[_envelope_line({"ok": True})])
+        with _allow_daemon_restart():
+            with mock.patch.object(
+                macos_cua,
+                "_connect_driver_socket",
+                side_effect=[
+                    FileNotFoundError("missing"),
+                    FileNotFoundError("missing"),
+                    fresh,
+                ],
+            ) as connect:
+                with mock.patch.object(
+                    macos_cua.subprocess,
+                    "run",
+                    return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+                ) as run:
+                    result = macos_cua.call_driver("get_window_state", {"pid": 1})
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(connect.call_count, 3)
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0][:3], ["launchctl", "kickstart", "-k"])
+        _assert_no_tool_call_spawn(run)
+
+    def test_exhausted_recovery_returns_error_without_tool_call(self):
+        with _allow_daemon_restart():
+            with mock.patch.object(
+                macos_cua,
+                "_connect_driver_socket",
+                side_effect=FileNotFoundError("missing"),
+            ):
+                with mock.patch.object(
+                    macos_cua.subprocess,
+                    "run",
+                    return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+                ) as run:
+                    result = macos_cua.call_driver("get_window_state")
+        self.assertIn("error", result)
+        self.assertIn("missing", result["error"])
+        self.assertEqual(run.call_count, 1)
+        _assert_no_tool_call_spawn(run)
+
+    def test_socket_timeout_message(self):
+        fake = _FakeDriverSocket(recv_error=TimeoutError("timed out"))
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver(
+                    "press_key", {"key": "a"}, timeout=5, _recover_timeout=False
+                )
+        self.assertEqual(
+            result,
+            {"error": "cua-driver socket call 'press_key' timed out after 5s"},
+        )
+        run.assert_not_called()
+
+    def test_unparseable_socket_line_returns_error(self):
+        fake = _FakeDriverSocket(chunks=[b"not-json\n"])
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver("get_window_state")
+        self.assertEqual(result["error"], "cua-driver socket returned invalid JSON")
+        run.assert_not_called()
+
+    def test_truncated_socket_line_returns_error_without_tool_call(self):
+        fake = _FakeDriverSocket(chunks=[b'{"ok":true,"result":{'])
+        with _allow_daemon_restart():
+            with mock.patch.object(
+                macos_cua, "_connect_driver_socket", return_value=fake
+            ):
+                with mock.patch.object(
+                    macos_cua.subprocess,
+                    "run",
+                    return_value=SimpleNamespace(returncode=0, stdout="", stderr=""),
+                ) as run:
+                    result = macos_cua.call_driver("get_window_state")
+        self.assertIn("error", result)
+        _assert_no_tool_call_spawn(run)
+
+    def test_socket_response_reassembled_from_multiple_recv_chunks(self):
+        fake = _FakeDriverSocket(
+            chunks=[
+                b'{"ok":true,"result":{"content":[{"text":"x","type":"text"}],',
+                b'"structuredContent":{"ok":true,"n":1}}}\n',
+            ]
+        )
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver("get_window_state")
+        self.assertEqual(result, {"ok": True, "n": 1})
+        run.assert_not_called()
+
+    def test_stale_cached_socket_reconnects_once(self):
+        stale = _FakeDriverSocket(send_error=OSError("broken pipe"))
+        fresh = _FakeDriverSocket(chunks=[_envelope_line({"ok": True})])
+        macos_cua._DRIVER_SOCKET_STATE["sock"] = stale
+        with mock.patch.object(
+            macos_cua, "_connect_driver_socket", return_value=fresh
+        ) as connect:
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver("press_key", {"key": "Return"})
+        self.assertEqual(result, {"ok": True})
+        self.assertTrue(stale.closed)
+        connect.assert_called_once()
+        run.assert_not_called()
+        self.assertEqual(
+            fresh.sent,
+            [
+                b'{"method": "call", "name": "press_key", '
+                b'"args": {"key": "Return"}}\n'
+            ],
+        )
+
+    def test_isError_envelope_surfaces_driver_text_as_error(self):
+        line = (
+            json.dumps(
+                {
+                    "ok": True,
+                    "result": {
+                        "content": [
+                            {"text": "Missing required integer field: pid", "type": "text"}
+                        ],
+                        "isError": True,
+                    },
+                }
+            ).encode()
+            + b"\n"
+        )
+        fake = _FakeDriverSocket(chunks=[line])
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run"):
+                result = macos_cua.call_driver("press_key", {"key": "escape"})
+        self.assertEqual(result, {"error": "Missing required integer field: pid"})
+
+    def test_live_daemon_parses_our_argument_envelope(self):
+        """The daemon reads args under one specific key; fakes cannot prove which."""
+        sock_path = os.path.expanduser(
+            "~/Library/Caches/cua-driver/cua-driver.sock"
+        )
+        if not os.path.exists(sock_path):
+            self.skipTest("cua-driver daemon socket not present")
+        macos_cua.reset_driver_socket()
+        with mock.patch.dict(os.environ, {"MACOS_CUA_DRIVER_SOCKET": sock_path}):
+            result = macos_cua.call_driver(
+                "get_window_state", {"pid": os.getpid(), "window_id": 0}, timeout=20
+            )
+        macos_cua.reset_driver_socket()
+        error = str(result.get("error") or "")
+        self.assertNotIn(
+            "Missing required integer field: pid",
+            error,
+            "daemon did not read pid from our envelope: arguments are not reaching it",
+        )
+
+    def test_socket_success_records_one_driver_telemetry_call(self):
+        fake = _FakeDriverSocket(chunks=[_envelope_line({"ok": True})])
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                macos_cua.call_driver("get_window_state")
+        run.assert_not_called()
+        self.assertEqual(macos_cua.telemetry_read()["driver_calls"], 1)
+        self.assertEqual(macos_cua.driver_call_stats()["calls"], 1)
 
 
 if __name__ == "__main__":

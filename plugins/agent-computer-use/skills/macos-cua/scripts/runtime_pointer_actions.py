@@ -106,6 +106,7 @@ def double_click(
     y=None,
     delivery_mode="background",
     snapshot_data=None,
+    app_name=None,
 ):
     if element_index is not None:
         fresh = snapshot_data or snapshot(
@@ -142,8 +143,14 @@ def double_click(
                         "detail": foreground_prepared,
                     }
             presses = []
-            for _ in range(2):
-                result = click(pid, window_id, element_index)
+            for press_index in range(2):
+                # Glide once: the second press lands where the cursor already is.
+                result = click(
+                    pid,
+                    window_id,
+                    element_index,
+                    app_name=app_name if press_index == 0 else None,
+                )
                 presses.append(result)
                 if not _accepted(result):
                     return {
@@ -151,12 +158,19 @@ def double_click(
                         "error": "native AX double press was not accepted",
                         "path": "native-ax-double-press",
                         "presses": presses,
+                        "move": (presses[0] or {}).get("move"),
                     }
                 time.sleep(0.05)
             return {
                 "ok": True,
                 "path": "native-ax-double-press",
+                "method": (
+                    "agent-cursor-glide+native-ax-double-press"
+                    if (presses[0] or {}).get("move")
+                    else "native-ax-double-press"
+                ),
                 "presses": presses,
+                "move": (presses[0] or {}).get("move"),
                 "foreground_prepared": foreground_prepared,
             }
         if element_frame is None or frame is None:

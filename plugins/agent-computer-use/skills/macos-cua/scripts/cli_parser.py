@@ -267,11 +267,6 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
     p.add_argument("--duration-ms", type=int, default=500)
     p.add_argument("--steps", type=int, default=20)
 
-    p = sub.add_parser("type", help="Type text into element")
-    p.add_argument("app")
-    p.add_argument("element", type=int)
-    p.add_argument("text")
-
     p = sub.add_parser("type-text", help="Type into the focused UI or a window-local point")
     p.add_argument("app")
     p.add_argument("text")

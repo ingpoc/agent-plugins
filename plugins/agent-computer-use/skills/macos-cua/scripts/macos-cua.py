@@ -82,6 +82,7 @@ _MUTABLE_STATE = {
     "_VISUAL_FOCUS_LEASE",
 }
 _RUNTIME_FILES = (
+    "runtime_telemetry.py",
     "runtime_coexistence.py",
     "runtime_driver.py",
     "runtime_apps.py",

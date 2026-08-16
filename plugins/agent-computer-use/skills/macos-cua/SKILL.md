@@ -54,8 +54,11 @@ Computer Use uses `node_repl` + ~10 `sky` methods and disables its standalone
    else open app-level context menus; else one window. Do not walk the menu
    bar as a root. Do not `bring_to_front` unless `escalation.recommended` is
    `foreground` or background AX missed the label.
-4. `act` by AX label/index, or a small asserted `plan`. Label clicks,
-   `perform_action`, and `right_click` glide the signed cursor, then AX.
+4. `act` by AX label/index, or a small asserted `plan`. Every element-addressed
+   mutation — label and index clicks, double-click, `perform_action`,
+   `right_click` — glides the signed cursor to the target, then AX. A mutation
+   never lands while the cursor is elsewhere: if the glide is not acknowledged,
+   the press fails instead of acting invisibly.
    Pointer is window-local: omit stale screen points so the operator maps
    normalized coords. Do not Quartz-read on the AX click path. Do not
    browse raw cua-driver tools.

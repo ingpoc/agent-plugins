@@ -18,8 +18,62 @@ row improves or holds vs the last warm green (duration / max-step / bytes).
 If any official row is slower, revert. Do not loosen `budget_seconds` to
 force green. A cold run after an operator rebuild is not a keep/revert
 signal (37s lesson). Re-warm, then compare. Last warm green is the bar.
-Rejected encode: attach `display_packet` to every `state` — see
-[`cua-driver-mcp.md`](cua-driver-mcp.md) Do not rediscover.
+
+## Optimization learnings — do not rediscover
+
+Verdict is measured, not argued. Warm numbers only.
+
+| Idea | Verdict | Evidence |
+| --- | --- | --- |
+| Rewrite runtime in Rust/Go for speed | reject | All Python = ~55ms of a ~1000ms call (facade 24ms, 60-el AX snap 31-38ms, json 0.1ms). Dominant cost is `cua-driver` client process launch + codesign check, already compiled + third-party. Ceiling <3%. New binary = new TCC subject, loses `com.trycua.driver` grant |
+| Cache/pool Python interpreter to kill spawn cost | reject | Premise false. Real interpreter 0.03s; the 0.46s was a pyenv shim in an interactive shell only. `compact_mcp.py` spawns via `sys.executable`, never pays it |
+| Transport for driver tool calls | socket-only; no CLI call path | `call_driver` speaks the daemon socket exclusively. Wire shape is `{"method":"call","name":T,"args":{...}}` — the key is **`args`**, not `arguments`. Translation is `envelope["result"]["structuredContent"]`. When `result.isError` is set with no `structuredContent`, return `content[0].text` as `error`, never a generic wrapper. On socket failure: reconnect once, then restart the daemon once and retry, then error. CLI survives for daemon lifecycle (`launchctl kickstart`) only, because a down daemon has no socket to answer on |
+| Socket args under key `arguments` | reject — silently breaks every argument-taking tool | The daemon reads `args`. Under `arguments` it receives an **empty** argument set and replies `{"ok":true,"result":{"isError":true,"content":[{"text":"Missing required integer field: pid"}]}}` in 0-86ms. Argument-free tools still pass, so the suite looks fast and healthy. Symptom: `perform_action: element not found`, dead `press_key`, and rows whose repeat 1 passes then 2-5 fail on leftover app state. Pin the wire key against the **live daemon** (`tests/test_macos_cua.py::test_live_daemon_parses_our_argument_envelope`) |
+| Persistent UNIX socket as the big speed win | reject the claim, keep the transport on other grounds | The "socket 0-83ms vs CLI 5605/9689/6226ms" figure compared a **working CLI call to a broken socket no-op**. With `args` correct, `press_key` costs seconds on both transports: the cost is the driver's key delivery plus its bounded AX read-back, not the transport. Socket's real benefit is avoiding ~170ms client process launch per call, so it matters only in proportion to driver calls per row (calculator 1-2, whatsapp 3-4). Never size a transport from a tool whose payload you have not asserted |
+| Expectation poll 200ms → 50ms | reject | Calculator max step got worse (276ms → 515ms) and reliability dropped to 8 from duration spread. Extra polls also take extra AX snapshots. Leave 200ms until the wait is event-driven |
+| Calculator independent 64 via `_native_ax_snapshot` instead of `app_state query=AXStaticText` | reject | Trust gates went to 0 on a 5-repeat. Native tree missed the display value that the queried app_state catch. Keep the independent query |
+| Folder always screenshots after AX already found Downloads | ADOPT | pass_signal is actionable ancestor, not pixels. Dropped second app_state+screenshot: ~1.2s/2 snaps → 0.35s/1 snap. Folder overall 7.8 → 10.0 |
+| WhatsApp Escape-before-observe | ADOPT | Snapshot first; press only if heading open; teardown Escape without a second verify snap. Driver 3→2, AX 5→4 |
+| Per-module telemetry counters | reject | The facade loads each runtime module with `importlib` and overwrites its own `sys.modules` entry, so a second facade load in one process gets a second `_COUNTS`. `tests/test_live_computer_parity.py` loads its own facade, so every `_native_ax_snapshot` and driver call inside `fresh_text_area` was invisible to the harness: textedit reported `ax_snapshots: 2` while its probe reads state 4+ times. Counters now hang off `builtins` under `_macos_cua_telemetry_counts`, so all facade loads share one store. Prove sharing with two `importlib` loads before trusting any counter-derived rating |
+| Rating an axis on a counter that cannot see the work | reject as method | Same family as the argument-free parity check and hardcoded `asserted_batch`: the metric is structurally unable to observe the cost it claims to score, so it always flatters. Before adopting an axis, confirm every path that does the work increments the counter |
+| Parity-checking a transport with argument-free tools | reject as method | `check_permissions`, `get_cursor_position`, `get_agent_cursor_state`, `get_screen_size`, `get_session_state` all take **no arguments**, so all five pass with a dropped argument payload. Prove a transport with a tool that requires arguments and assert a field that only real arguments can produce |
+| Returning the socket `result` envelope as the driver payload | reject | Socket `result` is `{"content":[...],"structuredContent":{...}}` but `cua-driver call` stdout is the **structuredContent only** (`{"x":1763,"y":1400}`). Returning `result` gives callers no `accepted`/`effect`/`code`. Translate to `result["structuredContent"]` |
+| Fake-vs-fake shape parity test | reject as method | A test comparing a fake CLI stdout to a fake socket envelope asserts the author's assumption, not reality. It happened twice: a unit test pinned `"arguments"` as the wire key and stayed green while every real argument-taking call failed. Pin real recorded payloads, and pin wire shape against the live daemon |
+| `MACOS_CUA_CACHE_DIR` to isolate a benchmark run | reject | It relocates the operator overlay's cursor image and screenshots too, so a fresh dir has no pointer asset, the overlay cannot render, every glide burns a ~3.4s ack timeout and fail-closed refuses the click. Symptom is accuracy 0 / visibility 0 on 3 rows with `max_step_ms` pinned ~3400ms and 18-20 AX snapshots. Use the default cache dir and copy `benchmarks-latest.json` between runs |
+| Attributing hot-path cost from one row | reject as method | Cost me a wrong call. Calculator makes 1-2 cheap driver calls, so it showed only 3% driver time and I generalized "transport does not matter". The keyboard rows were 60-100x worse. Attribute **per tool**, on every row, before accepting or rejecting a transport |
+| Isolated-primitive latency as proof | reject as method | `get_cursor_position` CLI 169.8ms suggested a uniform ~170ms CLI tax. Real spread is 170ms to 9700ms depending on the tool. Never size a transport change from one cheap tool |
+| Strip `_native_*` from non-compact CLI `state` | candidate | 60-el Finder tree: 12241 of 22468 bytes (54.5%) are `_native_element`/`_native_services`. Unusable by an agent, and alone exceeds the 12000 `bytes_budget`. Produced in `runtime_accessibility.py`; consumed in-process by `native_input.py` — strip at serialization only, never in the dict |
+| Attach `display_packet` to every `state` | reject | Calculator row 5s → 17s. See [`cua-driver-mcp.md`](cua-driver-mcp.md). Topology stays on CLI `displays` + optional `start_session preflight:true` |
+| Batch RPCs via a `cua-driver` CLI batch flag | reject | No batch mode in 0.19.2 CLI (`mcp, list-tools, describe, call, serve, ...`). Persistent socket is the substitute |
+
+### Measured primitives — warm, do not re-measure
+
+| Primitive | Cost |
+| --- | --- |
+| Calculator launch → AX-ready | 1.010s |
+| TextEdit `open -na` → `AXTextArea` ready | 0.869s |
+| Native AX press | 5.1ms |
+| Native AX snapshot, 34-60 el | 21-38ms |
+| `app_state` no screenshot | 138ms (117ms over raw snapshot = driver RPCs for signals) |
+| `app_state` with screenshot | 320-455ms (SCK capture is the bulk) |
+| `dwell_after_click_ms` | 80ms per click, product-mandated visible dwell |
+| Driver's own `glide_duration_ms` | 0, and irrelevant: the glide uses this skill's operator overlay, not the driver's agent cursor. Do not tune driver cursor motion to speed up glide |
+| Glided click step, real | 180-251ms vs 106ms floor. Only 2 driver calls per 5-click run and snapshots are reused (2 AX snaps, not 5), so the gap is in-process wait granularity: operator-cursor ack polls every 20ms (`runtime_pointer.py`), `_wait_for_expectations` polls every 200ms (`runtime_plan.py`) |
+| Driver RPC, CLI vs persistent socket | 169.8ms vs 0.1ms |
+| JSON serialize 60-el tree | 0.10ms |
+
+### Row floors — rating denominator
+
+Floor = irreducible cost from the primitives above, launch + product-mandated dwell
+included. `budget_*` stays the fail-closed gate and is never the rating denominator.
+Speed rating = `10 * clamp01(floor / p50)`; 9.5 needs `p50 <= floor / 0.95`.
+
+| Row | Floor | Composition | Was | Off floor |
+| --- | --- | --- | --- | --- |
+| calculator-8x8 | 1.582s / 106ms step | launch 1.010 + snap 0.021 + 5x(move+press 5.1ms+dwell 80ms+verify 21ms) + final query 0.021 | 5.828s / 1108ms | 3.7x / 10.5x |
+| folder-downloads | 0.358s | snap 120el 0.038 + app_state with screenshot 0.320 | 0.986s | 2.8x |
+| textedit-right-click | 1.284s | launch 0.869 + 5x snap 0.105 + glide right-click 0.085 + probe sleep 0.200 + keys 0.025 | 7.528s | 5.9x |
+| whatsapp-new-chat | 0.125s | glide perform_action 0.085 + verify 0.030 + Escape 0.010 | 2.583s | 20.7x |
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
@@ -29,7 +83,6 @@ Rejected encode: attach `display_packet` to every `state` — see
 | Background `key` misses after space/AX miss | One background delivery is not enough | Owner retries that key once when `off_space_or_ax_unresolved` or `escalation.recommended=foreground` |
 | Chrome driven through macos-cua | Hermes coexistence owns Chrome | Use browser MCP. This skill is non-Chrome native UI |
 | Dock full of Calculator/Dictionary/Stickies after a probe | Test apps left running | Quit the test app before closeout. See the rule above |
-| Official suite Calculator jumps ~5s → 17s after an encode | `display_packet` / Quartz on every compact observe or AX glide | Revert if any official row is slower than last warm green. See Eval / revert. Topology stays on CLI `displays` and optional `start_session preflight:true` |
 | Glide clicks the old screen point after the user moves the app | Labeled glide sent stale `cursor_screen_x/y`, which disables operator live parenting | Omit screen coords so the overlay maps normalized `cursor_x/y`. Do not Quartz-read on the Python click path. Do not add a second on-app icon |
 | Session preflight fails because only one monitor is awake | Lab gate (secondary display) was copied into session preflight | Single-monitor is valid. `display_count_active` may be 1 while `display_count_configured` is 2. Do not move a window onto an asleep screen |
 | AX/Screen Recording granted to Cursor but clicks do nothing | TCC keys to signed `Cua Driver.app`, not the MCP Python child | `cua-driver permissions grant` on the driver app. Do not wrap `compact_mcp.py` as a second signed principal |

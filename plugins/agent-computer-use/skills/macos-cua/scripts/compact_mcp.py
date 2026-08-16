@@ -7,7 +7,6 @@ Dual-era MCP (https://modelcontextprotocol.io/specification/latest):
 stdio writer is newline-delimited JSON-RPC (spec). Content-Length is read-only
 compat for older Cursor/cua-driver senders.
 """
-
 from __future__ import annotations
 
 import json
@@ -19,7 +18,6 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Any
-
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_ROOT = SCRIPT_DIR.parents[2]
@@ -37,16 +35,8 @@ META_CLIENT_CAPS = "io.modelcontextprotocol/clientCapabilities"
 META_SERVER_INFO = "io.modelcontextprotocol/serverInfo"
 AX_ACTIONS = frozenset(
     {
-        "open",
-        "show_menu",
-        "confirm",
-        "cancel",
-        "pick",
-        "press",
-        "increment",
-        "decrement",
-        "raise",
-        "zoom",
+        "open", "show_menu", "confirm", "cancel", "pick",
+        "press", "increment", "decrement", "raise", "zoom",
     }
 )
 TOOL_NAMES = ("start_session", "state", "act", "verify", "end_session")
@@ -59,8 +49,22 @@ INSTRUCTIONS = (
     "fallback. CLI macos-cua.py "
     "state/run is the default AX batch. bin/cua-driver-mcp is diagnostic-only."
 )
-
 _SESSION: dict[str, Any] = {}
+_CLI_CALL_STATS = {"calls": 0, "stdout_bytes": 0}
+
+def telemetry_reset() -> None:
+    _CLI_CALL_STATS.update(calls=0, stdout_bytes=0)
+def telemetry_read() -> dict[str, int]:
+    return {"cli_invocations": _CLI_CALL_STATS["calls"], "cli_response_bytes": _CLI_CALL_STATS["stdout_bytes"]}
+reset_cli_call_stats = telemetry_reset
+def cli_call_stats() -> dict[str, int]:
+    return dict(_CLI_CALL_STATS)
+def _note_cli_call(stdout) -> None:
+    _CLI_CALL_STATS["calls"] += 1
+    if stdout is None:
+        return
+    raw = stdout if isinstance(stdout, bytes) else str(stdout).encode()
+    _CLI_CALL_STATS["stdout_bytes"] += len(raw)
 
 
 def plugin_version() -> str:
@@ -262,8 +266,10 @@ def run_cli(argv: list[str], timeout: float) -> dict[str, Any]:
             stdin=subprocess.DEVNULL,
             env=env,
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        _note_cli_call(exc.stdout)
         return {"ok": False, "error": f"timeout after {timeout}s"}
+    _note_cli_call(result.stdout)
     stdout = (result.stdout or "").strip()
     try:
         payload: Any = json.loads(stdout) if stdout else {}
@@ -408,17 +414,14 @@ def _params_meta(params: dict[str, Any]) -> dict[str, Any]:
     meta = params.get("_meta")
     return meta if isinstance(meta, dict) else {}
 
-
 def _rpc_error(rpc_id: Any, code: int, message: str, data: Any = None) -> dict[str, Any]:
     error: dict[str, Any] = {"code": code, "message": message}
     if data is not None:
         error["data"] = data
     return {"jsonrpc": "2.0", "id": rpc_id, "error": error}
 
-
 def _rpc_result(rpc_id: Any, result: dict[str, Any]) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": rpc_id, "result": result}
-
 
 def initialize_result(params: dict[str, Any]) -> dict[str, Any]:
     requested = str(params.get("protocolVersion") or "")
@@ -430,7 +433,6 @@ def initialize_result(params: dict[str, Any]) -> dict[str, Any]:
         "instructions": INSTRUCTIONS,
     }
 
-
 def discover_result() -> dict[str, Any]:
     return {
         "resultType": "complete",
@@ -441,7 +443,6 @@ def discover_result() -> dict[str, Any]:
         "cacheScope": "public",
         "_meta": {META_SERVER_INFO: server_info()},
     }
-
 
 def tools_list_result(*, modern: bool) -> dict[str, Any]:
     result: dict[str, Any] = {"tools": tool_schemas()}
@@ -455,7 +456,6 @@ def tools_list_result(*, modern: bool) -> dict[str, Any]:
             }
         )
     return result
-
 
 def call_tool(name: str, arguments: dict[str, Any] | None, *, modern: bool) -> dict[str, Any]:
     handler = HANDLERS.get(name)
@@ -482,7 +482,6 @@ def call_tool(name: str, arguments: dict[str, Any] | None, *, modern: bool) -> d
         result["_meta"] = {META_SERVER_INFO: server_info()}
     return result
 
-
 def _modern_guard(params: dict[str, Any], rpc_id: Any) -> dict[str, Any] | None:
     meta = _params_meta(params)
     if META_VERSION not in meta:
@@ -498,7 +497,6 @@ def _modern_guard(params: dict[str, Any], rpc_id: Any) -> dict[str, Any] | None:
             {"supported": list(SUPPORTED_VERSIONS), "requested": requested},
         )
     return None
-
 
 def handle_rpc(message: dict[str, Any]) -> dict[str, Any] | None:
     method = message.get("method")
@@ -549,7 +547,6 @@ def handle_rpc(message: dict[str, Any]) -> dict[str, Any] | None:
         return _rpc_error(rpc_id, -32602, f"Invalid params: missing _meta.{META_VERSION}")
     return _rpc_error(rpc_id, -32601, f"Method not found: {method}")
 
-
 def read_message(stream) -> tuple[dict[str, Any] | None, str]:
     first = stream.readline()
     if not first:
@@ -567,14 +564,12 @@ def read_message(stream) -> tuple[dict[str, Any] | None, str]:
         return read_message(stream)
     return json.loads(line), "nl"
 
-
 def write_message(stream, payload: dict[str, Any]) -> None:
     raw = json.dumps(payload, separators=(",", ":"), ensure_ascii=True).encode()
     if b"\n" in raw:
         raise ValueError("stdio MCP messages must not contain embedded newlines")
     stream.write(raw + b"\n")
     stream.flush()
-
 
 def serve() -> int:
     stdin = sys.stdin.buffer

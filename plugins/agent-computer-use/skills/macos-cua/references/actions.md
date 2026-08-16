@@ -64,10 +64,10 @@ proof requires fronting the target and interrupting the user's current flow.
 ```
 
 Run with `run <app> @plan.json` or pass the JSON string directly. The default
-`pointer: true` makes labeled clicks and text-field focus human-legible through
-the signed software cursor without moving the user's hardware pointer.
-`perform_action` and `right_click` use the same glide when `pointer` is
-true. Set `pointer: false` only for an explicitly approved visually silent
+`pointer: true` makes label- and index-addressed clicks and text-field focus
+human-legible through the signed software cursor without moving the user's
+hardware pointer. `double_click`, `perform_action`, and `right_click` use the
+same glide when `pointer` is true. Set `pointer: false` only for an explicitly approved visually silent
 diagnostic. Watched runs fail if the cursor does not reach the target or a
 pointer step exceeds `max_step_ms`. Set
 `capture` to `always`, `failures`, or `never`. The PiP places the same cursor

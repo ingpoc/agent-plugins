@@ -186,7 +186,10 @@ def run_actions(
                     else:
                         raise
             elif result is None and element is not None:
-                result = click_with_retry(pid, window_id, element, max_elements)
+                result = click_with_retry(
+                    pid, window_id, element, max_elements,
+                    app_name=app_name if pointer else None,
+                )
             elif result is None and step.get("x") is not None and step.get("y") is not None:
                 point_proof = None
                 if pointer:
@@ -226,21 +229,17 @@ def run_actions(
                 element, label_err = resolve_clickable_index(current, label)
                 if label_err is not None:
                     result = label_err
-            if result is None and element is not None:
+            has_point = step.get("x") is not None and step.get("y") is not None
+            if result is None and (element is not None or has_point):
                 result = double_click(
                     pid,
                     window_id,
                     element_index=element,
+                    x=step.get("x"),
+                    y=step.get("y"),
                     delivery_mode=step.get("delivery_mode", "background"),
-                    snapshot_data=current,
-                )
-            elif result is None and step.get("x") is not None and step.get("y") is not None:
-                result = double_click(
-                    pid,
-                    window_id,
-                    x=step["x"],
-                    y=step["y"],
-                    delivery_mode=step.get("delivery_mode", "background"),
+                    snapshot_data=current if element is not None else None,
+                    app_name=app_name if pointer else None,
                 )
             elif result is None:
                 result = {"error": "double_click requires label, element, or x/y"}

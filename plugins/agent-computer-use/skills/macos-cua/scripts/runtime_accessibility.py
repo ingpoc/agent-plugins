@@ -353,6 +353,7 @@ def _shallow_active_surfaces(root, services, depth=1):
 
 def _native_ax_snapshot(pid, max_elements=120, window_id=None):
     """Read bounded native AX state without letting another app steal focus."""
+    telemetry_record_ax()
     try:
         import ApplicationServices as services
     except ImportError as error:
