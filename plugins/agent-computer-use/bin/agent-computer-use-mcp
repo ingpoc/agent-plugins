@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+# Thin MCP facade. Cwd-independent. Cursor may spawn plugin-relative ./bin
+# against the workspace; ~/.cursor/mcp.json must use this absolute launcher.
+export CUA_DRIVER_RS_UPDATE_CHECK="${CUA_DRIVER_RS_UPDATE_CHECK:-0}"
+export PYTHONUNBUFFERED=1
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SCRIPT="$ROOT/skills/macos-cua/scripts/compact_mcp.py"
+if [ ! -f "$SCRIPT" ]; then
+  echo "agent-computer-use: compact MCP script missing at $SCRIPT" >&2
+  exit 127
+fi
+
+exec python3 -u "$SCRIPT"

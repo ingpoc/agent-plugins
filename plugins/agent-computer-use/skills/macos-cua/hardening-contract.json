@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "name": "macos-cua",
+  "acceptance": {
+    "outcome": "no false-green expects; compact run must not dump chats; Calculator and WhatsApp independent readback; source-frozen empty gate",
+    "owner": "source ~/plugins/agent-computer-use — click-label-pointer, plan_contract, runtime_plan, compact_mcp",
+    "pass": [
+      "expect ignores the acted control",
+      "role-scoped expect can require a heading that was not the acted button",
+      "compact final.text is expect-filtered and omits acted controls",
+      "unit tests",
+      "Calculator 8x8=64 via independent display readback",
+      "WhatsApp New Chat expect of popover-only AXHeading New chat fails closed",
+      "snapshot walks AXSheet/AXPopover/AXDialog when present, else one window",
+      "AXTextField child names attach to unlabeled rows",
+      "native type-text with empty AX value is ax_incomplete_value, not accepted",
+      "run_gate.py final-1 then final-2 --require-empty on the new source hash"
+    ],
+    "safety": "no WhatsApp send without (You); no chat dumps or personal identifiers in files",
+    "stale_greens": "ledger hash b5105878 is stale after source changes; do not claim empty-iteration without a new frozen pair"
+  },
+  "cwd": ".",
+  "source_paths": [
+    "SKILL.md",
+    "hardening-contract.json",
+    "operator",
+    "references",
+    "scripts",
+    "tests"
+  ],
+  "ignore_parts": [
+    ".git",
+    ".build",
+    "__pycache__",
+    ".DS_Store",
+    ".ruff_cache"
+  ],
+  "steps": [
+    {
+      "name": "static",
+      "command": ["bash", "scripts/validate.sh"],
+      "timeout_seconds": 120,
+      "budget_seconds": 20,
+      "fail_patterns": ["Traceback", "DeprecationWarning", "CoreSVG has logged an error"]
+    },
+    {
+      "name": "pointer",
+      "command": ["python3", "tests/test_live_pointer_isolation.py"],
+      "timeout_seconds": 90,
+      "budget_seconds": 25,
+      "fail_patterns": ["Traceback", "DeprecationWarning", "CoreSVG has logged an error"]
+    },
+    {
+      "name": "parity",
+      "command": ["python3", "tests/test_live_computer_parity.py"],
+      "timeout_seconds": 120,
+      "budget_seconds": 115,
+      "fail_patterns": [
+        "Traceback",
+        "DeprecationWarning",
+        "CoreSVG has logged an error",
+        "effect[^\\n]*unverifiable"
+      ]
+    },
+    {
+      "name": "benchmarks",
+      "command": ["python3", "scripts/run_benchmarks.py"],
+      "timeout_seconds": 90,
+      "budget_seconds": 60,
+      "fail_patterns": [
+        "Traceback",
+        "DeprecationWarning",
+        "CoreSVG has logged an error"
+      ]
+    },
+    {
+      "name": "live-validator",
+      "command": ["python3", "scripts/validate-macos-cua.py", "--live", "--progress"],
+      "timeout_seconds": 150,
+      "budget_seconds": 80,
+      "fail_patterns": [
+        "Traceback",
+        "DeprecationWarning",
+        "CoreSVG has logged an error",
+        "effect[^\\n]*unverifiable"
+      ]
+    }
+  ],
+  "cleanup": {
+    "command": ["python3", "scripts/macos-cua.py", "operator", "stop"],
+    "timeout_seconds": 30
+  },
+  "ledger_path": "~/.cache/elon-algorithm/macos-cua/ledger.json"
+}

@@ -1,0 +1,109 @@
+{
+  "outcome": "Agent Computer Use is the best watched Computer Use path: visible signed cursor, accurate independent readback, and snappy per-click speed are equal to round-trip and token efficiency versus Codex bundled Computer Use (Sky/node_repl) and raw cua-driver.",
+  "non_goals": [
+    "Copying node_repl or SkyComputerUseClient",
+    "Hermes computer-use rewrite",
+    "A second copied ~/.agents/skills/macos-cua tree",
+    "Exposing all 54 cua-driver tools as the agent vocabulary",
+    "A parallel live suite beside pointer/parity/live-validator"
+  ],
+  "owner": "~/plugins/agent-computer-use",
+  "entry_points": [
+    "plugin.json",
+    "mcp.json",
+    "bin/agent-computer-use-mcp",
+    "bin/cua-driver-mcp",
+    "skills/macos-cua/scripts/compact_mcp.py",
+    "skills/macos-cua/scripts/macos-cua.py",
+    "skills/macos-cua/scripts/run_benchmarks.py"
+  ],
+  "pass_signals": [
+    "One ready MCP server; no duplicate Computer Use catalogs",
+    "Default MCP tools/list is exactly start_session, state, act, verify, end_session",
+    "CLI state --compact --query / --diff then run is the default AX loop",
+    "Raw bin/cua-driver-mcp is diagnostic-only",
+    "Live parity + pointer + elon empty-iteration stay green",
+    "AX-incomplete composers (WhatsApp/Catalyst) prove by screenshot or Voice→Send, not typed_path ok; native type-text with empty AX is ax_incomplete_value",
+    "Native AX snapshot walks an open AXSheet/AXPopover/AXDialog, else open app-level context menus then one window",
+    "Cursor plugin spawn is not {workspace}/bin/agent-computer-use-mcp; dest uses an absolute launcher with cwd ./; ~/.cursor/mcp.json does not advertise agent-computer-use unless --user-mcp",
+    "Official suite duration/max-step/bytes must not regress vs the last warm green; do not loosen budget_seconds"
+  ],
+  "criteria": {
+    "accuracy": "Independent readback of the intended control or result; dispatch acceptance is not proof; no false-green type/click",
+    "visibility": "Signed operator cursor glides to the target before AX; method agent-cursor-glide*; cursor_sync ok. Observe-only rows set pointer_required false",
+    "speed": "Watched automation: total <= budget_seconds and each pointer step <= max_step_ms. A labeled click must not sit ~30s",
+    "efficiency": "Asserted run for 3+ actions; fewer round-trips than N granular MCP calls",
+    "context_efficiency": "No unfiltered state; --query/--diff; compact final.text; no chat dumps; parity run <12000 bytes",
+    "robustness": "One owner path; All Clear|Clear; expect ignores acted control; role-scoped heading; AX 1.5s timeout; no silent pixel fallback"
+  },
+  "weights": {
+    "accuracy": 1,
+    "visibility": 1,
+    "speed": 1,
+    "efficiency": 1,
+    "context_efficiency": 1,
+    "robustness": 1
+  },
+  "suite": [
+    {
+      "name": "calculator-8x8",
+      "surface": "Calculator",
+      "owner": "scripts/macos-cua.py run + state --query AXStaticText",
+      "metric": "accuracy+visibility+speed",
+      "pass_signal": "expect 64 and independent AXStaticText 64; each click agent-cursor-glide",
+      "pointer_required": true,
+      "budget_seconds": 25,
+      "max_step_ms": 2500,
+      "timeout_seconds": 60,
+      "bytes_budget": 12000
+    },
+    {
+      "name": "folder-downloads",
+      "surface": "Folder",
+      "owner": "scripts/validator_live.py finder_state",
+      "metric": "accuracy+robustness",
+      "pass_signal": "Downloads resolves to an actionable ancestor",
+      "pointer_required": false,
+      "budget_seconds": 20,
+      "timeout_seconds": 40,
+      "bytes_budget": 4000
+    },
+    {
+      "name": "textedit-right-click",
+      "surface": "right-click text editing",
+      "owner": "tests/test_live_computer_parity.py right click",
+      "metric": "accuracy+visibility+robustness",
+      "pass_signal": "Cursor glides; AXShowMenu/right-click shows Copy; document restored; no right-click-point",
+      "pointer_required": true,
+      "budget_seconds": 30,
+      "max_step_ms": 5000,
+      "timeout_seconds": 60,
+      "bytes_budget": 8000
+    },
+    {
+      "name": "whatsapp-new-chat",
+      "surface": "WhatsApp",
+      "owner": "scripts/macos-cua.py run perform_action",
+      "metric": "accuracy+visibility+context_efficiency",
+      "pass_signal": "After closed tree, cursor glides, AXHeading New chat; compact heading-only; no send. Speed clock starts after app resolve",
+      "pointer_required": true,
+      "budget_seconds": 15,
+      "max_step_ms": 4000,
+      "timeout_seconds": 30,
+      "bytes_budget": 800
+    }
+  ],
+  "gate": {
+    "owner": "hardening-contract.json",
+    "command": "python3 ~/.agents/skills/elon-algorithm/scripts/run_gate.py --contract skills/macos-cua/hardening-contract.json",
+    "budgets": {
+      "static": 20,
+      "pointer": 25,
+      "parity": 115,
+      "benchmarks": 60,
+      "live-validator": 80
+    }
+  },
+  "safety": "No chat dumps. No personal identifiers. No new send/payment authority. Live gate uses Calculator/TextEdit/Finder. WhatsApp benchmark is query/compact observe only; require Message yourself then (You) before any send.",
+  "baseline": "Thin 5-tool MCP vs Sky ~10 methods. We win asserted CLI batches, compact query/diff, and harness portability. Cursor plugin ./bin spawn is dest-absolute after install_harness cursor-plugin."
+}

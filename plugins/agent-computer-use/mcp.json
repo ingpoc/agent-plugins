@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "agent-computer-use": {
+      "type": "stdio",
+      "command": "./bin/agent-computer-use-mcp",
+      "cwd": "./",
+      "env": {
+        "CUA_DRIVER_PERMISSION_MODE": "standard",
+        "CUA_DRIVER_RS_UPDATE_CHECK": "0"
+      }
+    }
+  }
+}

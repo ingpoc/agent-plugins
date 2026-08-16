@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+# Packaged MCP entry. Cwd-independent. Cursor may spawn with the wrong cwd;
+# this script still finds cua-driver from HOME / CUA_DRIVER_BIN.
+export CUA_DRIVER_RS_UPDATE_CHECK="${CUA_DRIVER_RS_UPDATE_CHECK:-0}"
+
+driver=${CUA_DRIVER_BIN:-}
+if [ -z "$driver" ]; then
+  driver=$(command -v cua-driver 2>/dev/null || true)
+fi
+if [ -z "$driver" ] && [ -x "${HOME:-}/.local/bin/cua-driver" ]; then
+  driver="${HOME}/.local/bin/cua-driver"
+fi
+if [ -z "$driver" ] || [ ! -x "$driver" ]; then
+  echo "agent-computer-use: cua-driver is unavailable; install it from https://cua.ai/docs/cua-driver" >&2
+  exit 127
+fi
+
+exec "$driver" mcp --client agent-computer-use
