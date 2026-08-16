@@ -1,7 +1,0 @@
-{
-  "name": "comet-control",
-  "displayName": "Comet Control",
-  "description": "Drive web apps through one leased visible Comet window.",
-  "logo": "assets/logo.svg",
-  "skills": "./skills/"
-}

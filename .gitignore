@@ -5,3 +5,7 @@ __pycache__/
 .cache/
 *.egg-info/
 plugins/*/run/
+.cursor-plugin/
+.codex-plugin/
+**/.cursor-plugin/
+**/.codex-plugin/

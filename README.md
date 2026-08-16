@@ -1,25 +1,25 @@
 # Agent Plugins
 
-Collection of portable [Agent Plugins](https://agent-plugins.org/). The install unit is `plugins/<name>/` (has `plugin.json`). This repository root is not a plugin.
+Collection of portable [Agent Plugins](https://agent-plugins.org/). The install unit is `plugins/<name>/` (has `plugin.json`). This repository root is not a plugin. This repo does not ship Cursor plugins or Codex plugins.
 
-Agents: read [`AGENTS.md`](AGENTS.md). Find the current client on [compatible-clients](https://agent-plugins.org/compatible-clients), open that client's setup link, and install `plugins/<name>/`. Do the work. Do not hand the user a recipe.
+A user asks their agent to install a named plugin from this GitHub URL. The agent reads root [`AGENTS.md`](AGENTS.md) for routing, then [`plugins/<name>/AGENTS.md`](plugins/agent-computer-use/AGENTS.md) for that plugin's install, matches the running client on [compatible-clients](https://agent-plugins.org/compatible-clients), and loads `plugins/<name>/`. Do the work. Do not hand the user a recipe.
 
 ```text
 plugins/agent-computer-use/
+├── AGENTS.md
+├── README.md
 ├── plugin.json
 ├── mcp.json
-├── assets/logo.svg
-├── .cursor-plugin/plugin.json   # Cursor overlay only; logo path
 ├── skills/macos-cua/
 └── bin/
 plugins/comet-control/
+├── AGENTS.md
+├── README.md
 ├── plugin.json
-├── assets/logo.svg
-├── .cursor-plugin/plugin.json
 ├── skills/comet-control/
-└── plugin/comet_control/   # extension + broker
+└── plugin/comet_control/
 ```
 
 ## Add another plugin
 
-Use `$agent-plugin-creator`. It fetches the live [spec](https://github.com/agentplugins/agent-plugins-spec) and [plugin-authors](https://agent-plugins.org/plugin-authors) docs, writes `plugins/<name>/` (including committed `assets/logo.svg` and Cursor overlay), and updates the `AGENTS.md` Plugins table. Do not put `logo` on portable `plugin.json`.
+Use `$agent-plugin-creator`. It writes `plugins/<name>/` (including that plugin's `AGENTS.md`) and a row in the root Plugins table. Do not add `.cursor-plugin/` or `.codex-plugin/` manifests.

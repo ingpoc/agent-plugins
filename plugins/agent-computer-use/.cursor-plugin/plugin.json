@@ -1,8 +1,0 @@
-{
-  "name": "agent-computer-use",
-  "displayName": "Agent Computer Use",
-  "description": "Native macOS computer use through a 5-tool MCP facade over compact AX-first macos-cua workflows.",
-  "logo": "assets/logo.svg",
-  "skills": "./skills/",
-  "mcpServers": "./mcp.json"
-}

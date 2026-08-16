@@ -31,10 +31,19 @@ class PluginPackageTests(unittest.TestCase):
             "extensions",
         }
         self.assertEqual(extra, set())
-        overlay = json.loads((PLUGIN_ROOT / ".cursor-plugin" / "plugin.json").read_text())
-        self.assertEqual(overlay["logo"], "assets/logo.svg")
-        self.assertTrue((PLUGIN_ROOT / "assets" / "logo.svg").is_file())
         self.assertNotIn("logo", data)
+        self.assertFalse((PLUGIN_ROOT / ".cursor-plugin").exists())
+        self.assertFalse((PLUGIN_ROOT / ".codex-plugin").exists())
+        self.assertTrue((PLUGIN_ROOT / "AGENTS.md").is_file())
+        readme = (PLUGIN_ROOT / "README.md").read_text()
+        for axis in (
+            "Reliability",
+            "Robustness",
+            "Context efficiency",
+            "Speed",
+            "Efficiency",
+        ):
+            self.assertIn(f"### {axis}", readme)
 
     def test_mcp_uses_packaged_relative_command(self):
         config = json.loads((PLUGIN_ROOT / "mcp.json").read_text())
