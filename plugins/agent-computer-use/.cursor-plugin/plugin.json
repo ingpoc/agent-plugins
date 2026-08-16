@@ -16,7 +16,7 @@
     "accessibility",
     "automation"
   ],
-  "logo": "assets/logo.svg",
+  "logo": "https://raw.githubusercontent.com/ingpoc/agent-plugins/main/plugins/agent-computer-use/assets/logo.png",
   "skills": "./skills/",
   "mcpServers": "./mcp.json"
 }

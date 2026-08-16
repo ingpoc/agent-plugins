@@ -35,7 +35,9 @@ class PluginPackageTests(unittest.TestCase):
         self.assertEqual(data["logo"], "assets/logo.svg")
         self.assertTrue((PLUGIN_ROOT / data["logo"]).is_file())
         cursor = json.loads((PLUGIN_ROOT / ".cursor-plugin/plugin.json").read_text())
-        self.assertEqual(cursor["logo"], "assets/logo.svg")
+        self.assertTrue(cursor["logo"].startswith("https://"))
+        self.assertTrue(cursor["logo"].endswith("assets/logo.png"))
+        self.assertTrue((PLUGIN_ROOT / "assets/logo.png").is_file())
         self.assertEqual(cursor["name"], "agent-computer-use")
 
     def test_mcp_uses_packaged_relative_command(self):
