@@ -1,6 +1,8 @@
 # Agent Plugins
 
-Portable [Agent Plugins](https://agent-plugins.org/) for any conformant client (Cursor, Codex, Copilot, VS Code, and others). One package. Not a Cursor plugin and a Codex plugin.
+Collection of portable [Agent Plugins](https://agent-plugins.org/). The install unit is `plugins/<name>/` (has `plugin.json`). This repository root is not a plugin.
+
+Agents: read [`AGENTS.md`](AGENTS.md). Find the current client on [compatible-clients](https://agent-plugins.org/compatible-clients), open that client's setup link, and install `plugins/<name>/`. Do the work. Do not hand the user a recipe.
 
 ```text
 plugins/agent-computer-use/
@@ -10,10 +12,6 @@ plugins/agent-computer-use/
 └── bin/
 ```
 
-That is the whole contract: root `plugin.json`, skills under `skills/`, MCP in `mcp.json`. Clients load the directory. Installation UX stays with the client.
-
-Agents: follow [`AGENTS.md`](AGENTS.md). Find your client on [compatible-clients](https://agent-plugins.org/compatible-clients), open its setup link, and install `plugins/<name>/`. Do not hand the user a recipe.
-
 ## Add another plugin
 
-Create `plugins/<name>/` with the same three files. Do not add `.cursor-plugin/` or `.codex-plugin/` manifests. Client extras, if ever needed, go in a reverse-domain folder the client documents (`com.example.client/`).
+Use `$agent-plugin-creator` so the package lands in `plugins/<name>/` and the `AGENTS.md` Plugins table is updated. Do not add `.cursor-plugin/` or `.codex-plugin/` manifests.
