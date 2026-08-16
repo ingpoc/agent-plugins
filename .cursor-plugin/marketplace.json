@@ -4,15 +4,19 @@
     "name": "ingpoc"
   },
   "metadata": {
-    "description": "Open-source Cursor plugins for native macOS computer use and Comet browser control.",
+    "description": "Portable Agent Plugins collection.",
     "pluginRoot": "plugins"
   },
   "plugins": [
     {
       "name": "agent-computer-use",
       "source": "./agent-computer-use",
-      "description": "Native macOS computer use through a 5-tool MCP facade over compact AX-first macos-cua workflows.",
-      "logo": "https://raw.githubusercontent.com/ingpoc/agent-plugins/main/plugins/agent-computer-use/assets/logo.png"
+      "logo": "assets/logo.svg"
+    },
+    {
+      "name": "comet-control",
+      "source": "./comet-control",
+      "logo": "assets/logo.svg"
     }
   ]
 }

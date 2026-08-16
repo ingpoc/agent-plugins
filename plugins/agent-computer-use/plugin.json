@@ -3,7 +3,6 @@
   "name": "agent-computer-use",
   "version": "0.2.9",
   "description": "Native macOS computer use through a 5-tool MCP facade over compact AX-first macos-cua workflows.",
-  "logo": "assets/logo.svg",
   "author": {
     "name": "ingpoc",
     "url": "https://github.com/ingpoc"

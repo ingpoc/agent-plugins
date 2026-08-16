@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img">
+  <title>comet-control</title>
+  <rect width="128" height="128" rx="28" fill="#0B1220"/>
+  <circle cx="64" cy="64" r="40" fill="none" stroke="#22D3EE" stroke-width="6"/>
+  <text x="64" y="82" text-anchor="middle" font-size="56" font-family="system-ui,sans-serif" fill="#E8FBFF">C</text>
+</svg>
