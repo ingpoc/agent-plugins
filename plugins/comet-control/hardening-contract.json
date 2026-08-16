@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "name": "comet-control",
+  "cwd": ".",
+  "source_paths": [
+    "plugin.json",
+    "hardening-contract.json",
+    "plugin",
+    "scripts",
+    "skills"
+  ],
+  "ignore_parts": [
+    ".git",
+    ".build",
+    "__pycache__",
+    ".DS_Store",
+    "run"
+  ],
+  "steps": [
+    {
+      "name": "no-stale",
+      "command": [
+        "python3",
+        "-c",
+        "from pathlib import Path; r=Path('.'); banned=['deploy','scripts/sync-wip.sh','scripts/ensure-wip-broker.sh','scripts/launch-wip-comet.sh','plugin/comet_control/tools.py','plugin/comet_control/plugin.yaml','plugin/comet_control/tests/test_tools.py','plugin/comet_control/tests/test_visual_focus_lock.py']; missing=[p for p in banned if (r/p).exists()]; assert not missing, missing; assert (r/'plugin/comet_control/extension/manifest.json').is_file(); assert (r/'plugin/comet_control/native/broker.py').is_file(); assert not (r/'mcp.json').exists(); print('no-stale-ok')"
+      ],
+      "timeout_seconds": 15,
+      "budget_seconds": 5,
+      "fail_patterns": ["Traceback", "AssertionError"]
+    },
+    {
+      "name": "validate",
+      "command": [
+        "python3",
+        "/Users/gurusharan/.agents/skills/agent-plugin-creator/scripts/create_agent_plugin.py",
+        "--validate",
+        "/Users/gurusharan/Documents/remote-claude/active/apps/agent-plugins/plugins/comet-control"
+      ],
+      "timeout_seconds": 30,
+      "budget_seconds": 10,
+      "fail_patterns": ["Traceback", "plugin.json is missing"]
+    },
+    {
+      "name": "unit",
+      "command": [
+        "python3",
+        "-B",
+        "-m",
+        "unittest",
+        "plugin.comet_control.tests.test_source_contracts",
+        "plugin.comet_control.tests.test_lease_driver",
+        "plugin.comet_control.tests.test_durable_lease_controller",
+        "plugin.comet_control.tests.test_handoff_hardening",
+        "plugin.comet_control.tests.test_broker",
+        "plugin.comet_control.tests.test_broker_script",
+        "plugin.comet_control.tests.test_cua_coexistence",
+        "-q"
+      ],
+      "timeout_seconds": 60,
+      "budget_seconds": 20,
+      "fail_patterns": ["Traceback", "FAILED", "ERROR:"]
+    }
+  ],
+  "cleanup": {
+    "command": ["true"],
+    "timeout_seconds": 10
+  },
+  "ledger_path": "~/.cache/elon-algorithm/comet-control/ledger.json"
+}

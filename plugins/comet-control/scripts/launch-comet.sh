@@ -6,11 +6,11 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMET="/Applications/Comet.app/Contents/MacOS/Comet"
 
 [[ -x "$COMET" ]] || { echo "Comet not found: $COMET" >&2; exit 1; }
-"$ROOT/scripts/ensure-wip-broker.sh" start
+"$ROOT/scripts/ensure-broker.sh" start
 open -a "Comet"
 
 for _ in {1..60}; do
-  if "$ROOT/scripts/ensure-wip-broker.sh" probe --json >/dev/null 2>&1; then
+  if "$ROOT/scripts/ensure-broker.sh" probe --json >/dev/null 2>&1; then
     echo "Comet Control is ready in the logged-in Comet profile"
     exit 0
   fi

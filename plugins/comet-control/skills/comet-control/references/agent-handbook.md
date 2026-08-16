@@ -1,4 +1,4 @@
-# Agent Handbook — modifying & troubleshooting Comet Control (WIP)
+# Agent Handbook — modifying & troubleshooting Comet Control
 
 Read before editing the plugin or debugging deeper than `optimize.md`.
 `operate.md` / `optimize.md` = using the bridge; this handbook = modifying it.
@@ -32,15 +32,15 @@ One owner: `plugin/comet_control/`.
 
 ---
 
-## Hard-won lessons (WIP + carried forward)
+## Hard-won lessons
 
 ### Wrong browser runtime
 
 **Symptom:** Suite/screenshots green; the operator sees nothing in Comet.
 **Why:** The extension is missing, disabled, or running under a custom Comet
 user-data directory.
-**Fix:** Run `../../scripts/ensure-wip-broker.sh probe --json`; require its
-broker-attested runtime, then use `../../scripts/launch-wip-comet.sh`. Never
+**Fix:** Run `../../scripts/ensure-broker.sh probe --json`; require its
+broker-attested runtime, then use `../../scripts/launch-comet.sh`. Never
 infer ownership from a focused window or Preferences.
 
 ### Lease vanish on owned window
@@ -87,10 +87,10 @@ Extension bridge only. Grep before adding transport files.
 
 Use `chrome-extension://…/runtime.js` + `web_accessible_resources`.
 
-### Broker (macOS WIP)
+### Broker
 
-`ensure-wip-broker.sh start` supervises `broker.py` with the WIP socket and
-exact extension origin. If the socket is missing, inspect the broker log.
+`ensure-broker.sh start` supervises `broker.py` with `run/comet-control.sock` and
+the exact extension origin. If the socket is missing, inspect the broker log.
 
 ### `chrome.debugger` vs DevTools
 
@@ -127,18 +127,15 @@ Traces → `console.debug` or remove.
 
 ### Content script did not respond
 
-1. Send WIP `status` through `run/comet-control.sock`.
+1. Send `status` through `run/comet-control.sock`.
 2. Start a leased `session_preflight` on a real `https://` URL.
 3. If both fail after an extension edit, reload the unpacked
    `plugin/comet_control/extension` and retry with a new lease.
 
-The copied production `plugin/comet_control/scripts/preflight.sh` and `sync.sh`
-are outside the WIP control path and must not be used here.
-
 ### Bridge socket present but no actions
 
 1. `lsof …/run/comet-control.sock`
-2. `ensure-wip-broker.sh probe --json`
+2. `ensure-broker.sh probe --json`
 3. Reload the Comet extension only if `extension_connected` remains false
 
 ### Cursor/UI claim
@@ -157,8 +154,8 @@ Use leases ([`multi-agent.md`](multi-agent.md)), not `sessionName` alone.
 - Edit **`plugin/comet_control/`** only.
 - After changes, reload the unpacked `plugin/comet_control/extension`.
   `bridge({"type":"reload"})` is safe only with no leases.
-- Never sync into `~/.codex` / `~/.comet-control` until cutover.
-- New action → SW + content script if needed + `tools.py` + `operate.md`.
+- Never sync into `~/.codex` or `~/.comet-control`.
+- New action → SW + content script if needed + `lease_driver.py` + `operate.md`.
   Update `multi-agent.md` only for lease behavior.
 - No CDP transport. Keep `debugger` permission. Don't widen manifest without reason.
 

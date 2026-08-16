@@ -2,11 +2,11 @@
 # Comet-only broker lifecycle and readiness probe.
 set -euo pipefail
 
-ROOT="${COMET_CONTROL_WIP_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+ROOT="${COMET_CONTROL_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 MODE="${1:-probe}"
 [[ $# -gt 0 ]] && shift
 [[ "${1:-}" == "--json" ]] && shift
-[[ $# -eq 0 ]] || { echo "Usage: ensure-wip-broker.sh [probe|start] [--json]" >&2; exit 2; }
+[[ $# -eq 0 ]] || { echo "Usage: ensure-broker.sh [probe|start] [--json]" >&2; exit 2; }
 
 BROKER="$ROOT/plugin/comet_control/native/broker.py"
 RUN="$ROOT/run"
@@ -157,5 +157,5 @@ PY
 case "$MODE" in
   probe) probe ;;
   start) start ;;
-  *) echo "Usage: ensure-wip-broker.sh [probe|start] [--json]" >&2; exit 2 ;;
+  *) echo "Usage: ensure-broker.sh [probe|start] [--json]" >&2; exit 2 ;;
 esac

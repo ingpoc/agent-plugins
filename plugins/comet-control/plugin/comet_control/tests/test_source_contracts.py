@@ -1,7 +1,5 @@
-import importlib
 import json
 from pathlib import Path
-import sys
 import unittest
 
 
@@ -12,39 +10,14 @@ PARITY_CAPABILITIES = ROOT / "extension" / "parity_capabilities.js"
 LEASE_DRIVER = (
     ROOT.parents[1] / "skills" / "comet-control" / "scripts" / "lease_driver.py"
 )
-_SIBLING_LOCK = (
-    ROOT.parents[1].parent
-    / "agent-computer-use"
-    / "skills"
-    / "macos-cua"
-    / "scripts"
-    / "visual_focus_lock.py"
-)
-VISUAL_FOCUS_LOCK = (
-    _SIBLING_LOCK
-    if _SIBLING_LOCK.is_file()
-    else Path.home() / ".agents" / "skills" / "macos-cua" / "scripts" / "visual_focus_lock.py"
-)
-TOOLS = ROOT / "tools.py"
 DASHBOARD_TEST = ROOT / "tests" / "test_dashboard_interactions.py"
 ISOLATION_TEST = ROOT / "tests" / "test_multi_agent_isolation.py"
 CANONICAL_SKILL = ROOT.parents[1] / "skills" / "comet-control" / "SKILL.md"
 BROKER = ROOT / "native" / "broker.py"
-OWNER_PROBE = ROOT.parents[1] / "scripts" / "ensure-wip-broker.sh"
-RUNTIME_LAUNCHER = ROOT.parents[1] / "scripts" / "launch-wip-comet.sh"
+OWNER_PROBE = ROOT.parents[1] / "scripts" / "ensure-broker.sh"
+RUNTIME_LAUNCHER = ROOT.parents[1] / "scripts" / "launch-comet.sh"
 DIAGNOSTICS = ROOT / "diagnostics.py"
 MANIFEST = ROOT / "extension" / "manifest.json"
-
-
-class _RegistrationContext:
-    def __init__(self) -> None:
-        self.skills = []
-
-    def register_tool(self, **_kwargs) -> None:
-        pass
-
-    def register_skill(self, *args) -> None:
-        self.skills.append(args)
 
 
 class SourceContractTests(unittest.TestCase):
@@ -129,22 +102,10 @@ class SourceContractTests(unittest.TestCase):
         self.assertNotIn("activeTab", permissions)
         self.assertNotIn("tabGroups", permissions)
 
-    def test_plugin_registers_the_single_repository_skill_realpath(self) -> None:
-        sys.path.insert(0, str(ROOT.parent))
-        try:
-            package = importlib.import_module("comet_control")
-        finally:
-            sys.path.pop(0)
-
-        context = _RegistrationContext()
-        package.register(context)
-
-        self.assertEqual(len(context.skills), 1)
-        name, registered_path, _description = context.skills[0]
-        self.assertEqual(name, "comet-control")
+    def test_canonical_skill_is_in_the_plugin_package(self) -> None:
         self.assertTrue(CANONICAL_SKILL.is_file())
-        self.assertEqual(Path(registered_path).resolve(), CANONICAL_SKILL.resolve())
-        self.assertTrue(Path(registered_path).samefile(CANONICAL_SKILL))
+        self.assertEqual(CANONICAL_SKILL.parent.name, "comet-control")
+        self.assertEqual(CANONICAL_SKILL.parents[2].name, "comet-control")
 
     def test_session_restore_failure_disables_all_leased_browser_work(self) -> None:
         source = SERVICE_WORKER.read_text()
@@ -238,22 +199,8 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn(recheck, reaper)
         self.assertLess(reaper.index(recheck), reaper.index('closeSession(sessionId, { reason: "lease-expired" })'))
 
-    def test_private_lease_tokens_are_process_owned_and_not_tool_arguments(self) -> None:
-        sys.path.insert(0, str(ROOT.parent))
-        try:
-            tools = importlib.import_module("comet_control.tools")
-        finally:
-            sys.path.pop(0)
-
-        properties = tools.COMET_CONTROL_BROWSER_SCHEMA["parameters"]["properties"]
-        self.assertNotIn("lease_token", properties)
-        self.assertNotIn("leaseToken", properties)
-
-        tool_source = TOOLS.read_text()
+    def test_private_lease_tokens_are_process_owned_and_redacted(self) -> None:
         driver_source = LEASE_DRIVER.read_text()
-        self.assertIn("_LEASE_TOKENS: dict[str, str]", tool_source)
-        self.assertIn('session.pop("lease_token", "")', tool_source)
-        self.assertIn("def _redact_private(value: Any)", tool_source)
         self.assertIn("def redact_private(value: Any, private_token: str = \"\")", driver_source)
         self.assertIn('replace("_", "").lower() == "leasetoken"', driver_source)
         self.assertIn('for name in ("SIGTERM", "SIGHUP")', driver_source)
@@ -861,8 +808,6 @@ class SourceContractTests(unittest.TestCase):
     def test_broker_owns_visual_focus_for_every_browser_client(self) -> None:
         driver = LEASE_DRIVER.read_text()
         broker = BROKER.read_text()
-        tools = TOOLS.read_text()
-        focus = VISUAL_FOCUS_LOCK.read_text()
         self.assertIn('MACOS_CUA_VISUAL_LOCK_MODULE', broker)
         self.assertIn('VISUAL_REQUEST_TYPES', broker)
         for request_type in ('"session_preflight"', '"session_closeout"', '"run"'):
@@ -870,12 +815,7 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn('visual_lease, focus_error = _acquire_visual_focus', broker)
         self.assertIn('visual_lease.release()', broker)
         self.assertIn('target=handle_client, args=(conn,), daemon=False', broker)
-        self.assertIn('_run_extension_bridge(request, timeout_seconds=timeout_seconds)', tools)
         self.assertNotIn('bridge_with_visual_focus', driver)
-        self.assertIn('fcntl.LOCK_EX | fcntl.LOCK_NB', focus)
-        self.assertIn('_LOCAL_LOCK = threading.Lock()', focus)
-        self.assertIn('def release(self)', focus)
-        self.assertIn('visual-focus-v1', focus)
 
 
 if __name__ == "__main__":

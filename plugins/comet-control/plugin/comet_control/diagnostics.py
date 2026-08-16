@@ -14,8 +14,8 @@ from typing import Any
 
 
 PLUGIN_DIR = Path(__file__).resolve().parent
-WIP_ROOT = PLUGIN_DIR.parents[1]
-PROBE = WIP_ROOT / "scripts" / "ensure-wip-broker.sh"
+PLUGIN_ROOT = PLUGIN_DIR.parents[1]
+PROBE = PLUGIN_ROOT / "scripts" / "ensure-broker.sh"
 SOURCE_EXTENSION = PLUGIN_DIR / "extension"
 SOURCE_BROKER = PLUGIN_DIR / "native" / "broker.py"
 DRIFT_FILES = (
@@ -87,7 +87,7 @@ def _runtime_check(payload: dict[str, Any]) -> dict[str, Any]:
         ready,
         severity="blocking",
         detail=detail,
-        surface="scripts/ensure-wip-broker.sh",
+        surface="scripts/ensure-broker.sh",
         fix=(
             "-"
             if ready

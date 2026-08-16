@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """CLI wrapper for the deterministic Comet Control Bridge diagnostics.
 
-Used by the comet-control skill preflight (step 1) to catch setup regressions
-before any browser action. Prints the shared `run_diagnostics()` payload.
+Optional CLI over `diagnostics.run_diagnostics()`. Prints the shared payload.
 
 Usage:
   python3 diagnose.py          # human-readable summary

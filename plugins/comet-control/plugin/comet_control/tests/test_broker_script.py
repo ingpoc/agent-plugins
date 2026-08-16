@@ -14,7 +14,7 @@ import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SCRIPT = REPO_ROOT / "scripts" / "ensure-wip-broker.sh"
+SCRIPT = REPO_ROOT / "scripts" / "ensure-broker.sh"
 BROKER = REPO_ROOT / "plugin" / "comet_control" / "native" / "broker.py"
 
 
@@ -30,7 +30,7 @@ class BrokerScriptTests(unittest.TestCase):
                 port = port_probe.getsockname()[1]
             environment = {
                 **os.environ,
-                "COMET_CONTROL_WIP_ROOT": str(root),
+                "COMET_CONTROL_ROOT": str(root),
                 "COMET_CONTROL_USER_HOME": str(root / "home"),
                 "COMET_CONTROL_BROKER_PORT": str(port),
                 "COMET_CONTROL_BROKER_DIRECT": "1",

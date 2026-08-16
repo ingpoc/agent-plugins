@@ -1,11 +1,11 @@
-# comet-control WIP — Multi-agent leases
+# comet-control — Multi-agent leases
 
 Load when two agents share the managed Comet Control browser runtime, or when a run
 needs an owned window and labeled cursor.
 
 ## Architecture (locked)
 
-- One shared Unix socket (WIP): `…/run/comet-control.sock`
+- One shared Unix socket: `run/comet-control.sock`
 - Isolation key: opaque session id + process-private token + owned window/tab
 - Per-session FIFO; cross-session tasks parallel, global visual command slices serialized
 - Labeled cursor below pointer (`agentLabel`)
@@ -22,7 +22,7 @@ Decision history stays in the source repo, not this portable package.
 ## Read-only host check (do this first)
 
 ```bash
-../../scripts/ensure-wip-broker.sh probe --json
+../../scripts/ensure-broker.sh probe --json
 ```
 
 Require the probe's broker-attested `user_data_dir`; Preferences and cached
@@ -190,7 +190,7 @@ The gate includes 2/3/4-window secondary-display geometry and re-tiling after
 closeout, in addition to negative lease boundaries, screenshots, overlapping
 clicks, continuation, and clean closeout. Require two consecutive green runs.
 
-## Known failure modes (fixed in WIP code)
+## Known failure modes
 
 | Failure | Fix in tree |
 | --- | --- |

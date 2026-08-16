@@ -34,10 +34,10 @@ from urllib.parse import parse_qs, urlparse
 from PIL import Image
 
 
-WIP_ROOT = Path(__file__).resolve().parents[3]
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 SOCK = Path(os.environ.get(
     "COMET_CONTROL_BRIDGE_SOCKET",
-    str(WIP_ROOT / "run" / "comet-control.sock"),
+    str(PLUGIN_ROOT / "run" / "comet-control.sock"),
 ))
 TTL_SECONDS = int(os.environ.get("COMET_CONTROL_MULTI_AGENT_TEST_TTL_SECONDS", "90"))
 BRIDGE_TIMEOUT_SECONDS = 35

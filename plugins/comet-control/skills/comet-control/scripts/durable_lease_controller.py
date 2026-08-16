@@ -41,7 +41,7 @@ def _default_socket() -> str:
     env = os.environ.get("COMET_CONTROL_BRIDGE_SOCKET")
     if env:
         return env
-    wip = os.environ.get("COMET_CONTROL_WIP_ROOT")
+    wip = os.environ.get("COMET_CONTROL_ROOT")
     if wip:
         return str(Path(wip).expanduser().resolve() / "run" / "comet-control.sock")
     here = Path(__file__).resolve()

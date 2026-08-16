@@ -150,8 +150,7 @@ the selector is wrong. Repeated blind retries mask the owning defect.
 
 ## Failure boundary
 
-On a socket drop, do not run the copied production `preflight.sh` or `sync.sh`.
-Record the failed action, check the WIP socket, and follow
+On a socket drop, record the failed action, check `run/comet-control.sock`, and follow
 [`optimize.md`](optimize.md). If the extension was reloaded, start a new lease;
 old tokens and selectors are stale.
 

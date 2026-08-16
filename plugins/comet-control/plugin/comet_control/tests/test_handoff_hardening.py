@@ -9,12 +9,12 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from pathlib import Path
 
-WIP_ROOT = Path(__file__).resolve().parents[3]
-LEASE_DRIVER = WIP_ROOT / "skills" / "comet-control" / "scripts" / "lease_driver.py"
-CTRL = WIP_ROOT / "skills" / "comet-control" / "scripts" / "durable_lease_controller.py"
-CUA_SLICE = WIP_ROOT / "skills" / "comet-control" / "scripts" / "cua_slice.py"
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+LEASE_DRIVER = PLUGIN_ROOT / "skills" / "comet-control" / "scripts" / "lease_driver.py"
+CTRL = PLUGIN_ROOT / "skills" / "comet-control" / "scripts" / "durable_lease_controller.py"
+CUA_SLICE = PLUGIN_ROOT / "skills" / "comet-control" / "scripts" / "cua_slice.py"
 SERVICE_WORKER = (
-    WIP_ROOT / "plugin" / "comet_control" / "extension" / "service_worker.js"
+    PLUGIN_ROOT / "plugin" / "comet_control" / "extension" / "service_worker.js"
 )
 
 

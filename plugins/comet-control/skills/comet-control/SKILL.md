@@ -33,7 +33,7 @@ Run from the runtime root.
 1. Probe the runtime without changing it:
 
    ```bash
-   ./scripts/ensure-wip-broker.sh probe --json
+   ./scripts/ensure-broker.sh probe --json
    ```
 
    Require `success: true`, `runtime_verified: true`, and
@@ -138,9 +138,9 @@ Do not turn a failed probe into broad process cleanup. Start the repository-owne
 broker and the normal logged-in Comet profile explicitly:
 
 ```bash
-./scripts/ensure-wip-broker.sh start
-./scripts/launch-wip-comet.sh
-./scripts/ensure-wip-broker.sh probe --json
+./scripts/ensure-broker.sh start
+./scripts/launch-comet.sh
+./scripts/ensure-broker.sh probe --json
 ```
 
 The launcher uses the existing logged-in Comet profile. First
@@ -191,8 +191,8 @@ recaptures once after foregrounding.
 
 ## Non-negotiable boundaries
 
-- Use only the WIP runtime, deploy, cache, and socket paths until intentional
-  cutover; never route through `~/.comet-control` or copy runtime files into it.
+- Use only this plugin's `run/` socket and cache. Never route through
+  `~/.comet-control` or copy runtime files into it.
 - One stable session id, one live driver process, and one leased window per
   bounded task or testing campaign. Do not close and reopen between setup,
   cases, diagnosis, retests, or proof. Concurrent agents use distinct sessions.
@@ -216,7 +216,7 @@ recaptures once after foregrounding.
 | Console and network inspection | [`references/devtools.md`](references/devtools.md) |
 | Dialogs, files, viewport, tabs/history, semantic locators, raw CDP | [`references/advanced-capabilities.md`](references/advanced-capabilities.md) |
 | Comet capability and bundled-browser boundary | [`references/comet-capabilities.md`](references/comet-capabilities.md) |
-| Architecture and ownership | [`references/agent-handbook.md`](references/agent-handbook.md) and [`../DECISIONS.md`](../DECISIONS.md) |
+| Architecture and ownership | [`references/agent-handbook.md`](references/agent-handbook.md) |
 
 After changing any skill file, run `./skills/comet-control/scripts/validate.sh --strict` from
 the runtime root.

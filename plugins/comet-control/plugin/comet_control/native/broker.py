@@ -53,10 +53,6 @@ def _runtime_root() -> Path:
             parent / "plugin" / "comet_control"
         ).is_dir():
             return parent
-        if parent.name == "comet-control-cursor-wip" and (
-            parent / "plugin" / "comet_control"
-        ).is_dir():
-            return parent
     raise RuntimeError("Comet Control broker could not resolve its repository root")
 
 

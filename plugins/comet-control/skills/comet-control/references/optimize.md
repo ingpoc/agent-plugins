@@ -1,20 +1,16 @@
 # Comet Control diagnosis and repair
 
-Load this reference after the same bridge action fails twice, the WIP socket is
+Load this reference after the same bridge action fails twice, the plugin socket is
 unreachable, or live readback contradicts the requested outcome. Routine use
 belongs in [`operate.md`](operate.md); plugin invariants belong in
 [`agent-handbook.md`](agent-handbook.md).
 
 ## Safety boundary
 
-This skill controls only the plugin root (the directory with `plugin.json`):
-
+This skill controls only the plugin root (the directory with `plugin.json`).
 Source and the unpacked extension live in `plugin/comet_control/`. The
-socket lives at `run/comet-control.sock`. Never run the copied production `plugin/comet_control/scripts/sync.sh`
-or `preflight.sh`; both target live paths under `~/.codex` / `~/.comet-control` and are
-outside this WIP runtime.
-
-WIP operation must not create bridge artifacts under `~/.comet-control`.
+socket lives at `run/comet-control.sock`. Do not create bridge artifacts under
+`~/.comet-control`.
 
 ## Diagnosis ladder
 
@@ -24,7 +20,7 @@ layer that was skipped.
 ### 1. Probe the runtime without mutation
 
 ```bash
-../../scripts/ensure-wip-broker.sh probe --json
+../../scripts/ensure-broker.sh probe --json
 ```
 
 The JSON result is authoritative for the broker-attested logged-in Comet profile
@@ -37,9 +33,9 @@ are not ownership proof.
 Start the repository-owned broker and normal logged-in Comet runtime:
 
 ```bash
-../../scripts/ensure-wip-broker.sh start
-../../scripts/launch-wip-comet.sh
-../../scripts/ensure-wip-broker.sh probe --json
+../../scripts/ensure-broker.sh start
+../../scripts/launch-comet.sh
+../../scripts/ensure-broker.sh probe --json
 ```
 
 Do not delete socket state or use a legacy `~/.comet-control` runtime.
@@ -116,7 +112,7 @@ should identify the owning layer.
 | Lease, action, resolver, screenshot | `plugin/comet_control/extension/service_worker.js` | Relevant suite plus isolation suite |
 | Cursor DOM, motion, overlay | `plugin/comet_control/extension/content-scripts/cursor-agent.js` | Screenshot readback plus isolation suite |
 | Loopback and socket transport | `plugin/comet_control/native/broker.py` | Broker tests plus live status |
-| Tool argument mapping | `plugin/comet_control/tools.py` | Unit tests plus one live mapped action |
+| Driver commands | `skills/comet-control/scripts/lease_driver.py` | Unit tests plus one live mapped action |
 | Skill routing or payloads | `skills/comet-control/` | `skills/comet-control/scripts/validate.sh --strict` plus live path named by the edit |
 
 Edit the owner, reload `plugin/comet_control/extension` only when the sessions
@@ -125,7 +121,7 @@ for code defects with skill prose.
 
 ## Validation matrix
 
-Run from the repo root with the WIP socket exported.
+Run from the plugin root with `run/comet-control.sock` exported.
 
 ```bash
 export COMET_CONTROL_BRIDGE_SOCKET="$PWD/run/comet-control.sock"
@@ -153,7 +149,7 @@ After repair:
 2. Read the authoritative result surface.
 3. Close every lease created during diagnosis.
 4. Require those ids to be absent from `{"type": "sessions"}`.
-5. Report the host browser, deployed WIP path, and any warning still unexplained.
+5. Report the host browser, plugin path, and any warning still unexplained.
 
 ## Structured failure triage
 
@@ -168,5 +164,5 @@ Re-read page state after reconnection; never replay or switch pages implicitly.
 `BROKER_BUSY` is bounded backpressure, so wait for current work to finish.
 
 If `loaded_build_current` fails with zero leases, reload the unpacked Comet
-extension and run `scripts/ensure-wip-broker.sh start`. Do not restart while a
+extension and run `scripts/ensure-broker.sh start`. Do not restart while a
 lease exists, and do not touch Chrome.

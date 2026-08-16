@@ -16,8 +16,8 @@ import time
 import unittest
 from pathlib import Path
 
-WIP_ROOT = Path(__file__).resolve().parents[3]
-CTRL_PATH = WIP_ROOT / "skills" / "comet-control" / "scripts" / "durable_lease_controller.py"
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+CTRL_PATH = PLUGIN_ROOT / "skills" / "comet-control" / "scripts" / "durable_lease_controller.py"
 
 
 def _load_controller():

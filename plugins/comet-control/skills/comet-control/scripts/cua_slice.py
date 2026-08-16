@@ -31,10 +31,10 @@ def _runtime_root() -> Path:
     raise RuntimeError("Comet Control runtime root not found")
 
 
-WIP_ROOT = _runtime_root()
+PLUGIN_ROOT = _runtime_root()
 CTRL = Path(__file__).resolve().parent / "durable_lease_controller.py"
 DEFAULT_CUA = Path.home() / ".agents" / "skills" / "macos-cua" / "scripts" / "macos-cua.py"
-COEXIST = WIP_ROOT / "scripts" / "check-cua-coexistence.py"
+COEXIST = PLUGIN_ROOT / "scripts" / "check-cua-coexistence.py"
 
 
 def _emit(payload: dict[str, Any], *, code: int = 0) -> int:
@@ -77,7 +77,7 @@ def _session_id(workdir: Path) -> str:
 
 def _browser_pid() -> int:
     probe = subprocess.run(
-        [str(WIP_ROOT / "scripts" / "ensure-wip-broker.sh"), "probe", "--json"],
+        [str(PLUGIN_ROOT / "scripts" / "ensure-broker.sh"), "probe", "--json"],
         capture_output=True,
         text=True,
         check=False,

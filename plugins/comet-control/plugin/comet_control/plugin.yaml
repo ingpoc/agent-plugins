@@ -1,7 +1,0 @@
-name: browser-comet-control
-version: 0.1.0
-description: "Controls the logged-in Comet profile through the Comet Control extension and local broker."
-author: Comet Control Agent
-kind: backend
-provides_tools:
-  - comet_control_browser
