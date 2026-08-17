@@ -33,9 +33,9 @@ has no `target`. Do not code from hosted examples.
    — `structuredContent` + text, `isError`, modern `server/discover`
    `ttlMs`/`cacheScope`. Cursor still needs legacy `initialize` + `ping`.
 
-4. OpenAI computer-use is **not** this plugin's owner. Batch-then-one-screenshot
-   is already `macos-cua.py run`. Do not add a second observe/act catalog to
-   match Sky/`node_repl`.
+4. OpenAI computer-use is **not** this plugin's owner. Batch-then-observe
+   is MCP `act` with an asserted plan (or one `run` in bench/debug). Do not
+   add a second observe/act catalog to match Sky/`node_repl`.
 
 ## Practices already encoded
 

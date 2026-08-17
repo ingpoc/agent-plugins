@@ -147,6 +147,9 @@ def probe_calculator(cua, row: dict[str, Any]) -> dict[str, Any]:
         if cua.find_clickable_index(state, "All Clear") is not None
         else "Clear"
     )
+    # Floor is 2 AX: button tree (seeded into the plan) + independent
+    # AXStaticText 64 via expect. Do not pay a third post-run app_state.
+    expect_64 = {"text": "64", "role": "AXStaticText"}
     result = cua.run_actions(
         pid,
         window_id,
@@ -155,30 +158,26 @@ def probe_calculator(cua, row: dict[str, Any]) -> dict[str, Any]:
             "capture": "failures",
             "output": "compact",
             "max_elements": 50,
+            "seed_snapshot": state,
             "actions": [
                 {"action": "click", "label": clear_label},
                 {"action": "click", "label": "8"},
                 {"action": "click", "label": "Multiply"},
                 {"action": "click", "label": "8"},
-                {"action": "click", "label": "Equals", "expect": {"text": "64"}},
+                {"action": "click", "label": "Equals", "expect": expect_64},
             ],
-            "expect": {"text": "64"},
+            "expect": expect_64,
         },
         app_name=name,
     )
-    fresh = cua.app_state(
-        name,
-        pid,
-        window_id,
-        max_elements=40,
-        query="AXStaticText",
-        include_screenshot=False,
-        prepare_foreground=False,
-    )
-    display_64 = any(
-        visible_ax_text(item.get("value")) == "64"
-        and item.get("role") == "AXStaticText"
-        for item in fresh.get("elements", [])
+    display_64 = bool(result.get("verified")) and any(
+        assertion.get("ok")
+        for assertion in (result.get("assertions") or [])
+        if isinstance(assertion, dict)
+        and (
+            assertion.get("text") == "64"
+            or (assertion.get("expect") or {}).get("text") == "64"
+        )
     )
     compact = {
         "ok": result.get("ok"),
@@ -318,24 +317,28 @@ def _heading_open_snapshot(snap: dict[str, Any]) -> bool:
     return False
 
 
-def _close_whatsapp_panel(cua, name, pid, window_id) -> bool:
-    """Observe first. Press Escape only when the New chat heading is open."""
+def _close_whatsapp_panel(cua, name, pid, window_id) -> tuple[bool, dict[str, Any]]:
+    """Observe first. Press Escape only when the New chat heading is open.
+
+    Returns (closed, last_snapshot) so the probe can seed run_actions and stay
+    near floor_ax_snapshots=2 (closed tree + heading verify).
+    """
     del name
     snap = cua._native_ax_snapshot(pid, max_elements=90, window_id=window_id)
     if not _heading_open_snapshot(snap):
-        return True
+        return True, snap
     for delivery in ("background", "foreground"):
         cua.press_key(pid, window_id, "Escape", delivery)
         time.sleep(0.12)
         snap = cua._native_ax_snapshot(pid, max_elements=90, window_id=window_id)
         if not _heading_open_snapshot(snap):
-            return True
-    return False
+            return True, snap
+    return False, snap
 
 
 def probe_whatsapp(cua, row: dict[str, Any]) -> dict[str, Any]:
     pid, window_id, name = _resolve(cua, "WhatsApp")
-    closed_first = _close_whatsapp_panel(cua, name, pid, window_id)
+    closed_first, closed_snap = _close_whatsapp_panel(cua, name, pid, window_id)
     started = time.monotonic()
     result = cua.run_actions(
         pid,
@@ -345,6 +348,7 @@ def probe_whatsapp(cua, row: dict[str, Any]) -> dict[str, Any]:
             "capture": "failures",
             "output": "compact",
             "max_elements": 80,
+            "seed_snapshot": closed_snap,
             "actions": [
                 {
                     "action": "perform_action",

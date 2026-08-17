@@ -1,9 +1,12 @@
 # State and actions
 
-CLI verbs (`state`, `click-label`, `run`, `key`, …) live here. SKILL.md
-only routes; do not copy this table into the always-loaded skill.
+Plan / MCP `act` action shapes live here. SKILL.md only routes; do not copy
+this table into the always-loaded skill.
 
-## Observe
+**Agents:** use MCP `state` / `act` / `verify` (or one asserted `plan` via
+`act`). Do not treat the bash examples as the session loop.
+
+**Bench/debug only** — same verbs via CLI:
 
 ```bash
 SKILL=$SKILL_DIR
@@ -16,17 +19,20 @@ python3 "$SKILL/scripts/macos-cua.py" click-point Calculator 40 40 --button righ
 python3 "$SKILL/scripts/macos-cua.py" click-desktop 1200 400 --button right
 ```
 
-`state --compact` returns indexed AX `text`, `snapshot_id`, and
-`screenshot.path` while omitting the duplicate structured element array. Omit
-`--compact` only when element tokens/fields are needed. `--no-screenshot` is an
-intentional AX-only observation.
+## Observe
+
+`state` (MCP or CLI) with compact + no screenshot is the default observe.
+`--compact` returns indexed AX `text`, `snapshot_id`, and may omit the
+duplicate structured element array. Omit compact only when element
+tokens/fields are needed. `--no-screenshot` / MCP `include_screenshot: false`
+is intentional AX-only observation.
 Explicit relative `--screenshot` and `--debug-image` paths are normalized to
 absolute paths; cua-driver silently ignores relative output paths when called
 directly.
 Its normal view omits hidden descendants of closed macOS menus; opening a menu
 causes its framed, visible items to appear. `hidden_element_count` reports the
-suppressed noise, and `--query` narrows only the rendered text while preserving
-the fresh snapshot indices in `elements`.
+suppressed noise, and `--query` / MCP `query` narrows only the rendered text
+while preserving the fresh snapshot indices in `elements`.
 Use `pid:<number>` when two running instances share a bundle/name; resolution,
 focus, and window ownership remain pinned to that exact process.
 After a pointer action, `screenshot.path` is a `*-cursor.png` composited with
@@ -34,8 +40,8 @@ the full Hermes pointer plus a cyan target ring at the exact action point;
 `screenshot.raw_path` preserves the unmodified driver
 capture and `screenshot.cursor_included` is the deterministic pass signal.
 Background AX/capture is the non-interruptive default and may show occluded
-screenshot regions. Use `state … --foreground` only when an explicit visual
-proof requires fronting the target and interrupting the user's current flow.
+screenshot regions. Use foreground only when an explicit visual proof requires
+fronting the target and interrupting the user's current flow.
 
 ## Action addressing
 
@@ -63,7 +69,8 @@ proof requires fronting the target and interrupting the user's current flow.
 }
 ```
 
-Run with `run <app> @plan.json` or pass the JSON string directly. The default
+Run via MCP `act` with an asserted plan, or (bench/debug)
+`run <app> @plan.json`. The default
 `pointer: true` makes label- and index-addressed clicks and text-field focus
 human-legible through the signed software cursor without moving the user's
 hardware pointer. `double_click`, `perform_action`, and `right_click` use the
@@ -75,6 +82,9 @@ asset from normalized window coordinates, independent of monitor origin or
 Retina scale. Successful and failed plans are compact by default; failures keep
 the failed step, error, assertions, and proof path without the complete element
 array. Set `"output":"full"` only while debugging.
+
+Optional: `"seed_snapshot": <prior AX dict>` to reuse a tree for label
+resolution. Never seed a **postcondition** `expect` from a pre-mutation tree.
 
 Mutating plans fail before dispatch unless a top-level `expect`, per-step
 expectations, or explicit `allow_unverified:true` is present. A successful

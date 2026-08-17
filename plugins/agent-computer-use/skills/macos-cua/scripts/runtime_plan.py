@@ -38,6 +38,7 @@ def wait_for_expectations(
     max_elements=120,
     ignore_element_indices=None,
 ):
+    """Poll AX until expectations hold. Always snap; never trust a pre-mutation tree."""
     deadline = time.monotonic() + timeout
     last = None
     details = []
@@ -109,6 +110,12 @@ def run_actions(
     acted_indices: list[int] = []
     latest_snapshot = None
     latest_snapshot_fresh = False
+    seed = plan.get("seed_snapshot")
+    if isinstance(seed, dict) and (
+        seed.get("elements") is not None or seed.get("tree_markdown")
+    ):
+        latest_snapshot = seed
+        latest_snapshot_fresh = True
     selected_element = None
     state_reuses = 0
     cursor_cleanup = None

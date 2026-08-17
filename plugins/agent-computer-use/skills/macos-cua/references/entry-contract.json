@@ -20,8 +20,8 @@
   "pass_signals": [
     "One ready MCP server; no duplicate Computer Use catalogs",
     "Default MCP tools/list is exactly start_session, state, act, verify, end_session",
-    "CLI state --compact --query / --diff then run is the default AX loop",
-    "Raw bin/cua-driver-mcp is diagnostic-only",
+    "MCP start_session → compact state (query/diff) → batched act/plan → verify → end_session is the default agent loop",
+    "Raw bin/cua-driver-mcp and per-call macos-cua.py spawn are diagnostic/bench only",
     "Live parity + pointer + elon empty-iteration stay green",
     "AX-incomplete composers (WhatsApp/Catalyst) prove by screenshot or Voice→Send, not typed_path ok; native type-text with empty AX is ax_incomplete_value",
     "Native AX snapshot walks an open AXSheet/AXPopover/AXDialog, else open app-level context menus then one window",
@@ -147,5 +147,5 @@
     }
   },
   "safety": "No chat dumps. No personal identifiers. No new send/payment authority. Live gate uses Calculator/TextEdit/Finder. WhatsApp benchmark is query/compact observe only; require Message yourself then (You) before any send.",
-  "baseline": "Thin 5-tool MCP vs Sky ~10 methods. We win asserted CLI batches, compact query/diff, and harness portability. Cursor plugin ./bin spawn is dest-absolute after install_harness cursor-plugin."
+  "baseline": "Thin 5-tool MCP vs Sky ~10 methods. We win asserted MCP/plan batches, compact query/diff, held-socket under MCP, and harness portability. Cursor plugin ./bin spawn is dest-absolute after install_harness cursor-plugin."
 }

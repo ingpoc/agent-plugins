@@ -8,16 +8,16 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 Five graded axes, each 0–10. Overall is their unweighted mean. Accuracy and visibility are trust gates, not averaged in.
 
-Measured this session: warm `python3 scripts/run_benchmarks.py` then `--repeat 5 --rate`. File `~/.cache/macos-cua/benchmarks-latest.json` written `2026-08-16T15:56:12Z`. First attempt was a cold fail (Calculator 52.6s / WhatsApp 21.3s) and was discarded. Model: `skills/macos-cua/references/entry-contract.json` `rating_model`. Do not loosen floors to force a pass.
+Measured this session: warm discard then `python3 scripts/run_benchmarks.py --repeat 5 --rate`. File `~/.cache/macos-cua/benchmarks-latest.json` written `2026-08-17T03:42:52Z`. Kept: `seed_snapshot` into asserted plans + Calculator/WhatsApp probes reuse the button/closed tree (floor AX); dropped redundant Calculator post-`app_state`. Rejected: seeding postcondition expects from a pre-mutation tree (false pass on stale display). Model: `skills/macos-cua/references/entry-contract.json` `rating_model`. Do not loosen floors to force a pass.
 
 | | |
 | --- | --- |
-| Suite overall /10 | **7.6** |
+| Suite overall /10 | **8.0** |
 | Rows passing | **4 / 4** |
 | Trust-gate zeros | **0** |
 | Target overall | **9.5** |
 
-Suite-level graded means: speed 4.7, reliability 9.5, robustness 10.0, efficiency 6.5, context efficiency (`token_efficiency`) 7.5.
+Suite-level graded means: speed 4.8, reliability 9.5, robustness 10.0, efficiency 8.2, context efficiency (`token_efficiency`) 7.5.
 
 ### Overall by row (five graded axes)
 
@@ -26,7 +26,7 @@ xychart-beta
     title Overall by row /10
     x-axis [Calculator, Folder, TextEdit, WhatsApp]
     y-axis "Overall /10" 0 --> 10
-    bar [8.2, 9.6, 6.6, 6.2]
+    bar [9.4, 9.5, 6.5, 6.5]
     line [9.5, 9.5, 9.5, 9.5]
 ```
 
@@ -37,10 +37,10 @@ xychart-beta
     title Graded axes /10
     x-axis [Calculator, Folder, TextEdit, WhatsApp]
     y-axis "Score /10" 0 --> 10
-    bar [6.1, 9.8, 1.8, 1.2]
+    bar [7.2, 9.5, 1.7, 1.0]
     bar [10, 8.0, 10, 10]
     bar [10, 10, 10, 10]
-    bar [5.0, 10, 6.0, 5.0]
+    bar [10, 10, 6.0, 6.7]
     bar [10, 10, 5.0, 5.0]
 ```
 
@@ -52,10 +52,10 @@ Accuracy and visibility are gates. Folder visibility is n/a (observe-only). Fold
 
 | Row | Overall | Speed | Reliability | Robustness | Efficiency | Token | Accuracy | Visibility |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Calculator | 8.2 | 6.1 | 10 | 10 | 5.0 | 10 | 10 | 10 |
-| Folder | 9.6 | 9.8 | 8.0 | 10 | 10 | 10 | 10 | n/a |
-| TextEdit | 6.6 | 1.8 | 10 | 10 | 6.0 | 5.0 | 10 | 10 |
-| WhatsApp | 6.2 | 1.2 | 10 | 10 | 5.0 | 5.0 | 10 | 10 |
+| Calculator | 9.4 | 7.2 | 10 | 10 | 10 | 10 | 10 | 10 |
+| Folder | 9.5 | 9.5 | 8.0 | 10 | 10 | 10 | 10 | n/a |
+| TextEdit | 6.5 | 1.7 | 10 | 10 | 6.0 | 5.0 | 10 | 10 |
+| WhatsApp | 6.5 | 1.0 | 10 | 10 | 6.7 | 5.0 | 10 | 10 |
 
 ### Reliability
 
@@ -71,7 +71,7 @@ Rating key `token_efficiency`. Suite 7.5.
 
 ### Speed
 
-Suite 4.7. Binding constraint on TextEdit and WhatsApp.
+Suite 4.8. Binding constraint on TextEdit and WhatsApp.
 
 ```mermaid
 xychart-beta
@@ -79,11 +79,11 @@ xychart-beta
     x-axis [Calculator, Folder, TextEdit, WhatsApp]
     y-axis "Seconds" 0 --> 10
     bar [1.582, 0.358, 1.284, 0.125]
-    bar [1.962, 0.364, 7.82, 1.154]
+    bar [1.581, 0.377, 6.301, 1.316]
 ```
 
 Series order: Floor (s), p50 duration (s).
 
 ### Efficiency
 
-Suite 6.5.
+Suite 8.2. Calculator at floor (`ax_snapshots` 2).

@@ -46,8 +46,9 @@ INSTRUCTIONS = (
     "state is compact/query/diff, include_screenshot false. act is AX+background "
     "with a visible operator glide; follow compact effect/escalation "
     "(px|foreground|page) in structuredContent and never silent pixel "
-    "fallback. CLI macos-cua.py "
-    "state/run is the default AX batch. bin/cua-driver-mcp is diagnostic-only."
+    "fallback. Default agent loop is this MCP (held driver socket). "
+    "Shell macos-cua.py and bin/cua-driver-mcp are diagnostic/bench only. "
+    "WhatsApp send/attach: $whatsapp skill, not these tools."
 )
 _SESSION: dict[str, Any] = {}
 _CLI_CALL_STATS = {"calls": 0, "stdout_bytes": 0}

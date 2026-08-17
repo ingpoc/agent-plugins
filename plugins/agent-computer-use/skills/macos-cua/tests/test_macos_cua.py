@@ -4800,6 +4800,59 @@ class PlanEfficiencyTests(unittest.TestCase):
         cleanup.assert_called_once_with()
         self.assertTrue(all(call.kwargs["prepare_cursor"] is False for call in click.call_args_list))
 
+    def test_asserted_plan_reuses_seed_snapshot_without_initial_ax(self):
+        before = self._snapshot("7", "Ready")
+        done = self._snapshot("Equals", "64")
+        done["elements"].append(
+            {"element_index": 9, "role": "AXStaticText", "label": "", "value": "64"}
+        )
+        with (
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_snapshot",
+                return_value={"error": "test", "elements": []},
+            ),
+            mock.patch.object(macos_cua, "snapshot", side_effect=[done]) as snapshot,
+            mock.patch.object(
+                macos_cua,
+                "click_label_pointer",
+                return_value={
+                    "ok": True,
+                    "method": "ax",
+                    "move": {"sync": {"duration_ms": 2}},
+                },
+            ),
+            mock.patch.object(
+                macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
+            ),
+            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+        ):
+            result = macos_cua.run_actions(
+                10,
+                20,
+                {
+                    "pointer": True,
+                    "settle_ms": 0,
+                    "capture": "never",
+                    "seed_snapshot": before,
+                    "actions": [
+                        {"action": "click", "label": "7"},
+                        {
+                            "action": "click",
+                            "label": "Equals",
+                            "expect": {"text": "64", "role": "AXStaticText"},
+                        },
+                    ],
+                    "expect": {"text": "64", "role": "AXStaticText"},
+                },
+                app_name="Fixture",
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(snapshot.call_count, 1)
+        self.assertGreaterEqual(result["metrics"]["state_reuses"], 1)
+        self.assertEqual(result["steps"][0]["state_reused"], True)
+
     def test_asserted_plan_reuses_state_between_clicks_without_expect(self):
         before = self._snapshot("7", "Ready")
         before["elements"].append(
