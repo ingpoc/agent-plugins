@@ -43,10 +43,10 @@ Do not delete socket state or use a legacy `~/.comet-control` runtime.
 For a debugger/extension-URL error, first run `page_context` alone. If it works
 and only `screenshot` fails, inspect the deployed viewport screenshot path: it
 must use `chrome.tabs.captureVisibleTab`, not CDP. If `page_context` also fails,
-use `$macos-cua` only inside Comet for visible `chrome://extensions`
-administration. Load `plugin/comet_control/extension` there once; do not copy, inspect,
-export, or print the Comet profile or credential
-database.
+or probe reports `EXTENSION_NOT_CONNECTED`, install/reload via
+[`extension-install.md`](extension-install.md) (Agent Computer Use / `$macos-cua`
+on `chrome://extensions`, then probe + smoke). Do not copy, inspect, export, or
+print the Comet profile or credential database.
 
 ### 3. Prove a leased target
 
@@ -87,7 +87,8 @@ should identify the owning layer.
 
 | Symptom | Likely owner | Correct response |
 | --- | --- | --- |
-| Socket missing or refused | Broker lifecycle | Start the broker; reload the unpacked extension only if it remains disconnected |
+| Socket missing or refused | Broker lifecycle | Start the broker; if still disconnected follow [`extension-install.md`](extension-install.md) |
+| `EXTENSION_NOT_CONNECTED` / first install | Unpacked extension missing or stale | [`extension-install.md`](extension-install.md) — AX Load unpacked + probe smoke |
 | Status succeeds, lease preflight fails | Session/content-script setup | Use a real `https://` URL; inspect the exact preflight error |
 | Operator sees no cursor | Wrong host app, hidden window, or overlay | Focus the leased window; read a screenshot; inspect `cursor-agent.js` only if absent there |
 | Cursor state resets after navigation | Injection lifecycle | Check invalidation/reinjection and identity re-apply in `service_worker.js` |

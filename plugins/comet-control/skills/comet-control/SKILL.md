@@ -143,12 +143,12 @@ broker and the normal logged-in Comet profile explicitly:
 ./scripts/ensure-broker.sh probe --json
 ```
 
-The launcher uses the existing logged-in Comet profile. First
-installation may require `$macos-cua` to visibly load
-`plugin/comet_control/extension` at `chrome://extensions`. Never inspect or copy
-profile credentials. After source changes, reload that unpacked extension,
-launch, re-probe, then rerun the original workflow. Fix behavior in
-`plugin/comet_control/`.
+The launcher uses the existing logged-in Comet profile. First install, reload
+after `plugin/comet_control/` edits, or `EXTENSION_NOT_CONNECTED`: follow
+[`references/extension-install.md`](references/extension-install.md) with
+**Agent Computer Use** (`$macos-cua`) — Load unpacked from
+`plugin/comet_control/extension`, then probe + smoke-validate. Never inspect or
+copy profile credentials. Fix behavior in `plugin/comet_control/`.
 
 ## When to use `$macos-cua` (ownership, not retry)
 
@@ -210,6 +210,7 @@ recaptures once after foregrounding.
 
 | Need | Reference |
 | --- | --- |
+| First install / reload unpacked extension + post-install probe smoke | [`references/extension-install.md`](references/extension-install.md) |
 | Campaign lease lifecycle, concurrent isolation, window tiling | [`references/multi-agent.md`](references/multi-agent.md) |
 | Actions, driver commands, screenshots | [`references/operate.md`](references/operate.md) |
 | Runtime diagnosis and validation gates | [`references/optimize.md`](references/optimize.md) |

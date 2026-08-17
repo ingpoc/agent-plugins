@@ -132,6 +132,7 @@ python3 skills/comet-control/scripts/durable_lease_controller.py send --workdir 
 
 **Hand to macos-cua (comet-admin):** close every lease first →
 `--browser-intent comet-admin` → re-probe → new lease if needed.
+Extension Load unpacked / reload: [`extension-install.md`](extension-install.md).
 
 To inspect the boundary without acquiring it:
 

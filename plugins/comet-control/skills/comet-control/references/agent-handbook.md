@@ -136,7 +136,8 @@ Traces → `console.debug` or remove.
 
 1. `lsof …/run/comet-control.sock`
 2. `ensure-broker.sh probe --json`
-3. Reload the Comet extension only if `extension_connected` remains false
+3. If `extension_connected` remains false, follow
+   [`extension-install.md`](extension-install.md) (reload/install + probe smoke)
 
 ### Cursor/UI claim
 

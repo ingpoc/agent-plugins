@@ -22,7 +22,7 @@ Evidence, not a score: `plugin/comet_control/tests/test_dashboard_interactions.p
 
 ### Robustness
 
-Evidence: lease token private to one process; SPA remount recovery in `skills/comet-control/references/optimize.md`; broker fails closed unless the logged-in Comet runtime is connected.
+Evidence: lease token private to one process; SPA remount recovery in `skills/comet-control/references/optimize.md`; broker fails closed unless the logged-in Comet runtime is connected. First install / reload of the unpacked extension is owned by `skills/comet-control/references/extension-install.md` (Agent Computer Use on `chrome://extensions`, then probe + smoke).
 
 ### Context efficiency
 

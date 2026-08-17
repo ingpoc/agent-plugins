@@ -7,7 +7,12 @@ Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients
 ## After the client has loaded this package
 
 1. Requires Comet.app. Never load the extension in Google Chrome.
-2. First load: unpack `plugin/comet_control/extension` in the logged-in Comet profile at `chrome://extensions` (use agent-computer-use for that chrome:// page if needed).
-3. Verify probe: from this directory, `./scripts/ensure-broker.sh probe --json` reports `success: true`, `runtime_verified: true`, `extension_connected: true`.
+2. First load / reload: follow
+   [`skills/comet-control/references/extension-install.md`](skills/comet-control/references/extension-install.md)
+   with **agent-computer-use** (`macos-cua`) — Load unpacked from
+   `plugin/comet_control/extension`, then probe + smoke-validate.
+3. Probe gate (also in that reference): from this directory,
+   `./scripts/ensure-broker.sh probe --json` must report `success: true`,
+   `runtime_verified: true`, and `extension_connected: true`.
 
 Behavior after install: `skills/comet-control/SKILL.md`.
