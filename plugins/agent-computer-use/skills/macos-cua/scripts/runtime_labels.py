@@ -14,6 +14,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -404,6 +405,35 @@ def click(pid, window_id, element_index, *, app_name=None):
     }
 
 
+def _bounded_ax_perform_action(element, services, action_name, seconds=1.5):
+    """Fail closed if AX messaging hangs past the 1.5s contract."""
+    _ax_set_timeout(element, services, seconds=seconds)
+    box = {}
+
+    def run():
+        try:
+            box["code"] = services.AXUIElementPerformAction(element, action_name)
+        except Exception as exc:
+            box["error"] = str(exc)
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    worker.join(seconds + 0.25)
+    if worker.is_alive():
+        return {
+            "error": (
+                f"AXUIElementPerformAction({action_name}) timed out after {seconds}s"
+            ),
+            "error_code": "ax_timeout",
+        }
+    if box.get("error"):
+        return {"error": box["error"]}
+    code = box.get("code")
+    if code != 0:
+        return {"error": f"AXUIElementPerformAction({action_name}) returned {code}"}
+    return {"ok": True, "error_code": 0}
+
+
 def perform_action(pid, window_id, element_index, action, snapshot_data=None):
     """Perform a secondary AX action advertised by the fresh element state."""
     key = re.sub(r"[^a-z]", "", str(action).lower())
@@ -454,8 +484,8 @@ def perform_action(pid, window_id, element_index, action, snapshot_data=None):
                 "raise": "AXRaise",
                 "zoom_window": "AXZoomWindow",
             }[normalized]
-            result = services.AXUIElementPerformAction(element, action_name)
-            if result == 0:
+            result = _bounded_ax_perform_action(element, services, action_name)
+            if result.get("ok"):
                 return {
                     "ok": True,
                     "element": element_index,
@@ -463,7 +493,16 @@ def perform_action(pid, window_id, element_index, action, snapshot_data=None):
                     "path": "native_ax",
                     "error_code": 0,
                 }
-            error = f"AXUIElementPerformAction({action_name}) returned {result}"
+            error = result.get("error") or f"native AX action failed: {normalized}"
+            if result.get("error_code") == "ax_timeout":
+                return {
+                    "ok": False,
+                    "accepted": False,
+                    "error": error,
+                    "error_code": "ax_timeout",
+                    "element": element_index,
+                    "action": normalized,
+                }
         if normalized not in {
             "show_menu",
             "press",

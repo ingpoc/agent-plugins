@@ -15,6 +15,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 from pathlib import Path
 
 def find_element_index(snapshot_data, text):
@@ -50,6 +51,19 @@ PRIMARY_CLICK_ROLES = {
     "AXMenuBarItem",
 }
 FIELD_ROLES = {"AXTextField", "AXTextArea"}
+# Calculator's C/AC control retitles in-place. Resolve on the current tree.
+LABEL_ALIASES = {
+    "clear": ("all clear",),
+    "all clear": ("clear",),
+}
+
+
+def _visible_text(value):
+    return "".join(
+        char for char in str(value or "") if unicodedata.category(char) != "Cf"
+    ).strip()
+
+
 SCAFFOLDING_ROLES = {
     "AXApplication",
     "AXMenuBar",
@@ -136,12 +150,13 @@ def _match_label(elements, text, roles, *, allow_ambiguous: bool = False):
     Multiple exact (or equal-shortest substring) matches fail closed unless a
     single PRIMARY_CLICK_ROLES element remains after role preference.
     """
-    needle = text.lower()
+    needle = _visible_text(text).lower()
     pool = [e for e in elements if e.get("role") in roles]
 
     def searchable(element):
         return "\n".join(
-            str(element.get(key) or "") for key in ("label", "value", "derived_text")
+            _visible_text(element.get(key))
+            for key in ("label", "value", "derived_text")
         ).strip()
 
     def pick(cands: list[dict]):
@@ -162,6 +177,10 @@ def _match_label(elements, text, roles, *, allow_ambiguous: bool = False):
     exact = [e for e in pool if searchable(e).lower() == needle]
     if exact:
         return pick(exact)
+    for alias in LABEL_ALIASES.get(needle, ()):
+        aliased = [e for e in pool if searchable(e).lower() == alias]
+        if aliased:
+            return pick(aliased)
     cands = [e for e in pool if needle in searchable(e).lower()]
     if not cands:
         return None

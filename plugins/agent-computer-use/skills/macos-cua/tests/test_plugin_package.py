@@ -45,6 +45,20 @@ class PluginPackageTests(unittest.TestCase):
         ):
             self.assertIn(f"### {axis}", readme)
 
+    def test_skill_orders_ax_first_then_fallback(self):
+        skill = (PLUGIN_ROOT / "skills/macos-cua/SKILL.md").read_text()
+        self.assertIn("Best first, then fallback", skill)
+        self.assertIn("Clear", skill)
+        self.assertIn("All Clear", skill)
+        self.assertIn("ax_timeout", skill)
+        self.assertLess(skill.find("Best first"), skill.find("Fallback, in order"))
+        troubleshooting = (
+            PLUGIN_ROOT / "skills/macos-cua/references/troubleshooting.md"
+        ).read_text()
+        self.assertIn("Current-tree first", troubleshooting)
+        self.assertNotIn("refresh only on miss", troubleshooting)
+        self.assertIn("Last resort after AX miss", troubleshooting)
+
     def test_mcp_uses_packaged_relative_command(self):
         config = json.loads((PLUGIN_ROOT / "mcp.json").read_text())
         server = config["mcpServers"]["agent-computer-use"]

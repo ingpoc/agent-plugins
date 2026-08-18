@@ -36,12 +36,14 @@ def install_link(skills_dir: Path, *, replace_copy: bool = False) -> dict:
                 "destination": str(destination),
                 "source": str(SKILL_DIR),
             }
-        return {
-            "ok": False,
-            "error": f"refusing to replace symlink to {resolved}",
-            "destination": str(destination),
-        }
-    if destination.exists():
+        if not replace_copy:
+            return {
+                "ok": False,
+                "error": f"refusing to replace symlink to {resolved}",
+                "destination": str(destination),
+            }
+        destination.unlink()
+    elif destination.exists():
         if replace_copy and _is_macos_cua_tree(destination):
             shutil.rmtree(destination)
         else:

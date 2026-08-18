@@ -11,7 +11,8 @@ Recover a wedged session with `end_session` then `start_session`.
 | Symptom | Fix |
 | --- | --- |
 | Tree is Apple-menu items | Do not use menu bar as snapshot root. Open sheet/popover/dialog, else app menu, else one window |
-| Label miss after prior click in same plan | Reuse postcondition tree; refresh only on miss. Never seed a postcondition `expect` from a pre-mutation tree |
+| Label miss after prior click | Current-tree first (`Clear`=`All Clear`). One fresh `state` only if that tree still has no match. Never seed a postcondition `expect` from a pre-mutation tree |
+| `perform_action` hangs until MCP timeout | AX messaging timeout is 1.5s; fail closed with `ax_timeout`. Do not retry until the MCP budget |
 | Glide misses sheet/popover control | Act on the open sheet/popover root, not the parent window alone |
 | Background `key` misses | Retry once when `escalation.recommended` is `foreground` or `off_space_or_ax_unresolved` |
 | Chrome / web UI | Browser MCP — not this skill |
@@ -24,7 +25,7 @@ Recover a wedged session with `end_session` then `start_session`.
 | Open sheet: no filename via query | Sheet is the root; do not press Open blind. WhatsApp files → `$whatsapp` `attach-file` |
 | Finder sidebar label not clickable | Owner attaches static child text to the row; do not `bring_to_front`+sleep |
 | Desktop widgets / Notification Center | Not ordinary AX windows — see `special-surfaces.md` |
-| Pixel / coordinate click wanted | Only with `MACOS_CUA_PIXEL_CLICK=1`; default is glide then AX |
+| Pixel / coordinate click wanted | Last resort after AX miss, and only with `MACOS_CUA_PIXEL_CLICK=1`. Default observe stays AX-only |
 | Clipboard paste for background type | Refuse — AX / `type-text` only |
 | Two cursors or invisible Hermes cursor | Prefer labeled glide path; `end_session` / operator restart if overlay wedged — see `operator-ui.md` |
 | Wrong display / offset pointer | Window-local actions; `displays.md` |

@@ -2,13 +2,11 @@
 name: macos-cua
 description: >-
   Operate native macOS apps through the packaged macos-cua implementation.
-  Uses native Accessibility fast paths plus cua-driver screenshot/coordinate
-  fallbacks to observe, click, type, press keys, scroll, drag, and execute
-  asserted multi-step plans with background AX-first delivery. Its optional
-  visible agent cursor is only an overlay; coordinate fallbacks still use the
-  single real macOS pointer. Use when
-  an agent must operate or validate any native Mac app. Not for terminal-only
-  work or browser DOM tasks.
+  AX-first: compact state, batched act/plan, current-tree labels, 1.5s AX
+  fail-closed. Screenshot/coordinate fallbacks only after an AX miss. Visible
+  agent cursor is an overlay; coordinate clicks still use the one real macOS
+  pointer. Use when an agent must operate or validate any native Mac app. Not
+  for terminal-only work or browser DOM tasks.
 allowed-tools: Bash, Read
 ---
 
@@ -48,6 +46,9 @@ One server. Held cua-driver Unix socket under the MCP process. Do not open a
 second Computer Use MCP. Do not browse raw `cua-driver` (54 tools). Do not
 shell `macos-cua.py` per click when MCP is up.
 
+**Best first, then fallback.** Do not start a new `state` or pixels while the
+current tree can still resolve the control.
+
 1. `start_session` once.
 2. Resolve the app by name, then bundle id. Never `list_apps` as preflight.
 3. `state`: compact, no screenshot, tight `--max`. Prefer `query` / `diff`
@@ -56,11 +57,16 @@ shell `macos-cua.py` per click when MCP is up.
    sheet/popover/dialog; else open app-level menus; else one window. Never
    menu-bar BFS. No `bring_to_front` unless `escalation.recommended` is
    `foreground` or background AX missed the label.
-4. `act`: AX label/index or one asserted `plan` (batch then verify). Every
-   element-addressed mutation glides the signed cursor, then AX — fail closed
-   if the glide is not acknowledged. Reuse postcondition trees
-   (`seed_snapshot` / plan state reuse); refresh only on label miss. Never
-   seed a **postcondition** expect from a pre-mutation tree. Omit stale screen
+4. `act` **best first:** one asserted `plan` (batch then verify). Glide then
+   AX; fail closed if the glide is not acknowledged. Reuse the postcondition
+   tree (`seed_snapshot` / plan state reuse). Resolve labels on that tree —
+   `Clear` and `All Clear` are the same C/AC control; do not re-observe to
+   retitle. `perform_action` / AX press fails closed in ~1.5s (`ax_timeout`);
+   do not wait out the MCP budget.
+   **Fallback, in order:** (1) one fresh `state` only on label miss, then retry
+   that step; (2) if AX has no useful labels, `references/actions.md` recovery
+   ladder (fresh screenshot coords, `MACOS_CUA_PIXEL_CLICK=1`). Never seed a
+   **postcondition** expect from a pre-mutation tree. Omit stale screen
    points. No Quartz-read on the AX click path.
 5. `verify` then `end_session` once. Quit probe apps (Calculator, Dictionary,
    Stickies, extra TextEdit/Preview). Do not quit Cursor, WhatsApp, or the

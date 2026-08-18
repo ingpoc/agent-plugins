@@ -487,6 +487,31 @@ def main() -> int:
     }
     calculation = invoke("run", "Calculator", json.dumps(plan), timeout=60)
     check(calculation["ok"], "asserted multi-step action plan passes")
+    alias_plan = {
+        "pointer": True,
+        "capture": "failures",
+        "max_elements": 80,
+        "actions": [
+            {"action": "click", "label": "All Clear"},
+            {"action": "click", "label": "8"},
+            {"action": "click", "label": "Multiply"},
+            {"action": "click", "label": "8"},
+            {
+                "action": "click",
+                "label": "Equals",
+                "expect": {"text": "64", "role": "AXStaticText"},
+            },
+            {"action": "click", "label": "Clear"},
+            {
+                "action": "click",
+                "label": "7",
+                "expect": {"text": "7", "role": "AXStaticText"},
+            },
+        ],
+        "expect": {"text": "7", "role": "AXStaticText"},
+    }
+    alias = invoke("run", "Calculator", json.dumps(alias_plan), timeout=60)
+    check(alias["ok"], "Clear/All Clear aliases continue a batch after the first result")
     proof = calculation["final"]["screenshot"]
     check(proof.get("cursor_included") is True, "proof PNG contains Hermes pointer")
     check(Path(proof["path"]).is_file(), "proof PNG is materialized", proof["path"])

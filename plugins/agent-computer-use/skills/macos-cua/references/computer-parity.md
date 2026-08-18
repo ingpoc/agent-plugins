@@ -9,7 +9,7 @@ ledger only for backend selection, regression review, or a parity claim.
 | Mechanism | Verdict | Why |
 | --- | --- | --- |
 | Name-first resolve; `list_apps` only if the app is unknown | Already ours; keep | Codex SKILL says the same; preflight `list_apps` is rejected |
-| AX text default; screenshot on demand; diff after first observe | Already ours (`--compact` / `--diff`) | Matches Sky `get_app_state` + `disableDiff` |
+| AX text default; screenshot only after AX miss; diff after first observe | Already ours (`--compact` / `--diff`; MCP `state` is `--no-screenshot`) | Matches Sky `get_app_state` + `disableDiff`. Do not treat screenshot as an equal default observe |
 | Batch actions, then one state | Already ours (`run`) | Do not add a second observe/act catalog |
 | Disable the standalone Computer Use MCP when a facade exists | Already ours (5-tool facade) | Do not load raw 54-tool `cua-driver mcp` beside it |
 | Sky / `node_repl` ~10 methods | Rejected | Non-goal; copy neither catalog nor architecture |
@@ -30,7 +30,7 @@ ledger only for backend selection, regression review, or a parity claim.
 | State/action freshness | Re-observe after actions; indices are fresh-state scoped | Same; asserted plans safely reuse a successful postcondition snapshot, otherwise re-snapshot | Parity |
 | Automatic outcome wait | Runtime waits after actions | Native foreground acknowledgement plus polling postconditions with timeout | Parity |
 | Multi-step proof | Agent-managed loop | One-process asserted plan, failure capture, final assertions | Above |
-| Token efficiency | AX diffs by default; screenshots on demand | Compact packets, `--query`/`--max`, `--diff` after first observe, AX-only mode | Parity after `--diff` |
+| Token efficiency | AX diffs by default; screenshots after AX miss | Compact packets, `--query`/`--max`, `--diff` after first observe, AX-only MCP `state` | Parity after `--diff` |
 | MCP surface | Sky client + persistent `node_repl` (~10 methods). Standalone `[mcp_servers.computer-use]` is `enabled=false` so tools are not double-loaded | Packaged `./bin/agent-computer-use-mcp` (cwd `.`): `start_session`, `state`, `act`, `verify`, `end_session`. Raw `cua-driver-mcp` is diagnostic-only. Agent loop is MCP; `macos-cua.py` is bench/debug | Parity on catalog size; asserted MCP/`run` batches still cheaper |
 | Visible agent pointer | Host-integrated software cursor; not evidence of a second system pointer | Labeled Hermes overlay is default for labeled plans and must acknowledge field focus before typing; coordinate CGEvents still use the one system pointer | Honest boundary |
 | PiP/operator state | Host PiP and Computer Use indicator | Signed all-Spaces PiP, exact target ring, app/harness/status label, Hide/Refresh/End | Above |

@@ -43,10 +43,11 @@ TOOL_NAMES = ("start_session", "state", "act", "verify", "end_session")
 INSTRUCTIONS = (
     "Thin macos-cua MCP over cua-driver. Use start_session, state, act, verify, "
     "end_session only. Never list_apps or raw cua-driver MCP (54 tools). "
-    "state is compact/query/diff, include_screenshot false. act is AX+background "
-    "with a visible operator glide; follow compact effect/escalation "
-    "(px|foreground|page) in structuredContent and never silent pixel "
-    "fallback. Default agent loop is this MCP (held driver socket). "
+    "Best first: compact AX state (no screenshot); one batched act/plan; "
+    "current-tree labels (Clear=All Clear); glide then AX; fail closed at 1.5s "
+    "(ax_timeout). Fallback only on miss: one fresh state; then screenshot/"
+    "PIXEL_CLICK. Never silent pixel fallback. Follow compact effect/escalation "
+    "(px|foreground|page). Default agent loop is this MCP (held driver socket). "
     "Shell macos-cua.py and bin/cua-driver-mcp are diagnostic/bench only. "
     "WhatsApp send/attach: $whatsapp skill, not these tools."
 )
@@ -225,7 +226,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         },
         {
             "name": "act",
-            "description": "Glide then AX. Label/index click, type, perform-action, or a small asserted plan.",
+            "description": "Best first: glide then AX, batched plan, current-tree labels (Clear=All Clear), 1.5s ax_timeout. Fallback: one state on miss; pixels only after AX miss.",
             "inputSchema": _schema(
                 {
                     "app": {"type": "string"},

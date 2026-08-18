@@ -101,6 +101,17 @@ class CompactMcpDispatchTests(unittest.TestCase):
         )
         self.assertEqual(action[2:5], ["perform-action", "Calculator", "show_menu"])
 
+    def test_instructions_order_ax_first_then_fallback(self):
+        text = compact_mcp.INSTRUCTIONS
+        self.assertIn("Best first", text)
+        self.assertIn("Clear=All Clear", text)
+        self.assertIn("ax_timeout", text)
+        self.assertIn("Fallback only on miss", text)
+        self.assertLess(text.find("Best first"), text.find("Fallback only on miss"))
+        act = next(tool for tool in compact_mcp.tool_schemas() if tool["name"] == "act")
+        self.assertIn("Best first", act["description"])
+        self.assertIn("Fallback", act["description"])
+
 
 class CompactMcpSpecTests(unittest.TestCase):
     def test_legacy_initialize_tools_list_shape(self):

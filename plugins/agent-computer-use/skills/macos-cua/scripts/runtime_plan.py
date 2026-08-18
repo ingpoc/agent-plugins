@@ -3,16 +3,7 @@
 """Batched plan execution, expectations, and compact results."""
 from __future__ import annotations
 
-import importlib.util
-import json
-import os
-import re
-import shlex
-import subprocess
-import sys
-import tempfile
 import time
-from pathlib import Path
 
 def _plan_snapshot(pid, window_id, max_elements=120):
     state = _native_ax_snapshot(pid, max_elements=max_elements, window_id=window_id)

@@ -1,7 +1,7 @@
 # State and actions
 
-Plan / MCP `act` action shapes live here. SKILL.md only routes; do not copy
-this table into the always-loaded skill.
+Plan / MCP `act` action shapes live here. SKILL.md owns the ordered
+best-first / fallback loop. Do not teach a second loop in this file.
 
 **Agents:** use MCP `state` / `act` / `verify` (or one asserted `plan` via
 `act`). Do not treat the bash examples as the session loop.
@@ -47,7 +47,7 @@ fronting the target and interrupting the user's current flow.
 
 | Address | Prefer when | Rule |
 | --- | --- | --- |
-| `label` | Human-visible control text exists | Re-resolved from fresh state and constrained to actionable AX roles; a matching window/app title is never selected |
+| `label` | Human-visible control text exists | Current-tree first (`Clear`=`All Clear`). One fresh state only on miss. A matching window/app title is never selected |
 | `element` | Acting immediately after a state read | Snapshot-scoped; never reuse after another snapshot |
 | `x`,`y` | Irreducible canvas/custom-drawn surface | Explicit last resort. Uses CGEvent and the single system pointer; add `--preserve-pointer` to restore position afterward, without claiming isolation |
 
@@ -131,9 +131,11 @@ label cannot prove itself. A pre-existing sidebar string is not disclose
 proof; require a role that only the new surface has. Compact output keeps
 only expect-matching lines, omits acted controls, and caps at 12 lines.
 `"ok": true` means every action was accepted and all requested assertions
-passed. Native AX sets a 1.5s messaging timeout on the app and the press
-target so a stuck app fails closed instead of hanging ~30s. WhatsApp
-New Chat: Escape if the popover is already open, then `perform_action`
+passed. Native AX sets a 1.5s messaging timeout on the app, the press
+target, and `perform_action` so a stuck control fails closed instead of
+hanging to the MCP budget. `Clear` and `All Clear` resolve as one control
+on the current tree; do not re-observe to retitle Calculator's C/AC button.
+WhatsApp New Chat: Escape if the popover is already open, then `perform_action`
 and expect `{"text":"New chat","role":"AXHeading"}`. No pixel-click
 fallback.
 
@@ -187,14 +189,18 @@ before this corrected screen-coordinate dispatch.
 
 ## Recovery ladder
 
-1. Fresh `state`; do not reuse indices.
-2. AX press/set/select or targeted keyboard navigation without foregrounding.
-3. Prefer the app's API/automation; browser pages use DOM/CDP, not native pixels.
-4. If AX is incomplete, use fresh screenshot coordinates explicitly. Prefer
+Best first, then fallback. Do not skip ahead.
+
+1. Current-tree label (including `Clear`/`All Clear`); AX/`perform_action`
+   fails closed in 1.5s. Do not re-observe to retitle Calculator C/AC.
+2. One fresh `state`; do not reuse indices. Retry only the missed step.
+3. AX press/set/select or targeted keyboard navigation without foregrounding.
+4. Prefer the app's API/automation; browser pages use DOM/CDP, not native pixels.
+5. If AX is incomplete, use fresh screenshot coordinates explicitly. Prefer
    `--preserve-pointer` for testing; the click remains user-interruptive.
-5. Retry only the failed action with foreground delivery when interruption is
+6. Retry only the failed action with foreground delivery when interruption is
    accepted and background delivery cannot work.
-6. On failure, inspect the capture and load troubleshooting.
+7. On failure, inspect the capture and load troubleshooting.
 
 Do not pre-scale screenshot coordinates. If a background pixel click misses a
 custom surface, retry that click with `delivery_mode: "foreground"` and set

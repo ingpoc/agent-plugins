@@ -41,6 +41,21 @@ class LabelResolveTests(unittest.TestCase):
         self.assertIsNone(idx)
         self.assertEqual(err["error_code"], "ambiguous_label")
 
+    def test_clear_and_all_clear_are_the_same_current_tree_control(self):
+        only_clear = [
+            {"element_index": 3, "role": "AXButton", "label": "Clear"},
+        ]
+        only_all = [
+            {"element_index": 8, "role": "AXButton", "label": "All Clear"},
+        ]
+        marked = [
+            {"element_index": 8, "role": "AXButton", "label": "\u200eAll Clear"},
+        ]
+        self.assertEqual(mod.find_clickable_index({"elements": only_clear}, "All Clear"), 3)
+        self.assertEqual(mod.find_clickable_index({"elements": only_all}, "Clear"), 8)
+        self.assertEqual(mod.find_clickable_index({"elements": marked}, "Clear"), 8)
+        self.assertEqual(mod.find_clickable_index({"elements": marked}, "All Clear"), 8)
+
 
 if __name__ == "__main__":
     unittest.main()

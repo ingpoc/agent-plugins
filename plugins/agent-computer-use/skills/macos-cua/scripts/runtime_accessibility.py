@@ -540,6 +540,7 @@ def _resolve_native_ax_element(pid, snapshot_data, element_index):
     target_value = str(target.get("value") or "")
     target_frame = target.get("frame") or {}
     root = services.AXUIElementCreateApplication(pid)
+    _ax_set_timeout(root, services)
     stack = [root]
     best = None
     best_score = -1

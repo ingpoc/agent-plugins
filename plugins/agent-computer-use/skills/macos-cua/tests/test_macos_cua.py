@@ -8,6 +8,7 @@ import sys
 from types import SimpleNamespace
 import tempfile
 import threading
+import time
 import unittest
 import zlib
 from contextlib import redirect_stderr, redirect_stdout
@@ -3071,6 +3072,23 @@ class HarnessInstallTests(unittest.TestCase):
                 (skills / "macos-cua").resolve(), install_harness.SKILL_DIR
             )
 
+    def test_replace_copy_retargets_stale_skill_symlink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            skills = Path(directory)
+            other = Path(directory) / "other-macos-cua"
+            other.mkdir()
+            (other / "SKILL.md").write_text("stale\n")
+            (other / "scripts").mkdir()
+            (other / "scripts" / "macos-cua.py").write_text("# stale\n")
+            stale = skills / "macos-cua"
+            stale.symlink_to(other, target_is_directory=True)
+            refused = install_harness.install_link(skills)
+            self.assertFalse(refused["ok"])
+            linked = install_harness.install_link(skills, replace_copy=True)
+            self.assertTrue(linked["ok"])
+            self.assertTrue(linked["changed"])
+            self.assertEqual(stale.resolve(), install_harness.SKILL_DIR)
+
 
 class KeyboardTests(unittest.TestCase):
     def test_right_click_prefers_native_show_menu(self):
@@ -4195,6 +4213,26 @@ class PrimitiveContractTests(unittest.TestCase):
 
         self.assertEqual(result["path"], "native_ax")
 
+    def test_perform_action_fails_closed_when_ax_hangs(self):
+        services = SimpleNamespace(
+            AXUIElementSetMessagingTimeout=mock.Mock(),
+            AXUIElementPerformAction=lambda element, action: time.sleep(5) or 0,
+        )
+        state = {"elements": [{"element_index": 30, "actions": ["AXPress"]}]}
+        started = time.monotonic()
+        with mock.patch.object(
+            macos_cua,
+            "_resolve_native_ax_element",
+            return_value=((object(), services), None),
+        ):
+            result = macos_cua.perform_action(
+                10, 20, 30, "press", snapshot_data=state
+            )
+        elapsed = time.monotonic() - started
+        self.assertEqual(result.get("error_code"), "ax_timeout")
+        self.assertFalse(result.get("ok"))
+        self.assertLess(elapsed, 2.5)
+
     def test_selection_range_supports_context_and_cursor_modes(self):
         value = "one target two target three"
         self.assertEqual(
@@ -4852,6 +4890,58 @@ class PlanEfficiencyTests(unittest.TestCase):
         self.assertEqual(snapshot.call_count, 1)
         self.assertGreaterEqual(result["metrics"]["state_reuses"], 1)
         self.assertEqual(result["steps"][0]["state_reused"], True)
+
+    def test_clear_all_clear_alias_reuses_seed_without_extra_ax(self):
+        before = self._snapshot("Clear", "0")
+        after = self._snapshot("8", "8")
+        after["elements"].append(
+            {"element_index": 9, "role": "AXStaticText", "label": "", "value": "8"}
+        )
+        with (
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_snapshot",
+                return_value={"error": "test", "elements": []},
+            ),
+            mock.patch.object(macos_cua, "snapshot", side_effect=[after]) as snapshot,
+            mock.patch.object(
+                macos_cua,
+                "click_label_pointer",
+                return_value={
+                    "ok": True,
+                    "method": "ax",
+                    "move": {"sync": {"duration_ms": 2}},
+                },
+            ) as click,
+            mock.patch.object(
+                macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
+            ),
+            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+        ):
+            result = macos_cua.run_actions(
+                10,
+                20,
+                {
+                    "pointer": True,
+                    "settle_ms": 0,
+                    "capture": "never",
+                    "seed_snapshot": before,
+                    "actions": [
+                        {
+                            "action": "click",
+                            "label": "All Clear",
+                            "expect": {"text": "8", "role": "AXStaticText"},
+                        },
+                    ],
+                    "expect": {"text": "8", "role": "AXStaticText"},
+                },
+                app_name="Calculator",
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["steps"][0]["state_reused"], True)
+        self.assertEqual(click.call_args.args[2], "All Clear")
+        self.assertEqual(snapshot.call_count, 1)
 
     def test_asserted_plan_reuses_state_between_clicks_without_expect(self):
         before = self._snapshot("7", "Ready")

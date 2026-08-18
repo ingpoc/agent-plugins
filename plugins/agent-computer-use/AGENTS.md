@@ -15,4 +15,4 @@ Published scores: this plugin's `README.md`. Refresh only from a warm `python3 s
 
 Behavior after install: `skills/macos-cua/SKILL.md` — **MCP fast path**
 (`start_session` / compact `state` / batched `act` / `verify` / `end_session`).
-WhatsApp send/attach: `$whatsapp`, not this package.
+AX first, then fallback on miss. WhatsApp send/attach: `$whatsapp`, not this package.

@@ -51,7 +51,7 @@ has no `target`. Do not code from hosted examples.
 | Sidebar names on the row/cell | `_attach_static_child_text` + native `parent_index` | Assuming “Downloads” missing means front |
 | Active sheet/popover/dialog is the snapshot root | `choose_walk_roots` + one-window `_unique_ax_windows` | BFS of every `AXWindows` sibling on each observe |
 | Open app-level `AXMenu` first, then one window | `choose_walk_roots` + `_open_ax_menus` | Passing `AXMenuBar` as a walk root (Apple-menu flood) |
-| Snapshot reuse after accepted click | `runtime_plan` `state_reuses`; refresh once on label miss | Per-step `expect` or a fresh observe after every click |
+| Snapshot reuse after accepted click | `runtime_plan` `state_reuses`; `Clear`/`All Clear` on the current tree; one refresh on remaining miss | Per-step `expect` or a fresh observe after every click |
 | Glide uses popover/sheet/dialog/menu/largest containing frame | `_glide_container_frame` | AXWindow-only glide (misses sheets) |
 | Labeled glide is window-local; no Python Quartz on the click path | `glide_operator_to_element` omits `cursor_screen_x/y` when an AXWindow exists; operator remaps normalized coords | Sending stale global screen points, or Quartz-reading on every AX click |
 | Background `key` retries once on `off_space_or_ax_unresolved` or `escalation.recommended=foreground` | `runtime_plan` / `key` | Front-then-key as the normal path |
