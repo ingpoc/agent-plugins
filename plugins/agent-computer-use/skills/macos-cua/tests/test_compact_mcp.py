@@ -69,37 +69,89 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
-    def test_state_argv_never_unfiltered(self):
-        argv = compact_mcp.state_argv("Calculator")
-        self.assertEqual(argv[2], "state")
-        self.assertIn("--compact", argv)
-        self.assertIn("--no-screenshot", argv)
-        self.assertIn("--max", argv)
-        self.assertNotIn("--query", argv)
-        queried = compact_mcp.state_argv("Calculator", query="7", diff=True, max_elements=12)
-        self.assertIn("--query", queried)
-        self.assertIn("7", queried)
-        self.assertIn("--diff", queried)
-        self.assertIn("12", queried)
+    def test_state_dispatches_in_process_without_cli(self):
+        calls = []
 
-    def test_act_plan_uses_run(self):
-        argv, timeout, extra = compact_mcp.act_argv(
-            {"app": "Calculator", "plan": {"actions": [{"action": "click", "label": "7"}]}}
-        )
-        self.assertEqual(argv[2], "run")
-        self.assertEqual(timeout, compact_mcp.RUN_TIMEOUT)
-        self.assertTrue(extra and extra.get("_temp"))
-        Path(extra["_temp"]).unlink(missing_ok=True)
+        class Runtime:
+            def state(self, app, **kwargs):
+                calls.append((app, kwargs))
+                return {"ok": True, "text": "7"}
 
-    def test_act_label_and_type(self):
-        click, _, _ = compact_mcp.act_argv({"app": "Calculator", "label": "7"})
-        self.assertEqual(click[2:5], ["click-label-pointer", "Calculator", "7"])
-        typed, _, _ = compact_mcp.act_argv({"app": "TextEdit", "label": "Body", "text": "hi"})
-        self.assertEqual(typed[2], "type-label")
-        action, _, _ = compact_mcp.act_argv(
-            {"app": "Calculator", "label": "View", "action": "show_menu"}
+        original_runtime = compact_mcp._RUNTIME
+        original_run_cli = compact_mcp.run_cli
+        compact_mcp._RUNTIME = Runtime()
+        compact_mcp.run_cli = lambda *_args, **_kwargs: self.fail("CLI spawned")
+        try:
+            payload = compact_mcp._state_payload(
+                {"app": "Calculator", "query": "7", "diff": True, "max": 12}
+            )
+        finally:
+            compact_mcp._RUNTIME = original_runtime
+            compact_mcp.run_cli = original_run_cli
+        self.assertEqual(payload, {"ok": True, "text": "7"})
+        self.assertEqual(
+            calls,
+            [
+                (
+                    "Calculator",
+                    {"query": "7", "diff": True, "max_elements": 12},
+                )
+            ],
         )
-        self.assertEqual(action[2:5], ["perform-action", "Calculator", "show_menu"])
+
+    def test_act_dispatches_plan_in_process_without_cli(self):
+        calls = []
+
+        class Runtime:
+            def act(self, app, arguments, actions):
+                calls.append((app, arguments, actions))
+                return {"ok": True, "verified": True}
+
+        arguments = {
+            "app": "Calculator",
+            "plan": {"actions": [{"action": "click", "label": "7"}]},
+        }
+        original_runtime = compact_mcp._RUNTIME
+        original_run_cli = compact_mcp.run_cli
+        compact_mcp._RUNTIME = Runtime()
+        compact_mcp.run_cli = lambda *_args, **_kwargs: self.fail("CLI spawned")
+        try:
+            payload = compact_mcp.handle_act(arguments)
+        finally:
+            compact_mcp._RUNTIME = original_runtime
+            compact_mcp.run_cli = original_run_cli
+        self.assertEqual(payload, {"ok": True, "verified": True})
+        self.assertEqual(calls, [("Calculator", arguments, compact_mcp.AX_ACTIONS)])
+
+    def test_lifecycle_dispatches_in_process_without_cli(self):
+        class Runtime:
+            def start_driver(self, session):
+                return {"ok": True, "session": session}
+
+            def ensure_operator(self):
+                return {"ok": True}
+
+            def end_driver(self, session):
+                return {"ok": True, "session": session}
+
+            def closeout(self):
+                return {"success": True}
+
+        original_runtime = compact_mcp._RUNTIME
+        original_run_cli = compact_mcp.run_cli
+        compact_mcp._RUNTIME = Runtime()
+        compact_mcp.run_cli = lambda *_args, **_kwargs: self.fail("CLI spawned")
+        compact_mcp._SESSION.clear()
+        try:
+            started = compact_mcp.handle_start_session({"session": "test-session"})
+            ended = compact_mcp.handle_end_session({})
+        finally:
+            compact_mcp._SESSION.clear()
+            compact_mcp._RUNTIME = original_runtime
+            compact_mcp.run_cli = original_run_cli
+        self.assertTrue(started["ok"])
+        self.assertTrue(ended["ok"])
+        self.assertEqual(ended["session"], "test-session")
 
     def test_instructions_order_ax_first_then_fallback(self):
         text = compact_mcp.INSTRUCTIONS

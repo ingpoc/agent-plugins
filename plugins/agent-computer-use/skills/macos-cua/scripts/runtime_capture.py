@@ -318,12 +318,13 @@ def app_state(
                 "error": prepared["error"],
             }
         time.sleep(0.15)
-    raw = _native_ax_snapshot(pid, max_elements=max_elements, window_id=window_id)
-    if snapshot_content_error(raw):
-        time.sleep(0.12)
-        refreshed = _native_ax_snapshot(pid, max_elements=max_elements, window_id=window_id)
-        if not snapshot_content_error(refreshed):
-            raw = refreshed
+    raw = None
+    for attempt in range(4):
+        raw = _native_ax_snapshot(pid, max_elements=max_elements, window_id=window_id)
+        if not snapshot_content_error(raw):
+            break
+        if attempt < 3:
+            time.sleep(0.12 * (attempt + 1))
     native_ready = not snapshot_content_error(raw)
     native_capture_failed = False
     if not native_ready:

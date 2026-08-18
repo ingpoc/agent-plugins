@@ -94,10 +94,12 @@ def validate_plan(plan: Any) -> list[dict[str, Any]]:
         errors.append({"path": "$.output", "code": "invalid_output_mode"})
     if plan.get("capture", "failures") not in {"never", "failures", "always"}:
         errors.append({"path": "$.capture", "code": "invalid_capture_mode"})
+    previous_action = None
     for index, step in enumerate(actions):
         path = f"$.actions[{index}]"
         if not isinstance(step, dict):
             errors.append({"path": path, "code": "action_not_object"})
+            previous_action = None
             continue
         action = normalize_action_name(step.get("action"))
         if action != step.get("action") and isinstance(action, str):
@@ -108,7 +110,10 @@ def validate_plan(plan: Any) -> list[dict[str, Any]]:
             errors.append(
                 {"path": f"{path}.action", "code": "unknown_action", "value": step.get("action")}
             )
+            previous_action = None
             continue
+        if action in {"state", "snapshot"} and previous_action in {"state", "snapshot"}:
+            errors.append({"path": path, "code": "redundant_observe"})
         spec = ACTION_SPECS[action]
         for field in spec.required:
             if field not in step or step[field] is None:
@@ -119,6 +124,7 @@ def validate_plan(plan: Any) -> list[dict[str, Any]]:
             errors.append({"path": path, "code": "target_missing"})
         if action == "click" and (step.get("x") is None) != (step.get("y") is None):
             errors.append({"path": path, "code": "coordinate_pair_incomplete"})
+        previous_action = action
     return errors
 
 

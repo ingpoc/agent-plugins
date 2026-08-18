@@ -14,5 +14,6 @@ Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients
 Published scores: this plugin's `README.md`. Refresh only from a warm `python3 skills/macos-cua/scripts/run_benchmarks.py --repeat 5 --rate`. Do not paste a cold run or an older cache. Do not add `.cursor-plugin/` or `logo` on `plugin.json` for a Customize icon.
 
 Behavior after install: `skills/macos-cua/SKILL.md` — **MCP fast path**
-(`start_session` / compact `state` / batched `act` / `verify` / `end_session`).
+(`start_session` / one compact `state` / batched asserted `act` / conditional
+`verify` only when `act.verified` is false / `end_session`).
 AX first, then fallback on miss. WhatsApp send/attach: `$whatsapp`, not this package.

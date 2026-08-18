@@ -7,6 +7,7 @@ import os
 import subprocess
 import time
 
+
 def click_point(
     pid,
     window_id,
@@ -20,8 +21,18 @@ def click_point(
     logical_frame_recovery=True,
     preserve_pointer=False,
     app_name=None,
+    verified_screen_point=None,
 ):
     """Click raw PNG pixels; optionally restore the single system pointer."""
+    foreground_prepared = None
+    if delivery_mode == "foreground":
+        foreground_prepared = bring_resolved_window_to_front(pid, window_id)
+        if foreground_prepared.get("error"):
+            return {
+                "ok": False,
+                "error": "foreground preparation failed before point click",
+                "detail": foreground_prepared,
+            }
     pointer_move = None
     if app_name:
         pointer_move = _move_operator_cursor_to_point(
@@ -33,22 +44,50 @@ def click_point(
                 "error": "visible operator cursor did not reach the point target",
                 "move": pointer_move,
             }
+    screen_point = verified_screen_point or (
+        pointer_move.get("screen_point") if isinstance(pointer_move, dict) else None
+    )
+    if isinstance(screen_point, dict):
+        native = _native_ax_snapshot(
+            pid, max_elements=160, window_id=window_id
+        )
+        text_result = _native_text_pointer().accessible_text_click(
+            resolve=_resolve_native_ax_element,
+            ax_value=_ax_value,
+            pid=pid,
+            observation=native,
+            point=screen_point,
+            click_count=click_count,
+        )
+        if text_result is not None:
+            return {
+                "ok": bool(text_result.get("ok")),
+                "path": "verified-screen-point+native-ax-text",
+                "result": text_result,
+                "move": pointer_move,
+                "foreground_prepared": foreground_prepared,
+                "debug_image_omitted": bool(debug_image_out),
+            }
+        result = _native_input().post_mouse_click(
+            pid,
+            screen_point,
+            button=button,
+            count=click_count,
+        )
+        error = result.get("error") if isinstance(result, dict) else None
+        return {
+            "ok": not error,
+            "path": "verified-screen-point+native-pid-mouse",
+            "result": result,
+            "move": pointer_move,
+            "foreground_prepared": foreground_prepared,
+            "debug_image_omitted": bool(debug_image_out),
+        }
     recovery = (
         _logical_pixel_target(pid, window_id, x, y)
         if logical_frame_recovery
         else None
     )
-    foreground_prepared = None
-    if delivery_mode == "foreground":
-        foreground_prepared = bring_resolved_window_to_front(pid, window_id)
-        if foreground_prepared.get("error"):
-            return {
-                "ok": False,
-                "error": "foreground preparation failed before point click",
-                "detail": foreground_prepared,
-            }
-        if logical_frame_recovery:
-            recovery = _logical_pixel_target(pid, window_id, x, y)
     if recovery and recovery.get("error"):
         return {"ok": False, **recovery}
     if recovery:
@@ -108,6 +147,7 @@ def double_click(
     snapshot_data=None,
     app_name=None,
 ):
+    verified_screen_point = None
     if element_index is not None:
         fresh = snapshot_data or snapshot(
             pid,
@@ -197,13 +237,19 @@ def double_click(
             }
         x = (left + right) / 2 - frame["x"]
         y = (top + bottom) / 2 - frame["y"]
+        verified_screen_point = {"x": frame["x"] + x, "y": frame["y"] + y}
+    click_options = {
+        "click_count": 2,
+        "delivery_mode": delivery_mode,
+    }
+    if verified_screen_point is not None:
+        click_options["verified_screen_point"] = verified_screen_point
     point_result = click_point(
         pid,
         window_id,
         x,
         y,
-        click_count=2,
-        delivery_mode=delivery_mode,
+        **click_options,
     )
     if element_index is None or (element or {}).get("role") not in {
         "AXTextArea",

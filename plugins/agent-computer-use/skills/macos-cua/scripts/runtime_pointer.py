@@ -270,6 +270,7 @@ def _move_operator_cursor_to_point(
         "ok": bool(published.get("ok"))
         and (synchronized is None or bool(synchronized.get("ok"))),
         "cursor_normalized": normalized,
+        "screen_point": {"x": screen_x, "y": screen_y},
         "publish": published,
         "sync": synchronized,
     }

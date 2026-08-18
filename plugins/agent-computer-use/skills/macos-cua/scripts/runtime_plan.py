@@ -500,19 +500,22 @@ def run_actions(
             max_elements=max_elements,
             ignore_element_indices=acted_indices,
         )
-    if final_snapshot is None:
+    final_snapshot_skipped = final_snapshot is None and all(
+        (allow_unverified, accepted_plan, plan_expect is None, output_mode == "compact")
+    )
+    if final_snapshot is None and not final_snapshot_skipped:
         final_snapshot = _plan_snapshot(pid, window_id, max_elements=max_elements)
+    final_snapshot = final_snapshot or {}
     if plan_expect is not None:
         assertions_passed = assertions_passed and final_ok
     verified_plan = not unasserted and assertions_passed
     proof_ok = accepted_plan and verified_plan
     capture = plan.get("capture", "failures")
-    screenshot = None
-    capture_error = None
-    capture_geometry = None
-    capture_recovery = None
+    screenshot = capture_error = capture_geometry = capture_recovery = None
     capture_attempted = capture == "always" or (
-        capture == "failures" and not proof_ok
+        capture == "failures"
+        and not proof_ok
+        and not (allow_unverified and accepted_plan and assertions_passed)
     )
     if capture_attempted:
         final_state = app_state(
@@ -565,6 +568,8 @@ def run_actions(
         "metrics": {
             "state_reuses": state_reuses,
             "cursor_cleanup_ended": len((cursor_cleanup or {}).get("ended", [])),
+            "capture_attempted": capture_attempted,
+            "final_snapshot_skipped": final_snapshot_skipped,
         },
         "duration_ms": round((time.monotonic() - started) * 1000),
     }

@@ -46,7 +46,8 @@ ledger only for backend selection, regression review, or a parity claim.
   asserted plans and fresh/postcondition snapshots for the same bounded loop.
 - [Apple NSRunningApplication](https://developer.apple.com/documentation/appkit/nsrunningapplication)
   exposes time-varying activation state; foreground readiness is acknowledged
-  from live AppKit/AX state instead of a fixed sleep.
+  from stable AppKit or PID-specific per-display focus plus AX-window state
+  instead of a fixed sleep.
 - [cua-driver validation](https://cua.ai/docs/concepts/how-cua-driver-is-validated)
   distinguishes protocol acceptance from application-owned end-to-end proof;
   this skill keeps both static contract tests and live app graders.

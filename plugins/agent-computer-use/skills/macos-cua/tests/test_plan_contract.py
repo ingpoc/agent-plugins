@@ -76,6 +76,20 @@ class PlanContractTests(unittest.TestCase):
             [],
         )
 
+    def test_adjacent_observes_are_rejected_as_redundant(self):
+        errors = plan_contract.validate_plan(
+            {
+                "actions": [
+                    {"action": "state"},
+                    {"action": "snapshot"},
+                ]
+            }
+        )
+        self.assertEqual(
+            errors,
+            [{"path": "$.actions[1]", "code": "redundant_observe"}],
+        )
+
     def test_cli_action_aliases_normalize_to_plan_actions(self):
         plan = {
             "actions": [

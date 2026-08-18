@@ -2,8 +2,8 @@
   "schema_version": 1,
   "name": "macos-cua",
   "acceptance": {
-    "outcome": "no false-green expects; compact run must not dump chats; Calculator and WhatsApp independent readback; source-frozen empty gate",
-    "owner": "source ~/plugins/agent-computer-use — click-label-pointer, plan_contract, runtime_plan, compact_mcp",
+    "outcome": "no false-green expects; persistent MCP must beat per-call CLI by at least 10%; compact run must not dump chats; Calculator and WhatsApp independent readback; source-frozen empty gate",
+    "owner": "plugins/agent-computer-use — mcp_runtime, compact_mcp, runtime_capture, native_text_pointer, click-label-pointer, plan_contract, runtime_plan",
     "pass": [
       "expect ignores the acted control",
       "role-scoped expect can require a heading that was not the acted button",
@@ -14,6 +14,11 @@
       "snapshot walks AXSheet/AXPopover/AXDialog when present, else one window",
       "AXTextField child names attach to unlabeled rows",
       "native type-text with empty AX value is ax_incomplete_value, not accepted",
+      "accepted allow_unverified plans skip automatic failure PNG and useless final compact AX read",
+      "adjacent state/snapshot actions fail before dispatch as redundant_observe",
+      "verified coordinate clicks on accessible text use AXRangeForPosition with selection readback, not desktop-global input or ScreenCaptureKit",
+      "MCP lifecycle/state/act dispatch in one held Python process with cli_invocations=0",
+      "live interleaved Calculator A/B resets its fixture, omits separately graded pointer capture, is fully successful, and is at least 10% faster than the retired per-call CLI path",
       "run_gate.py final-1 then final-2 --require-empty on the new source hash"
     ],
     "safety": "no WhatsApp send without (You); no chat dumps or personal identifiers in files",
@@ -42,6 +47,13 @@
       "timeout_seconds": 120,
       "budget_seconds": 20,
       "fail_patterns": ["Traceback", "DeprecationWarning", "CoreSVG has logged an error"]
+    },
+    {
+      "name": "mcp-runtime",
+      "command": ["python3", "scripts/bench_mcp_runtime.py"],
+      "timeout_seconds": 100,
+      "budget_seconds": 65,
+      "fail_patterns": ["Traceback", "DeprecationWarning", "CoreSVG has logged an error", "\"ok\": false"]
     },
     {
       "name": "pointer",

@@ -58,15 +58,21 @@ def live_checks(*, progress=False):
         pid, window_id, name, error = cua.resolve_app("Finder")
         if error:
             raise AssertionError(error)
-        tree = cua._native_ax_snapshot(pid, max_elements=120, window_id=window_id)
+        tree = cua._native_ax_snapshot(pid, max_elements=240, window_id=window_id)
         clickable = cua.find_clickable_index(tree, "Downloads")
+        if clickable is not None:
+            return {
+                "window_id": window_id,
+                "element_count": tree.get("element_count", 0),
+                "actionable_label_resolution": True,
+            }
         state = cua.app_state(
             name or "Finder",
             pid,
             window_id,
-            max_elements=120 if clickable is None else 40,
+            max_elements=240,
             include_screenshot=True,
-            prepare_foreground=clickable is None,
+            prepare_foreground=True,
         )
         if not state.get("ok") or not state.get("signals", {}).get(
             "app_content_available"
@@ -76,8 +82,7 @@ def live_checks(*, progress=False):
         path = Path(screenshot.get("path", ""))
         if not path.is_file() or path.stat().st_size < 1024:
             raise AssertionError(f"invalid screenshot: {path}")
-        if clickable is None:
-            clickable = cua.find_clickable_index(state, "Downloads")
+        clickable = cua.find_clickable_index(state, "Downloads")
         if clickable is None:
             raise AssertionError(
                 "Finder row text was not resolved to an actionable ancestor"

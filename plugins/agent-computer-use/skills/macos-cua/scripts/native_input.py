@@ -6,6 +6,8 @@ import json
 import subprocess
 import time
 
+_LAST_MOUSE_CLICK_AT = 0.0
+
 
 def accessible_slider_drag(
     *, resolve, ax_value, pid, observation, source, destination
@@ -301,6 +303,87 @@ def post_key_event(pid, key_code, is_down, delivery_mode="background"):
         CGEventPost(kCGHIDEventTap, event)
     else:
         CGEventPostToPid(pid, event)
+
+
+def post_mouse_click(pid, point, *, button="left", count=1):
+    """Post a screen-mapped mouse click directly to one process."""
+    global _LAST_MOUSE_CLICK_AT
+    from Quartz import (
+        CGEventCreateMouseEvent,
+        CGEventPostToPid,
+        CGEventSetIntegerValueField,
+        CGPointMake,
+        kCGEventLeftMouseDown,
+        kCGEventLeftMouseUp,
+        kCGEventOtherMouseDown,
+        kCGEventOtherMouseUp,
+        kCGEventRightMouseDown,
+        kCGEventRightMouseUp,
+        kCGMouseButtonCenter,
+        kCGMouseButtonLeft,
+        kCGMouseButtonRight,
+        kCGMouseEventClickState,
+    )
+
+    events = {
+        "left": (kCGEventLeftMouseDown, kCGEventLeftMouseUp, kCGMouseButtonLeft),
+        "right": (kCGEventRightMouseDown, kCGEventRightMouseUp, kCGMouseButtonRight),
+        "middle": (
+            kCGEventOtherMouseDown,
+            kCGEventOtherMouseUp,
+            kCGMouseButtonCenter,
+        ),
+    }
+    if button not in events:
+        return {"error": f"unsupported mouse button: {button}"}
+    try:
+        repetitions = int(count)
+        location = CGPointMake(float(point["x"]), float(point["y"]))
+    except (KeyError, TypeError, ValueError):
+        return {"error": "PID mouse click requires a valid screen point and count"}
+    if repetitions < 1 or repetitions > 3:
+        return {"error": "PID mouse click count must be between 1 and 3"}
+
+    double_click_interval = 0.5
+    try:
+        from AppKit import NSEvent
+
+        double_click_interval = float(NSEvent.doubleClickInterval())
+    except (AttributeError, ImportError, TypeError, ValueError):
+        pass
+    remaining = (
+        double_click_interval
+        + 0.05
+        - (time.monotonic() - _LAST_MOUSE_CLICK_AT)
+    )
+    if remaining > 0:
+        time.sleep(remaining)
+
+    down_type, up_type, quartz_button = events[button]
+    for click_index in range(1, repetitions + 1):
+        for event_index, event_type in enumerate((down_type, up_type)):
+            event = CGEventCreateMouseEvent(
+                None, event_type, location, quartz_button
+            )
+            CGEventSetIntegerValueField(
+                event, kCGMouseEventClickState, click_index
+            )
+            CGEventPostToPid(int(pid), event)
+            if event_index == 0:
+                time.sleep(0.01)
+        if click_index < repetitions:
+            time.sleep(0.05)
+    _LAST_MOUSE_CLICK_AT = time.monotonic()
+    return {
+        "ok": True,
+        "accepted": True,
+        "verified": False,
+        "effect": "unverifiable",
+        "path": "native_pid_mouse",
+        "pid": int(pid),
+        "button": button,
+        "count": repetitions,
+    }
 
 
 def hold_key(

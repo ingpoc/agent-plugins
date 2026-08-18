@@ -119,6 +119,10 @@ def main() -> None:
     check(operator_pid > 0, "signed operator service PID resolves", operator)
 
     before = hardware_pointer()
+    activation = MACOS_CUA.launch_or_activate("Calculator")
+    check(not activation.get("error"), "Calculator is visible for overlay proof", activation)
+    time.sleep(0.2)
+    MACOS_CUA.clear_resolution_cache()
     pid, window_id, app_name, error = MACOS_CUA.resolve_app("Calculator")
     check(error is None, "Calculator resolves for cursor tracking", error)
     tracking = []
@@ -217,10 +221,6 @@ def main() -> None:
         })
         first = first or click
 
-    final_state = MACOS_CUA.app_state(
-        app_name, pid, window_id, max_elements=80, include_screenshot=True
-    )
-    proof = final_state["screenshot"]
     OVERLAY_CAPTURE.parent.mkdir(parents=True, exist_ok=True)
     captured = subprocess.run(
         ["screencapture", "-x", "-l", str(overlay["window_id"]), str(OVERLAY_CAPTURE)],

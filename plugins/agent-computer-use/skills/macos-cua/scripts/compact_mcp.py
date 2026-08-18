@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Thin stdio MCP facade over macos-cua CLI. Five tools. No raw cua-driver catalog.
+"""Thin stdio MCP facade over a persistent macos-cua runtime. Five tools.
 
 Dual-era MCP (https://modelcontextprotocol.io/specification/latest):
 - Modern 2026-07-28: per-request _meta, server/discover, resultType.
@@ -9,13 +9,12 @@ compat for older Cursor/cua-driver senders.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import secrets
-import shutil
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -24,9 +23,6 @@ PLUGIN_ROOT = SCRIPT_DIR.parents[2]
 MACOS_CUA = SCRIPT_DIR / "macos-cua.py"
 WORKFLOW = SCRIPT_DIR / "workflow.py"
 DEFAULT_MAX = 80
-STATE_TIMEOUT = 30
-ACT_TIMEOUT = 30
-RUN_TIMEOUT = 60
 MODERN_VERSION = "2026-07-28"
 LEGACY_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 SUPPORTED_VERSIONS = (MODERN_VERSION,) + LEGACY_VERSIONS
@@ -43,24 +39,55 @@ TOOL_NAMES = ("start_session", "state", "act", "verify", "end_session")
 INSTRUCTIONS = (
     "Thin macos-cua MCP over cua-driver. Use start_session, state, act, verify, "
     "end_session only. Never list_apps or raw cua-driver MCP (54 tools). "
-    "Best first: compact AX state (no screenshot); one batched act/plan; "
+    "Best first: one compact AX state (no screenshot); one batched act/plan; "
     "current-tree labels (Clear=All Clear); glide then AX; fail closed at 1.5s "
-    "(ax_timeout). Fallback only on miss: one fresh state; then screenshot/"
+    "(ax_timeout). Fallback only on miss: at most one fresh state; then screenshot/"
     "PIXEL_CLICK. Never silent pixel fallback. Follow compact effect/escalation "
-    "(px|foreground|page). Default agent loop is this MCP (held driver socket). "
+    "(px|foreground|page). Do not verify again when act.verified is true. "
+    "Default agent loop is this MCP (held driver socket). "
     "Shell macos-cua.py and bin/cua-driver-mcp are diagnostic/bench only. "
     "WhatsApp send/attach: $whatsapp skill, not these tools."
 )
 _SESSION: dict[str, Any] = {}
 _CLI_CALL_STATS = {"calls": 0, "stdout_bytes": 0}
 
+
+def _load_runtime():
+    path = SCRIPT_DIR / "mcp_runtime.py"
+    spec = importlib.util.spec_from_file_location("macos_cua_mcp_runtime", path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load MCP runtime: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.SessionRuntime(MACOS_CUA)
+
+
+_RUNTIME = _load_runtime()
+
+
 def telemetry_reset() -> None:
     _CLI_CALL_STATS.update(calls=0, stdout_bytes=0)
+    _RUNTIME.telemetry_reset()
+
+
 def telemetry_read() -> dict[str, int]:
-    return {"cli_invocations": _CLI_CALL_STATS["calls"], "cli_response_bytes": _CLI_CALL_STATS["stdout_bytes"]}
+    counts = dict(_RUNTIME.telemetry_read())
+    counts["cli_invocations"] = (
+        int(counts.get("cli_invocations", 0)) + _CLI_CALL_STATS["calls"]
+    )
+    counts["cli_response_bytes"] = (
+        int(counts.get("cli_response_bytes", 0)) + _CLI_CALL_STATS["stdout_bytes"]
+    )
+    return counts
+
+
 reset_cli_call_stats = telemetry_reset
+
+
 def cli_call_stats() -> dict[str, int]:
     return dict(_CLI_CALL_STATS)
+
+
 def _note_cli_call(stdout) -> None:
     _CLI_CALL_STATS["calls"] += 1
     if stdout is None:
@@ -78,109 +105,6 @@ def plugin_version() -> str:
 
 def server_info() -> dict[str, str]:
     return {"name": "agent-computer-use", "version": plugin_version()}
-
-
-def resolve_driver() -> str | None:
-    for candidate in (
-        os.environ.get("CUA_DRIVER_BIN"),
-        os.environ.get("CUA_DRIVER"),
-        shutil.which("cua-driver"),
-        str(Path.home() / ".local/bin/cua-driver"),
-    ):
-        if candidate and os.access(candidate, os.X_OK):
-            return candidate
-    return None
-
-
-def state_argv(
-    app: str,
-    *,
-    query: str | None = None,
-    diff: bool = False,
-    max_elements: int = DEFAULT_MAX,
-) -> list[str]:
-    cmd = [
-        sys.executable,
-        str(MACOS_CUA),
-        "state",
-        app,
-        "--compact",
-        "--no-screenshot",
-        "--max",
-        str(max_elements),
-    ]
-    if query:
-        cmd.extend(["--query", query])
-    if diff:
-        cmd.append("--diff")
-    return cmd
-
-
-def act_argv(arguments: dict[str, Any]) -> tuple[list[str], int, dict[str, Any] | None]:
-    app = str(arguments.get("app") or "").strip()
-    if not app:
-        return [], ACT_TIMEOUT, {"ok": False, "error": "app is required"}
-    plan = arguments.get("plan")
-    text = arguments.get("text")
-    label = arguments.get("label")
-    element = arguments.get("element")
-    action = str(arguments.get("action") or "").strip()
-    expect = arguments.get("expect")
-    if plan is not None:
-        if not isinstance(plan, dict):
-            return [], RUN_TIMEOUT, {"ok": False, "error": "plan must be an object"}
-        payload = dict(plan)
-        if expect is not None and "expect" not in payload:
-            payload["expect"] = {"text": expect} if isinstance(expect, str) else expect
-        handle = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
-        try:
-            json.dump(payload, handle)
-            handle.close()
-            return (
-                [sys.executable, str(MACOS_CUA), "run", app, f"@{handle.name}"],
-                RUN_TIMEOUT,
-                {"_temp": handle.name},
-            )
-        except Exception:
-            os.unlink(handle.name)
-            raise
-    if text is not None:
-        typed = str(text)
-        if label:
-            return (
-                [sys.executable, str(MACOS_CUA), "type-label", app, str(label), typed],
-                ACT_TIMEOUT,
-                None,
-            )
-        cmd = [sys.executable, str(MACOS_CUA), "type-text", app, typed]
-        if element is not None:
-            cmd.extend(["--element", str(int(element))])
-        return cmd, ACT_TIMEOUT, None
-    if action and action not in {"click", "press"} and action in AX_ACTIONS:
-        cmd = [sys.executable, str(MACOS_CUA), "perform-action", app, action]
-        if element is not None:
-            cmd.extend(["--element", str(int(element))])
-        elif label:
-            cmd.extend(["--label", str(label)])
-        else:
-            return [], ACT_TIMEOUT, {"ok": False, "error": "perform-action needs label or element"}
-        return cmd, ACT_TIMEOUT, None
-    if label:
-        return (
-            [sys.executable, str(MACOS_CUA), "click-label-pointer", app, str(label)],
-            ACT_TIMEOUT,
-            None,
-        )
-    if element is not None:
-        return (
-            [sys.executable, str(MACOS_CUA), "click", app, str(int(element))],
-            ACT_TIMEOUT,
-            None,
-        )
-    return [], ACT_TIMEOUT, {
-        "ok": False,
-        "error": "act needs label, element, text, or plan",
-    }
 
 
 def _schema(properties: dict[str, Any], required: list[str] | None = None) -> dict[str, Any]:
@@ -208,7 +132,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         },
         {
             "name": "state",
-            "description": "Compact AX state. Always --compact --no-screenshot --max. Prefer query/diff.",
+            "description": "One compact AX state. Use the current tree, then at most one query/diff after a miss.",
             "inputSchema": _schema(
                 {
                     "app": {"type": "string"},
@@ -226,7 +150,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         },
         {
             "name": "act",
-            "description": "Best first: glide then AX, batched plan, current-tree labels (Clear=All Clear), 1.5s ax_timeout. Fallback: one state on miss; pixels only after AX miss.",
+            "description": "Best first: glide then AX in one asserted plan. Fallback after one fresh state; accepted unverified plans do not auto-capture PNGs.",
             "inputSchema": _schema(
                 {
                     "app": {"type": "string"},
@@ -242,7 +166,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         },
         {
             "name": "verify",
-            "description": "Fail-closed re-read. ok false when degraded or expect misses.",
+            "description": "Fail-closed re-read only when act.verified is false or state changed externally.",
             "inputSchema": _schema(
                 {"app": {"type": "string"}, "expect": {"type": "string"}},
                 ["app", "expect"],
@@ -288,13 +212,6 @@ def run_cli(argv: list[str], timeout: float) -> dict[str, Any]:
     return payload
 
 
-def call_driver(tool: str, params: dict[str, Any], timeout: float = 10) -> dict[str, Any]:
-    driver = resolve_driver()
-    if not driver:
-        return {"ok": False, "error": "cua-driver unavailable"}
-    return run_cli([driver, "call", tool, json.dumps(params)], timeout)
-
-
 def _state_payload(arguments: dict[str, Any]) -> dict[str, Any]:
     app = str(arguments.get("app") or "").strip()
     if not app:
@@ -302,14 +219,11 @@ def _state_payload(arguments: dict[str, Any]) -> dict[str, Any]:
     max_elements = int(arguments.get("max") or DEFAULT_MAX)
     max_elements = max(1, min(max_elements, 200))
     query = arguments.get("query")
-    return run_cli(
-        state_argv(
-            app,
-            query=str(query) if query else None,
-            diff=bool(arguments.get("diff")),
-            max_elements=max_elements,
-        ),
-        STATE_TIMEOUT,
+    return _RUNTIME.state(
+        app,
+        query=str(query) if query else None,
+        diff=bool(arguments.get("diff")),
+        max_elements=max_elements,
     )
 
 
@@ -323,13 +237,9 @@ def _haystack(payload: dict[str, Any]) -> str:
 
 def handle_start_session(arguments: dict[str, Any]) -> dict[str, Any]:
     session = str(arguments.get("session") or "").strip() or f"acu-{secrets.token_hex(6)}"
-    os.environ["MACOS_CUA_SESSION"] = session
-    driver = call_driver("start_session", {"session": session}, timeout=8)
+    driver = _RUNTIME.start_driver(session)
     driver_started = "error" not in driver and driver.get("ok") is not False
-    operator = run_cli(
-        [sys.executable, str(MACOS_CUA), "operator", "start"],
-        15,
-    )
+    operator = _RUNTIME.ensure_operator()
     preflight = None
     if arguments.get("preflight"):
         preflight = run_cli([sys.executable, str(WORKFLOW), "preflight"], 25)
@@ -353,15 +263,10 @@ def handle_start_session(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def handle_act(arguments: dict[str, Any]) -> dict[str, Any]:
-    argv, timeout, extra = act_argv(arguments)
-    temp = (extra or {}).get("_temp")
-    if extra and not argv:
-        return extra
-    try:
-        return run_cli(argv, timeout)
-    finally:
-        if temp:
-            Path(temp).unlink(missing_ok=True)
+    app = str(arguments.get("app") or "").strip()
+    if not app:
+        return {"ok": False, "error": "app is required"}
+    return _RUNTIME.act(app, arguments, AX_ACTIONS)
 
 
 def handle_verify(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -392,8 +297,8 @@ def handle_end_session(arguments: dict[str, Any]) -> dict[str, Any]:
     session = str(arguments.get("session") or _SESSION.get("session") or "").strip()
     driver = None
     if session and _SESSION.get("driver_started"):
-        driver = call_driver("end_session", {"session": session}, timeout=8)
-    closeout = run_cli([sys.executable, str(WORKFLOW), "closeout"], 20)
+        driver = _RUNTIME.end_driver(session)
+    closeout = _RUNTIME.closeout()
     _SESSION.clear()
     return {
         "ok": closeout.get("success") is True or closeout.get("ok") is True,

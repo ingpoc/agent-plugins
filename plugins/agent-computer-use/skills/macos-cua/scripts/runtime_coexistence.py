@@ -315,6 +315,19 @@ def _native_input():
     return _NATIVE_INPUT_MOD
 
 
+def _native_text_pointer():
+    """Load AX text coordinate mechanics once per process."""
+    global _NATIVE_TEXT_POINTER_MOD
+    if _NATIVE_TEXT_POINTER_MOD is None:
+        path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "native_text_pointer.py"
+        )
+        spec = importlib.util.spec_from_file_location("native_text_pointer", path)
+        _NATIVE_TEXT_POINTER_MOD = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(_NATIVE_TEXT_POINTER_MOD)
+    return _NATIVE_TEXT_POINTER_MOD
+
+
 def operator_update(
     app_name=None,
     pid=None,

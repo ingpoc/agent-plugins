@@ -935,6 +935,34 @@ class WindowResolutionTests(unittest.TestCase):
         self.assertEqual(native_snapshot.call_count, 2)
         driver_snapshot.assert_not_called()
 
+    def test_app_state_absorbs_brief_native_ax_instability_without_driver(self):
+        empty = {"elements": [], "tree_markdown": ""}
+        native = {
+            "elements": [{"role": "AXWindow", "label": "Fixture"}],
+            "tree_markdown": "[1] AXWindow Fixture",
+        }
+        with (
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_snapshot",
+                side_effect=[empty, empty, empty, native],
+            ) as native_snapshot,
+            mock.patch.object(macos_cua, "snapshot") as driver_snapshot,
+            mock.patch.object(macos_cua.time, "sleep") as sleep,
+            mock.patch.object(macos_cua, "operator_update"),
+        ):
+            result = macos_cua.app_state(
+                "Fixture", 10, 20, include_screenshot=False
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(native_snapshot.call_count, 4)
+        self.assertEqual(
+            [call.args[0] for call in sleep.call_args_list],
+            [0.12, 0.24, 0.36],
+        )
+        driver_snapshot.assert_not_called()
+
     def test_capture_geometry_rejects_stage_manager_thumbnail(self):
         with mock.patch.object(
             macos_cua,
@@ -3986,6 +4014,59 @@ class PrimitiveContractTests(unittest.TestCase):
         )
         self.assertEqual(result["move"], move)
 
+    def test_foreground_point_posts_verified_screen_point_to_target_pid(self):
+        move = {
+            "ok": True,
+            "cursor_normalized": {"x": 0.25, "y": 0.5},
+            "screen_point": {"x": 410.0, "y": 320.0},
+        }
+        native_text_pointer = SimpleNamespace(
+            accessible_text_click=mock.Mock(return_value=None)
+        )
+        native_input = SimpleNamespace(
+            post_mouse_click=mock.Mock(
+                return_value={"ok": True, "path": "native_pid_mouse"}
+            )
+        )
+        with (
+            mock.patch.object(
+                macos_cua,
+                "bring_resolved_window_to_front",
+                return_value={"ok": True},
+            ),
+            mock.patch.object(
+                macos_cua, "_move_operator_cursor_to_point", return_value=move
+            ),
+            mock.patch.object(
+                macos_cua,
+                "_native_text_pointer",
+                return_value=native_text_pointer,
+            ),
+            mock.patch.object(macos_cua, "_native_input", return_value=native_input),
+            mock.patch.object(macos_cua, "call_driver") as driver,
+        ):
+            result = macos_cua.click_point(
+                10,
+                20,
+                30,
+                40,
+                delivery_mode="foreground",
+                app_name="Example App",
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(
+            result["path"], "verified-screen-point+native-pid-mouse"
+        )
+        native_text_pointer.accessible_text_click.assert_called_once()
+        native_input.post_mouse_click.assert_called_once_with(
+            10,
+            {"x": 410.0, "y": 320.0},
+            button="left",
+            count=1,
+        )
+        driver.assert_not_called()
+
     def test_point_click_fails_closed_when_operator_cursor_is_not_visible(self):
         with (
             mock.patch.object(
@@ -4123,6 +4204,7 @@ class PrimitiveContractTests(unittest.TestCase):
             160.0,
             click_count=2,
             delivery_mode="foreground",
+            verified_screen_point={"x": 220.0, "y": 360.0},
         )
 
     def test_double_click_uses_two_native_presses_for_accessible_button(self):
@@ -4521,7 +4603,10 @@ class PlanEfficiencyTests(unittest.TestCase):
     def test_allow_unverified_dispatches_but_never_reports_success(self):
         state = self._snapshot("Go", "Ready")
         with (
-            mock.patch.object(macos_cua, "snapshot", side_effect=[state, state]),
+            mock.patch.object(
+                macos_cua, "_plan_snapshot", return_value=state
+            ) as plan_snapshot,
+            mock.patch.object(macos_cua, "app_state") as app_state,
             mock.patch.object(
                 macos_cua,
                 "click_label_pointer",
@@ -4538,7 +4623,6 @@ class PlanEfficiencyTests(unittest.TestCase):
                 {
                     "pointer": True,
                     "allow_unverified": True,
-                    "capture": "never",
                     "settle_ms": 0,
                     "actions": [{"action": "click", "label": "Go"}],
                 },
@@ -4550,6 +4634,71 @@ class PlanEfficiencyTests(unittest.TestCase):
         self.assertTrue(result["accepted"])
         self.assertFalse(result["verified"])
         self.assertEqual(result["code"], "unverified_run")
+        self.assertFalse(result["metrics"]["capture_attempted"])
+        self.assertFalse(result["metrics"]["final_snapshot_skipped"])
+        plan_snapshot.assert_called_once_with(10, 20, max_elements=120)
+        app_state.assert_not_called()
+
+    def test_key_only_unverified_plan_skips_useless_final_snapshot(self):
+        with (
+            mock.patch.object(macos_cua, "_plan_snapshot") as plan_snapshot,
+            mock.patch.object(macos_cua, "app_state") as app_state,
+            mock.patch.object(
+                macos_cua,
+                "press_key",
+                return_value={"accepted": True, "effect": "unverifiable"},
+            ),
+            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+        ):
+            result = macos_cua.run_actions(
+                10,
+                20,
+                {
+                    "allow_unverified": True,
+                    "actions": [{"action": "key", "keys": "space"}],
+                },
+                app_name="Fixture",
+            )
+
+        self.assertTrue(result["accepted"])
+        self.assertFalse(result["metrics"]["capture_attempted"])
+        self.assertTrue(result["metrics"]["final_snapshot_skipped"])
+        self.assertEqual(result["final"]["element_count"], 0)
+        plan_snapshot.assert_not_called()
+        app_state.assert_not_called()
+
+    def test_rejected_unverified_dispatch_still_captures_failure(self):
+        state = self._snapshot("Ready", "Ready")
+        captured_state = {
+            "ok": True,
+            "screenshot": {"path": "/tmp/failure.png", "raw_path": "/tmp/failure.png"},
+            "capture_geometry": {"verified": True},
+            "capture_recovery": None,
+        }
+        with (
+            mock.patch.object(macos_cua, "_plan_snapshot", return_value=state),
+            mock.patch.object(
+                macos_cua, "press_key", return_value={"ok": False, "error": "missed"}
+            ),
+            mock.patch.object(
+                macos_cua, "app_state", return_value=captured_state
+            ) as app_state,
+            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+        ):
+            result = macos_cua.run_actions(
+                10,
+                20,
+                {
+                    "allow_unverified": True,
+                    "actions": [{"action": "key", "keys": "space"}],
+                },
+                app_name="Fixture",
+            )
+
+        self.assertFalse(result["accepted"])
+        self.assertTrue(result["metrics"]["capture_attempted"])
+        self.assertFalse(result["metrics"]["final_snapshot_skipped"])
+        app_state.assert_called_once()
 
     def test_key_dispatches_with_unverifiable_effect_pass_when_assertions_observe_outcome(self):
         save_sheet = self._snapshot("Cancel", "Save As")
@@ -4723,6 +4872,12 @@ class PlanEfficiencyTests(unittest.TestCase):
 
     def test_failed_step_assertion_does_not_reclassify_accepted_dispatch(self):
         page = self._snapshot("Example Domain", "Example Domain")
+        captured_state = {
+            "ok": True,
+            "screenshot": {"path": "/tmp/assertion-failure.png"},
+            "capture_geometry": {"verified": True},
+            "capture_recovery": None,
+        }
         with (
             mock.patch.object(
                 macos_cua,
@@ -4739,15 +4894,19 @@ class PlanEfficiencyTests(unittest.TestCase):
                 "wait_for_expectations",
                 return_value=(False, [{"ok": False}], page),
             ),
+            mock.patch.object(
+                macos_cua, "app_state", return_value=captured_state
+            ) as app_state,
             mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
         ):
             result = macos_cua.run_actions(
                 32734,
                 125239,
                 {
-                    "capture": "never",
+                    "allow_unverified": True,
                     "settle_ms": 0,
                     "actions": [
+                        {"action": "key", "keys": "cmd+f"},
                         {"action": "key", "keys": "cmd+s", "expect": {"text": "Save As"}}
                     ],
                     "expect": {"text": "Example Domain"},
@@ -4758,7 +4917,9 @@ class PlanEfficiencyTests(unittest.TestCase):
         self.assertTrue(result["accepted"])
         self.assertFalse(result["verified"])
         self.assertFalse(result["ok"])
-        self.assertTrue(result["steps"][0]["accepted"])
+        self.assertTrue(all(step["accepted"] for step in result["steps"]))
+        self.assertTrue(result["metrics"]["capture_attempted"])
+        app_state.assert_called_once()
 
     def test_rejected_key_dispatch_stays_unaccepted_when_final_assertion_passes(self):
         page = self._snapshot("Example Domain", "Example Domain")
@@ -5369,7 +5530,7 @@ class DriverSocketTransportTests(unittest.TestCase):
         self.assertEqual(result, {"error": "boom"})
         run.assert_not_called()
 
-    def test_reconnect_failure_restarts_daemon_then_retries(self):
+    def test_reconnect_waits_for_restarted_daemon_socket(self):
         fresh = _FakeDriverSocket(chunks=[_envelope_line({"ok": True})])
         with _allow_daemon_restart():
             with mock.patch.object(
@@ -5378,6 +5539,7 @@ class DriverSocketTransportTests(unittest.TestCase):
                 side_effect=[
                     FileNotFoundError("missing"),
                     FileNotFoundError("missing"),
+                    ConnectionRefusedError("daemon still starting"),
                     fresh,
                 ],
             ) as connect:
@@ -5388,7 +5550,7 @@ class DriverSocketTransportTests(unittest.TestCase):
                 ) as run:
                     result = macos_cua.call_driver("get_window_state", {"pid": 1})
         self.assertEqual(result, {"ok": True})
-        self.assertEqual(connect.call_count, 3)
+        self.assertEqual(connect.call_count, 4)
         self.assertEqual(run.call_count, 1)
         self.assertEqual(run.call_args.args[0][:3], ["launchctl", "kickstart", "-k"])
         _assert_no_tool_call_spawn(run)

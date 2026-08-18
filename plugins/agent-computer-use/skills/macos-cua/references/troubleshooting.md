@@ -1,8 +1,9 @@
 # Troubleshooting
 
-MCP path only: `start_session` → compact `state` → `act` / asserted plan →
-`verify` → `end_session`. One Computer Use server. No `list_apps`. No raw
-54-tool catalog. WhatsApp send/attach → `$whatsapp`, not this skill.
+MCP path only: `start_session` → one compact `state` → `act` / asserted plan →
+conditional `verify` only when `act.verified` is false → `end_session`. One
+Computer Use server. No `list_apps`. No raw 54-tool catalog. WhatsApp
+send/attach → `$whatsapp`, not this skill.
 
 After probe apps (Calculator, Dictionary, Stickies, extra TextEdit/Preview),
 quit them. Do not quit Cursor, WhatsApp, or the user’s browser session.
@@ -21,6 +22,7 @@ Recover a wedged session with `end_session` then `start_session`.
 | Single monitor / asleep secondary | Valid. Do not force a second display |
 | `type-text` ok but field empty (Catalyst) | Treat as incomplete; prove with UI outcome (e.g. Voice→Send), not `typed_path` |
 | Dispatch `ok` / `accepted` but UI unchanged | Fresh `state` or plan `expect` is proof — never trust dispatch alone |
+| MCP pays process startup on every state/act | Run `bench_mcp_runtime.py`; production telemetry must keep `cli_invocations=0`. Per-call `macos-cua.py` is bench/debug only |
 | State floods context | Compact + `query` / `diff`; raise `--max` only when Compose/Send/modals truncated (often 80) |
 | Open sheet: no filename via query | Sheet is the root; do not press Open blind. WhatsApp files → `$whatsapp` `attach-file` |
 | Finder sidebar label not clickable | Owner attaches static child text to the row; do not `bring_to_front`+sleep |

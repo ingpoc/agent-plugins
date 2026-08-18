@@ -408,7 +408,11 @@ def _native_ax_snapshot(pid, max_elements=120, window_id=None):
         }
         elements.append(item)
         children = _ax_sequence(_ax_value(element, "AXChildren", services))
-        stack.extend((child, item["element_index"]) for child in children)
+        pending = [(child, item["element_index"]) for child in children]
+        if role in {"AXRow", "AXCell"}:
+            stack.extendleft(reversed(pending))
+        else:
+            stack.extend(pending)
 
     _attach_static_child_text(elements)
     tree = "\n".join(

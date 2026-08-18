@@ -215,7 +215,19 @@ def _restart_driver_daemon():
         )
     except (OSError, subprocess.TimeoutExpired):
         return False
-    return result.returncode == 0
+    if result.returncode != 0:
+        return False
+    deadline = time.monotonic() + 3.0
+    while time.monotonic() < deadline:
+        try:
+            socket_timeout = max(0.05, min(0.5, deadline - time.monotonic()))
+            sock = _connect_driver_socket(socket_timeout)
+        except OSError:
+            time.sleep(0.05)
+            continue
+        _DRIVER_SOCKET_STATE["sock"] = sock
+        return True
+    return False
 
 
 def call_driver(tool_name, params=None, timeout=30, _recover_timeout=True):

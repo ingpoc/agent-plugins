@@ -3,8 +3,8 @@
 Plan / MCP `act` action shapes live here. SKILL.md owns the ordered
 best-first / fallback loop. Do not teach a second loop in this file.
 
-**Agents:** use MCP `state` / `act` / `verify` (or one asserted `plan` via
-`act`). Do not treat the bash examples as the session loop.
+**Agents:** use MCP `state` / asserted `act`; call `verify` only when
+`act.verified` is false. Do not treat the bash examples as the session loop.
 
 **Bench/debug only** — same verbs via CLI:
 
@@ -79,8 +79,11 @@ diagnostic. Watched runs fail if the cursor does not reach the target or a
 pointer step exceeds `max_step_ms`. Set
 `capture` to `always`, `failures`, or `never`. The PiP places the same cursor
 asset from normalized window coordinates, independent of monitor origin or
-Retina scale. Successful and failed plans are compact by default; failures keep
-the failed step, error, assertions, and proof path without the complete element
+Retina scale. `failures` means rejected dispatch or failed explicit assertion;
+an accepted `allow_unverified` transition does not generate a PNG or a useless
+final compact AX read. Use `always` when that transition itself needs visual
+evidence. Successful and failed plans are compact by default; failures keep the
+failed step, error, assertions, and proof path without the complete element
 array. Set `"output":"full"` only while debugging.
 
 Optional: `"seed_snapshot": <prior AX dict>` to reuse a tree for label
@@ -185,7 +188,12 @@ maps its raw pixels through the logical AX frame, and dispatches the resulting
 screen point to the target PID through CGEvent. This can move/use the system
 pointer; add `--preserve-pointer` to restore position afterward. Stale points
 outside that fresh screenshot fail closed. `--foreground` prepares the window
-before this corrected screen-coordinate dispatch.
+before dispatch. Accessible text maps a verified screen point through
+`AXRangeForPosition` and proves the resulting selection; other verified points
+post directly to the resolved PID through CoreGraphics. Neither path needs a
+second ScreenCaptureKit request. Do not substitute a desktop-global click: its
+transport can report dispatch while independent AX state remains unchanged on
+multi-display Spaces.
 
 ## Recovery ladder
 
@@ -194,6 +202,7 @@ Best first, then fallback. Do not skip ahead.
 1. Current-tree label (including `Clear`/`All Clear`); AX/`perform_action`
    fails closed in 1.5s. Do not re-observe to retitle Calculator C/AC.
 2. One fresh `state`; do not reuse indices. Retry only the missed step.
+   Do not try alternate labels through additional state calls.
 3. AX press/set/select or targeted keyboard navigation without foregrounding.
 4. Prefer the app's API/automation; browser pages use DOM/CDP, not native pixels.
 5. If AX is incomplete, use fresh screenshot coordinates explicitly. Prefer

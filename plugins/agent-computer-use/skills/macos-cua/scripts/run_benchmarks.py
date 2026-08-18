@@ -24,11 +24,17 @@ HERE = Path(__file__).resolve().parent
 SKILL = HERE.parent
 CONTRACT = SKILL / "references" / "entry-contract.json"
 CACHE = Path(os.environ.get("MACOS_CUA_CACHE_DIR", Path.home() / ".cache/macos-cua"))
-_RATING_SPEC = importlib.util.spec_from_file_location(
-    "macos_cua_bench_rating", HERE / "bench_rating.py"
-)
-bench_rating = importlib.util.module_from_spec(_RATING_SPEC)
-_RATING_SPEC.loader.exec_module(bench_rating)
+
+
+def load_module(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+bench_rating = load_module("macos_cua_bench_rating", HERE / "bench_rating.py")
+calculator_fixture = load_module("macos_cua_calculator_fixture", HERE / "bench_mcp_runtime.py")
 REQUIRED = (
     "name",
     "surface",
@@ -62,18 +68,13 @@ def load_suite() -> dict[str, Any]:
 
 
 def load_cua():
-    spec = importlib.util.spec_from_file_location("macos_cua", HERE / "macos-cua.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_module("macos_cua", HERE / "macos-cua.py")
 
 
 def load_parity():
-    path = SKILL / "tests" / "test_live_computer_parity.py"
-    spec = importlib.util.spec_from_file_location("macos_cua_parity", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    return load_module(
+        "macos_cua_parity", SKILL / "tests" / "test_live_computer_parity.py"
+    )
 
 
 def steps_show_cursor(steps: Any) -> bool:
@@ -139,6 +140,7 @@ def _max_step_ms(result: dict[str, Any]) -> int:
 
 
 def probe_calculator(cua, row: dict[str, Any]) -> dict[str, Any]:
+    calculator_fixture.reset_calculator_fixture()
     started = time.monotonic()
     pid, window_id, name = _resolve(cua, "Calculator")
     state = cua._native_ax_snapshot(pid, max_elements=80, window_id=window_id)
@@ -147,8 +149,6 @@ def probe_calculator(cua, row: dict[str, Any]) -> dict[str, Any]:
         if cua.find_clickable_index(state, "All Clear") is not None
         else "Clear"
     )
-    # Floor is 2 AX: button tree (seeded into the plan) + independent
-    # AXStaticText 64 via expect. Do not pay a third post-run app_state.
     expect_64 = {"text": "64", "role": "AXStaticText"}
     result = cua.run_actions(
         pid,
@@ -212,7 +212,7 @@ def probe_folder(cua, row: dict[str, Any]) -> dict[str, Any]:
     pid, window_id, name, error = cua.resolve_app("Finder")
     if error:
         raise AssertionError(error)
-    tree = cua._native_ax_snapshot(pid, max_elements=120, window_id=window_id)
+    tree = cua._native_ax_snapshot(pid, max_elements=240, window_id=window_id)
     clickable = cua.find_clickable_index(tree, "Downloads")
     compact = {
         "downloads_index": clickable,

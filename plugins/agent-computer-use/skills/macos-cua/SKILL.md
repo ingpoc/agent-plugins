@@ -42,9 +42,10 @@ Do not grow toward raw cua-driver (54).
 ## Fast workflow (default)
 
 **Agent path = MCP only** (`plugin-agent-computer-use-agent-computer-use`).
-One server. Held cua-driver Unix socket under the MCP process. Do not open a
-second Computer Use MCP. Do not browse raw `cua-driver` (54 tools). Do not
-shell `macos-cua.py` per click when MCP is up.
+One server. Lifecycle, state, and act stay in one Python process with a held
+cua-driver Unix socket. Do not open a second Computer Use MCP. Do not browse
+raw `cua-driver` (54 tools). Do not shell `macos-cua.py` per click when MCP is
+up.
 
 **Best first, then fallback.** Do not start a new `state` or pixels while the
 current tree can still resolve the control.
@@ -52,7 +53,9 @@ current tree can still resolve the control.
 1. `start_session` once.
 2. Resolve the app by name, then bundle id. Never `list_apps` as preflight.
 3. `state`: compact, no screenshot, tight `--max`. Prefer `query` / `diff`
-   after the first observe. Topology: optional `start_session preflight:true`
+   after the first observe. Do not probe alternate labels with repeated
+   `state` calls: use the current tree, then at most one fresh state after a
+   miss before escalating. Topology: optional `start_session preflight:true`
    (or rare `displays`) — not every observe. Snapshot root: open
    sheet/popover/dialog; else open app-level menus; else one window. Never
    menu-bar BFS. No `bring_to_front` unless `escalation.recommended` is
@@ -67,10 +70,14 @@ current tree can still resolve the control.
    that step; (2) if AX has no useful labels, `references/actions.md` recovery
    ladder (fresh screenshot coords, `MACOS_CUA_PIXEL_CLICK=1`). Never seed a
    **postcondition** expect from a pre-mutation tree. Omit stale screen
-   points. No Quartz-read on the AX click path.
-5. `verify` then `end_session` once. Quit probe apps (Calculator, Dictionary,
-   Stickies, extra TextEdit/Preview). Do not quit Cursor, WhatsApp, or the
-   user's browser session.
+   points. No Quartz-read on the AX click path. An accepted
+   `allow_unverified` plan does not auto-capture a failure PNG; request
+   `capture:"always"` only when the visual artifact is needed.
+5. If `act.verified` is true, do not pay for a redundant `verify`. Otherwise
+   verify once through an independent readback. Quit each probe app
+   (Calculator, Dictionary, Stickies, extra TextEdit/Preview) immediately after
+   its final assertion, before switching apps. `end_session` once. Do not quit
+   Cursor, WhatsApp, or the user's browser session.
 
 WhatsApp **send/attach**: `$whatsapp` only (in-process held socket + one-shot
 `message-self` / `message` / `attach-file`). Not this skill.
@@ -78,9 +85,9 @@ WhatsApp **send/attach**: `$whatsapp` only (in-process held socket + one-shot
 Pass means assertions / verify true. Dispatch acceptance is never proof.
 Mutating plans need final or per-step `expect`.
 
-**Not the agent path:** spawning `macos-cua.py` per call, raw
-`cua-driver call` CLI, or `MACOS_CUA_SUBPROCESS=1`. Those are debug/bench only
-(`workflow.py` / `run_benchmarks.py`).
+**Not the agent path:** spawning `macos-cua.py` per call or raw
+`cua-driver call` CLI. Those are debug/bench only (`workflow.py` /
+`run_benchmarks.py`).
 
 ## Hard bans
 
@@ -105,9 +112,9 @@ Mutating plans need final or per-step `expect`.
 | Desktop widgets / Notification Center / iPhone Mirroring | [`references/special-surfaces.md`](references/special-surfaces.md) |
 | Menu bar / PiP / harness links | [`references/operator-ui.md`](references/operator-ui.md) |
 | Bundled Computer Use comparison | [`references/computer-parity.md`](references/computer-parity.md) |
-| Benches / gates (not chat) | Warm `python3 scripts/run_benchmarks.py`; keep only if no official row regresses vs last warm green. `entry-contract.json`, `hardening-contract.json`, plugin `README.md` — not troubleshooting |
+| Benches / gates (not chat) | `python3 scripts/bench_mcp_runtime.py` resets Calculator and measures dispatch without separately graded pointer capture; it must beat per-call CLI by >=10%. Warm `python3 scripts/run_benchmarks.py`; keep only if no official row regresses vs last warm green. `entry-contract.json`, `hardening-contract.json`, plugin `README.md` — not troubleshooting |
 | Like-minded-app only | [`references/likeminded.md`](references/likeminded.md) |
-| WhatsApp attach / New Chat / send | `$whatsapp` (in-process + one-shot). Learnings: that skill’s `references/learnings.md` — not this package |
+| WhatsApp attach / New Chat / send | `$whatsapp` (in-process + one-shot). Use that skill’s learnings reference, not this package |
 
 Cursor plugin spawn: dest rewrite is owned by
 [`references/cua-driver-mcp.md`](references/cua-driver-mcp.md). Do not add

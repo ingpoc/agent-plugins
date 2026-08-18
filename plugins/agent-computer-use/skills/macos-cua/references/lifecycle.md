@@ -49,18 +49,21 @@ Logs and the append-only local ledger live under
 ## Act loop (single app session)
 
 ```
-state <app> --compact → click-label-pointer <app> <label> → expectation/state
+state <app> --compact → asserted act/plan → conditional independent readback
 ```
 
 - The signed operator owns the visible cursor. Each pointer action publishes the
   global AX target, waits for the operator's rendered-position acknowledgement,
   then performs the AX click. Do not prepare or move the cua-driver cursor.
-- `scripts/macos-cua.py` is a stable compatibility facade. Cohesive
-  `scripts/runtime_*.py` modules own coexistence, transport, app resolution,
-  capture, actions, accessibility, plans, and CLI dispatch. Validation rejects
-  production Python modules over 600 lines so the monolith cannot return.
+- `scripts/mcp_runtime.py` holds one facade and driver socket for MCP lifecycle,
+  state, and act calls. `scripts/macos-cua.py` remains the stable diagnostic
+  compatibility facade. Cohesive `scripts/runtime_*.py` modules own
+  coexistence, transport, app resolution, capture, actions, accessibility,
+  plans, and CLI dispatch. Validation rejects production Python modules over
+  600 lines so the monolith cannot return.
 - Drag mechanics, native text readback, and targeted key delivery live in
-  `scripts/native_input.py`. Drag tries
+  `scripts/native_input.py`; coordinate text selection lives in
+  `scripts/native_text_pointer.py`. Drag tries
   native AX slider control first, then an explicitly reported system-cursor
   fallback while mirroring the trajectory with the signed agent pointer.
 - Label clicks try the live native AX tree first, then the driver AX snapshot,
@@ -69,6 +72,9 @@ state <app> --compact → click-label-pointer <app> <label> → expectation/stat
 - `macos-cua.py reset` after app rebuild or wrong window.
 - Use `run` for 3+ actions so fresh indices, assertions, cursor proof, and one
   final capture stay in a single bounded process.
+- A verified plan already contains independent post-mutation readback. Do not
+  follow it with another `verify`; reserve that re-read for unverified actions
+  or external state changes.
 - App-owned wrappers remain responsible for app-specific routes and assertions.
 
 ## Hermes browser handoff
@@ -160,5 +166,6 @@ no app data.
 ## Test-app hygiene
 
 Live probes may launch Calculator, TextEdit fixtures, Preview of temp
-PDFs, or other Apple test apps. Quit those apps after the probe. Do not
+PDFs, or other Apple test apps. Quit each one immediately after its final
+assertion, before the next app can inherit its foreground window. Do not
 quit Cursor, WhatsApp, or a browser that still has the user's tabs.

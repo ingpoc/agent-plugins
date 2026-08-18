@@ -7,22 +7,27 @@
     "Exposing all 54 cua-driver tools as the agent vocabulary",
     "A parallel live suite beside pointer/parity/live-validator"
   ],
-  "owner": "~/plugins/agent-computer-use",
+  "owner": "agent-plugins/plugins/agent-computer-use",
   "entry_points": [
     "plugin.json",
     "mcp.json",
     "bin/agent-computer-use-mcp",
     "bin/cua-driver-mcp",
     "skills/macos-cua/scripts/compact_mcp.py",
+    "skills/macos-cua/scripts/mcp_runtime.py",
+    "skills/macos-cua/scripts/bench_mcp_runtime.py",
     "skills/macos-cua/scripts/macos-cua.py",
     "skills/macos-cua/scripts/run_benchmarks.py"
   ],
   "pass_signals": [
     "One ready MCP server; no duplicate Computer Use catalogs",
     "Default MCP tools/list is exactly start_session, state, act, verify, end_session",
-    "MCP start_session → compact state (query/diff) → batched act/plan → verify → end_session is the default agent loop",
+    "MCP start_session → one compact state → batched asserted act/plan → verify only when act.verified is false → immediate probe-app cleanup → end_session is the default agent loop",
+    "MCP lifecycle/state/act stay in one Python process; telemetry reports cli_invocations=0",
+    "Interleaved live Calculator A/B resets its fixture, omits separately graded pointer capture, passes every run, and persistent dispatch is at least 10% faster than per-call macos-cua.py",
     "Raw bin/cua-driver-mcp and per-call macos-cua.py spawn are diagnostic/bench only",
     "Live parity + pointer + elon empty-iteration stay green",
+    "Verified coordinate clicks on accessible text map the screen point through AXRangeForPosition and prove the resulting selection; no desktop-global click or recapture",
     "AX-incomplete composers (WhatsApp/Catalyst) prove by screenshot or Voice→Send, not typed_path ok; native type-text with empty AX is ax_incomplete_value",
     "Native AX snapshot walks an open AXSheet/AXPopover/AXDialog, else open app-level context menus then one window",
     "Cursor plugin spawn is not {workspace}/bin/agent-computer-use-mcp; dest uses an absolute launcher with cwd ./; ~/.cursor/mcp.json does not advertise agent-computer-use unless --user-mcp",
@@ -140,6 +145,7 @@
     "command": "python3 ~/.agents/skills/elon-algorithm/scripts/run_gate.py --contract skills/macos-cua/hardening-contract.json",
     "budgets": {
       "static": 20,
+      "mcp-runtime": 65,
       "pointer": 25,
       "parity": 115,
       "benchmarks": 60,
@@ -147,5 +153,5 @@
     }
   },
   "safety": "No chat dumps. No personal identifiers. No new send/payment authority. Live gate uses Calculator/TextEdit/Finder. WhatsApp benchmark is query/compact observe only; require Message yourself then (You) before any send.",
-  "baseline": "Thin 5-tool MCP vs Sky ~10 methods. We win asserted MCP/plan batches, compact query/diff, held-socket under MCP, and harness portability. Cursor plugin ./bin spawn is dest-absolute after install_harness cursor-plugin."
+  "baseline": "Thin 5-tool MCP vs Sky ~10 methods. With a clean Calculator fixture and pointer capture graded separately, persistent in-process dispatch measured 55.0%–71.8% faster than per-call CLI across successful interleaved Calculator state+act runs, with cli_invocations=0. The source-frozen gate measured 0.606s versus 1.348s p50. Live parity passed on cua-driver 0.20.0. Cursor plugin ./bin spawn is dest-absolute after install_harness cursor-plugin."
 }

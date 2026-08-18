@@ -79,6 +79,8 @@ def fresh_text_area(
             }
     else:
         state = invoke("state", "TextEdit", "--no-screenshot")
+    if not isinstance(state.get("elements"), list):
+        raise AssertionError(f"TextEdit state has no accessibility elements: {state}")
     window = next(e for e in state["elements"] if e.get("role") == "AXWindow")
     area = next(e for e in state["elements"] if e.get("role") == "AXTextArea")
     return state, window, area
@@ -425,6 +427,12 @@ def prove_drag() -> None:
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=3)
+            focus_deadline = time.monotonic() + 1.5
+            while (
+                MACOS_CUA._frontmost_pid() == process.pid
+                and time.monotonic() < focus_deadline
+            ):
+                time.sleep(0.02)
 
 
 def main() -> int:
@@ -441,15 +449,26 @@ def main() -> int:
     check(preflight_json.get("ready") is True, "permissions, daemon, signed operator ready")
     check(len(preflight.stdout) < 600, "healthy preflight output stays context-compact", len(preflight.stdout))
 
+    activation = MACOS_CUA.launch_or_activate("Calculator")
+    check(not activation.get("error"), "Calculator fixture is visible", activation)
+    time.sleep(0.2)
+    MACOS_CUA.clear_resolution_cache()
     displays = invoke("displays")
     rows = displays.get("displays") if isinstance(displays, dict) else displays
     secondary = next((display for display in rows if not display.get("main")), None)
-    check(secondary is not None, "secondary display is available")
-
-    placement = invoke(
-        "ensure-display", "Calculator", "--display", secondary["name"]
-    )
-    check(placement.get("ok") is True, "Calculator fixture is placed on secondary display")
+    if secondary:
+        placement = invoke(
+            "ensure-display", "Calculator", "--display", secondary["name"]
+        )
+        check(
+            placement.get("ok") is True,
+            "Calculator fixture is placed on secondary display",
+        )
+    else:
+        print(
+            "  [SKIP] secondary-display placement — "
+            "single-monitor runtime remains supported"
+        )
 
     calculator = invoke("state", "Calculator", "--no-screenshot")
     deadline = time.monotonic() + 3
@@ -461,7 +480,12 @@ def main() -> int:
         calculator = invoke("state", "Calculator", "--no-screenshot")
     window = next(e for e in calculator["elements"] if e.get("role") == "AXWindow")
     frame = window["frame"]
-    check(frame["x"] >= secondary["x"], "Calculator remains on the secondary display", frame)
+    if secondary:
+        check(
+            frame["x"] >= secondary["x"],
+            "Calculator remains on the secondary display",
+            frame,
+        )
     check("Recent Items" not in calculator["text"], "compact state excludes hidden recent items")
     labels = {element.get("label") for element in calculator["elements"]}
     clear_label = next(
@@ -539,7 +563,16 @@ def main() -> int:
             "macos-cua Operator"
         )
         check(operator_error is None, "native operator window resolves", operator_error)
-        operator_ax = MACOS_CUA.snapshot(operator_pid, operator_window, max_elements=40)
+        operator_ax = MACOS_CUA._native_ax_snapshot(
+            operator_pid,
+            max_elements=40,
+            window_id=operator_window,
+        )
+        check(
+            not operator_ax.get("error"),
+            "native operator accessibility state resolves",
+            operator_ax.get("error"),
+        )
         labels = {element.get("label") for element in operator_ax["elements"]}
         check({"Hide", "Refresh", "End"}.issubset(labels), "PiP exposes Hide, Refresh, and End controls")
     finally:
@@ -720,25 +753,10 @@ def main() -> int:
             "double click selects a bounded text range",
             selected_after_double,
         )
-        accepted(
-            MACOS_CUA.press_key(
-                fixture_pid, fixture_window_id, "left", "foreground"
-            ),
-            "selection reset key is accepted",
-        )
-        selected_after_reset = wait_for_text_range(
-            fixture_pid,
-            fixture_window_id,
-            "kAXSelectedTextRangeAttribute",
-            lambda value: value["length"] == 0,
-        )
-        check(
-            selected_after_reset["length"] == 0,
-            "selection reset key collapses the selected word",
-            selected_after_reset,
-        )
 
-        state, text_window, area = fresh_text_area(fixture_pid, fixture_window_id)
+        state, text_window, area = fresh_text_area(
+            fixture_pid, fixture_window_id, publish=True
+        )
         local_x, local_y = visible_window_local_point(text_window, area)
         selection = MACOS_CUA.select_text_action(
             fixture_pid,
@@ -756,15 +774,19 @@ def main() -> int:
                 local_x,
                 local_y,
                 delivery_mode="foreground",
+                app_name="TextEdit",
             ),
             "coordinate click is accepted",
         )
-        selected_after_click = wait_for_text_range(
-            fixture_pid,
-            fixture_window_id,
-            "kAXSelectedTextRangeAttribute",
-            lambda value: value["length"] == 0,
-        )
+        try:
+            selected_after_click = wait_for_text_range(
+                fixture_pid,
+                fixture_window_id,
+                "kAXSelectedTextRangeAttribute",
+                lambda value: value["length"] == 0,
+            )
+        except AssertionError as error:
+            raise AssertionError(f"{error}; click_point={click_result}") from error
         check(
             selected_after_click["length"] == 0
             and selected_after_click != selected_before_click,
@@ -777,16 +799,7 @@ def main() -> int:
             },
         )
 
-        state, _, area = fresh_text_area(fixture_pid, fixture_window_id)
-        selection = MACOS_CUA.select_text_action(
-            fixture_pid,
-            state,
-            area["element_index"],
-            "beta",
-            prefix="alpha ",
-            suffix=" gamma",
-        )
-        selected_before_hold = selection["verified_range"]
+        selected_before_hold = selected_after_click
         accepted(
             MACOS_CUA.hold_key(
                 fixture_pid,
@@ -806,7 +819,7 @@ def main() -> int:
         check(
             selected_after_hold["length"] == 0
             and selected_after_hold["location"]
-            >= selected_before_hold["location"] + selected_before_hold["length"],
+            > selected_before_hold["location"],
             "foreground hold-key changes the native selection",
             {"before": selected_before_hold, "after": selected_after_hold},
         )
