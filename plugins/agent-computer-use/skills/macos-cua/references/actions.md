@@ -3,20 +3,19 @@
 Plan / MCP `act` action shapes live here. SKILL.md owns the ordered
 best-first / fallback loop. Do not teach a second loop in this file.
 
-**Agents:** use MCP `state` / asserted `act`; call `verify` only when
-`act.verified` is false. Do not treat the bash examples as the session loop.
+**Agents:** act-first MCP `act`/`plan`; compact `state` only for discovery or
+after an `act` miss; `verify` only when `act.verified` is false. Do not treat
+the bash examples as the session loop.
 
 **Bench/debug only** — same verbs via CLI:
 
 ```bash
 SKILL=$SKILL_DIR
-python3 "$SKILL/scripts/macos-cua.py" state Finder --compact --query Downloads
-python3 "$SKILL/scripts/macos-cua.py" state Calculator --compact
+python3 "$SKILL/scripts/macos-cua.py" state <App> --compact --query <needle>
+python3 "$SKILL/scripts/macos-cua.py" state <App> --compact
 python3 "$SKILL/scripts/macos-cua.py" state pid:12345 --compact
-python3 "$SKILL/scripts/macos-cua.py" state Calculator --compact --no-screenshot
-python3 "$SKILL/scripts/macos-cua.py" apps --query ScreenContinuity
-python3 "$SKILL/scripts/macos-cua.py" click-point Calculator 40 40 --button right
-python3 "$SKILL/scripts/macos-cua.py" click-desktop 1200 400 --button right
+python3 "$SKILL/scripts/macos-cua.py" state <App> --compact --no-screenshot
+python3 "$SKILL/scripts/macos-cua.py" click-point <App> 40 40 --button right
 ```
 
 ## Observe
@@ -137,10 +136,7 @@ only expect-matching lines, omits acted controls, and caps at 12 lines.
 passed. Native AX sets a 1.5s messaging timeout on the app, the press
 target, and `perform_action` so a stuck control fails closed instead of
 hanging to the MCP budget. `Clear` and `All Clear` resolve as one control
-on the current tree; do not re-observe to retitle Calculator's C/AC button.
-WhatsApp New Chat: Escape if the popover is already open, then `perform_action`
-and expect `{"text":"New chat","role":"AXHeading"}`. No pixel-click
-fallback.
+on the current tree; do not re-observe to retitle an in-place control.
 
 `select_text` supports `text`, `cursor_before`, and `cursor_after`. Prefix and
 suffix disambiguate repeated matches; the wrapper verifies the native
@@ -199,8 +195,8 @@ multi-display Spaces.
 
 Best first, then fallback. Do not skip ahead.
 
-1. Current-tree label (including `Clear`/`All Clear`); AX/`perform_action`
-   fails closed in 1.5s. Do not re-observe to retitle Calculator C/AC.
+1. Current-tree label (including in-place retitles such as `Clear`/`All Clear`); AX/`perform_action`
+   fails closed in 1.5s. Do not re-observe to retitle.
 2. One fresh `state`; do not reuse indices. Retry only the missed step.
    Do not try alternate labels through additional state calls.
 3. AX press/set/select or targeted keyboard navigation without foregrounding.

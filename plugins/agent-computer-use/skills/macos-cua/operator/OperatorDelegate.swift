@@ -171,7 +171,8 @@ final class OperatorDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
             backing: .buffered,
             defer: false
         )
-        cursorOverlayPanel.level = .screenSaver
+        // Stay just above the controlled window; never paint globally over other apps.
+        cursorOverlayPanel.level = .popUpMenu
         cursorOverlayPanel.backgroundColor = .clear
         cursorOverlayPanel.isOpaque = false
         cursorOverlayPanel.hasShadow = false
@@ -179,7 +180,7 @@ final class OperatorDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
         cursorOverlayPanel.hidesOnDeactivate = false
         cursorOverlayPanel.isReleasedWhenClosed = false
         cursorOverlayPanel.collectionBehavior = [
-            .canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle
+            .fullScreenAuxiliary, .stationary, .ignoresCycle
         ]
         cursorOverlayView = CursorOverlayView(frame: cursorOverlayPanel.contentView?.bounds ?? .zero)
         cursorOverlayView.autoresizingMask = [.width, .height]
@@ -199,6 +200,50 @@ final class OperatorDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
             return nil
         }
         return CGRect(x: x, y: y, width: width, height: height)
+    }
+
+    private func isOperatorOwnedWindow(_ row: [String: Any]) -> Bool {
+        (row[kCGWindowOwnerName as String] as? String) == "macos-cua Operator"
+    }
+
+    private func isCursorPointVisible(windowID: Int, quartzPoint: CGPoint) -> Bool {
+        guard let rows = CGWindowListCopyWindowInfo(
+            [.optionOnScreenOnly, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]] else {
+            return false
+        }
+        var targetIndex: Int?
+        for (index, row) in rows.enumerated() {
+            guard let number = row[kCGWindowNumber as String] as? Int else { continue }
+            if number == windowID {
+                targetIndex = index
+                break
+            }
+        }
+        guard let targetIndex else { return false }
+        for index in 0..<targetIndex {
+            let row = rows[index]
+            if isOperatorOwnedWindow(row) { continue }
+            let alpha = (row[kCGWindowAlpha as String] as? NSNumber)?.doubleValue ?? 1
+            if alpha < 0.05 { continue }
+            guard let rawBounds = row[kCGWindowBounds as String] as? [String: Any],
+                  let x = (rawBounds["X"] as? NSNumber)?.doubleValue,
+                  let y = (rawBounds["Y"] as? NSNumber)?.doubleValue,
+                  let width = (rawBounds["Width"] as? NSNumber)?.doubleValue,
+                  let height = (rawBounds["Height"] as? NSNumber)?.doubleValue else {
+                continue
+            }
+            let bounds = CGRect(x: x, y: y, width: width, height: height)
+            if bounds.contains(quartzPoint) {
+                return false
+            }
+        }
+        return true
+    }
+
+    private func orderCursorOverlay(above windowID: Int) {
+        cursorOverlayPanel.order(.above, relativeTo: windowID)
     }
 
     private func appKitPoint(fromQuartz point: CGPoint) -> NSPoint? {
@@ -246,6 +291,11 @@ final class OperatorDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
             cursorOverlayPanel.orderOut(nil)
             return
         }
+        if let windowID = state.windowID,
+           !isCursorPointVisible(windowID: windowID, quartzPoint: quartzTarget) {
+            cursorOverlayPanel.orderOut(nil)
+            return
+        }
 
         cursorOverlayView.render(
             cursorImagePath: state.cursorImagePath,
@@ -257,7 +307,11 @@ final class OperatorDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
             cursorOverlayPanel.setFrameOrigin(origin)
             persistRenderedCursorPosition(x: cursorX, y: cursorY, updateID: cursorUpdateID)
         }
-        cursorOverlayPanel.orderFrontRegardless()
+        if let windowID = state.windowID {
+            orderCursorOverlay(above: windowID)
+        } else {
+            cursorOverlayPanel.orderFront(nil)
+        }
         if wasVisible {
             moveCursorOverlay(
                 to: origin,

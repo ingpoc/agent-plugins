@@ -2,11 +2,14 @@
 name: macos-cua
 description: >-
   Operate native macOS apps through the packaged macos-cua implementation.
-  AX-first: compact state, batched act/plan, current-tree labels, 1.5s AX
-  fail-closed. Screenshot/coordinate fallbacks only after an AX miss. Visible
-  agent cursor is an overlay; coordinate clicks still use the one real macOS
-  pointer. Use when an agent must operate or validate any native Mac app. Not
-  for terminal-only work or browser DOM tasks.
+  Act-first: one batched act/plan per app; compact state only for discovery
+  or after an act miss. Current-tree labels, 1.5s AX fail-closed.
+  Screenshot/coordinate fallbacks only after an AX miss. Visible agent cursor
+  is an overlay; coordinate clicks still use the one real macOS pointer. Use
+  when an agent must operate or validate any native Mac app. Not for
+  terminal-only work or browser DOM tasks. Every session friction must
+  become an app-agnostic fast_path linter/grader so later agents do not
+  repeat it.
 allowed-tools: Bash, Read
 ---
 
@@ -33,7 +36,7 @@ Bench/debug scripts may call `scripts/macos-cua.py` and `workflow.py`.
 | Surface | Owns | Does not own |
 | --- | --- | --- |
 | MCP (5 tools) | Verbs every session: `start_session`, `state`, `act`, `verify`, `end_session` | Rejected-attempt history, WhatsApp recipes, driver field notes |
-| This file | Trigger, 5-step loop, one-window/sheet rule, hard bans, load map | cua-driver schemas, attach recipes, bench numbers |
+| This file | Trigger, act-first loop, one-window/sheet rule, hard bans, friction-encode, load map | cua-driver schemas, attach recipes, bench numbers |
 | `references/` | Driver contract, troubleshooting, plan schema, gates | Always-loaded routing |
 
 A tool exists only if it is required every session and cannot be a skill rule.
@@ -47,37 +50,38 @@ cua-driver Unix socket. Do not open a second Computer Use MCP. Do not browse
 raw `cua-driver` (54 tools). Do not shell `macos-cua.py` per click when MCP is
 up.
 
+**Session:** `workflow.py preflight` once → MCP (`start_session` → **act-first**
+per app → `end_session`) → `workflow.py closeout` once. Preflight never
+launches an app. Window readiness is `resolve_app` inside `act`/`state`.
+
+**Two wall clocks.** Both count. Within-app: one batched `act`/`plan`
+(`resolve_app` + snapshot happen inside `act`). Cross-app: one `act` per
+surface then switch. Each extra MCP tool is a full agent turn. Skip
+`verify` when `act.verified` is true.
+
+**Encode friction.** Any issue, miss, or rooted inefficiency (extra `state`,
+redundant `verify`, unbatched same-app `act`s, dropped driver session,
+false-green dispatch, chat-only recovery) must become an **app-agnostic**
+`scripts/fast_path.py` linter/grader that **fails the old trace**, then the
+production retry. No named-app helpers. Do not leave the fix in chat.
+
 **Best first, then fallback.** Do not start a new `state` or pixels while the
 current tree can still resolve the control.
 
-1. `start_session` once.
-2. Resolve the app by name, then bundle id. Never `list_apps` as preflight.
-3. `state`: compact, no screenshot, tight `--max`. Prefer `query` / `diff`
-   after the first observe. Do not probe alternate labels with repeated
-   `state` calls: use the current tree, then at most one fresh state after a
-   miss before escalating. Topology: optional `start_session preflight:true`
-   (or rare `displays`) — not every observe. Snapshot root: open
-   sheet/popover/dialog; else open app-level menus; else one window. Never
-   menu-bar BFS. No `bring_to_front` unless `escalation.recommended` is
-   `foreground` or background AX missed the label.
-4. `act` **best first:** one asserted `plan` (batch then verify). Glide then
-   AX; fail closed if the glide is not acknowledged. Reuse the postcondition
-   tree (`seed_snapshot` / plan state reuse). Resolve labels on that tree —
-   `Clear` and `All Clear` are the same C/AC control; do not re-observe to
-   retitle. `perform_action` / AX press fails closed in ~1.5s (`ax_timeout`);
-   do not wait out the MCP budget.
-   **Fallback, in order:** (1) one fresh `state` only on label miss, then retry
-   that step; (2) if AX has no useful labels, `references/actions.md` recovery
-   ladder (fresh screenshot coords, `MACOS_CUA_PIXEL_CLICK=1`). Never seed a
-   **postcondition** expect from a pre-mutation tree. Omit stale screen
-   points. No Quartz-read on the AX click path. An accepted
-   `allow_unverified` plan does not auto-capture a failure PNG; request
-   `capture:"always"` only when the visual artifact is needed.
-5. If `act.verified` is true, do not pay for a redundant `verify`. Otherwise
-   verify once through an independent readback. Quit each probe app
-   (Calculator, Dictionary, Stickies, extra TextEdit/Preview) immediately after
-   its final assertion, before switching apps. `end_session` once. Do not quit
-   Cursor, WhatsApp, or the user's browser session.
+1. `start_session` once. Do not pass preflight into MCP.
+2. **Act-first** when labels or outcomes are known. Compact `state` only for
+   discovery or after an `act` miss. Never probe with repeated `state` before
+   `act` on the same app. Snapshot root: open sheet/popover/dialog; else
+   app-level menus; else one window. Never menu-bar BFS.
+3. `act`: one asserted `plan` with `expect`. Reuse the postcondition tree.
+   In-place retitles (e.g. Clear/All Clear) do not need a fresh `state`. AX
+   press fails closed in ~1.5s (`ax_timeout`).
+   **Fallback, in order:** (1) one fresh `state` on label miss, then retry;
+   (2) if AX has no useful labels, `references/actions.md` recovery ladder.
+4. Skip `verify` when `act.verified` is true. Then switch apps — no observe
+   hops between surfaces.
+5. `end_session` once (`end_session` already runs closeout). Do not quit
+   Cursor, the user's messenger, or their browser session.
 
 WhatsApp **send/attach**: `$whatsapp` only (in-process held socket + one-shot
 `message-self` / `message` / `attach-file`). Not this skill.
@@ -91,12 +95,14 @@ Mutating plans need final or per-step `expect`.
 
 ## Hard bans
 
-- No `list_apps` / `health_report` preflight. No raw 54-tool catalog.
+- No redundant `verify` after `act.verified` is true. No probe `state` chains
+  before `act` on the same app when labels are already known.
 - No menu-bar BFS root (closed Apple menu floods `--max`).
 - No Chrome via this skill (browser MCP owns Chrome; Hermes coexistence).
 - No silent Quartz fallback (`MACOS_CUA_PIXEL_CLICK=1` required).
 - No trusting Catalyst `typed_path` / `ok` (Voice→Send or screenshot).
 - No WhatsApp send. App recipes stay in the target repo (`$whatsapp`).
+- Dispatch `ok` is never proof. No desktop-global / `global_input` click path.
 - Confirm immediately before a risky UI action; see safety.md.
 
 ## Load map
@@ -112,8 +118,7 @@ Mutating plans need final or per-step `expect`.
 | Desktop widgets / Notification Center / iPhone Mirroring | [`references/special-surfaces.md`](references/special-surfaces.md) |
 | Menu bar / PiP / harness links | [`references/operator-ui.md`](references/operator-ui.md) |
 | Bundled Computer Use comparison | [`references/computer-parity.md`](references/computer-parity.md) |
-| Benches / gates (not chat) | `python3 scripts/bench_mcp_runtime.py` resets Calculator and measures dispatch without separately graded pointer capture; it must beat per-call CLI by >=10%. Warm `python3 scripts/run_benchmarks.py`; keep only if no official row regresses vs last warm green. `entry-contract.json`, `hardening-contract.json`, plugin `README.md` — not troubleshooting |
-| Like-minded-app only | [`references/likeminded.md`](references/likeminded.md) |
+| Benches / gates (not chat) | `python3 scripts/bench_session_shape.py` compares act-first vs probe-state and cross-app tool budgets (app-agnostic). `python3 scripts/fast_path.py --lint` encodes session friction. `python3 scripts/bench_mcp_runtime.py` must beat per-call CLI by >=10%. Warm `python3 scripts/run_benchmarks.py --repeat 5 --rate` — keep only if ok. |
 | WhatsApp attach / New Chat / send | `$whatsapp` (in-process + one-shot). Use that skill’s learnings reference, not this package |
 
 Cursor plugin spawn: dest rewrite is owned by

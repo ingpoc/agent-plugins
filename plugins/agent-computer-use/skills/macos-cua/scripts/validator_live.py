@@ -94,6 +94,43 @@ def live_checks(*, progress=False):
             "actionable_label_resolution": True,
         }
 
+    def finder_sidebar_click():
+        cua.launch_or_activate("Finder")
+        pid, window_id, name, error = cua.resolve_app("Finder")
+        if error:
+            raise AssertionError(error)
+        app = name or "Finder"
+
+        def title(tree):
+            return next(
+                (
+                    str(item.get("label") or "")
+                    for item in tree.get("elements") or []
+                    if item.get("role") == "AXWindow"
+                ),
+                "",
+            )
+
+        tree = cua._native_ax_snapshot(pid, max_elements=240, window_id=window_id)
+        if cua.find_clickable_index(tree, "Downloads") is None:
+            raise AssertionError("Downloads row missing")
+        if "Downloads" in title(tree) and cua.find_clickable_index(tree, "Recents"):
+            recents = cua.click_label_pointer(
+                pid, window_id, "Recents", snapshot_data=tree, app_name=app
+            )
+            if not recents.get("ok"):
+                raise AssertionError(recents)
+            time.sleep(0.4)
+            tree = cua._native_ax_snapshot(pid, max_elements=240, window_id=window_id)
+        click = cua.click_label_pointer(
+            pid, window_id, "Downloads", snapshot_data=tree, app_name=app
+        )
+        time.sleep(0.4)
+        after = title(cua._native_ax_snapshot(pid, max_elements=80, window_id=window_id))
+        if not click.get("ok") or "Downloads" not in after:
+            raise AssertionError({"click": click, "title": after})
+        return {"method": click.get("method"), "title": after}
+
     def calculator_plan():
         cua.launch_or_activate("Calculator")
         time.sleep(0.2)
@@ -426,6 +463,7 @@ def live_checks(*, progress=False):
 
     timed("daemon and permissions", permissions)
     timed("Finder AX plus screenshot and label resolution", finder_state)
+    timed("Finder sidebar row click changes window title", finder_sidebar_click)
     timed("Calculator comprehensive asserted plan", calculator_plan)
     timed("TextEdit native substring selection", textedit_selection)
     timed("operator PiP menu bar and Cursor link", operator_visibility)

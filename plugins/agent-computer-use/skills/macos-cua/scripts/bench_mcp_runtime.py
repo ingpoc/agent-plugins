@@ -7,6 +7,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import signal
 import statistics
 import subprocess
 import sys
@@ -40,6 +41,15 @@ def load_compact_mcp():
     spec = importlib.util.spec_from_file_location("compact_mcp_benchmark", COMPACT_MCP)
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load {COMPACT_MCP}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_macos_cua():
+    spec = importlib.util.spec_from_file_location("macos_cua_fixture", MACOS_CUA)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {MACOS_CUA}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -130,46 +140,46 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def reset_calculator_fixture() -> None:
-    def running() -> bool:
-        return (
-            subprocess.run(
-                ["pgrep", "-x", "Calculator"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=2,
-            ).returncode
-            == 0
-        )
+def reset_app_fixture(app_name: str) -> None:
+    """Quit and relaunch any native app, then drop stale PID/window cache."""
+    app = str(app_name or "").strip()
+    if not app:
+        raise ValueError("app_name is required")
+    cua = load_macos_cua()
 
-    if running():
-        subprocess.run(
-            ["osascript", "-e", 'tell application "Calculator" to quit'],
-            capture_output=True,
-            timeout=5,
-            stdin=subprocess.DEVNULL,
-        )
+    def live_identity():
+        current = cua._running_app_identity(app) or {}
+        pid = current.get("pid")
+        return current if pid and cua._pid_alive(pid) else None
+
+    if live_identity():
+        try:
+            subprocess.run(
+                ["osascript", "-e", f"tell application {json.dumps(app)} to quit"],
+                capture_output=True,
+                timeout=5,
+                stdin=subprocess.DEVNULL,
+            )
+        except subprocess.TimeoutExpired:
+            pass
         deadline = time.monotonic() + 5
-        while running() and time.monotonic() < deadline:
+        while live_identity() and time.monotonic() < deadline:
             time.sleep(0.05)
-        if running():
-            raise RuntimeError("Calculator fixture did not terminate")
-    launch_deadline = time.monotonic() + 5
-    launched = None
-    while time.monotonic() < launch_deadline:
-        launched = subprocess.run(
-            ["open", "-a", "Calculator"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            stdin=subprocess.DEVNULL,
-        )
-        if launched.returncode == 0:
-            break
-        time.sleep(0.1)
-    if launched is None or launched.returncode != 0:
-        detail = (launched.stderr or launched.stdout).strip() if launched else ""
-        raise RuntimeError(f"Calculator fixture did not launch: {detail}")
+        leftover = live_identity()
+        if leftover:
+            try:
+                os.kill(int(leftover["pid"]), signal.SIGKILL)
+            except (OSError, ProcessLookupError, TypeError, ValueError):
+                pass
+            deadline = time.monotonic() + 3
+            while live_identity() and time.monotonic() < deadline:
+                time.sleep(0.05)
+        if live_identity():
+            raise RuntimeError(f"{app} fixture did not terminate")
+    cua.clear_resolution_cache()
+    _, _, _, err = cua.resolve_app(app)
+    if err:
+        raise RuntimeError(err)
 
 
 def main() -> int:
@@ -180,7 +190,7 @@ def main() -> int:
     if args.repeat < 3:
         parser.error("--repeat must be at least 3")
 
-    reset_calculator_fixture()
+    reset_app_fixture("Calculator")
     mcp = load_compact_mcp()
     env = os.environ | {
         "CUA_DRIVER_RS_UPDATE_CHECK": "0",

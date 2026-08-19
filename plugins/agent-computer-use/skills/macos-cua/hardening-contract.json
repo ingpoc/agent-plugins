@@ -17,6 +17,9 @@
       "accepted allow_unverified plans skip automatic failure PNG and useless final compact AX read",
       "adjacent state/snapshot actions fail before dispatch as redundant_observe",
       "verified coordinate clicks on accessible text use AXRangeForPosition with selection readback, not desktop-global input or ScreenCaptureKit",
+      "quit/relaunch of any app clears resolution cache; resolved PID must be live",
+      "README scores refresh only from a passing warm --repeat 5 --rate payload",
+      "fast_path linters reject click_point desktop paths, unpaired start_session, repeated observe, unbatched acts, unrecovered session_ended, and container AXPress without a descendant",
       "MCP lifecycle/state/act dispatch in one held Python process with cli_invocations=0",
       "live interleaved Calculator A/B resets its fixture, omits separately graded pointer capture, is fully successful, and is at least 10% faster than the retired per-call CLI path",
       "run_gate.py final-1 then final-2 --require-empty on the new source hash"

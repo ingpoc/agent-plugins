@@ -305,11 +305,54 @@ def post_key_event(pid, key_code, is_down, delivery_mode="background"):
         CGEventPostToPid(pid, event)
 
 
-def post_mouse_click(pid, point, *, button="left", count=1):
-    """Post a screen-mapped mouse click directly to one process."""
+CG_KEY_CODES = {
+    "a": 0, "s": 1, "d": 2, "w": 13, "space": 49,
+    "return": 36, "enter": 36, "tab": 48,
+    "delete": 51, "backspace": 51, "escape": 53, "esc": 53,
+    "left": 123, "right": 124, "down": 125, "up": 126,
+}
+
+
+def press_key_event(pid, keys, delivery_mode="background", *, aliases=None):
+    """PID/HID key when cua-driver has no live session. Single keys only."""
+    aliases = aliases or {}
+    key = str(keys or "").strip().lower()
+    key = aliases.get(key, key)
+    if not key or "+" in key or key not in CG_KEY_CODES:
+        return {"error": f"native key unavailable: {keys}"}
+    post_key_event(pid, CG_KEY_CODES[key], True, delivery_mode)
+    post_key_event(pid, CG_KEY_CODES[key], False, delivery_mode)
+    return {
+        "ok": True,
+        "accepted": True,
+        "verified": False,
+        "path": "native_cg_key",
+        "pid": int(pid),
+        "keys": str(keys),
+    }
+
+
+def press_key_after_dropped_session(
+    pid, keys, delivery_mode="background", *, aliases=None
+):
+    """Driver session_ended is not an outcome; deliver the key without cua-driver."""
+    if "+" in str(keys or ""):
+        result = system_events_press_key(pid, keys, aliases=aliases)
+    else:
+        result = press_key_event(pid, keys, delivery_mode, aliases=aliases)
+    if isinstance(result, dict) and (
+        result.get("ok") is True or result.get("accepted") is True
+    ):
+        return {**result, "session_recovered": True}
+    return result
+
+
+def post_mouse_click(pid, point, *, button="left", count=1, delivery_mode="background"):
+    """Post a screen-mapped mouse click to one PID, or HID after an AX-frame glide."""
     global _LAST_MOUSE_CLICK_AT
     from Quartz import (
         CGEventCreateMouseEvent,
+        CGEventPost,
         CGEventPostToPid,
         CGEventSetIntegerValueField,
         CGPointMake,
@@ -319,6 +362,7 @@ def post_mouse_click(pid, point, *, button="left", count=1):
         kCGEventOtherMouseUp,
         kCGEventRightMouseDown,
         kCGEventRightMouseUp,
+        kCGHIDEventTap,
         kCGMouseButtonCenter,
         kCGMouseButtonLeft,
         kCGMouseButtonRight,
@@ -368,7 +412,10 @@ def post_mouse_click(pid, point, *, button="left", count=1):
             CGEventSetIntegerValueField(
                 event, kCGMouseEventClickState, click_index
             )
-            CGEventPostToPid(int(pid), event)
+            if delivery_mode == "foreground":
+                CGEventPost(kCGHIDEventTap, event)
+            else:
+                CGEventPostToPid(int(pid), event)
             if event_index == 0:
                 time.sleep(0.01)
         if click_index < repetitions:
@@ -379,7 +426,9 @@ def post_mouse_click(pid, point, *, button="left", count=1):
         "accepted": True,
         "verified": False,
         "effect": "unverifiable",
-        "path": "native_pid_mouse",
+        "path": (
+            "native_hid_mouse" if delivery_mode == "foreground" else "native_pid_mouse"
+        ),
         "pid": int(pid),
         "button": button,
         "count": repetitions,

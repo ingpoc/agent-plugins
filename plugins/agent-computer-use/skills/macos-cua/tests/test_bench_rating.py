@@ -12,7 +12,6 @@ SKILL = Path(__file__).resolve().parents[1]
 RATING = SKILL / "scripts" / "bench_rating.py"
 RUNNER = SKILL / "scripts" / "run_benchmarks.py"
 FACADE = SKILL / "scripts" / "macos-cua.py"
-COMPACT = SKILL / "scripts" / "compact_mcp.py"
 CONTRACT = SKILL / "references" / "entry-contract.json"
 
 
@@ -711,17 +710,6 @@ class HarnessAndFacadeTests(unittest.TestCase):
         self.assertIn("error", result)
         self.assertNotIn("ax_snapshots", result)
         self.assertEqual(cua.telemetry_read()["ax_snapshots"], 1)
-
-    def test_compact_mcp_run_cli_does_not_add_payload_keys(self):
-        mcp = load_module("compact_mcp_telemetry", COMPACT)
-        mcp.telemetry_reset()
-        body = json.dumps({"ok": True, "text": "64"}, separators=(",", ":"))
-        fake = SimpleNamespace(returncode=0, stdout=body, stderr="")
-        with mock.patch.object(mcp.subprocess, "run", return_value=fake):
-            payload = mcp.run_cli(["python3", "macos-cua.py", "state", "Calculator"], 1)
-        self.assertEqual(payload, {"ok": True, "text": "64"})
-        self.assertNotIn("cli_invocations", payload)
-        self.assertEqual(mcp.telemetry_read()["cli_invocations"], 1)
 
 
 if __name__ == "__main__":

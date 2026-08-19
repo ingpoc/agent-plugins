@@ -51,7 +51,7 @@ PRIMARY_CLICK_ROLES = {
     "AXMenuBarItem",
 }
 FIELD_ROLES = {"AXTextField", "AXTextArea"}
-# Calculator's C/AC control retitles in-place. Resolve on the current tree.
+# In-place retitled controls resolve on the current tree. Do not re-observe to retitle.
 LABEL_ALIASES = {
     "clear": ("all clear",),
     "all clear": ("clear",),

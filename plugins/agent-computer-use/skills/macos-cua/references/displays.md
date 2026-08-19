@@ -49,7 +49,7 @@ one-pixel tolerance.
 python3 $SKILL_DIR/scripts/macos-cua.py displays
 ```
 
-`displays` and optional `start_session preflight:true` return one packet.
+`displays` and `workflow.py preflight` return one packet.
 Do not attach it to every `state` / `run` observe.
 
 | Field | Meaning |

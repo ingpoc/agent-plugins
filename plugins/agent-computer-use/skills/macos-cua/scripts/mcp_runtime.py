@@ -62,6 +62,7 @@ class SessionRuntime:
     def start_driver(self, session: str) -> dict[str, Any]:
         os.environ["MACOS_CUA_SESSION"] = session
         self.cua.CUA_SESSION = session
+        self.cua.clear_resolution_cache()
         return self.cua.call_driver("start_session", {"session": session}, timeout=8)
 
     def end_driver(self, session: str) -> dict[str, Any]:
@@ -101,11 +102,6 @@ class SessionRuntime:
         pid, window_id, name, error = cua.resolve_app(
             app, activate_if_inactive=False
         )
-        if error:
-            cua.launch_or_activate(app)
-            pid, window_id, name, error = cua.resolve_app(
-                app, launch_if_missing=False, activate_if_inactive=False
-            )
         if error:
             return None, None, None, {
                 "ok": False,

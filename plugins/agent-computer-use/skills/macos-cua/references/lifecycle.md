@@ -1,11 +1,22 @@
 # Lifecycle
 
+```text
+workflow.py preflight     # once, start: daemon, TCC, signed operator
+  Computer Use MCP        # middle: start_session → act-first per app → end_session
+workflow.py closeout      # once, end: cache, cursors, operator idle
+```
+
+Preflight never launches or focuses an app. On-screen window readiness is
+Computer Use `resolve_app` (cold launch uses `open -n`; PID-live is not
+proof). `end_session` already runs closeout; a trailing `workflow.py closeout`
+is the session bookend, not a per-app ritual.
+
 ## Setup (once)
 
 ```bash
 ls ~/.local/bin/cua-driver
 ~/.local/bin/cua-driver --version  # must be >= 0.8.3
-python3 $SKILL_DIR/scripts/workflow.py smoke --app Calculator
+python3 $SKILL_DIR/scripts/workflow.py preflight
 ```
 
 Daemon wedge: `launchctl kickstart -k gui/$UID/com.trycua.driver` → re-run preflight.
@@ -25,7 +36,7 @@ app/window/harness/cursor/proof state automatically. Set
 Healthy preflight prints a compact readiness packet; add `--verbose` only when
 diagnosing a failed component.
 
-Full local acceptance gate (safe Calculator plus isolated temporary TextEdit):
+Full local acceptance gate (safe native app plus isolated temporary TextEdit):
 
 ```bash
 python3 $SKILL_DIR/tests/test_live_computer_parity.py
@@ -165,7 +176,7 @@ no app data.
 
 ## Test-app hygiene
 
-Live probes may launch Calculator, TextEdit fixtures, Preview of temp
-PDFs, or other Apple test apps. Quit each one immediately after its final
-assertion, before the next app can inherit its foreground window. Do not
-quit Cursor, WhatsApp, or a browser that still has the user's tabs.
+Live probes may launch Apple test apps or other fixtures. Quit each one
+immediately after its final assertion, before the next app can inherit its
+foreground window. Do not quit Cursor, the user's messenger, or a browser
+that still has the user's tabs.

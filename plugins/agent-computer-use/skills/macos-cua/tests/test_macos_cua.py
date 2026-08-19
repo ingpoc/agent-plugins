@@ -343,6 +343,9 @@ class WorkflowPreflightTests(unittest.TestCase):
         source = (Path(__file__).parents[1] / "scripts" / "workflow.py").read_text()
         preflight = source.split("def cmd_preflight", 1)[1].split("def cmd_smoke", 1)[0]
         self.assertIn('ap.add_argument("--app")', source)
+        self.assertIn("smoke requires --app", source)
+        self.assertNotIn("cursor-demo", source)
+        self.assertNotIn('args.app or "Calculator"', source)
         self.assertNotIn("ACTIONS", preflight)
         self.assertNotIn("focus", preflight)
 
@@ -431,6 +434,7 @@ class WindowResolutionTests(unittest.TestCase):
         }
         with (
             mock.patch.object(macos_cua, "_running_app_identity", return_value=identity),
+            mock.patch.object(macos_cua, "_pid_alive", return_value=True),
             mock.patch.object(
                 macos_cua,
                 "_read_cache",
@@ -474,14 +478,22 @@ class WindowResolutionTests(unittest.TestCase):
             "ax_main": True,
             "ax_minimized": False,
         }
+        calls = {"n": 0}
+
+        def windows():
+            calls["n"] += 1
+            return {"windows": [] if calls["n"] == 1 else [target]}
+
+        def ax_candidates(*_a, **_k):
+            return [] if calls["n"] <= 1 else [target]
+
         with (
             mock.patch.object(macos_cua, "_running_app_identity", return_value=identity),
+            mock.patch.object(macos_cua, "_pid_alive", return_value=True),
             mock.patch.object(macos_cua, "_read_cache", return_value=None),
+            mock.patch.object(macos_cua, "list_windows", side_effect=windows),
             mock.patch.object(
-                macos_cua, "list_windows", side_effect=[{"windows": []}, {"windows": [target]}]
-            ),
-            mock.patch.object(
-                macos_cua, "_ax_window_candidates", side_effect=[[], [target]]
+                macos_cua, "_ax_window_candidates", side_effect=ax_candidates
             ),
             mock.patch.object(
                 macos_cua, "_reopen_running_identity", return_value={"ok": True}
@@ -496,6 +508,89 @@ class WindowResolutionTests(unittest.TestCase):
         reopen.assert_called_once_with(899)
         launch.assert_not_called()
 
+    def test_dead_identity_pid_launches_instead_of_reopening_stale_unix_id(self):
+        dead = {
+            "pid": 8434,
+            "name": "AnyApp",
+            "bundle_id": "com.example.anyapp",
+            "active": True,
+        }
+        live = {
+            "pid": 8513,
+            "name": "AnyApp",
+            "bundle_id": "com.example.anyapp",
+            "active": True,
+        }
+        window = {
+            "pid": 8513,
+            "window_id": 12,
+            "title": "AnyApp",
+            "bounds": {"width": 400, "height": 400},
+            "ax_main": True,
+            "ax_minimized": False,
+        }
+        def identity(_name=None):
+            identity.n = getattr(identity, "n", 0) + 1
+            return dead if identity.n == 1 else live
+
+        def windows():
+            return {"windows": [] if getattr(identity, "n", 0) <= 1 else [window]}
+
+        def ax_candidates(*_a, **_k):
+            return [] if getattr(identity, "n", 0) <= 1 else [window]
+
+        with (
+            mock.patch.object(
+                macos_cua, "_running_app_identity", side_effect=identity
+            ),
+            mock.patch.object(
+                macos_cua, "_pid_alive", side_effect=lambda pid: pid != 8434
+            ),
+            mock.patch.object(macos_cua, "clear_resolution_cache") as clear,
+            mock.patch.object(macos_cua, "_read_cache", return_value=None),
+            mock.patch.object(macos_cua, "list_windows", side_effect=windows),
+            mock.patch.object(
+                macos_cua, "_ax_window_candidates", side_effect=ax_candidates
+            ),
+            mock.patch.object(macos_cua, "_reopen_running_identity") as reopen,
+            mock.patch.object(
+                macos_cua, "launch_or_activate", return_value={"ok": True}
+            ) as launch,
+            mock.patch.object(macos_cua, "_write_cache"),
+            mock.patch.object(macos_cua.time, "sleep"),
+        ):
+            result = macos_cua.resolve_app("AnyApp")
+
+        self.assertEqual(result, (8513, 12, "AnyApp", None))
+        reopen.assert_not_called()
+        launch.assert_called_once_with("AnyApp")
+        clear.assert_called()
+
+    def test_launch_or_activate_ignores_dead_identity_pid(self):
+        dead = {
+            "pid": 8434,
+            "name": "AnyApp",
+            "bundle_id": "com.example.anyapp",
+            "active": True,
+        }
+        completed = SimpleNamespace(returncode=0, stdout="", stderr="")
+        with (
+            mock.patch.object(macos_cua, "_running_app_identity", return_value=dead),
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(macos_cua, "_activate_running_identity") as activate,
+            mock.patch.object(
+                macos_cua,
+                "_resolve_bundle_id",
+                return_value=("com.example.anyapp", "AnyApp"),
+            ),
+            mock.patch.object(macos_cua.subprocess, "run", return_value=completed),
+        ):
+            result = macos_cua.launch_or_activate("AnyApp")
+
+        activate.assert_not_called()
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["method"], "bundle+osascript")
+
     def test_running_app_activation_avoids_open_and_applescript(self):
         identity = {
             "pid": 899,
@@ -507,6 +602,7 @@ class WindowResolutionTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "_running_app_identity", return_value=identity
             ),
+            mock.patch.object(macos_cua, "_pid_alive", return_value=True),
             mock.patch.object(
                 macos_cua,
                 "_activate_running_identity",
@@ -620,6 +716,10 @@ class WindowResolutionTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertEqual(run.call_count, 2)
+        self.assertEqual(
+            run.call_args_list[0].args[0],
+            ["open", "-n", "-b", "com.example.app"],
+        )
         for call in run.call_args_list:
             self.assertEqual(call.kwargs["timeout"], 5)
             self.assertIs(call.kwargs["stdin"], macos_cua.subprocess.DEVNULL)
@@ -1479,9 +1579,11 @@ class WindowResolutionTests(unittest.TestCase):
         original_identity = macos_cua._running_app_identity
         original_ax_windows = macos_cua._ax_window_candidates
         original_write_cache = macos_cua._write_cache
+        original_pid_alive = macos_cua._pid_alive
         try:
             macos_cua._read_cache = lambda _app, **_kwargs: None
             macos_cua._write_cache = lambda *_args: None
+            macos_cua._pid_alive = lambda _pid: True
             macos_cua._running_app_identity = lambda _app: {
                 "pid": 899,
                 "name": "ChatGPT",
@@ -1537,6 +1639,7 @@ class WindowResolutionTests(unittest.TestCase):
             macos_cua._running_app_identity = original_identity
             macos_cua._ax_window_candidates = original_ax_windows
             macos_cua._write_cache = original_write_cache
+            macos_cua._pid_alive = original_pid_alive
 
 
 class DisplayAlignmentTests(unittest.TestCase):
@@ -2070,6 +2173,59 @@ class CursorProofTests(unittest.TestCase):
         services.AXUIElementPerformAction.assert_called_once_with(
             "native-members", "AXPress"
         )
+
+    def test_click_label_uses_ax_frame_hid_when_row_press_unsupported(self):
+        snap = {
+            "source": "native_ax",
+            "elements": [
+                {
+                    "element_index": 2,
+                    "role": "AXRow",
+                    "label": "Folder",
+                    "frame": {"x": 10, "y": 20, "w": 30, "h": 40},
+                },
+            ],
+        }
+        native = SimpleNamespace(
+            post_mouse_click=mock.Mock(
+                return_value={
+                    "ok": True,
+                    "accepted": True,
+                    "path": "native_hid_mouse",
+                }
+            )
+        )
+        with (
+            mock.patch.object(macos_cua, "find_clickable_index", return_value=2),
+            mock.patch.object(macos_cua, "snapshot_content_error", return_value=None),
+            mock.patch.object(
+                macos_cua,
+                "glide_operator_to_element",
+                return_value={
+                    "ok": True,
+                    "move": {"ok": True},
+                    "coords": {"x": 25, "y": 40},
+                },
+            ),
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_press_label_with_retry",
+                return_value=(
+                    {"error": "AXUIElementPerformAction(AXPress) returned -25206"},
+                    snap,
+                    2,
+                ),
+            ),
+            mock.patch.object(macos_cua, "_native_input", return_value=native),
+            mock.patch.object(macos_cua, "_cleanup_driver_cursors"),
+        ):
+            result = macos_cua.click_label_pointer(
+                10, 20, "Folder", snapshot_data=snap, app_name="App"
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["method"], "agent-cursor-glide+ax-frame-hid")
+        native.post_mouse_click.assert_called_once()
 
     def test_cleanup_driver_cursors_disables_then_ends_auto_sessions(self):
         state = {
@@ -2817,7 +2973,13 @@ class OperatorUITests(unittest.TestCase):
     def test_visible_cursor_overlay_matches_hermes_render_contract(self):
         operator = Path(__file__).parents[1] / "operator"
         source = "\n".join(path.read_text() for path in sorted(operator.glob("*.swift")))
-        self.assertIn("cursorOverlayPanel.level = .screenSaver", source)
+        self.assertIn("cursorOverlayPanel.level = .popUpMenu", source)
+        self.assertNotIn("cursorOverlayPanel.level = .screenSaver", source)
+        self.assertIn("order(.above, relativeTo:", source)
+        self.assertIn("isCursorPointVisible", source)
+        self.assertIn("macos-cua · \\(agent)", source)
+        self.assertNotIn("Using your computer", source)
+        self.assertNotIn("Esc to cancel", source)
         self.assertIn("cursorOverlayPanel.ignoresMouseEvents = true", source)
         self.assertIn("width: 28, height: 28", source)
         self.assertIn("cyanGlow.shadowBlurRadius = 12", source)
@@ -3239,6 +3401,67 @@ class KeyboardTests(unittest.TestCase):
             self.assertEqual(calls[0][1]["delivery_mode"], "background")
         finally:
             macos_cua.call_driver = original_call_driver
+
+    def test_press_key_uses_native_pid_when_driver_session_ended(self):
+        ended = {
+            "refusal": {
+                "code": "session_ended",
+                "message": "this session has ended; call start_session explicitly to reuse its label",
+            },
+            "status": "refused",
+        }
+        native = SimpleNamespace(
+            press_key_after_dropped_session=mock.Mock(
+                return_value={
+                    "ok": True,
+                    "accepted": True,
+                    "path": "native_cg_key",
+                    "session_recovered": True,
+                }
+            )
+        )
+        with (
+            mock.patch.object(macos_cua, "call_driver", return_value=ended),
+            mock.patch.object(macos_cua, "_native_input", return_value=native),
+            mock.patch.object(
+                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
+            ),
+        ):
+            result = macos_cua.press_key(10, 20, "Escape", "foreground")
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["session_recovered"])
+        self.assertEqual(result["path"], "native_cg_key")
+        native.press_key_after_dropped_session.assert_called_once()
+
+    def test_press_key_rejects_recovered_global_input(self):
+        recovered = {
+            "delivery": {"mode": "foreground"},
+            "effect": "unverifiable",
+            "route": "global_input",
+            "session_recovered": True,
+        }
+        native = SimpleNamespace(
+            press_key_after_dropped_session=mock.Mock(
+                return_value={
+                    "ok": True,
+                    "accepted": True,
+                    "path": "native_cg_key",
+                    "session_recovered": True,
+                }
+            )
+        )
+        with (
+            mock.patch.object(macos_cua, "call_driver", return_value=recovered),
+            mock.patch.object(macos_cua, "_native_input", return_value=native),
+            mock.patch.object(
+                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
+            ),
+        ):
+            result = macos_cua.press_key(10, 20, "Escape", "foreground")
+
+        self.assertEqual(result["path"], "native_cg_key")
+        native.press_key_after_dropped_session.assert_called_once()
 
     def test_background_key_retries_once_when_foreground_recommended(self):
         calls = []
@@ -3749,6 +3972,63 @@ class PrimitiveContractTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertEqual(used_index, 8)
+
+    def test_native_ax_press_uses_pressable_descendant_on_unsupported_row(self):
+        services = SimpleNamespace(
+            AXUIElementPerformAction=lambda element, _action: element.code
+        )
+        snapshot = {
+            "elements": [
+                {
+                    "element_index": 47,
+                    "role": "AXRow",
+                    "parent_index": 0,
+                    "_native_element": SimpleNamespace(code=-25206),
+                    "_native_services": services,
+                },
+                {
+                    "element_index": 49,
+                    "role": "AXStaticText",
+                    "parent_index": 47,
+                    "actions": ["AXPress"],
+                    "_native_element": SimpleNamespace(code=0),
+                    "_native_services": services,
+                },
+            ]
+        }
+
+        result = macos_cua._native_ax_press(snapshot, 47)
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["pressed_descendant"])
+        self.assertEqual(result["element"], 49)
+        self.assertEqual(result["requested_element"], 47)
+
+    def test_native_ax_click_retries_unsupported_identity_after_fresh_tree(self):
+        stale = {"elements": [{"element_index": 3, "label": "Save"}]}
+        fresh = {"elements": [{"element_index": 8, "label": "Save"}]}
+        with (
+            mock.patch.object(
+                macos_cua,
+                "_native_ax_press",
+                side_effect=[
+                    {"error": "AXUIElementPerformAction(AXPress) returned -25206"},
+                    {"ok": True, "path": "native_ax"},
+                ],
+            ) as press,
+            mock.patch.object(macos_cua, "_native_ax_snapshot", return_value=fresh),
+            mock.patch.object(macos_cua, "find_clickable_index", return_value=8),
+        ):
+            result, used_snapshot, used_index = (
+                macos_cua._native_ax_press_label_with_retry(
+                    10, 20, "Save", stale, 3, max_elements=120
+                )
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertIs(used_snapshot, fresh)
+        self.assertEqual(used_index, 8)
+        self.assertEqual(press.call_count, 2)
 
     def test_click_retries_one_transient_ax_failure_after_fresh_state(self):
         with (
@@ -5257,6 +5537,33 @@ class PlanEfficiencyTests(unittest.TestCase):
             macos_cua._post_key_event, 10, "down", 2
         )
 
+    def test_page_scroll_rejects_recovered_global_input(self):
+        native_input = SimpleNamespace(
+            page_key_scroll=mock.Mock(
+                return_value={
+                    "ok": True,
+                    "accepted": True,
+                    "path": "native_pid_page_key",
+                }
+            ),
+        )
+        with (
+            mock.patch.object(macos_cua, "_native_input", return_value=native_input),
+            mock.patch.object(
+                macos_cua,
+                "call_driver",
+                return_value={
+                    "effect": "unverifiable",
+                    "route": "global_input",
+                    "session_recovered": True,
+                },
+            ),
+        ):
+            result = macos_cua.scroll(10, 20, "down", 1, by="page", x=30, y=40)
+
+        self.assertEqual(result["path"], "native_pid_page_key")
+        native_input.page_key_scroll.assert_called_once()
+
     def test_native_page_scroll_uses_scrollable_ancestor(self):
         target, parent = object(), object()
         services = SimpleNamespace(
@@ -5528,6 +5835,36 @@ class DriverSocketTransportTests(unittest.TestCase):
             with mock.patch.object(macos_cua.subprocess, "run") as run:
                 result = macos_cua.call_driver("press_key", {"key": "a"})
         self.assertEqual(result, {"error": "boom"})
+        run.assert_not_called()
+
+    def test_session_ended_revives_named_session_once(self):
+        ended = {
+            "refusal": {
+                "code": "session_ended",
+                "message": "this session has ended; call start_session explicitly to reuse its label",
+            },
+            "status": "refused",
+        }
+        fake = _FakeDriverSocket(
+            chunks=[
+                _envelope_line(ended),
+                _envelope_line({"ok": True}),
+                _envelope_line({"ok": True, "accepted": True}),
+            ]
+        )
+        with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
+            with mock.patch.object(macos_cua.subprocess, "run") as run:
+                result = macos_cua.call_driver(
+                    "press_key", {"pid": 10, "window_id": 20, "key": "escape"}
+                )
+        self.assertEqual(result.get("ok"), True)
+        self.assertTrue(result.get("session_recovered"))
+        payloads = [json.loads(item) for item in fake.sent]
+        self.assertEqual(
+            [item["name"] for item in payloads],
+            ["press_key", "start_session", "press_key"],
+        )
+        self.assertEqual(payloads[2]["args"].get("session"), macos_cua.CUA_SESSION)
         run.assert_not_called()
 
     def test_reconnect_waits_for_restarted_daemon_socket(self):

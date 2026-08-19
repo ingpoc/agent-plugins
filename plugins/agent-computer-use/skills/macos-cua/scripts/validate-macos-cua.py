@@ -179,6 +179,11 @@ def static_checks():
             CURSOR_LINK.is_symlink() and CURSOR_LINK.resolve() == SKILL,
             str(CURSOR_LINK),
         )
+    fast_path = HERE / "fast_path.py"
+    spec = importlib.util.spec_from_file_location("macos_cua_fast_path", fast_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    checks.extend(module.lint_source(SKILL))
     return checks
 
 

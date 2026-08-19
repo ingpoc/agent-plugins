@@ -43,7 +43,7 @@ final class HermesPointerView: NSView {
 final class CursorOverlayView: NSView {
     private let cursorContainer = NSView()
     private let cursorView = HermesPointerView()
-    private let label = NSTextField(labelWithString: "macos-cua")
+    private let label = NSTextField(labelWithString: "macos-cua · Agent")
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -61,6 +61,7 @@ final class CursorOverlayView: NSView {
         label.font = .systemFont(ofSize: 12, weight: .semibold)
         label.textColor = .white
         label.alignment = .center
+        label.lineBreakMode = .byTruncatingTail
         label.wantsLayer = true
         label.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.78).cgColor
         label.layer?.borderColor = NSColor.systemCyan.withAlphaComponent(0.9).cgColor
@@ -93,7 +94,8 @@ final class CursorOverlayView: NSView {
             )
             cursorView.image = fallback
         }
-        label.stringValue = "macos-cua · \(harness)"
+        let agent = harness.trimmingCharacters(in: .whitespacesAndNewlines)
+        label.stringValue = agent.isEmpty ? "macos-cua · Agent" : "macos-cua · \(agent)"
         needsLayout = true
     }
 

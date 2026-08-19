@@ -110,14 +110,7 @@ def _matches(app_name, candidate):
 
 
 def _window_candidate_score(window):
-    """Prefer real app windows over untitled desktop/overlay surfaces.
-
-    Finder owns full-display, untitled desktop windows. Sorting only by area
-    therefore resolves Finder to the desktop instead of its visible folder
-    window, which produces a menu-only AX tree and a black screenshot.
-    Titled windows are the stronger main-window signal; area remains the
-    tie-breaker and still handles apps whose only window is untitled.
-    """
+    """Prefer titled/main windows; Finder desktop is untitled and huge."""
     bounds = window.get("bounds", {}) or {}
     area = bounds.get("width", 0) * bounds.get("height", 0)
     has_title = bool(str(window.get("title") or "").strip())
@@ -457,6 +450,9 @@ def _resolve_bundle_id(app_name):
 def resolve_app(app_name, *, launch_if_missing=True, activate_if_inactive=False):
     """Return (pid, window_id, display_name, error)."""
     identity = _running_app_identity(app_name)
+    if identity and not _pid_alive(identity.get("pid")):
+        clear_resolution_cache()
+        identity = None
     reactivated = False
     if (
         identity
@@ -470,9 +466,6 @@ def resolve_app(app_name, *, launch_if_missing=True, activate_if_inactive=False)
         identity = _running_app_identity(app_name) or identity
         reactivated = True
     expected_pid = identity.get("pid") if identity else None
-    # Stage Manager can keep a Quartz thumbnail for an inactive app while its
-    # AX window disappears. Never trust that cached window across reactivation;
-    # resolve the restored live window again.
     cached = None if reactivated else _read_cache(app_name, expected_pid=expected_pid)
     if cached:
         return (
@@ -482,14 +475,9 @@ def resolve_app(app_name, *, launch_if_missing=True, activate_if_inactive=False)
             None,
         )
 
-    # 1. Try to find a live top-level window whose owner matches.
     windows = list_windows()
     if "error" in windows:
         return None, None, None, windows["error"]
-    # Foreground commands already have an authoritative NSWorkspace PID and a
-    # bounded driver foreground gate. Prefer its Quartz window here: querying
-    # AX synchronously before that gate can hang when Stage Manager exposes a
-    # thumbnail but no live accessibility window.
     if expected_pid and not activate_if_inactive:
         ax_candidates = _ax_window_candidates(expected_pid, windows.get("windows", []))
         ax_candidates.sort(key=_window_candidate_score, reverse=True)
@@ -515,8 +503,6 @@ def resolve_app(app_name, *, launch_if_missing=True, activate_if_inactive=False)
         elif _matches(app_name, owner):
             fuzzy_owner.append(w)
     candidates = exact_owner or fuzzy_owner
-    # Prefer a titled app window, then the largest remaining candidate.
-    # Finder's untitled desktop surfaces are larger than its folder windows.
     candidates.sort(key=_window_candidate_score, reverse=True)
     if candidates:
         w = candidates[0]
@@ -524,25 +510,29 @@ def resolve_app(app_name, *, launch_if_missing=True, activate_if_inactive=False)
         _write_cache(app_name, pid, wid)
         return pid, wid, (identity or {}).get("name") or w.get("app_name"), None
 
-    # 2. Nothing matched — maybe the app isn't running / isn't frontmost.
     if not launch_if_missing:
         return None, None, None, f"No on-screen window matches '{app_name}'"
 
     launched = _reopen_running_identity(expected_pid) if expected_pid else launch_or_activate(app_name)
     if "error" in launched:
         return None, None, None, launched["error"]
-    time.sleep(1.0)
-    # Retry once.
-    return resolve_app(
-        app_name,
-        launch_if_missing=False,
-        activate_if_inactive=activate_if_inactive,
-    )
+    for _ in range(20):
+        time.sleep(0.15)
+        pid, wid, name, err = resolve_app(
+            app_name,
+            launch_if_missing=False,
+            activate_if_inactive=activate_if_inactive,
+        )
+        if err is None:
+            return pid, wid, name, None
+    return None, None, None, f"No on-screen window matches '{app_name}'"
 
 
 def launch_or_activate(app_name):
     """Launch and activate by authoritative bundle id when one is available."""
     identity = _running_app_identity(app_name)
+    if identity and not _pid_alive(identity.get("pid")):
+        identity = None
     if identity:
         activated = _activate_running_identity(identity)
         if activated.get("error"):
@@ -557,7 +547,7 @@ def launch_or_activate(app_name):
     display_name = (identity or {}).get("name")
     if not bundle_id:
         bundle_id, display_name = _resolve_bundle_id(app_name)
-    open_command = ["open", "-b", bundle_id] if bundle_id else ["open", "-a", app_name]
+    open_command = ["open", "-n", "-b", bundle_id] if bundle_id else ["open", "-n", "-a", app_name]
     try:
         launched = subprocess.run(
             open_command,

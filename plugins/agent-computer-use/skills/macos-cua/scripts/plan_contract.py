@@ -357,9 +357,35 @@ def unasserted_plan_steps(plan: dict[str, Any]) -> list[int]:
     ]
 
 
+def dispatch_path(result: Any) -> str:
+    parts: list[str] = []
+    current = result
+    for _ in range(4):
+        if not isinstance(current, dict):
+            break
+        for key in ("path", "method", "route"):
+            value = current.get(key)
+            if value:
+                parts.append(str(value))
+        current = current.get("result")
+    return " ".join(parts).lower()
+
+
+FORBIDDEN_DISPATCH_SUBSTRINGS = (
+    "operator-proof-screen-coordinate",
+    "global_input",
+)
+
+
 def result_accepted(result: Any) -> bool:
     """Require an explicit success signal; ambiguous payloads fail closed."""
     if not isinstance(result, dict) or result.get("error"):
+        return False
+    refusal = result.get("refusal") if isinstance(result.get("refusal"), dict) else {}
+    if result.get("code") == "session_ended" or refusal.get("code") == "session_ended":
+        return False
+    path = dispatch_path(result)
+    if any(marker in path for marker in FORBIDDEN_DISPATCH_SUBSTRINGS):
         return False
     if "accepted" in result:
         return result.get("accepted") is True
@@ -368,4 +394,4 @@ def result_accepted(result: Any) -> bool:
     if "ok" in result:
         return result.get("ok") is True
     effect = result.get("effect")
-    return effect in {"confirmed", "unverifiable"}
+    return effect == "confirmed"

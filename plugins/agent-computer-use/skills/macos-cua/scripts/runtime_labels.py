@@ -160,8 +160,14 @@ def click_label_pointer(
         method = "agent-cursor-glide+ax-click"
     err = res.get("error") if isinstance(res, dict) else None
     ok = not err
+    if not ok and center and move and _ax_press_unsupported(res):
+        hid = _native_input().post_mouse_click(
+            pid, {"x": center[0], "y": center[1]}, delivery_mode="foreground"
+        )
+        if isinstance(hid, dict) and not hid.get("error"):
+            res, err, ok = hid, None, True
+            method = "agent-cursor-glide+ax-frame-hid"
     if not ok and center and force_pixel:
-        # Explicit custom-surface escalation only; never silently steal the pointer.
         res = click_at_desktop(center[0], center[1])
         err = res.get("error") if isinstance(res, dict) else None
         ok = not err
@@ -180,7 +186,6 @@ def click_label_pointer(
         payload["error"] = err
     return payload
 
-
 def click_with_retry(pid, window_id, element_index, max_elements=120, *, app_name=None):
     res = click(pid, window_id, element_index, app_name=app_name)
     if isinstance(res, dict) and any(
@@ -190,12 +195,84 @@ def click_with_retry(pid, window_id, element_index, max_elements=120, *, app_nam
         res = click(pid, window_id, element_index, app_name=app_name)
     return res
 
+CONTAINER_PRESS_ROLES = {"AXRow", "AXCell", "AXOutline", "AXList", "AXGroup"}
+
+
+def _ax_press_unsupported(result):
+    err = str((result or {}).get("error") or "") if isinstance(result, dict) else ""
+    return "-25204" in err or "-25206" in err
+
+
+def pressable_descendant_index(snapshot_data, element_index):
+    elements = snapshot_data.get("elements") or []
+    children: dict = {}
+    for item in elements:
+        children.setdefault(item.get("parent_index"), []).append(item)
+    queue = list(children.get(element_index, []))
+    seen: set = set()
+    pressable_roles = PRIMARY_CLICK_ROLES | {"AXStaticText", "AXDisclosureTriangle"}
+    while queue:
+        child = queue.pop(0)
+        idx = child.get("element_index")
+        if idx in seen:
+            continue
+        seen.add(idx)
+        role = child.get("role")
+        actions = {
+            re.sub(r"[^a-z]", "", str(item).lower()).removeprefix("ax")
+            for item in (child.get("actions") or [])
+        }
+        if role not in CONTAINER_PRESS_ROLES and (
+            "press" in actions or role in pressable_roles
+        ):
+            return idx
+        queue.extend(children.get(idx, []))
+    return None
+
+
+def _native_ax_press_once(snapshot_data, element_index):
+    target = next(
+        (
+            element
+            for element in snapshot_data.get("elements", [])
+            if element.get("element_index") == element_index
+        ),
+        None,
+    )
+    if target is None or target.get("_native_element") is None:
+        return {"error": f"native AX element {element_index} is unavailable"}
+    services = target.get("_native_services")
+    element = target["_native_element"]
+    _ax_set_timeout(element, services)
+    result = services.AXUIElementPerformAction(element, "AXPress")
+    if result != 0:
+        return {"error": f"AXUIElementPerformAction(AXPress) returned {result}"}
+    return {"ok": True, "path": "native_ax", "action": "press", "error_code": 0}
+
+
+def _native_ax_press(snapshot_data, element_index):
+    result = _native_ax_press_once(snapshot_data, element_index)
+    if not _ax_press_unsupported(result):
+        return result
+    descendant = pressable_descendant_index(snapshot_data, element_index)
+    if descendant is None or descendant == element_index:
+        return result
+    retried = _native_ax_press_once(snapshot_data, descendant)
+    if retried.get("ok"):
+        return {
+            **retried,
+            "element": descendant,
+            "pressed_descendant": True,
+            "requested_element": element_index,
+        }
+    return result
+
 
 def _native_ax_press_label_with_retry(
     pid, window_id, label, snap, idx, max_elements=120
 ):
     res = _native_ax_press(snap, idx)
-    if isinstance(res, dict) and "returned -25204" in str(res.get("error", "")):
+    if _ax_press_unsupported(res):
         previous = next(
             (item for item in snap.get("elements", []) if item.get("element_index") == idx),
             None,

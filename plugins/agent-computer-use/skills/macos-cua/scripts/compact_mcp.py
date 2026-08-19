@@ -11,9 +11,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import os
 import secrets
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,7 +19,6 @@ from typing import Any
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_ROOT = SCRIPT_DIR.parents[2]
 MACOS_CUA = SCRIPT_DIR / "macos-cua.py"
-WORKFLOW = SCRIPT_DIR / "workflow.py"
 DEFAULT_MAX = 80
 MODERN_VERSION = "2026-07-28"
 LEGACY_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
@@ -39,17 +36,22 @@ TOOL_NAMES = ("start_session", "state", "act", "verify", "end_session")
 INSTRUCTIONS = (
     "Thin macos-cua MCP over cua-driver. Use start_session, state, act, verify, "
     "end_session only. Never list_apps or raw cua-driver MCP (54 tools). "
-    "Best first: one compact AX state (no screenshot); one batched act/plan; "
-    "current-tree labels (Clear=All Clear); glide then AX; fail closed at 1.5s "
-    "(ax_timeout). Fallback only on miss: at most one fresh state; then screenshot/"
-    "PIXEL_CLICK. Never silent pixel fallback. Follow compact effect/escalation "
-    "(px|foreground|page). Do not verify again when act.verified is true. "
-    "Default agent loop is this MCP (held driver socket). "
+    "Two wall clocks: within-app batch one asserted act/plan; cross-app one act "
+    "per surface then switch — each extra tool is a full agent turn. Act-first "
+    "when labels are known; state first only for discovery or after act miss. "
+    "Never probe labels with state then state then act on the same app. "
+    "Do not verify when act.verified is true. "
+    "Friction or rooted inefficiency: encode an app-agnostic fast_path grader "
+    "that fails the old trace, then retry; no named-app helpers; do not leave "
+    "the fix in chat. "
+    "Best first: glide then AX; fail closed at 1.5s (ax_timeout). "
+    "Fallback only on miss: at most one fresh state; then screenshot/PIXEL_CLICK. "
+    "Never silent pixel fallback. Dispatch ok is never proof; no desktop-global click. "
+    "Preflight once at start, this MCP in the middle, closeout once at end. "
     "Shell macos-cua.py and bin/cua-driver-mcp are diagnostic/bench only. "
     "WhatsApp send/attach: $whatsapp skill, not these tools."
 )
 _SESSION: dict[str, Any] = {}
-_CLI_CALL_STATS = {"calls": 0, "stdout_bytes": 0}
 
 
 def _load_runtime():
@@ -66,34 +68,11 @@ _RUNTIME = _load_runtime()
 
 
 def telemetry_reset() -> None:
-    _CLI_CALL_STATS.update(calls=0, stdout_bytes=0)
     _RUNTIME.telemetry_reset()
 
 
 def telemetry_read() -> dict[str, int]:
-    counts = dict(_RUNTIME.telemetry_read())
-    counts["cli_invocations"] = (
-        int(counts.get("cli_invocations", 0)) + _CLI_CALL_STATS["calls"]
-    )
-    counts["cli_response_bytes"] = (
-        int(counts.get("cli_response_bytes", 0)) + _CLI_CALL_STATS["stdout_bytes"]
-    )
-    return counts
-
-
-reset_cli_call_stats = telemetry_reset
-
-
-def cli_call_stats() -> dict[str, int]:
-    return dict(_CLI_CALL_STATS)
-
-
-def _note_cli_call(stdout) -> None:
-    _CLI_CALL_STATS["calls"] += 1
-    if stdout is None:
-        return
-    raw = stdout if isinstance(stdout, bytes) else str(stdout).encode()
-    _CLI_CALL_STATS["stdout_bytes"] += len(raw)
+    return dict(_RUNTIME.telemetry_read())
 
 
 def plugin_version() -> str:
@@ -123,12 +102,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         {
             "name": "start_session",
             "description": "Mint a cheap session id. Optional driver start_session. No preflight.",
-            "inputSchema": _schema(
-                {
-                    "session": {"type": "string"},
-                    "preflight": {"type": "boolean", "default": False},
-                }
-            ),
+            "inputSchema": _schema({"session": {"type": "string"}}),
         },
         {
             "name": "state",
@@ -180,38 +154,6 @@ def tool_schemas() -> list[dict[str, Any]]:
     ]
 
 
-def run_cli(argv: list[str], timeout: float) -> dict[str, Any]:
-    env = os.environ.copy()
-    env["CUA_DRIVER_RS_UPDATE_CHECK"] = "0"
-    try:
-        result = subprocess.run(
-            argv,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            stdin=subprocess.DEVNULL,
-            env=env,
-        )
-    except subprocess.TimeoutExpired as exc:
-        _note_cli_call(exc.stdout)
-        return {"ok": False, "error": f"timeout after {timeout}s"}
-    _note_cli_call(result.stdout)
-    stdout = (result.stdout or "").strip()
-    try:
-        payload: Any = json.loads(stdout) if stdout else {}
-    except json.JSONDecodeError:
-        payload = {"ok": result.returncode == 0, "raw": stdout[:4000]}
-    if not isinstance(payload, dict):
-        return {"ok": result.returncode == 0, "result": payload}
-    if result.returncode != 0:
-        payload = dict(payload)
-        payload.setdefault("ok", False)
-        err = (result.stderr or "").strip()
-        if err and "error" not in payload:
-            payload["error"] = err[:1000]
-    return payload
-
-
 def _state_payload(arguments: dict[str, Any]) -> dict[str, Any]:
     app = str(arguments.get("app") or "").strip()
     if not app:
@@ -240,9 +182,6 @@ def handle_start_session(arguments: dict[str, Any]) -> dict[str, Any]:
     driver = _RUNTIME.start_driver(session)
     driver_started = "error" not in driver and driver.get("ok") is not False
     operator = _RUNTIME.ensure_operator()
-    preflight = None
-    if arguments.get("preflight"):
-        preflight = run_cli([sys.executable, str(WORKFLOW), "preflight"], 25)
     _SESSION.update(
         {
             "session": session,
@@ -250,16 +189,12 @@ def handle_start_session(arguments: dict[str, Any]) -> dict[str, Any]:
             "operator_ok": operator.get("ok") is True,
         }
     )
-    out = {
+    return {
         "ok": True,
         "session": session,
         "driver": driver,
         "operator": operator,
-        "preflight": False,
     }
-    if preflight is not None:
-        out["preflight"] = preflight
-    return out
 
 
 def handle_act(arguments: dict[str, Any]) -> dict[str, Any]:

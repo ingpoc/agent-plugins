@@ -12,12 +12,14 @@ itself; PiP reuses the proof image already captured through `cua-driver`.
   image, a clamped full Hermes pointer plus exact cyan target ring,
   `status • app • harness` label, and direct
   Hide/Refresh/End controls.
-- Desktop cursor: a separate click-through `.screenSaver`-level panel owned by
-  the signed operator. It renders Hermes Chrome's 28 px arrow, 12 px cyan glow,
-  4 px dark depth shadow, 1.7 s float, 0.32 s glide, and harness label without
-  activating the app or moving the hardware pointer. The glide uses an explicit
-  main-run-loop timer because implicit `NSPanel.animator()` movement was ignored
-  after the first target on this window level.
+- Desktop cursor: a separate click-through panel owned by the signed operator.
+  It orders **above the controlled window only** (not global `.screenSaver`), hides
+  when another window occludes the cursor point, renders Hermes Chrome's 28 px
+  arrow, 12 px cyan glow, 4 px dark depth shadow, 1.7 s float, 0.32 s glide, and
+  a harness badge (`macos-cua · Cursor`, `macos-cua · Codex`, etc.) without activating
+  the app or moving the hardware pointer. The glide uses an explicit main-run-loop
+  timer because implicit `NSPanel.animator()` movement was ignored after the first
+  target on this window level.
 - Proof PNG: a fresh `state` after a pointer action composites the same cursor
   asset into a deterministic `*-cursor.png`; the raw capture remains available.
 - Active state shows PiP by default. `workflow.py closeout` marks the session

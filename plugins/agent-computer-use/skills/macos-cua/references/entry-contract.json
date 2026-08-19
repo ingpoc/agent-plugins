@@ -22,7 +22,7 @@
   "pass_signals": [
     "One ready MCP server; no duplicate Computer Use catalogs",
     "Default MCP tools/list is exactly start_session, state, act, verify, end_session",
-    "MCP start_session → one compact state → batched asserted act/plan → verify only when act.verified is false → immediate probe-app cleanup → end_session is the default agent loop",
+    "MCP start_session → act-first batched act/plan per app → state only for discovery or after act miss → verify only when act.verified is false → immediate probe-app cleanup → end_session is the default agent loop",
     "MCP lifecycle/state/act stay in one Python process; telemetry reports cli_invocations=0",
     "Interleaved live Calculator A/B resets its fixture, omits separately graded pointer capture, passes every run, and persistent dispatch is at least 10% faster than per-call macos-cua.py",
     "Raw bin/cua-driver-mcp and per-call macos-cua.py spawn are diagnostic/bench only",

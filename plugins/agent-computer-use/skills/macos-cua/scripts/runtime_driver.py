@@ -230,11 +230,40 @@ def _restart_driver_daemon():
     return False
 
 
+def driver_session_ended(result):
+    """True when cua-driver refused because its named session is gone."""
+    if not isinstance(result, dict):
+        return False
+    refusal = result.get("refusal") if isinstance(result.get("refusal"), dict) else {}
+    code = str(result.get("code") or refusal.get("code") or "")
+    message = str(
+        result.get("message")
+        or refusal.get("message")
+        or result.get("error")
+        or ""
+    ).lower()
+    return code == "session_ended" or "this session has ended" in message
+
+
 def call_driver(tool_name, params=None, timeout=30, _recover_timeout=True):
     started = time.monotonic()
     result = _call_driver_socket(tool_name, params, timeout, _recover_timeout)
     telemetry_record_driver(time.monotonic() - started)
     _note_driver_call(json.dumps(result))
+    if tool_name in {"start_session", "end_session"} or not driver_session_ended(
+        result
+    ):
+        return result
+    sid = (params or {}).get("session") or CUA_SESSION
+    _call_driver_socket("start_session", {"session": sid}, 10, True)
+    retry_params = dict(params or {})
+    retry_params["session"] = sid
+    started = time.monotonic()
+    result = _call_driver_socket(tool_name, retry_params, timeout, _recover_timeout)
+    telemetry_record_driver(time.monotonic() - started)
+    _note_driver_call(json.dumps(result))
+    if isinstance(result, dict) and not driver_session_ended(result):
+        result = {**result, "session_recovered": True}
     return result
 
 

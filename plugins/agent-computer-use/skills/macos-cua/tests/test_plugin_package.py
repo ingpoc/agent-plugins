@@ -48,6 +48,10 @@ class PluginPackageTests(unittest.TestCase):
     def test_skill_orders_ax_first_then_fallback(self):
         skill = (PLUGIN_ROOT / "skills/macos-cua/SKILL.md").read_text()
         self.assertIn("Best first, then fallback", skill)
+        self.assertIn("Two wall clocks", skill)
+        self.assertIn("Encode friction", skill)
+        self.assertIn("fails the old trace", skill)
+        self.assertIn("Act-first", skill)
         self.assertIn("Clear", skill)
         self.assertIn("All Clear", skill)
         self.assertIn("ax_timeout", skill)
@@ -58,6 +62,15 @@ class PluginPackageTests(unittest.TestCase):
         self.assertIn("Current-tree first", troubleshooting)
         self.assertNotIn("refresh only on miss", troubleshooting)
         self.assertIn("Last resort after AX miss", troubleshooting)
+        self.assertNotIn("preflight:true", skill)
+        self.assertNotIn("likeminded.md", skill)
+        self.assertNotIn("one compact `state`", skill)
+        self.assertNotIn("start_session → `state` / `act` / `verify`", skill)
+        self.assertNotIn("one compact `state`", troubleshooting)
+        agents = (PLUGIN_ROOT / "AGENTS.md").read_text()
+        self.assertNotIn("one compact `state`", agents)
+        self.assertNotIn("Two wall clocks", agents)
+        self.assertNotIn("Encode friction", agents)
 
     def test_mcp_uses_packaged_relative_command(self):
         config = json.loads((PLUGIN_ROOT / "mcp.json").read_text())

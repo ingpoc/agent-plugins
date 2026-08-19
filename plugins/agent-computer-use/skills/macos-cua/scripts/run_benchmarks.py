@@ -140,7 +140,7 @@ def _max_step_ms(result: dict[str, Any]) -> int:
 
 
 def probe_calculator(cua, row: dict[str, Any]) -> dict[str, Any]:
-    calculator_fixture.reset_calculator_fixture()
+    calculator_fixture.reset_app_fixture("Calculator")
     started = time.monotonic()
     pid, window_id, name = _resolve(cua, "Calculator")
     state = cua._native_ax_snapshot(pid, max_elements=80, window_id=window_id)

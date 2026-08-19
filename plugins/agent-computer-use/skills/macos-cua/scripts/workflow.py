@@ -3,8 +3,7 @@
 
 Usage:
   python3 workflow.py preflight
-  python3 workflow.py smoke [--app Calculator]
-  python3 workflow.py cursor-demo [--app Calculator]
+  python3 workflow.py smoke --app <App>
   python3 workflow.py closeout
 """
 from __future__ import annotations
@@ -13,7 +12,6 @@ import argparse
 import importlib.util
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -198,58 +196,6 @@ def cmd_smoke(app: str) -> int:
     return 0 if ok else 1
 
 
-def _calc_display(snap: dict) -> str:
-    tree = snap.get("tree_markdown", "") if isinstance(snap, dict) else ""
-    m = re.search(r'AXStaticText\s*=\s*"([^"]*)"', tree)
-    return (m.group(1) if m else "").strip()
-
-
-def cmd_cursor_demo(app: str) -> int:
-    """Visible agent cursor + label clicks; Calculator shows 11 after two 1 taps."""
-    if app.lower() != "calculator":
-        print(json.dumps({"success": False, "error": "cursor-demo only supports Calculator"}))
-        return 2
-    if cmd_preflight(quiet=True) != 0:
-        print(json.dumps({"success": False, "error": "preflight failed"}, indent=2))
-        return 1
-
-    cua = load_macos_cua()
-    cua.launch_or_activate(app)
-    time.sleep(0.4)
-    cua.clear_resolution_cache()
-    pid, wid, name, err = cua.resolve_app(app)
-    if err:
-        print(json.dumps({"success": False, "error": err}, indent=2))
-        return 1
-
-    steps = []
-    for label in ("Clear", "1", "1"):
-        res = cua.click_label_pointer(
-            pid, wid, label, max_elements=40, app_name=name or app
-        )
-        steps.append({
-            "label": label,
-            "ok": res.get("ok"),
-            "coords": res.get("coords"),
-            "method": res.get("method"),
-        })
-        time.sleep(0.35)
-
-    snap = cua.snapshot(pid, wid, max_elements=40, mode="ax", retries=2)
-    display = _calc_display(snap)
-    steps_ok = all(step.get("ok") for step in steps)
-    ok = (display == "11" or display.endswith("11")) and steps_ok
-    out = {
-        "success": ok,
-        "app": app,
-        "display": display,
-        "steps": steps,
-        "method": "signed-operator-glide+ax-click",
-    }
-    print(json.dumps(out, indent=2))
-    return 0 if ok else 1
-
-
 def cmd_closeout(*, verbose: bool = False) -> int:
     code, stdout, _ = run([sys.executable, ACTIONS, "reset"], timeout=10)
     out = {"success": code == 0, "cleared_cache": code == 0}
@@ -298,18 +244,18 @@ def cmd_closeout(*, verbose: bool = False) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["preflight", "smoke", "cursor-demo", "closeout"])
+    ap.add_argument("command", choices=["preflight", "smoke", "closeout"])
     ap.add_argument("--app")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
     if args.command == "preflight":
         if args.app:
-            ap.error("--app is only valid for smoke and cursor-demo")
+            ap.error("--app is only valid for smoke")
         return cmd_preflight(verbose=args.verbose)
     if args.command == "smoke":
-        return cmd_smoke(args.app or "Calculator")
-    if args.command == "cursor-demo":
-        return cmd_cursor_demo(args.app or "Calculator")
+        if not args.app:
+            ap.error("smoke requires --app")
+        return cmd_smoke(args.app)
     return cmd_closeout(verbose=args.verbose)
 
 

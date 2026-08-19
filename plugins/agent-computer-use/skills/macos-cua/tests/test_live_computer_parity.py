@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Live parity gate for macos-cua against the bundled Computer Use contract.
 
-This test only manipulates Calculator and a uniquely named temporary TextEdit
-document. It restores the document before closing and never saves user data.
+This test only manipulates Calculator, Finder sidebar rows, and a uniquely
+named temporary TextEdit document. It restores the document before closing
+and never saves user data.
 """
 
 from __future__ import annotations
@@ -867,6 +868,60 @@ def main() -> int:
             except ProcessLookupError:
                 pass
         temporary.unlink(missing_ok=True)
+
+    print("\n=== FINDER SIDEBAR ROW ===")
+    MACOS_CUA.launch_or_activate("Finder")
+    time.sleep(0.2)
+    finder_pid, finder_window, finder_name, finder_error = MACOS_CUA.resolve_app("Finder")
+    check(not finder_error, "Finder fixture is visible", finder_error)
+    finder_tree = MACOS_CUA._native_ax_snapshot(
+        finder_pid, max_elements=240, window_id=finder_window
+    )
+
+    def finder_title(tree):
+        return next(
+            (
+                str(item.get("label") or "")
+                for item in tree.get("elements") or []
+                if item.get("role") == "AXWindow"
+            ),
+            "",
+        )
+
+    check(
+        MACOS_CUA.find_clickable_index(finder_tree, "Downloads") is not None,
+        "Finder Downloads row resolves",
+    )
+    if "Downloads" in finder_title(finder_tree) and MACOS_CUA.find_clickable_index(
+        finder_tree, "Recents"
+    ):
+        recents = MACOS_CUA.click_label_pointer(
+            finder_pid,
+            finder_window,
+            "Recents",
+            snapshot_data=finder_tree,
+            app_name=finder_name or "Finder",
+        )
+        accepted(recents, "Finder Recents row click is accepted")
+        time.sleep(0.4)
+        finder_tree = MACOS_CUA._native_ax_snapshot(
+            finder_pid, max_elements=240, window_id=finder_window
+        )
+    downloads = MACOS_CUA.click_label_pointer(
+        finder_pid,
+        finder_window,
+        "Downloads",
+        snapshot_data=finder_tree,
+        app_name=finder_name or "Finder",
+    )
+    accepted(downloads, "Finder Downloads row click is accepted")
+    time.sleep(0.4)
+    after_title = finder_title(
+        MACOS_CUA._native_ax_snapshot(
+            finder_pid, max_elements=80, window_id=finder_window
+        )
+    )
+    check("Downloads" in after_title, "Finder window title is Downloads", after_title)
 
     closeout = subprocess.run(
         ["python3", str(WORKFLOW), "closeout"],

@@ -142,6 +142,14 @@ def press_key(pid, window_id, keys, delivery_mode="background"):
                 "delivery_mode": delivery_mode,
             },
         )
+    if driver_session_ended(result) or "global_input" in str(
+        result.get("route") or result.get("path") or ""
+    ).lower():
+        native = _native_input().press_key_after_dropped_session(
+            pid, keys, delivery_mode, aliases=aliases
+        )
+        if _accepted(native):
+            return native
     if delivery_mode == "background" and (
         result.get("code") == "off_space_or_ax_unresolved"
         or (result.get("escalation") or {}).get("recommended") == "foreground"
@@ -211,10 +219,16 @@ def scroll(
     elif x is not None and y is not None:
         params.update(x=float(x), y=float(y))
     result = call_driver("scroll", params)
-    if result.get("code") == "px_capture_unavailable" and by == "page":
-        return _native_input().page_key_scroll(
+    if (
+        driver_session_ended(result)
+        or "global_input" in str(result.get("route") or result.get("path") or "").lower()
+        or (result.get("code") == "px_capture_unavailable" and by == "page")
+    ):
+        native = _native_input().page_key_scroll(
             _post_key_event, pid, direction, amount
         )
+        if _accepted(native):
+            return {**native, "session_recovered": True}
     return result
 
 
@@ -471,26 +485,6 @@ def _new_ax_window_id(pid, current_window_id):
         if target:
             return int(target["window_id"])
     return None
-
-
-def _native_ax_press(snapshot_data, element_index):
-    target = next(
-        (
-            element
-            for element in snapshot_data.get("elements", [])
-            if element.get("element_index") == element_index
-        ),
-        None,
-    )
-    if target is None or target.get("_native_element") is None:
-        return {"error": f"native AX element {element_index} is unavailable"}
-    services = target.get("_native_services")
-    element = target["_native_element"]
-    _ax_set_timeout(element, services)
-    result = services.AXUIElementPerformAction(element, "AXPress")
-    if result != 0:
-        return {"error": f"AXUIElementPerformAction(AXPress) returned {result}"}
-    return {"ok": True, "path": "native_ax", "action": "press", "error_code": 0}
 
 
 def _native_ax_set_value(snapshot_data, element_index, value):

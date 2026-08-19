@@ -78,16 +78,13 @@ class CompactMcpDispatchTests(unittest.TestCase):
                 return {"ok": True, "text": "7"}
 
         original_runtime = compact_mcp._RUNTIME
-        original_run_cli = compact_mcp.run_cli
         compact_mcp._RUNTIME = Runtime()
-        compact_mcp.run_cli = lambda *_args, **_kwargs: self.fail("CLI spawned")
         try:
             payload = compact_mcp._state_payload(
                 {"app": "Calculator", "query": "7", "diff": True, "max": 12}
             )
         finally:
             compact_mcp._RUNTIME = original_runtime
-            compact_mcp.run_cli = original_run_cli
         self.assertEqual(payload, {"ok": True, "text": "7"})
         self.assertEqual(
             calls,
@@ -112,14 +109,11 @@ class CompactMcpDispatchTests(unittest.TestCase):
             "plan": {"actions": [{"action": "click", "label": "7"}]},
         }
         original_runtime = compact_mcp._RUNTIME
-        original_run_cli = compact_mcp.run_cli
         compact_mcp._RUNTIME = Runtime()
-        compact_mcp.run_cli = lambda *_args, **_kwargs: self.fail("CLI spawned")
         try:
             payload = compact_mcp.handle_act(arguments)
         finally:
             compact_mcp._RUNTIME = original_runtime
-            compact_mcp.run_cli = original_run_cli
         self.assertEqual(payload, {"ok": True, "verified": True})
         self.assertEqual(calls, [("Calculator", arguments, compact_mcp.AX_ACTIONS)])
 
@@ -138,9 +132,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
                 return {"success": True}
 
         original_runtime = compact_mcp._RUNTIME
-        original_run_cli = compact_mcp.run_cli
         compact_mcp._RUNTIME = Runtime()
-        compact_mcp.run_cli = lambda *_args, **_kwargs: self.fail("CLI spawned")
         compact_mcp._SESSION.clear()
         try:
             started = compact_mcp.handle_start_session({"session": "test-session"})
@@ -148,18 +140,31 @@ class CompactMcpDispatchTests(unittest.TestCase):
         finally:
             compact_mcp._SESSION.clear()
             compact_mcp._RUNTIME = original_runtime
-            compact_mcp.run_cli = original_run_cli
         self.assertTrue(started["ok"])
+        self.assertNotIn("preflight", started)
         self.assertTrue(ended["ok"])
         self.assertEqual(ended["session"], "test-session")
 
-    def test_instructions_order_ax_first_then_fallback(self):
+    def test_start_session_schema_has_no_preflight(self):
+        start = next(
+            tool for tool in compact_mcp.tool_schemas() if tool["name"] == "start_session"
+        )
+        self.assertEqual(set(start["inputSchema"]["properties"]), {"session"})
+        self.assertFalse(hasattr(compact_mcp, "run_cli"))
+
+    def test_instructions_encode_two_wall_clocks(self):
         text = compact_mcp.INSTRUCTIONS
-        self.assertIn("Best first", text)
-        self.assertIn("Clear=All Clear", text)
+        self.assertIn("Two wall clocks", text)
+        self.assertIn("Act-first", text)
+        self.assertIn("Do not verify when act.verified", text)
+        self.assertIn("Dispatch ok is never proof", text)
+        self.assertIn("no desktop-global click", text)
+        self.assertIn("fails the old trace", text)
+        self.assertIn("app-agnostic fast_path grader", text)
+        self.assertIn("Preflight once at start", text)
+        self.assertIn("closeout once at end", text)
         self.assertIn("ax_timeout", text)
         self.assertIn("Fallback only on miss", text)
-        self.assertLess(text.find("Best first"), text.find("Fallback only on miss"))
         act = next(tool for tool in compact_mcp.tool_schemas() if tool["name"] == "act")
         self.assertIn("Best first", act["description"])
         self.assertIn("Fallback", act["description"])

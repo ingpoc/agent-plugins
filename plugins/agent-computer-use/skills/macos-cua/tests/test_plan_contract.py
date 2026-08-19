@@ -53,6 +53,29 @@ class PlanContractTests(unittest.TestCase):
         self.assertFalse(
             plan_contract.result_accepted({"ok": True, "effect": "suspected_noop"})
         )
+        self.assertFalse(
+            plan_contract.result_accepted({"effect": "unverifiable"})
+        )
+        self.assertFalse(
+            plan_contract.result_accepted(
+                {
+                    "ok": True,
+                    "path": "operator-proof-screen-coordinate",
+                    "route": "global_input",
+                }
+            )
+        )
+        self.assertFalse(
+            plan_contract.result_accepted(
+                {
+                    "refusal": {
+                        "code": "session_ended",
+                        "message": "this session has ended; call start_session explicitly to reuse its label",
+                    },
+                    "status": "refused",
+                }
+            )
+        )
 
     def test_perform_action_defaults_name_to_press(self):
         plan = {
