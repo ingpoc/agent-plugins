@@ -126,6 +126,11 @@ def grade_click_result(
             errors.append({"code": "text_click_missing_ax_range"})
         elif not verified:
             errors.append({"code": "text_click_unverified_selection"})
+    point = nested.get("point") if isinstance(nested.get("point"), dict) else result.get("point")
+    method = str(result.get("method") or nested.get("method") or "")
+    if method == "cgevent-click":
+        if not isinstance(point, dict) or point.get("x") is None or point.get("y") is None:
+            errors.append({"code": "nonfinite_click_point"})
     return errors
 
 
@@ -238,6 +243,23 @@ def grade_tool_trace(calls: Any) -> list[dict[str, Any]]:
                 {
                     "code": "redundant_verify_after_verified_act",
                     "app": app or last_verified_app,
+                }
+            )
+        # Detect cursor-glide failure that blocked an action despite AX availability.
+        result = item.get("result") if isinstance(item.get("result"), dict) else {}
+        err = str(result.get("error") or "")
+        if (
+            name == "act"
+            and not result.get("ok")
+            and ("cursor" in err.lower() or "operator" in err.lower() or "glide" in err.lower())
+            and result.get("label")
+        ):
+            errors.append(
+                {
+                    "code": "cursor_glide_blocked_ax_action",
+                    "app": app,
+                    "label": result.get("label"),
+                    "error": err[:200],
                 }
             )
         prev = item
@@ -429,6 +451,38 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "ax-frame-hid" in click_label and "delivery_mode=\"foreground\"" in click_label,
         "row/cell AXPress miss after glide must click the AX frame, not desktop-global search",
     )
+    add(
+        "cursor glide failure does not block native AX press fallback",
+        "native_fallback or idx is not None" in click_label
+        and click_label.index("native_fallback or idx") < click_label.index("native_fallback:"),
+        "glide is UX; when the AX element exists, action dispatch must proceed via AX press",
+    )
+    pointer = (scripts / "runtime_pointer.py").read_text()
+    preflight_fn = _function_source(pointer, "pointer_preflight")
+    add(
+        "pointer_preflight soft-fails on cursor glide timeout",
+        preflight_fn.count("return None") >= 2
+        and "return glide" not in preflight_fn,
+        "cursor glide failure in preflight must return None (skip), not propagate error",
+    )
+    glide_fn = _function_source(pointer, "glide_operator_to_element")
+    add(
+        "legacy operator glide stays non-blocking",
+        "_wait_for_operator_cursor" not in glide_fn
+        and "time.sleep" not in glide_fn,
+        "operator twin is not the CUAService tip; do not resurrect wait-ack there",
+    )
+    settle = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
+    overlay = (root / "service" / "Sources" / "CUAService" / "CursorOverlay.swift").read_text()
+    add(
+        "CUAService click waits for overlay tip before press",
+        "tip.wait" in settle
+        and "Task.sleep" in settle
+        and "Tip lands first" in settle
+        and "return (quartz, animDuration)" in overlay
+        and "wait: TimeInterval)" in overlay,
+        "fire-and-forget glide left the badge mid-air while AX already pressed",
+    )
     vision = (scripts / "runtime_vision.py").read_text()
     add(
         "current-tree label aliases are app-agnostic",
@@ -454,10 +508,12 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "Act-first" in mcp
         and "fails the old trace" in mcp
         and "Do not verify when act.verified" in mcp
-        and "Preflight once at start" in mcp
-        and "closeout once at end" in mcp
+        and "CUAService" in mcp
+        and '"name": "start_session"' not in mcp
+        and '"name": "verify"' not in mcp
         and "one compact `state`" not in skill_md
-        and "start_session → `state` / `act` / `verify`" not in skill_md,
+        and "start_session → `state` / `act` / `verify`" not in skill_md
+        and "Input delivery (any app)" in skill_md,
         "every friction must be encoded for any Mac app, not left in chat",
     )
     add(
@@ -475,31 +531,264 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "redundant_verify_after_verified_act" in (scripts / "fast_path.py").read_text(),
         "session hop waste must fail without named-app helpers",
     )
-    start_schema = mcp.split('"name": "start_session"', 1)[1].split('"name": "state"', 1)[0]
     add(
-        "start_session does not own workflow preflight",
-        '"preflight": {"type": "boolean"' not in start_schema
-        and 'arguments.get("preflight")' not in mcp
-        and "preflight:true" not in skill_md,
-        "preflight is workflow.py once at start, not an MCP argument",
+        "MCP catalog is state and act only",
+        '"name": "state"' in mcp
+        and '"name": "act"' in mcp
+        and '"name": "start_session"' not in mcp
+        and "from cua_client import CUAClient" in mcp,
+        "cua-driver lifecycle tools are not the agent path",
     )
     add(
         "workflow has no named-app cursor-demo",
         "cursor-demo" not in workflow and "cmd_cursor_demo" not in workflow,
         "Calculator demo is out of scope; smoke stays generic",
     )
-    operator_swift = "\n".join(
-        path.read_text() for path in sorted((root / "operator").glob("*.swift"))
+    overlay = (root / "service" / "Sources" / "CUAService" / "CursorOverlay.swift").read_text()
+    add(
+        "service cursor is window-local on the target CGWindow",
+        "canJoinAllSpaces" in overlay
+        and ".stationary" not in overlay
+        and "orderFrontRegardless" in overlay
+        and "order(.above, relativeTo:" not in overlay
+        and "quartzBounds(of:" in overlay
+        and "axBounds" in overlay
+        and "preferredWindowBounds" in overlay
+        and "clamp(" in overlay,
+        "overlay tip stays inside the AX window of the app being driven, not a Stage Manager proxy",
+    )
+    operator_ui = (scripts / "operator_ui.py").read_text()
+    add(
+        "operator overlay is not started when CUAService exists",
+        "CUA_SERVICE_APP" in operator_ui
+        and "skipped" in operator_ui
+        and "CUAService overlay" in operator_ui,
+        "two labeled pointers (Cursor + Agent) means the old operator twin is still running",
     )
     add(
-        "operator cursor stays above controlled window only",
-        "cursorOverlayPanel.level = .popUpMenu" in operator_swift
-        and "cursorOverlayPanel.level = .screenSaver" not in operator_swift
-        and "order(.above, relativeTo:" in operator_swift
-        and "isCursorPointVisible" in operator_swift
-        and "macos-cua · \\(agent)" in operator_swift
-        and "Using your computer" not in operator_swift,
-        "desktop cursor badge shows harness, not Esc copy",
+        "expect matches text values not button titles",
+        "def expect_verified" in mcp
+        and "AXStaticText" in mcp
+        and "AXTextArea" in mcp
+        and "AXTextField" in mcp
+        and "AXCell" in mcp
+        and 'AXCell "' in mcp
+        and "expect in text" not in mcp,
+        "keypad titles must not false-green expect (e.g. 0 matching button 0)",
+    )
+    add(
+        "batched act captures landing shots before and after without a screenshot tool",
+        "screenshot_before" in mcp
+        and "screenshot_after" in mcp
+        and '"name": "screenshot"' not in mcp
+        and "Stage Manager thumb" in mcp,
+        "pixels are a correction check inside act, not a third catalog tool",
+    )
+    settle = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
+    add(
+        "get_app_state retries window capture once",
+        "120_000_000" in settle
+        and "screenshotPath == nil" in settle,
+        "first resolve after raise can miss CG image; start shot must not be empty",
+    )
+    add(
+        "click settle is bounded so batched act stays under the RPC timeout",
+        "timeout: 0.6" in settle and "minQuiet: 0.08" in settle,
+        "Codex waits on next state, not a 5s AX quiescence per click",
+    )
+    add(
+        "successful AX press skips the 0.6s settle wait",
+        '"reason": "ax-action"' in settle
+        and "cgevent-click" in settle,
+        "AX already applied; quiescence wait was the click floor",
+    )
+    actions_src = (root / "service" / "Sources" / "CUAService" / "InputActions.swift").read_text()
+    add(
+        "type_text inserts via focused AX value before HID",
+        "kAXSelectedTextAttribute" in actions_src
+        and "func axInsertText" in actions_src
+        and "func hidTypeUnicode" in actions_src
+        and "func axInsertLanded" in actions_src
+        and "NSAttributedString" in actions_src
+        and "liveTextAreaTargets" in actions_src
+        and "focusedIsArea" in actions_src,
+        "AX SelectedText success with unreadable value was treated as landing; search-role focus stole keys from the text area",
+    )
+    resolver = (root / "service" / "Sources" / "CUAService" / "AppResolver.swift").read_text()
+    add(
+        "AX messaging timeout is set; raise sleep only for Stage Manager stubs",
+        "AXUIElementSetMessagingTimeout" in resolver
+        and "if tiny" in resolver
+        and "Thread.sleep(forTimeInterval: 0.08)" in resolver,
+        "every resolve slept 80ms when Cursor was front and the target was already full-size",
+    )
+    shot = (root / "service" / "Sources" / "CUAService" / "ScreenshotCapture.swift").read_text()
+    add(
+        "window capture is window-backed and SCK-bounded",
+        "sckDeadlineNs" in shot
+        and "photographs wallpaper" in shot
+        and "SCScreenshotManager" in shot,
+        "AX-rect CG of a Stage Manager stub photographed wallpaper; SCK-first hung act",
+    )
+    add(
+        "window PNG is reused under 200ms unless input invalidates it",
+        "func invalidate" in shot
+        and "cachedAt < 0.2" in shot
+        and "capture_cached" in settle
+        and "screenshotCapture.invalidate" in settle,
+        "act before/after and repeated get_app_state recaptured the same window; capture p95 517ms",
+    )
+    resolver = (root / "service" / "Sources" / "CUAService" / "AppResolver.swift").read_text()
+    add(
+        "main window pick includes off-screen layer-0, then raise",
+        "[.optionAll, .excludeDesktopElements]" in resolver
+        and "activateIgnoringOtherApps" in resolver
+        and "kAXRaiseAction" in resolver
+        and "0.08" in resolver
+        and "quartzDisplays" in resolver
+        and "focusedWindowID" in resolver,
+        "on-screen-only selected the Stage Manager thumb; start/end shots were wallpaper",
+    )
+    add(
+        "main window id is cached for a full-size window",
+        "windowCache" in resolver and "now - cache.at < 2.0" in resolver,
+        "every resolve scanned CGWindowList for all windows; resolve p95 ~120ms",
+    )
+    settle = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
+    add(
+        "after New, type walks the focused window not the cached largest",
+        "func invalidateWindowCache" in resolver
+        and "preferFocusedWindow" in resolver
+        and "preferFocusedWindow: afterNew" in settle
+        and '["cmd+n", "command+n", "cmd+t", "command+t"]' in settle,
+        "2s window-id cache kept cmd+n type on the previous document; stale-document refuse was correct but the new untitled was never walked",
+    )
+    walker = (root / "service" / "Sources" / "CUAService" / "AXTreeWalker.swift").read_text()
+    add(
+        "AX labels strip bidi marks and fold unicode dashes",
+        "0x200B" in walker and "func axNorm" in walker and "0x2010" in walker,
+        "U+200E prefixed chrome labels; Wi-Fi missed Wi‑Fi",
+    )
+    add(
+        "AX walk root is a window, never the application menu bar",
+        "return [axApp]" not in walker
+        and "_CGSGetWindowID(win" in walker
+        and "return []" in walker,
+        "TextEdit with no focused AX window walked Apple menu; 80 nodes, null screenshot, HID type",
+    )
+    add(
+        "empty outline rows do not consume the AX node budget",
+        "func axEmitNode" in walker and "visited < 400" in walker
+        and "skipChrome.contains" in walker,
+        "System Settings 80 unlabeled AXRows; Wi-Fi/Bluetooth clicks all missed",
+    )
+    add(
+        "AX window frame wins over a tiny CGWindowList proxy",
+        "cgArea >= axArea * 0.5" in walker,
+        "Stage Manager 30×79 thumbs must not own screenshot or overlay bounds",
+    )
+    add(
+        "markdown keeps full text values for expect",
+        "prefix(57)" not in walker and 'value=\\"\\(value)\\"' in walker,
+        "60-char ellipsis made long TextEdit expect false-red",
+    )
+    add(
+        "AX walk packs attributes in one IPC",
+        "AXUIElementCopyMultipleAttributeValues" in walker
+        and "func axPacked" in walker
+        and "func cachedSnapshot" in walker
+        and "func axKeepNode" in walker
+        and "liveElements" in walker
+        and "func liveTextElements" in walker
+        and "func liveTextAreaTargets" in walker
+        and "areas + others" in walker,
+        "per-attribute CopyAttributeValue and a second BFS resolve dominated get_app_state/click",
+    )
+    add(
+        "type after New refuses a still-full text field",
+        "type_refused_stale_document" in actions_src
+        and "afterNewDocument" in actions_src
+        and "func longestTextValue" in walker,
+        "cmd+n HID hit Cursor then type_text prepended into the open Notes document",
+    )
+    add(
+        "type_text does not HID when no text field is in the walk",
+        "type_no_text_target" in actions_src and "func isTextRole" in actions_src,
+        "TextEdit empty walk still posted unicode into the front app (Cursor)",
+    )
+    add(
+        "HID keys raise the target app so Cursor does not eat cmd+n",
+        "raiseForInput: true" in settle
+        and "raiseForInput" in resolver
+        and "waitUntilFrontmost" in resolver
+        and "key_target_not_front" in actions_src
+        and "kAXFocusedApplicationAttribute" in resolver
+        and "timeout: TimeInterval = 0.8" in resolver
+        and "if !tiny && runningApp.isActive { return }" not in resolver,
+        "isActive skip left the host IDE key window; cmd+n HID created a tab there",
+    )
+    add(
+        "batched act stops on first failed step",
+        "if item.get(\"ok\") is not True:" in mcp
+        and "break" in mcp
+        and "after_new_document" in mcp
+        and "cmd+n" in mcp,
+        "label miss then Equals still mutated the display; cmd+n then type wrote the old note",
+    )
+    add(
+        "act schema keeps coordinate and wait steps",
+        '"x": {"type": "number"}' in mcp
+        and '"y": {"type": "number"}' in mcp
+        and '"wait": {"type": "number"}' in mcp
+        and "time.sleep" in mcp
+        and "client.set_value" in mcp,
+        "Cursor strips nested x/y when they are not in the schema; unlabeled fields cannot type",
+    )
+    add(
+        "coordinate click fails closed on a nonfinite point",
+        "nonfinite click point" in mcp
+        and "def _normalize_step_result" in mcp
+        and "nonfinite_click_point" in (scripts / "fast_path.py").read_text(),
+        "NaN CGFloat serialized as null and still counted as a hit",
+    )
+    add(
+        "AXPress only when the control advertises it; CG posts HID at the AX frame",
+        'element.actions.contains("AXPress")' in (root / "service" / "Sources" / "CUAService" / "InputActions.swift").read_text()
+        and "func postHid" in (root / "service" / "Sources" / "CUAService" / "InputActions.swift").read_text()
+        and "cghidEventTap" in (root / "service" / "Sources" / "CUAService" / "InputActions.swift").read_text()
+        and "postToPid"
+        not in (root / "service" / "Sources" / "CUAService" / "InputActions.swift")
+        .read_text()
+        .split("private func postHid", 1)[-1]
+        .split("// MARK: - Key Parsing", 1)[0]
+        and "func paramDouble" in (root / "service" / "Sources" / "CUAService" / "JSONRPCCodec.swift").read_text()
+        and "paramDouble(\"x\")" in (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
+        and "case let f as CGFloat" in (root / "service" / "Sources" / "CUAService" / "JSONRPCCodec.swift").read_text()
+        and "duplicates every key" in (root / "service" / "Sources" / "CUAService" / "InputActions.swift").read_text(),
+        "unadvertised AXPress returned success as a no-op; integer x/y never clicked; PID+HID doubled glyphs",
+    )
+    add(
+        "expect must be new versus the before-tree",
+        "def expect_is_new" in mcp
+        and "expect_is_new(expect, before_text, text)" in mcp
+        and "already in the body" in skill_md,
+        "needle already in a TextArea false-greened a later cell/table write",
+    )
+    add(
+        "act retries a missing window screenshot once",
+        "not before.get(\"screenshot\")" in mcp
+        and "not after.get(\"screenshot\")" in mcp,
+        "service restart left screenshot_before null; landing check needs pixels",
+    )
+    router = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
+    delegate = (root / "service" / "Sources" / "CUAService" / "ServiceDelegate.swift").read_text()
+    plist = (root / "service" / "Resources" / "Info.plist").read_text()
+    add(
+        "service reports and prompts TCC instead of silent AXUnknown",
+        "axTrusted" in router
+        and "promptTCC" in delegate
+        and "NSScreenCaptureUsageDescription" in plist,
+        "ad-hoc re-sign drops Accessibility; AXUnknown must be diagnosable",
     )
     add(
         "skill has no target-app recipe file",

@@ -9,3 +9,5 @@ plugins/*/run/
 .codex-plugin/
 **/.cursor-plugin/
 **/.codex-plugin/
+plugins/agent-computer-use/skills/macos-cua/service/.build/
+plugins/agent-computer-use/skills/macos-cua/service/.pytest_cache/

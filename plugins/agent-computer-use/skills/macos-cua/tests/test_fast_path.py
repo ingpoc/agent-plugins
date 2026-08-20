@@ -49,6 +49,16 @@ class FastPathTests(unittest.TestCase):
         self.assertIn("forbidden_click_path", [item["code"] for item in errors])
         self.assertIn("dispatch_is_not_outcome", [item["code"] for item in errors])
 
+    def test_cgevent_click_null_point_is_not_an_outcome(self):
+        errors = fast_path.grade_click_result(
+            {"ok": True, "method": "cgevent-click", "point": {"x": None, "y": None}}
+        )
+        self.assertIn("nonfinite_click_point", [item["code"] for item in errors])
+        ok = fast_path.grade_click_result(
+            {"ok": True, "method": "cgevent-click", "point": {"x": 1.5, "y": 2.5}}
+        )
+        self.assertNotIn("nonfinite_click_point", [item["code"] for item in ok])
+
     def test_ax_text_click_requires_verified_selection(self):
         errors = fast_path.grade_click_result(
             {

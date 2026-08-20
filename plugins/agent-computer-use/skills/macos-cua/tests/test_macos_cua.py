@@ -2083,7 +2083,8 @@ class CursorProofTests(unittest.TestCase):
         update.assert_called_once()
         driver_cursor.assert_not_called()
 
-    def test_pointer_position_republishes_once_when_render_ack_is_missing(self):
+    def test_glide_is_fire_and_forget_on_publish_success(self):
+        """Glide publishes once and returns ok without ack polling or retry."""
         snapshot = {
             "elements": [
                 {
@@ -2098,14 +2099,6 @@ class CursorProofTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "operator_update", return_value={"ok": True}
             ) as update,
-            mock.patch.object(
-                macos_cua,
-                "_wait_for_operator_cursor",
-                side_effect=[
-                    {"ok": False, "error": "timed out"},
-                    {"ok": True, "duration_ms": 320},
-                ],
-            ) as wait,
             mock.patch.object(macos_cua, "click_with_retry", return_value={"ok": True}),
         ):
             result = macos_cua.click_label_pointer(
@@ -2114,9 +2107,95 @@ class CursorProofTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertTrue(result["move"]["ok"])
-        self.assertEqual(update.call_count, 2)
-        self.assertEqual(wait.call_count, 2)
-        self.assertEqual(result["move"]["recovery"], {"ok": True})
+        update.assert_called_once()
+
+    def test_glide_publish_failure_falls_through_to_native_ax_press(self):
+        """When cursor publish fails, click_label_pointer must proceed via
+        native AX press instead of hard-failing.  Regression guard for
+        transient surfaces where operator_update can't write."""
+        native_snapshot = {
+            "source": "native_ax",
+            "tree_markdown": "[1] AXWindow App\n[2] AXButton File",
+            "elements": [
+                {
+                    "element_index": 1,
+                    "role": "AXWindow",
+                    "label": "App",
+                    "frame": {"x": 100, "y": 200, "w": 400, "h": 600},
+                },
+                {
+                    "element_index": 2,
+                    "role": "AXButton",
+                    "label": "File",
+                    "frame": {"x": 200, "y": 350, "w": 80, "h": 40},
+                    "_native_element": "native-file",
+                    "_native_services": SimpleNamespace(
+                        AXUIElementPerformAction=mock.Mock(return_value=0),
+                    ),
+                },
+            ],
+        }
+        with (
+            mock.patch.object(
+                macos_cua, "_native_ax_snapshot", return_value=native_snapshot,
+            ),
+            mock.patch.object(macos_cua, "operator_update", return_value={"ok": False, "error": "file write failed"}),
+            mock.patch.object(macos_cua.time, "sleep"),
+        ):
+            result = macos_cua.click_label_pointer(
+                10, 20, "File", app_name="App"
+            )
+        self.assertTrue(result["ok"], f"expected ok=True after glide publish fail fallthrough, got {result}")
+        self.assertEqual(result["method"], "agent-cursor-glide+native-axpress-fallback")
+
+    def test_glide_failure_blocks_when_no_ax_element(self):
+        """When no AX element is found and glide fails, hard-fail is correct."""
+        snapshot = {
+            "elements": [
+                {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
+            ],
+        }
+        with (
+            mock.patch.object(macos_cua, "find_clickable_index", return_value=None),
+            mock.patch.object(macos_cua, "_native_ax_snapshot", return_value=snapshot),
+        ):
+            result = macos_cua.click_label_pointer(
+                10, 20, "Missing", snapshot_data=snapshot, app_name="App"
+            )
+        self.assertFalse(result["ok"])
+
+    def test_pointer_preflight_returns_ok_on_publish_success(self):
+        """pointer_preflight returns ok when cursor publish succeeds (no ack gate)."""
+        snapshot = {
+            "elements": [
+                {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
+            ],
+        }
+        with (
+            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
+            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+        ):
+            result = macos_cua.pointer_preflight(
+                True, "App", 10, 20, snapshot, 1, "Moving to test"
+            )
+        self.assertIsNotNone(result)
+        self.assertTrue(result["ok"])
+
+    def test_pointer_preflight_returns_none_on_publish_failure(self):
+        """pointer_preflight returns None when operator_update itself fails."""
+        snapshot = {
+            "elements": [
+                {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
+            ],
+        }
+        with (
+            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
+            mock.patch.object(macos_cua, "operator_update", return_value={"ok": False, "error": "file write failed"}),
+        ):
+            result = macos_cua.pointer_preflight(
+                True, "App", 10, 20, snapshot, 1, "Moving to test"
+            )
+        self.assertIsNone(result, "pointer_preflight must return None on publish failure")
 
     def test_pointer_click_falls_back_to_reactivated_native_ax_content(self):
         driver_snapshot = {

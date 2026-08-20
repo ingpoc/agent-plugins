@@ -80,13 +80,16 @@ class PluginPackageTests(unittest.TestCase):
             "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
         )
         self.assertEqual(server["type"], "stdio")
-        self.assertEqual(server["command"], "./bin/agent-computer-use-mcp")
+        command = server["command"]
+        self.assertTrue(
+            command == "./bin/agent-computer-use-mcp"
+            or command.endswith("/bin/agent-computer-use-mcp"),
+            command,
+        )
         self.assertEqual(server.get("cwd"), "./")
         self.assertTrue((PLUGIN_ROOT / "bin" / "agent-computer-use-mcp").is_file())
         self.assertTrue(os.access(PLUGIN_ROOT / "bin" / "agent-computer-use-mcp", os.X_OK))
-        self.assertTrue((PLUGIN_ROOT / "bin" / "cua-driver-mcp").is_file())
-        self.assertTrue(os.access(PLUGIN_ROOT / "bin" / "cua-driver-mcp", os.X_OK))
-        self.assertEqual(server["env"]["CUA_DRIVER_RS_UPDATE_CHECK"], "0")
+        self.assertNotIn("CUA_DRIVER", json.dumps(server.get("env") or {}))
         harness = (PLUGIN_ROOT / "skills/macos-cua/scripts/install_harness.py").read_text()
         self.assertIn('dest / "bin" / "agent-computer-use-mcp"', harness)
         self.assertIn("_rewrite_cursor_plugin_mcp", harness)

@@ -381,6 +381,24 @@ def install_service() -> dict:
     return {**compiled, **launched, "installed": launched.get("ok", False)}
 
 
+def stop_twin_overlay() -> dict:
+    """Unload launchd operator so CUAService is the only pointer."""
+    service = _service_status()
+    if service.get("loaded"):
+        _run(["launchctl", "bootout", SERVICE_TARGET], timeout=20)
+    pid = service.get("pid") or _read_pid()
+    if _alive(pid):
+        try:
+            os.kill(int(pid), signal.SIGTERM)
+        except OSError:
+            pass
+    PID_FILE.unlink(missing_ok=True)
+    return {
+        "operator_unloaded": not _service_status().get("loaded"),
+        "operator_pid": pid,
+    }
+
+
 def uninstall_service() -> dict:
     service = _service_status()
     if service.get("loaded"):
@@ -395,7 +413,20 @@ def uninstall_service() -> dict:
     }
 
 
+CUA_SERVICE_APP = Path.home() / ".cache/macos-cua/CUAService.app"
+
+
 def ensure() -> dict:
+    """CUAService owns the agent pointer. Do not launch a second overlay."""
+    if CUA_SERVICE_APP.exists():
+        stopped = stop_twin_overlay()
+        return {
+            "ok": True,
+            "skipped": True,
+            "reason": "CUAService overlay",
+            "running": False,
+            **stopped,
+        }
     compiled = build()
     if not compiled.get("ok"):
         return compiled

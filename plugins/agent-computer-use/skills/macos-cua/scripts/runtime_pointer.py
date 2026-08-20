@@ -336,11 +336,14 @@ def _wait_for_operator_cursor(
 def glide_operator_to_element(
     app_name, pid, window_id, snap, idx, *, message="Moving"
 ):
-    """Publish the signed operator cursor to an AX element and wait for render ack.
+    """Publish the operator cursor to an AX element.  Fire-and-forget.
 
-    Normalize against the snapshot window. Omit cursor_screen_x/y so the
-    operator maps onto live bounds. Do not Quartz-read here — that path
-    made official Calculator 17.21s after a 5.23s reuse run.
+    The overlay picks up the JSON write on its 50ms poll timer and runs
+    a ~120ms ease-out animation.  The caller fires the AX action
+    immediately after this returns — the cursor glide and the action
+    run concurrently, like Codex Computer Use (@oai/sky).
+
+    No ack polling.  No retry loop.  No sleep.  Publish success = ok.
     """
     center = element_center(snap, idx)
     if not center:
@@ -376,64 +379,31 @@ def glide_operator_to_element(
         cursor_visible=True,
         message=message,
     )
-    published_id = (published.get("state") or {}).get("cursor_update_id")
-    synchronized = _wait_for_operator_cursor(
-        normalized["x"],
-        normalized["y"],
-        update_id=published_id,
-        app_name=app_name,
-        pid=pid,
-        window_id=window_id,
-    )
-    recovery = None
-    if published.get("ok") and not synchronized.get("ok"):
-        recovery = operator_update(
-            app_name,
-            pid,
-            window_id,
-            status="acting",
-            active=True,
-            cursor_x=normalized["x"],
-            cursor_y=normalized["y"],
-            cursor_screen_x=screen_x,
-            cursor_screen_y=screen_y,
-            cursor_visible=True,
-            message=f"Resynchronizing cursor to {message}",
-        )
-        if recovery.get("ok"):
-            recovery_id = (recovery.get("state") or {}).get("cursor_update_id")
-            synchronized = _wait_for_operator_cursor(
-                normalized["x"],
-                normalized["y"],
-                update_id=recovery_id,
-                app_name=app_name,
-                pid=pid,
-                window_id=window_id,
-            )
-    move = {
-        "ok": bool(published.get("ok")) and bool(synchronized.get("ok")),
-        "publish": published,
-        "sync": synchronized,
-        "recovery": recovery,
-    }
+    pub_ok = bool(published.get("ok"))
+    move = {"ok": pub_ok, "publish": published}
     return {
-        "ok": move["ok"],
+        "ok": pub_ok,
         "move": move,
         "cursor_normalized": normalized,
         "coords": {"x": center[0], "y": center[1]},
-        "error": None if move["ok"] else "visible operator cursor did not reach the target",
+        "error": None if pub_ok else "operator cursor publish failed",
     }
 
 
 def pointer_preflight(pointer, app_name, pid, window_id, snap, element, message):
-    """Glide when pointer is on. None skips; error dict fails; ok dict attaches."""
+    """Glide when pointer is on. None skips; ok dict attaches.
+
+    Cursor glide failure is soft: return None so the caller proceeds via AX
+    press without the visible cursor indicator.  The glide is a UX affordance,
+    not an action gate.
+    """
     if not pointer or not app_name or element is None or snap is None:
         return None
     glide = glide_operator_to_element(
         app_name, pid, window_id, snap, element, message=message
     )
     if not glide.get("ok"):
-        return glide
+        return None
     return {
         "ok": True,
         "move": glide.get("move"),

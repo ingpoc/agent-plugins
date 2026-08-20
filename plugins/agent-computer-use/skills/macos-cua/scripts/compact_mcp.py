@@ -1,24 +1,29 @@
 #!/usr/bin/env python3
-"""Thin stdio MCP facade over a persistent macos-cua runtime. Five tools.
+"""Stdio MCP adapter: two tools over CUAService. Not an engine.
+
+CUAService owns AX, cursor, settle, screenshots. This process exists only
+because Cursor injects tools through MCP stdio. No start/end/verify: the
+service auto-spawns and act returns the settled tree.
 
 Dual-era MCP (https://modelcontextprotocol.io/specification/latest):
 - Modern 2026-07-28: per-request _meta, server/discover, resultType.
 - Legacy 2025-11-25 and earlier: initialize handshake + ping.
 stdio writer is newline-delimited JSON-RPC (spec). Content-Length is read-only
-compat for older Cursor/cua-driver senders.
+compat for older Cursor senders.
 """
 from __future__ import annotations
 
-import importlib.util
 import json
-import secrets
+import re
+import socket
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_ROOT = SCRIPT_DIR.parents[2]
-MACOS_CUA = SCRIPT_DIR / "macos-cua.py"
+SERVICE_DIR = SCRIPT_DIR.parent / "service"
 DEFAULT_MAX = 80
 MODERN_VERSION = "2026-07-28"
 LEGACY_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
@@ -26,53 +31,266 @@ SUPPORTED_VERSIONS = (MODERN_VERSION,) + LEGACY_VERSIONS
 META_VERSION = "io.modelcontextprotocol/protocolVersion"
 META_CLIENT_CAPS = "io.modelcontextprotocol/clientCapabilities"
 META_SERVER_INFO = "io.modelcontextprotocol/serverInfo"
-AX_ACTIONS = frozenset(
-    {
-        "open", "show_menu", "confirm", "cancel", "pick",
-        "press", "increment", "decrement", "raise", "zoom",
-    }
-)
-TOOL_NAMES = ("start_session", "state", "act", "verify", "end_session")
+TOOL_NAMES = ("state", "act")
 INSTRUCTIONS = (
-    "Thin macos-cua MCP over cua-driver. Use start_session, state, act, verify, "
-    "end_session only. Never list_apps or raw cua-driver MCP (54 tools). "
-    "Two wall clocks: within-app batch one asserted act/plan; cross-app one act "
-    "per surface then switch — each extra tool is a full agent turn. Act-first "
-    "when labels are known; state first only for discovery or after act miss. "
-    "Never probe labels with state then state then act on the same app. "
-    "Do not verify when act.verified is true. "
+    "Thin MCP over CUAService (state + act only). Do not call start_session, "
+    "verify, end_session, list_apps, or raw cua-driver. "
+    "Two wall clocks: within-app batch one asserted act (steps+expect); "
+    "cross-app one act per surface then switch — each extra tool is a full "
+    "agent turn. Act-first when labels are known; state first only for "
+    "discovery or after act miss. Never probe with state then state then act "
+    "on the same app. Do not verify when act.verified is true — act already "
+    "returns the settled tree. "
     "Friction or rooted inefficiency: encode an app-agnostic fast_path grader "
     "that fails the old trace, then retry; no named-app helpers; do not leave "
     "the fix in chat. "
-    "Best first: glide then AX; fail closed at 1.5s (ax_timeout). "
+    "Best first: overlay tip lands, then AX press (ax_timeout fail-closed). "
     "Fallback only on miss: at most one fresh state; then screenshot/PIXEL_CLICK. "
     "Never silent pixel fallback. Dispatch ok is never proof; no desktop-global click. "
-    "Preflight once at start, this MCP in the middle, closeout once at end. "
-    "Shell macos-cua.py and bin/cua-driver-mcp are diagnostic/bench only. "
+    "Each batched act captures screenshot_before then screenshot_after (same tool, not a "
+    "screenshot catalog). Inspect those pixels before trusting overlay/AX landing; if the "
+    "before shot is the wrong window or a Stage Manager thumb, stop and correct bounds — "
+    "do not add a third MCP tool. "
     "WhatsApp send/attach: $whatsapp skill, not these tools."
 )
-_SESSION: dict[str, Any] = {}
+_BIDI = dict.fromkeys(
+    map(
+        ord,
+        "\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e"
+        "\u2066\u2067\u2068\u2069\ufeff",
+    )
+)
 
 
-def _load_runtime():
-    path = SCRIPT_DIR / "mcp_runtime.py"
-    spec = importlib.util.spec_from_file_location("macos_cua_mcp_runtime", path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load MCP runtime: {path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module.SessionRuntime(MACOS_CUA)
+_DASH = str.maketrans({
+    0x2010: "-", 0x2011: "-", 0x2012: "-", 0x2013: "-",
+    0x2014: "-", 0x2015: "-", 0x2212: "-", 0xFE63: "-", 0xFF0D: "-",
+})
 
 
-_RUNTIME = _load_runtime()
+def _norm_text(s: str) -> str:
+    return (s or "").translate(_BIDI).translate(_DASH).strip().lower()
 
 
-def telemetry_reset() -> None:
-    _RUNTIME.telemetry_reset()
+def expect_verified(expect: str, tree_text: str) -> bool:
+    """Match expect against AXStaticText, AXTextArea, AXTextField, AXCell values — never button titles."""
+    needle = _norm_text(expect)
+    if not needle:
+        return True
+    values = [
+        _norm_text(v)
+        for v in re.findall(
+            r'AX(?:StaticText|TextArea|TextField|Cell)[^\n]*value="([^"]*)"',
+            tree_text,
+        )
+    ]
+    values.extend(
+        _norm_text(v) for v in re.findall(r'AXCell "([^"]*)"', tree_text)
+    )
+    for v in values:
+        if not v:
+            continue
+        if needle == v:
+            return True
+        if len(needle) >= 2 and needle in v:
+            return True
+        if v.endswith("...") and len(v) > 8:
+            stem = v[:-3]
+            if stem and (needle.startswith(stem) or stem in needle):
+                return True
+    return False
 
 
-def telemetry_read() -> dict[str, int]:
-    return dict(_RUNTIME.telemetry_read())
+def expect_is_new(expect: str, before_tree: str, after_tree: str) -> bool:
+    """True when expect is a new value. Empty expect skips the check."""
+    if not _norm_text(expect):
+        return True
+    return expect_verified(expect, after_tree) and not expect_verified(
+        expect, before_tree
+    )
+
+
+class CUABackend:
+    """Lazy JSON-RPC client. Tests replace compact_mcp._BACKEND."""
+
+    def __init__(self) -> None:
+        if str(SERVICE_DIR) not in sys.path:
+            sys.path.insert(0, str(SERVICE_DIR))
+        from cua_client import CUAClient  # noqa: WPS433
+
+        self._client = CUAClient()
+
+    def _cua(self):
+        if self._client._sock is None:
+            self._client.connect()
+        return self._client
+
+    def _reset(self) -> None:
+        try:
+            self._client.close()
+        except Exception:
+            pass
+        self._client.connect()
+
+    def _rpc(self, fn):
+        try:
+            return fn(self._cua())
+        except (ConnectionError, OSError, TimeoutError, socket.timeout):
+            self._reset()
+            return fn(self._cua())
+
+    def state(self, app: str, **kwargs: Any) -> dict[str, Any]:
+        max_elements = int(kwargs.get("max_elements") or DEFAULT_MAX)
+        disable_diff = not bool(kwargs.get("diff"))
+
+        def _call(client):
+            return client.get_app_state(
+                app, disableDiff=disable_diff, maxElements=max_elements
+            )
+
+        result = self._rpc(_call)
+        if not isinstance(result, dict) or not result.get("text"):
+            self._reset()
+            result = _call(self._cua())
+        if not isinstance(result, dict):
+            return {"ok": False, "error": "empty CUAService state", "app": app}
+        text = str(result.get("text") or "")
+        query = kwargs.get("query")
+        if query:
+            lines = [ln for ln in text.splitlines() if str(query) in ln]
+            text = "\n".join(lines) if lines else text
+        return {
+            "ok": True,
+            "app": result.get("app") or app,
+            "text": text,
+            "elementCount": result.get("elementCount"),
+            "screenshot": result.get("screenshot"),
+            "pid": result.get("pid"),
+        }
+
+    def act(self, app: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        def _run(client):
+            steps = arguments.get("steps")
+            if not isinstance(steps, list) or not steps:
+                steps = [arguments]
+            before = client.get_app_state(app, disableDiff=True)
+            if isinstance(before, dict) and not before.get("screenshot"):
+                before = client.get_app_state(app, disableDiff=True)
+            before_text = str(before.get("text") or "") if isinstance(before, dict) else ""
+            results: list[dict[str, Any]] = []
+            after_new = False
+            for step in steps:
+                if not isinstance(step, dict):
+                    results.append({"ok": False, "error": "step must be an object"})
+                    break
+                item = self._normalize_step_result(
+                    self._one(client, app, step, after_new_document=after_new)
+                )
+                results.append(item)
+                if item.get("ok") is not True:
+                    break
+                key = str(step.get("key") or "").lower().replace(" ", "")
+                if key in {"cmd+n", "command+n", "cmd+t", "command+t"}:
+                    after_new = True
+                elif step.get("wait") is not None:
+                    pass
+                else:
+                    after_new = False
+            after = client.get_app_state(app, disableDiff=True)
+            if isinstance(after, dict) and not after.get("screenshot"):
+                after = client.get_app_state(app, disableDiff=True)
+            text = str(after.get("text") or "") if isinstance(after, dict) else ""
+            expect_raw = arguments.get("expect")
+            expect = expect_raw if isinstance(expect_raw, str) else ""
+            ok = all(item.get("ok") is True for item in results) and bool(results)
+            verified = bool(ok) and expect_is_new(expect, before_text, text)
+            last = results[-1] if results else {}
+            shot_before = before.get("screenshot") if isinstance(before, dict) else None
+            shot_after = after.get("screenshot") if isinstance(after, dict) else None
+            return {
+                "ok": ok,
+                "verified": verified,
+                "method": last.get("method"),
+                "text": text,
+                "screenshot_before": shot_before,
+                "screenshot_after": shot_after,
+                "screenshot": shot_after,
+                "results": results,
+                "expect": expect or None,
+            }
+
+        return self._rpc(_run)
+
+    def _one(
+        self, client: Any, app: str, step: dict[str, Any], after_new_document: bool = False
+    ) -> dict[str, Any]:
+        try:
+            return self._dispatch(client, app, step, after_new_document)
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)}
+
+    def _dispatch(
+        self,
+        client: Any,
+        app: str,
+        step: dict[str, Any],
+        after_new_document: bool = False,
+    ) -> dict[str, Any]:
+        if step.get("wait") is not None:
+            seconds = min(max(float(step["wait"]), 0.0), 45.0)
+            time.sleep(seconds)
+            return {"ok": True, "method": "wait", "wait": seconds}
+        key = step.get("key")
+        if key:
+            return client.press_key(app, str(key))
+        text = step.get("text")
+        element = step.get("element")
+        if text is not None and element is not None and step.get("label") is None:
+            return client.set_value(app, int(element), str(text))
+        if text is not None and step.get("label") is None and element is None:
+            return client.type_text(
+                app, str(text), after_new_document=after_new_document
+            )
+        action = step.get("action")
+        element = step.get("element")
+        if action and element is not None:
+            return client.call(
+                "perform_secondary_action",
+                {"app": app, "element_index": int(element), "action": str(action)},
+            )
+        kwargs: dict[str, Any] = {}
+        if step.get("label"):
+            kwargs["label"] = str(step["label"])
+        if element is not None:
+            kwargs["element_index"] = int(element)
+        if step.get("x") is not None and step.get("y") is not None:
+            kwargs["x"] = float(step["x"])
+            kwargs["y"] = float(step["y"])
+        if not kwargs:
+            return {"ok": False, "error": "act needs label, element, text, key, or x/y"}
+        return client.click(app, **kwargs)
+
+    def _normalize_step_result(self, result: Any) -> dict[str, Any]:
+        if not isinstance(result, dict):
+            return {"ok": False, "error": "step result must be an object"}
+        if result.get("method") != "cgevent-click":
+            return result
+        point = result.get("point")
+        if not isinstance(point, dict):
+            return {**result, "ok": False, "error": "nonfinite click point"}
+        if point.get("x") is None or point.get("y") is None:
+            return {**result, "ok": False, "error": "nonfinite click point"}
+        return result
+
+
+_BACKEND: Any = None
+
+
+def _backend() -> CUABackend:
+    global _BACKEND
+    if _BACKEND is None:
+        _BACKEND = CUABackend()
+    return _BACKEND
 
 
 def plugin_version() -> str:
@@ -100,11 +318,6 @@ def _schema(properties: dict[str, Any], required: list[str] | None = None) -> di
 def tool_schemas() -> list[dict[str, Any]]:
     return [
         {
-            "name": "start_session",
-            "description": "Mint a cheap session id. Optional driver start_session. No preflight.",
-            "inputSchema": _schema({"session": {"type": "string"}}),
-        },
-        {
             "name": "state",
             "description": "One compact AX state. Use the current tree, then at most one query/diff after a miss.",
             "inputSchema": _schema(
@@ -124,7 +337,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         },
         {
             "name": "act",
-            "description": "Best first: glide then AX in one asserted plan. Fallback after one fresh state; accepted unverified plans do not auto-capture PNGs.",
+            "description": "Best first: overlay tip lands, then AX press. Batch steps in one call. Returns screenshot_before, screenshot_after, and settled tree (verified when expect matches). Landing check is those two shots, not a screenshot tool. Fallback after one fresh state.",
             "inputSchema": _schema(
                 {
                     "app": {"type": "string"},
@@ -132,24 +345,30 @@ def tool_schemas() -> list[dict[str, Any]]:
                     "element": {"type": "integer"},
                     "action": {"type": "string"},
                     "text": {"type": "string"},
-                    "plan": {"type": "object"},
+                    "key": {"type": "string"},
+                    "x": {"type": "number"},
+                    "y": {"type": "number"},
+                    "wait": {"type": "number"},
+                    "steps": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "label": {"type": "string"},
+                                "element": {"type": "integer"},
+                                "action": {"type": "string"},
+                                "text": {"type": "string"},
+                                "key": {"type": "string"},
+                                "x": {"type": "number"},
+                                "y": {"type": "number"},
+                                "wait": {"type": "number"},
+                            },
+                        },
+                    },
                     "expect": {"type": ["string", "object"]},
                 },
                 ["app"],
             ),
-        },
-        {
-            "name": "verify",
-            "description": "Fail-closed re-read only when act.verified is false or state changed externally.",
-            "inputSchema": _schema(
-                {"app": {"type": "string"}, "expect": {"type": "string"}},
-                ["app", "expect"],
-            ),
-        },
-        {
-            "name": "end_session",
-            "description": "workflow closeout; driver end_session if this process started one.",
-            "inputSchema": _schema({"session": {"type": "string"}}),
         },
     ]
 
@@ -161,7 +380,7 @@ def _state_payload(arguments: dict[str, Any]) -> dict[str, Any]:
     max_elements = int(arguments.get("max") or DEFAULT_MAX)
     max_elements = max(1, min(max_elements, 200))
     query = arguments.get("query")
-    return _RUNTIME.state(
+    return _backend().state(
         app,
         query=str(query) if query else None,
         diff=bool(arguments.get("diff")),
@@ -169,86 +388,16 @@ def _state_payload(arguments: dict[str, Any]) -> dict[str, Any]:
     )
 
 
-def _haystack(payload: dict[str, Any]) -> str:
-    return "\n".join(
-        str(payload[key])
-        for key in ("text", "tree_markdown")
-        if payload.get(key)
-    )
-
-
-def handle_start_session(arguments: dict[str, Any]) -> dict[str, Any]:
-    session = str(arguments.get("session") or "").strip() or f"acu-{secrets.token_hex(6)}"
-    driver = _RUNTIME.start_driver(session)
-    driver_started = "error" not in driver and driver.get("ok") is not False
-    operator = _RUNTIME.ensure_operator()
-    _SESSION.update(
-        {
-            "session": session,
-            "driver_started": driver_started,
-            "operator_ok": operator.get("ok") is True,
-        }
-    )
-    return {
-        "ok": True,
-        "session": session,
-        "driver": driver,
-        "operator": operator,
-    }
-
-
 def handle_act(arguments: dict[str, Any]) -> dict[str, Any]:
     app = str(arguments.get("app") or "").strip()
     if not app:
         return {"ok": False, "error": "app is required"}
-    return _RUNTIME.act(app, arguments, AX_ACTIONS)
-
-
-def handle_verify(arguments: dict[str, Any]) -> dict[str, Any]:
-    expect = str(arguments.get("expect") or "")
-    if not expect:
-        return {"ok": False, "error": "expect is required"}
-    payload = _state_payload({"app": arguments.get("app"), "query": expect})
-    text = _haystack(payload)
-    matched = bool(expect) and expect in text
-    degraded = bool(payload.get("degraded"))
-    return {
-        "ok": matched
-        and not degraded
-        and payload.get("ok") is not False
-        and "error" not in payload,
-        "expect": expect,
-        "matched": matched,
-        "degraded": degraded,
-        "app": payload.get("app") or arguments.get("app"),
-        "text": text if matched else text[:800],
-        "state_error": payload.get("error"),
-        "effect": payload.get("effect"),
-        "escalation": payload.get("escalation"),
-    }
-
-
-def handle_end_session(arguments: dict[str, Any]) -> dict[str, Any]:
-    session = str(arguments.get("session") or _SESSION.get("session") or "").strip()
-    driver = None
-    if session and _SESSION.get("driver_started"):
-        driver = _RUNTIME.end_driver(session)
-    closeout = _RUNTIME.closeout()
-    _SESSION.clear()
-    return {
-        "ok": closeout.get("success") is True or closeout.get("ok") is True,
-        "session": session or None,
-        "closeout": closeout,
-        "driver": driver,
-    }
+    return _backend().act(app, arguments)
 
 
 HANDLERS = {
-    "start_session": handle_start_session,
     "state": _state_payload,
     "act": handle_act,
-    "verify": handle_verify,
-    "end_session": handle_end_session,
 }
 
 
@@ -310,8 +459,6 @@ def call_tool(name: str, arguments: dict[str, Any] | None, *, modern: bool) -> d
     failed = isinstance(payload, dict) and (
         payload.get("ok") is False or payload.get("error")
     )
-    if name == "verify":
-        failed = not bool(payload.get("ok"))
     text = json.dumps(payload, default=str, separators=(",", ":"))
     result: dict[str, Any] = {
         "content": [{"type": "text", "text": text}],

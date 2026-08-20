@@ -120,19 +120,27 @@ def click_label_pointer(
             message=f"Moving to {label}",
         )
         if not glide.get("ok"):
-            return {
-                "ok": False,
-                "error": glide.get("error")
-                or "visible operator cursor did not reach the target",
-                "label": label,
-                "cursor_normalized": glide.get("cursor_normalized"),
-                "move": glide.get("move"),
-            }
-        move = glide.get("move")
-        normalized = glide.get("cursor_normalized")
-        coords = glide.get("coords") or {}
-        if coords.get("x") is not None and coords.get("y") is not None:
-            center = (coords["x"], coords["y"])
+            # Cursor sync failed but the AX element exists — fall through to
+            # native AX press / HID click instead of hard-failing.  The glide
+            # is a UX indicator; it must not gate action dispatch when AX can
+            # resolve the target independently.
+            if not (native_fallback or idx is not None):
+                return {
+                    "ok": False,
+                    "error": glide.get("error")
+                    or "visible operator cursor did not reach the target",
+                    "label": label,
+                    "cursor_normalized": glide.get("cursor_normalized"),
+                    "move": glide.get("move"),
+                }
+            move = glide.get("move")
+            normalized = glide.get("cursor_normalized")
+        else:
+            move = glide.get("move")
+            normalized = glide.get("cursor_normalized")
+            coords = glide.get("coords") or {}
+            if coords.get("x") is not None and coords.get("y") is not None:
+                center = (coords["x"], coords["y"])
     if visual_fallback and center and force_pixel:
         res = click_at_desktop(center[0], center[1])
         method = "agent-cursor-glide+vision-desktop-click-fallback"

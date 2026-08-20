@@ -1,16 +1,13 @@
 # agent-computer-use — install
 
-This directory is the portable [Agent Plugin](https://agent-plugins.org/specification). Load this folder (`plugin.json` here). Do not load the collection root. Do not add `.cursor-plugin/` or `.codex-plugin/` to this package.
-
-Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients](https://agent-plugins.org/compatible-clients) → that client's setup page.
+This directory is the portable [Agent Plugin](https://agent-plugins.org/specification). Load this folder (`plugin.json` here). Do not load the collection root.
 
 ## After the client has loaded this package
 
-1. If the client is Cursor: run `skills/macos-cua/scripts/install_harness.py cursor-plugin` from this directory. Cursor resolves `./bin` against the workspace, not the plugin root. Dest `mcp.json` `command` must be the absolute dest launcher; `cwd` stays `./`. Do not copy that dest-absolute `command` back into source `mcp.json`.
-2. Install [cua-driver](https://cua.ai/docs/cua-driver) if missing.
-3. Stop only for the OS prompt that grants Accessibility / Screen Recording to **Cua Driver.app**.
-4. Verify the client lists `agent-computer-use` and MCP tools `start_session` / `state` / `act` / `verify` / `end_session` are available.
+1. If Cursor: `python3 skills/macos-cua/scripts/install_harness.py cursor-plugin` from this directory. Dest `mcp.json` `command` must be the absolute dest launcher.
+2. `python3 skills/macos-cua/service/install_service.py` then grant **Accessibility** and **Screen Recording** to **macos-cua Service** / **CUAService**. Relaunch the service after Screen Recording.
+3. Client lists `agent-computer-use` tools **`state`** and **`act`** only.
 
-Published scores: this plugin's `README.md`. Refresh only from a warm `python3 skills/macos-cua/scripts/run_benchmarks.py --repeat 5 --rate`. Do not paste a cold run or an older cache. Do not add `.cursor-plugin/` or `logo` on `plugin.json` for a Customize icon.
+Published scores: this plugin's `README.md`. Refresh only from a warm `python3 skills/macos-cua/scripts/run_benchmarks.py --repeat 5 --rate`.
 
-Behavior after install: `skills/macos-cua/SKILL.md`. WhatsApp send/attach: `$whatsapp`, not this package.
+Behavior: `skills/macos-cua/SKILL.md`. WhatsApp send/attach: `$whatsapp`, not this package.

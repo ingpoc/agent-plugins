@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.ingpoc.cua-service</string>
+    <key>CFBundleName</key>
+    <string>CUAService</string>
+    <key>CFBundleDisplayName</key>
+    <string>macos-cua Service</string>
+    <key>CFBundleExecutable</key>
+    <string>CUAService</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>CUAService needs Accessibility access to read and interact with application UI elements.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>CUAService captures the target app window so the agent can verify on-screen UI.</string>
+</dict>
+</plist>

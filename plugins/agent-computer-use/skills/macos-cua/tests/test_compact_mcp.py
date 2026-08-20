@@ -20,7 +20,7 @@ SPEC = importlib.util.spec_from_file_location("compact_mcp", SCRIPT)
 compact_mcp = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(compact_mcp)
 
-FIVE = ["start_session", "state", "act", "verify", "end_session"]
+FIVE = ["state", "act"]
 MODERN_META = {
     "io.modelcontextprotocol/protocolVersion": compact_mcp.MODERN_VERSION,
     "io.modelcontextprotocol/clientCapabilities": {},
@@ -72,19 +72,19 @@ class CompactMcpDispatchTests(unittest.TestCase):
     def test_state_dispatches_in_process_without_cli(self):
         calls = []
 
-        class Runtime:
+        class Backend:
             def state(self, app, **kwargs):
                 calls.append((app, kwargs))
                 return {"ok": True, "text": "7"}
 
-        original_runtime = compact_mcp._RUNTIME
-        compact_mcp._RUNTIME = Runtime()
+        original = compact_mcp._BACKEND
+        compact_mcp._BACKEND = Backend()
         try:
             payload = compact_mcp._state_payload(
                 {"app": "Calculator", "query": "7", "diff": True, "max": 12}
             )
         finally:
-            compact_mcp._RUNTIME = original_runtime
+            compact_mcp._BACKEND = original
         self.assertEqual(payload, {"ok": True, "text": "7"})
         self.assertEqual(
             calls,
@@ -99,58 +99,30 @@ class CompactMcpDispatchTests(unittest.TestCase):
     def test_act_dispatches_plan_in_process_without_cli(self):
         calls = []
 
-        class Runtime:
-            def act(self, app, arguments, actions):
-                calls.append((app, arguments, actions))
+        class Backend:
+            def act(self, app, arguments):
+                calls.append((app, arguments))
                 return {"ok": True, "verified": True}
 
         arguments = {
             "app": "Calculator",
-            "plan": {"actions": [{"action": "click", "label": "7"}]},
+            "steps": [{"label": "7"}],
+            "expect": "7",
         }
-        original_runtime = compact_mcp._RUNTIME
-        compact_mcp._RUNTIME = Runtime()
+        original = compact_mcp._BACKEND
+        compact_mcp._BACKEND = Backend()
         try:
             payload = compact_mcp.handle_act(arguments)
         finally:
-            compact_mcp._RUNTIME = original_runtime
+            compact_mcp._BACKEND = original
         self.assertEqual(payload, {"ok": True, "verified": True})
-        self.assertEqual(calls, [("Calculator", arguments, compact_mcp.AX_ACTIONS)])
+        self.assertEqual(calls, [("Calculator", arguments)])
 
-    def test_lifecycle_dispatches_in_process_without_cli(self):
-        class Runtime:
-            def start_driver(self, session):
-                return {"ok": True, "session": session}
-
-            def ensure_operator(self):
-                return {"ok": True}
-
-            def end_driver(self, session):
-                return {"ok": True, "session": session}
-
-            def closeout(self):
-                return {"success": True}
-
-        original_runtime = compact_mcp._RUNTIME
-        compact_mcp._RUNTIME = Runtime()
-        compact_mcp._SESSION.clear()
-        try:
-            started = compact_mcp.handle_start_session({"session": "test-session"})
-            ended = compact_mcp.handle_end_session({})
-        finally:
-            compact_mcp._SESSION.clear()
-            compact_mcp._RUNTIME = original_runtime
-        self.assertTrue(started["ok"])
-        self.assertNotIn("preflight", started)
-        self.assertTrue(ended["ok"])
-        self.assertEqual(ended["session"], "test-session")
-
-    def test_start_session_schema_has_no_preflight(self):
-        start = next(
-            tool for tool in compact_mcp.tool_schemas() if tool["name"] == "start_session"
-        )
-        self.assertEqual(set(start["inputSchema"]["properties"]), {"session"})
+    def test_catalog_is_state_and_act_only(self):
+        names = [tool["name"] for tool in compact_mcp.tool_schemas()]
+        self.assertEqual(names, FIVE)
         self.assertFalse(hasattr(compact_mcp, "run_cli"))
+        self.assertNotIn("handle_start_session", dir(compact_mcp))
 
     def test_instructions_encode_two_wall_clocks(self):
         text = compact_mcp.INSTRUCTIONS
@@ -161,13 +133,164 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertIn("no desktop-global click", text)
         self.assertIn("fails the old trace", text)
         self.assertIn("app-agnostic fast_path grader", text)
-        self.assertIn("Preflight once at start", text)
-        self.assertIn("closeout once at end", text)
+        self.assertIn("CUAService", text)
         self.assertIn("ax_timeout", text)
         self.assertIn("Fallback only on miss", text)
+        self.assertIn("screenshot_before", text)
+        self.assertIn("screenshot_after", text)
         act = next(tool for tool in compact_mcp.tool_schemas() if tool["name"] == "act")
         self.assertIn("Best first", act["description"])
+        self.assertIn("screenshot_before", act["description"])
         self.assertIn("Fallback", act["description"])
+        props = act["inputSchema"]["properties"]
+        self.assertEqual(props["x"]["type"], "number")
+        self.assertEqual(props["y"]["type"], "number")
+        self.assertEqual(props["wait"]["type"], "number")
+        step_props = props["steps"]["items"]["properties"]
+        self.assertEqual(step_props["x"]["type"], "number")
+        self.assertEqual(step_props["wait"]["type"], "number")
+
+    def test_act_returns_before_and_after_screenshots(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn):
+                class Client:
+                    def __init__(self):
+                        self.n = 0
+
+                    def get_app_state(self, app, **kwargs):
+                        self.n += 1
+                        value = "0" if self.n == 1 else "7"
+                        return {
+                            "text": f'[1] AXStaticText value="{value}"',
+                            "screenshot": {"url": f"file:///tmp/shot{self.n}.png"},
+                        }
+
+                    def click(self, app, **kwargs):
+                        return {"ok": True, "method": "ax-press"}
+
+                return fn(Client())
+
+        out = Backend().act(
+            "Calculator", {"steps": [{"label": "7"}], "expect": "7"}
+        )
+        self.assertEqual(out["screenshot_before"]["url"], "file:///tmp/shot1.png")
+        self.assertEqual(out["screenshot_after"]["url"], "file:///tmp/shot2.png")
+        self.assertEqual(out["screenshot"], out["screenshot_after"])
+        self.assertTrue(out["verified"])
+
+    def test_act_stops_after_first_failed_step(self):
+        clicks = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {"text": '[1] AXStaticText value="0"'}
+
+                    def click(self, app, **kwargs):
+                        clicks.append(kwargs.get("label"))
+                        if kwargs.get("label") == "Miss":
+                            return {"ok": False, "error": "Label not found"}
+                        return {"ok": True, "method": "ax-press"}
+
+                return fn(Client())
+
+        out = Backend().act(
+            "Calculator",
+            {
+                "steps": [
+                    {"label": "All Clear"},
+                    {"label": "Miss"},
+                    {"label": "Equals"},
+                ],
+                "expect": "0",
+            },
+        )
+        self.assertFalse(out["ok"])
+        self.assertEqual(clicks, ["All Clear", "Miss"])
+        self.assertEqual(len(out["results"]), 2)
+
+    def test_act_fails_closed_on_null_click_point(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {"text": '[1] AXStaticText value="0"'}
+
+                    def click(self, app, **kwargs):
+                        return {
+                            "ok": True,
+                            "method": "cgevent-click",
+                            "point": {"x": None, "y": None},
+                        }
+
+                return fn(Client())
+
+        out = Backend().act("App", {"steps": [{"element": 1}], "expect": "0"})
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["results"][0].get("error"), "nonfinite click point")
+
+    def test_act_expect_already_true_before_is_not_verified(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {
+                            "text": '[16] AXTextArea value="the event horizon is a boundary"',
+                            "screenshot": {"url": "file:///tmp/s.png"},
+                        }
+
+                    def set_value(self, app, element, value):
+                        return {"ok": True, "method": "ax-set-value"}
+
+                return fn(Client())
+
+        out = Backend().act(
+            "App",
+            {"steps": [{"element": 35, "text": "Idea"}], "expect": "event horizon"},
+        )
+        self.assertTrue(out["ok"])
+        self.assertFalse(out["verified"])
+
+    def test_act_retries_missing_screenshot(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn):
+                class Client:
+                    def __init__(self):
+                        self.n = 0
+
+                    def get_app_state(self, app, **kwargs):
+                        self.n += 1
+                        shot = None if self.n == 1 else {"url": f"file:///tmp/r{self.n}.png"}
+                        value = "0" if self.n <= 2 else "7"
+                        return {
+                            "text": f'[1] AXStaticText value="{value}"',
+                            "screenshot": shot,
+                        }
+
+                    def click(self, app, **kwargs):
+                        return {"ok": True, "method": "ax-press"}
+
+                return fn(Client())
+
+        out = Backend().act("App", {"steps": [{"label": "7"}], "expect": "7"})
+        self.assertEqual(out["screenshot_before"]["url"], "file:///tmp/r2.png")
+        self.assertTrue(out["verified"])
 
 
 class CompactMcpSpecTests(unittest.TestCase):
@@ -262,42 +385,24 @@ class CompactMcpSpecTests(unittest.TestCase):
         self.assertIn(compact_mcp.MODERN_VERSION, reply["error"]["data"]["supported"])
 
     def test_call_tool_includes_structured_content(self):
-        original = compact_mcp.HANDLERS["verify"]
-        compact_mcp.HANDLERS["verify"] = lambda _args: {
+        original = compact_mcp.HANDLERS["act"]
+        compact_mcp.HANDLERS["act"] = lambda _args: {
             "ok": True,
-            "matched": True,
+            "verified": True,
             "expect": "64",
-            "escalation": {"recommended": "px"},
         }
         try:
             result = compact_mcp.call_tool(
-                "verify",
-                {"app": "Calculator", "expect": "64"},
+                "act",
+                {"app": "Calculator", "label": "Equals", "expect": "64"},
                 modern=True,
             )
         finally:
-            compact_mcp.HANDLERS["verify"] = original
+            compact_mcp.HANDLERS["act"] = original
         self.assertEqual(result["structuredContent"]["expect"], "64")
-        self.assertEqual(result["structuredContent"]["escalation"]["recommended"], "px")
         self.assertIn("64", result["content"][0]["text"])
         self.assertFalse(result["isError"])
         self.assertEqual(result["resultType"], "complete")
-
-    def test_verify_rejects_degraded_state(self):
-        original = compact_mcp._state_payload
-        compact_mcp._state_payload = lambda _args: {
-            "ok": True,
-            "degraded": True,
-            "text": "64",
-            "app": "Calculator",
-        }
-        try:
-            payload = compact_mcp.handle_verify({"app": "Calculator", "expect": "64"})
-        finally:
-            compact_mcp._state_payload = original
-        self.assertFalse(payload["ok"])
-        self.assertTrue(payload["degraded"])
-        self.assertTrue(payload["matched"])
 
     def test_modern_unknown_tool_is_protocol_error(self):
         reply = compact_mcp.handle_rpc(
@@ -312,7 +417,7 @@ class CompactMcpSpecTests(unittest.TestCase):
 
 
 class CompactMcpProtocolTests(unittest.TestCase):
-    def test_script_legacy_initialize_lists_five_tools(self):
+    def test_script_legacy_initialize_lists_two_tools(self):
         proc = _spawn([sys.executable, "-u", str(SCRIPT)])
         try:
             _send(
@@ -372,7 +477,7 @@ class CompactMcpProtocolTests(unittest.TestCase):
         self.assertEqual(init["result"]["protocolVersion"], "2025-11-25")
         self.assertEqual([tool["name"] for tool in listed["result"]["tools"]], FIVE)
 
-    def test_launcher_modern_discover_lists_five_tools(self):
+    def test_launcher_modern_discover_lists_two_tools(self):
         proc = _spawn([str(LAUNCHER)])
         try:
             _send(
@@ -401,6 +506,87 @@ class CompactMcpProtocolTests(unittest.TestCase):
         self.assertEqual(discover["result"]["supportedVersions"][0], "2026-07-28")
         self.assertEqual(listed["result"]["resultType"], "complete")
         self.assertEqual([tool["name"] for tool in listed["result"]["tools"]], FIVE)
+
+
+class ExpectVerifiedTests(unittest.TestCase):
+    def test_keypad_zero_does_not_false_green_display(self):
+        tree = (
+            '[0] AXWindow "Calculator"\n'
+            '[1] AXStaticText value="3×"\n'
+            '[2] AXButton "0" [pressable]\n'
+            '[3] AXButton "1" [pressable]\n'
+        )
+        self.assertFalse(compact_mcp.expect_verified("0", tree))
+        self.assertTrue(compact_mcp.expect_verified("3×", tree))
+
+    def test_empty_expect_is_verified(self):
+        self.assertTrue(compact_mcp.expect_verified("", "[1] AXButton \"0\""))
+
+    def test_unicode_hyphen_matches_ascii_wifi(self):
+        tree = '[1] AXStaticText value="Wi\u2011Fi"'
+        self.assertTrue(compact_mcp.expect_verified("Wi-Fi", tree))
+
+    def test_bidi_mark_in_static_text(self):
+        tree = '[1] AXStaticText value="\u200eChats"'
+        self.assertTrue(compact_mcp.expect_verified("Chats", tree))
+
+    def test_operator_button_titles_do_not_verify(self):
+        tree = (
+            '[0] AXWindow "Calculator"\n'
+            '[16] AXButton "All Clear" [pressable]\n'
+            '[30] AXButton "Add" [pressable]\n'
+            '[34] AXButton "Equals" [pressable]\n'
+            '[36] AXStaticText value="4"\n'
+        )
+        self.assertTrue(compact_mcp.expect_verified("4", tree))
+        self.assertFalse(compact_mcp.expect_verified("Add", tree))
+        self.assertFalse(compact_mcp.expect_verified("Equals", tree))
+        self.assertFalse(compact_mcp.expect_verified("All Clear", tree))
+
+    def test_wrong_display_value_is_not_verified(self):
+        tree = '[1] AXStaticText value="2+2"\n[2] AXStaticText value="4"\n'
+        self.assertFalse(compact_mcp.expect_verified("5", tree))
+        self.assertFalse(compact_mcp.expect_verified("10", tree))
+
+    def test_needle_zero_does_not_substring_ten(self):
+        tree = '[1] AXStaticText value="10"'
+        self.assertFalse(compact_mcp.expect_verified("0", tree))
+        self.assertTrue(compact_mcp.expect_verified("10", tree))
+
+    def test_table_cell_value_verifies(self):
+        tree = (
+            '[31] AXCell "The crew logged swell, wind, and visibility before the evening run."\n'
+            '[11] AXButton "Table" [pressable]\n'
+        )
+        self.assertTrue(compact_mcp.expect_verified("crew logged swell", tree))
+        self.assertFalse(compact_mcp.expect_verified("Table", tree))
+        tree = '[18] AXTextArea value="battle-long-line-one battle-long-line-two battle-long-lin..."'
+        self.assertTrue(
+            compact_mcp.expect_verified(
+                "battle-long-line-one battle-long-line-two battle-long-line-three",
+                tree,
+            )
+        )
+        tree = (
+            '[0] AXWindow "Untitled"\n'
+            '[17] AXTextArea value="batch-cross-app"\n'
+            '[2] AXButton "Open" [pressable]\n'
+        )
+        self.assertTrue(compact_mcp.expect_verified("batch-cross-app", tree))
+        self.assertFalse(compact_mcp.expect_verified("Open", tree))
+
+    def test_expect_is_new_rejects_needle_already_in_before_tree(self):
+        before = '[16] AXTextArea value="the event horizon is a boundary"\n'
+        after = (
+            before + '[38] AXCell "Event horizon"\n'
+        )
+        self.assertTrue(compact_mcp.expect_verified("event horizon", before))
+        self.assertFalse(
+            compact_mcp.expect_is_new("event horizon", before, after)
+        )
+        self.assertTrue(
+            compact_mcp.expect_is_new("Glowing ring of gas", before, after + '[42] AXCell "Glowing ring of gas"\n')
+        )
 
 
 if __name__ == "__main__":
