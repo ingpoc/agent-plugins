@@ -58,7 +58,9 @@ final class OperatorDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
     private func configureStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.imagePosition = .imageLeading
+            button.imagePosition = .imageOnly
+            button.image = Self.menubarIcon()
+            button.image?.isTemplate = false
             button.toolTip = "macos-cua operator — idle"
         }
 
@@ -471,10 +473,12 @@ final class OperatorDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
             : state.windowID.map(String.init) ?? "None"
 
         if let button = statusItem.button {
-            let symbol = active ? "cursorarrow.motionlines" : "cursorarrow"
-            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "macos-cua \(status)")
+            button.image = Self.menubarIcon(active: active)
+            button.image?.isTemplate = false
             button.title = active ? " \(appName)" : ""
-            button.contentTintColor = active ? .controlAccentColor : .secondaryLabelColor
+            button.imagePosition = active ? .imageLeading : .imageOnly
+            button.contentTintColor = nil
+            button.alphaValue = 1.0
             button.toolTip = "macos-cua — \(status) — \(appName) via \(harness)"
         }
 
@@ -564,5 +568,36 @@ final class OperatorDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
         persistPictureInPictureVisibility()
         render(currentState)
         return false
+    }
+
+    /// White display+cursor glyph — not a template, matches other white status icons.
+    private static func menubarIcon(active: Bool = false) -> NSImage {
+        let names = ["MenubarIcon@2x.png", "MenubarIcon.png"]
+        let dirs = [
+            Bundle.main.resourceURL?.path,
+            NSString(
+                string: "~/.cursor/plugins/local/agent-computer-use/skills/macos-cua/assets"
+            ).expandingTildeInPath,
+            NSString(
+                string: "~/Documents/remote-claude/active/apps/agent-plugins/plugins/agent-computer-use/skills/macos-cua/assets"
+            ).expandingTildeInPath,
+        ].compactMap { $0 }
+        for dir in dirs {
+            for name in names {
+                let path = (dir as NSString).appendingPathComponent(name)
+                if let img = NSImage(contentsOfFile: path) {
+                    img.isTemplate = false
+                    img.size = NSSize(width: 18, height: 18)
+                    return img
+                }
+            }
+        }
+        let symbol = active ? "display" : "display"
+        let img = NSImage(
+            systemSymbolName: symbol,
+            accessibilityDescription: "Agent Computer Use"
+        ) ?? NSImage(size: NSSize(width: 18, height: 18))
+        img.isTemplate = false
+        return img
     }
 }

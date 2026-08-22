@@ -29,18 +29,99 @@ final class AXTreeWalker: @unchecked Sendable {
     private var liveWindowID: CGWindowID = 0
     private var liveAt: TimeInterval = 0
     private let lock = NSLock()
+    private let chromiumAX: ChromiumAXEnabler
 
-    init(logger: Logger) { self.logger = logger }
+    init(logger: Logger) {
+        self.logger = logger
+        self.chromiumAX = ChromiumAXEnabler(logger: logger)
+    }
+
+    /// Drop live AX refs + snapshot (window switch / input invalidate).
+    func invalidateCaches() {
+        lock.lock()
+        liveElements.removeAll(keepingCapacity: false)
+        previousSnapshot = nil
+        liveWindowID = 0
+        liveAt = 0
+        lock.unlock()
+    }
 
     func walk(
         axApp: AXUIElement,
         windowID: CGWindowID,
         maxElements: Int = 80,
-        disableDiff: Bool = false
+        disableDiff: Bool = false,
+        pid: pid_t? = nil,
+        bundleID: String? = nil
+    ) -> AXSnapshot {
+        var snapshot = walkOnce(
+            axApp: axApp,
+            windowID: windowID,
+            maxElements: maxElements,
+            disableDiff: disableDiff
+        )
+        if let pid,
+           let method = chromiumAX.enrichIfNeeded(
+            axApp: axApp,
+            pid: pid,
+            bundleID: bundleID,
+            snapshot: snapshot
+           ) {
+            // Cursor/Electron rebuild AX asynchronously; measured ~2s after
+            // ManualAccessibility + activate before WebArea children appear.
+            if let app = NSRunningApplication(processIdentifier: pid) {
+                app.activate(options: [.activateAllWindows])
+            }
+            var best = snapshot
+            let deadline = ProcessInfo.processInfo.systemUptime + 2.5
+            while ProcessInfo.processInfo.systemUptime < deadline {
+                Thread.sleep(forTimeInterval: 0.2)
+                let again = walkOnce(
+                    axApp: axApp,
+                    windowID: windowID,
+                    maxElements: maxElements,
+                    disableDiff: disableDiff
+                )
+                if again.elements.count > best.elements.count {
+                    best = again
+                }
+                if !ChromiumAXEnabler.isSparse(again) { break }
+            }
+            snapshot = best
+            lock.lock()
+            lastEnrichMethod = method
+            lock.unlock()
+            if ChromiumAXEnabler.isSparse(snapshot) {
+                chromiumAX.clearAttempt(pid)
+            }
+        } else {
+            lock.lock()
+            lastEnrichMethod = nil
+            lock.unlock()
+        }
+        return snapshot
+    }
+
+    /// Enrich method from the last `walk` (nil if not applied).
+    private(set) var lastEnrichMethod: String?
+
+    private func walkOnce(
+        axApp: AXUIElement,
+        windowID: CGWindowID,
+        maxElements: Int,
+        disableDiff: Bool
     ) -> AXSnapshot {
         var elements: [AXElement] = []
         var queue: [(AXUIElement, Int?, Int)] = []
         var live: [AXUIElement] = []
+
+        lock.lock()
+        if liveWindowID != 0, liveWindowID != windowID {
+            liveElements.removeAll(keepingCapacity: false)
+            previousSnapshot = nil
+            liveAt = 0
+        }
+        lock.unlock()
 
         // Find the target window or walk from app root
         let roots = walkRoots(axApp: axApp, windowID: windowID)

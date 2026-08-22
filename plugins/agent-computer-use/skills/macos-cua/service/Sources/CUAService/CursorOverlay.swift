@@ -82,13 +82,16 @@ final class CursorOverlay: @unchecked Sendable {
         animStartTime = ProcessInfo.processInfo.systemUptime
         panel.orderFrontRegardless()
 
-        let timer = Timer(
-            timeInterval: 1.0 / 60.0,
-            target: self,
-            selector: #selector(tick),
-            userInfo: nil,
-            repeats: true
-        )
+        // Block timer on main runloop: no Timer(target:self) retain pair.
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] t in
+            guard let self else {
+                t.invalidate()
+                return
+            }
+            MainActor.assumeIsolated {
+                self.tick()
+            }
+        }
         animationTimer = timer
         RunLoop.main.add(timer, forMode: .common)
         return (quartz, animDuration)
@@ -100,7 +103,7 @@ final class CursorOverlay: @unchecked Sendable {
         panel.orderOut(nil)
     }
 
-    @objc private func tick() {
+    private func tick() {
         let elapsed = ProcessInfo.processInfo.systemUptime - animStartTime
         let progress = min(1, max(0, elapsed / animDuration))
         let eased = 1 - pow(1 - progress, 3)

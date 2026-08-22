@@ -11,6 +11,7 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     private var server: SocketServer?
     private var router: MethodRouter?
     private var cursorOverlay: CursorOverlay?
+    private var statusBar: StatusBarController?
 
     init(socketPath: String, logger: Logger) {
         self.socketPath = socketPath
@@ -21,6 +22,8 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         promptTCC()
         cursorOverlay = CursorOverlay()
+        statusBar = StatusBarController()
+        statusBar?.install()
 
         let appResolver = AppResolver(logger: logger)
         let axTree = AXTreeWalker(logger: logger)

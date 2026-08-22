@@ -220,7 +220,7 @@ final class AppResolver: @unchecked Sendable {
         // HID goes to the front app. Skipping raise because isActive was
         // stale true still posted cmd+n into Cursor.
         if !tiny && !raiseForInput { return }
-        runningApp.activate(options: [.activateIgnoringOtherApps])
+        activateForInput(runningApp)
         var windowsRef: CFTypeRef?
         AXUIElementCopyAttributeValue(
             axApp, kAXWindowsAttribute as CFString, &windowsRef
@@ -237,6 +237,21 @@ final class AppResolver: @unchecked Sendable {
         if raiseForInput {
             waitUntilFrontmost(runningApp.processIdentifier)
         }
+    }
+
+    /// macOS 14+: cooperative yield + activate(from:). IgnoringOtherApps is
+    /// deprecated and may no-op — keep as pre-14 / last-resort fallback so
+    /// Stage Manager raise still has a path.
+    private func activateForInput(_ runningApp: NSRunningApplication) {
+        if #available(macOS 14.0, *) {
+            NSApp.yieldActivation(to: runningApp)
+            if runningApp.activate(
+                from: NSRunningApplication.current, options: []
+            ) {
+                return
+            }
+        }
+        runningApp.activate(options: [.activateIgnoringOtherApps])
     }
 
     private func waitUntilFrontmost(_ pid: pid_t, timeout: TimeInterval = 0.8) {

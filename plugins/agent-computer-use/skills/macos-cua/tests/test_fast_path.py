@@ -253,6 +253,34 @@ class FastPathTests(unittest.TestCase):
         }
         self.assertEqual(fast_path.grade_click_result(hid, role="AXRow"), [])
 
+    def test_pid_only_post_hid_is_not_dual_post(self):
+        pid_only = """
+    private func postHid(_ event: CGEvent?, to pid: pid_t) -> Bool {
+        guard let event else { return false }
+        event.postToPid(pid)
+        return true
+    }
+
+    private func postHidGlobal(_ event: CGEvent?) {
+        event?.post(tap: .cghidEventTap)
+    }
+"""
+        self.assertFalse(fast_path.hid_dual_posts_same_helper(pid_only))
+        self.assertIn("postToPid", fast_path.post_hid_helper_body(pid_only))
+        self.assertNotIn("cghidEventTap", fast_path.post_hid_helper_body(pid_only))
+
+    def test_dual_post_same_helper_fails(self):
+        # Real-world: postToPid then cghid for the same event doubles glyphs.
+        dual = """
+    private func postHid(_ event: CGEvent?, to pid: pid_t) -> Bool {
+        guard let event else { return false }
+        event.postToPid(pid)
+        event.post(tap: .cghidEventTap)
+        return true
+    }
+"""
+        self.assertTrue(fast_path.hid_dual_posts_same_helper(dual))
+
 
 if __name__ == "__main__":
     unittest.main()

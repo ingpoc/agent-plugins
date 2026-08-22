@@ -52,6 +52,13 @@ def create_app_bundle(binary: Path, dest: Path) -> None:
     shutil.copy2(binary, macos / "CUAService")
     (macos / "CUAService").chmod(0o755)
 
+    # White menubar glyph (Agent Computer Use)
+    assets = SERVICE_DIR.parent / "assets"
+    for name in ("MenubarIcon.png", "MenubarIcon@2x.png", "MenubarIcon@3x.png"):
+        src = assets / name
+        if src.is_file():
+            shutil.copy2(src, resources / name)
+
     # Copy Info.plist
     plist_src = SERVICE_DIR / "Resources" / "Info.plist"
     if plist_src.exists():
@@ -120,6 +127,13 @@ def main():
             sys.exit(1)
         shutil.copy2(binary, dest_bin)
         dest_bin.chmod(0o755)
+        resources = dest / "Contents" / "Resources"
+        resources.mkdir(parents=True, exist_ok=True)
+        assets = SERVICE_DIR.parent / "assets"
+        for name in ("MenubarIcon.png", "MenubarIcon@2x.png", "MenubarIcon@3x.png"):
+            src = assets / name
+            if src.is_file():
+                shutil.copy2(src, resources / name)
         print(f"  ✓ Replaced {dest_bin} (unsigned copy; existing bundle signature may be invalid until you re-grant TCC if macOS rejects it)")
         print(f"\n✓ CUAService binary updated at {dest}")
         print("  Do not codesign --force --sign - ; that drops Accessibility TCC.")

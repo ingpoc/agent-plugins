@@ -100,8 +100,11 @@ final class MethodRouter: @unchecked Sendable {
             axApp: resolved.axApp,
             windowID: resolved.windowID,
             maxElements: req.paramInt("maxElements") ?? 80,
-            disableDiff: disableDiff
+            disableDiff: disableDiff,
+            pid: resolved.pid,
+            bundleID: resolved.bundleID
         )
+        let enrich = axTree.lastEnrichMethod
         let t2 = ProcessInfo.processInfo.systemUptime
         var shot = await screenshotCapture.capture(
             windowID: resolved.windowID,
@@ -118,7 +121,9 @@ final class MethodRouter: @unchecked Sendable {
                 axApp: resolved.axApp,
                 windowID: resolved.windowID,
                 maxElements: req.paramInt("maxElements") ?? 80,
-                disableDiff: disableDiff
+                disableDiff: disableDiff,
+                pid: resolved.pid,
+                bundleID: resolved.bundleID
             )
             shot = await screenshotCapture.capture(
                 windowID: resolved.windowID,
@@ -146,6 +151,9 @@ final class MethodRouter: @unchecked Sendable {
                 "capture_cached": captureCached,
             ] as [String: Any],
         ]
+        if let enrich {
+            result["ax_enrich"] = enrich
+        }
         if let screenshotPath {
             result["screenshot"] = ["url": "file://\(screenshotPath)"]
         }
@@ -162,7 +170,12 @@ final class MethodRouter: @unchecked Sendable {
         let resolved = try appResolver.resolve(app)
         screenshotCapture.invalidate()
         let snapshot = axTree.cachedSnapshot(windowID: resolved.windowID)
-            ?? axTree.walk(axApp: resolved.axApp, windowID: resolved.windowID)
+            ?? axTree.walk(
+                axApp: resolved.axApp,
+                windowID: resolved.windowID,
+                pid: resolved.pid,
+                bundleID: resolved.bundleID
+            )
 
         let label: String? = req.param("label")
         let elementIndex: Int? = req.paramInt("element_index")
@@ -221,7 +234,8 @@ final class MethodRouter: @unchecked Sendable {
 
         let method = pressResult["method"] as? String
         if method == "ax-press" || method == "ax-click"
-            || method == "ax-set-value" || method == "cgevent-click" {
+            || method == "ax-set-value" || method == "cgevent-click"
+            || method == "cgevent-click-pid" {
             var result = pressResult
             result["settled"] = [
                 "settled": true,
@@ -241,6 +255,9 @@ final class MethodRouter: @unchecked Sendable {
             timeout: 0.6,
             minQuiet: 0.08
         )
+        if settled.notifications > 0 {
+            axTree.invalidateCaches()
+        }
 
         var result = pressResult
         result["settled"] = settled.dict
@@ -278,7 +295,12 @@ final class MethodRouter: @unchecked Sendable {
             app, raiseForInput: true, preferFocusedWindow: afterNew
         )
         screenshotCapture.invalidate()
-        _ = axTree.walk(axApp: resolved.axApp, windowID: resolved.windowID)
+        _ = axTree.walk(
+            axApp: resolved.axApp,
+            windowID: resolved.windowID,
+            pid: resolved.pid,
+            bundleID: resolved.bundleID
+        )
         return inputActions.typeText(
             resolved: resolved, text: text, afterNewDocument: afterNew
         )
@@ -293,7 +315,10 @@ final class MethodRouter: @unchecked Sendable {
         let resolved = try appResolver.resolve(app)
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
-            axApp: resolved.axApp, windowID: resolved.windowID
+            axApp: resolved.axApp,
+            windowID: resolved.windowID,
+            pid: resolved.pid,
+            bundleID: resolved.bundleID
         )
         let element: AXElement?
         if let idx: Int = req.paramInt("element_index") {
@@ -320,7 +345,10 @@ final class MethodRouter: @unchecked Sendable {
         let resolved = try appResolver.resolve(app)
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
-            axApp: resolved.axApp, windowID: resolved.windowID
+            axApp: resolved.axApp,
+            windowID: resolved.windowID,
+            pid: resolved.pid,
+            bundleID: resolved.bundleID
         )
         guard let element = axTree.findElementByIndex(snapshot, index: idx) else {
             throw RPCMethodError(code: -32602, message: "Element not found at index \(idx)")
@@ -339,7 +367,10 @@ final class MethodRouter: @unchecked Sendable {
         }
         let resolved = try appResolver.resolve(app)
         let snapshot = axTree.walk(
-            axApp: resolved.axApp, windowID: resolved.windowID
+            axApp: resolved.axApp,
+            windowID: resolved.windowID,
+            pid: resolved.pid,
+            bundleID: resolved.bundleID
         )
         guard let element = axTree.findElementByIndex(snapshot, index: idx) else {
             throw RPCMethodError(code: -32602, message: "Element not found at index \(idx)")
@@ -363,7 +394,10 @@ final class MethodRouter: @unchecked Sendable {
         }
         let resolved = try appResolver.resolve(app)
         let snapshot = axTree.walk(
-            axApp: resolved.axApp, windowID: resolved.windowID
+            axApp: resolved.axApp,
+            windowID: resolved.windowID,
+            pid: resolved.pid,
+            bundleID: resolved.bundleID
         )
         guard let element = axTree.findElementByIndex(snapshot, index: idx) else {
             throw RPCMethodError(code: -32602, message: "Element not found at index \(idx)")

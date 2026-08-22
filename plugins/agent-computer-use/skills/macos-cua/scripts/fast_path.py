@@ -340,6 +340,28 @@ def _function_source(text: str, name: str) -> str:
     return text[start : start + len(marker) + (len(rest) if next_def < 0 else next_def)]
 
 
+def post_hid_helper_body(actions_src: str) -> str:
+    """Body of `private func postHid` only — excludes `postHidGlobal`."""
+    marker = "private func postHid"
+    start = actions_src.find(marker)
+    if start < 0:
+        return ""
+    rest = actions_src[start + len(marker) :]
+    # Stop before sibling helpers / MARK so cghidEventTap in postHidGlobal is ignored.
+    for sep in ("\n    private func ", "\n    // MARK:"):
+        idx = rest.find(sep)
+        if idx >= 0:
+            rest = rest[:idx]
+            break
+    return rest
+
+
+def hid_dual_posts_same_helper(actions_src: str) -> bool:
+    """True when one helper both postToPid and cghidEventTap (doubled glyphs)."""
+    body = post_hid_helper_body(actions_src)
+    return "postToPid" in body and "cghidEventTap" in body
+
+
 def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     root = Path(skill or SKILL)
     scripts = root / "scripts"
@@ -631,6 +653,14 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "AX-rect CG of a Stage Manager stub photographed wallpaper; SCK-first hung act",
     )
     add(
+        "SCK uses pointPixelScale, ignoreShadows, and short-TTL shareable cache",
+        "pointPixelScale" in shot
+        and "ignoreShadowsSingleWindow" in shot
+        and "shareableTTL" in shot
+        and "loadShareableContent" in shot,
+        "every SCK shot re-enumerated SCShareableContent and used NSScreen max scale",
+    )
+    add(
         "window PNG is reused under 200ms unless input invalidates it",
         "func invalidate" in shot
         and "cachedAt < 0.2" in shot
@@ -642,12 +672,22 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     add(
         "main window pick includes off-screen layer-0, then raise",
         "[.optionAll, .excludeDesktopElements]" in resolver
-        and "activateIgnoringOtherApps" in resolver
+        and (
+            "activateIgnoringOtherApps" in resolver
+            or ("yieldActivation" in resolver and "activate(from:" in resolver)
+        )
         and "kAXRaiseAction" in resolver
         and "0.08" in resolver
         and "quartzDisplays" in resolver
         and "focusedWindowID" in resolver,
         "on-screen-only selected the Stage Manager thumb; start/end shots were wallpaper",
+    )
+    add(
+        "raise uses cooperative activation on macOS 14+",
+        "yieldActivation" in resolver
+        and "activate(from:" in resolver
+        and "activateForInput" in resolver,
+        "activateIgnoringOtherApps no-ops on 14+; raise never made the target front",
     )
     add(
         "main window id is cached for a full-size window",
@@ -751,21 +791,35 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "nonfinite_click_point" in (scripts / "fast_path.py").read_text(),
         "NaN CGFloat serialized as null and still counted as a hit",
     )
+    # Ban is dual-post (pid AND global for the same event → doubled glyphs), not
+    # pid-only postToPid. postHid may postToPid; postHidGlobal may cghid separately.
+    post_hid_body = post_hid_helper_body(actions_src)
     add(
         "AXPress only when the control advertises it; CG posts HID at the AX frame",
-        'element.actions.contains("AXPress")' in (root / "service" / "Sources" / "CUAService" / "InputActions.swift").read_text()
-        and "func postHid" in (root / "service" / "Sources" / "CUAService" / "InputActions.swift").read_text()
-        and "cghidEventTap" in (root / "service" / "Sources" / "CUAService" / "InputActions.swift").read_text()
-        and "postToPid"
-        not in (root / "service" / "Sources" / "CUAService" / "InputActions.swift")
-        .read_text()
-        .split("private func postHid", 1)[-1]
-        .split("// MARK: - Key Parsing", 1)[0]
+        'element.actions.contains("AXPress")' in actions_src
+        and "func postHid" in actions_src
+        and "cghidEventTap" in actions_src
+        and "postToPid" in post_hid_body
+        and not hid_dual_posts_same_helper(actions_src)
+        and "doubled glyphs" in actions_src
         and "func paramDouble" in (root / "service" / "Sources" / "CUAService" / "JSONRPCCodec.swift").read_text()
         and "paramDouble(\"x\")" in (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
-        and "case let f as CGFloat" in (root / "service" / "Sources" / "CUAService" / "JSONRPCCodec.swift").read_text()
-        and "duplicates every key" in (root / "service" / "Sources" / "CUAService" / "InputActions.swift").read_text(),
+        and "case let f as CGFloat" in (root / "service" / "Sources" / "CUAService" / "JSONRPCCodec.swift").read_text(),
         "unadvertised AXPress returned success as a no-op; integer x/y never clicked; PID+HID doubled glyphs",
+    )
+    add(
+        "HID uses shared CGEventSource with suppression interval 0",
+        "localEventsSuppressionInterval" in actions_src
+        and "CGEventSource" in actions_src
+        and "permitLocalMouseEvents" in actions_src
+        and "hidSource" in actions_src,
+        "default 0.25s local-events suppression stalled multi-step HID bursts",
+    )
+    add(
+        "PostEvent TCC is preflighted fail-closed",
+        "CGPreflightPostEventAccess" in actions_src
+        and "ensurePostEventAccess" in actions_src,
+        "Accessibility grant alone still silent-no-op PostEvent HID",
     )
     add(
         "expect must be new versus the before-tree",

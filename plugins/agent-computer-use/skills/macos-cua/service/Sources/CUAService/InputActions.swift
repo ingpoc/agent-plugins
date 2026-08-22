@@ -8,6 +8,28 @@ final class InputActions: @unchecked Sendable {
     private let logger: Logger
     var axTree: AXTreeWalker?
 
+    /// Shared HID source. Default local-events suppression is ~0.25s and
+    /// stalls human + agent bursts; interval 0 + permit filters for both
+    /// suppression states. One source for all posts — never dual-post.
+    private static let hidSource: CGEventSource = {
+        let src = CGEventSource(stateID: .combinedSessionState)!
+        src.localEventsSuppressionInterval = 0
+        let permit: CGEventFilterMask = [
+            .permitLocalMouseEvents,
+            .permitLocalKeyboardEvents,
+            .permitSystemDefinedEvents,
+        ]
+        src.setLocalEventsFilterDuringSuppressionState(
+            permit, state: .eventSuppressionStateSuppressionInterval
+        )
+        src.setLocalEventsFilterDuringSuppressionState(
+            permit, state: .eventSuppressionStateRemoteMouseDrag
+        )
+        return src
+    }()
+
+    private static var postEventPrompted = false
+
     init(logger: Logger) { self.logger = logger }
 
     // MARK: - Click
@@ -73,23 +95,31 @@ final class InputActions: @unchecked Sendable {
             ]
         }
         let mouseDown = CGEvent(
-            mouseEventSource: nil,
+            mouseEventSource: Self.hidSource,
             mouseType: .leftMouseDown,
             mouseCursorPosition: point,
             mouseButton: .left
         )
         let mouseUp = CGEvent(
-            mouseEventSource: nil,
+            mouseEventSource: Self.hidSource,
             mouseType: .leftMouseUp,
             mouseCursorPosition: point,
             mouseButton: .left
         )
-        postHid(mouseDown)
-        postHid(mouseUp)
+        // PID-targeted first — no focus steal / cursor warp. Never also post
+        // global (doubled input). Global HID only if pid post unavailable.
+        let method: String
+        if postHid(mouseDown, to: resolved.pid), postHid(mouseUp, to: resolved.pid) {
+            method = "cgevent-click-pid"
+        } else {
+            postHidGlobal(mouseDown)
+            postHidGlobal(mouseUp)
+            method = "cgevent-click"
+        }
 
         return [
             "ok": true,
-            "method": "cgevent-click",
+            "method": method,
             "point": ["x": Double(point.x), "y": Double(point.y)],
         ]
     }
@@ -101,15 +131,24 @@ final class InputActions: @unchecked Sendable {
         guard let keyCode = parsed.keyCode else {
             return ["ok": false, "error": "Unknown key: \(key)"]
         }
-        if let refuse = hidFrontOrRefuse(resolved) { return refuse }
 
-        let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true)
-        let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false)
+        let keyDown = CGEvent(
+            keyboardEventSource: Self.hidSource, virtualKey: keyCode, keyDown: true
+        )
+        let keyUp = CGEvent(
+            keyboardEventSource: Self.hidSource, virtualKey: keyCode, keyDown: false
+        )
         keyDown?.flags = parsed.flags
         keyUp?.flags = parsed.flags
-        postHid(keyDown)
-        postHid(keyUp)
 
+        // Prefer PID post — works without raise/frontmost. Global only if
+        // target is already front (legacy path); never refuse solely for focus.
+        if postHid(keyDown, to: resolved.pid), postHid(keyUp, to: resolved.pid) {
+            return ["ok": true, "method": "cgevent-key-pid", "key": key]
+        }
+        if let refuse = hidFrontOrRefuse(resolved) { return refuse }
+        postHidGlobal(keyDown)
+        postHidGlobal(keyUp)
         return ["ok": true, "method": "cgevent-key", "key": key]
     }
 
@@ -158,13 +197,19 @@ final class InputActions: @unchecked Sendable {
                 resolved: resolved,
                 point: CGPoint(x: frame.midX, y: frame.midY)
             )
+            if hidTypeUnicode(text, to: resolved.pid) {
+                return ["ok": true, "method": "cgevent-type-pid", "length": text.count]
+            }
             if let refuse = hidFrontOrRefuse(resolved) { return refuse }
-            hidTypeUnicode(text)
+            hidTypeUnicodeGlobal(text)
             return ["ok": true, "method": "cgevent-type", "length": text.count]
         }
         if focused != nil || !live.isEmpty {
+            if hidTypeUnicode(text, to: resolved.pid) {
+                return ["ok": true, "method": "cgevent-type-pid", "length": text.count]
+            }
             if let refuse = hidFrontOrRefuse(resolved) { return refuse }
-            hidTypeUnicode(text)
+            hidTypeUnicodeGlobal(text)
             return ["ok": true, "method": "cgevent-type", "length": text.count]
         }
         return [
@@ -255,23 +300,55 @@ final class InputActions: @unchecked Sendable {
     }
 
     /// CGEvent unicode payload is capped (~20 UTF-16 units). No per-char 10ms wait.
-    private func hidTypeUnicode(_ text: String) {
+    @discardableResult
+    private func hidTypeUnicode(_ text: String, to pid: pid_t) -> Bool {
+        let units = Array(text.utf16)
+        var i = 0
+        let cap = 20
+        var ok = true
+        while i < units.count {
+            let end = min(i + cap, units.count)
+            let slice = Array(units[i..<end])
+            let down = CGEvent(
+                keyboardEventSource: Self.hidSource, virtualKey: 0, keyDown: true
+            )
+            down?.keyboardSetUnicodeString(
+                stringLength: slice.count, unicodeString: slice
+            )
+            ok = postHid(down, to: pid) && ok
+            let up = CGEvent(
+                keyboardEventSource: Self.hidSource, virtualKey: 0, keyDown: false
+            )
+            up?.keyboardSetUnicodeString(
+                stringLength: slice.count, unicodeString: slice
+            )
+            ok = postHid(up, to: pid) && ok
+            i = end
+        }
+        return ok
+    }
+
+    private func hidTypeUnicodeGlobal(_ text: String) {
         let units = Array(text.utf16)
         var i = 0
         let cap = 20
         while i < units.count {
             let end = min(i + cap, units.count)
             let slice = Array(units[i..<end])
-            let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true)
+            let down = CGEvent(
+                keyboardEventSource: Self.hidSource, virtualKey: 0, keyDown: true
+            )
             down?.keyboardSetUnicodeString(
                 stringLength: slice.count, unicodeString: slice
             )
-            postHid(down)
-            let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)
+            postHidGlobal(down)
+            let up = CGEvent(
+                keyboardEventSource: Self.hidSource, virtualKey: 0, keyDown: false
+            )
             up?.keyboardSetUnicodeString(
                 stringLength: slice.count, unicodeString: slice
             )
-            postHid(up)
+            postHidGlobal(up)
             i = end
         }
     }
@@ -297,16 +374,25 @@ final class InputActions: @unchecked Sendable {
 
         // Move mouse to scroll position first
         let move = CGEvent(
-            mouseEventSource: nil,
+            mouseEventSource: Self.hidSource,
             mouseType: .mouseMoved,
             mouseCursorPosition: point,
             mouseButton: .left
         )
-        postHid(move)
-
-        let scroll = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: dy, wheel2: 0, wheel3: 0)
-        postHid(scroll)
-
+        postHid(move, to: resolved.pid)
+        let scroll = CGEvent(
+            scrollWheelEvent2Source: Self.hidSource,
+            units: .line,
+            wheelCount: 1,
+            wheel1: dy,
+            wheel2: 0,
+            wheel3: 0
+        )
+        if postHid(scroll, to: resolved.pid) {
+            return ["ok": true, "method": "cgevent-scroll-pid", "direction": direction, "pages": pages]
+        }
+        postHidGlobal(move)
+        postHidGlobal(scroll)
         return ["ok": true, "method": "cgevent-scroll", "direction": direction, "pages": pages]
     }
 
@@ -394,12 +480,39 @@ final class InputActions: @unchecked Sendable {
         let to = CGPoint(x: toX, y: toY)
 
         let down = CGEvent(
-            mouseEventSource: nil,
+            mouseEventSource: Self.hidSource,
             mouseType: .leftMouseDown,
             mouseCursorPosition: from,
             mouseButton: .left
         )
-        postHid(down)
+        let up = CGEvent(
+            mouseEventSource: Self.hidSource,
+            mouseType: .leftMouseUp,
+            mouseCursorPosition: to,
+            mouseButton: .left
+        )
+        if postHid(down, to: resolved.pid) {
+            let steps = 10
+            for i in 1...steps {
+                let t = Double(i) / Double(steps)
+                let pt = CGPoint(
+                    x: from.x + (to.x - from.x) * t,
+                    y: from.y + (to.y - from.y) * t
+                )
+                let move = CGEvent(
+                    mouseEventSource: Self.hidSource,
+                    mouseType: .leftMouseDragged,
+                    mouseCursorPosition: pt,
+                    mouseButton: .left
+                )
+                _ = postHid(move, to: resolved.pid)
+                Thread.sleep(forTimeInterval: 0.02)
+            }
+            _ = postHid(up, to: resolved.pid)
+            return ["ok": true, "method": "cgevent-drag-pid"]
+        }
+
+        postHidGlobal(down)
 
         // Interpolate drag path
         let steps = 10
@@ -410,22 +523,16 @@ final class InputActions: @unchecked Sendable {
                 y: from.y + (to.y - from.y) * t
             )
             let move = CGEvent(
-                mouseEventSource: nil,
+                mouseEventSource: Self.hidSource,
                 mouseType: .leftMouseDragged,
                 mouseCursorPosition: pt,
                 mouseButton: .left
             )
-            postHid(move)
+            postHidGlobal(move)
             Thread.sleep(forTimeInterval: 0.02)
         }
 
-        let up = CGEvent(
-            mouseEventSource: nil,
-            mouseType: .leftMouseUp,
-            mouseCursorPosition: to,
-            mouseButton: .left
-        )
-        postHid(up)
+        postHidGlobal(up)
 
         return ["ok": true, "method": "cgevent-drag"]
     }
@@ -456,10 +563,30 @@ final class InputActions: @unchecked Sendable {
 
     // MARK: - Helpers
 
-    /// HID at the AX/CG point. PID-only misses some compositors; PID+HID
-    /// duplicates every key (doubled glyphs). Not a desktop-global hunt.
-    private func postHid(_ event: CGEvent?) {
+    /// PID-targeted HID. Never combine with global post (doubled glyphs).
+    @discardableResult
+    private func postHid(_ event: CGEvent?, to pid: pid_t) -> Bool {
+        guard let event else { return false }
+        guard ensurePostEventAccess() else { return false }
+        event.postToPid(pid)
+        return true
+    }
+
+    private func postHidGlobal(_ event: CGEvent?) {
+        guard ensurePostEventAccess() else { return }
         event?.post(tap: .cghidEventTap)
+    }
+
+    /// Accessibility ≠ PostEvent. Prompt at most once; then fail closed.
+    private func ensurePostEventAccess() -> Bool {
+        if CGPreflightPostEventAccess() { return true }
+        if !Self.postEventPrompted {
+            Self.postEventPrompted = true
+            _ = CGRequestPostEventAccess()
+            if CGPreflightPostEventAccess() { return true }
+        }
+        logger.warning("PostEvent TCC denied — HID refused")
+        return false
     }
 
     private func hidFrontOrRefuse(_ resolved: ResolvedApp) -> [String: Any]? {
