@@ -844,6 +844,30 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "NSScreenCaptureUsageDescription" in plist,
         "ad-hoc re-sign drops Accessibility; AXUnknown must be diagnosable",
     )
+    status = (root / "service" / "Sources" / "CUAService" / "StatusBarController.swift").read_text()
+    voice = (root / "service" / "Sources" / "CUAService" / "VoiceSupervisor.swift").read_text()
+    island = (root / "service" / "Sources" / "CUAService" / "IslandController.swift").read_text()
+    add(
+        "CUAService menu supervises voice without stopping socket",
+        "Voice ▶ Start" in status
+        and "Voice ⏹ Stop" in status
+        and "voice_stack" in voice
+        and "voice.log" in voice
+        and "VoiceSupervisor" in delegate
+        and "DynamicNotchKit" in island,
+        "Phase 4: Voice toggle + in-app notch; socket unchanged when voice stops",
+    )
+    island_legacy = Path.home() / "Documents/remote-claude/active/apps/voice-cua-agent/IslandApp/Sources/VoiceCUAIsland/main.swift"
+    legacy_src = island_legacy.read_text() if island_legacy.is_file() else ""
+    add(
+        "single menubar owner for Voice CUA",
+        "NSStatusBar.system.statusItem" in status
+        and "Voice ▶ Start" in status
+        and "NSStatusItem" not in island
+        and "NSStatusBar.system.statusItem" not in island
+        and (not legacy_src or ("NSStatusItem" not in legacy_src and "NSStatusBar.system.statusItem" not in legacy_src)),
+        "Phase 4: only CUAService monitor icon in menu bar; IslandApp is notch-only",
+    )
     add(
         "skill has no target-app recipe file",
         "likeminded.md" not in skill_md,

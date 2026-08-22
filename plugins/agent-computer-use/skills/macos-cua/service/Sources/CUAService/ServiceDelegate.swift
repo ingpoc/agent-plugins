@@ -12,6 +12,8 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     private var router: MethodRouter?
     private var cursorOverlay: CursorOverlay?
     private var statusBar: StatusBarController?
+    private var voiceSupervisor: VoiceSupervisor?
+    private var islandController: IslandController?
 
     init(socketPath: String, logger: Logger) {
         self.socketPath = socketPath
@@ -22,7 +24,13 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         promptTCC()
         cursorOverlay = CursorOverlay()
+        islandController = IslandController()
+        islandController?.prepareNotch()
+        voiceSupervisor = VoiceSupervisor()
         statusBar = StatusBarController()
+        if let voiceSupervisor, let islandController {
+            statusBar?.wire(voice: voiceSupervisor, island: islandController)
+        }
         statusBar?.install()
 
         let appResolver = AppResolver(logger: logger)
@@ -68,6 +76,8 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        voiceSupervisor?.stop()
+        islandController?.stopStreaming()
         server?.stop()
         try? FileManager.default.removeItem(atPath: socketPath)
         logger.info("CUAService stopped")
