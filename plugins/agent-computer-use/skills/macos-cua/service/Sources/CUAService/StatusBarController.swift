@@ -1,6 +1,33 @@
 import AppKit
 import Foundation
 
+/// Wi‑Fi-style menu row: label + trailing `NSSwitch`.
+@MainActor
+final class MenuSwitchRowView: NSView {
+    let label = NSTextField(labelWithString: "Samantha")
+    let toggle = NSSwitch()
+
+    init(width: CGFloat = 220) {
+        super.init(frame: NSRect(x: 0, y: 0, width: width, height: 28))
+        label.font = NSFont.menuFont(ofSize: NSFont.systemFontSize)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        toggle.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        addSubview(toggle)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 18),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            toggle.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            toggle.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
 /// White menubar glyph for Agent Computer Use (not a template — stays white
 /// like neighboring status items on accent/colored menu bars).
 @MainActor
@@ -8,14 +35,12 @@ final class StatusBarController: NSObject {
     private var item: NSStatusItem?
     private var active = false
     private var voiceRunning = false
+    private var suppressToggleAction = false
 
     private weak var voiceSupervisor: VoiceSupervisor?
     private weak var islandController: IslandController?
 
-    private var startVoiceItem: NSMenuItem?
-    private var stopVoiceItem: NSMenuItem?
-    private var approveItem: NSMenuItem?
-    private var denyItem: NSMenuItem?
+    private var samanthaRow: MenuSwitchRowView?
 
     func wire(voice: VoiceSupervisor, island: IslandController) {
         voiceSupervisor = voice
@@ -48,46 +73,33 @@ final class StatusBarController: NSObject {
         header.isEnabled = false
         menu.addItem(header)
 
-        let start = NSMenuItem(
-            title: "Voice ▶ Start",
-            action: #selector(startVoice),
-            keyEquivalent: ""
-        )
-        start.target = self
-        menu.addItem(start)
-        startVoiceItem = start
+        let row = MenuSwitchRowView()
+        row.toggle.target = self
+        row.toggle.action = #selector(samanthaToggled(_:))
+        let samanthaItem = NSMenuItem()
+        samanthaItem.view = row
+        menu.addItem(samanthaItem)
+        samanthaRow = row
 
-        let stop = NSMenuItem(
-            title: "Voice ⏹ Stop",
-            action: #selector(stopVoice),
-            keyEquivalent: ""
+        let settingsItem = NSMenuItem(
+            title: "Samantha Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
         )
-        stop.target = self
-        stop.isEnabled = false
-        menu.addItem(stop)
-        stopVoiceItem = stop
+        settingsItem.keyEquivalentModifierMask = [.command]
+        settingsItem.target = self
+        menu.addItem(settingsItem)
 
         menu.addItem(NSMenuItem.separator())
 
-        let approve = NSMenuItem(
-            title: "Approve confirm",
-            action: #selector(approveConfirm),
-            keyEquivalent: "y"
+        let quit = NSMenuItem(
+            title: "Quit Agent Computer Use",
+            action: #selector(quitApplication),
+            keyEquivalent: "q"
         )
-        approve.keyEquivalentModifierMask = [.command]
-        approve.target = self
-        menu.addItem(approve)
-        approveItem = approve
-
-        let deny = NSMenuItem(
-            title: "Deny confirm",
-            action: #selector(denyConfirm),
-            keyEquivalent: "n"
-        )
-        deny.keyEquivalentModifierMask = [.command]
-        deny.target = self
-        menu.addItem(deny)
-        denyItem = deny
+        quit.keyEquivalentModifierMask = [.command]
+        quit.target = self
+        menu.addItem(quit)
 
         status.menu = menu
         item = status
@@ -106,32 +118,77 @@ final class StatusBarController: NSObject {
 
     private func setVoiceRunning(_ on: Bool) {
         voiceRunning = on
-        startVoiceItem?.isEnabled = !on
-        stopVoiceItem?.isEnabled = on
+        suppressToggleAction = true
+        samanthaRow?.toggle.state = on ? .on : .off
+        samanthaRow?.toggle.isEnabled = true
+        suppressToggleAction = false
         item?.button?.toolTip = on
-            ? "Agent Computer Use — voice on"
+            ? "Agent Computer Use — Samantha on"
             : (active ? "Agent Computer Use — active" : "Agent Computer Use")
     }
 
-    @objc private func startVoice() {
-        voiceSupervisor?.start()
+    @objc private func samanthaToggled(_ sender: NSSwitch) {
+        guard !suppressToggleAction else { return }
+        if sender.state == .on {
+            Task { @MainActor in
+                let started = await self.voiceSupervisor?.start() ?? false
+                guard !started else { return }
+                self.suppressToggleAction = true
+                sender.state = .off
+                self.suppressToggleAction = false
+                self.showMicrophoneRequiredAlert()
+            }
+        } else {
+            voiceSupervisor?.stop()
+        }
     }
 
-    @objc private func stopVoice() {
+    private func showMicrophoneRequiredAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Microphone access required"
+        alert.informativeText = (
+            "Turning Samantha on uses your microphone. Allow access when macOS prompts, "
+            + "or enable Voice CUA under System Settings → Privacy & Security → Microphone."
+        )
+        alert.addButton(withTitle: "Open Settings")
+        alert.addButton(withTitle: "OK")
+        if alert.runModal() == .alertFirstButtonReturn {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Microphone") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    @objc private func openSettings() {
+        SettingsWindowController.shared.onSaved = { [weak self] _ in
+            guard let self, self.voiceRunning else { return }
+            self.noteRestartIfVoiceOn()
+        }
+        SettingsWindowController.shared.showSettings()
+    }
+
+    private func noteRestartIfVoiceOn() {
+        let alert = NSAlert()
+        alert.messageText = "Restart Samantha?"
+        alert.informativeText = "Settings apply on the next voice session. Turn Samantha off and on now?"
+        alert.addButton(withTitle: "Restart Now")
+        alert.addButton(withTitle: "Later")
+        if alert.runModal() == .alertFirstButtonReturn {
+            voiceSupervisor?.stop()
+            Task { @MainActor in
+                _ = await self.voiceSupervisor?.start()
+            }
+        }
+    }
+
+    @objc private func quitApplication(_ sender: Any?) {
         voiceSupervisor?.stop()
-    }
-
-    @objc private func approveConfirm() {
-        Task { await islandController?.resolveConfirm(approved: true) }
-    }
-
-    @objc private func denyConfirm() {
-        Task { await islandController?.resolveConfirm(approved: false) }
+        islandController?.stopStreaming()
+        NSApplication.shared.terminate(sender)
     }
 
     private static func loadIcon() -> NSImage {
         if let img = loadBundled() { return img }
-        if let img = loadSkillAssets() { return img }
         let fallback = NSImage(
             systemSymbolName: "display.and.arrow.down",
             accessibilityDescription: "Agent Computer Use"
@@ -166,25 +223,4 @@ final class StatusBarController: NSObject {
         return nil
     }
 
-    private static func loadSkillAssets() -> NSImage? {
-        let candidates = [
-            NSString(string: "~/.cursor/plugins/local/agent-computer-use/skills/macos-cua/assets")
-                .expandingTildeInPath,
-            NSString(
-                string: "~/Documents/remote-claude/active/apps/agent-plugins/plugins/agent-computer-use/skills/macos-cua/assets"
-            ).expandingTildeInPath,
-        ]
-        for dir in candidates {
-            let twoX = (dir as NSString).appendingPathComponent("MenubarIcon@2x.png")
-            let oneX = (dir as NSString).appendingPathComponent("MenubarIcon.png")
-            for path in [twoX, oneX] where FileManager.default.fileExists(atPath: path) {
-                if let img = NSImage(contentsOfFile: path) {
-                    img.isTemplate = false
-                    img.size = NSSize(width: 18, height: 18)
-                    return img
-                }
-            }
-        }
-        return nil
-    }
 }

@@ -1,59 +1,60 @@
 import AppKit
-import DynamicNotchKit
 import Foundation
 import SwiftUI
 
-struct IslandSnapshot: Codable, Equatable {
-    var kind: String = "idle"
-    var title: String = ""
-    var detail: String = ""
-    var app: String = ""
-    var step: String = ""
-    var confirm_id: String = ""
-    var confirm_prompt: String = ""
-}
-
-/// Notch / Dynamic Island UI — streams gateway SSE when voice is supervised by CUAService.
+/// Menu-bar-center island — streams gateway SSE when voice is supervised by CUAService.
 @MainActor
 final class IslandController {
     private var gateway: URL
     private var last: IslandSnapshot?
-    private var notch: DynamicNotchInfo?
+    private let model = IslandModel()
+    private let menuBarPanel = SamanthaMenuBarIslandPanel()
     private var pendingConfirmId: String = ""
     private var streamTask: Task<Void, Never>?
+    private var voiceSessionActive = false
+    private var loggedListeningReady = false
+    private weak var cursorOverlay: CursorOverlay?
 
     init(gatewayPort: Int = 8765) {
         gateway = URL(string: "http://127.0.0.1:\(gatewayPort)")!
+        model.resolveConfirm = { [weak self] approved in
+            Task { await self?.resolveConfirm(approved: approved) }
+        }
+        menuBarPanel.attach(model: model)
     }
 
     func updateGateway(port: Int) {
         gateway = URL(string: "http://127.0.0.1:\(port)")!
     }
 
+    func setCursorOverlay(_ overlay: CursorOverlay) {
+        cursorOverlay = overlay
+    }
+
     func prepareNotch() {
-        guard notch == nil else { return }
-        let notch = DynamicNotchInfo(
-            icon: .init(systemName: "waveform", color: .cyan),
-            title: "Voice CUA",
-            description: "Voice off",
-            compactLeading: .init(systemName: "waveform", color: .secondary),
-            style: .auto
-        )
-        self.notch = notch
+        // Panel is created lazily on first show.
     }
 
     func startStreaming() {
         streamTask?.cancel()
-        prepareNotch()
+        voiceSessionActive = true
+        last = nil
+        model.apply(IslandSnapshot(kind: "listening", title: "Connecting", detail: ""))
+        menuBarPanel.show(on: SamanthaMenuBarIslandPanel.menuBarScreen())
+        SamanthaActivityLog.startup(phase: "island_stream_begin", status: "ok", detail: "Connecting pill")
         streamTask = Task { await stream() }
     }
 
     func stopStreaming() {
         streamTask?.cancel()
         streamTask = nil
-        Task { await notch?.hide() }
+        voiceSessionActive = false
+        loggedListeningReady = false
+        hideAgentCursor()
+        menuBarPanel.hide()
         last = nil
         pendingConfirmId = ""
+        model.apply(IslandSnapshot(kind: "idle"))
     }
 
     func stream() async {
@@ -81,6 +82,11 @@ final class IslandController {
                 }
             } catch {
                 if Task.isCancelled { return }
+                SamanthaActivityLog.startup(
+                    phase: "island_stream_error",
+                    status: "fail",
+                    detail: String(describing: error).prefix(120).description
+                )
                 try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
@@ -105,59 +111,28 @@ final class IslandController {
     }
 
     private func apply(_ snap: IslandSnapshot) async {
-        guard let notch else { return }
-        let iconName: String
-        let color: Color
-        switch snap.kind {
-        case "speaking":
-            iconName = "speaker.wave.2.fill"; color = .blue
-        case "acting":
-            iconName = "hand.point.up.left.fill"; color = .cyan
-        case "listening":
-            iconName = "mic.fill"; color = .green
-        case "thinking":
-            iconName = "brain"; color = .orange
-        case "driving":
-            iconName = "hand.point.up.left.fill"; color = .cyan
-        case "confirm":
-            iconName = "exclamationmark.triangle.fill"; color = .yellow
-        case "secrets":
-            iconName = "key.fill"; color = .purple
-        case "done":
-            iconName = "checkmark.circle.fill"; color = .green
-        case "error":
-            iconName = "xmark.octagon.fill"; color = .red
-        default:
-            iconName = "waveform"; color = .secondary
+        var effective = snap
+        if voiceSessionActive && snap.kind == "idle" {
+            effective = IslandSnapshot(kind: "listening", title: "Connecting", detail: "")
         }
-        let title: String
-        if !snap.title.isEmpty {
-            title = snap.title
-        } else if snap.kind == "driving" {
-            title = snap.app.isEmpty ? "Driving" : snap.app
-        } else {
-            title = snap.kind.capitalized
+        model.apply(effective)
+        if effective.kind == "listening", effective.title == "Listening", !loggedListeningReady {
+            loggedListeningReady = true
+            SamanthaActivityLog.startup(phase: "island_listening", status: "ok")
         }
-        let detail: String
-        if snap.kind == "driving" {
-            detail = [snap.app, snap.step].filter { !$0.isEmpty }.joined(separator: " · ")
-        } else if snap.kind == "confirm" {
-            detail = snap.confirm_prompt.isEmpty ? snap.detail : snap.confirm_prompt
-        } else {
-            detail = snap.detail
-        }
-        notch.icon = .init(systemName: iconName, color: color)
-        notch.compactLeading = .init(systemName: iconName, color: color)
-        notch.title = LocalizedStringKey(title)
-        notch.description = detail.isEmpty ? nil : LocalizedStringKey(detail)
-
-        switch snap.kind {
+        let screen = SamanthaMenuBarIslandPanel.menuBarScreen()
+        switch effective.kind {
         case "idle":
-            await notch.hide()
-        case "confirm", "secrets", "error":
-            await notch.expand()
+            hideAgentCursor()
+            menuBarPanel.hide()
         default:
-            await notch.compact()
+            menuBarPanel.show(on: screen)
+            menuBarPanel.reposition(on: screen)
         }
+    }
+
+    /// Session end / disconnect — not between tasks while Listening.
+    private func hideAgentCursor() {
+        cursorOverlay?.hide()
     }
 }

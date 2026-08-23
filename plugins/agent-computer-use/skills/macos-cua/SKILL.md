@@ -36,6 +36,31 @@ or `start_session` / `verify` / `end_session`.
 | MCP `state` + `act` | Cursor tool catalog only |
 | This file | Act-first loop, bans, friction-encode |
 
+## Architecture boundary
+
+MCP follows stable `2026-07-28`: stateless requests, per-request `_meta`,
+`server/discover`, structured results, and legacy fallback only at the adapter.
+Realtime uses the same two operations through local function calling; it does
+not create a second native engine or expose the Mac as a remote MCP server.
+
+Keep the model surface at `state` + `act`. New macOS capability is an `act`
+step, not another model tool. CUAService serializes desktop requests and owns
+one native `execute_plan` RPC: before-state → all same-app steps → settle →
+after-state. The compact adapter evaluates the canonical structured
+postcondition against that native evidence and is the only completion gate.
+
+Reuse the native operations CUAService already has: scroll, text selection,
+secondary AX actions, and drag. File, directory, URL, and application opening
+belongs in CUAService as an `act` step backed by
+`NSWorkspace` plus `FileManager` validation—not Finder keystroke choreography.
+Use AX first and one-shot ScreenCaptureKit vision only after an AX miss.
+
+`compact_mcp.py` owns the canonical MCP input/output schema. Realtime schemas
+must be derived from it or parity-tested. Use explicit operation variants and
+structured `expect` predicates; never an unconstrained action string. Long or
+deferred work may use the MCP tasks extension only after ordinary bounded plans
+prove insufficient.
+
 ## Fast workflow
 
 **Act-first.** Labels known → `act` (optional `steps` + `expect`). Compact
@@ -70,7 +95,14 @@ a fresh `state`.
 
 WhatsApp **send/attach**: `$whatsapp` only. Not this skill.
 
-Dispatch `ok` is never proof. Mutating acts need `expect`.
+Dispatch `ok` is never proof. The compact adapter blocks a mutating act before
+dispatch unless it has `expect` (string, `{text: ...}`, `{not_text: ...}`, or a
+list). It returns `ok:true` only after the settled AX tree verifies that
+postcondition. `allow_unverified:true` is a dispatch-only escape hatch: report
+the attempt as unverified and never say done. App-only focus/launch is verified
+by the settled target-window state without an extra `state` call.
+Mutating RPCs have a 15-second deadline and are never replayed after an
+ambiguous timeout; only read-only state may reconnect and retry once.
 
 **Input delivery (any app).** AXPress/AXClick only if the node advertises that action; success on an unlisted action is a no-op. Successful AX press skips the 0.6s settle. HID keys raise the target app and wait until it is frontmost; otherwise `key_target_not_front` (the host IDE must not eat cmd+n). `type_text` after New refuses a still-full text field and walks the focused window, not the cached largest. No text field in the walk → `type_no_text_target`, not HID. `type_text` sets AXSelectedText at the caret; string or attributed AXValue must contain the insert or it is a miss. Prefer `AXTextArea` over focused `AXSearchField` / `AXTextField`. Miss → click the text-area frame, then bulk HID (not 10ms/char). Walk packs attrs in one IPC, clips off-window nodes, caches live refs. Coordinate fallback is the **finite AX frame** (or schema `x`/`y`), HID at that point — not PID+HID (doubled glyphs) and not a desktop hunt. JSON integers must coerce to Double. `cgevent-click` with a null point is a failed step. `set_value` writes an AX attribute; it is not keystroke delivery. Slow UI: one batched `wait` (cap 45s), not extra `state`. Window PNG can omit `AXPopover`/`AXMenu` whose frame sits outside the window; the tree is the source of truth. `expect` must be a **new** value vs the before-tree (a needle already in the body is not proof a table/cell changed).
 

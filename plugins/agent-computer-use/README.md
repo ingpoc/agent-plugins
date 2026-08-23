@@ -1,8 +1,12 @@
 # agent-computer-use
 
-Native macOS computer use through a 5-tool MCP facade over compact AX-first macos-cua workflows.
+Native macOS computer use through a two-tool MCP facade over compact AX-first macos-cua workflows, with the self-contained Samantha GPT Realtime voice runtime.
 
 Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGENTS.md`](AGENTS.md). Collection routing: repo-root `AGENTS.md`.
+
+## Package boundary
+
+`runtime/voice-cua/` owns Samantha's Python runtime, metadata-only secret templates, unit test, and PyInstaller builder. `skills/macos-cua/service/install_service.py` builds that packaged source into the signed nested `voice-cua.app`; it does not search for a sibling repository or fall back to system Python.
 
 ## Benchmarks
 

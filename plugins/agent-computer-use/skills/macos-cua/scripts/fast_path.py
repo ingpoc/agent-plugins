@@ -514,8 +514,31 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "in-place retitled controls resolve without a named-app helper",
     )
     skill_md = (root / "SKILL.md").read_text()
-    mcp = (scripts / "compact_mcp.py").read_text()
+    mcp = "\n".join(
+        (scripts / name).read_text()
+        for name in ("compact_mcp.py", "compact_backend.py")
+    )
+    method_router = (
+        root / "service" / "Sources" / "CUAService" / "MethodRouter.swift"
+    ).read_text()
+    cua_client = (root / "service" / "cua_client.py").read_text()
+    installer = (root / "service" / "install_service.py").read_text()
     workflow = (scripts / "workflow.py").read_text()
+    add(
+        "cold app launch waits for its first window",
+        "def _get_app_state" in mcp
+        and '"No window for app:"' in mcp
+        and "range(3)" in mcp,
+        "a launched app may not expose a window on the first AX query",
+    )
+    add(
+        "service signing selects the certificate by Team ID",
+        "resolve_codesign_identity" in installer
+        and "OU=" in installer
+        and "Apple Development: Team" not in installer
+        and '"--sign", "-"' not in installer,
+        "invented certificate labels and silent ad-hoc fallback invalidate stable TCC trust",
+    )
     add(
         "skill and MCP require app-agnostic friction graders",
         "app-agnostic" in skill_md.lower()
@@ -537,6 +560,31 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "start_session → `state` / `act` / `verify`" not in skill_md
         and "Input delivery (any app)" in skill_md,
         "every friction must be encoded for any Mac app, not left in chat",
+    )
+    add(
+        "skill preserves MCP and native-engine ownership",
+        "MCP follows stable `2026-07-28`" in skill_md
+        and "Keep the model surface at `state` + `act`" in skill_md
+        and "one native `execute_plan` RPC" in skill_md
+        and "only completion gate" in skill_md
+        and "`NSWorkspace` plus `FileManager` validation" in skill_md
+        and "`compact_mcp.py` owns the canonical MCP input/output schema" in skill_md,
+        "protocol guidance must not invent tools or describe an unshipped native plan RPC as live",
+    )
+    add(
+        "exact paths and same-app steps use one native plan",
+        'case "execute_plan"' in method_router
+        and 'case "open_item"' in method_router
+        and "NSWorkspace.shared.open" in method_router
+        and "FileManager.default.fileExists" in method_router
+        and "requestRunning" in method_router
+        and "client.execute_plan(app, native_steps)" in mcp
+        and '"method": "open_item"' in mcp
+        and '"method": "scroll"' in mcp
+        and '"method": "drag"' in mcp
+        and '"method": "select_text"' in mcp
+        and '"execute_plan", {"app": app, "steps": steps}, retry=False' in cua_client,
+        "known filesystem targets must not become Finder searches or replayable multi-RPC action chains",
     )
     add(
         "session-shape benchmark encodes two wall clocks",
@@ -572,7 +620,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "canJoinAllSpaces" in overlay
         and ".stationary" not in overlay
         and "orderFrontRegardless" in overlay
-        and "order(.above, relativeTo:" not in overlay
+        and "order(.above, relativeTo:" in overlay
         and "quartzBounds(of:" in overlay
         and "axBounds" in overlay
         and "preferredWindowBounds" in overlay
@@ -597,6 +645,28 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and 'AXCell "' in mcp
         and "expect in text" not in mcp,
         "keypad titles must not false-green expect (e.g. 0 matching button 0)",
+    )
+    add(
+        "mutating compact acts fail closed until the settled state verifies",
+        "def _has_ui_effect" in mcp
+        and "verification_required: mutating act needs expect" in mcp
+        and '"dispatched": dispatched' in mcp
+        and '"completion": "verified" if verified else "unverified"' in mcp,
+        "dispatch acceptance must not become a Samantha completion claim",
+    )
+    activity = (root / "service" / "Sources" / "CUAService" / "SamanthaActivityLog.swift").read_text()
+    add(
+        "Samantha activity JSONL uses cross-process atomic append",
+        "O_APPEND" in activity and "Darwin.write" in activity,
+        "Swift seek-to-end raced Python append and produced malformed JSONL",
+    )
+    client = (root / "service" / "cua_client.py").read_text()
+    add(
+        "timed-out mutations are bounded and never replayed",
+        "sock.settimeout(15.0)" in client
+        and "retry=False" in client
+        and "if not retry:" in mcp,
+        "45s client retry plus whole-batch retry caused 120s hangs and duplicate input",
     )
     add(
         "batched act captures landing shots before and after without a screenshot tool",
@@ -763,7 +833,8 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "waitUntilFrontmost" in resolver
         and "key_target_not_front" in actions_src
         and "kAXFocusedApplicationAttribute" in resolver
-        and "timeout: TimeInterval = 0.8" in resolver
+        and "timeout: TimeInterval =" in resolver
+        and "Date().addingTimeInterval(timeout)" in resolver
         and "if !tiny && runningApp.isActive { return }" not in resolver,
         "isActive skip left the host IDE key window; cmd+n HID created a tab there",
     )
@@ -779,7 +850,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "act schema keeps coordinate and wait steps",
         '"x": {"type": "number"}' in mcp
         and '"y": {"type": "number"}' in mcp
-        and '"wait": {"type": "number"}' in mcp
+        and '"wait": {"type": "number"' in mcp
         and "time.sleep" in mcp
         and "client.set_value" in mcp,
         "Cursor strips nested x/y when they are not in the schema; unlabeled fields cannot type",
@@ -824,7 +895,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     add(
         "expect must be new versus the before-tree",
         "def expect_is_new" in mcp
-        and "expect_is_new(expect, before_text, text)" in mcp
+        and "expectation_is_new(expect, before_text, text, results)" in mcp
         and "already in the body" in skill_md,
         "needle already in a TextArea false-greened a later cell/table write",
     )
@@ -837,6 +908,8 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     router = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
     delegate = (root / "service" / "Sources" / "CUAService" / "ServiceDelegate.swift").read_text()
     plist = (root / "service" / "Resources" / "Info.plist").read_text()
+    package = (root / "service" / "Package.swift").read_text()
+    entitlements = (root / "service" / "Resources" / "CUAService.entitlements").read_text()
     add(
         "service reports and prompts TCC instead of silent AXUnknown",
         "axTrusted" in router
@@ -847,31 +920,108 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     status = (root / "service" / "Sources" / "CUAService" / "StatusBarController.swift").read_text()
     voice = (root / "service" / "Sources" / "CUAService" / "VoiceSupervisor.swift").read_text()
     island = (root / "service" / "Sources" / "CUAService" / "IslandController.swift").read_text()
+    panel_path = root / "service" / "Sources" / "CUAService" / "SamanthaMenuBarIslandPanel.swift"
+    panel = panel_path.read_text() if panel_path.is_file() else ""
+    anchor_path = root / "service" / "Sources" / "CUAService" / "MenuBarWindowAnchor.swift"
+    anchor_src = anchor_path.read_text() if anchor_path.is_file() else ""
+    settings_store = (root / "service" / "Sources" / "CUAService" / "VoiceSettingsStore.swift").read_text()
     add(
         "CUAService menu supervises voice without stopping socket",
-        "Voice ▶ Start" in status
-        and "Voice ⏹ Stop" in status
-        and "voice_stack" in voice
+        "Samantha" in status
+        and "NSSwitch" in status
+        and "openSettings" in status
+        and "VoiceSettingsStore" in settings_store
+        and "voice-cua.app" in voice
         and "voice.log" in voice
+        and "Task { @MainActor [weak self]" in voice
         and "VoiceSupervisor" in delegate
-        and "DynamicNotchKit" in island,
-        "Phase 4: Voice toggle + in-app notch; socket unchanged when voice stops",
+        and "SamanthaMenuBarIslandPanel" in island
+        and "MenuBarWindowAnchor" in panel
+        and "Menubar" in anchor_src
+        and "isFloatingPanel = false" in panel
+        and "DynamicNotchKit" not in island,
+        "Phase 4: Samantha toggle + Menubar-window-anchored island",
     )
-    island_legacy = Path.home() / "Documents/remote-claude/active/apps/voice-cua-agent/IslandApp/Sources/VoiceCUAIsland/main.swift"
-    legacy_src = island_legacy.read_text() if island_legacy.is_file() else ""
+    add(
+        "voice supervisor recovers bounded unexpected exits",
+        "scheduleRestart" in voice
+        and "restart_suppressed" in voice
+        and "current !== terminated" in voice
+        and "stopping" in voice,
+        "Realtime sessions expire and crashes must recover without reviving intentional stops",
+    )
+    add(
+        "Samantha requests microphone permission before launching voice",
+        "ensureMicrophoneAccess" in voice
+        and "AVCaptureDevice.requestAccess" in voice
+        and "NSMicrophoneUsageDescription" in plist
+        and "com.apple.security.device.audio-input" in entitlements,
+        "the CUAService owner must request TCC so ON means microphone-ready",
+    )
+    add(
+        "voice bundles are signed inside-out with audio input entitlement",
+        '"--deep"' not in installer
+        and "CUAService.entitlements" in installer
+        and "codesign(helper" in installer
+        and 'frameworks.rglob("*")' in installer
+        and "MACHO_MAGICS" in installer,
+        "hardened runtime denies microphone without entitlement on each responsible executable",
+    )
+    add(
+        "microphone alert opens the current macOS privacy extension",
+        "com.apple.settings.PrivacySecurity.extension?Privacy_Microphone" in status,
+        "the legacy preference-pane URL opened Screen & System Audio Recording on macOS 26",
+    )
+    add(
+        "SwiftPM excludes only existing test fixtures",
+        '"__pycache__"' not in package,
+        "stale excludes make every build warn and hide useful diagnostics",
+    )
     add(
         "single menubar owner for Voice CUA",
         "NSStatusBar.system.statusItem" in status
-        and "Voice ▶ Start" in status
+        and "Samantha" in status
         and "NSStatusItem" not in island
-        and "NSStatusBar.system.statusItem" not in island
-        and (not legacy_src or ("NSStatusItem" not in legacy_src and "NSStatusBar.system.statusItem" not in legacy_src)),
+        and "NSStatusBar.system.statusItem" not in island,
         "Phase 4: only CUAService monitor icon in menu bar; IslandApp is notch-only",
     )
     add(
         "skill has no target-app recipe file",
         "likeminded.md" not in skill_md,
         "app recipes stay in the target repo",
+    )
+    harness = (scripts / "install_harness.py").read_text()
+    plugin_root = root.parents[1]
+    mcp_config = (plugin_root / "mcp.json").read_text()
+    installer = (root / "service" / "install_service.py").read_text()
+    voice_runtime = plugin_root / "runtime" / "voice-cua"
+    voice_builder = (voice_runtime / "scripts" / "build_voice_helper.py").read_text()
+    voice_bridge = (voice_runtime / "python" / "voice_cua" / "cua_bridge.py").read_text()
+    add(
+        "Samantha runtime is self-contained in the portable plugin",
+        (voice_runtime / "python" / "voice_cua" / "voice_stack.py").is_file()
+        and (voice_runtime / "config" / ".secret" / "openai-api.json").is_file()
+        and 'VOICE_RUNTIME_ROOT = PLUGIN_ROOT / "runtime" / "voice-cua"' in installer
+        and "VOICE_CUA_AGENT_ROOT" not in installer
+        and "voice-cua-agent repo" not in installer
+        and "devVoiceRoots" not in voice
+        and "PYTHONPATH" not in voice
+        and 'PLUGIN_ROOT / "skills" / "macos-cua"' in voice_builder
+        and '"--scratch-path"' in installer
+        and '"--workpath"' in voice_builder
+        and '"--distpath"' in voice_builder
+        and "_PACKAGED_PLUGIN_SCRIPTS" in voice_bridge
+        and "remote-claude" not in voice_bridge,
+        "a clean plugin install must not depend on a sibling checkout or machine path",
+    )
+    add(
+        "installer cannot recreate unprefixed macos-cua aliases",
+        "HARNESS_SKILL_DIRS" not in harness
+        and "install_link(" not in harness
+        and "CUA_DRIVER_" not in mcp_config
+        and "--delete-excluded" in harness
+        and '".build"' in harness,
+        "install only the plugin and exclude generated build caches",
     )
     agents = (root.parents[1] / "AGENTS.md").read_text()
     add(

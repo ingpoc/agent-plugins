@@ -4,11 +4,7 @@
     "agent-computer-use": {
       "type": "stdio",
       "command": "./bin/agent-computer-use-mcp",
-      "cwd": "./",
-      "env": {
-        "CUA_DRIVER_PERMISSION_MODE": "standard",
-        "CUA_DRIVER_RS_UPDATE_CHECK": "0"
-      }
+      "cwd": "./"
     }
   }
 }

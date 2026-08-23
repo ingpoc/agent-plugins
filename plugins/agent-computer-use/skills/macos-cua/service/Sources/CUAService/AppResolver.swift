@@ -116,22 +116,48 @@ final class AppResolver: @unchecked Sendable {
         }) {
             return match
         }
+        if let url = applicationURL(named: query) {
+            return launchApplication(at: url)
+        }
         if let url = NSWorkspace.shared.urlForApplication(
             withBundleIdentifier: query
         ) {
-            let config = NSWorkspace.OpenConfiguration()
-            config.activates = false
-            let semaphore = DispatchSemaphore(value: 0)
-            var launched: NSRunningApplication?
-            NSWorkspace.shared.openApplication(at: url, configuration: config) { app, _ in
-                launched = app
-                semaphore.signal()
-            }
-            semaphore.wait()
-            if let launched {
-                Thread.sleep(forTimeInterval: 1.0)
-                return launched
-            }
+            return launchApplication(at: url)
+        }
+        return nil
+    }
+
+    /// Resolve standard macOS application locations from a display name.
+    func applicationURL(named query: String) -> URL? {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let base = trimmed.hasSuffix(".app") ? String(trimmed.dropLast(4)) : trimmed
+        let candidates = [
+            "/System/Applications/\(base).app",
+            "/System/Library/CoreServices/\(base).app",
+            "/System/Library/CoreServices/Applications/\(base).app",
+            "/Applications/\(base).app",
+            "/System/Applications/Utilities/\(base).app",
+        ]
+        for path in candidates where FileManager.default.fileExists(atPath: path) {
+            return URL(fileURLWithPath: path)
+        }
+        return nil
+    }
+
+    private func launchApplication(at url: URL) -> NSRunningApplication? {
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        let semaphore = DispatchSemaphore(value: 0)
+        var launched: NSRunningApplication?
+        NSWorkspace.shared.openApplication(at: url, configuration: config) { app, _ in
+            launched = app
+            semaphore.signal()
+        }
+        semaphore.wait()
+        if let launched {
+            Thread.sleep(forTimeInterval: 0.45)
+            return launched
         }
         return nil
     }
@@ -254,7 +280,7 @@ final class AppResolver: @unchecked Sendable {
         runningApp.activate(options: [.activateIgnoringOtherApps])
     }
 
-    private func waitUntilFrontmost(_ pid: pid_t, timeout: TimeInterval = 0.8) {
+    private func waitUntilFrontmost(_ pid: pid_t, timeout: TimeInterval = 1.2) {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if Self.hidFrontPid() == pid { return }

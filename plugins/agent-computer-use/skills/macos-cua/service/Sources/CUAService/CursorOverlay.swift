@@ -66,21 +66,21 @@ final class CursorOverlay: @unchecked Sendable {
         animationTimer = nil
         if !panel.isVisible {
             panel.setFrameOrigin(origin)
-            panel.orderFrontRegardless()
+            orderPanel(above: windowID)
             return (quartz, 0)
         }
 
         let current = panel.frame.origin
         if abs(current.x - origin.x) < 0.5 && abs(current.y - origin.y) < 0.5 {
             panel.setFrameOrigin(origin)
-            panel.orderFrontRegardless()
+            orderPanel(above: windowID)
             return (quartz, 0)
         }
 
         animStart = current
         animTarget = origin
         animStartTime = ProcessInfo.processInfo.systemUptime
-        panel.orderFrontRegardless()
+        orderPanel(above: windowID)
 
         // Block timer on main runloop: no Timer(target:self) retain pair.
         let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] t in
@@ -101,6 +101,14 @@ final class CursorOverlay: @unchecked Sendable {
         animationTimer?.invalidate()
         animationTimer = nil
         panel.orderOut(nil)
+    }
+
+    private func orderPanel(above windowID: CGWindowID?) {
+        if let windowID {
+            panel.order(.above, relativeTo: Int(windowID))
+        } else {
+            panel.orderFrontRegardless()
+        }
     }
 
     private func tick() {

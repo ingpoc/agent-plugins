@@ -17,7 +17,6 @@ SKILL = HERE.parent
 MAIN = HERE / "macos-cua.py"
 CUA_DRIVER = Path(os.environ.get("CUA_DRIVER", "~/.local/bin/cua-driver")).expanduser()
 OPERATOR = HERE / "operator_ui.py"
-CURSOR_LINK = Path("~/.cursor/skills/macos-cua").expanduser()
 HERMES_CURSOR = SKILL / "assets" / "pointer-shape-animated.svg"
 
 
@@ -173,12 +172,6 @@ def static_checks():
         HERMES_CURSOR.is_file() and "pointer-shape-animated.svg" in MAIN.read_text(),
         str(HERMES_CURSOR),
     )
-    if CURSOR_LINK.parent.exists():
-        add(
-            "Cursor single-owner skill link",
-            CURSOR_LINK.is_symlink() and CURSOR_LINK.resolve() == SKILL,
-            str(CURSOR_LINK),
-        )
     fast_path = HERE / "fast_path.py"
     spec = importlib.util.spec_from_file_location("macos_cua_fast_path", fast_path)
     module = importlib.util.module_from_spec(spec)

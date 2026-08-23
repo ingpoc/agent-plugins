@@ -53,6 +53,32 @@ class TestCUAClientUnit(unittest.TestCase):
         self.assertEqual(err.code, -32601)
         self.assertIn("Method not found", str(err))
 
+    def test_mutating_timeout_is_not_replayed(self):
+        client = CUAClient("/tmp/test.sock")
+        client._call_once = MagicMock(side_effect=TimeoutError("slow input"))
+        client.close = MagicMock()
+        with self.assertRaises(TimeoutError):
+            client.call("click", {"app": "Finder"}, retry=False)
+        client._call_once.assert_called_once()
+        client.close.assert_called_once()
+
+    def test_click_disables_retry(self):
+        client = CUAClient("/tmp/test.sock")
+        client.call = MagicMock(return_value={"ok": True})
+        client.click("Finder", label="Apps")
+        client.call.assert_called_once_with(
+            "click", {"app": "Finder", "label": "Apps"}, retry=False
+        )
+
+    def test_native_plan_disables_retry(self):
+        client = CUAClient("/tmp/test.sock")
+        client.call = MagicMock(return_value={"ok": True})
+        steps = [{"method": "open_item", "params": {"path": "/tmp"}}]
+        client.execute_plan("Finder", steps)
+        client.call.assert_called_once_with(
+            "execute_plan", {"app": "Finder", "steps": steps}, retry=False
+        )
+
 
 class TestCUAClientIntegration(unittest.TestCase):
     """Integration tests — skip if service not running."""

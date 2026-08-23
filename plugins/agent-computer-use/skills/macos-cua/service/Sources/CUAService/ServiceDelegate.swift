@@ -49,6 +49,7 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
             inputActions: inputActions,
             logger: logger
         )
+        islandController?.setCursorOverlay(cursorOverlay!)
 
         server = SocketServer(socketPath: socketPath, logger: logger) { [router] request in
             guard let router else {
@@ -78,6 +79,7 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         voiceSupervisor?.stop()
         islandController?.stopStreaming()
+        cursorOverlay?.hide()
         server?.stop()
         try? FileManager.default.removeItem(atPath: socketPath)
         logger.info("CUAService stopped")

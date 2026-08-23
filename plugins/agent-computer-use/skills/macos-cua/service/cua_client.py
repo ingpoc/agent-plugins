@@ -41,7 +41,7 @@ class CUAClient:
         while time.monotonic() < deadline:
             try:
                 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                sock.settimeout(45.0)
+                sock.settimeout(15.0)
                 sock.connect(self.socket_path)
                 self._sock = sock
                 return
@@ -63,7 +63,13 @@ class CUAClient:
                 pass
             self._sock = None
 
-    def call(self, method: str, params: dict[str, Any] | None = None) -> Any:
+    def call(
+        self,
+        method: str,
+        params: dict[str, Any] | None = None,
+        *,
+        retry: bool = True,
+    ) -> Any:
         last: Exception | None = None
         for attempt in range(2):
             try:
@@ -71,7 +77,7 @@ class CUAClient:
             except (ConnectionError, TimeoutError, OSError) as exc:
                 last = exc
                 self.close()
-                if attempt == 0:
+                if retry and attempt == 0:
                     self.connect()
                     continue
                 raise
@@ -142,31 +148,56 @@ class CUAClient:
         return self.call("get_app_state", {"app": app, **kwargs})
 
     def click(self, app: str, **kwargs) -> dict:
-        return self.call("click", {"app": app, **kwargs})
+        return self.call("click", {"app": app, **kwargs}, retry=False)
 
     def press_key(self, app: str, key: str) -> dict:
-        return self.call("press_key", {"app": app, "key": key})
+        return self.call("press_key", {"app": app, "key": key}, retry=False)
 
     def type_text(self, app: str, text: str, after_new_document: bool = False) -> dict:
         params: dict[str, Any] = {"app": app, "text": text}
         if after_new_document:
             params["after_new_document"] = True
-        return self.call("type_text", params)
+        return self.call("type_text", params, retry=False)
 
     def scroll(self, app: str, direction: str, **kwargs) -> dict:
-        return self.call("scroll", {"app": app, "direction": direction, **kwargs})
+        return self.call(
+            "scroll", {"app": app, "direction": direction, **kwargs}, retry=False
+        )
 
     def set_value(self, app: str, element_index: int, value: str) -> dict:
         return self.call("set_value", {
             "app": app, "element_index": element_index, "value": value
-        })
+        }, retry=False)
 
     def drag(self, app: str, from_x: float, from_y: float,
              to_x: float, to_y: float) -> dict:
         return self.call("drag", {
             "app": app, "from_x": from_x, "from_y": from_y,
             "to_x": to_x, "to_y": to_y,
-        })
+        }, retry=False)
+
+    def select_text(self, app: str, element_index: int, text: str, **kwargs) -> dict:
+        return self.call("select_text", {
+            "app": app, "element_index": element_index, "text": text, **kwargs,
+        }, retry=False)
+
+    def perform_secondary_action(
+        self, app: str, element_index: int, action: str
+    ) -> dict:
+        return self.call("perform_secondary_action", {
+            "app": app, "element_index": element_index, "action": action,
+        }, retry=False)
+
+    def open_item(self, app: str, **kwargs) -> dict:
+        return self.call("open_item", {"app": app, **kwargs}, retry=False)
+
+    def execute_plan(self, app: str, steps: list[dict]) -> dict:
+        return self.call(
+            "execute_plan", {"app": app, "steps": steps}, retry=False
+        )
+
+    def hide_agent_cursor(self) -> dict:
+        return self.call("hide_agent_cursor") or {"ok": True}
 
 
 class RPCError(Exception):

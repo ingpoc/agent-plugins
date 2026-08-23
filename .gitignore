@@ -11,3 +11,6 @@ plugins/*/run/
 **/.codex-plugin/
 plugins/agent-computer-use/skills/macos-cua/service/.build/
 plugins/agent-computer-use/skills/macos-cua/service/.pytest_cache/
+plugins/agent-computer-use/runtime/voice-cua/build/
+plugins/agent-computer-use/runtime/voice-cua/dist/
+plugins/agent-computer-use/runtime/voice-cua/*.spec

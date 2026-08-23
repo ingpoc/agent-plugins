@@ -1,0 +1,12 @@
+{
+  "id": "example-render-api",
+  "platform": "render",
+  "env": "prod",
+  "label": "VoiceCUA Example Render API Key",
+  "service": "com.voice-cua.render.api",
+  "account": "voice-cua",
+  "aliases": [],
+  "inject": [
+    { "app": "Cursor", "path_hint": "Settings / env" }
+  ]
+}

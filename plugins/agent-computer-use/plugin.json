@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agent-computer-use",
-  "version": "0.2.9",
-  "description": "Native macOS computer use through a 5-tool MCP facade over compact AX-first macos-cua workflows.",
+  "version": "0.2.12",
+  "description": "Native macOS computer use and GPT Realtime voice control through CUAService.",
   "author": {
     "name": "ingpoc",
     "url": "https://github.com/ingpoc"
@@ -13,6 +13,8 @@
   "keywords": [
     "macos",
     "computer-use",
+    "realtime",
+    "voice",
     "accessibility",
     "automation"
   ]

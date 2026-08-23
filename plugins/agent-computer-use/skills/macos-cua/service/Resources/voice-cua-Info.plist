@@ -18,8 +18,6 @@
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
-    <key>LSUIElement</key>
-    <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>Voice CUA listens so you can speak tasks for the agent to run on your Mac.</string>
 </dict>

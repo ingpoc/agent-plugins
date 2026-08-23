@@ -69,6 +69,75 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_app_only_act_retries_cold_launch_window(self):
+        calls = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        calls.append(kwargs)
+                        if len(calls) == 1:
+                            raise RuntimeError(f"No window for app: {app}")
+                        return {
+                            "app": app,
+                            "text": "ready",
+                            "screenshot": {"url": "file:///tmp/ready.png"},
+                        }
+
+                return fn(Client())
+
+        out = Backend().act("Dictionary", {"app": "Dictionary"})
+        self.assertTrue(out["ok"])
+        self.assertTrue(out["verified"])
+        self.assertTrue(any(call.get("raiseForInput") for call in calls))
+
+    def test_mutating_act_without_expect_fails_before_dispatch(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                self.fail("must not dispatch")
+
+        out = Backend().act("Calculator", {"label": "Equals"})
+        self.assertFalse(out["ok"])
+        self.assertFalse(out["dispatched"])
+        self.assertEqual(out["error_type"], "verification_required")
+
+    def test_failed_expectation_is_not_success(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {"text": '[1] AXStaticText value="Applications"'}
+
+                    def click(self, app, **kwargs):
+                        return {"ok": True, "method": "ax-press"}
+
+                return fn(Client())
+
+        out = Backend().act("Finder", {"label": "Apps", "expect": "Apps"})
+        self.assertFalse(out["ok"])
+        self.assertTrue(out["dispatched"])
+        self.assertFalse(out["verified"])
+        self.assertEqual(out["error_type"], "completion_unverified")
+
+    def test_not_text_expectation_verifies_removal(self):
+        before = '[1] AXStaticText value="Calculator"'
+        after = '[1] AXStaticText value="Applications"'
+        self.assertTrue(
+            compact_mcp.expectation_is_new(
+                {"not_text": "Calculator"}, before, after
+            )
+        )
+
     def test_state_dispatches_in_process_without_cli(self):
         calls = []
 
@@ -139,9 +208,9 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertIn("screenshot_before", text)
         self.assertIn("screenshot_after", text)
         act = next(tool for tool in compact_mcp.tool_schemas() if tool["name"] == "act")
-        self.assertIn("Best first", act["description"])
-        self.assertIn("screenshot_before", act["description"])
-        self.assertIn("Fallback", act["description"])
+        self.assertIn("one native plan", act["description"])
+        self.assertIn("Exact paths", act["description"])
+        self.assertIn("outputSchema", act)
         props = act["inputSchema"]["properties"]
         self.assertEqual(props["x"]["type"], "number")
         self.assertEqual(props["y"]["type"], "number")
@@ -149,13 +218,53 @@ class CompactMcpDispatchTests(unittest.TestCase):
         step_props = props["steps"]["items"]["properties"]
         self.assertEqual(step_props["x"]["type"], "number")
         self.assertEqual(step_props["wait"]["type"], "number")
+        self.assertIn("open", step_props["op"]["enum"])
+        self.assertIn("scroll", step_props["op"]["enum"])
+        self.assertEqual(step_props["path"]["type"], "string")
+
+    def test_exact_path_uses_one_native_plan_and_verifies_result(self):
+        calls = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def execute_plan(self, app, steps):
+                        calls.append((app, steps))
+                        return {
+                            "ok": True,
+                            "before": {"text": '[1] AXStaticText value="apps"'},
+                            "after": {"text": '[1] AXStaticText value="voice-cua-agent"'},
+                            "results": [{
+                                "ok": True,
+                                "method": "workspace-open",
+                                "path": "/tmp/voice-cua-agent",
+                            }],
+                        }
+
+                return fn(Client())
+
+        out = Backend().act("Finder", {
+            "steps": [{"op": "open", "path": "/tmp/voice-cua-agent"}],
+            "expect": [
+                {"path": "/tmp/voice-cua-agent"},
+                {"text": "voice-cua-agent"},
+            ],
+        })
+        self.assertTrue(out["ok"])
+        self.assertTrue(out["verified"])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][1][0]["method"], "open_item")
+        self.assertEqual(calls[0][1][0]["params"]["path"], "/tmp/voice-cua-agent")
 
     def test_act_returns_before_and_after_screenshots(self):
         class Backend(compact_mcp.CUABackend):
             def __init__(self):
                 pass
 
-            def _rpc(self, fn):
+            def _rpc(self, fn, *, retry=True):
                 class Client:
                     def __init__(self):
                         self.n = 0
@@ -188,7 +297,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
             def __init__(self):
                 pass
 
-            def _rpc(self, fn):
+            def _rpc(self, fn, *, retry=True):
                 class Client:
                     def get_app_state(self, app, **kwargs):
                         return {"text": '[1] AXStaticText value="0"'}
@@ -221,7 +330,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
             def __init__(self):
                 pass
 
-            def _rpc(self, fn):
+            def _rpc(self, fn, *, retry=True):
                 class Client:
                     def get_app_state(self, app, **kwargs):
                         return {"text": '[1] AXStaticText value="0"'}
@@ -244,7 +353,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
             def __init__(self):
                 pass
 
-            def _rpc(self, fn):
+            def _rpc(self, fn, *, retry=True):
                 class Client:
                     def get_app_state(self, app, **kwargs):
                         return {
@@ -261,7 +370,8 @@ class CompactMcpDispatchTests(unittest.TestCase):
             "App",
             {"steps": [{"element": 35, "text": "Idea"}], "expect": "event horizon"},
         )
-        self.assertTrue(out["ok"])
+        self.assertFalse(out["ok"])
+        self.assertTrue(out["dispatched"])
         self.assertFalse(out["verified"])
 
     def test_act_retries_missing_screenshot(self):
@@ -269,7 +379,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
             def __init__(self):
                 pass
 
-            def _rpc(self, fn):
+            def _rpc(self, fn, *, retry=True):
                 class Client:
                     def __init__(self):
                         self.n = 0

@@ -575,12 +575,6 @@ final class OperatorDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate 
         let names = ["MenubarIcon@2x.png", "MenubarIcon.png"]
         let dirs = [
             Bundle.main.resourceURL?.path,
-            NSString(
-                string: "~/.cursor/plugins/local/agent-computer-use/skills/macos-cua/assets"
-            ).expandingTildeInPath,
-            NSString(
-                string: "~/Documents/remote-claude/active/apps/agent-plugins/plugins/agent-computer-use/skills/macos-cua/assets"
-            ).expandingTildeInPath,
         ].compactMap { $0 }
         for dir in dirs {
             for name in names {

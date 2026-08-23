@@ -1,64 +1,15 @@
 #!/usr/bin/env python3
-"""Install this plugin skill as the single macos-cua owner for other harnesses."""
+"""Install the Agent Computer Use plugin into Cursor."""
 from __future__ import annotations
 
 import argparse
 import json
 from pathlib import Path
-import shutil
 import subprocess
 
 
-SKILL_DIR = Path(__file__).resolve().parents[1]
-PLUGIN_ROOT = SKILL_DIR.parents[1]
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 CURSOR_PLUGIN = Path.home() / ".cursor/plugins/local/agent-computer-use"
-HARNESS_SKILL_DIRS = {
-    "cursor": Path.home() / ".cursor/skills",
-    "agents": Path.home() / ".agents/skills",
-    "claude": Path.home() / ".claude/skills",
-    "codex": Path.home() / ".codex/skills",
-}
-
-
-def _is_macos_cua_tree(path: Path) -> bool:
-    return (path / "scripts/macos-cua.py").is_file() and (path / "SKILL.md").is_file()
-
-
-def install_link(skills_dir: Path, *, replace_copy: bool = False) -> dict:
-    destination = skills_dir / "macos-cua"
-    skills_dir.mkdir(parents=True, exist_ok=True)
-    if destination.is_symlink():
-        resolved = destination.resolve()
-        if resolved == SKILL_DIR:
-            return {
-                "ok": True,
-                "changed": False,
-                "destination": str(destination),
-                "source": str(SKILL_DIR),
-            }
-        if not replace_copy:
-            return {
-                "ok": False,
-                "error": f"refusing to replace symlink to {resolved}",
-                "destination": str(destination),
-            }
-        destination.unlink()
-    elif destination.exists():
-        if replace_copy and _is_macos_cua_tree(destination):
-            shutil.rmtree(destination)
-        else:
-            return {
-                "ok": False,
-                "error": "refusing to replace an existing skill directory",
-                "destination": str(destination),
-            }
-    destination.symlink_to(SKILL_DIR, target_is_directory=True)
-    return {
-        "ok": True,
-        "changed": True,
-        "destination": str(destination),
-        "source": str(SKILL_DIR),
-    }
 
 
 def sync_cursor_plugin(*, user_mcp: bool = False) -> dict:
@@ -68,10 +19,17 @@ def sync_cursor_plugin(*, user_mcp: bool = False) -> dict:
         "rsync",
         "-a",
         "--delete",
+        "--delete-excluded",
         "--exclude",
         ".DS_Store",
         "--exclude",
         ".ruff_cache",
+        "--exclude",
+        ".build",
+        "--exclude",
+        "__pycache__",
+        "--exclude",
+        ".pytest_cache",
         f"{PLUGIN_ROOT}/",
         f"{dest}/",
     ]
@@ -164,10 +122,6 @@ def _install_cursor_user_mcp(launcher: Path) -> dict:
             data.setdefault("mcpServers", {})
     data["mcpServers"]["agent-computer-use"] = {
         "command": str(launcher),
-        "env": {
-            "CUA_DRIVER_PERMISSION_MODE": "standard",
-            "CUA_DRIVER_RS_UPDATE_CHECK": "0",
-        },
     }
     path.write_text(json.dumps(data, indent=2) + "\n")
     return {"ok": True, "path": str(path), "command": str(launcher)}
@@ -177,12 +131,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "harness",
-        choices=sorted(HARNESS_SKILL_DIRS) + ["cursor-plugin", "all"],
-    )
-    parser.add_argument(
-        "--replace-copy",
-        action="store_true",
-        help="Replace a copied macos-cua skill directory with a symlink",
+        choices=["cursor-plugin"],
     )
     parser.add_argument(
         "--user-mcp",
@@ -190,28 +139,12 @@ def main() -> int:
         help="Re-add ~/.cursor/mcp.json only if plugin MCP spawn is proven broken",
     )
     args = parser.parse_args()
-    results = []
-    if args.harness in {"cursor-plugin", "all"}:
-        results.append(
-            {
-                "harness": "cursor-plugin",
-                **sync_cursor_plugin(user_mcp=args.user_mcp),
-            }
-        )
-    targets = (
-        HARNESS_SKILL_DIRS
-        if args.harness == "all"
-        else {args.harness: HARNESS_SKILL_DIRS[args.harness]}
-        if args.harness in HARNESS_SKILL_DIRS
-        else {}
-    )
-    for name, skills_dir in targets.items():
-        item = install_link(skills_dir, replace_copy=args.replace_copy)
-        item["harness"] = name
-        results.append(item)
-    payload = results[0] if len(results) == 1 else {"ok": all(r.get("ok") for r in results), "results": results}
+    payload = {
+        "harness": "cursor-plugin",
+        **sync_cursor_plugin(user_mcp=args.user_mcp),
+    }
     print(json.dumps(payload, indent=2, sort_keys=True))
-    return 0 if (payload.get("ok") if "ok" in payload else all(r.get("ok") for r in results)) else 1
+    return 0 if payload.get("ok") else 1
 
 
 if __name__ == "__main__":

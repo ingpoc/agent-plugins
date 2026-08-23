@@ -1,0 +1,16 @@
+{
+  "id": "openai-api",
+  "role": "openai-runtime",
+  "platform": "openai",
+  "env": "local",
+  "label": "Open AI Realtime Key",
+  "service": "com.voice-cua.openai.api",
+  "account": "gupta.rp.gurusharan@gmail.com",
+  "aliases": [
+    "VoiceCUA OpenAI API Key",
+    "OpenAI Realtime Key",
+    "OpenAI API Key"
+  ],
+  "inject": [],
+  "notes": "Title matches macOS Passwords. Mirror once into login Keychain via secrets_cli mirror — Passwords vault is not readable by security CLI."
+}

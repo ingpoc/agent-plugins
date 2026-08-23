@@ -24,5 +24,7 @@
     <string>CUAService needs Accessibility access to read and interact with application UI elements.</string>
     <key>NSScreenCaptureUsageDescription</key>
     <string>CUAService captures the target app window so the agent can verify on-screen UI.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Samantha listens for spoken tasks when you turn her on.</string>
 </dict>
 </plist>

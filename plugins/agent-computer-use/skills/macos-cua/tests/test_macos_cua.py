@@ -56,10 +56,6 @@ OPERATOR_SPEC = importlib.util.spec_from_file_location("operator_ui", OPERATOR_S
 operator_ui = importlib.util.module_from_spec(OPERATOR_SPEC)
 OPERATOR_SPEC.loader.exec_module(operator_ui)
 
-INSTALL_SCRIPT = Path(__file__).parents[1] / "scripts" / "install_harness.py"
-INSTALL_SPEC = importlib.util.spec_from_file_location("install_harness", INSTALL_SCRIPT)
-install_harness = importlib.util.module_from_spec(INSTALL_SPEC)
-INSTALL_SPEC.loader.exec_module(install_harness)
 
 WORKFLOW_SCRIPT = Path(__file__).parents[1] / "scripts" / "workflow.py"
 WORKFLOW_SPEC = importlib.util.spec_from_file_location("workflow", WORKFLOW_SCRIPT)
@@ -3325,38 +3321,6 @@ class OperatorUITests(unittest.TestCase):
             [call.kwargs for call in update.call_args_list],
             [{"pip_visible": True}, {"pip_visible": False}],
         )
-
-
-class HarnessInstallTests(unittest.TestCase):
-    def test_install_is_idempotent_and_keeps_single_owner(self):
-        with tempfile.TemporaryDirectory() as directory:
-            skills = Path(directory)
-            first = install_harness.install_link(skills)
-            second = install_harness.install_link(skills)
-
-            self.assertTrue(first["changed"])
-            self.assertFalse(second["changed"])
-            self.assertTrue((skills / "macos-cua").is_symlink())
-            self.assertEqual(
-                (skills / "macos-cua").resolve(), install_harness.SKILL_DIR
-            )
-
-    def test_replace_copy_retargets_stale_skill_symlink(self):
-        with tempfile.TemporaryDirectory() as directory:
-            skills = Path(directory)
-            other = Path(directory) / "other-macos-cua"
-            other.mkdir()
-            (other / "SKILL.md").write_text("stale\n")
-            (other / "scripts").mkdir()
-            (other / "scripts" / "macos-cua.py").write_text("# stale\n")
-            stale = skills / "macos-cua"
-            stale.symlink_to(other, target_is_directory=True)
-            refused = install_harness.install_link(skills)
-            self.assertFalse(refused["ok"])
-            linked = install_harness.install_link(skills, replace_copy=True)
-            self.assertTrue(linked["ok"])
-            self.assertTrue(linked["changed"])
-            self.assertEqual(stale.resolve(), install_harness.SKILL_DIR)
 
 
 class KeyboardTests(unittest.TestCase):

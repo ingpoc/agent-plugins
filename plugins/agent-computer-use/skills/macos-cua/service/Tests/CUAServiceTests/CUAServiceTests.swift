@@ -1,4 +1,5 @@
 import XCTest
+import Logging
 @testable import CUAService
 
 final class JSONRPCCodecTests: XCTestCase {
@@ -90,5 +91,15 @@ final class RequestParamTests: XCTestCase {
 
         let missing: String? = request.param("nonexistent")
         XCTAssertNil(missing)
+    }
+}
+
+final class AppResolverTests: XCTestCase {
+    func testFindsFinderInCoreServices() {
+        let resolver = AppResolver(logger: Logger(label: "AppResolverTests"))
+        XCTAssertEqual(
+            resolver.applicationURL(named: "Finder")?.path,
+            "/System/Library/CoreServices/Finder.app"
+        )
     }
 }

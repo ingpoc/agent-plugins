@@ -97,7 +97,6 @@ has no `target`. Do not code from hosted examples.
 | Hide-other-apps / dual-display lock (Anthropic CLI posture) | Codex/cua prove same-display works. Single-monitor is valid | Lab secondary-display gate only |
 | Clipboard-paste typing from background | Community workaround; steals the user pasteboard | Never. Type stays AX / `type-text` |
 | Lift raw `invoke_menu` into the 5-tool facade | Catalog growth; File menu is not an official-suite gap | A suite case needs File *and* wrapping it inside existing `act`/`run` is proven |
-| Recreate `~/.agents/skills/macos-cua` as a copy | It is a symlink to this plugin skill | The symlink is gone and install is supposed to restore it |
 | Lift WhatsApp Open-sheet osascript into this plugin | Attach completion stays `$whatsapp` `attach-file` | A generic Open-panel owner is proven on more than WhatsApp |
 | Loosen suite budgets after one slow WhatsApp/pointer run | 18s WhatsApp and 47s pointer were cold/Catalyst flakes; reruns passed | A warm rerun still misses the budget |
 | Cursor dest `cwd` as an absolute dest path | Host then ignored dest `mcp.json` | Cursor spawn contract changes |
