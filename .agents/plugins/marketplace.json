@@ -1,0 +1,24 @@
+{
+  "name": "ingpoc-agent-plugins",
+  "interface": {
+    "displayName": "ingpoc Agent Plugins"
+  },
+  "plugins": [
+    {
+      "name": "agent-computer-use",
+      "source": {
+        "source": "local",
+        "path": "./plugins/agent-computer-use"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "comet-control",
+      "source": {
+        "source": "local",
+        "path": "./plugins/comet-control"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
