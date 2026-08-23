@@ -1,0 +1,39 @@
+{
+  "name": "ingpoc-agent-plugins",
+  "description": "Portable Agent Plugins from ingpoc.",
+  "owner": {
+    "name": "ingpoc"
+  },
+  "plugins": [
+    {
+      "name": "agent-computer-use",
+      "source": {
+        "type": "local",
+        "path": "./plugins/agent-computer-use"
+      },
+      "description": "Native macOS computer use and GPT Realtime voice control through CUAService.",
+      "category": "productivity",
+      "homepage": "https://github.com/ingpoc/agent-plugins",
+      "keywords": [
+        "macos",
+        "computer use",
+        "voice"
+      ]
+    },
+    {
+      "name": "comet-control",
+      "source": {
+        "type": "local",
+        "path": "./plugins/comet-control"
+      },
+      "description": "Control and verify web apps in a leased visible Comet window.",
+      "category": "productivity",
+      "homepage": "https://github.com/ingpoc/agent-plugins",
+      "keywords": [
+        "comet",
+        "browser",
+        "computer use"
+      ]
+    }
+  ]
+}

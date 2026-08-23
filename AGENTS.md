@@ -13,7 +13,7 @@ This repository is a **collection of portable [Agent Plugins](https://agent-plug
 | --- | --- |
 | `plugins/<name>/` with closed `plugin.json` | Cursor-specific plugin packages (`.cursor-plugin/plugin.json`) |
 | `skills/`, optional `mcp.json`, optional `bin/`, runtime files that package needs | Codex plugin packages (`.codex-plugin/`) |
-| Thin Codex and Cursor marketplace catalogs that point at the same portable packages | Duplicate client-specific copies of plugin contents |
+| Thin Codex, Cursor, and Grok marketplace catalogs that point at the same portable packages | Duplicate client-specific copies of plugin contents |
 
 The collection root is not a plugin. The install unit is always `plugins/<name>/`.
 
@@ -41,7 +41,7 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 
 1. Detect the running client.
 2. Open [compatible-clients](https://agent-plugins.org/compatible-clients). Match the client. Take its setup-instructions link. If the page has no cards (JS shell), read the owner [`lib/compatible-clients.ts`](https://raw.githubusercontent.com/agentplugins/agent-plugins-site/main/lib/compatible-clients.ts) and use that row's `instructionsUrl`.
-3. Prefer the repository catalog for Codex (`.agents/plugins/marketplace.json`) or Cursor (`.cursor-plugin/marketplace.json`). Both catalogs load **`plugins/<name>/` only** (the directory with `plugin.json`); the collection root is never a plugin.
+3. Prefer the repository catalog for Codex (`.agents/plugins/marketplace.json`), Cursor (`.cursor-plugin/marketplace.json`), or Grok Build (`.grok-plugin/marketplace.json`). All catalogs load **`plugins/<name>/` only** (the directory with `plugin.json`); the collection root is never a plugin.
 4. Read and apply `plugins/<name>/AGENTS.md`.
 5. Verify the client lists the plugin. Fix from the same setup page if it does not.
 6. Stop only for an OS or store consent the agent cannot complete.
