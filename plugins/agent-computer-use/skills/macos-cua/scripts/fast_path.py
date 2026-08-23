@@ -1031,6 +1031,14 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and '".build"' in harness,
         "install only the plugin and exclude generated build caches",
     )
+    validator = (scripts / "validate-macos-cua.py").read_text()
+    add(
+        "validator uses CUAService rather than retired native twins",
+        "CUAService RPC contracts" in validator
+        and "dump-docs" not in validator
+        and "operator_build" not in validator,
+        "validation must not restore cua-driver or build macos-cua Operator",
+    )
     agents = (root.parents[1] / "AGENTS.md").read_text()
     add(
         "README refresh requires warm 5-repeat",
