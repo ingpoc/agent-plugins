@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Comet Control",
-  "version": "0.1.0",
+  "version": "0.1.1",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAp3UYP+7Gc4EbioZzf/bJHgGdyojMNHQTUxQZJu0hmIvbXwhDghLOYuaI6ToSs7Uu0XOPDaYIJHbHFM94WV7EmHuO0USAkAt0NxnFcsC8zI9ddLaT1EXWaNHYcupRba62yCnj2oQqzCuTCZ1Dn0eVeC8ImLDjz9cTs6j0VhsJnDT7FTtQ6L5HpiPhLE+h/g89NJ1MhHGRM9N6VuKl+yoOzqpSkClEydRqnYeLDaHTrjGbGx1DdU0U0V3VOz1OBacvogs3reSfSZUlv1haLm1/UL/7z7X9t2QtkEKweQbwk4CA0I62vsMCyTK/0ScthmGJ4CEtt9MpB3uth0d1SaEP3QIDAQAB",
   "description": "Isolated, leased control for the logged-in Comet profile",
   "permissions": [
     "debugger",

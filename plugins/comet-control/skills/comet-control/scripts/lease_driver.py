@@ -30,6 +30,9 @@ def _default_socket() -> str:
     wip = os.environ.get("COMET_CONTROL_ROOT")
     if wip:
         return str(Path(wip).expanduser().resolve() / "run" / "comet-control.sock")
+    shared = Path.home() / ".agents/plugins/comet-control"
+    if (shared / "plugin.json").is_file():
+        return str(shared / "run/comet-control.sock")
     here = Path(__file__).resolve()
     candidates: list[Path] = []
     for parent in here.parents:

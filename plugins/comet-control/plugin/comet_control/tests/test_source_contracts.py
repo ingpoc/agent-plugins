@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import json
 from pathlib import Path
 import unittest
@@ -21,6 +23,26 @@ MANIFEST = ROOT / "extension" / "manifest.json"
 
 
 class SourceContractTests(unittest.TestCase):
+    def test_unpackaged_extension_id_is_stable_across_install_paths(self) -> None:
+        manifest = json.loads(MANIFEST.read_text())
+        digest = hashlib.sha256(base64.b64decode(manifest["key"])).digest()[:16]
+        extension_id = "".join(
+            chr(ord("a") + nibble)
+            for byte in digest
+            for nibble in (byte >> 4, byte & 15)
+        )
+        self.assertIn(extension_id, OWNER_PROBE.read_text())
+
+    def test_client_caches_route_to_the_shared_runtime(self) -> None:
+        shared = ".agents/plugins/comet-control"
+        self.assertIn(shared, OWNER_PROBE.read_text())
+        self.assertIn(shared, LEASE_DRIVER.read_text())
+        self.assertIn(shared, (LEASE_DRIVER.parent / "durable_lease_controller.py").read_text())
+        cua_slice = (LEASE_DRIVER.parent / "cua_slice.py").read_text()
+        self.assertIn(shared, cua_slice)
+        self.assertIn(".agents/plugins/agent-computer-use", cua_slice)
+        self.assertNotIn(".agents/skills/macos-cua", cua_slice)
+
     def test_actionability_revisions_pause_and_failure_trace_are_owned_in_place(self) -> None:
         worker = SERVICE_WORKER.read_text()
         cursor = CURSOR_AGENT.read_text()

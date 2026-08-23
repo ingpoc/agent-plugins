@@ -2,7 +2,15 @@
 # Comet-only broker lifecycle and readiness probe.
 set -euo pipefail
 
-ROOT="${COMET_CONTROL_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+PACKAGE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SHARED_ROOT="${COMET_CONTROL_SHARED_ROOT:-$HOME/.agents/plugins/comet-control}"
+if [[ -n "${COMET_CONTROL_ROOT:-}" ]]; then
+  ROOT="$COMET_CONTROL_ROOT"
+elif [[ -f "$SHARED_ROOT/plugin.json" ]]; then
+  ROOT="$SHARED_ROOT"
+else
+  ROOT="$PACKAGE_ROOT"
+fi
 MODE="${1:-probe}"
 [[ $# -gt 0 ]] && shift
 [[ "${1:-}" == "--json" ]] && shift
@@ -17,7 +25,7 @@ LABEL="local.comet-control.broker"
 PLIST="${COMET_CONTROL_USER_HOME:-$HOME}/Library/LaunchAgents/$LABEL.plist"
 COMET_EXECUTABLE="${COMET_CONTROL_EXPECTED_BROWSER_EXECUTABLE:-/Applications/Comet.app/Contents/MacOS/Comet}"
 COMET_PROFILE="${COMET_CONTROL_USER_DATA_DIR:-${COMET_CONTROL_USER_HOME:-$HOME}/Library/Application Support/Comet}"
-EXTENSION_ID="${COMET_CONTROL_EXTENSION_ID:-iknnjffofidficdmmkimcjbceookglgi}"
+EXTENSION_ID="${COMET_CONTROL_EXTENSION_ID:-dhdolcihdnanialginfcjbmceknoljip}"
 PYTHON="${COMET_CONTROL_PYTHON:-$(python3 -c 'import sys; print(sys.executable)')}"
 PYTHON="$("$PYTHON" -c 'import pathlib,sys; print(pathlib.Path(sys.executable).resolve())')"
 

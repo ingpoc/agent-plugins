@@ -29,16 +29,16 @@
       "fail_patterns": ["Traceback", "AssertionError"]
     },
     {
-      "name": "validate",
+      "name": "manifest-json",
       "command": [
         "python3",
-        "/Users/gurusharan/.agents/skills/agent-plugin-creator/scripts/create_agent_plugin.py",
-        "--validate",
-        "/Users/gurusharan/Documents/remote-claude/active/apps/agent-plugins/plugins/comet-control"
+        "-m",
+        "json.tool",
+        "plugin.json"
       ],
       "timeout_seconds": 30,
       "budget_seconds": 10,
-      "fail_patterns": ["Traceback", "plugin.json is missing"]
+      "fail_patterns": ["Traceback", "Expecting property name"]
     },
     {
       "name": "unit",

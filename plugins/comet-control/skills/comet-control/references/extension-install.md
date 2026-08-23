@@ -11,7 +11,7 @@ Comet profile / credentials.
 | --- | --- |
 | Runtime root | directory with `plugin.json` |
 | Unpacked extension | `$ROOT/plugin/comet_control/extension` |
-| Absolute (Cursor local plugin) | `~/.cursor/plugins/local/comet-control/plugin/comet_control/extension` |
+| Shared installed plugin | `~/.agents/plugins/comet-control/plugin/comet_control/extension` |
 
 Always load **that** directory (folder that contains `manifest.json`). Do not
 Select a stale WIP/deploy twin even if its folder is also named `extension`.
@@ -26,8 +26,8 @@ test -f plugin/comet_control/extension/manifest.json
 ./scripts/ensure-broker.sh probe --json   # may be EXTENSION_NOT_CONNECTED — ok pre-install
 ```
 
-Use **Agent Computer Use** (`$macos-cua` MCP: `start_session` → `state` / `act` /
-`verify` → `end_session`). Do not drive this through Comet Control leases.
+Use **Agent Computer Use** (`$macos-cua`: `state` + asserted `act`). Do not
+drive this through Comet Control leases.
 
 ## Fast install (proven)
 
@@ -72,8 +72,8 @@ Use **Agent Computer Use** (`$macos-cua` MCP: `start_session` → `state` / `act
    Only click `Select` without Go-to-Folder when `Where:` already shows this
    plugin’s `…/comet_control/extension` (not a different `…/extension` tree).
 
-5. **UI proof:** `verify` Comet `expect: Comet Control` (card and/or toolbar
-   popup). Sheet must be gone.
+5. **UI proof:** require the settled `act` result to show `Comet Control`
+   (card and/or toolbar popup). The sheet must be gone.
 
 ## Validate Comet Control (required after install/reload)
 

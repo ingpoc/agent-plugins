@@ -22,6 +22,12 @@ from pathlib import Path
 from typing import Any
 
 def _runtime_root() -> Path:
+    configured = os.environ.get("COMET_CONTROL_ROOT")
+    if configured:
+        return Path(configured).expanduser().resolve()
+    shared = Path.home() / ".agents/plugins/comet-control"
+    if (shared / "plugin.json").is_file():
+        return shared
     here = Path(__file__).resolve()
     for parent in here.parents:
         if (parent / "plugin.json").is_file() and (
@@ -33,7 +39,7 @@ def _runtime_root() -> Path:
 
 PLUGIN_ROOT = _runtime_root()
 CTRL = Path(__file__).resolve().parent / "durable_lease_controller.py"
-DEFAULT_CUA = Path.home() / ".agents" / "skills" / "macos-cua" / "scripts" / "macos-cua.py"
+DEFAULT_CUA = Path.home() / ".agents/plugins/agent-computer-use/skills/macos-cua/scripts/macos-cua.py"
 COEXIST = PLUGIN_ROOT / "scripts" / "check-cua-coexistence.py"
 
 

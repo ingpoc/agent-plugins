@@ -13,8 +13,11 @@ window per agent. Every browser task requires a private lease; active-tab,
 claimed-tab, shared-window, tab-only, and headless operation are unsupported.
 
 - Skill: `skills/comet-control/`
-- Runtime root: this plugin directory (`plugin.json`)
+- Runtime root: `~/.agents/plugins/comet-control` when installed there; the
+  current plugin directory is the portable fallback
 - Default socket: `run/comet-control.sock`
+
+Cursor and Codex plugin directories are discovery caches, never runtime roots.
 
 ## Bundled Chrome isolation
 

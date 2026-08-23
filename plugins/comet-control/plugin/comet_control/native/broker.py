@@ -41,7 +41,7 @@ VISUAL_REQUEST_TYPES = frozenset({"reload", "session_preflight", "session_closeo
 VISUAL_LOCK_SCRIPT = Path(
     os.environ.get(
         "MACOS_CUA_VISUAL_LOCK_MODULE",
-        str(Path.home() / ".agents/skills/macos-cua/scripts/visual_focus_lock.py"),
+        str(Path.home() / ".agents/plugins/agent-computer-use/skills/macos-cua/scripts/visual_focus_lock.py"),
     )
 )
 
