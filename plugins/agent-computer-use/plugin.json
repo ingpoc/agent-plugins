@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agent-computer-use",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "description": "Native macOS computer use and GPT Realtime voice control through CUAService.",
   "author": {
     "name": "ingpoc",

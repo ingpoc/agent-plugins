@@ -907,6 +907,14 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     )
     router = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
     delegate = (root / "service" / "Sources" / "CUAService" / "ServiceDelegate.swift").read_text()
+    main = (root / "service" / "Sources" / "CUAService" / "main.swift").read_text()
+    add(
+        "CUAService is single-instance per socket",
+        'socketPath + ".lock"' in main
+        and "flock(lockFD, LOCK_EX | LOCK_NB)" in main
+        and "CUAService instance already running; exiting" in main,
+        "manual app open and MCP auto-start raced before the socket appeared, creating duplicate status items",
+    )
     plist = (root / "service" / "Resources" / "Info.plist").read_text()
     package = (root / "service" / "Package.swift").read_text()
     entitlements = (root / "service" / "Resources" / "CUAService.entitlements").read_text()

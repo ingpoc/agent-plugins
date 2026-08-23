@@ -1,5 +1,6 @@
 import AppKit
 import ArgumentParser
+import Darwin
 import Foundation
 import Logging
 
@@ -25,6 +26,31 @@ struct CUAServiceCLI: ParsableCommand {
         }
         let logger = Logger(label: "cua-service")
         logger.info("Starting CUAService", metadata: ["socket": "\(socketPath)"])
+
+        let lockPath = socketPath + ".lock"
+        try FileManager.default.createDirectory(
+            at: URL(fileURLWithPath: lockPath).deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let lockFD = Darwin.open(lockPath, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR)
+        guard lockFD >= 0 else {
+            throw ValidationError("Cannot open CUAService instance lock: \(lockPath)")
+        }
+        if flock(lockFD, LOCK_EX | LOCK_NB) != 0 {
+            let lockError = errno
+            Darwin.close(lockFD)
+            if lockError == EWOULDBLOCK {
+                logger.info("CUAService instance already running; exiting")
+                return
+            }
+            throw ValidationError(
+                "Cannot lock CUAService instance: \(lockPath) (errno \(lockError))"
+            )
+        }
+        defer {
+            _ = flock(lockFD, LOCK_UN)
+            Darwin.close(lockFD)
+        }
 
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
