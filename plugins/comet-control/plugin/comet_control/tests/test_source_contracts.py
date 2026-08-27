@@ -275,21 +275,31 @@ class SourceContractTests(unittest.TestCase):
             'if (type === "download_wait") {', 1
         )[0]
         activate = 'await chrome.tabs.update(state.tabId, { active: true });'
-        focus = 'await chrome.windows.update(leasedTab.windowId, { focused: true, drawAttention: true });'
         verify = 'Number(activeTab.id) !== Number(state.tabId)'
         capture = 'chrome.tabs.captureVisibleTab(leasedTab.windowId, options)'
+        fallback = 'await sendToContentScript(state.tabId, "captureScreenshot")'
 
         self.assertIn('return enqueueViewportCapture(async () => {', branch)
         self.assertIn('state.windowId = leasedTab.windowId;', branch)
-        self.assertIn(focus, branch)
         self.assertIn(activate, branch)
         self.assertIn(verify, branch)
         self.assertIn(capture, branch)
+        self.assertIn(fallback, branch)
+        self.assertIn('"Page.captureScreenshot"', branch)
         self.assertIn('/image readback failed/i', branch)
         self.assertIn('for (let attempt = 0; attempt < 2; attempt += 1)', branch)
-        self.assertLess(branch.index(focus), branch.index(capture))
         self.assertLess(branch.index(activate), branch.index(capture))
         self.assertLess(branch.index(verify), branch.index(capture))
+        self.assertLess(branch.index(capture), branch.index(fallback))
+
+    def test_browser_work_never_requests_os_focus(self) -> None:
+        source = SERVICE_WORKER.read_text()
+        self.assertNotIn('focused: true', source)
+        self.assertNotIn('drawAttention: true', source)
+        self.assertIn(
+            'chrome.windows.create({ url: startUrl, focused: false, type: "normal" })',
+            source,
+        )
 
     def test_viewport_capture_queue_is_global_and_failure_tolerant(self) -> None:
         source = SERVICE_WORKER.read_text()
@@ -348,6 +358,25 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn('parsed?.message === "Internal error"', branch)
         self.assertIn('if (!transient) throw error', branch)
         self.assertIn('throwOnSideEffect: true', branch)
+
+    def test_foreign_extension_url_is_not_reported_as_debugger_ownership(self) -> None:
+        source = SERVICE_WORKER.read_text()
+        ensure_attached = source.split('async function ensureAttached(tabId) {', 1)[1].split(
+            'async function send(tabId, method', 1
+        )[0]
+        attach_failure = ensure_attached.split('} catch (e) {', 1)[1].split(
+            '  try {', 1
+        )[0]
+
+        self.assertIn('foreign-extension URL/frame restriction: ${msg}', attach_failure)
+        self.assertNotIn('controlled by another extension', attach_failure)
+        self.assertEqual(
+            ensure_attached.count('foreign-extension URL/frame restriction: ${msg}'),
+            2,
+        )
+        self.assertIn('if (!msg.includes("already attached"))', ensure_attached)
+        self.assertIn('if (msg.includes("not attached"))', ensure_attached)
+        self.assertIn('controlled by another extension: ${msg}', ensure_attached)
 
     def test_extension_build_attestation_covers_imported_control_runtime(self) -> None:
         source = SERVICE_WORKER.read_text()
@@ -694,7 +723,11 @@ class SourceContractTests(unittest.TestCase):
         self.assertNotIn("chrome.tabs.update(state.tabId, { url: targetUrl })", click_text)
         self.assertIn("raceClickWithDialog", click_text)
         self.assertIn("dialog_opened", click_text)
-        self.assertIn("ensureAttached(state.tabId)", click_text)
+        self.assertIn("attachForClick(state.tabId)", click_text)
+        no_reload_guard = "if (!debuggerAttached || isForeignExtensionRestriction(error)) throw error;"
+        self.assertIn(no_reload_guard, click_text)
+        self.assertLess(click_text.index(no_reload_guard), click_text.index("chrome.tabs.reload"))
+        self.assertNotIn("cua", click_text.lower())
         parity = (ROOT / "extension" / "parity_capabilities.js").read_text()
         self.assertIn("export function getParityDialog", parity)
         self.assertIn("export async function raceClickWithDialog", parity)
@@ -706,6 +739,7 @@ class SourceContractTests(unittest.TestCase):
         manifest = (ROOT / "extension" / "manifest.json").read_text()
         self.assertIn("content_scripts", manifest)
         self.assertIn("cursor-agent.js", manifest)
+        self.assertTrue(json.loads(manifest)["content_scripts"][0]["all_frames"])
         # onUpdated must not call ensureContentScript (races Dispatch inject).
         on_updated = source.split(
             "// ---- Navigation invalidation (lazy inject on interaction) ----", 1
@@ -745,6 +779,38 @@ class SourceContractTests(unittest.TestCase):
             "async function waitForTabComplete",
             source.split("async function probeContentScript", 1)[1],
         )
+
+    def test_clicks_fall_back_to_controllable_content_frames_on_foreign_attach_miss(self) -> None:
+        source = SERVICE_WORKER.read_text()
+        attach = source.split("async function attachForClick", 1)[1].split(
+            "async function send", 1
+        )[0]
+        self.assertIn("await ensureAttached(tabId)", attach)
+        self.assertIn("if (!isForeignExtensionRestriction(error)) throw error", attach)
+        self.assertIn("return false", attach)
+
+        frame_search = source.split("async function controllableFrameIds", 1)[1].split(
+            "async function moveCursorToPoint", 1
+        )[0]
+        self.assertIn("chrome.webNavigation.getAllFrames", frame_search)
+        self.assertIn("isControllableUrl(frame.url)", frame_search)
+        self.assertIn("frame_id: frameId", frame_search)
+        send = source.split("function sendContentScriptMessage", 1)[1].split(
+            "async function sendToContentScript", 1
+        )[0]
+        self.assertIn("Number.isInteger(frameId) ? frameId : 0", send)
+
+        click_text = source.split('if (type === "click_text")', 1)[1].split(
+            'if (type === "fill_selector")', 1
+        )[0]
+        self.assertIn("if (!debuggerAttached) return clickPromise", click_text)
+
+        click_selector = source.split('if (type === "click_selector")', 1)[1].split(
+            "const parity =", 1
+        )[0]
+        self.assertIn("attachForClick(state.tabId)", click_selector)
+        self.assertIn("if (!debuggerAttached)", click_selector)
+        self.assertIn("raceClickWithDialog", click_selector)
 
     def test_parity_capabilities_resolve_named_targets(self) -> None:
         self.assertIn("resolveNamed", PARITY_CAPABILITIES.read_text())

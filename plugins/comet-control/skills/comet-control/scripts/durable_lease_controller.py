@@ -310,7 +310,18 @@ def _controller_main(args: argparse.Namespace) -> int:
             p["response"].write_text(json.dumps(envelope) + "\n")
             continue
 
-        resp = _read_driver_json(driver, timeout=180.0)
+        wait_s = 180.0
+        raw_wait = None
+        if isinstance(parsed_req, dict):
+            raw_wait = parsed_req.get("wait_seconds")
+        if raw_wait is None and isinstance(parsed_cmd, dict):
+            raw_wait = parsed_cmd.get("timeoutSeconds")
+        if raw_wait is not None:
+            try:
+                wait_s = max(5.0, min(300.0, float(raw_wait)))
+            except (TypeError, ValueError):
+                wait_s = 180.0
+        resp = _read_driver_json(driver, timeout=wait_s)
         # Current drivers mark notifications and correlate replies. The event
         # allowlist remains only for older drivers already running during deploy.
         while (
@@ -323,7 +334,7 @@ def _controller_main(args: argparse.Namespace) -> int:
             in {"renew", "heartbeat", "renewal_failed", "renewal_recovered", "run_diagnostic"}
         ):
             _log(p["log"], f"evt={json.dumps(resp)[:300]}")
-            resp = _read_driver_json(driver, timeout=180.0)
+            resp = _read_driver_json(driver, timeout=wait_s)
         if resp.get("error") or (resp.get("response") or {}).get("error"):
             _log(p["log"], f"rsp_error seq={seq} {json.dumps(resp)[:800]}")
         else:
@@ -470,7 +481,7 @@ def cmd_send(args: argparse.Namespace) -> int:
             if p["request"].exists():
                 print(json.dumps({"ok": False, "error": "timeout_waiting_request_slot"}))
                 return 1
-            envelope = {"seq": seq, "body": body}
+            envelope = {"seq": seq, "body": body, "wait_seconds": float(args.timeout)}
             p["request"].write_text(json.dumps(envelope, ensure_ascii=False) + "\n")
             deadline = time.time() + float(args.timeout)
             while time.time() < deadline:

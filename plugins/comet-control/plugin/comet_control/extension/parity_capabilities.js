@@ -68,10 +68,11 @@ export function getParityDialog(tabId) {
 
 /** Race a click promise against a JS alert/confirm/prompt opening on the tab. */
 export async function raceClickWithDialog(tabId, clickPromise, waitMs = 8000) {
+  const dialogWait = Math.max(500, Number(waitMs) || 8000);
   const click = Promise.resolve(clickPromise).then((value) => ({ clicked: true, value }));
   click.catch(() => {});
   const dialog = (async () => {
-    const deadline = Date.now() + Math.max(500, Number(waitMs) || 8000);
+    const deadline = Date.now() + dialogWait;
     while (Date.now() < deadline) {
       const current = dialogsByTab.get(Number(tabId));
       if (current) return { dialog: current };
@@ -79,7 +80,11 @@ export async function raceClickWithDialog(tabId, clickPromise, waitMs = 8000) {
     }
     return new Promise(() => {});
   })();
-  return Promise.race([click, dialog]);
+  // Dialog can still win during dialogWait. After that, do not wait forever on click.
+  const clickTimeout = sleep(dialogWait + 7000).then(() => {
+    throw new Error("Content script action timed out: click");
+  });
+  return Promise.race([click, dialog, clickTimeout]);
 }
 
 export async function dismissParityDialog(tabId, send) {

@@ -60,7 +60,7 @@ on the exact tab in its mandatory owned-window lease.
 
 **Symptom:** `cursor_status.visible` true; human sees no pointer.
 **Why:** `focused: false` (behind IDE); wrong host app; suite closes fast.
-**Fix:** Focus windows on create/run; screenshot + Read(image); hold if demoing.
+**Fix:** Do not steal macOS focus (`focused: false`); screenshot + Read(image); hold if demoing.
 
 ### Socket is shared — leases isolate agents
 
@@ -94,7 +94,15 @@ the exact extension origin. If the socket is missing, inspect the broker log.
 
 ### `chrome.debugger` vs DevTools
 
-Only one debugger per tab — close DevTools on the target tab.
+`Another debugger is already attached` is a real attach collision. Close
+DevTools on the target tab. `Cannot access a chrome-extension:// URL of
+different extension` is instead a foreign-extension URL/frame restriction;
+Chromium redacts the other extension id, and the service worker reports `hit a
+foreign-extension URL/frame restriction`. Do not guess the extension, retry
+`debugger.attach`, mint another session, closeout, or reload while leases are
+live. Locator clicks fall back to the content script in controllable same-tab
+`http(s)` / `file` frames; foreign-extension frames are never queried.
+`page_context` can still be healthy, so diagnose through the same lease.
 
 ### Don't hide cursor around `elementFromPoint`
 
@@ -129,8 +137,8 @@ Traces → `console.debug` or remove.
 
 1. Send `status` through `run/comet-control.sock`.
 2. Start a leased `session_preflight` on a real `https://` URL.
-3. If both fail after an extension edit, reload the unpacked
-   `plugin/comet_control/extension` and retry with a new lease.
+3. If both fail after an extension edit, close every lease, use the host reload
+   and probe sequence below, then retry with a new lease.
 
 ### Bridge socket present but no actions
 
@@ -153,8 +161,13 @@ Use leases ([`multi-agent.md`](multi-agent.md)), not `sessionName` alone.
 ## Editing conventions
 
 - Edit **`plugin/comet_control/`** only.
-- After changes, reload the unpacked `plugin/comet_control/extension`.
-  `bridge({"type":"reload"})` is safe only with no leases.
+- After changes, close every lease and require `verified_absent` / empty
+  sessions. Send host `{"type":"reload"}` on `run/comet-control.sock`
+  (`bridge({"type":"reload"})`), require `success` plus `reloading`, and stop on
+  `ACTIVE_AGENT_LEASES`. Wait and repeat `ensure-broker.sh probe --json` until
+  `success`, `runtime_verified`, `extension_connected`, and pairing return;
+  confirm `connection_generation` and `extension_build_sha256` moved. CUA Load
+  unpacked is for first install or a missing card, not the default reload.
 - Never sync into `~/.codex` or `~/.comet-control`.
 - New action → SW + content script if needed + `lease_driver.py` + `operate.md`.
   Update `multi-agent.md` only for lease behavior.

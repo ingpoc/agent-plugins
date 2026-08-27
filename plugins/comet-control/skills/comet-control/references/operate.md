@@ -58,6 +58,8 @@ same driver and leased window; never silently create a replacement lease.
 
 A visual claim requires a `screenshot` action and an actual read of the returned
 image file. `cursor_status` alone is state, not operator-visible proof.
+In-page commands and screenshots must not foreground Comet or steal the human's
+macOS key focus. A true OS sheet may be foregrounded only through the CUA handoff.
 
 ## Routine action map
 

@@ -73,9 +73,15 @@ do not re-attempt the other skill’s surface here.
 | --- | --- |
 | Page DOM, SPA, cursor clicks, locators, screenshots of page content | **Comet Control** |
 | JS `alert` / `confirm` / `prompt` / `beforeunload` (`dialog_get` / `dialog_handle`) | **Comet Control** |
+| HTML dialog / modal / iframe / same-window popup on a leased Comet window | **Comet Control** |
 | Non-Comet macOS apps (AX, keys, native UI) | **`$macos-cua`** |
 | OS sheets / file choosers / print / system permission UI on the Comet Control PID | **`$macos-cua`** via `native_handoff` |
 | Comet shell: `chrome://`, extension load/reload, launch/quit, window geometry | **`$macos-cua`** `--browser-intent comet-admin` after **zero** leases |
+
+CUA **Cancel** applies only to the gray “started debugging this browser” banner
+on `chrome://extensions` or `comet://extensions`. An iframe or JS dialog in a
+product tab stays on the same Comet Control lease; locator clicks fall back to
+controllable content-script frames when a foreign-extension frame blocks CDP.
 
 Comet Control and macos-cua may run concurrently on disjoint exact PIDs; only short
 foreground/capture slices serialize. Before macos-cua targets the managed
@@ -83,7 +89,10 @@ foreground/capture slices serialize. Before macos-cua targets the managed
 rejects new leases and browser mutations while the claim is live.
 
 Shared `visual-focus-v1` lock: one brokered browser request or one CUA app
-command. Never a task-wide mutex. Lease tokens never cross agents.
+command. It prevents competing input/capture; it does not activate Comet for
+in-page work or steal the human's macOS key focus. A true OS sheet handled by
+CUA may require foregrounding. Never a task-wide mutex. Lease tokens never
+cross agents.
 
 **Hand to macos-cua (native-dialog):** prefer the atomic slice (claim → CUA →
 release) so agents cannot desync the durable controller or leave orphan claims:
@@ -140,7 +149,7 @@ To inspect the boundary without acquiring it:
 ./scripts/check-cua-coexistence.py --target-pid <pid> --intent comet-admin
 ```
 
-## Operator-visible window layout
+## Leased window layout
 
 Window-isolated leases are re-tiled whenever a host-locked request creates,
 reuses, closes, or operates them. Startup restore and external target removal
@@ -181,7 +190,7 @@ screenshot proof for each cursor; inspect those PNGs before a visual claim.
 
 ```bash
 cd <plugin-root>
-# after code changes, reload plugin/comet_control/extension
+# after code changes and verified-empty sessions, send host {"type":"reload"}, wait, and probe
 COMET_CONTROL_BRIDGE_SOCKET="$PWD/run/comet-control.sock" \
   python3 plugin/comet_control/tests/test_multi_agent_isolation.py
 # Two consecutive exit 0 required
@@ -197,5 +206,5 @@ clicks, continuation, and clean closeout. Require two consecutive green runs.
 | --- | --- |
 | Lease vanish after preflight | Remove tab-group and active-tab fallbacks; keep the exact owned-window tab |
 | Empty `agent_label` after navigation | Invalidate injection on load/URL change; reinject; re-apply identity |
-| Human never sees pointer | `focused: true` + focus on `run`; watch correct host app; screenshot proof |
+| Cursor missing from proof | Verify the leased tab id and inspect its screenshot; never focus Comet |
 | Agent window hides another | Serialized secondary-display tiling on every lease lifecycle change |

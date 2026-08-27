@@ -473,7 +473,7 @@ async function invalidateLeasedConnectionState() {
   for (const record of records) {
     const tabId = Number(record.tabId);
     if (!Number.isInteger(tabId)) continue;
-    await chrome.tabs.sendMessage(tabId, { action: "invalidateConnectionState", args: [] }).catch(() => {});
+    await sendContentScriptMessage(tabId, "invalidateConnectionState", []).catch(() => {});
     await chrome.debugger.detach({ tabId }).catch(() => {});
     attachedTabs.delete(tabId);
     injectedTabs.delete(tabId);
@@ -1079,10 +1079,8 @@ async function sessionPreflight(message) {
   let record;
   const agentId = sanitizeIdentity(message.agentId || sessionId, "agent");
   try {
-    // focused:true — operator must see the labeled agent cursor. focused:false
-    // left windows behind Cursor/IDE so humans never saw the pointer even when
-    // cursor_status reported visible (isolation suite + visual demos).
-    const created = await chrome.windows.create({ url: startUrl, focused: true, type: "normal" });
+    // Keep the human's key focus. The labeled cursor still glides in-page.
+    const created = await chrome.windows.create({ url: startUrl, focused: false, type: "normal" });
     windowId = created.id;
     if (windowId === undefined) throw new Error("Comet did not return an isolated agent window ID");
     tab = created.tabs?.[0] || null;
@@ -1404,6 +1402,12 @@ function isControllableUrl(url) {
   return typeof url === "string" && /^(https?|file):\/\//i.test(url);
 }
 
+function isForeignExtensionRestriction(error) {
+  const msg = String(error?.message || error || "");
+  return msg.includes("foreign-extension URL/frame restriction")
+    || (msg.includes("chrome-extension://") && !msg.includes("already attached"));
+}
+
 function unsupportedUrlReason(url) {
   if (!url) return "No tab URL is available";
   if (url.startsWith("file://")) {
@@ -1425,7 +1429,7 @@ async function ensureAttached(tabId) {
     // assuming the attachment belongs to Comet Control; another automation extension can own it.
     if (!msg.includes("already attached")) {
       if (msg.includes("chrome-extension://")) {
-        throw new Error(`Comet debugger for tab ${tabId} is controlled by another extension: ${msg}`);
+        throw new Error(`Comet debugger for tab ${tabId} hit a foreign-extension URL/frame restriction: ${msg}`);
       }
       throw e;
     }
@@ -1438,10 +1442,23 @@ async function ensureAttached(tabId) {
     attachedTabs.delete(tabId);
     if (attachedHere) await chrome.debugger.detach({ tabId }).catch(() => {});
     const msg = String(error?.message || error);
-    if (msg.includes("chrome-extension://") || msg.includes("not attached")) {
+    if (msg.includes("chrome-extension://")) {
+      throw new Error(`Comet debugger for tab ${tabId} hit a foreign-extension URL/frame restriction: ${msg}`);
+    }
+    if (msg.includes("not attached")) {
       throw new Error(`Comet debugger for tab ${tabId} is controlled by another extension: ${msg}`);
     }
     throw error;
+  }
+}
+
+async function attachForClick(tabId) {
+  try {
+    await ensureAttached(tabId);
+    return true;
+  } catch (error) {
+    if (!isForeignExtensionRestriction(error)) throw error;
+    return false;
   }
 }
 
@@ -1484,28 +1501,92 @@ function requireContentScriptResult(response, fallback) {
     if (response.details) error.details = response.details;
     throw error;
   }
-  if (response?.result == null) throw codedError("CONTENT_SCRIPT_EMPTY_RESULT", fallback);
+  if (response?.result == null) {
+    const miss = /No actionable/.test(String(fallback || ""));
+    throw codedError(miss ? "ELEMENT_NOT_FOUND" : "CONTENT_SCRIPT_EMPTY_RESULT", fallback);
+  }
   return response.result;
 }
 
+function isLocatorMissError(error) {
+  const code = String(error?.code || "");
+  if (code === "ELEMENT_NOT_FOUND" || code === "CONTENT_SCRIPT_EMPTY_RESULT") return true;
+  if (code.startsWith("ACTIONABILITY_")) return true;
+  const msg = String(error?.message || error || "");
+  return /No actionable (clickable )?element matched/i.test(msg)
+    || /Expected exactly one actionable target, found 0/i.test(msg);
+}
+
+function isContentScriptTimeoutError(error) {
+  const code = String(error?.code || "");
+  if (code === "CONTENT_SCRIPT_TIMEOUT") return true;
+  const msg = String(error?.message || error || "");
+  return /timed out/i.test(msg) || /Content script action timed out/i.test(msg);
+}
+
+function isHalfDeadReloadError(error) {
+  const msg = String(error?.message || error || "");
+  return /reload required|Content script missing after SPA remount/i.test(msg);
+}
+
 async function findPointBySelector(tabId, selectorText, mode = "click") {
-  const response = await sendToContentScript(tabId, "findPointBySelector", [selectorText, mode]);
-  return requireContentScriptResult(response, `No actionable element matched selector: ${selectorText}`);
+  return findPointOnControllableFrames(
+    tabId,
+    "findPointBySelector",
+    [selectorText, mode],
+    `No actionable element matched selector: ${selectorText}`
+  );
 }
 
 async function findPointByText(tabId, text) {
-  const response = await sendToContentScript(tabId, "findPointByText", [text]);
-  return requireContentScriptResult(response, `No actionable clickable element matched text: ${text}`);
+  return findPointOnControllableFrames(
+    tabId,
+    "findPointByText",
+    [text],
+    `No actionable clickable element matched text: ${text}`
+  );
+}
+
+async function controllableFrameIds(tabId) {
+  const frames = await chrome.webNavigation.getAllFrames({ tabId }).catch(() => []);
+  return (frames || [])
+    .filter((frame) => isControllableUrl(frame.url))
+    .map(({ frameId, url }) => ({ frame_id: frameId, url }));
+}
+
+async function findPointOnControllableFrames(tabId, action, args, fallback) {
+  const frames = await controllableFrameIds(tabId);
+  const ids = frames.length ? frames : [{ frame_id: 0 }];
+  let lastError;
+  let lastMiss;
+  for (const frame of ids) {
+    const frameId = frame.frame_id;
+    try {
+      const response = await sendToContentScript(tabId, action, args, frameId);
+      const point = requireContentScriptResult(response, fallback);
+      return { ...point, frame_id: frameId };
+    } catch (error) {
+      lastError = error;
+      if (isLocatorMissError(error)) lastMiss = error;
+    }
+  }
+  if (lastMiss) {
+    if (lastMiss.code) throw lastMiss;
+    throw codedError("ELEMENT_NOT_FOUND", lastMiss.message || fallback);
+  }
+  throw lastError || codedError("ELEMENT_NOT_FOUND", fallback);
 }
 
 async function moveCursorToPoint(tabId, point) {
-  const response = await sendToContentScript(tabId, "moveToAndWait", [point.x, point.y, 900]);
+  const response = await sendToContentScript(
+    tabId, "moveToAndWait", [point.x, point.y, 900], point.frame_id
+  );
   return requireContentScriptResult(response, "Cursor movement failed");
 }
 
 async function clickAtPoint(tabId, point, expectation = {}) {
   await moveCursorToPoint(tabId, point);
-  const response = await sendToContentScript(tabId, "click", [expectation]);
+  const response = await sendToContentScript(tabId, "click", [expectation], point.frame_id);
   return requireContentScriptResult(response, "Cursor click failed");
 }
 
@@ -1759,7 +1840,7 @@ async function probeContentScript(tabId, timeoutMs = 1500) {
     // A half-dead content script can leave sendMessage pending forever; that
     // previously exhausted the ensureContentScript budget with no re-inject.
     const response = await withTimeout(
-      chrome.tabs.sendMessage(tabId, { action: "getStatus", args: [] }),
+      sendContentScriptMessage(tabId, "getStatus", []),
       timeoutMs,
       "probeContentScript"
     );
@@ -1929,7 +2010,15 @@ async function executeScriptOnTab(tabId, options, ms, label) {
   });
 }
 
-async function sendToContentScript(tabId, action, args = []) {
+function sendContentScriptMessage(tabId, action, args = [], frameId) {
+  return chrome.tabs.sendMessage(
+    tabId,
+    { action, args },
+    { frameId: Number.isInteger(frameId) ? frameId : 0 }
+  );
+}
+
+async function sendToContentScript(tabId, action, args = [], frameId) {
   // Post-navigation SPA updates (Seller Dispatch, checkout, etc.) routinely
   // exceed a short inject budget. Outer ensure budget must cover wait+inject.
   // Critical: never force-reinject immediately after an inject timeout — that
@@ -1942,11 +2031,18 @@ async function sendToContentScript(tabId, action, args = []) {
   const messageMs = 12000;
   // Keep findPointByText / click fast-path short. A hung content-script action
   // used to burn 10s then mis-report "Content script missing" from ensure.
+  const clickPath = [
+    "findPointByText",
+    "findPointBySelector",
+    "click",
+    "moveToAndWait",
+    "hasSelector",
+  ].includes(action);
   const fastMs = ["getStatus", "getPageContext"].includes(action) ? 4000 : 5000;
   let connectionLost = false;
   try {
     const direct = await withTimeout(
-      chrome.tabs.sendMessage(tabId, { action, args }),
+      sendContentScriptMessage(tabId, action, args, frameId),
       fastMs,
       `sendMessageFast(${action})`
     );
@@ -1958,13 +2054,32 @@ async function sendToContentScript(tabId, action, args = []) {
   } catch (fastError) {
     const fastMsg = String(fastError?.message || fastError);
     connectionLost = /Receiving end does not exist|Could not establish connection/i.test(fastMsg);
+    if (clickPath) {
+      // Probe-once then fail. A missing locator / hung click must not spend
+      // ensureMs+ensureMs, and must not executeScript (Seller Accept→Dispatch hang).
+      const alive = await probeContentScript(tabId, 800);
+      if (alive && !connectionLost) {
+        throw codedError("CONTENT_SCRIPT_TIMEOUT", `Content script action timed out: ${action}`);
+      }
+      if (alive) {
+        throw codedError(
+          "CONTENT_SCRIPT_FRAME_MISSING",
+          `Content script is not available in frame for ${action}`
+        );
+      }
+      throw codedError(
+        "CONTENT_SCRIPT_MISSING",
+        "Content script missing after SPA remount; reload required",
+        { retryable: true }
+      );
+    }
     if (!connectionLost && /timed out/i.test(fastMsg)) {
       // Sync DOM work (e.g. findPointByText) can occupy the CS thread past fastMs.
       // Probes then false-negative and ensure mislabels "missing after SPA remount".
       // Retry once with a longer budget before the ensure/missing path.
       try {
         const retry = await withTimeout(
-          chrome.tabs.sendMessage(tabId, { action, args }),
+          sendContentScriptMessage(tabId, action, args, frameId),
           Math.max(fastMs, 8000),
           `sendMessageRetry(${action})`
         );
@@ -2005,7 +2120,7 @@ async function sendToContentScript(tabId, action, args = []) {
   }
   try {
     const result = await withTimeout(
-      chrome.tabs.sendMessage(tabId, { action, args }), messageMs, `sendMessage(${action})`
+      sendContentScriptMessage(tabId, action, args, frameId), messageMs, `sendMessage(${action})`
     );
     // Soft failures still mean the old script may be stale after SPA remount.
     // Mark for reinject on the *next* ensure — do not inject inline here.
@@ -2023,7 +2138,7 @@ async function sendToContentScript(tabId, action, args = []) {
     await sleep(400);
     if (await probeContentScript(tabId)) {
       return await withTimeout(
-        chrome.tabs.sendMessage(tabId, { action, args }), messageMs, `sendMessage(${action})`
+        sendContentScriptMessage(tabId, action, args, frameId), messageMs, `sendMessage(${action})`
       );
     }
     if (tabScriptingPoisoned.has(tabId)) {
@@ -2036,7 +2151,7 @@ async function sendToContentScript(tabId, action, args = []) {
       throw new Error(retryStatus.reason || "Content script is not available");
     }
     return await withTimeout(
-      chrome.tabs.sendMessage(tabId, { action, args }), messageMs, `sendMessage(${action})`
+      sendContentScriptMessage(tabId, action, args, frameId), messageMs, `sendMessage(${action})`
     );
   }
 }
@@ -2311,33 +2426,53 @@ async function runBrowserAction(action, state) {
         if (format === 'jpeg') options.quality = action.quality != null ? Number(action.quality) : 75;
         let dataUrl = null;
         let captureAttempts = 0;
+        let source = "tabs.captureVisibleTab";
+        await chrome.tabs.update(state.tabId, { active: true });
+        const [activeTab] = await chrome.tabs.query({ active: true, windowId: leasedTab.windowId });
+        if (!activeTab || Number(activeTab.id) !== Number(state.tabId)) {
+          throw new Error("Could not activate the leased tab for screenshot proof");
+        }
         for (let attempt = 0; attempt < 2; attempt += 1) {
           captureAttempts = attempt + 1;
-          await chrome.windows.update(leasedTab.windowId, { focused: true, drawAttention: true });
-          await chrome.tabs.update(state.tabId, { active: true });
-          const [activeTab] = await chrome.tabs.query({ active: true, windowId: leasedTab.windowId });
-          if (!activeTab || Number(activeTab.id) !== Number(state.tabId)) {
-            throw new Error("Could not activate the leased tab for screenshot proof");
-          }
           try {
             await waitForViewportCaptureSlot();
             dataUrl = await chrome.tabs.captureVisibleTab(leasedTab.windowId, options);
             break;
           } catch (error) {
             const transientReadback = /image readback failed/i.test(String(error?.message || error));
-            if (!transientReadback || attempt > 0) throw error;
-            await chrome.scripting.executeScript({
-              target: { tabId: state.tabId },
-              func: () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-            });
+            if (transientReadback && attempt === 0) {
+              await chrome.scripting.executeScript({
+                target: { tabId: state.tabId },
+                func: () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+              });
+              continue;
+            }
+            break;
           }
         }
-        if (!dataUrl) throw new Error("Screenshot capture returned no image data");
+        if (!dataUrl) {
+          await sendToContentScript(state.tabId, "captureScreenshot");
+          await ensureAttached(state.tabId);
+          const params = { format };
+          if (format === 'jpeg') params.quality = action.quality != null ? Number(action.quality) : 75;
+          const capture = await chrome.debugger.sendCommand(
+            { tabId: state.tabId },
+            "Page.captureScreenshot",
+            params
+          );
+          return {
+            type,
+            format,
+            base64: capture.data,
+            source: "cdp.Page.captureScreenshot",
+            capture_attempts: captureAttempts,
+          };
+        }
         return {
           type,
           format,
           base64: dataUrl.slice(dataUrl.indexOf(',') + 1),
-          source: "tabs.captureVisibleTab",
+          source,
           capture_attempts: captureAttempts,
         };
       });
@@ -2462,13 +2597,18 @@ async function runBrowserAction(action, state) {
     // Attach debugger first so Page.javascriptDialogOpening is observed.
     // Use clickResolvedTarget (same as click_selector) so CLICK_TARGET_MISMATCH
     // re-resolves once and reports retried:true for moved text targets.
-    await ensureAttached(state.tabId);
+    const debuggerAttached = await attachForClick(state.tabId);
     const runDialogAware = async () => {
-      const clickPromise = clickResolvedTarget(
-        state.tabId,
-        () => findPointByText(state.tabId, action.text),
-        { text: action.text }
+      const clickPromise = withTimeout(
+        clickResolvedTarget(
+          state.tabId,
+          () => findPointByText(state.tabId, action.text),
+          { text: action.text }
+        ),
+        15000,
+        "clickResolvedTarget"
       );
+      if (!debuggerAttached) return clickPromise;
       const outcome = await raceClickWithDialog(state.tabId, clickPromise, 8000);
       if (outcome.dialog) {
         return {
@@ -2493,9 +2633,14 @@ async function runBrowserAction(action, state) {
           first_error: String(error?.message || error?.error || error),
         };
       }
+      if (!debuggerAttached || isForeignExtensionRestriction(error)) throw error;
+      if (isLocatorMissError(error) || isContentScriptTimeoutError(error)) throw error;
       const msg = String(error?.message || error?.error || error);
       // One hard reload recovery when there is no JS dialog. Same-URL tabs.update
       // is a Comet no-op — always reload so manifest content_scripts remount.
+      // Missing locators, CS timeouts, and foreign-extension misses must not
+      // enter this path (live miss on a 404 must fail fast, not reload).
+      if (!isHalfDeadReloadError(error)) throw error;
       try {
         const tabBefore = await chrome.tabs.get(state.tabId).catch(() => null);
         const targetUrl = tabBefore?.url || "";
@@ -2532,7 +2677,7 @@ async function runBrowserAction(action, state) {
         for (let i = 0; i < 30; i += 1) {
           try {
             const ctx = await withTimeout(
-              chrome.tabs.sendMessage(state.tabId, { action: "getPageContext", args: [] }),
+              sendContentScriptMessage(state.tabId, "getPageContext", []),
               3000,
               "recoverPageContext"
             );
@@ -2580,18 +2725,36 @@ async function runBrowserAction(action, state) {
         pageRevision: result.point.page_revision,
         editable: true,
       }
-    ]);
+    ], result.point.frame_id);
     requireContentScriptResult(response, `Could not fill selector: ${action.selector}`);
     return { type, selector: action.selector, ...result };
   }
 
   if (type === "click_selector") {
-    const result = await clickResolvedTarget(
-      state.tabId,
-      () => findPointBySelector(state.tabId, action.selector),
-      { selector: action.selector }
+    const debuggerAttached = await attachForClick(state.tabId);
+    const clickPromise = withTimeout(
+      clickResolvedTarget(
+        state.tabId,
+        () => findPointBySelector(state.tabId, action.selector),
+        { selector: action.selector }
+      ),
+      15000,
+      "clickResolvedTarget"
     );
-    return { type, selector: action.selector, ...result };
+    if (!debuggerAttached) {
+      const result = await clickPromise;
+      return { type, selector: action.selector, ...result };
+    }
+    const outcome = await raceClickWithDialog(state.tabId, clickPromise, 8000);
+    if (outcome.dialog) {
+      return {
+        type,
+        selector: action.selector,
+        dialog_opened: outcome.dialog,
+        click_pending: true,
+      };
+    }
+    return { type, selector: action.selector, ...(outcome.value || {}) };
   }
 
   const parity = await runParityAction(action, state, {
@@ -3009,9 +3172,7 @@ async function handleUnlockedHostMessage(message) {
   const rememberedTab = leaseRecord.tabId;
   leaseRecord.busy = true;
   leaseRecord.lastSeen = Date.now();
-  // Bring only this lease's owned window forward. Never resolve or touch the
-  // browser's active tab as a substitute for lease identity.
-  await chrome.windows.update(leaseRecord.windowId, { focused: true, drawAttention: true }).catch(() => {});
+  // Activate the leased tab inside its owned window. Do not focus the OS window.
   await chrome.tabs.update(leaseRecord.tabId, { active: true }).catch(() => {});
 
   const state = {

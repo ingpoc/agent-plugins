@@ -187,10 +187,11 @@ serialized handoffs, never parallel.
 
 The Comet Control broker and macos-cua app commands share the crash-safe
 `visual-focus-v1` lock. The broker—not a short-lived client—holds it until
-Comet answers, so direct tool calls and client death cannot release focus
-early. It serializes only macOS focus/capture, not whole tasks; batch coherent
-actions so the handoff stays fast. CUA rejects thumbnail-sized proof and
-recaptures once after foregrounding.
+Comet answers, so direct tool calls and client death cannot release the lane
+early. For in-page work it serializes input/capture without activating Comet or
+stealing the human's macOS key focus; the labeled cursor still glides in-page.
+Only a true OS sheet handed to CUA may require foregrounding. Batch coherent
+actions so the handoff stays fast.
 
 ## Non-negotiable boundaries
 
