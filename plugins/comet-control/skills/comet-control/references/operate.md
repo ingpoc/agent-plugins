@@ -56,6 +56,7 @@ lease-removal tombstone before the reviewer freezes its verdict.
 A command failure is not a campaign boundary. Diagnose and retry through the
 same driver and leased window; never silently create a replacement lease.
 
+Viewport screenshots abort after ~8s (`SCREENSHOT_TIMEOUT`). A hung `captureVisibleTab` must not block the lease. Skip an opening screenshot on first paint if you only need URL/title.
 A visual claim requires a `screenshot` action and an actual read of the returned
 image file. `cursor_status` alone is state, not operator-visible proof.
 Sticky unique names click the card rect, not the stuck inset. Checkbox/radio activation uses the native input click, not only a synthetic MouseEvent.

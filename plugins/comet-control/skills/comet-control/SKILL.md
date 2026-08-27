@@ -199,6 +199,7 @@ actions so the handoff stays fast.
 - Checkbox / radio clicks must activate the native input (`HTMLElement.click()`). Synthetic `MouseEvent` (`isTrusted: false`) reports success and does not toggle CSS-custom checkboxes (FPL Vice Captain).
 - `click_selector` searches open shadow roots. A 16×16 icon is on-target if `elementFromPoint` hits a descendant or a `button` / `[role=button]` ancestor.
 - `page_context` / `getStatus` are pinned to the top frame. Ad/Twitter/DoubleClick iframes must not win. Do not treat an ad title as the product page.
+- Screenshot `captureVisibleTab` is bounded (~8s). A hang returns `SCREENSHOT_TIMEOUT` and must not occupy the worker FIFO for minutes (that is what knocked Grok Bot local-exec offline). Do not mint a second session; retry later on the same lease or skip the opening screenshot.
 - A missing locator fails fast (`ACTIONABILITY_*` / `ELEMENT_NOT_FOUND`) and must not reload the leased tab. Do not mint a second session or host-reload to "fix" a miss.
 - `cursor_scroll` walks custom overflow ancestors (including shadow hosts). If a pitch/list still ignores it, click the row by locator.
 

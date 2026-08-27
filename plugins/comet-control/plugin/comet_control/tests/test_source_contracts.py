@@ -276,7 +276,7 @@ class SourceContractTests(unittest.TestCase):
         )[0]
         activate = 'await chrome.tabs.update(state.tabId, { active: true });'
         verify = 'Number(activeTab.id) !== Number(state.tabId)'
-        capture = 'chrome.tabs.captureVisibleTab(leasedTab.windowId, options)'
+        capture = 'captureVisibleTabBounded(leasedTab.windowId, options)'
         fallback = 'await sendToContentScript(state.tabId, "captureScreenshot")'
 
         self.assertIn('return enqueueViewportCapture(async () => {', branch)
@@ -319,7 +319,7 @@ class SourceContractTests(unittest.TestCase):
         )[0]
         self.assertLess(
             screenshot.index('await waitForViewportCaptureSlot();'),
-            screenshot.index('chrome.tabs.captureVisibleTab(leasedTab.windowId, options)'),
+            screenshot.index('captureVisibleTabBounded(leasedTab.windowId, options)'),
         )
 
     def test_cursor_key_uses_native_cdp_keyboard_and_keeps_visible_intent(self) -> None:
@@ -1004,6 +1004,33 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn("control.checked !== desiredChecked", check)
         self.assertIn("fallback.click()", check)
         self.assertNotIn("dispatchMouse(hooks.send, state.tabId, match.point, 1)", check)
+
+
+    def test_viewport_capture_aborts_so_hung_screenshots_cannot_wedge_local_exec(self) -> None:
+        """captureVisibleTab hang must fail the run in seconds, not occupy the FIFO for minutes."""
+        source = SERVICE_WORKER.read_text()
+        self.assertIn("async function captureVisibleTabBounded", source)
+        self.assertIn('wrapped.code = "SCREENSHOT_TIMEOUT"', source)
+        helper = source.split("async function captureVisibleTabBounded", 1)[1].split(
+            "function withTimeout", 1
+        )[0]
+        self.assertIn("chrome.tabs.captureVisibleTab(windowId, options)", helper)
+        self.assertIn('withTimeout(capturePromise, ms, "tabs.captureVisibleTab")', helper)
+        self.assertIn("Promise.race", helper)
+        fail = source.split("async function captureFailureRecord", 1)[1].split(
+            "function compactFailureAction", 1
+        )
+        # captureFailureRecord is before compact in file? actually compact is first.
+        fail = source.split("async function captureFailureRecord", 1)[1].split(
+            "return {", 1
+        )[0]
+        self.assertIn('error?.code !== "SCREENSHOT_TIMEOUT"', source)
+        screenshot = source.split('if (type === "screenshot") {', 1)[1].split(
+            'if (type === "zoom") {', 1
+        )[0]
+        self.assertIn("captureVisibleTabBounded", screenshot)
+        self.assertIn("Page.captureScreenshot", screenshot)
+        self.assertIn("VIEWPORT_CAPTURE_MS", screenshot)
 
 
 

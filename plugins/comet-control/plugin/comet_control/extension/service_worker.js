@@ -1955,6 +1955,29 @@ async function ensureContentScriptUnlocked(tabId, { force = false } = {}) {
   };
 }
 
+
+const VIEWPORT_CAPTURE_MS = 8000;
+
+async function captureVisibleTabBounded(windowId, options, ms = VIEWPORT_CAPTURE_MS) {
+  const capturePromise = chrome.tabs.captureVisibleTab(windowId, options);
+  try {
+    return await withTimeout(capturePromise, ms, "tabs.captureVisibleTab");
+  } catch (error) {
+    // chrome.tabs.captureVisibleTab cannot be aborted. Keep the abandoned
+    // capture off the next viewport slot until it settles or this bound ends,
+    // but return to the session FIFO immediately via withTimeout above so a
+    // hung screenshot cannot wedge local-exec for minutes.
+    await Promise.race([
+      capturePromise.then(() => {}, () => {}),
+      sleep(Math.max(500, Math.min(Number(ms) || VIEWPORT_CAPTURE_MS, VIEWPORT_CAPTURE_MS))),
+    ]);
+    const wrapped = new Error(`tabs.captureVisibleTab timed out after ${ms}ms`);
+    wrapped.code = "SCREENSHOT_TIMEOUT";
+    wrapped.cause = error;
+    throw wrapped;
+  }
+}
+
 function withTimeout(promise, ms, label) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
@@ -2455,7 +2478,7 @@ async function runBrowserAction(action, state) {
           captureAttempts = attempt + 1;
           try {
             await waitForViewportCaptureSlot();
-            dataUrl = await chrome.tabs.captureVisibleTab(leasedTab.windowId, options);
+            dataUrl = await captureVisibleTabBounded(leasedTab.windowId, options);
             break;
           } catch (error) {
             const transientReadback = /image readback failed/i.test(String(error?.message || error));
@@ -2474,10 +2497,14 @@ async function runBrowserAction(action, state) {
           await ensureAttached(state.tabId);
           const params = { format };
           if (format === 'jpeg') params.quality = action.quality != null ? Number(action.quality) : 75;
-          const capture = await chrome.debugger.sendCommand(
-            { tabId: state.tabId },
-            "Page.captureScreenshot",
-            params
+          const capture = await withTimeout(
+            chrome.debugger.sendCommand(
+              { tabId: state.tabId },
+              "Page.captureScreenshot",
+              params
+            ),
+            VIEWPORT_CAPTURE_MS,
+            "Page.captureScreenshot"
           );
           return {
             type,
@@ -2822,7 +2849,7 @@ async function captureFailureRecord({ message, state, action, index, beforeUrl, 
   const network = tabNetworkCdp.get(state.tabId);
   const networkTail = Array.isArray(network?.errors) ? network.errors.slice(-10) : [];
   let screenshot = null;
-  if (action?.type !== "screenshot") {
+  if (action?.type !== "screenshot" && error?.code !== "SCREENSHOT_TIMEOUT") {
     screenshot = await runBrowserAction(
       { type: "screenshot", format: "jpeg", quality: 60 },
       state
