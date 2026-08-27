@@ -1402,6 +1402,11 @@ function isControllableUrl(url) {
   return typeof url === "string" && /^(https?|file):\/\//i.test(url);
 }
 
+function isAdOrTrackerFrameUrl(url) {
+  if (typeof url !== "string" || !url) return false;
+  return /doubleclick|googlesyndication|googleadservices|adservice\.google|(^|\/\/)([^/]*\.)?(twitter|x)\.com(\/|$)/i.test(url);
+}
+
 function isForeignExtensionRestriction(error) {
   const msg = String(error?.message || error || "");
   return msg.includes("foreign-extension URL/frame restriction")
@@ -1549,17 +1554,26 @@ async function findPointByText(tabId, text) {
 
 async function controllableFrameIds(tabId) {
   const frames = await chrome.webNavigation.getAllFrames({ tabId }).catch(() => []);
-  return (frames || [])
-    .filter((frame) => isControllableUrl(frame.url))
-    .map(({ frameId, url }) => ({ frame_id: frameId, url }));
+  const controllable = (frames || []).filter((frame) => isControllableUrl(frame.url));
+  // Prefer the top frame (frameId === 0) first so the first https iframe
+  // (DoubleClick/Twitter ads) cannot win locators or page_context.
+  controllable.sort((a, b) => {
+    if ((a.frameId === 0) !== (b.frameId === 0)) return a.frameId === 0 ? -1 : 1;
+    return Number(isAdOrTrackerFrameUrl(a.url)) - Number(isAdOrTrackerFrameUrl(b.url));
+  });
+  return controllable.map(({ frameId, url }) => ({ frame_id: frameId, url }));
 }
 
 async function findPointOnControllableFrames(tabId, action, args, fallback) {
   const frames = await controllableFrameIds(tabId);
-  const ids = frames.length ? frames : [{ frame_id: 0 }];
+  const ids = frames.length ? frames : [{ frame_id: 0, url: "" }];
+  // Skip known ad/tracker hosts unless the locator is only there.
+  const nonAd = ids.filter((frame) => !isAdOrTrackerFrameUrl(frame.url));
+  const ads = ids.filter((frame) => isAdOrTrackerFrameUrl(frame.url));
+  const order = nonAd.length ? nonAd.concat(ads) : ids;
   let lastError;
   let lastMiss;
-  for (const frame of ids) {
+  for (const frame of order) {
     const frameId = frame.frame_id;
     try {
       const response = await sendToContentScript(tabId, action, args, frameId);
@@ -1840,7 +1854,7 @@ async function probeContentScript(tabId, timeoutMs = 1500) {
     // A half-dead content script can leave sendMessage pending forever; that
     // previously exhausted the ensureContentScript budget with no re-inject.
     const response = await withTimeout(
-      sendContentScriptMessage(tabId, "getStatus", []),
+      sendContentScriptMessage(tabId, "getStatus", [], 0),
       timeoutMs,
       "probeContentScript"
     );
@@ -2019,6 +2033,11 @@ function sendContentScriptMessage(tabId, action, args = [], frameId) {
 }
 
 async function sendToContentScript(tabId, action, args = [], frameId) {
+  // Pin page_context / getStatus to the main document (frame 0). Ad frames are
+  // controllable https and must not win getPageContext/getStatus.
+  if (action === "getPageContext" || action === "getStatus") {
+    frameId = 0;
+  }
   // Post-navigation SPA updates (Seller Dispatch, checkout, etc.) routinely
   // exceed a short inject budget. Outer ensure budget must cover wait+inject.
   // Critical: never force-reinject immediately after an inject timeout — that
@@ -2318,7 +2337,7 @@ async function runBrowserAction(action, state) {
     // Do not call readPageConsoleTail / ensureConsoleProbe here. MAIN-world
     // executeScript after getPageContext raced the next click's inject and
     // wedged Seller Dispatch. Console rows come from CDP ring only.
-    const resp = await sendToContentScript(state.tabId, "getPageContext");
+    const resp = await sendToContentScript(state.tabId, "getPageContext", [], 0);
     const max = 20;
     const page = { entries: [] };
     const entries = mergeConsoleEntries(tabConsoleCdp.get(state.tabId) || [], page.entries || [], max);
@@ -2567,18 +2586,18 @@ async function runBrowserAction(action, state) {
 
   if (type === "cursor_scroll") {
     const { deltaX, deltaY } = action;
-    await sendToContentScript(state.tabId, "scroll", [deltaX || 0, deltaY || 0]);
+    await sendToContentScript(state.tabId, "scroll", [deltaX || 0, deltaY || 0], 0);
     return { type, deltaX, deltaY };
   }
 
   if (type === "cursor_status") {
-    let resp = await sendToContentScript(state.tabId, "getStatus");
+    let resp = await sendToContentScript(state.tabId, "getStatus", [], 0);
     let status = resp?.result || {};
     // After navigation races, reinject + re-label once before failing the contract.
     if (state.leaseRecord && (!status.agent_label || status.agent_label !== state.leaseRecord.agentLabel)) {
       invalidateTabInjection(state.tabId);
       await setAgentIdentity(state.tabId, state.leaseRecord);
-      resp = await sendToContentScript(state.tabId, "getStatus");
+      resp = await sendToContentScript(state.tabId, "getStatus", [], 0);
       status = resp?.result || {};
     }
     return { type, ...status };
@@ -2677,7 +2696,7 @@ async function runBrowserAction(action, state) {
         for (let i = 0; i < 30; i += 1) {
           try {
             const ctx = await withTimeout(
-              sendContentScriptMessage(state.tabId, "getPageContext", []),
+              sendContentScriptMessage(state.tabId, "getPageContext", [], 0),
               3000,
               "recoverPageContext"
             );

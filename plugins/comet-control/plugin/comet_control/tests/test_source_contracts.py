@@ -905,6 +905,107 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn('target=handle_client, args=(conn,), daemon=False', broker)
         self.assertNotIn('bridge_with_visual_focus', driver)
 
+    def test_hittest_prefers_in_page_over_sticky_and_pins_top_frame(self) -> None:
+        """FPL Pick Team: sticky fixture chips and ad iframes must not win locators."""
+        cursor = CURSOR_AGENT.read_text()
+        worker = SERVICE_WORKER.read_text()
+
+        self.assertIn("function _querySelectorAllDeep", cursor)
+        self.assertIn("if (el.shadowRoot) visit(el.shadowRoot)", cursor)
+        self.assertIn("if (pos === 'sticky' || pos === 'fixed') return true", cursor)
+        self.assertIn("function _preferInPageTargets", cursor)
+        self.assertIn("function _hitIsOnTarget", cursor)
+        self.assertIn("_clickableAncestor", cursor)
+        self.assertIn("_querySelectorAllDeep(value).filter(_isVisible)", cursor)
+        find_text = cursor.split("function findPointByText(text, mode = 'click')", 1)[1].split(
+            "function hasSelector", 1
+        )[0]
+        self.assertIn("_preferInPageTargets", find_text)
+        self.assertIn("_querySelectorAllDeep", find_text)
+        self.assertIn("window !== window.top", cursor)
+        self.assertIn("msg?.action === 'getPageContext' || msg?.action === 'getStatus'", cursor)
+
+        self.assertIn("a.frameId === 0", worker)
+        self.assertIn("isAdOrTrackerFrameUrl", worker)
+        self.assertIn("doubleclick", worker)
+        self.assertIn("googlesyndication", worker)
+        self.assertIn("twitter", worker)
+        pin = worker.split("async function sendToContentScript", 1)[1].split(
+            "const ensureMs", 1
+        )[0]
+        self.assertIn('action === "getPageContext" || action === "getStatus"', pin)
+        self.assertIn("frameId = 0", pin)
+        self.assertIn('sendToContentScript(state.tabId, "getPageContext", [], 0)', worker)
+        frames = worker.split("async function findPointOnControllableFrames", 1)[1].split(
+            "async function moveCursorToPoint", 1
+        )[0]
+        self.assertIn("isAdOrTrackerFrameUrl(frame.url)", frames)
+        self.assertIn("nonAd.length ? nonAd.concat(ads) : ids", frames)
+
+
+
+    def test_sticky_card_y_and_native_checkbox_click(self) -> None:
+        """FPL: unique sticky name uses card Y, not the stuck inset; checkbox uses HTMLElement.click().
+
+        Source-contract style cannot execute a live sticky layout. This matches the
+        helper that would fail today's case: unique sticky match kept, ancestor
+        card taller/non-sticky, click Y from that card rect.
+        """
+        cursor = CURSOR_AGENT.read_text()
+        parity = PARITY_CAPABILITIES.read_text()
+
+        prefer = cursor.split("function _preferInPageTargets", 1)[1].split(
+            "function findPointBySelector", 1
+        )[0]
+        self.assertIn("if (!elements || elements.length <= 1) return elements || [];", prefer)
+
+        self.assertIn("function _stickyCardRect", cursor)
+        self.assertIn("function _checkboxControl", cursor)
+        self.assertIn("function _hitIsOnStickyCard", cursor)
+        card = cursor.split("function _stickyCardRect", 1)[1].split(
+            "function _hitIsOnStickyCard", 1
+        )[0]
+        self.assertIn("tag === 'HTML' || tag === 'BODY' || tag === 'MAIN' || role === 'main'", card)
+        self.assertIn("pos === 'sticky' || pos === 'fixed'", card)
+        self.assertIn("nr.height <= nameRect.height * 1.5", card)
+        self.assertIn("if (hops > 12) break;", card)
+
+        point = cursor.split("async function _pointForElement", 1)[1].split(
+            "async function _actionablePoint", 1
+        )[0]
+        self.assertIn("_stickyCardRect(el, r)", point)
+        self.assertIn("_hitIsOnStickyCard(el, top)", point)
+        self.assertIn("clickRect.top + clickRect.height / 2", point)
+        self.assertNotIn("r.top + r.height / 2", point)
+
+        hit = cursor.split("function _hitIsOnTarget(el, top)", 1)[1].split(
+            "function _isStickyOrFixedDescendant", 1
+        )[0]
+        self.assertIn("_hitIsOnStickyCard(el, top)", hit)
+
+        click_fn = cursor.split("function click(expectation = {})", 1)[1].split(
+            "function tripleClick", 1
+        )[0]
+        self.assertIn("_checkboxControl(el)", click_fn)
+        self.assertIn("control.click()", click_fn)
+        self.assertIn("control.checked === before", click_fn)
+
+        locator = parity.split("function queryLocator(spec)", 1)[1].split(
+            "async function resolveLocator", 1
+        )[0]
+        self.assertIn("const stickyCardRect = (element, nameRect)", locator)
+        self.assertIn("tag === \"HTML\" || tag === \"BODY\" || tag === \"MAIN\" || role === \"main\"", locator)
+        self.assertIn("y = rect.top + rect.height / 2", locator)
+
+        check = parity.split('["check", "uncheck", "set_checked"]', 1)[1].split(
+            'operation === "select_option"', 1
+        )[0]
+        self.assertIn("control.click()", check)
+        self.assertIn("control.checked !== desiredChecked", check)
+        self.assertIn("fallback.click()", check)
+        self.assertNotIn("dispatchMouse(hooks.send, state.tabId, match.point, 1)", check)
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -277,6 +277,41 @@ function queryLocator(spec) {
     return parts.join(" > ");
   };
 
+  const isStickyOrFixed = (node) => {
+    try {
+      const pos = getComputedStyle(node).position;
+      return pos === "sticky" || pos === "fixed";
+    } catch {
+      return false;
+    }
+  };
+  const stickyCardRect = (element, nameRect) => {
+    let stuck = false;
+    let hops = 0;
+    for (let node = element; node && node.nodeType === Node.ELEMENT_NODE && hops < 16; node = node.parentElement, hops += 1) {
+      if (isStickyOrFixed(node)) {
+        stuck = true;
+        break;
+      }
+    }
+    if (!stuck) return nameRect;
+    const elX = nameRect.left + nameRect.width / 2;
+    hops = 0;
+    for (let node = element.parentElement; node && hops < 12; node = node.parentElement, hops += 1) {
+      const tag = node.tagName;
+      const role = (node.getAttribute("role") || "").toLowerCase();
+      if (tag === "HTML" || tag === "BODY" || tag === "MAIN" || role === "main") continue;
+      if (isStickyOrFixed(node)) continue;
+      const nr = node.getBoundingClientRect();
+      if (nr.width >= window.innerWidth * 0.9 || nr.height >= window.innerHeight * 0.8) continue;
+      if (nr.height <= nameRect.height * 1.5) continue;
+      const nx = nr.left + nr.width / 2;
+      if (Math.abs(nx - elX) > Math.max(80, nameRect.width)) continue;
+      return nr;
+    }
+    return nameRect;
+  };
+
   const root = spec.within ? document.querySelector(spec.within) : document;
   if (!root) return [];
   let elements = [];
@@ -324,7 +359,12 @@ function queryLocator(spec) {
   }
   return elements.slice(0, 200).map((element) => {
     element.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
-    const rect = element.getBoundingClientRect();
+    const nativeRect = element.getBoundingClientRect();
+    const rect = stickyCardRect(element, nativeRect);
+    const nameX = nativeRect.left + nativeRect.width / 2;
+    const cardX = rect.left + rect.width / 2;
+    const x = Math.abs(cardX - nameX) <= Math.max(24, nativeRect.width) ? nameX : cardX;
+    const y = rect.top + rect.height / 2;
     return {
       selector: cssPath(element),
       tag: element.tagName.toLowerCase(),
@@ -337,7 +377,7 @@ function queryLocator(spec) {
       checked: "checked" in element ? Boolean(element.checked) : null,
       href: element.href || null,
       src: element.currentSrc || element.src || null,
-      point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+      point: { x, y },
     };
   });
 }
@@ -509,7 +549,57 @@ async function locatorAction(action, state, hooks) {
     await pressKey(hooks.send, state.tabId, action.key || action.value, action.modifiers || []);
   } else if (["check", "uncheck", "set_checked"].includes(operation)) {
     const desired = operation === "check" ? true : operation === "uncheck" ? false : Boolean(action.checked ?? action.value);
-    if (Boolean(match.checked) !== desired) await dispatchMouse(hooks.send, state.tabId, match.point, 1);
+    const flipped = await chrome.scripting.executeScript({
+      target: { tabId: state.tabId, frameIds: [match.frame_id] },
+      func: (selector, desiredChecked) => {
+        const element = document.querySelector(selector);
+        if (!element) throw new Error("Locator check target is missing");
+        const isBox = (node) =>
+          node instanceof HTMLInputElement && (node.type === "checkbox" || node.type === "radio");
+        let control = isBox(element) ? element : null;
+        if (!control) {
+          const label = element.closest?.("label");
+          if (label && isBox(label.control)) control = label.control;
+          if (!control && label) {
+            const inner = label.querySelector("input[type=checkbox], input[type=radio]");
+            if (isBox(inner)) control = inner;
+          }
+        }
+        if (!control) {
+          const inner = element.querySelector?.("input[type=checkbox], input[type=radio]");
+          if (isBox(inner)) control = inner;
+        }
+        if (!control) throw new Error("Locator check target is not a checkbox or radio");
+        if (control.checked !== desiredChecked) control.click();
+        if (control.checked !== desiredChecked) {
+          const label = control.closest("label") || (control.labels && control.labels[0]) || null;
+          let fallback = null;
+          if (label) {
+            const nodes = label.querySelectorAll("svg, [role=img], [class*='checkbox'], [class*='icon'], span");
+            for (const node of nodes) {
+              if (node === control) continue;
+              const box = node.getBoundingClientRect();
+              if (box.width > 0 && box.height > 0) {
+                fallback = node;
+                break;
+              }
+            }
+            if (!fallback) fallback = label;
+          }
+          if (fallback && fallback !== control) fallback.click();
+        }
+        if (control.checked !== desiredChecked) {
+          throw new Error("Locator check did not change checked state");
+        }
+        return control.checked;
+      },
+      args: [match.selector, desired],
+    });
+    const checked = flipped?.[0]?.result;
+    if (Boolean(checked) !== desired) {
+      throw new Error("Locator check did not reach the requested checked state");
+    }
+    return { type: "locator", operation, match: { ...match, checked } };
   } else if (operation === "select_option") {
     if (String(match.tag || "").toLowerCase() !== "select") {
       throw new Error(

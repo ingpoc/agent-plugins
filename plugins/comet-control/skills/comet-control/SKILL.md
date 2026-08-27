@@ -193,6 +193,15 @@ stealing the human's macOS key focus; the labeled cursor still glides in-page.
 Only a true OS sheet handed to CUA may require foregrounding. Batch coherent
 actions so the handoff stays fast.
 
+## Locators, frames, and misses (2026-08-27)
+
+- `click_text` skips `position:sticky` / `position:fixed` header chips when an in-page match exists. A **unique** sticky name still matches; the click point then uses the nearest same-column card rect, not the stuck inset (FPL names were y≈439 with the real card X). Do not fall back to coordinates.
+- Checkbox / radio clicks must activate the native input (`HTMLElement.click()`). Synthetic `MouseEvent` (`isTrusted: false`) reports success and does not toggle CSS-custom checkboxes (FPL Vice Captain).
+- `click_selector` searches open shadow roots. A 16×16 icon is on-target if `elementFromPoint` hits a descendant or a `button` / `[role=button]` ancestor.
+- `page_context` / `getStatus` are pinned to the top frame. Ad/Twitter/DoubleClick iframes must not win. Do not treat an ad title as the product page.
+- A missing locator fails fast (`ACTIONABILITY_*` / `ELEMENT_NOT_FOUND`) and must not reload the leased tab. Do not mint a second session or host-reload to "fix" a miss.
+- `cursor_scroll` walks custom overflow ancestors (including shadow hosts). If a pitch/list still ignores it, click the row by locator.
+
 ## Non-negotiable boundaries
 
 - Use only this plugin's `run/` socket and cache. Never route through

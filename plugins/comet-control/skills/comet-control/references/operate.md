@@ -58,6 +58,8 @@ same driver and leased window; never silently create a replacement lease.
 
 A visual claim requires a `screenshot` action and an actual read of the returned
 image file. `cursor_status` alone is state, not operator-visible proof.
+Sticky unique names click the card rect, not the stuck inset. Checkbox/radio activation uses the native input click, not only a synthetic MouseEvent.
+Missing locators fail fast (`ACTIONABILITY_*` / `ELEMENT_NOT_FOUND`) and do not reload the leased tab.
 In-page commands and screenshots must not foreground Comet or steal the human's
 macOS key focus. A true OS sheet may be foregrounded only through the CUA handoff.
 
@@ -67,13 +69,13 @@ Actions below belong inside one `run.actions` list.
 
 | Need | Action | Notes |
 | --- | --- | --- |
-| Compact orientation | `page_context` | Default read; URL, headings, controls, compact console counts |
+| Compact orientation | `page_context` | Default read of the **top frame** only; URL, headings, controls, compact console counts. Ad/Twitter iframes are not the page. |
 | Full visible text | `text` | Articles, tables, or long form content |
 | Element inventory | `snapshot` | Use only when a selector is unknown |
 | Navigate | `goto` | Pair with `wait_for_selector` or `wait_for_url_change` |
 | Wait for UI | `wait_for_selector` | Prefer an observable element over a fixed delay |
-| Click by label | `click_text` | Preferred when text is unique; may return `dialog_opened` for JS prompt/confirm/alert |
-| Click by CSS | `click_selector` | Use when text is missing or ambiguous; the resolved DOM node is retained through the glide |
+| Click by label | `click_text` | Preferred when text is unique; unique sticky names use the card rect, not the stuck inset; header chips skipped when an in-page match exists; checkbox/radio need native `HTMLElement.click()`, not only synthetic MouseEvent; may return `dialog_opened` |
+| Click by CSS | `click_selector` | Use when text is missing or ambiguous; searches open shadow roots; 16px icons count if the hit is a descendant or button ancestor |
 | JS dialog | `dialog_handle` | Comet Control owns `alert`/`confirm`/`prompt`; batch after click with `promptText` when needed — see [`advanced-capabilities.md`](advanced-capabilities.md). OS sheets → `$macos-cua` |
 | Fill input | `fill_selector` | Verify the value before submit |
 | Visual proof | `screenshot` | Returns a file path; read the file |

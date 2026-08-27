@@ -1,9 +1,9 @@
 # Extension install (Agent Computer Use)
 
-Owner: first install, reload after `plugin/comet_control/` edits, or
-`EXTENSION_NOT_CONNECTED` after broker start. Comet shell + OS file sheet only —
-not page DOM. Zero leases required (`comet-admin`). Never inspect or copy the
-Comet profile / credentials.
+Owner: first install, an extension card that is missing, or manual recovery
+after the broker reload path cannot restore an already-installed extension.
+Comet shell + OS file sheet only — not page DOM. Zero leases required
+(`comet-admin`). Never inspect or copy the Comet profile / credentials.
 
 ## Paths
 
@@ -116,12 +116,29 @@ smoke only when the caller asked for install-only and probe gates already pass.
 
 ## Reload after source edits
 
-1. Close every lease (`verified_absent` / empty sessions inventory).
-2. On Extensions: remove or **Reload** the existing Comet Control card, or
-   Load unpacked again from `$ROOT/plugin/comet_control/extension`.
-3. Re-run **Validate Comet Control** above.
+When the extension card is already installed, including after a source edit or
+`EXTENSION_NOT_CONNECTED`:
+
+1. Close every lease; require `verified_absent` and an empty sessions inventory.
+2. Send the host `{"type":"reload"}` on `run/comet-control.sock` (equivalent to
+   `bridge({"type":"reload"})`). Require `success` plus `reloading`.
+   `ACTIVE_AGENT_LEASES` means stop.
+3. Wait, then repeat `./scripts/ensure-broker.sh probe --json` until `success`,
+   `runtime_verified`, `extension_connected`, and pairing are restored.
+4. Confirm `connection_generation` and `extension_build_sha256` moved after the
+   real reload, then re-run the smoke validation above.
+
+This broker reload is the default. CUA **Reload** / **Load unpacked** on
+`chrome://extensions` or `comet://extensions` is not; AX on that page is poor
+and clicks miss. Use the first-install CUA **Load unpacked** path above only when
+the extension card is missing or manual recovery is truly required.
 
 Never reload or administer the extension while leases are active.
+
+CUA **Cancel** is valid only if the gray “started debugging this browser” banner
+is actually visible on the Extensions page. It does not fix a product-tab
+foreign-frame restriction or an `ACTIONABILITY_*` miss. Bind CUA to the exact
+window title (for example, a payment window), never the browser PID.
 
 ## Failure shortcuts
 
@@ -130,7 +147,7 @@ Never reload or administer the extension while leases are active.
 | Omnibox says extensions URL; WebArea still old site | `open -a Comet "chrome://extensions/"` or click Reload on a true Extensions window |
 | No `Load unpacked` in AX | Wait for `AXWebArea "Extensions"` + Developer mode on; re-`state` |
 | Open sheet picks wrong `extension` folder | Go to Folder → absolute `$ROOT/plugin/comet_control/extension` before Select |
-| Probe `EXTENSION_NOT_CONNECTED` after Select | Confirm card enabled; Reload card; broker `start`; re-probe |
+| Probe `EXTENSION_NOT_CONNECTED` after Select | Confirm the card is enabled; with zero leases use host `{"type":"reload"}`, wait, then re-probe |
 | `COMET_CONTROL_RUNTIME_UNAVAILABLE` on coexistence check pre-install | Expected before pairing; finish install + probe — do not block first load on that claim |
 | Pixel click geometry mismatch | Use AX `Load unpacked` / `Select` labels instead |
 

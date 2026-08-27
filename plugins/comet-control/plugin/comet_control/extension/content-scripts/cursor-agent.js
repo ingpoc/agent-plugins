@@ -266,8 +266,9 @@
     // elementFromPoint returns the deepest painted node at the cursor. The
     // expected semantic target may therefore contain that node, but accepting
     // the inverse relationship would allow a broad ancestor hit outside the
-    // expected element's actual bounds.
-    const related = elements.filter((el) => el === hit || el.contains(hit));
+    // expected element's actual bounds. Shadow-hosted 16px icons also need
+    // the clickable ancestor / composed-tree walk in _hitIsOnTarget.
+    const related = elements.filter((el) => _hitIsOnTarget(el, hit));
     if (!related.length) return null;
     const interactive = (el) => /^(A|BUTTON|SUMMARY|LABEL|INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.getAttribute('role') === 'button';
     related.sort((a, b) => {
@@ -316,7 +317,7 @@
     if (expectation.selector) {
       const selector = String(expectation.selector);
       const target = _relatedTargetAtCursor(
-        Array.from(document.querySelectorAll(selector)).filter(_isVisible).filter(
+        _querySelectorAllDeep(selector).filter(_isVisible).filter(
           (el) => !expectation.targetHref || el.href === expectation.targetHref
         )
       );
@@ -329,9 +330,9 @@
     if (expectation.text) {
       const needle = String(expectation.text).toLowerCase().trim();
       const target = _relatedTargetAtCursor(
-        Array.from(document.querySelectorAll(
+        _querySelectorAllDeep(
           'a,button,[role=button],input[type=button],input[type=submit],label,summary'
-        )).filter(_isVisible)
+        ).filter(_isVisible)
           .filter((el) => _clickTextValue(el).toLowerCase().includes(needle))
           .filter((el) => !expectation.targetHref || el.href === expectation.targetHref)
       );
@@ -354,12 +355,17 @@
     const { target: el, verifiedBy } = _expectedTargetAtCursor(expectation);
 
     if (el) {
+      const control = _checkboxControl(el);
+      const before = control ? control.checked : null;
       const scrollX = window.scrollX || 0;
       const scrollY = window.scrollY || 0;
       const opts = { bubbles: true, cancelable: true, view: window };
       el.dispatchEvent(new MouseEvent('mousedown', { ...opts, clientX: cursorX, clientY: cursorY, pageX: cursorX + scrollX, pageY: cursorY + scrollY }));
       el.dispatchEvent(new MouseEvent('mouseup', { ...opts, clientX: cursorX, clientY: cursorY, pageX: cursorX + scrollX, pageY: cursorY + scrollY }));
       el.dispatchEvent(new MouseEvent('click', { ...opts, clientX: cursorX, clientY: cursorY, pageX: cursorX + scrollX, pageY: cursorY + scrollY }));
+      if (control && control.checked === before) {
+        control.click();
+      }
     }
     flashLabel('click');
     return {
@@ -496,15 +502,40 @@
     });
   }
 
+  function _scrollableAncestor(start) {
+    let node = start;
+    while (node && node !== document.documentElement) {
+      if (node instanceof Element) {
+        try {
+          const s = window.getComputedStyle(node);
+          const canY = (s.overflowY === 'auto' || s.overflowY === 'scroll' || s.overflowY === 'overlay')
+            && node.scrollHeight > node.clientHeight + 1;
+          const canX = (s.overflowX === 'auto' || s.overflowX === 'scroll' || s.overflowX === 'overlay')
+            && node.scrollWidth > node.clientWidth + 1;
+          if (canY || canX) return node;
+        } catch { /* keep walking */ }
+      }
+      const parent = node.parentElement;
+      if (parent) {
+        node = parent;
+        continue;
+      }
+      const root = node.getRootNode?.();
+      node = root && root !== node && root.host ? root.host : null;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
   function scroll(deltaX, deltaY) {
-    const el = document.elementFromPoint(cursorX, cursorY) || document.documentElement;
-    el.scrollBy(deltaX, deltaY);
+    const hit = document.elementFromPoint(cursorX, cursorY) || document.documentElement;
+    const el = _scrollableAncestor(hit);
+    try { el.scrollBy(deltaX, deltaY); } catch { /* non-element host */ }
     const we = new WheelEvent('wheel', {
       bubbles: true, cancelable: true, view: window,
       clientX: cursorX, clientY: cursorY,
       deltaX, deltaY
     });
-    el.dispatchEvent(we);
+    hit.dispatchEvent(we);
     flashLabel('scroll');
   }
 
@@ -563,6 +594,70 @@
     ].join('|');
   }
 
+
+  function _checkboxControl(el) {
+    if (!el) return null;
+    const isBox = (node) =>
+      node instanceof HTMLInputElement && (node.type === 'checkbox' || node.type === 'radio');
+    if (isBox(el)) return el;
+    const label = el.closest?.('label');
+    if (label) {
+      if (isBox(label.control)) return label.control;
+      const inner = label.querySelector?.('input[type="checkbox"], input[type="radio"]');
+      if (isBox(inner)) return inner;
+    }
+    const wrapped = el.querySelector?.('input[type="checkbox"], input[type="radio"]');
+    if (isBox(wrapped)) return wrapped;
+    return null;
+  }
+
+  function _isDocumentSized(rect) {
+    return rect.width >= window.innerWidth * 0.9 || rect.height >= window.innerHeight * 0.8;
+  }
+
+  function _stickyCardRect(el, nameRect) {
+    // Unique sticky names (FPL pitch): keep the chosen node, rewrite Y to the
+    // nearest same-column non-sticky card. Do not drop unique sticky matches.
+    if (!_isStickyOrFixedDescendant(el)) return nameRect;
+    const elX = nameRect.left + nameRect.width / 2;
+    let hops = 0;
+    for (const node of _hostChain(el)) {
+      if (!(node instanceof Element) || node === el) continue;
+      hops += 1;
+      if (hops > 12) break;
+      const tag = node.tagName;
+      const role = (node.getAttribute('role') || '').toLowerCase();
+      if (tag === 'HTML' || tag === 'BODY' || tag === 'MAIN' || role === 'main') continue;
+      let pos = '';
+      try { pos = window.getComputedStyle(node).position; } catch { continue; }
+      if (pos === 'sticky' || pos === 'fixed') continue;
+      const nr = node.getBoundingClientRect();
+      if (_isDocumentSized(nr)) continue;
+      if (nr.height <= nameRect.height * 1.5) continue;
+      const nx = nr.left + nr.width / 2;
+      if (Math.abs(nx - elX) > Math.max(80, nameRect.width)) continue;
+      return nr;
+    }
+    return nameRect;
+  }
+
+  function _hitIsOnStickyCard(el, top) {
+    if (!el || !top) return false;
+    for (const node of _hostChain(el)) {
+      if (!(node instanceof Element) || node === el) continue;
+      const tag = node.tagName;
+      const role = (node.getAttribute('role') || '').toLowerCase();
+      if (tag === 'HTML' || tag === 'BODY' || tag === 'MAIN' || role === 'main') continue;
+      let pos = '';
+      try { pos = window.getComputedStyle(node).position; } catch { continue; }
+      if (pos === 'sticky' || pos === 'fixed') continue;
+      const nr = node.getBoundingClientRect();
+      if (_isDocumentSized(nr)) continue;
+      if (node.contains(top) || _composedRelated(node, top)) return true;
+    }
+    return false;
+  }
+
   async function _pointForElement(el, { mode, locator, kind }) {
     if (!_isVisible(el)) {
       throw _actionabilityError('ACTIONABILITY_NOT_VISIBLE', 'Target is not visible', { kind, locator });
@@ -582,10 +677,13 @@
     if (!_sameRect(first, second) || !_sameRect(second, r)) {
       throw _actionabilityError('ACTIONABILITY_UNSTABLE', 'Target moved across animation frames', { kind, locator });
     }
-    const x = Math.round(r.left + r.width / 2);
-    const y = Math.round(r.top + r.height / 2);
+    const clickRect = _stickyCardRect(el, r);
+    const nameX = r.left + r.width / 2;
+    const cardX = clickRect.left + clickRect.width / 2;
+    const x = Math.round(Math.abs(cardX - nameX) <= Math.max(24, r.width) ? nameX : cardX);
+    const y = Math.round(clickRect.top + clickRect.height / 2);
     const top = document.elementFromPoint(x, y);
-    if (!top || !(top === el || el.contains(top))) {
+    if (!_hitIsOnTarget(el, top) && !_hitIsOnStickyCard(el, top)) {
       throw _actionabilityError('ACTIONABILITY_OBSCURED', 'Target center is covered by another element', {
         kind,
         locator,
@@ -627,10 +725,139 @@
     }
   }
 
+  function _querySelectorAllDeep(selector) {
+    const value = String(selector || '');
+    const results = [];
+    const seen = new Set();
+    const visit = (root) => {
+      if (!root) return;
+      let matches;
+      try {
+        matches = root.querySelectorAll(value);
+      } catch {
+        return;
+      }
+      for (const el of matches) {
+        if (!seen.has(el)) {
+          seen.add(el);
+          results.push(el);
+        }
+      }
+      let nodes;
+      try {
+        nodes = root.querySelectorAll('*');
+      } catch {
+        return;
+      }
+      for (const el of nodes) {
+        if (el.shadowRoot) visit(el.shadowRoot);
+      }
+    };
+    visit(document);
+    return results;
+  }
+
+  function _hostChain(node) {
+    const chain = [];
+    let cur = node;
+    while (cur) {
+      chain.push(cur);
+      const parent = cur.parentElement;
+      if (parent) {
+        cur = parent;
+        continue;
+      }
+      const root = cur.getRootNode?.();
+      cur = root && root !== cur && root.host ? root.host : null;
+    }
+    return chain;
+  }
+
+  function _clickableAncestor(node) {
+    for (const cur of _hostChain(node)) {
+      if (!(cur instanceof Element)) continue;
+      const role = cur.getAttribute?.('role');
+      if (
+        /^(A|BUTTON|SUMMARY|LABEL|INPUT|TEXTAREA|SELECT)$/.test(cur.tagName)
+        || role === 'button'
+        || role === 'link'
+      ) return cur;
+    }
+    return null;
+  }
+
+  function _composedRelated(el, other) {
+    if (!el || !other) return false;
+    if (el === other) return true;
+    if (el.contains?.(other) || other.contains?.(el)) return true;
+    return _hostChain(other).includes(el) || _hostChain(el).includes(other);
+  }
+
+  function _hitIsOnTarget(el, top) {
+    if (!el || !top) return false;
+    if (_composedRelated(el, top)) return true;
+    const hitClickable = _clickableAncestor(top);
+    if (hitClickable && _composedRelated(el, hitClickable)) return true;
+    const elClickable = _clickableAncestor(el);
+    if (elClickable && _composedRelated(elClickable, top)) return true;
+    if (_isStickyOrFixedDescendant(el) && _hitIsOnStickyCard(el, top)) return true;
+    return false;
+  }
+
+  function _isStickyOrFixedDescendant(el) {
+    for (const node of _hostChain(el)) {
+      if (!(node instanceof Element)) continue;
+      try {
+        const pos = window.getComputedStyle(node).position;
+        if (pos === 'sticky' || pos === 'fixed') return true;
+      } catch { /* detached */ }
+    }
+    return false;
+  }
+
+  function _isHeaderNavToolbar(el) {
+    try {
+      return Boolean(el.closest?.('header,nav,[role="banner"],[role="navigation"],[role="toolbar"]'));
+    } catch {
+      return false;
+    }
+  }
+
+  function _preferInPageTargets(elements) {
+    if (!elements || elements.length <= 1) return elements || [];
+    const inPage = elements.filter((el) => !_isStickyOrFixedDescendant(el) && !_isHeaderNavToolbar(el));
+    const pool = inPage.length ? inPage : elements;
+    if (pool.length === 1) return pool;
+    const areaOf = (el) => {
+      const r = el.getBoundingClientRect();
+      return Math.max(0, r.width) * Math.max(0, r.height);
+    };
+    const distOf = (el) => {
+      const r = el.getBoundingClientRect();
+      const dx = (r.left + r.width / 2) - (window.innerWidth / 2);
+      const dy = (r.top + r.height / 2) - (window.innerHeight / 2);
+      return dx * dx + dy * dy;
+    };
+    let best = pool[0];
+    let bestArea = areaOf(best);
+    let bestDist = distOf(best);
+    for (let i = 1; i < pool.length; i += 1) {
+      const el = pool[i];
+      const area = areaOf(el);
+      const dist = distOf(el);
+      if (area > bestArea * 1.15 || (area >= bestArea * 0.85 && dist < bestDist)) {
+        best = el;
+        bestArea = area;
+        bestDist = dist;
+      }
+    }
+    return [best];
+  }
+
   function findPointBySelector(selector, mode = 'click') {
     const value = String(selector || '');
     return _actionablePoint('selector', value, mode, () =>
-      Array.from(document.querySelectorAll(value)).filter(_isVisible)
+      _querySelectorAllDeep(value).filter(_isVisible)
     );
   }
 
@@ -642,9 +869,9 @@
     // Interactive-only. Scanning p/span/li/td with innerText on Seller (Samantha
     // panel, dense order DOM) blocks the message port long enough that SW
     // sendMessageFast+probes false-negative as "Content script missing".
-    const elements = Array.from(document.querySelectorAll(
+    const elements = _querySelectorAllDeep(
       'a,button,[role=button],input[type=button],input[type=submit],label,summary'
-    )).filter(_isVisible);
+    ).filter(_isVisible);
     const candidates = [];
     for (const el of elements) {
       const value = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().toLowerCase();
@@ -653,12 +880,14 @@
     }
     const bestScore = Math.min(...candidates.map((candidate) => candidate.score));
     return _actionablePoint('text', needle, mode, () =>
-      candidates.filter((candidate) => candidate.score === bestScore).map((candidate) => candidate.el)
+      _preferInPageTargets(
+        candidates.filter((candidate) => candidate.score === bestScore).map((candidate) => candidate.el)
+      )
     );
   }
 
   function hasSelector(selector) {
-    return Boolean(document.querySelector(String(selector || '')));
+    return _querySelectorAllDeep(String(selector || '')).length > 0;
   }
 
   function getDOMSnapshot() {
@@ -841,6 +1070,14 @@
   };
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    // Ad/tracker iframes are controllable https. If sendMessage is delivered
+    // beyond frame 0, skip page_context/status so DoubleClick/Twitter cannot win.
+    if (
+      window !== window.top
+      && (msg?.action === 'getPageContext' || msg?.action === 'getStatus')
+    ) {
+      return false;
+    }
     const fn = actions[msg.action];
     if (!fn) {
       sendResponse({ success: false, error: `Unknown action: ${msg.action}` });
