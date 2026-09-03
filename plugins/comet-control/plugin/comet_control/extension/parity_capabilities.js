@@ -358,16 +358,13 @@ function queryLocator(spec) {
     elements = index >= 0 && index < elements.length ? [elements[index]] : [];
   }
   return elements.slice(0, 200).map((element) => {
+    element.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
     const nativeRect = element.getBoundingClientRect();
     const rect = stickyCardRect(element, nativeRect);
     const nameX = nativeRect.left + nativeRect.width / 2;
     const cardX = rect.left + rect.width / 2;
-    const preferredX = Math.abs(cardX - nameX) <= Math.max(24, nativeRect.width) ? nameX : cardX;
-    const left = Math.max(0, rect.left), right = Math.min(window.innerWidth, rect.right);
-    const top = Math.max(0, rect.top), bottom = Math.min(window.innerHeight, rect.bottom);
-    const x = right > left ? Math.max(left, Math.min(preferredX, right - 1)) : preferredX;
-    let y = rect.top + rect.height / 2;
-    if (bottom > top) y = (top + bottom) / 2;
+    const x = Math.abs(cardX - nameX) <= Math.max(24, nativeRect.width) ? nameX : cardX;
+    const y = rect.top + rect.height / 2;
     return {
       selector: cssPath(element),
       tag: element.tagName.toLowerCase(),
@@ -378,7 +375,6 @@ function queryLocator(spec) {
       visible: visible(element),
       enabled: !(element.disabled || element.getAttribute("aria-disabled") === "true"),
       checked: "checked" in element ? Boolean(element.checked) : null,
-      focused: element === document.activeElement || element.contains(document.activeElement),
       href: element.href || null,
       src: element.currentSrc || element.src || null,
       point: { x, y },
@@ -410,25 +406,6 @@ async function resolveLocator(tabId, action) {
     }
   }
   return matches;
-}
-
-async function prepareLocatorTarget(tabId, action, matches) {
-  if (matches.length !== 1) throw new Error(`Interactive locator requires one target, found ${matches.length}`);
-  const match = matches[0];
-  await chrome.scripting.executeScript({
-    target: { tabId, frameIds: [match.frame_id] },
-    func: (selector) => {
-      const element = document.querySelector(selector);
-      if (!element) throw new Error("Locator target disappeared before scrolling");
-      element.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
-    },
-    args: [match.selector],
-  });
-  const refreshed = await resolveLocator(tabId, action);
-  if (refreshed.length !== 1 || refreshed[0].frame_id !== match.frame_id || refreshed[0].selector !== match.selector) {
-    throw new Error("Locator target changed during scrolling");
-  }
-  return refreshed[0];
 }
 
 async function dispatchMouse(send, tabId, point, clickCount = 1, button = "left") {
@@ -464,8 +441,6 @@ function keyDefinition(value) {
     ArrowUp: { key: "ArrowUp", code: "ArrowUp", windowsVirtualKeyCode: 38 },
     ArrowLeft: { key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 },
     ArrowRight: { key: "ArrowRight", code: "ArrowRight", windowsVirtualKeyCode: 39 },
-    End: { key: "End", code: "End", windowsVirtualKeyCode: 35 },
-    Home: { key: "Home", code: "Home", windowsVirtualKeyCode: 36 },
     Space: { key: " ", code: "Space", windowsVirtualKeyCode: 32 },
   };
   return map[key] || { key, code: key.length === 1 ? `Key${key.toUpperCase()}` : key, text: key.length === 1 ? key : undefined };
@@ -526,63 +501,51 @@ async function locatorAction(action, state, hooks) {
     return { type: "locator", operation, attribute, value: values?.[0]?.result ?? null };
   }
 
-  if (!interactiveOperations.has(operation)) throw new Error(`Unsupported locator operation: ${operation}`);
-  if (matches.length !== 1) throw new Error(`Interactive locator requires one target, found ${matches.length}`);
-  const focusedKeyboard = ["press", "type"].includes(operation) && match.focused;
-  if (!focusedKeyboard) {
-    match = await prepareLocatorTarget(state.tabId, action, matches);
-    await hooks.moveCursorToPoint(state.tabId, match.point);
-    const refreshedMatches = await resolveLocator(state.tabId, action);
-    const refreshedMatch = refreshedMatches[0];
-    if (refreshedMatches.length !== 1 || refreshedMatch.frame_id !== match.frame_id || refreshedMatch.selector !== match.selector) {
-      throw new Error(`Locator target changed during cursor movement for ${operation}`);
-    }
-    const targetMoved = Math.abs(refreshedMatch.point.x - match.point.x) > 1
-      || Math.abs(refreshedMatch.point.y - match.point.y) > 1;
-    match = refreshedMatch;
-    if (targetMoved) await hooks.moveCursorToPoint(state.tabId, match.point);
+  await hooks.moveCursorToPoint(state.tabId, match.point);
+  const refreshedMatches = await resolveLocator(state.tabId, action);
+  const refreshedMatch = refreshedMatches[0];
+  if (!refreshedMatch) {
+    throw new Error(`Locator target disappeared during cursor movement for ${operation}`);
   }
+  const targetMoved = refreshedMatch.frame_id !== match.frame_id
+    || refreshedMatch.selector !== match.selector
+    || Math.abs(refreshedMatch.point.x - match.point.x) > 1
+    || Math.abs(refreshedMatch.point.y - match.point.y) > 1;
+  match = refreshedMatch;
+  if (targetMoved) await hooks.moveCursorToPoint(state.tabId, match.point);
   if (operation === "click" || operation === "dblclick" || operation === "double_click") {
     const outcome = await clickOrDialog(hooks.send, state.tabId, match.point, operation === "click" ? 1 : 2);
     if (outcome.dialog) return { type: "locator", operation, match, dialog_opened: outcome.dialog };
   } else if (operation === "fill" || operation === "type") {
     if (operation === "fill") {
       const fillValue = String(action.value ?? action.text ?? "");
-      if (typeof hooks.executeScriptOnTab !== "function") {
-        throw new Error("Locator fill requires bounded executeScriptOnTab");
-      }
-      const filled = await hooks.executeScriptOnTab(
-        state.tabId,
-        {
-          target: { tabId: state.tabId, frameIds: [match.frame_id] },
-          func: (selector, value) => {
-            const element = document.querySelector(selector);
-            if (!element) throw new Error("Locator fill target disappeared");
-            element.focus();
-            if (element instanceof HTMLInputElement) {
-              Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, value);
-            } else if (element instanceof HTMLTextAreaElement) {
-              Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(element, value);
-            } else if (element.isContentEditable) {
-              element.textContent = value;
-            } else {
-              throw new Error("Locator fill target is not editable");
-            }
-            element.dispatchEvent(new Event("input", { bubbles: true }));
-            element.dispatchEvent(new Event("change", { bubbles: true }));
-            return "value" in element ? element.value : element.textContent;
-          },
-          args: [match.selector, fillValue],
+      const filled = await chrome.scripting.executeScript({
+        target: { tabId: state.tabId, frameIds: [match.frame_id] },
+        func: (selector, value) => {
+          const element = document.querySelector(selector);
+          if (!element) throw new Error("Locator fill target disappeared");
+          element.focus();
+          if (element instanceof HTMLInputElement) {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, value);
+          } else if (element instanceof HTMLTextAreaElement) {
+            Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(element, value);
+          } else if (element.isContentEditable) {
+            element.textContent = value;
+          } else {
+            throw new Error("Locator fill target is not editable");
+          }
+          element.dispatchEvent(new Event("input", { bubbles: true }));
+          element.dispatchEvent(new Event("change", { bubbles: true }));
+          return "value" in element ? element.value : element.textContent;
         },
-        8000,
-        "locatorFill"
-      );
+        args: [match.selector, fillValue],
+      });
       return { type: "locator", operation, match, value: filled?.[0]?.result ?? null };
     }
-    if (!focusedKeyboard) await dispatchMouse(hooks.send, state.tabId, match.point, 1);
+    await dispatchMouse(hooks.send, state.tabId, match.point, 1);
     await hooks.send(state.tabId, "Input.insertText", { text: String(action.value ?? action.text ?? "") });
   } else if (operation === "press") {
-    if (!focusedKeyboard) await dispatchMouse(hooks.send, state.tabId, match.point, 1);
+    await dispatchMouse(hooks.send, state.tabId, match.point, 1);
     await pressKey(hooks.send, state.tabId, action.key || action.value, action.modifiers || []);
   } else if (["check", "uncheck", "set_checked"].includes(operation)) {
     const desired = operation === "check" ? true : operation === "uncheck" ? false : Boolean(action.checked ?? action.value);
@@ -893,7 +856,8 @@ async function downloadAction(action, state, hooks) {
   } else {
     const before = new Set((await chrome.downloads.search({})).map((item) => item.id));
     const matches = await resolveLocator(state.tabId, action);
-    const match = await prepareLocatorTarget(state.tabId, action, matches);
+    const match = matches[0];
+    if (!match) throw new Error("download_click locator did not resolve");
     await hooks.moveCursorToPoint(state.tabId, match.point);
     const clickOutcome = await clickOrDialog(hooks.send, state.tabId, match.point, 1);
     if (clickOutcome.dialog) {

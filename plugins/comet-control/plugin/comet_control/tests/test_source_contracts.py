@@ -815,31 +815,6 @@ class SourceContractTests(unittest.TestCase):
     def test_parity_capabilities_resolve_named_targets(self) -> None:
         self.assertIn("resolveNamed", PARITY_CAPABILITIES.read_text())
 
-    def test_locator_press_skips_mouse_when_already_focused(self) -> None:
-        """Clicking a tall contenteditable's box center moves the caret mid-document."""
-        parity = PARITY_CAPABILITIES.read_text()
-        press = parity.split('} else if (operation === "press") {', 1)[1].split("} else if", 1)[0]
-        self.assertIn("if (!focusedKeyboard)", press)
-        self.assertIn('const focusedKeyboard = ["press", "type"].includes(operation) && match.focused', parity)
-        self.assertIn("focused: element === document.activeElement || element.contains(document.activeElement)", parity)
-        self.assertIn("dispatchMouse", press)
-        typ = parity.split("await hooks.send(state.tabId, \"Input.insertText\"", 1)[0]
-        self.assertIn("if (!focusedKeyboard) await dispatchMouse", typ)
-        keys = parity.split("function keyDefinition(value)", 1)[1].split("export async function pressKey", 1)[0]
-        self.assertIn("End:", keys)
-        self.assertIn("Home:", keys)
-
-    def test_locator_fill_uses_bounded_executeScriptOnTab(self) -> None:
-        """Raw chrome.scripting.executeScript on locator fill wedges Draft.js / large contenteditable."""
-        parity = PARITY_CAPABILITIES.read_text()
-        fill = parity.split('if (operation === "fill")', 1)[1].split("await dispatchMouse", 1)[0]
-        self.assertIn("hooks.executeScriptOnTab", fill)
-        self.assertIn('"locatorFill"', fill)
-        self.assertNotIn("chrome.scripting.executeScript", fill)
-        worker = SERVICE_WORKER.read_text()
-        hooks = worker.split("runParityAction(action, state, {", 1)[1].split("});", 1)[0]
-        self.assertIn("executeScriptOnTab", hooks)
-
     def test_preflight_failure_uses_verified_cleanup_without_dropping_ownership(self) -> None:
         source = SERVICE_WORKER.read_text()
         preflight = source.split("async function sessionPreflight(message) {", 1)[1].split(

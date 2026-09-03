@@ -2807,7 +2807,6 @@ async function runBrowserAction(action, state) {
     send,
     ensureAttached,
     moveCursorToPoint,
-    executeScriptOnTab,
   });
   if (parity.handled) return parity.result;
 
