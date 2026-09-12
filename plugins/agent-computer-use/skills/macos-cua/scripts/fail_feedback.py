@@ -17,7 +17,7 @@ VERIFICATION_REQUIRED = "verification_required"
 _REASON_HINTS = {
     TARGET_MISSING: "No matching control; fresh state by label, then retry or use coordinates.",
     STALE_ID: "Element index/id is stale; discard ids and resolve by label via state.",
-    OBSERVATION_INCOMPLETE: "Settled observation was empty/partial; one state then retry.",
+    OBSERVATION_INCOMPLETE: "No current observation; discard old IDs and get state before deciding. Do not replay uncertain actions.",
     ACTION_FAILED: "Native step failed; change approach (AX → coord) or raise the app.",
     EXPECT_UNVERIFIED: "Dispatch ran but expect was not new in the settled tree; do not claim done.",
     VERIFICATION_REQUIRED: "Mutating act needs expect (or allow_unverified for dispatch-only).",
@@ -61,7 +61,7 @@ def classify_failure(
     after = (after_text or "").strip()
     before = (before_text or "").strip()
 
-    if not after and not before:
+    if not after:
         return OBSERVATION_INCOMPLETE
     if any(
         token in blob
@@ -186,7 +186,7 @@ def format_failure_text(
 ) -> str:
     """Human/model-facing compact failure body (not a full AX dump)."""
     tried = _target_hints(arguments, results)
-    nearby = _nearby_lines(after_text or before_text, arguments)
+    nearby = _nearby_lines(after_text, arguments)
     err = str(error or "").strip()
     if err and len(err) > 200:
         err = err[:200] + "…"
@@ -230,10 +230,8 @@ def apply_failure_feedback(
     )
     payload["error_type"] = reason
     payload["failure"] = {
-        "reason": reason,
-        "tried": _target_hints(arguments, results),
-        "nearby": _nearby_lines(after_text or before_text, arguments),
-        "hint": _REASON_HINTS.get(reason, ""),
+        "completed_steps": sum(item.get("ok") is True for item in results),
+        "failed_step": next((i + 1 for i, item in enumerate(results) if item.get("ok") is not True), None),
     }
     payload["text"] = format_failure_text(
         reason=reason,
@@ -243,6 +241,9 @@ def apply_failure_feedback(
         results=results,
         error=str(payload.get("error") or "") or None,
     )
+    # Text owns recovery details; retain only nonduplicated step metadata.
+    for key in ("error", "results", "expect"):
+        payload.pop(key, None)
     # Keep full tree off the model path; callers that need proof can re-state.
     payload["full_text_omitted"] = True
     return payload

@@ -129,6 +129,11 @@ def tool_schemas() -> list[dict[str, Any]]:
         "expect": expect_schema,
         "error": {"type": ["string", "null"]},
         "error_type": {"type": ["string", "null"]},
+        "full_text_omitted": {"type": "boolean"},
+        "failure": _schema({
+            "completed_steps": {"type": "integer"},
+            "failed_step": {"type": ["integer", "null"]},
+        }),
     }, ["ok"])
     return [
         {

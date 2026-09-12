@@ -401,7 +401,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
         )
         self.assertFalse(out["ok"])
         self.assertEqual(clicks, ["All Clear", "Miss"])
-        self.assertEqual(len(out["results"]), 2)
+        self.assertEqual(out["failure"], {"completed_steps": 1, "failed_step": 2})
 
     def test_act_fails_closed_on_null_click_point(self):
         class Backend(compact_mcp.CUABackend):
@@ -424,7 +424,8 @@ class CompactMcpDispatchTests(unittest.TestCase):
 
         out = Backend().act("App", {"steps": [{"element": 1}], "expect": "0"})
         self.assertFalse(out["ok"])
-        self.assertEqual(out["results"][0].get("error"), "nonfinite click point")
+        self.assertIn("nonfinite click point", out["text"])
+        self.assertEqual(out["failure"]["failed_step"], 1)
 
     def test_act_expect_already_true_before_is_not_verified(self):
         class Backend(compact_mcp.CUABackend):

@@ -14,6 +14,20 @@ SPEC.loader.exec_module(ff)
 
 
 class FailFeedbackTests(unittest.TestCase):
+    def test_missing_after_state_discards_old_ids_and_deduplicates_payload(self):
+        out = ff.apply_failure_feedback(
+            {"ok": False, "dispatched": True, "verified": False,
+             "error": "completion_unverified", "expect": "done",
+             "results": [{"ok": True}, {"ok": False, "error": "completion_unverified"}]},
+            arguments={"label": "OK", "expect": "done"},
+            before_text='[0] AXWindow "Dialog"\n[1] AXButton "OK"', after_text="",
+        )
+        self.assertEqual(out["error_type"], ff.OBSERVATION_INCOMPLETE)
+        self.assertNotIn('[1]', out["text"])
+        self.assertEqual(out["failure"], {"completed_steps": 1, "failed_step": 2})
+        for key in ("error", "results", "expect"):
+            self.assertNotIn(key, out)
+
     def test_classify_target_missing(self):
         reason = ff.classify_failure(
             dispatched=False,
@@ -92,7 +106,7 @@ class FailFeedbackTests(unittest.TestCase):
             after_text=after,
         )
         self.assertEqual(out["error_type"], ff.EXPECT_UNVERIFIED)
-        self.assertEqual(out["failure"]["reason"], ff.EXPECT_UNVERIFIED)
+        self.assertNotIn("reason", out["failure"])
         self.assertTrue(out["full_text_omitted"])
         self.assertIn("reason: expect_unverified", out["text"])
         self.assertIn("Save", out["text"])
