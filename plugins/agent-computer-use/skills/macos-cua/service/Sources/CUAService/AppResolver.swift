@@ -53,6 +53,9 @@ final class AppResolver: @unchecked Sendable {
         let pid = runningApp.processIdentifier
         let axApp = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(axApp, 1.0)
+        // Multi-window apps (TextEdit): never snap state/act to the largest
+        // CGWindow when a focused window exists. preferFocusedWindow still
+        // forces a cache bust after New Document.
         if preferFocusedWindow {
             invalidateWindowCache()
         }
@@ -60,7 +63,10 @@ final class AppResolver: @unchecked Sendable {
             throw RPCMethodError(code: -32002, message: "No window for app: \(app)")
         }
         let focusedID = focusedWindowID(axApp: axApp)
-        let windowID = preferFocusedWindow ? (focusedID ?? listedID) : listedID
+        if let focusedID, focusedID != listedID {
+            invalidateWindowCache()
+        }
+        let windowID = focusedID ?? listedID
         let cg = quartzBounds(windowID)
         let tiny = (cg?.width ?? 0) * (cg?.height ?? 0) < 80 * 80
         reveal(
@@ -70,12 +76,8 @@ final class AppResolver: @unchecked Sendable {
         if tiny {
             Thread.sleep(forTimeInterval: 0.08)
         }
-        let raisedID: CGWindowID
-        if tiny || preferFocusedWindow {
-            raisedID = focusedWindowID(axApp: axApp) ?? windowID
-        } else {
-            raisedID = windowID
-        }
+        // Re-read focus after raise; keep largest only as last resort.
+        let raisedID = focusedWindowID(axApp: axApp) ?? windowID
         return ResolvedApp(
             pid: pid,
             bundleID: runningApp.bundleIdentifier,
