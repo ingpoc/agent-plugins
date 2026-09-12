@@ -167,6 +167,8 @@ Never warp or move the user's hardware pointer.
 
 `ensure-display` verifies both monitor and requested frame. If the app is
 already on the target display but its frame differs, it selects the largest app
+window for **geometry** (ensure-display). For typing/clicks, CUAService prefers the
+**AX focused** window over largest CGWindow (0.2.18+) — see observe-feedback.md. ensure-display still may resize the largest app
 window, resizes before positioning, waits for WindowServer, and verifies the
 Quartz result. When Stage Manager exposes only an off-screen thumbnail, exact
 logical AX bounds are the accepted fallback; the result says

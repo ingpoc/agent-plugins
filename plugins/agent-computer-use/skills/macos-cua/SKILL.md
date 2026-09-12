@@ -131,3 +131,7 @@ ambiguous timeout; only read-only state may reconnect and retry once.
 | Risky UI | [`references/safety.md`](references/safety.md) |
 | Friction graders | `python3 scripts/fast_path.py --lint` |
 | WhatsApp | `$whatsapp` |
+
+Maintainer-only (not the agent loop): `references/lifecycle.md`,
+`references/cua-driver-mcp.md`, `references/computer-parity.md`,
+`references/entry-contract.json`.

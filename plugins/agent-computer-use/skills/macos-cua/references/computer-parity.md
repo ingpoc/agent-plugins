@@ -11,7 +11,7 @@ ledger only for backend selection, regression review, or a parity claim.
 | Name-first resolve; `list_apps` only if the app is unknown | Already ours; keep | Codex SKILL says the same; preflight `list_apps` is rejected |
 | AX text default; screenshot only after AX miss; diff after first observe | Already ours (`--compact` / `--diff`; MCP `state` is `--no-screenshot`) | Matches Sky `get_app_state` + `disableDiff`. Do not treat screenshot as an equal default observe |
 | Batch actions, then one state | Already ours (`run`) | Do not add a second observe/act catalog |
-| Disable the standalone Computer Use MCP when a facade exists | Already ours (5-tool facade) | Do not load raw 54-tool `cua-driver mcp` beside it |
+| Disable the standalone Computer Use MCP when a facade exists | Already ours (2-tool facade: state+act) | Do not load raw 54-tool `cua-driver mcp` beside it |
 | Sky / `node_repl` ~10 methods | Rejected | Non-goal; copy neither catalog nor architecture |
 | Codex ~1s automatic post-action wait | Rejected | We already rejected default `settle_ms` 150; next snapshot waits |
 | Screenshot-first / coordinate fallback as an equal path | Rejected | Watched path is glide then AX; pixel needs `MACOS_CUA_PIXEL_CLICK=1` |
@@ -20,7 +20,7 @@ ledger only for backend selection, regression review, or a parity claim.
 | Capability | Bundled Computer Use | macos-cua | Status |
 | --- | --- | --- | --- |
 | App discovery and launch | List apps; name/path/bundle id; transparent launch | Same, plus PID/window identity cache and stale-window rejection | Above |
-| Observe | AX text plus screenshot; full or diff-oriented use | Compact indexed AX text by default; optional structured elements/tokens; screenshot/raw proof; query/max controls | Parity |
+| Observe | AX text plus screenshot; full or diff-oriented use | Compact indexed AX `state`; verified `act` returns AX **delta** (~300c), not full tree; long text as range+excerpt; failure `error_type` taxonomy | Above |
 | Click | AX index is background-safe; coordinates use CGEvent | AX label/index/token is background-safe; point paths are explicit and user-interruptive | Parity |
 | Drag and double click | Drag; click count | Direct drag and double-click commands, foreground fallback | Parity |
 | Keyboard and typing | Type text and xdotool-style keys; warns that newline may submit | Labeled typing visibly focuses before dispatch; newline fails closed by default; normalized key combos and background/foreground delivery | Above |
@@ -31,7 +31,7 @@ ledger only for backend selection, regression review, or a parity claim.
 | Automatic outcome wait | Runtime waits after actions | Native foreground acknowledgement plus polling postconditions with timeout | Parity |
 | Multi-step proof | Agent-managed loop | One-process asserted plan, failure capture, final assertions | Above |
 | Token efficiency | AX diffs by default; screenshots after AX miss | Compact packets, `--query`/`--max`, `--diff` after first observe, AX-only MCP `state` | Parity after `--diff` |
-| MCP surface | Sky client + persistent `node_repl` (~10 methods). Standalone `[mcp_servers.computer-use]` is `enabled=false` so tools are not double-loaded | Packaged `./bin/agent-computer-use-mcp` (cwd `.`): `start_session`, `state`, `act`, `verify`, `end_session`. Raw `cua-driver-mcp` is diagnostic-only. Agent loop is MCP; `macos-cua.py` is bench/debug | Parity on catalog size; asserted MCP/`run` batches still cheaper |
+| MCP surface | Sky client + persistent `node_repl` (~10 methods). Standalone `[mcp_servers.computer-use]` is `enabled=false` so tools are not double-loaded | Packaged `./bin/agent-computer-use-mcp` (cwd `.`): **`state`**, **`act`** only (compact deltas + failure taxonomy; ≥0.2.18). Raw `cua-driver-mcp` is diagnostic-only. Agent loop is MCP; `macos-cua.py` is bench/debug | Parity on catalog size; asserted MCP/`run` batches still cheaper |
 | Visible agent pointer | Host-integrated software cursor; not evidence of a second system pointer | Labeled Hermes overlay is default for labeled plans and must acknowledge field focus before typing; coordinate CGEvents still use the one system pointer | Honest boundary |
 | PiP/operator state | Host PiP and Computer Use indicator | Signed all-Spaces PiP, exact target ring, app/harness/status label, Hide/Refresh/End | Above |
 | Menu bar | Host-owned control indication | Cursor icon plus controlled app; detailed menu and session actions | Above |
@@ -77,7 +77,7 @@ robustness, and tokens — not by copying Sky/`node_repl` or exposing raw
 [`cua-driver-mcp.md`](cua-driver-mcp.md). Current losses: Cursor host
 resolves plugin `./bin` against the workspace (dest rewrite is the owner
 workaround); Catalyst composers still need Voice→Send or screenshot
-proof. Current wins: 5-tool MCP facade, asserted `run`, `--query`/`--diff`,
+proof. Current wins: 2-tool MCP facade (state+act), asserted `run`, `--query`/`--diff`,
 equal-weight live suite, portable CLI.
 
 ## Claim boundary

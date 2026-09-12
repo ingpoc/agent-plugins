@@ -32,8 +32,8 @@ INSTRUCTIONS = (
     "cross-app one act per surface then switch — each extra tool is a full "
     "agent turn. Act-first when labels are known; state first only for "
     "discovery or after act miss. Never probe with state then state then act "
-    "on the same app. Do not verify when act.verified is true — act already "
-    "returns the settled tree. "
+    "on the same app. Do not call verify — act already returns a compact AX "
+    "delta on success (not a full tree) and error_type taxonomy on failure. "
     "Friction or rooted inefficiency: encode an app-agnostic fast_path grader "
     "that fails the old trace, then retry; no named-app helpers; do not leave "
     "the fix in chat. "
@@ -334,7 +334,7 @@ class CUABackend:
                     if delta.startswith("Changes during action") or delta.startswith("No changes during action"):
                         body = prefix + "\n" + delta
                     else:
-                        body = prefix + " Re-state for full tree if needed."
+                        body = prefix + " One fresh state only if labels unknown; else retry act."
                     payload["text"] = body
                     payload["full_text_omitted"] = True
                     return payload

@@ -21,14 +21,14 @@
   ],
   "pass_signals": [
     "One ready MCP server; no duplicate Computer Use catalogs",
-    "Default MCP tools/list is exactly start_session, state, act, verify, end_session",
-    "MCP start_session → act-first batched act/plan per app → state only for discovery or after act miss → verify only when act.verified is false → immediate probe-app cleanup → end_session is the default agent loop",
+    "Default MCP tools/list is exactly state, act",
+    "MCP act-first batched act/plan per app \u2192 state only for discovery or after act miss \u2192 act returns compact AX delta (or error_type on failure) \u2192 immediate probe-app cleanup is the default agent loop; no start_session/verify/end_session",
     "MCP lifecycle/state/act stay in one Python process; telemetry reports cli_invocations=0",
     "Interleaved live Calculator A/B resets its fixture, omits separately graded pointer capture, passes every run, and persistent dispatch is at least 10% faster than per-call macos-cua.py",
     "Raw bin/cua-driver-mcp and per-call macos-cua.py spawn are diagnostic/bench only",
     "Live parity + pointer + elon empty-iteration stay green",
     "Verified coordinate clicks on accessible text map the screen point through AXRangeForPosition and prove the resulting selection; no desktop-global click or recapture",
-    "AX-incomplete composers (WhatsApp/Catalyst) prove by screenshot or Voice→Send, not typed_path ok; native type-text with empty AX is ax_incomplete_value",
+    "AX-incomplete composers (WhatsApp/Catalyst) prove by screenshot or Voice\u2192Send, not typed_path ok; native type-text with empty AX is ax_incomplete_value",
     "Native AX snapshot walks an open AXSheet/AXPopover/AXDialog, else open app-level context menus then one window",
     "Cursor plugin spawn is not {workspace}/bin/agent-computer-use-mcp; dest uses an absolute launcher with cwd ./; ~/.cursor/mcp.json does not advertise agent-computer-use unless --user-mcp",
     "Official suite duration/max-step/bytes must not regress vs the last warm green; do not loosen budget_seconds"
@@ -153,5 +153,5 @@
     }
   },
   "safety": "No chat dumps. No personal identifiers. No new send/payment authority. Live gate uses Calculator/TextEdit/Finder. WhatsApp benchmark is query/compact observe only; require Message yourself then (You) before any send.",
-  "baseline": "Thin 5-tool MCP vs Sky ~10 methods. With a clean Calculator fixture and pointer capture graded separately, persistent in-process dispatch measured 55.0%–71.8% faster than per-call CLI across successful interleaved Calculator state+act runs, with cli_invocations=0. The source-frozen gate measured 0.606s versus 1.348s p50. Live parity passed on cua-driver 0.20.0. Cursor plugin ./bin spawn is dest-absolute after install_harness cursor-plugin."
+  "baseline": "Thin 2-tool MCP (state+act) vs Sky ~10 methods. With a clean Calculator fixture and pointer capture graded separately, persistent in-process dispatch measured 55.0%\u201371.8% faster than per-call CLI across successful interleaved Calculator state+act runs, with cli_invocations=0. The source-frozen gate measured 0.606s versus 1.348s p50. Live parity passed on cua-driver 0.20.0. Cursor plugin ./bin spawn is dest-absolute after install_harness cursor-plugin."
 }

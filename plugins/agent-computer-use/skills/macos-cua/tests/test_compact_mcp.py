@@ -275,7 +275,8 @@ class CompactMcpDispatchTests(unittest.TestCase):
         text = compact_mcp.INSTRUCTIONS
         self.assertIn("Two wall clocks", text)
         self.assertIn("Act-first", text)
-        self.assertIn("Do not verify when act.verified", text)
+        self.assertIn("Do not call verify", text)
+        self.assertIn("compact AX delta", text)
         self.assertIn("Dispatch ok is never proof", text)
         self.assertIn("no desktop-global click", text)
         self.assertIn("fails the old trace", text)

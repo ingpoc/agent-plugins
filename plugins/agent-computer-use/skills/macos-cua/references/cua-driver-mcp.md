@@ -41,12 +41,12 @@ has no `target`. Do not code from hosted examples.
 
 | Practice | Where | Do not replace with |
 | --- | --- | --- |
-| 5-tool facade | `compact_mcp.py`, source `mcp.json` | Raw `cua-driver mcp` (~54 tools) |
+| 2-tool facade (`state`, `act`) | `compact_mcp.py`, source `mcp.json` | Raw `cua-driver mcp` (~54 tools); retired `start_session`/`verify`/`end_session` |
 | `include_screenshot: false` on re-index | MCP `state`, CLI `--no-screenshot` | Defaulting every observe to pixels |
 | AX + background first | `act`, `run`, `click-label-pointer` | Front-then-act as the normal path |
 | `effect` / `escalation` (`px`\|`foreground`\|`page`) | `plan_contract.compact_step`, MCP `structuredContent` | Trusting dispatch `ok` |
 | `suspected_noop` is not acceptance | `plan_contract.result_accepted` | Treating `ok: true` as landed |
-| `degraded` tree = incomplete | `runtime_snapshot.snapshot`, MCP `verify` | Acting by index on an empty tree |
+| `degraded` tree = incomplete | `runtime_snapshot.snapshot`, act failure taxonomy | Acting by index on an empty tree |
 | Foreground only after background miss | `app_state` / Finder probes | `bring_to_front` + sleep as preflight |
 | Sidebar names on the row/cell | `_attach_static_child_text` + native `parent_index` | Assuming “Downloads” missing means front |
 | Active sheet/popover/dialog is the snapshot root | `choose_walk_roots` + one-window `_unique_ax_windows` | BFS of every `AXWindows` sibling on each observe |
@@ -61,14 +61,14 @@ has no `target`. Do not code from hosted examples.
 | Pixel/desktop clicks stay sessionless | `runtime_pointer_actions` | Passing the glide session (mints cyan `auto-*`) |
 | Dest MCP uses absolute launcher, `cwd` `./` | `install_harness.py cursor-plugin` | Writing `~/.cursor/mcp.json` or dest `cwd` as an absolute path |
 | TCC principal is signed `Cua Driver.app` (`com.trycua.driver`) | LaunchAgent + `check_permissions`. MCP `bin/agent-computer-use-mcp` is a Cursor-child Python facade only | Granting AX/Screen Recording to Cursor/Terminal or wrapping the facade as a second signed app |
-| 5-tool facade, no default screenshots, no `list_apps` | Community-validated; MCP `state` is `--compact --no-screenshot` | Growing toward 54/56 tools or always-on pixels |
+| 2-tool facade (state+act), no default screenshots, no `list_apps` | Community-validated; MCP `state` is `--compact --no-screenshot` | Growing toward 54/56 tools or always-on pixels |
 | Equal-weight live suite | `references/entry-contract.json` | Loosening a budget to force green |
 
 ## Do not rediscover
 
 | Attempt | Why it was rejected | Revisit only when |
 | --- | --- | --- |
-| Register raw `cua-driver` in `~/.cursor/mcp.json` | Hosted “connect your agent” does this. Two catalogs (54 + 5) waste tokens and invite `list_apps` / `health_report`. Cursor then shows a standalone MCP, not the plugin card. | Never, unless the 5-tool facade is deleted |
+| Register raw `cua-driver` in `~/.cursor/mcp.json` | Hosted “connect your agent” does this. Two catalogs (54 + 2) waste tokens and invite `list_apps` / `health_report`. Cursor then shows a standalone MCP, not the plugin card. | Never, unless the 2-tool facade is deleted |
 | `list_apps` / `health_report` as preflight | Slow, huge, and not required to resolve by name/bundle | Driver schema removes name/bundle launch |
 | Always `bring_to_front` + sleep before Finder | Docs forbid front as a normal step. Folder dropped from 8–14s to ~1s once native AX attached sidebar text | Escalation is `foreground` or the tree is `degraded` |
 | Treat “Downloads not clickable” as a front/sleep bug | Live tree already had `AXStaticText` value `Downloads`. `find_clickable_index` only matches `CLICK_ROLES`. Fix is ancestor attach, not another snapshot | `_attach_static_child_text` regresses |
@@ -96,7 +96,7 @@ has no `target`. Do not code from hosted examples.
 | Sequoia monthly Screen Recording SCK-probe in cheap preflight | Re-prompts the user. Preflight uses `check_permissions` only | A new 1-call probe is proven not to re-prompt |
 | Hide-other-apps / dual-display lock (Anthropic CLI posture) | Codex/cua prove same-display works. Single-monitor is valid | Lab secondary-display gate only |
 | Clipboard-paste typing from background | Community workaround; steals the user pasteboard | Never. Type stays AX / `type-text` |
-| Lift raw `invoke_menu` into the 5-tool facade | Catalog growth; File menu is not an official-suite gap | A suite case needs File *and* wrapping it inside existing `act`/`run` is proven |
+| Lift raw `invoke_menu` into the 2-tool facade | Catalog growth; File menu is not an official-suite gap | A suite case needs File *and* wrapping it inside existing `act`/`run` is proven |
 | Lift WhatsApp Open-sheet osascript into this plugin | Attach completion stays `$whatsapp` `attach-file` | A generic Open-panel owner is proven on more than WhatsApp |
 | Loosen suite budgets after one slow WhatsApp/pointer run | 18s WhatsApp and 47s pointer were cold/Catalyst flakes; reruns passed | A warm rerun still misses the budget |
 | Cursor dest `cwd` as an absolute dest path | Host then ignored dest `mcp.json` | Cursor spawn contract changes |
@@ -118,13 +118,14 @@ Confirm on **this machine’s** `dump-docs` first.
 
 ## Facade shape (do not grow)
 
-`start_session`, `state`, `act`, `verify`, `end_session`.
+Agent catalog: **`state`**, **`act`** only. Do not re-add `start_session` /
+`verify` / `end_session` to `tools/list`.
 
-- `state`: always `--compact --no-screenshot --max` (default 80). Optional `query`/`diff`.
-- `act`: label/index/plan. Glide then AX. Compact result must lift `effect` and `escalation`.
-- `verify`: independent compact re-read. `ok` is false when `degraded` or expect misses.
+- `state`: compact AX (optional `query`/`diff`/`max`). Prefer act deltas over re-state.
+- `act`: label/index/plan + `expect`. Returns compact AX **delta** on verified success;
+  failures use `error_type` taxonomy (see `observe-feedback.md`). Glide then AX.
 - Modern `tools/call` returns `content[].text` **and** `structuredContent` (same payload).
-- `bin/cua-driver-mcp` stays diagnostic-only.
+- `bin/cua-driver-mcp` stays diagnostic-only (not the agent path).
 
 ## Cursor host (workaround, not a Vehicle fix)
 

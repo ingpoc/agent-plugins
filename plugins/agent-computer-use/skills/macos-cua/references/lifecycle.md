@@ -1,15 +1,20 @@
 # Lifecycle
 
+> **Agent loop (current):** `state` + `act` only over CUAService. No
+> `start_session` / `verify` / `end_session`. See `SKILL.md` and
+> [`observe-feedback.md`](observe-feedback.md).
+>
+> The rest of this file is **maintainer / bench** lifecycle (workflow.py,
+> operator install, live gates). Do not treat it as the default agent path.
+
 ```text
-workflow.py preflight     # once, start: daemon, TCC, signed operator
-  Computer Use MCP        # middle: start_session → act-first per app → end_session
+workflow.py preflight     # once, start: CUAService, TCC, signed operator
+  MCP state + act         # middle: act-first per app (compact deltas)
 workflow.py closeout      # once, end: cache, cursors, operator idle
 ```
 
 Preflight never launches or focuses an app. On-screen window readiness is
-Computer Use `resolve_app` (cold launch uses `open -n`; PID-live is not
-proof). `end_session` already runs closeout; a trailing `workflow.py closeout`
-is the session bookend, not a per-app ritual.
+native resolve (cold launch uses `open -n`; PID-live is not proof).
 
 ## Setup (once)
 

@@ -8,6 +8,8 @@ This directory is the portable [Agent Plugin](https://agent-plugins.org/specific
 2. `python3 skills/macos-cua/service/install_service.py` builds the packaged `runtime/voice-cua/` helper, nests and signs it inside CUAService, then installs the app. No sibling Voice CUA checkout is required.
 3. Grant **Accessibility** and **Screen Recording** to **macos-cua Service** / **CUAService**. Relaunch the service after Screen Recording.
 4. Client lists `agent-computer-use` tools **`state`** and **`act`** only.
+   Verified `act` returns a compact AX delta (+ failure `error_type`); see
+   `skills/macos-cua/references/observe-feedback.md`. Do not dump full AX trees.
 
 Published scores: this plugin's `README.md`. Refresh only from a warm `python3 skills/macos-cua/scripts/run_benchmarks.py --repeat 5 --rate`.
 
