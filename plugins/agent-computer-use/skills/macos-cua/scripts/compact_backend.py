@@ -334,12 +334,10 @@ class CUABackend:
                         body = delta
                     else:
                         # Unparseable trees: keep a short head, not the full dump.
-                        head = "
-".join((text or "").splitlines()[:6])
+                        head = "\n".join((text or "").splitlines()[:6])
                         body = (
                             "allow_unverified: dispatched; do not claim done. "
-                            "Re-state for full tree if needed.
-"
+                            "Re-state for full tree if needed.\n"
                             + head
                         )
                     payload["text"] = body
