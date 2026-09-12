@@ -314,7 +314,7 @@ class CUABackend:
                 "results": results,
                 "expect": expect,
                 "error": (
-                    "completion_unverified: action was dispatched; inspect settled state and do not claim done"
+                    "completion_unverified: action was dispatched; read error_type/nearby (or one state) and do not claim done"
                     if dispatched and not verified
                     else last.get("error")
                 ),

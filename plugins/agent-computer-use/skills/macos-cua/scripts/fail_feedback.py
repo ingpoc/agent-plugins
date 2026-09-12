@@ -19,7 +19,7 @@ _REASON_HINTS = {
     STALE_ID: "Element index/id is stale; discard ids and resolve by label via state.",
     OBSERVATION_INCOMPLETE: "No current observation; discard old IDs and get state before deciding. Do not replay uncertain actions.",
     ACTION_FAILED: "Native step failed; change approach (AX → coord) or raise the app.",
-    EXPECT_UNVERIFIED: "Dispatch ran but expect was not new in the settled tree; do not claim done.",
+    EXPECT_UNVERIFIED: "Dispatch ran but expect was not new in the settled observation; do not claim done.",
     VERIFICATION_REQUIRED: "Mutating act needs expect (or allow_unverified for dispatch-only).",
 }
 

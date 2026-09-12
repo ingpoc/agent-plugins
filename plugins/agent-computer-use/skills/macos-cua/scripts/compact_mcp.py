@@ -3,7 +3,7 @@
 
 CUAService owns AX, cursor, settle, screenshots. This process exists only
 because Cursor injects tools through MCP stdio. No start/end/verify: the
-service auto-spawns and act returns the settled tree.
+service auto-spawns; verified act returns a compact AX delta (not a full tree); failures use error_type taxonomy.
 
 Dual-era MCP (https://modelcontextprotocol.io/specification/latest):
 - Modern 2026-07-28: per-request _meta, server/discover, resultType.
@@ -138,7 +138,7 @@ def tool_schemas() -> list[dict[str, Any]]:
     return [
         {
             "name": "state",
-            "description": "One compact AX state. Use the current tree, then at most one query/diff after a miss.",
+            "description": "One compact AX state for discovery or after an act miss. Prefer act deltas; at most one query/diff after a miss.",
             "inputSchema": _schema(
                 {
                     "app": {"type": "string"},
@@ -166,7 +166,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         },
         {
             "name": "act",
-            "description": "Drive one Mac app in one native plan. Exact paths use op=open with path, not Finder search. Verified actions return compact changes with current IDs; omitted IDs are stale — use labels or state for other targets. Failures return typed reason + nearby context (not a full AX dump). Verification uses full internal state; returns before/after settled state and ok only when expect verifies.",
+            "description": "Drive one Mac app in one native plan. Exact paths use op=open with path, not Finder search. Verified success returns a compact AX delta (~hundreds of chars; long text as range+excerpt); omitted IDs are stale — use labels or one state. Failures return error_type + nearby context (not a full AX dump). ok/verified only when expect matches; screenshots before/after attached.",
             "inputSchema": _schema(
                 {
                     "app": {"type": "string"},
