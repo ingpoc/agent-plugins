@@ -329,12 +329,21 @@ class CUABackend:
                 ):
                     payload["error_type"] = "allow_unverified"
                     payload["completion"] = "unverified"
-                    payload["text"] = (
-                        action_state_text(before_text, text)
-                        if effectful
-                        else (text[:500] if text else "dispatched allow_unverified")
-                    )
-                    payload["full_text_omitted"] = len(payload["text"] or "") < len(text or "")
+                    delta = action_state_text(before_text, text) if effectful else ""
+                    if delta and len(delta) < len(text or delta):
+                        body = delta
+                    else:
+                        # Unparseable trees: keep a short head, not the full dump.
+                        head = "
+".join((text or "").splitlines()[:6])
+                        body = (
+                            "allow_unverified: dispatched; do not claim done. "
+                            "Re-state for full tree if needed.
+"
+                            + head
+                        )
+                    payload["text"] = body
+                    payload["full_text_omitted"] = True
                     return payload
                 return apply_failure_feedback(
                     payload,

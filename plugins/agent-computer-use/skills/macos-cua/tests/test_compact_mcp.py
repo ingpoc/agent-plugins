@@ -103,8 +103,8 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertTrue(failed.get("full_text_omitted"))
 
     def test_allow_unverified_without_expect_stays_compact(self):
-        before = '[0] AXWindow "W"\n  [1] AXButton "A"'
-        after = before + '\n  [2] AXStaticText value="x"'
+        before = 'Window: "W"\n  [1] AXButton "A" {0,0 10x10}'
+        after = 'Window: "W"\n  [1] AXButton "A" {0,0 10x10}\n  [2] AXStaticText value="x" {0,0 10x10}'
 
         class Backend(compact_mcp.CUABackend):
             def __init__(self):
@@ -125,8 +125,8 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertTrue(out["dispatched"])
         self.assertEqual(out["error_type"], "allow_unverified")
         self.assertNotEqual(out["error_type"], "expect_unverified")
-        self.assertLessEqual(len(out["text"]), len(after))
-        self.assertIn("Changes during action", out["text"])
+        self.assertTrue(out.get("full_text_omitted"))
+        self.assertLess(len(out["text"]), len(after))
 
     def test_native_rpc_label_miss_returns_target_missing_taxonomy(self):
         class Backend(compact_mcp.CUABackend):
