@@ -70,13 +70,16 @@ prove insufficient.
 **Two wall clocks.** Within-app: one batched `act`. Cross-app: one `act` per
 surface then switch. Each extra MCP tool is a full agent turn.
 
-`act` returns the settled tree plus **screenshot_before** and
-**screenshot_after** (same tool). Capture is the CG window after raise,
-not an AX-rect crop of wallpaper. ScreenCaptureKit has a deadline.
-Inspect those pixels: if the before shot is the wrong app or a Stage
-Manager thumb, stop and fix bounds — do not click. `verified` is true when `expect` matches a text **value**
+`act` returns a **compact AX delta** on verified success (not a full tree),
+plus **screenshot_before** / **screenshot_after**. Failures return a typed
+`error_type` + nearby context — see [`references/observe-feedback.md`](references/observe-feedback.md).
+Capture is the CG window after raise, not an AX-rect crop of wallpaper.
+ScreenCaptureKit has a deadline. Inspect those pixels: if the before shot is
+the wrong app or a Stage Manager thumb, stop and fix bounds — do not click.
+`verified` is true when `expect` matches a text **value**
 (`AXStaticText` / `AXTextArea` / `AXTextField` / `AXCell` titles), never
-button titles. Capture the focused window, not the largest sibling.
+button titles. Service prefers the **AX focused** window over the largest
+sibling (0.2.18+).
 
 **Encode friction.** Extra `state`, leftover `verify`/`start_session`,
 unbatched same-app `act`s, chat-only recovery → `scripts/fast_path.py`
@@ -88,7 +91,7 @@ glide concurrent with press. In-place retitles (Clear/All Clear) do not need
 a fresh `state`.
 
 1. **Act-first** when labels or outcomes are known.
-2. `act` with `expect`. Reuse the returned tree.
+2. `act` with `expect`. Reuse the returned delta (or failure nearby); full tree only via `state`.
    **Fallback, in order:** (1) one fresh `state` on label miss, then retry;
    (2) if AX has no useful labels, `references/actions.md` recovery ladder.
 3. Switch apps — no observe hops between surfaces.
@@ -106,6 +109,8 @@ ambiguous timeout; only read-only state may reconnect and retry once.
 
 **Input delivery (any app).** AXPress/AXClick only if the node advertises that action; success on an unlisted action is a no-op. Successful AX press skips the 0.6s settle. HID keys raise the target app and wait until it is frontmost; otherwise `key_target_not_front` (the host IDE must not eat cmd+n). `type_text` after New refuses a still-full text field and walks the focused window, not the cached largest. No text field in the walk → `type_no_text_target`, not HID. `type_text` sets AXSelectedText at the caret; string or attributed AXValue must contain the insert or it is a miss. Prefer `AXTextArea` over focused `AXSearchField` / `AXTextField`. Miss → click the text-area frame, then bulk HID (not 10ms/char). Walk packs attrs in one IPC, clips off-window nodes, caches live refs. Coordinate fallback is the **finite AX frame** (or schema `x`/`y`), HID at that point — not PID+HID (doubled glyphs) and not a desktop hunt. JSON integers must coerce to Double. `cgevent-click` with a null point is a failed step. `set_value` writes an AX attribute; it is not keystroke delivery. Slow UI: one batched `wait` (cap 45s), not extra `state`. Window PNG can omit `AXPopover`/`AXMenu` whose frame sits outside the window; the tree is the source of truth. `expect` must be a **new** value vs the before-tree (a needle already in the body is not proof a table/cell changed).
 
+**Mini unavailable is not a CUA miss.** Empty ListMachines, Shell "unavailable", or `desktop ownership lost` / DeadlineExceeded is Grok Bot local-exec down, not HID and not Comet pairing. Do not debug CUAService. CUA uses the same pipe, so it cannot recover the Mini while local-exec is dead. Known Grok Bot bug; workaround is a full Grok Bot quit (`Cmd+Q`), kill leftover `local-exec-daemon` processes, relaunch once. Two Grok Bot desktops flap ownership. Do not mint a Comet session for this.
+
 ## Hard bans
 
 - No `start_session` / `verify` / `end_session` / cua-driver / 54-tool MCP.
@@ -121,6 +126,7 @@ ambiguous timeout; only read-only state may reconnect and retry once.
 
 | When | File |
 | --- | --- |
+| Act deltas / failure taxonomy / focused window | [`references/observe-feedback.md`](references/observe-feedback.md) |
 | Command failure | [`references/troubleshooting.md`](references/troubleshooting.md) |
 | Risky UI | [`references/safety.md`](references/safety.md) |
 | Friction graders | `python3 scripts/fast_path.py --lint` |
