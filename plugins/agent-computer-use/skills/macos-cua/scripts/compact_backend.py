@@ -11,6 +11,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from state_delta import action_state_text
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_ROOT = SCRIPT_DIR.parents[2]
 SERVICE_DIR = SCRIPT_DIR.parent / "service"
@@ -301,7 +303,7 @@ class CUABackend:
                 "dispatched": dispatched,
                 "completion": "verified" if verified else "unverified",
                 "method": last.get("method"),
-                "text": text,
+                "text": action_state_text(before_text, text) if ok and effectful else text,
                 "screenshot_before": shot_before,
                 "screenshot_after": shot_after,
                 "screenshot": shot_after,

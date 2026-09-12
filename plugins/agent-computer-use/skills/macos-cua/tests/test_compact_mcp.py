@@ -69,6 +69,35 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_action_delta_preserves_full_state_verification_and_failure_context(self):
+        before = '[0] AXWindow "Fixture"\n' + '\n'.join(
+            f'  [{i}] AXButton "Button {i}" [pressable] {{0,0 10x10}}'
+            for i in range(1, 30)
+        ) + '\n  [30] AXStaticText value="waiting"'
+        after = before.replace('value="waiting"', 'value="finished"')
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def execute_plan(self, app, steps):
+                        return {
+                            "before": {"text": before}, "after": {"text": after},
+                            "results": [{"ok": True, "method": "ax-press"}],
+                        }
+                return fn(Client())
+
+        result = Backend().act("Fixture", {"label": "Button 1", "expect": "finished"})
+        self.assertTrue(result["verified"])
+        self.assertLess(len(result["text"]), len(after) // 2)
+        self.assertIn('[30] AXStaticText value="finished"', result["text"])
+        self.assertNotIn('AXButton "Button 20"', result["text"])
+        failed = Backend().act("Fixture", {"label": "Button 1", "expect": "missing"})
+        self.assertFalse(failed["ok"])
+        self.assertEqual(failed["text"], after)
+
     def test_app_only_act_retries_cold_launch_window(self):
         calls = []
 
