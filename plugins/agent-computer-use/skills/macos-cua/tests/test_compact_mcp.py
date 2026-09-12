@@ -126,7 +126,8 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertEqual(out["error_type"], "allow_unverified")
         self.assertNotEqual(out["error_type"], "expect_unverified")
         self.assertTrue(out.get("full_text_omitted"))
-        self.assertLess(len(out["text"]), len(after))
+        self.assertIn("allow_unverified:", out["text"])
+        self.assertNotIn('AXStaticText value="x"', out["text"])
 
     def test_native_rpc_label_miss_returns_target_missing_taxonomy(self):
         class Backend(compact_mcp.CUABackend):
