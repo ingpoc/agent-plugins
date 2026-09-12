@@ -96,7 +96,55 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertNotIn('AXButton "Button 20"', result["text"])
         failed = Backend().act("Fixture", {"label": "Button 1", "expect": "missing"})
         self.assertFalse(failed["ok"])
-        self.assertEqual(failed["text"], after)
+        self.assertEqual(failed["error_type"], "expect_unverified")
+        self.assertLess(len(failed["text"]), len(after) // 2)
+        self.assertIn("reason: expect_unverified", failed["text"])
+        self.assertNotIn('AXButton "Button 20"', failed["text"])
+        self.assertTrue(failed.get("full_text_omitted"))
+
+    def test_allow_unverified_without_expect_stays_compact(self):
+        before = '[0] AXWindow "W"\n  [1] AXButton "A"'
+        after = before + '\n  [2] AXStaticText value="x"'
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def execute_plan(self, app, steps):
+                        return {
+                            "before": {"text": before},
+                            "after": {"text": after},
+                            "results": [{"ok": True, "method": "ax-press"}],
+                        }
+                return fn(Client())
+
+        out = Backend().act("W", {"label": "A", "allow_unverified": True})
+        self.assertFalse(out["ok"])
+        self.assertTrue(out["dispatched"])
+        self.assertEqual(out["error_type"], "allow_unverified")
+        self.assertNotEqual(out["error_type"], "expect_unverified")
+        self.assertLessEqual(len(out["text"]), len(after))
+        self.assertIn("Changes during action", out["text"])
+
+    def test_native_rpc_label_miss_returns_target_missing_taxonomy(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def state(self, app, **kwargs):
+                return {"ok": True, "text": '[0] AXWindow "W"\n  [1] AXButton "Save"', "app": app}
+
+            def _rpc(self, fn, *, retry=True):
+                raise RuntimeError("RPC error -32602: Label not found: Nope. elementCount=2 axTrusted=true")
+
+        out = Backend().act("W", {"label": "Nope", "expect": "x"})
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["error_type"], "target_missing")
+        self.assertIn("reason: target_missing", out["text"])
+        self.assertLess(len(out["text"]), 500)
+        self.assertTrue(out.get("full_text_omitted"))
 
     def test_app_only_act_retries_cold_launch_window(self):
         calls = []
@@ -156,7 +204,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertFalse(out["ok"])
         self.assertTrue(out["dispatched"])
         self.assertFalse(out["verified"])
-        self.assertEqual(out["error_type"], "completion_unverified")
+        self.assertEqual(out["error_type"], "expect_unverified")
 
     def test_not_text_expectation_verifies_removal(self):
         before = '[1] AXStaticText value="Calculator"'

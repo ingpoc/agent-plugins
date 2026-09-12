@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from state_delta import action_state_text
+from fail_feedback import apply_failure_feedback, VERIFICATION_REQUIRED
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_ROOT = SCRIPT_DIR.parents[2]
@@ -226,13 +227,16 @@ class CUABackend:
         expect = arguments.get("expect")
         allow_unverified = arguments.get("allow_unverified") is True
         if effectful and not expectation_is_supported(expect) and not allow_unverified:
-            return {
+            early = {
                 "ok": False,
                 "verified": False,
                 "dispatched": False,
                 "error": "verification_required: mutating act needs expect",
-                "error_type": "verification_required",
+                "error_type": VERIFICATION_REQUIRED,
             }
+            return apply_failure_feedback(
+                early, arguments=arguments, before_text="", after_text=""
+            )
 
         def _run(client):
             steps = arguments.get("steps")
@@ -297,7 +301,7 @@ class CUABackend:
             last = results[-1] if results else {}
             shot_before = before.get("screenshot") if isinstance(before, dict) else None
             shot_after = after.get("screenshot") if isinstance(after, dict) else None
-            return {
+            payload = {
                 "ok": ok,
                 "verified": verified,
                 "dispatched": dispatched,
@@ -316,8 +320,55 @@ class CUABackend:
                 ),
                 "error_type": "completion_unverified" if dispatched and not verified else None,
             }
+            if not ok:
+                # allow_unverified without expect: dispatch-only; keep compact delta, not expect_unverified spam
+                if (
+                    allow_unverified
+                    and dispatched
+                    and not expectation_is_supported(expect)
+                ):
+                    payload["error_type"] = "allow_unverified"
+                    payload["completion"] = "unverified"
+                    payload["text"] = (
+                        action_state_text(before_text, text)
+                        if effectful
+                        else (text[:500] if text else "dispatched allow_unverified")
+                    )
+                    payload["full_text_omitted"] = len(payload["text"] or "") < len(text or "")
+                    return payload
+                return apply_failure_feedback(
+                    payload,
+                    arguments=arguments,
+                    before_text=before_text,
+                    after_text=text,
+                )
+            return payload
 
-        return self._rpc(_run, retry=False)
+        try:
+            return self._rpc(_run, retry=False)
+        except Exception as exc:
+            err = str(exc)
+            # Native RPC may raise before a structured step result exists.
+            after = ""
+            try:
+                st = self.state(app)
+                after = str(st.get("text") or "") if isinstance(st, dict) else ""
+            except Exception:
+                after = ""
+            payload = {
+                "ok": False,
+                "verified": False,
+                "dispatched": False,
+                "completion": "unverified",
+                "text": after,
+                "results": [{"ok": False, "error": err}],
+                "expect": arguments.get("expect"),
+                "error": err,
+                "error_type": None,
+            }
+            return apply_failure_feedback(
+                payload, arguments=arguments, before_text="", after_text=after
+            )
 
     def _native_step(
         self, step: dict[str, Any], *, after_new_document: bool = False

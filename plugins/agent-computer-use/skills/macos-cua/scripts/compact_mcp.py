@@ -161,7 +161,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         },
         {
             "name": "act",
-            "description": "Drive one Mac app in one native plan. Exact paths use op=open with path, not Finder search. Verified actions return compact changes with current IDs; omitted IDs are stale — use labels or state for other targets. Failures return full state. Verification uses full internal state; returns before/after settled state and ok only when expect verifies.",
+            "description": "Drive one Mac app in one native plan. Exact paths use op=open with path, not Finder search. Verified actions return compact changes with current IDs; omitted IDs are stale — use labels or state for other targets. Failures return typed reason + nearby context (not a full AX dump). Verification uses full internal state; returns before/after settled state and ok only when expect verifies.",
             "inputSchema": _schema(
                 {
                     "app": {"type": "string"},
