@@ -1,5 +1,7 @@
 # Comet Control operation reference
 
+> **One path:** `durable_lease_controller.py send` + `actions[]`. Optional Browser Use is never a concurrent owner — see [`browser-use.md`](browser-use.md). Speed / observe thrash: [`speed-bar.md`](speed-bar.md). Typed failures: [`observe-feedback.md`](observe-feedback.md).
+
 Load this file for routine bridge actions. Leased window sessions are required;
 [`multi-agent.md`](multi-agent.md) owns the socket client and complete lease
 protocol. Load
