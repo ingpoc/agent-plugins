@@ -671,12 +671,14 @@ class ExpectVerifiedTests(unittest.TestCase):
         self.assertTrue(compact_mcp.expect_verified("crew logged swell", tree))
         self.assertFalse(compact_mcp.expect_verified("Table", tree))
         tree = '[18] AXTextArea value="battle-long-line-one battle-long-line-two battle-long-lin..."'
-        self.assertTrue(
+        self.assertFalse(
             compact_mcp.expect_verified(
                 "battle-long-line-one battle-long-line-two battle-long-line-three",
                 tree,
             )
         )
+        self.assertTrue(compact_mcp.expect_verified("battle-long-line-one", tree))
+        self.assertFalse(compact_mcp.expect_verified("unseen prefix battle-long-line-one battle-long-line-two battle-long-lin", tree))
         tree = (
             '[0] AXWindow "Untitled"\n'
             '[17] AXTextArea value="batch-cross-app"\n'

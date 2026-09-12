@@ -84,10 +84,6 @@ def expect_verified(expect: str, tree_text: str) -> bool:
             return True
         if len(needle) >= 2 and needle in v:
             return True
-        if v.endswith("...") and len(v) > 8:
-            stem = v[:-3]
-            if stem and (needle.startswith(stem) or stem in needle):
-                return True
     return False
 
 
