@@ -984,7 +984,7 @@ async function waitForTabReady(tabId, timeoutMs = 10000) {
 async function setAgentIdentity(tabId, record) {
   if (!tabId || !record) return;
   const ready = await ensureContentScript(tabId);
-  if (ready?.blocked) throw new Error(ready.reason || "Could not inject agent cursor");
+  if (ready?.blocked) throw codedError(ready.error_code || "CONTENT_SCRIPT_MISSING", ready.reason || "Could not inject agent cursor");
   const response = await sendToContentScript(tabId, "setIdentity", [{
     agentId: record.agentId,
     label: record.agentLabel,
@@ -1949,6 +1949,7 @@ async function ensureContentScriptUnlocked(tabId, { force = false } = {}) {
   return {
     injected: false,
     blocked: true,
+    error_code: "CS_DEAD_AFTER_REMOUNT",
     reason: "Content script missing after SPA remount; reload required",
     url: tab.url,
     retryable: true,
@@ -2110,7 +2111,7 @@ async function sendToContentScript(tabId, action, args = [], frameId) {
         );
       }
       throw codedError(
-        "CONTENT_SCRIPT_MISSING",
+        "CS_DEAD_AFTER_REMOUNT",
         "Content script missing after SPA remount; reload required",
         { retryable: true }
       );
@@ -2158,7 +2159,7 @@ async function sendToContentScript(tabId, action, args = [], frameId) {
     }
   }
   if (!status.injected) {
-    throw new Error(status.reason || "Content script is not available");
+    throw codedError(status.error_code || "CONTENT_SCRIPT_MISSING", status.reason || "Content script is not available");
   }
   try {
     const result = await withTimeout(
@@ -2217,6 +2218,19 @@ async function boundedWait(ms, state) {
 async function runBrowserAction(action, state) {
   assertRequestLive(state);
   const type = action.type;
+  // Normalize aliases; fail-fast other-tab activate/focus (portal-huf 87s footgun)
+  if (action.tab_id != null && action.tabId == null) action.tabId = action.tab_id;
+  if (type === "activate_tab" || type === "focus_tab") {
+    const target = Number(action.tabId);
+    if (!Number.isFinite(target) || target <= 0 || (state.strictLease && target !== Number(state.tabId))) {
+      throw codedError(
+        "LEASE_TAB_SCOPED",
+        "A leased agent cannot activate/focus another tab; other-window GSI → google-accountchooser-ax / cua_slice"
+      );
+    }
+    await chrome.tabs.update(state.tabId, { active: true }).catch(() => {});
+    return { type, tabId: state.tabId, activated: true };
+  }
   if (action.tabId) {
     if (state.strictLease && Number(action.tabId) !== Number(state.tabId)) {
       throw new Error("A leased agent cannot target another session's tab");
@@ -2469,12 +2483,16 @@ async function runBrowserAction(action, state) {
         let dataUrl = null;
         let captureAttempts = 0;
         let source = "tabs.captureVisibleTab";
+        let staleCaptureSkipped = false;
         await chrome.tabs.update(state.tabId, { active: true });
         const [activeTab] = await chrome.tabs.query({ active: true, windowId: leasedTab.windowId });
         if (!activeTab || Number(activeTab.id) !== Number(state.tabId)) {
           throw new Error("Could not activate the leased tab for screenshot proof");
         }
-        for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (state.deviceMetricsOverrideActive) {
+          staleCaptureSkipped = true;
+        }
+        for (let attempt = 0; attempt < 2 && !state.deviceMetricsOverrideActive; attempt += 1) {
           captureAttempts = attempt + 1;
           try {
             await waitForViewportCaptureSlot();
@@ -2490,6 +2508,37 @@ async function runBrowserAction(action, state) {
               continue;
             }
             break;
+          }
+        }
+        if (dataUrl) {
+          const fingerprint = `${dataUrl.length}:${dataUrl.slice(-64)}`;
+          const lastFingerprint = state.lastVisibleTabCaptureFingerprint
+            || state.leaseRecord?.lastVisibleTabCaptureFingerprint
+            || "";
+          if (lastFingerprint && lastFingerprint === fingerprint) {
+            await chrome.scripting.executeScript({
+              target: { tabId: state.tabId },
+              func: () => new Promise((resolve) => requestAnimationFrame(resolve)),
+            });
+            try {
+              await waitForViewportCaptureSlot();
+              const retryUrl = await captureVisibleTabBounded(leasedTab.windowId, options);
+              const retryFingerprint = `${retryUrl.length}:${retryUrl.slice(-64)}`;
+              if (retryFingerprint === fingerprint) {
+                staleCaptureSkipped = true;
+                dataUrl = null;
+              } else {
+                dataUrl = retryUrl;
+                state.lastVisibleTabCaptureFingerprint = retryFingerprint;
+                if (state.leaseRecord) state.leaseRecord.lastVisibleTabCaptureFingerprint = retryFingerprint;
+              }
+            } catch (_error) {
+              staleCaptureSkipped = true;
+              dataUrl = null;
+            }
+          } else {
+            state.lastVisibleTabCaptureFingerprint = fingerprint;
+            if (state.leaseRecord) state.leaseRecord.lastVisibleTabCaptureFingerprint = fingerprint;
           }
         }
         if (!dataUrl) {
@@ -2512,6 +2561,7 @@ async function runBrowserAction(action, state) {
             base64: capture.data,
             source: "cdp.Page.captureScreenshot",
             capture_attempts: captureAttempts,
+            stale_capture_skipped: staleCaptureSkipped,
           };
         }
         return {
@@ -2520,6 +2570,7 @@ async function runBrowserAction(action, state) {
           base64: dataUrl.slice(dataUrl.indexOf(',') + 1),
           source,
           capture_attempts: captureAttempts,
+          stale_capture_skipped: staleCaptureSkipped,
         };
       });
     }
@@ -2636,6 +2687,24 @@ async function runBrowserAction(action, state) {
   }
 
   // ---- Extension interaction actions ----
+  if (type === "click_at_xy" || type === "click_xy") {
+    const x = Number(action.x ?? action.clientX);
+    const y = Number(action.y ?? action.clientY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      throw new Error("click_at_xy requires numeric x and y");
+    }
+    // Top-frame CDP mouse — for cross-origin OOPIF when locators cannot enter the frame.
+    await ensureAttached(state.tabId);
+    const moved = await sendToContentScript(state.tabId, "moveToAndWait", [x, y, 900], 0).catch(() => null);
+    if (moved && moved.success === false) {
+      // Cursor mirror best-effort; still dispatch CDP click.
+    }
+    await send(state.tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+    await send(state.tabId, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+    await send(state.tabId, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+    return { type: "click_at_xy", x, y, cursor_mirrored: Boolean(moved?.success) };
+  }
+
   if (type === "click_text") {
     // Seller Dispatch (and similar) call window.prompt/confirm/alert. That freezes
     // the content-script click reply; without a CDP dialog race the SW mislabels
@@ -2807,6 +2876,8 @@ async function runBrowserAction(action, state) {
     send,
     ensureAttached,
     moveCursorToPoint,
+    executeScriptOnTab,
+    sendToContentScript,
   });
   if (parity.handled) return parity.result;
 
@@ -2822,7 +2893,13 @@ function hostMessageIsReadOnly(message) {
   // A lease renewal changes only persisted ownership metadata. Treat it as
   // nonvisual so the owning browser campaign can stay alive while a disjoint
   // macOS CUA claim temporarily owns focus and input.
-  return ["status", "sessions", "session_renew"].includes(message?.type);
+  return ["status", "sessions", "session_renew"].includes(message?.type)
+    || (
+      message?.type === "run"
+      && Array.isArray(message.actions)
+      && message.actions.length > 0
+      && message.actions.every((action) => action?.type === "cdp_events")
+    );
 }
 
 function codedError(code, message, { retryable = false } = {}) {
@@ -3214,12 +3291,16 @@ async function handleUnlockedHostMessage(message) {
       `Agent browser target for ${leaseRecord.sessionId} was partial or moved and has been closed; run preflight again`
     );
   }
-  await flushDeferredAgentWindowLayout();
+  const cdpObservationOnly = (message.actions || []).length > 0
+    && message.actions.every((action) => action?.type === "cdp_events");
+  if (!cdpObservationOnly) await flushDeferredAgentWindowLayout();
   const rememberedTab = leaseRecord.tabId;
   leaseRecord.busy = true;
   leaseRecord.lastSeen = Date.now();
   // Activate the leased tab inside its owned window. Do not focus the OS window.
-  await chrome.tabs.update(leaseRecord.tabId, { active: true }).catch(() => {});
+  if (!cdpObservationOnly) {
+    await chrome.tabs.update(leaseRecord.tabId, { active: true }).catch(() => {});
+  }
 
   const state = {
     maxTextChars: message.maxTextChars || 20000,
@@ -3229,6 +3310,10 @@ async function handleUnlockedHostMessage(message) {
     leaseRecord,
     deadlineAt: extensionDeadlineAt,
     cancelled: false,
+    deviceMetricsOverrideActive: Boolean(leaseRecord.deviceMetricsOverrideActive),
+    deviceMetricsOverrideWidth: leaseRecord.deviceMetricsOverrideWidth,
+    deviceMetricsOverrideHeight: leaseRecord.deviceMetricsOverrideHeight,
+    lastVisibleTabCaptureFingerprint: leaseRecord.lastVisibleTabCaptureFingerprint || "",
   };
 
   activeRunStates.add(state);
@@ -3239,7 +3324,9 @@ async function handleUnlockedHostMessage(message) {
     let currentActionIndex = -1;
     const dialogControlOnly = (message.actions || []).length > 0
       && (message.actions || []).every((action) => ["dialog_get", "dialog_handle"].includes(action?.type));
-    if (!dialogControlOnly) await setAgentIdentity(state.tabId, leaseRecord);
+    const navigationOnly = (message.actions || []).length > 0
+      && message.actions.every((action) => ["reload_page", "goto", "back", "forward"].includes(action?.type));
+    if (!navigationOnly && !dialogControlOnly && !cdpObservationOnly) await setAgentIdentity(state.tabId, leaseRecord);
     const results = [];
     try {
       for (const [index, action] of (message.actions || []).entries()) {

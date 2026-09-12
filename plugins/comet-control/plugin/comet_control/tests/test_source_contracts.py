@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 import unittest
 
@@ -23,6 +24,39 @@ MANIFEST = ROOT / "extension" / "manifest.json"
 
 
 class SourceContractTests(unittest.TestCase):
+    def test_remount_navigation_skips_identity_and_mutation_is_caught(self):
+        source = SERVICE_WORKER.read_text()
+        start = source.index("    const navigationOnly =")
+        end = source.index("    const results = [];", start)
+        guard = source[start:end]
+        harness = """
+const assert = require('node:assert/strict');
+async function check(actions, expected) {
+  const message = {actions}, state = {tabId: 1}, leaseRecord = {};
+  const dialogControlOnly = false, cdpObservationOnly = false;
+  let calls = 0;
+  const setAgentIdentity = async () => { calls++; };
+  GUARD
+  assert.equal(calls, expected);
+}
+(async () => {
+ await check([{type:'reload_page'}], 0);
+ await check([{type:'goto'}], 0);
+ await check([{type:'reload_page'}, {type:'page_context'}], 1);
+ await check([{type:'page_context'}], 1);
+ await check([], 1);
+})().catch(e => { console.error(e); process.exit(1); });
+"""
+        result = subprocess.run(["node", "-e", harness.replace("GUARD", guard)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        mutant = guard.replace("!navigationOnly && ", "")
+        result = subprocess.run(["node", "-e", harness.replace("GUARD", mutant)], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0, "identity regression escaped probe")
+        self.assertIn('throw codedError(ready.error_code || "CONTENT_SCRIPT_MISSING"', source)
+        self.assertIn('error_code: "CS_DEAD_AFTER_REMOUNT"', source)
+        self.assertIn('throw codedError(status.error_code || "CONTENT_SCRIPT_MISSING"', source)
+        self.assertIn('"CS_DEAD_AFTER_REMOUNT",', source)
+
     def test_unpackaged_extension_id_is_stable_across_install_paths(self) -> None:
         manifest = json.loads(MANIFEST.read_text())
         digest = hashlib.sha256(base64.b64decode(manifest["key"])).digest()[:16]
@@ -287,10 +321,52 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn(fallback, branch)
         self.assertIn('"Page.captureScreenshot"', branch)
         self.assertIn('/image readback failed/i', branch)
-        self.assertIn('for (let attempt = 0; attempt < 2; attempt += 1)', branch)
+        self.assertIn('for (let attempt = 0; attempt < 2 && !state.deviceMetricsOverrideActive; attempt += 1)', branch)
         self.assertLess(branch.index(activate), branch.index(capture))
         self.assertLess(branch.index(verify), branch.index(capture))
         self.assertLess(branch.index(capture), branch.index(fallback))
+
+    def test_viewport_override_skips_stale_captureVisibleTab(self) -> None:
+        """After viewport_set, screenshot must not reuse a silent stale captureVisibleTab frame."""
+        parity = PARITY_CAPABILITIES.read_text()
+        source = SERVICE_WORKER.read_text()
+        viewport_set = parity.split('if (type === "viewport_set") {', 1)[1].split(
+            'if (type === "viewport_reset") {', 1
+        )[0]
+        viewport_reset = parity.split('if (type === "viewport_reset") {', 1)[1].split(
+            "return { handled: false, result: null };", 1
+        )[0]
+        self.assertIn("state.deviceMetricsOverrideActive = true;", viewport_set)
+        self.assertIn("state.deviceMetricsOverrideActive = false;", viewport_reset)
+        screenshot = source.split('if (type === "screenshot") {', 1)[1].split(
+            'if (type === "download_wait") {', 1
+        )[0]
+        self.assertIn("state.deviceMetricsOverrideActive", screenshot)
+        self.assertIn("staleCaptureSkipped", screenshot)
+        self.assertIn("stale_capture_skipped", screenshot)
+        self.assertLess(
+            screenshot.index("if (state.deviceMetricsOverrideActive)"),
+            screenshot.index("captureVisibleTabBounded(leasedTab.windowId, options)"),
+        )
+        self.assertIn("for (let attempt = 0; attempt < 2 && !state.deviceMetricsOverrideActive; attempt += 1)", screenshot)
+        self.assertIn('"Page.captureScreenshot"', screenshot)
+        self.assertIn("cdp.Page.captureScreenshot", screenshot)
+        self.assertIn("lastVisibleTabCaptureFingerprint", screenshot)
+        self.assertIn("slice(-64)", screenshot)
+        fingerprint = screenshot.split("lastVisibleTabCaptureFingerprint", 1)[1]
+        self.assertIn("slice(-64)", fingerprint)
+        self.assertIn("requestAnimationFrame(resolve)", fingerprint)
+        self.assertIn("staleCaptureSkipped = true", fingerprint)
+        self.assertIn("dataUrl = null", fingerprint)
+        # Same-fingerprint stale skip falls through to the CDP capture.
+        self.assertLess(
+            screenshot.index("lastVisibleTabCaptureFingerprint"),
+            screenshot.index('"cdp.Page.captureScreenshot"'),
+        )
+        self.assertLess(
+            screenshot.index("slice(-64)"),
+            screenshot.index("stale_capture_skipped"),
+        )
 
     def test_browser_work_never_requests_os_focus(self) -> None:
         source = SERVICE_WORKER.read_text()
@@ -815,6 +891,30 @@ class SourceContractTests(unittest.TestCase):
     def test_parity_capabilities_resolve_named_targets(self) -> None:
         self.assertIn("resolveNamed", PARITY_CAPABILITIES.read_text())
 
+    def test_locator_press_skips_mouse_when_already_focused(self) -> None:
+        """Clicking a tall contenteditable's box center moves the caret mid-document."""
+        parity = PARITY_CAPABILITIES.read_text()
+        press = parity.split('} else if (operation === "press") {', 1)[1].split("} else if", 1)[0]
+        self.assertIn("activeElementIsInside", press)
+        self.assertIn("if (!focused)", press)
+        self.assertIn("dispatchMouse", press)
+        typ = parity.split("await hooks.send(state.tabId, \"Input.insertText\"", 1)[0]
+        self.assertIn("if (!typeFocused)", typ)
+        keys = parity.split("function keyDefinition(value)", 1)[1].split("export async function pressKey", 1)[0]
+        self.assertIn("End:", keys)
+        self.assertIn("Home:", keys)
+
+    def test_locator_fill_uses_bounded_executeScriptOnTab(self) -> None:
+        """Raw chrome.scripting.executeScript on locator fill wedges Draft.js / large contenteditable."""
+        parity = PARITY_CAPABILITIES.read_text()
+        fill = parity.split('if (operation === "fill")', 1)[1].split("await dispatchMouse", 1)[0]
+        self.assertIn("hooks.executeScriptOnTab", fill)
+        self.assertIn('"locatorFill"', fill)
+        self.assertNotIn("chrome.scripting.executeScript", fill)
+        worker = SERVICE_WORKER.read_text()
+        hooks = worker.split("runParityAction(action, state, {", 1)[1].split("});", 1)[0]
+        self.assertIn("executeScriptOnTab", hooks)
+
     def test_preflight_failure_uses_verified_cleanup_without_dropping_ownership(self) -> None:
         source = SERVICE_WORKER.read_text()
         preflight = source.split("async function sessionPreflight(message) {", 1)[1].split(
@@ -1005,6 +1105,18 @@ class SourceContractTests(unittest.TestCase):
         self.assertIn("fallback.click()", check)
         self.assertNotIn("dispatchMouse(hooks.send, state.tabId, match.point, 1)", check)
 
+
+    def test_other_tab_activate_focus_fail_fast_lease_tab_scoped(self) -> None:
+        """Foreign activate_tab/focus_tab must not burn EXTENSION_TIMEOUT (~87s footgun)."""
+        source = SERVICE_WORKER.read_text()
+        self.assertIn("LEASE_TAB_SCOPED", source)
+        self.assertIn('type === "activate_tab" || type === "focus_tab"', source)
+        self.assertIn("action.tab_id != null && action.tabId == null", source)
+        block = source.split('if (type === "activate_tab" || type === "focus_tab") {', 1)[1].split(
+            "if (action.tabId) {", 1
+        )[0]
+        self.assertIn("throw codedError", block)
+        self.assertIn("target !== Number(state.tabId)", block)
 
     def test_viewport_capture_aborts_so_hung_screenshots_cannot_wedge_local_exec(self) -> None:
         """captureVisibleTab hang must fail the run in seconds, not occupy the FIFO for minutes."""
