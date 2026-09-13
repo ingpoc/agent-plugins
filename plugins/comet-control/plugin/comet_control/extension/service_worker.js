@@ -22,6 +22,7 @@ const EXTENSION_CAPABILITIES = Object.freeze([
   "dialogs-files-clipboard",
   "isolated-window-leases",
   "operator-pause",
+  "page-context-sections",
   "raw-cdp",
   "screenshots",
   "visible-agent-cursor",
@@ -2374,7 +2375,7 @@ async function runBrowserAction(action, state) {
     // Do not call readPageConsoleTail / ensureConsoleProbe here. MAIN-world
     // executeScript after getPageContext raced the next click's inject and
     // wedged Seller Dispatch. Console rows come from CDP ring only.
-    const resp = await sendToContentScript(state.tabId, "getPageContext", [], 0);
+    const resp = await sendToContentScript(state.tabId, "getPageContext", action.sections === undefined ? [] : [action.sections], 0);
     const max = 20;
     const page = { entries: [] };
     const entries = mergeConsoleEntries(tabConsoleCdp.get(state.tabId) || [], page.entries || [], max);
@@ -2383,7 +2384,7 @@ async function runBrowserAction(action, state) {
       e.level === "error" || e.level === "page_error" || e.level === "unhandledrejection" || e.level === "assert"
     ) || null;
     const network = tabNetworkCdp.get(state.tabId);
-    const pageResult = resp?.result || {};
+    const pageResult = requireContentScriptResult(resp, "Page context returned no result");
     // Surface OAuth/popup overlays Comet Control cannot see in captureVisibleTab so
     // agents hand off to macos-cua instead of replaying in-page clicks.
     const handoffHint = detectNativeOverlayHandoffHint({

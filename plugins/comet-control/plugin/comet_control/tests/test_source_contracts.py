@@ -24,6 +24,42 @@ MANIFEST = ROOT / "extension" / "manifest.json"
 
 
 class SourceContractTests(unittest.TestCase):
+    def test_page_context_keeps_sections_and_rejects_failed_reads(self) -> None:
+        source = SERVICE_WORKER.read_text()
+        branch = source.split('  if (type === "page_context") {', 1)[1].split('  if (type === "console_tail")', 1)[0]
+        helper = source.split('function requireContentScriptResult(', 1)[1].split('function isLocatorMissError', 1)[0]
+        harness = r'''
+const assert = require('node:assert/strict');
+const codedError = (code, message) => Object.assign(new Error(message), {code});
+function requireContentScriptResult(HELPER
+const state = {tabId:7}, type = 'page_context';
+const chrome = {tabs:{get:async () => ({status:'complete'})}};
+const tabConsoleCdp = new Map(), tabNetworkCdp = new Map();
+const mergeConsoleEntries = () => [], consoleErrorCount = () => 0;
+const detectNativeOverlayHandoffHint = () => null;
+let response;
+const sendToContentScript = async (tab, method, args, frame) => {
+  assert.equal(tab, 7); assert.equal(frame, 0);
+  assert.equal(method, 'getPageContext'); assert.deepEqual(args, [['headings']]);
+  return response;
+};
+const run = async action => { BRANCH;
+(async () => {
+  response = {success:true,result:{url:'https://example.test/',title:'Fixture',headings:[]}};
+  assert.equal((await run({sections:['headings']})).title, 'Fixture');
+  for (const failure of [{success:false,error:'invalid sections'}, {success:true}, null]) {
+    response = failure;
+    await assert.rejects(() => run({sections:['headings']}));
+  }
+})().catch(e => {console.error(e); process.exit(1);});
+'''.replace('HELPER', helper).replace('BRANCH', branch)
+        result = subprocess.run(['node', '-e', harness], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        mutant = harness.replace('requireContentScriptResult(resp, "Page context returned no result")', 'resp?.result || {}')
+        result = subprocess.run(['node', '-e', mutant], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0, 'failed reads must not become empty success')
+
     def test_attached_viewport_capture_avoids_tabs_quota(self):
         source = SERVICE_WORKER.read_text()
         branch = source.split('  if (type === "screenshot") {', 1)[1].split('  if (type === "zoom") {', 1)[0]
@@ -63,7 +99,7 @@ async function check(attached, override, expectedSource) {
 
     def test_page_context_exposes_visible_content_links_for_locator_planning(self) -> None:
         source = CURSOR_AGENT.read_text()
-        start = source.index("  function getPageContext()")
+        start = source.index("  function getPageContext(sections)")
         end = source.index("  function flashLabel", start)
         function = source[start:end]
         harness = r'''
@@ -71,9 +107,11 @@ const assert = require('node:assert/strict');
 const location = {href: 'https://example.test/'};
 const contentLink = {innerText: 'Learn more', href: 'https://example.test/help', closest: () => null};
 const navLink = {innerText: 'Home', href: 'https://example.test/home', closest: () => ({})};
+const queries = [];
 const document = {
   title: 'Fixture',
   querySelectorAll(selector) {
+    queries.push(selector);
     if (selector === 'a') return [navLink, contentLink];
     if (selector === 'h1,h2,h3') return [{tagName: 'H1', innerText: 'Fixture'}];
     return [];
@@ -84,11 +122,22 @@ const pageRevision = 4;
 FUNCTION
 const page = getPageContext();
 assert.deepEqual(page.links, [{text: 'Learn more', href: 'https://example.test/help'}]);
+queries.length = 0;
+assert.deepEqual(getPageContext(['links']), {
+  url: location.href, title: 'Fixture', page_revision: 4, links: page.links,
+});
+assert.deepEqual(queries, ['a'], 'unrequested sections must not scan the DOM');
+queries.length = 0;
+assert.deepEqual(getPageContext([]), {url: location.href, title: 'Fixture', page_revision: 4});
+assert.deepEqual(queries, []);
+for (const invalid of [null, 'links', ['typo'], Array(6).fill('links')]) {
+  assert.throws(() => getPageContext(invalid), /sections must be an array/);
+}
 '''.replace('FUNCTION', function)
         result = subprocess.run(["node", "-e", harness], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        link_start = function.index("      links: Array.from")
-        link_end = function.index("      buttons:", link_start)
+        link_start = function.index("      ...(wants('links')")
+        link_end = function.index("      ...(wants('buttons')", link_start)
         mutant = function[:link_start] + "      links: [],\n" + function[link_end:]
         result = subprocess.run(
             ["node", "-e", harness.replace(function, mutant)],
@@ -1110,7 +1159,7 @@ async function check(actions, expected) {
         )[0]
         self.assertIn('action === "getPageContext" || action === "getStatus"', pin)
         self.assertIn("frameId = 0", pin)
-        self.assertIn('sendToContentScript(state.tabId, "getPageContext", [], 0)', worker)
+        self.assertIn('sendToContentScript(state.tabId, "getPageContext", action.sections === undefined ? [] : [action.sections], 0)', worker)
         frames = worker.split("async function findPointOnControllableFrames", 1)[1].split(
             "async function moveCursorToPoint", 1
         )[0]

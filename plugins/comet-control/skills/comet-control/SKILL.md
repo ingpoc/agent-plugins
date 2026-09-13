@@ -38,6 +38,7 @@ Recipes: [fast-path.md](references/fast-path.md). Typed failures: [observe-feedb
 | --- | --- |
 | Probe/start/send/closeout | [fast-path.md](references/fast-path.md) |
 | Speed / observe thrash | [speed-bar.md](references/speed-bar.md) |
+| Website APIs / WebMCP | [api-first.md](references/api-first.md) |
 | Compact success / failures | [observe-feedback.md](references/observe-feedback.md) |
 | Actions / screenshots | [operate.md](references/operate.md) |
 | Locators / misses | [locator-misses.md](references/locator-misses.md) |

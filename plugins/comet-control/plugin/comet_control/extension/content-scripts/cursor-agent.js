@@ -933,27 +933,33 @@
     return { page_revision: pageRevision, elements };
   }
 
-  function getPageContext() {
+  function getPageContext(sections) {
     // Lightweight overview — use before snapshot for progressive disclosure.
+    const allowed = ['headings', 'nav', 'links', 'buttons', 'inputs'];
+    if (sections !== undefined && (!Array.isArray(sections) || sections.length > allowed.length
+      || sections.some(section => !allowed.includes(section)))) {
+      throw new Error('page_context sections must be an array of headings, nav, links, buttons, inputs');
+    }
+    const wants = section => sections === undefined || sections.includes(section);
     function vis(el) { return _isVisible(el); }
     return {
       url: location.href,
       title: document.title,
       page_revision: pageRevision,
-      headings: Array.from(document.querySelectorAll('h1,h2,h3')).filter(vis)
-        .map(h => ({ tag: h.tagName, text: h.innerText?.trim().slice(0, 100) })).filter(h => h.text).slice(0, 8),
-      nav: Array.from(document.querySelectorAll('nav a,[role="navigation"] a,[role="menubar"] *,[role="tablist"] *'))
+      ...(wants('headings') ? { headings: Array.from(document.querySelectorAll('h1,h2,h3')).filter(vis)
+        .map(h => ({ tag: h.tagName, text: h.innerText?.trim().slice(0, 100) })).filter(h => h.text).slice(0, 8) } : {}),
+      ...(wants('nav') ? { nav: Array.from(document.querySelectorAll('nav a,[role="navigation"] a,[role="menubar"] *,[role="tablist"] *'))
         .filter(vis).map(a => ({ text: (a.innerText || a.getAttribute('aria-label') || '').trim().slice(0, 60), href: a.href || '' }))
-        .filter(x => x.text).slice(0, 20),
-      links: Array.from(document.querySelectorAll('a')).filter(vis)
+        .filter(x => x.text).slice(0, 20) } : {}),
+      ...(wants('links') ? { links: Array.from(document.querySelectorAll('a')).filter(vis)
         .filter(a => !a.closest('nav,[role="navigation"],[role="menubar"],[role="tablist"]'))
         .map(a => ({ text: (a.innerText || a.getAttribute('aria-label') || '').trim().slice(0, 60), href: a.href || '' }))
-        .filter(x => x.text && x.href).slice(0, 20),
-      buttons: Array.from(document.querySelectorAll('button,[role="button"]')).filter(vis)
-        .map(b => (b.innerText || b.getAttribute('aria-label') || '').trim().slice(0, 60)).filter(Boolean).slice(0, 15),
-      inputs: Array.from(document.querySelectorAll('input,textarea,select')).filter(vis)
+        .filter(x => x.text && x.href).slice(0, 20) } : {}),
+      ...(wants('buttons') ? { buttons: Array.from(document.querySelectorAll('button,[role="button"]')).filter(vis)
+        .map(b => (b.innerText || b.getAttribute('aria-label') || '').trim().slice(0, 60)).filter(Boolean).slice(0, 15) } : {}),
+      ...(wants('inputs') ? { inputs: Array.from(document.querySelectorAll('input,textarea,select')).filter(vis)
         .map(el => ({ name: el.name || el.id || el.placeholder || '', type: el.type || el.tagName.toLowerCase(), value: String(el.value || '').slice(0, 60) }))
-        .filter(x => x.name).slice(0, 10)
+        .filter(x => x.name).slice(0, 10) } : {})
     };
   }
 

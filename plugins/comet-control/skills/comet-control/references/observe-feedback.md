@@ -8,6 +8,13 @@ Never dump full DOM snapshots or screenshot-every-step into the agent loop.
 
 Healthy batches return small structured results — prefer these over extra observes:
 
+When only one control category matters, use `{"type":"page_context","sections":["buttons"]}`.
+Allowed sections: `headings`, `nav`, `links`, `buttons`, `inputs`. Omit `sections` for
+the normal overview; `[]` returns identity/revision plus diagnostics only. Unselected
+sections are neither scanned nor returned. URL, title, revision and failure/handoff
+diagnostics remain available. Require probe capability `page-context-sections` before
+using this on an older installed runtime; otherwise use the normal overview.
+
 | Action | Typical payload | Notes |
 | --- | --- | --- |
 | `page_context` | url, title, headings≤8, buttons≤15, inputs≤10, console counts | Top frame only; ad iframes excluded |
