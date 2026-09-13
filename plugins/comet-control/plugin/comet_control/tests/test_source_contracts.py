@@ -1293,13 +1293,35 @@ async function check(actions, expected) {
         self.assertIn("overlay_present", cursor)
         # Observer must not start at script load — only via ensurePageObserver.
         self.assertNotIn("new MutationObserver(_bumpPageRevision).observe", cursor)
+        # nav_click_* aliases confirm navigation but stay watchable by default
+        # (do not force visual_cursor:false / navigation_only:true).
+        alias = source.split('if (type === "nav_click_text")', 1)[1].split(
+            'if (action.tab_id != null', 1
+        )[0]
+        self.assertIn("confirm_navigation: true", alias)
+        self.assertNotIn("visual_cursor: false", alias)
+        self.assertNotIn("navigation_only: true", alias)
         click_text = source.split('if (type === "click_text")', 1)[1].split(
             'if (type === "fill_selector")', 1
         )[0]
-        self.assertIn("navClickMode", click_text)
+        self.assertIn("confirmNav", click_text)
+        self.assertIn("visualCursor = !silent", click_text)
+        self.assertIn("lingerMs: action.linger_ms", click_text)
+        self.assertIn("await parkContentScriptIdle(state.tabId, 0)", click_text)
+        self.assertNotIn("if (!visualCursor) await parkContentScriptIdle", click_text)
+        click_selector = source.split('if (type === "click_selector")', 1)[1].split(
+            "const parity = await runParityAction", 1
+        )[0]
+        self.assertIn("confirmNav", click_selector)
+        self.assertIn("visualCursor = !silent", click_selector)
+        self.assertIn("await parkContentScriptIdle(state.tabId, 0)", click_selector)
         click_at = source.split("async function clickAtPoint", 1)[1].split("async function clickResolvedTarget", 1)[0]
         self.assertIn("trustedBrowserClickAtPoint", click_at)
-        self.assertIn("navClickMode", click_at)
+        self.assertIn("moveCursorToPoint", click_at)
+        self.assertIn("lingerMs", click_at)
+        self.assertIn('sendToContentScript(tabId, "hide"', click_at)
+        # Visual path must not park-before-move via navClickMode.
+        self.assertNotIn("navClickMode || !visual", click_at)
 
 
 if __name__ == "__main__":

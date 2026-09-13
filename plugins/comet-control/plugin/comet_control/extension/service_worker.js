@@ -1694,17 +1694,18 @@ async function trustedBrowserClickAtPoint(tabId, point) {
 async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
   const visual = options.visual === true;
   const trusted = options.trusted !== false; // default trusted/browser-level
-  const navClickMode = options.navClickMode === true;
-  if (navClickMode || !visual) {
-    await parkContentScriptIdle(tabId, point.frame_id || 0);
-  } else {
+  // navClickMode no longer forces park-before-move; visual theater is independent.
+  if (visual) {
     await moveCursorToPoint(tabId, point);
-    // Park overlay off the hit target right before the click pulse.
+    await sleep(Math.max(150, Number(options.lingerMs) || 350));
+    // Hide for CDP pulse (not full park yet); trusted path clears overlay DOM.
     await sendToContentScript(tabId, "hide", [], point.frame_id).catch(() => {});
+  } else {
+    await parkContentScriptIdle(tabId, point.frame_id || 0);
   }
-  if (trusted || navClickMode) {
+  if (trusted) {
     // Top-frame CDP mouse is the Chrome-parity navigation path. For OOPIF
-    // frames fall back to content-script click after overlay is parked.
+    // frames fall back to content-script click after overlay is parked/hidden.
     if (!point.frame_id || Number(point.frame_id) === 0) {
       return trustedBrowserClickAtPoint(tabId, point);
     }
@@ -2351,10 +2352,10 @@ async function runBrowserAction(action, state) {
   let type = action.type;
   // Normalize aliases; fail-fast other-tab activate/focus (portal-huf 87s footgun)
   if (type === "nav_click_text") {
-    action = { ...action, type: "click_text", navigation_only: true, visual_cursor: false };
+    action = { ...action, type: "click_text", confirm_navigation: true };
     type = "click_text";
   } else if (type === "nav_click_selector") {
-    action = { ...action, type: "click_selector", navigation_only: true, visual_cursor: false };
+    action = { ...action, type: "click_selector", confirm_navigation: true };
     type = "click_selector";
   }
   if (action.tab_id != null && action.tabId == null) action.tabId = action.tab_id;
@@ -2857,14 +2858,19 @@ async function runBrowserAction(action, state) {
     // Attach debugger first so Page.javascriptDialogOpening is observed.
     // Use clickResolvedTarget (same as click_selector) so CLICK_TARGET_MISMATCH
     // re-resolves once and reports retried:true for moved text targets.
-    const navClickMode = action.navigation_only === true || action.mode === "navigation";
-    const visualCursor = navClickMode ? false : action.visual_cursor !== false;
+    const confirmNav = action.confirm_navigation === true
+      || action.navigation_only === true
+      || action.mode === "navigation";
+    const silent = action.silent === true
+      || (action.navigation_only === true && action.visual_cursor !== true)
+      || action.visual_cursor === false;
+    const visualCursor = !silent;
     const clickOptions = {
       visual: visualCursor,
       trusted: action.trusted !== false,
-      navClickMode,
+      lingerMs: action.linger_ms,
     };
-    const beforeTab = navClickMode
+    const beforeTab = confirmNav
       ? await chrome.tabs.get(state.tabId).catch(() => null)
       : null;
     const debuggerAttached = await attachForClick(state.tabId);
@@ -2892,7 +2898,7 @@ async function runBrowserAction(action, state) {
     try {
       const result = await runDialogAware();
       let navConfirm = null;
-      if (navClickMode) {
+      if (confirmNav) {
         navConfirm = await confirmNavigation(state.tabId, {
           fromUrl: beforeTab?.url || "",
           fromTitle: beforeTab?.title || "",
@@ -2905,13 +2911,13 @@ async function runBrowserAction(action, state) {
           );
         }
       }
-      if (!visualCursor) await parkContentScriptIdle(state.tabId, 0);
+      await parkContentScriptIdle(state.tabId, 0);
       return {
         type,
         text: action.text,
         ...result,
-        navigation_only: navClickMode,
-        trusted_click: clickOptions.trusted || navClickMode,
+        navigation_only: confirmNav,
+        trusted_click: clickOptions.trusted !== false,
         ...(navConfirm ? { navigation: navConfirm } : {}),
       };
     } catch (error) {
@@ -3024,14 +3030,19 @@ async function runBrowserAction(action, state) {
   }
 
   if (type === "click_selector") {
-    const navClickMode = action.navigation_only === true || action.mode === "navigation";
-    const visualCursor = navClickMode ? false : action.visual_cursor !== false;
+    const confirmNav = action.confirm_navigation === true
+      || action.navigation_only === true
+      || action.mode === "navigation";
+    const silent = action.silent === true
+      || (action.navigation_only === true && action.visual_cursor !== true)
+      || action.visual_cursor === false;
+    const visualCursor = !silent;
     const clickOptions = {
       visual: visualCursor,
       trusted: action.trusted !== false,
-      navClickMode,
+      lingerMs: action.linger_ms,
     };
-    const beforeTab = navClickMode
+    const beforeTab = confirmNav
       ? await chrome.tabs.get(state.tabId).catch(() => null)
       : null;
     const debuggerAttached = await attachForClick(state.tabId);
@@ -3047,7 +3058,7 @@ async function runBrowserAction(action, state) {
     );
     const finish = async (result) => {
       let navConfirm = null;
-      if (navClickMode) {
+      if (confirmNav) {
         navConfirm = await confirmNavigation(state.tabId, {
           fromUrl: beforeTab?.url || "",
           fromTitle: beforeTab?.title || "",
@@ -3060,13 +3071,13 @@ async function runBrowserAction(action, state) {
           );
         }
       }
-      if (!visualCursor) await parkContentScriptIdle(state.tabId, 0);
+      await parkContentScriptIdle(state.tabId, 0);
       return {
         type,
         selector: action.selector,
         ...result,
-        navigation_only: navClickMode,
-        trusted_click: clickOptions.trusted || navClickMode,
+        navigation_only: confirmNav,
+        trusted_click: clickOptions.trusted !== false,
         ...(navConfirm ? { navigation: navConfirm } : {}),
       };
     };
