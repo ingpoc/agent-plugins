@@ -63,12 +63,25 @@
     semanticTargetCache.clear();
   }
 
-  new MutationObserver(_bumpPageRevision).observe(document.documentElement, {
-    subtree: true,
-    childList: true,
-    attributes: true,
-    attributeFilter: ['aria-disabled', 'class', 'disabled', 'hidden', 'readonly', 'style'],
-  });
+  // Chrome-parity: no page-wide observer while idle. Start only when locator
+  // stability / pageRevision is needed; parkIdle() tears it down after actions
+  // unless visual cursor mode keeps the session warm.
+  let pageObserver = null;
+  function ensurePageObserver() {
+    if (pageObserver) return;
+    pageObserver = new MutationObserver(_bumpPageRevision);
+    pageObserver.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['aria-disabled', 'class', 'disabled', 'hidden', 'readonly', 'style'],
+    });
+  }
+  function stopPageObserver() {
+    if (!pageObserver) return;
+    pageObserver.disconnect();
+    pageObserver = null;
+  }
 
   // ---- Styles ----
   const css = `
@@ -715,6 +728,7 @@
   }
 
   async function _actionablePoint(kind, locator, mode, discover) {
+    ensurePageObserver();
     const key = _semanticCacheKey(kind, locator, mode);
     const cached = semanticTargetCache.get(key);
     const candidates = cached?.isConnected ? [cached] : discover();
@@ -867,6 +881,7 @@
   }
 
   function findPointBySelector(selector, mode = 'click') {
+    ensurePageObserver();
     const value = String(selector || '');
     return _actionablePoint('selector', value, mode, () =>
       _querySelectorAllDeep(value).filter(_isVisible)
@@ -874,6 +889,7 @@
   }
 
   function findPointByText(text, mode = 'click') {
+    ensurePageObserver();
     const needle = String(text || '').toLowerCase().trim();
     if (!needle) {
       throw _actionabilityError('ACTIONABILITY_EMPTY_LOCATOR', 'Text locator is empty', { kind: 'text' });
@@ -1014,6 +1030,8 @@
       session_id: agentIdentity.sessionId,
       color: agentIdentity.color,
       page_revision: pageRevision,
+      overlay_present: Boolean(cursorEl && document.getElementById(COMET_CONTROL_CURSOR_ID)),
+      observer_active: Boolean(pageObserver),
       pointer_bounds: pointerBounds ? { top: pointerBounds.top, right: pointerBounds.right, bottom: pointerBounds.bottom, left: pointerBounds.left } : null,
       label_bounds: labelBounds ? { top: labelBounds.top, right: labelBounds.right, bottom: labelBounds.bottom, left: labelBounds.left } : null,
       label_below_pointer: Boolean(pointerBounds && labelBounds && labelBounds.top >= pointerBounds.bottom),
@@ -1036,10 +1054,41 @@
 
   function destroy() {
     if (animationFrame) cancelAnimationFrame(animationFrame);
+    if (arrivalTimer) clearTimeout(arrivalTimer);
+    arrivalTimer = null;
+    stopPageObserver();
     const old = document.getElementById(COMET_CONTROL_CURSOR_ID);
     if (old) old.remove();
+    document.querySelector('style[data-comet-control-cursor-style]')?.remove();
+    cursorEl = null;
+    pointerEl = null;
+    labelEl = null;
+    isVisible = false;
+    cursorPhase = 'idle';
     window.__cometControlAgentCursorInjected = false;
     window.__cometControlAgentCursorAlive = false;
+    document.documentElement.removeAttribute('data-comet-control-agent-cursor-injected');
+  }
+
+  // Tear down overlay + page-wide observer but keep the message listener so the
+  // next leased action can reuse this world without reinjection retries.
+  function parkIdle() {
+    if (animationFrame) cancelAnimationFrame(animationFrame);
+    if (arrivalTimer) clearTimeout(arrivalTimer);
+    arrivalTimer = null;
+    stopPageObserver();
+    const old = document.getElementById(COMET_CONTROL_CURSOR_ID);
+    if (old) old.remove();
+    document.querySelector('style[data-comet-control-cursor-style]')?.remove();
+    cursorEl = null;
+    pointerEl = null;
+    labelEl = null;
+    isVisible = false;
+    cursorPhase = 'idle';
+    cursorX = -100;
+    cursorY = -100;
+    window.__cometControlAgentCursorAlive = true;
+    return getStatus();
   }
 
   // ---- Evaluate (runs JS in page main world via content script) ----
@@ -1086,7 +1135,7 @@
     focusAndType, keyPress, showKey, dragTo, scroll,
     getVisibleText, getDOMSnapshot, getPageContext,
     findPointBySelector, findPointByText, hasSelector,
-    getStatus, hide, destroy, setIdentity, clearIdentity, invalidateConnectionState,
+    getStatus, hide, destroy, parkIdle, setIdentity, clearIdentity, invalidateConnectionState,
     evaluate: evaluateInPage,
     captureScreenshot
   };
