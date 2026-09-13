@@ -2606,7 +2606,13 @@ async function runBrowserAction(action, state) {
     // Do not call readPageConsoleTail / ensureConsoleProbe here. MAIN-world
     // executeScript after getPageContext raced the next click's inject and
     // wedged Seller Dispatch. Console rows come from CDP ring only.
-    const resp = await sendToContentScript(state.tabId, "getPageContext", action.sections === undefined ? [] : [action.sections], 0);
+    const compact = action.sections === undefined
+      ? action.compact !== false
+      : action.compact === true;
+    const pcArgs = action.sections === undefined
+      ? [{ compact }]
+      : [action.sections, { compact }];
+    const resp = await sendToContentScript(state.tabId, "getPageContext", pcArgs, 0);
     const max = 20;
     const page = { entries: [] };
     const entries = mergeConsoleEntries(tabConsoleCdp.get(state.tabId) || [], page.entries || [], max);
@@ -2628,7 +2634,9 @@ async function runBrowserAction(action, state) {
       ...pageResult,
       console_error_count: error_count,
       console_warn_count: entries.filter((e) => e.level === "warn").length,
-      last_console_error: last_error ? { level: last_error.level, text: last_error.text, t: last_error.t } : null,
+      ...(last_error ? {
+        last_console_error: { level: last_error.level, text: last_error.text, t: last_error.t },
+      } : {}),
       ...(handoffHint ? { handoff_hint: handoffHint } : {}),
       network_capture_enabled: Boolean(network),
       ...(network ? {

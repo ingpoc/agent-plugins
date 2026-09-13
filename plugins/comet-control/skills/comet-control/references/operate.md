@@ -72,7 +72,7 @@ Actions below belong inside one `run.actions` list.
 
 | Need | Action | Notes |
 | --- | --- | --- |
-| Compact orientation | `page_context` | Default read of the **top frame** only; URL, headings, controls, compact console counts. Ad/Twitter iframes are not the page. |
+| Compact orientation | `page_context` | Default is **compact** (role/name, primary nav, short same-origin hrefs). Use `sections:[…]` for selective full fields, or `compact:false` for legacy discovery caps. Top frame only; ad iframes are not the page. |
 | Full visible text | `text` | Articles, tables, or long form content |
 | Element inventory | `snapshot` | Use only when a selector is unknown |
 | Navigate | `goto` | Pair with `wait_for_selector` or `wait_for_url_change` |
@@ -89,7 +89,7 @@ Actions below belong inside one `run.actions` list.
 Common payloads:
 
 ```python
-{"type": "page_context"}
+{"type": "page_context"}  # compact default; compact:false for full caps
 {"type": "text"}
 {"type": "snapshot"}
 {"type": "goto", "url": "https://example.com/"}

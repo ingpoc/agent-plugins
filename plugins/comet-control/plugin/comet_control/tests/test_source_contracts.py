@@ -40,7 +40,7 @@ const detectNativeOverlayHandoffHint = () => null;
 let response;
 const sendToContentScript = async (tab, method, args, frame) => {
   assert.equal(tab, 7); assert.equal(frame, 0);
-  assert.equal(method, 'getPageContext'); assert.deepEqual(args, [['headings']]);
+  assert.equal(method, 'getPageContext'); assert.deepEqual(args, [['headings'], { compact: false }]);
   return response;
 };
 const run = async action => { BRANCH;
@@ -99,41 +99,72 @@ async function check(attached, override, expectedSource) {
 
     def test_page_context_exposes_visible_content_links_for_locator_planning(self) -> None:
         source = CURSOR_AGENT.read_text()
-        start = source.index("  function getPageContext(sections)")
+        start = source.index("  function getPageContext")
         end = source.index("  function flashLabel", start)
         function = source[start:end]
-        harness = r'''
+        if "function _accessibleName" in source:
+            an_start = source.index("  function _accessibleName")
+            an_end = source.index("  function findPointBySelector", an_start)
+            function = source[an_start:an_end] + function
+        harness = r"""
 const assert = require('node:assert/strict');
 const location = {href: 'https://example.test/'};
-const contentLink = {innerText: 'Learn more', href: 'https://example.test/help', closest: () => null};
-const navLink = {innerText: 'Home', href: 'https://example.test/home', closest: () => ({})};
+const contentLink = {
+  innerText: 'Learn more', href: 'https://example.test/help',
+  closest: () => null, getAttribute: () => null, tagName: 'A',
+};
+const navLink = {
+  innerText: 'Home', href: 'https://example.test/home',
+  closest: () => ({}), getAttribute: () => null, tagName: 'A',
+};
+const headerRoot = {
+  querySelectorAll(selector) {
+    if (selector.includes('a')) return [navLink];
+    return [];
+  },
+};
 const queries = [];
 const document = {
   title: 'Fixture',
+  querySelector(selector) {
+    if (selector.includes('header') || selector.includes('nav')) return headerRoot;
+    return null;
+  },
   querySelectorAll(selector) {
     queries.push(selector);
-    if (selector === 'a') return [navLink, contentLink];
+    if (selector === 'a' || selector === 'a,[role="link"]') return [navLink, contentLink];
     if (selector === 'h1,h2,h3') return [{tagName: 'H1', innerText: 'Fixture'}];
+    if (selector.includes('nav a') || selector.includes('role="navigation"')) return [navLink];
+    if (selector.includes('button')) return [];
+    if (selector.includes('input,textarea,select')) return [];
     return [];
   },
+  getElementById() { return null; },
 };
 const _isVisible = () => true;
 const pageRevision = 4;
 FUNCTION
 const page = getPageContext();
-assert.deepEqual(page.links, [{text: 'Learn more', href: 'https://example.test/help'}]);
+assert.equal(page.compact, true);
+assert.deepEqual(page.links, [{text: 'Learn more', href: '/help'}]);
+assert.ok(page.nav && page.nav[0].text === 'Home');
 queries.length = 0;
-assert.deepEqual(getPageContext(['links']), {
-  url: location.href, title: 'Fixture', page_revision: 4, links: page.links,
+const selective = getPageContext(['links']);
+assert.deepEqual(selective, {
+  url: location.href, title: 'Fixture', page_revision: 4,
+  links: [{text: 'Learn more', href: 'https://example.test/help'}],
 });
-assert.deepEqual(queries, ['a'], 'unrequested sections must not scan the DOM');
+assert.deepEqual(queries, ['a,[role="link"]'], 'unrequested sections must not scan the DOM');
 queries.length = 0;
 assert.deepEqual(getPageContext([]), {url: location.href, title: 'Fixture', page_revision: 4});
 assert.deepEqual(queries, []);
+const full = getPageContext(undefined, {compact: false});
+assert.equal(full.compact, undefined);
+assert.deepEqual(full.links, [{text: 'Learn more', href: 'https://example.test/help'}]);
 for (const invalid of [null, 'links', ['typo'], Array(6).fill('links')]) {
   assert.throws(() => getPageContext(invalid), /sections must be an array/);
 }
-'''.replace('FUNCTION', function)
+""".replace('FUNCTION', function)
         result = subprocess.run(["node", "-e", harness], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         link_start = function.index("      ...(wants('links')")
@@ -961,7 +992,7 @@ async function check(actions, expected) {
             "function hasSelector", 1
         )[0]
         self.assertIn(
-            "'a,button,[role=button],input[type=button],input[type=submit],label,summary'",
+            "'a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=button],input[type=submit],label,summary'",
             find_text,
         )
         self.assertNotIn("p,span,li,td,th", find_text)
@@ -1161,7 +1192,9 @@ async function check(actions, expected) {
         )[0]
         self.assertIn('action === "getPageContext" || action === "getStatus"', pin)
         self.assertIn("frameId = 0", pin)
-        self.assertIn('sendToContentScript(state.tabId, "getPageContext", action.sections === undefined ? [] : [action.sections], 0)', worker)
+        self.assertIn('const resp = await sendToContentScript(state.tabId, "getPageContext", pcArgs, 0)', worker)
+        self.assertIn('action.compact !== false', worker)
+        self.assertIn('pcArgs', worker)
         frames = worker.split("async function findPointOnControllableFrames", 1)[1].split(
             "async function moveCursorToPoint", 1
         )[0]
@@ -1373,9 +1406,9 @@ async function check(actions, expected) {
         source = SERVICE_WORKER.read_text()
         cursor = CURSOR_AGENT.read_text()
         manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.8")
+        self.assertEqual(manifest.get("version"), "0.1.9")
         plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
-        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.8")
+        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.9")
 
         # Lease watchable default on record + publicLease
         self.assertIn("function leaseIsWatchable", source)
@@ -1431,6 +1464,36 @@ async function check(actions, expected) {
         self.assertIn("if (silent) await parkContentScriptIdle(state.tabId, 0)", click_text)
         self.assertNotIn("if (!visualCursor) await parkContentScriptIdle", click_text)
 
+
+
+    def test_compact_semantic_page_context_019(self) -> None:
+        """0.1.9: compact page_context default + accessible-name click_text finders."""
+        cursor = CURSOR_AGENT.read_text()
+        worker = SERVICE_WORKER.read_text()
+        manifest = json.loads(MANIFEST.read_text())
+        self.assertEqual(manifest.get("version"), "0.1.9")
+        self.assertIn("function _accessibleName", cursor)
+        self.assertIn("options.compact !== false", cursor)
+        self.assertIn("compact: true", cursor)
+        self.assertIn("[role=link],[role=tab],[role=menuitem]", cursor)
+        find_text = cursor.split("function findPointByText(text, mode = 'click')", 1)[1].split(
+            "function hasSelector", 1
+        )[0]
+        self.assertIn("_accessibleName(el)", find_text)
+        self.assertIn("[role=link]", find_text)
+        pc = cursor.split("function getPageContext", 1)[1].split("function flashLabel", 1)[0]
+        self.assertIn("Primary chrome only", pc)
+        self.assertIn("hrefOf", pc)
+        branch = worker.split('  if (type === "page_context") {', 1)[1].split(
+            '  if (type === "console_tail")', 1
+        )[0]
+        self.assertIn("pcArgs", branch)
+        self.assertIn("action.compact !== false", branch)
+        self.assertIn("...(last_error ? {", branch)
+        self.assertNotIn(
+            "last_console_error: last_error ? { level: last_error.level, text: last_error.text, t: last_error.t } : null,",
+            branch,
+        )
 
 
 

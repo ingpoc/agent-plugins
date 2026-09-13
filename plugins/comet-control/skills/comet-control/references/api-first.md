@@ -11,7 +11,7 @@ reverse-engineering private endpoints, copying cookies, or guessing GraphQL call
    Keep user approval boundaries for writes; verify the returned postcondition.
 2. Already leased page: batch semantic actions and a selective `page_context` in one
    send. Use `sections:["buttons"]` for buttons, `sections:["inputs"]` for forms,
-   or `sections:[]` for URL/title/revision and diagnostics. Omit sections for discovery.
+   or `sections:[]` for URL/title/revision and diagnostics. Omit sections for **compact** discovery (default); `compact:false` for legacy full caps.
 3. Website-provided WebMCP: a possible future fast path, **not implemented by Comet
    Control**. Browser support alone does not mean that a website exposes tools.
 4. Visual-only controls: screenshot and visible pointer. Native sheets: same-lease

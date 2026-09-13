@@ -984,6 +984,29 @@
     return [best];
   }
 
+  function _accessibleName(el) {
+    if (!el) return '';
+    try {
+      const aria = el.getAttribute?.('aria-label');
+      if (aria && String(aria).trim()) return String(aria).trim();
+      const labelledBy = el.getAttribute?.('aria-labelledby');
+      if (labelledBy) {
+        const parts = String(labelledBy).split(/\s+/)
+          .map((id) => document.getElementById(id)?.innerText?.trim())
+          .filter(Boolean);
+        if (parts.length) return parts.join(' ');
+      }
+      const title = el.getAttribute?.('title');
+      if (title && String(title).trim()) return String(title).trim();
+      if ((el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') && el.value) {
+        return String(el.value).trim();
+      }
+      return String(el.innerText || el.value || '').trim();
+    } catch {
+      return String(el.innerText || el.value || '').trim();
+    }
+  }
+
   function findPointBySelector(selector, mode = 'click') {
     ensurePageObserver();
     const value = String(selector || '');
@@ -998,17 +1021,22 @@
     if (!needle) {
       throw _actionabilityError('ACTIONABILITY_EMPTY_LOCATOR', 'Text locator is empty', { kind: 'text' });
     }
-    // Interactive-only. Scanning p/span/li/td with innerText on Seller (Samantha
-    // panel, dense order DOM) blocks the message port long enough that SW
-    // sendMessageFast+probes false-negative as "Content script missing".
+    // Semantic-first interactive set. Prefer accessible-name / ARIA roles before
+    // brittle CSS. Still interactive-only — never scan p/span/li/td (port wedge).
     const elements = _querySelectorAllDeep(
-      'a,button,[role=button],input[type=button],input[type=submit],label,summary'
+      'a,button,[role=button],[role=link],[role=tab],[role=menuitem],input[type=button],input[type=submit],label,summary'
     ).filter(_isVisible);
     const candidates = [];
     for (const el of elements) {
-      const value = (el.innerText || el.value || el.getAttribute('aria-label') || '').trim().toLowerCase();
-      if (!value.includes(needle)) continue;
-      candidates.push({ el, score: value === needle ? 0 : (value.startsWith(needle) ? 1 : 2) });
+      const name = _accessibleName(el).toLowerCase();
+      const raw = (el.innerText || el.value || '').trim().toLowerCase();
+      let score = 99;
+      for (const [value, base] of [[name, 0], [raw, 3]]) {
+        if (!value || !value.includes(needle)) continue;
+        const s = value === needle ? base : (value.startsWith(needle) ? base + 1 : base + 2);
+        if (s < score) score = s;
+      }
+      if (score < 99) candidates.push({ el, score });
     }
     const bestScore = Math.min(...candidates.map((candidate) => candidate.score));
     return _actionablePoint('text', needle, mode, () =>
@@ -1053,33 +1081,130 @@
     return { page_revision: pageRevision, elements };
   }
 
-  function getPageContext(sections) {
-    // Lightweight overview — use before snapshot for progressive disclosure.
+  function getPageContext(sections, options) {
+    // Lightweight overview — compact by default when sections omitted (agent path).
+    // Selective sections keep full hrefs unless options.compact === true.
+    if (sections && !Array.isArray(sections) && typeof sections === 'object') {
+      options = sections;
+      sections = options.sections;
+    }
+    options = options || {};
     const allowed = ['headings', 'nav', 'links', 'buttons', 'inputs'];
     if (sections !== undefined && (!Array.isArray(sections) || sections.length > allowed.length
       || sections.some(section => !allowed.includes(section)))) {
       throw new Error('page_context sections must be an array of headings, nav, links, buttons, inputs');
     }
+    const compact = sections === undefined
+      ? options.compact !== false
+      : options.compact === true;
     const wants = section => sections === undefined || sections.includes(section);
     function vis(el) { return _isVisible(el); }
+    // Keep actionable names long enough to click_text; size win is href+caps.
+    const textCap = 60;
+    const headCap = compact ? 6 : 8;
+    const headTextCap = compact ? 80 : 100;
+    const navCap = compact ? 8 : 20;
+    const linkCap = compact ? 10 : 20;
+    const btnCap = compact ? 10 : 15;
+    const inputCap = compact ? 8 : 10;
+
+    function labelOf(el) {
+      return _accessibleName(el).slice(0, textCap);
+    }
+    function hrefOf(el) {
+      const href = el.href || '';
+      if (!href) return '';
+      if (!compact) return href;
+      try {
+        const u = new URL(href, location.href);
+        const base = new URL(location.href);
+        if (u.origin === base.origin) {
+          return `${u.pathname}${u.search}${u.hash}`.slice(0, 80);
+        }
+        return `${u.host}${u.pathname}`.slice(0, 80);
+      } catch {
+        return String(href).slice(0, 80);
+      }
+    }
+    function linkEntry(el) {
+      const text = labelOf(el);
+      if (!text) return null;
+      const href = hrefOf(el);
+      return href ? { text, href } : { text };
+    }
+
+    let navEntries = [];
+    if (wants('nav')) {
+      let navEls;
+      if (compact) {
+        // Primary chrome only — header/banner/first nav landmark (role/name first).
+        const root = document.querySelector('header,[role="banner"],nav,[role="navigation"]');
+        navEls = root
+          ? Array.from(root.querySelectorAll(
+              'a,[role="link"],button,[role="button"],[role="tab"],[role="menuitem"]'
+            )).filter(vis)
+          : Array.from(document.querySelectorAll('nav a,[role="navigation"] a')).filter(vis);
+      } else {
+        navEls = Array.from(document.querySelectorAll(
+          'nav a,[role="navigation"] a,[role="menubar"] *,[role="tablist"] *'
+        )).filter(vis);
+      }
+      const seen = new Set();
+      for (const el of navEls) {
+        const entry = linkEntry(el);
+        if (!entry) continue;
+        const key = `${entry.text}|${entry.href || ''}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        navEntries.push(entry);
+        if (navEntries.length >= navCap) break;
+      }
+    }
+
+    let linkEntries = [];
+    if (wants('links')) {
+      const navKeys = new Set(navEntries.map((x) => `${x.text}|${x.href || ''}`));
+      const all = Array.from(document.querySelectorAll('a,[role="link"]')).filter(vis)
+        .filter((a) => !a.closest('nav,[role="navigation"],[role="menubar"],[role="tablist"],header,[role="banner"]'));
+      // Compact: also surface secondary landmark links agents click (sidebar posts).
+      const secondary = compact
+        ? Array.from(document.querySelectorAll(
+            'nav a,[role="navigation"] a,[role="menubar"] a,[role="tablist"] a'
+          )).filter(vis)
+        : [];
+      const seen = new Set();
+      for (const el of [...all, ...secondary]) {
+        const entry = linkEntry(el);
+        if (!entry || !entry.href) continue;
+        const key = `${entry.text}|${entry.href}`;
+        if (navKeys.has(key) || seen.has(key)) continue;
+        seen.add(key);
+        linkEntries.push(entry);
+        if (linkEntries.length >= linkCap) break;
+      }
+    }
+
     return {
       url: location.href,
-      title: document.title,
+      title: compact ? String(document.title || '').slice(0, 80) : document.title,
       page_revision: pageRevision,
       ...(wants('headings') ? { headings: Array.from(document.querySelectorAll('h1,h2,h3')).filter(vis)
-        .map(h => ({ tag: h.tagName, text: h.innerText?.trim().slice(0, 100) })).filter(h => h.text).slice(0, 8) } : {}),
-      ...(wants('nav') ? { nav: Array.from(document.querySelectorAll('nav a,[role="navigation"] a,[role="menubar"] *,[role="tablist"] *'))
-        .filter(vis).map(a => ({ text: (a.innerText || a.getAttribute('aria-label') || '').trim().slice(0, 60), href: a.href || '' }))
-        .filter(x => x.text).slice(0, 20) } : {}),
-      ...(wants('links') ? { links: Array.from(document.querySelectorAll('a')).filter(vis)
-        .filter(a => !a.closest('nav,[role="navigation"],[role="menubar"],[role="tablist"]'))
-        .map(a => ({ text: (a.innerText || a.getAttribute('aria-label') || '').trim().slice(0, 60), href: a.href || '' }))
-        .filter(x => x.text && x.href).slice(0, 20) } : {}),
-      ...(wants('buttons') ? { buttons: Array.from(document.querySelectorAll('button,[role="button"]')).filter(vis)
-        .map(b => (b.innerText || b.getAttribute('aria-label') || '').trim().slice(0, 60)).filter(Boolean).slice(0, 15) } : {}),
+        .map(h => ({ tag: h.tagName, text: (h.innerText || '').trim().slice(0, headTextCap) }))
+        .filter(h => h.text).slice(0, headCap) } : {}),
+      ...(wants('nav') ? { nav: navEntries } : {}),
+      ...(wants('links') ? { links: linkEntries } : {}),
+      ...(wants('buttons') ? { buttons: Array.from(document.querySelectorAll(
+          'button,[role="button"],input[type=button],input[type=submit]'
+        )).filter(vis)
+        .map(b => labelOf(b)).filter(Boolean).slice(0, btnCap) } : {}),
       ...(wants('inputs') ? { inputs: Array.from(document.querySelectorAll('input,textarea,select')).filter(vis)
-        .map(el => ({ name: el.name || el.id || el.placeholder || '', type: el.type || el.tagName.toLowerCase(), value: String(el.value || '').slice(0, 60) }))
-        .filter(x => x.name).slice(0, 10) } : {})
+        .map(el => ({
+          name: (el.name || el.id || el.getAttribute('aria-label') || el.placeholder || '').slice(0, textCap),
+          type: el.type || el.tagName.toLowerCase(),
+          value: String(el.value || '').slice(0, compact ? 40 : 60),
+        }))
+        .filter(x => x.name).slice(0, inputCap) } : {}),
+      ...(compact ? { compact: true } : {}),
     };
   }
 
