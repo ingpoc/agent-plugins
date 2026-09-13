@@ -1406,9 +1406,9 @@ async function check(actions, expected) {
         source = SERVICE_WORKER.read_text()
         cursor = CURSOR_AGENT.read_text()
         manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.10")
+        self.assertEqual(manifest.get("version"), "0.1.11")
         plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
-        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.10")
+        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.11")
 
         # Lease watchable default on record + publicLease
         self.assertIn("function leaseIsWatchable", source)
@@ -1471,7 +1471,7 @@ async function check(actions, expected) {
         cursor = CURSOR_AGENT.read_text()
         worker = SERVICE_WORKER.read_text()
         manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.10")
+        self.assertEqual(manifest.get("version"), "0.1.11")
         self.assertIn("function _accessibleName", cursor)
         self.assertIn("options.compact !== false", cursor)
         self.assertIn("compact: true", cursor)
@@ -1495,20 +1495,14 @@ async function check(actions, expected) {
             branch,
         )
 
-
-
-if __name__ == "__main__":
-    unittest.main()
-
-
     def test_oncall_preflight_page_context_goto_0110(self) -> None:
-        """0.1.10: longer preflight tab-ready, url/title sections, goto final url, link prefs, navigate alias."""
+        """0.1.10 keepers (still in 0.1.11): longer tab-ready floor, url/title sections, goto final url, link prefs, navigate alias."""
         worker = SERVICE_WORKER.read_text()
         cursor = CURSOR_AGENT.read_text()
         manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.10")
+        self.assertEqual(manifest.get("version"), "0.1.11")
         plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
-        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.10")
+        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.11")
 
         wait = worker.split("async function waitForTabReady", 1)[1].split("async function setAgentIdentity", 1)[0]
         self.assertIn("lastTab", wait)
@@ -1532,3 +1526,26 @@ if __name__ == "__main__":
         self.assertIn("const linkCap = compact ? 20 : 35", pc)
         self.assertIn('main,article,[role="main"]', pc)
         self.assertIn("[...preferred, ...rest, ...secondary]", pc)
+
+    def test_oncall_preflight_soft_ready_0111(self) -> None:
+        """0.1.11: 90s default preflight + soft-ready while status=loading on controllable URL."""
+        worker = SERVICE_WORKER.read_text()
+        manifest = json.loads(MANIFEST.read_text())
+        self.assertEqual(manifest.get("version"), "0.1.11")
+        plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
+        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.11")
+
+        wait = worker.split("async function waitForTabReady", 1)[1].split("async function setAgentIdentity", 1)[0]
+        self.assertIn("SOFT_READY_MS", wait)
+        self.assertIn("stableUrl", wait)
+        self.assertIn("stableSince", wait)
+        self.assertIn('if (tab.status === "complete") return tab;', wait)
+        self.assertIn("Date.now() - stableSince >= SOFT_READY_MS", wait)
+
+        preflight = worker.split("async function sessionPreflight", 1)[1].split("async function ", 1)[0]
+        self.assertIn('boundedNumber(message.timeoutSeconds, 90, 1, 300, "timeoutSeconds")', preflight)
+        self.assertNotIn('boundedNumber(message.timeoutSeconds, 45, 1, 300, "timeoutSeconds")', preflight)
+
+
+if __name__ == "__main__":
+    unittest.main()

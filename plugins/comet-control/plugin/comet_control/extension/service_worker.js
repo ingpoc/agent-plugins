@@ -998,13 +998,31 @@ async function waitForViewportCaptureSlot() {
 }
 
 async function waitForTabReady(tabId, timeoutMs = 10000) {
+  // Soft-ready: heavy SPAs (cursor.com) can linger on status=loading after a
+  // controllable http(s) URL is already navigable. Accept complete, or a
+  // stable controllable URL held for SOFT_READY_MS while still loading.
   const deadline = Date.now() + timeoutMs;
+  const SOFT_READY_MS = 2500;
   let lastTab = null;
+  let stableUrl = "";
+  let stableSince = 0;
   while (Date.now() < deadline) {
     const tab = await chrome.tabs.get(tabId).catch(() => null);
     lastTab = tab;
     if (!tab) throw new Error("Agent-owned tab disappeared during preflight");
-    if (tab.status === "complete" && isControllableUrl(tab.url)) return tab;
+    const url = String(tab.url || "");
+    if (isControllableUrl(url)) {
+      if (tab.status === "complete") return tab;
+      if (url === stableUrl) {
+        if (Date.now() - stableSince >= SOFT_READY_MS) return tab;
+      } else {
+        stableUrl = url;
+        stableSince = Date.now();
+      }
+    } else {
+      stableUrl = "";
+      stableSince = 0;
+    }
     await sleep(100);
   }
   const status = lastTab?.status || "unknown";
@@ -1043,7 +1061,7 @@ async function setAgentIdentity(tabId, record, options = {}) {
 async function sessionPreflight(message) {
   const timeoutMs = Math.max(
     1000,
-    boundedNumber(message.timeoutSeconds, 45, 1, 300, "timeoutSeconds") * 1000 - 500
+    boundedNumber(message.timeoutSeconds, 90, 1, 300, "timeoutSeconds") * 1000 - 500
   );
   const sessionId = requireSessionId(message.sessionId);
   const deadlineAt = Date.now() + timeoutMs;
