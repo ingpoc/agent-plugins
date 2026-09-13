@@ -1130,7 +1130,8 @@
   });
 
   // ---- Init ----
-  createOverlay();
+  // Do NOT createOverlay() at startup: always-on overlay interacts badly with
+  // Comet trusted/native clicks (EXC_BREAKPOINT). moveTo() creates lazily.
 
   // Notify service worker that content script is ready
   try { chrome.runtime.sendMessage('comet-control-cursor-ready'); } catch {}
