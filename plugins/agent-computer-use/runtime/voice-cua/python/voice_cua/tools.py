@@ -13,6 +13,7 @@ from voice_cua.catalog import (
     upsert_key,
 )
 from voice_cua.cua_bridge import get_backend, get_tool_schemas, redact_for_model
+from voice_cua.comet_bridge import ALLOWED_ACTIONS, comet_act, comet_begin, comet_end, comet_is_active
 from voice_cua.inject import clipboard_paste_secret, clear_clipboard, set_clipboard
 from voice_cua.labels_tracker import labels_tracker_path, refresh_labels_tracker
 from voice_cua.keychain_access import describe_ref, enrich_items, fetch_value, list_keychain, resolve_ref
@@ -73,7 +74,7 @@ def _island_act_error(app: str, err: str) -> tuple[str, str]:
     return "Miss", app[:40] or "Action"
 
 
-def tool_definitions() -> list[dict[str, Any]]:
+def tool_definitions(*, comet_active: bool | None = None) -> list[dict[str, Any]]:
     cua = get_tool_schemas()
     act_parameters = {
         **cua["act"]["inputSchema"],
@@ -89,7 +90,7 @@ def tool_definitions() -> list[dict[str, Any]]:
             },
         },
     }
-    return [
+    tools = [
         {
             "type": "function",
             "name": "cua_state",
@@ -241,12 +242,63 @@ def tool_definitions() -> list[dict[str, Any]]:
             },
         },
     ]
+    active = comet_is_active() if comet_active is None else comet_active
+    if not active:
+        tools.append({
+            "type": "function",
+            "name": "comet_begin",
+            "description": "Start a new isolated visible Comet lease for one browser task. Use only for web-page work.",
+            "parameters": {
+                "type": "object",
+                "properties": {"url": {"type": "string", "description": "Initial http(s) URL"}},
+                "required": ["url"],
+            },
+        })
+    else:
+        tools.extend([
+            {
+                "type": "function",
+                "name": "comet_act",
+                "description": (
+                    "Run one batch in the active isolated Comet lease. Common actions: page_context; "
+                    "goto {url}; click_text {text}; click_selector {selector}; fill_selector "
+                    "{selector,value}; wait_for_selector; wait_for_url_change; screenshot {format:'png'}."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "actions": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {"type": {"type": "string", "enum": sorted(ALLOWED_ACTIONS)}},
+                                "required": ["type"],
+                            },
+                            "minItems": 1,
+                        },
+                        "timeout": {"type": "number", "minimum": 1, "maximum": 90},
+                        "risky": {"type": "boolean", "description": "Confirm before irreversible or external actions"},
+                    },
+                    "required": ["actions"],
+                },
+            },
+            {
+                "type": "function",
+                "name": "comet_end",
+                "description": "Close the active Comet lease after the browser task is complete or abandoned.",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        ])
+    return tools
 
 
 def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     handlers = {
         "cua_state": _cua_state,
         "cua_act": _cua_act,
+        "comet_begin": _comet_begin,
+        "comet_act": _comet_act,
+        "comet_end": _comet_end,
         "confirm_risky": _confirm_risky,
         "secrets_list": _secrets_list,
         "secrets_label": _secrets_label,
@@ -295,8 +347,11 @@ def _looks_risky(args: dict[str, Any]) -> bool:
         for k in ("label", "text", "key", "step_label", "expect")
     ).lower()
     steps = args.get("steps")
-    if isinstance(steps, list):
-        for s in steps:
+    action_groups = [steps, args.get("actions")]
+    for group in action_groups:
+        if not isinstance(group, list):
+            continue
+        for s in group:
             if isinstance(s, dict):
                 blob += " " + " ".join(str(v) for v in s.values()).lower()
     return any(h in blob for h in RISKY_HINTS)
@@ -328,6 +383,33 @@ def _cua_act(args: dict[str, Any]) -> dict[str, Any]:
         island_publish("error", title=title, app=app, step=step, detail=detail)
         _schedule_listening_reset()
     return out
+
+
+def _comet_begin(args: dict[str, Any]) -> dict[str, Any]:
+    island_publish("acting", title="Opening Comet", detail="Isolated browser task")
+    result = comet_begin(str(args.get("url") or ""))
+    island_publish("done" if result.get("ok") else "error", title="Comet ready" if result.get("ok") else "Comet unavailable", detail="Isolated lease")
+    return result
+
+
+def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
+    actions = args.get("actions")
+    if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
+        return {"ok": False, "error": "actions must be an array of objects"}
+    if _looks_risky(args):
+        approved = island_confirm(str(uuid.uuid4()), "Allow this browser action in Comet?")
+        if not approved:
+            return {"ok": False, "error": "user denied", "confirmed": False}
+    island_publish("driving", title="Driving Comet", detail="Browser task")
+    result = comet_act(actions, timeout=max(1.0, min(90.0, float(args.get("timeout") or 45))))
+    island_publish("done" if result.get("ok") else "error", title="Comet done" if result.get("ok") else "Comet miss", detail="Browser task")
+    return result
+
+
+def _comet_end(_args: dict[str, Any]) -> dict[str, Any]:
+    result = comet_end()
+    island_publish("done" if result.get("ok") else "error", title="Comet closed" if result.get("ok") else "Closeout failed", detail="Isolated lease")
+    return result
 
 
 def _confirm_risky(args: dict[str, Any]) -> dict[str, Any]:

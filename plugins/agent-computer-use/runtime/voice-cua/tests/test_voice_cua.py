@@ -27,6 +27,7 @@ from voice_cua.catalog import (  # noqa: E402
     upsert_key,
 )
 from voice_cua.cua_bridge import redact_for_model  # noqa: E402
+from voice_cua.comet_bridge import CometLease, _run_json  # noqa: E402
 from voice_cua.inventory import build_inventory, find_by_label  # noqa: E402
 from voice_cua.island_state import IslandBus  # noqa: E402
 from voice_cua.audio_io import FRAME_BYTES, BLOCKSIZE, SpeakerPlayer  # noqa: E402
@@ -184,11 +185,68 @@ class ToolsTests(unittest.TestCase):
                 "secrets_put",
                 "secrets_inject",
                 "secrets_provide",
+                "comet_begin",
             },
         )
         for n in names:
             self.assertNotIn("cursor", n.lower())
             self.assertNotIn("grok", n.lower())
+
+    def test_comet_tools_are_loaded_only_for_an_active_lease(self) -> None:
+        idle = {tool["name"] for tool in tool_definitions(comet_active=False)}
+        active = {tool["name"] for tool in tool_definitions(comet_active=True)}
+        self.assertIn("comet_begin", idle)
+        self.assertNotIn("comet_act", idle)
+        self.assertNotIn("comet_begin", active)
+        self.assertTrue({"comet_act", "comet_end"}.issubset(active))
+
+    def test_comet_browser_tasks_use_fresh_isolated_leases(self) -> None:
+        bridge = CometLease()
+        responses = [
+            {
+                "success": True,
+                "broker": {
+                    "runtime_verified": True,
+                    "extension_connected": True,
+                    "python_executable": "/usr/bin/true",
+                    "socket_path": "/tmp/comet.sock",
+                },
+            },
+            {"ok": True},
+            {"event": "closeout", "response": {"success": True}},
+            {
+                "success": True,
+                "broker": {
+                    "runtime_verified": True,
+                    "extension_connected": True,
+                    "python_executable": "/usr/bin/true",
+                    "socket_path": "/tmp/comet.sock",
+                },
+            },
+            {"ok": True},
+            {"event": "closeout", "response": {"success": True}},
+        ]
+        with (
+            patch("voice_cua.comet_bridge._runtime_root", return_value=Path("/plugin")),
+            patch("voice_cua.comet_bridge._run_json", side_effect=responses),
+        ):
+            first = bridge.begin("https://example.com/one")
+            self.assertTrue(first["ok"])
+            self.assertTrue(bridge.end()["ok"])
+            second = bridge.begin("https://example.com/two")
+            self.assertTrue(second["ok"])
+            self.assertNotEqual(first["session_id"], second["session_id"])
+            self.assertTrue(bridge.end()["ok"])
+
+    def test_comet_bridge_reads_pretty_json_controller_output(self) -> None:
+        completed = Mock(returncode=0, stdout='{\n  "ok": true\n}\n', stderr="")
+        with patch("voice_cua.comet_bridge.subprocess.run", return_value=completed):
+            self.assertEqual(_run_json(["controller"], timeout=1), {"ok": True})
+
+    def test_comet_bridge_rejects_raw_cdp(self) -> None:
+        result = CometLease().act([{"type": "cdp_send", "method": "Runtime.evaluate"}])
+        self.assertFalse(result["ok"])
+        self.assertIn("unsupported Comet action", result["error"])
 
     def test_redact_screenshots(self) -> None:
         out = redact_for_model({
@@ -253,7 +311,10 @@ class AudioIOTests(unittest.TestCase):
         ):
             upd = build_session_update()
         self.assertEqual(upd["session"]["type"], "realtime")
+        self.assertEqual(upd["session"]["reasoning"], {"effort": "low"})
+        self.assertFalse(upd["session"]["parallel_tool_calls"])
         self.assertIn("audio", upd["session"])
+        self.assertNotIn("transcription", upd["session"]["audio"]["input"])
         td = upd["session"]["audio"]["input"]["turn_detection"]
         self.assertEqual(td["type"], "semantic_vad")
         self.assertEqual(td["eagerness"], "low")
@@ -346,6 +407,36 @@ class AudioIOTests(unittest.TestCase):
             session._finish_response("resp_active")
             deadline = time.monotonic() + 1
             while time.monotonic() < deadline and len(session.ws.events) < 2:
+                time.sleep(0.01)
+        self.assertEqual(session.ws.events[-1]["type"], "response.create")
+
+    def test_comet_begin_lazy_loads_browser_tools_before_followup(self) -> None:
+        class FakeWS:
+            def __init__(self):
+                self.events = []
+
+            def send(self, raw):
+                self.events.append(json.loads(raw))
+
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        with session._response_condition:
+            session._active_response_ids.add("resp_active")
+        with patch("voice_cua.realtime_session.dispatch", return_value={"ok": True}):
+            session._run_tool("call_comet", "comet_begin", '{"url":"https://example.com"}')
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline and len(session.ws.events) < 2:
+                time.sleep(0.01)
+            self.assertEqual(
+                [event["type"] for event in session.ws.events],
+                ["conversation.item.create", "session.update"],
+            )
+            names = {tool["name"] for tool in session.ws.events[-1]["session"]["tools"]}
+            self.assertNotIn("comet_begin", names)
+            self.assertTrue({"comet_act", "comet_end"}.issubset(names))
+            session._finish_response("resp_active")
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline and len(session.ws.events) < 3:
                 time.sleep(0.01)
         self.assertEqual(session.ws.events[-1]["type"], "response.create")
 

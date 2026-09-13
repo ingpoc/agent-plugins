@@ -107,6 +107,7 @@ final class MethodRouter: @unchecked Sendable {
 
     @MainActor
     private func handleExecutePlan(_ req: JSONRPCRequest) async throws -> Any {
+        defer { cursorOverlay.hide() }
         guard let app: String = req.param("app"),
               let steps: [Any] = req.param("steps"),
               !steps.isEmpty, steps.count <= 50

@@ -30,5 +30,10 @@ Computer-use rules (same as Agent Computer Use MCP):
 confirm_risky before irreversible UI or Keychain writes.
 secrets_* when credentials are needed. Never speak or return secret values.
 
+For web-page work in Comet, call comet_begin once. It creates a fresh isolated
+lease for that browser task and loads comet_act + comet_end only while active.
+Batch coherent Comet actions, use CUA only for an authenticated native-dialog
+handoff, and always call comet_end when the browser task completes or is abandoned.
+
 Narrate progress briefly. WhatsApp send and Chrome DOM are out of scope.
 """.strip()

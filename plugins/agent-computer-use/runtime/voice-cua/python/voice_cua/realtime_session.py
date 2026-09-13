@@ -20,6 +20,7 @@ from voice_cua import SYSTEM_INSTRUCTIONS
 from voice_cua.auth import resolve_openai_api_key
 from voice_cua.activity_log import log_event
 from voice_cua.cua_bridge import hide_agent_cursor
+from voice_cua.comet_bridge import comet_end
 from voice_cua.island_facade import island_publish
 from voice_cua.startup_trace import mark
 from voice_cua.tools import dispatch, tool_definitions
@@ -65,7 +66,7 @@ def _ws_url() -> str:
     return f"wss://api.openai.com/v1/realtime?model={model}"
 
 
-def build_session_update(*, text_only: bool = False) -> dict[str, Any]:
+def build_session_update(*, text_only: bool = False, comet_active: bool = False) -> dict[str, Any]:
     """GA Realtime session.update (beta header/shape retired 2026)."""
     _, voice = _model_and_voice()
     eagerness = os.environ.get("VOICE_CUA_EAGERNESS") or load_settings()["eagerness"]
@@ -73,14 +74,15 @@ def build_session_update(*, text_only: bool = False) -> dict[str, Any]:
         "type": "realtime",
         "output_modalities": ["text"] if text_only else ["audio"],
         "instructions": SYSTEM_INSTRUCTIONS,
-        "tools": tool_definitions(),
+        "tools": tool_definitions(comet_active=comet_active),
         "tool_choice": "auto",
+        "parallel_tool_calls": False,
+        "reasoning": {"effort": "low"},
     }
     if not text_only:
         session["audio"] = {
             "input": {
                 "format": {"type": "audio/pcm", "rate": REALTIME_SAMPLE_RATE},
-                "transcription": {"model": "gpt-4o-mini-transcribe"},
                 "turn_detection": turn_detection_config(eagerness),
                 "noise_reduction": noise_reduction_config(),
             },
@@ -308,6 +310,15 @@ class RealtimeSession:
                         "output": json.dumps(result),
                     },
                 })
+                if result.get("ok") and name in {"comet_begin", "comet_end"}:
+                    self._send({
+                        "type": "session.update",
+                        "session": {
+                            "type": "realtime",
+                            "tools": tool_definitions(comet_active=name == "comet_begin"),
+                            "tool_choice": "auto",
+                        },
+                    })
                 if self._wait_for_responses_idle(timeout=10.0):
                     self._send_response_create(request_id=request_id)
                 else:
@@ -340,6 +351,7 @@ class RealtimeSession:
 
         unregister(self)
         hide_agent_cursor()
+        comet_end()
         self._stop.set()
         with self._response_lock:
             request_ids = list(self._text_waiters)

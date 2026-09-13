@@ -587,6 +587,12 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "known filesystem targets must not become Finder searches or replayable multi-RPC action chains",
     )
     add(
+        "native plans always hide the agent cursor",
+        "private func handleExecutePlan" in method_router
+        and "defer { cursorOverlay.hide() }" in method_router,
+        "the overlay must close after every completed or failed act",
+    )
+    add(
         "session-shape benchmark encodes two wall clocks",
         (scripts / "bench_session_shape.py").is_file()
         and "within_app_act_first" in (scripts / "bench_session_shape.py").read_text()
