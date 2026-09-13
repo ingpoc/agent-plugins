@@ -137,10 +137,10 @@ python3 skills/comet-control/scripts/durable_lease_controller.py send --workdir 
   '{"actions":[{"type":"page_context"}]}'
 ```
 
-**Recovery (LinkedIn SPA remount):** Prefer Me → Sign out over `linkedin.com/m/logout/` mid-campaign. If Comet Control returns `Content script missing after SPA remount`, wait for the page to settle (`cua_slice` `expect` on visible chrome) then `page_context` again; use `reload_page` alone only if still wedged. Do not treat remount errors as permission to open a new lease.
+**Recovery (LinkedIn SPA remount):** Pause compose; hand the same lease id + error to Agent Computer Use. Rule out an open JS dialog, then assert the first recovery batch is nav-only `reload_page`/`goto`, never identity-injecting reads or mutations. Read page state separately after recovery. Never mint a second session.
 
 **Hand to macos-cua (comet-admin):** close every lease first →
-`--browser-intent comet-admin` → re-probe → new lease if needed.
+`--browser-intent comet-admin` → re-probe → restore the same session; stay paused if restoration fails.
 Extension Load unpacked / reload: [`extension-install.md`](extension-install.md).
 
 To inspect the boundary without acquiring it:

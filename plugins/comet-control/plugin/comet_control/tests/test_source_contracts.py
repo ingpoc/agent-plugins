@@ -24,6 +24,79 @@ MANIFEST = ROOT / "extension" / "manifest.json"
 
 
 class SourceContractTests(unittest.TestCase):
+    def test_attached_viewport_capture_avoids_tabs_quota(self):
+        source = SERVICE_WORKER.read_text()
+        branch = source.split('  if (type === "screenshot") {', 1)[1].split('  if (type === "zoom") {', 1)[0]
+        harness = r'''
+const assert = require('node:assert/strict');
+async function check(attached, override, expectedSource) {
+  let tabsCalls = 0, cdpCalls = 0;
+  const state = {tabId: 7, deviceMetricsOverrideActive: override};
+  const action = {format:'png'}, type = 'screenshot';
+  const attachedTabs = new Set(attached ? [7] : []);
+  const chrome = {
+    tabs: {get: async () => ({windowId:3}), update: async () => {}, query: async () => [{id:7}]},
+    debugger: {sendCommand: async (target, method) => {
+      assert.equal(target.tabId,7); assert.equal(method,'Page.captureScreenshot');
+      cdpCalls++; return {data:'fresh-image'};
+    }}
+  };
+  const enqueueViewportCapture = fn => fn();
+  const waitForViewportCaptureSlot = async () => {};
+  const captureVisibleTabBounded = async () => {tabsCalls++; return 'data:image/png;base64,tabs-image';};
+  const sendToContentScript = async () => {}, ensureAttached = async () => {};
+  const withTimeout = async promise => promise, VIEWPORT_CAPTURE_MS = 8000;
+  const run = async () => { BODY;
+  const result = await run();
+  assert.equal(result.source, expectedSource);
+  assert.equal(tabsCalls, attached || override ? 0 : 1);
+  assert.equal(cdpCalls, attached || override ? 1 : 0);
+}
+(async () => {
+  await check(true, false, 'cdp.Page.captureScreenshot');
+  await check(false, false, 'tabs.captureVisibleTab');
+  await check(false, true, 'cdp.Page.captureScreenshot');
+})().catch(e => {console.error(e); process.exit(1);});
+'''.replace('BODY', branch)
+        result = subprocess.run(['node', '-e', harness], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_page_context_exposes_visible_content_links_for_locator_planning(self) -> None:
+        source = CURSOR_AGENT.read_text()
+        start = source.index("  function getPageContext()")
+        end = source.index("  function flashLabel", start)
+        function = source[start:end]
+        harness = r'''
+const assert = require('node:assert/strict');
+const location = {href: 'https://example.test/'};
+const contentLink = {innerText: 'Learn more', href: 'https://example.test/help', closest: () => null};
+const navLink = {innerText: 'Home', href: 'https://example.test/home', closest: () => ({})};
+const document = {
+  title: 'Fixture',
+  querySelectorAll(selector) {
+    if (selector === 'a') return [navLink, contentLink];
+    if (selector === 'h1,h2,h3') return [{tagName: 'H1', innerText: 'Fixture'}];
+    return [];
+  },
+};
+const _isVisible = () => true;
+const pageRevision = 4;
+FUNCTION
+const page = getPageContext();
+assert.deepEqual(page.links, [{text: 'Learn more', href: 'https://example.test/help'}]);
+'''.replace('FUNCTION', function)
+        result = subprocess.run(["node", "-e", harness], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        link_start = function.index("      links: Array.from")
+        link_end = function.index("      buttons:", link_start)
+        mutant = function[:link_start] + "      links: [],\n" + function[link_end:]
+        result = subprocess.run(
+            ["node", "-e", harness.replace(function, mutant)],
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(result.returncode, 0, "link discovery regression escaped probe")
+
     def test_remount_navigation_skips_identity_and_mutation_is_caught(self):
         source = SERVICE_WORKER.read_text()
         start = source.index("    const navigationOnly =")
@@ -319,9 +392,11 @@ async function check(actions, expected) {
         self.assertIn(verify, branch)
         self.assertIn(capture, branch)
         self.assertIn(fallback, branch)
+        self.assertIn('const useAttachedCapture = attachedTabs.has(state.tabId);', branch)
+        self.assertLess(branch.index('const useAttachedCapture ='), branch.index(activate))
         self.assertIn('"Page.captureScreenshot"', branch)
         self.assertIn('/image readback failed/i', branch)
-        self.assertIn('for (let attempt = 0; attempt < 2 && !state.deviceMetricsOverrideActive; attempt += 1)', branch)
+        self.assertIn('for (let attempt = 0; attempt < 2 && !state.deviceMetricsOverrideActive && !useAttachedCapture; attempt += 1)', branch)
         self.assertLess(branch.index(activate), branch.index(capture))
         self.assertLess(branch.index(verify), branch.index(capture))
         self.assertLess(branch.index(capture), branch.index(fallback))
@@ -348,7 +423,7 @@ async function check(actions, expected) {
             screenshot.index("if (state.deviceMetricsOverrideActive)"),
             screenshot.index("captureVisibleTabBounded(leasedTab.windowId, options)"),
         )
-        self.assertIn("for (let attempt = 0; attempt < 2 && !state.deviceMetricsOverrideActive; attempt += 1)", screenshot)
+        self.assertIn("for (let attempt = 0; attempt < 2 && !state.deviceMetricsOverrideActive && !useAttachedCapture; attempt += 1)", screenshot)
         self.assertIn('"Page.captureScreenshot"', screenshot)
         self.assertIn("cdp.Page.captureScreenshot", screenshot)
         self.assertIn("lastVisibleTabCaptureFingerprint", screenshot)

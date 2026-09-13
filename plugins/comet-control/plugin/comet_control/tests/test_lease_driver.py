@@ -14,6 +14,8 @@ import time
 import unittest
 from typing import Any
 
+from websockets.sync.client import connect
+
 
 ROOT = Path(__file__).resolve().parents[3]
 DRIVER_PATH = ROOT / "skills" / "comet-control" / "scripts" / "lease_driver.py"
@@ -73,18 +75,34 @@ class FakeBridge:
                 "tab_id": tab_id,
             }
         if request_type == "run":
+            action = (request.get("actions") or [{}])[0]
+            if action.get("type") == "cdp_events":
+                result = {
+                    "type": "cdp_events",
+                    "cursor": 0,
+                    "events": [],
+                    "has_more": False,
+                }
+            elif action.get("type") == "browser_use_cdp":
+                result = {
+                    "type": "browser_use_cdp",
+                    "method": action.get("method"),
+                    "result": {},
+                }
+            else:
+                result = {
+                    "type": "page_context",
+                    "url": "https://example.com/",
+                    "title": "Example Domain",
+                    "nested": {"leaseToken": SECRET},
+                    "message": f"private={SECRET}",
+                }
             return {
                 "success": True,
                 "session_id": request.get("sessionId"),
                 "window_id": 10,
                 "tab_id": 20,
-                "results": [
-                    {
-                        "type": "page_context",
-                        "nested": {"leaseToken": SECRET},
-                        "message": f"private={SECRET}",
-                    }
-                ],
+                "results": [result],
             }
         if request_type == "session_renew":
             self.renew_entered.set()
@@ -171,11 +189,17 @@ class FakeBridge:
 
     def count(self, request_type: str) -> int:
         with self._lock:
-            return sum(1 for request in self.requests if request.get("type") == request_type)
+            return sum(
+                1 for request in self.requests if request.get("type") == request_type
+            )
 
     def last(self, request_type: str) -> dict[str, Any]:
         with self._lock:
-            matches = [request for request in self.requests if request.get("type") == request_type]
+            matches = [
+                request
+                for request in self.requests
+                if request.get("type") == request_type
+            ]
         if not matches:
             raise AssertionError(f"no {request_type} request recorded")
         return matches[-1]
@@ -231,7 +255,11 @@ class LeaseDriverTests(unittest.TestCase):
         self.bridge.close()
 
     def start_driver(
-        self, *, renew_interval: float | None = None, ttl_seconds: int = 360
+        self,
+        *,
+        renew_interval: float | None = None,
+        ttl_seconds: int = 360,
+        browser_use_env_file: Path | None = None,
     ) -> subprocess.Popen[str]:
         command = [
             sys.executable,
@@ -251,6 +279,8 @@ class LeaseDriverTests(unittest.TestCase):
         ]
         if renew_interval is not None:
             command.extend(["--renew-interval-seconds", str(renew_interval)])
+        if browser_use_env_file is not None:
+            command.extend(["--browser-use-env-file", str(browser_use_env_file)])
         return subprocess.Popen(
             command,
             stdin=subprocess.PIPE,
@@ -294,8 +324,14 @@ class LeaseDriverTests(unittest.TestCase):
             payload = json.loads(line)
             if payload.get("event") == expected:
                 return payload
-        stderr = process.stderr.read() if process.poll() is not None and process.stderr else ""
-        self.fail(f"missing {expected} event; returncode={process.poll()} stderr={stderr}")
+        stderr = (
+            process.stderr.read()
+            if process.poll() is not None and process.stderr
+            else ""
+        )
+        self.fail(
+            f"missing {expected} event; returncode={process.poll()} stderr={stderr}"
+        )
 
     def test_recursive_redaction_and_per_command_timeout(self) -> None:
         process = self.start_driver()
@@ -459,6 +495,27 @@ class LeaseDriverTests(unittest.TestCase):
         self.assertEqual(self.bridge.count("session_preflight"), 1)
         self.assertEqual(self.bridge.count("session_closeout"), 1)
 
+    def test_browser_use_bridge_is_ready_without_exposing_its_capability(self) -> None:
+        env_file = Path(self.bridge.tempdir.name) / "browser-use.env"
+        process = self.start_driver(renew_interval=1, browser_use_env_file=env_file)
+        ready = self.read_event(process, "ready")
+        self.assertEqual(ready["browser_use"]["cdp_env_file"], str(env_file))
+        self.assertNotIn("ws://", json.dumps(ready))
+        ws_url = env_file.read_text().split("BU_CDP_WS=", 1)[1].splitlines()[0]
+        with connect(ws_url) as websocket:
+            websocket.send(json.dumps({"id": 1, "method": "Target.getTargets"}))
+            targets = json.loads(websocket.recv())["result"]["targetInfos"]
+            self.assertEqual(
+                [target["url"] for target in targets], ["https://example.com/"]
+            )
+        assert process.stdin is not None
+        process.stdin.write('{"command":"closeout"}\n')
+        process.stdin.flush()
+        self.assertTrue(self.read_event(process, "closeout")["response"]["success"])
+        process.stdin.close()
+        self.assertEqual(process.wait(timeout=5), 0)
+        self.close_process_streams(process)
+
     def test_controller_command_id_is_returned_only_on_its_reply(self) -> None:
         process = self.start_driver(renew_interval=1)
         self.read_event(process, "ready")
@@ -540,9 +597,7 @@ class LeaseDriverTests(unittest.TestCase):
                 process.wait(timeout=5)
             self.close_process_streams(process)
 
-        request_types = [
-            request.get("type") for request in self.bridge.snapshot()
-        ]
+        request_types = [request.get("type") for request in self.bridge.snapshot()]
         self.assertEqual(request_types.count("session_preflight"), 1)
         self.assertEqual(request_types.count("session_closeout"), 1)
         self.assertEqual(request_types[-1], "session_closeout")
@@ -571,7 +626,9 @@ class LeaseDriverTests(unittest.TestCase):
         process.stdin.flush()
         resumed = self.read_event(process, "run")
         self.assertTrue(resumed["response"]["success"])
-        self.assertEqual(resumed["response"]["session_id"], ready["lease"]["session_id"])
+        self.assertEqual(
+            resumed["response"]["session_id"], ready["lease"]["session_id"]
+        )
         self.assertEqual(resumed["response"]["window_id"], ready["lease"]["window_id"])
         self.assertEqual(resumed["response"]["tab_id"], ready["lease"]["tab_id"])
 

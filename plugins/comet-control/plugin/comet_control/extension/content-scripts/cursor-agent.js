@@ -218,9 +218,12 @@
   // target. What is seen and what is clicked therefore always agree.
   const GLIDE_MS = 320;
   let arrivalTimer = null;
+  let arrivalDeadline = 0;
 
   function moveTo(x, y) {
     if (!cursorEl) createOverlay();
+    if (isVisible && cursorX === x && cursorY === y) return;
+    arrivalDeadline = performance.now() + GLIDE_MS + 40;
     cursorX = x;
     cursorY = y;
     if (!isVisible) {
@@ -242,8 +245,17 @@
     // Logical position is already at the target; wait only for the visible glide
     // so the operator sees the cursor arrive before the click. setTimeout (not
     // rAF) resolves promptly even in a backgrounded tab.
-    const wait = Math.min(GLIDE_MS + 40, Math.max(0, timeoutMs));
+    const wait = Math.min(Math.max(0, arrivalDeadline - performance.now()), Math.max(0, timeoutMs));
     return new Promise((resolve) => setTimeout(() => resolve(getStatus()), wait));
+  }
+
+  function pulseClick() {
+    cursorPhase = 'clicking';
+    pointerEl?.classList.add('comet-control-clicking');
+    setTimeout(() => {
+      cursorPhase = 'idle';
+      pointerEl?.classList.remove('comet-control-clicking');
+    }, 140);
   }
 
   function _clickTextValue(el) {
@@ -933,6 +945,10 @@
       nav: Array.from(document.querySelectorAll('nav a,[role="navigation"] a,[role="menubar"] *,[role="tablist"] *'))
         .filter(vis).map(a => ({ text: (a.innerText || a.getAttribute('aria-label') || '').trim().slice(0, 60), href: a.href || '' }))
         .filter(x => x.text).slice(0, 20),
+      links: Array.from(document.querySelectorAll('a')).filter(vis)
+        .filter(a => !a.closest('nav,[role="navigation"],[role="menubar"],[role="tablist"]'))
+        .map(a => ({ text: (a.innerText || a.getAttribute('aria-label') || '').trim().slice(0, 60), href: a.href || '' }))
+        .filter(x => x.text && x.href).slice(0, 20),
       buttons: Array.from(document.querySelectorAll('button,[role="button"]')).filter(vis)
         .map(b => (b.innerText || b.getAttribute('aria-label') || '').trim().slice(0, 60)).filter(Boolean).slice(0, 15),
       inputs: Array.from(document.querySelectorAll('input,textarea,select')).filter(vis)
@@ -1060,7 +1076,7 @@
 
   // ---- Message Listener (from service worker) ----
   const actions = {
-    moveTo, moveToAndWait, click, tripleClick, rightClick, dblClick,
+    moveTo, moveToAndWait, pulseClick, click, tripleClick, rightClick, dblClick,
     focusAndType, keyPress, showKey, dragTo, scroll,
     getVisibleText, getDOMSnapshot, getPageContext,
     findPointBySelector, findPointByText, hasSelector,

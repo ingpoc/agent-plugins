@@ -57,7 +57,17 @@ ambiguous; do not pull all matches by default.
 ## Runtime-safe evaluation and CDP
 
 `evaluate` is read-only at runtime through CDP `throwOnSideEffect`; mutation
-attempts fail and leave page state unchanged.
+attempts fail with `EvalError: Possible side-effect in debug-evaluate` and leave
+page state unchanged.
+
+Keep expressions pure reads:
+
+- Prefer `root.contains(node)` over writers or ambiguous getters when classifying
+  ancestry.
+- Scope queries to a known root. Do not scan `document.querySelectorAll('span,div')`
+  across the whole page for a short label.
+- Do not call `click()`, assign to DOM properties, or build nodes inside
+  `evaluate`. Use locator / `cdp_send Input.*` for mutation.
 
 Use raw CDP only for developer diagnostics that lack a higher-level action:
 

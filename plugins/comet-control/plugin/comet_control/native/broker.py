@@ -88,6 +88,7 @@ active_extension_generation = 0
 active_extension_info: dict[str, Any] = {}
 active_extension_connected_at = 0.0
 pairing_lock = threading.Lock()
+pairing_repair_used = False
 _VISUAL_LOCK_MODULE = None
 visual_module_lock = threading.Lock()
 _cua_claim_public: dict[str, Any] | None = None
@@ -260,6 +261,31 @@ def _accept_pairing_secret(secret: Any) -> bool:
         return True
 
 
+def _repair_pairing_after_extension_reload() -> bool:
+    """Allow one safe TOFU repair when a reloaded exact-origin extension rotated storage.
+
+    The broker still verifies the Comet executable/profile and exact extension origin
+    before this is reached. Limit repair to a single broker lifetime and never replace
+    a pairing while another extension connection is live. This handles extension
+    storage reset/reload without weakening the origin or runtime gates.
+    """
+    global pairing_repair_used
+    with pairing_lock, extension_connection_lock:
+        if pairing_repair_used or active_extension is not None:
+            return False
+        if not PAIRING_PATH.exists():
+            return False
+        backup = PAIRING_PATH.with_name(
+            f"{PAIRING_PATH.name}.stale-{int(time.time() * 1000)}"
+        )
+        try:
+            PAIRING_PATH.replace(backup)
+        except OSError:
+            return False
+        pairing_repair_used = True
+        return True
+
+
 def _validate_extension_hello(raw: Any) -> dict[str, Any]:
     if not isinstance(raw, str) or len(raw.encode("utf-8")) > 64 * 1024:
         raise ValueError("invalid extension hello size")
@@ -426,7 +452,13 @@ def extension_connection(websocket: ServerConnection) -> None:
         websocket.close(code=1008, reason="Comet runtime not verified")
         return
     try:
-        info = _validate_extension_hello(websocket.recv(timeout=45))
+        raw_hello = websocket.recv(timeout=45)
+        try:
+            info = _validate_extension_hello(raw_hello)
+        except ValueError as exc:
+            if str(exc) != "extension pairing mismatch" or not _repair_pairing_after_extension_reload():
+                raise
+            info = _validate_extension_hello(raw_hello)
     except (ConnectionClosed, TimeoutError, ValueError, json.JSONDecodeError):
         websocket.close(code=1008, reason="Comet Control handshake rejected")
         return

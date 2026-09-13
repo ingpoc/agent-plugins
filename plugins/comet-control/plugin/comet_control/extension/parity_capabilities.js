@@ -441,6 +441,8 @@ function keyDefinition(value) {
     ArrowUp: { key: "ArrowUp", code: "ArrowUp", windowsVirtualKeyCode: 38 },
     ArrowLeft: { key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 },
     ArrowRight: { key: "ArrowRight", code: "ArrowRight", windowsVirtualKeyCode: 39 },
+    End: { key: "End", code: "End", windowsVirtualKeyCode: 35 },
+    Home: { key: "Home", code: "Home", windowsVirtualKeyCode: 36 },
     Space: { key: " ", code: "Space", windowsVirtualKeyCode: 32 },
   };
   return map[key] || { key, code: key.length === 1 ? `Key${key.toUpperCase()}` : key, text: key.length === 1 ? key : undefined };
@@ -456,6 +458,19 @@ export async function pressKey(send, tabId, value, modifiers = []) {
   if (modifierBits) delete params.text;
   await send(tabId, "Input.dispatchKeyEvent", { type: "keyDown", ...params });
   await send(tabId, "Input.dispatchKeyEvent", { type: "keyUp", ...params, text: undefined });
+}
+
+async function activeElementIsInside(tabId, match) {
+  const values = await chrome.scripting.executeScript({
+    target: { tabId, frameIds: [match.frame_id] },
+    func: (selector) => {
+      const el = document.querySelector(selector);
+      const active = document.activeElement;
+      return Boolean(el && active && (el === active || el.contains(active)));
+    },
+    args: [match.selector],
+  });
+  return Boolean(values?.[0]?.result);
 }
 
 async function locatorAction(action, state, hooks) {
@@ -519,33 +534,47 @@ async function locatorAction(action, state, hooks) {
   } else if (operation === "fill" || operation === "type") {
     if (operation === "fill") {
       const fillValue = String(action.value ?? action.text ?? "");
-      const filled = await chrome.scripting.executeScript({
-        target: { tabId: state.tabId, frameIds: [match.frame_id] },
-        func: (selector, value) => {
-          const element = document.querySelector(selector);
-          if (!element) throw new Error("Locator fill target disappeared");
-          element.focus();
-          if (element instanceof HTMLInputElement) {
-            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, value);
-          } else if (element instanceof HTMLTextAreaElement) {
-            Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(element, value);
-          } else if (element.isContentEditable) {
-            element.textContent = value;
-          } else {
-            throw new Error("Locator fill target is not editable");
-          }
-          element.dispatchEvent(new Event("input", { bubbles: true }));
-          element.dispatchEvent(new Event("change", { bubbles: true }));
-          return "value" in element ? element.value : element.textContent;
+      if (typeof hooks.executeScriptOnTab !== "function") {
+        throw new Error("Locator fill requires bounded executeScriptOnTab");
+      }
+      const filled = await hooks.executeScriptOnTab(
+        state.tabId,
+        {
+          target: { tabId: state.tabId, frameIds: [match.frame_id] },
+          func: (selector, value) => {
+            const element = document.querySelector(selector);
+            if (!element) throw new Error("Locator fill target disappeared");
+            element.focus();
+            if (element instanceof HTMLInputElement) {
+              Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(element, value);
+            } else if (element instanceof HTMLTextAreaElement) {
+              Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set?.call(element, value);
+            } else if (element.isContentEditable) {
+              element.textContent = value;
+            } else {
+              throw new Error("Locator fill target is not editable");
+            }
+            element.dispatchEvent(new Event("input", { bubbles: true }));
+            element.dispatchEvent(new Event("change", { bubbles: true }));
+            return "value" in element ? element.value : element.textContent;
+          },
+          args: [match.selector, fillValue],
         },
-        args: [match.selector, fillValue],
-      });
+        8000,
+        "locatorFill"
+      );
       return { type: "locator", operation, match, value: filled?.[0]?.result ?? null };
     }
-    await dispatchMouse(hooks.send, state.tabId, match.point, 1);
+    const typeFocused = await activeElementIsInside(state.tabId, match);
+    if (!typeFocused) {
+      await dispatchMouse(hooks.send, state.tabId, match.point, 1);
+    }
     await hooks.send(state.tabId, "Input.insertText", { text: String(action.value ?? action.text ?? "") });
   } else if (operation === "press") {
-    await dispatchMouse(hooks.send, state.tabId, match.point, 1);
+    const focused = await activeElementIsInside(state.tabId, match);
+    if (!focused) {
+      await dispatchMouse(hooks.send, state.tabId, match.point, 1);
+    }
     await pressKey(hooks.send, state.tabId, action.key || action.value, action.modifiers || []);
   } else if (["check", "uncheck", "set_checked"].includes(operation)) {
     const desired = operation === "check" ? true : operation === "uncheck" ? false : Boolean(action.checked ?? action.value);
@@ -651,11 +680,26 @@ function permittedCdpMethod(method) {
     "DOM.enable", "DOM.disable", "DOM.getDocument", "DOM.getOuterHTML", "DOM.getAttributes",
     "DOM.querySelector", "DOM.querySelectorAll", "DOM.performSearch", "DOM.getSearchResults",
     "DOM.discardSearchResults", "DOM.describeNode", "DOM.resolveNode", "DOM.requestNode",
+    "Input.insertText",
     "CSS.enable", "CSS.disable", "Performance.enable", "Performance.disable", "Performance.getMetrics",
     "Log.enable", "Log.disable", "Accessibility.enable", "Accessibility.disable",
     "Accessibility.getFullAXTree", "Accessibility.getPartialAXTree",
   ]);
   return exact.has(method) || /^(Page|DOM|CSS|Accessibility|Debugger)\.get[A-Z]/.test(method);
+}
+
+function permittedBrowserUseCdpMethod(method) {
+  const domain = String(method || "").split(".", 1)[0];
+  if (!domain || ["Browser", "Target", "SystemInfo", "Security", "Storage", "Tethering"].includes(domain)) {
+    return false;
+  }
+  if (method.startsWith("Network.") && /Cookie/.test(method)) {
+    return false;
+  }
+  return [
+    "Accessibility", "CSS", "DOM", "Debugger", "Emulation", "Fetch", "Input",
+    "Log", "Network", "Overlay", "Page", "Performance", "Runtime",
+  ].includes(domain);
 }
 
 export async function evaluateReadOnly(tabId, expression, send) {
@@ -689,6 +733,35 @@ export async function evaluateReadOnly(tabId, expression, send) {
 }
 
 async function cdpAction(action, state, hooks) {
+  if (action.type === "browser_use_cdp") {
+    const method = String(action.method || "");
+    const params = action.params || {};
+    if (!permittedBrowserUseCdpMethod(method)) {
+      throw new Error(`CDP method is outside the leased-tab Browser Use surface: ${method}`);
+    }
+    if (method === "Input.dispatchMouseEvent") {
+      const x = Number(params.x);
+      const y = Number(params.y);
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        const cursorAction = params.type === "mousePressed" ? "moveToAndWait" : "moveTo";
+        const cursorArgs = params.type === "mousePressed" ? [x, y, 900] : [x, y];
+        const moved = await hooks.sendToContentScript(state.tabId, cursorAction, cursorArgs, 0);
+        if (!moved?.success) throw new Error(moved?.error || "Browser Use cursor movement failed");
+      }
+    }
+    const result = await hooks.send(state.tabId, method, params);
+    if (method === "Input.dispatchMouseEvent" && params.type === "mousePressed") {
+      await hooks.sendToContentScript(state.tabId, "pulseClick", [], 0).catch(() => {});
+    }
+    if (
+      method === "Input.dispatchKeyEvent"
+      && ["keyDown", "rawKeyDown"].includes(params.type)
+      && (params.key || params.text)
+    ) {
+      await hooks.sendToContentScript(state.tabId, "showKey", [params.key || params.text], 0).catch(() => {});
+    }
+    return { type: action.type, method, result };
+  }
   if (action.type === "cdp_send") {
     const method = String(action.method || "");
     if (!permittedCdpMethod(method) && method !== "Runtime.evaluate") {
@@ -1073,7 +1146,9 @@ export async function readBrowserHistory(options = {}) {
 export async function runParityAction(action, state, hooks) {
   const type = String(action.type || "");
   if (type === "locator") return { handled: true, result: await locatorAction(action, state, hooks) };
-  if (type === "cdp_send" || type === "cdp_events") return { handled: true, result: await cdpAction(action, state, hooks) };
+  if (["browser_use_cdp", "cdp_send", "cdp_events"].includes(type)) {
+    return { handled: true, result: await cdpAction(action, state, hooks) };
+  }
   if (type === "dialog_get") {
     await hooks.ensureAttached(state.tabId);
     return { handled: true, result: { type, dialog: dialogsByTab.get(state.tabId) || null } };
@@ -1108,10 +1183,20 @@ export async function runParityAction(action, state, hooks) {
       deviceScaleFactor: Math.max(0.1, Math.min(Number(action.deviceScaleFactor ?? action.device_scale_factor ?? 1) || 1, 10)),
       mobile: Boolean(action.mobile),
     });
+    state.deviceMetricsOverrideActive = true;
+    state.deviceMetricsOverrideWidth = width;
+    state.deviceMetricsOverrideHeight = height;
+    if (state.leaseRecord) {
+      state.leaseRecord.deviceMetricsOverrideActive = true;
+      state.leaseRecord.deviceMetricsOverrideWidth = width;
+      state.leaseRecord.deviceMetricsOverrideHeight = height;
+    }
     return { handled: true, result: { type, width, height, mobile: Boolean(action.mobile) } };
   }
   if (type === "viewport_reset") {
     await hooks.send(state.tabId, "Emulation.clearDeviceMetricsOverride");
+    state.deviceMetricsOverrideActive = false;
+    if (state.leaseRecord) state.leaseRecord.deviceMetricsOverrideActive = false;
     return { handled: true, result: { type, reset: true } };
   }
   return { handled: false, result: null };

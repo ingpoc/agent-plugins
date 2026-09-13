@@ -29,6 +29,31 @@ def _load_controller():
 
 
 class DurableLeaseControllerSequencingTests(unittest.TestCase):
+    def test_restore_status_stamps_observed_gap(self):
+        ctrl = _load_controller()
+        import os
+        import io
+        from contextlib import redirect_stdout
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as tmp:
+            p = ctrl._paths(Path(tmp))
+            p["ready"].write_text('{"ok":true,"session_id":"same"}')
+            p["response"].write_text('{}')
+            os.utime(p["response"], (100, 100))
+            with patch.object(ctrl.time, "time", return_value=125):
+                ready = ctrl._repair_heartbeat(p, os.getpid())
+            self.assertEqual(ready["idle_gap_s"], 25)
+            self.assertEqual(ready["restored_at"], "1970-01-01T00:02:05Z")
+            out = io.StringIO()
+            with redirect_stdout(out):
+                ctrl.cmd_status(SimpleNamespace(workdir=tmp))
+            status = json.loads(out.getvalue())
+            self.assertEqual(status["restored_at"], ready["restored_at"])
+            self.assertEqual(status["idle_gap_s"], 25)
+            p["response"].unlink()
+            self.assertIsNone(ctrl._repair_heartbeat(p, os.getpid())["idle_gap_s"])
+
     def test_controller_source_requires_seq_envelope(self) -> None:
         source = CTRL_PATH.read_text()
         self.assertIn('"seq": seq', source)
@@ -248,6 +273,104 @@ class DurableLeaseControllerSequencingTests(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertTrue(payload["response"]["verified_absent"])
 
+    def test_start_repairs_alive_when_run_pid_still_live(self) -> None:
+        """A second start must not spawn; it restores heartbeat and returns ok."""
+        import argparse
+        import io
+        import os
+        from contextlib import redirect_stdout
+
+        mod = _load_controller()
+        with tempfile.TemporaryDirectory(prefix="comet-start-repair-") as tmp:
+            work = Path(tmp)
+            import subprocess, sys
+            child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+            self.addCleanup(child.wait)
+            self.addCleanup(child.terminate)
+            pid = child.pid
+            (work / "controller.pid").write_text(str(pid) + "\n")
+            args = argparse.Namespace(
+                session_id="unit-start-repair",
+                label="unit",
+                url="https://example.com/",
+                workdir=str(work),
+                socket="/tmp/comet-control-unit-no.sock",
+                ttl_seconds=60,
+                ready_timeout=1,
+            )
+            output = io.StringIO()
+            with redirect_stdout(output):
+                rc = mod.cmd_start(args)
+            payload = json.loads(output.getvalue())
+            self.assertEqual(rc, 0)
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["restored"])
+            self.assertEqual(payload["controller_pid"], pid)
+            self.assertEqual((work / "controller.alive").read_text().strip(), str(pid))
+            self.assertEqual((work / "controller.pid").read_text().strip(), str(pid))
+            ready = json.loads((work / "ready.json").read_text())
+            self.assertTrue(ready["ok"])
+            self.assertTrue(ready["restored"])
+            self.assertEqual(ready["session_id"], "unit-start-repair")
+
+    def test_send_repairs_missing_alive_via_live_pid(self) -> None:
+        import os
+
+        mod = _load_controller()
+        with tempfile.TemporaryDirectory(prefix="comet-send-repair-") as tmp:
+            work = Path(tmp)
+            import subprocess, sys
+            child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+            self.addCleanup(child.wait)
+            self.addCleanup(child.terminate)
+            pid = child.pid
+            p = mod._paths(work)
+            p["pid"].write_text(str(pid) + "\n")
+            p["ready"].write_text(json.dumps({
+                "ok": False,
+                "error": "no_ready",
+                "session_id": "unit-send-repair",
+            }))
+            live = mod._live_controller_pid(work, "unit-send-repair")
+            self.assertEqual(live, pid)
+            repaired = mod._repair_heartbeat(
+                p, live, session_id="unit-send-repair", socket_path="/tmp/x.sock"
+            )
+            self.assertTrue(repaired["ok"])
+            self.assertTrue(repaired["restored"])
+            self.assertTrue(p["alive"].exists())
+            self.assertEqual(p["alive"].read_text().strip(), str(pid))
+
+    def test_start_source_checks_live_pid_before_popen(self) -> None:
+        source = CTRL_PATH.read_text()
+        start = source.split("def cmd_start", 1)[1].split("def cmd_", 1)[0]
+        self.assertIn("_live_controller_pid", start)
+        self.assertIn("_repair_heartbeat", start)
+        self.assertLess(start.find("_live_controller_pid"), start.find("subprocess.Popen"))
+        self.assertIn("lease_driver.py --session-id", source)
+        main = source.split("def _controller_main", 1)[1].split("def cmd_start", 1)[0]
+        self.assertIn("_live_controller_pid", main)
+        self.assertLess(main.find("_live_controller_pid"), main.find("p[key].unlink()"))
+        send = source.split("def cmd_send", 1)[1].split("def cmd_closeout", 1)[0]
+        self.assertIn("_live_controller_pid", send)
+        self.assertLess(send.find('if not p["alive"].exists()'), send.find("_live_controller_pid"))
+
+
 
 if __name__ == "__main__":
     unittest.main()
+
+class StartReceiptRegression(unittest.TestCase):
+    def test_dead_controller_receipt_removed_before_spawn(self):
+        from unittest.mock import patch, Mock
+        from argparse import Namespace
+        mod = _load_controller()
+        with tempfile.TemporaryDirectory() as tmp:
+            work=Path(tmp); ready=work/'ready.json'; ready.write_text('{"ok":true,"old":true}')
+            args=Namespace(workdir=tmp,session_id='receipt-test',socket='/tmp/test.sock',label='test',url='https://example.com',ttl_seconds=600,ready_timeout=1,browser_use=False)
+            def spawn(*a,**kw):
+                self.assertFalse(ready.exists())
+                ready.write_text('{"ok":true,"fresh":true}')
+                return Mock()
+            with patch.object(mod,'_live_controller_pid',return_value=None),patch.object(mod.subprocess,'Popen',side_effect=spawn):
+                self.assertEqual(mod.cmd_start(args),0)

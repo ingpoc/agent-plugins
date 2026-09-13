@@ -87,6 +87,115 @@ def _paths(workdir: Path) -> dict[str, Path]:
     }
 
 
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except Exception:
+        return False
+
+
+def _live_controller_pid(workdir: Path, session_id: str | None = None) -> int | None:
+    """Return a live _run (preferred) or lease_driver pid for this session."""
+    p = _paths(workdir)
+    if p["pid"].exists():
+        try:
+            pid = int(p["pid"].read_text().strip() or "0")
+        except ValueError:
+            pid = 0
+        if pid and _pid_alive(pid) and pid != os.getpid():
+            return pid
+    sid = str(session_id or "").strip()
+    if not sid:
+        return None
+    try:
+        out = subprocess.check_output(
+            ["ps", "-ax", "-o", "pid=,command="],
+            text=True,
+            timeout=2,
+        )
+    except Exception:
+        return None
+    run_needle = f"durable_lease_controller.py _run --session-id {sid}"
+    driver_needle = f"lease_driver.py --session-id {sid}"
+    run_pid = None
+    driver_pid = None
+    for line in out.splitlines():
+        raw = line.strip()
+        if "awk " in raw:
+            continue
+        try:
+            pid = int(raw.split(None, 1)[0])
+        except ValueError:
+            continue
+        if pid == os.getpid() or not _pid_alive(pid):
+            continue
+        if run_needle in raw:
+            run_pid = pid
+        elif driver_needle in raw:
+            driver_pid = pid
+    return run_pid or driver_pid
+
+
+def _session_id_from_ready(p: dict[str, Path]) -> str | None:
+    if not p["ready"].exists():
+        return None
+    try:
+        data = json.loads(p["ready"].read_text())
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    sid = data.get("session_id")
+    if sid:
+        return str(sid)
+    first = data.get("first")
+    if isinstance(first, dict) and first.get("session_id"):
+        return str(first["session_id"])
+    return None
+
+
+def _repair_heartbeat(
+    p: dict[str, Path],
+    pid: int,
+    *,
+    session_id: str | None = None,
+    socket_path: str | None = None,
+) -> dict:
+    p["pid"].write_text(str(pid) + "\n")
+    p["alive"].write_text(str(pid) + "\n")
+    existing: dict = {}
+    if p["ready"].exists():
+        try:
+            loaded = json.loads(p["ready"].read_text())
+            if isinstance(loaded, dict):
+                existing = loaded
+        except Exception:
+            existing = {}
+    existing["ok"] = True
+    existing["restored"] = True
+    restored_epoch = time.time()
+    existing["restored_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(restored_epoch))
+    # Since last observed reply, not a measured browser outage.
+    existing["idle_gap_s"] = (
+        max(0.0, restored_epoch - p["response"].stat().st_mtime)
+        if p["response"].exists() else None
+    )
+    existing["controller_pid"] = pid
+    if session_id:
+        existing["session_id"] = session_id
+    elif not existing.get("session_id"):
+        sid = _session_id_from_ready(p)
+        if sid:
+            existing["session_id"] = sid
+    if socket_path:
+        existing["socket_path"] = socket_path
+    if not existing.get("lease_ready_at"):
+        existing["lease_ready_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    p["ready"].write_text(json.dumps(existing, indent=2) + "\n")
+    return existing
+
+
 def _session_absence_proof(socket_path: str, session_id: str) -> dict[str, object]:
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client.settimeout(8)
@@ -124,16 +233,21 @@ def _attach_absence_proof(paths: dict[str, Path], payload: dict) -> tuple[dict, 
     try:
         ready = json.loads(paths["ready"].read_text())
         session_id = ready["session_id"]
-        proof = _session_absence_proof(ready.get("socket_path", DEFAULT_SOCKET), session_id)
+        proof = _session_absence_proof(
+            ready.get("socket_path", DEFAULT_SOCKET), session_id
+        )
         response.update(proof)
     except Exception as error:
         response.update({"verified_absent": False, "error": str(error)})
     if response.get("verified_absent") is not True:
-        response.update({
-            "success": False,
-            "error_code": "LEASE_CLEANUP_INCOMPLETE",
-            "error": response.get("error") or "session remains active after closeout",
-        })
+        response.update(
+            {
+                "success": False,
+                "error_code": "LEASE_CLEANUP_INCOMPLETE",
+                "error": response.get("error")
+                or "session remains active after closeout",
+            }
+        )
         return payload, False
     return payload, response.get("success") is True
 
@@ -178,7 +292,18 @@ def _controller_main(args: argparse.Namespace) -> int:
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
     workdir = Path(args.workdir).resolve()
     workdir.mkdir(parents=True, exist_ok=True)
+    os.chmod(workdir, 0o700)
     p = _paths(workdir)
+    live = _live_controller_pid(workdir, args.session_id)
+    if live is not None and live != os.getpid():
+        _repair_heartbeat(
+            p,
+            live,
+            session_id=args.session_id,
+            socket_path=args.socket,
+        )
+        _log(p["log"], f"controller_already_running pid={live}")
+        return 1
     for key in ("log", "ready", "request", "response", "alive"):
         if p[key].exists():
             p[key].unlink()
@@ -191,20 +316,23 @@ def _controller_main(args: argparse.Namespace) -> int:
     env["PYTHONUNBUFFERED"] = "1"
 
     _log(p["log"], "starting lease_driver")
+    driver_args = [
+        sys.executable,
+        "-u",
+        str(DRIVER),
+        "--session-id",
+        args.session_id,
+        "--label",
+        args.label,
+        "--url",
+        args.url,
+        "--ttl-seconds",
+        str(args.ttl_seconds),
+    ]
+    if getattr(args, "browser_use", False):
+        driver_args.extend(["--browser-use-env-file", str(workdir / "browser-use.env")])
     driver = subprocess.Popen(
-        [
-            sys.executable,
-            "-u",
-            str(DRIVER),
-            "--session-id",
-            args.session_id,
-            "--label",
-            args.label,
-            "--url",
-            args.url,
-            "--ttl-seconds",
-            str(args.ttl_seconds),
-        ],
+        driver_args,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -249,6 +377,7 @@ def _controller_main(args: argparse.Namespace) -> int:
         )
         + "\n"
     )
+    os.chmod(p["ready"], 0o600)
     _log(p["log"], f"LEASE_READY {lease_ready_at}")
 
     # Command loop: wait for request.json, write response.json, delete request.
@@ -326,12 +455,15 @@ def _controller_main(args: argparse.Namespace) -> int:
         # allowlist remains only for older drivers already running during deploy.
         while (
             resp.get("kind") == "notification"
-            or (
-                resp.get("kind") == "reply"
-                and resp.get("command_id") != seq
-            )
+            or (resp.get("kind") == "reply" and resp.get("command_id") != seq)
             or resp.get("event")
-            in {"renew", "heartbeat", "renewal_failed", "renewal_recovered", "run_diagnostic"}
+            in {
+                "renew",
+                "heartbeat",
+                "renewal_failed",
+                "renewal_recovered",
+                "run_diagnostic",
+            }
         ):
             _log(p["log"], f"evt={json.dumps(resp)[:300]}")
             resp = _read_driver_json(driver, timeout=wait_s)
@@ -367,16 +499,22 @@ def _controller_main(args: argparse.Namespace) -> int:
 def cmd_start(args: argparse.Namespace) -> int:
     workdir = Path(args.workdir).resolve()
     workdir.mkdir(parents=True, exist_ok=True)
+    os.chmod(workdir, 0o700)
     p = _paths(workdir)
-    # If already alive, refuse
-    if p["alive"].exists() and p["pid"].exists():
-        try:
-            os.kill(int(p["pid"].read_text().strip()), 0)
-            print(json.dumps({"ok": False, "error": "controller_already_running"}))
-            return 1
-        except Exception:
-            pass
+    live = _live_controller_pid(workdir, args.session_id)
+    if live is not None:
+        ready = _repair_heartbeat(
+            p,
+            live,
+            session_id=args.session_id,
+            socket_path=args.socket,
+        )
+        print(json.dumps(ready, indent=2))
+        return 0
 
+    # A dead controller may leave a green receipt. Remove it before spawning
+    # so start cannot return the old receipt while the child replaces it.
+    p["ready"].unlink(missing_ok=True)
     child_args = [
         sys.executable,
         "-u",
@@ -397,6 +535,8 @@ def cmd_start(args: argparse.Namespace) -> int:
         "--ready-timeout",
         str(args.ready_timeout),
     ]
+    if getattr(args, "browser_use", False):
+        child_args.append("--browser-use")
     # Detach: new session, stdio to files
     stdout_f = (workdir / "controller.stdout").open("w")
     stderr_f = (workdir / "controller.stderr").open("w")
@@ -435,8 +575,17 @@ def cmd_send(args: argparse.Namespace) -> int:
     workdir = Path(args.workdir).resolve()
     p = _paths(workdir)
     if not p["alive"].exists():
-        print(json.dumps({"ok": False, "error": "controller_not_alive"}))
-        return 1
+        sid = _session_id_from_ready(p) or getattr(args, "session_id", None)
+        live = _live_controller_pid(workdir, sid)
+        if live is None:
+            print(json.dumps({"ok": False, "error": "controller_not_alive"}))
+            return 1
+        _repair_heartbeat(
+            p,
+            live,
+            session_id=sid,
+            socket_path=getattr(args, "socket", None),
+        )
     payload = args.payload
     if args.payload_file:
         payload = Path(args.payload_file).read_text()
@@ -452,7 +601,11 @@ def cmd_send(args: argparse.Namespace) -> int:
     # Propagate controller wait budget into the host run deadline when the
     # caller omitted timeoutSeconds. SPA remounts (Seller Dispatch) need ≥90s;
     # default send --timeout is 180.
-    if isinstance(body, dict) and "timeoutSeconds" not in body and "command" not in body:
+    if (
+        isinstance(body, dict)
+        and "timeoutSeconds" not in body
+        and "command" not in body
+    ):
         try:
             body["timeoutSeconds"] = max(35, min(300, int(float(args.timeout))))
         except (TypeError, ValueError):
@@ -479,7 +632,9 @@ def cmd_send(args: argparse.Namespace) -> int:
             while p["request"].exists() and time.time() < wait_deadline:
                 time.sleep(0.02)
             if p["request"].exists():
-                print(json.dumps({"ok": False, "error": "timeout_waiting_request_slot"}))
+                print(
+                    json.dumps({"ok": False, "error": "timeout_waiting_request_slot"})
+                )
                 return 1
             envelope = {"seq": seq, "body": body, "wait_seconds": float(args.timeout)}
             p["request"].write_text(json.dumps(envelope, ensure_ascii=False) + "\n")
@@ -502,7 +657,11 @@ def cmd_send(args: argparse.Namespace) -> int:
                     print(json.dumps({"ok": False, "error": "controller_died"}))
                     return 1
                 time.sleep(0.02)
-            print(json.dumps({"ok": False, "error": "timeout_waiting_response", "seq": seq}))
+            print(
+                json.dumps(
+                    {"ok": False, "error": "timeout_waiting_response", "seq": seq}
+                )
+            )
             return 1
         finally:
             fcntl.flock(lock_fh.fileno(), fcntl.LOCK_UN)
@@ -555,6 +714,8 @@ def cmd_status(args: argparse.Namespace) -> int:
         "seq": seq,
         "session_id": (ready or {}).get("session_id"),
         "lease_ready_at": (ready or {}).get("lease_ready_at"),
+        "restored_at": (ready or {}).get("restored_at"),
+        "idle_gap_s": (ready or {}).get("idle_gap_s"),
         "last_response_event": last_event,
         "workdir": str(workdir),
     }
@@ -574,10 +735,13 @@ def cmd_closeout(args: argparse.Namespace) -> int:
     rc = 1
     for _ in range(8):
         if not p["alive"].exists():
-            payload, ok = _attach_absence_proof(p, {
-                "event": "closeout",
-                "response": {"success": True, "already_dead": True},
-            })
+            payload, ok = _attach_absence_proof(
+                p,
+                {
+                    "event": "closeout",
+                    "response": {"success": True, "already_dead": True},
+                },
+            )
             print(json.dumps(payload, ensure_ascii=False))
             return 0 if ok else 1
         args.payload = json.dumps({"command": "closeout"})
@@ -606,10 +770,13 @@ def cmd_closeout(args: argparse.Namespace) -> int:
         print(json.dumps(payload, ensure_ascii=False))
         return 0 if rc == 0 and verified else 1
     elif not p["alive"].exists():
-        payload, ok = _attach_absence_proof(p, {
-            "event": "closeout",
-            "response": {"success": True, "already_dead": True},
-        })
+        payload, ok = _attach_absence_proof(
+            p,
+            {
+                "event": "closeout",
+                "response": {"success": True, "already_dead": True},
+            },
+        )
         print(json.dumps(payload, ensure_ascii=False))
         return 0 if ok else 1
     return rc
@@ -627,6 +794,7 @@ def main() -> int:
     start.add_argument("--socket", default=DEFAULT_SOCKET)
     start.add_argument("--ttl-seconds", type=int, default=600)
     start.add_argument("--ready-timeout", type=float, default=180)
+    start.add_argument("--browser-use", action="store_true")
 
     send = sub.add_parser("send")
     send.add_argument("--workdir", required=True)
@@ -649,6 +817,7 @@ def main() -> int:
     run.add_argument("--socket", default=DEFAULT_SOCKET)
     run.add_argument("--ttl-seconds", type=int, default=600)
     run.add_argument("--ready-timeout", type=float, default=180)
+    run.add_argument("--browser-use", action="store_true")
 
     args = parser.parse_args()
     if args.cmd == "start":

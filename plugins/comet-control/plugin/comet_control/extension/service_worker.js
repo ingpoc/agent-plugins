@@ -2484,15 +2484,20 @@ async function runBrowserAction(action, state) {
         let captureAttempts = 0;
         let source = "tabs.captureVisibleTab";
         let staleCaptureSkipped = false;
-        await chrome.tabs.update(state.tabId, { active: true });
-        const [activeTab] = await chrome.tabs.query({ active: true, windowId: leasedTab.windowId });
-        if (!activeTab || Number(activeTab.id) !== Number(state.tabId)) {
-          throw new Error("Could not activate the leased tab for screenshot proof");
+        // CDP is tab-scoped, so an attached capture needs no active-tab switch.
+        const useAttachedCapture = attachedTabs.has(state.tabId);
+        if (!useAttachedCapture) {
+          await chrome.tabs.update(state.tabId, { active: true });
+          const [activeTab] = await chrome.tabs.query({ active: true, windowId: leasedTab.windowId });
+          if (!activeTab || Number(activeTab.id) !== Number(state.tabId)) {
+            throw new Error("Could not activate the leased tab for screenshot proof");
+          }
         }
         if (state.deviceMetricsOverrideActive) {
           staleCaptureSkipped = true;
         }
-        for (let attempt = 0; attempt < 2 && !state.deviceMetricsOverrideActive; attempt += 1) {
+        // An attached debugger captures this exact tab without the global tabs API quota.
+        for (let attempt = 0; attempt < 2 && !state.deviceMetricsOverrideActive && !useAttachedCapture; attempt += 1) {
           captureAttempts = attempt + 1;
           try {
             await waitForViewportCaptureSlot();

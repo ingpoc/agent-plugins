@@ -300,6 +300,21 @@ class RequestHandlingTests(unittest.TestCase):
             self.assertFalse(host._accept_pairing_secret("b" * 64))
             self.assertEqual((Path(raw) / "pairing.json").stat().st_mode & 0o777, 0o600)
 
+    def test_pairing_repair_rotates_stale_record_once(self) -> None:
+        original_path = host.PAIRING_PATH
+        with tempfile.TemporaryDirectory() as raw:
+            try:
+                host.PAIRING_PATH = Path(raw) / "pairing.json"
+                host.pairing_repair_used = False
+                host.PAIRING_PATH.write_text(json.dumps({"secret_sha256": "a" * 64}))
+                with host.extension_connection_lock:
+                    host.active_extension = None
+                self.assertTrue(host._repair_pairing_after_extension_reload())
+                self.assertFalse(host.PAIRING_PATH.exists())
+                self.assertFalse(host._repair_pairing_after_extension_reload())
+            finally:
+                host.PAIRING_PATH = original_path
+
     def test_disconnect_invalidates_only_its_generation(self) -> None:
         response_q: queue.Queue[dict[str, object]] = queue.Queue(maxsize=1)
         current = object()

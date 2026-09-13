@@ -147,7 +147,7 @@ window title (for example, a payment window), never the browser PID.
 | Omnibox says extensions URL; WebArea still old site | `open -a Comet "chrome://extensions/"` or click Reload on a true Extensions window |
 | No `Load unpacked` in AX | Wait for `AXWebArea "Extensions"` + Developer mode on; re-`state` |
 | Open sheet picks wrong `extension` folder | Go to Folder → absolute `$ROOT/plugin/comet_control/extension` before Select |
-| Probe `EXTENSION_NOT_CONNECTED` after Select | Confirm the card is enabled; with zero leases use host `{"type":"reload"}`, wait, then re-probe |
+| Probe `EXTENSION_NOT_CONNECTED` after Select | Confirm the card is enabled; with zero leases use host `{"type":"reload"}`, wait, then re-probe. If the broker log reports `extension pairing mismatch`, the broker now performs one guarded re-pair for the exact attested Comet extension; re-probe after the extension reconnects. |
 | `COMET_CONTROL_RUNTIME_UNAVAILABLE` on coexistence check pre-install | Expected before pairing; finish install + probe — do not block first load on that claim |
 | Pixel click geometry mismatch | Use AX `Load unpacked` / `Select` labels instead |
 

@@ -138,7 +138,7 @@ Traces → `console.debug` or remove.
 1. Send `status` through `run/comet-control.sock`.
 2. Start a leased `session_preflight` on a real `https://` URL.
 3. If both fail after an extension edit, close every lease, use the host reload
-   and probe sequence below, then retry with a new lease.
+   and probe sequence below, then restore the same session; never mint a second lease on remount or timeout.
 
 ### Bridge socket present but no actions
 

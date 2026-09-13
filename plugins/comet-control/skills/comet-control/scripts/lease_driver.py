@@ -271,6 +271,11 @@ def parse_args() -> argparse.Namespace:
         "--socket",
         default=os.environ.get("COMET_CONTROL_BRIDGE_SOCKET", DEFAULT_SOCKET),
     )
+    parser.add_argument(
+        "--browser-use-env-file",
+        type=Path,
+        help="Start the lease-scoped Browser Use CDP bridge and write its private environment here",
+    )
     return parser.parse_args()
 
 
@@ -292,13 +297,14 @@ def main() -> int:
     renewal_thread: threading.Thread | None = None
     renewal_failures = 0
     lease_identity: dict[str, Any] = {}
+    browser_use_bridge: Any = None
 
     def serialized_bridge(payload: dict[str, Any], timeout: float) -> dict[str, Any]:
         with bridge_lock:
             return bridge(args.socket, payload, timeout)
 
     def closeout(reason: str) -> dict[str, Any]:
-        nonlocal closed, closeout_attempted
+        nonlocal closed, closeout_attempted, browser_use_bridge
         if closeout_attempted:
             return {
                 "success": closed,
@@ -306,6 +312,9 @@ def main() -> int:
                 "session_id": args.session_id,
             }
         renewal_stop.set()
+        if browser_use_bridge is not None:
+            browser_use_bridge.stop()
+            browser_use_bridge = None
         last_error: Exception | None = None
         for attempt in range(1, CLOSEOUT_MAX_ATTEMPTS + 1):
             try:
@@ -434,10 +443,17 @@ def main() -> int:
             and not preflight.get("lease_token")
             and (
                 preflight.get("error_code") == "LEASE_HELD"
-                or "already leased by another caller" in str(preflight.get("error") or "")
+                or "already leased by another caller"
+                in str(preflight.get("error") or "")
             )
         ):
-            wait_s = min(MAX_RENEW_INTERVAL_SECONDS, max(MIN_RENEW_INTERVAL_SECONDS, renew_interval)) * 2
+            wait_s = (
+                min(
+                    MAX_RENEW_INTERVAL_SECONDS,
+                    max(MIN_RENEW_INTERVAL_SECONDS, renew_interval),
+                )
+                * 2
+            )
             emit(
                 {
                     "event": "preflight_retry_waiting",
@@ -487,6 +503,51 @@ def main() -> int:
             daemon=True,
         )
         renewal_thread.start()
+        browser_use_ready: dict[str, str] | None = None
+        if args.browser_use_env_file:
+            from browser_use_cdp_bridge import BrowserUseCDPBridge
+
+            def browser_use_action(action: dict[str, Any]) -> dict[str, Any]:
+                result = serialized_bridge(
+                    {
+                        "type": "run",
+                        "sessionId": args.session_id,
+                        "leaseToken": lease_token,
+                        "agentLabel": args.label,
+                        "timeoutSeconds": args.timeout_seconds,
+                        "actions": [action],
+                    },
+                    transport_timeout(args.timeout_seconds),
+                )
+                if not result.get("success"):
+                    raise RuntimeError(
+                        str(result.get("error") or "Browser Use CDP action failed")
+                    )
+                items = result.get("results") or []
+                if len(items) != 1 or not isinstance(items[0], dict):
+                    raise RuntimeError(
+                        "Browser Use CDP action returned an invalid result"
+                    )
+                item = items[0]
+                return (
+                    item.get("result", {})
+                    if action.get("type") == "browser_use_cdp"
+                    else item
+                )
+
+            def browser_use_page_info() -> dict[str, Any]:
+                return browser_use_action({"type": "page_context"})
+
+            def browser_use_hide_cursor() -> None:
+                browser_use_action({"type": "cursor_hide"})
+
+            browser_use_bridge = BrowserUseCDPBridge(
+                args.session_id,
+                browser_use_action,
+                browser_use_page_info,
+                browser_use_hide_cursor,
+            )
+            browser_use_ready = browser_use_bridge.start(args.browser_use_env_file)
         # Publish readiness only after the keepalive owner is running. Agents
         # may signal or command the process as soon as they receive this line.
         emit(
@@ -495,6 +556,7 @@ def main() -> int:
                 "lease": public_response(preflight),
                 "persistent": True,
                 "renew_interval_seconds": renew_interval,
+                **({"browser_use": browser_use_ready} if browser_use_ready else {}),
             },
             lease_token,
         )
@@ -571,7 +633,10 @@ def main() -> int:
                         transport_timeout(args.timeout_seconds),
                     )
                     reply(
-                        {"event": "native_handoff", "response": public_response(result)},
+                        {
+                            "event": "native_handoff",
+                            "response": public_response(result),
+                        },
                     )
                     if not result.get("success"):
                         had_command_error = True
@@ -605,6 +670,9 @@ def main() -> int:
         emit({"event": "driver_error", "error": str(error)}, lease_token)
     finally:
         renewal_stop.set()
+        if browser_use_bridge is not None:
+            browser_use_bridge.stop()
+            browser_use_bridge = None
         if renewal_thread is not None and renewal_thread.is_alive():
             renewal_thread.join(timeout=RENEW_TRANSPORT_TIMEOUT_SECONDS)
         if lease_token and not closeout_attempted:
