@@ -2858,7 +2858,7 @@ async function runBrowserAction(action, state) {
     // Use clickResolvedTarget (same as click_selector) so CLICK_TARGET_MISMATCH
     // re-resolves once and reports retried:true for moved text targets.
     const navClickMode = action.navigation_only === true || action.mode === "navigation";
-    const visualCursor = action.visual_cursor === true && !navClickMode;
+    const visualCursor = navClickMode ? false : action.visual_cursor !== false;
     const clickOptions = {
       visual: visualCursor,
       trusted: action.trusted !== false,
@@ -3025,7 +3025,7 @@ async function runBrowserAction(action, state) {
 
   if (type === "click_selector") {
     const navClickMode = action.navigation_only === true || action.mode === "navigation";
-    const visualCursor = action.visual_cursor === true && !navClickMode;
+    const visualCursor = navClickMode ? false : action.visual_cursor !== false;
     const clickOptions = {
       visual: visualCursor,
       trusted: action.trusted !== false,
