@@ -1008,22 +1008,25 @@ async function waitForTabReady(tabId, timeoutMs = 10000) {
   throw new Error("Agent-owned tab did not become controllable during preflight");
 }
 
-async function setAgentIdentity(tabId, record) {
+async function setAgentIdentity(tabId, record, options = {}) {
   if (!tabId || !record) return;
   const ready = await ensureContentScript(tabId);
   if (ready?.blocked) throw codedError(ready.error_code || "CONTENT_SCRIPT_MISSING", ready.reason || "Could not inject agent cursor");
   const watchable = leaseIsWatchable(record);
+  // sessionWarm only on preflight / post-nav reinject — not every label refresh.
+  // Respect silent/navigation_only park latch until the next visual act.
+  const sessionWarm = watchable && options.sessionWarm === true
+    && record.cursorSilentPark !== true;
   const response = await sendToContentScript(tabId, "setIdentity", [{
     agentId: record.agentId,
     label: record.agentLabel,
     sessionId: record.sessionId,
     color: record.cursorColor,
     watchable,
-    sessionWarm: watchable,
+    sessionWarm,
   }]);
   if (!response?.success) throw new Error(response?.error || "Could not label agent cursor");
-  // Session-warm: force overlay visible at last/center immediately after reinject.
-  if (watchable) {
+  if (sessionWarm) {
     await sendToContentScript(tabId, "ensureSessionCursorWarm", [{
       watchable: true,
       sessionWarm: true,
@@ -1062,7 +1065,7 @@ async function sessionPreflight(message) {
           message.ttlSeconds, existing.ttlMs / 1000, MIN_LEASE_TTL_SECONDS, 3600, "ttlSeconds"
         ) * 1000;
         await withTimeout(
-          setAgentIdentity(existing.tabId, existing), remainingMs(), "setAgentIdentity"
+          setAgentIdentity(existing.tabId, existing, { sessionWarm: true }), remainingMs(), "setAgentIdentity"
         );
         await withTimeout(
           applyAgentWindowLayout("preflight-reuse"), remainingMs(), "tileAgentWindows"
@@ -1142,6 +1145,7 @@ async function sessionPreflight(message) {
       ownsTab: Boolean(tab?.id),
       cursorColor: cursorColor(sessionId),
       watchable,
+      cursorSilentPark: false,
       createdAt: Date.now(),
       lastSeen: Date.now(),
       ttlMs,
@@ -1160,7 +1164,7 @@ async function sessionPreflight(message) {
     // A dedicated window is already operator-visible isolation. Grouping its only
     // tab can collapse the window on some macOS Comet configurations.
     await withTimeout(
-      setAgentIdentity(record.tabId, record), remainingMs(), "setAgentIdentity"
+      setAgentIdentity(record.tabId, record, { sessionWarm: true }), remainingMs(), "setAgentIdentity"
     );
     await withTimeout(
       applyAgentWindowLayout("preflight"), remainingMs(), "tileAgentWindows"
@@ -1675,6 +1679,9 @@ async function parkContentScriptIdle(tabId, frameId = 0, options = {}) {
   } catch {
     /* idle park is best-effort */
   }
+  // Latch so post-nav reinject / onUpdated warm cannot undo silent/navigation_only park.
+  const lease = leaseForTab(tabId);
+  if (lease) lease.cursorSilentPark = true;
 }
 
 async function confirmNavigation(tabId, { fromUrl = "", fromTitle = "", timeoutMs = 5000 } = {}) {
@@ -1754,6 +1761,8 @@ async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
   let ringShown = false;
   try {
     if (visual) {
+      const lease = leaseForTab(tabId);
+      if (lease) lease.cursorSilentPark = false;
       await moveCursorToPoint(tabId, point);
       await sleep(Math.max(150, Number(options.lingerMs) || 350));
       // On-demand click ring at point (same-act theater); keep overlay for CDP.
@@ -1850,7 +1859,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   try {
     // Identity refresh only when the script is already alive — never reinject here.
     if (await probeContentScript(tabId)) {
-      await setAgentIdentity(tabId, lease);
+      await setAgentIdentity(tabId, lease, { sessionWarm: leaseIsWatchable(lease) });
     }
   } catch {
     // Next leased action will ensure/inject.
@@ -2486,7 +2495,7 @@ async function runBrowserAction(action, state) {
     await ensureContentScript(state.tabId).catch(() => {});
     if (state.leaseRecord) {
       state.leaseRecord.lastSeen = Date.now();
-      await setAgentIdentity(state.tabId, state.leaseRecord);
+      await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true });
       await persistSessionLeases().catch(() => {});
     }
     return { type, tabId: state.tabId, url: tab.url || action.url };
@@ -2512,7 +2521,9 @@ async function runBrowserAction(action, state) {
     // Full reload can clear a wedged scripting FIFO — allow a fresh canary later.
     tabScriptingPoisoned.delete(state.tabId);
     await ensureContentScript(state.tabId).catch(() => {});
-    if (state.leaseRecord) await setAgentIdentity(state.tabId, state.leaseRecord).catch(() => {});
+    if (state.leaseRecord) {
+      await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true }).catch(() => {});
+    }
     const tab = await chrome.tabs.get(state.tabId).catch(() => null);
     return { type, tabId: state.tabId, url: tab?.url || "" };
   }
@@ -2551,7 +2562,7 @@ async function runBrowserAction(action, state) {
         invalidateTabInjection(state.tabId);
         if (state.leaseRecord) {
           state.leaseRecord.lastSeen = Date.now();
-          await setAgentIdentity(state.tabId, state.leaseRecord).catch(() => {});
+          await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true }).catch(() => {});
         }
         return { type, from: fromUrl, url: current.url };
       }
@@ -2924,6 +2935,7 @@ async function runBrowserAction(action, state) {
     // Force visual when lease.watchable !== false and not explicit silent/navigation_only.
     const visual = actionWantsVisualCursor(action, state);
     if (visual) {
+      if (state.leaseRecord) state.leaseRecord.cursorSilentPark = false;
       await sendToContentScript(state.tabId, "moveToAndWait", [x, y, 900], 0).catch(() => {});
       await sendToContentScript(state.tabId, "pulseClick", [], 0).catch(() => {});
     }
@@ -3065,7 +3077,9 @@ async function runBrowserAction(action, state) {
             `Content script still missing after navigate (${targetUrl || "unknown url"}); first error: ${msg}`
           );
         }
-        if (state.leaseRecord) await setAgentIdentity(state.tabId, state.leaseRecord).catch(() => {});
+        if (state.leaseRecord) {
+          await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true }).catch(() => {});
+        }
         for (let i = 0; i < 30; i += 1) {
           try {
             const ctx = await withTimeout(

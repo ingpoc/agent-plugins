@@ -1386,8 +1386,12 @@ async function check(actions, expected) {
 
         # setAgentIdentity warms watchable sessions
         sai = source.split("async function setAgentIdentity", 1)[1].split("async function sessionPreflight", 1)[0]
-        self.assertIn("sessionWarm: watchable", sai)
+        self.assertIn("options.sessionWarm === true", sai)
         self.assertIn("ensureSessionCursorWarm", sai)
+        self.assertIn("setAgentIdentity(record.tabId, record, { sessionWarm: true })", source)
+        self.assertIn("setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true })", source)
+        self.assertIn("cursorSilentPark", source)
+        self.assertIn("record.cursorSilentPark !== true", source)
 
         # click paths force visual when lease watchable; keepVisible CDP; no park on watchable
         self.assertIn("actionIsSilent(action, state)", source)
@@ -1414,7 +1418,7 @@ async function check(actions, expected) {
         set_id = cursor.split("function setIdentity(identity = {})", 1)[1].split(
             "function clearIdentity", 1
         )[0]
-        self.assertIn("sessionWarm", set_id)
+        self.assertIn("identity.sessionWarm === true", set_id)
         self.assertIn("comet-control-visible", set_id)
         self.assertIn("isVisible = true", set_id)
         actions = cursor.split("const actions = {", 1)[1].split("};", 1)[0]

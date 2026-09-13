@@ -1117,8 +1117,9 @@
       color
     };
     const watchable = identity.watchable !== false && identity.silent !== true;
-    const sessionWarm = identity.sessionWarm === true
-      || (watchable && identity.sessionWarm !== false);
+    // Explicit sessionWarm only (preflight / post-nav reinject). Label refresh must
+    // not force-visible after silent/navigation_only parkIdle.
+    const sessionWarm = identity.sessionWarm === true;
     if (sessionWarm) window.__cometControlSessionWarm = true;
     if (sessionWarm && (!cursorEl || !labelEl)) {
       createOverlay({ sessionWarm: true, forceVisible: true });
