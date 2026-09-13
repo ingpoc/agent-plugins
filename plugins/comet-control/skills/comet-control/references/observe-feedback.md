@@ -9,10 +9,11 @@ Never dump full DOM snapshots or screenshot-every-step into the agent loop.
 Healthy batches return small structured results — prefer these over extra observes:
 
 When only one control category matters, use `{"type":"page_context","sections":["buttons"]}`.
-Allowed sections: `headings`, `nav`, `links`, `buttons`, `inputs`. Omit `sections` for
-the normal overview; `[]` returns identity/revision plus diagnostics only. Unselected
-sections are neither scanned nor returned. URL, title, revision and failure/handoff
-diagnostics remain available. Require probe capability `page-context-sections` before
+Allowed sections: `url`, `title`, `headings`, `nav`, `links`, `buttons`, `inputs`.
+`url`/`title` are always present in the payload (optional in the `sections` array).
+Omit `sections` for the normal overview; `[]` returns identity/revision plus diagnostics
+only. Unselected DOM sections are neither scanned nor returned. Revision and
+failure/handoff diagnostics remain available. Require probe capability `page-context-sections` before
 using this on an older installed runtime; otherwise use the normal overview.
 
 | Action | Typical payload | Notes |

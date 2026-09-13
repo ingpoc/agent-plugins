@@ -999,13 +999,19 @@ async function waitForViewportCaptureSlot() {
 
 async function waitForTabReady(tabId, timeoutMs = 10000) {
   const deadline = Date.now() + timeoutMs;
+  let lastTab = null;
   while (Date.now() < deadline) {
     const tab = await chrome.tabs.get(tabId).catch(() => null);
+    lastTab = tab;
     if (!tab) throw new Error("Agent-owned tab disappeared during preflight");
     if (tab.status === "complete" && isControllableUrl(tab.url)) return tab;
     await sleep(100);
   }
-  throw new Error("Agent-owned tab did not become controllable during preflight");
+  const status = lastTab?.status || "unknown";
+  const url = String(lastTab?.url || "").slice(0, 120);
+  throw new Error(
+    `Agent-owned tab did not become controllable during preflight (status=${status}, url=${url || "<empty>"})`
+  );
 }
 
 async function setAgentIdentity(tabId, record, options = {}) {
@@ -1160,7 +1166,7 @@ async function sessionPreflight(message) {
       record.ownsTab = true;
       await persistSessionLeases();
     }
-    await waitForTabReady(record.tabId, Math.min(10000, remainingMs()));
+    await waitForTabReady(record.tabId, Math.min(Math.max(25000, Math.floor(remainingMs() * 0.6)), remainingMs()));
     // A dedicated window is already operator-visible isolation. Grouping its only
     // tab can collapse the window on some macOS Comet configurations.
     await withTimeout(
@@ -2448,6 +2454,14 @@ async function runBrowserAction(action, state) {
   } else if (type === "nav_click_selector") {
     action = { ...action, type: "click_selector", confirm_navigation: true };
     type = "click_selector";
+  } else if (type === "navigate") {
+    // Common agent synonym for goto (wave1 cognition/anthropic).
+    action = { ...action, type: "goto" };
+    type = "goto";
+  } else if (type === "scroll") {
+    // Common agent synonym for cursor_scroll.
+    action = { ...action, type: "cursor_scroll" };
+    type = "cursor_scroll";
   }
   if (action.tab_id != null && action.tabId == null) action.tabId = action.tab_id;
   if (type === "activate_tab" || type === "focus_tab") {
@@ -2484,7 +2498,6 @@ async function runBrowserAction(action, state) {
       tab = await chrome.tabs.update(state.tabId, { url: action.url, active: false });
     }
     state.tabId = tab.id;
-    state.lastUrl = tab.url || action.url;
     await boundedWait(action.waitMs || 2000, state);
     // Navigation always invalidates the previous content-script world.
     invalidateTabInjection(state.tabId);
@@ -2498,7 +2511,12 @@ async function runBrowserAction(action, state) {
       await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true });
       await persistSessionLeases().catch(() => {});
     }
-    return { type, tabId: state.tabId, url: tab.url || action.url };
+    // tabs.update returns before navigation settles; re-read so result.url matches
+    // final_url / subsequent page_context (defect-004).
+    const settled = await chrome.tabs.get(state.tabId).catch(() => null);
+    const finalUrl = settled?.url || action.url;
+    state.lastUrl = finalUrl;
+    return { type, tabId: state.tabId, url: finalUrl };
   }
 
   if (type === "back" || type === "forward" || type === "reload_page") {
@@ -3672,7 +3690,7 @@ async function handleUnlockedHostMessage(message) {
     const dialogControlOnly = (message.actions || []).length > 0
       && (message.actions || []).every((action) => ["dialog_get", "dialog_handle"].includes(action?.type));
     const navigationOnly = (message.actions || []).length > 0
-      && message.actions.every((action) => ["reload_page", "goto", "back", "forward"].includes(action?.type));
+      && message.actions.every((action) => ["reload_page", "goto", "navigate", "back", "forward"].includes(action?.type));
     if (!navigationOnly && !dialogControlOnly && !cdpObservationOnly) await setAgentIdentity(state.tabId, leaseRecord);
     const results = [];
     try {

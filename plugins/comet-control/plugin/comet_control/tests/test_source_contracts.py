@@ -154,14 +154,14 @@ assert.deepEqual(selective, {
   url: location.href, title: 'Fixture', page_revision: 4,
   links: [{text: 'Learn more', href: 'https://example.test/help'}],
 });
-assert.deepEqual(queries, ['a,[role="link"]'], 'unrequested sections must not scan the DOM');
+assert.deepEqual(queries, ['main,article,[role="main"]', 'a,[role="link"]'], 'unrequested sections must not scan the DOM');
 queries.length = 0;
 assert.deepEqual(getPageContext([]), {url: location.href, title: 'Fixture', page_revision: 4});
 assert.deepEqual(queries, []);
 const full = getPageContext(undefined, {compact: false});
 assert.equal(full.compact, undefined);
 assert.deepEqual(full.links, [{text: 'Learn more', href: 'https://example.test/help'}]);
-for (const invalid of [null, 'links', ['typo'], Array(6).fill('links')]) {
+for (const invalid of [null, 'links', ['typo'], Array(8).fill('links')]) {
   assert.throws(() => getPageContext(invalid), /sections must be an array/);
 }
 """.replace('FUNCTION', function)
@@ -1406,9 +1406,9 @@ async function check(actions, expected) {
         source = SERVICE_WORKER.read_text()
         cursor = CURSOR_AGENT.read_text()
         manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.9")
+        self.assertEqual(manifest.get("version"), "0.1.10")
         plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
-        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.9")
+        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.10")
 
         # Lease watchable default on record + publicLease
         self.assertIn("function leaseIsWatchable", source)
@@ -1471,7 +1471,7 @@ async function check(actions, expected) {
         cursor = CURSOR_AGENT.read_text()
         worker = SERVICE_WORKER.read_text()
         manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.9")
+        self.assertEqual(manifest.get("version"), "0.1.10")
         self.assertIn("function _accessibleName", cursor)
         self.assertIn("options.compact !== false", cursor)
         self.assertIn("compact: true", cursor)
@@ -1499,3 +1499,36 @@ async function check(actions, expected) {
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    def test_oncall_preflight_page_context_goto_0110(self) -> None:
+        """0.1.10: longer preflight tab-ready, url/title sections, goto final url, link prefs, navigate alias."""
+        worker = SERVICE_WORKER.read_text()
+        cursor = CURSOR_AGENT.read_text()
+        manifest = json.loads(MANIFEST.read_text())
+        self.assertEqual(manifest.get("version"), "0.1.10")
+        plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
+        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.10")
+
+        wait = worker.split("async function waitForTabReady", 1)[1].split("async function setAgentIdentity", 1)[0]
+        self.assertIn("lastTab", wait)
+        self.assertIn("status=${status}", wait)
+        self.assertIn("Math.max(25000, Math.floor(remainingMs() * 0.6))", worker)
+
+        goto = worker.split('  if (type === "goto") {', 1)[1].split('  if (type === "back"', 1)[0]
+        self.assertIn("const settled = await chrome.tabs.get(state.tabId)", goto)
+        self.assertIn("const finalUrl = settled?.url || action.url", goto)
+        self.assertIn("url: finalUrl", goto)
+
+        alias = worker.split("async function runBrowserAction", 1)[1].split("if (action.tab_id", 1)[0]
+        self.assertIn('type === "navigate"', alias)
+        self.assertIn('type === "scroll"', alias)
+        self.assertIn('type: "goto"', alias)
+        self.assertIn('type: "cursor_scroll"', alias)
+
+        pc = cursor.split("function getPageContext", 1)[1].split("function flashLabel", 1)[0]
+        self.assertIn("'url', 'title', 'headings', 'nav', 'links', 'buttons', 'inputs'", pc)
+        self.assertIn("url, title, headings, nav, links, buttons, inputs", pc)
+        self.assertIn("const linkCap = compact ? 20 : 35", pc)
+        self.assertIn('main,article,[role="main"]', pc)
+        self.assertIn("[...preferred, ...rest, ...secondary]", pc)

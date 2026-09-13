@@ -1089,10 +1089,10 @@
       sections = options.sections;
     }
     options = options || {};
-    const allowed = ['headings', 'nav', 'links', 'buttons', 'inputs'];
+    const allowed = ['url', 'title', 'headings', 'nav', 'links', 'buttons', 'inputs'];
     if (sections !== undefined && (!Array.isArray(sections) || sections.length > allowed.length
       || sections.some(section => !allowed.includes(section)))) {
-      throw new Error('page_context sections must be an array of headings, nav, links, buttons, inputs');
+      throw new Error('page_context sections must be an array of url, title, headings, nav, links, buttons, inputs');
     }
     const compact = sections === undefined
       ? options.compact !== false
@@ -1104,7 +1104,8 @@
     const headCap = compact ? 6 : 8;
     const headTextCap = compact ? 80 : 100;
     const navCap = compact ? 8 : 20;
-    const linkCap = compact ? 10 : 20;
+    // Raised soft-caps (defect-005); prefer main/article before sidebar fill (defect-003).
+    const linkCap = compact ? 20 : 35;
     const btnCap = compact ? 10 : 15;
     const inputCap = compact ? 8 : 10;
 
@@ -1164,8 +1165,14 @@
     let linkEntries = [];
     if (wants('links')) {
       const navKeys = new Set(navEntries.map((x) => `${x.text}|${x.href || ''}`));
+      const chromeSel = 'nav,[role="navigation"],[role="menubar"],[role="tablist"],header,[role="banner"]';
+      const mainRoots = Array.from(document.querySelectorAll('main,article,[role="main"]'));
+      const inMain = (a) => mainRoots.length > 0 && mainRoots.some((root) => root.contains(a));
       const all = Array.from(document.querySelectorAll('a,[role="link"]')).filter(vis)
-        .filter((a) => !a.closest('nav,[role="navigation"],[role="menubar"],[role="tablist"],header,[role="banner"]'));
+        .filter((a) => !a.closest(chromeSel));
+      // Prefer main/article deep links so dense docs sidebars do not crowd out content.
+      const preferred = mainRoots.length ? all.filter(inMain) : [];
+      const rest = mainRoots.length ? all.filter((a) => !inMain(a)) : all;
       // Compact: also surface secondary landmark links agents click (sidebar posts).
       const secondary = compact
         ? Array.from(document.querySelectorAll(
@@ -1173,7 +1180,7 @@
           )).filter(vis)
         : [];
       const seen = new Set();
-      for (const el of [...all, ...secondary]) {
+      for (const el of [...preferred, ...rest, ...secondary]) {
         const entry = linkEntry(el);
         if (!entry || !entry.href) continue;
         const key = `${entry.text}|${entry.href}`;

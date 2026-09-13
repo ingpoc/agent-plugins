@@ -75,7 +75,7 @@ Actions below belong inside one `run.actions` list.
 | Compact orientation | `page_context` | Default is **compact** (role/name, primary nav, short same-origin hrefs). Use `sections:[…]` for selective full fields, or `compact:false` for legacy discovery caps. Top frame only; ad iframes are not the page. |
 | Full visible text | `text` | Articles, tables, or long form content |
 | Element inventory | `snapshot` | Use only when a selector is unknown |
-| Navigate | `goto` | Pair with `wait_for_selector` or `wait_for_url_change` |
+| Navigate | `goto` (alias: `navigate`) | Pair with `wait_for_selector` or `wait_for_url_change` |
 | Wait for UI | `wait_for_selector` | Prefer an observable element over a fixed delay |
 | Click by label | `click_text` | Preferred when text is unique; unique sticky names use the card rect, not the stuck inset; header chips skipped when an in-page match exists; checkbox/radio need native `HTMLElement.click()`, not only synthetic MouseEvent; may return `dialog_opened` |
 | Click by CSS | `click_selector` | Use when text is missing or ambiguous; searches open shadow roots; 16px icons count if the hit is a descendant or button ancestor |
@@ -131,6 +131,9 @@ you want intentional nav theater.
 {"type": "cursor_scroll", "deltaX": 0, "deltaY": 300}
 {"type": "cursor_status"}
 ```
+
+Use `cursor_scroll` (alias: `scroll`) for viewport paging — not bare `evaluate` scrolls.
+`navigate` is an alias for `goto`.
 
 For keyboard-focus evidence, put a short renderer settle between the native key
 and the readback in the same run. Use at least `300` ms before `screenshot`,
