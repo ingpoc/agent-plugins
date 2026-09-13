@@ -610,6 +610,31 @@ function cursorColor(sessionId) {
   return CURSOR_COLORS[hash % CURSOR_COLORS.length];
 }
 
+function leaseIsWatchable(record) {
+  // Default watchable:true; false only when preflight/start requested silent.
+  return !record || record.watchable !== false;
+}
+
+function actionIsSilent(action, state) {
+  if (!action) return false;
+  if (action.silent === true) return true;
+  if (action.visual_cursor === false) return true;
+  if (action.navigation_only === true && action.visual_cursor !== true) return true;
+  // Non-watchable lease forces silent theater unless caller opts into visual_cursor.
+  if (state?.leaseRecord && state.leaseRecord.watchable === false
+      && action.visual_cursor !== true) {
+    return true;
+  }
+  return false;
+}
+
+function actionWantsVisualCursor(action, state) {
+  // Watchable lease + not explicit silent/navigation_only → force visual theater.
+  if (actionIsSilent(action, state)) return false;
+  if (leaseIsWatchable(state?.leaseRecord)) return true;
+  return action?.visual_cursor === true;
+}
+
 function publicLease(record, extra = {}) {
   const layout = record.windowLayout || {};
   return {
@@ -622,6 +647,7 @@ function publicLease(record, extra = {}) {
     window_id: record.windowId,
     tab_id: record.tabId,
     cursor_color: record.cursorColor,
+    watchable: record.watchable !== false,
     busy: Boolean(record.busy),
     expires_at: record.lastSeen + record.ttlMs,
     display_id: layout.displayId,
@@ -986,13 +1012,23 @@ async function setAgentIdentity(tabId, record) {
   if (!tabId || !record) return;
   const ready = await ensureContentScript(tabId);
   if (ready?.blocked) throw codedError(ready.error_code || "CONTENT_SCRIPT_MISSING", ready.reason || "Could not inject agent cursor");
+  const watchable = leaseIsWatchable(record);
   const response = await sendToContentScript(tabId, "setIdentity", [{
     agentId: record.agentId,
     label: record.agentLabel,
     sessionId: record.sessionId,
     color: record.cursorColor,
+    watchable,
+    sessionWarm: watchable,
   }]);
   if (!response?.success) throw new Error(response?.error || "Could not label agent cursor");
+  // Session-warm: force overlay visible at last/center immediately after reinject.
+  if (watchable) {
+    await sendToContentScript(tabId, "ensureSessionCursorWarm", [{
+      watchable: true,
+      sessionWarm: true,
+    }]).catch(() => {});
+  }
 }
 
 async function sessionPreflight(message) {
@@ -1018,6 +1054,9 @@ async function sessionPreflight(message) {
     if (tokenOk) {
       if (ownedLeaseTargetsComplete(existing, targets)) {
         existing.agentLabel = String(message.agentLabel || existing.agentLabel).slice(0, 80);
+        if (message.silent === true || message.watchable === false) existing.watchable = false;
+        else if (message.watchable === true || message.silent === false) existing.watchable = true;
+        else if (existing.watchable == null) existing.watchable = true;
         existing.lastSeen = Date.now();
         existing.ttlMs = boundedNumber(
           message.ttlSeconds, existing.ttlMs / 1000, MIN_LEASE_TTL_SECONDS, 3600, "ttlSeconds"
@@ -1088,6 +1127,8 @@ async function sessionPreflight(message) {
     // Register the owned window before any further Comet API call. If tab
     // discovery, readiness, labeling, persistence, or layout fails, the same
     // proof-gated closeout path retains ownership until exact IDs are absent.
+    // watchable:true by default; false only when preflight/start requests silent.
+    const watchable = !(message.silent === true || message.watchable === false);
     record = {
       sessionId,
       leaseToken: crypto.randomUUID(),
@@ -1100,6 +1141,7 @@ async function sessionPreflight(message) {
       ownsWindow: true,
       ownsTab: Boolean(tab?.id),
       cursorColor: cursorColor(sessionId),
+      watchable,
       createdAt: Date.now(),
       lastSeen: Date.now(),
       ttlMs,
@@ -2878,8 +2920,9 @@ async function runBrowserAction(action, state) {
       throw new Error("click_at_xy requires numeric x and y");
     }
     // Top-frame CDP mouse — for cross-origin OOPIF when locators cannot enter the frame.
-    // Watchable: glide + CDP while overlay still visible (pointer-events:none).
-    const visual = action.visual_cursor === true;
+    // Watchable lease: glide + CDP while overlay still visible (pointer-events:none).
+    // Force visual when lease.watchable !== false and not explicit silent/navigation_only.
+    const visual = actionWantsVisualCursor(action, state);
     if (visual) {
       await sendToContentScript(state.tabId, "moveToAndWait", [x, y, 900], 0).catch(() => {});
       await sendToContentScript(state.tabId, "pulseClick", [], 0).catch(() => {});
@@ -2888,6 +2931,7 @@ async function runBrowserAction(action, state) {
       keepVisible: visual,
       keepClickRing: visual,
     });
+    // No post-click park on watchable — only silent/bench parks.
     if (!visual) await parkContentScriptIdle(state.tabId, 0);
     return {
       type: "click_at_xy",
@@ -2909,10 +2953,8 @@ async function runBrowserAction(action, state) {
     const confirmNav = action.confirm_navigation === true
       || action.navigation_only === true
       || action.mode === "navigation";
-    const silent = action.silent === true
-      || (action.navigation_only === true && action.visual_cursor !== true)
-      || action.visual_cursor === false;
-    const visualCursor = !silent;
+    const silent = actionIsSilent(action, state);
+    const visualCursor = !silent && actionWantsVisualCursor(action, state);
     const clickOptions = {
       visual: visualCursor,
       trusted: action.trusted !== false,
@@ -3088,10 +3130,8 @@ async function runBrowserAction(action, state) {
     const confirmNav = action.confirm_navigation === true
       || action.navigation_only === true
       || action.mode === "navigation";
-    const silent = action.silent === true
-      || (action.navigation_only === true && action.visual_cursor !== true)
-      || action.visual_cursor === false;
-    const visualCursor = !silent;
+    const silent = actionIsSilent(action, state);
+    const visualCursor = !silent && actionWantsVisualCursor(action, state);
     const clickOptions = {
       visual: visualCursor,
       trusted: action.trusted !== false,

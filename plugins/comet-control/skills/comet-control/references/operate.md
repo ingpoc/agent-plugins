@@ -115,7 +115,7 @@ Semantic clicks still move the labeled cursor. Use coordinate actions only for
 canvas, drag, hover, or other geometry-dependent interaction.
 
 `nav_click_text` / `nav_click_selector` confirm URL/title after click but stay
-**watchable by default** (labeled cursor glides target→target and stays visible for the whole lease → brief linger → on-demand click ring via `pulseClick`/`showClickRing` → CDP click while still visible → no park between chained acts; `parkIdle`/hide only on silent/`navigation_only` or session closeout). Opt into silent/bench with `navigation_only`, `silent`, or
+**watchable by default** (lease `watchable: true` unless preflight/start requests silent; labeled cursor glides target→target and stays visible for the whole lease → brief linger → on-demand click ring via `pulseClick`/`showClickRing` → CDP click while still visible → no park between chained acts; `parkIdle`/hide only on silent/`navigation_only` or session closeout). After reinject/pageshow, `setIdentity`/`ensureSessionCursorWarm` force-visible at last (x,y) or viewport center — no opacity-0 offscreen debut waiting for the next `moveTo`. Opt into silent/bench with `navigation_only`, `silent`, or
 `visual_cursor: false`; set `visual_cursor: true` with `navigation_only` when
 you want intentional nav theater.
 

@@ -177,19 +177,22 @@
   `;
 
   // ---- DOM Setup ----
-  function createOverlay() {
+  function createOverlay(options = {}) {
     // Preserve last-known position + visibility across script re-injection.
     // Without this, a service-worker idle restart or extension reload silently
     // resets the cursor to (-100, -100) opacity:0 — the operator sees the
     // cursor vanish mid-flow until the agent's next cursor_move. Read the
     // prior element's transform + visibility, then restore after recreating.
+    // Session-warm / watchable leases: default priorVisible so recreating the
+    // overlay does not debut opacity-0 offscreen waiting for the next moveTo.
     const old = document.getElementById(COMET_CONTROL_CURSOR_ID);
     let priorTransform = null;
-    let priorVisible = false;
+    let priorVisible = Boolean(options.sessionWarm || options.forceVisible
+      || window.__cometControlSessionWarm === true);
     let priorIdentity = null;
     if (old) {
       priorTransform = old.style.transform || null;
-      priorVisible = old.classList.contains('comet-control-visible');
+      priorVisible = priorVisible || old.classList.contains('comet-control-visible');
       priorIdentity = {
         agentId: old.dataset.agentId || '',
         label: old.dataset.agentLabel || '',
@@ -240,6 +243,14 @@
       }
     }
     if (priorVisible) {
+      // Warm path: never leave logical coords at the offscreen park point.
+      if (!(Number.isFinite(cursorX) && Number.isFinite(cursorY))
+          || cursorX < 0 || cursorY < 0
+          || (cursorEl.style.transform || '').indexOf('-100') !== -1) {
+        cursorX = Math.round((window.innerWidth || 800) / 2);
+        cursorY = Math.round((window.innerHeight || 600) / 2);
+        cursorEl.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+      }
       cursorEl.classList.add('comet-control-visible');
       isVisible = true;
     } else {
@@ -1076,6 +1087,27 @@
     return label;
   }
 
+  function ensureSessionCursorWarm(options = {}) {
+    // After reinject / setAgentIdentity: show labeled cursor immediately at last
+    // (x,y) or viewport center. Do not wait for the next moveTo first-show.
+    const warm = options.sessionWarm !== false && options.watchable !== false;
+    if (!warm) return getStatus();
+    window.__cometControlSessionWarm = true;
+    if (!cursorEl) createOverlay({ sessionWarm: true, forceVisible: true });
+    if (!(Number.isFinite(cursorX) && Number.isFinite(cursorY))
+        || cursorX < 0 || cursorY < 0) {
+      cursorX = Math.round((window.innerWidth || 800) / 2);
+      cursorY = Math.round((window.innerHeight || 600) / 2);
+    }
+    if (cursorEl) {
+      cursorEl.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+      cursorEl.classList.add('comet-control-visible');
+      isVisible = true;
+      cursorPhase = 'idle';
+    }
+    return getStatus();
+  }
+
   function setIdentity(identity = {}) {
     const color = /^#[0-9a-f]{6}$/i.test(String(identity.color || '')) ? String(identity.color) : '#64d8ff';
     agentIdentity = {
@@ -1084,6 +1116,13 @@
       sessionId: String(identity.sessionId || '').slice(0, 96),
       color
     };
+    const watchable = identity.watchable !== false && identity.silent !== true;
+    const sessionWarm = identity.sessionWarm === true
+      || (watchable && identity.sessionWarm !== false);
+    if (sessionWarm) window.__cometControlSessionWarm = true;
+    if (sessionWarm && (!cursorEl || !labelEl)) {
+      createOverlay({ sessionWarm: true, forceVisible: true });
+    }
     if (!cursorEl || !labelEl) return agentIdentity;
     cursorEl.dataset.agentId = agentIdentity.agentId;
     cursorEl.dataset.agentLabel = agentIdentity.label;
@@ -1091,6 +1130,17 @@
     cursorEl.style.setProperty('--comet-control-cursor-color', agentIdentity.color);
     labelEl.textContent = agentIdentity.label;
     labelEl.style.display = agentIdentity.label ? 'block' : 'none';
+    if (sessionWarm) {
+      // Force visible immediately — no opacity-0 offscreen debut.
+      if (!(Number.isFinite(cursorX) && Number.isFinite(cursorY))
+          || cursorX < 0 || cursorY < 0) {
+        cursorX = Math.round((window.innerWidth || 800) / 2);
+        cursorY = Math.round((window.innerHeight || 600) / 2);
+      }
+      cursorEl.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+      cursorEl.classList.add('comet-control-visible');
+      isVisible = true;
+    }
     return agentIdentity;
   }
 
@@ -1167,6 +1217,8 @@
   // Tear down overlay + page-wide observer but keep the message listener so the
   // next leased action can reuse this world without reinjection retries.
   function parkIdle(options = {}) {
+    // parkIdle is silent/bench + closeout only — watchable leases must not call this
+    // between chained acts (session_closeout / silent benches tear the overlay).
     if (animationFrame) cancelAnimationFrame(animationFrame);
     if (arrivalTimer) clearTimeout(arrivalTimer);
     arrivalTimer = null;
@@ -1183,6 +1235,7 @@
     cursorPhase = 'idle';
     cursorX = -100;
     cursorY = -100;
+    window.__cometControlSessionWarm = false;
     window.__cometControlAgentCursorAlive = true;
     return getStatus();
   }
@@ -1231,7 +1284,7 @@
     focusAndType, keyPress, showKey, dragTo, scroll,
     getVisibleText, getDOMSnapshot, getPageContext,
     findPointBySelector, findPointByText, hasSelector,
-    getStatus, hide, destroy, parkIdle, setIdentity, clearIdentity, invalidateConnectionState,
+    getStatus, hide, destroy, parkIdle, setIdentity, ensureSessionCursorWarm, clearIdentity, invalidateConnectionState,
     evaluate: evaluateInPage,
     captureScreenshot
   };

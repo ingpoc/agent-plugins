@@ -1305,7 +1305,8 @@ async function check(actions, expected) {
             'if (type === "fill_selector")', 1
         )[0]
         self.assertIn("confirmNav", click_text)
-        self.assertIn("visualCursor = !silent", click_text)
+        self.assertIn("const visualCursor = !silent && actionWantsVisualCursor(action, state)", click_text)
+        self.assertIn("const silent = actionIsSilent(action, state)", click_text)
         self.assertIn("lingerMs: action.linger_ms", click_text)
         # Watchable lease: park only on silent path (not after every click).
         self.assertIn("if (silent) await parkContentScriptIdle(state.tabId, 0)", click_text)
@@ -1319,7 +1320,8 @@ async function check(actions, expected) {
             "const parity = await runParityAction", 1
         )[0]
         self.assertIn("confirmNav", click_selector)
-        self.assertIn("visualCursor = !silent", click_selector)
+        self.assertIn("const visualCursor = !silent && actionWantsVisualCursor(action, state)", click_selector)
+        self.assertIn("const silent = actionIsSilent(action, state)", click_selector)
         self.assertIn("if (silent) await parkContentScriptIdle(state.tabId, 0)", click_selector)
         self.assertIn("} finally {", click_selector)
         self.assertIn(
@@ -1365,6 +1367,67 @@ async function check(actions, expected) {
         load_tail = cursor.split("createOverlay", 1)[0]
         self.assertNotIn("showClickRing(", load_tail)
         self.assertNotIn("pulseClick()", load_tail)
+
+    def test_session_warm_continuous_cursor_018(self) -> None:
+        """0.1.8: lease watchable default, session-warm visible after setIdentity, no park between watchable acts."""
+        source = SERVICE_WORKER.read_text()
+        cursor = CURSOR_AGENT.read_text()
+        manifest = json.loads(MANIFEST.read_text())
+        self.assertEqual(manifest.get("version"), "0.1.8")
+        plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
+        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.8")
+
+        # Lease watchable default on record + publicLease
+        self.assertIn("function leaseIsWatchable", source)
+        self.assertIn("function actionIsSilent", source)
+        self.assertIn("function actionWantsVisualCursor", source)
+        self.assertIn("const watchable = !(message.silent === true || message.watchable === false)", source)
+        self.assertIn("watchable: record.watchable !== false", source)
+
+        # setAgentIdentity warms watchable sessions
+        sai = source.split("async function setAgentIdentity", 1)[1].split("async function sessionPreflight", 1)[0]
+        self.assertIn("sessionWarm: watchable", sai)
+        self.assertIn("ensureSessionCursorWarm", sai)
+
+        # click paths force visual when lease watchable; keepVisible CDP; no park on watchable
+        self.assertIn("actionIsSilent(action, state)", source)
+        self.assertIn("actionWantsVisualCursor(action, state)", source)
+        click_xy = source.split('if (type === "click_at_xy"', 1)[1].split(
+            'if (type === "click_text")', 1
+        )[0]
+        self.assertIn("actionWantsVisualCursor(action, state)", click_xy)
+        self.assertIn("keepVisible: visual", click_xy)
+        self.assertIn("if (!visual) await parkContentScriptIdle", click_xy)
+
+        click_at = source.split("async function clickAtPoint", 1)[1].split(
+            "async function clickResolvedTarget", 1
+        )[0]
+        self.assertIn("keepVisible: visual", click_at)
+        self.assertNotIn('sendToContentScript(tabId, "hide"', click_at)
+        self.assertIn("if (!visual) await parkContentScriptIdle", click_at)
+
+        # Content-script session warm
+        self.assertIn("function ensureSessionCursorWarm", cursor)
+        self.assertIn("function createOverlay(options = {})", cursor)
+        self.assertIn("options.sessionWarm || options.forceVisible", cursor)
+        self.assertIn("__cometControlSessionWarm", cursor)
+        set_id = cursor.split("function setIdentity(identity = {})", 1)[1].split(
+            "function clearIdentity", 1
+        )[0]
+        self.assertIn("sessionWarm", set_id)
+        self.assertIn("comet-control-visible", set_id)
+        self.assertIn("isVisible = true", set_id)
+        actions = cursor.split("const actions = {", 1)[1].split("};", 1)[0]
+        self.assertIn("ensureSessionCursorWarm", actions)
+        park = cursor.split("function parkIdle", 1)[1].split("function evaluateInPage", 1)[0]
+        self.assertIn("__cometControlSessionWarm = false", park)
+        click_text = source.split('if (type === "click_text")', 1)[1].split(
+            'if (type === "fill_selector")', 1
+        )[0]
+        self.assertIn("if (silent) await parkContentScriptIdle(state.tabId, 0)", click_text)
+        self.assertNotIn("if (!visualCursor) await parkContentScriptIdle", click_text)
+
+
 
 
 if __name__ == "__main__":
