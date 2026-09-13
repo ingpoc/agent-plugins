@@ -1574,6 +1574,7 @@ async function findPointOnControllableFrames(tabId, action, args, fallback) {
   const order = nonAd.length ? nonAd.concat(ads) : ids;
   let lastError;
   let lastMiss;
+  await ensureContentScript(tabId).catch(() => {});
   for (const frame of order) {
     const frameId = frame.frame_id;
     try {
@@ -1581,6 +1582,32 @@ async function findPointOnControllableFrames(tabId, action, args, fallback) {
       const point = requireContentScriptResult(response, fallback);
       return { ...point, frame_id: frameId };
     } catch (error) {
+      const msg = String(error?.message || error || "");
+      const missing = /Receiving end does not exist|Could not establish connection|CONTENT_SCRIPT_FRAME_MISSING|CS_DEAD_AFTER_REMOUNT|CONTENT_SCRIPT_MISSING/i.test(msg)
+        || error?.code === "CONTENT_SCRIPT_FRAME_MISSING"
+        || error?.code === "CS_DEAD_AFTER_REMOUNT"
+        || error?.code === "CONTENT_SCRIPT_MISSING";
+      if (missing && frameId !== 0 && !tabScriptingPoisoned.has(tabId)) {
+        try {
+          await executeScriptOnTab(
+            tabId,
+            {
+              target: { tabId, frameIds: [frameId] },
+              files: ["content-scripts/cursor-agent.js"],
+              injectImmediately: true,
+            },
+            12000,
+            "injectFrameContentScript"
+          );
+          const response = await sendToContentScript(tabId, action, args, frameId);
+          const point = requireContentScriptResult(response, fallback);
+          return { ...point, frame_id: frameId };
+        } catch (frameError) {
+          lastError = frameError;
+          if (isLocatorMissError(frameError)) lastMiss = frameError;
+          continue;
+        }
+      }
       lastError = error;
       if (isLocatorMissError(error)) lastMiss = error;
     }
@@ -1599,13 +1626,94 @@ async function moveCursorToPoint(tabId, point) {
   return requireContentScriptResult(response, "Cursor movement failed");
 }
 
-async function clickAtPoint(tabId, point, expectation = {}) {
-  await moveCursorToPoint(tabId, point);
+async function parkContentScriptIdle(tabId, frameId = 0) {
+  try {
+    await sendToContentScript(tabId, "parkIdle", [], frameId);
+  } catch {
+    /* idle park is best-effort */
+  }
+}
+
+async function confirmNavigation(tabId, { fromUrl = "", fromTitle = "", timeoutMs = 5000 } = {}) {
+  const deadline = Date.now() + Math.max(250, Number(timeoutMs) || 5000);
+  let last = await chrome.tabs.get(tabId).catch(() => null);
+  while (Date.now() < deadline) {
+    last = await chrome.tabs.get(tabId).catch(() => null);
+    if (!last) throw new Error("Tab closed during navigation confirm");
+    const urlChanged = fromUrl && last.url && last.url !== fromUrl;
+    const titleChanged = fromTitle && last.title && last.title !== fromTitle;
+    if (urlChanged || titleChanged) {
+      return {
+        confirmed: true,
+        url: last.url || "",
+        title: last.title || "",
+        from_url: fromUrl,
+        from_title: fromTitle,
+      };
+    }
+    await sleep(40);
+  }
+  return {
+    confirmed: Boolean(fromUrl && last?.url && last.url !== fromUrl)
+      || Boolean(fromTitle && last?.title && last.title !== fromTitle),
+    url: last?.url || "",
+    title: last?.title || "",
+    from_url: fromUrl,
+    from_title: fromTitle,
+    timed_out: true,
+  };
+}
+
+async function trustedBrowserClickAtPoint(tabId, point) {
+  // Overlay must never cover the hit-tested target during a trusted click
+  // (Comet EXC_BREAKPOINT with persistent overlay + native/CDP click).
+  await parkContentScriptIdle(tabId, point.frame_id || 0);
+  await ensureAttached(tabId);
+  const x = Number(point.x);
+  const y = Number(point.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new Error("trusted click requires numeric x/y");
+  }
+  await send(tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+  await send(tabId, "Input.dispatchMouseEvent", {
+    type: "mousePressed", x, y, button: "left", clickCount: 1,
+  });
+  await send(tabId, "Input.dispatchMouseEvent", {
+    type: "mouseReleased", x, y, button: "left", clickCount: 1,
+  });
+  return {
+    clicked: true,
+    trusted: true,
+    x,
+    y,
+    frame_id: point.frame_id || 0,
+    href: point.href || "",
+  };
+}
+
+async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
+  const visual = options.visual === true;
+  const trusted = options.trusted !== false; // default trusted/browser-level
+  const navClickMode = options.navClickMode === true;
+  if (navClickMode || !visual) {
+    await parkContentScriptIdle(tabId, point.frame_id || 0);
+  } else {
+    await moveCursorToPoint(tabId, point);
+    // Park overlay off the hit target right before the click pulse.
+    await sendToContentScript(tabId, "hide", [], point.frame_id).catch(() => {});
+  }
+  if (trusted || navClickMode) {
+    // Top-frame CDP mouse is the Chrome-parity navigation path. For OOPIF
+    // frames fall back to content-script click after overlay is parked.
+    if (!point.frame_id || Number(point.frame_id) === 0) {
+      return trustedBrowserClickAtPoint(tabId, point);
+    }
+  }
   const response = await sendToContentScript(tabId, "click", [expectation], point.frame_id);
   return requireContentScriptResult(response, "Cursor click failed");
 }
 
-async function clickResolvedTarget(tabId, resolvePoint, expectation) {
+async function clickResolvedTarget(tabId, resolvePoint, expectation, options = {}) {
   let point = await resolvePoint();
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
@@ -1614,7 +1722,7 @@ async function clickResolvedTarget(tabId, resolvePoint, expectation) {
         targetToken: point.target_token || "",
         pageRevision: point.page_revision,
         targetHref: point.href || "",
-      });
+      }, options);
       return { point, click, retried: attempt > 0 };
     } catch (error) {
       const targetMoved = error?.code === "CLICK_TARGET_MISMATCH"
@@ -1896,7 +2004,7 @@ async function ensureContentScript(tabId, options = {}) {
   }
 }
 
-async function ensureContentScriptUnlocked(tabId, { force = false } = {}) {
+async function ensureContentScriptUnlocked(tabId, { force = false, frameId = 0 } = {}) {
   let tab = await waitForTabComplete(tabId);
   if (!tab?.id) {
     return { injected: false, blocked: true, reason: "Tab is no longer available" };
@@ -1919,7 +2027,8 @@ async function ensureContentScriptUnlocked(tabId, { force = false } = {}) {
   const mustForce = force || contentScriptForceReinjection.has(tabId);
   // Prefer probe even when force is set — force often means "message failed
   // once", not "script is gone". Injecting while a healthy script exists is how
-  // Accept→Dispatch wedges Comet's scripting FIFO.
+  // Accept→Dispatch wedges Comet's scripting FIFO. Gate: reinjection retries on
+  // healthy tabs must stay 0.
   if (await probeContentScript(tabId)) {
     contentScriptForceReinjection.delete(tabId);
     return { injected: true, url: tab.url };
@@ -1938,14 +2047,39 @@ async function ensureContentScriptUnlocked(tabId, { force = false } = {}) {
     }
     await sleep(250);
   }
-  // Manifest content_scripts reinject after full document loads. Give that
-  // path one more chance. Do NOT programmatic-inject: on this Comet+Seller
-  // path even a no-op executeScript hangs after Accept.
-  // Click handlers recover with one tab reload instead.
-  await sleep(500);
+  // Chrome-parity: action-scoped programmatic inject into the active top
+  // frame (cursor world). No static manifest content_scripts. Iframe frames
+  // are injected on demand from findPointOnControllableFrames.
+  void frameId;
+  try {
+    await executeScriptOnTab(
+      tabId,
+      {
+        target: { tabId, frameIds: [0] },
+        files: ["content-scripts/cursor-agent.js"],
+        injectImmediately: true,
+      },
+      12000,
+      "injectContentScript"
+    );
+  } catch (error) {
+    if (await probeContentScript(tabId, 1500)) {
+      contentScriptForceReinjection.delete(tabId);
+      return { injected: true, url: tab.url, via: "executeScript-race" };
+    }
+    return {
+      injected: false,
+      blocked: true,
+      error_code: "CONTENT_SCRIPT_INJECT_FAILED",
+      reason: String(error?.message || error),
+      url: tab.url,
+      retryable: true,
+    };
+  }
   if (await probeContentScript(tabId, 1500)) {
     contentScriptForceReinjection.delete(tabId);
-    return { injected: true, url: tab.url, via: "manifest-settle" };
+    injectedTabs.add(tabId);
+    return { injected: true, url: tab.url, via: "executeScript" };
   }
   return {
     injected: false,
@@ -2099,8 +2233,8 @@ async function sendToContentScript(tabId, action, args = [], frameId) {
     const fastMsg = String(fastError?.message || fastError);
     connectionLost = /Receiving end does not exist|Could not establish connection/i.test(fastMsg);
     if (clickPath) {
-      // Probe-once then fail. A missing locator / hung click must not spend
-      // ensureMs+ensureMs, and must not executeScript (Seller Accept→Dispatch hang).
+      // Healthy script that timed out must not be reinjected (gate: 0 retries on
+      // healthy tabs). Missing script gets one action-scoped ensure/inject below.
       const alive = await probeContentScript(tabId, 800);
       if (alive && !connectionLost) {
         throw codedError("CONTENT_SCRIPT_TIMEOUT", `Content script action timed out: ${action}`);
@@ -2111,11 +2245,7 @@ async function sendToContentScript(tabId, action, args = [], frameId) {
           `Content script is not available in frame for ${action}`
         );
       }
-      throw codedError(
-        "CS_DEAD_AFTER_REMOUNT",
-        "Content script missing after SPA remount; reload required",
-        { retryable: true }
-      );
+      // Fall through to ensureContentScript → executeScript once.
     }
     if (!connectionLost && /timed out/i.test(fastMsg)) {
       // Sync DOM work (e.g. findPointByText) can occupy the CS thread past fastMs.
@@ -2218,8 +2348,15 @@ async function boundedWait(ms, state) {
 
 async function runBrowserAction(action, state) {
   assertRequestLive(state);
-  const type = action.type;
+  let type = action.type;
   // Normalize aliases; fail-fast other-tab activate/focus (portal-huf 87s footgun)
+  if (type === "nav_click_text") {
+    action = { ...action, type: "click_text", navigation_only: true, visual_cursor: false };
+    type = "click_text";
+  } else if (type === "nav_click_selector") {
+    action = { ...action, type: "click_selector", navigation_only: true, visual_cursor: false };
+    type = "click_selector";
+  }
   if (action.tab_id != null && action.tabId == null) action.tabId = action.tab_id;
   if (type === "activate_tab" || type === "focus_tab") {
     const target = Number(action.tabId);
@@ -2262,7 +2399,7 @@ async function runBrowserAction(action, state) {
     // Do not pre-attach the debugger here. debugger + scripting.executeScript
     // on the same tab wedges Seller Accept→Dispatch (injectCanary timeout).
     // Screenshots/network attach lazily when those actions run.
-    // Manifest content_scripts + ensure via sendMessage.
+    // Action-scoped inject via ensure/executeScript (no static content_scripts).
     await ensureContentScript(state.tabId).catch(() => {});
     if (state.leaseRecord) {
       state.leaseRecord.lastSeen = Date.now();
@@ -2700,15 +2837,17 @@ async function runBrowserAction(action, state) {
       throw new Error("click_at_xy requires numeric x and y");
     }
     // Top-frame CDP mouse — for cross-origin OOPIF when locators cannot enter the frame.
-    await ensureAttached(state.tabId);
-    const moved = await sendToContentScript(state.tabId, "moveToAndWait", [x, y, 900], 0).catch(() => null);
-    if (moved && moved.success === false) {
-      // Cursor mirror best-effort; still dispatch CDP click.
+    // Overlay must not cover the hit target during trusted click.
+    const visual = action.visual_cursor === true;
+    if (visual) {
+      await sendToContentScript(state.tabId, "moveToAndWait", [x, y, 900], 0).catch(() => {});
+      await sendToContentScript(state.tabId, "hide", [], 0).catch(() => {});
+    } else {
+      await parkContentScriptIdle(state.tabId, 0);
     }
-    await send(state.tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
-    await send(state.tabId, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
-    await send(state.tabId, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
-    return { type: "click_at_xy", x, y, cursor_mirrored: Boolean(moved?.success) };
+    const click = await trustedBrowserClickAtPoint(state.tabId, { x, y, frame_id: 0 });
+    if (!visual) await parkContentScriptIdle(state.tabId, 0);
+    return { type: "click_at_xy", x, y, trusted_click: true, ...click };
   }
 
   if (type === "click_text") {
@@ -2718,13 +2857,24 @@ async function runBrowserAction(action, state) {
     // Attach debugger first so Page.javascriptDialogOpening is observed.
     // Use clickResolvedTarget (same as click_selector) so CLICK_TARGET_MISMATCH
     // re-resolves once and reports retried:true for moved text targets.
+    const navClickMode = action.navigation_only === true || action.mode === "navigation";
+    const visualCursor = action.visual_cursor === true && !navClickMode;
+    const clickOptions = {
+      visual: visualCursor,
+      trusted: action.trusted !== false,
+      navClickMode,
+    };
+    const beforeTab = navClickMode
+      ? await chrome.tabs.get(state.tabId).catch(() => null)
+      : null;
     const debuggerAttached = await attachForClick(state.tabId);
     const runDialogAware = async () => {
       const clickPromise = withTimeout(
         clickResolvedTarget(
           state.tabId,
           () => findPointByText(state.tabId, action.text),
-          { text: action.text }
+          { text: action.text },
+          clickOptions
         ),
         15000,
         "clickResolvedTarget"
@@ -2741,7 +2891,29 @@ async function runBrowserAction(action, state) {
     };
     try {
       const result = await runDialogAware();
-      return { type, text: action.text, ...result };
+      let navConfirm = null;
+      if (navClickMode) {
+        navConfirm = await confirmNavigation(state.tabId, {
+          fromUrl: beforeTab?.url || "",
+          fromTitle: beforeTab?.title || "",
+          timeoutMs: action.confirm_ms || 5000,
+        });
+        if (!navConfirm.confirmed) {
+          throw codedError(
+            "NAVIGATION_CONFIRM_FAILED",
+            `Navigation click did not change URL/title (still ${navConfirm.url || "unknown"})`
+          );
+        }
+      }
+      if (!visualCursor) await parkContentScriptIdle(state.tabId, 0);
+      return {
+        type,
+        text: action.text,
+        ...result,
+        navigation_only: navClickMode,
+        trusted_click: clickOptions.trusted || navClickMode,
+        ...(navConfirm ? { navigation: navConfirm } : {}),
+      };
     } catch (error) {
       if (String(error?.code || "").startsWith("ACTIONABILITY_")) throw error;
       const openDialog = getParityDialog(state.tabId);
@@ -2758,7 +2930,7 @@ async function runBrowserAction(action, state) {
       if (isLocatorMissError(error) || isContentScriptTimeoutError(error)) throw error;
       const msg = String(error?.message || error?.error || error);
       // One hard reload recovery when there is no JS dialog. Same-URL tabs.update
-      // is a Comet no-op — always reload so manifest content_scripts remount.
+      // is a Comet no-op — always reload then action-scoped executeScript reinject.
       // Missing locators, CS timeouts, and foreign-extension misses must not
       // enter this path (live miss on a 404 must fail fast, not reload).
       if (!isHalfDeadReloadError(error)) throw error;
@@ -2852,19 +3024,54 @@ async function runBrowserAction(action, state) {
   }
 
   if (type === "click_selector") {
+    const navClickMode = action.navigation_only === true || action.mode === "navigation";
+    const visualCursor = action.visual_cursor === true && !navClickMode;
+    const clickOptions = {
+      visual: visualCursor,
+      trusted: action.trusted !== false,
+      navClickMode,
+    };
+    const beforeTab = navClickMode
+      ? await chrome.tabs.get(state.tabId).catch(() => null)
+      : null;
     const debuggerAttached = await attachForClick(state.tabId);
     const clickPromise = withTimeout(
       clickResolvedTarget(
         state.tabId,
         () => findPointBySelector(state.tabId, action.selector),
-        { selector: action.selector }
+        { selector: action.selector },
+        clickOptions
       ),
       15000,
       "clickResolvedTarget"
     );
+    const finish = async (result) => {
+      let navConfirm = null;
+      if (navClickMode) {
+        navConfirm = await confirmNavigation(state.tabId, {
+          fromUrl: beforeTab?.url || "",
+          fromTitle: beforeTab?.title || "",
+          timeoutMs: action.confirm_ms || 5000,
+        });
+        if (!navConfirm.confirmed) {
+          throw codedError(
+            "NAVIGATION_CONFIRM_FAILED",
+            `Navigation click did not change URL/title (still ${navConfirm.url || "unknown"})`
+          );
+        }
+      }
+      if (!visualCursor) await parkContentScriptIdle(state.tabId, 0);
+      return {
+        type,
+        selector: action.selector,
+        ...result,
+        navigation_only: navClickMode,
+        trusted_click: clickOptions.trusted || navClickMode,
+        ...(navConfirm ? { navigation: navConfirm } : {}),
+      };
+    };
     if (!debuggerAttached) {
-      const result = await clickPromise;
-      return { type, selector: action.selector, ...result };
+      return finish(await clickPromise);
     }
     const outcome = await raceClickWithDialog(state.tabId, clickPromise, 8000);
     if (outcome.dialog) {
@@ -2875,7 +3082,7 @@ async function runBrowserAction(action, state) {
         click_pending: true,
       };
     }
-    return { type, selector: action.selector, ...(outcome.value || {}) };
+    return finish(outcome.value || {});
   }
 
   const parity = await runParityAction(action, state, {

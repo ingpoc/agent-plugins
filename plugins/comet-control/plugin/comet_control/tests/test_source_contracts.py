@@ -910,8 +910,9 @@ async function check(actions, expected) {
         self.assertIn("waitForTabComplete", ensure)
         self.assertIn("reload required", ensure)
         self.assertIn("Prefer probe even when force is set", ensure)
-        self.assertIn("manifest-settle", ensure)
-        self.assertNotIn("executeScriptOnTab", ensure)
+        self.assertIn("injectContentScript", ensure)
+        self.assertIn("executeScriptOnTab", ensure)
+        self.assertIn('via: "executeScript"', ensure)
         self.assertIn('recovered_via: "navigate"', source)
         self.assertIn("Content script action timed out", source)
         # Same-URL tabs.update is a no-op; recovery must hard-reload.
@@ -937,9 +938,10 @@ async function check(actions, expected) {
         self.assertIn("executeScriptOnTab", source)
         self.assertIn("enqueueTabScripting", source)
         manifest = (ROOT / "extension" / "manifest.json").read_text()
-        self.assertIn("content_scripts", manifest)
-        self.assertIn("cursor-agent.js", manifest)
-        self.assertTrue(json.loads(manifest)["content_scripts"][0]["all_frames"])
+        # Chrome-parity: no static always-on content_scripts; action-scoped executeScript.
+        self.assertNotIn("content_scripts", json.loads(manifest))
+        self.assertIn("scripting", json.loads(manifest)["permissions"])
+        self.assertTrue((ROOT / "extension" / "content-scripts" / "cursor-agent.js").is_file())
         # onUpdated must not call ensureContentScript (races Dispatch inject).
         on_updated = source.split(
             "// ---- Navigation invalidation (lazy inject on interaction) ----", 1
@@ -1268,6 +1270,36 @@ async function check(actions, expected) {
         self.assertIn("Page.captureScreenshot", screenshot)
         self.assertIn("VIEWPORT_CAPTURE_MS", screenshot)
 
+
+
+
+    def test_chrome_parity_action_scoped_injection_and_trusted_nav(self) -> None:
+        """P0: action-scoped inject, trusted CDP nav click, idle park (no overlay/observer)."""
+        source = SERVICE_WORKER.read_text()
+        cursor = CURSOR_AGENT.read_text()
+        manifest = json.loads(MANIFEST.read_text())
+        self.assertNotIn("content_scripts", manifest)
+        self.assertIn("trustedBrowserClickAtPoint", source)
+        self.assertIn("Input.dispatchMouseEvent", source)
+        self.assertIn("confirmNavigation", source)
+        self.assertIn("parkContentScriptIdle", source)
+        self.assertIn("navigation_only", source)
+        self.assertIn("nav_click_text", source)
+        self.assertIn("nav_click_selector", source)
+        self.assertIn("function parkIdle()", cursor)
+        self.assertIn("function ensurePageObserver()", cursor)
+        self.assertIn("function stopPageObserver()", cursor)
+        self.assertIn("observer_active", cursor)
+        self.assertIn("overlay_present", cursor)
+        # Observer must not start at script load — only via ensurePageObserver.
+        self.assertNotIn("new MutationObserver(_bumpPageRevision).observe", cursor)
+        click_text = source.split('if (type === "click_text")', 1)[1].split(
+            'if (type === "fill_selector")', 1
+        )[0]
+        self.assertIn("navClickMode", click_text)
+        click_at = source.split("async function clickAtPoint", 1)[1].split("async function clickResolvedTarget", 1)[0]
+        self.assertIn("trustedBrowserClickAtPoint", click_at)
+        self.assertIn("navClickMode", click_at)
 
 
 if __name__ == "__main__":
