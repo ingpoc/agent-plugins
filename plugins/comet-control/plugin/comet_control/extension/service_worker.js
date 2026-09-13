@@ -1695,23 +1695,30 @@ async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
   const visual = options.visual === true;
   const trusted = options.trusted !== false; // default trusted/browser-level
   // navClickMode no longer forces park-before-move; visual theater is independent.
-  if (visual) {
-    await moveCursorToPoint(tabId, point);
-    await sleep(Math.max(150, Number(options.lingerMs) || 350));
-    // Hide for CDP pulse (not full park yet); trusted path clears overlay DOM.
-    await sendToContentScript(tabId, "hide", [], point.frame_id).catch(() => {});
-  } else {
-    await parkContentScriptIdle(tabId, point.frame_id || 0);
-  }
-  if (trusted) {
-    // Top-frame CDP mouse is the Chrome-parity navigation path. For OOPIF
-    // frames fall back to content-script click after overlay is parked/hidden.
-    if (!point.frame_id || Number(point.frame_id) === 0) {
-      return trustedBrowserClickAtPoint(tabId, point);
+  let moved = false;
+  try {
+    if (visual) {
+      await moveCursorToPoint(tabId, point);
+      moved = true;
+      await sleep(Math.max(150, Number(options.lingerMs) || 350));
+      // Hide for CDP pulse (not full park yet); trusted path clears overlay DOM.
+      await sendToContentScript(tabId, "hide", [], point.frame_id).catch(() => {});
+    } else {
+      await parkContentScriptIdle(tabId, point.frame_id || 0);
     }
+    if (trusted) {
+      // Top-frame CDP mouse is the Chrome-parity navigation path. For OOPIF
+      // frames fall back to content-script click after overlay is parked/hidden.
+      if (!point.frame_id || Number(point.frame_id) === 0) {
+        return trustedBrowserClickAtPoint(tabId, point);
+      }
+    }
+    const response = await sendToContentScript(tabId, "click", [expectation], point.frame_id);
+    return requireContentScriptResult(response, "Cursor click failed");
+  } catch (error) {
+    if (moved) await parkContentScriptIdle(tabId, point.frame_id || 0);
+    throw error;
   }
-  const response = await sendToContentScript(tabId, "click", [expectation], point.frame_id);
-  return requireContentScriptResult(response, "Cursor click failed");
 }
 
 async function clickResolvedTarget(tabId, resolvePoint, expectation, options = {}) {
@@ -3006,6 +3013,10 @@ async function runBrowserAction(action, state) {
           `click_text(${action.text}) failed: ${msg}; recover: ${recoverErr?.message || recoverErr}`
         );
       }
+    } finally {
+      // Park even after ACTIONABILITY / ambiguous-selector / recover throws so
+      // a mid-act observer cannot linger (observer_idle_violations).
+      await parkContentScriptIdle(state.tabId, 0);
     }
   }
 
@@ -3081,19 +3092,24 @@ async function runBrowserAction(action, state) {
         ...(navConfirm ? { navigation: navConfirm } : {}),
       };
     };
-    if (!debuggerAttached) {
-      return finish(await clickPromise);
+    try {
+      if (!debuggerAttached) {
+        return await finish(await clickPromise);
+      }
+      const outcome = await raceClickWithDialog(state.tabId, clickPromise, 8000);
+      if (outcome.dialog) {
+        return {
+          type,
+          selector: action.selector,
+          dialog_opened: outcome.dialog,
+          click_pending: true,
+        };
+      }
+      return await finish(outcome.value || {});
+    } finally {
+      // Park on throw too (e.g. ACTIONABILITY_TARGET_COUNT "found 2").
+      await parkContentScriptIdle(state.tabId, 0);
     }
-    const outcome = await raceClickWithDialog(state.tabId, clickPromise, 8000);
-    if (outcome.dialog) {
-      return {
-        type,
-        selector: action.selector,
-        dialog_opened: outcome.dialog,
-        click_pending: true,
-      };
-    }
-    return finish(outcome.value || {});
   }
 
   const parity = await runParityAction(action, state, {

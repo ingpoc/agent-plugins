@@ -1309,12 +1309,23 @@ async function check(actions, expected) {
         self.assertIn("lingerMs: action.linger_ms", click_text)
         self.assertIn("await parkContentScriptIdle(state.tabId, 0)", click_text)
         self.assertNotIn("if (!visualCursor) await parkContentScriptIdle", click_text)
+        # Failed clicks (ACTIONABILITY / ambiguous selector) must parkIdle too.
+        self.assertIn("} finally {", click_text)
+        self.assertIn(
+            "await parkContentScriptIdle(state.tabId, 0)",
+            click_text.split("} finally {", 1)[1],
+        )
         click_selector = source.split('if (type === "click_selector")', 1)[1].split(
             "const parity = await runParityAction", 1
         )[0]
         self.assertIn("confirmNav", click_selector)
         self.assertIn("visualCursor = !silent", click_selector)
         self.assertIn("await parkContentScriptIdle(state.tabId, 0)", click_selector)
+        self.assertIn("} finally {", click_selector)
+        self.assertIn(
+            "await parkContentScriptIdle(state.tabId, 0)",
+            click_selector.split("} finally {", 1)[1],
+        )
         click_at = source.split("async function clickAtPoint", 1)[1].split("async function clickResolvedTarget", 1)[0]
         self.assertIn("trustedBrowserClickAtPoint", click_at)
         self.assertIn("moveCursorToPoint", click_at)
@@ -1322,6 +1333,13 @@ async function check(actions, expected) {
         self.assertIn('sendToContentScript(tabId, "hide"', click_at)
         # Visual path must not park-before-move via navClickMode.
         self.assertNotIn("navClickMode || !visual", click_at)
+        # Thrown after visual move must park (overlay/observer leftover).
+        self.assertIn("if (moved)", click_at)
+        self.assertIn("parkContentScriptIdle", click_at)
+        self.assertIn("width: 18px;", cursor)
+        self.assertIn("height: 18px;", cursor)
+        self.assertNotIn("width: 28px;", cursor)
+        self.assertIn("drop-shadow(0 0 8px", cursor)
 
 
 if __name__ == "__main__":

@@ -102,14 +102,14 @@
       opacity: 1;
     }
     #${COMET_CONTROL_CURSOR_ID} .comet-control-cursor-pointer {
-      width: 28px;
-      height: 28px;
+      width: 18px;
+      height: 18px;
       display: block;
       transform: translate(-1px, -1px);
       transform-origin: 1px 1px;
       filter:
-        drop-shadow(0 0 12px var(--comet-control-cursor-color, rgba(73, 182, 255, 0.9)))
-        drop-shadow(0 2px 4px rgba(0,0,0,0.45));
+        drop-shadow(0 0 8px var(--comet-control-cursor-color, rgba(73, 182, 255, 0.9)))
+        drop-shadow(0 2px 3px rgba(0,0,0,0.45));
       transition: transform 0.12s ease;
       animation: comet-control-pointer-idle 1.7s ease-in-out infinite;
       user-select: none;
@@ -117,17 +117,17 @@
     }
     #${COMET_CONTROL_CURSOR_ID} .comet-control-cursor-agent-label {
       position: absolute;
-      left: 22px;
-      top: 30px;
+      left: 16px;
+      top: 20px;
       display: none;
       max-width: 320px;
-      padding: 6px 12px;
+      padding: 4px 8px;
       border: 1px solid color-mix(in srgb, var(--comet-control-cursor-color, #64d8ff) 72%, white);
       border-radius: 999px;
       background: rgba(10, 18, 28, 0.94);
-      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.38);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.38);
       color: #fff;
-      font: 700 14px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font: 700 12px/1.25 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       letter-spacing: 0.01em;
       overflow: hidden;
       text-overflow: ellipsis;
