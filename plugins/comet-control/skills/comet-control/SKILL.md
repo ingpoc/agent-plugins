@@ -21,6 +21,7 @@ Never dual-drive Browser Use CLI and `send` (optional bridge: [browser-use.md](r
 1. `./scripts/ensure-broker.sh probe --json` → `success` + `runtime_verified` + `extension_connected`.
 2. One durable `start` for the campaign. Same session id. No remint / second controller.
 3. **Act-first.** Batch mutations + compact `page_context`. Screenshots only for visual claims. ≤1 observe/30s while waiting OS/CUA → [speed-bar.md](references/speed-bar.md).
+   Watchable clicks keep the labeled cursor visible through CDP (`cursor_visible_during_click`); park only on silent/closeout → [operate.md](references/operate.md).
 4. Closeout once; require `verified_absent: true`.
 
 Recipes: [fast-path.md](references/fast-path.md). Typed failures: [observe-feedback.md](references/observe-feedback.md).

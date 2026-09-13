@@ -1666,12 +1666,17 @@ async function confirmNavigation(tabId, { fromUrl = "", fromTitle = "", timeoutM
 }
 
 async function trustedBrowserClickAtPoint(tabId, point, options = {}) {
-  // Overlay must never cover the hit-tested target during a trusted click
-  // (Comet EXC_BREAKPOINT with persistent overlay + native/CDP click).
-  // keepClickRing: allow on-demand ring to finish its ~280ms pulse after park.
-  await parkContentScriptIdle(tabId, point.frame_id || 0, {
-    keepClickRing: options.keepClickRing === true,
-  });
+  // Default (silent/bench): park overlay before CDP so hit-testing cannot race a
+  // covering host. Watchable/keepVisible: keep labeled cursor through mouseMoved
+  // + press/release — host+ring are pointer-events:none (hotspot tip at x,y).
+  // Reintroduce hide/park-before-CDP on visual only if EXC_BREAKPOINT reproves.
+  const keepVisible = options.keepVisible === true;
+  if (!keepVisible) {
+    // keepClickRing: allow on-demand ring to finish its ~280ms pulse after park.
+    await parkContentScriptIdle(tabId, point.frame_id || 0, {
+      keepClickRing: options.keepClickRing === true,
+    });
+  }
   await ensureAttached(tabId);
   const x = Number(point.x);
   const y = Number(point.y);
@@ -1693,42 +1698,58 @@ async function trustedBrowserClickAtPoint(tabId, point, options = {}) {
     frame_id: point.frame_id || 0,
     href: point.href || "",
     click_ring: options.keepClickRing === true,
+    cursor_visible_during_click: keepVisible,
+    keep_visible: keepVisible,
   };
 }
 
 async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
   const visual = options.visual === true;
   const trusted = options.trusted !== false; // default trusted/browser-level
-  // navClickMode no longer forces park-before-move; visual theater is independent.
-  let moved = false;
+  // Watchable lease: labeled cursor stays visible across chained acts (no
+  // hide/park-before-CDP). Silent/bench still parks first. Session closeout
+  // hides cursors; do not park between watchable clicks.
   let ringShown = false;
   try {
     if (visual) {
       await moveCursorToPoint(tabId, point);
-      moved = true;
       await sleep(Math.max(150, Number(options.lingerMs) || 350));
-      // On-demand click ring at point (same-act theater), then hide cursor for CDP.
+      // On-demand click ring at point (same-act theater); keep overlay for CDP.
       const pulse = await sendToContentScript(tabId, "pulseClick", [], point.frame_id).catch(() => null);
       ringShown = Boolean(pulse?.result?.click_ring);
-      await sendToContentScript(tabId, "hide", [], point.frame_id).catch(() => {});
     } else {
       await parkContentScriptIdle(tabId, point.frame_id || 0);
     }
     if (trusted) {
       // Top-frame CDP mouse is the Chrome-parity navigation path. For OOPIF
-      // frames fall back to content-script click after overlay is parked/hidden.
+      // frames fall back to content-script click (overlay pointer-events:none).
       if (!point.frame_id || Number(point.frame_id) === 0) {
         const click = await trustedBrowserClickAtPoint(tabId, point, {
           keepClickRing: ringShown,
+          keepVisible: visual,
         });
-        return { ...click, click_ring: Boolean(ringShown || click.click_ring), pulse: ringShown };
+        return {
+          ...click,
+          click_ring: Boolean(ringShown || click.click_ring),
+          pulse: ringShown,
+          cursor_visible_during_click: Boolean(visual || click.cursor_visible_during_click),
+          visual_synced: visual,
+        };
       }
     }
     const response = await sendToContentScript(tabId, "click", [expectation], point.frame_id);
     const click = requireContentScriptResult(response, "Cursor click failed");
-    return { ...click, click_ring: Boolean(click?.click_ring || ringShown), pulse: ringShown };
+    return {
+      ...click,
+      click_ring: Boolean(click?.click_ring || ringShown),
+      pulse: ringShown,
+      cursor_visible_during_click: visual,
+      visual_synced: visual,
+    };
   } catch (error) {
-    if (moved) await parkContentScriptIdle(tabId, point.frame_id || 0);
+    // Silent path: ensure leftover overlay/observer is cleared on failure.
+    // Watchable: leave cursor up for the lease (closeout parks/hides).
+    if (!visual) await parkContentScriptIdle(tabId, point.frame_id || 0);
     throw error;
   }
 }
@@ -2857,17 +2878,25 @@ async function runBrowserAction(action, state) {
       throw new Error("click_at_xy requires numeric x and y");
     }
     // Top-frame CDP mouse — for cross-origin OOPIF when locators cannot enter the frame.
-    // Overlay must not cover the hit target during trusted click.
+    // Watchable: glide + CDP while overlay still visible (pointer-events:none).
     const visual = action.visual_cursor === true;
     if (visual) {
       await sendToContentScript(state.tabId, "moveToAndWait", [x, y, 900], 0).catch(() => {});
-      await sendToContentScript(state.tabId, "hide", [], 0).catch(() => {});
-    } else {
-      await parkContentScriptIdle(state.tabId, 0);
+      await sendToContentScript(state.tabId, "pulseClick", [], 0).catch(() => {});
     }
-    const click = await trustedBrowserClickAtPoint(state.tabId, { x, y, frame_id: 0 });
+    const click = await trustedBrowserClickAtPoint(state.tabId, { x, y, frame_id: 0 }, {
+      keepVisible: visual,
+      keepClickRing: visual,
+    });
     if (!visual) await parkContentScriptIdle(state.tabId, 0);
-    return { type: "click_at_xy", x, y, trusted_click: true, ...click };
+    return {
+      type: "click_at_xy",
+      x,
+      y,
+      trusted_click: true,
+      visual_synced: visual,
+      ...click,
+    };
   }
 
   if (type === "click_text") {
@@ -2930,13 +2959,16 @@ async function runBrowserAction(action, state) {
           );
         }
       }
-      await parkContentScriptIdle(state.tabId, 0);
+      // Watchable lease: keep cursor visible between chained acts.
+      // Silent/bench still parks after the click.
+      if (silent) await parkContentScriptIdle(state.tabId, 0);
       return {
         type,
         text: action.text,
         ...result,
         navigation_only: confirmNav,
         trusted_click: clickOptions.trusted !== false,
+        visual_synced: visualCursor,
         ...(navConfirm ? { navigation: navConfirm } : {}),
       };
     } catch (error) {
@@ -3026,9 +3058,9 @@ async function runBrowserAction(action, state) {
         );
       }
     } finally {
-      // Park even after ACTIONABILITY / ambiguous-selector / recover throws so
-      // a mid-act observer cannot linger (observer_idle_violations).
-      await parkContentScriptIdle(state.tabId, 0);
+      // Silent/bench: clear overlay/observer on throw. Watchable: leave cursor
+      // up for the lease — session closeout hides cursors.
+      if (silent) await parkContentScriptIdle(state.tabId, 0);
     }
   }
 
@@ -3094,13 +3126,14 @@ async function runBrowserAction(action, state) {
           );
         }
       }
-      await parkContentScriptIdle(state.tabId, 0);
+      if (silent) await parkContentScriptIdle(state.tabId, 0);
       return {
         type,
         selector: action.selector,
         ...result,
         navigation_only: confirmNav,
         trusted_click: clickOptions.trusted !== false,
+        visual_synced: visualCursor,
         ...(navConfirm ? { navigation: navConfirm } : {}),
       };
     };
@@ -3119,8 +3152,8 @@ async function runBrowserAction(action, state) {
       }
       return await finish(outcome.value || {});
     } finally {
-      // Park on throw too (e.g. ACTIONABILITY_TARGET_COUNT "found 2").
-      await parkContentScriptIdle(state.tabId, 0);
+      // Silent/bench only — watchable cursor stays for the lease.
+      if (silent) await parkContentScriptIdle(state.tabId, 0);
     }
   }
 

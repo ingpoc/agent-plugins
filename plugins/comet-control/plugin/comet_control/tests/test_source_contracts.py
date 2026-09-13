@@ -1307,12 +1307,12 @@ async function check(actions, expected) {
         self.assertIn("confirmNav", click_text)
         self.assertIn("visualCursor = !silent", click_text)
         self.assertIn("lingerMs: action.linger_ms", click_text)
-        self.assertIn("await parkContentScriptIdle(state.tabId, 0)", click_text)
+        # Watchable lease: park only on silent path (not after every click).
+        self.assertIn("if (silent) await parkContentScriptIdle(state.tabId, 0)", click_text)
         self.assertNotIn("if (!visualCursor) await parkContentScriptIdle", click_text)
-        # Failed clicks (ACTIONABILITY / ambiguous selector) must parkIdle too.
         self.assertIn("} finally {", click_text)
         self.assertIn(
-            "await parkContentScriptIdle(state.tabId, 0)",
+            "if (silent) await parkContentScriptIdle(state.tabId, 0)",
             click_text.split("} finally {", 1)[1],
         )
         click_selector = source.split('if (type === "click_selector")', 1)[1].split(
@@ -1320,22 +1320,34 @@ async function check(actions, expected) {
         )[0]
         self.assertIn("confirmNav", click_selector)
         self.assertIn("visualCursor = !silent", click_selector)
-        self.assertIn("await parkContentScriptIdle(state.tabId, 0)", click_selector)
+        self.assertIn("if (silent) await parkContentScriptIdle(state.tabId, 0)", click_selector)
         self.assertIn("} finally {", click_selector)
         self.assertIn(
-            "await parkContentScriptIdle(state.tabId, 0)",
+            "if (silent) await parkContentScriptIdle(state.tabId, 0)",
             click_selector.split("} finally {", 1)[1],
         )
         click_at = source.split("async function clickAtPoint", 1)[1].split("async function clickResolvedTarget", 1)[0]
         self.assertIn("trustedBrowserClickAtPoint", click_at)
         self.assertIn("moveCursorToPoint", click_at)
         self.assertIn("lingerMs", click_at)
-        self.assertIn('sendToContentScript(tabId, "hide"', click_at)
+        # Visual path: no hide-before-trusted CDP; keepVisible through click.
+        self.assertNotIn('sendToContentScript(tabId, "hide"', click_at)
+        self.assertIn("keepVisible: visual", click_at)
+        self.assertIn("cursor_visible_during_click", click_at)
         # Visual path must not park-before-move via navClickMode.
         self.assertNotIn("navClickMode || !visual", click_at)
-        # Thrown after visual move must park (overlay/observer leftover).
-        self.assertIn("if (moved)", click_at)
-        self.assertIn("parkContentScriptIdle", click_at)
+        # Silent failure still parks; watchable leaves cursor for the lease.
+        self.assertIn("if (!visual) await parkContentScriptIdle", click_at)
+        trusted = source.split("async function trustedBrowserClickAtPoint", 1)[1].split(
+            "async function clickAtPoint", 1
+        )[0]
+        self.assertIn("keepVisible", trusted)
+        self.assertIn("if (!keepVisible)", trusted)
+        click_xy = source.split('if (type === "click_at_xy"', 1)[1].split(
+            'if (type === "click_text")', 1
+        )[0]
+        self.assertNotIn('sendToContentScript(state.tabId, "hide"', click_xy)
+        self.assertIn("keepVisible: visual", click_xy)
         self.assertIn("width: 18px;", cursor)
         self.assertIn("height: 18px;", cursor)
         self.assertNotIn("width: 28px;", cursor)
