@@ -1286,7 +1286,7 @@ async function check(actions, expected) {
         self.assertIn("navigation_only", source)
         self.assertIn("nav_click_text", source)
         self.assertIn("nav_click_selector", source)
-        self.assertIn("function parkIdle()", cursor)
+        self.assertIn("function parkIdle(", cursor)
         self.assertIn("function ensurePageObserver()", cursor)
         self.assertIn("function stopPageObserver()", cursor)
         self.assertIn("observer_active", cursor)
@@ -1340,6 +1340,19 @@ async function check(actions, expected) {
         self.assertIn("height: 18px;", cursor)
         self.assertNotIn("width: 28px;", cursor)
         self.assertIn("drop-shadow(0 0 8px", cursor)
+        # UX Step 2: on-demand click ring (never always-on at load).
+        self.assertIn("function showClickRing", cursor)
+        self.assertIn("function clearClickRings", cursor)
+        self.assertIn("comet-control-click-ring", cursor)
+        self.assertIn("function pulseClick()", cursor)
+        self.assertIn("showClickRing(cursorX, cursorY)", cursor)
+        self.assertIn('sendToContentScript(tabId, "pulseClick"', click_at)
+        self.assertIn("keepClickRing", click_at)
+        self.assertIn("click_ring", click_at)
+        # Ring CSS/helpers must not auto-run at script load.
+        load_tail = cursor.split("createOverlay", 1)[0]
+        self.assertNotIn("showClickRing(", load_tail)
+        self.assertNotIn("pulseClick()", load_tail)
 
 
 if __name__ == "__main__":

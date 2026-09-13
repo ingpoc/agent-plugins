@@ -1626,9 +1626,10 @@ async function moveCursorToPoint(tabId, point) {
   return requireContentScriptResult(response, "Cursor movement failed");
 }
 
-async function parkContentScriptIdle(tabId, frameId = 0) {
+async function parkContentScriptIdle(tabId, frameId = 0, options = {}) {
   try {
-    await sendToContentScript(tabId, "parkIdle", [], frameId);
+    const args = options && options.keepClickRing === true ? [{ keepClickRing: true }] : [];
+    await sendToContentScript(tabId, "parkIdle", args, frameId);
   } catch {
     /* idle park is best-effort */
   }
@@ -1664,10 +1665,13 @@ async function confirmNavigation(tabId, { fromUrl = "", fromTitle = "", timeoutM
   };
 }
 
-async function trustedBrowserClickAtPoint(tabId, point) {
+async function trustedBrowserClickAtPoint(tabId, point, options = {}) {
   // Overlay must never cover the hit-tested target during a trusted click
   // (Comet EXC_BREAKPOINT with persistent overlay + native/CDP click).
-  await parkContentScriptIdle(tabId, point.frame_id || 0);
+  // keepClickRing: allow on-demand ring to finish its ~280ms pulse after park.
+  await parkContentScriptIdle(tabId, point.frame_id || 0, {
+    keepClickRing: options.keepClickRing === true,
+  });
   await ensureAttached(tabId);
   const x = Number(point.x);
   const y = Number(point.y);
@@ -1688,6 +1692,7 @@ async function trustedBrowserClickAtPoint(tabId, point) {
     y,
     frame_id: point.frame_id || 0,
     href: point.href || "",
+    click_ring: options.keepClickRing === true,
   };
 }
 
@@ -1696,12 +1701,15 @@ async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
   const trusted = options.trusted !== false; // default trusted/browser-level
   // navClickMode no longer forces park-before-move; visual theater is independent.
   let moved = false;
+  let ringShown = false;
   try {
     if (visual) {
       await moveCursorToPoint(tabId, point);
       moved = true;
       await sleep(Math.max(150, Number(options.lingerMs) || 350));
-      // Hide for CDP pulse (not full park yet); trusted path clears overlay DOM.
+      // On-demand click ring at point (same-act theater), then hide cursor for CDP.
+      const pulse = await sendToContentScript(tabId, "pulseClick", [], point.frame_id).catch(() => null);
+      ringShown = Boolean(pulse?.result?.click_ring);
       await sendToContentScript(tabId, "hide", [], point.frame_id).catch(() => {});
     } else {
       await parkContentScriptIdle(tabId, point.frame_id || 0);
@@ -1710,11 +1718,15 @@ async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
       // Top-frame CDP mouse is the Chrome-parity navigation path. For OOPIF
       // frames fall back to content-script click after overlay is parked/hidden.
       if (!point.frame_id || Number(point.frame_id) === 0) {
-        return trustedBrowserClickAtPoint(tabId, point);
+        const click = await trustedBrowserClickAtPoint(tabId, point, {
+          keepClickRing: ringShown,
+        });
+        return { ...click, click_ring: Boolean(ringShown || click.click_ring), pulse: ringShown };
       }
     }
     const response = await sendToContentScript(tabId, "click", [expectation], point.frame_id);
-    return requireContentScriptResult(response, "Cursor click failed");
+    const click = requireContentScriptResult(response, "Cursor click failed");
+    return { ...click, click_ring: Boolean(click?.click_ring || ringShown), pulse: ringShown };
   } catch (error) {
     if (moved) await parkContentScriptIdle(tabId, point.frame_id || 0);
     throw error;

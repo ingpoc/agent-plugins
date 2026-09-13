@@ -115,7 +115,7 @@ Semantic clicks still move the labeled cursor. Use coordinate actions only for
 canvas, drag, hover, or other geometry-dependent interaction.
 
 `nav_click_text` / `nav_click_selector` confirm URL/title after click but stay
-**watchable by default** (labeled cursor → brief linger → hide for CDP pulse →
+**watchable by default** (labeled cursor → brief linger → on-demand click ring via `pulseClick`/`showClickRing` → hide for CDP pulse →
 parkIdle). Opt into silent/bench with `navigation_only`, `silent`, or
 `visual_cursor: false`; set `visual_cursor: true` with `navigation_only` when
 you want intentional nav theater.

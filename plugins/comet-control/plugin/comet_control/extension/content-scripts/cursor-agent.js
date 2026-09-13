@@ -45,13 +45,18 @@
   const semanticTargetCache = new Map();
   let nextTargetToken = 1;
   let pageRevision = 1;
+  let clickRingTimers = [];
 
   const COMET_CONTROL_CURSOR_ID = 'comet-control-agent-cursor-overlay';
   const POINTER_SVG = chrome.runtime.getURL('images/pointer-shape-animated.svg') + '?v=codex-like-2';
 
   function _isCursorMutation(record) {
     const target = record?.target instanceof Element ? record.target : record?.target?.parentElement;
-    return Boolean(target?.closest?.(`#${COMET_CONTROL_CURSOR_ID}`));
+    if (!target) return false;
+    if (target.closest?.(`#${COMET_CONTROL_CURSOR_ID}`)) return true;
+    if (target.closest?.('.comet-control-click-ring') || target.matches?.('.comet-control-click-ring')) return true;
+    if (target.matches?.('style[data-comet-control-click-ring-style]')) return true;
+    return false;
   }
 
   function _bumpPageRevision(records) {
@@ -148,6 +153,26 @@
     @keyframes comet-control-pointer-moving {
       0%, 100% { transform: translate(-1px, -1px) rotate(-2deg); }
       50% { transform: translate(1px, -3px) rotate(2deg); }
+    }
+    /* On-demand click ring — never present at load; only via pulseClick/showClickRing */
+    .comet-control-click-ring {
+      position: fixed;
+      z-index: 2147483646;
+      pointer-events: none;
+      border-radius: 999px;
+      border: 2px solid var(--comet-control-cursor-color, #64d8ff);
+      box-shadow:
+        0 0 0 2px rgba(100, 216, 255, 0.25),
+        0 0 14px rgba(100, 216, 255, 0.55);
+      transform: translate(-50%, -50%) scale(0.55);
+      opacity: 0.95;
+      animation: comet-control-click-ring-pulse 280ms ease-out forwards;
+      will-change: transform, opacity;
+    }
+    @keyframes comet-control-click-ring-pulse {
+      0% { transform: translate(-50%, -50%) scale(0.45); opacity: 0.95; }
+      70% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.55; }
+      100% { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
     }
   `;
 
@@ -262,13 +287,79 @@
     return new Promise((resolve) => setTimeout(() => resolve(getStatus()), wait));
   }
 
+  function clearClickRings() {
+    for (const t of clickRingTimers) clearTimeout(t);
+    clickRingTimers = [];
+    document.querySelectorAll('.comet-control-click-ring').forEach((el) => el.remove());
+    document.querySelector('style[data-comet-control-click-ring-style]')?.remove();
+  }
+
+  function ensureClickRingStyle() {
+    if (document.querySelector('style[data-comet-control-click-ring-style]')) return;
+    // Standalone style so ring can outlive cursor overlay park (trusted CDP path).
+    const style = document.createElement('style');
+    style.dataset.cometControlClickRingStyle = '1';
+    style.textContent = `
+      .comet-control-click-ring {
+        position: fixed;
+        z-index: 2147483646;
+        pointer-events: none;
+        border-radius: 999px;
+        border: 2px solid var(--comet-control-cursor-color, #64d8ff);
+        box-shadow:
+          0 0 0 2px rgba(100, 216, 255, 0.25),
+          0 0 14px rgba(100, 216, 255, 0.55);
+        transform: translate(-50%, -50%) scale(0.55);
+        opacity: 0.95;
+        animation: comet-control-click-ring-pulse 280ms ease-out forwards;
+        will-change: transform, opacity;
+      }
+      @keyframes comet-control-click-ring-pulse {
+        0% { transform: translate(-50%, -50%) scale(0.45); opacity: 0.95; }
+        70% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.55; }
+        100% { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+      }
+    `;
+    document.documentElement.appendChild(style);
+  }
+
+  // On-demand only: brief ring at click point (~280ms). Never at page load.
+  function showClickRing(x = cursorX, y = cursorY) {
+    const cx = Number(x);
+    const cy = Number(y);
+    if (!Number.isFinite(cx) || !Number.isFinite(cy)) return { click_ring: false };
+    ensureClickRingStyle();
+    const ring = document.createElement('div');
+    ring.className = 'comet-control-click-ring';
+    ring.setAttribute('data-comet-control-click-ring', '1');
+    ring.style.left = `${cx}px`;
+    ring.style.top = `${cy}px`;
+    ring.style.width = '28px';
+    ring.style.height = '28px';
+    if (agentIdentity?.color) {
+      ring.style.setProperty('--comet-control-cursor-color', agentIdentity.color);
+    }
+    document.documentElement.appendChild(ring);
+    const timer = setTimeout(() => {
+      ring.remove();
+      clickRingTimers = clickRingTimers.filter((t) => t !== timer);
+      if (!document.querySelector('.comet-control-click-ring')) {
+        document.querySelector('style[data-comet-control-click-ring-style]')?.remove();
+      }
+    }, 300);
+    clickRingTimers.push(timer);
+    return { click_ring: true, x: cx, y: cy };
+  }
+
   function pulseClick() {
     cursorPhase = 'clicking';
     pointerEl?.classList.add('comet-control-clicking');
+    const ring = showClickRing(cursorX, cursorY);
     setTimeout(() => {
       cursorPhase = 'idle';
       pointerEl?.classList.remove('comet-control-clicking');
     }, 140);
+    return { pulsed: true, click_ring: Boolean(ring?.click_ring), x: cursorX, y: cursorY };
   }
 
   function _clickTextValue(el) {
@@ -374,6 +465,7 @@
     if (!cursorEl) return;
     pointerEl?.classList.add('comet-control-clicking');
     setTimeout(() => pointerEl?.classList.remove('comet-control-clicking'), 140);
+    const ring = showClickRing(cursorX, cursorY);
 
     // Resolve the expected semantic target atomically at click time. This blocks
     // stale coordinates from clicking a different element after layout movement.
@@ -398,7 +490,8 @@
       verified_by: verifiedBy,
       tag: el?.tagName || '',
       text: _clickTextValue(el).slice(0, 160),
-      href: el?.href || ''
+      href: el?.href || '',
+      click_ring: Boolean(ring?.click_ring)
     };
   }
 
@@ -1057,6 +1150,7 @@
     if (arrivalTimer) clearTimeout(arrivalTimer);
     arrivalTimer = null;
     stopPageObserver();
+    clearClickRings();
     const old = document.getElementById(COMET_CONTROL_CURSOR_ID);
     if (old) old.remove();
     document.querySelector('style[data-comet-control-cursor-style]')?.remove();
@@ -1072,11 +1166,13 @@
 
   // Tear down overlay + page-wide observer but keep the message listener so the
   // next leased action can reuse this world without reinjection retries.
-  function parkIdle() {
+  function parkIdle(options = {}) {
     if (animationFrame) cancelAnimationFrame(animationFrame);
     if (arrivalTimer) clearTimeout(arrivalTimer);
     arrivalTimer = null;
     stopPageObserver();
+    // keepClickRing: trusted CDP path may park overlay while ring finishes (~280ms)
+    if (!options || options.keepClickRing !== true) clearClickRings();
     const old = document.getElementById(COMET_CONTROL_CURSOR_ID);
     if (old) old.remove();
     document.querySelector('style[data-comet-control-cursor-style]')?.remove();
@@ -1131,7 +1227,7 @@
 
   // ---- Message Listener (from service worker) ----
   const actions = {
-    moveTo, moveToAndWait, pulseClick, click, tripleClick, rightClick, dblClick,
+    moveTo, moveToAndWait, pulseClick, showClickRing, clearClickRings, click, tripleClick, rightClick, dblClick,
     focusAndType, keyPress, showKey, dragTo, scroll,
     getVisibleText, getDOMSnapshot, getPageContext,
     findPointBySelector, findPointByText, hasSelector,
