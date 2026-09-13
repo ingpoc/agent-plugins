@@ -514,6 +514,9 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "in-place retitled controls resolve without a named-app helper",
     )
     skill_md = (root / "SKILL.md").read_text()
+    fast_workflow = (root / "references" / "fast-workflow.md").read_text()
+    architecture = (root / "references" / "architecture.md").read_text()
+    agent_docs = skill_md + "\n" + fast_workflow + "\n" + architecture
     mcp = "\n".join(
         (scripts / name).read_text()
         for name in ("compact_mcp.py", "compact_backend.py")
@@ -544,31 +547,31 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "app-agnostic" in skill_md.lower()
         and "fast_path" in skill_md
         and "linter/grader" in skill_md
-        and "Two wall clocks" in skill_md
-        and "Encode friction" in skill_md
-        and "fails the old trace" in skill_md
-        and "Act-first" in skill_md
+        and "Two wall clocks" in agent_docs
+        and "Encode friction" in agent_docs
+        and "fails the old trace" in agent_docs
+        and "Act-first" in agent_docs
         and "app-agnostic fast_path grader" in mcp
         and "Two wall clocks" in mcp
         and "Act-first" in mcp
         and "fails the old trace" in mcp
-        and "Do not verify when act.verified" in mcp
+        and "Do not call verify" in mcp
         and "CUAService" in mcp
         and '"name": "start_session"' not in mcp
         and '"name": "verify"' not in mcp
         and "one compact `state`" not in skill_md
         and "start_session → `state` / `act` / `verify`" not in skill_md
-        and "Input delivery (any app)" in skill_md,
+        and "Input delivery (any app)" in agent_docs,
         "every friction must be encoded for any Mac app, not left in chat",
     )
     add(
         "skill preserves MCP and native-engine ownership",
-        "MCP follows stable `2026-07-28`" in skill_md
-        and "Keep the model surface at `state` + `act`" in skill_md
-        and "one native `execute_plan` RPC" in skill_md
-        and "only completion gate" in skill_md
-        and "`NSWorkspace` plus `FileManager` validation" in skill_md
-        and "`compact_mcp.py` owns the canonical MCP input/output schema" in skill_md,
+        "MCP follows stable `2026-07-28`" in architecture
+        and "Keep the model surface at `state` + `act`" in architecture
+        and "one native `execute_plan` RPC" in architecture
+        and "only completion gate" in architecture
+        and "`NSWorkspace` plus `FileManager` validation" in architecture
+        and "`compact_mcp.py` owns the canonical MCP input/output schema" in architecture,
         "protocol guidance must not invent tools or describe an unshipped native plan RPC as live",
     )
     add(
@@ -902,7 +905,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "expect must be new versus the before-tree",
         "def expect_is_new" in mcp
         and "expectation_is_new(expect, before_text, text, results)" in mcp
-        and "already in the body" in skill_md,
+        and "already in the body" in agent_docs,
         "needle already in a TextArea false-greened a later cell/table write",
     )
     add(

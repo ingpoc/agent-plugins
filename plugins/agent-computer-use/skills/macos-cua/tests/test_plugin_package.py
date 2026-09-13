@@ -47,15 +47,31 @@ class PluginPackageTests(unittest.TestCase):
 
     def test_skill_orders_ax_first_then_fallback(self):
         skill = (PLUGIN_ROOT / "skills/macos-cua/SKILL.md").read_text()
-        self.assertIn("Best first, then fallback", skill)
-        self.assertIn("Two wall clocks", skill)
-        self.assertIn("Encode friction", skill)
-        self.assertIn("fails the old trace", skill)
+        fast = (
+            PLUGIN_ROOT / "skills/macos-cua/references/fast-workflow.md"
+        ).read_text()
+        architecture = (
+            PLUGIN_ROOT / "skills/macos-cua/references/architecture.md"
+        ).read_text()
+        # Thin SKILL: critical path + bans + load map only (SkillReducer).
+        self.assertIn("## Critical path", skill)
+        self.assertIn("## Hard bans", skill)
+        self.assertIn("## Load map", skill)
         self.assertIn("Act-first", skill)
+        self.assertIn("Encode friction", skill)
         self.assertIn("Clear", skill)
         self.assertIn("All Clear", skill)
-        self.assertIn("ax_timeout", skill)
-        self.assertLess(skill.find("Best first"), skill.find("Fallback, in order"))
+        self.assertIn("references/fast-workflow.md", skill)
+        self.assertIn("references/architecture.md", skill)
+        self.assertNotIn("## Architecture boundary", skill)
+        self.assertNotIn("## Fast workflow", skill)
+        # Moved detail lives in references.
+        self.assertIn("Best first, then fallback", fast)
+        self.assertIn("Two wall clocks", fast)
+        self.assertIn("fails the old trace", fast)
+        self.assertIn("ax_timeout", fast)
+        self.assertLess(fast.find("Best first"), fast.find("Fallback, in order"))
+        self.assertIn("CUAService", architecture)
         troubleshooting = (
             PLUGIN_ROOT / "skills/macos-cua/references/troubleshooting.md"
         ).read_text()
