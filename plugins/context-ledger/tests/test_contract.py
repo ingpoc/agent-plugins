@@ -20,6 +20,21 @@ CREATOR = Path.home() / ".agents/skills/agent-plugin-creator/scripts/create_agen
 FIXTURE = ROOT / "tests" / "scenario_fixture.json"
 
 
+def _collection_root() -> Path | None:
+    env = os.environ.get("AGENT_PLUGINS_COLLECTION")
+    candidates = [Path(env)] if env else []
+    candidates.append(ROOT.parent.parent)
+    for candidate in candidates:
+        if not (candidate / "AGENTS.md").is_file():
+            continue
+        if not (candidate / "plugins/context-ledger/plugin.json").is_file():
+            continue
+        if not (candidate / ".cursor-plugin/marketplace.json").is_file():
+            continue
+        return candidate
+    return None
+
+
 def _uuid() -> str:
     return str(uuid.uuid4())
 
@@ -82,7 +97,9 @@ class PackageTests(unittest.TestCase):
         self.assertIn("append_event", text)
 
     def test_catalogs_and_plugins_row(self) -> None:
-        collection = ROOT.parent.parent
+        collection = _collection_root()
+        if collection is None:
+            self.skipTest("collection catalogs are not part of an installed package")
         agents = (collection / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn("| `context-ledger` | `plugins/context-ledger/` |", agents)
         for rel in (
