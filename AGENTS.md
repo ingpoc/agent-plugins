@@ -36,6 +36,7 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 | --- | --- | --- |
 | `agent-computer-use` | `plugins/agent-computer-use/` | `plugins/agent-computer-use/AGENTS.md` |
 | `comet-control` | `plugins/comet-control/` | `plugins/comet-control/AGENTS.md` |
+| `context-ledger` | `plugins/context-ledger/` | `plugins/context-ledger/AGENTS.md` |
 
 ## Agent install (every client)
 

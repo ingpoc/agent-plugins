@@ -34,6 +34,21 @@
         "browser",
         "computer use"
       ]
+    },
+    {
+      "name": "context-ledger",
+      "source": {
+        "type": "local",
+        "path": "./plugins/context-ledger"
+      },
+      "description": "Scoped, local decision traces with sparse capture and progressive retrieval.",
+      "category": "productivity",
+      "homepage": "https://github.com/ingpoc/agent-plugins",
+      "keywords": [
+        "decisions",
+        "context",
+        "local-first"
+      ]
     }
   ]
 }

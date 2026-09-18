@@ -19,6 +19,14 @@
         "path": "./plugins/comet-control"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "context-ledger",
+      "source": {
+        "source": "local",
+        "path": "./plugins/context-ledger"
+      },
+      "category": "Productivity"
     }
   ]
 }

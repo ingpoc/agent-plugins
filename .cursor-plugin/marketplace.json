@@ -13,6 +13,11 @@
       "name": "comet-control",
       "source": "./plugins/comet-control",
       "description": "Control and verify web apps in a leased visible Comet window."
+    },
+    {
+      "name": "context-ledger",
+      "source": "./plugins/context-ledger",
+      "description": "Scoped, local decision traces with sparse capture and progressive retrieval."
     }
   ]
 }
