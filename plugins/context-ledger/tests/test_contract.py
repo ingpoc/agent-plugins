@@ -93,6 +93,10 @@ class PackageTests(unittest.TestCase):
     def test_creator_validate(self) -> None:
         if not CREATOR.is_file():
             self.skipTest("agent-plugin-creator is not installed on this host")
+        plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
+        command = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["context-ledger"]["command"]
+        if ROOT.name != plugin["name"] or Path(command).is_absolute():
+            self.skipTest("client-transformed copy is not a portable package")
         proc = _run([sys.executable, str(CREATOR), "--validate", str(ROOT)])
         self.assertEqual(proc.returncode, 0, proc.stderr)
 
@@ -102,13 +106,19 @@ class PackageTests(unittest.TestCase):
         command = server["command"]
         if _collection_root() is not None:
             self.assertEqual(command, "python")
+        elif ".cursor" in ROOT.parts:
+            self.assertTrue(Path(command).is_absolute())
+            self.assertTrue(Path(command).is_file())
         else:
             self.assertIn(command, ("python", "python3"))
-        self.assertFalse(command.startswith("/"))
-        self.assertNotIn(" ", command)
-        self.assertNotIn("${", command)
         cwd = server.get("cwd")
-        self.assertIn(cwd, ("${PLUGIN_ROOT}", "./"))
+        if ".cursor" in ROOT.parts:
+            self.assertEqual(cwd, str(ROOT))
+        else:
+            self.assertFalse(command.startswith("/"))
+            self.assertNotIn(" ", command)
+            self.assertNotIn("${", command)
+            self.assertIn(cwd, ("${PLUGIN_ROOT}", "./"))
 
     def test_skill_frontmatter(self) -> None:
         text = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
