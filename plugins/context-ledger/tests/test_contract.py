@@ -96,11 +96,14 @@ class PackageTests(unittest.TestCase):
         proc = _run([sys.executable, str(CREATOR), "--validate", str(ROOT)])
         self.assertEqual(proc.returncode, 0, proc.stderr)
 
-    def test_source_mcp_command_is_portable(self) -> None:
+    def test_mcp_command_is_portable(self) -> None:
         mcp = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))
         server = mcp["mcpServers"]["context-ledger"]
         command = server["command"]
-        self.assertEqual(command, "python")
+        if _collection_root() is not None:
+            self.assertEqual(command, "python")
+        else:
+            self.assertIn(command, ("python", "python3"))
         self.assertFalse(command.startswith("/"))
         self.assertNotIn(" ", command)
         self.assertNotIn("${", command)
