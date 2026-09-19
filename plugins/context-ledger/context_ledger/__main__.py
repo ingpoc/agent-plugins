@@ -134,7 +134,7 @@ def main() -> int:
         sys.stderr.write(
             "usage: python -m context_ledger --data DIR "
             "init|bind|serve|doctor|export|import|attest|purge|rebuild|migrate|"
-            "resume-maintenance|scope-add ...\n"
+            "resume-maintenance|scope-add|ensure-global-triggers ...\n"
         )
         return 0
     data = None

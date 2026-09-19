@@ -9,8 +9,11 @@ Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients
 1. Run `python bin/context_ledger.py --data "${PLUGIN_DATA}" setup` from this directory (network, or `--wheelhouse ABSOLUTE_DIR` for offline). Repeat setup when `requirements.lock` changes.
 2. Run `python bin/context_ledger.py --data "${PLUGIN_DATA}" init --scope SCOPE --actor ACTOR`. Optional `--ledger-dir ABSOLUTE_DIR` (default `${PLUGIN_DATA}/ledger`). Binding is owner-selected; tools cannot choose paths.
 3. Source `mcp.json` uses `command` `python`. Cursor dest may use an absolute interpreter. Agents/Codex dest must stay package-valid: bare `python` or `python3`, never an absolute path. Never copy a dest-absolute `command` back into source `mcp.json`. `cwd` stays `${PLUGIN_ROOT}`.
-4. Client lists four tools: `find`, `get`, `record`, `append_event`. Owner CLI (`doctor`, `export`, `import`, `attest`, `purge`, `rebuild`, `migrate`, `resume-maintenance`, `scope-add`) is not an MCP tool.
-5. Before uninstall, export the owner ledger. Client uninstall does not preserve `${PLUGIN_DATA}` or backups.
+4. Client lists four tools: `find`, `get`, `record`, `append_event`. Owner CLI (`doctor`, `export`, `import`, `attest`, `purge`, `rebuild`, `migrate`, `resume-maintenance`, `scope-add`, `ensure-global-triggers`) is not an MCP tool.
+5. Ensure always-on ledger triggers in `~/.codex/AGENTS.md` if that file exists:
+   `python bin/context_ledger.py --data "${PLUGIN_DATA}" ensure-global-triggers`
+   Idempotent. Inserts the BEFORE lookup and AFTER save lines if missing. Then `workflow lint`. Do not rewrite other rules. Skip if the file is absent.
+6. Before uninstall, export the owner ledger. Client uninstall does not preserve `${PLUGIN_DATA}` or backups.
 
 ## Support (this pass)
 

@@ -174,6 +174,61 @@ class LaunchTests(unittest.TestCase):
             self.assertEqual(doctor.returncode, 0, doctor.stderr + doctor.stdout)
 
 
+class EnsureGlobalTriggersTests(unittest.TestCase):
+    def test_absent_skips(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            missing = Path(tmp) / "no-agents.md"
+            proc = _boot(data, "ensure-global-triggers", ["--agents-md", str(missing)])
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            payload = json.loads(proc.stderr.strip())
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["data"]["skipped"], "absent")
+
+    def test_inserts_once_then_noop(self) -> None:
+        fixture = (
+            "# Global AGENTS.md\n\n"
+            "## BEFORE\n\n"
+            "- **New repo/session gap** → entrypoint\n"
+            "- Other before\n\n"
+            "## AFTER\n\n"
+            "- Modified AGENTS.md → `workflow lint`\n"
+            "- **Durable-learning closeout** — encode friction.\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            agents = Path(tmp) / "AGENTS.md"
+            agents.write_text(fixture, encoding="utf-8")
+            first = _boot(data, "ensure-global-triggers", ["--agents-md", str(agents)])
+            self.assertEqual(first.returncode, 0, first.stderr)
+            one = json.loads(first.stderr.strip())
+            self.assertTrue(one["data"]["added"])
+            self.assertTrue(one["data"]["lookup"])
+            self.assertTrue(one["data"]["save"])
+            text = agents.read_text(encoding="utf-8")
+            self.assertIn("**Ledger lookup**", text)
+            self.assertIn("**Ledger save**", text)
+            self.assertLess(text.index("**Ledger lookup**"), text.index("## AFTER"))
+            self.assertLess(text.index("**Ledger save**"), text.index("**Durable-learning"))
+            second = _boot(data, "ensure-global-triggers", ["--agents-md", str(agents)])
+            self.assertEqual(second.returncode, 0, second.stderr)
+            two = json.loads(second.stderr.strip())
+            self.assertFalse(two["data"]["added"])
+            self.assertEqual(agents.read_text(encoding="utf-8"), text)
+
+    def test_missing_sections_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            agents = Path(tmp) / "AGENTS.md"
+            agents.write_text("# no sections\n", encoding="utf-8")
+            proc = _boot(data, "ensure-global-triggers", ["--agents-md", str(agents)])
+            self.assertEqual(proc.returncode, 2)
+            self.assertIn("UNAVAILABLE", proc.stderr)
+
+
 class StoreTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -362,6 +417,109 @@ class StoreTests(unittest.TestCase):
         with self.assertRaises(self.LedgerError) as ctx:
             self.store.get({"decision_id": rec["decision_id"]}, mcp=True)
         self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+
+    def test_purge_related_keeps_survivor_retry(self) -> None:
+        left = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="purge left sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        right = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="purge right sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        open_req = _uuid()
+        opened = self.store.append_event(
+            {
+                "request_id": open_req,
+                "decision_id": left["decision_id"],
+                "expected_revision": left["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_opened",
+                "payload": {"other_id": right["decision_id"], "reason": "two live choices"},
+            },
+            mcp=False,
+        )
+        note_req = _uuid()
+        noted = self.store.append_event(
+            {
+                "request_id": note_req,
+                "decision_id": left["decision_id"],
+                "expected_revision": opened["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome("pending", note="still watching"),
+            },
+            mcp=False,
+        )
+        self.store.purge(right["decision_id"], right["revision"], self.binding["ledger_id"])
+        replay_open = self.store.append_event(
+            {
+                "request_id": open_req,
+                "decision_id": left["decision_id"],
+                "expected_revision": left["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_opened",
+                "payload": {"other_id": right["decision_id"], "reason": "two live choices"},
+            },
+            mcp=False,
+        )
+        self.assertTrue(replay_open["replayed"])
+        self.assertEqual(replay_open["event_id"], opened["event_id"])
+        replay_note = self.store.append_event(
+            {
+                "request_id": note_req,
+                "decision_id": left["decision_id"],
+                "expected_revision": opened["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome("pending", note="still watching"),
+            },
+            mcp=False,
+        )
+        self.assertTrue(replay_note["replayed"])
+        self.assertEqual(replay_note["event_id"], noted["event_id"])
+
+    def test_purge_foreign_scope_is_unavailable(self) -> None:
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="home-scope sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.scope_add("other-scope")
+        other_data = Path(self.tmp.name) / "other-data"
+        other_data.mkdir()
+        os.chmod(other_data, 0o700)
+        from context_ledger.store import bind_ledger
+
+        bind_ledger(
+            other_data,
+            Path(self.binding["ledger_dir"]),
+            self.binding["ledger_id"],
+            "other-scope",
+            "other-actor",
+            replace=False,
+        )
+        other = self.Store(other_data, actor_channel="owner_cli")
+        with self.assertRaises(self.LedgerError) as ctx:
+            other.purge(rec["decision_id"], rec["revision"], self.binding["ledger_id"])
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        got = self.store.get({"decision_id": rec["decision_id"]}, mcp=True)
+        self.assertEqual(got["record"]["decision_id"], rec["decision_id"])
+        other.close()
 
     def test_crash_before_commit(self) -> None:
         script = (
@@ -695,6 +853,8 @@ class StoreTests(unittest.TestCase):
         )
         got = other.get({"decision_id": rec["decision_id"]}, mcp=True)
         self.assertEqual(got["record"]["evidence_state"], "reported_verified")
+        self.assertEqual(got["record"]["body"]["evidence"][0]["state"], "unverified")
+        self.assertEqual(got["record"]["outcome"]["evidence"][0]["ref"], "doc://local-check")
         other.close()
 
     def test_relationship_errors_hide_missing_and_local_only(self) -> None:

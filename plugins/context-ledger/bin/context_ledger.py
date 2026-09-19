@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import sqlite3
 import subprocess
 import sys
@@ -94,7 +95,116 @@ def _help() -> int:
     sys.stderr.write(
         "usage: context_ledger.py --data ABSOLUTE_DIR "
         "setup|init|bind|serve|doctor|export|import|attest|purge|rebuild|migrate|"
-        "resume-maintenance|scope-add ...\n"
+        "resume-maintenance|scope-add|ensure-global-triggers ...\n"
+    )
+    return 0
+
+
+LOOKUP_MARK = "**Ledger lookup**"
+SAVE_MARK = "**Ledger save**"
+LOOKUP_LINE = (
+    "- **Ledger lookup** → `context-ledger` if history or precedent could "
+    "change next decision; else skip"
+)
+SAVE_LINE = (
+    "- **Ledger save** → `context-ledger` if settled decision, useful failure, "
+    "or material update; else skip"
+)
+
+
+def _section_bounds(text: str, heading: str) -> tuple[int, int] | None:
+    start = text.find(heading)
+    if start < 0:
+        return None
+    line_end = text.find("\n", start)
+    if line_end < 0:
+        return None
+    body_at = line_end + 1
+    nxt = text.find("\n## ", body_at)
+    end = len(text) if nxt < 0 else nxt
+    return body_at, end
+
+
+def _insert_in_section(
+    text: str,
+    heading: str,
+    line: str,
+    *,
+    after_first_bullet: bool = False,
+    before_mark: str | None = None,
+) -> str | None:
+    bounds = _section_bounds(text, heading)
+    if bounds is None:
+        return None
+    body_at, end = bounds
+    head, body, tail = text[:body_at], text[body_at:end], text[end:]
+    if before_mark and before_mark in body:
+        mark_at = body.find(before_mark)
+        line_start = body.rfind("\n", 0, mark_at) + 1
+        body = body[:line_start] + line + "\n" + body[line_start:]
+        return head + body + tail
+    if after_first_bullet:
+        match = re.search(r"(?m)^- .*$", body)
+        if match:
+            at = match.end()
+            body = body[:at] + "\n" + line + body[at:]
+            return head + body + tail
+    stripped = body.rstrip()
+    suffix = "\n" if tail.startswith("\n## ") or not tail else ""
+    body = stripped + "\n" + line + "\n" + suffix
+    return head + body + tail
+
+
+def _cmd_ensure_global_triggers(args: list[str]) -> int:
+    agents = Path.home() / ".codex" / "AGENTS.md"
+    i = 0
+    while i < len(args):
+        if args[i] == "--agents-md":
+            if i + 1 >= len(args):
+                return _err("INVALID_ARGUMENT")
+            agents = _require_absolute(Path(args[i + 1]))
+            i += 2
+            continue
+        return _err("INVALID_ARGUMENT")
+    if not agents.is_file():
+        sys.stderr.write('{"ok":true,"data":{"skipped":"absent"}}\n')
+        return 0
+    try:
+        text = agents.read_text(encoding="utf-8")
+    except OSError:
+        return _err("UNAVAILABLE")
+    added_lookup = False
+    added_save = False
+    if LOOKUP_MARK not in text:
+        nxt = _insert_in_section(text, "## BEFORE", LOOKUP_LINE, after_first_bullet=True)
+        if nxt is None:
+            return _err("UNAVAILABLE")
+        text = nxt
+        added_lookup = True
+    if SAVE_MARK not in text:
+        nxt = _insert_in_section(
+            text,
+            "## AFTER",
+            SAVE_LINE,
+            before_mark="**Durable-learning",
+        )
+        if nxt is None:
+            return _err("UNAVAILABLE")
+        text = nxt
+        added_save = True
+    if added_lookup or added_save:
+        try:
+            agents.write_text(text, encoding="utf-8")
+        except OSError:
+            return _err("UNAVAILABLE")
+    sys.stderr.write(
+        '{"ok":true,"data":{"added":'
+        + ("true" if added_lookup or added_save else "false")
+        + ',"lookup":'
+        + ("true" if added_lookup else "false")
+        + ',"save":'
+        + ("true" if added_save else "false")
+        + "}}\n"
     )
     return 0
 
@@ -214,6 +324,9 @@ def main(argv: list[str] | None = None) -> int:
     if command == "setup":
         path = _require_absolute(_resolve_data(data))
         return _cmd_setup(path, args)
+    if command == "ensure-global-triggers":
+        _require_absolute(_resolve_data(data))
+        return _cmd_ensure_global_triggers(args)
     path = _require_absolute(_resolve_data(data))
     if os.environ.get("CONTEXT_LEDGER_BOOTSTRAPPED") == "1":
         from context_ledger.__main__ import dispatch

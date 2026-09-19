@@ -30,6 +30,7 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 | Change how this plugin installs | That plugin's `AGENTS.md` |
 | Change published benchmark scores | That plugin's `README.md` |
 | Checks, CI, pre-commit | `scripts/check.py` |
+| Claim a plugin fix is done | Live-verify the installed client copy (MCP/CLI). Update the standing canvas from that run. `scripts/check.py` is not that proof. |
 
 ## Plugins
 

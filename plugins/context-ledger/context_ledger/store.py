@@ -877,22 +877,28 @@ class Store:
                 raise LedgerError("BUSY", retryable=True) from exc
             self._guard_allow_maintenance(conn, allow=None)
             existing_tomb = conn.execute(
-                "select revision from tombstones where kind='decision' and id=?",
+                "select revision, scope_id from tombstones where kind='decision' and id=?",
                 (decision_id,),
             ).fetchone()
             if existing_tomb is not None:
+                if existing_tomb["scope_id"] != self.binding["scope_id"]:
+                    conn.execute("rollback")
+                    raise LedgerError("UNAVAILABLE")
                 if existing_tomb["revision"] != expected_revision:
                     conn.execute("rollback")
                     raise LedgerError("REVISION_CONFLICT")
                 conn.execute("rollback")
                 return {"purged": False, "replayed": True}
             row = conn.execute(
-                "select revision from current_records where decision_id=?",
+                "select revision, scope_id from current_records where decision_id=?",
                 (decision_id,),
             ).fetchone()
-            if row is None or row["revision"] != expected_revision:
+            if row is None or row["scope_id"] != self.binding["scope_id"]:
                 conn.execute("rollback")
-                raise LedgerError("REVISION_CONFLICT" if row is not None else "UNAVAILABLE")
+                raise LedgerError("UNAVAILABLE")
+            if row["revision"] != expected_revision:
+                conn.execute("rollback")
+                raise LedgerError("REVISION_CONFLICT")
             target = canonical_json({"decision_id": decision_id, "revision": expected_revision})
             conn.execute(
                 "update ledger_meta set maintenance='purge', maintenance_target=? where singleton=1",
@@ -1001,7 +1007,7 @@ class Store:
             (decision_id, self.binding["scope_id"], decision_id, revision, now),
         )
         others = conn.execute(
-            "select event_id, decision_id, revision, event_json from events where decision_id!=?",
+            "select event_id, decision_id, revision, event_json, scope_id from events where decision_id!=?",
             (decision_id,),
         ).fetchall()
         for row in others:
@@ -1017,13 +1023,12 @@ class Store:
                     "insert or ignore into tombstones(kind,id,scope_id,decision_id,revision,purged_at) values ('event',?,?,?,?,?)",
                     (
                         row["event_id"],
-                        self.binding["scope_id"],
+                        row["scope_id"],
                         row["decision_id"],
                         row["revision"],
                         now,
                     ),
                 )
-                conn.execute("delete from requests where decision_id=?", (row["decision_id"],))
                 conn.execute("delete from events where event_id=?", (row["event_id"],))
         conn.execute("delete from events where decision_id=?", (decision_id,))
         conn.execute("delete from requests where decision_id=?", (decision_id,))
@@ -1456,6 +1461,7 @@ class Store:
         last_received = None
         last_ingest = "local"
         evidence_event_ingest = "local"
+        imported_evidence_ids: set[str] = set()
         approval_event_ingest = "local"
         kind = None
         superseded = False
@@ -1480,6 +1486,9 @@ class Store:
                 kind = body["kind"]
                 evidence_event_ingest = ingest
                 approval_event_ingest = ingest
+                supplied = self._selected_evidence(outcome, body)
+                if ingest == "import":
+                    imported_evidence_ids |= self._evidence_identities(supplied)
             elif et == "outcome":
                 prev_selected = self._selected_evidence(outcome, body)
                 supplied = payload.get("evidence") or []
@@ -1490,6 +1499,8 @@ class Store:
                     supplied=supplied,
                     ingest=ingest,
                 )
+                if ingest == "import":
+                    imported_evidence_ids |= self._evidence_identities(supplied)
             elif et == "corrected":
                 if payload["body"]["kind"] != kind:
                     raise LedgerError("INVALID_TRANSITION")
@@ -1504,6 +1515,8 @@ class Store:
                         ingest=ingest,
                     )
                 approval_event_ingest = ingest
+                if ingest == "import":
+                    imported_evidence_ids |= self._evidence_identities(supplied)
             elif et == "superseded":
                 if superseded:
                     raise LedgerError("INVALID_TRANSITION")
@@ -1540,6 +1553,7 @@ class Store:
             "last_actor": last_actor,
             "last_channel": last_channel,
             "evidence_ingest": evidence_event_ingest,
+            "imported_evidence_ids": imported_evidence_ids,
             "approval_ingest": approval_event_ingest,
             "last_ingest": last_ingest,
             "scope_id": scope_id,
@@ -1580,14 +1594,14 @@ class Store:
     ) -> None:
         body = dict(state["body"])
         outcome = dict(state["outcome"])
+        imported_ids = state.get("imported_evidence_ids") or set()
+        body["evidence"] = [self._cap_imported_item(e, imported_ids) for e in body.get("evidence") or []]
+        outcome["evidence"] = [self._cap_imported_item(e, imported_ids) for e in outcome.get("evidence") or []]
         evidence_state = self._evidence_state(outcome, body, state["evidence_ingest"])
         approval = dict(body["approval"])
         if state["approval_ingest"] == "import" and approval["state"] == "owner_attested":
             approval["state"] = "self_reported"
         body["approval"] = approval
-        if state["evidence_ingest"] == "import":
-            body["evidence"] = [self._cap_evidence(e) for e in body["evidence"]]
-            outcome["evidence"] = [self._cap_evidence(e) for e in outcome["evidence"]]
         staleness = "flagged" if evidence_state in {"invalid", "missing"} else "unchecked"
         conflicts = []
         for c in rels["conflicts"].get(decision_id, []):
@@ -1651,6 +1665,14 @@ class Store:
         if out["state"] == "reported_verified":
             out["state"] = "unverified"
         return out
+
+    def _cap_imported_item(self, item: dict[str, Any], imported_ids: set[str]) -> dict[str, Any]:
+        ident = canonical_json(
+            {"ref": item["ref"], "revision": item["revision"], "sha256": item["sha256"]}
+        )
+        if ident in imported_ids:
+            return self._cap_evidence(item)
+        return dict(item)
 
     def _evidence_state(self, outcome: dict[str, Any], body: dict[str, Any], ingest: str) -> str:
         ev = outcome["evidence"] if outcome.get("evidence") else body.get("evidence") or []
