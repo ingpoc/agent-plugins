@@ -206,7 +206,10 @@ def _session_absence_proof(socket_path: str, session_id: str) -> dict[str, objec
                 {"type": "sessions", "sessionId": session_id, "timeoutSeconds": 5}
             ).encode()
         )
-        client.shutdown(socket.SHUT_WR)
+        try:
+            client.shutdown(socket.SHUT_WR)
+        except OSError:
+            pass
         chunks: list[bytes] = []
         while True:
             chunk = client.recv(65536)

@@ -80,8 +80,9 @@ Actions below belong inside one `run.actions` list.
 | Click by label | `click_text` | Preferred when text is unique; unique sticky names use the card rect, not the stuck inset; header chips skipped when an in-page match exists; checkbox/radio need native `HTMLElement.click()`, not only synthetic MouseEvent; may return `dialog_opened` |
 | Click by CSS | `click_selector` | Use when text is missing or ambiguous; searches open shadow roots; 16px icons count if the hit is a descendant or button ancestor |
 | JS dialog | `dialog_handle` | Comet Control owns `alert`/`confirm`/`prompt`; batch after click with `promptText` when needed — see [`advanced-capabilities.md`](advanced-capabilities.md). OS sheets → `$macos-cua` |
-| Fill input | `fill_selector` | Verify the value before submit |
-| Visual proof | `screenshot` | Returns a file path; read the file |
+| Fill input | `fill_selector` | Scripted set-value (same as `locator` fill); pair `expect: {value: ...}`; do not screenshot the field |
+| DOM postcondition | `expect` on the action or `page_context` | `text` / `not_text` / `heading` / `url` / `url_contains` / `value`; capability `action-expect` |
+| Visual proof | `screenshot` | Layout, focus ring, cursor, image, canvas — not page identity or typed values |
 | Region image | `zoom` | Use only for a small region; bytes are inline |
 | Page diagnostics | `console_tail`, network actions | Follow [`devtools.md`](devtools.md) |
 | Read-only expression | `evaluate` | Never click, submit, or mutate with it |

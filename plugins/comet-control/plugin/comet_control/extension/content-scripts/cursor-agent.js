@@ -547,25 +547,67 @@
     flashLabel('double-click');
   }
 
-  function focusAndType(text, opts = {}, expectation = {}) {
-    if (!cursorEl) return;
-    const { target: el } = _expectedTargetAtCursor(expectation);
-    if (!el) return;
-    el.focus();
-    if (opts.append && el.value !== undefined) {
-      // Insert text at cursor / append
-      const start = el.selectionStart || el.value.length;
-      const end = el.selectionEnd || el.value.length;
-      el.value = el.value.slice(0, start) + text + el.value.slice(end);
-      el.selectionStart = el.selectionEnd = start + text.length;
-    } else if (el.value !== undefined) {
-      el.value = text;
-    } else if ('innerText' in el) {
-      el.innerText = text;
+  function _setEditableValue(el, text, append) {
+    const next = append && el.value !== undefined
+      ? `${String(el.value || '')}${String(text ?? '')}`
+      : String(text ?? '');
+    if (el instanceof HTMLInputElement) {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(el, next);
+    } else if (el instanceof HTMLTextAreaElement) {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(el, next);
+    } else if (el instanceof HTMLSelectElement) {
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(el, next);
+    } else if (el.isContentEditable) {
+      el.textContent = append ? `${el.textContent || ''}${next}` : next;
+    } else {
+      throw _actionabilityError('ACTIONABILITY_NOT_EDITABLE', 'Fill target is not editable', {
+        kind: 'selector',
+      });
     }
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
+    return 'value' in el ? el.value : el.textContent;
+  }
+
+  function fillBySelector(selector, text, opts = {}) {
+    const value = String(selector || '');
+    if (!value) {
+      throw _actionabilityError('ACTIONABILITY_EMPTY_LOCATOR', 'Selector is empty', { kind: 'selector' });
+    }
+    const matches = _querySelectorAllDeep(value).filter(_isVisible);
+    let el = matches.find(_isEditable) || matches[0];
+    if (el && el.tagName === 'LABEL' && el.control) el = el.control;
+    if (!el) {
+      throw _actionabilityError(
+        'ELEMENT_NOT_FOUND',
+        `No visible element matched selector: ${value}`,
+        { kind: 'selector', locator: value },
+      );
+    }
+    if (!_isEditable(el)) {
+      throw _actionabilityError('ACTIONABILITY_NOT_EDITABLE', 'Fill target is not editable', {
+        kind: 'selector',
+        locator: value,
+      });
+    }
+    el.focus();
+    const written = _setEditableValue(el, text, Boolean(opts.append));
     flashLabel('type');
+    return written;
+  }
+
+  function focusAndType(text, opts = {}, expectation = {}) {
+    if (!cursorEl) {
+      throw _actionabilityError('TYPE_CURSOR_NOT_READY', 'Cursor overlay is not ready for type');
+    }
+    const { target: el } = _expectedTargetAtCursor(expectation);
+    if (!el) {
+      throw _actionabilityError('ELEMENT_NOT_FOUND', 'No editable target under cursor');
+    }
+    el.focus();
+    const written = _setEditableValue(el, text, Boolean(opts.append));
+    flashLabel('type');
+    return written;
   }
 
   function keyPress(key, modifiers = []) {
@@ -1414,7 +1456,7 @@
   // ---- Message Listener (from service worker) ----
   const actions = {
     moveTo, moveToAndWait, pulseClick, showClickRing, clearClickRings, click, tripleClick, rightClick, dblClick,
-    focusAndType, keyPress, showKey, dragTo, scroll,
+    focusAndType, fillBySelector, keyPress, showKey, dragTo, scroll,
     getVisibleText, getDOMSnapshot, getPageContext,
     findPointBySelector, findPointByText, hasSelector,
     getStatus, hide, destroy, parkIdle, setIdentity, ensureSessionCursorWarm, clearIdentity, invalidateConnectionState,

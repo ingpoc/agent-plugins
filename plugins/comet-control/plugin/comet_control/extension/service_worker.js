@@ -23,6 +23,7 @@ const EXTENSION_CAPABILITIES = Object.freeze([
   "isolated-window-leases",
   "operator-pause",
   "page-context-sections",
+  "action-expect",
   "raw-cdp",
   "screenshots",
   "visible-agent-cursor",
@@ -3165,23 +3166,17 @@ async function runBrowserAction(action, state) {
   }
 
   if (type === "fill_selector") {
-    const result = await clickResolvedTarget(
-      state.tabId,
-      () => findPointBySelector(state.tabId, action.selector, "fill"),
-      { selector: action.selector }
-    );
-    const response = await sendToContentScript(state.tabId, "focusAndType", [
+    const point = await findPointBySelector(state.tabId, action.selector, "fill");
+    const silent = actionIsSilent(action, state);
+    const visualCursor = !silent && actionWantsVisualCursor(action, state);
+    if (visualCursor) await moveCursorToPoint(state.tabId, point);
+    const response = await sendToContentScript(state.tabId, "fillBySelector", [
+      String(action.selector || ""),
       String(action.value || ""),
       { append: Boolean(action.append) },
-      {
-        selector: action.selector,
-        targetToken: result.point.target_token || "",
-        pageRevision: result.point.page_revision,
-        editable: true,
-      }
-    ], result.point.frame_id);
-    requireContentScriptResult(response, `Could not fill selector: ${action.selector}`);
-    return { type, selector: action.selector, ...result };
+    ], point.frame_id);
+    const value = requireContentScriptResult(response, `Could not fill selector: ${action.selector}`);
+    return { type, selector: action.selector, value, point };
   }
 
   if (type === "click_selector") {
@@ -3285,11 +3280,199 @@ function hostMessageIsReadOnly(message) {
     );
 }
 
-function codedError(code, message, { retryable = false } = {}) {
+function codedError(code, message, { retryable = false, details = null } = {}) {
   const error = new Error(message);
   error.code = code;
   error.retryable = Boolean(retryable);
+  if (details) error.details = details;
   return error;
+}
+
+function normalizeExpect(raw) {
+  if (raw == null) return [];
+  const items = Array.isArray(raw) ? raw : [raw];
+  return items.map((item) => {
+    if (typeof item === "string") return { kind: "text", value: item };
+    if (item && typeof item === "object") {
+      if (item.text != null) return { kind: "text", value: String(item.text) };
+      if (item.not_text != null) return { kind: "not_text", value: String(item.not_text) };
+      if (item.heading != null) return { kind: "heading", value: String(item.heading) };
+      if (item.url_contains != null) return { kind: "url_contains", value: String(item.url_contains) };
+      if (item.url != null) return { kind: "url", value: String(item.url) };
+      if (item.value != null) {
+        return {
+          kind: "value",
+          value: String(item.value),
+          ...(item.selector ? { selector: String(item.selector) } : {}),
+        };
+      }
+    }
+    throw codedError("EXPECT_INVALID", "expect must be text, not_text, heading, url, url_contains, or value");
+  });
+}
+
+function expectHaystack(evidence) {
+  const parts = [evidence?.title, evidence?.url];
+  for (const heading of evidence?.headings || []) parts.push(heading?.text || heading);
+  for (const button of evidence?.buttons || []) parts.push(typeof button === "string" ? button : button?.text);
+  for (const entry of evidence?.nav || []) parts.push(entry?.text);
+  for (const entry of evidence?.links || []) parts.push(entry?.text);
+  for (const input of evidence?.inputs || []) {
+    parts.push(input?.name, input?.value);
+  }
+  if (evidence?.body) parts.push(evidence.body);
+  return parts.filter(Boolean).join("\n").toLowerCase();
+}
+
+function unmatchedExpect(preds, evidence) {
+  const hay = expectHaystack(evidence);
+  const url = String(evidence?.url || "");
+  for (const pred of preds) {
+    const want = String(pred.value || "").trim().toLowerCase();
+    if (pred.kind === "url") {
+      if (url !== String(pred.value || "") && url.toLowerCase() !== want) return pred;
+      continue;
+    }
+    if (pred.kind === "url_contains") {
+      if (!url.toLowerCase().includes(want)) return pred;
+      continue;
+    }
+    if (pred.kind === "heading") {
+      const heads = (evidence?.headings || []).map((heading) => String(heading?.text || heading).toLowerCase());
+      if (!heads.some((heading) => heading.includes(want))) return pred;
+      continue;
+    }
+    if (pred.kind === "value") {
+      const values = (evidence?.inputs || []).map((input) => String(input?.value || "").toLowerCase());
+      if (evidence?.selector_value != null) values.unshift(String(evidence.selector_value).toLowerCase());
+      if (!values.some((value) => value.includes(want))) return pred;
+      continue;
+    }
+    if (pred.kind === "not_text") {
+      if (hay.includes(want)) return pred;
+      continue;
+    }
+    if (pred.kind === "text") {
+      if (!hay.includes(want)) return pred;
+      continue;
+    }
+    return pred;
+  }
+  return null;
+}
+
+function failureScreenshotNeeded(error, action) {
+  if (action?.type === "screenshot") return false;
+  if (error?.code === "SCREENSHOT_TIMEOUT") return false;
+  const code = String(error?.code || "BROWSER_ACTION_FAILED");
+  if (/^(ACTIONABILITY_|CONTENT_SCRIPT_|LEASE_|EXTENSION_|VISUAL_FOCUS_)/.test(code)) return false;
+  if ([
+    "ELEMENT_NOT_FOUND",
+    "CS_DEAD_AFTER_REMOUNT",
+    "CUA_RUNTIME_CLAIMED",
+    "BROKER_BUSY",
+    "EXPECT_UNVERIFIED",
+    "EXPECT_INVALID",
+    "NAVIGATION_CONFIRM_FAILED",
+  ].includes(code)) return false;
+  const message = String(error?.message || "");
+  if (code === "BROWSER_ACTION_FAILED" && /EvalError|ReferenceError|TypeError|Unsupported action|Cannot set properties/.test(message)) {
+    return false;
+  }
+  return true;
+}
+
+async function collectExpectEvidence(preds, action, result, state) {
+  const tab = await chrome.tabs.get(state.tabId).catch(() => null);
+  const fromResult = result?.type === "page_context";
+  const needsDom = preds.some((pred) => ["text", "not_text", "heading", "value"].includes(pred.kind));
+  const evidence = {
+    url: result?.url || tab?.url || "",
+    title: result?.title || tab?.title || "",
+    headings: fromResult ? (result.headings || []) : [],
+    buttons: fromResult ? (result.buttons || []) : [],
+    inputs: fromResult ? (result.inputs || []) : [],
+    nav: fromResult ? (result.nav || []) : [],
+    links: fromResult ? (result.links || []) : [],
+    source: fromResult ? ["dom"] : ["url"],
+  };
+  if (!needsDom) return evidence;
+  if (fromResult && (result.headings || result.buttons || result.inputs || result.title)) {
+    return evidence;
+  }
+  const sections = [];
+  if (preds.some((pred) => ["text", "not_text", "heading"].includes(pred.kind))) {
+    sections.push("headings", "buttons", "nav", "links");
+  }
+  if (preds.some((pred) => pred.kind === "value" || pred.kind === "text" || pred.kind === "not_text")) {
+    sections.push("inputs");
+  }
+  const resp = await sendToContentScript(state.tabId, "getPageContext", [[...new Set(sections)], { compact: true }], 0);
+  const page = requireContentScriptResult(resp, "expect page context returned no result");
+  evidence.url = page.url || evidence.url;
+  evidence.title = page.title || evidence.title;
+  evidence.headings = page.headings || [];
+  evidence.buttons = page.buttons || [];
+  evidence.inputs = page.inputs || [];
+  evidence.nav = page.nav || [];
+  evidence.links = page.links || [];
+  evidence.source = ["dom"];
+  if (preds.some((pred) => pred.kind === "text" || pred.kind === "not_text")) {
+    const textResp = await sendToContentScript(state.tabId, "getVisibleText", [4000]);
+    const textResult = textResp?.result;
+    evidence.body = textResult && typeof textResult === "object"
+      ? String(textResult.text || "")
+      : String(textResult || "");
+  }
+  const valuePred = preds.find((pred) => pred.kind === "value" && (pred.selector || action.selector));
+  if (valuePred) {
+    const selector = String(valuePred.selector || action.selector || "");
+    const key = selector.replace(/^#/, "");
+    const hit = (evidence.inputs || []).find((input) => input.name === key || input.name === selector);
+    if (hit) evidence.selector_value = hit.value;
+  }
+  return evidence;
+}
+
+async function verifyActionExpect(action, result, state) {
+  if (action?.expect == null) return result;
+  if (action.type === "screenshot" || action.type === "zoom") {
+    throw codedError("EXPECT_INVALID", "expect is not valid on screenshot/zoom");
+  }
+  const preds = normalizeExpect(action.expect);
+  const timeout = Number(action.expect_timeout ?? 2000);
+  const deadline = Date.now() + Math.max(0, Number.isFinite(timeout) ? timeout : 2000);
+  let lastEvidence = null;
+  let lastMiss = null;
+  let useResult = result;
+  while (true) {
+    lastEvidence = await collectExpectEvidence(preds, action, useResult, state);
+    lastMiss = unmatchedExpect(preds, lastEvidence);
+    if (!lastMiss) {
+      return {
+        ...result,
+        passed: true,
+        expect_ok: true,
+        source: lastEvidence.source,
+      };
+    }
+    if (Date.now() >= deadline) break;
+    assertRequestLive(state);
+    await boundedWait(150, state);
+    useResult = null;
+  }
+  throw codedError(
+    "EXPECT_UNVERIFIED",
+    `expect ${lastMiss.kind}=${JSON.stringify(lastMiss.value)} not met`,
+    {
+      details: {
+        expect: lastMiss,
+        url: lastEvidence?.url || "",
+        title: lastEvidence?.title || "",
+        source: lastEvidence?.source || [],
+      },
+    }
+  );
 }
 
 function compactFailureAction(action, index) {
@@ -3309,7 +3492,7 @@ async function captureFailureRecord({ message, state, action, index, beforeUrl, 
   const network = tabNetworkCdp.get(state.tabId);
   const networkTail = Array.isArray(network?.errors) ? network.errors.slice(-10) : [];
   let screenshot = null;
-  if (action?.type !== "screenshot" && error?.code !== "SCREENSHOT_TIMEOUT") {
+  if (failureScreenshotNeeded(error, action)) {
     screenshot = await runBrowserAction(
       { type: "screenshot", format: "jpeg", quality: 60 },
       state
@@ -3719,7 +3902,7 @@ async function handleUnlockedHostMessage(message) {
         const result = await runBrowserAction(action, state);
         assertRequestLive(state);
         if (result?.url) state.lastUrl = result.url;
-        results.push(result);
+        results.push(await verifyActionExpect(action, result, state));
       }
     } catch (error) {
       error.failureRecord = await captureFailureRecord({

@@ -813,7 +813,7 @@ async function check(actions, expected) {
 
         # Retryability is included in broker error responses.
         self.assertIn('...(error?.retryable ? { retryable: true } : {})', source)
-        self.assertIn('function codedError(code, message, { retryable = false } = {})', source)
+        self.assertIn('function codedError(code, message, { retryable = false, details = null } = {})', source)
 
     def test_partial_targets_retain_ownership_across_restore_renew_and_events(self) -> None:
         source = SERVICE_WORKER.read_text()
@@ -1295,7 +1295,9 @@ async function check(actions, expected) {
         fail = source.split("async function captureFailureRecord", 1)[1].split(
             "return {", 1
         )[0]
-        self.assertIn('error?.code !== "SCREENSHOT_TIMEOUT"', source)
+        self.assertIn("function failureScreenshotNeeded", source)
+        self.assertIn("EXPECT_UNVERIFIED", source)
+        self.assertIn('error?.code === "SCREENSHOT_TIMEOUT"', source)
         screenshot = source.split('if (type === "screenshot") {', 1)[1].split(
             'if (type === "zoom") {', 1
         )[0]
@@ -1545,6 +1547,62 @@ async function check(actions, expected) {
         preflight = worker.split("async function sessionPreflight", 1)[1].split("async function ", 1)[0]
         self.assertIn('boundedNumber(message.timeoutSeconds, 90, 1, 300, "timeoutSeconds")', preflight)
         self.assertNotIn('boundedNumber(message.timeoutSeconds, 45, 1, 300, "timeoutSeconds")', preflight)
+
+    def test_action_expect_and_decisive_failure_screenshots(self) -> None:
+        source = SERVICE_WORKER.read_text()
+        cursor = CURSOR_AGENT.read_text()
+        self.assertIn("action-expect", source)
+        self.assertIn("verifyActionExpect(action, result, state)", source)
+        fill = source.split('  if (type === "fill_selector") {', 1)[1].split(
+            '  if (type === "click_selector") {', 1
+        )[0]
+        self.assertIn("fillBySelector", fill)
+        self.assertNotIn("clickResolvedTarget", fill)
+        self.assertNotIn("focusAndType", fill)
+        self.assertIn("function fillBySelector", cursor)
+        self.assertIn("TYPE_CURSOR_NOT_READY", cursor)
+        focus_and_type = cursor.split("function focusAndType(text, opts = {}, expectation = {}) {", 1)[1].split(
+            "function keyPress", 1
+        )[0]
+        self.assertIn("TYPE_CURSOR_NOT_READY", focus_and_type)
+        self.assertNotIn("if (!cursorEl) return;", focus_and_type)
+        helpers = source.split("function normalizeExpect(raw) {", 1)[1].split(
+            "async function collectExpectEvidence", 1
+        )[0]
+        harness = r'''
+const assert = require('node:assert/strict');
+function codedError(code, message) { return Object.assign(new Error(message), {code}); }
+function normalizeExpect(raw) {HELPER
+const evidence = {
+  url: 'https://example.com/dashboard',
+  title: 'Overview',
+  headings: [{tag:'H1', text:'Overview'}],
+  buttons: ['Save'],
+  inputs: [{name:'degree', value:'Bachelor'}],
+};
+assert.deepEqual(normalizeExpect('Saved')[0], {kind:'text', value:'Saved'});
+assert.equal(unmatchedExpect(normalizeExpect({url_contains:'/dashboard'}), evidence), null);
+assert.equal(unmatchedExpect(normalizeExpect({heading:'Overview'}), evidence), null);
+assert.equal(unmatchedExpect(normalizeExpect({value:'Bachelor'}), evidence), null);
+assert.equal(unmatchedExpect(normalizeExpect({text:'Save'}), evidence), null);
+assert.equal(unmatchedExpect(normalizeExpect({text:'Saved'}), { ...evidence, body:'Payment Saved' }), null);
+assert.equal(unmatchedExpect(normalizeExpect({text:'Missing'}), evidence)?.kind, 'text');
+assert.equal(failureScreenshotNeeded({code:'ACTIONABILITY_TARGET_COUNT'}, {type:'click_text'}), false);
+assert.equal(failureScreenshotNeeded({code:'EXPECT_UNVERIFIED'}, {type:'page_context'}), false);
+assert.equal(failureScreenshotNeeded({code:'SCREENSHOT_TIMEOUT'}, {type:'goto'}), false);
+assert.equal(failureScreenshotNeeded({message:'EvalError: side-effect'}, {type:'evaluate'}), false);
+assert.equal(failureScreenshotNeeded({code:'UNKNOWN_VISUAL'}, {type:'click_text'}), true);
+console.log('ok');
+'''
+        script = harness.replace("HELPER", helpers)
+        completed = subprocess.run(
+            ["node", "--input-type=commonjs", "-e", script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
+        self.assertIn("ok", completed.stdout)
 
 
 if __name__ == "__main__":

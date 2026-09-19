@@ -23,8 +23,26 @@ using this on an older installed runtime; otherwise use the normal overview.
 | `screenshot` | file path (+ optional base64) | Only for visual claims; read the file |
 | `activate_tab` / `focus_tab` (own tab) | `{activated:true, tabId}` | Foreign tab → typed failure below |
 
-Verified success is the action result + optional compact `page_context` in the **same**
-`actions[]` batch — not a follow-up observe turn.
+Verified success is the action result + `expect` (or compact `page_context`) in the
+**same** `actions[]` batch — not a follow-up observe turn and not a screenshot.
+
+Put `expect` on the mutation or on `page_context`. Kinds: `text`, `not_text`,
+`heading`, `url`, `url_contains`, `value` (optional `selector`). String form is
+`text`. Runtime polls up to `expect_timeout` ms (default 2000) and returns
+`passed` / `expect_ok` / `source` on the action result. Probe capability:
+`action-expect`.
+
+```json
+{"actions":[
+  {"type":"fill_selector","selector":"#degree--0","value":"Bachelor",
+   "expect":{"value":"Bachelor"}},
+  {"type":"page_context","expect":{"url_contains":"/apply","heading":"Education"}}
+]}
+```
+
+Dispatch without a match is `EXPECT_UNVERIFIED` (DOM evidence in `details`), not
+success. Do not add `screenshot` to prove URL, heading, typed value, or a click
+that is already in the DOM.
 
 ## Failure taxonomy
 
@@ -43,8 +61,13 @@ evidence, not transport noise:
 | `CUA_RUNTIME_CLAIMED` | macos-cua holds Comet PID | Wait / handoff per native-coexistence |
 | `BROKER_BUSY` | Backpressure | Wait for current work |
 | `VISUAL_FOCUS_*` | Focus lock contention | Retry bounded; do not open second lease |
+| `EXPECT_UNVERIFIED` | `expect` missed after settle | Read `details`; one compact `page_context`; no screenshot |
+| `EXPECT_INVALID` | Bad `expect` shape or used on screenshot/zoom | Fix the claim; do not retry |
 
-Inspect `failure_record` when present (timing, locator, console/network tail, failure-only screenshot).
+Inspect `failure_record` when present (timing, locator, console/network tail).
+Typed errors (`ACTIONABILITY_*`, `CONTENT_SCRIPT_*`, `EXPECT_*`, `LEASE_*`,
+`EXTENSION_*`, eval/unsupported) do **not** attach a failure screenshot. A JPEG
+is only taken for unexplained visual/occlusion failures.
 Do not replay mutations after `EXTENSION_DISCONNECTED` without a fresh read.
 
 ## Loop bans (agent wall-clock)

@@ -26,8 +26,9 @@ on `captureVisibleTab` — now bounded 8s, still a class risk).
    Footgun fixed: SW normalizes `tab_id`→`tabId` and rejects foreign activate/focus with
    `LEASE_TAB_SCOPED` (was ~87s `EXTENSION_TIMEOUT` on `activate_tab`+snake `tab_id`).
 2. **Screenshot every step** — do not bolt `screenshot` onto every click/wait
-   batch (inflates ~1s → 5–6s). Screenshots only for visual claims; prefer CDP
-   after `viewport_set` (see [`operate.md`](operate.md)). Skip opening screenshots.
+   batch (inflates ~1s → 5–6s). Use `expect` for URL/heading/typed value. Screenshots
+   only for visual claims; prefer CDP after `viewport_set` (see [`operate.md`](operate.md)).
+   Skip opening screenshots.
 3. **Poll OS/CUA at 12s** — while waiting on human/OS/CUA, ≤**1 observe / 30s**
    (one compact `page_context`). Do not `page_context+evaluate` (+ `native_handoff`)
    in a tight loop.
