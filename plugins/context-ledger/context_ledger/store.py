@@ -15,6 +15,7 @@ from typing import Any
 from context_ledger.contracts import (
     APPEND_TYPES,
     CANDIDATE_CAP,
+    EVENT_TYPE,
     MAX_COMBINED_ROWS,
     MAX_CONFLICTS,
     MAX_DB_BYTES,
@@ -35,9 +36,11 @@ from context_ledger.contracts import (
     now_ts,
     parse_json,
     request_hash,
+    require_enum,
     require_keys,
     require_scope,
     require_str,
+    require_ts,
     require_uuid,
     truncate_unicode,
     validate_append_input,
@@ -494,7 +497,7 @@ class Store:
                 receipt["replayed"] = True
                 return receipt
             row = conn.execute(
-                "select revision, scope_id from current_records where decision_id=?",
+                "select revision, scope_id, sensitivity from current_records where decision_id=?",
                 (parsed["decision_id"],),
             ).fetchone()
             if row is None:
@@ -504,6 +507,8 @@ class Store:
                 ).fetchone()
                 raise LedgerError("UNAVAILABLE")
             if row["scope_id"] != self.binding["scope_id"]:
+                raise LedgerError("UNAVAILABLE")
+            if mcp and row["sensitivity"] != "model_safe":
                 raise LedgerError("UNAVAILABLE")
             if row["revision"] != parsed["expected_revision"]:
                 raise LedgerError("REVISION_CONFLICT")
@@ -795,12 +800,7 @@ class Store:
             elif kind == "tombstone":
                 if len(line.encode("utf-8")) > MAX_TOMBSTONE_BYTES:
                     raise LedgerError("LIMIT_EXCEEDED")
-                tombs.append(
-                    require_keys(
-                        obj,
-                        {"type", "kind", "id", "scope_id", "decision_id", "revision", "purged_at"},
-                    )
-                )
+                tombs.append(self._validate_imported_tombstone(obj, source_scope=source_scope))
             else:
                 raise LedgerError("INVALID_ARGUMENT")
         dest_scope = self.binding["scope_id"]
@@ -859,6 +859,9 @@ class Store:
                 )
                 imported += 1
             self._rebuild_projections(conn)
+            self._assert_imported_graph(conn)
+            for did in [r[0] for r in conn.execute("select distinct decision_id from events")]:
+                self._assert_projections_fit(conn, did)
         return {"imported_events": imported}
 
     def purge(self, decision_id: str, expected_revision: int, confirm_ledger: str) -> dict[str, Any]:
@@ -1065,13 +1068,13 @@ class Store:
             )
         except sqlite3.IntegrityError as exc:
             raise LedgerError("INVALID_TRANSITION") from exc
-        self._rebuild_one(conn, event["decision_id"])
-        if event["event_type"] in {"conflict_opened", "conflict_resolved"}:
-            other = event["payload"]["other_id"]
-            self._rebuild_one(conn, other)
-        if event["event_type"] == "superseded":
-            self._rebuild_one(conn, event["payload"]["replacement_id"])
-        self._assert_projections_fit(conn, event["decision_id"])
+        if ingest_kind != "import":
+            self._rebuild_one(conn, event["decision_id"])
+            if event["event_type"] in {"conflict_opened", "conflict_resolved"}:
+                self._rebuild_one(conn, event["payload"]["other_id"])
+            if event["event_type"] == "superseded":
+                self._rebuild_one(conn, event["payload"]["replacement_id"])
+            self._assert_projections_fit(conn, event["decision_id"])
         receipt = {
             "ledger_id": self.binding["ledger_id"],
             "decision_id": event["decision_id"],
@@ -1115,7 +1118,13 @@ class Store:
         )
         if obj["schema_version"] != 1:
             raise LedgerError("UPGRADE_REQUIRED")
-        event_type = obj["event_type"]
+        event_type = require_enum(obj["event_type"], EVENT_TYPE)
+        if type(obj["revision"]) is not int or obj["revision"] < 1:
+            raise LedgerError("INVALID_ARGUMENT")
+        revision = obj["revision"]
+        expected = obj["expected_revision"]
+        if type(expected) is not int or expected != revision - 1:
+            raise LedgerError("INVALID_TRANSITION")
         prov = require_keys(obj["provenance"], {"actor_id", "channel"})
         return {
             "schema_version": 1,
@@ -1123,19 +1132,39 @@ class Store:
             "event_id": require_uuid(obj["event_id"]),
             "decision_id": require_uuid(obj["decision_id"]),
             "scope_id": require_scope(obj["scope_id"]),
-            "revision": obj["revision"] if type(obj["revision"]) is int and obj["revision"] > 0 else (_ for _ in ()).throw(LedgerError("INVALID_ARGUMENT")),
+            "revision": revision,
             "event_type": event_type,
-            "recorded_at": obj["recorded_at"],
-            "occurred_at": obj["occurred_at"],
+            "recorded_at": require_ts(obj["recorded_at"]),
+            "occurred_at": require_ts(obj["occurred_at"], allow_null=True),
             "provenance": {
                 "actor_id": require_scope(prov["actor_id"]),
                 "channel": prov["channel"] if prov["channel"] in {"agent", "owner_cli"} else (_ for _ in ()).throw(LedgerError("INVALID_ARGUMENT")),
             },
             "request_id": require_uuid(obj["request_id"]),
-            "expected_revision": obj["expected_revision"]
-            if type(obj["expected_revision"]) is int and obj["expected_revision"] >= 0
-            else (_ for _ in ()).throw(LedgerError("INVALID_ARGUMENT")),
+            "expected_revision": expected,
             "payload": validate_payload(event_type, obj["payload"], allow_owner_attested=True),
+        }
+
+    def _validate_imported_tombstone(self, obj: Any, *, source_scope: str) -> dict[str, Any]:
+        row = require_keys(
+            obj, {"type", "kind", "id", "scope_id", "decision_id", "revision", "purged_at"}
+        )
+        if row["type"] != "tombstone":
+            raise LedgerError("INVALID_ARGUMENT")
+        kind = require_enum(row["kind"], ("decision", "event"))
+        if type(row["revision"]) is not int or row["revision"] < 1:
+            raise LedgerError("INVALID_ARGUMENT")
+        scope_id = require_scope(row["scope_id"])
+        if scope_id != source_scope:
+            raise LedgerError("INVALID_ARGUMENT")
+        return {
+            "type": "tombstone",
+            "kind": kind,
+            "id": require_uuid(row["id"]),
+            "scope_id": scope_id,
+            "decision_id": require_uuid(row["decision_id"]),
+            "revision": row["revision"],
+            "purged_at": require_ts(row["purged_at"]),
         }
 
     def _validate_transition(
@@ -1182,44 +1211,37 @@ class Store:
                 raise LedgerError("INVALID_TRANSITION")
             if rec.get("replacement_id"):
                 raise LedgerError("INVALID_TRANSITION")
-            other = conn.execute(
-                "select projection_json, lifecycle, sensitivity, scope_id from current_records where decision_id=?",
-                (payload["replacement_id"],),
-            ).fetchone()
-            if other is None:
+            if ingest_kind == "import":
+                return
+            _other, orec = self._require_visible_counterpart(
+                conn, payload["replacement_id"], mcp=mcp, required_scope=cur["scope_id"]
+            )
+            if orec["lifecycle"] != "active":
                 raise LedgerError("INVALID_TRANSITION")
-            orec = parse_json(other["projection_json"])
-            if other["scope_id"] != cur["scope_id"] or orec["lifecycle"] != "active":
-                raise LedgerError("INVALID_TRANSITION")
-            if mcp and orec["body"]["sensitivity"] != "model_safe":
-                raise LedgerError("UNAVAILABLE")
             if self._supersession_cycle(conn, event["decision_id"], payload["replacement_id"]):
                 raise LedgerError("INVALID_TRANSITION")
             return
         if et == "conflict_opened":
             if payload["other_id"] == event["decision_id"]:
                 raise LedgerError("INVALID_ARGUMENT")
-            other = conn.execute(
-                "select projection_json, scope_id, sensitivity from current_records where decision_id=?",
-                (payload["other_id"],),
-            ).fetchone()
-            if other is None or other["scope_id"] != cur["scope_id"]:
-                raise LedgerError("INVALID_TRANSITION")
-            orec = parse_json(other["projection_json"])
-            if mcp and orec["body"]["sensitivity"] != "model_safe":
-                raise LedgerError("UNAVAILABLE")
+            if ingest_kind == "import":
+                return
+            self._require_visible_counterpart(
+                conn, payload["other_id"], mcp=mcp, required_scope=cur["scope_id"]
+            )
             pair = tuple(sorted([event["decision_id"], payload["other_id"]]))
-            if any(
-                tuple(sorted([event["decision_id"], c["other_id"]])) == pair
-                for c in rec.get("conflicts") or []
-            ):
+            existing = rec.get("conflicts") or []
+            if any(tuple(sorted([event["decision_id"], c["other_id"]])) == pair for c in existing):
                 raise LedgerError("INVALID_TRANSITION")
-            if len(rec.get("conflicts") or []) >= MAX_CONFLICTS:
+            if len(existing) >= MAX_CONFLICTS:
                 raise LedgerError("LIMIT_EXCEEDED")
             return
         if et == "conflict_resolved":
+            if ingest_kind == "import":
+                return
+            visible = self._visible_conflicts(conn, rec, mcp=mcp, required_scope=cur["scope_id"])
             found = None
-            for c in rec.get("conflicts") or []:
+            for c in visible:
                 if c["other_id"] == payload["other_id"] and c["opened_event_id"] == payload["opened_event_id"]:
                     found = c
                     break
@@ -1237,6 +1259,91 @@ class Store:
             } and payload["status"] != rec["outcome"]["status"]
             if note_required and not payload["note"]:
                 raise LedgerError("INVALID_ARGUMENT")
+
+    def _require_visible_counterpart(
+        self,
+        conn: sqlite3.Connection,
+        decision_id: str,
+        *,
+        mcp: bool,
+        required_scope: str,
+    ) -> tuple[Any, dict[str, Any]]:
+        row = conn.execute(
+            "select projection_json, lifecycle, sensitivity, scope_id from current_records where decision_id=?",
+            (decision_id,),
+        ).fetchone()
+        if row is None or row["scope_id"] != required_scope:
+            raise LedgerError("UNAVAILABLE")
+        rec = parse_json(row["projection_json"])
+        if mcp and rec["body"]["sensitivity"] != "model_safe":
+            raise LedgerError("UNAVAILABLE")
+        return row, rec
+
+    def _visible_conflicts(
+        self,
+        conn: sqlite3.Connection,
+        rec: dict[str, Any],
+        *,
+        mcp: bool,
+        required_scope: str,
+    ) -> list[dict[str, Any]]:
+        visible = []
+        for c in rec.get("conflicts") or []:
+            other = conn.execute(
+                "select sensitivity, scope_id from current_records where decision_id=?",
+                (c["other_id"],),
+            ).fetchone()
+            if other is None or other["scope_id"] != required_scope:
+                continue
+            if mcp and other["sensitivity"] != "model_safe":
+                continue
+            visible.append(c)
+        return visible
+
+    def _assert_imported_graph(self, conn: sqlite3.Connection) -> None:
+        ids = [r[0] for r in conn.execute("select distinct decision_id from events")]
+        reduced = {did: self._reduce_decision(conn, did) for did in ids}
+        opened: dict[str, tuple[str, str]] = {}
+        resolved_counts: dict[str, int] = {}
+        resolves: list[dict[str, Any]] = []
+        for row in conn.execute("select event_json from events"):
+            event = parse_json(row["event_json"])
+            et = event["event_type"]
+            payload = event["payload"]
+            if et == "superseded":
+                rid = payload["replacement_id"]
+                if rid not in reduced:
+                    raise LedgerError("INVALID_TRANSITION")
+                if reduced[rid]["scope_id"] != reduced[event["decision_id"]]["scope_id"]:
+                    raise LedgerError("INVALID_TRANSITION")
+            elif et == "conflict_opened":
+                opened[event["event_id"]] = (event["decision_id"], payload["other_id"])
+                oid = payload["other_id"]
+                if oid not in reduced:
+                    raise LedgerError("INVALID_TRANSITION")
+                if reduced[oid]["scope_id"] != reduced[event["decision_id"]]["scope_id"]:
+                    raise LedgerError("INVALID_TRANSITION")
+            elif et == "conflict_resolved":
+                resolves.append(event)
+                oid = payload["opened_event_id"]
+                resolved_counts[oid] = resolved_counts.get(oid, 0) + 1
+        for oid, count in resolved_counts.items():
+            if count > 1 or oid not in opened:
+                raise LedgerError("INVALID_TRANSITION")
+        for event in resolves:
+            payload = event["payload"]
+            opener = opened[payload["opened_event_id"]]
+            if tuple(sorted(opener)) != tuple(sorted([event["decision_id"], payload["other_id"]])):
+                raise LedgerError("INVALID_TRANSITION")
+        self._relations(reduced)
+        for did, state in reduced.items():
+            seen = {did}
+            cur = state["replacement_id"]
+            while cur:
+                if cur not in reduced or cur in seen:
+                    raise LedgerError("INVALID_TRANSITION")
+                seen.add(cur)
+                cur = reduced[cur]["replacement_id"]
 
     def _supersession_cycle(self, conn: sqlite3.Connection, src: str, dst: str) -> bool:
         seen = {src}
@@ -1319,11 +1426,15 @@ class Store:
 
     def _reduce_decision(self, conn: sqlite3.Connection, decision_id: str) -> dict[str, Any]:
         rows = conn.execute(
-            "select revision, event_json, ingest_kind, received_at from events where decision_id=? order by revision",
+            "select revision, event_json, ingest_kind, received_at, scope_id from events where decision_id=? order by revision",
             (decision_id,),
         ).fetchall()
         if not rows:
             raise LedgerError("CORRUPT_LEDGER")
+        scopes = {r["scope_id"] for r in rows}
+        if len(scopes) != 1:
+            raise LedgerError("CORRUPT_LEDGER")
+        scope_id = next(iter(scopes))
         tombs = {
             r["revision"]
             for r in conn.execute(
@@ -1331,7 +1442,6 @@ class Store:
                 (decision_id,),
             )
         }
-        expected = 1
         present = {r["revision"] for r in rows}
         max_rev = max(present | tombs)
         for rev in range(1, max_rev + 1):
@@ -1351,6 +1461,7 @@ class Store:
         superseded = False
         replacement_id = None
         openings: list[dict[str, Any]] = []
+        resolved_openings: set[str] = set()
         for row in rows:
             event = parse_json(row["event_json"])
             ingest = row["ingest_kind"]
@@ -1370,15 +1481,28 @@ class Store:
                 evidence_event_ingest = ingest
                 approval_event_ingest = ingest
             elif et == "outcome":
+                prev_selected = self._selected_evidence(outcome, body)
+                supplied = payload.get("evidence") or []
                 outcome = payload
-                if payload.get("evidence"):
-                    evidence_event_ingest = ingest
+                evidence_event_ingest = self._supplied_evidence_ingest(
+                    prev_ingest=evidence_event_ingest,
+                    prev_selected=prev_selected,
+                    supplied=supplied,
+                    ingest=ingest,
+                )
             elif et == "corrected":
                 if payload["body"]["kind"] != kind:
                     raise LedgerError("INVALID_TRANSITION")
+                prev_selected = self._selected_evidence(outcome, body)
                 body = payload["body"]
-                if payload["body"].get("evidence") and not (outcome and outcome.get("evidence")):
-                    evidence_event_ingest = ingest
+                supplied = payload["body"].get("evidence") or []
+                if supplied and not (outcome and outcome.get("evidence")):
+                    evidence_event_ingest = self._supplied_evidence_ingest(
+                        prev_ingest=evidence_event_ingest,
+                        prev_selected=prev_selected,
+                        supplied=supplied,
+                        ingest=ingest,
+                    )
                 approval_event_ingest = ingest
             elif et == "superseded":
                 if superseded:
@@ -1390,14 +1514,11 @@ class Store:
                     {"other_id": payload["other_id"], "opened_event_id": event["event_id"]}
                 )
             elif et == "conflict_resolved":
-                openings = [
-                    o
-                    for o in openings
-                    if not (
-                        o["other_id"] == payload["other_id"]
-                        and o["opened_event_id"] == payload["opened_event_id"]
-                    )
-                ]
+                oid = payload["opened_event_id"]
+                if oid in resolved_openings:
+                    raise LedgerError("INVALID_TRANSITION")
+                resolved_openings.add(oid)
+                openings = [o for o in openings if o["opened_event_id"] != oid]
             elif et == "attested":
                 assert body is not None
                 body = dict(body)
@@ -1412,6 +1533,7 @@ class Store:
             "lifecycle": "superseded" if superseded else "active",
             "replacement_id": replacement_id,
             "openings": openings,
+            "resolved_openings": resolved_openings,
             "created_at": created_at,
             "updated_at": last_received,
             "imported": imported,
@@ -1420,14 +1542,19 @@ class Store:
             "evidence_ingest": evidence_event_ingest,
             "approval_ingest": approval_event_ingest,
             "last_ingest": last_ingest,
-            "scope_id": self.binding["scope_id"],
+            "scope_id": scope_id,
         }
 
     def _relations(self, reduced: dict[str, dict[str, Any]]) -> dict[str, Any]:
+        resolved: set[str] = set()
+        for state in reduced.values():
+            resolved |= state["resolved_openings"]
         conflicts: dict[str, list[dict[str, Any]]] = {did: [] for did in reduced}
         pair_open: dict[tuple[str, str], str] = {}
         for did, state in reduced.items():
             for o in state["openings"]:
+                if o["opened_event_id"] in resolved:
+                    continue
                 pair = tuple(sorted([did, o["other_id"]]))
                 if pair in pair_open and pair_open[pair] != o["opened_event_id"]:
                     raise LedgerError("INVALID_TRANSITION")
@@ -1438,7 +1565,9 @@ class Store:
             if b in reduced:
                 conflicts[b].append({"other_id": a, "opened_event_id": opened})
         for did in conflicts:
-            conflicts[did] = sorted(conflicts[did], key=lambda c: c["other_id"])[:MAX_CONFLICTS]
+            conflicts[did] = sorted(conflicts[did], key=lambda c: c["other_id"])
+            if len(conflicts[did]) > MAX_CONFLICTS:
+                raise LedgerError("LIMIT_EXCEEDED")
         replacement = {did: reduced[did]["replacement_id"] for did in reduced}
         return {"conflicts": conflicts, "replacement": replacement}
 
@@ -1492,7 +1621,7 @@ class Store:
             "values (?,?,?,?,?,?,?)",
             (
                 decision_id,
-                self.binding["scope_id"],
+                state["scope_id"],
                 state["revision"],
                 body["sensitivity"],
                 state["lifecycle"],
@@ -1540,6 +1669,36 @@ class Store:
         if ingest == "import" and state == "reported_verified":
             return "unverified"
         return state
+
+    @staticmethod
+    def _selected_evidence(outcome: dict[str, Any] | None, body: dict[str, Any] | None) -> list[dict[str, Any]]:
+        if outcome and outcome.get("evidence"):
+            return outcome["evidence"]
+        if body and body.get("evidence"):
+            return body["evidence"]
+        return []
+
+    @staticmethod
+    def _evidence_identities(items: list[dict[str, Any]]) -> set[str]:
+        return {
+            canonical_json({"ref": item["ref"], "revision": item["revision"], "sha256": item["sha256"]})
+            for item in items
+        }
+
+    @staticmethod
+    def _supplied_evidence_ingest(
+        *,
+        prev_ingest: str,
+        prev_selected: list[dict[str, Any]],
+        supplied: list[dict[str, Any]],
+        ingest: str,
+    ) -> str:
+        if not supplied:
+            return prev_ingest
+        if ingest == "local" and prev_ingest == "import":
+            if Store._evidence_identities(supplied) <= Store._evidence_identities(prev_selected):
+                return "import"
+        return ingest
 
     def _get_record(self, conn: sqlite3.Connection, decision_id: str, *, mcp: bool) -> dict[str, Any] | None:
         row = conn.execute(

@@ -7,7 +7,8 @@ import json
 import re
 import unicodedata
 import uuid
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Literal, TypedDict
 
 SCHEMA_VERSION = 1
 MAX_REQUEST_LINE = 64 * 1024
@@ -79,6 +80,106 @@ APPEND_TYPES = (
     "conflict_opened",
     "conflict_resolved",
 )
+
+
+class EvidenceInput(TypedDict):
+    ref: str
+    revision: str | None
+    sha256: str | None
+    state: Literal["unverified", "reported_verified", "invalid", "missing"]
+
+
+class ApprovalInput(TypedDict):
+    state: Literal["none", "self_reported", "owner_attested"]
+    authority_ref: str | None
+
+
+class McpApprovalInput(TypedDict):
+    state: Literal["none", "self_reported"]
+    authority_ref: str | None
+
+
+class BodyInput(TypedDict):
+    kind: Literal["decision", "observation"]
+    summary: str
+    situation: str
+    action: str
+    rationale: str
+    constraints: list[str]
+    applicability: str
+    entities: list[str]
+    evidence: list[EvidenceInput]
+    sensitivity: Literal["model_safe", "local_only"]
+    approval: ApprovalInput
+
+
+class McpBodyInput(TypedDict):
+    kind: Literal["decision", "observation"]
+    summary: str
+    situation: str
+    action: str
+    rationale: str
+    constraints: list[str]
+    applicability: str
+    entities: list[str]
+    evidence: list[EvidenceInput]
+    sensitivity: Literal["model_safe", "local_only"]
+    approval: McpApprovalInput
+
+
+class OutcomeInput(TypedDict):
+    status: Literal["unknown", "pending", "success", "failed", "inconclusive", "abandoned"]
+    note: str
+    evidence: list[EvidenceInput]
+
+
+class CorrectedPayload(TypedDict):
+    body: BodyInput
+    reason: str
+
+
+class McpCorrectedPayload(TypedDict):
+    body: McpBodyInput
+    reason: str
+
+
+class SupersededPayload(TypedDict):
+    replacement_id: str
+    reason: str
+
+
+class ConflictOpenedPayload(TypedDict):
+    other_id: str
+    reason: str
+
+
+class ConflictResolvedPayload(TypedDict):
+    other_id: str
+    opened_event_id: str
+    reason: str
+
+
+AppendPayload = (
+    OutcomeInput
+    | CorrectedPayload
+    | SupersededPayload
+    | ConflictOpenedPayload
+    | ConflictResolvedPayload
+)
+McpAppendPayload = (
+    OutcomeInput
+    | McpCorrectedPayload
+    | SupersededPayload
+    | ConflictOpenedPayload
+    | ConflictResolvedPayload
+)
+AppendEventType = Literal[
+    "outcome",
+    "corrected",
+    "superseded",
+    "conflict_opened",
+    "conflict_resolved",
+]
 
 
 class LedgerError(Exception):
@@ -215,6 +316,14 @@ def require_ts(value: Any, *, allow_null: bool = False) -> str | None:
         raise LedgerError("INVALID_ARGUMENT")
     text = require_str(value, 32)
     if not TIME_RE.fullmatch(text):
+        raise LedgerError("INVALID_ARGUMENT")
+    try:
+        parsed = datetime.strptime(text, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
+    except ValueError as exc:
+        raise LedgerError("INVALID_ARGUMENT") from exc
+    ms = parsed.microsecond // 1000
+    canonical = parsed.strftime("%Y-%m-%dT%H:%M:%S") + f".{ms:03d}Z"
+    if canonical != text:
         raise LedgerError("INVALID_ARGUMENT")
     return text
 

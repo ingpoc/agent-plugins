@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -84,6 +85,10 @@ def _outcome(status="pending", **overrides):
     return base
 
 
+def _evidence(state="reported_verified", ref="doc://example"):
+    return [{"ref": ref, "revision": None, "sha256": None, "state": state}]
+
+
 class PackageTests(unittest.TestCase):
     def test_creator_validate(self) -> None:
         proc = _run([sys.executable, str(CREATOR), "--validate", str(ROOT)])
@@ -111,7 +116,11 @@ class PackageTests(unittest.TestCase):
             names = [p["name"] for p in data["plugins"]]
             self.assertIn("context-ledger", names, rel)
 
-    def test_readme_unmeasured_and_exercised_os(self) -> None:
+    def test_plugin_version(self) -> None:
+        plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
+        init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
+        self.assertEqual(plugin["version"], "0.1.1")
+        self.assertIn('__version__ = "0.1.1"', init)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         for axis in ("Reliability", "Robustness", "Context efficiency", "Speed", "Efficiency"):
@@ -567,6 +576,641 @@ class StoreTests(unittest.TestCase):
         got = self.store.get({"decision_id": rec["decision_id"]}, mcp=True)
         self.assertEqual(got["record"]["body"]["approval"]["state"], "owner_attested")
 
+    def test_rebuild_keeps_foreign_scope_records_isolated(self) -> None:
+        from context_ledger.store import bind_ledger
+
+        rec_a = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="alpha-scope-a sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.scope_add("second-scope")
+        data_b = Path(self.tmp.name) / "data-b"
+        data_b.mkdir()
+        os.chmod(data_b, 0o700)
+        bind_ledger(
+            data_b,
+            Path(self.binding["ledger_dir"]),
+            self.binding["ledger_id"],
+            "second-scope",
+            "other-agent",
+            replace=False,
+        )
+        store_b = self.Store(data_b, actor_channel="owner_cli")
+        rec_b = store_b.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="beta-scope-b sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        store_b.rebuild()
+        found_b = store_b.find(
+            {"query": "alpha-scope-a sqlite", "entities": [], "constraints": []},
+            mcp=True,
+        )
+        self.assertNotIn(rec_a["decision_id"], [m["decision_id"] for m in found_b["matches"]])
+        with self.assertRaises(self.LedgerError) as ctx:
+            store_b.get({"decision_id": rec_a["decision_id"]}, mcp=True)
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        got_a = self.store.get({"decision_id": rec_a["decision_id"]}, mcp=True)
+        self.assertEqual(got_a["record"]["decision_id"], rec_a["decision_id"])
+        got_b = store_b.get({"decision_id": rec_b["decision_id"]}, mcp=True)
+        self.assertEqual(got_b["record"]["decision_id"], rec_b["decision_id"])
+        store_b.close()
+
+    def test_imported_evidence_not_elevated_by_copied_outcome(self) -> None:
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="imported evidence sqlite", evidence=_evidence()),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        export_path = Path(self.tmp.name) / "evidence.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        dest = Path(self.tmp.name) / "evidence-dest"
+        dest.mkdir()
+        os.chmod(dest, 0o700)
+        self.init_ledger(dest, None, "dest-scope", "dest-actor")
+        other = self.Store(dest, actor_channel="owner_cli")
+        other.import_file(
+            export_path,
+            self.binding["ledger_id"],
+            self.binding["scope_id"],
+            include_local_only=False,
+        )
+        got = other.get({"decision_id": rec["decision_id"]}, mcp=True)
+        self.assertEqual(got["record"]["evidence_state"], "unverified")
+        self.assertEqual(got["record"]["body"]["evidence"][0]["state"], "unverified")
+        copied = other.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rec["decision_id"],
+                "expected_revision": got["record"]["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome("success", note="status only", evidence=_evidence()),
+            },
+            mcp=False,
+        )
+        got = other.get({"decision_id": rec["decision_id"]}, mcp=True)
+        self.assertEqual(got["record"]["evidence_state"], "unverified")
+        self.assertEqual(got["record"]["outcome"]["evidence"][0]["state"], "unverified")
+        other.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rec["decision_id"],
+                "expected_revision": copied["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome(
+                    "success",
+                    note="new local check",
+                    evidence=_evidence(ref="doc://local-check"),
+                ),
+            },
+            mcp=False,
+        )
+        got = other.get({"decision_id": rec["decision_id"]}, mcp=True)
+        self.assertEqual(got["record"]["evidence_state"], "reported_verified")
+        other.close()
+
+    def test_relationship_errors_hide_missing_and_local_only(self) -> None:
+        visible = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="visible sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="hidden sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        missing = _uuid()
+
+        def code_for(target: str, *, mcp: bool) -> str:
+            with self.assertRaises(self.LedgerError) as ctx:
+                self.store.append_event(
+                    {
+                        "request_id": _uuid(),
+                        "decision_id": visible["decision_id"],
+                        "expected_revision": visible["revision"],
+                        "occurred_at": None,
+                        "event_type": "superseded",
+                        "payload": {"replacement_id": target, "reason": "replace with other"},
+                    },
+                    mcp=mcp,
+                )
+            return ctx.exception.code
+
+        self.assertEqual(code_for(hidden["decision_id"], mcp=True), "UNAVAILABLE")
+        self.assertEqual(code_for(missing, mcp=True), "UNAVAILABLE")
+        self.assertEqual(code_for(missing, mcp=False), "UNAVAILABLE")
+
+        def open_code(target: str) -> str:
+            with self.assertRaises(self.LedgerError) as ctx:
+                self.store.append_event(
+                    {
+                        "request_id": _uuid(),
+                        "decision_id": visible["decision_id"],
+                        "expected_revision": visible["revision"],
+                        "occurred_at": None,
+                        "event_type": "conflict_opened",
+                        "payload": {"other_id": target, "reason": "possible clash"},
+                    },
+                    mcp=True,
+                )
+            return ctx.exception.code
+
+        self.assertEqual(open_code(hidden["decision_id"]), "UNAVAILABLE")
+        self.assertEqual(open_code(missing), "UNAVAILABLE")
+
+    def test_conflict_resolved_from_counterpart_clears_pair(self) -> None:
+        left = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="conflict left sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        right = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="conflict right sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": left["decision_id"],
+                "expected_revision": left["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_opened",
+                "payload": {"other_id": right["decision_id"], "reason": "two viable choices"},
+            },
+            mcp=False,
+        )
+        opened = self.store.get({"decision_id": left["decision_id"]}, mcp=True)["record"]["conflicts"][0]
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": right["decision_id"],
+                "expected_revision": right["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_resolved",
+                "payload": {
+                    "other_id": left["decision_id"],
+                    "opened_event_id": opened["opened_event_id"],
+                    "reason": "kept the later choice",
+                },
+            },
+            mcp=False,
+        )
+        self.assertEqual(self.store.get({"decision_id": left["decision_id"]}, mcp=True)["record"]["conflicts"], [])
+        self.assertEqual(self.store.get({"decision_id": right["decision_id"]}, mcp=True)["record"]["conflicts"], [])
+
+    def test_export_import_linked_histories(self) -> None:
+        first = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="older linked sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        second = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="newer linked sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        older, newer = (first, second) if first["decision_id"] < second["decision_id"] else (second, first)
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": older["decision_id"],
+                "expected_revision": 1,
+                "occurred_at": None,
+                "event_type": "superseded",
+                "payload": {"replacement_id": newer["decision_id"], "reason": "replaced by later record"},
+            },
+            mcp=False,
+        )
+        c1 = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="pair left sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        c2 = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="pair right sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        opener, other = (c1, c2) if c1["decision_id"] < c2["decision_id"] else (c2, c1)
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": opener["decision_id"],
+                "expected_revision": opener["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_opened",
+                "payload": {"other_id": other["decision_id"], "reason": "both still open"},
+            },
+            mcp=False,
+        )
+        export_path = Path(self.tmp.name) / "linked.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        dest = Path(self.tmp.name) / "linked-dest"
+        dest.mkdir()
+        os.chmod(dest, 0o700)
+        self.init_ledger(dest, None, "dest-scope", "dest-actor")
+        imported = self.Store(dest, actor_channel="owner_cli")
+        imported.import_file(
+            export_path,
+            self.binding["ledger_id"],
+            self.binding["scope_id"],
+            include_local_only=False,
+        )
+        got_old = imported.get({"decision_id": older["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(got_old["lifecycle"], "superseded")
+        self.assertEqual(got_old["replacement_id"], newer["decision_id"])
+        got_open = imported.get({"decision_id": opener["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(got_open["conflicts"][0]["other_id"], other["decision_id"])
+        imported.close()
+
+    def test_reordered_imported_evidence_stays_unverified(self) -> None:
+        items = _evidence(ref="doc://a") + _evidence(ref="doc://b")
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="two evidence sqlite", evidence=items),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        export_path = Path(self.tmp.name) / "reorder-ev.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        dest = Path(self.tmp.name) / "reorder-ev-dest"
+        dest.mkdir()
+        os.chmod(dest, 0o700)
+        self.init_ledger(dest, None, "dest-scope", "dest-actor")
+        other = self.Store(dest, actor_channel="owner_cli")
+        other.import_file(
+            export_path,
+            self.binding["ledger_id"],
+            self.binding["scope_id"],
+            include_local_only=False,
+        )
+        got = other.get({"decision_id": rec["decision_id"]}, mcp=True)
+        other.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rec["decision_id"],
+                "expected_revision": got["record"]["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome("success", note="reversed copy", evidence=list(reversed(items))),
+            },
+            mcp=False,
+        )
+        got = other.get({"decision_id": rec["decision_id"]}, mcp=True)
+        self.assertEqual(got["record"]["evidence_state"], "unverified")
+        other.close()
+
+    def test_mcp_hidden_wrong_revision_is_unavailable(self) -> None:
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="hidden rev sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.append_event(
+                {
+                    "request_id": _uuid(),
+                    "decision_id": hidden["decision_id"],
+                    "expected_revision": hidden["revision"] + 3,
+                    "occurred_at": None,
+                    "event_type": "outcome",
+                    "payload": _outcome("failed", note="probe"),
+                },
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+
+    def test_import_rejects_resolve_from_wrong_pair(self) -> None:
+        from context_ledger.contracts import parse_json
+
+        a = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="pair a sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        b = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="pair b sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        c = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="pair c sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        d = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="pair d sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": a["decision_id"],
+                "expected_revision": a["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_opened",
+                "payload": {"other_id": b["decision_id"], "reason": "real clash"},
+            },
+            mcp=False,
+        )
+        export_path = Path(self.tmp.name) / "wrong-pair.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        lines = export_path.read_text(encoding="utf-8").splitlines()
+        created_c = None
+        opened = None
+        for line in lines[1:]:
+            obj = parse_json(line)
+            if obj.get("type") != "event":
+                continue
+            event = obj["event"]
+            if event["decision_id"] == c["decision_id"] and event["event_type"] == "created":
+                created_c = event
+            if event["event_type"] == "conflict_opened":
+                opened = event
+        self.assertIsNotNone(created_c)
+        self.assertIsNotNone(opened)
+        forged = dict(created_c)
+        forged["event_id"] = _uuid()
+        forged["revision"] = 2
+        forged["expected_revision"] = 1
+        forged["event_type"] = "conflict_resolved"
+        forged["request_id"] = _uuid()
+        forged["payload"] = {
+            "other_id": d["decision_id"],
+            "opened_event_id": opened["event_id"],
+            "reason": "cite foreign opener",
+        }
+        bad_path = Path(self.tmp.name) / "wrong-pair-bad.jsonl"
+        bad_path.write_text(
+            "\n".join(lines + [json.dumps({"type": "event", "scope_id": lines and parse_json(lines[0])["scope_id"], "event": forged})])
+            + "\n",
+            encoding="utf-8",
+        )
+        dest = Path(self.tmp.name) / "wrong-pair-dest"
+        dest.mkdir()
+        os.chmod(dest, 0o700)
+        self.init_ledger(dest, None, "dest-scope", "dest-actor")
+        other = self.Store(dest, actor_channel="owner_cli")
+        with self.assertRaises(self.LedgerError) as ctx:
+            other.import_file(
+                bad_path,
+                self.binding["ledger_id"],
+                self.binding["scope_id"],
+                include_local_only=False,
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_TRANSITION")
+        other.close()
+
+    def test_hidden_conflicts_count_toward_limit(self) -> None:
+        from context_ledger import store as store_mod
+
+        visible = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="limit visible sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="limit hidden sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        other = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="limit other sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": visible["decision_id"],
+                "expected_revision": visible["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_opened",
+                "payload": {"other_id": hidden["decision_id"], "reason": "hidden pair"},
+            },
+            mcp=False,
+        )
+        original = store_mod.MAX_CONFLICTS
+        store_mod.MAX_CONFLICTS = 1
+        try:
+            with self.assertRaises(self.LedgerError) as ctx:
+                self.store.append_event(
+                    {
+                        "request_id": _uuid(),
+                        "decision_id": visible["decision_id"],
+                        "expected_revision": visible["revision"] + 1,
+                        "occurred_at": None,
+                        "event_type": "conflict_opened",
+                        "payload": {"other_id": other["decision_id"], "reason": "would be 33rd"},
+                    },
+                    mcp=True,
+                )
+            self.assertEqual(ctx.exception.code, "LIMIT_EXCEEDED")
+        finally:
+            store_mod.MAX_CONFLICTS = original
+
+    def test_import_accepts_reversed_event_lines(self) -> None:
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="order sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rec["decision_id"],
+                "expected_revision": rec["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome("failed", note="later observation"),
+            },
+            mcp=False,
+        )
+        export_path = Path(self.tmp.name) / "order.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        lines = export_path.read_text(encoding="utf-8").splitlines()
+        reversed_path = Path(self.tmp.name) / "order-rev.jsonl"
+        reversed_path.write_text("\n".join([lines[0], *reversed(lines[1:])]) + "\n", encoding="utf-8")
+        dest = Path(self.tmp.name) / "order-dest"
+        dest.mkdir()
+        os.chmod(dest, 0o700)
+        self.init_ledger(dest, None, "dest-scope", "dest-actor")
+        other = self.Store(dest, actor_channel="owner_cli")
+        other.import_file(
+            reversed_path,
+            self.binding["ledger_id"],
+            self.binding["scope_id"],
+            include_local_only=False,
+        )
+        got = other.get({"decision_id": rec["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(got["outcome"]["status"], "failed")
+        other.close()
+
+    def test_import_rejects_impossible_timestamp(self) -> None:
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="ts sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        export_path = Path(self.tmp.name) / "ts.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        text = export_path.read_text(encoding="utf-8")
+        match = re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z", text)
+        self.assertIsNotNone(match)
+        bad_path = Path(self.tmp.name) / "ts-bad.jsonl"
+        bad_path.write_text(text.replace(match.group(0), "2026-99-99T99:99:99.999Z", 1), encoding="utf-8")
+        dest = Path(self.tmp.name) / "ts-dest"
+        dest.mkdir()
+        os.chmod(dest, 0o700)
+        self.init_ledger(dest, None, "dest-scope", "dest-actor")
+        other = self.Store(dest, actor_channel="owner_cli")
+        with self.assertRaises(self.LedgerError) as ctx:
+            other.import_file(
+                bad_path,
+                self.binding["ledger_id"],
+                self.binding["scope_id"],
+                include_local_only=False,
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+        other.close()
+        _ = rec
+
+    def test_import_rejects_malformed_tombstone(self) -> None:
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="tomb sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.purge(rec["decision_id"], rec["revision"], self.binding["ledger_id"])
+        export_path = Path(self.tmp.name) / "tomb.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        from context_ledger.contracts import parse_json
+
+        lines = export_path.read_text(encoding="utf-8").splitlines()
+        out = [lines[0]]
+        found = False
+        for line in lines[1:]:
+            obj = parse_json(line)
+            if obj.get("type") == "tombstone":
+                obj["revision"] = True
+                obj["purged_at"] = "not-a-time"
+                found = True
+            out.append(json.dumps(obj, sort_keys=True, separators=(",", ":")))
+        self.assertTrue(found)
+        bad_path = Path(self.tmp.name) / "tomb-bad.jsonl"
+        bad_path.write_text("\n".join(out) + "\n", encoding="utf-8")
+        dest = Path(self.tmp.name) / "tomb-dest"
+        dest.mkdir()
+        os.chmod(dest, 0o700)
+        self.init_ledger(dest, None, "dest-scope", "dest-actor")
+        other = self.Store(dest, actor_channel="owner_cli")
+        with self.assertRaises(self.LedgerError) as ctx:
+            other.import_file(
+                bad_path,
+                self.binding["ledger_id"],
+                self.binding["scope_id"],
+                include_local_only=False,
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+        other.close()
+
     def test_admin_concurrency_one_winner(self) -> None:
         rec = self.store.record(
             {
@@ -657,6 +1301,7 @@ class McpTests(unittest.TestCase):
         if not sites:
             raise unittest.SkipTest("runtime site-packages missing")
         cls.site = sites[0]
+        sys.path.insert(0, str(ROOT))
         sys.path.insert(0, str(cls.site))
 
     @classmethod
@@ -678,14 +1323,30 @@ class McpTests(unittest.TestCase):
     def test_tools_legacy_and_modern(self) -> None:
         import anyio
 
-        async def once(mode: str) -> list[str]:
+        async def once(mode: str) -> dict[str, Any]:
             async with self._client(mode) as client:
                 tools = await client.list_tools()
-                return sorted(t.name for t in tools.tools)
+                names = sorted(t.name for t in tools.tools)
+                by_name = {t.name: t.model_dump(by_alias=True) for t in tools.tools}
+                return {"names": names, "by_name": by_name}
 
         for mode in ("legacy", "2026-07-28"):
-            names = anyio.run(once, mode)
-            self.assertEqual(names, ["append_event", "find", "get", "record"], mode)
+            info = anyio.run(once, mode)
+            self.assertEqual(info["names"], ["append_event", "find", "get", "record"], mode)
+            rec = info["by_name"]["record"].get("inputSchema") or {}
+            app = info["by_name"]["append_event"].get("inputSchema") or {}
+            record_schema = json.dumps(rec)
+            append_schema = json.dumps(app)
+            self.assertIn("kind", record_schema)
+            self.assertIn("summary", record_schema)
+            self.assertNotIn("owner_attested", record_schema)
+            self.assertIn("replacement_id", append_schema)
+            self.assertIn("opened_event_id", append_schema)
+            self.assertIn("conflict_opened", append_schema)
+            self.assertNotIn("owner_attested", append_schema)
+            defs = rec.get("$defs") or {}
+            body = defs.get("McpBodyModel") or {}
+            self.assertEqual(body.get("additionalProperties"), False)
 
     def test_record_find_get_roundtrip(self) -> None:
         import anyio
