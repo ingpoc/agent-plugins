@@ -29,6 +29,7 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 | Change plugin behavior | That plugin's `SKILL.md` and `mcp.json` |
 | Change how this plugin installs | That plugin's `AGENTS.md` |
 | Change published benchmark scores | That plugin's `README.md` |
+| Checks, CI, pre-commit | `scripts/check.py` |
 
 ## Plugins
 

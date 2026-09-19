@@ -91,8 +91,21 @@ def _evidence(state="reported_verified", ref="doc://example"):
 
 class PackageTests(unittest.TestCase):
     def test_creator_validate(self) -> None:
+        if not CREATOR.is_file():
+            self.skipTest("agent-plugin-creator is not installed on this host")
         proc = _run([sys.executable, str(CREATOR), "--validate", str(ROOT)])
         self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    def test_source_mcp_command_is_portable(self) -> None:
+        mcp = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))
+        server = mcp["mcpServers"]["context-ledger"]
+        command = server["command"]
+        self.assertEqual(command, "python")
+        self.assertFalse(command.startswith("/"))
+        self.assertNotIn(" ", command)
+        self.assertNotIn("${", command)
+        cwd = server.get("cwd")
+        self.assertIn(cwd, ("${PLUGIN_ROOT}", "./"))
 
     def test_skill_frontmatter(self) -> None:
         text = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
