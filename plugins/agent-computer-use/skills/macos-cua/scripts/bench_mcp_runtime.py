@@ -21,19 +21,12 @@ COMPACT_MCP = ROOT / "scripts" / "compact_mcp.py"
 MACOS_CUA = ROOT / "scripts" / "macos-cua.py"
 SESSION = "acu-mcp-runtime-benchmark"
 PLAN = {
-    "pointer": False,
-    "capture": "failures",
-    "output": "compact",
-    "max_elements": 50,
-    "actions": [
-        {"action": "click", "label": "Clear"},
-        {
-            "action": "click",
-            "label": "7",
-            "expect": {"text": "7", "role": "AXStaticText"},
-        },
+    "app": "Calculator",
+    "steps": [
+        {"label": "All Clear"},
+        {"label": "7"},
     ],
-    "expect": {"text": "7", "role": "AXStaticText"},
+    "expect": "7",
 }
 
 
@@ -83,7 +76,7 @@ def direct_once(mcp) -> dict[str, Any]:
     state = mcp._state_payload({"app": "Calculator", "max": 80})
     state_seconds = time.monotonic() - started
     started = time.monotonic()
-    act = mcp.handle_act({"app": "Calculator", "plan": PLAN})
+    act = mcp.handle_act(PLAN)
     act_seconds = time.monotonic() - started
     return {
         "state_s": state_seconds,

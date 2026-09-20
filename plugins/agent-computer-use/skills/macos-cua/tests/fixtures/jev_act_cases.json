@@ -1,0 +1,91 @@
+{
+  "cases": [
+    {
+      "id": "calc-8x8",
+      "goal": "Clear Calculator and compute 8 times 8",
+      "oracle_choice_kind": "act",
+      "expect": "64",
+      "state": {"app": "Calculator", "text": "display shows 0"},
+      "candidates": [
+        {
+          "description": "All Clear, then 8, Multiply, 8, Equals expecting 64",
+          "act": {
+            "app": "Calculator",
+            "steps": [
+              {"label": "All Clear"},
+              {"label": "8"},
+              {"label": "Multiply"},
+              {"label": "8"},
+              {"label": "Equals"}
+            ],
+            "expect": "64"
+          }
+        },
+        {
+          "description": "All Clear, then 7, Multiply, 7, Equals expecting 49",
+          "act": {
+            "app": "Calculator",
+            "steps": [
+              {"label": "All Clear"},
+              {"label": "7"},
+              {"label": "Multiply"},
+              {"label": "7"},
+              {"label": "Equals"}
+            ],
+            "expect": "49"
+          }
+        },
+        {
+          "description": "Press Equals only without clearing",
+          "act": {
+            "app": "Calculator",
+            "steps": [{"label": "Equals"}],
+            "expect": "0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "textedit-marker",
+      "goal": "Type the marker PROOF_JEV_ACT into TextEdit",
+      "oracle_choice_kind": "act",
+      "expect": "PROOF_JEV_ACT",
+      "state": {"app": "TextEdit", "text": "empty document"},
+      "candidates": [
+        {
+          "description": "Type PROOF_JEV_ACT into the document",
+          "act": {
+            "app": "TextEdit",
+            "steps": [{"op": "type_text", "text": "PROOF_JEV_ACT"}],
+            "expect": "PROOF_JEV_ACT"
+          }
+        },
+        {
+          "description": "Type WRONG_MARKER into the document",
+          "act": {
+            "app": "TextEdit",
+            "steps": [{"op": "type_text", "text": "WRONG_MARKER"}],
+            "expect": "WRONG_MARKER"
+          }
+        }
+      ]
+    },
+    {
+      "id": "stale-state-reobserve",
+      "goal": "Click Submit on a form whose labels are unknown from state",
+      "oracle_choice_kind": "control",
+      "oracle_id": "__reobserve__",
+      "state": {"app": "UnknownForm", "text": ""},
+      "candidates": [
+        {
+          "description": "Click a guessed Submit button",
+          "act": {
+            "app": "UnknownForm",
+            "steps": [{"label": "Submit"}],
+            "expect": "Submitted"
+          }
+        }
+      ]
+    }
+  ]
+}
