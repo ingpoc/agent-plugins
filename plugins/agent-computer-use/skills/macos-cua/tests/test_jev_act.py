@@ -163,12 +163,23 @@ class JevActTests(unittest.TestCase):
                 "estimated_usd_per_decision": llm_usd,
             },
         }
-        gate = self.bench.pass_rule(summary)
+        gate = self.bench.pass_rule(summary, live_jev=True)
         self.assertGreater(summary["jev"]["mean_tokens"], summary["llm"]["mean_tokens"])
         self.assertTrue(gate["checks"]["usd_improved_20pct"])
         self.assertTrue(gate["ok"])
         summary["llm"]["success_rate"] = 0.5
-        self.assertFalse(self.bench.pass_rule(summary)["ok"])
+        self.assertFalse(self.bench.pass_rule(summary, live_jev=True)["ok"])
+        # Mock must never pass even with perfect numbers.
+        mock_summary = {
+            "jev_mock": {
+                "exact_match_rate": 1.0,
+                "invalid_id_rate": 0.0,
+                "p50_latency_ms": 0.0,
+                "estimated_usd_per_decision": 0.0,
+            },
+            "llm": summary["llm"],
+        }
+        self.assertFalse(self.bench.pass_rule(mock_summary, live_jev=False)["ok"])
 
 
 if __name__ == "__main__":

@@ -95,8 +95,10 @@ def rules_pick(mod, case: dict[str, Any]) -> dict[str, Any]:
         if score > best_score:
             best_score = score
             best = cid
-    if case.get("oracle_choice_kind") == "control":
-        best = case.get("oracle_id") or mod.REOBSERVE
+    # No oracle leak. Empty state text → reobserve (stale/unknown UI).
+    state_text = str((case.get("state") or {}).get("text") or "").strip()
+    if not state_text:
+        best = mod.REOBSERVE
     latency_ms = round((time.perf_counter() - started) * 1000, 3)
     return {
         "provider": "rules",
@@ -240,16 +242,20 @@ def usd_per_decision(provider: str, input_tokens: float, output_tokens: float) -
     return (input_tokens * input_price + output_tokens * output_price) / 1_000_000
 
 
-def pass_rule(summary: dict[str, Any]) -> dict[str, Any]:
-    jev_key = "jev" if "jev" in summary else "jev_mock"
-    jev = summary[jev_key]
+def pass_rule(summary: dict[str, Any], *, live_jev: bool = False) -> dict[str, Any]:
+    """Gate only passes on live Jev. Mock returning the oracle at 0ms/0USD is not proof."""
+    live = "jev" in summary and live_jev
+    jev_key = "jev" if live else "jev_mock"
+    jev = summary.get(jev_key) or summary.get("jev_mock") or {}
     llm = summary.get("llm")
     rules = summary.get("rules")
     checks = {
-        "jev_exact_ge_95": jev["exact_match_rate"] >= 0.95,
-        "jev_invalid_id_zero": jev["invalid_id_rate"] == 0.0,
+        "live_jev_required": live,
+        "jev_exact_ge_95": (jev.get("exact_match_rate") or 0) >= 0.95,
+        "jev_invalid_id_zero": (jev.get("invalid_id_rate") or 0) == 0.0,
     }
-    if llm:
+    note = "mock cannot pass gate; re-run with --live-jev"
+    if live and llm:
         checks["jev_exact_ge_llm"] = jev["exact_match_rate"] >= llm["exact_match_rate"]
         checks["llm_comparison_complete"] = llm.get("success_rate", 1.0) == 1.0
         lat_improve = (
@@ -284,16 +290,21 @@ def pass_rule(summary: dict[str, Any]) -> dict[str, Any]:
         checks["usd_improved_20pct"] = bool(usd_improve)
         checks["usd_not_worse_10pct_or_unknown"] = bool(usd_non_worse)
         checks["usd_rates_known"] = bool(usd_known)
-    else:
+    elif live:
         checks["primary_metric_improved"] = True
         checks["jev_exact_ge_llm"] = True
         checks["llm_comparison_complete"] = True
-        note = "LLM comparison unavailable"
+        note = "LLM comparison unavailable; live quality checks only"
+    else:
+        checks["jev_exact_ge_llm"] = False
+        checks["llm_comparison_complete"] = False
+        checks["primary_metric_improved"] = False
     if rules:
         checks["rules_diagnostic_only"] = True
-    ok = all(
+    ok = live and all(
         checks[k]
         for k in (
+            "live_jev_required",
             "jev_exact_ge_95",
             "jev_invalid_id_zero",
             "jev_exact_ge_llm",
@@ -382,7 +393,7 @@ def main(argv: list[str] | None = None) -> int:
             summary[provider]["mean_output_tokens"],
         )
 
-    gate = pass_rule(summary)
+    gate = pass_rule(summary, live_jev=bool(args.live_jev))
     out = {
         "ok": gate["ok"],
         "pass": gate,
