@@ -167,6 +167,8 @@ class JevActTests(unittest.TestCase):
         self.assertGreater(summary["jev"]["mean_tokens"], summary["llm"]["mean_tokens"])
         self.assertTrue(gate["checks"]["usd_improved_20pct"])
         self.assertTrue(gate["ok"])
+        summary["llm"]["success_rate"] = 0.5
+        self.assertFalse(self.bench.pass_rule(summary)["ok"])
 
 
 if __name__ == "__main__":

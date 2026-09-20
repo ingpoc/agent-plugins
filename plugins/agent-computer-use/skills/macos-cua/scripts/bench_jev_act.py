@@ -133,19 +133,29 @@ def llm_pick(mod, case: dict[str, Any], *, model: str, key: str) -> dict[str, An
         method="POST",
     )
     started = time.perf_counter()
-    try:
-        with urllib.request.urlopen(req, timeout=45) as resp:
-            payload = json.load(resp)
-    except urllib.error.HTTPError as exc:
-        return {
-            "provider": "llm",
-            "ok": False,
-            "error": exc.read().decode()[:300],
-            "latency_ms": round((time.perf_counter() - started) * 1000, 3),
-            "usage": {},
-            "invented": False,
-            "choice": None,
-        }
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=45) as resp:
+                payload = json.load(resp)
+            break
+        except urllib.error.HTTPError as exc:
+            error = exc.read().decode()[:300]
+            if exc.code == 429 and attempt < 3:
+                try:
+                    delay = float(exc.headers.get("Retry-After") or 2 ** attempt)
+                except ValueError:
+                    delay = float(2 ** attempt)
+                time.sleep(max(1.0, min(delay, 60.0)))
+                continue
+            return {
+                "provider": "llm",
+                "ok": False,
+                "error": error,
+                "latency_ms": round((time.perf_counter() - started) * 1000, 3),
+                "usage": {},
+                "invented": False,
+                "choice": None,
+            }
     latency_ms = round((time.perf_counter() - started) * 1000, 3)
     text = ((payload.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
     choice = None
@@ -241,6 +251,7 @@ def pass_rule(summary: dict[str, Any]) -> dict[str, Any]:
     }
     if llm:
         checks["jev_exact_ge_llm"] = jev["exact_match_rate"] >= llm["exact_match_rate"]
+        checks["llm_comparison_complete"] = llm.get("success_rate", 1.0) == 1.0
         lat_improve = (
             llm["p50_latency_ms"]
             and jev["p50_latency_ms"] is not None
@@ -276,6 +287,7 @@ def pass_rule(summary: dict[str, Any]) -> dict[str, Any]:
     else:
         checks["primary_metric_improved"] = True
         checks["jev_exact_ge_llm"] = True
+        checks["llm_comparison_complete"] = True
         note = "LLM comparison unavailable"
     if rules:
         checks["rules_diagnostic_only"] = True
@@ -285,6 +297,7 @@ def pass_rule(summary: dict[str, Any]) -> dict[str, Any]:
             "jev_exact_ge_95",
             "jev_invalid_id_zero",
             "jev_exact_ge_llm",
+            "llm_comparison_complete",
             "primary_metric_improved",
         )
     )
@@ -349,11 +362,13 @@ def main(argv: list[str] | None = None) -> int:
         n = len(exact_rows) or 1
         exact = sum(1 for r in exact_rows if r.get("choice") == r.get("oracle"))
         invented = sum(1 for r in exact_rows if r.get("invented"))
+        succeeded = sum(1 for r in exact_rows if r.get("ok"))
         latencies = [float(r.get("latency_ms") or 0) for r in exact_rows]
         in_tok = [int((r.get("usage") or {}).get("inputTokens") or 0) for r in exact_rows]
         out_tok = [int((r.get("usage") or {}).get("outputTokens") or 0) for r in exact_rows]
         summary[provider] = {
             "n": len(exact_rows),
+            "success_rate": round(succeeded / n, 4),
             "exact_match_rate": round(exact / n, 4),
             "invalid_id_rate": round(invented / n, 4),
             "p50_latency_ms": round(statistics.median(latencies), 3) if latencies else None,
