@@ -748,8 +748,67 @@
     return ['top', 'left', 'width', 'height'].every((key) => Math.abs(left[key] - right[key]) <= 0.5);
   }
 
-  function _nextFrame() {
-    return new Promise((resolve) => requestAnimationFrame(resolve));
+  function _rectEvidence(rect) {
+    return Object.fromEntries(
+      ['top', 'left', 'width', 'height'].map((key) => [key, Number(rect[key].toFixed(3))])
+    );
+  }
+
+  function _sampleRect(el) {
+    const rect = el.getBoundingClientRect();
+    return {
+      rect,
+      at: performance.now(),
+      scroll: { x: window.scrollX, y: window.scrollY },
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+    };
+  }
+
+  function _nextFrame(timeoutMs = 50) {
+    return Promise.race([
+      new Promise((resolve) => requestAnimationFrame(resolve)),
+      new Promise((resolve) => setTimeout(resolve, timeoutMs)),
+    ]);
+  }
+
+  async function _stableRect(el, opts = {}) {
+    const need = opts.need || 3;
+    const maxFrames = opts.maxFrames || 10;
+    const maxMs = opts.maxMs || 200;
+    await _nextFrame();
+    const samples = [_sampleRect(el)];
+    const started = performance.now();
+    const lastThreeMatch = () => {
+      if (samples.length < need) return false;
+      const window3 = samples.slice(-need);
+      return window3.every((item, index) => (
+        index === 0 || _sameRect(window3[index - 1].rect, item.rect)
+      ));
+    };
+    while (samples.length < maxFrames && (performance.now() - started) < maxMs) {
+      if (lastThreeMatch()) return samples[samples.length - 1].rect;
+      await _nextFrame();
+      samples.push(_sampleRect(el));
+    }
+    if (lastThreeMatch()) return samples[samples.length - 1].rect;
+    const viewportChanged = samples.some((item, index) => (
+      index > 0
+      && (
+        item.viewport.width !== samples[0].viewport.width
+        || item.viewport.height !== samples[0].viewport.height
+      )
+    ));
+    throw _actionabilityError('ACTIONABILITY_UNSTABLE', 'Target moved across animation frames', {
+      rects: samples.map((item) => _rectEvidence(item.rect)),
+      frame_deltas_ms: samples.slice(1).map((item, index) => (
+        Number((item.at - samples[index].at).toFixed(3))
+      )),
+      scrolls: samples.map((item) => item.scroll),
+      viewports: samples.map((item) => item.viewport),
+      scroll: samples[samples.length - 1].scroll,
+      viewport: samples[samples.length - 1].viewport,
+      viewport_changed: viewportChanged,
+    });
   }
 
   function _semanticCacheKey(kind, locator, mode) {
@@ -840,13 +899,14 @@
       throw _actionabilityError('ACTIONABILITY_NOT_EDITABLE', 'Fill target is not editable', { kind, locator });
     }
     el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
-    const first = el.getBoundingClientRect();
-    await _nextFrame();
-    const second = el.getBoundingClientRect();
-    await _nextFrame();
-    const r = el.getBoundingClientRect();
-    if (!_sameRect(first, second) || !_sameRect(second, r)) {
-      throw _actionabilityError('ACTIONABILITY_UNSTABLE', 'Target moved across animation frames', { kind, locator });
+    let r;
+    try {
+      r = await _stableRect(el);
+    } catch (error) {
+      if (error && error.code === 'ACTIONABILITY_UNSTABLE') {
+        error.details = { ...(error.details || {}), kind, locator };
+      }
+      throw error;
     }
     const clickRect = _stickyCardRect(el, r);
     const nameX = r.left + r.width / 2;

@@ -157,7 +157,7 @@ Orient once, batch the mutation with an observable wait, then read back the
 result. Do not repeat `page_context` or take screenshots between every action.
 
 ```json
-{"actions":[{"type":"page_context"},{"type":"click_text","text":"Save"},{"type":"wait_for_selector","selector":".saved","timeout":5000},{"type":"page_context"},{"type":"screenshot","format":"png"}]}
+{"actions":[{"type":"page_context"},{"type":"click_text","text":"Save","expect":{"text":"Saved"}},{"type":"page_context","expect":{"text":"Saved"}}]}
 ```
 
 If a click target is not yet rendered, put `wait_for_selector` immediately

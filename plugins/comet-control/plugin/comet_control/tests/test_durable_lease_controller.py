@@ -272,6 +272,10 @@ class DurableLeaseControllerSequencingTests(unittest.TestCase):
             payload = json.loads(output.getvalue())
             self.assertEqual(rc, 0)
             self.assertTrue(payload["response"]["verified_absent"])
+            # Agents that read workdir/response.json (not stdout) must see proof.
+            on_disk = json.loads((work / "response.json").read_text())
+            self.assertTrue(on_disk["result"]["response"]["verified_absent"])
+            self.assertEqual(on_disk["result"]["event"], "closeout")
 
     def test_start_repairs_alive_when_run_pid_still_live(self) -> None:
         """A second start must not spawn; it restores heartbeat and returns ok."""

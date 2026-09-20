@@ -21,6 +21,13 @@ OWNER_PROBE = ROOT.parents[1] / "scripts" / "ensure-broker.sh"
 RUNTIME_LAUNCHER = ROOT.parents[1] / "scripts" / "launch-comet.sh"
 DIAGNOSTICS = ROOT / "diagnostics.py"
 MANIFEST = ROOT / "extension" / "manifest.json"
+PLUGIN_JSON = Path(__file__).resolve().parents[3] / "plugin.json"
+
+
+def assert_packaged_version(test: unittest.TestCase) -> None:
+    version = json.loads(PLUGIN_JSON.read_text())["version"]
+    test.assertEqual(json.loads(MANIFEST.read_text()).get("version"), version)
+    test.assertEqual(version, json.loads(PLUGIN_JSON.read_text()).get("version"))
 
 
 class SourceContractTests(unittest.TestCase):
@@ -1233,6 +1240,7 @@ async function check(actions, expected) {
             "async function _actionablePoint", 1
         )[0]
         self.assertIn("_stickyCardRect(el, r)", point)
+        self.assertIn("_stableRect(el)", point)
         self.assertIn("_hitIsOnStickyCard(el, top)", point)
         self.assertIn("clickRect.top + clickRect.height / 2", point)
         self.assertNotIn("r.top + r.height / 2", point)
@@ -1407,10 +1415,7 @@ async function check(actions, expected) {
         """0.1.8: lease watchable default, session-warm visible after setIdentity, no park between watchable acts."""
         source = SERVICE_WORKER.read_text()
         cursor = CURSOR_AGENT.read_text()
-        manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.11")
-        plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
-        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.11")
+        assert_packaged_version(self)
 
         # Lease watchable default on record + publicLease
         self.assertIn("function leaseIsWatchable", source)
@@ -1472,8 +1477,7 @@ async function check(actions, expected) {
         """0.1.9: compact page_context default + accessible-name click_text finders."""
         cursor = CURSOR_AGENT.read_text()
         worker = SERVICE_WORKER.read_text()
-        manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.11")
+        assert_packaged_version(self)
         self.assertIn("function _accessibleName", cursor)
         self.assertIn("options.compact !== false", cursor)
         self.assertIn("compact: true", cursor)
@@ -1498,13 +1502,10 @@ async function check(actions, expected) {
         )
 
     def test_oncall_preflight_page_context_goto_0110(self) -> None:
-        """0.1.10 keepers (still in 0.1.11): longer tab-ready floor, url/title sections, goto final url, link prefs, navigate alias."""
+        """0.1.10 keepers: longer tab-ready floor, url/title sections, goto final url, link prefs, navigate alias."""
         worker = SERVICE_WORKER.read_text()
         cursor = CURSOR_AGENT.read_text()
-        manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.11")
-        plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
-        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.11")
+        assert_packaged_version(self)
 
         wait = worker.split("async function waitForTabReady", 1)[1].split("async function setAgentIdentity", 1)[0]
         self.assertIn("lastTab", wait)
@@ -1532,10 +1533,7 @@ async function check(actions, expected) {
     def test_oncall_preflight_soft_ready_0111(self) -> None:
         """0.1.11: 90s default preflight + soft-ready while status=loading on controllable URL."""
         worker = SERVICE_WORKER.read_text()
-        manifest = json.loads(MANIFEST.read_text())
-        self.assertEqual(manifest.get("version"), "0.1.11")
-        plugin_path = Path(__file__).resolve().parents[3] / "plugin.json"
-        self.assertEqual(json.loads(plugin_path.read_text()).get("version"), "0.1.11")
+        assert_packaged_version(self)
 
         wait = worker.split("async function waitForTabReady", 1)[1].split("async function setAgentIdentity", 1)[0]
         self.assertIn("SOFT_READY_MS", wait)
@@ -1593,6 +1591,57 @@ assert.equal(failureScreenshotNeeded({code:'SCREENSHOT_TIMEOUT'}, {type:'goto'})
 assert.equal(failureScreenshotNeeded({message:'EvalError: side-effect'}, {type:'evaluate'}), false);
 assert.equal(failureScreenshotNeeded({code:'UNKNOWN_VISUAL'}, {type:'click_text'}), true);
 console.log('ok');
+'''
+        script = harness.replace("HELPER", helpers)
+        completed = subprocess.run(
+            ["node", "--input-type=commonjs", "-e", script],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
+        self.assertIn("ok", completed.stdout)
+
+    def test_first_click_stable_rect_0112(self) -> None:
+        """0.1.12: three consecutive matching samples, not two; first-sample-only motion is not enough."""
+        cursor = CURSOR_AGENT.read_text()
+        assert_packaged_version(self)
+        self.assertIn("async function _stableRect", cursor)
+        self.assertIn("viewport_changed", cursor)
+        self.assertIn("scrolls", cursor)
+        self.assertIn("viewports", cursor)
+        helpers = cursor.split("function _sameRect(left, right) {", 1)[1].split(
+            "function _semanticCacheKey", 1
+        )[0]
+        harness = r'''
+const assert = require('node:assert/strict');
+const window = { scrollX: 0, scrollY: 0, innerWidth: 800, innerHeight: 600 };
+let now = 0;
+const performance = { now: () => now };
+const requestAnimationFrame = (cb) => { now += 16; queueMicrotask(() => cb()); };
+const setTimeout = (cb) => { queueMicrotask(() => cb()); };
+function _actionabilityError(code, message, details = {}) {
+  return Object.assign(new Error(message), { code, details });
+}
+function _sameRect(left, right) {HELPER
+function rect(top) { return { top, left: 0, width: 80, height: 18 }; }
+function element(seq) {
+  let i = 0;
+  return { getBoundingClientRect: () => seq[Math.min(i++, seq.length - 1)] };
+}
+(async () => {
+  const settled = await _stableRect(element([rect(215.922), rect(215.922), rect(215.328), rect(215.328), rect(215.328)]));
+  assert.equal(settled.top, 215.328);
+  await assert.rejects(
+    () => _stableRect(element([rect(1), rect(2), rect(3), rect(4), rect(5)]), { maxFrames: 4, maxMs: 1000 }),
+    (err) => err.code === 'ACTIONABILITY_UNSTABLE' && err.details.rects.length >= 3
+  );
+  await assert.rejects(
+    () => _stableRect(element([rect(1), rect(1), rect(2), rect(2), rect(1), rect(1)]), { maxFrames: 6, maxMs: 1000 }),
+    (err) => err.code === 'ACTIONABILITY_UNSTABLE'
+  );
+  console.log('ok');
+})().catch((e) => { console.error(e); process.exit(1); });
 '''
         script = harness.replace("HELPER", helpers)
         completed = subprocess.run(

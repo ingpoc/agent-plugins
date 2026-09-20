@@ -729,11 +729,27 @@ def cmd_status(args: argparse.Namespace) -> int:
 def cmd_closeout(args: argparse.Namespace) -> int:
     # Drain one-behind desync from older drivers: keep sending closeout until
     # the matched response is closeout or the controller dies. Only the final
-    # closeout JSON is printed.
+    # closeout JSON is printed — and written to response.json so agents that
+    # read the workdir see verified_absent (not only the raw broker reply).
     import io
     from contextlib import redirect_stdout
 
     p = _paths(Path(args.workdir).resolve())
+
+    def _persist_and_print(payload: dict, ok: bool) -> int:
+        # Match send()'s on-disk shape: {seq, result} when seq exists.
+        seq = 0
+        if p["seq"].exists():
+            try:
+                seq = int(p["seq"].read_text().strip() or "0")
+            except ValueError:
+                seq = 0
+        p["response"].write_text(
+            json.dumps({"seq": seq, "result": payload}, ensure_ascii=False) + "\n"
+        )
+        print(json.dumps(payload, ensure_ascii=False))
+        return 0 if ok else 1
+
     last_text = ""
     rc = 1
     for _ in range(8):
@@ -745,8 +761,7 @@ def cmd_closeout(args: argparse.Namespace) -> int:
                     "response": {"success": True, "already_dead": True},
                 },
             )
-            print(json.dumps(payload, ensure_ascii=False))
-            return 0 if ok else 1
+            return _persist_and_print(payload, ok)
         args.payload = json.dumps({"command": "closeout"})
         args.payload_file = None
         buf = io.StringIO()
@@ -770,8 +785,7 @@ def cmd_closeout(args: argparse.Namespace) -> int:
         except json.JSONDecodeError:
             print(last_text if last_text.endswith("\n") else last_text + "\n", end="")
             return rc
-        print(json.dumps(payload, ensure_ascii=False))
-        return 0 if rc == 0 and verified else 1
+        return _persist_and_print(payload, rc == 0 and verified)
     elif not p["alive"].exists():
         payload, ok = _attach_absence_proof(
             p,
@@ -780,8 +794,7 @@ def cmd_closeout(args: argparse.Namespace) -> int:
                 "response": {"success": True, "already_dead": True},
             },
         )
-        print(json.dumps(payload, ensure_ascii=False))
-        return 0 if ok else 1
+        return _persist_and_print(payload, ok)
     return rc
 
 
