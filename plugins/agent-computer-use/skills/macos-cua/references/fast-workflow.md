@@ -12,7 +12,7 @@ Load for act-first detail, input delivery, expect/verify rules, and Mini local-e
 
 **Encode friction.** Extra `state`, leftover `verify`/`start_session`, unbatched same-app `act`s, chat-only recovery → `scripts/fast_path.py` grader that **fails the old trace**, then retry. No named-app helpers.
 
-**Ambiguous enumerable plans.** At most one compact `state`, build complete candidate `act` payloads, run `scripts/jev_act.py` (Jev Choice over IDs including `__reobserve__` / `__abstain__`), then at most one reobserve rebuild, then one batched `act`. Do not call Jev when a single labeled plan is already known.
+**Ambiguous enumerable plans.** At most one compact `state`, build complete candidate `act` payloads, run `scripts/jev_act.py` (Jev Choice over IDs including `__reobserve__` / `__abstain__`), then at most one reobserve rebuild, then one batched `act`. Opt in when quality holds or improves and Jev is faster and cheaper per decision in USD; do not call Jev when a single labeled plan is already known.
 
 **Best first, then fallback.** Overlay tip lands, then AX press (`ax_timeout` fail-closed). Tip and click stay in sync — do not fire glide concurrent with press. In-place retitles (Clear/All Clear) do not need a fresh `state`.
 

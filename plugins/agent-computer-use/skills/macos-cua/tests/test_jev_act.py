@@ -10,11 +10,12 @@ from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[1]
 SCRIPT = SKILL / "scripts" / "jev_act.py"
+BENCH = SKILL / "scripts" / "bench_jev_act.py"
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "jev_act_cases.json"
 
 
-def load_jev_act():
-    spec = importlib.util.spec_from_file_location("macos_cua_jev_act", SCRIPT)
+def load_script(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     assert spec and spec.loader
     spec.loader.exec_module(module)
@@ -24,7 +25,8 @@ def load_jev_act():
 class JevActTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.mod = load_jev_act()
+        cls.mod = load_script("macos_cua_jev_act", SCRIPT)
+        cls.bench = load_script("macos_cua_jev_act_bench_test", BENCH)
         cls.cases = json.loads(FIXTURES.read_text())["cases"]
 
     def test_act_id_stable_and_collision_free(self):
@@ -138,6 +140,33 @@ class JevActTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertFalse(result["auto_act"])
         self.assertTrue(result["reobserve"])
+
+    def test_cost_gate_prefers_usd_over_raw_tokens_and_jev_output_is_free(self):
+        jev_usd = self.bench.usd_per_decision("jev", 1000, 10000)
+        llm_usd = self.bench.usd_per_decision("llm", 10, 50)
+        self.assertEqual(jev_usd, 1000 * self.bench.JEV_INPUT_USD_PER_1M / 1_000_000)
+        self.assertLess(jev_usd, llm_usd)
+
+        summary = {
+            "jev": {
+                "exact_match_rate": 1.0,
+                "invalid_id_rate": 0.0,
+                "p50_latency_ms": 105.0,
+                "mean_tokens": 11000,
+                "estimated_usd_per_decision": jev_usd,
+            },
+            "llm": {
+                "exact_match_rate": 1.0,
+                "invalid_id_rate": 0.0,
+                "p50_latency_ms": 100.0,
+                "mean_tokens": 60,
+                "estimated_usd_per_decision": llm_usd,
+            },
+        }
+        gate = self.bench.pass_rule(summary)
+        self.assertGreater(summary["jev"]["mean_tokens"], summary["llm"]["mean_tokens"])
+        self.assertTrue(gate["checks"]["usd_improved_20pct"])
+        self.assertTrue(gate["ok"])
 
 
 if __name__ == "__main__":

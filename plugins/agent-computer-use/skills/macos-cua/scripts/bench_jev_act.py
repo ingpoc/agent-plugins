@@ -4,8 +4,8 @@
 Decision-quality harness (not the official entry-contract suite). Pass rule:
 - Jev exact-action match ≥95% and ≥ LLM
 - Jev invalid-ID execution rate = 0%
-- At least one primary improves ≥10% latency or ≥20% tokens/decision vs LLM,
-  or invalid-ID rate strictly decreases, with quality held.
+- Jev improves latency by ≥10% or estimated USD/decision by ≥20%
+- When only one efficiency metric wins, the other may regress by at most 10%
 """
 from __future__ import annotations
 
@@ -28,6 +28,10 @@ JEV_ACT = HERE / "jev_act.py"
 DEFAULT_CASES = SKILL / "tests" / "fixtures" / "jev_act_cases.json"
 CHAT_URL = "https://ai-gateway.vercel.sh/v1/chat/completions"
 DEFAULT_LLM_MODEL = os.environ.get("MACOS_CUA_LLM_PICKER_MODEL", "openai/gpt-4.1-mini")
+JEV_INPUT_USD_PER_1M = float(os.environ.get("JEV_INPUT_USD_PER_1M", "0.042"))
+JEV_OUTPUT_USD_PER_1M = float(os.environ.get("JEV_OUTPUT_USD_PER_1M", "0"))
+LLM_INPUT_USD_PER_1M = float(os.environ.get("LLM_INPUT_USD_PER_1M", "0.4"))
+LLM_OUTPUT_USD_PER_1M = float(os.environ.get("LLM_OUTPUT_USD_PER_1M", "1.6"))
 
 
 def load_jev_act():
@@ -214,6 +218,18 @@ def summarize(rows: list[dict[str, Any]], oracle: str) -> dict[str, Any]:
     }
 
 
+def usd_per_decision(provider: str, input_tokens: float, output_tokens: float) -> float | None:
+    if provider in ("jev", "jev_mock"):
+        input_price, output_price = JEV_INPUT_USD_PER_1M, JEV_OUTPUT_USD_PER_1M
+    elif provider == "llm":
+        input_price, output_price = LLM_INPUT_USD_PER_1M, LLM_OUTPUT_USD_PER_1M
+    elif provider == "rules":
+        input_price, output_price = 0.0, 0.0
+    else:
+        return None
+    return (input_tokens * input_price + output_tokens * output_price) / 1_000_000
+
+
 def pass_rule(summary: dict[str, Any]) -> dict[str, Any]:
     jev_key = "jev" if "jev" in summary else "jev_mock"
     jev = summary[jev_key]
@@ -230,15 +246,37 @@ def pass_rule(summary: dict[str, Any]) -> dict[str, Any]:
             and jev["p50_latency_ms"] is not None
             and jev["p50_latency_ms"] <= llm["p50_latency_ms"] * 0.9
         )
-        tok_improve = llm["mean_tokens"] > 0 and jev["mean_tokens"] <= llm["mean_tokens"] * 0.8
-        invalid_improve = jev["invalid_id_rate"] < llm["invalid_id_rate"]
-        checks["primary_metric_improved"] = bool(lat_improve or tok_improve or invalid_improve)
+        lat_non_worse = (
+            llm["p50_latency_ms"]
+            and jev["p50_latency_ms"] is not None
+            and jev["p50_latency_ms"] <= llm["p50_latency_ms"] * 1.1
+        )
+        jev_usd = jev.get("estimated_usd_per_decision")
+        llm_usd = llm.get("estimated_usd_per_decision")
+        usd_known = jev_usd is not None and llm_usd is not None and llm_usd > 0
+        usd_improve = usd_known and jev_usd <= llm_usd * 0.8
+        usd_non_worse = not usd_known or jev_usd <= llm_usd * 1.1
+        efficiency_ok = (lat_improve and usd_non_worse) or (usd_improve and lat_non_worse)
+        if lat_improve and usd_improve:
+            note = "latency and USD/decision improved"
+        elif lat_improve and not usd_known:
+            note = "latency improved; USD/decision held because rates are unknown"
+        elif lat_improve and usd_non_worse:
+            note = "latency improved; USD/decision did not regress by more than 10%"
+        elif usd_improve and lat_non_worse:
+            note = "USD/decision improved; latency did not regress by more than 10%"
+        else:
+            note = "efficiency pair did not meet the improvement/non-regression rule"
+        checks["primary_metric_improved"] = bool(efficiency_ok)
         checks["latency_improved_10pct"] = bool(lat_improve)
-        checks["tokens_improved_20pct"] = bool(tok_improve)
-        checks["invalid_improved"] = bool(invalid_improve)
+        checks["latency_not_worse_10pct"] = bool(lat_non_worse)
+        checks["usd_improved_20pct"] = bool(usd_improve)
+        checks["usd_not_worse_10pct_or_unknown"] = bool(usd_non_worse)
+        checks["usd_rates_known"] = bool(usd_known)
     else:
         checks["primary_metric_improved"] = True
         checks["jev_exact_ge_llm"] = True
+        note = "LLM comparison unavailable"
     if rules:
         checks["rules_diagnostic_only"] = True
     ok = all(
@@ -250,7 +288,7 @@ def pass_rule(summary: dict[str, Any]) -> dict[str, Any]:
             "primary_metric_improved",
         )
     )
-    return {"ok": ok, "checks": checks}
+    return {"ok": ok, "checks": checks, "note": note}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -323,6 +361,11 @@ def main(argv: list[str] | None = None) -> int:
             "mean_output_tokens": round(sum(out_tok) / n, 2),
             "mean_tokens": round((sum(in_tok) + sum(out_tok)) / n, 2),
         }
+        summary[provider]["estimated_usd_per_decision"] = usd_per_decision(
+            provider,
+            summary[provider]["mean_input_tokens"],
+            summary[provider]["mean_output_tokens"],
+        )
 
     gate = pass_rule(summary)
     out = {
@@ -331,6 +374,10 @@ def main(argv: list[str] | None = None) -> int:
         "summary": summary,
         "live_jev": bool(args.live_jev),
         "llm_model": args.llm_model if key else None,
+        "prices_usd_per_1m_tokens": {
+            "jev": {"input": JEV_INPUT_USD_PER_1M, "output": JEV_OUTPUT_USD_PER_1M},
+            "llm": {"input": LLM_INPUT_USD_PER_1M, "output": LLM_OUTPUT_USD_PER_1M},
+        },
         "details": details,
     }
     text = json.dumps(out, indent=2, ensure_ascii=False)
