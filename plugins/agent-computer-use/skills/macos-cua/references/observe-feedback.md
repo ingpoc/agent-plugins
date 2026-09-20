@@ -11,7 +11,7 @@ Verified effectful `act` returns a **compact AX delta** (often ~300 chars):
 - Current IDs only on changed lines; omitted IDs are **stale** — resolve by
   label or one fresh `state`
 - Long text edits: range + short **excerpt**, not the full `AXTextArea` value
-- Screenshots: `screenshot_before` / `screenshot_after` still attached
+- Screenshots: omitted on verified `expect` and typed failures. Attached only when pixels are the evidence (empty AX, Stage Manager thumb, or `screenshot:true`)
 - Verification still uses full internal before/after trees (not returned)
 
 ## Failure taxonomy

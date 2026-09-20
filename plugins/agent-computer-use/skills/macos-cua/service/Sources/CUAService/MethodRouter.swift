@@ -164,6 +164,7 @@ final class MethodRouter: @unchecked Sendable {
             params: [
                 "app": AnyCodable(app),
                 "disableDiff": AnyCodable(true),
+                "includeScreenshot": AnyCodable(false),
             ],
             id: nil
         )
@@ -252,6 +253,7 @@ final class MethodRouter: @unchecked Sendable {
         }
         let disableDiff: Bool = req.param("disableDiff") ?? false
         let raiseForInput: Bool = req.param("raiseForInput") ?? false
+        let includeScreenshot: Bool = req.param("includeScreenshot") ?? true
         let t0 = ProcessInfo.processInfo.systemUptime
         let resolved0 = try appResolver.resolve(app, raiseForInput: raiseForInput)
         var resolved = resolved0
@@ -266,31 +268,35 @@ final class MethodRouter: @unchecked Sendable {
         )
         let enrich = axTree.lastEnrichMethod
         let t2 = ProcessInfo.processInfo.systemUptime
-        var shot = await screenshotCapture.capture(
-            windowID: resolved.windowID,
-            axBounds: snapshot.windowFrame
-        )
-        var screenshotPath = shot.path
-        var captureCached = shot.cached
+        var screenshotPath: String?
+        var captureCached = false
         var captureRetry = false
-        if screenshotPath == nil {
-            captureRetry = true
-            try await Task.sleep(nanoseconds: 120_000_000)
-            resolved = try appResolver.resolve(app, raiseForInput: raiseForInput)
-            snapshot = axTree.walk(
-                axApp: resolved.axApp,
-                windowID: resolved.windowID,
-                maxElements: req.paramInt("maxElements") ?? 80,
-                disableDiff: disableDiff,
-                pid: resolved.pid,
-                bundleID: resolved.bundleID
-            )
-            shot = await screenshotCapture.capture(
+        if includeScreenshot {
+            var shot = await screenshotCapture.capture(
                 windowID: resolved.windowID,
                 axBounds: snapshot.windowFrame
             )
             screenshotPath = shot.path
             captureCached = shot.cached
+            if screenshotPath == nil {
+                captureRetry = true
+                try await Task.sleep(nanoseconds: 120_000_000)
+                resolved = try appResolver.resolve(app, raiseForInput: raiseForInput)
+                snapshot = axTree.walk(
+                    axApp: resolved.axApp,
+                    windowID: resolved.windowID,
+                    maxElements: req.paramInt("maxElements") ?? 80,
+                    disableDiff: disableDiff,
+                    pid: resolved.pid,
+                    bundleID: resolved.bundleID
+                )
+                shot = await screenshotCapture.capture(
+                    windowID: resolved.windowID,
+                    axBounds: snapshot.windowFrame
+                )
+                screenshotPath = shot.path
+                captureCached = shot.cached
+            }
         }
         let t3 = ProcessInfo.processInfo.systemUptime
 
@@ -311,6 +317,10 @@ final class MethodRouter: @unchecked Sendable {
                 "capture_cached": captureCached,
             ] as [String: Any],
         ]
+        if let frame = snapshot.windowFrame {
+            result["windowWidth"] = frame.width
+            result["windowHeight"] = frame.height
+        }
         if let enrich {
             result["ax_enrich"] = enrich
         }

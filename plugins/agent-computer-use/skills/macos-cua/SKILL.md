@@ -36,7 +36,7 @@ Do not shell a Python client per click when MCP is up. Do not use cua-driver or 
 ## Critical path
 
 1. **Act-first** when labels/outcomes are known — one batched `act` per app (`steps` + `expect`). Compact `state` only for discovery or after an act miss. Never `state`→`state`→`act` on the same app.
-2. Overlay tip then AX press. Reuse the returned **compact AX delta** / failure nearby. Full tree only via `state`. `expect` matches text **values**, never button titles. Wrong-app `screenshot_before` → stop. Typed failures → [`references/observe-feedback.md`](references/observe-feedback.md).
+2. Overlay tip then AX press. Reuse the returned **compact AX delta** / failure nearby. Full tree only via `state`. `expect` matches text **values**, never button titles. A JPEG attaches only when pixels are the evidence (empty AX, Stage Manager thumb, or `screenshot:true`); wrong-app / thumb shot → stop. Typed failures → [`references/observe-feedback.md`](references/observe-feedback.md).
 3. Cross-app: one `act` per surface, then switch — no observe hops between apps.
 4. **Encode friction** into `scripts/fast_path.py` (fail the old trace), then retry. No named-app helpers.
 

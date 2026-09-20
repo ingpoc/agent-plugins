@@ -150,6 +150,10 @@ def tool_schemas() -> list[dict[str, Any]]:
                         "maximum": 200,
                         "default": DEFAULT_MAX,
                     },
+                    "screenshot": {
+                        "type": "boolean",
+                        "description": "Attach a window JPEG only for a visual claim. Default false.",
+                    },
                 },
                 ["app"],
             ),
@@ -166,7 +170,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         },
         {
             "name": "act",
-            "description": "Drive one Mac app in one native plan. Exact paths use op=open with path, not Finder search. Verified success returns a compact AX delta (~hundreds of chars; long text as range+excerpt); omitted IDs are stale — use labels or one state. Failures return error_type + nearby context (not a full AX dump). ok/verified only when expect matches; screenshots before/after attached.",
+            "description": "Drive one Mac app in one native plan. Exact paths use op=open with path, not Finder search. Verified success returns a compact AX delta (~hundreds of chars; long text as range+excerpt); omitted IDs are stale — use labels or one state. Failures return error_type + nearby context (not a full AX dump). ok/verified only when expect matches. Screenshots attach only when pixels are the evidence (empty AX, Stage Manager thumb, or screenshot:true).",
             "inputSchema": _schema(
                 {
                     "app": {"type": "string"},
@@ -181,6 +185,10 @@ def tool_schemas() -> list[dict[str, Any]]:
                     "allow_unverified": {
                         "type": "boolean",
                         "description": "Dispatch only when no AX postcondition is representable; never report completion.",
+                    },
+                    "screenshot": {
+                        "type": "boolean",
+                        "description": "Force a window JPEG when the claim is visual. Default off.",
                     },
                 },
                 ["app"],
@@ -202,6 +210,7 @@ def _state_payload(arguments: dict[str, Any]) -> dict[str, Any]:
         query=str(query) if query else None,
         diff=bool(arguments.get("diff")),
         max_elements=max_elements,
+        screenshot=arguments.get("screenshot") is True,
     )
 
 

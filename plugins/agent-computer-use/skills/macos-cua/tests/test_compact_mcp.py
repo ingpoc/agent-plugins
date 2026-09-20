@@ -238,7 +238,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
             [
                 (
                     "Calculator",
-                    {"query": "7", "diff": True, "max_elements": 12},
+                    {"query": "7", "diff": True, "max_elements": 12, "screenshot": False},
                 )
             ],
         )
@@ -284,8 +284,8 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertIn("CUAService", text)
         self.assertIn("ax_timeout", text)
         self.assertIn("Fallback only on miss", text)
-        self.assertIn("screenshot_before", text)
-        self.assertIn("screenshot_after", text)
+        self.assertIn("empty AX, Stage Manager thumb", text)
+        self.assertIn("screenshot:true", text)
         act = next(tool for tool in compact_mcp.tool_schemas() if tool["name"] == "act")
         self.assertIn("one native plan", act["description"])
         self.assertIn("Exact paths", act["description"])
@@ -338,7 +338,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertEqual(calls[0][1][0]["method"], "open_item")
         self.assertEqual(calls[0][1][0]["params"]["path"], "/tmp/voice-cua-agent")
 
-    def test_act_returns_before_and_after_screenshots(self):
+    def test_act_omits_screenshots_when_expect_verified(self):
         class Backend(compact_mcp.CUABackend):
             def __init__(self):
                 pass
@@ -364,10 +364,71 @@ class CompactMcpDispatchTests(unittest.TestCase):
         out = Backend().act(
             "Calculator", {"steps": [{"label": "7"}], "expect": "7"}
         )
-        self.assertEqual(out["screenshot_before"]["url"], "file:///tmp/shot1.png")
-        self.assertEqual(out["screenshot_after"]["url"], "file:///tmp/shot2.png")
-        self.assertEqual(out["screenshot"], out["screenshot_after"])
+        self.assertIsNone(out["screenshot_before"])
+        self.assertIsNone(out["screenshot_after"])
+        self.assertIsNone(out["screenshot"])
         self.assertTrue(out["verified"])
+
+    def test_act_keeps_screenshot_for_empty_ax(self):
+        fetches = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        fetches.append(kwargs)
+                        return {
+                            "text": "",
+                            "screenshot": {"url": "file:///tmp/empty.png"}
+                            if kwargs.get("includeScreenshot")
+                            else None,
+                        }
+
+                    def click(self, app, **kwargs):
+                        return {"ok": False, "error": "Label not found"}
+
+                return fn(Client())
+
+        out = Backend().act(
+            "Preview", {"steps": [{"label": "Ink"}], "expect": "signed"}
+        )
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["screenshot"]["url"], "file:///tmp/empty.png")
+        self.assertTrue(any(item.get("includeScreenshot") is True for item in fetches))
+
+    def test_act_keeps_screenshot_for_stage_manager_thumb(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def __init__(self):
+                        self.n = 0
+
+                    def get_app_state(self, app, **kwargs):
+                        self.n += 1
+                        value = "0" if self.n == 1 else "7"
+                        return {
+                            "text": f'[1] AXStaticText value="{value}"',
+                            "windowWidth": 30,
+                            "windowHeight": 79,
+                            "screenshot": {"url": "file:///tmp/thumb.png"},
+                        }
+
+                    def click(self, app, **kwargs):
+                        return {"ok": True, "method": "ax-press"}
+
+                return fn(Client())
+
+        out = Backend().act(
+            "Calculator", {"steps": [{"label": "7"}], "expect": "7"}
+        )
+        self.assertTrue(out["verified"])
+        self.assertEqual(out["screenshot"]["url"], "file:///tmp/thumb.png")
 
     def test_act_stops_after_first_failed_step(self):
         clicks = []
@@ -454,7 +515,9 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertTrue(out["dispatched"])
         self.assertFalse(out["verified"])
 
-    def test_act_retries_missing_screenshot(self):
+    def test_act_does_not_fetch_screenshot_when_expect_verified(self):
+        calls = []
+
         class Backend(compact_mcp.CUABackend):
             def __init__(self):
                 pass
@@ -465,12 +528,12 @@ class CompactMcpDispatchTests(unittest.TestCase):
                         self.n = 0
 
                     def get_app_state(self, app, **kwargs):
+                        calls.append(kwargs)
                         self.n += 1
-                        shot = None if self.n == 1 else {"url": f"file:///tmp/r{self.n}.png"}
-                        value = "0" if self.n <= 2 else "7"
+                        value = "0" if self.n == 1 else "7"
                         return {
                             "text": f'[1] AXStaticText value="{value}"',
-                            "screenshot": shot,
+                            "screenshot": None,
                         }
 
                     def click(self, app, **kwargs):
@@ -479,8 +542,34 @@ class CompactMcpDispatchTests(unittest.TestCase):
                 return fn(Client())
 
         out = Backend().act("App", {"steps": [{"label": "7"}], "expect": "7"})
-        self.assertEqual(out["screenshot_before"]["url"], "file:///tmp/r2.png")
         self.assertTrue(out["verified"])
+        self.assertIsNone(out["screenshot"])
+        self.assertFalse(any(item.get("includeScreenshot") is True for item in calls))
+
+    def test_typed_failure_omits_screenshots(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {
+                            "text": '[1] AXStaticText value="0"',
+                            "screenshot": {"url": "file:///tmp/fail.png"},
+                        }
+
+                    def click(self, app, **kwargs):
+                        return {"ok": False, "error": "Label not found"}
+
+                return fn(Client())
+
+        out = Backend().act(
+            "Calculator", {"steps": [{"label": "Nope"}], "expect": "7"}
+        )
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["error_type"], "target_missing")
+        self.assertIsNone(out["screenshot"])
 
 
 class CompactMcpSpecTests(unittest.TestCase):

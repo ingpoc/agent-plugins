@@ -40,10 +40,10 @@ INSTRUCTIONS = (
     "Best first: overlay tip lands, then AX press (ax_timeout fail-closed). "
     "Fallback only on miss: at most one fresh state; then screenshot/PIXEL_CLICK. "
     "Never silent pixel fallback. Dispatch ok is never proof; no desktop-global click. "
-    "Each batched act captures screenshot_before then screenshot_after (same tool, not a "
-    "screenshot catalog). Inspect those pixels before trusting overlay/AX landing; if the "
-    "before shot is the wrong window or a Stage Manager thumb, stop and correct bounds — "
-    "do not add a third MCP tool. "
+    "Screenshots attach only when pixels are the evidence (empty AX, Stage Manager thumb, "
+    "or screenshot:true). Verified expect and typed failures return AX delta / error_type "
+    "only — no JPEG. If a returned shot is the wrong window or a Stage Manager thumb, stop "
+    "and correct bounds — do not add a third MCP tool. "
     "WhatsApp send/attach: $whatsapp skill, not these tools."
 )
 _BIDI = dict.fromkeys(
@@ -146,6 +146,46 @@ def expectation_is_new(
     return bool(checks) and all(checks)
 
 
+def _ax_has_text_values(tree_text: str) -> bool:
+    return bool(re.search(
+        r'AX(?:StaticText|TextArea|TextField|Cell)[^\n]*value="[^"]+"|AXCell "[^"]+"',
+        tree_text or "",
+    ))
+
+
+def _window_is_thumb(state: Any) -> bool:
+    try:
+        area = float(state.get("windowWidth") or 0) * float(state.get("windowHeight") or 0)
+    except (TypeError, ValueError, AttributeError):
+        return False
+    return 0 < area < 80 * 80
+
+
+def screenshot_needed(payload: dict[str, Any], before: Any, after: Any, arguments: dict[str, Any]) -> bool:
+    if arguments.get("screenshot") is True or _window_is_thumb(before) or _window_is_thumb(after):
+        return True
+    if payload.get("ok") and payload.get("verified"):
+        return False
+    after_text = str(after.get("text") or "") if isinstance(after, dict) else ""
+    before_text = str(before.get("text") or "") if isinstance(before, dict) else ""
+    return not after_text.strip() or (
+        not _ax_has_text_values(after_text) and not _ax_has_text_values(before_text)
+    )
+
+
+def apply_screenshot_policy(payload, *, before, after, arguments, fetch=None):
+    if not screenshot_needed(payload, before, after, arguments):
+        payload.update(screenshot_before=None, screenshot_after=None, screenshot=None)
+        return payload
+    before_shot = before.get("screenshot") if isinstance(before, dict) else None
+    after_shot = after.get("screenshot") if isinstance(after, dict) else None
+    if after_shot is None and before_shot is None and fetch is not None:
+        extra = fetch()
+        after_shot = extra.get("screenshot") if isinstance(extra, dict) else None
+    payload.update(screenshot_before=before_shot, screenshot_after=after_shot, screenshot=after_shot or before_shot)
+    return payload
+
+
 def _has_ui_effect(arguments: dict[str, Any]) -> bool:
     keys = (
         "label", "element", "action", "op", "text", "key", "x", "y",
@@ -196,10 +236,14 @@ class CUABackend:
     def state(self, app: str, **kwargs: Any) -> dict[str, Any]:
         max_elements = int(kwargs.get("max_elements") or DEFAULT_MAX)
         disable_diff = not bool(kwargs.get("diff"))
+        want_shot = kwargs.get("screenshot") is True
 
         def _call(client):
             return client.get_app_state(
-                app, disableDiff=disable_diff, maxElements=max_elements
+                app,
+                disableDiff=disable_diff,
+                maxElements=max_elements,
+                includeScreenshot=want_shot,
             )
 
         result = self._rpc(_call)
@@ -218,7 +262,7 @@ class CUABackend:
             "app": result.get("app") or app,
             "text": text,
             "elementCount": result.get("elementCount"),
-            "screenshot": result.get("screenshot"),
+            "screenshot": result.get("screenshot") if want_shot else None,
             "pid": result.get("pid"),
         }
 
@@ -265,9 +309,9 @@ class CUABackend:
                     for item in (raw_results if isinstance(raw_results, list) else [])
                 ]
             else:
-                before = self._get_app_state(client, app, disableDiff=True)
-                if isinstance(before, dict) and not before.get("screenshot"):
-                    before = self._get_app_state(client, app, disableDiff=True)
+                before = self._get_app_state(
+                    client, app, disableDiff=True, includeScreenshot=False
+                )
                 results = []
                 after_new = False
                 for step in steps:
@@ -285,9 +329,9 @@ class CUABackend:
                         after_new = True
                     elif step.get("wait") is None:
                         after_new = False
-                after = self._get_app_state(client, app, disableDiff=True)
-                if isinstance(after, dict) and not after.get("screenshot"):
-                    after = self._get_app_state(client, app, disableDiff=True)
+                after = self._get_app_state(
+                    client, app, disableDiff=True, includeScreenshot=False
+                )
 
             before_text = str(before.get("text") or "") if isinstance(before, dict) else ""
             text = str(after.get("text") or "") if isinstance(after, dict) else ""
@@ -299,8 +343,6 @@ class CUABackend:
             )
             ok = bool(dispatched and verified)
             last = results[-1] if results else {}
-            shot_before = before.get("screenshot") if isinstance(before, dict) else None
-            shot_after = after.get("screenshot") if isinstance(after, dict) else None
             payload = {
                 "ok": ok,
                 "verified": verified,
@@ -308,9 +350,6 @@ class CUABackend:
                 "completion": "verified" if verified else "unverified",
                 "method": last.get("method"),
                 "text": action_state_text(before_text, text) if ok and effectful else text,
-                "screenshot_before": shot_before,
-                "screenshot_after": shot_after,
-                "screenshot": shot_after,
                 "results": results,
                 "expect": expect,
                 "error": (
@@ -320,6 +359,10 @@ class CUABackend:
                 ),
                 "error_type": "completion_unverified" if dispatched and not verified else None,
             }
+            fetch = lambda: self._get_app_state(
+                client, app, disableDiff=True, includeScreenshot=True
+            )
+            policy = dict(before=before, after=after, arguments=arguments, fetch=fetch)
             if not ok:
                 # allow_unverified without expect: dispatch-only; keep compact delta, not expect_unverified spam
                 if (
@@ -337,14 +380,14 @@ class CUABackend:
                         body = prefix + " One fresh state only if labels unknown; else retry act."
                     payload["text"] = body
                     payload["full_text_omitted"] = True
-                    return payload
-                return apply_failure_feedback(
-                    payload,
-                    arguments=arguments,
-                    before_text=before_text,
-                    after_text=text,
-                )
-            return payload
+                else:
+                    payload = apply_failure_feedback(
+                        payload,
+                        arguments=arguments,
+                        before_text=before_text,
+                        after_text=text,
+                    )
+            return apply_screenshot_policy(payload, **policy)
 
         try:
             return self._rpc(_run, retry=False)

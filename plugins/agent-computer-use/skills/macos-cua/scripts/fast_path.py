@@ -678,19 +678,21 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "45s client retry plus whole-batch retry caused 120s hangs and duplicate input",
     )
     add(
-        "batched act captures landing shots before and after without a screenshot tool",
-        "screenshot_before" in mcp
-        and "screenshot_after" in mcp
-        and '"name": "screenshot"' not in mcp
-        and "Stage Manager thumb" in mcp,
-        "pixels are a correction check inside act, not a third catalog tool",
+        "screenshots attach only when pixels are the evidence",
+        "def screenshot_needed" in mcp
+        and "apply_screenshot_policy" in mcp
+        and "empty AX, Stage Manager thumb" in mcp
+        and '"name": "screenshot"' not in mcp,
+        "verified expect and typed failures must not ship JPEGs",
     )
     settle = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
     add(
-        "get_app_state retries window capture once",
+        "get_app_state retries window capture once when a shot is requested",
         "120_000_000" in settle
-        and "screenshotPath == nil" in settle,
-        "first resolve after raise can miss CG image; start shot must not be empty",
+        and "screenshotPath == nil" in settle
+        and "includeScreenshot" in settle
+        and '"includeScreenshot":AnyCodable(false)' in settle.replace(" ", ""),
+        "planState must skip ScreenCaptureKit; capture retry stays on the shot path",
     )
     add(
         "click settle is bounded so batched act stays under the RPC timeout",
@@ -909,10 +911,11 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "needle already in a TextArea false-greened a later cell/table write",
     )
     add(
-        "act retries a missing window screenshot once",
-        "not before.get(\"screenshot\")" in mcp
-        and "not after.get(\"screenshot\")" in mcp,
-        "service restart left screenshot_before null; landing check needs pixels",
+        "missing screenshots are fetched only when pixels are the evidence",
+        "includeScreenshot=True" in mcp
+        and "includeScreenshot=False" in mcp
+        and "if after_shot is None and before_shot is None and fetch is not None" in mcp,
+        "verified AX acts must not retry ScreenCaptureKit",
     )
     router = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
     delegate = (root / "service" / "Sources" / "CUAService" / "ServiceDelegate.swift").read_text()
