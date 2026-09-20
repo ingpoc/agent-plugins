@@ -69,10 +69,25 @@ PLUGIN_TESTS = {
     ],
     "agent-computer-use": [
         sys.executable,
+        "-m",
+        "unittest",
         "skills/macos-cua/tests/test_plugin_package.py",
+        "skills/macos-cua/tests/test_jev_act.py",
         "-q",
     ],
 }
+
+# Comet broker/isolation suites import these at module load; missing → soft-skip.
+COMET_OPTIONAL_IMPORTS = ("websockets", "PIL")
+
+
+def comet_optional_deps_ok() -> bool:
+    for name in COMET_OPTIONAL_IMPORTS:
+        try:
+            __import__(name)
+        except ImportError:
+            return False
+    return True
 
 
 def plugin_dirs() -> list[Path]:
@@ -238,6 +253,14 @@ def check_host_dest() -> list[str]:
 def run_tests(plugin: Path) -> int:
     argv = PLUGIN_TESTS.get(plugin.name)
     if not argv:
+        return 0
+    if plugin.name == "comet-control" and not comet_optional_deps_ok():
+        print(
+            "skip comet-control tests: missing optional deps "
+            f"({', '.join(COMET_OPTIONAL_IMPORTS)}); "
+            "CI installs websockets+Pillow before check.py",
+            flush=True,
+        )
         return 0
     env = os.environ.copy()
     env["PYTHONPATH"] = str(plugin)
