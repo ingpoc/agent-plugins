@@ -1588,6 +1588,11 @@ function requireContentScriptResult(response, fallback) {
 function isLocatorMissError(error) {
   const code = String(error?.code || "");
   if (code === "ELEMENT_NOT_FOUND" || code === "CONTENT_SCRIPT_EMPTY_RESULT") return true;
+  if (code === "ACTIONABILITY_TARGET_COUNT") {
+    // count>1 = ambiguous on this frame (not a miss). count=0 = try next frame.
+    const count = Number(error?.details?.count);
+    return !Number.isFinite(count) || count === 0;
+  }
   if (code.startsWith("ACTIONABILITY_")) return true;
   const msg = String(error?.message || error || "");
   return /No actionable (clickable )?element matched/i.test(msg)
@@ -1606,11 +1611,11 @@ function isHalfDeadReloadError(error) {
   return /reload required|Content script missing after SPA remount/i.test(msg);
 }
 
-async function findPointBySelector(tabId, selectorText, mode = "click") {
+async function findPointBySelector(tabId, selectorText, mode = "click", text = "") {
   return findPointOnControllableFrames(
     tabId,
     "findPointBySelector",
-    [selectorText, mode],
+    [selectorText, mode, text],
     `No actionable element matched selector: ${selectorText}`
   );
 }
@@ -1678,6 +1683,12 @@ async function findPointOnControllableFrames(tabId, action, args, fallback) {
           if (isLocatorMissError(frameError)) lastMiss = frameError;
           continue;
         }
+      }
+      // Ambiguous match on this frame is definitive — do not let a later empty
+      // iframe overwrite with ACTIONABILITY_TARGET_COUNT count=0.
+      if (String(error?.code || "") === "ACTIONABILITY_TARGET_COUNT"
+          && Number(error?.details?.count) > 1) {
+        throw error;
       }
       lastError = error;
       if (isLocatorMissError(error)) lastMiss = error;
@@ -3197,8 +3208,8 @@ async function runBrowserAction(action, state) {
     const clickPromise = withTimeout(
       clickResolvedTarget(
         state.tabId,
-        () => findPointBySelector(state.tabId, action.selector),
-        { selector: action.selector },
+        () => findPointBySelector(state.tabId, action.selector, "click", action.text || ""),
+        { selector: action.selector, text: action.text || "" },
         clickOptions
       ),
       15000,

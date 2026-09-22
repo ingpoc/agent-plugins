@@ -1242,8 +1242,10 @@ async function check(actions, expected) {
         self.assertIn("_stickyCardRect(el, r)", point)
         self.assertIn("_stableRect(el)", point)
         self.assertIn("_hitIsOnStickyCard(el, top)", point)
-        self.assertIn("clickRect.top + clickRect.height / 2", point)
-        self.assertNotIn("r.top + r.height / 2", point)
+        # 0.1.13: name-center first; sticky remap only when name center is obscured
+        self.assertIn("const nameY = Math.round(r.top + r.height / 2)", point)
+        self.assertIn("if (!_hitIsOnTarget(el, top))", point)
+        self.assertNotIn("const y = Math.round(clickRect.top + clickRect.height / 2)", point)
 
         hit = cursor.split("function _hitIsOnTarget(el, top)", 1)[1].split(
             "function _isStickyOrFixedDescendant", 1
@@ -1652,6 +1654,46 @@ function element(seq) {
         )
         self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
         self.assertIn("ok", completed.stdout)
+
+    def test_review_cta_locator_hardening_0113(self) -> None:
+        """0.1.13: ambiguous selector count>1 must not become count=0 via iframe walk;
+        click_selector honors optional text; name-center click before sticky remap."""
+        cursor = CURSOR_AGENT.read_text()
+        worker = SERVICE_WORKER.read_text()
+        assert_packaged_version(self)
+        self.assertEqual(json.loads(PLUGIN_JSON.read_text())["version"], "0.1.13")
+
+        miss = worker.split("function isLocatorMissError(error) {", 1)[1].split(
+            "function isContentScriptTimeoutError", 1
+        )[0]
+        self.assertIn('code === "ACTIONABILITY_TARGET_COUNT"', miss)
+        self.assertIn("count === 0", miss)
+
+        frames = worker.split(
+            "async function findPointOnControllableFrames(tabId, action, args, fallback) {", 1
+        )[1].split("async function moveCursorToPoint", 1)[0]
+        self.assertIn("Ambiguous match on this frame is definitive", frames)
+        self.assertIn("Number(error?.details?.count) > 1", frames)
+
+        fps = cursor.split("function findPointBySelector", 1)[1].split(
+            "function findPointByText", 1
+        )[0]
+        self.assertIn("text = ''", fps)
+        self.assertIn("||text=", fps)
+
+        branch = worker.split('if (type === "click_selector") {', 1)[1][:3500]
+        self.assertIn('action.text || ""', branch)
+        self.assertIn(
+            'findPointBySelector(state.tabId, action.selector, "click", action.text || "")',
+            branch,
+        )
+
+        point = cursor.split("async function _pointForElement", 1)[1].split(
+            "async function _actionablePoint", 1
+        )[0]
+        self.assertIn("Prefer the matched control's own center", point)
+
+
 
 
 if __name__ == "__main__":

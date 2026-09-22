@@ -908,12 +908,29 @@
       }
       throw error;
     }
-    const clickRect = _stickyCardRect(el, r);
-    const nameX = r.left + r.width / 2;
-    const cardX = clickRect.left + clickRect.width / 2;
-    const x = Math.round(Math.abs(cardX - nameX) <= Math.max(24, r.width) ? nameX : cardX);
-    const y = Math.round(clickRect.top + clickRect.height / 2);
-    const top = document.elementFromPoint(x, y);
+    // Prefer the matched control's own center. Sticky-card remap (FPL pitch) is a
+    // fallback only when the name center is obscured — never rewrite Y onto a
+    // taller parent while claiming onTarget for the control (false-success CTAs).
+    const nameX = Math.round(r.left + r.width / 2);
+    const nameY = Math.round(r.top + r.height / 2);
+    let x = nameX;
+    let y = nameY;
+    let top = document.elementFromPoint(x, y);
+    if (!_hitIsOnTarget(el, top)) {
+      const clickRect = _stickyCardRect(el, r);
+      if (clickRect !== r) {
+        const cardX = clickRect.left + clickRect.width / 2;
+        const cardY = clickRect.top + clickRect.height / 2;
+        const sx = Math.round(Math.abs(cardX - nameX) <= Math.max(24, r.width) ? nameX : cardX);
+        const sy = Math.round(cardY);
+        const stickyTop = document.elementFromPoint(sx, sy);
+        if (_hitIsOnTarget(el, stickyTop) || _hitIsOnStickyCard(el, stickyTop)) {
+          x = sx;
+          y = sy;
+          top = stickyTop;
+        }
+      }
+    }
     if (!_hitIsOnTarget(el, top) && !_hitIsOnStickyCard(el, top)) {
       throw _actionabilityError('ACTIONABILITY_OBSCURED', 'Target center is covered by another element', {
         kind,
@@ -1109,12 +1126,22 @@
     }
   }
 
-  function findPointBySelector(selector, mode = 'click') {
+  function findPointBySelector(selector, mode = 'click', text = '') {
     ensurePageObserver();
     const value = String(selector || '');
-    return _actionablePoint('selector', value, mode, () =>
-      _querySelectorAllDeep(value).filter(_isVisible)
-    );
+    const needle = String(text || '').toLowerCase().trim();
+    const locator = needle ? `${value}||text=${needle}` : value;
+    return _actionablePoint('selector', locator, mode, () => {
+      let els = _querySelectorAllDeep(value).filter(_isVisible);
+      if (needle) {
+        els = els.filter((el) => {
+          const name = _accessibleName(el).toLowerCase();
+          const raw = (el.innerText || el.value || '').trim().toLowerCase();
+          return name.includes(needle) || raw.includes(needle);
+        });
+      }
+      return els;
+    });
   }
 
   function findPointByText(text, mode = 'click') {
