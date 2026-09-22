@@ -44,5 +44,6 @@ Never dual-drive Browser Use CLI and `send` (optional bridge: [browser-use.md](r
 | CUA / OAuth | [native-coexistence.md](references/native-coexistence.md) · [multi-agent.md](references/multi-agent.md) |
 | Google Accounts window | [google-accountchooser-ax.md](references/google-accountchooser-ax.md) |
 | Diagnosis / install | [optimize.md](references/optimize.md) · [extension-install.md](references/extension-install.md) |
+| Author a product wrapper skill | [wrapper-skills.md](references/wrapper-skills.md) |
 | Optional Browser Use | [browser-use.md](references/browser-use.md) |
 | Copy→Keychain / architecture | [secure-copy-keychain.md](references/secure-copy-keychain.md) · [agent-handbook.md](references/agent-handbook.md) |
