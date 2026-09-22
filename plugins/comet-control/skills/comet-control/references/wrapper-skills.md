@@ -30,6 +30,7 @@ Wrappers **must load comet-control + fast-path**. Keep only product-specific res
 2. **Record** proof date, installed runtime version, and a redacted evidence reference. Proposed steps stay **unverified** until live-proven; approval ≠ verified recipe.
 3. **Start URL must include required query/route state.** Missing params can make a CTA “succeed” (URL bit flips) while UI stays on the prior step (`smallcaseKind=smallcase` vs bare `/create`).
 4. **`expect` what actually changes** (URL or new module/CTA set). Not body copy that stays on the old screen (`Name`, `not_text: Review`).
+   SPA remounts: after URL `expect` succeeds, use a **separate send** to prove the next module — same-batch `page_context` can still show the prior screen.
 5. **Dismiss overlays before primary CTAs.** Open search/combobox can swallow the first click — Escape or clear, then click.
 6. **Preconditions before the CTA** (e.g. ≥2 valid rows, real ₹ amount, button enabled).
 7. **Locators (≥0.1.13):** `click_selector` + `text`, or `click_text`. Unique aria/placeholder for fill. Never bare `button` / bare `input[type=text]`. Never evaluate-click.
