@@ -14,37 +14,16 @@ The plugin socket is `run/comet-control.sock` under the plugin root. Override wi
 Screenshots land under `run/cache/comet-control/`. The bridge must not create
 legacy artifacts under `~/.comet-control`.
 
-## Token-private testing campaign
+## Campaign controller
 
-Use one driver for the entire browser task or testing campaign: setup, planned
-cases, diagnosis, retests, and proof. It retains the opaque lease token inside
-one process, redacts private values, and silently renews the same leased window
-while alive. TTL is crash-cleanup grace, not a reason to rotate leases:
+One controller per session via `durable_lease_controller.py` — see
+[`fast-path.md`](fast-path.md). Do **not** launch `lease_driver.py` separately;
+NDJSON driver is not the primary campaign path.
 
-```bash
-python3 skills/comet-control/scripts/lease_driver.py \
-  --session-id "agent-<uuid>" --label "Agent A" \
-  --url "https://example.com/"
-```
-
-Send one newline-delimited JSON command per turn:
-
-```json
-{"actions":[{"type":"page_context"},{"type":"screenshot","format":"png"}]}
-{"command":"sessions"}
-{"command":"closeout"}
-```
-
-Keep that driver process alive between commands and tests. Do not close and
-reopen a window for each assertion, screen, or retest. Request logical closeout
-once only after the full campaign completes, is cancelled, or becomes genuinely
-unrecoverable. The driver may retry that same authenticated cleanup internally
-on a retryable removal failure; it never opens a replacement lease.
-
-The driver disables canonical PTY buffering, so a long NDJSON form command is
-received intact instead of being truncated at the terminal line limit. Keep
-form mutations outcome-sized and omit redundant readbacks, but do not split a
-coherent step merely to work around PTY input length.
+Start → `send` action batches → closeout once on the same workdir. The
+controller retains the opaque lease token, redacts private values, and renews
+the same leased window while alive. TTL is crash-cleanup grace, not a reason to
+rotate leases.
 
 When the Codex wrapper reports `Script running with cell ID ...` after a driver
 write, the command is still pending: resume that exact cell with `wait`. Do not
@@ -117,7 +96,7 @@ canvas, drag, hover, or other geometry-dependent interaction.
 
 `nav_click_text` / `nav_click_selector` confirm URL/title after click but stay
 **watchable by default** (lease `watchable: true` unless preflight/start requests silent; labeled cursor glides target→target and stays visible for the whole lease → brief linger → on-demand click ring via `pulseClick`/`showClickRing` → CDP click while still visible → no park between chained acts; `parkIdle`/hide only on silent/`navigation_only` or session closeout). After reinject/pageshow, `setIdentity`/`ensureSessionCursorWarm` force-visible at last (x,y) or viewport center — no opacity-0 offscreen debut waiting for the next `moveTo`. Opt into silent/bench with `navigation_only`, `silent`, or
-`visual_cursor: false`; set `visual_cursor: true` with `navigation_only` when
+`visual_cursor: true` with `navigation_only` when
 you want intentional nav theater.
 
 ```python
@@ -167,17 +146,18 @@ the selector is wrong. Repeated blind retries mask the owning defect.
 ## Failure boundary
 
 On a socket drop, record the failed action, check `run/comet-control.sock`, and follow
-[`optimize.md`](optimize.md). If the extension was reloaded, start a new lease;
-old tokens and selectors are stale.
+[`optimize.md`](optimize.md). Stop mutations, invalidate stale refs/tokens/selectors,
+and follow platform recovery on the **same** session. If recovery fails, hand off to
+**ACU**; do not autonomously mint a replacement lease.
 
 ## Closeout
 
 Leased session:
 
 1. Add `screenshot` only when the result includes a UI claim; read the file.
-2. After all setup, tests, retests, and proof, send `{"command":"closeout"}`
-   once for the campaign driver.
-3. Query sessions and require those ids to be absent.
+2. After all setup, tests, retests, and proof, run durable-controller closeout
+   once (`durable_lease_controller.py closeout` — see [`fast-path.md`](fast-path.md)).
+3. Require `verified_absent: true`. Otherwise report cleanup incomplete.
 4. Report the host browser, final URL if relevant, and clean lease state.
 
 ## Operator pause and stale-state rules
