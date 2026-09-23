@@ -6,15 +6,106 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import secrets
 import shlex
+import signal
+import subprocess
 import threading
+import time
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlsplit
 
 from websockets.exceptions import ConnectionClosed
 from websockets.sync.server import ServerConnection, serve
+
+
+HARNESS_RUNTIME = Path.home() / ".config/browser-harness/runtime"
+HARNESS_DAEMON_MARKER = "browser_harness.daemon"
+SAFE_HARNESS_NAME = re.compile(r"^[a-zA-Z0-9._-]+$")
+
+
+def _harness_paths(name: str) -> tuple[Path, Path]:
+    if not SAFE_HARNESS_NAME.fullmatch(name):
+        raise ValueError("invalid Browser Harness name")
+    stem = HARNESS_RUNTIME / f"bu-{name}"
+    return stem.with_suffix(".pid"), stem.with_suffix(".sock")
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _process_command(pid: int) -> str:
+    try:
+        return subprocess.check_output(
+            ["ps", "-p", str(pid), "-o", "command="],
+            text=True,
+            timeout=2,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def recover_browser_harness(
+    name: str,
+    *,
+    expected_pid: int | None = None,
+) -> dict[str, Any]:
+    """Reap only the daemon and runtime artifacts owned by one bridge name."""
+    pid_path, sock_path = _harness_paths(name)
+    pid: int | None = None
+    if pid_path.exists():
+        try:
+            pid = int(pid_path.read_text().strip())
+        except (OSError, ValueError):
+            pid = None
+
+    if expected_pid is not None and pid != expected_pid:
+        return {"recovered": False, "reason": "daemon_changed"}
+
+    killed = False
+    if pid is not None and _pid_alive(pid):
+        command = _process_command(pid)
+        other_names = {
+            match
+            for match in re.findall(r"\bbu-(comet-[a-zA-Z0-9._-]+)", command)
+        }
+        if HARNESS_DAEMON_MARKER not in command or (
+            other_names and name not in other_names
+        ):
+            return {"recovered": False, "reason": "pid_not_owned"}
+        os.kill(pid, signal.SIGTERM)
+        deadline = time.monotonic() + 1.0
+        while _pid_alive(pid) and time.monotonic() < deadline:
+            time.sleep(0.05)
+        if _pid_alive(pid):
+            os.kill(pid, signal.SIGKILL)
+        killed = True
+
+    for path in (pid_path, sock_path):
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            pass
+    return {"recovered": True, "killed": killed, "cleared": True}
+
+
+def _harness_pid(name: str) -> int | None:
+    pid_path, _ = _harness_paths(name)
+    try:
+        return int(pid_path.read_text().strip())
+    except (FileNotFoundError, OSError, ValueError):
+        return None
+
+
+def _connection_lost(error: Exception) -> bool:
+    return "connection lost" in str(error).lower()
 
 
 class CDPError(RuntimeError):
@@ -52,6 +143,9 @@ class BrowserUseCDPBridge:
         self._active_websocket: ServerConnection | None = None
 
     def start(self, env_file: Path) -> dict[str, str]:
+        # This bridge owns a fresh random endpoint. A daemon under the same
+        # deterministic name can only point at an older endpoint.
+        recover_browser_harness(self.name)
         self._server_thread.start()
         port = int(self.server.socket.getsockname()[1])
         ws_url = f"ws://127.0.0.1:{port}{self.path}"
@@ -225,6 +319,7 @@ class BrowserUseCDPBridge:
         stop = threading.Event()
         send_lock = threading.Lock()
         event_thread = None
+        harness_pid = _harness_pid(self.name)
         try:
             # Mark before accepting commands so Runtime.enable cannot race the mark.
             cursor = int(self.run_action({"type": "cdp_events"}).get("cursor") or 0)
@@ -268,6 +363,9 @@ class BrowserUseCDPBridge:
                     }
                 with send_lock:
                     websocket.send(json.dumps(response, ensure_ascii=False))
+                if "error" in response and _connection_lost(error):
+                    websocket.close(code=1011, reason="Comet CDP connection lost")
+                    break
         except ConnectionClosed:
             pass
         except (OSError, RuntimeError):
@@ -283,3 +381,28 @@ class BrowserUseCDPBridge:
             with self._client_lock:
                 self._client_active = False
                 self._active_websocket = None
+            # A disconnected daemon cannot safely retain Browser Harness's
+            # exclusive slot. expected_pid prevents reaping a replacement that
+            # raced this connection's teardown.
+            if harness_pid is not None:
+                recover_browser_harness(self.name, expected_pid=harness_pid)
+
+
+def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    recover = subparsers.add_parser(
+        "recover",
+        help="reap one named stale Browser Harness daemon and its artifacts",
+    )
+    recover.add_argument("--name", required=True)
+    args = parser.parse_args()
+    result = recover_browser_harness(args.name)
+    print(json.dumps(result, ensure_ascii=False))
+    return 0 if result.get("recovered") else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

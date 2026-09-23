@@ -9,6 +9,7 @@ import tempfile
 import threading
 import subprocess
 from unittest.mock import Mock
+from unittest.mock import patch
 import unittest
 from pathlib import Path
 
@@ -29,6 +30,70 @@ def load_bridge():
 
 
 class BrowserUseCDPBridgeTests(unittest.TestCase):
+    def test_recovery_clears_dead_pid_and_socket_for_exact_name(self) -> None:
+        module = load_bridge()
+        with tempfile.TemporaryDirectory() as tmp:
+            module.HARNESS_RUNTIME = Path(tmp)
+            pid_path, sock_path = module._harness_paths("comet-dead")
+            pid_path.write_text("987654321\n")
+            sock_path.write_text("")
+            with patch.object(module, "_pid_alive", return_value=False):
+                result = module.recover_browser_harness("comet-dead")
+            self.assertTrue(result["recovered"])
+            self.assertFalse(result["killed"])
+            self.assertFalse(pid_path.exists())
+            self.assertFalse(sock_path.exists())
+
+    def test_recovery_kills_only_owned_daemon(self) -> None:
+        module = load_bridge()
+        with tempfile.TemporaryDirectory() as tmp:
+            module.HARNESS_RUNTIME = Path(tmp)
+            pid_path, sock_path = module._harness_paths("comet-owned")
+            pid_path.write_text("4321\n")
+            sock_path.write_text("")
+            with (
+                patch.object(module, "_pid_alive", side_effect=[True, False]),
+                patch.object(
+                    module,
+                    "_process_command",
+                    return_value="python -m browser_harness.daemon bu-comet-owned",
+                ),
+                patch.object(module.os, "kill") as kill,
+            ):
+                result = module.recover_browser_harness("comet-owned")
+            self.assertTrue(result["recovered"])
+            self.assertTrue(result["killed"])
+            kill.assert_called_once_with(4321, module.signal.SIGTERM)
+            self.assertFalse(pid_path.exists())
+            self.assertFalse(sock_path.exists())
+
+    def test_recovery_fails_closed_for_unowned_live_pid(self) -> None:
+        module = load_bridge()
+        with tempfile.TemporaryDirectory() as tmp:
+            module.HARNESS_RUNTIME = Path(tmp)
+            pid_path, sock_path = module._harness_paths("comet-current")
+            pid_path.write_text("4321\n")
+            sock_path.write_text("")
+            with (
+                patch.object(module, "_pid_alive", return_value=True),
+                patch.object(
+                    module,
+                    "_process_command",
+                    return_value="python -m browser_harness.daemon bu-comet-other",
+                ),
+                patch.object(module.os, "kill") as kill,
+            ):
+                result = module.recover_browser_harness("comet-current")
+            self.assertEqual(result, {"recovered": False, "reason": "pid_not_owned"})
+            kill.assert_not_called()
+            self.assertTrue(pid_path.exists())
+            self.assertTrue(sock_path.exists())
+
+    def test_connection_lost_is_fatal_but_generic_action_error_is_not(self) -> None:
+        module = load_bridge()
+        self.assertTrue(module._connection_lost(RuntimeError("conn: Connection lost")))
+        self.assertFalse(module._connection_lost(RuntimeError("selector not found")))
+
     def test_bridge_exposes_only_the_leased_tab_and_keeps_capability_private(
         self,
     ) -> None:
