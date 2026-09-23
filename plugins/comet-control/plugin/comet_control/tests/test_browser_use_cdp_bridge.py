@@ -94,6 +94,26 @@ class BrowserUseCDPBridgeTests(unittest.TestCase):
         self.assertTrue(module._connection_lost(RuntimeError("conn: Connection lost")))
         self.assertFalse(module._connection_lost(RuntimeError("selector not found")))
 
+    def test_bridge_start_fails_closed_when_recovery_refuses_pid(self) -> None:
+        module = load_bridge()
+        bridge = module.BrowserUseCDPBridge(
+            "session-refused",
+            Mock(),
+            Mock(),
+            Mock(),
+        )
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            patch.object(
+                module,
+                "recover_browser_harness",
+                return_value={"recovered": False, "reason": "pid_not_owned"},
+            ),
+            self.assertRaisesRegex(RuntimeError, "pid_not_owned"),
+        ):
+            bridge.start(Path(tmp) / "browser-use.env")
+        bridge.server.shutdown()
+
     def test_bridge_exposes_only_the_leased_tab_and_keeps_capability_private(
         self,
     ) -> None:

@@ -145,7 +145,11 @@ class BrowserUseCDPBridge:
     def start(self, env_file: Path) -> dict[str, str]:
         # This bridge owns a fresh random endpoint. A daemon under the same
         # deterministic name can only point at an older endpoint.
-        recover_browser_harness(self.name)
+        recovery = recover_browser_harness(self.name)
+        if not recovery.get("recovered"):
+            raise RuntimeError(
+                f"Browser Harness recovery refused: {recovery.get('reason')}"
+            )
         self._server_thread.start()
         port = int(self.server.socket.getsockname()[1])
         ws_url = f"ws://127.0.0.1:{port}{self.path}"
