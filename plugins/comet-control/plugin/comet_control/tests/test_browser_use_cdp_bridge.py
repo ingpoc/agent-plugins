@@ -52,7 +52,7 @@ class BrowserUseCDPBridgeTests(unittest.TestCase):
             pid_path.write_text("4321\n")
             sock_path.write_text("")
             with (
-                patch.object(module, "_pid_alive", side_effect=[True, False]),
+                patch.object(module, "_pid_alive", side_effect=[True, False, False]),
                 patch.object(
                     module,
                     "_process_command",

@@ -332,6 +332,7 @@ class BrowserUseCDPBridge:
             event_thread.start()
             for raw in websocket:
                 request: Any = None
+                fatal_connection_loss = False
                 try:
                     request = json.loads(raw)
                     if not isinstance(request, dict) or not isinstance(
@@ -357,13 +358,14 @@ class BrowserUseCDPBridge:
                         "error": {"code": error.code, "message": str(error)},
                     }
                 except Exception as error:
+                    fatal_connection_loss = _connection_lost(error)
                     response = {
                         "id": request.get("id") if isinstance(request, dict) else None,
                         "error": {"code": -32000, "message": str(error)},
                     }
                 with send_lock:
                     websocket.send(json.dumps(response, ensure_ascii=False))
-                if "error" in response and _connection_lost(error):
+                if fatal_connection_loss:
                     websocket.close(code=1011, reason="Comet CDP connection lost")
                     break
         except ConnectionClosed:
