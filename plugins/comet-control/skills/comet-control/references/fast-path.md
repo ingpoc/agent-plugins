@@ -43,6 +43,9 @@ known remounts; use 30–60s for simple reads. JS `prompt`/`confirm`/`alert`: ba
 
 Optional Browser Use CDP: start with `--browser-use` and load [`browser-use.md`](browser-use.md).
 **Never** run Browser Use CLI and `send` as concurrent input owners.
+Browser Harness 5s IPC timeout / `Connection lost`: use that reference's
+exact-name recovery once, retry the failed read/navigation once, then escalate
+to ACU on repeat. Keep the same lease; never kill Comet or remint here.
 
 ## Closeout
 

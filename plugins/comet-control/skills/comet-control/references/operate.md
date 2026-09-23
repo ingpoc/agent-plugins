@@ -169,6 +169,10 @@ the selector is wrong. Repeated blind retries mask the owning defect.
 On a socket drop, record the failed action, check `run/comet-control.sock`, and follow
 [`optimize.md`](optimize.md). If the extension was reloaded, start a new lease;
 old tokens and selectors are stale.
+For Browser Harness `Connection lost` or a 5s daemon IPC timeout, keep the
+controller and lease; follow the one-shot exact-name recovery in
+[`browser-use.md`](browser-use.md), then escalate to ACU only if its probe retry
+still fails.
 
 ## Closeout
 

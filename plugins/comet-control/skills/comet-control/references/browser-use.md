@@ -26,6 +26,34 @@ print(page_info())
 PY
 ```
 
+## Stale daemon recovery
+
+Bridge startup reaps only the Browser Harness daemon named by this lease before
+publishing its fresh private CDP endpoint. A bridge-side `Connection lost` also
+closes that client and clears its exact `bu-$BU_NAME.{pid,sock}` artifacts.
+Comet, the lease controller, and the driver stay alive.
+
+If `Runtime.evaluate` or `Page.navigate` still returns the daemon's 5s IPC
+timeout, recover once and retry only that failed read or navigation:
+
+```bash
+. "$WORK/browser-use.env"
+python3 skills/comet-control/scripts/browser_use_cdp_bridge.py \
+  recover --name "$BU_NAME"
+# retry the failed page_info/evaluate/navigate once
+```
+
+The recovery command validates the PID is a `browser_harness.daemon` owned by
+this exact Comet bridge name, terminates only that process, and removes only its
+PID/socket pair. It fails closed if the PID belongs to another process or
+Comet name. Never glob runtime files, kill all harness daemons, remint the
+lease, or drive through `send` while Browser Use owns the campaign.
+
+After a media/upload mutation timeout, recover once, re-read `page_info`, and
+confirm state before deciding whether the mutation needs a retry; do not blindly
+resend it. Escalate to ACU only if the same evaluate/navigation probe fails
+after this one local recovery. ACU inherits the same lease and captain rule.
+
 The adapter presents exactly one synthetic target. It maps Browser Use's tab
 attachment to the lease, rejects foreign targets and browser-wide CDP domains,
 and keeps the real lease token inside the driver. `Input.dispatchMouseEvent`
