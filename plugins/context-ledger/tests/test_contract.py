@@ -309,6 +309,55 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(got["record"]["outcome"]["status"], "failed")
         self.assertEqual(got["record"]["revision"], 2)
 
+    def test_lookup_helper_capture_and_evidence_closeout(self) -> None:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+
+        def call(command: str, body: dict) -> dict:
+            proc = subprocess.run(
+                [sys.executable, str(helper), command, "--json", "-"],
+                input=json.dumps(body), text=True, capture_output=True, env=env,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            return json.loads(proc.stdout)
+
+        created = call("record", {"body": _body(summary="Keep one ledger agent"),
+                                  "outcome": _outcome("pending")})
+        decision_id = created["written"][0]
+        candidate = call("record", {"summary": "Let ledger agent place candidate",
+            "reason": "The parent cannot inspect duplicates itself.",
+            "applicability": "Session closeout with a reusable decision",
+            "evidence_ref": "user:session-closeout"})
+        saved = self.store.get({"decision_id": candidate["written"][0]}, mcp=True)["record"]
+        self.assertEqual(saved["body"]["rationale"], "The parent cannot inspect duplicates itself.")
+        self.assertEqual(saved["body"]["applicability"], "Session closeout with a reusable decision")
+        got = _run([sys.executable, str(helper), "get", "--id", decision_id], env=env)
+        self.assertEqual(json.loads(got.stdout)["applicability"], "V1 local agents")
+        self.assertEqual(json.loads(got.stdout)["outcome"], "pending")
+
+        appended = call("append", {"decision_id": decision_id,
+            "event_type": "outcome", "payload": _outcome("inconclusive", note="Awaiting proof")})
+        self.assertEqual(appended["written"], [decision_id])
+
+        closed = call("closeout", {"outcomes": [{"id": decision_id,
+            "status": "success", "note": "Same agent handled two actions",
+            "evidence_ref": "session://agent-reuse"}]})
+        self.assertEqual(closed["written"], [decision_id])
+        rec = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
+        self.assertEqual(rec["outcome"]["status"], "success")
+        self.assertEqual(rec["outcome"]["evidence"][0]["state"], "unverified")
+        self.assertEqual(rec["outcome"]["note"], "Same agent handled two actions")
+
+        duplicate = call("closeout", {"outcomes": [{"id": decision_id,
+            "status": "success", "note": "once", "evidence_ref": "session://first"},
+            {"id": decision_id, "status": "failed", "note": "twice",
+             "evidence_ref": "session://second"}]})
+        self.assertEqual(duplicate, {"written": [], "write": "unavailable"})
+        self.assertEqual(call("closeout", {"outcomes": [], "candidate": {
+            "summary": "unreviewed", "reason": "repeatable", "evidence_ref": "session://test"}}),
+            {"written": [], "write": "unavailable"})
+        self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], 3)
+
     def test_idempotency_and_revision(self) -> None:
         req = _uuid()
         args = {
