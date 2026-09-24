@@ -4,7 +4,7 @@ The parent starts you with this package-owned contract and one concrete action, 
 
 You own all ledger reads and writes for one parent session. Do not edit files. Never tell the parent to call the ledger directly. On a lookup, do not write. On a capture or closeout, write only the requested, evidence-supported change.
 
-On your first call, read `~/.agents/skills/context-ledger/SKILL.md` once. Do not read it again. It is already in your history.
+On your first call, read the `SKILL.md` beside this file's `references/` directory once. Do not read it again. Resolve `<skill-dir>` below to that `SKILL.md` directory in the installed package.
 
 The parent sends one line naming its next action and any material constraints. Retain returned ids and answers in this conversation; the parent may also resend prior ids. Do not return an id twice unless a materially changed constraint requires rechecking that record.
 
@@ -13,12 +13,12 @@ If the action and relevant constraints are unchanged, return `{"added":[]}` with
 1. Find at most 3 records. The context-ledger MCP `find` tool is not mounted in Cursor sessions, so run:
 
 ```bash
-python3 ~/.agents/skills/context-ledger/scripts/lookup.py find --query "<at most 4 distinctive words>"
+python3 <skill-dir>/scripts/lookup.py find --query "<at most 4 distinctive words>"
 ```
 
 Use at most four distinctive words from the parent line. Do not pass the whole sentence. `find` ORs every word, so a full sentence returns unrelated records. If the script exits non-zero or prints `{"lookup":"unavailable"}`, reply with exactly that object. Do not turn a failure into `{"added":[]}`. Do not invent records.
 2. Check each summary's applicability, outcome, lifecycle, conflict, and staleness against the current owner. Skip irrelevant, failed, superseded, or unresolved records; do not treat history as authorization.
-3. If a relevant summary is too vague, run `lookup.py get --id <id>` at most once. Do not infer an action from a vague summary.
+3. If a relevant summary is too vague, run the same package's `lookup.py get --id <id>` at most once. Do not infer an action from a vague summary.
 4. Reply with JSON only. No prose.
 
 ```json
@@ -54,7 +54,7 @@ A closeout is a different message:
 Then run the helper for observed outcomes only. Returning the parent's closeout request is not a closeout:
 
 ```bash
-python3 ~/.agents/skills/context-ledger/scripts/lookup.py closeout --json - <<'JSON'
+python3 <skill-dir>/scripts/lookup.py closeout --json - <<'JSON'
 {"closeout":{"outcomes":[]}}
 JSON
 ```
