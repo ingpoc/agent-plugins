@@ -148,8 +148,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.4")
-        self.assertIn('__version__ = "0.1.4"', init)
+        self.assertEqual(plugin["version"], "0.1.5")
+        self.assertIn('__version__ = "0.1.5"', init)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         for axis in ("Reliability", "Robustness", "Context efficiency", "Speed", "Efficiency"):
@@ -182,6 +182,7 @@ class LaunchTests(unittest.TestCase):
     def test_default_data_dir_without_plugin_data(self) -> None:
         env = {**os.environ}
         env.pop("PLUGIN_DATA", None)
+        env.pop("CONTEXT_LEDGER_DATA", None)
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
             env["HOME"] = str(home)
@@ -195,6 +196,29 @@ class LaunchTests(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 2, proc.stderr)
             self.assertTrue((home / ".context-ledger").is_dir())
+
+    def test_implicit_plugin_data_does_not_override_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            plugin_data = Path(tmp) / "host-data"
+            env = {**os.environ, "HOME": str(home), "PLUGIN_DATA": str(plugin_data)}
+            env.pop("CONTEXT_LEDGER_DATA", None)
+            proc = subprocess.run(
+                [sys.executable, str(BOOT), "doctor"],
+                cwd=str(ROOT), env=env, capture_output=True, text=True,
+            )
+            self.assertEqual(proc.returncode, 2, proc.stderr)
+            self.assertTrue((home / ".context-ledger").is_dir())
+            self.assertFalse(plugin_data.exists())
+
+            env["CONTEXT_LEDGER_DATA"] = str(plugin_data)
+            proc = subprocess.run(
+                [sys.executable, str(BOOT), "doctor"],
+                cwd=str(ROOT), env=env, capture_output=True, text=True,
+            )
+            self.assertEqual(proc.returncode, 2, proc.stderr)
+            self.assertTrue(plugin_data.is_dir())
 
     def test_missing_runtime_fails_without_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

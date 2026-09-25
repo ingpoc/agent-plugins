@@ -10,7 +10,7 @@ This pass exercised macOS arm64 only. Other architecture targets stay release-bl
 
 ## Install notes
 
-When `PLUGIN_DATA` / `--data` is unset (Cursor often leaves `${PLUGIN_DATA}` literal), data defaults to `~/.context-ledger/` (`0700`). Cursor dest rewrite: `python3 scripts/install_cursor_dest.py` (absolute launcher + absolute `--data`; source `mcp.json` stays portable). Full steps: [`AGENTS.md`](AGENTS.md).
+Data defaults to `~/.context-ledger/` (`0700`), even when the client sets `PLUGIN_DATA`. Use explicit `--data` or `CONTEXT_LEDGER_DATA` for another root. Cursor dest rewrite: `python3 scripts/install_cursor_dest.py` (absolute launcher + absolute `--data`; source `mcp.json` stays portable). Full steps: [`AGENTS.md`](AGENTS.md).
 
 ## Benchmarks
 

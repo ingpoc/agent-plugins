@@ -18,7 +18,6 @@ from context_ledger.store import Store  # noqa: E402
 
 DATA = Path(
     os.environ.get("CONTEXT_LEDGER_DATA")
-    or os.environ.get("PLUGIN_DATA")
     or Path.home() / ".context-ledger"
 )
 
