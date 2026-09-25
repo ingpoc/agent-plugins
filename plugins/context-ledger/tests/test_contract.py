@@ -339,24 +339,106 @@ class StoreTests(unittest.TestCase):
             "event_type": "outcome", "payload": _outcome("inconclusive", note="Awaiting proof")})
         self.assertEqual(appended["written"], [decision_id])
 
-        closed = call("closeout", {"outcomes": [{"id": decision_id,
-            "status": "success", "note": "Same agent handled two actions",
+        task_id = _uuid()
+        closed = call("closeout", {"task_id": task_id, "outcomes": [{"id": decision_id,
+            "applied": True, "status": "success", "note": "Same agent handled two actions",
             "evidence_ref": "session://agent-reuse"}]})
         self.assertEqual(closed["written"], [decision_id])
+        self.assertEqual(closed["task_id"], task_id)
+        self.assertEqual(closed["feedback"][0]["confidence"], {
+            "score": 1.0, "successes": 1, "failures": 0,
+            "inconclusive": 0, "sample_count": 1})
         rec = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
         self.assertEqual(rec["outcome"]["status"], "success")
         self.assertEqual(rec["outcome"]["evidence"][0]["state"], "unverified")
         self.assertEqual(rec["outcome"]["note"], "Same agent handled two actions")
 
-        duplicate = call("closeout", {"outcomes": [{"id": decision_id,
-            "status": "success", "note": "once", "evidence_ref": "session://first"},
-            {"id": decision_id, "status": "failed", "note": "twice",
+        duplicate = call("closeout", {"task_id": task_id, "outcomes": [{"id": decision_id,
+            "applied": True, "status": "success", "note": "once", "evidence_ref": "session://first"},
+            {"id": decision_id, "applied": True, "status": "failed", "note": "twice",
              "evidence_ref": "session://second"}]})
         self.assertEqual(duplicate, {"written": [], "write": "unavailable"})
         self.assertEqual(call("closeout", {"outcomes": [], "candidate": {
             "summary": "unreviewed", "reason": "repeatable", "evidence_ref": "session://test"}}),
             {"written": [], "write": "unavailable"})
         self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], 3)
+
+    def test_task_closeout_is_idempotent_and_confidence_uses_latest_task_feedback(self) -> None:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+
+        def call(body: dict) -> dict:
+            proc = subprocess.run(
+                [sys.executable, str(helper), "closeout", "--json", "-"],
+                input=json.dumps(body), text=True, capture_output=True, env=env,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            return json.loads(proc.stdout)
+
+        helper_record = ROOT / "skills/context-ledger/scripts/lookup.py"
+        created = subprocess.run(
+            [sys.executable, str(helper_record), "record", "--json", "-"],
+            input=json.dumps({"body": _body(summary="Apply known decision"),
+                              "outcome": _outcome("pending")}),
+            text=True, capture_output=True, env=env,
+        )
+        self.assertEqual(created.returncode, 0, created.stdout + created.stderr)
+        decision_id = json.loads(created.stdout)["written"][0]
+        task_id = _uuid()
+        success = {"task_id": task_id, "outcomes": [{
+            "id": decision_id, "applied": True, "status": "success",
+            "note": "Applied and helped", "evidence_ref": "session://task-a"}]}
+
+        first = call(success)
+        revision = self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"]
+        retry = call(success)
+        self.assertEqual(first["written"], [decision_id])
+        self.assertTrue(retry["feedback"][0]["confidence"]["score"] == 1.0)
+        self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], revision)
+
+        retry_request = _uuid()
+        retry_event = {
+            "request_id": retry_request,
+            "decision_id": decision_id,
+            "expected_revision": revision,
+            "occurred_at": None,
+            "event_type": "outcome",
+            "payload": {"task_id": task_id, "status": "success",
+                        "note": "Applied and helped", "evidence": [{
+                            "ref": "session://task-a", "revision": None,
+                            "sha256": None, "state": "unverified"}]},
+        }
+        self.assertTrue(self.store.append_event(retry_event, mcp=True)["replayed"])
+        conflicting_retry = json.loads(json.dumps(retry_event))
+        conflicting_retry["payload"]["note"] = "Reused request id"
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.append_event(conflicting_retry, mcp=True)
+        self.assertEqual(ctx.exception.code, "IDEMPOTENCY_CONFLICT")
+
+        corrected = {"task_id": task_id, "outcomes": [{
+            "id": decision_id, "applied": True, "status": "failed",
+            "note": "Correction: applied but did not help", "evidence_ref": "session://task-a-correction"}]}
+        correction = call(corrected)["feedback"][0]["confidence"]
+        self.assertEqual(correction, {"score": 0.0, "successes": 0, "failures": 1,
+                                      "inconclusive": 0, "sample_count": 1})
+
+        inconclusive = call({"task_id": _uuid(), "outcomes": [{
+            "id": decision_id, "applied": True, "status": "inconclusive",
+            "note": "Outcome cannot be attributed yet", "evidence_ref": "session://task-b"}]})
+        self.assertEqual(inconclusive["feedback"][0]["confidence"], {
+            "score": 0.0, "successes": 0, "failures": 1,
+            "inconclusive": 1, "sample_count": 1})
+        next_task = call({"task_id": _uuid(), "outcomes": [{
+            "id": decision_id, "applied": True, "status": "success",
+            "note": "Applied and helped again", "evidence_ref": "session://task-c"}]})
+        expected = {"score": 0.5, "successes": 1, "failures": 1,
+                    "inconclusive": 1, "sample_count": 2}
+        self.assertEqual(next_task["feedback"][0]["confidence"], expected)
+        record = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
+        self.assertEqual(record["confidence"], expected)
+        found = self.store.find({"query": "Apply known decision", "entities": [],
+                                 "constraints": [], "limit": 3, "offset": 0}, mcp=True)
+        self.assertEqual(found["matches"][0]["confidence"], expected)
 
     def test_idempotency_and_revision(self) -> None:
         req = _uuid()

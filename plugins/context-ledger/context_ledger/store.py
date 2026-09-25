@@ -484,6 +484,8 @@ class Store:
         parsed = validate_append_input(arguments, allow_owner_attested=not mcp)
         if mcp and parsed["event_type"] not in APPEND_TYPES:
             raise LedgerError("INVALID_ARGUMENT")
+        if parsed["event_type"] == "outcome" and "task_id" in parsed["payload"]:
+            return self._append_task_outcome(parsed, mcp=mcp, tool=tool)
         req_hash = request_hash(tool, parsed)
         with self._tx() as conn:
             existing = conn.execute(
@@ -530,6 +532,94 @@ class Store:
                 },
                 "request_id": parsed["request_id"],
                 "expected_revision": parsed["expected_revision"],
+                "payload": parsed["payload"],
+            }
+            return self._append_event_row(
+                conn, event, ingest_kind="local", request_hash=req_hash, mcp=mcp
+            )
+
+    def _append_task_outcome(
+        self, parsed: dict[str, Any], *, mcp: bool, tool: str
+    ) -> dict[str, Any]:
+        req_hash = request_hash(tool, parsed)
+        with self._tx() as conn:
+            existing = conn.execute(
+                "select request_hash, receipt_json from requests where scope_id=? and request_id=?",
+                (self.binding["scope_id"], parsed["request_id"]),
+            ).fetchone()
+            if existing is not None:
+                if existing["request_hash"] != req_hash:
+                    raise LedgerError("IDEMPOTENCY_CONFLICT")
+                receipt = parse_json(existing["receipt_json"])
+                receipt["replayed"] = True
+                return receipt
+
+            row = conn.execute(
+                "select revision, scope_id, sensitivity from current_records where decision_id=?",
+                (parsed["decision_id"],),
+            ).fetchone()
+            if row is None or row["scope_id"] != self.binding["scope_id"]:
+                raise LedgerError("UNAVAILABLE")
+            if mcp and row["sensitivity"] != "model_safe":
+                raise LedgerError("UNAVAILABLE")
+
+            task_id = parsed["payload"]["task_id"]
+            prior = None
+            for event_row in conn.execute(
+                "select event_json from events where decision_id=? order by revision desc",
+                (parsed["decision_id"],),
+            ):
+                event = parse_json(event_row["event_json"])
+                if (
+                    event["event_type"] == "outcome"
+                    and event["payload"].get("task_id") == task_id
+                ):
+                    prior = event
+                    break
+            if prior is not None:
+                prior_payload = prior["payload"]
+                same = all(
+                    prior_payload.get(key) == parsed["payload"].get(key)
+                    for key in ("status", "note", "evidence")
+                )
+                if same:
+                    receipt = {
+                        "ledger_id": self.binding["ledger_id"],
+                        "decision_id": parsed["decision_id"],
+                        "event_id": prior["event_id"],
+                        "revision": prior["revision"],
+                        "replayed": True,
+                    }
+                    conn.execute(
+                        "insert into requests(scope_id,request_id,request_hash,decision_id,receipt_json) "
+                        "values (?,?,?,?,?)",
+                        (
+                            self.binding["scope_id"],
+                            parsed["request_id"],
+                            req_hash,
+                            parsed["decision_id"],
+                            canonical_json(receipt),
+                        ),
+                    )
+                    return receipt
+
+            expected_revision = row["revision"]
+            event = {
+                "schema_version": 1,
+                "ledger_id": self.binding["ledger_id"],
+                "event_id": new_uuid(),
+                "decision_id": parsed["decision_id"],
+                "scope_id": self.binding["scope_id"],
+                "revision": expected_revision + 1,
+                "event_type": "outcome",
+                "recorded_at": now_ts(),
+                "occurred_at": parsed["occurred_at"],
+                "provenance": {
+                    "actor_id": self.binding["actor_id"],
+                    "channel": "agent" if mcp else self.actor_channel,
+                },
+                "request_id": parsed["request_id"],
+                "expected_revision": expected_revision,
                 "payload": parsed["payload"],
             }
             return self._append_event_row(
@@ -1462,6 +1552,7 @@ class Store:
         last_ingest = "local"
         evidence_event_ingest = "local"
         imported_evidence_ids: set[str] = set()
+        task_outcomes: dict[str, dict[str, Any]] = {}
         approval_event_ingest = "local"
         kind = None
         superseded = False
@@ -1493,6 +1584,8 @@ class Store:
                 prev_selected = self._selected_evidence(outcome, body)
                 supplied = payload.get("evidence") or []
                 outcome = payload
+                if payload.get("task_id"):
+                    task_outcomes[payload["task_id"]] = payload
                 evidence_event_ingest = self._supplied_evidence_ingest(
                     prev_ingest=evidence_event_ingest,
                     prev_selected=prev_selected,
@@ -1538,11 +1631,22 @@ class Store:
                 body["approval"] = payload["approval"]
                 approval_event_ingest = ingest
         assert body is not None and outcome is not None and created_at is not None
+        successes = sum(1 for item in task_outcomes.values() if item["status"] == "success")
+        failures = sum(1 for item in task_outcomes.values() if item["status"] == "failed")
+        inconclusive = sum(1 for item in task_outcomes.values() if item["status"] == "inconclusive")
+        sample_count = successes + failures
         return {
             "decision_id": decision_id,
             "revision": max_rev,
             "body": body,
             "outcome": outcome,
+            "confidence": {
+                "score": successes / sample_count if sample_count else None,
+                "successes": successes,
+                "failures": failures,
+                "inconclusive": inconclusive,
+                "sample_count": sample_count,
+            },
             "lifecycle": "superseded" if superseded else "active",
             "replacement_id": replacement_id,
             "openings": openings,
@@ -1616,6 +1720,7 @@ class Store:
             "revision": state["revision"],
             "body": body,
             "outcome": outcome,
+            "confidence": state["confidence"],
             "lifecycle": state["lifecycle"],
             "replacement_id": state["replacement_id"],
             "conflicts": conflicts,
@@ -1769,6 +1874,7 @@ class Store:
             "summary": rec["body"]["summary"],
             "applicability": truncate_unicode(rec["body"]["applicability"], 160),
             "outcome": rec["outcome"]["status"],
+            "confidence": rec["confidence"],
             "evidence_state": rec["evidence_state"],
             "approval_state": rec["body"]["approval"]["state"],
             "lifecycle": rec["lifecycle"],

@@ -52,6 +52,7 @@ class OutcomeModel(Closed):
     status: Literal["unknown", "pending", "success", "failed", "inconclusive", "abandoned"]
     note: str = Field(max_length=500)
     evidence: list[EvidenceModel] = Field(max_length=4)
+    task_id: Uuid | None = None
 
 
 class CorrectedPayloadModel(Closed):

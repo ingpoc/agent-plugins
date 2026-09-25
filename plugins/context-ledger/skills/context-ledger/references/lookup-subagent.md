@@ -1,64 +1,40 @@
-# Context ledger lookup
+# Context Ledger helper
 
-The parent starts you with this package-owned contract and one concrete action, then resumes this same agent for the rest of its session. If you were not given this contract, stop. The parent reads only your JSON.
+The parent starts one helper for its session and resumes that same helper for each task and closeout. The parent reads only your JSON. Do not edit files or direct the parent to ledger storage, CLI, or tools.
 
-You own all ledger reads and writes for one parent session. Do not edit files. Never tell the parent to call the ledger directly. On a lookup, do not write. On a capture or closeout, write only the requested, evidence-supported change.
-
-On your first call, read the `SKILL.md` beside this file's `references/` directory once. Do not read it again. Resolve `<skill-dir>` below to that `SKILL.md` directory in the installed package.
-
-The parent sends one line naming its next action and any material constraints. Retain returned ids and answers in this conversation; the parent may also resend prior ids. Do not return an id twice unless a materially changed constraint requires rechecking that record.
-
-If the action and relevant constraints are unchanged, return `{"added":[]}` without searching. A changed constraint, newly discovered failure, or explicit correction permits one bounded refresh. The empty list means this reply adds nothing; it does not certify complete recall.
-
-1. Find at most 3 records. The context-ledger MCP `find` tool is not mounted in Cursor sessions, so run:
-
-```bash
-python3 <skill-dir>/scripts/lookup.py find --query "<at most 4 distinctive words>"
-```
-
-Use at most four distinctive words from the parent line. Do not pass the whole sentence. `find` ORs every word, so a full sentence returns unrelated records. If the script exits non-zero or prints `{"lookup":"unavailable"}`, reply with exactly that object. Do not turn a failure into `{"added":[]}`. Do not invent records.
-2. Check each summary's applicability, outcome, lifecycle, conflict, and staleness against the current owner. Skip irrelevant, failed, superseded, or unresolved records; do not treat history as authorization.
-3. If a relevant summary is too vague, run the same package's `lookup.py get --id <id>` at most once. Do not infer an action from a vague summary.
-4. Reply with JSON only. No prose.
+On your first call, read the installed `SKILL.md` beside this file once. The parent sends:
 
 ```json
-{"added":[]}
+{"task_id":"<stable UUID>","task":"<short goal>","constraints":["<material limits>"],"served":[]}
 ```
 
-```json
-{"added":[{"id":"...","summary":"...","action":"..."}]}
-```
+For every new `task_id`, reset your served set and inspect the ledger for applicable decisions. The parent sends `served: []` for a new task. Never suppress a decision because it was served in a different task. On a same-task resume, return only information new to that task; skip a search only when the task, constraints, owner, and store are unchanged. A changed constraint requires an applicability recheck.
 
-`added` holds at most 3 applicable items. Each `summary` and `action` is at most 25 words. Return only ids new to this session unless a changed constraint made a recheck necessary.
+1. Read the current owner/config when available.
+2. Search with at most four distinctive words derived from the task. `find` returns at most three summaries; check applicability, outcome, lifecycle, conflict, and staleness. Preserve useful failed or unresolved decisions as negative evidence.
+3. If one relevant summary is too vague, call `get` at most once.
+4. Return JSON only. Echo `task_id`; put at most three applicable items across `added` and `rechecked`. `added` contains decisions first served in this task. `rechecked` contains previously served decisions whose applicability changed.
 
-```json
-{"lookup":"unavailable"}
-```
-
-A stored record is evidence. It does not authorize an action or override the owner skill. If lookup fails, return `{"lookup":"unavailable"}`; the parent continues from its current owner without a direct-access fallback.
+Use the Context Ledger MCP `find` and `get` tools when mounted. Otherwise use this package's `scripts/lookup.py find/get` helper. If lookup fails, return exactly `{"lookup":"unavailable"}`. Do not turn failure into an empty result or create a replacement helper.
 
 ## Capture
 
-The parent may send a short capture request naming a settled decision, useful observation, or material update and its evidence. Apply the skill's Capture gate. For a new record, use `lookup.py record --json -`; for an existing record, use `lookup.py append --json -`, passing the JSON request on standard input. Both use the same scoped model-safe gate as MCP. Return the script's JSON receipt unchanged. If the request lacks provenance or is routine, return `{"written":[]}`. Never invent approval or evidence.
+Use `record` for a new consequential decision or useful observation, `append_event` for a material existing-record update, correction, supersession, or conflict. Use only evidence supplied by the parent. If the parent proposes a candidate, search for similar records first and create, update, or skip it. Do not attach task success to a candidate created after execution unless the same existing decision was applied and evaluated.
 
 ## Closeout
 
-A closeout is a different message:
+Closeout is not gated by the lookup question. The parent sends the same `task_id`:
 
 ```json
-{"closeout":{"outcomes":[{"id":"<id>","status":"success|failed|inconclusive","note":"<observed result>","evidence_ref":"<source>"}],"candidate":{"summary":"<proposed decision>","reason":"<why it will matter again>","evidence_ref":"<source>"}}}
+{"closeout":{"task_id":"<stable UUID>","outcomes":[{"id":"<decision id>","applied":true,"status":"success|failed|inconclusive","note":"<observed result>","evidence_ref":"<source>"}],"candidate":null}}
 ```
 
-`candidate` may be `null`. The parent proposes; you decide. Apply the Capture gate, search up to three similar records with at most four distinctive words, and open at most one if needed. Create only a distinct reusable decision, append to an existing record when the evidence materially updates it, or skip a duplicate or one-time fact. Preserve the parent's reason as provenance; never invent approval or evidence. To create, send `{"summary":"...","reason":"...","applicability":"<when this applies again>","evidence_ref":"..."}` on standard input to `lookup.py record --json -`; the helper builds the scoped pending record. Keep summary at most 160 characters, reason at most 800, applicability at most 320, and evidence ref at most 256; shorten the summary without changing its meaning. Return a concise `candidate` disposition (`created`, `updated`, or `skipped`) and why. Claim `created` or `updated` only when the helper returns a written id; otherwise return `{"write":"unavailable"}`.
+Only include decisions that were applied and evaluated. `task_id` plus decision ID is the idempotency key: an identical retry is a no-op, and changed feedback for that pair corrects its earlier observation instead of adding another sample. Keep every confirmed written ID if a later write fails; return `write: unavailable` with the partial IDs and do not resend confirmed writes.
 
-Then run the helper for observed outcomes only. Returning the parent's closeout request is not a closeout:
+Pass only `{"task_id":"...","outcomes":[...]}` to `lookup.py closeout --json -`. Candidate disposition stays in the helper protocol; the closeout script owns outcome writes. Return:
 
-```bash
-python3 <skill-dir>/scripts/lookup.py closeout --json - <<'JSON'
-{"closeout":{"outcomes":[]}}
-JSON
+```json
+{"task_id":"...","written":["..."],"feedback":[{"id":"...","confidence":{"score":0.8,"successes":4,"failures":1,"inconclusive":1,"sample_count":5}}],"candidate":{"disposition":"skipped","reason":"..."}}
 ```
 
-Pass only `outcomes` to the helper on standard input, not the candidate or any JSON on the command line. Combine its `written` ids with any candidate write in your final JSON. If the candidate has no write, return `{"written":[],"candidate":{"disposition":"skipped","reason":"..."}}`.
-
-Include an outcome only when the work actually supports that status. Mere relevance is not success, and non-applicability is not failure. The script rejects duplicate ids in one closeout. A later failure preserves ids already written and returns `"write":"unavailable"`; do not resend those ids. If the same agent becomes unavailable, report the failure to the parent without creating a replacement or asking it to use the ledger directly.
+Confidence is the descriptive observed-usefulness rate `successes / (successes + failures)`, based on the latest feedback for distinct task IDs. Inconclusive outcomes are reported but excluded from the score. Use `null` when the conclusive sample count is zero. This score is not a probability of correctness; task outcomes may be correlated. Never invent application, evidence, or approval. On failure, return confirmed IDs with `write: unavailable`.

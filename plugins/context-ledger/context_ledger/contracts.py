@@ -414,12 +414,15 @@ def validate_body(value: Any, *, allow_owner_attested: bool) -> dict[str, Any]:
 
 
 def validate_outcome(value: Any) -> dict[str, Any]:
-    obj = require_keys(value, {"status", "note", "evidence"})
-    return {
+    obj = require_keys(value, {"status", "note", "evidence"}, {"task_id"})
+    result = {
         "status": require_enum(obj["status"], OUTCOME_STATUS),
         "note": require_str(obj["note"], 500, allow_empty=True),
         "evidence": validate_evidence_list(obj["evidence"]),
     }
+    if "task_id" in obj:
+        result["task_id"] = require_uuid(obj["task_id"])
+    return result
 
 
 def _str_list(value: Any, max_item: int, max_n: int) -> list[str]:

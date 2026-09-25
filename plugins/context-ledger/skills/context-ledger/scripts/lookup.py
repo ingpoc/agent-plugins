@@ -75,6 +75,7 @@ def main() -> int:
                     "action": rec["body"]["action"],
                     "applicability": rec["body"]["applicability"],
                     "outcome": rec["outcome"]["status"],
+                    "confidence": rec["confidence"],
                     "lifecycle": rec["lifecycle"],
                     "staleness": rec["staleness"],
                     "has_conflict": bool(rec.get("conflicts")),
@@ -127,28 +128,46 @@ def main() -> int:
 def _closeout(store: Store, body: dict) -> dict:
     if isinstance(body.get("closeout"), dict):
         body = body["closeout"]
-    if set(body) != {"outcomes"}:
+    if set(body) != {"task_id", "outcomes"}:
         return {"written": [], "write": "unavailable"}
-    outcomes = list(body.get("outcomes") or [])
+    task_id = body["task_id"]
+    try:
+        if str(uuid.UUID(task_id)) != task_id:
+            return {"written": [], "write": "unavailable"}
+    except (ValueError, TypeError, AttributeError):
+        return {"written": [], "write": "unavailable"}
+    outcomes = body.get("outcomes")
+    expected_item_keys = {"id", "applied", "status", "note", "evidence_ref"}
+    if not isinstance(outcomes, list) or any(
+        not isinstance(item, dict) or set(item) != expected_item_keys
+        for item in outcomes
+    ):
+        return {"written": [], "write": "unavailable"}
     ids = [item.get("id") for item in outcomes]
     if len(ids) != len(set(ids)) or any(
-        item.get("status") not in {"success", "failed", "inconclusive"}
+        item.get("applied") is not True
+        or item.get("status") not in {"success", "failed", "inconclusive"}
         or not str(item.get("note") or "").strip()
         or not str(item.get("evidence_ref") or "").strip()
         for item in outcomes
     ):
         return {"written": [], "write": "unavailable"}
     written: list[str] = []
+    feedback: list[dict] = []
     try:
         for item in outcomes:
-            written.extend(_outcome(store, item["id"], item["status"],
-                                    item["note"], item["evidence_ref"])["written"])
+            result = _outcome(store, task_id, item["id"], item["status"],
+                              item["note"], item["evidence_ref"])
+            written.extend(result["written"])
+            feedback.append({"id": item["id"], "confidence": result["confidence"]})
     except Exception:
-        return {"written": written, "write": "unavailable"}
-    return {"written": written}
+        return {"task_id": task_id, "written": written, "feedback": feedback,
+                "write": "unavailable"}
+    return {"task_id": task_id, "written": written, "feedback": feedback}
 
 
-def _outcome(store: Store, decision_id: str, status: str, note: str, evidence_ref: str) -> dict:
+def _outcome(store: Store, task_id: str, decision_id: str, status: str,
+             note: str, evidence_ref: str) -> dict:
     rec = store.get({"decision_id": decision_id}, mcp=True)["record"]
     store.append_event(
         {
@@ -160,6 +179,7 @@ def _outcome(store: Store, decision_id: str, status: str, note: str, evidence_re
             "payload": {
                 "status": status,
                 "note": note[:500],
+                "task_id": task_id,
                 "evidence": [
                     {
                         "ref": evidence_ref,
@@ -172,7 +192,8 @@ def _outcome(store: Store, decision_id: str, status: str, note: str, evidence_re
         },
         mcp=True,
     )
-    return {"written": [decision_id]}
+    updated = store.get({"decision_id": decision_id}, mcp=True)["record"]
+    return {"written": [decision_id], "confidence": updated["confidence"]}
 
 
 if __name__ == "__main__":
