@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import threading
+import traceback
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -37,6 +38,7 @@ from context_ledger.store import Store
 
 logging.getLogger().handlers.clear()
 logging.basicConfig(stream=sys.stderr, level=logging.CRITICAL)
+logging.getLogger(__name__).setLevel(logging.ERROR)
 
 
 def _result(payload: dict[str, Any], *, is_error: bool) -> CallToolResult:
@@ -61,7 +63,18 @@ def _call(fn, arguments: dict[str, Any]) -> CallToolResult | dict[str, Any]:
         return _result(payload, is_error=False)
     except LedgerError as exc:
         return _result(fail_dict(exc), is_error=True)
-    except Exception:
+    except Exception as exc:
+        frames = traceback.extract_tb(exc.__traceback__)
+        locations = [
+            f"{Path(frame.filename).name}:{frame.lineno}:{frame.name}"
+            for frame in frames
+            if Path(frame.filename).parent.name == "context_ledger"
+        ][-4:]
+        logging.getLogger(__name__).error(
+            "Unhandled internal Ledger call (%s) at %s",
+            type(exc).__name__,
+            " -> ".join(locations) or "unknown",
+        )
         return _result(fail_dict(LedgerError("INTERNAL")), is_error=True)
 
 
