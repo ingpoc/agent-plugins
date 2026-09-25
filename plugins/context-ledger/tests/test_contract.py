@@ -129,6 +129,7 @@ class PackageTests(unittest.TestCase):
         self.assertIn("name: context-ledger", text)
         self.assertIn("find", text)
         self.assertIn("append_event", text)
+        self.assertIn("read/write-capable Context Ledger subagent", text)
 
     def test_catalogs_and_plugins_row(self) -> None:
         collection = _collection_root()
@@ -148,8 +149,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.5")
-        self.assertIn('__version__ = "0.1.5"', init)
+        self.assertEqual(plugin["version"], "0.1.6")
+        self.assertIn('__version__ = "0.1.6"', init)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         for axis in ("Reliability", "Robustness", "Context efficiency", "Speed", "Efficiency"):
