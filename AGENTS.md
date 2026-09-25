@@ -57,4 +57,5 @@ If the client is missing or has no setup link, say so and stop.
 - One portable package per `plugins/<name>/`. Shape comes from the live spec, not this file.
 - Adding a plugin without a Plugins row, `plugins/<name>/AGENTS.md`, and `plugins/<name>/README.md` is incomplete.
 - Source `mcp.json` stays portable (`./bin/…-mcp`). Cursor absolute launchers are dest-only. See `agent-plugin-routing-sync`.
+- Before shipping changed installed package contents (runtime, skill, references, or install docs), bump that plugin's `plugin.json` SemVer; keep any in-package runtime version and assertions aligned. Skip test-only and collection-tooling changes.
 - This repo is public. No personal case data.

@@ -148,8 +148,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.3")
-        self.assertIn('__version__ = "0.1.3"', init)
+        self.assertEqual(plugin["version"], "0.1.4")
+        self.assertIn('__version__ = "0.1.4"', init)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         for axis in ("Reliability", "Robustness", "Context efficiency", "Speed", "Efficiency"):
