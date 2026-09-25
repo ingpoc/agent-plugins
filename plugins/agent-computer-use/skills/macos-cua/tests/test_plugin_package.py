@@ -105,10 +105,16 @@ class PluginPackageTests(unittest.TestCase):
         self.assertEqual(server.get("cwd"), "./")
         self.assertTrue((PLUGIN_ROOT / "bin" / "agent-computer-use-mcp").is_file())
         self.assertTrue(os.access(PLUGIN_ROOT / "bin" / "agent-computer-use-mcp", os.X_OK))
+        launcher_src = (PLUGIN_ROOT / "bin" / "agent-computer-use-mcp").read_text()
+        self.assertIn("AGENT_COMPUTER_USE_PYTHON", launcher_src)
+        self.assertIn("command -v python3", launcher_src)
+        self.assertNotIn("exec python3 -u", launcher_src)
         self.assertNotIn("CUA_DRIVER", json.dumps(server.get("env") or {}))
         harness = (PLUGIN_ROOT / "skills/macos-cua/scripts/install_harness.py").read_text()
-        self.assertIn('dest / "bin" / "agent-computer-use-mcp"', harness)
+        self.assertIn('dest / "bin" / LAUNCHER_NAME', harness)
         self.assertIn("_rewrite_cursor_plugin_mcp", harness)
+        self.assertIn("_candidate_cursor_dests", harness)
+        self.assertIn("--rewrite-only", harness)
         self.assertIn("_remove_cursor_user_mcp", harness)
         self.assertNotIn('dest / "bin" / "cua-driver-mcp"', harness)
 
@@ -139,8 +145,8 @@ class PluginPackageTests(unittest.TestCase):
             rewritten = json.loads((dest / "mcp.json").read_text())
         self.assertTrue(result["ok"])
         self.assertEqual(
-            rewritten["mcpServers"]["agent-computer-use"]["command"],
-            str(launcher),
+            Path(rewritten["mcpServers"]["agent-computer-use"]["command"]).resolve(),
+            launcher.resolve(),
         )
         self.assertEqual(rewritten["mcpServers"]["agent-computer-use"]["cwd"], "./")
         self.assertFalse(
@@ -173,6 +179,42 @@ class PluginPackageTests(unittest.TestCase):
         source = path.read_text()
         self.assertIn("else _remove_cursor_user_mcp()", source)
         self.assertIn("--user-mcp", source)
+
+
+    def test_rewrite_absolutizes_all_candidate_dests(self):
+        path = PLUGIN_ROOT / "skills/macos-cua/scripts/install_harness.py"
+        loaded = importlib.util.spec_from_file_location("install_harness", path)
+        mod = importlib.util.module_from_spec(loaded)
+        loaded.loader.exec_module(mod)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            dests = []
+            for name in ("local", "cache-a"):
+                dest = root / name
+                (dest / "bin").mkdir(parents=True)
+                launcher = dest / "bin" / "agent-computer-use-mcp"
+                launcher.write_text("#!/bin/sh\n")
+                launcher.chmod(0o755)
+                (dest / "mcp.json").write_text(
+                    json.dumps(
+                        {
+                            "mcpServers": {
+                                "agent-computer-use": {
+                                    "command": "./bin/agent-computer-use-mcp",
+                                    "cwd": "./",
+                                }
+                            }
+                        }
+                    )
+                )
+                dests.append(dest)
+            results = [mod._rewrite_cursor_plugin_mcp(d, d / "bin" / "agent-computer-use-mcp") for d in dests]
+            self.assertTrue(all(r["ok"] for r in results))
+            for dest in dests:
+                rewritten = json.loads((dest / "mcp.json").read_text())
+                cmd = rewritten["mcpServers"]["agent-computer-use"]["command"]
+                self.assertEqual(Path(cmd).resolve(), (dest / "bin" / "agent-computer-use-mcp").resolve())
+                self.assertEqual(rewritten["mcpServers"]["agent-computer-use"]["cwd"], "./")
 
     def test_raw_driver_launcher_still_executes_driver_mcp(self):
         launcher = PLUGIN_ROOT / "bin" / "cua-driver-mcp"

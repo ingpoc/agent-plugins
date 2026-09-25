@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BOOT = ROOT / "bin" / "context_ledger.py"
-CREATOR = Path.home() / ".agents/skills/agent-plugin-creator/scripts/create_agent_plugin.py"
+CREATOR = Path(__file__).resolve().parents[3] / "scripts" / "create_agent_plugin.py"
 FIXTURE = ROOT / "tests" / "scenario_fixture.json"
 
 
@@ -92,7 +92,7 @@ def _evidence(state="reported_verified", ref="doc://example"):
 class PackageTests(unittest.TestCase):
     def test_creator_validate(self) -> None:
         if not CREATOR.is_file():
-            self.skipTest("agent-plugin-creator is not installed on this host")
+            self.skipTest("collection scripts/create_agent_plugin.py missing")
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         command = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["context-ledger"]["command"]
         if ROOT.name != plugin["name"] or Path(command).is_absolute():
@@ -104,18 +104,21 @@ class PackageTests(unittest.TestCase):
         mcp = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))
         server = mcp["mcpServers"]["context-ledger"]
         command = server["command"]
+        launcher = ROOT / "bin" / "context-ledger-mcp"
         if _collection_root() is not None:
-            self.assertEqual(command, "python")
-        elif ".cursor" in ROOT.parts:
-            self.assertTrue(Path(command).is_absolute())
+            self.assertEqual(command, "./bin/context-ledger-mcp")
+            self.assertTrue(launcher.is_file())
+        elif ".cursor" in ROOT.parts and Path(command).is_absolute():
             self.assertTrue(Path(command).is_file())
         else:
-            self.assertIn(command, ("python", "python3"))
+            self.assertIn(command, ("python", "python3", "./bin/context-ledger-mcp"))
+            if command == "./bin/context-ledger-mcp":
+                self.assertTrue(launcher.is_file())
         cwd = server.get("cwd")
-        if ".cursor" in ROOT.parts:
+        if ".cursor" in ROOT.parts and Path(str(cwd)).is_absolute():
             self.assertEqual(cwd, str(ROOT))
         else:
-            self.assertFalse(command.startswith("/"))
+            self.assertFalse(command.startswith("/") and command.count("/") == 1)
             self.assertNotIn(" ", command)
             self.assertNotIn("${", command)
             self.assertIn(cwd, ("${PLUGIN_ROOT}", "./"))
@@ -145,8 +148,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.1")
-        self.assertIn('__version__ = "0.1.1"', init)
+        self.assertEqual(plugin["version"], "0.1.3")
+        self.assertIn('__version__ = "0.1.3"', init)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         for axis in ("Reliability", "Robustness", "Context efficiency", "Speed", "Efficiency"):
@@ -159,6 +162,40 @@ class PackageTests(unittest.TestCase):
 
 
 class LaunchTests(unittest.TestCase):
+    def test_literal_plugin_data_token_expands(self) -> None:
+        """Cursor leaves ${PLUGIN_DATA} unexpanded; default is ~/.context-ledger."""
+        data = Path.home() / ".context-ledger"
+        if not (data / "binding.json").is_file():
+            self.skipTest("default ~/.context-ledger not initialized on this host")
+        env = {**os.environ}
+        env.pop("PLUGIN_DATA", None)
+        proc = subprocess.run(
+            [sys.executable, str(BOOT), "--data", "${PLUGIN_DATA}", "doctor"],
+            cwd=str(ROOT),
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn('"ok":true', proc.stderr)
+
+    def test_default_data_dir_without_plugin_data(self) -> None:
+        env = {**os.environ}
+        env.pop("PLUGIN_DATA", None)
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            env["HOME"] = str(home)
+            # doctor without runtime → UNAVAILABLE, but must create ~/.context-ledger
+            proc = subprocess.run(
+                [sys.executable, str(BOOT), "doctor"],
+                cwd=str(ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(proc.returncode, 2, proc.stderr)
+            self.assertTrue((home / ".context-ledger").is_dir())
+
     def test_missing_runtime_fails_without_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             data = Path(tmp) / "data"

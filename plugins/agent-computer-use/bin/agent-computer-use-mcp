@@ -2,7 +2,7 @@
 set -eu
 
 # Thin MCP facade. Cwd-independent. Cursor may spawn plugin-relative ./bin
-# against the workspace; ~/.cursor/mcp.json must use this absolute launcher.
+# against the workspace; Cursor dest mcp.json must use this absolute launcher.
 export PYTHONUNBUFFERED=1
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
@@ -12,4 +12,16 @@ if [ ! -f "$SCRIPT" ]; then
   exit 127
 fi
 
-exec python3 -u "$SCRIPT"
+PY="${AGENT_COMPUTER_USE_PYTHON:-}"
+if [ -z "$PY" ]; then
+  PY=$(command -v python3 2>/dev/null || true)
+fi
+if [ -z "$PY" ]; then
+  PY=$(command -v python 2>/dev/null || true)
+fi
+if [ -z "$PY" ]; then
+  echo "agent-computer-use: python3 not found on PATH" >&2
+  exit 127
+fi
+
+exec "$PY" -u "$SCRIPT"

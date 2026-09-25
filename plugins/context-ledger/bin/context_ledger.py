@@ -17,6 +17,8 @@ LOCK_PATH = PLUGIN_ROOT / "requirements.lock"
 MIN_PY = (3, 11)
 MAX_PY = (3, 14)
 READY_NAME = ".ready"
+# Cursor leaves ${PLUGIN_DATA} literal; Codex expands it. Unset → fixed home dir.
+DEFAULT_PLUGIN_DATA = Path.home() / ".context-ledger"
 
 
 def _err(code: str, retryable: bool = False) -> int:
@@ -76,16 +78,33 @@ def _parse(argv: list[str]) -> tuple[Path | None, str, list[str]]:
     return data, rest[0], rest[1:]
 
 
+def _expand_plugin_tokens(path: Path) -> Path:
+    """Expand Agent Plugins tokens Cursor may pass through unexpanded."""
+    text = str(path)
+    if "${PLUGIN_ROOT}" in text:
+        text = text.replace("${PLUGIN_ROOT}", str(PLUGIN_ROOT))
+    if "${PLUGIN_DATA}" in text:
+        env = os.environ.get("PLUGIN_DATA")
+        text = text.replace("${PLUGIN_DATA}", env if env else str(DEFAULT_PLUGIN_DATA))
+    return Path(text)
+
+
 def _resolve_data(data: Path | None) -> Path:
     if data is not None:
-        return data
-    env = os.environ.get("PLUGIN_DATA")
-    if not env:
-        raise SystemExit(_err("INVALID_ARGUMENT"))
-    return Path(env)
+        resolved = _expand_plugin_tokens(data)
+    else:
+        env = os.environ.get("PLUGIN_DATA")
+        resolved = Path(env) if env else DEFAULT_PLUGIN_DATA
+    resolved.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(resolved, 0o700)
+    except OSError:
+        pass
+    return resolved
 
 
 def _require_absolute(path: Path) -> Path:
+    path = _expand_plugin_tokens(path)
     if not path.is_absolute():
         raise SystemExit(_err("INVALID_ARGUMENT"))
     return path
@@ -93,9 +112,10 @@ def _require_absolute(path: Path) -> Path:
 
 def _help() -> int:
     sys.stderr.write(
-        "usage: context_ledger.py --data ABSOLUTE_DIR "
+        "usage: context_ledger.py [--data ABSOLUTE_DIR] "
         "setup|init|bind|serve|doctor|export|import|attest|purge|rebuild|migrate|"
         "resume-maintenance|scope-add|ensure-global-triggers ...\n"
+        f"default --data / PLUGIN_DATA: {DEFAULT_PLUGIN_DATA}\n"
     )
     return 0
 

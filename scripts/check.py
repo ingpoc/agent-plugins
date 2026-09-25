@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Repo checks. Pre-commit and CI run this file; do not add a parallel lint list.
 
-Owner of portable package shape: the same rules as agent-plugin-creator --validate.
+Owner of portable package shape: same rules as scripts/create_agent_plugin.py --validate.
 Owner of context-ledger regressions: plugins/context-ledger/tests/test_contract.py.
 """
 
@@ -242,6 +242,8 @@ def check_host_dest() -> list[str]:
     errors: list[str] = []
     dests = [
         Path.home() / ".agents/plugins/context-ledger/mcp.json",
+        Path.home() / ".codex/plugins/cache/personal/context-ledger/0.1.3/mcp.json",
+        Path.home() / ".codex/plugins/cache/personal/context-ledger/0.1.2/mcp.json",
         Path.home() / ".codex/plugins/cache/personal/context-ledger/0.1.1/mcp.json",
     ]
     for dest in dests:

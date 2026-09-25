@@ -24,11 +24,12 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 | Trigger | First hop |
 | --- | --- |
 | Install a plugin | That plugin's `AGENTS.md`. Do not dump steps here. |
-| Create or add a plugin | `$agent-plugin-creator`. Fetch [spec](https://github.com/agentplugins/agent-plugins-spec), [plugin-authors](https://agent-plugins.org/plugin-authors), and [manifest](https://agent-plugins.org/plugin-authors/manifest) first. Land in `plugins/<name>/` with a plugin `AGENTS.md`. Add a row to the Plugins table here. |
+| Create, add, or update a portable plugin (layout, MCP packaging, Cursor dest rewrite, docs) | `workflow summary agent-plugin-routing-sync` → `workflow read agent-plugin-routing-sync --section "Create or Update"`. Fetch [spec](https://github.com/agentplugins/agent-plugins-spec), [plugin-authors](https://agent-plugins.org/plugin-authors), [manifest](https://agent-plugins.org/plugin-authors/manifest); if MCP also [mcp-servers](https://agent-plugins.org/plugin-authors/mcp-servers). Scaffold/validate: `python3 scripts/create_agent_plugin.py` then `python3 scripts/check.py`. Land in `plugins/<name>/` with plugin `AGENTS.md` + `README.md`. Add/update the Plugins table here in the same pass. |
 | Add or rename a plugin | `plugins/<name>/` → update the Plugins table here in the same pass |
 | Change plugin behavior | That plugin's `SKILL.md` and `mcp.json` |
 | Change how this plugin installs | That plugin's `AGENTS.md` |
 | Change published benchmark scores | That plugin's `README.md` |
+| Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That plugin's dest-rewrite (`install_harness.py cursor-plugin` or `scripts/install_cursor_dest.py`); rules in `workflow read agent-plugin-routing-sync --section "Create or Update"` |
 | Checks, CI, pre-commit | `scripts/check.py` |
 | Claim a plugin fix is done | Live-verify the installed client copy (MCP/CLI). Update the standing canvas from that run. `scripts/check.py` is not that proof. |
 
@@ -46,7 +47,7 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 2. Open [compatible-clients](https://agent-plugins.org/compatible-clients). Match the client. Take its setup-instructions link. If the page has no cards (JS shell), read the owner [`lib/compatible-clients.ts`](https://raw.githubusercontent.com/agentplugins/agent-plugins-site/main/lib/compatible-clients.ts) and use that row's `instructionsUrl`.
 3. Prefer the repository catalog for Codex (`.agents/plugins/marketplace.json`), Cursor (`.cursor-plugin/marketplace.json`), or Grok Build (`.grok-plugin/marketplace.json`). All catalogs load **`plugins/<name>/` only** (the directory with `plugin.json`); the collection root is never a plugin.
 4. Read and apply `plugins/<name>/AGENTS.md`.
-5. Verify the client lists the plugin. Fix from the same setup page if it does not.
+5. Verify the client lists the plugin. Fix from the same setup page if it does not. On Cursor: if the plugin is in `.cursor-plugin/marketplace.json` but missing under this marketplace in Customize, remove and re-add (or update) the marketplace so the catalog re-indexes — do not install a parallel local copy as the fix.
 6. Stop only for an OS or store consent the agent cannot complete.
 
 If the client is missing or has no setup link, say so and stop.
@@ -55,4 +56,5 @@ If the client is missing or has no setup link, say so and stop.
 
 - One portable package per `plugins/<name>/`. Shape comes from the live spec, not this file.
 - Adding a plugin without a Plugins row, `plugins/<name>/AGENTS.md`, and `plugins/<name>/README.md` is incomplete.
+- Source `mcp.json` stays portable (`./bin/…-mcp`). Cursor absolute launchers are dest-only. See `agent-plugin-routing-sync`.
 - This repo is public. No personal case data.

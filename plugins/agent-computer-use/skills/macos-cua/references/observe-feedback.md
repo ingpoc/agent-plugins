@@ -40,7 +40,7 @@ title, stop — do not mutate another document.
 
 ## Install roots
 
-`plugin.json` version **0.2.18**. Live copies:
+`plugin.json` version **0.2.19**. Live copies:
 
 - `~/.agents/plugins/agent-computer-use`
 - Codex: `~/.codex/plugins/cache/personal/agent-computer-use/local`

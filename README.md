@@ -18,8 +18,18 @@ plugins/comet-control/
 ├── plugin.json
 ├── skills/comet-control/
 └── plugin/comet_control/
+plugins/context-ledger/
+├── AGENTS.md
+├── README.md
+├── plugin.json
+├── mcp.json
+├── skills/context-ledger/
+├── context_ledger/
+└── bin/
 ```
+
+Catalog: `.cursor-plugin/marketplace.json` (and the Codex/Grok twins) lists all three. Cursor clients that already added this marketplace only show previously **Added** plugins until the marketplace is removed and re-added (or updated) so the catalog re-indexes — a new row in `marketplace.json` alone is not enough.
 
 ## Add another plugin
 
-Use `$agent-plugin-creator`. It writes `plugins/<name>/` (including that plugin's `AGENTS.md`) and a row in the root Plugins table. Do not add `.cursor-plugin/` or `.codex-plugin/` manifests.
+Use `workflow summary agent-plugin-routing-sync` then `python3 scripts/create_agent_plugin.py <name> --skill <skill> --description "…"` (optional `--with-mcp`). It writes `plugins/<name>/` (including that plugin's `AGENTS.md`) and a row in the root Plugins table. Do not add `.cursor-plugin/` or `.codex-plugin/` manifests. After the catalog changes, refresh the Cursor marketplace (remove/re-add or update) before claiming the new plugin appears under Ingpoc with **Add**.

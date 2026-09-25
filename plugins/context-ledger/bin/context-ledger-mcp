@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+# Thin MCP facade. Cwd-independent (Cursor may spawn with the wrong cwd).
+# Portable source mcp.json uses ./bin/context-ledger-mcp; Cursor dest rewrites
+# command to this absolute launcher (same pattern as agent-computer-use).
+export PYTHONUNBUFFERED=1
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SCRIPT="$ROOT/bin/context_ledger.py"
+if [ ! -f "$SCRIPT" ]; then
+  echo "context-ledger: bootstrap missing at $SCRIPT" >&2
+  exit 127
+fi
+
+PY="${CONTEXT_LEDGER_PYTHON:-}"
+if [ -z "$PY" ]; then
+  PY=$(command -v python3 2>/dev/null || true)
+fi
+if [ -z "$PY" ]; then
+  PY=$(command -v python 2>/dev/null || true)
+fi
+if [ -z "$PY" ]; then
+  echo '{"ok":false,"error":{"code":"PYTHON_MISSING","retryable":false}}' >&2
+  exit 127
+fi
+
+exec "$PY" -u "$SCRIPT" "$@"

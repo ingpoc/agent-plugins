@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## Install notes
+
+When `PLUGIN_DATA` / `--data` is unset (Cursor often leaves `${PLUGIN_DATA}` literal), data defaults to `~/.context-ledger/` (`0700`). Cursor dest rewrite: `python3 scripts/install_cursor_dest.py` (absolute launcher + absolute `--data`; source `mcp.json` stays portable). Full steps: [`AGENTS.md`](AGENTS.md).
+
 ## Benchmarks
 
 Scale 0–10 unless noted. Context efficiency maps to the rating key `token_efficiency`. Source: unmeasured.

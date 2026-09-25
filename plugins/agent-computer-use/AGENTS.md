@@ -4,7 +4,7 @@ This directory is the portable [Agent Plugin](https://agent-plugins.org/specific
 
 ## After the client has loaded this package
 
-1. If Cursor: `python3 skills/macos-cua/scripts/install_harness.py cursor-plugin` from this directory. Dest `mcp.json` `command` must be the absolute dest launcher.
+1. If Cursor: `python3 skills/macos-cua/scripts/install_harness.py cursor-plugin` from this directory (rewrites **local + marketplace cache** `mcp.json` to the absolute dest launcher; `cwd` stays `./`). After marketplace re-Add/refresh, re-run or use `--rewrite-only`. Optional override: `AGENT_COMPUTER_USE_PYTHON`. Source `mcp.json` stays `./bin/agent-computer-use-mcp`.
 2. `python3 skills/macos-cua/service/install_service.py` builds the packaged `runtime/voice-cua/` helper, nests and signs it inside CUAService, then installs the app. No sibling Voice CUA checkout is required.
 3. Grant **Accessibility** and **Screen Recording** to **macos-cua Service** / **CUAService**. Relaunch the service after Screen Recording.
 4. Client lists `agent-computer-use` tools **`state`** and **`act`** only.
