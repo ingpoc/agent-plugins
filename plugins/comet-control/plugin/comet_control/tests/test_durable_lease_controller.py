@@ -277,6 +277,28 @@ class DurableLeaseControllerSequencingTests(unittest.TestCase):
             self.assertTrue(on_disk["result"]["response"]["verified_absent"])
             self.assertEqual(on_disk["result"]["event"], "closeout")
 
+    def test_closeout_reaps_lease_browser_use_daemons_without_failing_closeout(self) -> None:
+        import io
+        from contextlib import redirect_stdout
+        from types import SimpleNamespace
+        mod = _load_controller()
+        mod._session_absence_proof = lambda _s, _i: {"verified_absent": True, "matching_session_count": 0}
+        for reaper, expect in (
+            (lambda w: {"verified_absent": True, "bu_name": "comet-x", "killed": [11]}, True),
+            (lambda w: (_ for _ in ()).throw(RuntimeError("ps hung")), False),
+        ):
+            with tempfile.TemporaryDirectory(prefix="comet-closeout-reap-") as tmp:
+                work = Path(tmp)
+                (work / "ready.json").write_text(json.dumps({"session_id": "s", "socket_path": "/unused"}))
+                (work / "browser-use.env").write_text("export BU_NAME=comet-x\n")
+                mod._load_settle_preflight = lambda r=reaper: SimpleNamespace(close_lease_daemons=r)
+                out = io.StringIO()
+                with redirect_stdout(out):
+                    rc = mod.cmd_closeout(SimpleNamespace(workdir=str(work), timeout=5.0))
+                payload = json.loads(out.getvalue())
+                self.assertEqual(rc, 0)  # a daemon reap problem never fails the lease closeout
+                self.assertEqual(payload["response"]["browser_use_daemons"]["verified_absent"], expect)
+
     def test_start_repairs_alive_when_run_pid_still_live(self) -> None:
         """A second start must not spawn; it restores heartbeat and returns ok."""
         import argparse

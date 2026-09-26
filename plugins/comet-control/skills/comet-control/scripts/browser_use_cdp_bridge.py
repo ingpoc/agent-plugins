@@ -14,6 +14,7 @@ from typing import Any, Callable
 from urllib.parse import urlsplit
 
 from websockets.exceptions import ConnectionClosed
+from websockets.protocol import State
 from websockets.sync.server import ServerConnection, serve
 
 
@@ -214,7 +215,15 @@ class BrowserUseCDPBridge:
             websocket.close(code=1008, reason="invalid bridge capability")
             return
         with self._client_lock:
-            if self._client_active:
+            previous = self._active_websocket
+            # A killed client's socket is CLOSED as soon as the peer drops, but
+            # its handler frees the slot only after the in-flight serialized
+            # call returns (up to the lease timeout). Hand the slot over then,
+            # so a respawned Browser Use daemon never collides with a dead one.
+            if self._client_active and not (
+                previous is not None
+                and previous.state in (State.CLOSING, State.CLOSED)
+            ):
                 websocket.close(
                     code=1008, reason="lease already has a Browser Use client"
                 )
@@ -276,10 +285,16 @@ class BrowserUseCDPBridge:
             stop.set()
             if event_thread is not None and event_thread.is_alive():
                 event_thread.join(timeout=2)
-            try:
-                self.hide_cursor()
-            except Exception:
-                pass
             with self._client_lock:
-                self._client_active = False
-                self._active_websocket = None
+                owner = self._active_websocket is websocket
+            if owner:
+                try:
+                    self.hide_cursor()
+                except Exception:
+                    pass
+            with self._client_lock:
+                # A successor may have taken the slot while this handler was
+                # blocked; never clear its ownership.
+                if self._active_websocket is websocket:
+                    self._client_active = False
+                    self._active_websocket = None

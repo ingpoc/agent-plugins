@@ -196,15 +196,17 @@ def _repair_heartbeat(
     return existing
 
 
-def _session_absence_proof(socket_path: str, session_id: str) -> dict[str, object]:
+def _session_inventory(socket_path: str, session_id: str | None = None) -> list[dict]:
+    """Authoritative broker session list (every lease on this Comet). Raises if unavailable."""
+    request: dict[str, object] = {"type": "sessions", "timeoutSeconds": 5}
+    if session_id:
+        request["sessionId"] = session_id
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client.settimeout(8)
     try:
         client.connect(socket_path)
         client.sendall(
-            json.dumps(
-                {"type": "sessions", "sessionId": session_id, "timeoutSeconds": 5}
-            ).encode()
+            json.dumps(request).encode()
         )
         try:
             client.shutdown(socket.SHUT_WR)
@@ -222,6 +224,11 @@ def _session_absence_proof(socket_path: str, session_id: str) -> dict[str, objec
     sessions = payload.get("sessions")
     if payload.get("success") is not True or not isinstance(sessions, list):
         raise RuntimeError(str(payload.get("error") or "session inventory unavailable"))
+    return sessions
+
+
+def _session_absence_proof(socket_path: str, session_id: str) -> dict[str, object]:
+    sessions = _session_inventory(socket_path, session_id)
     matches = [item for item in sessions if item.get("session_id") == session_id]
     return {
         "verified_absent": not matches,
@@ -229,10 +236,39 @@ def _session_absence_proof(socket_path: str, session_id: str) -> dict[str, objec
     }
 
 
+def _load_settle_preflight():
+    import importlib.util
+
+    path = Path(__file__).resolve().with_name("settle_preflight.py")
+    spec = importlib.util.spec_from_file_location("settle_preflight", path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _reap_browser_use_daemons(workdir: Path) -> dict | None:
+    """Closeout: kill this lease's browser_harness daemons. They run setsid'd and idle forever
+    after the lease bridge is gone (2026-09-26: 14 leftovers in one day). Never fails closeout;
+    the result is reported as response.browser_use_daemons."""
+    if not (workdir / "browser-use.env").is_file():
+        return None
+    try:
+        return _load_settle_preflight().close_lease_daemons(workdir)
+    except SystemExit as exc:  # settle_preflight.GateFail carries a payload
+        detail = getattr(exc, "payload", None) or {"reason": str(exc)}
+        return {"verified_absent": False, **detail}
+    except Exception as exc:
+        return {"verified_absent": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
+
+
 def _attach_absence_proof(paths: dict[str, Path], payload: dict) -> tuple[dict, bool]:
     response = payload.get("response")
     if payload.get("event") != "closeout" or not isinstance(response, dict):
         return payload, False
+    reaped = _reap_browser_use_daemons(paths["workdir"])
+    if reaped is not None:
+        response["browser_use_daemons"] = reaped
     try:
         ready = json.loads(paths["ready"].read_text())
         session_id = ready["session_id"]

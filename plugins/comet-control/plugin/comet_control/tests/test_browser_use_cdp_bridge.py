@@ -87,6 +87,62 @@ class BrowserUseCDPBridgeTests(unittest.TestCase):
             bridge.stop()
             self.assertIn({"type": "hidden"}, actions)
 
+    def test_dead_client_slot_is_handed_over_while_its_call_is_in_flight(self):
+        """2026-09-26 d620efc3: a killed daemon's handler held the slot until its
+        blocked serialized call returned, so the respawn got 1008."""
+        import time
+        from websockets.exceptions import ConnectionClosed
+
+        module = load_bridge()
+        release = threading.Event()
+        entered = threading.Event()
+        hidden: list[int] = []
+
+        def run_action(action: dict) -> dict:
+            if action["type"] == "cdp_events":
+                return {"cursor": 0, "events": [], "has_more": False}
+            if action.get("method") == "Runtime.evaluate" and not release.is_set():
+                entered.set()
+                release.wait(10)
+            return {"method": action.get("method", "")}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            env_file = Path(tmp) / "browser-use.env"
+            bridge = module.BrowserUseCDPBridge(
+                "session-slot", run_action, lambda: {"url": "u", "title": "t"},
+                lambda: hidden.append(1),
+            )
+            bridge.start(env_file)
+            ws_url = env_file.read_text().split("BU_CDP_WS=", 1)[1].splitlines()[0]
+            ws_url = ws_url.strip("'")
+            first = connect(ws_url)
+            first.send(json.dumps({"id": 1, "method": "Runtime.evaluate", "params": {"expression": "1"},
+                                   "sessionId": bridge.session_id}))
+            self.assertTrue(entered.wait(5))
+            # A second live client is still refused.
+            with connect(ws_url) as rival:
+                with self.assertRaises(ConnectionClosed) as ctx:
+                    rival.recv(timeout=5)
+                self.assertIn("already has a Browser Use client", str(ctx.exception))
+            # Kill the first client abruptly (like SIGTERM on the daemon).
+            first.socket.close()
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and bridge._active_websocket.state.name not in ("CLOSING", "CLOSED"):
+                time.sleep(0.05)
+            with connect(ws_url) as second:
+                second.send(json.dumps({"id": 7, "method": "Target.getTargets"}))
+                self.assertEqual(json.loads(second.recv(timeout=5))["id"], 7)
+                release.set()
+                time.sleep(0.5)  # old handler finishes; must not clear the new owner
+                self.assertTrue(bridge._client_active)
+                second.send(json.dumps({"id": 8, "method": "Target.getTargets"}))
+                self.assertEqual(json.loads(second.recv(timeout=5))["id"], 8)
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline and bridge._client_active:
+                time.sleep(0.05)
+            self.assertFalse(bridge._client_active)
+            bridge.stop()
+
     def test_destructive_page_commands_cannot_bypass_closeout(self):
         module = load_bridge()
         bridge = object.__new__(module.BrowserUseCDPBridge)
