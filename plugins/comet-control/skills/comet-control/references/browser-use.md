@@ -47,12 +47,19 @@ reload, run the settle gate on the same lease:
 
 ```bash
 python3 skills/comet-control/scripts/settle_preflight.py --work "$WORK" \
-  --timeout 60 --expect-url linkedin.com --lock <browser-use lock>
+  --timeout 75 --expect-url linkedin.com --lock <browser-use lock>
 ```
 
 It reaps this lease's stray Browser Use daemons, clears stale sockets, and proves
-`js('1+1') == 2` on the expected tab. The 60 s budget matches the harness's own
-daemon startup window. Exit 3 (gate `li_settle_preflight`) fails closed and
+`js('1+1') == 2` on the expected tab. `--timeout` is one overall deadline for
+discovery, kill, slot wait, probe, and an 8 s cleanup reserve; 75 s leaves the probe
+about the harness's 60 s daemon startup window. Slow process discovery fails as
+`discovery_slow`. After every miss it kills this lease's daemons (the harness daemon
+runs in its own session, so it is found by `BU_NAME`, not by process group) and
+re-scans to prove they are gone; a failed or unverified reap is `stage: cleanup`,
+`cause: cleanup_failed` (with `probe_cause`) and is never retried. If a caller kills
+the script mid-probe, run it again with `--reap-only`: it kills the probe group
+recorded in `$WORK/settle-probe.pid` and the lease's daemons, then verifies. Exit 3 (gate `li_settle_preflight`) fails closed and
 carries `cause`, `attempts`, and `timings`. Escalate on the same lease; never
 remint or rerun it by hand. The gate itself retries only `slot_busy` (1008
 "lease already has a Browser Use client") with a 1/2/4 s backoff, and it reaps
@@ -61,7 +68,8 @@ daemons after every miss so none keeps the bridge slot. Causes: `slot_busy`,
 `probe_slow`, `attach_slow`, `spawn_slow`. Each run appends a timing line to
 `$WORK/settle-preflight.jsonl`, and daemon logs are copied to
 `$WORK/settle-daemon-*.log` before a kill, because the daemon truncates its log
-on every spawn. The bridge hands its slot to a new client once the previous
+on every spawn. Tails, log copies, and the jsonl are redacted (`BU_CDP_WS`, ws/wss
+URLs, `token=`/`key=` values). The bridge hands its slot to a new client once the previous
 client's socket has closed, even while that client's last call is still in flight.
 Browser Harness `cdp()`/`goto_url()` default to a 5 s IPC
 timeout; for heavy navigations use

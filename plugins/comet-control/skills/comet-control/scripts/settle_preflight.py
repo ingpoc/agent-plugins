@@ -28,6 +28,13 @@ bridge frees its slot only after the dead client's in-flight call returns, so a
 respawn right after a kill can get 1008 "lease already has a Browser Use client".
 Every run appends one JSON line (no secrets) to ``<work>/settle-preflight.jsonl``.
 
+One overall deadline (``--timeout``, default 75 s) covers discovery, kill, slot wait, the
+probe (about the harness's 60 s window) and a cleanup reserve; slow discovery fails as
+``discovery_slow`` and a failed or unverified reap as ``cleanup_failed`` (never retried).
+The probe pid is written to ``<work>/settle-probe.pid`` so ``--reap-only`` can clean up
+after a caller killed this script mid-probe. Log tails, daemon-log copies and the jsonl
+are redacted (BU_CDP_WS, ws/wss URLs, token=/key= values).
+
 2026-09-26 (lease d620efc3): the first probe ran past 30 s (cause cdp_slow/unknown;
 the daemon log was truncated by the next spawn), its subprocess timeout left the
 detached daemon holding the slot, and the next preflight's respawn got 1008.
@@ -36,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import functools
 import json
 import os
 import re
@@ -47,7 +55,10 @@ import time
 from pathlib import Path
 
 GATE = "li_settle_preflight"
-DEFAULT_TIMEOUT_S = 60.0          # browser-harness remote daemon startup window
+DEFAULT_TIMEOUT_S = 75.0          # whole run; leaves the probe ~the harness 60 s startup window
+CLEANUP_RESERVE_S = 8.0           # held back inside the deadline for reap + verify
+DISCOVERY_CAP_S = 10.0            # per ps / env lookup
+PROBE_PID_FILE = "settle-probe.pid"
 SLOT_WAIT_S = 3.0                 # after killing a live client: bridge join (<=2 s) + hide_cursor
 SLOT_BUSY_BACKOFF_S = (1.0, 2.0, 4.0)
 SLOT_BUSY_RE = re.compile(r"lease already has a Browser Use client")
@@ -59,6 +70,36 @@ PROBE_PROGRAM = (
     "print('SETTLE ' + json.dumps({'js': value, 'url': info.get('url'), "
     "'title': info.get('title'), 'dialog': info.get('dialog')}))\n"
 )
+
+
+_SECRETS: set[str] = set()
+WS_URL_RE = re.compile(r"\b(wss?)://[^\s\"'<>]+")
+TOKEN_RE = re.compile(r"(?i)\b(token|access_token|key|api_key|secret|password|auth)=([^&\s\"'<>]+)")
+
+
+def redact(text: str) -> str:
+    """Mask BU_CDP_WS (and any registered secret), ws/wss URLs and token=/key= style values."""
+    if not text:
+        return text
+    for s in sorted(_SECRETS, key=len, reverse=True):
+        if s:
+            text = text.replace(s, "[redacted]")
+    text = WS_URL_RE.sub(lambda m: m.group(1) + "://[redacted]", text)
+    return TOKEN_RE.sub(lambda m: m.group(1) + "=[redacted]", text)
+
+
+def scrub(obj):
+    if isinstance(obj, str):
+        return redact(obj)
+    if isinstance(obj, list):
+        return [scrub(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: scrub(v) for k, v in obj.items()}
+    return obj
+
+
+class Exhausted(Exception):
+    """The overall deadline ran out during a process scan."""
 
 
 class GateFail(SystemExit):
@@ -85,6 +126,7 @@ def read_lease_env(work: Path) -> dict[str, str]:
         env[key.strip()] = parts[0] if parts else ""
     if not env.get("BU_NAME") or not env.get("BU_CDP_WS"):
         raise GateFail("lease_env", "browser-use.env lacks BU_NAME or BU_CDP_WS")
+    _SECRETS.add(env["BU_CDP_WS"])
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", env["BU_NAME"]):
         raise GateFail("lease_env", "BU_NAME has unexpected characters")
     return env
@@ -135,8 +177,8 @@ def pid_alive(pid: int | None) -> bool:
     return True
 
 
-def list_processes() -> list[tuple[int, str]]:
-    out = subprocess.run(["ps", "-axww", "-o", "pid=,command="], capture_output=True, text=True, timeout=10).stdout
+def list_processes(timeout: float = DISCOVERY_CAP_S) -> list[tuple[int, str]]:
+    out = subprocess.run(["ps", "-axww", "-o", "pid=,command="], capture_output=True, text=True, timeout=timeout).stdout
     rows = []
     for line in out.splitlines():
         pid, _, cmd = line.strip().partition(" ")
@@ -145,7 +187,7 @@ def list_processes() -> list[tuple[int, str]]:
     return rows
 
 
-def process_env_has(pid: int, key: str, value: str) -> bool:
+def process_env_has(pid: int, key: str, value: str, timeout: float = DISCOVERY_CAP_S) -> bool:
     """True iff the process environment carries key=value (same-user processes)."""
     proc_env = Path(f"/proc/{pid}/environ")
     if proc_env.exists():
@@ -154,18 +196,38 @@ def process_env_has(pid: int, key: str, value: str) -> bool:
         except OSError:
             return False
     out = subprocess.run(["ps", "-E", "-ww", "-o", "command=", "-p", str(pid)],
-                         capture_output=True, text=True, timeout=10).stdout
+                         capture_output=True, text=True, timeout=timeout).stdout
     return re.search(rf"(?:^|\s){re.escape(key)}={re.escape(value)}(?:\s|$)", out) is not None
 
 
-def lease_daemons(name: str, pidfile_pid: int | None, procs=None, env_has=process_env_has) -> list[int]:
-    procs = list_processes() if procs is None else procs
-    hits = []
-    for pid, cmd in procs:
-        if not DAEMON_RE.search(cmd):
-            continue
-        if pid == pidfile_pid or env_has(pid, "BU_NAME", name):
-            hits.append(pid)
+def _slice(deadline: float | None) -> float:
+    if deadline is None:
+        return DISCOVERY_CAP_S
+    left = deadline - time.monotonic()
+    if left < 0.5:
+        raise Exhausted(f"deadline passed ({left:.1f}s left)")
+    return min(DISCOVERY_CAP_S, left)
+
+
+def lease_daemons(name: str, pidfile_pid: int | None, procs=None, env_has=process_env_has,
+                  deadline: float | None = None, lister=None) -> list[int]:
+    """Every browser_harness daemon for this lease. With a deadline, each ps / env lookup gets
+    min(10 s, time left) and running out raises Exhausted (TimeoutExpired is mapped too)."""
+    try:
+        if procs is None:
+            procs = (lister or list_processes)(_slice(deadline))
+        hits = []
+        for pid, cmd in procs:
+            if not DAEMON_RE.search(cmd):
+                continue
+            if pid == pidfile_pid:
+                hits.append(pid)
+            elif deadline is None and env_has(pid, "BU_NAME", name):
+                hits.append(pid)
+            elif deadline is not None and env_has(pid, "BU_NAME", name, timeout=_slice(deadline)):
+                hits.append(pid)
+    except subprocess.TimeoutExpired as exc:
+        raise Exhausted(f"process scan timed out: {exc}") from exc
     return sorted(set(hits))
 
 
@@ -240,7 +302,7 @@ def keep_daemon_log(log: Path, work: Path, tag: str) -> str:
         return ""
     dest = work / f"settle-daemon-{tag}.log"
     try:
-        dest.write_text(text)
+        dest.write_text(redact(text))
     except OSError:
         return ""
     return str(dest)
@@ -261,10 +323,17 @@ def classify(out: str, log_tail: str, timed_out: bool) -> str:
     return "unknown"
 
 
-def run_probe(cmd: list[str], env: dict[str, str], timeout: float) -> tuple[int | None, str]:
-    """Run the probe in its own process group; on timeout kill the whole group."""
+def run_probe(cmd: list[str], env: dict[str, str], timeout: float,
+              pid_path: Path | None = None) -> tuple[int | None, str]:
+    """Run the probe in its own process group; on timeout kill the whole group. The group id is
+    recorded in pid_path while it runs so --reap-only can kill it if this script is killed."""
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             text=True, env=env, cwd=str(Path.home()), start_new_session=True)
+    if pid_path is not None:
+        try:
+            pid_path.write_text(json.dumps({"pgid": proc.pid, "cmd": Path(cmd[0]).name}))
+        except OSError:
+            pass
     try:
         out, _ = proc.communicate(PROBE_PROGRAM, timeout=timeout)
         return proc.returncode, out or ""
@@ -278,6 +347,12 @@ def run_probe(cmd: list[str], env: dict[str, str], timeout: float) -> tuple[int 
         except subprocess.TimeoutExpired:
             out = ""
         return None, out or ""
+    finally:
+        if pid_path is not None:
+            try:
+                pid_path.unlink()
+            except OSError:
+                pass
 
 
 def respawn_and_prove(lease_env: dict[str, str], timeout: float, expect_url: str, *,
@@ -289,6 +364,15 @@ def respawn_and_prove(lease_env: dict[str, str], timeout: float, expect_url: str
     log = daemon_log_path(lease_env["BU_NAME"], env)
     started = time.monotonic()
     attempts: list[dict] = []
+
+    def reap_or_fail(probe_cause: str, **ctx) -> list[int]:
+        # Cleanup failure is its own classified GateFail and is never retried.
+        try:
+            return reap()
+        except GateFail as cf:
+            cf.payload.update(probe_cause=probe_cause, attempts=attempts, **ctx)
+            raise
+
     while True:
         remaining = timeout - (time.monotonic() - started)
         if remaining < 1:
@@ -302,7 +386,8 @@ def respawn_and_prove(lease_env: dict[str, str], timeout: float, expect_url: str
                 proof = parse_probe(out, expect_url)
             except GateFail as fail:
                 attempts.append({"s": spent, "rc": 0, "cause": "bad_proof"})
-                fail.payload.update(cause="bad_proof", attempts=attempts, reaped=reap())
+                reaped = reap_or_fail("bad_proof", tail=out[-600:])
+                fail.payload.update(cause="bad_proof", attempts=attempts, reaped=reaped)
                 raise
             attempts.append({"s": spent, "rc": 0, "cause": "ok"})
             proof["seconds"] = round(time.monotonic() - started, 2)
@@ -312,7 +397,7 @@ def respawn_and_prove(lease_env: dict[str, str], timeout: float, expect_url: str
         cause = classify(out, log_tail, rc is None)
         attempts.append({"s": spent, "rc": rc, "cause": cause})
         kept = keep_daemon_log(log, work, f"a{len(attempts)}") if work else ""
-        reaped = reap()
+        reaped = reap_or_fail(cause, tail=out[-600:], daemon_log=log_tail, daemon_log_copy=kept)
         n_busy = sum(1 for a in attempts if a["cause"] == "slot_busy")
         if cause == "slot_busy" and n_busy <= len(SLOT_BUSY_BACKOFF_S):
             left = timeout - (time.monotonic() - started)
@@ -339,36 +424,104 @@ def hold_lock(path: str | None):
 def append_timings(work: Path, record: dict) -> None:
     try:
         with (work / "settle-preflight.jsonl").open("a") as fh:
-            fh.write(json.dumps(record) + "\n")
+            fh.write(json.dumps(scrub(record)) + "\n")
     except OSError:
         pass
 
 
-def run(work: Path, timeout: float, expect_url: str, dry_run: bool, lock: str | None) -> dict:
-    t_start = time.monotonic()
+def cleanup_fail(reason: str, **extra) -> GateFail:
+    return GateFail("cleanup", reason, cause="cleanup_failed", **extra)
+
+
+def reap_lease(name: str, pid_file: Path, deadline: float, lister=None) -> list[int]:
+    """Kill every daemon for this lease, then re-scan to prove none is left. The harness daemon
+    runs in its own session, so the probe's killpg never reaches it; the BU_NAME scan does."""
+    try:
+        pids = lease_daemons(name, pid_from_file(pid_file), deadline=deadline, lister=lister)
+        killed = kill_all(pids) if pids else []
+        left = lease_daemons(name, pid_from_file(pid_file), deadline=deadline, lister=lister)
+    except GateFail as exc:  # kill_all: survived SIGKILL
+        raise cleanup_fail("lease daemon survived cleanup", survivors=exc.payload.get("survivors"),
+                           detail=exc.payload.get("reason")) from None
+    except (Exhausted, OSError, subprocess.SubprocessError) as exc:
+        raise cleanup_fail("cleanup could not finish", detail=f"{type(exc).__name__}: {exc}"[:300]) from None
+    if left:
+        raise cleanup_fail("lease daemon still present after kill", survivors=left, killed=killed)
+    return killed
+
+
+def reap_only(work: Path, budget: float = 15.0) -> dict:
+    """After a caller killed this script mid-probe: kill the recorded probe group and every
+    BU_NAME daemon, verify, report. A reused pid that is not our probe is never signalled."""
+    deadline = time.monotonic() + budget
     lease_env = read_lease_env(work)
     name = lease_env["BU_NAME"]
-    pid_file, sock_file = runtime_files(name, {**os.environ, **lease_env})
-    pidfile_pid = pid_from_file(pid_file)
-    daemons = lease_daemons(name, pidfile_pid)
-    plan = {"bu_name": name, "pid_file": str(pid_file), "sock_file": str(sock_file),
-            "pidfile_pid": pidfile_pid, "pidfile_pid_alive": pid_alive(pidfile_pid), "daemons": daemons}
-    if dry_run:
-        return {"ok": True, "gate": GATE, "dry_run": True, **plan}
+    pid_file, _ = runtime_files(name, {**os.environ, **lease_env})
+    pf = work / PROBE_PID_FILE
+    probe = {"recorded": False, "killed": False}
+    try:
+        rec = json.loads(pf.read_text())
+        pgid = int(rec["pgid"])
+        probe["recorded"] = True
+    except (OSError, ValueError, KeyError, TypeError):
+        pgid = 0
+    if pgid > 0:
+        try:
+            os.killpg(pgid, 0)
+            group_alive = True
+        except (ProcessLookupError, PermissionError):
+            group_alive = False
+        ours = group_alive
+        if group_alive and pid_alive(pgid):  # leader still up: confirm it is our probe command
+            cmdline = dict(list_processes(_slice(deadline))).get(pgid, "")
+            ours = any(tok and tok in cmdline for tok in (rec.get("cmd"), "browser-use", "browser_use"))
+            probe["cmd_matched"] = ours
+        if ours:
+            try:
+                os.killpg(pgid, signal.SIGKILL)
+                probe["killed"] = True
+            except (ProcessLookupError, PermissionError):
+                pass
+    killed = reap_lease(name, pid_file, deadline)
+    try:
+        pf.unlink()
+    except OSError:
+        pass
+    result = {"ok": True, "gate": GATE, "reap_only": True, "bu_name": name, "probe": probe, "killed": killed}
+    append_timings(work, {"t": time.strftime("%Y-%m-%dT%H:%M:%S%z"), **result})
+    return result
+
+
+def run(work: Path, timeout: float, expect_url: str, dry_run: bool, lock: str | None) -> dict:
+    t_start = time.monotonic()
+    deadline = t_start + timeout                 # one overall budget for the whole preflight
+    work_deadline = deadline - CLEANUP_RESERVE_S  # discovery/kill/probe stop here; cleanup keeps the rest
     timings: dict[str, float] = {}
 
     def lap(key: str, t0: float) -> None:
         timings[key] = round(time.monotonic() - t0, 2)
 
-    def reap() -> list[int]:
-        try:
-            pids = lease_daemons(name, pid_from_file(pid_file))
-            return kill_all(pids) if pids else []
-        except (GateFail, OSError, subprocess.SubprocessError):
-            return []
-
     fd = None
     try:
+        lease_env = read_lease_env(work)
+        name = lease_env["BU_NAME"]
+        pid_file, sock_file = runtime_files(name, {**os.environ, **lease_env})
+        pidfile_pid = pid_from_file(pid_file)
+        t0 = time.monotonic()
+        try:
+            daemons = lease_daemons(name, pidfile_pid, deadline=work_deadline)
+        except Exhausted as exc:
+            raise GateFail("discovery", f"process discovery ran out of the {timeout:g}s budget",
+                           cause="discovery_slow", detail=str(exc)[:300]) from None
+        lap("discovery_s", t0)
+        plan = {"bu_name": name, "pid_file": str(pid_file), "sock_file": str(sock_file),
+                "pidfile_pid": pidfile_pid, "pidfile_pid_alive": pid_alive(pidfile_pid), "daemons": daemons}
+        if dry_run:
+            return {"ok": True, "gate": GATE, "dry_run": True, **plan}
+
+        def reap() -> list[int]:
+            return reap_lease(name, pid_file, deadline)
+
         t0 = time.monotonic()
         fd = hold_lock(lock)
         lap("lock_s", t0)
@@ -392,15 +545,21 @@ def run(work: Path, timeout: float, expect_url: str, dry_run: bool, lock: str | 
             t0 = time.monotonic()
             time.sleep(SLOT_WAIT_S)
             lap("slot_wait_s", t0)
+        budget = work_deadline - time.monotonic()
+        if budget < 1:
+            raise GateFail("prove", f"no probe budget left inside {timeout:g}s", cause="budget")
+        timings["probe_budget_s"] = round(budget, 2)
         t0 = time.monotonic()
         try:
-            proof = respawn_and_prove(lease_env, timeout, expect_url, reap=reap, work=work)
+            proof = respawn_and_prove(lease_env, budget, expect_url, reap=reap, work=work,
+                                      probe=functools.partial(run_probe, pid_path=work / PROBE_PID_FILE))
         finally:
             lap("prove_s", t0)
     except GateFail as fail:
         timings["total_s"] = round(time.monotonic() - t_start, 2)
         fail.payload["timings"] = timings
-        append_timings(work, {"t": time.strftime("%Y-%m-%dT%H:%M:%S%z"), **fail.payload})
+        if not dry_run:
+            append_timings(work, {"t": time.strftime("%Y-%m-%dT%H:%M:%S%z"), **fail.payload})
         raise
     finally:
         if fd is not None:
@@ -419,21 +578,26 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--work", default=os.environ.get("SMM_COMET_WORK") or os.environ.get("COMET_WORK"),
                    help="lease workdir containing browser-use.env")
     p.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_S,
-                   help="respawn + js/page_info proof budget (s); default matches the harness 60 s startup window")
+                   help="overall budget (s): discovery + kill + probe + cleanup reserve; default 75 leaves ~60 s probe")
     p.add_argument("--expect-url", default="", help="substring page_info().url must contain, e.g. linkedin.com")
     p.add_argument("--lock", default=os.environ.get("SMM_BROWSER_USE_LOCK"),
                    help="controller flock to hold while settling (default $SMM_BROWSER_USE_LOCK)")
     p.add_argument("--dry-run", action="store_true", help="report daemons/runtime files; kill nothing")
+    p.add_argument("--reap-only", action="store_true",
+                   help="kill the recorded probe group + this lease's daemons, verify, exit (after a caller timeout)")
     args = p.parse_args(argv)
     if not args.work:
         print(json.dumps({"ok": False, "gate": GATE, "stage": "args", "reason": "--work or SMM_COMET_WORK required"}))
         return 2
     try:
-        result = run(Path(args.work).expanduser(), args.timeout, args.expect_url, args.dry_run, args.lock)
+        if args.reap_only:
+            result = reap_only(Path(args.work).expanduser())
+        else:
+            result = run(Path(args.work).expanduser(), args.timeout, args.expect_url, args.dry_run, args.lock)
     except GateFail as fail:
-        print(json.dumps(fail.payload))
+        print(json.dumps(scrub(fail.payload)))
         return 3
-    print(json.dumps(result))
+    print(json.dumps(scrub(result)))
     return 0
 
 
