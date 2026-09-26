@@ -507,7 +507,7 @@ def main() -> int:
         if args.browser_use_env_file:
             from browser_use_cdp_bridge import BrowserUseCDPBridge
 
-            def browser_use_action(action: dict[str, Any]) -> dict[str, Any]:
+            def browser_use_run(action: dict[str, Any]) -> dict[str, Any]:
                 result = serialized_bridge(
                     {
                         "type": "run",
@@ -523,6 +523,10 @@ def main() -> int:
                     raise RuntimeError(
                         str(result.get("error") or "Browser Use CDP action failed")
                     )
+                return result
+
+            def browser_use_action(action: dict[str, Any]) -> dict[str, Any]:
+                result = browser_use_run(action)
                 items = result.get("results") or []
                 if len(items) != 1 or not isinstance(items[0], dict):
                     raise RuntimeError(
@@ -536,7 +540,16 @@ def main() -> int:
                 )
 
             def browser_use_page_info() -> dict[str, Any]:
-                return browser_use_action({"type": "page_context"})
+                # Target.* metadata only needs the tab's url/title. A read-only
+                # cdp_events run returns them from chrome.tabs (final_url /
+                # final_title) with no content-script, identity or debugger
+                # work. page_context cost ~7s per call on heavy SPAs, and the
+                # harness issues three Target calls before its first enable.
+                result = browser_use_run({"type": "cdp_events"})
+                return {
+                    "url": str(result.get("final_url") or ""),
+                    "title": str(result.get("final_title") or ""),
+                }
 
             def browser_use_hide_cursor() -> None:
                 browser_use_action({"type": "cursor_hide"})

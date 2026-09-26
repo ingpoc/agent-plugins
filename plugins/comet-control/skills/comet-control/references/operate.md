@@ -143,6 +143,22 @@ If a click target is not yet rendered, put `wait_for_selector` immediately
 before the click. If a selector fails, refresh `snapshot` once before deciding
 the selector is wrong. Repeated blind retries mask the owning defect.
 
+`click_*` checks the enabled state once and fails fast with
+`ACTIONABILITY_DISABLED`. It does not poll. When a control enables later (for
+example a dialog's Apply button after an upload), wait for the enabled form
+first:
+`{"type":"wait_for_selector","selector":"<sel>:not([disabled]):not([aria-disabled=\"true\"])","timeout":15000}`.
+Clicks also need a visible page. When the displays are asleep or the lease
+window is covered, `document.visibilityState` is `hidden`, animation frames
+arrive about once a second, and every click fails `ACTIONABILITY_UNSTABLE`.
+
+A `goto` to the tab's current URL is a hard reload that bypasses the cache.
+After a settle has already proved the target page, check the ready selector
+first and skip the reload when the selector is present. If `wait_for_selector`
+times out after a `goto` and `evaluate` of `document.readyState` still returns
+`loading`, the document stalled before parsing finished. Waiting longer does
+not help. Issue one fresh `goto`, then report the stall to ACU if it repeats.
+
 ## Failure boundary
 
 On a socket drop, record the failed action, check `run/comet-control.sock`, and follow

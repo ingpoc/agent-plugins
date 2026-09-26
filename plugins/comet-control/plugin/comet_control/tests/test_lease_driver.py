@@ -102,6 +102,8 @@ class FakeBridge:
                 "session_id": request.get("sessionId"),
                 "window_id": 10,
                 "tab_id": 20,
+                "final_url": "https://example.com/",
+                "final_title": "Example Domain",
                 "results": [result],
             }
         if request_type == "session_renew":
@@ -508,6 +510,19 @@ class LeaseDriverTests(unittest.TestCase):
             self.assertEqual(
                 [target["url"] for target in targets], ["https://example.com/"]
             )
+            self.assertEqual(
+                [target["title"] for target in targets], ["Example Domain"]
+            )
+        # Target metadata must come from the cheap read-only tab lookup, never
+        # a page_context DOM read (7s per call on heavy SPAs; settle cdp_slow).
+        with self.bridge._lock:
+            run_actions = [
+                (request.get("actions") or [{}])[0].get("type")
+                for request in self.bridge.requests
+                if request.get("type") == "run"
+            ]
+        self.assertNotIn("page_context", run_actions)
+        self.assertIn("cdp_events", run_actions)
         assert process.stdin is not None
         process.stdin.write('{"command":"closeout"}\n')
         process.stdin.flush()
