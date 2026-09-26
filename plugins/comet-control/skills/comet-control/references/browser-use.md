@@ -71,6 +71,13 @@ daemons after every miss so none keeps the bridge slot. Causes: `slot_busy`,
 on every spawn. Tails, log copies, and the jsonl are redacted (`BU_CDP_WS`, ws/wss
 URLs, `token=`/`key=` values). The bridge hands its slot to a new client once the previous
 client's socket has closed, even while that client's last call is still in flight.
+Harness daemons run setsid'd and idle forever once the lease bridge is gone, so
+`durable_lease_controller.py closeout` kills this lease's `BU_NAME` daemons and
+reports `response.browser_use_daemons` (`verified_absent`, `killed`); a reap problem
+is reported there and never fails the closeout. Leftovers from older leases:
+`settle_preflight.py --sweep-stale [--dry-run]` kills only `comet-*` daemons whose
+session is absent from the broker inventory and whose bridge port is closed; it
+kills nothing if the inventory or process scan fails.
 Browser Harness `cdp()`/`goto_url()` default to a 5 s IPC
 timeout; for heavy navigations use
 `cdp('Page.navigate', url=..., _response_timeout=45.0)` and treat

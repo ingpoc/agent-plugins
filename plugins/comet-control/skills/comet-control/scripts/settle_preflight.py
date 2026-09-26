@@ -44,6 +44,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import functools
+import hashlib
 import json
 import os
 import re
@@ -492,6 +493,118 @@ def reap_only(work: Path, budget: float = 15.0) -> dict:
     return result
 
 
+def close_lease_daemons(work: Path, budget: float = 15.0, lister=None) -> dict:
+    """Lease closeout (durable_lease_controller): kill every daemon for this lease's BU_NAME and
+    prove none is left. Raises cleanup_failed (GateFail) otherwise."""
+    deadline = time.monotonic() + budget
+    lease_env = read_lease_env(work)
+    name = lease_env["BU_NAME"]
+    pid_file, _ = runtime_files(name, {**os.environ, **lease_env})
+    killed = reap_lease(name, pid_file, deadline, lister=lister)
+    result = {"verified_absent": True, "bu_name": name, "killed": killed}
+    append_timings(work, {"t": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "gate": GATE, "closeout": True, **result})
+    return result
+
+
+LEASE_NAME_RE = re.compile(r"comet-[0-9a-f]{10}")
+
+
+def lease_name(session_id: str) -> str:
+    """Mirror browser_use_cdp_bridge.BrowserUseCDPBridge.name."""
+    return "comet-" + hashlib.sha256(session_id.encode()).hexdigest()[:10]
+
+
+def daemon_env(pid: int, timeout: float = DISCOVERY_CAP_S) -> dict[str, str]:
+    """BU_NAME and BU_CDP_WS of a same-user daemon (values stay in memory; never printed)."""
+    keys = ("BU_NAME", "BU_CDP_WS")
+    proc_env = Path(f"/proc/{pid}/environ")
+    if proc_env.exists():
+        try:
+            items = proc_env.read_bytes().split(b"\0")
+        except OSError:
+            return {}
+        pairs = (i.decode(errors="replace").partition("=") for i in items)
+        return {k: v for k, _, v in pairs if k in keys}
+    out = subprocess.run(["ps", "-E", "-ww", "-o", "command=", "-p", str(pid)],
+                         capture_output=True, text=True, timeout=timeout).stdout
+    found = {}
+    for key in keys:
+        m = re.search(rf"(?:^|\s){key}=(\S+)", out)
+        if m:
+            found[key] = m.group(1)
+    return found
+
+
+def bridge_listening(ws_url: str | None, timeout: float = 0.5) -> bool:
+    """True if the lease bridge's local websocket port still accepts connections (lease alive).
+    Unknown / unparsable counts as alive, so the sweep never kills on doubt."""
+    import socket
+    from urllib.parse import urlparse
+
+    if not ws_url:
+        return True
+    try:
+        u = urlparse(ws_url)
+        host, port = u.hostname, u.port
+    except ValueError:
+        return True
+    if not host or not port:
+        return True
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def sweep_stale(inventory, *, dry_run: bool = False, budget: float = 30.0, lister=None,
+                env_of=daemon_env, listening=bridge_listening) -> dict:
+    """Kill comet-* harness daemons whose lease is gone: session absent from the broker inventory
+    AND its bridge port closed. Fails closed (kills nothing) when the inventory or scan fails.
+    Daemons of live leases and non-comet BU_NAMEs are never touched."""
+    deadline = time.monotonic() + budget
+    try:
+        sessions = inventory()
+    except Exception as exc:
+        raise GateFail("sweep", "session inventory unavailable; killed nothing",
+                       detail=f"{type(exc).__name__}: {exc}"[:300]) from None
+    live = {lease_name(str(s.get("session_id"))) for s in sessions if s.get("session_id")}
+    try:
+        procs = (lister or list_processes)(_slice(deadline))
+        stale, kept = [], 0
+        for pid, cmd in procs:
+            if not DAEMON_RE.search(cmd):
+                continue
+            env = env_of(pid, timeout=_slice(deadline))
+            name = env.get("BU_NAME")
+            if (name and LEASE_NAME_RE.fullmatch(name) and name not in live
+                    and not listening(env.get("BU_CDP_WS"))):
+                stale.append({"pid": pid, "bu_name": name})
+            else:
+                kept += 1
+    except (Exhausted, subprocess.TimeoutExpired) as exc:
+        raise GateFail("sweep", "process scan did not finish; killed nothing", detail=str(exc)[:300]) from None
+    pids = [d["pid"] for d in stale]
+    if pids and not dry_run:
+        try:
+            kill_all(pids)
+        except GateFail as exc:
+            raise cleanup_fail("stale daemon survived sweep", survivors=exc.payload.get("survivors")) from None
+    return {"ok": True, "gate": GATE, "sweep_stale": True, "dry_run": dry_run, "live_leases": len(live),
+            "stale": stale, "killed": [] if dry_run else pids, "kept": kept}
+
+
+def _controller_inventory():
+    import importlib.util
+
+    path = Path(__file__).resolve().with_name("durable_lease_controller.py")
+    spec = importlib.util.spec_from_file_location("durable_lease_controller", path)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return lambda: mod._session_inventory(mod.DEFAULT_SOCKET)
+
+
 def run(work: Path, timeout: float, expect_url: str, dry_run: bool, lock: str | None) -> dict:
     t_start = time.monotonic()
     deadline = t_start + timeout                 # one overall budget for the whole preflight
@@ -585,7 +698,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dry-run", action="store_true", help="report daemons/runtime files; kill nothing")
     p.add_argument("--reap-only", action="store_true",
                    help="kill the recorded probe group + this lease's daemons, verify, exit (after a caller timeout)")
+    p.add_argument("--sweep-stale", action="store_true",
+                   help="kill comet-* harness daemons whose lease is gone from the broker (with --dry-run: list only)")
     args = p.parse_args(argv)
+    if args.sweep_stale:
+        try:
+            result = sweep_stale(_controller_inventory(), dry_run=args.dry_run)
+        except GateFail as fail:
+            print(json.dumps(scrub(fail.payload)))
+            return 3
+        except Exception as exc:
+            print(json.dumps({"ok": False, "gate": GATE, "stage": "sweep", "reason": f"{type(exc).__name__}: {exc}"[:300]}))
+            return 3
+        print(json.dumps(scrub(result)))
+        return 0
     if not args.work:
         print(json.dumps({"ok": False, "gate": GATE, "stage": "args", "reason": "--work or SMM_COMET_WORK required"}))
         return 2

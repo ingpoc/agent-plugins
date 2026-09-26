@@ -378,5 +378,80 @@ class SettleCleanupAndDeadline(unittest.TestCase):
         self.assertEqual(sp.redact("see wss://a/b?token=1 and key=2"), "see wss://[redacted] and key=[redacted]")
 
 
+class LeaseCloseoutAndSweep(unittest.TestCase):
+    def test_close_lease_daemons_kills_real_daemon_verifies_and_logs(self):
+        import time as _t
+        name = f"comet-close{os.getpid()}"
+        d = Path(tempfile.mkdtemp())
+        (d / "browser-use.env").write_text(f"export BU_CDP_WS=ws://127.0.0.1:1/x\nexport BU_NAME={name}\n")
+        pid = _orphan_daemon(name)
+        try:
+            _t.sleep(0.3)
+            res = sp.close_lease_daemons(d)
+            self.assertEqual(res["killed"], [pid])
+            self.assertTrue(res["verified_absent"])
+            self.assertFalse(sp.pid_alive(pid))
+            rows = [json.loads(x) for x in (d / "settle-preflight.jsonl").read_text().splitlines()]
+            self.assertTrue(rows[-1]["closeout"])
+        finally:
+            if sp.pid_alive(pid):
+                os.kill(pid, 9)
+
+    def test_sweep_kills_only_comet_daemons_of_gone_leases(self):
+        import time as _t
+        dead = "comet-" + "ab" * 5
+        live = sp.lease_name("live-session")
+        other = f"notcomet{os.getpid()}"
+        pids = {n: _orphan_daemon(n) for n in (dead, live, other)}
+        mine = set(pids.values())
+        try:
+            _t.sleep(0.3)
+            lister = lambda t: [row for row in sp.list_processes(t) if row[0] in mine]
+            inv = lambda: [{"session_id": "live-session"}]
+            dry = sp.sweep_stale(inv, dry_run=True, lister=lister, listening=lambda ws: False)
+            self.assertEqual([x["pid"] for x in dry["stale"]], [pids[dead]])
+            self.assertTrue(all(sp.pid_alive(p) for p in mine))  # dry run kills nothing
+            res = sp.sweep_stale(inv, lister=lister, listening=lambda ws: False)
+            self.assertEqual(res["killed"], [pids[dead]])
+            self.assertEqual(res["kept"], 2)
+            self.assertFalse(sp.pid_alive(pids[dead]))
+            self.assertTrue(sp.pid_alive(pids[live]) and sp.pid_alive(pids[other]))
+        finally:
+            for p in mine:
+                if sp.pid_alive(p):
+                    os.kill(p, 9)
+
+    def test_sweep_keeps_daemon_whose_bridge_still_listens_and_fails_closed(self):
+        env = {"BU_NAME": "comet-" + "cd" * 5, "BU_CDP_WS": "ws://127.0.0.1:1/x"}
+        with mock.patch.object(sp, "kill_all") as kill:
+            res = sp.sweep_stale(lambda: [], lister=lambda t: [(4242, "python -m browser_harness.daemon")],
+                                 env_of=lambda pid, timeout: env, listening=lambda ws: True)
+            self.assertEqual(res["stale"], [])
+            def boom():
+                raise OSError("socket gone")
+            with self.assertRaises(SystemExit) as ctx:
+                sp.sweep_stale(boom, lister=lambda t: [(4242, "browser_harness.daemon")], env_of=lambda p, timeout: env,
+                               listening=lambda ws: False)
+            self.assertIn("killed nothing", ctx.exception.payload["reason"])
+            kill.assert_not_called()
+
+    def test_bridge_listening_detects_closed_port_and_doubts_as_alive(self):
+        import socket
+        srv = socket.socket()
+        srv.bind(("127.0.0.1", 0))
+        srv.listen(1)
+        port = srv.getsockname()[1]
+        self.assertTrue(sp.bridge_listening(f"ws://127.0.0.1:{port}/devtools/browser/x"))
+        srv.close()
+        self.assertFalse(sp.bridge_listening(f"ws://127.0.0.1:{port}/devtools/browser/x"))
+        self.assertTrue(sp.bridge_listening(None))
+
+    def test_lease_name_mirrors_bridge(self):
+        import hashlib
+        self.assertEqual(sp.lease_name("s1"), "comet-" + hashlib.sha256(b"s1").hexdigest()[:10])
+        src = (PLUGIN_ROOT / "skills/comet-control/scripts/browser_use_cdp_bridge.py").read_text()
+        self.assertIn('self.name = f"comet-{digest[:10]}"', src)
+
+
 if __name__ == "__main__":
     unittest.main()
