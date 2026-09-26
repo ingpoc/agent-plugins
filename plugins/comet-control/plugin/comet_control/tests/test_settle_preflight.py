@@ -118,5 +118,110 @@ class SettlePreflight(unittest.TestCase):
         prove.assert_not_called()
 
 
+class SettleRespawn(unittest.TestCase):
+    ENV = {"BU_NAME": "comet-test0000", "BU_CDP_WS": "ws://x"}
+
+    def test_classify_causes(self):
+        self.assertEqual(sp.classify("", "fatal: received 1008 (policy violation) lease already has a Browser Use client", False), "slot_busy")
+        self.assertEqual(sp.classify("", "attached x\nenable Page on session-1: \nlistening on s", True), "cdp_slow")
+        self.assertEqual(sp.classify("", "connecting to ws://127.0.0.1:1\nlistening on s", True), "probe_slow")
+        self.assertEqual(sp.classify("", "connecting to ws://127.0.0.1:1", True), "attach_slow")
+        self.assertEqual(sp.classify("", "", True), "spawn_slow")
+
+    def test_slot_busy_backs_off_then_proves(self):
+        good = 'SETTLE {"js": 2, "url": "https://www.linkedin.com/feed/", "dialog": null}'
+        runs = iter([(1, "browser-harness: ConnectionError: WebSocket connection closed"), (0, good)])
+        sleeps, reaps = [], []
+        with mock.patch.object(sp, "read_tail", return_value="fatal: received 1008 lease already has a Browser Use client"):
+            proof = sp.respawn_and_prove(self.ENV, 60, "linkedin.com", reap=lambda: reaps.append(1) or [9],
+                                         probe=lambda *a: next(runs), sleep=sleeps.append)
+        self.assertEqual(proof["js"], 2)
+        self.assertEqual([a["cause"] for a in proof["attempts"]], ["slot_busy", "ok"])
+        self.assertEqual(sleeps, [1.0])
+        self.assertEqual(len(reaps), 1)
+
+    def test_slot_busy_is_bounded(self):
+        reaps = []
+        with mock.patch.object(sp, "read_tail", return_value="lease already has a Browser Use client"):
+            with self.assertRaises(sp.GateFail) as ctx:
+                sp.respawn_and_prove(self.ENV, 60, "", reap=lambda: reaps.append(1) or [],
+                                     probe=lambda *a: (1, "ConnectionError"), sleep=lambda s: None)
+        p = ctx.exception.payload
+        self.assertEqual(p["cause"], "slot_busy")
+        self.assertEqual(len(p["attempts"]), len(sp.SLOT_BUSY_BACKOFF_S) + 1)
+        self.assertEqual(len(reaps), len(p["attempts"]))
+
+    def test_timeout_reaps_and_reports_cause_without_retry(self):
+        reaps, calls = [], []
+        with mock.patch.object(sp, "read_tail", return_value="connecting to ws://127.0.0.1:1\nenable DOM on session-1: "):
+            with self.assertRaises(sp.GateFail) as ctx:
+                sp.respawn_and_prove(self.ENV, 60, "", reap=lambda: reaps.append(1) or [4242],
+                                     probe=lambda *a: calls.append(a[2]) or (None, ""), sleep=lambda s: None)
+        p = ctx.exception.payload
+        self.assertEqual(p["reason"], "respawn+probe exceeded 60s")
+        self.assertEqual(p["cause"], "cdp_slow")
+        self.assertEqual(p["reaped"], [4242])
+        self.assertEqual(len(calls), 1)
+
+    def test_probe_timeout_kills_the_process_group(self):
+        import sys
+        child = ("import subprocess,sys,time\n"
+                 "g=subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)'])\n"
+                 "print('GRAND', g.pid, flush=True)\ntime.sleep(60)\n")
+        rc, out = sp.run_probe([sys.executable, "-c", child], dict(os.environ), 2)
+        self.assertIsNone(rc)
+        grand = int(out.split("GRAND", 1)[1].split()[0])
+        import time as _t
+        deadline = _t.monotonic() + 5
+        while _t.monotonic() < deadline and sp.pid_alive(grand):
+            try:
+                os.waitpid(grand, os.WNOHANG)
+            except ChildProcessError:
+                pass
+            _t.sleep(0.1)
+        self.assertFalse(sp.pid_alive(grand))
+
+    def test_run_logs_timings_on_pass_and_fail(self):
+        work = Path(tempfile.mkdtemp())
+        (work / "browser-use.env").write_text("export BU_CDP_WS=ws://x\nexport BU_NAME=comet-test0000\n")
+        rt = Path(tempfile.mkdtemp())
+        with mock.patch.dict(os.environ, {"BH_RUNTIME_DIR": str(rt)}), \
+             mock.patch.object(sp, "lease_daemons", return_value=[]), \
+             mock.patch.object(sp, "respawn_and_prove", return_value={"js": 2, "url": "u", "seconds": 0.8, "attempts": [{"s": 0.8, "rc": 0, "cause": "ok"}]}):
+            out = sp.run(work, 60, "", False, None)
+        self.assertIn("prove_s", out["timings"])
+        self.assertIn("total_s", out["timings"])
+        fail = sp.GateFail("prove", "respawn+probe exceeded 60s", cause="cdp_slow")
+        with mock.patch.dict(os.environ, {"BH_RUNTIME_DIR": str(rt)}), \
+             mock.patch.object(sp, "lease_daemons", return_value=[]), \
+             mock.patch.object(sp, "respawn_and_prove", side_effect=fail):
+            with self.assertRaises(sp.GateFail) as ctx:
+                sp.run(work, 60, "", False, None)
+        self.assertIn("total_s", ctx.exception.payload["timings"])
+        rows = [json.loads(l) for l in (work / "settle-preflight.jsonl").read_text().splitlines()]
+        self.assertEqual([r["ok"] for r in rows], [True, False])
+        self.assertEqual(rows[1]["cause"], "cdp_slow")
+        self.assertNotIn("ws://", json.dumps(rows))
+
+    def test_kill_waits_for_bridge_slot_and_keeps_daemon_log(self):
+        work = Path(tempfile.mkdtemp())
+        (work / "browser-use.env").write_text("export BU_CDP_WS=ws://x\nexport BU_NAME=comet-test0000\n")
+        rt, tmp = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
+        (tmp / "bu.log").write_text("connecting to ws://127.0.0.1:1\nReceived duplicate response for request 5\n")
+        slept = []
+        with mock.patch.dict(os.environ, {"BH_RUNTIME_DIR": str(rt), "BH_TMP_DIR": str(tmp)}), \
+             mock.patch.object(sp, "lease_daemons", return_value=[4242]), \
+             mock.patch.object(sp, "kill_all", return_value=[4242]), \
+             mock.patch.object(sp.time, "sleep", side_effect=slept.append), \
+             mock.patch.object(sp, "respawn_and_prove", return_value={"js": 2, "url": "u", "attempts": []}):
+            out = sp.run(work, 60, "", False, None)
+        self.assertEqual(slept, [sp.SLOT_WAIT_S])
+        self.assertIn("slot_wait_s", out["timings"])
+        self.assertIn("duplicate response", (work / "settle-daemon-pre-kill.log").read_text())
+
+    def test_default_budget_matches_harness_startup_window(self):
+        self.assertEqual(sp.DEFAULT_TIMEOUT_S, 60.0)
+
+
 if __name__ == "__main__":
     unittest.main()
