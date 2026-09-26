@@ -42,6 +42,22 @@ tabs, uploads, and viewport. The single-target bridge intentionally reuses the
 leased tab when Browser Use asks to create a tab and refuses to close it outside
 Comet Control closeout.
 
+Before the first `browser-use` program on a slow site, and before any fresh-nav
+reload, run the settle gate on the same lease:
+
+```bash
+python3 skills/comet-control/scripts/settle_preflight.py --work "$WORK" \
+  --timeout 30 --expect-url linkedin.com --lock <browser-use lock>
+```
+
+It reaps stray `browser-use`/`uv` processes for this workdir, clears stale
+sockets and locks, and proves `js('1+1') == 2` on the expected tab. Exit 3
+(gate `li_settle_preflight`) is fail closed: escalate on the same lease, never
+remint or retry. Browser Harness `cdp()`/`goto_url()` default to a 5 s IPC
+timeout; for heavy navigations use
+`cdp('Page.navigate', url=..., _response_timeout=45.0)` and treat
+`TimeoutError` as a hard stop, never a `location.href` fallback.
+
 Do not merge these Browser Use skills into this local logged-in path:
 
 - `cloud`, `remote-browser`, and `qa`: hosted or isolated browsers, not the
