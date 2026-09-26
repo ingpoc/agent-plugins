@@ -2133,6 +2133,22 @@ async function ensureContentScript(tabId, options = {}) {
 }
 
 async function ensureContentScriptUnlocked(tabId, { force = false, frameId = 0 } = {}) {
+  // Probe before waiting for status=complete. Heavy SPAs (LinkedIn article
+  // editor: never-finishing anti-bot iframes) keep tab.status "loading" long
+  // after the document is usable, and a 4s wait here taxed EVERY run's
+  // setAgentIdentity; Browser Use CDP enables then outran the harness's 4s
+  // enable timeout (settle cdp_slow). Wait for complete only before injecting.
+  const early = await chrome.tabs.get(tabId).catch(() => null);
+  if (
+    early?.id
+    && early.status !== "complete"
+    && isControllableUrl(early.url)
+    && !tabScriptingPoisoned.has(tabId)
+    && await probeContentScript(tabId)
+  ) {
+    contentScriptForceReinjection.delete(tabId);
+    return { injected: true, url: early.url };
+  }
   let tab = await waitForTabComplete(tabId);
   if (!tab?.id) {
     return { injected: false, blocked: true, reason: "Tab is no longer available" };
@@ -3935,6 +3951,7 @@ async function handleUnlockedHostMessage(message) {
       window_id: leaseRecord.windowId,
       tab_id: state.tabId,
       final_url: tab?.url || state.lastUrl,
+      final_title: tab?.title || "",
       results,
     });
   } finally {

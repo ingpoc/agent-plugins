@@ -1020,6 +1020,35 @@ async function check(actions, expected) {
             source.split("async function probeContentScript", 1)[1],
         )
 
+    def test_live_content_script_skips_tab_complete_wait_on_lingering_loading(self) -> None:
+        """LinkedIn article editor keeps tab.status "loading" (anti-bot iframes).
+
+        Every run's setAgentIdentity used to wait 4s for complete before probing,
+        so Browser Use CDP enables outran the harness's 4s timeout (settle
+        cdp_slow, "duplicate response for request 5"). Probe first; wait for
+        complete only on the inject path. Run envelopes carry the tab title so
+        the Browser Use bridge never needs page_context for Target metadata.
+        """
+        source = SERVICE_WORKER.read_text()
+        ensure = source.split("async function ensureContentScriptUnlocked", 1)[1].split(
+            "function withTimeout", 1
+        )[0]
+        early_probe = ensure.index("await probeContentScript(tabId)")
+        self.assertLess(early_probe, ensure.index("await waitForTabComplete(tabId)"))
+        early = ensure[:ensure.index("await waitForTabComplete(tabId)")]
+        self.assertIn('early.status !== "complete"', early)
+        self.assertIn("isControllableUrl(early.url)", early)
+        self.assertIn("!tabScriptingPoisoned.has(tabId)", early)
+        self.assertNotIn("executeScriptOnTab", early)
+        self.assertLess(
+            ensure.index("await waitForTabComplete(tabId)"), ensure.index("executeScriptOnTab")
+        )
+        self.assertIn('final_title: tab?.title || ""', source)
+        driver = LEASE_DRIVER.read_text()
+        page_info = driver.split("def browser_use_page_info", 1)[1].split("def browser_use_hide_cursor", 1)[0]
+        self.assertIn('"type": "cdp_events"', page_info)
+        self.assertNotIn('{"type": "page_context"}', page_info)
+
     def test_clicks_fall_back_to_controllable_content_frames_on_foreign_attach_miss(self) -> None:
         source = SERVICE_WORKER.read_text()
         attach = source.split("async function attachForClick", 1)[1].split(
