@@ -484,13 +484,60 @@ def reap_only(work: Path, budget: float = 15.0) -> dict:
             except (ProcessLookupError, PermissionError):
                 pass
     killed = reap_lease(name, pid_file, deadline)
+    cleared = clear_runtime_files(name, {**os.environ, **lease_env}, killed)
     try:
         pf.unlink()
     except OSError:
         pass
-    result = {"ok": True, "gate": GATE, "reap_only": True, "bu_name": name, "probe": probe, "killed": killed}
+    result = {"ok": True, "gate": GATE, "reap_only": True, "bu_name": name, "probe": probe, "killed": killed,
+              "cleared": cleared}
     append_timings(work, {"t": time.strftime("%Y-%m-%dT%H:%M:%S%z"), **result})
     return result
+
+
+def clear_runtime_files(name: str, environ: dict[str, str] | None = None, killed=()) -> list[str]:
+    """Remove this lease's harness runtime ``.pid``/``.sock`` once no live daemon owns them.
+
+    The harness daemon is SIGKILLed on reap, so it never unlinks its own files; closeout used to
+    leave one dead pair per lease (2026-09-26: 24 pairs in one evening). Only a dead or just-killed
+    pid-file owner is cleared; a live owner that we did not kill (pid reuse) is left alone, and a
+    shared non-lease stem (BH_RUNTIME_DIR without _SHARED) is only cleared on a dead owner."""
+    pid_file, sock_file = runtime_files(name, environ)
+    owner = pid_from_file(pid_file)
+    if owner is not None and pid_alive(owner) and owner not in killed:
+        return []
+    if owner is None and name not in pid_file.name:
+        return []
+    cleared = []
+    for f in (pid_file, sock_file):
+        try:
+            if f.exists() or f.is_symlink():
+                f.unlink()
+                cleared.append(str(f))
+        except OSError:
+            pass
+    return cleared
+
+
+def sweep_stale_runtime_files(live: set[str], *, dry_run: bool = False,
+                              environ: dict[str, str] | None = None) -> list[dict]:
+    """Stale ``bu-comet-<10hex>.pid``/``.sock`` pairs: lease gone from the broker and pid dead."""
+    pid_probe, _ = runtime_files("comet-0000000000", environ)
+    if "comet-0000000000" not in pid_probe.name:
+        return []  # shared stem: names are not in the file names, nothing lease-scoped to sweep
+    stale = []
+    for pid_file in sorted(pid_probe.parent.glob("bu-comet-*.pid")):
+        name = pid_file.name[len("bu-"):-len(".pid")]
+        if not LEASE_NAME_RE.fullmatch(name) or name in live:
+            continue
+        owner = pid_from_file(pid_file)
+        if owner is None or pid_alive(owner):
+            continue
+        entry = {"bu_name": name, "pid": owner}
+        if not dry_run:
+            entry["cleared"] = clear_runtime_files(name, environ)
+        stale.append(entry)
+    return stale
 
 
 def close_lease_daemons(work: Path, budget: float = 15.0, lister=None) -> dict:
@@ -501,7 +548,8 @@ def close_lease_daemons(work: Path, budget: float = 15.0, lister=None) -> dict:
     name = lease_env["BU_NAME"]
     pid_file, _ = runtime_files(name, {**os.environ, **lease_env})
     killed = reap_lease(name, pid_file, deadline, lister=lister)
-    result = {"verified_absent": True, "bu_name": name, "killed": killed}
+    cleared = clear_runtime_files(name, {**os.environ, **lease_env}, killed)
+    result = {"verified_absent": True, "bu_name": name, "killed": killed, "cleared": cleared}
     append_timings(work, {"t": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "gate": GATE, "closeout": True, **result})
     return result
 
@@ -558,7 +606,8 @@ def bridge_listening(ws_url: str | None, timeout: float = 0.5) -> bool:
 
 
 def sweep_stale(inventory, *, dry_run: bool = False, budget: float = 30.0, lister=None,
-                env_of=daemon_env, listening=bridge_listening) -> dict:
+                env_of=daemon_env, listening=bridge_listening,
+                runtime_environ: dict[str, str] | None = None) -> dict:
     """Kill comet-* harness daemons whose lease is gone: session absent from the broker inventory
     AND its bridge port closed. Fails closed (kills nothing) when the inventory or scan fails.
     Daemons of live leases and non-comet BU_NAMEs are never touched."""
@@ -590,8 +639,9 @@ def sweep_stale(inventory, *, dry_run: bool = False, budget: float = 30.0, liste
             kill_all(pids)
         except GateFail as exc:
             raise cleanup_fail("stale daemon survived sweep", survivors=exc.payload.get("survivors")) from None
+    stale_runtime = sweep_stale_runtime_files(live, dry_run=dry_run, environ=runtime_environ)
     return {"ok": True, "gate": GATE, "sweep_stale": True, "dry_run": dry_run, "live_leases": len(live),
-            "stale": stale, "killed": [] if dry_run else pids, "kept": kept}
+            "stale": stale, "killed": [] if dry_run else pids, "kept": kept, "stale_runtime": stale_runtime}
 
 
 def _controller_inventory():
