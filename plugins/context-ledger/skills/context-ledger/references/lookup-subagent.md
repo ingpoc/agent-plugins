@@ -19,7 +19,7 @@ Use the Context Ledger MCP `find` and `get` tools when mounted. Otherwise use th
 
 ## Capture
 
-Use `record` for a new consequential decision or useful observation, `append_event` for a material existing-record update, correction, supersession, or conflict. Use only evidence supplied by the parent. If the parent proposes a candidate, search for similar records first and create, update, or skip it. Do not attach task success to a candidate created after execution unless the same existing decision was applied and evaluated.
+Use `record` for a compact `trigger → action` instruction or a useful observation, `append_event` for a material existing-record update, correction, supersession, or conflict. The problem itself is not the record. Use only evidence supplied by the parent. If the parent proposes a candidate, search for similar records first and create, update, or skip it. Do not attach task success to a candidate created after execution unless the same existing decision was applied and evaluated.
 
 ## Closeout
 

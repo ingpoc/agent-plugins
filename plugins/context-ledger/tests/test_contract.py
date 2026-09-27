@@ -149,8 +149,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.7")
-        self.assertIn('__version__ = "0.1.7"', init)
+        self.assertEqual(plugin["version"], "0.1.8")
+        self.assertIn('__version__ = "0.1.8"', init)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         for axis in ("Reliability", "Robustness", "Context efficiency", "Speed", "Efficiency"):
@@ -287,6 +287,34 @@ class EnsureGlobalTriggersTests(unittest.TestCase):
             self.assertIn("**Ledger save**", text)
             self.assertLess(text.index("**Ledger lookup**"), text.index("## AFTER"))
             self.assertLess(text.index("**Ledger save**"), text.index("**Durable-learning"))
+            second = _boot(data, "ensure-global-triggers", ["--agents-md", str(agents)])
+            self.assertEqual(second.returncode, 0, second.stderr)
+            two = json.loads(second.stderr.strip())
+            self.assertFalse(two["data"]["added"])
+            self.assertEqual(agents.read_text(encoding="utf-8"), text)
+
+    def test_replaces_stale_marked_lines(self) -> None:
+        fixture = (
+            "# Global AGENTS.md\n\n"
+            "## BEFORE\n\n"
+            "- **Ledger lookup** → `context-ledger` if history or precedent could change next decision; else skip\n\n"
+            "## AFTER\n\n"
+            "- **Ledger save** → `context-ledger` if settled decision, useful failure, or material update; else skip\n"
+            "- **Durable-learning closeout** — encode friction.\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp) / "data"
+            data.mkdir()
+            agents = Path(tmp) / "AGENTS.md"
+            agents.write_text(fixture, encoding="utf-8")
+            first = _boot(data, "ensure-global-triggers", ["--agents-md", str(agents)])
+            self.assertEqual(first.returncode, 0, first.stderr)
+            one = json.loads(first.stderr.strip())
+            self.assertTrue(one["data"]["added"])
+            text = agents.read_text(encoding="utf-8")
+            self.assertIn("load at most three compact instructions", text)
+            self.assertIn("Do not store the problem", text)
+            self.assertNotIn("settled decision", text)
             second = _boot(data, "ensure-global-triggers", ["--agents-md", str(agents)])
             self.assertEqual(second.returncode, 0, second.stderr)
             two = json.loads(second.stderr.strip())

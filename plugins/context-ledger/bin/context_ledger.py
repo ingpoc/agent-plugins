@@ -123,12 +123,13 @@ def _help() -> int:
 LOOKUP_MARK = "**Ledger lookup**"
 SAVE_MARK = "**Ledger save**"
 LOOKUP_LINE = (
-    "- **Ledger lookup** → `context-ledger` if history or precedent could "
-    "change next decision; else skip"
+    "- **Ledger lookup** → `context-ledger` load at most three compact "
+    "instructions whose trigger is true now; else skip"
 )
 SAVE_LINE = (
-    "- **Ledger save** → `context-ledger` if settled decision, useful failure, "
-    "or material update; else skip"
+    "- **Ledger save** → `context-ledger` after the work is resolved and a "
+    "wrong next step burned tokens, store one `trigger → action` per distinct "
+    "next step. Do not store the problem. Skip during the debug and on a routine task"
 )
 
 
@@ -175,6 +176,19 @@ def _insert_in_section(
     return head + body + tail
 
 
+def _replace_marked_line(text: str, mark: str, line: str) -> tuple[str, bool]:
+    lines = text.splitlines(keepends=True)
+    for index, raw in enumerate(lines):
+        if mark not in raw:
+            continue
+        if raw.rstrip("\r\n") == line:
+            return text, False
+        newline = "\n" if raw.endswith("\n") else ""
+        lines[index] = line + newline
+        return "".join(lines), True
+    return text, False
+
+
 def _cmd_ensure_global_triggers(args: list[str]) -> int:
     agents = Path.home() / ".codex" / "AGENTS.md"
     i = 0
@@ -201,6 +215,8 @@ def _cmd_ensure_global_triggers(args: list[str]) -> int:
             return _err("UNAVAILABLE")
         text = nxt
         added_lookup = True
+    else:
+        text, added_lookup = _replace_marked_line(text, LOOKUP_MARK, LOOKUP_LINE)
     if SAVE_MARK not in text:
         nxt = _insert_in_section(
             text,
@@ -212,6 +228,8 @@ def _cmd_ensure_global_triggers(args: list[str]) -> int:
             return _err("UNAVAILABLE")
         text = nxt
         added_save = True
+    else:
+        text, added_save = _replace_marked_line(text, SAVE_MARK, SAVE_LINE)
     if added_lookup or added_save:
         try:
             agents.write_text(text, encoding="utf-8")
