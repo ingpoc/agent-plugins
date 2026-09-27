@@ -13,6 +13,8 @@ For every new user task, generate a stable UUID `task_id` and send its compact g
 {"task_id":"<stable UUID>","task":"<short goal>","constraints":["<material limits>"],"served":[]}
 ```
 
+The parent message is that JSON only. Do not paste standing behavior, a record schema, a script path, or drafted rules.
+
 The helper checks the ledger for applicable decisions on every new task and returns at most three. An empty result means no applicable decision was found; continue from the current owner. On a resume of the same task, pass only IDs served for that `task_id`. A new task always starts with `served: []`, even when the same decision was returned in an earlier task. Do not re-run an unchanged lookup within one task unless constraints, owner state, or the ledger changed.
 
 Send capture requests and one closeout through the same helper. Closeout is not subject to the lookup gate. If the helper is unavailable, stop that ledger operation, continue other authorized work, and state that ledger history or writeback was unavailable. Do not create a replacement helper or fall back to direct access.
@@ -31,7 +33,7 @@ Exactly one capture path:
 - Observation: useful failure, inconclusive result, or deviation. Facts only. A tacit exception is not approval.
 - Existing-record update: material outcome, correction, supersession, or conflict. Append; do not rerun the capture gate.
 
-At closeout, send the same `task_id`. Include an outcome only for a decision that was applied and evaluated, with its status, observed result, and evidence. Do not give a newly proposed candidate an outcome unless it was itself applied and has an existing decision ID. The helper checks similar records and creates, updates, or skips a candidate; preserve every confirmed write ID on partial failure.
+At closeout, send the same `task_id`. A candidate is one short object (`summary`, `applicability`, `evidence_ref`). The helper stores it as pending or skips it. A candidate is not a usefulness score. Include an outcome only for a decision that was applied and evaluated, with its status, observed result, and evidence. Do not give a newly proposed candidate an outcome unless it was itself applied and has an existing decision ID. The helper checks similar records and creates, updates, or skips a candidate; preserve every confirmed write ID on partial failure.
 
 Outcome feedback is idempotent by `(task_id, decision_id)`: an identical retry adds no event; corrected feedback replaces that task's prior observation. Confidence is the **observed usefulness rate**: `successes / (successes + failures)`, over distinct task IDs and using the latest feedback per task. Return the score, success/failure/inconclusive counts, and conclusive sample count. Inconclusive outcomes do not enter the score; use `null` when there are no conclusive observations. This is descriptive usefulness, not probability of correctness, and task outcomes may be correlated.
 
