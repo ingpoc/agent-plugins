@@ -17,7 +17,7 @@ LOCK_PATH = PLUGIN_ROOT / "requirements.lock"
 MIN_PY = (3, 11)
 MAX_PY = (3, 14)
 READY_NAME = ".ready"
-# Cursor leaves ${PLUGIN_DATA} literal; Codex expands it. Unset → fixed home dir.
+# Clients may set PLUGIN_DATA implicitly; the ledger default is always fixed.
 DEFAULT_PLUGIN_DATA = Path.home() / ".context-ledger"
 
 
@@ -93,8 +93,8 @@ def _resolve_data(data: Path | None) -> Path:
     if data is not None:
         resolved = _expand_plugin_tokens(data)
     else:
-        env = os.environ.get("PLUGIN_DATA")
-        resolved = Path(env) if env else DEFAULT_PLUGIN_DATA
+        env = os.environ.get("CONTEXT_LEDGER_DATA")
+        resolved = _expand_plugin_tokens(Path(env)) if env else DEFAULT_PLUGIN_DATA
     resolved.mkdir(parents=True, exist_ok=True)
     try:
         os.chmod(resolved, 0o700)
@@ -115,7 +115,7 @@ def _help() -> int:
         "usage: context_ledger.py [--data ABSOLUTE_DIR] "
         "setup|init|bind|serve|doctor|export|import|attest|purge|rebuild|migrate|"
         "resume-maintenance|scope-add|ensure-global-triggers ...\n"
-        f"default --data / PLUGIN_DATA: {DEFAULT_PLUGIN_DATA}\n"
+        f"default --data: {DEFAULT_PLUGIN_DATA}\n"
     )
     return 0
 
