@@ -149,8 +149,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.8")
-        self.assertIn('__version__ = "0.1.8"', init)
+        self.assertEqual(plugin["version"], "0.1.9")
+        self.assertIn('__version__ = "0.1.9"', init)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         agents = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
         for axis in ("Reliability", "Robustness", "Context efficiency", "Speed", "Efficiency"):
@@ -284,6 +284,7 @@ class EnsureGlobalTriggersTests(unittest.TestCase):
             self.assertTrue(one["data"]["save"])
             text = agents.read_text(encoding="utf-8")
             self.assertIn("**Ledger lookup**", text)
+            self.assertIn("every new task: invoke `context-ledger` through one retained helper", text)
             self.assertIn("**Ledger save**", text)
             self.assertLess(text.index("**Ledger lookup**"), text.index("## AFTER"))
             self.assertLess(text.index("**Ledger save**"), text.index("**Durable-learning"))
@@ -312,7 +313,7 @@ class EnsureGlobalTriggersTests(unittest.TestCase):
             one = json.loads(first.stderr.strip())
             self.assertTrue(one["data"]["added"])
             text = agents.read_text(encoding="utf-8")
-            self.assertIn("load at most three compact instructions", text)
+            self.assertIn("every new task: invoke `context-ledger` through one retained helper", text)
             self.assertIn("Do not store the problem", text)
             self.assertNotIn("settled decision", text)
             second = _boot(data, "ensure-global-triggers", ["--agents-md", str(agents)])

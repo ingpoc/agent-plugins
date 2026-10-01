@@ -123,8 +123,8 @@ def _help() -> int:
 LOOKUP_MARK = "**Ledger lookup**"
 SAVE_MARK = "**Ledger save**"
 LOOKUP_LINE = (
-    "- **Ledger lookup** → `context-ledger` load at most three compact "
-    "instructions whose trigger is true now; else skip"
+    "- **Ledger lookup** → every new task: invoke `context-ledger` through "
+    "one retained helper; return up to three applicable instructions, or none"
 )
 SAVE_LINE = (
     "- **Ledger save** → `context-ledger` after the work is resolved and a "

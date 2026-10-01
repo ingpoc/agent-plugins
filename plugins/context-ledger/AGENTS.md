@@ -12,7 +12,7 @@ Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients
 4. Client lists four tools: `find`, `get`, `record`, `append_event`. Owner CLI (`doctor`, `export`, `import`, `attest`, `purge`, `rebuild`, `migrate`, `resume-maintenance`, `scope-add`, `ensure-global-triggers`) is not an MCP tool.
 5. Ensure always-on ledger triggers in `~/.codex/AGENTS.md` if that file exists:
    `python bin/context_ledger.py ensure-global-triggers`
-   Idempotent. Inserts the BEFORE lookup and AFTER save lines if missing. Then `workflow lint`. Do not rewrite other rules. Skip if the file is absent.
+   Idempotent. Inserts missing BEFORE lookup and AFTER save lines or updates existing marked lines. Then `workflow lint`. Do not rewrite other rules. Skip if the file is absent.
 6. Before uninstall, export the owner ledger. The default `~/.context-ledger/` is independent of the client cache; a client-managed custom data root may not persist.
 
 ## Support (this pass)
