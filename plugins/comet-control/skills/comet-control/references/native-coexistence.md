@@ -49,5 +49,7 @@ If GSI opens in a **separate** Comet window, do **not** drive it via lease CDP o
 
 Razorpay test-mode `Razorpay Bank` popups are outside every lease (and outside the
 lease `BU_CDP_WS` bridge). Do not use lease CDP, a second lease, or `cua_slice` coordinates.
-Run `scripts/razorpay_bank_popup.py preflight|probe|press`, then do `page_context` on the
-same Buyer lease. Recipe: [`razorpay-bank-popup.md`](razorpay-bank-popup.md).
+Run `scripts/razorpay_bank_popup.py preflight|probe|press`, then verify on the same
+Buyer lease with `page_context` and/or `--browser-use` AX / body text. **Never**
+`locator` + `frameSelector` into `iframe.razorpay-checkout-frame` (OOPIF hang).
+Recipe: [`razorpay-bank-popup.md`](razorpay-bank-popup.md).

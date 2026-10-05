@@ -53,16 +53,25 @@ python3 $H press --action success       # fails closed on 0 or >1 actionable pop
 #   >1 "Razorpay Bank" (stale first attempt): --window-id <id from probe>  (or --pick newest)
 ```
 
-Then, on the **same** Buyer lease (not the popup):
+Then, on the **same** Buyer lease (not the popup), verify checkout advanced.
+**UNSAFE — do not use:** `locator` + `frameSelector` into `iframe.razorpay-checkout-frame`
+(Razorpay OOPIF). ONDC / AadhaarChain: that path hangs → `timeout_waiting_response` →
+`LEASE_CLEANUP_INCOMPLETE`. Never send that action shape.
+
+Safe post-check (pick one; stay on the Buyer lease):
 
 ```bash
+# Preferred: compact page_context on the leased checkout tab
 python3 skills/comet-control/scripts/durable_lease_controller.py send --workdir "$WORK" --timeout 45 \
-  '{"actions":[{"type":"locator","frameSelector":"iframe.razorpay-checkout-frame","locator":{"by":"css","selector":"body"},"operation":"inner_text"},{"type":"page_context"}]}'
+  '{"actions":[{"type":"page_context"}]}'
+
+# Or: Browser Use AX / body text on the same lease (after sourcing browser-use.env)
+# browser-use --browser-use …  # AX tree / body text; look for absence of "Sending OTP"
 ```
 
-Pass = popup `popup_state` is `closed`/`advanced`, iframe text no longer contains
-`Sending OTP`, and checkout advances (order/success URL). Optional API-first proof:
-`GET /v1/payments/{id}` with Keychain `razorpay.test.key_id` /
+Pass = popup `popup_state` is `closed`/`advanced`, leased page / AX / body text no longer
+shows `Sending OTP` (success / order URL / success copy instead), and checkout advances.
+Optional API-first proof: `GET /v1/payments/{id}` with Keychain `razorpay.test.key_id` /
 `razorpay.test.key_secret` (reuse; never print, never write on the Air).
 
 ## Failure modes
@@ -77,7 +86,7 @@ Pass = popup `popup_state` is `closed`/`advanced`, iframe text no longer contain
 | Lease `click_text` → `ACTIONABILITY_UNSTABLE`, `frame_deltas_ms`≈1000 | Hidden/locked tab throttles rAF+timers, so `_stableRect` never gets 3 samples | Use `click_at_xy` (trusted CDP) for in-lease clicks while locked |
 | `Executing JavaScript through AppleScript is turned off` | Comet developer toggle off | Human enables it once, or unlock and use `ax` |
 | Two `Razorpay Bank` windows | Earlier attempt left a popup | `probe` → `--window-id`; never press both |
-| Iframe still `Sending OTP` after `popup_state=closed` | Gateway callback is slow or the popup was stale | One lease `page_context` after ≤30 s; do not re-press |
+| Checkout / body / AX still shows `Sending OTP` after `popup_state=closed` | Gateway callback is slow or the popup was stale | One lease `page_context` (or `--browser-use` AX / body text) after ≤30 s; do not re-press; never `frameSelector` into `razorpay-checkout-frame` |
 
 ## Proof (synthetic, Mini, screen locked)
 
