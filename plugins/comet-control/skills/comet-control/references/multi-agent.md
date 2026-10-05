@@ -112,6 +112,14 @@ alive but command-idle; after CUA exits, re-observe on the **same** lease.
 `native_handoff` reclaims an orphan native-dialog claim owned by the same
 session (dead CUA process) instead of waiting out TTL.
 
+### Other-window payment popup (Razorpay Bank)
+
+The lease's `BU_CDP_WS` is the `lease_driver` bridge. It is tab-scoped:
+`Target.getTargets` returns one target even while a popup is open. Real Comet
+usually has no `--remote-debugging-port`. Never plan the Razorpay `Success` click
+through another lease's bridge, or by minting a second lease. Bind the popup by
+window identity with `razorpay_bank_popup.py`. See [razorpay-bank-popup.md](razorpay-bank-popup.md).
+
 ### Google OAuth slice (token-tight)
 
 Proven path for logout→Google login on X / LinkedIn (and similar GSI sites).

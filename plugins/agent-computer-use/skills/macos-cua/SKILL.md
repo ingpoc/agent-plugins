@@ -43,6 +43,8 @@ Do not shell a Python client per click when MCP is up. Do not use cua-driver or 
 
 WhatsApp **send/attach**: `$whatsapp` only — not this skill.
 
+Comet **other-window** popups (Google chooser, Razorpay Bank) bind by window title and not by the Comet PID. Lock screen or degenerate Comet AX → comet-control `razorpay_bank_popup.py` (`~/.agents/plugins/comet-control/skills/comet-control/references/razorpay-bank-popup.md`).
+
 ## Hard bans
 
 - No `start_session` / `verify` / `end_session` / cua-driver / 54-tool MCP.

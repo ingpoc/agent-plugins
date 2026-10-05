@@ -45,3 +45,9 @@ up. Full recipe: [`references/multi-agent.md`](references/multi-agent.md)
 
 If GSI opens in a **separate** Comet window, do **not** drive it via lease CDP or blind `cua_slice` coord clicks. Use Accessibility `AXPress` on the account `AXLink` in that window (recipe: [`google-accountchooser-ax.md`](google-accountchooser-ax.md)). Fix CUAService Accessibility if `axTrusted=false`.
 
+## Other-window Razorpay Bank popup
+
+Razorpay test-mode `Razorpay Bank` popups are outside every lease (and outside the
+lease `BU_CDP_WS` bridge). Do not use lease CDP, a second lease, or `cua_slice` coordinates.
+Run `scripts/razorpay_bank_popup.py preflight|probe|press`, then do `page_context` on the
+same Buyer lease. Recipe: [`razorpay-bank-popup.md`](razorpay-bank-popup.md).
