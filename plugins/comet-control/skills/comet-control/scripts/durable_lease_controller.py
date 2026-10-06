@@ -19,6 +19,12 @@ Usage:
 
   python3 durable_lease_controller.py status --workdir /tmp/SID
   python3 durable_lease_controller.py closeout --workdir /tmp/SID
+
+Agent contract: stdout is always one JSON object; known errors carry ``hint``.
+Exit codes: 0 ok, 1 failed, 2 lease not ready (start), 64 usage (nothing sent).
+``--dry-run`` on start/send/closeout reports what would happen and changes nothing.
+Repeats are safe within one lease: start reuses a live controller, closeout on a
+dead controller returns the absence proof. Nothing here mints a second session.
 """
 
 from __future__ import annotations
@@ -35,6 +41,18 @@ import time
 from pathlib import Path
 
 DRIVER = Path(__file__).resolve().parent / "lease_driver.py"
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from agent_cli import (  # noqa: E402
+    EXIT_FAIL,
+    EXIT_LEASE,
+    EXIT_OK,
+    EXIT_USAGE,
+    JsonArgumentParser,
+    emit,
+    summarize_payload,
+    with_hint,
+)
 
 
 def _default_socket() -> str:
@@ -550,21 +568,52 @@ def _controller_main(args: argparse.Namespace) -> int:
             return 0
 
 
+def _start_dry_run(args: argparse.Namespace) -> int:
+    workdir = Path(args.workdir).resolve()
+    p = _paths(workdir)
+    live = _live_controller_pid(workdir, args.session_id) if workdir.exists() else None
+    on_disk = _session_id_from_ready(p) if workdir.exists() else None
+    payload = {
+        "ok": True,
+        "dry_run": True,
+        "would": "reuse_live_controller" if live is not None else "spawn_controller",
+        "controller_pid": live,
+        "session_id": args.session_id,
+        "session_id_on_disk": on_disk,
+        "workdir": str(workdir),
+    }
+    key = None
+    if live is None:
+        key = "would_spawn"
+    elif on_disk and on_disk != args.session_id:
+        payload["session_mismatch"] = True
+        key = "session_mismatch"
+    return emit(payload, EXIT_OK, key=key)
+
+
 def cmd_start(args: argparse.Namespace) -> int:
+    if getattr(args, "dry_run", False):
+        return _start_dry_run(args)
     workdir = Path(args.workdir).resolve()
     workdir.mkdir(parents=True, exist_ok=True)
     os.chmod(workdir, 0o700)
     p = _paths(workdir)
     live = _live_controller_pid(workdir, args.session_id)
     if live is not None:
+        prior_sid = _session_id_from_ready(p)
         ready = _repair_heartbeat(
             p,
             live,
             session_id=args.session_id,
             socket_path=args.socket,
         )
-        print(json.dumps(ready, indent=2))
-        return 0
+        shown = dict(ready) if isinstance(ready, dict) else {"ready": ready}
+        shown["reused"] = True
+        if prior_sid and prior_sid != args.session_id:
+            shown["session_mismatch"] = True
+            with_hint(shown, "session_mismatch")
+        print(json.dumps(shown, indent=2))
+        return EXIT_OK
 
     # A dead controller may leave a green receipt. Remove it before spawning
     # so start cannot return the old receipt while the child replaces it.
@@ -607,63 +656,105 @@ def cmd_start(args: argparse.Namespace) -> int:
     while time.time() < deadline:
         if p["ready"].exists():
             ready = json.loads(p["ready"].read_text())
+            if isinstance(ready, dict) and not ready.get("ok"):
+                with_hint(ready, "controller_exited_before_ready")
             print(json.dumps(ready, indent=2))
-            return 0 if ready.get("ok") else 2
+            return EXIT_OK if ready.get("ok") else EXIT_LEASE
         if proc.poll() is not None and not p["ready"].exists():
-            print(
-                json.dumps(
-                    {
-                        "ok": False,
-                        "error": "controller_exited_before_ready",
-                        "code": proc.returncode,
-                    }
-                )
+            return emit(
+                {
+                    "ok": False,
+                    "error": "controller_exited_before_ready",
+                    "code": proc.returncode,
+                },
+                EXIT_LEASE,
             )
-            return 2
         time.sleep(0.1)
-    print(json.dumps({"ok": False, "error": "timeout_waiting_ready.json"}))
-    return 2
+    return emit({"ok": False, "error": "timeout_waiting_ready.json"}, EXIT_LEASE)
+
+
+def _load_payload(args: argparse.Namespace) -> tuple[object | None, dict | None]:
+    """Return (body, error_payload). Never touches the workdir."""
+    payload = args.payload
+    if getattr(args, "payload_file", None):
+        try:
+            payload = Path(args.payload_file).read_text()
+        except OSError as exc:
+            return None, {"ok": False, "error": f"invalid_payload_json: {exc}"}
+    if not payload or not str(payload).strip():
+        return None, {"ok": False, "error": "empty_payload"}
+    try:
+        body = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        return None, {"ok": False, "error": f"invalid_payload_json: {exc}"}
+    if not isinstance(body, dict):
+        return None, {"ok": False, "error": "payload_not_object"}
+    return body, None
+
+
+def _apply_timeout_default(body: dict, timeout: float) -> None:
+    # Propagate controller wait budget into the host run deadline when the
+    # caller omitted timeoutSeconds. SPA remounts (Seller Dispatch) need ≥90s;
+    # default send --timeout is 180.
+    if "timeoutSeconds" not in body and "command" not in body:
+        try:
+            body["timeoutSeconds"] = max(35, min(300, int(float(timeout))))
+        except (TypeError, ValueError):
+            body["timeoutSeconds"] = 90
+
+
+def _send_dry_run(args: argparse.Namespace) -> int:
+    body, err = _load_payload(args)
+    if err is not None:
+        err["dry_run"] = True
+        return emit(err, EXIT_USAGE)
+    assert isinstance(body, dict)
+    if body.get("command", "run") == "run":
+        actions = body.get("actions")
+        if not isinstance(actions, list) or not actions:
+            return emit(
+                {"ok": False, "dry_run": True, "error": "actions_missing"}, EXIT_USAGE
+            )
+    _apply_timeout_default(body, args.timeout)
+    p = _paths(Path(args.workdir).resolve())
+    payload = {
+        "ok": True,
+        "dry_run": True,
+        "would": "send",
+        "payload": summarize_payload(body),
+        "timeoutSeconds": body.get("timeoutSeconds"),
+        "controller_alive": p["alive"].exists(),
+        "pending_request": p["request"].exists(),
+    }
+    key = None
+    if not payload["controller_alive"]:
+        key = "controller_not_alive"
+    elif payload["pending_request"]:
+        key = "timeout_waiting_request_slot"
+    return emit(payload, EXIT_OK, key=key)
 
 
 def cmd_send(args: argparse.Namespace) -> int:
+    if getattr(args, "dry_run", False):
+        return _send_dry_run(args)
     workdir = Path(args.workdir).resolve()
     p = _paths(workdir)
     if not p["alive"].exists():
         sid = _session_id_from_ready(p) or getattr(args, "session_id", None)
         live = _live_controller_pid(workdir, sid)
         if live is None:
-            print(json.dumps({"ok": False, "error": "controller_not_alive"}))
-            return 1
+            return emit({"ok": False, "error": "controller_not_alive"}, EXIT_FAIL)
         _repair_heartbeat(
             p,
             live,
             session_id=sid,
             socket_path=getattr(args, "socket", None),
         )
-    payload = args.payload
-    if args.payload_file:
-        payload = Path(args.payload_file).read_text()
-    if not payload or not str(payload).strip():
-        print(json.dumps({"ok": False, "error": "empty_payload"}))
-        return 1
-    try:
-        body = json.loads(payload)
-    except json.JSONDecodeError as exc:
-        print(json.dumps({"ok": False, "error": f"invalid_payload_json: {exc}"}))
-        return 1
-
-    # Propagate controller wait budget into the host run deadline when the
-    # caller omitted timeoutSeconds. SPA remounts (Seller Dispatch) need ≥90s;
-    # default send --timeout is 180.
-    if (
-        isinstance(body, dict)
-        and "timeoutSeconds" not in body
-        and "command" not in body
-    ):
-        try:
-            body["timeoutSeconds"] = max(35, min(300, int(float(args.timeout))))
-        except (TypeError, ValueError):
-            body["timeoutSeconds"] = 90
+    body, err = _load_payload(args)
+    if err is not None:
+        return emit(err, EXIT_USAGE)
+    assert isinstance(body, dict)
+    _apply_timeout_default(body, args.timeout)
 
     # Serialize senders and match responses by seq. Never delete response.json
     # before write — that raced with the controller and caused one-behind
@@ -686,10 +777,9 @@ def cmd_send(args: argparse.Namespace) -> int:
             while p["request"].exists() and time.time() < wait_deadline:
                 time.sleep(0.02)
             if p["request"].exists():
-                print(
-                    json.dumps({"ok": False, "error": "timeout_waiting_request_slot"})
+                return emit(
+                    {"ok": False, "error": "timeout_waiting_request_slot"}, EXIT_FAIL
                 )
-                return 1
             envelope = {"seq": seq, "body": body, "wait_seconds": float(args.timeout)}
             p["request"].write_text(json.dumps(envelope, ensure_ascii=False) + "\n")
             deadline = time.time() + float(args.timeout)
@@ -708,15 +798,12 @@ def cmd_send(args: argparse.Namespace) -> int:
                     print(text if text.endswith("\n") else text + "\n", end="")
                     return 0
                 if not p["alive"].exists():
-                    print(json.dumps({"ok": False, "error": "controller_died"}))
-                    return 1
+                    return emit({"ok": False, "error": "controller_died"}, EXIT_FAIL)
                 time.sleep(0.02)
-            print(
-                json.dumps(
-                    {"ok": False, "error": "timeout_waiting_response", "seq": seq}
-                )
+            return emit(
+                {"ok": False, "error": "timeout_waiting_response", "seq": seq},
+                EXIT_FAIL,
             )
-            return 1
         finally:
             fcntl.flock(lock_fh.fileno(), fcntl.LOCK_UN)
 
@@ -773,8 +860,10 @@ def cmd_status(args: argparse.Namespace) -> int:
         "last_response_event": last_event,
         "workdir": str(workdir),
     }
+    if not payload["ok"]:
+        with_hint(payload, "status_unhealthy")
     print(json.dumps(payload, ensure_ascii=False))
-    return 0 if payload["ok"] else 1
+    return EXIT_OK if payload["ok"] else EXIT_FAIL
 
 
 def cmd_closeout(args: argparse.Namespace) -> int:
@@ -787,6 +876,19 @@ def cmd_closeout(args: argparse.Namespace) -> int:
 
     p = _paths(Path(args.workdir).resolve())
 
+    if getattr(args, "dry_run", False):
+        alive = p["alive"].exists()
+        return emit(
+            {
+                "ok": True,
+                "dry_run": True,
+                "would": "send_closeout" if alive else "absence_proof_only",
+                "controller_alive": alive,
+                "workdir": str(Path(args.workdir).resolve()),
+            },
+            EXIT_OK,
+        )
+
     def _persist_and_print(payload: dict, ok: bool) -> int:
         # Match send()'s on-disk shape: {seq, result} when seq exists.
         seq = 0
@@ -798,8 +900,10 @@ def cmd_closeout(args: argparse.Namespace) -> int:
         p["response"].write_text(
             json.dumps({"seq": seq, "result": payload}, ensure_ascii=False) + "\n"
         )
+        if not ok:
+            with_hint(payload, "closeout_unverified")
         print(json.dumps(payload, ensure_ascii=False))
-        return 0 if ok else 1
+        return EXIT_OK if ok else EXIT_FAIL
 
     last_text = ""
     rc = 1
@@ -850,10 +954,12 @@ def cmd_closeout(args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = JsonArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    start = sub.add_parser("start")
+    start = sub.add_parser("start", help="(start here) lease one Comet tab")
     start.add_argument("--session-id", required=True)
     start.add_argument("--label", required=True)
     start.add_argument("--url", required=True)
@@ -862,12 +968,14 @@ def main() -> int:
     start.add_argument("--ttl-seconds", type=int, default=600)
     start.add_argument("--ready-timeout", type=float, default=180)
     start.add_argument("--browser-use", action="store_true")
+    start.add_argument("--dry-run", action="store_true", help="report reuse vs spawn; change nothing")
 
     send = sub.add_parser("send")
     send.add_argument("--workdir", required=True)
     send.add_argument("payload", nargs="?", default=None)
     send.add_argument("--payload-file")
     send.add_argument("--timeout", type=float, default=180)
+    send.add_argument("--dry-run", action="store_true", help="validate payload; send nothing")
 
     status = sub.add_parser("status")
     status.add_argument("--workdir", required=True)
@@ -875,6 +983,9 @@ def main() -> int:
     closeout = sub.add_parser("closeout")
     closeout.add_argument("--workdir", required=True)
     closeout.add_argument("--timeout", type=float, default=180)
+    closeout.add_argument("--dry-run", action="store_true", help="report what closeout would do")
+    for sp in (start, send, status, closeout):
+        sp.add_argument("--json", action="store_true", help="no-op: output is always JSON")
 
     run = sub.add_parser("_run", help=argparse.SUPPRESS)
     run.add_argument("--session-id", required=True)
@@ -897,7 +1008,7 @@ def main() -> int:
         return cmd_closeout(args)
     if args.cmd == "_run":
         return _controller_main(args)
-    return 2
+    return EXIT_USAGE
 
 
 if __name__ == "__main__":
