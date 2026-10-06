@@ -1702,8 +1702,13 @@ async function findPointOnControllableFrames(tabId, action, args, fallback) {
 }
 
 async function moveCursorToPoint(tabId, point) {
+  // Pass the target box so the glide uses real Fitts W (content script floors
+  // tiny <16px targets at 8px and caps the glide at 450ms).
+  const target = Number(point.target_w) > 0 && Number(point.target_h) > 0
+    ? { w: Number(point.target_w), h: Number(point.target_h) }
+    : null;
   const response = await sendToContentScript(
-    tabId, "moveToAndWait", [point.x, point.y, 900], point.frame_id
+    tabId, "moveToAndWait", [point.x, point.y, 900, target], point.frame_id
   );
   return requireContentScriptResult(response, "Cursor movement failed");
 }
@@ -1795,15 +1800,25 @@ async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
   // hide/park-before-CDP). Silent/bench still parks first. Session closeout
   // hides cursors; do not park between watchable clicks.
   let ringShown = false;
+  let cursorArrival = null;
   try {
     if (visual) {
       const lease = leaseForTab(tabId);
       if (lease) lease.cursorSilentPark = false;
-      await moveCursorToPoint(tabId, point);
-      await sleep(Math.max(150, Number(options.lingerMs) || 350));
-      // On-demand click ring at point (same-act theater); keep overlay for CDP.
-      const pulse = await sendToContentScript(tabId, "pulseClick", [], point.frame_id).catch(() => null);
-      ringShown = Boolean(pulse?.result?.click_ring);
+      // Release on CONFIRMED arrival: moveToAndWait resolves after the glide
+      // finished and the rendered tip measured within 1px (or reports
+      // confirmed:false with the cursor hidden). The old fixed 350ms linger was
+      // theater only — actionability/hit-test ran before the move and CDP hits
+      // the pre-resolved point. linger_ms stays an explicit opt-in dwell.
+      const moved = await moveCursorToPoint(tabId, point);
+      cursorArrival = moved?.arrival || null;
+      const lingerMs = Number(options.lingerMs);
+      if (Number.isFinite(lingerMs) && lingerMs > 0) await sleep(Math.min(lingerMs, 2000));
+      if (cursorArrival?.confirmed !== false) {
+        // On-demand click ring at point (same-act theater); keep overlay for CDP.
+        const pulse = await sendToContentScript(tabId, "pulseClick", [], point.frame_id).catch(() => null);
+        ringShown = Boolean(pulse?.result?.click_ring);
+      }
     } else {
       await parkContentScriptIdle(tabId, point.frame_id || 0);
     }
@@ -1815,12 +1830,14 @@ async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
           keepClickRing: ringShown,
           keepVisible: visual,
         });
+        const arrived = visual && cursorArrival?.confirmed !== false;
         return {
           ...click,
           click_ring: Boolean(ringShown || click.click_ring),
           pulse: ringShown,
-          cursor_visible_during_click: Boolean(visual || click.cursor_visible_during_click),
-          visual_synced: visual,
+          cursor_visible_during_click: Boolean(arrived || (!visual && click.cursor_visible_during_click)),
+          visual_synced: arrived,
+          cursor_arrival: cursorArrival,
         };
       }
     }

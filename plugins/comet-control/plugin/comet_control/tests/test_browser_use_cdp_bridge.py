@@ -190,24 +190,57 @@ class BrowserUseCDPBridgeTests(unittest.TestCase):
         socket.close.assert_called_once()
         self.assertEqual(socket.close.call_args.kwargs["code"], 1011)
 
-    def test_cursor_waits_only_for_remaining_travel(self):
+    def test_cursor_releases_only_on_confirmed_arrival(self):
         cursor = PARITY.parent / "content-scripts/cursor-agent.js"
         source = cursor.read_text()
         functions = source[source.index("  const GLIDE_MS"):source.index("  function pulseClick")]
-        harness = """
+        harness = r"""
 const assert = require('node:assert/strict');
-let now=0, waits=[], cursorX=0, cursorY=0, isVisible=true, cursorPhase='idle';
-let cursorEl={classList:{add(){},remove(){}},style:{}};
-const performance={now:()=>now};
-const setTimeout=(fn,ms)=>{waits.push(ms);return 1};
-const clearTimeout=()=>{};
-const getStatus=()=>({});
-""" + functions + """
-moveToAndWait(100,100); assert.equal(waits.at(-1),360);
-now=200; moveToAndWait(100,100); assert.equal(waits.at(-1),160);
-now=400; moveToAndWait(100,100); assert.equal(waits.at(-1),0);
-moveToAndWait(200,100); assert.equal(waits.at(-1),360);
-isVisible=false; moveToAndWait(200,100); assert.equal(waits.at(-1),360);
+let cursorX=0, cursorY=0, isVisible=true, cursorPhase='idle', animCalls=0, finish=null, stuck=false, lie=false;
+const cls=new Set(['comet-control-visible']);
+let running=null;
+const cursorEl={classList:{add:(c)=>cls.add(c),remove:(c)=>cls.delete(c)},style:{transform:'translate(0px, 0px)'},
+  addEventListener(){}, removeEventListener(){},
+  animate(frames,opts){animCalls++; const a={frames,opts,cancel(){if(running===a)running=null}};
+    a.finished=stuck?new Promise(()=>{}):new Promise(r=>{finish=()=>{running=null;r()};setTimeout(finish,5)});
+    running=a; return a;}};
+const document={visibilityState:'visible'};
+const requestAnimationFrame=(f)=>setTimeout(f,1);
+function getComputedStyle(){ if(lie) return {transform:'matrix(1, 0, 0, 1, -100, -100)'};
+  if(running){const f=running.frames[0].transform.match(/-?[\d.]+/g);return {transform:`matrix(1, 0, 0, 1, ${f[0]}, ${f[1]})`};}
+  const m=cursorEl.style.transform.match(/-?[\d.]+/g);return {transform:`matrix(1, 0, 0, 1, ${m[0]}, ${m[1]})`};}
+function createOverlay(){}
+function hide(){cls.delete('comet-control-visible');isVisible=false;}
+const getStatus=()=>({visible:isVisible});
+""" + functions + r"""
+(async()=>{
+  assert.equal(glideDurationMs(0,24),200);
+  assert.ok(Math.abs(glideDurationMs(100,32)-283.3)<1);
+  assert.equal(glideDurationMs(1022,40),450);
+  assert.equal(glideDurationMs(400,4),glideDurationMs(400,8));  // tiny targets floor at 8px
+  const p=planGlide(0,0,400,0,32); const last=p.frames.at(-1);
+  assert.deepEqual(last,[400,0]); assert.ok(p.arrivalMs<=p.duration);
+  assert.ok(Math.min(...p.frames.map(f=>f[1]))<-10);  // light arc, not straight
+  assert.ok(Math.min(...p.frames.map(f=>f[1]))>=-40);
+  // 1) WAAPI glide: resolves only after finished + measured tip within 1px.
+  let r=await moveToAndWait(400,0,900,{w:80,h:32});
+  assert.equal(r.arrival.method,'waapi'); assert.equal(r.arrival.confirmed,true); assert.equal(r.arrival.error_px,0);
+  assert.equal(animCalls,1); assert.equal(r.arrival.target_w,32);
+  // 2) Same point again: stationary, measured, no new glide.
+  r=await moveToAndWait(400,0,900); assert.equal(r.arrival.confirmed,true); assert.equal(animCalls,1);
+  // 3) Animation never finishes: deadline selects hide + snap retry, never a timer "arrival".
+  stuck=true; const t0=Date.now(); r=await moveToAndWait(0,300,900);
+  assert.equal(r.arrival.method,'snap_retry'); assert.equal(r.arrival.confirmed,true);
+  assert.ok(Date.now()-t0 < 700); stuck=false;
+  // 4) Hidden document: no glide, snap + measure.
+  document.visibilityState='hidden'; r=await moveToAndWait(300,300,900);
+  assert.equal(r.arrival.method,'snap'); assert.equal(animCalls,2); assert.equal(r.arrival.confirmed,true);
+  document.visibilityState='visible';
+  // 5) Rendered tip never reaches target: report unconfirmed and stay hidden.
+  lie=true; r=await moveToAndWait(10,10,900);
+  assert.equal(r.arrival.confirmed,false); assert.equal(r.arrival.method,'unconfirmed'); assert.equal(isVisible,false);
+  assert.ok(!cls.has('comet-control-visible'));
+})().catch(e=>{console.error(e);process.exit(1)});
 """
         subprocess.run(["node", "-e", harness], check=True, capture_output=True)
 
