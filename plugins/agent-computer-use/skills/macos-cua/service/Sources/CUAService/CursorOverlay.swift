@@ -12,6 +12,32 @@ final class CursorOverlay: @unchecked Sendable {
     private var animTarget = NSPoint.zero
     private var animStartTime: TimeInterval = 0
     private let animDuration: TimeInterval = 0.12
+    /// Max |panel origin - target| (pt) that counts as "tip landed".
+    private let landTolerance: CGFloat = 0.5
+    /// Extra time past animDuration before an unacknowledged glide is a miss.
+    private let landGrace: TimeInterval = 0.25
+    private var lastWindowID: CGWindowID?
+    /// Resumed by tick() when the final frame is set (true) or by timeout /
+    /// supersede / hide (false). Keyed so each waiter resolves exactly once.
+    private var landWaiters: [UUID: (Bool) -> Void] = [:]
+
+    /// Result of a glide that must land before any press is dispatched.
+    struct Landing {
+        let point: CGPoint
+        let landed: Bool
+        let method: String
+        let errorPt: Double
+        let waitMs: Int
+
+        var dict: [String: Any] {
+            [
+                "landed": landed,
+                "method": method,
+                "error_pt": (errorPt * 100).rounded() / 100,
+                "wait_ms": waitMs,
+            ]
+        }
+    }
 
     init() {
         setupPanel()
@@ -64,6 +90,9 @@ final class CursorOverlay: @unchecked Sendable {
 
         animationTimer?.invalidate()
         animationTimer = nil
+        resolveLandWaiters(false)  // a new glide supersedes any pending landing
+        animTarget = origin
+        lastWindowID = windowID
         if !panel.isVisible {
             panel.setFrameOrigin(origin)
             orderPanel(above: windowID)
@@ -100,7 +129,74 @@ final class CursorOverlay: @unchecked Sendable {
     func hide() {
         animationTimer?.invalidate()
         animationTimer = nil
+        resolveLandWaiters(false)
         panel.orderOut(nil)
+    }
+
+    /// Glide, then wait for CONFIRMED landing: the animation's final frame was
+    /// set (tick acknowledgement) AND the panel origin is measured within
+    /// landTolerance of the target. Never a bare timer. A timeout is not a hit:
+    /// hide, snap-retry once, re-measure; still off → stay hidden and report
+    /// landed=false so the caller never glides at the same moment as the press.
+    func glideAndLand(
+        screenPoint: CGPoint,
+        windowID: CGWindowID?,
+        axBounds: CGRect? = nil
+    ) async -> Landing {
+        let started = ProcessInfo.processInfo.systemUptime
+        let tip = glideTo(screenPoint: screenPoint, windowID: windowID, axBounds: axBounds)
+        var method = tip.wait > 0 ? "glide" : "snap"
+        var finished = true
+        if tip.wait > 0 {
+            finished = await waitForLanding(timeout: tip.wait + landGrace)
+        }
+        var error = landingError()
+        if !finished || error > landTolerance || !panel.isVisible {
+            hide()
+            panel.setFrameOrigin(animTarget)
+            orderPanel(above: lastWindowID)
+            error = landingError()
+            if error <= landTolerance && panel.isVisible {
+                method = "snap_retry"
+            } else {
+                panel.orderOut(nil)
+                return Landing(
+                    point: tip.point, landed: false, method: "unconfirmed",
+                    errorPt: Double(error), waitMs: elapsedMs(since: started)
+                )
+            }
+        }
+        return Landing(
+            point: tip.point, landed: true, method: method,
+            errorPt: Double(error), waitMs: elapsedMs(since: started)
+        )
+    }
+
+    private func landingError() -> CGFloat {
+        let o = panel.frame.origin
+        return hypot(o.x - animTarget.x, o.y - animTarget.y)
+    }
+
+    private func elapsedMs(since start: TimeInterval) -> Int {
+        Int(((ProcessInfo.processInfo.systemUptime - start) * 1000).rounded())
+    }
+
+    private func waitForLanding(timeout: TimeInterval) async -> Bool {
+        if animationTimer == nil { return true }
+        let id = UUID()
+        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            landWaiters[id] = { ok in cont.resume(returning: ok) }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64((timeout * 1_000_000_000).rounded()))
+                self?.landWaiters.removeValue(forKey: id)?(false)
+            }
+        }
+    }
+
+    private func resolveLandWaiters(_ ok: Bool) {
+        let waiters = landWaiters
+        landWaiters.removeAll()
+        for waiter in waiters.values { waiter(ok) }
     }
 
     private func orderPanel(above windowID: CGWindowID?) {
@@ -124,6 +220,7 @@ final class CursorOverlay: @unchecked Sendable {
             animationTimer?.invalidate()
             animationTimer = nil
             panel.setFrameOrigin(animTarget)
+            resolveLandWaiters(true)  // final frame set: landing acknowledged
         }
     }
 

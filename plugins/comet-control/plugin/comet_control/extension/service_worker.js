@@ -2329,6 +2329,11 @@ async function executeScriptOnTab(tabId, options, ms, label) {
       tabScriptingPoisoned.delete(tabId);
       return value;
     } catch (error) {
+      // Only a TIMEOUT means Comet's per-tab scripting FIFO is wedged. A fast
+      // rejection (e.g. "Frame with ID 0 is showing error page" after a dead
+      // fixture/server) is not a wedge; poisoning on it blocked even the goto
+      // that would recover the tab.
+      if (!/timed out after/.test(String(error?.message || error))) throw error;
       tabScriptingPoisoned.add(tabId);
       // Keep queue on raw settle (bounded) so we do not start a second inject
       // while Comet still holds the first.
@@ -2564,6 +2569,10 @@ async function runBrowserAction(action, state) {
     await boundedWait(action.waitMs || 2000, state);
     // Navigation always invalidates the previous content-script world.
     invalidateTabInjection(state.tabId);
+    // A committed cross-document goto is a fresh scripting world, same as
+    // reload_page below: allow one fresh canary. A still-wedged FIFO re-poisons
+    // on the next bounded executeScript timeout.
+    tabScriptingPoisoned.delete(state.tabId);
     // Do not pre-attach the debugger here. debugger + scripting.executeScript
     // on the same tab wedges Seller Accept→Dispatch (injectCanary timeout).
     // Screenshots/network attach lazily when those actions run.
@@ -3936,7 +3945,14 @@ async function handleUnlockedHostMessage(message) {
       && (message.actions || []).every((action) => ["dialog_get", "dialog_handle"].includes(action?.type));
     const navigationOnly = (message.actions || []).length > 0
       && message.actions.every((action) => ["reload_page", "goto", "navigate", "back", "forward"].includes(action?.type));
-    if (!navigationOnly && !dialogControlOnly && !cdpObservationOnly) await setAgentIdentity(state.tabId, leaseRecord);
+    // A batch that starts by navigating sets identity inside the nav action;
+    // pre-identity on the old (possibly error/wedged) document would block the
+    // very goto that recovers it.
+    const leadingNavigation = ["reload_page", "goto", "navigate", "back", "forward"]
+      .includes(message.actions?.[0]?.type);
+    if (!navigationOnly && !leadingNavigation && !dialogControlOnly && !cdpObservationOnly) {
+      await setAgentIdentity(state.tabId, leaseRecord);
+    }
     const results = [];
     try {
       for (const [index, action] of (message.actions || []).entries()) {
