@@ -8,23 +8,30 @@ profile. `durable_lease_controller.py start --browser-use` creates a private
 loopback CDP WebSocket for that tab and writes `BU_CDP_WS`, `BU_NAME`, and
 `BH_OPEN_LIVE_URL=0` to `<workdir>/browser-use.env` with mode `0600`.
 
-Require the current Browser Use CLI with its Browser Harness skill surface:
+Require the Browser Use CLI with Browser Harness (verified 2026-10-06: package
+browser-use 0.13.10; `--version` prints the harness version, 0.1.13):
 
 ```bash
-browser-use skill >/dev/null
+browser-use --version && browser-use skill show >/dev/null
 ```
 
-If that command is unavailable, install or upgrade the upstream `browser-use`
-package before acquiring a Comet lease.
+If either fails, upgrade the upstream `browser-use` package before acquiring a
+Comet lease, never during one (no `--update` / `--reload` while a lease is live).
 
 ```bash
 . "$WORK/browser-use.env"
+test -n "$BU_CDP_WS" || { echo "no lease BU_CDP_WS; stop" >&2; exit 64; }
 browser-use <<'PY'
 print(page_info())
 click_at_xy(320, 240)
 print(page_info())
 PY
 ```
+
+Without `BU_CDP_WS` the CLI's default attaches to the running Chrome (Chrome
+146 remote-debugging toggle). That is a second controller on a logged-in
+profile and is banned: never run `mac-approve`, never enable
+`chrome://inspect/#remote-debugging`, never point `BU_CDP_URL` at Chrome.
 
 The adapter presents exactly one synthetic target. It maps Browser Use's tab
 attachment to the lease, rejects foreign targets and browser-wide CDP domains,
@@ -94,6 +101,7 @@ Do not merge these Browser Use skills into this local logged-in path:
   already uses the real profile in place, so copying is unnecessary.
 
 Domain skills remain disabled (`BH_DOMAIN_SKILLS=0`) and recordings remain off
-unless the user explicitly asks. Stop for passwords, MFA, consent, CAPTCHA, or
+(`browser-use recordings` shows the state; never `recordings enable`) unless the
+user explicitly asks. Stop for passwords, MFA, consent, CAPTCHA, or
 ambiguous account selection. Close the campaign through the durable controller
 and require `verified_absent: true`; do not close the synthetic CDP target.
