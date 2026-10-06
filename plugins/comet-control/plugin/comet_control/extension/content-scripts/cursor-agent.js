@@ -262,17 +262,130 @@
   // RELIABILITY CONTRACT: the *logical* position (cursorX/cursorY) snaps to the
   // target immediately, so click() / elementFromPoint always resolve the element
   // the operator asked for — even if the visible glide hasn't finished or the
-  // tab is backgrounded. The *visible* glide is a CSS transform transition
-  // (compositor-driven), so the operator still sees the cursor travel to the
-  // target. What is seen and what is clicked therefore always agree.
-  const GLIDE_MS = 320;
+  // tab is backgrounded. What is seen and what is clicked therefore always agree.
+  //
+  // Visible glide (subset of Cua signature_arc, MIT, trycua/cua#4659): light
+  // cubic-Bezier arc + minimum-jerk easing, Fitts duration
+  // clamp(120 + 80*log2(D/W + 1), 200, 450) ms with W = target's smaller side
+  // (floor 8px, default 24px). Played as a Web Animations API transform track
+  // (compositor-driven, keeps running when Comet is a background window). The
+  // track is cut where the tip first comes within ARRIVAL_TOL_PX, so "finished"
+  // means arrived and the click releases on arrival — no follow-through, the
+  // cursor is never moving while the press lands.
+  // moveToAndWait resolves only on CONFIRMED arrival: animation finished AND the
+  // computed transform measured within tolerance. Never a bare timer. A missed
+  // deadline is not a hit: hide, snap-retry once, re-measure; still off → stay
+  // hidden and report arrival.confirmed=false. Hidden documents produce no
+  // frames, so they snap + measure instead of gliding; an occluded window that
+  // produces no frame within FRAME_STALL_MS takes the same hide/snap-retry
+  // path. Throttled timers never gate the click. CSS transition (stylesheet, straight) is the fallback when
+  // element.animate is unavailable.
+  const GLIDE_MS = 320; // stylesheet CSS-transition default (fallback path only)
+  const GLIDE_MIN_MS = 200;
+  const GLIDE_MAX_MS = 450;
+  const ARRIVAL_TOL_PX = 1;
+  const ARRIVAL_GRACE_MS = 200;
+  const FRAME_STALL_MS = 120; // no animation frame by then → frames not produced
+  const DEFAULT_TARGET_W = 24;
+  const MIN_TARGET_W = 8;
+  const ARC_SIZE = 0.10;
+  const ARC_FLOW = 0.15;
+  const ARC_HANDLE = 0.3;
+  const ARC_MAX_PX = 40;
   let arrivalTimer = null;
   let arrivalDeadline = 0;
+  let activeMotion = null;
 
-  function moveTo(x, y) {
+  function glideDurationMs(distance, targetW) {
+    const w = Math.max(MIN_TARGET_W, Number(targetW) > 0 ? Number(targetW) : DEFAULT_TARGET_W);
+    const d = Math.max(0, Number(distance) || 0);
+    return Math.min(GLIDE_MAX_MS, Math.max(GLIDE_MIN_MS, 120 + 80 * Math.log2(d / w + 1)));
+  }
+
+  function minJerk(t) {
+    return t * t * t * (10 - 15 * t + 6 * t * t);
+  }
+
+  function planGlide(x0, y0, x1, y1, targetW) {
+    const dx = x1 - x0;
+    const dy = y1 - y0;
+    const len = Math.hypot(dx, dy);
+    const duration = glideDurationMs(len, targetW);
+    // Cua cua_path control points; bend upward on rightward moves; deflection
+    // capped so long moves stay a light arc.
+    const defl = len >= 24 ? Math.min(len * ARC_SIZE, ARC_MAX_PX) * (dx >= 0 ? -1 : 1) : 0;
+    const px = len ? -dy / len : 0;
+    const py = len ? dx / len : 0;
+    const flow = (ARC_FLOW + 1) / 2;
+    const c1d = defl * (1 - 0.5 * flow);
+    const c2d = defl * (1 - 0.5 * (1 - flow));
+    const c1x = x0 + dx * ARC_HANDLE + px * c1d;
+    const c1y = y0 + dy * ARC_HANDLE + py * c1d;
+    const c2x = x1 - dx * ARC_HANDLE + px * c2d;
+    const c2y = y1 - dy * ARC_HANDLE + py * c2d;
+    const bez = (u) => {
+      const v = 1 - u;
+      const a = v * v * v, b = 3 * v * v * u, c = 3 * v * u * u, e = u * u * u;
+      return [a * x0 + b * c1x + c * c2x + e * x1, a * y0 + b * c1y + c * c2y + e * y1];
+    };
+    // Arc-length table so the easing acts on distance travelled.
+    const N = 48;
+    const pts = [bez(0)];
+    const acc = [0];
+    for (let i = 1; i <= N; i += 1) {
+      const p = bez(i / N);
+      acc.push(acc[i - 1] + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1]));
+      pts.push(p);
+    }
+    const total = acc[N] || 1;
+    const at = (f) => {
+      const s = f * total;
+      let i = 1;
+      while (i < N && acc[i] < s) i += 1;
+      const k = (s - acc[i - 1]) / ((acc[i] - acc[i - 1]) || 1);
+      return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * k, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * k];
+    };
+    const steps = Math.max(2, Math.ceil(duration / (1000 / 60)));
+    const frames = [[x0, y0]];
+    for (let i = 1; i <= steps; i += 1) {
+      const p = i === steps ? [x1, y1] : at(minJerk(i / steps));
+      if (Math.hypot(p[0] - x1, p[1] - y1) <= ARRIVAL_TOL_PX) {
+        frames.push([x1, y1]); // release on arrival: track ends inside tolerance
+        break;
+      }
+      frames.push(p);
+    }
+    return { frames, duration, arrivalMs: duration * (frames.length - 1) / steps, distance: len };
+  }
+
+  function readRenderedPoint() {
+    if (!cursorEl) return null;
+    const t = getComputedStyle(cursorEl).transform || '';
+    const open = t.indexOf('(');
+    if (open < 0) return null;
+    const v = t.slice(open + 1, -1).split(',').map((s) => parseFloat(s));
+    if (t.startsWith('matrix3d')) return v.length >= 14 ? [v[12], v[13]] : null;
+    if (t.startsWith('matrix')) return v.length >= 6 ? [v[4], v[5]] : null;
+    return v.length >= 2 ? [v[0], v[1]] : null;
+  }
+
+  function measureArrival(x, y) {
+    const p = readRenderedPoint();
+    if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) return { within: false, error_px: null };
+    const error = Math.hypot(p[0] - x, p[1] - y);
+    return { within: error <= ARRIVAL_TOL_PX, error_px: Math.round(error * 100) / 100 };
+  }
+
+  // target: optional { w, h } of the element box (real Fitts W) and/or
+  // { instant: true } for per-frame callers (drag) that must not glide.
+  function moveTo(x, y, target = null) {
     if (!cursorEl) createOverlay();
-    if (isVisible && cursorX === x && cursorY === y) return;
-    arrivalDeadline = performance.now() + GLIDE_MS + 40;
+    if (isVisible && cursorX === x && cursorY === y) return activeMotion;
+    const from = isVisible ? readRenderedPoint() : null;
+    if (activeMotion?.anim) {
+      try { activeMotion.anim.cancel(); } catch { /* already gone */ }
+    }
+    activeMotion = null;
     cursorX = x;
     cursorY = y;
     if (!isVisible) {
@@ -281,21 +394,120 @@
     }
     cursorPhase = 'moving';
     cursorEl.classList.add('comet-control-moving');
-    cursorEl.style.transform = `translate(${x}px, ${y}px)`; // CSS transition glides
+    const w = Number(target?.w) > 0 && Number(target?.h) > 0
+      ? Math.min(Number(target.w), Number(target.h))
+      : 0;
+    const hidden = document.visibilityState === 'hidden';
+    const plan = !target?.instant && !hidden && from && from[0] >= 0 && from[1] >= 0
+      && Math.hypot(x - from[0], y - from[1]) >= 4
+      ? planGlide(from[0], from[1], x, y, w)
+      : null;
+    const useWaapi = Boolean(plan && typeof cursorEl.animate === 'function');
+    const useCss = Boolean(plan && !useWaapi);
+    // Inline transition: no transform tween under WAAPI/snap (a transition would
+    // outrank the animation); Fitts-length straight tween on the CSS fallback.
+    cursorEl.style.transition = useCss
+      ? `transform ${Math.round(plan.arrivalMs)}ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.2s ease`
+      : 'opacity 0.2s ease';
+    cursorEl.style.transform = `translate(${x}px, ${y}px)`;
+    let anim = null;
+    if (useWaapi) {
+      try {
+        anim = cursorEl.animate(
+          plan.frames.map(([fx, fy]) => ({ transform: `translate(${fx}px, ${fy}px)` })),
+          { duration: plan.arrivalMs, easing: 'linear' }
+        );
+      } catch {
+        anim = null; // inline transform already at target: snap
+      }
+    }
+    const method = anim ? 'waapi' : (useCss ? 'css_transition' : 'snap');
+    const travelMs = anim || useCss ? plan.arrivalMs : 0;
+    const motion = { x, y, anim, method, travelMs, distance: plan ? plan.distance : 0, frames: 0 };
+    if (anim || useCss) requestAnimationFrame(() => { motion.frames += 1; });
+    const el = cursorEl;
+    motion.done = anim
+      ? anim.finished.then(() => true, () => false)
+      : useCss
+        ? new Promise((resolve) => {
+          const onEnd = (e) => {
+            if (e.propertyName !== 'transform') return;
+            el.removeEventListener('transitionend', onEnd);
+            resolve(true);
+          };
+          el.addEventListener('transitionend', onEnd);
+        })
+        : Promise.resolve(true);
+    arrivalDeadline = performance.now() + travelMs + ARRIVAL_GRACE_MS;
+    activeMotion = motion;
     if (arrivalTimer) clearTimeout(arrivalTimer);
+    // Cosmetic phase label only — never an arrival signal.
     arrivalTimer = setTimeout(() => {
+      if (activeMotion !== motion) return;
       cursorPhase = 'idle';
       cursorEl?.classList.remove('comet-control-moving');
-    }, GLIDE_MS);
+    }, travelMs);
+    return motion;
   }
 
-  function moveToAndWait(x, y, timeoutMs = 900) {
-    moveTo(x, y);
-    // Logical position is already at the target; wait only for the visible glide
-    // so the operator sees the cursor arrive before the click. setTimeout (not
-    // rAF) resolves promptly even in a backgrounded tab.
-    const wait = Math.min(Math.max(0, arrivalDeadline - performance.now()), Math.max(0, timeoutMs));
-    return new Promise((resolve) => setTimeout(() => resolve(getStatus()), wait));
+  async function moveToAndWait(x, y, timeoutMs = 900, target = null) {
+    const started = performance.now();
+    const motion = moveTo(x, y, target) || activeMotion;
+    const budget = Math.min(Math.max(0, arrivalDeadline - performance.now()), Math.max(0, Number(timeoutMs) || 0));
+    let finished = true;
+    if (motion?.done) {
+      // Deadline/stall timers only ever select the failure path below; arrival
+      // itself is the animation finishing plus a measured rendered position.
+      const timers = [];
+      const waits = [
+        motion.done,
+        new Promise((resolve) => { timers.push(setTimeout(() => resolve(false), budget)); }),
+      ];
+      if (motion.travelMs > 0) {
+        waits.push(new Promise((resolve) => {
+          timers.push(setTimeout(() => { if (!motion.frames) resolve(false); }, Math.min(budget, FRAME_STALL_MS)));
+        }));
+      }
+      finished = await Promise.race(waits);
+      timers.forEach(clearTimeout);
+    }
+    let measured = measureArrival(x, y);
+    let method = motion?.method || 'stationary';
+    if (!finished || !measured.within) {
+      // Timed-out overlay point is not a hit: hide, snap-retry once, re-measure.
+      if (motion?.anim) {
+        try { motion.anim.cancel(); } catch { /* gone */ }
+      }
+      hide();
+      if (cursorEl) {
+        cursorEl.style.transition = 'opacity 0.2s ease';
+        cursorEl.style.transform = `translate(${x}px, ${y}px)`;
+      }
+      measured = measureArrival(x, y);
+      if (measured.within && cursorEl) {
+        cursorEl.classList.add('comet-control-visible');
+        isVisible = true;
+        method = 'snap_retry';
+      } else {
+        method = 'unconfirmed';
+      }
+    }
+    if (activeMotion === motion || !motion) {
+      cursorPhase = 'idle';
+      cursorEl?.classList.remove('comet-control-moving');
+    }
+    return {
+      ...getStatus(),
+      arrival: {
+        confirmed: Boolean(measured.within && isVisible),
+        method,
+        error_px: measured.error_px,
+        wait_ms: Math.round(performance.now() - started),
+        planned_ms: Math.round(motion?.travelMs || 0),
+        distance: Math.round(motion?.distance || 0),
+        target_w: Number(target?.w) > 0 && Number(target?.h) > 0 ? Math.min(Number(target.w), Number(target.h)) : null,
+      },
+    };
   }
 
   function clearClickRings() {
@@ -649,7 +861,7 @@
         const t = Math.min(1, (now - startTime) / duration);
         const x = startX + (endX - startX) * t;
         const y = startY + (endY - startY) * t;
-        moveTo(x, y);
+        moveTo(x, y, { instant: true });
         if (el) {
           el.dispatchEvent(new MouseEvent('mousemove', {
             bubbles: true, cancelable: true, view: window,
@@ -942,6 +1154,8 @@
       x,
       y,
       onTarget: true,
+      target_w: Math.round(r.width),
+      target_h: Math.round(r.height),
       target_token: _targetTokenForElement(el),
       page_revision: pageRevision,
       tag: el.tagName,

@@ -15,7 +15,8 @@ itself; PiP reuses the proof image already captured through `cua-driver`.
 - Desktop cursor: a separate click-through panel owned by the signed operator.
   It orders **above the controlled window only** (not global `.screenSaver`), hides
   when another window occludes the cursor point, renders Hermes Chrome's 28 px
-  arrow, 12 px cyan glow, 4 px dark depth shadow, 1.7 s float, 0.32 s glide, and
+  arrow, 12 px cyan glow, 4 px dark depth shadow, 1.7 s float, 0.12 s cubic ease-out glide (`CursorOverlay.swift`
+  `animDuration`; `runtime_pointer.py` publishes `cursor_duration_ms` 120), and
   a harness badge (`macos-cua · Cursor`, `macos-cua · Codex`, etc.) without activating
   the app or moving the hardware pointer. The glide uses an explicit main-run-loop
   timer because implicit `NSPanel.animator()` movement was ignored after the first
