@@ -179,6 +179,53 @@ def _cursor_assets_check() -> dict[str, Any]:
     )
 
 
+DEFAULT_COMET_USER_DATA = Path.home() / "Library" / "Application Support" / "Comet"
+
+
+def _port_listening(port: int) -> bool | None:
+    """Passive: ask lsof for a listener. Never connects to the port."""
+    try:
+        proc = subprocess.run(
+            ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN", "-t"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if proc.returncode not in (0, 1):
+        return None
+    return bool(proc.stdout.strip())
+
+
+def _remote_debugging_check(user_data_dir: str | None = None, listening=_port_listening) -> dict[str, Any]:
+    """Warn when Comet exposes a live-session DevTools port (Chrome 146 toggle or
+    --remote-debugging-port). comet-control never uses it: any local process could
+    drive the logged-in profile as a second controller. Read-only; no connection."""
+    root = Path(user_data_dir).expanduser() if user_data_dir else DEFAULT_COMET_USER_DATA
+    marker = root / "DevToolsActivePort"
+    surface = "Comet remote debugging (chrome://inspect/#remote-debugging)"
+    fix = "Turn off Comet remote debugging (chrome://inspect toggle) and relaunch without --remote-debugging-port."
+    if not marker.is_file():
+        return _check("remote_debugging_closed", True, severity="warning",
+                      detail="no DevToolsActivePort", surface=surface, fix="-")
+    try:
+        port = int(marker.read_text().splitlines()[0].strip())
+    except (OSError, ValueError, IndexError):
+        return _check("remote_debugging_closed", None, severity="warning",
+                      detail="DevToolsActivePort unreadable", surface=surface, fix=fix)
+    state = listening(port)
+    if state is None:
+        return _check("remote_debugging_closed", None, severity="warning",
+                      detail=f"DevToolsActivePort port {port}; listener unknown", surface=surface, fix=fix)
+    if state:
+        return _check("remote_debugging_closed", False, severity="warning",
+                      detail=f"live DevTools port {port} exposes the logged-in profile", surface=surface, fix=fix)
+    return _check("remote_debugging_closed", True, severity="warning",
+                  detail=f"stale DevToolsActivePort (port {port} not listening)", surface=surface, fix="-")
+
+
 def run_diagnostics() -> dict[str, Any]:
     runtime = _runtime_probe()
     checks = [
@@ -187,6 +234,7 @@ def run_diagnostics() -> dict[str, Any]:
         _broker_check(),
         _extension_check(),
         _cursor_assets_check(),
+        _remote_debugging_check((runtime.get("broker") or {}).get("user_data_dir")),
     ]
     blocking = [
         check["name"]
