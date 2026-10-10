@@ -52,6 +52,27 @@ def _sha(path: Path) -> str | None:
         return None
 
 
+# Must equal the file list (and order) the extension hashes in service_worker.js
+# `extensionBuildSha256`: sha256 over the concatenated bytes. Hashing SW alone
+# false-failed loaded_build_current on every correct install.
+EXTENSION_BUILD_FILES = (
+    "service_worker.js",
+    "parity_capabilities.js",
+    "content-scripts/cursor-agent.js",
+)
+
+
+def extension_build_sha256(root: Path | None = None) -> str | None:
+    base = SOURCE_EXTENSION if root is None else root
+    digest = hashlib.sha256()
+    try:
+        for rel in EXTENSION_BUILD_FILES:
+            digest.update((base / rel).read_bytes())
+    except OSError:
+        return None
+    return digest.hexdigest()
+
+
 def _runtime_probe() -> dict[str, Any]:
     try:
         completed = subprocess.run(
@@ -99,7 +120,7 @@ def _runtime_check(payload: dict[str, Any]) -> dict[str, Any]:
 def _loaded_build_check(payload: dict[str, Any]) -> dict[str, Any]:
     broker = payload.get("broker") or {}
     expected_broker = _sha(SOURCE_BROKER)
-    expected_extension = _sha(SOURCE_EXTENSION / "service_worker.js")
+    expected_extension = extension_build_sha256()
     loaded_broker = broker.get("broker_build_sha256")
     loaded_extension = broker.get("extension_build_sha256")
     ok = bool(
@@ -117,7 +138,12 @@ def _loaded_build_check(payload: dict[str, Any]) -> dict[str, Any]:
         detail=(
             f"protocol=1 broker={str(loaded_broker)[:12]} extension={str(loaded_extension)[:12]}"
             if ok
-            else "loaded broker or extension differs from the packaged protocol-1 build"
+            else (
+                "loaded build differs from packaged protocol-1 build: "
+                f"broker {str(loaded_broker)[:12]} vs {str(expected_broker)[:12]}, "
+                f"extension {str(loaded_extension)[:12]} vs {str(expected_extension)[:12]}, "
+                f"protocol {broker.get('protocol_version')}"
+            )
         ),
         surface="running Comet Control broker and extension",
         fix="-" if ok else "With no active leases, restart the broker and reload the Comet extension.",
