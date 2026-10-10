@@ -1,4 +1,4 @@
-"""Per-run call ledger (#33/#94)."""
+"""Per-run call ledger (#33/#94) and the opt-in scoped AX locator fallback."""
 
 from __future__ import annotations
 
@@ -72,6 +72,31 @@ class ControllerCallsLedger(unittest.TestCase):
             c._append_calls(w, 3, {"event": "closeout", "response": {"success": True}})
             self.assertEqual(len((w / "calls.jsonl").read_text().splitlines()), 2)
             self.assertEqual(c._calls_total(w), {"runs": 2, "cdp": 5, "scripting": 2, "messages": 4, "all": 11})
+
+
+class AxFallbackContract(unittest.TestCase):
+    def test_opt_in_only(self):
+        self.assertIn("const axWanted = axFallbackRequested(action)", PARITY)
+        self.assertRegex(PARITY, r"action\.ax_fallback === true")
+
+    def test_scoped_query_never_full_tree(self):
+        block = PARITY[PARITY.index("function axFallbackRequested"):PARITY.index("async function dispatchMouse")]
+        self.assertNotIn("getFullAXTree", block)
+        self.assertEqual(block.count('"Accessibility.queryAXTree"'), 1)
+
+    def test_top_frame_only_and_fails_closed_on_ambiguity(self):
+        body = PARITY[PARITY.index("function axQueryFor"):PARITY.index("async function dispatchMouse")]
+        self.assertIn("if (frameSelectors(action).length) return null;", body)
+        self.assertIn("if (nodes.length !== 1)", body)
+        self.assertIn("removeAttribute('data-comet-ax-ref')", body)
+
+    def test_ax_match_refreshes_by_css_path_after_cursor_move(self):
+        self.assertIn('match.via === "ax_fallback"', PARITY)
+        self.assertIn('{ locator: { by: "css", selector: match.selector } }', PARITY)
+
+    def test_runs_only_after_dom_miss(self):
+        loop = PARITY[PARITY.index("const axWanted"):PARITY.index("if (operation === \"count\")")]
+        self.assertLess(loop.index("matches = await resolveLocator(state.tabId, action);"), loop.index("axFallbackLookup"))
 
 
 if __name__ == "__main__":

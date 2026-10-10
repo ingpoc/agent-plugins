@@ -408,6 +408,58 @@ async function resolveLocator(tabId, action) {
   return matches;
 }
 
+// Scoped AX lookup (ACU #94), opt-in per action with ax_fallback:true. Runs only
+// after the DOM locator misses, top frame only, one exact accessible-name query;
+// zero or several AX candidates fail closed. Never a full-tree snapshot.
+function axFallbackRequested(action) {
+  return action.ax_fallback === true || action.axFallback === true
+    || action.locator?.ax_fallback === true || action.locator?.axFallback === true;
+}
+
+function axQueryFor(action) {
+  if (frameSelectors(action).length) return null;
+  const spec = locatorSpec(action);
+  if (spec.by === "role" && spec.role && spec.name) return { role: spec.role, accessibleName: spec.name };
+  if (spec.by === "label" && spec.label) return { accessibleName: spec.label };
+  if (spec.by === "text" && spec.text) return { accessibleName: spec.text };
+  return null;
+}
+
+async function axFallbackLookup(tabId, action, send) {
+  const query = axQueryFor(action);
+  if (!query) return { matches: [], info: { used: false, reason: "unsupported_locator" } };
+  const info = { used: true, role: query.role || null, name: query.accessibleName };
+  const doc = await send(tabId, "DOM.getDocument", { depth: 0 });
+  const found = await send(tabId, "Accessibility.queryAXTree", { nodeId: doc.root.nodeId, ...query });
+  const nodes = (found?.nodes || []).filter((node) => !node.ignored && node.backendDOMNodeId);
+  info.candidates = nodes.length;
+  if (nodes.length !== 1) return { matches: [], info: { ...info, reason: nodes.length ? "ambiguous" : "no_ax_match" } };
+  const resolved = await send(tabId, "DOM.resolveNode", { backendNodeId: nodes[0].backendDOMNodeId });
+  const objectId = resolved?.object?.objectId;
+  if (!objectId) return { matches: [], info: { ...info, reason: "unresolvable" } };
+  const ref = `ax${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  try {
+    await send(tabId, "Runtime.callFunctionOn", {
+      objectId,
+      functionDeclaration: "function (ref) { const el = this.nodeType === 1 ? this : this.parentElement; if (el) el.setAttribute('data-comet-ax-ref', ref); return Boolean(el); }",
+      arguments: [{ value: ref }],
+      returnByValue: true,
+    });
+  } finally {
+    await send(tabId, "Runtime.releaseObject", { objectId }).catch(() => {});
+  }
+  let matches = [];
+  try {
+    matches = await resolveLocator(tabId, { locator: { by: "css", selector: `[data-comet-ax-ref="${ref}"]` } });
+  } finally {
+    await send(tabId, "Runtime.evaluate", {
+      expression: `document.querySelector('[data-comet-ax-ref="${ref}"]')?.removeAttribute('data-comet-ax-ref')`,
+    }).catch(() => {});
+  }
+  if (matches.length !== 1) return { matches: [], info: { ...info, reason: "not_visible" } };
+  return { matches: matches.map((item) => ({ ...item, via: "ax_fallback" })), info: { ...info, reason: "resolved" } };
+}
+
 async function dispatchMouse(send, tabId, point, clickCount = 1, button = "left") {
   await send(tabId, "Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
   await send(tabId, "Input.dispatchMouseEvent", { type: "mousePressed", x: point.x, y: point.y, button, clickCount });
@@ -483,11 +535,24 @@ async function locatorAction(action, state, hooks) {
   const shouldWaitForMatch = ["wait", "wait_for"].includes(operation) || interactiveOperations.has(operation);
   let matches = [];
   const deadline = Date.now() + timeoutMs;
+  const axWanted = axFallbackRequested(action) && !["count", "all_text", "all_text_contents", "inspect"].includes(operation);
+  let axFallback = null;
   do {
     matches = await resolveLocator(state.tabId, action);
     if (matches.length || !shouldWaitForMatch) break;
+    if (axWanted && !axFallback) {
+      axFallback = await axFallbackLookup(state.tabId, action, hooks.send);
+      if (axFallback.matches.length) {
+        matches = axFallback.matches;
+        break;
+      }
+    }
     await sleep(100);
   } while (Date.now() < deadline);
+  if (!matches.length && axWanted && !axFallback) {
+    axFallback = await axFallbackLookup(state.tabId, action, hooks.send);
+    matches = axFallback.matches;
+  }
 
   if (operation === "count") return { type: "locator", operation, count: matches.length };
   if (operation === "all_text" || operation === "all_text_contents") {
@@ -499,7 +564,10 @@ async function locatorAction(action, state, hooks) {
     return { type: "locator", operation, count: matches.length, match: matches[0] };
   }
   let match = matches[0];
-  if (!match) throw new Error(`Locator did not resolve for ${operation}`);
+  if (!match) {
+    const ax = axFallback ? ` (ax_fallback: ${axFallback.info.reason}, candidates=${axFallback.info.candidates ?? 0})` : "";
+    throw new Error(`Locator did not resolve for ${operation}${ax}`);
+  }
 
   if (["is_visible", "is_enabled", "is_checked", "inner_text", "text_content", "get_attribute", "value"].includes(operation)) {
     if (operation === "is_visible") return { type: "locator", operation, value: match.visible };
@@ -517,7 +585,11 @@ async function locatorAction(action, state, hooks) {
   }
 
   await hooks.moveCursorToPoint(state.tabId, match.point);
-  const refreshedMatches = await resolveLocator(state.tabId, action);
+  // An AX-resolved target has no DOM name match; refresh it by its own css path.
+  const refreshedMatches = match.via === "ax_fallback"
+    ? (await resolveLocator(state.tabId, { locator: { by: "css", selector: match.selector } }))
+      .filter((item) => item.frame_id === match.frame_id).map((item) => ({ ...item, via: "ax_fallback" }))
+    : await resolveLocator(state.tabId, action);
   const refreshedMatch = refreshedMatches[0];
   if (!refreshedMatch) {
     throw new Error(`Locator target disappeared during cursor movement for ${operation}`);
