@@ -13,6 +13,13 @@ publish() { # $1 = base URL; probe until serve-http answers 401 through the tunn
   i=0
   while [ $i -lt 60 ]; do
     code=$(/usr/bin/curl -s -o /dev/null -m 10 -w '%{http_code}' -X POST "$1/mcp" || true)
+    if [ "$code" = "000" ]; then
+      # Local resolver can lag new public names (Funnel); retry via public DNS.
+      host=${1#https://}; host=${host%%/*}
+      ip=$(/usr/bin/dig +short "$host" A @1.1.1.1 2>/dev/null | grep -E '^[0-9.]+$' | head -1)
+      [ -n "$ip" ] && code=$(/usr/bin/curl -s -o /dev/null -m 10 -w '%{http_code}' \
+        --resolve "$host:443:$ip" -X POST "$1/mcp" || true)
+    fi
     if [ "$code" = "401" ]; then
       printf '%s/mcp\n' "$1" > "$URL_FILE.tmp" && mv "$URL_FILE.tmp" "$URL_FILE"
       echo "published $1/mcp"

@@ -4,7 +4,7 @@ One ledger on the owner's Mac Mini, reachable by remote agents (e.g. Cursor clou
 
 ## Connect (remote agent)
 
-- URL: the content of `~/.context-ledger/remote-url` on the Mini (the endpoint path is `/mcp`). It exists only while the tunnel is live. A quick tunnel (`*.trycloudflare.com`) gets a new URL on every restart. A stable URL is the same every time.
+- URL: `https://gurusharan-mac-codex.taild2e98e.ts.net/mcp` (Tailscale Funnel, stable). On the Mini, `~/.context-ledger/remote-url` holds the live URL and exists only while the tunnel is reachable.
 - Auth header on every request: `Authorization: Bearer <token>`. The token lives in the Mini's login keychain: service `context-ledger.mcp`, account `bearer_token`. Give it to the cloud agent as a secret (for example `CONTEXT_LEDGER_MCP_TOKEN`). Never paste it into a repo, chat, or log.
 - Cursor `mcp.json` entry:
 
@@ -38,28 +38,32 @@ PUBLIC_URL=""             # command mode only
 TUNNEL_CMD=""             # command mode only, foreground
 ```
 
-4. LaunchAgents `com.gurusharan.context-ledger-mcp` (runs `serve-http.sh`) and `com.gurusharan.context-ledger-tunnel` (runs `tunnel.sh`). Each has `RunAtLoad` and `KeepAlive`, runs `/bin/sh <script>`, and logs to `~/Library/Logs/context-ledger/{mcp-http,tunnel}.log`. Load each job with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<label>.plist`.
+4. LaunchAgents `com.gurusharan.context-ledger-mcp` (runs `serve-http.sh`) and `com.gurusharan.context-ledger-funnel` (runs `tunnel.sh`). Each has `RunAtLoad` and `KeepAlive`, runs `/bin/sh <script>`, and logs to `~/Library/Logs/context-ledger/{mcp-http,funnel}.log`. Load each job with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<label>.plist`.
 
 `serve-http.sh` reads the token from the keychain and runs `bin/context-ledger-mcp serve-http --port $PORT`, which listens on 127.0.0.1 only. `tunnel.sh` writes `remote-url` once a request through the tunnel gets a 401 from the server.
 
-## Stable URL (config change only)
+## Tunnel modes (config change only)
 
-Tailscale Funnel (after the tailnet enables HTTPS and Funnel for this node):
+Current: Tailscale Funnel on 443, mounted at `/mcp`, through the codex-mac-bridge userspace `tailscaled`:
 
 ```sh
 TUNNEL_MODE=command
-PUBLIC_URL="https://<node>.<tailnet>.ts.net"
-TUNNEL_CMD="tailscale funnel 8787"     # add --socket=... for a userspace tailscaled
-ALLOWED_HOSTS="<node>.<tailnet>.ts.net"
+PUBLIC_URL="https://gurusharan-mac-codex.taild2e98e.ts.net"
+TUNNEL_CMD="/opt/homebrew/bin/tailscale --socket=$HOME/.local/share/codex-mac-bridge/tailscaled.sock funnel --yes --https=443 --set-path=/mcp http://127.0.0.1:8787/mcp"
+ALLOWED_HOSTS="gurusharan-mac-codex.taild2e98e.ts.net"
 ```
 
-Named Cloudflare tunnel: `PUBLIC_URL="https://<hostname>"` and `TUNNEL_CMD="cloudflared tunnel run <name>"`, with `ALLOWED_HOSTS="<hostname>"`. Then restart both jobs.
+- The funnel runs in the foreground under launchd `KeepAlive`. It is re-applied after a reboot, a job restart, or a `tailscaled` restart. It adds a foreground serve entry and leaves the tailnet `tcp:80 → 127.0.0.1:8765` serve alone.
+- HTTPS certs need a cert store: that `tailscaled` runs with `--statedir=$HOME/.local/share/codex-mac-bridge/tailscaled-statedir` alongside its `--state` file.
+- The tailnet must allow Funnel for the node (ports 443, 8443, 10000) and have HTTPS certs on.
+
+Other modes: a named Cloudflare tunnel uses `TUNNEL_CMD="cloudflared tunnel run <name>"` with its own `PUBLIC_URL` and `ALLOWED_HOSTS`. A quick tunnel (`TUNNEL_MODE=quick`) gets a random trycloudflare URL that changes on every restart. Restart the tunnel job after editing `remote.env`.
 
 ## Restart and check
 
 ```sh
 launchctl kickstart -k gui/$(id -u)/com.gurusharan.context-ledger-mcp
-launchctl kickstart -k gui/$(id -u)/com.gurusharan.context-ledger-tunnel
+launchctl kickstart -k gui/$(id -u)/com.gurusharan.context-ledger-funnel
 cat ~/.context-ledger/remote-url
 curl -s -o /dev/null -w '%{http_code}\n' -X POST "$(cat ~/.context-ledger/remote-url)"   # 401
 ```
