@@ -11,8 +11,9 @@ Every shipped manifest starts `bin/context-ledger-mcp serve`. The launcher picks
 - Data dir is `--data DIR` when that precedes `serve`, otherwise `CONTEXT_LEDGER_DATA`, otherwise `~/.context-ledger`.
 - `DATA/binding.json` exists: local stdio.
 - No binding, and `CONTEXT_LEDGER_MCP_TOKEN` is non-empty: stdio bridge to `${CONTEXT_LEDGER_MCP_URL:-https://gurusharan-mac-codex.taild2e98e.ts.net/mcp}`.
+- No binding and no env token, and `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` is non-empty and does not start with `${`: that value is passed only to the bridge as `CONTEXT_LEDGER_MCP_TOKEN`. A leftover `${env:CONTEXT_LEDGER_MCP_TOKEN}` is ignored. The launcher unsets `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` before local stdio or the bridge.
 - No binding and no env token, and `security find-generic-password -s context-ledger.mcp -a bearer_token -w` prints a token (`CONTEXT_LEDGER_SECURITY_BIN` overrides the tool): that value is passed only to the bridge process.
-- Otherwise: stderr JSON `LEDGER_UNBOUND` naming `bin/context_ledger.py init`, `CONTEXT_LEDGER_MCP_TOKEN`, and the keychain item, nonzero exit, and no data directory is created.
+- Otherwise: stderr JSON `LEDGER_UNBOUND` naming `bin/context_ledger.py init`, `CONTEXT_LEDGER_MCP_TOKEN`, the client token, and the keychain item, nonzero exit, and no data directory is created.
 
 Cloud agents do not add a url-type `mcp.json` entry. The server name stays `context-ledger`.
 
@@ -93,14 +94,14 @@ After changing package code, re-sync `~/.context-ledger/remote/plugin` and resta
 
 ## Design: out-of-the-box MCP per client
 
-One ledger. Each client reads its own manifest and spawns the same launcher. `serve` then chooses: binding → local stdio; else a non-empty `CONTEXT_LEDGER_MCP_TOKEN` → bridge; else the macOS Keychain item service `context-ledger.mcp` account `bearer_token` → bridge; else stderr `LEDGER_UNBOUND`. No hand-added MCP entry and no HTTP/SSE server block.
+One ledger. Each client reads its own manifest and spawns the same launcher. `serve` then chooses: binding → local stdio; else a non-empty `CONTEXT_LEDGER_MCP_TOKEN` → bridge; else a non-placeholder `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` → bridge; else the macOS Keychain item service `context-ledger.mcp` account `bearer_token` → bridge; else stderr `LEDGER_UNBOUND`. No hand-added MCP entry and no HTTP/SSE server block.
 
 | Client | Manifest | Root variable | Runtime |
 | --- | --- | --- | --- |
 | Cursor IDE / CLI local | `.cursor-plugin/plugin.json` → `.cursor-plugin/mcp.json` | `${CURSOR_PLUGIN_ROOT}` in command, args, and cwd | Binding on this machine → local; else env token; else Keychain → bridge; else `LEDGER_UNBOUND` |
-| Cursor cloud VM | same Cursor manifest | `${CURSOR_PLUGIN_ROOT}` | No binding and no Keychain. Runtime secret `CONTEXT_LEDGER_MCP_TOKEN` → bridge; else `LEDGER_UNBOUND` |
-| Cursor cloud on Mini worker | same Cursor manifest | `${CURSOR_PLUGIN_ROOT}` | Mini home binding → local; else env token; else the Mini Keychain item → bridge |
-| Codex | portable `mcp.json` | `${PLUGIN_ROOT}` expanded in the root arg; `PLUGIN_ROOT` exported; omitted cwd is the plugin root | Same order. The `sh` resolver skips a leftover `${PLUGIN_ROOT}` and uses the exported root |
+| Cursor cloud VM | root `mcp.json` arg `${CURSOR_PLUGIN_ROOT}`, or `.cursor-plugin` | `${CURSOR_PLUGIN_ROOT}` | No binding and no Keychain. `cloudAgentEnvLookup` → `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` → bridge; else `LEDGER_UNBOUND` |
+| Cursor cloud on Mini worker | root `mcp.json` arg `${CURSOR_PLUGIN_ROOT}`, or `.cursor-plugin` | `${CURSOR_PLUGIN_ROOT}` | Mini home binding → local; else env token or `CONTEXT_LEDGER_MCP_CLIENT_TOKEN`; else the Mini Keychain item → bridge |
+| Codex | portable `mcp.json` | `${PLUGIN_ROOT}` expanded in root arg 1; args 2 and 3 stay literal and are skipped; `PLUGIN_ROOT` exported; omitted cwd is the plugin root | Same order. The `sh` resolver skips a leftover root arg that still starts with `$` and uses the exported root |
 | Claude Code | `.claude-plugin/plugin.json` `mcpServers` path → `.claude-plugin/mcp.json` | `${CLAUDE_PLUGIN_ROOT}` expanded in the command and exported | Same order |
 | Grok Build / other spec clients | portable `mcp.json` | `${PLUGIN_ROOT}`, same as Codex | Same order |
 

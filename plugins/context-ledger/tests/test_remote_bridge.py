@@ -79,6 +79,7 @@ class _ServerCase(unittest.TestCase):
         env = os.environ.copy()
         for key in (
             "CONTEXT_LEDGER_MCP_TOKEN",
+            "CONTEXT_LEDGER_MCP_CLIENT_TOKEN",
             "CONTEXT_LEDGER_MCP_URL",
             "CONTEXT_LEDGER_MCP_TIMEOUT",
             "CONTEXT_LEDGER_DATA",
