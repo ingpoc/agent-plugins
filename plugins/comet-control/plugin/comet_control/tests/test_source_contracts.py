@@ -1111,10 +1111,15 @@ async function check(actions, expected) {
         self.assertLess(catch.index("timed out after"), catch.index("tabScriptingPoisoned.add(tabId)"))
         goto = source.split('if (type === "goto") {', 1)[1].split(
             'if (type === "back" || type === "forward" || type === "reload_page")', 1)[0]
-        self.assertLess(goto.index("invalidateTabInjection(state.tabId)"),
-                        goto.index("tabScriptingPoisoned.delete(state.tabId)"))
-        self.assertLess(goto.index("tabScriptingPoisoned.delete(state.tabId)"),
-                        goto.index("await ensureContentScript(state.tabId)"))
+        # Event-based: armed before the navigation, poison cleared only inside
+        # settleArmedNavigation (new document complete), before reinject.
+        self.assertLess(goto.index("armNavigationWaiter(state.tabId)"), goto.index("chrome.tabs.update(state.tabId"))
+        self.assertLess(goto.index("settleArmedNavigation(waiter"), goto.index("await ensureContentScript(state.tabId)"))
+        self.assertNotIn("tabScriptingPoisoned.delete", goto)
+        self.assertNotIn("boundedWait(", goto)
+        settle = source.split("async function settleArmedNavigation", 1)[1].split("\n}\n", 1)[0]
+        self.assertLess(settle.index("invalidateTabInjection(tabId)"), settle.index("tabScriptingPoisoned.delete(tabId)"))
+        self.assertIn("if (nav.complete && tabScriptingPoisoned.has(tabId))", settle)
         self.assertIn("!leadingNavigation", source)
 
     def test_locator_fill_uses_bounded_executeScriptOnTab(self) -> None:

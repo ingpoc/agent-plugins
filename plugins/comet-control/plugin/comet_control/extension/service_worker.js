@@ -2530,6 +2530,116 @@ async function sendToContentScript(tabId, action, args = [], frameId) {
 }
 
 // ---- Browser Actions ----
+// ---- Event-based navigation tracking (no sleep races) ----
+// Arm BEFORE triggering a navigation. The navigation id is the main-frame
+// documentId committed after arming (webNavigation.onCommitted). "complete"
+// counts only for THAT document: webNavigation.onCompleted with the same
+// documentId, or tabs.onUpdated status:"complete" while the main frame's
+// current documentId is still it. A same-document (fragment/history) commit
+// is reported as such and is never a fresh scripting world. Timers only bound
+// the wait; they never stand in for the event.
+const NAV_POISON_CLEAR_MAX_MS = 8000;
+function armNavigationWaiter(tabId, api = chrome) {
+  const nav = {
+    committed: false, document_id: null, complete: false,
+    same_document: false, error: null, waited_ms: 0,
+  };
+  const armedAt = Date.now();
+  let wake = null;
+  const notify = () => { if (wake) { const w = wake; wake = null; w(); } };
+  const isMain = (d) => d && Number(d.tabId) === Number(tabId) && d.frameId === 0;
+  const onCommitted = (d) => {
+    if (!isMain(d)) return;
+    nav.committed = true;
+    nav.document_id = d.documentId || null;
+    nav.complete = false;
+    nav.error = null;
+    notify();
+  };
+  const onSameDocument = (d) => {
+    if (!isMain(d) || nav.committed) return;
+    nav.same_document = true;
+    notify();
+  };
+  const onCompleted = (d) => {
+    if (!isMain(d) || !nav.committed) return;
+    if (!nav.document_id || d.documentId !== nav.document_id) return;
+    nav.complete = true;
+    notify();
+  };
+  const onError = (d) => {
+    if (!isMain(d)) return;
+    nav.error = String(d.error || "navigation error");
+    notify();
+  };
+  const onUpdated = async (id, info) => {
+    if (Number(id) !== Number(tabId) || info?.status !== "complete") return;
+    if (!nav.committed || nav.complete || !nav.document_id) return;
+    const committedId = nav.document_id;
+    const frame = await api.webNavigation.getFrame({ tabId, frameId: 0 }).catch(() => null);
+    if (frame?.documentId === committedId && nav.document_id === committedId) {
+      nav.complete = true;
+      notify();
+    }
+  };
+  const wn = api.webNavigation;
+  const subs = [
+    [wn.onCommitted, onCommitted], [wn.onCompleted, onCompleted],
+    [wn.onErrorOccurred, onError], [wn.onReferenceFragmentUpdated, onSameDocument],
+    [wn.onHistoryStateUpdated, onSameDocument], [api.tabs.onUpdated, onUpdated],
+  ];
+  for (const [ev, fn] of subs) ev.addListener(fn);
+  const settled = (n) => n.complete || n.same_document || Boolean(n.error);
+  return {
+    nav,
+    async wait(ms) {
+      const deadline = Date.now() + Math.max(0, Number(ms) || 0);
+      while (!settled(nav)) {
+        const left = deadline - Date.now();
+        if (left <= 0) break;
+        let timer = null;
+        await new Promise((resolve) => {
+          wake = resolve;
+          timer = setTimeout(resolve, left);
+        });
+        clearTimeout(timer);
+        wake = null;
+      }
+      nav.waited_ms = Date.now() - armedAt;
+      return { ...nav };
+    },
+    dispose() {
+      for (const [ev, fn] of subs) ev.removeListener(fn);
+      notify();
+    },
+  };
+}
+
+function navigationBudget(ms, state) {
+  assertRequestLive(state);
+  const remaining = state.deadlineAt ? state.deadlineAt - Date.now() : ms;
+  return Math.max(0, Math.min(Number(ms || 0), remaining));
+}
+
+// Wait for the armed navigation, clear scripting poison only when the NEW
+// document completed (a fresh scripting world), and report what happened.
+async function settleArmedNavigation(waiter, tabId, waitMs, state) {
+  let nav = await waiter.wait(navigationBudget(waitMs, state));
+  if (!nav.complete && !nav.same_document && !nav.error && tabScriptingPoisoned.has(tabId)) {
+    nav = await waiter.wait(navigationBudget(NAV_POISON_CLEAR_MAX_MS, state));
+  }
+  assertRequestLive(state);
+  // Navigation always invalidates the previous content-script world.
+  invalidateTabInjection(tabId);
+  nav.poison_cleared = false;
+  if (nav.complete && tabScriptingPoisoned.has(tabId)) {
+    tabScriptingPoisoned.delete(tabId);
+    nav.poison_cleared = true;
+  }
+  nav.poisoned = tabScriptingPoisoned.has(tabId);
+  return nav;
+}
+
 function assertRequestLive(state) {
   if (state.cancelled) throw new Error("Agent browser request was cancelled during closeout");
   if (state.deadlineAt && Date.now() >= state.deadlineAt) {
@@ -2590,22 +2700,27 @@ async function runBrowserAction(action, state) {
     await ensureAttached(state.tabId).catch(() => {});
     const current = await chrome.tabs.get(state.tabId);
     let tab;
-    if (current.url === action.url) {
-      // tabs.update is a no-op for the current URL. A real goto must refresh
-      // stale service-worker/cache fallbacks such as TickerTape maintenance.
-      await chrome.tabs.reload(state.tabId, { bypassCache: action.bypassCache !== false });
-      tab = await chrome.tabs.get(state.tabId);
-    } else {
-      tab = await chrome.tabs.update(state.tabId, { url: action.url, active: false });
+    // Armed before the navigation starts: the old document's "complete" can
+    // never satisfy it (no sleep race on slow or same-document navigations).
+    const waiter = armNavigationWaiter(state.tabId);
+    let navigation;
+    try {
+      if (current.url === action.url) {
+        // tabs.update is a no-op for the current URL. A real goto must refresh
+        // stale service-worker/cache fallbacks such as TickerTape maintenance.
+        await chrome.tabs.reload(state.tabId, { bypassCache: action.bypassCache !== false });
+        tab = await chrome.tabs.get(state.tabId);
+      } else {
+        tab = await chrome.tabs.update(state.tabId, { url: action.url, active: false });
+      }
+      state.tabId = tab.id;
+      // The new document completing is a fresh scripting world (one fresh
+      // canary allowed); a still-wedged FIFO re-poisons on the next bounded
+      // executeScript timeout. No completion -> poison stays.
+      navigation = await settleArmedNavigation(waiter, state.tabId, action.waitMs || 2000, state);
+    } finally {
+      waiter.dispose();
     }
-    state.tabId = tab.id;
-    await boundedWait(action.waitMs || 2000, state);
-    // Navigation always invalidates the previous content-script world.
-    invalidateTabInjection(state.tabId);
-    // A committed cross-document goto is a fresh scripting world, same as
-    // reload_page below: allow one fresh canary. A still-wedged FIFO re-poisons
-    // on the next bounded executeScript timeout.
-    tabScriptingPoisoned.delete(state.tabId);
     // Do not pre-attach the debugger here. debugger + scripting.executeScript
     // on the same tab wedges Seller Accept→Dispatch (injectCanary timeout).
     // Screenshots/network attach lazily when those actions run.
@@ -2621,7 +2736,7 @@ async function runBrowserAction(action, state) {
     const settled = await chrome.tabs.get(state.tabId).catch(() => null);
     const finalUrl = settled?.url || action.url;
     state.lastUrl = finalUrl;
-    return { type, tabId: state.tabId, url: finalUrl };
+    return { type, tabId: state.tabId, url: finalUrl, navigation };
   }
 
   if (type === "back" || type === "forward" || type === "reload_page") {
@@ -2629,26 +2744,30 @@ async function runBrowserAction(action, state) {
     if (network) clearNetworkState(network);
     tabConsoleCdp.set(state.tabId, []);
     await ensureAttached(state.tabId).catch(() => {});
-    if (type === "back" || type === "forward") {
-      const history = await send(state.tabId, "Page.getNavigationHistory");
-      const offset = type === "back" ? -1 : 1;
-      const target = history?.entries?.[Number(history.currentIndex) + offset];
-      if (!target?.id) throw new Error(`Cannot find a ${type === "back" ? "previous" : "next"} page in history`);
-      await send(state.tabId, "Page.navigateToHistoryEntry", { entryId: target.id });
+    const waiter = armNavigationWaiter(state.tabId);
+    let navigation;
+    try {
+      if (type === "back" || type === "forward") {
+        const history = await send(state.tabId, "Page.getNavigationHistory");
+        const offset = type === "back" ? -1 : 1;
+        const target = history?.entries?.[Number(history.currentIndex) + offset];
+        if (!target?.id) throw new Error(`Cannot find a ${type === "back" ? "previous" : "next"} page in history`);
+        await send(state.tabId, "Page.navigateToHistoryEntry", { entryId: target.id });
+      }
+      if (type === "reload_page") {
+        await chrome.tabs.reload(state.tabId, { bypassCache: Boolean(action.bypassCache) });
+      }
+      // A completed new document can clear a wedged scripting FIFO (fresh canary).
+      navigation = await settleArmedNavigation(waiter, state.tabId, action.waitMs || 1000, state);
+    } finally {
+      waiter.dispose();
     }
-    if (type === "reload_page") {
-      await chrome.tabs.reload(state.tabId, { bypassCache: Boolean(action.bypassCache) });
-    }
-    await boundedWait(action.waitMs || 1000, state);
-    invalidateTabInjection(state.tabId);
-    // Full reload can clear a wedged scripting FIFO — allow a fresh canary later.
-    tabScriptingPoisoned.delete(state.tabId);
     await ensureContentScript(state.tabId).catch(() => {});
     if (state.leaseRecord) {
       await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true }).catch(() => {});
     }
     const tab = await chrome.tabs.get(state.tabId).catch(() => null);
-    return { type, tabId: state.tabId, url: tab?.url || "" };
+    return { type, tabId: state.tabId, url: tab?.url || "", navigation };
   }
 
   if (type === "wait") {
@@ -3397,6 +3516,9 @@ function normalizeExpect(raw) {
   });
 }
 
+const EXPECT_INPUT_CAP = 100;
+const EXPECT_INPUT_VALUE_CHARS = 200;
+
 function expectHaystack(evidence) {
   const parts = [evidence?.title, evidence?.url];
   for (const heading of evidence?.headings || []) parts.push(heading?.text || heading);
@@ -3493,7 +3615,17 @@ async function collectExpectEvidence(preds, action, result, state) {
   if (preds.some((pred) => pred.kind === "value" || pred.kind === "text" || pred.kind === "not_text")) {
     sections.push("inputs");
   }
-  const resp = await sendToContentScript(state.tabId, "getPageContext", [[...new Set(sections)], { compact: true }], 0);
+  const valuePred = preds.find((pred) => pred.kind === "value" && (pred.selector || action.selector));
+  const valueSelector = valuePred ? String(valuePred.selector || action.selector || "") : "";
+  const wantsValue = preds.some((pred) => pred.kind === "value");
+  const pcOptions = {
+    compact: true,
+    // Value checks read past the compact 8-input cap (bounded) and the target
+    // field directly; the agent never sees this payload.
+    ...(wantsValue ? { input_cap: EXPECT_INPUT_CAP, input_value_chars: EXPECT_INPUT_VALUE_CHARS } : {}),
+    ...(valueSelector ? { field: valueSelector } : {}),
+  };
+  const resp = await sendToContentScript(state.tabId, "getPageContext", [[...new Set(sections)], pcOptions], 0);
   const page = requireContentScriptResult(resp, "expect page context returned no result");
   evidence.url = page.url || evidence.url;
   evidence.title = page.title || evidence.title;
@@ -3510,12 +3642,14 @@ async function collectExpectEvidence(preds, action, result, state) {
       ? String(textResult.text || "")
       : String(textResult || "");
   }
-  const valuePred = preds.find((pred) => pred.kind === "value" && (pred.selector || action.selector));
   if (valuePred) {
-    const selector = String(valuePred.selector || action.selector || "");
-    const key = selector.replace(/^#/, "");
-    const hit = (evidence.inputs || []).find((input) => input.name === key || input.name === selector);
-    if (hit) evidence.selector_value = hit.value;
+    if (page.field?.found) {
+      evidence.selector_value = page.field.value;
+    } else {
+      const key = valueSelector.replace(/^#/, "");
+      const hit = (evidence.inputs || []).find((input) => input.name === key || input.name === valueSelector);
+      if (hit) evidence.selector_value = hit.value;
+    }
   }
   return evidence;
 }
