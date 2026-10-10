@@ -76,6 +76,11 @@ def _dispatch(plugin_data: Path, command: str, args: list[str]) -> int:
         return serve_http(plugin_data, args)
     store = Store(plugin_data, actor_channel="owner_cli")
     if command == "doctor":
+        from context_ledger.cursor_dest import cursor_dest_failure
+
+        failure = cursor_dest_failure()
+        if failure is not None:
+            return _print(failure)
         return _print(ok(store.doctor()))
     if command == "scope-add":
         return _print(ok(store.scope_add(_req(args, "--scope"))))

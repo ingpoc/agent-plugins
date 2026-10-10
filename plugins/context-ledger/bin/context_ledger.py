@@ -341,6 +341,19 @@ def _runtime_ready(data: Path) -> Path | None:
     return py
 
 
+def _cursor_dest_block() -> int | None:
+    """Fail before serve if a Cursor install is still the portable mcp.json."""
+    sys.path.insert(0, str(PLUGIN_ROOT))
+    from context_ledger.contracts import canonical_json
+    from context_ledger.cursor_dest import cursor_dest_failure
+
+    failure = cursor_dest_failure()
+    if failure is None:
+        return None
+    sys.stderr.write(canonical_json(failure) + "\n")
+    return 2
+
+
 def _reexec(py: Path, data: Path, command: str, args: list[str]) -> int:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(PLUGIN_ROOT)
@@ -366,6 +379,10 @@ def main(argv: list[str] | None = None) -> int:
         _require_absolute(_resolve_data(data))
         return _cmd_ensure_global_triggers(args)
     path = _require_absolute(_resolve_data(data))
+    if command == "doctor" and os.environ.get("CONTEXT_LEDGER_BOOTSTRAPPED") != "1":
+        blocked = _cursor_dest_block()
+        if blocked is not None:
+            return blocked
     if os.environ.get("CONTEXT_LEDGER_BOOTSTRAPPED") == "1":
         from context_ledger.__main__ import dispatch
 

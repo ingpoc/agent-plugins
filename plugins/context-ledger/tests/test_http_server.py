@@ -3,6 +3,10 @@
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import http.client
+import importlib.util
 import json
 import os
 import secrets
@@ -17,6 +21,34 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _reexec_locked_runtime() -> None:
+    """This file's server imports mcp 2.2. Discover must still run under plain python3."""
+    if importlib.util.find_spec("mcp.server.mcpserver") is not None:
+        return
+    sha = hashlib.sha256((ROOT / "requirements.lock").read_bytes()).hexdigest()
+    py = Path.home() / ".context-ledger" / "runtime" / sha / "bin" / "python3"
+    if not py.is_file():
+        raise SystemExit(
+            json.dumps(
+                {
+                    "ok": False,
+                    "error": {
+                        "code": "UNAVAILABLE",
+                        "retryable": False,
+                        "message": f"mcp.server.mcpserver is not importable and {py} is missing",
+                    },
+                }
+            )
+        )
+    sys.stderr.write(f"re-exec {py} because this interpreter has no mcp.server.mcpserver\n")
+    if "unittest" in sys.argv[0]:
+        os.execv(str(py), [str(py), "-m", "unittest", *sys.argv[1:]])
+    os.execv(str(py), [str(py), *sys.argv])
+
+
+_reexec_locked_runtime()
 # Same argv the bootstrap re-execs into (bin/ on sys.path would shadow the package).
 CLI = [sys.executable, "-m", "context_ledger"]
 
@@ -205,6 +237,149 @@ class LiveServerTests(unittest.TestCase):
         self.assertEqual(status, 200, body)
         result = json.loads(body)["result"]
         self.assertFalse(result.get("isError"), result)
+
+    def test_cursor_client_handshake(self) -> None:
+        status, headers, body = _raw(self.port, "POST", "/mcp", INIT, {"Content-Type": "application/json"})
+        self.assertEqual(status, 401, body)
+        self.assertEqual(headers.get("www-authenticate"), "Bearer")
+        self.assertEqual(json.loads(body)["error"]["code"], "UNAUTHORIZED")
+
+        status, headers, _ = _raw(
+            self.port,
+            "GET",
+            "/mcp",
+            headers={"Accept": "text/event-stream"},
+        )
+        self.assertEqual(status, 401)
+        self.assertEqual(headers.get("www-authenticate"), "Bearer")
+
+        probes = [
+            ("GET", "/.well-known/oauth-protected-resource"),
+            ("GET", "/.well-known/oauth-protected-resource/mcp"),
+            ("GET", "/.well-known/oauth-authorization-server"),
+            ("GET", "/.well-known/openid-configuration"),
+            ("POST", "/register"),
+        ]
+        for method, path in probes:
+            status, headers, body = _raw(self.port, method, path, {} if method == "POST" else None)
+            self.assertEqual(status, 404, (method, path, body))
+            self.assertNotIn("www-authenticate", headers)
+            self.assertEqual(json.loads(body)["error"]["code"], "NOT_FOUND")
+
+        sse_headers = {
+            **self._auth(),
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "mcp-protocol-version": "2025-06-18",
+        }
+        status, headers, body = _raw(self.port, "POST", "/mcp", INIT, sse_headers)
+        self.assertEqual(status, 200, body)
+        self.assertTrue(headers.get("content-type", "").startswith("text/event-stream"), headers)
+        self.assertEqual(_sse_json(body)["result"]["serverInfo"]["name"], "context-ledger")
+
+        status, headers, body = _raw(
+            self.port,
+            "POST",
+            "/mcp",
+            INIT,
+            {**self._auth(), "Content-Type": "application/json", "Accept": "application/json"},
+        )
+        self.assertEqual(status, 200, body)
+        self.assertTrue(headers.get("content-type", "").startswith("application/json"), headers)
+        self.assertEqual(json.loads(body)["result"]["serverInfo"]["name"], "context-ledger")
+
+        note = {"jsonrpc": "2.0", "method": "notifications/initialized"}
+        status, _, body = _raw(self.port, "POST", "/mcp", note, sse_headers)
+        self.assertEqual(status, 202, body)
+
+        status, headers, body = _raw(self.port, "POST", "/mcp", LIST, sse_headers)
+        self.assertEqual(status, 200, body)
+        names = sorted(tool["name"] for tool in _sse_json(body)["result"]["tools"])
+        self.assertEqual(names, ["append_event", "find", "get", "record"])
+
+        find = {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "find", "arguments": {"query": "cursor", "entities": [], "constraints": []}},
+        }
+        status, _, body = _raw(self.port, "POST", "/mcp", find, sse_headers)
+        self.assertEqual(status, 200, body)
+        self.assertFalse(_sse_json(body)["result"].get("isError"))
+
+        status, headers, body = _raw(
+            self.port,
+            "GET",
+            "/mcp",
+            headers={**self._auth(), "Accept": "text/event-stream"},
+        )
+        self.assertEqual(status, 405, body)
+        self.assertIn("SSE stream", json.loads(body)["error"]["message"])
+        status, _, body = _raw(self.port, "DELETE", "/mcp", headers=self._auth())
+        self.assertEqual(status, 405, body)
+        self.assertIn("Session termination not supported", json.loads(body)["error"]["message"])
+
+    def test_sdk_streamable_http_client(self) -> None:
+        try:
+            import httpx2
+            from mcp.client.session import ClientSession
+            from mcp.client.streamable_http import streamable_http_client
+        except ImportError:
+            try:
+                import httpx2
+                from mcp.client.session import ClientSession
+                from mcp.client.streamable_http import streamablehttp_client as streamable_http_client
+            except ImportError:
+                self.skipTest("mcp streamable http client is not installed")
+
+        token = self.token
+        port = self.port
+
+        async def run() -> list[str]:
+            async with httpx2.AsyncClient(
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=20,
+                trust_env=False,
+            ) as http:
+                async with streamable_http_client(
+                    f"http://127.0.0.1:{port}/mcp",
+                    http_client=http,
+                ) as streams:
+                    read_stream, write_stream = streams[0], streams[1]
+                    async with ClientSession(read_stream, write_stream) as session:
+                        init = await session.initialize()
+                        if init.server_info.name != "context-ledger":
+                            raise AssertionError(init.server_info)
+                        listed = await session.list_tools()
+                        return sorted(tool.name for tool in listed.tools)
+
+        self.assertEqual(asyncio.run(run()), ["append_event", "find", "get", "record"])
+
+
+def _raw(
+    port: int,
+    method: str,
+    path: str,
+    body: dict | None = None,
+    headers: dict[str, str] | None = None,
+) -> tuple[int, dict[str, str], bytes]:
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    try:
+        payload = json.dumps(body).encode() if body is not None else None
+        conn.request(method, path, body=payload, headers=headers or {})
+        resp = conn.getresponse()
+        data = resp.read()
+        hdrs = {key.lower(): value for key, value in resp.getheaders()}
+        return resp.status, hdrs, data
+    finally:
+        conn.close()
+
+
+def _sse_json(body: bytes) -> dict:
+    data = [line[5:].lstrip() for line in body.decode().splitlines() if line.startswith("data:")]
+    if not data:
+        raise AssertionError(body)
+    return json.loads("\n".join(data))
 
 
 if __name__ == "__main__":

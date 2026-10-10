@@ -2,6 +2,18 @@
 
 One ledger on the owner's Mac Mini, reachable by remote agents (e.g. Cursor cloud agents) over Streamable HTTP. Same four tools as stdio: `find`, `get`, `record`, `append_event`. The skill's rules apply unchanged.
 
+The MCP is wired for the retained ledger helper subagent only. Under the context-ledger skill the helper is the only caller of `find`, `get`, `record`, and `append_event`; the parent (main) agent never calls ledger tools and only exchanges JSON with the helper. Configure the MCP wherever the helper runs: the Cursor or Codex subagent on the Mini, and the cloud agent's helper thread.
+
+## One ledger (local and cloud)
+
+Every client reads and writes the same SQLite file. Local clients open it over stdio; remote clients go through `serve-http`. Concurrent access is safe because the store uses SQLite on local disk with `begin immediate` and `busy_timeout=5000`, so no local client needs to proxy through HTTP.
+
+- Data root `~/.context-ledger` (`--data`, or `CONTEXT_LEDGER_DATA`). Its `binding.json` fixes `ledger_dir` and `ledger_id`. Every binding on the Mini (`~/.context-ledger`, `~/.agents/plugin-data/context-ledger`, and Codex's plugin data dir) must name the same `ledger_dir` and `ledger_id`.
+- Cursor IDE and Cursor CLI load the marketplace cache copy `~/.cursor/plugins/cache/ingpoc-agent-plugins/context-ledger/<hash>/`. After every marketplace install or refresh, run `python3 scripts/install_cursor_dest.py` so the dest `mcp.json` has the absolute launcher and `--data ~/.context-ledger`, then reload the MCP server in Cursor. `bin/context_ledger.py doctor` exits 2 with `CURSOR_DEST` while a cache copy is still relative or still has `${PLUGIN_*}`.
+- Codex loads `~/.codex/plugins/cache/personal/context-ledger/<version>/` over stdio (`codex mcp list` shows it).
+- Remote: the launchd `serve-http` uses the default data root `~/.context-ledger`.
+- Check: run one `find` (same query, `limit` 3) through each client's MCP: Cursor IDE, `cursor agent -p --approve-mcps`, `codex exec`, and the remote URL. All four must return the same `decision_id`s in the same order.
+
 ## Connect (remote agent)
 
 - URL: `https://gurusharan-mac-codex.taild2e98e.ts.net/mcp` (Tailscale Funnel, stable). On the Mini, `~/.context-ledger/remote-url` holds the live URL and exists only while the tunnel is reachable.
@@ -19,12 +31,12 @@ One ledger on the owner's Mac Mini, reachable by remote agents (e.g. Cursor clou
 }
 ```
 
-- Server mode: stateless with JSON responses. Send `Accept: application/json, text/event-stream` and call `initialize`, then `tools/list`.
+- Server mode: stateless. `Accept: application/json` (or both JSON and `text/event-stream`) returns one JSON body. `Accept: text/event-stream` alone returns one SSE `event: message`. `notifications/initialized` is HTTP 202. `GET /mcp` and `DELETE /mcp` are 405 (no listen stream, no session to terminate). Unauthenticated `/mcp` is 401. `/.well-known/*` and `POST /register` are 404 with no `WWW-Authenticate` challenge.
 
 ## Enable a Cursor cloud agent or Project
 
 1. Secret: Cursor dashboard, Cloud Agents, My Secrets (`cursor.com/dashboard/cloud-agents?view=my-secrets`) must list `CONTEXT_LEDGER_MCP_TOKEN` with scope All Repositories, type Runtime Secret. Guru's account already has it, so new agents get it automatically. If it's missing, the owner adds it by copying the value with `security find-generic-password -s context-ledger.mcp -a bearer_token -w | tr -d '\n' | pbcopy`, pasting it into the form, then clearing the clipboard with `printf '' | pbcopy`. Bots can't forward secrets with `secret_names` on this account.
-2. Brief: in the launch or reply prompt, give the URL `https://gurusharan-mac-codex.taild2e98e.ts.net/mcp`, the header `Authorization: Bearer $CONTEXT_LEDGER_MCP_TOKEN`, the four tools, and the rule "follow the context-ledger skill: look up at task start, capture and close out at the end; if the token is missing or the ledger is unreachable, fail loud and never fall back to a local copy". Either the agent adds the `mcp.json` entry above, or it calls over HTTP.
+2. Brief: in the launch or reply prompt, say the MCP is for the agent's ledger helper thread (the parent only exchanges JSON with it), and give the URL `https://gurusharan-mac-codex.taild2e98e.ts.net/mcp`, the header `Authorization: Bearer $CONTEXT_LEDGER_MCP_TOKEN`, the four tools, and the rule "follow the context-ledger skill: look up at task start, capture and close out at the end; if the token is missing or the ledger is unreachable, fail loud and never fall back to a local copy". Either the agent adds the `mcp.json` entry above, or it calls over HTTP.
 3. Project: put that same rule in the Project's shared context (`docs/project-context.md` in its Agent Store) so every thread inherits it.
 4. Verify: the agent's first run reports `initialize` succeeding and `tools/list` returning exactly `append_event`, `find`, `get`, `record`. Treat an empty or missing result as a failure.
 

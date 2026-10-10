@@ -6,8 +6,19 @@ CONF="${CONTEXT_LEDGER_REMOTE_ENV:-$HOME/.context-ledger/remote/remote.env}"
 . "$CONF"
 PORT="${PORT:-8787}"
 URL_FILE="${URL_FILE:-$HOME/.context-ledger/remote-url}"
+FIFO=""
+CHILD=""
 rm -f "$URL_FILE"
-trap 'rm -f "$URL_FILE"; [ -n "${CHILD:-}" ] && kill "$CHILD" 2>/dev/null' EXIT INT TERM
+cleanup() {
+  rm -f "$URL_FILE"
+  if [ -n "${FIFO:-}" ]; then
+    rm -f "$FIFO"
+  fi
+  if [ -n "${CHILD:-}" ]; then
+    kill "$CHILD" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
 
 publish() { # $1 = base URL; probe until serve-http answers 401 through the tunnel
   i=0
