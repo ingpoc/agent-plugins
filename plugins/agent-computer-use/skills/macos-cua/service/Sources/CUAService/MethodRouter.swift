@@ -35,8 +35,15 @@ final class MethodRouter: @unchecked Sendable {
     /// Read/config RPCs for the overlay. They bypass the request lock so
     /// `cursor status` can observe visibility while an action is in flight.
     static let cursorControlMethods: Set<String> = ["cursor_status", "configure_cursor"]
-    /// Methods that never move the tip: no action bracket (no idle countdown).
-    static let nonActionMethods: Set<String> = ["list_apps", "hide_agent_cursor"]
+    /// Methods that never move the tip: no action bracket, so observers
+    /// polling them neither show the tip nor extend its idle countdown.
+    static let nonActionMethods: Set<String> = ["list_apps", "hide_agent_cursor", "wait"]
+
+    static func movesTip(_ req: JSONRPCRequest) -> Bool {
+        if nonActionMethods.contains(req.method) { return false }
+        if req.method == "get_app_state" { return (req.param("raiseForInput") as Bool?) == true }
+        return true
+    }
 
     @MainActor
     func handle(_ request: JSONRPCRequest) async -> JSONRPCResponse {
@@ -58,7 +65,7 @@ final class MethodRouter: @unchecked Sendable {
         defer { requestRunning = false }
         // Action bracket: the idle-hide countdown starts only after the whole
         // request (glide, landing gate, press) returned — never mid-press.
-        let isAction = !Self.nonActionMethods.contains(request.method)
+        let isAction = Self.movesTip(request)
         if isAction { cursorOverlay.beginAction(request.method) }
         defer { if isAction { cursorOverlay.endAction(request.method) } }
         do {
