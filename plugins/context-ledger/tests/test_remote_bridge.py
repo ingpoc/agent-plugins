@@ -87,6 +87,7 @@ class _ServerCase(unittest.TestCase):
             env.pop(key, None)
         env["HOME"] = str(home)
         env["CONTEXT_LEDGER_PYTHON"] = sys.executable
+        env["CONTEXT_LEDGER_SECURITY_BIN"] = "/usr/bin/false"
         env.update(extra)
         return env
 
@@ -331,7 +332,10 @@ class ServeSwitchTests(_ServerCase):
         err = json.loads(proc.stderr)
         self.assertEqual(err["error"]["code"], "LEDGER_UNBOUND")
         self.assertIn(f"no binding at {data}/binding.json", err["error"]["message"])
+        self.assertIn("bin/context_ledger.py init", err["error"]["message"])
         self.assertIn("CONTEXT_LEDGER_MCP_TOKEN", err["error"]["message"])
+        self.assertIn("context-ledger.mcp", err["error"]["message"])
+        self.assertIn("bearer_token", err["error"]["message"])
         self.assertEqual(proc.stdout, "")
         default_err = json.loads(default.stderr)
         self.assertEqual(default_err["error"]["code"], "LEDGER_UNBOUND")

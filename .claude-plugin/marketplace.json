@@ -1,0 +1,13 @@
+{
+  "name": "ingpoc-agent-plugins",
+  "owner": {
+    "name": "ingpoc"
+  },
+  "plugins": [
+    {
+      "name": "context-ledger",
+      "source": "./plugins/context-ledger",
+      "description": "Scoped, local decision traces with sparse capture and progressive retrieval."
+    }
+  ]
+}

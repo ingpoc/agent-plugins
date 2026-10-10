@@ -1,9 +1,10 @@
 """Cursor install MCP: package override, or an absolute launcher for old dests.
 
-Portable root mcp.json stays `./bin/context-ledger-mcp` with cwd `./`.
-Cursor resolves that relative command against the workspace and does not
-expand `${PLUGIN_ROOT}` or `${PLUGIN_DATA}`. It does expand
-`${CURSOR_PLUGIN_ROOT}`. When `dest/.cursor-plugin/plugin.json` sets
+Portable root mcp.json is bare `sh` plus a resolver (no cwd). Cursor does
+not use that file: it loads `.cursor-plugin/mcp.json` and expands
+`${CURSOR_PLUGIN_ROOT}`. A legacy dest whose command is still `./…` or a
+literal `${PLUGIN_ROOT}` / `${PLUGIN_DATA}` cannot spawn. When
+`dest/.cursor-plugin/plugin.json` sets
 `mcpServers` to a relative path, that file is the Cursor-effective config:
 healthy iff command is CURSOR_PLUGIN_COMMAND, cwd is in CURSOR_PLUGIN_CWDS,
 and the server has no `${PLUGIN_` token. `rewrite_dest` leaves a healthy

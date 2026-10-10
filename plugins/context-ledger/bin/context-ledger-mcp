@@ -2,9 +2,12 @@
 set -eu
 
 # Thin MCP facade. Cwd-independent (Cursor may spawn with the wrong cwd).
-# `serve` (optional leading `--data DIR`): binding.json -> local stdio;
-# else a non-empty CONTEXT_LEDGER_MCP_TOKEN -> remote bridge.
-# Neither -> LEDGER_UNBOUND on stderr, nonzero, and no data dir is created.
+# `serve` (optional leading `--data DIR`):
+#   binding.json -> local stdio;
+#   else a non-empty CONTEXT_LEDGER_MCP_TOKEN -> remote bridge;
+#   else macOS Keychain service context-ledger.mcp account bearer_token -> bridge
+#   (token is passed only to that process; CONTEXT_LEDGER_SECURITY_BIN overrides the tool);
+#   else LEDGER_UNBOUND on stderr, nonzero, and no data dir is created.
 # Other commands stay on the local CLI.
 export PYTHONUNBUFFERED=1
 
@@ -18,10 +21,11 @@ fi
 
 PY="${CONTEXT_LEDGER_PYTHON:-}"
 if [ -z "$PY" ]; then
-  PY=$(command -v python3 2>/dev/null || true)
-fi
-if [ -z "$PY" ]; then
-  PY=$(command -v python 2>/dev/null || true)
+  if command -v python3 >/dev/null 2>&1; then
+    PY=$(command -v python3)
+  elif command -v python >/dev/null 2>&1; then
+    PY=$(command -v python)
+  fi
 fi
 if [ -z "$PY" ]; then
   echo '{"ok":false,"error":{"code":"PYTHON_MISSING","retryable":false}}' >&2
@@ -49,7 +53,17 @@ if [ "$is_serve" -eq 1 ]; then
   if [ -n "${CONTEXT_LEDGER_MCP_TOKEN:-}" ]; then
     exec "$PY" -u "$BRIDGE"
   fi
-  DATA_DIR=$data_dir "$PY" -c 'import json,os,sys; path=os.environ["DATA_DIR"]; msg="no binding at %s/binding.json and no CONTEXT_LEDGER_MCP_TOKEN for the remote bridge" % path; sys.stderr.write(json.dumps({"ok":False,"error":{"code":"LEDGER_UNBOUND","retryable":False,"message":msg}})+"\n")'
+  SECURITY=${CONTEXT_LEDGER_SECURITY_BIN:-security}
+  if command -v "$SECURITY" >/dev/null 2>&1; then
+    token=""
+    if token=$("$SECURITY" find-generic-password -s context-ledger.mcp -a bearer_token -w 2>/dev/null); then
+      if [ -n "$token" ]; then
+        CONTEXT_LEDGER_MCP_TOKEN="$token" exec "$PY" -u "$BRIDGE"
+      fi
+    fi
+    unset token
+  fi
+  DATA_DIR=$data_dir "$PY" -c 'import json,os,sys; path=os.environ["DATA_DIR"]; msg="no binding at %s/binding.json; run bin/context_ledger.py init for local mode, set CONTEXT_LEDGER_MCP_TOKEN env/secret for remote mode, or add the macOS Keychain item service context-ledger.mcp account bearer_token" % path; sys.stderr.write(json.dumps({"ok":False,"error":{"code":"LEDGER_UNBOUND","retryable":False,"message":msg}})+"\n")'
   exit 1
 fi
 
