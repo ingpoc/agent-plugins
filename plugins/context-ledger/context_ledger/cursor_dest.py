@@ -1,11 +1,15 @@
-"""Cursor install mcp.json: absolute launcher, or a loud failure.
+"""Cursor install MCP: package override, or an absolute launcher for old dests.
 
-Source mcp.json stays portable (`./bin/context-ledger-mcp`, cwd `./`).
+Portable root mcp.json stays `./bin/context-ledger-mcp` with cwd `./`.
 Cursor resolves that relative command against the workspace and does not
 expand `${PLUGIN_ROOT}` or `${PLUGIN_DATA}`. It does expand
-`${CURSOR_PLUGIN_ROOT}` in command and cwd. A marketplace refresh copies the
-source file back over any dest rewrite, so doctor must refuse a dest that is
-still relative or still has those unexpanded Agent Plugins tokens.
+`${CURSOR_PLUGIN_ROOT}`. When `dest/.cursor-plugin/plugin.json` sets
+`mcpServers` to a relative path, that file is the Cursor-effective config:
+healthy iff command is CURSOR_PLUGIN_COMMAND, cwd is in CURSOR_PLUGIN_CWDS,
+and the server has no `${PLUGIN_` token. `rewrite_dest` leaves a healthy
+override untouched (`mode` `cursor_override`) and fails loud on a broken one.
+Dests with no override are still rewritten to the absolute launcher so
+pre-override cache copies can spawn.
 """
 
 from __future__ import annotations
@@ -60,12 +64,45 @@ def _server(data: dict) -> dict | None:
     return None
 
 
+def _plugin_override_ref(dest: Path) -> tuple[str, Path | None, str]:
+    """How this dest declares a Cursor package override.
+
+    status is `none` (legacy root mcp.json), `ok` (relative path exists),
+    `missing` (relative path does not exist), or `bad` (unreadable or not
+    a relative path). A bad or missing declaration is not a legacy dest.
+    """
+    manifest = dest / ".cursor-plugin" / "plugin.json"
+    if not manifest.is_file():
+        return "none", None, ""
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return "bad", manifest, str(exc)
+    if not isinstance(data, dict):
+        return "bad", manifest, "plugin.json is not an object"
+    if "mcpServers" not in data:
+        return "none", None, ""
+    ref = data.get("mcpServers")
+    if not isinstance(ref, str) or not ref or ref.startswith("/") or "${" in ref:
+        return "bad", manifest, "mcpServers must be a relative path"
+    target = dest / ref
+    if not target.is_file():
+        return "missing", target, ""
+    return "ok", target, ""
+
+
 def inspect_dest(dest: Path) -> dict | None:
     """Return a problem object when this dest cannot be spawned, else None.
 
-    A directory without mcp.json is not a Cursor dest.
+    A directory without mcp.json and without a Cursor override is not a dest.
+    A declared override is inspected instead of the portable root mcp.json.
     """
-    mcp_path = dest / "mcp.json"
+    status, path, detail = _plugin_override_ref(dest)
+    if status == "bad":
+        return {"path": str(path), "issues": ["unreadable"], "error": detail}
+    if status == "missing":
+        return {"path": str(path), "issues": ["override_missing"]}
+    mcp_path = path if status == "ok" else dest / "mcp.json"
     if not mcp_path.is_file():
         return None
     try:
@@ -137,6 +174,17 @@ def cursor_dest_failure(dests: list[Path] | None = None, *, home: Path | None = 
 
 
 def rewrite_dest(dest: Path, *, data_dir: Path | None = None) -> dict:
+    status, path, _detail = _plugin_override_ref(dest)
+    if status != "none":
+        problem = inspect_dest(dest)
+        if problem is not None:
+            return {
+                "ok": False,
+                "error": "cursor override unusable",
+                "path": str(path),
+                "problem": problem,
+            }
+        return {"ok": True, "mode": "cursor_override", "path": str(path)}
     launcher = dest / "bin" / LAUNCHER_NAME
     mcp_path = dest / "mcp.json"
     if not mcp_path.is_file():

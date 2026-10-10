@@ -32,4 +32,4 @@ Catalog: `.cursor-plugin/marketplace.json` (and the Codex/Grok twins) lists all 
 
 ## Add another plugin
 
-Use `workflow summary agent-plugin-routing-sync` then `python3 scripts/create_agent_plugin.py <name> --skill <skill> --description "…"` (optional `--with-mcp`). It writes `plugins/<name>/` (including that plugin's `AGENTS.md`) and a row in the root Plugins table. Do not add `.cursor-plugin/` or `.codex-plugin/` manifests. After the catalog changes, refresh the Cursor marketplace (remove/re-add or update) before claiming the new plugin appears under Ingpoc with **Add**.
+Use `workflow summary agent-plugin-routing-sync` then `python3 scripts/create_agent_plugin.py <name> --skill <skill> --description "…"` (optional `--with-mcp`). It writes `plugins/<name>/` (including that plugin's `AGENTS.md`) and a row in the root Plugins table. Do not add `.codex-plugin/` manifests. A stdio `./` command ships `.cursor-plugin/plugin.json` and `.cursor-plugin/mcp.json`. After the catalog changes, refresh the Cursor marketplace (remove/re-add or update) before claiming the new plugin appears under Ingpoc with **Add**.

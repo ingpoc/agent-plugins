@@ -44,6 +44,11 @@ CATALOGS = (
     ".agents/plugins/marketplace.json",
     ".grok-plugin/marketplace.json",
 )
+CURSOR_PLUGIN_KEYS = {"name", "version", "description", "mcpServers"}
+CURSOR_MCP_REL = "./.cursor-plugin/mcp.json"
+CURSOR_ENOENT = "Cursor resolves ./ against the workspace -> ENOENT"
+# Component fields on a marketplace entry shadow the package's own files.
+CURSOR_COMPONENT_FIELDS = {"mcpServers", "skills", "rules", "agents", "commands", "hooks"}
 FULL_TRIGGERS = (
     "scripts/check.py",
     "AGENTS.md",
@@ -170,6 +175,146 @@ def validate_mcp(path: Path) -> list[str]:
     return errors
 
 
+def _string_values(value: object):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _string_values(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _string_values(item)
+
+
+def _root_stdio_needs_cursor_override(servers: dict) -> bool:
+    for server in servers.values():
+        if not isinstance(server, dict) or server.get("type") != "stdio":
+            continue
+        command = server.get("command")
+        if isinstance(command, str) and command.startswith("./"):
+            return True
+    return False
+
+
+def cursor_package_errors(root: Path, manifest: dict) -> list[str]:
+    """Per-package Cursor override. Root mcp.json rules stay in validate_mcp.
+
+    A stdio command that starts with ./ must ship .cursor-plugin/plugin.json
+    and .cursor-plugin/mcp.json. Cursor resolves ./ against the workspace.
+    """
+    errors: list[str] = []
+    root_servers: dict = {}
+    mcp_path = root / "mcp.json"
+    if mcp_path.is_file():
+        try:
+            mcp_data = json.loads(mcp_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            mcp_data = None
+        if isinstance(mcp_data, dict) and isinstance(mcp_data.get("mcpServers"), dict):
+            root_servers = mcp_data["mcpServers"]
+    needs = _root_stdio_needs_cursor_override(root_servers)
+    cursor_dir = root / ".cursor-plugin"
+    plugin_path = cursor_dir / "plugin.json"
+    cursor_mcp_path = cursor_dir / "mcp.json"
+    present = cursor_dir.is_dir() and plugin_path.is_file() and cursor_mcp_path.is_file()
+    if needs and not present:
+        errors.append(
+            f"{root}: root mcp.json stdio command starts with ./ but the "
+            f".cursor-plugin override is missing. {CURSOR_ENOENT}."
+        )
+    if not cursor_dir.exists():
+        return errors
+    if not cursor_dir.is_dir():
+        errors.append(f"{root}: .cursor-plugin must be a directory.")
+        return errors
+    names = sorted(path.name for path in cursor_dir.iterdir())
+    if names != ["mcp.json", "plugin.json"]:
+        errors.append(f"{root}: .cursor-plugin/ may contain exactly plugin.json and mcp.json.")
+    if not present:
+        return errors
+    try:
+        cursor_manifest = json.loads(plugin_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return errors + [f"{root}: .cursor-plugin/plugin.json is not valid JSON: {error.msg}"]
+    if not isinstance(cursor_manifest, dict):
+        return errors + [f"{root}: .cursor-plugin/plugin.json must be an object."]
+    extra = set(cursor_manifest) - CURSOR_PLUGIN_KEYS
+    if extra:
+        errors.append(
+            f"{root}: .cursor-plugin/plugin.json keys must be a subset of "
+            + ", ".join(sorted(CURSOR_PLUGIN_KEYS))
+            + ": "
+            + ", ".join(sorted(extra))
+        )
+    if cursor_manifest.get("name") != root.name:
+        errors.append(f"{root}: .cursor-plugin/plugin.json name must match the package directory.")
+    if cursor_manifest.get("version") != manifest.get("version"):
+        errors.append(
+            f"{root}: .cursor-plugin/plugin.json version must match plugin.json "
+            f"({manifest.get('version')})."
+        )
+    if cursor_manifest.get("mcpServers") != CURSOR_MCP_REL:
+        errors.append(
+            f"{root}: .cursor-plugin/plugin.json mcpServers must be {CURSOR_MCP_REL}."
+        )
+    raw = cursor_mcp_path.read_text(encoding="utf-8")
+    if "${PLUGIN_ROOT}" in raw or "${PLUGIN_DATA}" in raw:
+        errors.append(
+            f"{root}: .cursor-plugin/mcp.json must not contain "
+            "${PLUGIN_ROOT} or ${PLUGIN_DATA}."
+        )
+    try:
+        cursor_mcp = json.loads(raw)
+    except json.JSONDecodeError as error:
+        return errors + [f"{root}: .cursor-plugin/mcp.json is not valid JSON: {error.msg}"]
+    if not isinstance(cursor_mcp, dict) or set(cursor_mcp) != {"mcpServers"}:
+        errors.append(f"{root}: .cursor-plugin/mcp.json must contain only mcpServers (no $schema).")
+        return errors
+    servers = cursor_mcp["mcpServers"]
+    if not isinstance(servers, dict):
+        errors.append(f"{root}: .cursor-plugin/mcp.json mcpServers must be an object.")
+        return errors
+    if set(servers) != set(root_servers):
+        errors.append(f"{root}: .cursor-plugin/mcp.json server names must match root mcp.json.")
+        return errors
+    for name, server in servers.items():
+        root_server = root_servers[name]
+        if not isinstance(server, dict) or not isinstance(root_server, dict):
+            errors.append(f"{root}: .cursor-plugin/mcp.json mcpServers.{name} must be an object.")
+            continue
+        for value in _string_values(server):
+            if value.startswith("/"):
+                errors.append(
+                    f"{root}: .cursor-plugin/mcp.json mcpServers.{name} has an absolute path."
+                )
+                break
+        if root_server.get("type") != "stdio":
+            if server != root_server:
+                errors.append(
+                    f"{root}: .cursor-plugin/mcp.json mcpServers.{name} must equal the root entry."
+                )
+            continue
+        root_command = str(root_server.get("command") or "")
+        expected = "${CURSOR_PLUGIN_ROOT}/" + root_command[2:]
+        if server.get("type") != "stdio":
+            errors.append(f"{root}: .cursor-plugin/mcp.json mcpServers.{name}.type must be stdio.")
+        if server.get("command") != expected:
+            errors.append(
+                f"{root}: .cursor-plugin/mcp.json mcpServers.{name}.command must be {expected}."
+            )
+        missing = object()
+        if server.get("args", missing) != root_server.get("args", missing):
+            errors.append(
+                f"{root}: .cursor-plugin/mcp.json mcpServers.{name}.args must match root mcp.json."
+            )
+        if server.get("cwd") != "${CURSOR_PLUGIN_ROOT}":
+            errors.append(
+                f"{root}: .cursor-plugin/mcp.json mcpServers.{name}.cwd must be "
+                "${CURSOR_PLUGIN_ROOT}."
+            )
+    return errors
+
+
 def validate_plugin(root: Path) -> list[str]:
     errors: list[str] = []
     manifest = root / "plugin.json"
@@ -211,9 +356,9 @@ def validate_plugin(root: Path) -> list[str]:
         missing = [axis for axis in README_AXES if f"### {axis}" not in text]
         if missing:
             errors.append(f"{root}: README.md missing ### headings: " + ", ".join(missing))
-    for forbidden in (".cursor-plugin", ".codex-plugin"):
-        if (root / forbidden).exists():
-            errors.append(f"{root}: {forbidden}/ is not part of an Agent Plugin package.")
+    if (root / ".codex-plugin").exists():
+        errors.append(f"{root}: .codex-plugin/ is not part of an Agent Plugin package.")
+    errors.extend(cursor_package_errors(root, data))
     return errors
 
 
@@ -233,6 +378,17 @@ def check_catalogs() -> list[str]:
         listed = set(catalog_names(rel))
         if listed != names:
             errors.append(f"{rel} plugin names {sorted(listed)} != {sorted(names)}")
+    cursor_catalog = json.loads((ROOT / ".cursor-plugin/marketplace.json").read_text(encoding="utf-8"))
+    for entry in cursor_catalog.get("plugins", []):
+        if not isinstance(entry, dict):
+            errors.append(".cursor-plugin/marketplace.json: plugin entry must be an object.")
+            continue
+        shadow = sorted(CURSOR_COMPONENT_FIELDS & set(entry))
+        if shadow:
+            errors.append(
+                ".cursor-plugin/marketplace.json: "
+                f"{entry.get('name')} must not carry {', '.join(shadow)} (shadows the package)."
+            )
     return errors
 
 

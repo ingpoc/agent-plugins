@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Rewrite every Cursor dest mcp.json to an absolute launcher.
+"""Repair Cursor dests that predate the package override.
 
-Source mcp.json stays portable (`./bin/context-ledger-mcp`, cwd `./`).
-Cursor resolves a relative command against the workspace and does not expand
-`${PLUGIN_*}`. Discovery includes the local install and every marketplace
-cache hash, so a refresh that restored the portable file is rewritten again.
-A dest that is still relative after the write fails the process.
+Portable root mcp.json stays `./bin/context-ledger-mcp` with cwd `./`.
+A dest whose `.cursor-plugin/plugin.json` points at a healthy
+`${CURSOR_PLUGIN_ROOT}` mcp.json is left unchanged (`mode` `cursor_override`).
+A broken override fails the process and is not rewritten. Dests with no
+override are still rewritten to the absolute launcher (`cwd` `./`), which
+repairs pre-override cache copies. Discovery includes the local install and
+every marketplace cache hash.
 """
 
 from __future__ import annotations

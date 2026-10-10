@@ -6,7 +6,7 @@ Only the ledger helper subagent calls the MCP. The parent exchanges JSON with th
 
 ## How `serve` chooses
 
-The Cursor catalog and the portable `mcp.json` both start `bin/context-ledger-mcp serve`. The launcher picks the transport:
+The Cursor override and the portable `mcp.json` both start `bin/context-ledger-mcp serve`. The launcher picks the transport:
 
 - Data dir is `--data DIR` when that precedes `serve`, otherwise `CONTEXT_LEDGER_DATA`, otherwise `~/.context-ledger`.
 - `DATA/binding.json` exists: local stdio, unchanged.
@@ -15,9 +15,9 @@ The Cursor catalog and the portable `mcp.json` both start `bin/context-ledger-mc
 
 Cloud agents do not add a url-type `mcp.json` entry. The server name stays `context-ledger`.
 
-Cursor's catalog (`.cursor-plugin/marketplace.json`) sets that server to stdio `command` `${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp`, `args` `["serve"]`, `cwd` `${CURSOR_PLUGIN_ROOT}`. Cursor expands `${CURSOR_PLUGIN_ROOT}`. Source `mcp.json` stays `./bin/context-ledger-mcp` with `cwd` `./` for Codex and other clients.
+Cursor loads `.cursor-plugin/mcp.json`: stdio `command` `${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp`, `args` `["serve"]`, `cwd` `${CURSOR_PLUGIN_ROOT}`. Cursor expands `${CURSOR_PLUGIN_ROOT}`. Portable root `mcp.json` stays `./bin/context-ledger-mcp` with `cwd` `./` for Codex and other spec clients.
 
-A dest whose command is `${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp` and whose cwd is `${CURSOR_PLUGIN_ROOT}` or `./` is valid. `doctor` exits nonzero with `CURSOR_DEST` for a relative command or a literal `${PLUGIN_ROOT}` or `${PLUGIN_DATA}`. `python3 scripts/install_cursor_dest.py` rewrites those dest files to the absolute launcher.
+A dest with that override is valid. `doctor` exits nonzero with `CURSOR_DEST` when a dest has no healthy override and still has a relative command or a literal `${PLUGIN_ROOT}` or `${PLUGIN_DATA}`. `python3 scripts/install_cursor_dest.py` only repairs those pre-override dests (absolute launcher) and leaves a healthy override untouched.
 
 ## Cloud secret
 
@@ -58,7 +58,7 @@ PUBLIC_URL=""             # command mode only
 TUNNEL_CMD=""             # command mode only, foreground
 ```
 
-4. LaunchAgents `com.gurusharan.context-ledger-mcp` (runs `serve-http.sh`) and `com.gurusharan.context-ledger-funnel` (runs `tunnel.sh`). Each has `RunAtLoad` and `KeepAlive`, runs `/bin/sh <script>`, and logs to `~/Library/Logs/context-ledger/{mcp-http,funnel}.log`. Load each job with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<label>.plist`.
+1. LaunchAgents `com.gurusharan.context-ledger-mcp` (runs `serve-http.sh`) and `com.gurusharan.context-ledger-funnel` (runs `tunnel.sh`). Each has `RunAtLoad` and `KeepAlive`, runs `/bin/sh <script>`, and logs to `~/Library/Logs/context-ledger/{mcp-http,funnel}.log`. Load each job with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<label>.plist`.
 
 `serve-http.sh` reads the token from the keychain and runs `bin/context-ledger-mcp serve-http --port $PORT`, which listens on 127.0.0.1 only. `tunnel.sh` writes `remote-url` once a request through the tunnel gets a 401 from the server.
 

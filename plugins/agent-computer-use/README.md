@@ -6,7 +6,7 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 ## Package boundary
 
-Cursor MCP: after marketplace Add/refresh, run `python3 skills/macos-cua/scripts/install_harness.py cursor-plugin` (or `--rewrite-only`) so local + cache `mcp.json` use the absolute dest launcher; source stays `./bin/agent-computer-use-mcp`. Details: [`AGENTS.md`](AGENTS.md).
+Cursor MCP loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-computer-use-mcp`, `cwd` `${CURSOR_PLUGIN_ROOT}`). Portable root `mcp.json` stays `./bin/agent-computer-use-mcp`. `python3 skills/macos-cua/scripts/install_harness.py cursor-plugin` only repairs pre-override cache copies. Details: [`AGENTS.md`](AGENTS.md).
 
 `runtime/voice-cua/` owns Samantha's Python runtime, metadata-only secret templates, unit test, and PyInstaller builder. `skills/macos-cua/service/install_service.py` builds that packaged source into the signed nested `voice-cua.app`; it does not search for a sibling repository or fall back to system Python.
 

@@ -11,6 +11,9 @@ plugins/*/run/
 **/.codex-plugin/
 !/.cursor-plugin/
 !/.cursor-plugin/marketplace.json
+!plugins/*/.cursor-plugin/
+!plugins/*/.cursor-plugin/plugin.json
+!plugins/*/.cursor-plugin/mcp.json
 plugins/agent-computer-use/skills/macos-cua/service/.build/
 plugins/agent-computer-use/skills/macos-cua/service/.pytest_cache/
 plugins/agent-computer-use/runtime/voice-cua/build/
