@@ -43,57 +43,6 @@ class VisibleTypingTests(unittest.TestCase):
         self.assertIn("no accessible slider", result["error"])
         resolve.assert_not_called()
 
-    def test_resolved_text_area_index_bypasses_button_role_filter(self):
-        snapshot = {
-            "source": "driver_ax",
-            "elements": [
-                {
-                    "element_index": 0,
-                    "role": "AXWindow",
-                    "frame": {"x": 0, "y": 0, "w": 100, "h": 100},
-                },
-                {
-                    "element_index": 7,
-                    "role": "AXTextArea",
-                    "label": "Compose message",
-                    "frame": {"x": 10, "y": 70, "w": 80, "h": 20},
-                },
-            ],
-        }
-        with (
-            mock.patch.object(
-                macos_cua,
-                "find_clickable_index",
-                side_effect=AssertionError("field must not be re-resolved as a button"),
-            ),
-            mock.patch.object(
-                macos_cua,
-                "operator_update",
-                return_value={"ok": True, "state": {"cursor_update_id": "u1"}},
-            ),
-            mock.patch.object(
-                macos_cua, "_wait_for_operator_cursor", return_value={"ok": True}
-            ),
-            mock.patch.object(
-                macos_cua, "click_with_retry", return_value={"ok": True}
-            ),
-            mock.patch.object(
-                macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
-            ),
-        ):
-            result = macos_cua.click_label_pointer(
-                10,
-                20,
-                "Compose message",
-                snapshot_data=snapshot,
-                app_name="WhatsApp",
-                element_index=7,
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["element"], 7)
-        self.assertEqual(result["method"], "agent-cursor-glide+ax-click")
-
     def test_type_text_rejects_newline_before_driver_dispatch(self):
         with mock.patch.object(macos_cua, "call_driver") as driver:
             result = macos_cua.type_text(10, 20, 7, "Hi there\n")

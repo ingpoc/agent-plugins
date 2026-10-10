@@ -3693,15 +3693,8 @@ async function collectExpectEvidence(preds, action, result, state) {
   }
   evidence.action_selector = String(action.selector || "");
   evidence.value_selector = valueSelector;
-  if (valuePred) {
-    if (page.field?.found) {
-      evidence.selector_value = page.field.value;
-    } else {
-      const key = valueSelector.replace(/^#/, "");
-      const hit = (evidence.inputs || []).find((input) => input.name === key || input.name === valueSelector);
-      if (hit) evidence.selector_value = hit.value;
-    }
-  }
+  // Only the exact selector's direct read counts (no name-based guess).
+  if (valuePred && page.field?.found) evidence.selector_value = page.field.value;
   return evidence;
 }
 

@@ -206,6 +206,48 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         self.assertIn("outside the window", out["error"])
         self.assertNotIn("drag", [c[0] for c in client.calls])
 
+    def test_label_click_is_a_cuaservice_index_click(self):
+        replies = {"get_app_state": _state(), "click": {"ok": True, "method": "ax-press",
+                                                        "cursor_landing": {"landed": True}}}
+        with mock.patch.object(macos_cua, "_native_input", side_effect=AssertionError("no native fallback")):
+            res, client = self._run(replies, macos_cua.click_label_pointer, 4242, 77, "Close", app_name="TextEdit")
+        self.assertTrue(res["ok"], res)
+        self.assertEqual((res["element"], res["method"], res["cursor_landing"]), (2, "cuaservice-click", {"landed": True}))
+        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2}))
+
+    def test_refused_label_click_does_not_fall_through(self):
+        err = Exception("RPC error -32010")
+        err.code, err.message = -32010, "CURSOR_NOT_LANDED: agent cursor did not land"
+        with mock.patch.object(macos_cua, "_native_input", side_effect=AssertionError("no native fallback")):
+            res, client = self._run({"get_app_state": _state(), "click": err},
+                                    macos_cua.click_label_pointer, 4242, 77, "Close")
+        self.assertFalse(res["ok"])
+        self.assertEqual(res["error_code"], "CURSOR_NOT_LANDED")
+        self.assertEqual([c[0] for c in client.calls].count("click"), 1)
+        miss, _ = self._run({"get_app_state": _state()}, macos_cua.click_label_pointer, 4242, 77, "Nope")
+        self.assertEqual((miss["ok"], miss["error_code"]), (False, "target_missing"))
+
+    def test_point_click_maps_pixels_and_uses_cuaservice(self):
+        replies = {"get_app_state": _state(), "click": {"ok": True, "method": "cgevent-pid"}}
+        with mock.patch.object(macos_cua, "_backing_scale", return_value=2.0):
+            res, client = self._run(replies, macos_cua.click_point, 4242, 77, 20, 40)
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "x": 110.0, "y": 70.0}))
+        dbl, client = self._run(replies, macos_cua.click_point, 4242, 77, 20, 40, click_count=2)
+        self.assertEqual((dbl["ok"], dbl["error_code"]), (False, "unsupported_click"))
+        self.assertEqual(client.calls, [])
+
+    def test_desktop_click_is_retired(self):
+        res, client = self._run({}, macos_cua.click_at_desktop, 10, 10)
+        self.assertEqual((res["ok"], res["error_code"]), (False, "desktop_click_retired"))
+        self.assertEqual(client.calls, [])
+
+    def test_set_value_null_readback_is_not_a_match(self):
+        state = _state(value=None)
+        res, _ = self._run({"set_value": {"ok": True}, "get_app_state": state}, macos_cua.set_value, 4242, 77, 1, "")
+        self.assertFalse(macos_cua._accepted(res))
+        self.assertIn("readback unavailable", res["error"])
+
     def test_list_apps_shape(self):
         apps, _ = self._run({"list_apps": [{"bundleId": BUNDLE, "name": "TextEdit", "pid": 4242, "isActive": False}]},
                             macos_cua.list_apps)

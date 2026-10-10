@@ -38,7 +38,7 @@ function codedError(c,m){const e=new Error(m);e.code=c;return e;}
 function requireContentScriptResult(resp){return resp.result;}
 async function sendToContentScript(tabId,action,args){calls.push({action,args});
   const opts=args[1]||{}; const n=Math.min(12,opts.input_cap||8);
-  const inputs=Array.from({length:n},(_,i)=>({name:'f'+(i+1),value:'v'+(i+1)}));
+  const inputs=Array.from({length:n},(_,i)=>({name:'f'+(i+1),value:'v'+(i+1)})); inputs.push({name:'f3x',value:'v3'});
   const result={url:'https://x.test/f',title:'Form',inputs};
   if(opts.field) result.field= opts.field==='#f12'?{found:true,value:'v12'}:{found:false};
   return {result};}
@@ -56,12 +56,14 @@ async function sendToContentScript(tabId,action,args){calls.push({action,args});
   const e3=await collectExpectEvidence(p1,{type:'page_context'},pc,state);
   const pcCalls=calls.length-before;
   // selector-scoped: another input holding the value must not satisfy it
+  const p6=[{kind:'value',value:'v3',selector:'#f3x'}];   // a name-only lookalike must not count
+  const e6=await collectExpectEvidence(p6,{type:'fill'},null,state);
   const p4=[{kind:'value',value:'v3',selector:'#nope'}];
   const e4=await collectExpectEvidence(p4,{type:'fill'},null,state);
   const p5=[{kind:'value',value:'v3'}];   // scoped by the action's selector #f12 (value v12)
   const e5=await collectExpectEvidence(p5,{type:'fill_selector',selector:'#f12'},null,state);
   console.log(JSON.stringify({miss1:unmatchedExpect(p1,e1),miss2:unmatchedExpect(p2,e2),sel:e2.selector_value,
-    opts:calls.map(c=>c.args[1]), n1:e1.inputs.length, miss3:unmatchedExpect(p1,e3), pcCalls, miss4:unmatchedExpect(p4,e4), miss5:unmatchedExpect(p5,e5)}));
+    opts:calls.map(c=>c.args[1]), n1:e1.inputs.length, miss3:unmatchedExpect(p1,e3), pcCalls, miss4:unmatchedExpect(p4,e4), miss5:unmatchedExpect(p5,e5), miss6:unmatchedExpect(p6,e6)}));
 })().catch(e=>{console.error(e);process.exit(1);});
 """
 
@@ -101,13 +103,14 @@ class ExpectValueInputs(unittest.TestCase):
         self.assertIsNone(r["miss1"])
         self.assertIsNone(r["miss2"])
         self.assertEqual(r["sel"], "v12")
-        self.assertEqual(r["n1"], 12)
+        self.assertEqual(r["n1"], 13)  # 12 fN + the f3x lookalike
         self.assertEqual(r["opts"][0], {"compact": True, "input_cap": 100, "input_value_chars": 200})
         self.assertEqual(r["opts"][1]["field"], "#f12")
         self.assertIsNone(r["miss3"])  # page_context result does not short-circuit value checks
         self.assertEqual(r["pcCalls"], 1)
         self.assertIsNotNone(r["miss4"])  # target missing -> miss, even though input f3 holds v3
         self.assertIsNotNone(r["miss5"])  # action selector #f12 holds v12, not v3
+        self.assertIsNotNone(r["miss6"])  # input NAMED f3x is not the #f3x direct read
 
 
 if __name__ == "__main__":

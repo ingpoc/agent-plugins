@@ -477,17 +477,19 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "_ax_press_unsupported" in retry and "find_clickable_index" in retry,
         "retitled controls rematch on the current tree via aliases/frame",
     )
-    click_label = _function_source(labels, "click_label_pointer")
+    click_label = _function_source(labels, "click_label_pointer(")
+    point_actions = (scripts / "runtime_pointer_actions.py").read_text()
+    click_point_src = _function_source(point_actions, "click_point(")
+    desktop_src = _function_source(point_actions, "click_at_desktop(")
     add(
-        "unsupported container press after glide uses AX-frame HID",
-        "ax-frame-hid" in click_label and "delivery_mode=\"foreground\"" in click_label,
-        "row/cell AXPress miss after glide must click the AX frame, not desktop-global search",
-    )
-    add(
-        "cursor glide failure does not block native AX press fallback",
-        "native_fallback or idx is not None" in click_label
-        and click_label.index("native_fallback or idx") < click_label.index("native_fallback:"),
-        "glide is UX; when the AX element exists, action dispatch must proceed via AX press",
+        "label and point clicks are CUAService clicks under the landing gate",
+        "cua_click(" in click_label
+        and not any(x in click_label for x in ("_native_ax_press_label_with_retry(", "click_at_desktop(", "post_mouse_click", "call_driver"))
+        and '_cuaservice_rpc(pid, "click"' in click_point_src
+        and "call_driver" not in click_point_src
+        and "desktop_click_retired" in desktop_src
+        and "_dispatch_coordinate_click" not in point_actions,
+        "a refused landing (CURSOR_NOT_LANDED) must not fall through to native AX/HID/desktop clicks",
     )
     pointer = (scripts / "runtime_pointer.py").read_text()
     preflight_fn = _function_source(pointer, "pointer_preflight")

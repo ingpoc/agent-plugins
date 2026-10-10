@@ -23,117 +23,35 @@ def click_point(
     app_name=None,
     verified_screen_point=None,
 ):
-    """Click raw PNG pixels; optionally restore the single system pointer."""
-    foreground_prepared = None
-    if delivery_mode == "foreground":
-        foreground_prepared = bring_resolved_window_to_front(pid, window_id)
-        if foreground_prepared.get("error"):
-            return {
-                "ok": False,
-                "error": "foreground preparation failed before point click",
-                "detail": foreground_prepared,
-            }
-    pointer_move = None
-    if app_name:
-        pointer_move = _move_operator_cursor_to_point(
-            app_name, pid, window_id, float(x), float(y)
-        )
-        if not pointer_move.get("ok"):
-            return {
-                "ok": False,
-                "error": "visible operator cursor did not reach the point target",
-                "move": pointer_move,
-            }
-    screen_point = verified_screen_point or (
-        pointer_move.get("screen_point") if isinstance(pointer_move, dict) else None
-    )
-    if isinstance(screen_point, dict):
-        native = _native_ax_snapshot(
-            pid, max_elements=160, window_id=window_id
-        )
-        text_result = _native_text_pointer().accessible_text_click(
-            resolve=_resolve_native_ax_element,
-            ax_value=_ax_value,
-            pid=pid,
-            observation=native,
-            point=screen_point,
-            click_count=click_count,
-        )
-        if text_result is not None:
-            return {
-                "ok": bool(text_result.get("ok")),
-                "path": "verified-screen-point+native-ax-text",
-                "result": text_result,
-                "move": pointer_move,
-                "foreground_prepared": foreground_prepared,
-                "debug_image_omitted": bool(debug_image_out),
-            }
-        result = _native_input().post_mouse_click(
-            pid,
-            screen_point,
-            button=button,
-            count=click_count,
-        )
-        error = result.get("error") if isinstance(result, dict) else None
-        return {
-            "ok": not error,
-            "path": "verified-screen-point+native-pid-mouse",
-            "result": result,
-            "move": pointer_move,
-            "foreground_prepared": foreground_prepared,
-            "debug_image_omitted": bool(debug_image_out),
-        }
-    recovery = (
-        _logical_pixel_target(pid, window_id, x, y)
-        if logical_frame_recovery
-        else None
-    )
-    if recovery and recovery.get("error"):
-        return {"ok": False, **recovery}
-    if recovery:
-        params = {
-            "pid": pid,
-            "x": recovery["x"],
-            "y": recovery["y"],
-            "button": button,
-            "count": click_count,
-            "delivery_mode": "background",
-        }
-        # No session → cursor-less per driver docs; still wipe if one appears.
-        _cleanup_driver_cursors()
-        result = _dispatch_coordinate_click(
-            params, preserve_pointer=preserve_pointer
-        )
-        _cleanup_driver_cursors()
-        error = result.get("error") if isinstance(result, dict) else None
-        return {
-            "ok": not error,
-            "path": "logical-ax-screen-coordinate",
-            "result": result,
-            "mapping": recovery,
-            "move": pointer_move,
-            "foreground_prepared": foreground_prepared,
-            "debug_image_omitted": bool(debug_image_out),
-        }
-    params = {
-        "pid": pid,
-        "window_id": window_id,
-        "x": float(x),
-        "y": float(y),
-        "button": button,
-        "count": click_count,
-        "delivery_mode": delivery_mode,
-    }
+    """Window-local PNG pixels (or a verified global point) -> CUAService click.
+
+    Same landing gate as index clicks; the hardware pointer is never moved.
+    """
+    if button != "left" or int(click_count) != 1:
+        return {"ok": False, "error_code": "unsupported_click",
+                "error": "CUAService point click is a single left click; use right-click/double-click by element"}
+    if isinstance(verified_screen_point, dict):
+        point = {"x": float(verified_screen_point["x"]), "y": float(verified_screen_point["y"])}
+    else:
+        point, error = _window_global_point(pid, x, y)
+        if error:
+            return {"ok": False, **error}
+    result = _cuaservice_rpc(pid, "click", {"x": point["x"], "y": point["y"]})
+    err = result.get("error")
+    out = {**result, "ok": not err and result.get("ok") is not False, "path": "cuaservice-point",
+           "screen_point": point}
     if debug_image_out:
-        params["debug_image_out"] = _absolute_output_path(debug_image_out)
-    _cleanup_driver_cursors()
-    result = _dispatch_coordinate_click(
-        params, preserve_pointer=preserve_pointer
-    )
-    _cleanup_driver_cursors()
-    if isinstance(result, dict) and pointer_move is not None:
-        result = {**result, "move": pointer_move}
-    return result
+        out["debug_image_omitted"] = True
+    return out
+
+
+def _native_double_click_point(pid, screen_point):
+    if not isinstance(screen_point, dict):
+        return {"ok": False, "error_code": "unsupported_click",
+                "error": "double-click needs an element (verified screen point); raw pixel double-click is retired"}
+    result = _native_input().post_mouse_click(pid, screen_point, button="left", count=2)
+    error = result.get("error") if isinstance(result, dict) else None
+    return {"ok": not error, "path": "verified-screen-point+native-pid-mouse", "result": result}
 
 
 def double_click(
@@ -244,13 +162,7 @@ def double_click(
     }
     if verified_screen_point is not None:
         click_options["verified_screen_point"] = verified_screen_point
-    point_result = click_point(
-        pid,
-        window_id,
-        x,
-        y,
-        **click_options,
-    )
+    point_result = _native_double_click_point(pid, click_options.get("verified_screen_point"))
     if element_index is None or (element or {}).get("role") not in {
         "AXTextArea",
         "AXTextField",
@@ -347,26 +259,6 @@ def _restore_system_pointer(position):
     return CGWarpMouseCursorPosition(CGPointMake(*position)) == 0
 
 
-def _dispatch_coordinate_click(params, *, preserve_pointer=False):
-    """Dispatch an interruptive CGEvent click, optionally restoring the pointer."""
-    before = _system_pointer_position() if preserve_pointer else None
-    restored = False
-    try:
-        result = call_driver("click", params)
-    finally:
-        if before is not None:
-            restored = _restore_system_pointer(before)
-    if not isinstance(result, dict):
-        result = {"result": result}
-    return {
-        **result,
-        "user_interruptive": True,
-        "isolated_pointer": False,
-        "pointer_preserve_requested": bool(preserve_pointer),
-        "pointer_restored": restored if preserve_pointer else None,
-    }
-
-
 def click_at_desktop(
     x: float,
     y: float,
@@ -375,27 +267,14 @@ def click_at_desktop(
     click_count: int = 1,
     preserve_pointer=False,
 ):
-    """Screen-absolute pixel click, sessionless by design.
-
-    NEVER pass the glide session here: the driver would snap that session's
-    cursor to these GLOBAL coords while move_cursor uses OVERLAY-LOCAL coords,
-    making the pointer sweep across the screen. Sessionless clicks can mint a
-    stray cyan `auto-*` driver cursor beside the signed Hermes overlay — wipe
-    driver cursors before and after so only the signed operator stays visible.
-    """
-    _cleanup_driver_cursors()
-    res = _dispatch_coordinate_click(
-        {
-            "x": float(x),
-            "y": float(y),
-            "scope": "desktop",
-            "button": button,
-            "count": int(click_count),
-        },
-        preserve_pointer=preserve_pointer,
-    )
-    _cleanup_driver_cursors()
-    return res
+    """Desktop-global clicks are retired: no app target, no landing gate."""
+    return {
+        "ok": False,
+        "error_code": "desktop_click_retired",
+        "error": "desktop-global click is retired (no target app for the CUAService landing gate); "
+                 "use click-point <app> <x> <y> or click by label/element",
+        "coords": {"x": float(x), "y": float(y)},
+    }
 
 
 def _cleanup_driver_cursors(*, include_named: bool = False) -> dict:

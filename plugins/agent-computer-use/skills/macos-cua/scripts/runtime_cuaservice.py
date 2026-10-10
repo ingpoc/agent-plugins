@@ -264,7 +264,10 @@ def cua_set_value(pid, element_index, value):
     if target is None:
         return {**result, "ok": False, "accepted": False, "element": index,
                 "error": f"set_value readback target missing: element {index} not in the fresh walk"}
-    observed = "" if target.get("value") is None else str(target.get("value"))
+    if target.get("value") is None:
+        return {**result, "ok": False, "accepted": False, "element": index, "role": target.get("role"),
+                "error": f"set_value readback unavailable: element {index} reports no AX value"}
+    observed = str(target.get("value"))
     if not _readback_matches(observed, str(value), target.get("role")):
         return {**result, "ok": False, "accepted": False, "element": index,
                 "error": "set_value readback mismatch", "role": target.get("role"),
