@@ -2539,10 +2539,13 @@ async function sendToContentScript(tabId, action, args = [], frameId) {
 // is reported as such and is never a fresh scripting world. Timers only bound
 // the wait; they never stand in for the event.
 const NAV_POISON_CLEAR_MAX_MS = 8000;
+// A slow server may not commit within the action's waitMs; wait (bounded by
+// the request deadline) for the commit, then fail loud if none arrived.
+const NAV_COMMIT_MAX_MS = 15000;
 function armNavigationWaiter(tabId, api = chrome) {
   const nav = {
     committed: false, document_id: null, complete: false,
-    same_document: false, error: null, waited_ms: 0,
+    same_document: false, error: null, aborted: false, waited_ms: 0,
   };
   const armedAt = Date.now();
   let wake = null;
@@ -2569,7 +2572,11 @@ function armNavigationWaiter(tabId, api = chrome) {
   };
   const onError = (d) => {
     if (!isMain(d)) return;
-    nav.error = String(d.error || "navigation error");
+    const error = String(d.error || "navigation error");
+    // ERR_ABORTED = superseded by a newer navigation (redirect, script); the
+    // newer commit settles it, a missing commit fails as NAVIGATION_TIMEOUT.
+    if (error === "net::ERR_ABORTED") { nav.aborted = true; return; }
+    nav.error = error;
     notify();
   };
   const onUpdated = async (id, info) => {
@@ -2592,9 +2599,9 @@ function armNavigationWaiter(tabId, api = chrome) {
   const settled = (n) => n.complete || n.same_document || Boolean(n.error);
   return {
     nav,
-    async wait(ms) {
+    async wait(ms, until = settled) {
       const deadline = Date.now() + Math.max(0, Number(ms) || 0);
-      while (!settled(nav)) {
+      while (!until(nav)) {
         const left = deadline - Date.now();
         if (left <= 0) break;
         let timer = null;
@@ -2625,6 +2632,12 @@ function navigationBudget(ms, state) {
 // document completed (a fresh scripting world), and report what happened.
 async function settleArmedNavigation(waiter, tabId, waitMs, state) {
   let nav = await waiter.wait(navigationBudget(waitMs, state));
+  if (!nav.committed && !nav.same_document && !nav.error) {
+    nav = await waiter.wait(
+      navigationBudget(NAV_COMMIT_MAX_MS, state),
+      (n) => n.committed || n.same_document || Boolean(n.error)
+    );
+  }
   if (!nav.complete && !nav.same_document && !nav.error && tabScriptingPoisoned.has(tabId)) {
     nav = await waiter.wait(navigationBudget(NAV_POISON_CLEAR_MAX_MS, state));
   }
@@ -2637,6 +2650,26 @@ async function settleArmedNavigation(waiter, tabId, waitMs, state) {
     nav.poison_cleared = true;
   }
   nav.poisoned = tabScriptingPoisoned.has(tabId);
+  return nav;
+}
+
+// A navigation action succeeds only when a new document committed (or a
+// same-document navigation happened) without a main-frame error. "complete"
+// is reported, not required: a committed page that is still loading is usable.
+function requireNavigation(nav, what) {
+  if (nav.error) {
+    const err = new Error(`NAVIGATION_FAILED: ${what}: ${nav.error}`);
+    err.code = "NAVIGATION_FAILED";
+    throw err;
+  }
+  if (!nav.committed && !nav.same_document) {
+    const err = new Error(
+      `NAVIGATION_TIMEOUT: ${what}: no new document committed within ${nav.waited_ms} ms`
+        + (nav.aborted ? " (navigation aborted)" : "")
+    );
+    err.code = "NAVIGATION_TIMEOUT";
+    throw err;
+  }
   return nav;
 }
 
@@ -2721,11 +2754,12 @@ async function runBrowserAction(action, state) {
     } finally {
       waiter.dispose();
     }
+    requireNavigation(navigation, `goto ${action.url}`);
     // Do not pre-attach the debugger here. debugger + scripting.executeScript
     // on the same tab wedges Seller Accept→Dispatch (injectCanary timeout).
     // Screenshots/network attach lazily when those actions run.
     // Action-scoped inject via ensure/executeScript (no static content_scripts).
-    await ensureContentScript(state.tabId).catch(() => {});
+    await ensureContentScript(state.tabId);
     if (state.leaseRecord) {
       state.leaseRecord.lastSeen = Date.now();
       await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true });
@@ -2762,7 +2796,8 @@ async function runBrowserAction(action, state) {
     } finally {
       waiter.dispose();
     }
-    await ensureContentScript(state.tabId).catch(() => {});
+    requireNavigation(navigation, type);
+    await ensureContentScript(state.tabId);
     if (state.leaseRecord) {
       await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true }).catch(() => {});
     }
@@ -3298,10 +3333,15 @@ async function runBrowserAction(action, state) {
       try {
         const tabBefore = await chrome.tabs.get(state.tabId).catch(() => null);
         const targetUrl = tabBefore?.url || "";
-        tabScriptingPoisoned.delete(state.tabId);
-        invalidateTabInjection(state.tabId);
-        await chrome.tabs.reload(state.tabId, { bypassCache: true });
-        await boundedWait(3500, state);
+        const waiter = armNavigationWaiter(state.tabId);
+        let navigation;
+        try {
+          await chrome.tabs.reload(state.tabId, { bypassCache: true });
+          navigation = await settleArmedNavigation(waiter, state.tabId, 3500, state);
+        } finally {
+          waiter.dispose();
+        }
+        requireNavigation(navigation, "recovery reload");
         let ready = false;
         for (let i = 0; i < 40; i += 1) {
           if (await probeContentScript(state.tabId, 500)) {
@@ -3605,7 +3645,10 @@ async function collectExpectEvidence(preds, action, result, state) {
     source: fromResult ? ["dom"] : ["url"],
   };
   if (!needsDom) return evidence;
-  if (fromResult && (result.headings || result.buttons || result.inputs || result.title)) {
+  const wantsValue = preds.some((pred) => pred.kind === "value");
+  // A compact page_context carries <=8 inputs: value checks always take the
+  // expanded/direct read below (agent payload unchanged).
+  if (fromResult && !wantsValue && (result.headings || result.buttons || result.inputs || result.title)) {
     return evidence;
   }
   const sections = [];
@@ -3617,7 +3660,6 @@ async function collectExpectEvidence(preds, action, result, state) {
   }
   const valuePred = preds.find((pred) => pred.kind === "value" && (pred.selector || action.selector));
   const valueSelector = valuePred ? String(valuePred.selector || action.selector || "") : "";
-  const wantsValue = preds.some((pred) => pred.kind === "value");
   const pcOptions = {
     compact: true,
     // Value checks read past the compact 8-input cap (bounded) and the target

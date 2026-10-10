@@ -15,8 +15,9 @@ SW = (ROOT / "extension" / "service_worker.js").read_text()
 
 def _extract() -> str:
     start = SW.index("const NAV_POISON_CLEAR_MAX_MS")
-    end = SW.index("\n}\n", SW.index("async function settleArmedNavigation")) + 3
-    return SW[start:end].replace("NAV_POISON_CLEAR_MAX_MS = 8000", "NAV_POISON_CLEAR_MAX_MS = 120")
+    end = SW.index("\n}\n", SW.index("function requireNavigation")) + 3
+    return (SW[start:end].replace("NAV_POISON_CLEAR_MAX_MS = 8000", "NAV_POISON_CLEAR_MAX_MS = 120")
+            .replace("NAV_COMMIT_MAX_MS = 15000", "NAV_COMMIT_MAX_MS = 120"))
 
 
 HARNESS = r"""
@@ -32,7 +33,7 @@ const W=chrome.webNavigation, T=chrome.tabs;
 const tick=()=>new Promise(r=>setTimeout(r,5));
 async function scenario(name){
   tabScriptingPoisoned.clear(); tabScriptingPoisoned.add(7); frameDoc='OLD';
-  const w=armNavigationWaiter(7); const p=settleArmedNavigation(w,7,name==='timeout'?60:400,{});
+  const w=armNavigationWaiter(7); const p=settleArmedNavigation(w,7,(name==='timeout'||name==='slow_commit')?60:400,{});
   await tick();
   if(name==='new_doc_complete'){
     T.onUpdated.fire(7,{status:'complete'});            // stale: before commit
@@ -51,14 +52,22 @@ async function scenario(name){
     W.onCommitted.fire({tabId:7,frameId:0,documentId:'B'});
     W.onCompleted.fire({tabId:7,frameId:0,documentId:'A'});
     await tick(); W.onCompleted.fire({tabId:7,frameId:0,documentId:'B'});
+  } else if(name==='aborted_then_commit'){
+    W.onErrorOccurred.fire({tabId:7,frameId:0,error:'net::ERR_ABORTED'});
+    W.onCommitted.fire({tabId:7,frameId:0,documentId:'R'}); frameDoc='R';
+    W.onCompleted.fire({tabId:7,frameId:0,documentId:'R'});
+  } else if(name==='slow_commit'){
+    await new Promise(r=>setTimeout(r,90));               // after waitMs (60), inside commit max
+    W.onCommitted.fire({tabId:7,frameId:0,documentId:'S'}); frameDoc='S';
   } else if(name==='error'){
     W.onErrorOccurred.fire({tabId:7,frameId:0,error:'net::ERR_CONNECTION_REFUSED'});
   }
   const nav=await p; w.dispose();
+  let required='ok'; try{requireNavigation(nav,name);}catch(e){required=e.code;}
   const leaked=[W.onCommitted,W.onCompleted,W.onErrorOccurred,W.onReferenceFragmentUpdated,W.onHistoryStateUpdated,T.onUpdated].some(e=>e.size());
-  return {name,complete:nav.complete,same_document:nav.same_document,error:nav.error,poison_cleared:nav.poison_cleared,poisoned:nav.poisoned,document_id:nav.document_id,leaked};
+  return {name,complete:nav.complete,same_document:nav.same_document,error:nav.error,poison_cleared:nav.poison_cleared,poisoned:nav.poisoned,document_id:nav.document_id,leaked,required};
 }
-(async()=>{const out=[];for(const n of ['new_doc_complete','completed_event','same_document','superseded','error','timeout'])out.push(await scenario(n));
+(async()=>{const out=[];for(const n of ['new_doc_complete','completed_event','same_document','superseded','error','timeout','aborted_then_commit','slow_commit'])out.push(await scenario(n));
 console.log(JSON.stringify({out,invalidated}));})().catch(e=>{console.error(e);process.exit(1);});
 """
 
@@ -82,7 +91,14 @@ class NavigationWaiter(unittest.TestCase):
         self.assertTrue(res["same_document"]["same_document"])
         self.assertEqual(res["error"]["error"], "net::ERR_CONNECTION_REFUSED")
         self.assertFalse(res["timeout"]["complete"])
-        self.assertEqual(data["invalidated"], [7] * 6)
+        self.assertEqual(data["invalidated"], [7] * 8)
+        required = {name: r["required"] for name, r in res.items()}
+        self.assertEqual(required, {
+            "new_doc_complete": "ok", "completed_event": "ok", "same_document": "ok", "superseded": "ok",
+            "error": "NAVIGATION_FAILED", "timeout": "NAVIGATION_TIMEOUT",
+            "aborted_then_commit": "ok", "slow_commit": "ok"})
+        self.assertTrue(res["aborted_then_commit"]["poison_cleared"])
+        self.assertEqual(res["slow_commit"]["document_id"], "S")
 
 
 if __name__ == "__main__":

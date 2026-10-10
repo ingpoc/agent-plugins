@@ -49,9 +49,14 @@ async function sendToContentScript(tabId,action,args){calls.push({action,args});
   const e1=await collectExpectEvidence(p1,{type:'locator'},null,state);
   const p2=[{kind:'value',value:'v12',selector:'#f12'}];
   const e2=await collectExpectEvidence(p2,{type:'fill'},null,state);
-  const p3=[{kind:'text',value:'Form'}];
+  // expect on a compact page_context action: its own result carries only 8 inputs.
+  const pc={type:'page_context',url:'https://x.test/f',title:'Form',headings:['H'],
+    inputs:Array.from({length:8},(_,i)=>({name:'f'+(i+1),value:'v'+(i+1)}))};
+  const before=calls.length;
+  const e3=await collectExpectEvidence(p1,{type:'page_context'},pc,state);
+  const pcCalls=calls.length-before;
   console.log(JSON.stringify({miss1:unmatchedExpect(p1,e1),miss2:unmatchedExpect(p2,e2),sel:e2.selector_value,
-    opts:calls.map(c=>c.args[1]), n1:e1.inputs.length}));
+    opts:calls.map(c=>c.args[1]), n1:e1.inputs.length, miss3:unmatchedExpect(p1,e3), pcCalls}));
 })().catch(e=>{console.error(e);process.exit(1);});
 """
 
@@ -94,6 +99,8 @@ class ExpectValueInputs(unittest.TestCase):
         self.assertEqual(r["n1"], 12)
         self.assertEqual(r["opts"][0], {"compact": True, "input_cap": 100, "input_value_chars": 200})
         self.assertEqual(r["opts"][1]["field"], "#f12")
+        self.assertIsNone(r["miss3"])  # page_context result does not short-circuit value checks
+        self.assertEqual(r["pcCalls"], 1)
 
 
 if __name__ == "__main__":
