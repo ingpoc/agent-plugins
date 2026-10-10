@@ -172,10 +172,13 @@ class CUAServiceHealthTests(unittest.TestCase):
             f"  102 {bin_} --socket-path {self.sock_path}\n"
             f"  103 {bin_} --socket-path /tmp/elsewhere.sock\n"
             "  104 /Applications/Other/CUAService\n"
+            f"  105 {bin_}-other\n"
+            f"  106 {bin_} --socket-path=/tmp/custom.sock\n"
+            f"  107 {bin_} --socket-path={self.sock_path}\n"
         )
         ok = mock.Mock(returncode=0, stdout=out, stderr="")
         with mock.patch.object(cua_client.subprocess, "run", return_value=ok):
-            self.assertEqual(cua_client.owner_pids(), [101, 102])
+            self.assertEqual(cua_client.owner_pids(), [101, 102, 107])
         bad = mock.Mock(returncode=1, stdout="", stderr="ps: denied")
         with mock.patch.object(cua_client.subprocess, "run", return_value=bad):
             with self.assertRaises(cua_client.CUAServiceUnavailable):

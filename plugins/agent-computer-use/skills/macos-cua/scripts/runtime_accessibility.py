@@ -134,7 +134,14 @@ def _cuaservice_press_key(pid, combo):
     identity = _running_app_identity(f"pid:{pid}")
     if not identity:
         return {"ok": False, "error": f"no running app with pid {pid}", "engine": "CUAService"}
-    app = identity.get("bundle_id") or identity.get("name")
+    app = identity.get("bundle_id")
+    if not app:
+        # Swift falls back to fuzzy name matching; that cannot pin a pid.
+        return {
+            "ok": False,
+            "error": f"pid {pid} has no bundle id; CUAService cannot target it exactly. Use --system-events (exact-PID).",
+            "engine": "CUAService",
+        }
     # CUAService resolves by bundle id/name (first match). Never let it pick a
     # different instance than the pid the caller resolved.
     twins = _pids_for_app(app)
@@ -160,14 +167,13 @@ def _cuaservice_press_key(pid, combo):
 
 
 def _pids_for_app(app):
-    """Sorted pids of running apps whose bundle id (or name) equals ``app``."""
+    """Sorted pids of running apps whose bundle id equals ``app``."""
     from AppKit import NSWorkspace
 
     return sorted(
         int(a.processIdentifier())
         for a in NSWorkspace.sharedWorkspace().runningApplications()
         if str(a.bundleIdentifier() or "") == app
-        or (not a.bundleIdentifier() and str(a.localizedName() or "") == app)
     )
 
 

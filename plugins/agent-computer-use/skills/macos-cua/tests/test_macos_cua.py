@@ -3515,6 +3515,16 @@ class KeyboardTests(unittest.TestCase):
         self.assertFalse(macos_cua._accepted(result))
         self.assertIn("--system-events", result["error"])
 
+    def test_bundleless_target_fails_loud(self):
+        identity = {"pid": 10, "name": "Helper", "bundle_id": "", "active": False}
+        with (
+            mock.patch.object(macos_cua, "_running_app_identity", return_value=identity),
+            mock.patch.object(macos_cua, "_cuaservice_client") as make,
+        ):
+            result = macos_cua.press_key(10, 20, "escape")
+        make.assert_not_called()
+        self.assertIn("no bundle id", result["error"])
+
     def test_missing_pid_fails_loud(self):
         with (
             mock.patch.object(macos_cua, "_running_app_identity", return_value=None),

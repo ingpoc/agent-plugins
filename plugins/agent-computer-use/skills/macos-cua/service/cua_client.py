@@ -306,13 +306,19 @@ def owner_pids() -> list[int]:
     pids = []
     for line in found.stdout.splitlines():
         pid, _, command = line.strip().partition(" ")
-        if not command.startswith(str(SERVICE_BIN)):
+        binary = str(SERVICE_BIN)
+        if command != binary and not command.startswith(binary + " "):
             continue
-        args = command[len(str(SERVICE_BIN)):].split()
-        if "--socket-path" in args:
-            i = args.index("--socket-path")
-            if i + 1 >= len(args) or Path(args[i + 1]).expanduser() != DEFAULT_SOCKET:
-                continue
+        args = command[len(binary):].split()
+        socket_arg = None
+        for i, arg in enumerate(args):
+            if arg == "--socket-path":
+                socket_arg = args[i + 1] if i + 1 < len(args) else ""
+            elif arg.startswith("--socket-path="):
+                socket_arg = arg.split("=", 1)[1]
+        if socket_arg is not None and (
+                not socket_arg or Path(socket_arg).expanduser() != DEFAULT_SOCKET):
+            continue
         pids.append(int(pid))
     return pids
 
