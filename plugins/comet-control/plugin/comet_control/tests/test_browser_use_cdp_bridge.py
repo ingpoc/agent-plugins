@@ -114,7 +114,7 @@ class BrowserUseCDPBridgeTests(unittest.TestCase):
                 return {"cursor": 0, "events": [], "has_more": False}
             if action.get("method") == "Runtime.evaluate" and not release.is_set():
                 entered.set()
-                release.wait(10)
+                release.wait()  # set by the test (finally) only
             return {"method": action.get("method", "")}
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -124,44 +124,47 @@ class BrowserUseCDPBridgeTests(unittest.TestCase):
                 lambda: None,
             )
             bridge.start(env_file)
-            ws_url = env_file.read_text().split("BU_CDP_WS=", 1)[1].splitlines()[0]
-            ws_url = ws_url.strip("'")
-            first = connect(ws_url)
-            first.send(json.dumps({"id": 1, "method": "Runtime.evaluate", "params": {"expression": "1"},
-                                   "sessionId": bridge.session_id}))
-            self.assertTrue(entered.wait(5))
-            dead = bridge._active_websocket
-            self.assertIsNotNone(dead)
-            # A second live client is still refused.
-            with connect(ws_url) as rival:
-                with self.assertRaises(ConnectionClosed) as ctx:
-                    rival.recv(timeout=5)
-                self.assertIn("already has a Browser Use client", str(ctx.exception))
-            # Kill the first client abruptly, as process death does: the kernel
-            # sends FIN. A bare close() does not on Linux while the client's
-            # reader thread is blocked in recv() on that fd, so shut it down first.
-            first.socket.shutdown(socket.SHUT_RDWR)
-            first.socket.close()
-            # The server notices EOF via its reader thread; wait on that, fail loud.
-            dead.recv_events_thread.join(timeout=5)
-            self.assertFalse(dead.recv_events_thread.is_alive(), "server never saw the dead peer")
-            self.assertIn(dead.state, (State.CLOSING, State.CLOSED))
-            self.assertFalse(exits[dead].is_set(), "old handler must still be blocked")
-            with connect(ws_url) as second:
-                second.send(json.dumps({"id": 7, "method": "Target.getTargets"}))
-                self.assertEqual(json.loads(second.recv(timeout=5))["id"], 7)
-                successor = bridge._active_websocket
-                self.assertIsNot(successor, dead)
-                release.set()
-                # The old handler finishes; it must not clear the new owner.
-                self.assertTrue(exits[dead].wait(5), "old handler never returned")
-                self.assertTrue(bridge._client_active)
-                self.assertIs(bridge._active_websocket, successor)
-                second.send(json.dumps({"id": 8, "method": "Target.getTargets"}))
-                self.assertEqual(json.loads(second.recv(timeout=5))["id"], 8)
-            self.assertTrue(exits[successor].wait(5), "successor handler never returned")
-            self.assertFalse(bridge._client_active)
-            bridge.stop()
+            try:
+                ws_url = env_file.read_text().split("BU_CDP_WS=", 1)[1].splitlines()[0]
+                ws_url = ws_url.strip("'")
+                first = connect(ws_url)
+                first.send(json.dumps({"id": 1, "method": "Runtime.evaluate", "params": {"expression": "1"},
+                                       "sessionId": bridge.session_id}))
+                self.assertTrue(entered.wait(5))
+                dead = bridge._active_websocket
+                self.assertIsNotNone(dead)
+                # A second live client is still refused.
+                with connect(ws_url) as rival:
+                    with self.assertRaises(ConnectionClosed) as ctx:
+                        rival.recv(timeout=5)
+                    self.assertIn("already has a Browser Use client", str(ctx.exception))
+                # Kill the first client abruptly, as process death does: the kernel
+                # sends FIN. A bare close() does not on Linux while the client's
+                # reader thread is blocked in recv() on that fd, so shut it down first.
+                first.socket.shutdown(socket.SHUT_RDWR)
+                first.socket.close()
+                # The server notices EOF via its reader thread; wait on that, fail loud.
+                dead.recv_events_thread.join(timeout=5)
+                self.assertFalse(dead.recv_events_thread.is_alive(), "server never saw the dead peer")
+                self.assertIn(dead.state, (State.CLOSING, State.CLOSED))
+                self.assertFalse(exits[dead].is_set(), "old handler must still be blocked")
+                with connect(ws_url) as second:
+                    second.send(json.dumps({"id": 7, "method": "Target.getTargets"}))
+                    self.assertEqual(json.loads(second.recv(timeout=5))["id"], 7)
+                    successor = bridge._active_websocket
+                    self.assertIsNot(successor, dead)
+                    release.set()
+                    # The old handler finishes; it must not clear the new owner.
+                    self.assertTrue(exits[dead].wait(5), "old handler never returned")
+                    self.assertTrue(bridge._client_active)
+                    self.assertIs(bridge._active_websocket, successor)
+                    second.send(json.dumps({"id": 8, "method": "Target.getTargets"}))
+                    self.assertEqual(json.loads(second.recv(timeout=5))["id"], 8)
+                self.assertTrue(exits[successor].wait(5), "successor handler never returned")
+                self.assertFalse(bridge._client_active)
+            finally:
+                release.set()  # explicit only; never auto-released mid-test
+                bridge.stop()
 
     def test_destructive_page_commands_cannot_bypass_closeout(self):
         module = load_bridge()
