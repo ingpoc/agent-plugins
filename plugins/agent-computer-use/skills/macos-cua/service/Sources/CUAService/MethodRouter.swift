@@ -470,7 +470,17 @@ final class MethodRouter: @unchecked Sendable {
     ) async throws {
         if gate { try requireWindowFrame(snapshot) }
         guard let frame = snapshot.windowFrame,
-              frame.width > 0, frame.height > 0 else { return }
+              frame.width > 0, frame.height > 0 else {
+            // Only reachable for a gated press with allow_unlanded:true (or an
+            // ungated observe): the press must still report landed:false.
+            if gate {
+                lastLanding = CursorOverlay.Landing(
+                    point: .zero, landed: false, method: "no_window_frame",
+                    errorPt: 0, waitMs: 0, presented: nil
+                )
+            }
+            return
+        }
         _ = try await syncCursorToPoint(
             CGPoint(x: frame.midX, y: frame.midY),
             windowID: resolved.windowID,

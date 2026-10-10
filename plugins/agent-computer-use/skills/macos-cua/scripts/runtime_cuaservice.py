@@ -101,6 +101,18 @@ def cua_snapshot(pid, window_id=None, max_elements=80, *, include_screenshot=Fal
             time.sleep(delay)
     if last.get("error"):
         return last
+    observed_window = last.get("windowId")
+    if window_id is not None and observed_window is not None and int(observed_window) != int(window_id):
+        # CUAService walks the app's AX-focused window; indices from another
+        # window would address the wrong controls.
+        return _cuaservice_error(
+            f"requested window {window_id} but CUAService observed window {observed_window} "
+            "(it walks the AX-focused window); focus the requested window or omit the window id",
+            requested_window_id=window_id, window_id=observed_window)
+    if window_id is not None and observed_window is None:
+        return _cuaservice_error(
+            f"requested window {window_id} but CUAService reported no window id; cannot prove the target window",
+            requested_window_id=window_id)
     shot = None
     url = ((last.get("screenshot") or {}).get("url") or "")
     if url.startswith("file://"):
@@ -253,20 +265,25 @@ def cua_set_value(pid, element_index, value):
         return {**result, "ok": False, "accepted": False, "element": index,
                 "error": f"set_value readback target missing: element {index} not in the fresh walk"}
     observed = "" if target.get("value") is None else str(target.get("value"))
-    if not _readback_matches(observed, str(value)):
+    if not _readback_matches(observed, str(value), target.get("role")):
         return {**result, "ok": False, "accepted": False, "element": index,
                 "error": "set_value readback mismatch", "role": target.get("role"),
                 "observed": observed[:200]}
     return {**result, "readback": "matched", "element": index}
 
 
-def _readback_matches(observed, wanted):
+NUMERIC_ROLES = {"AXSlider", "AXIncrementor", "AXStepper", "AXValueIndicator", "AXLevelIndicator", "AXProgressIndicator"}
+
+
+def _readback_matches(observed, wanted, role=None):
     if observed == wanted:
         return True
-    try:  # sliders/steppers report numbers ("50" vs "50.0")
-        return float(observed) == float(wanted)
-    except ValueError:
-        return False
+    if role in NUMERIC_ROLES:  # numeric controls report "50.0" for "50"; text stays exact
+        try:
+            return float(observed) == float(wanted)
+        except ValueError:
+            return False
+    return False
 
 
 def cua_type_text(pid, text, *, element_index=None, x=None, y=None):

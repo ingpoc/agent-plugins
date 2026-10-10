@@ -1071,7 +1071,8 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "if gate { try requireLanded(landing) }" in router_src
         and "if landing.landed || allowUnlanded { return }" in gate
         and "throw RPCMethodError" in gate
-        and router_src.count("gate: false") == 2,  # observe-raise + drag end only
+        and router_src.count("gate: false") == 2  # observe-raise + drag end only
+        and 'method: "no_window_frame"' in router_src,  # opted-in blind press still reports landed:false
         "a failed landing must not click; allow_unlanded is the only blind-press opt-in",
     )
     confirm = overlay_src.split("private func confirmPresented", 1)[-1].split("private func commitToRenderServer", 1)[0]

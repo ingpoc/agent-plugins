@@ -55,8 +55,13 @@ async function sendToContentScript(tabId,action,args){calls.push({action,args});
   const before=calls.length;
   const e3=await collectExpectEvidence(p1,{type:'page_context'},pc,state);
   const pcCalls=calls.length-before;
+  // selector-scoped: another input holding the value must not satisfy it
+  const p4=[{kind:'value',value:'v3',selector:'#nope'}];
+  const e4=await collectExpectEvidence(p4,{type:'fill'},null,state);
+  const p5=[{kind:'value',value:'v3'}];   // scoped by the action's selector #f12 (value v12)
+  const e5=await collectExpectEvidence(p5,{type:'fill_selector',selector:'#f12'},null,state);
   console.log(JSON.stringify({miss1:unmatchedExpect(p1,e1),miss2:unmatchedExpect(p2,e2),sel:e2.selector_value,
-    opts:calls.map(c=>c.args[1]), n1:e1.inputs.length, miss3:unmatchedExpect(p1,e3), pcCalls}));
+    opts:calls.map(c=>c.args[1]), n1:e1.inputs.length, miss3:unmatchedExpect(p1,e3), pcCalls, miss4:unmatchedExpect(p4,e4), miss5:unmatchedExpect(p5,e5)}));
 })().catch(e=>{console.error(e);process.exit(1);});
 """
 
@@ -101,6 +106,8 @@ class ExpectValueInputs(unittest.TestCase):
         self.assertEqual(r["opts"][1]["field"], "#f12")
         self.assertIsNone(r["miss3"])  # page_context result does not short-circuit value checks
         self.assertEqual(r["pcCalls"], 1)
+        self.assertIsNotNone(r["miss4"])  # target missing -> miss, even though input f3 holds v3
+        self.assertIsNotNone(r["miss5"])  # action selector #f12 holds v12, not v3
 
 
 if __name__ == "__main__":

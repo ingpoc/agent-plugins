@@ -156,6 +156,15 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         replies["get_app_state"] = slider
         ok, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "50")
         self.assertEqual(ok["readback"], "matched")
+        text = _state(value="1")
+        replies["get_app_state"] = text  # AXTextArea: "1" is not "001"
+        bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "001")
+        self.assertEqual(bad["error"], "set_value readback mismatch")
+
+    def test_snapshot_refuses_a_different_window_than_requested(self):
+        snap, _ = self._run({"get_app_state": _state()}, macos_cua.snapshot, 4242, 99, 30)
+        self.assertNotEqual(snap.get("ok"), True)
+        self.assertIn("requested window 99", snap["error"])
 
     def test_type_text_focuses_element_then_types(self):
         replies = {"click": {"ok": True, "method": "ax-press"}, "type_text": {"ok": True, "method": "ax-insert"}}

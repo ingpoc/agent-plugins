@@ -3591,8 +3591,15 @@ function unmatchedExpect(preds, evidence) {
       continue;
     }
     if (pred.kind === "value") {
+      // Selector-scoped (explicit or the action's own selector): only that
+      // field's direct read counts; a missing/unread target is a miss.
+      const scope = String(pred.selector || evidence?.action_selector || "");
+      if (scope) {
+        if (scope !== evidence?.value_selector || evidence?.selector_value == null) return pred;
+        if (!String(evidence.selector_value).toLowerCase().includes(want)) return pred;
+        continue;
+      }
       const values = (evidence?.inputs || []).map((input) => String(input?.value || "").toLowerCase());
-      if (evidence?.selector_value != null) values.unshift(String(evidence.selector_value).toLowerCase());
       if (!values.some((value) => value.includes(want))) return pred;
       continue;
     }
@@ -3684,6 +3691,8 @@ async function collectExpectEvidence(preds, action, result, state) {
       ? String(textResult.text || "")
       : String(textResult || "");
   }
+  evidence.action_selector = String(action.selector || "");
+  evidence.value_selector = valueSelector;
   if (valuePred) {
     if (page.field?.found) {
       evidence.selector_value = page.field.value;
