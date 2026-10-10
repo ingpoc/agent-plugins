@@ -17,7 +17,7 @@ Every shipped manifest starts `bin/context-ledger-mcp serve`. The launcher picks
 
 Cloud agents do not add a url-type `mcp.json` entry. The server name stays `context-ledger`.
 
-A dest whose `.cursor-plugin/mcp.json` uses `${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp` is valid. `doctor` exits nonzero with `CURSOR_DEST` when a dest has no healthy override and still has a relative command or a literal `${PLUGIN_ROOT}` or `${PLUGIN_DATA}`. `python3 scripts/install_cursor_dest.py` only repairs those pre-override dests (absolute launcher) and leaves a healthy override untouched.
+A dest whose `.cursor-plugin/mcp.json` uses `${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp`, or `sh` with the resolver below and no `cwd`, is valid. `doctor` exits nonzero with `CURSOR_DEST` when a dest has no healthy override and still has a relative command or a literal `${PLUGIN_ROOT}` or `${PLUGIN_DATA}`. `python3 scripts/install_cursor_dest.py` only repairs those pre-override dests (absolute launcher) and leaves a healthy override untouched.
 
 ## Cloud secret
 
@@ -98,13 +98,23 @@ One ledger. Each client reads its own manifest and spawns the same launcher. `se
 
 | Client | Manifest | Root variable | Runtime |
 | --- | --- | --- | --- |
-| Cursor IDE / CLI local | `.cursor-plugin/plugin.json` → `.cursor-plugin/mcp.json` | `${CURSOR_PLUGIN_ROOT}` in command, args, and cwd | Binding on this machine → local; else env token; else Keychain → bridge; else `LEDGER_UNBOUND` |
-| Cursor cloud VM | root `mcp.json` arg `${CURSOR_PLUGIN_ROOT}`, or `.cursor-plugin` | `${CURSOR_PLUGIN_ROOT}` | No binding and no Keychain. `cloudAgentEnvLookup` → `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` → bridge; else `LEDGER_UNBOUND` |
-| Cursor cloud on Mini worker | root `mcp.json` arg `${CURSOR_PLUGIN_ROOT}`, or `.cursor-plugin` | `${CURSOR_PLUGIN_ROOT}` | Mini home binding → local; else env token or `CONTEXT_LEDGER_MCP_CLIENT_TOKEN`; else the Mini Keychain item → bridge |
+| Cursor IDE / CLI local | `.cursor-plugin/plugin.json` → `.cursor-plugin/mcp.json` | root arg `${CURSOR_PLUGIN_ROOT}`; no `cwd` | Binding on this machine → local; else env token; else Keychain → bridge; else `LEDGER_UNBOUND` |
+| Cursor cloud VM | `.cursor-plugin/mcp.json` `sh` resolver | literal `${CURSOR_PLUGIN_ROOT}` falls through to a cache copy, else pinned tag bootstrap | No binding and no Keychain. `cloudAgentEnvLookup` → `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` → bridge; else `LEDGER_UNBOUND` |
+| Cursor cloud on Mini worker | `.cursor-plugin/mcp.json` `sh` resolver | Mini cache copy when present, else pinned tag bootstrap | Mini home binding → local; else env token or `CONTEXT_LEDGER_MCP_CLIENT_TOKEN`; else the Mini Keychain item → bridge |
 | Codex | portable `mcp.json` | `${PLUGIN_ROOT}` expanded in root arg 1; args 2 and 3 stay literal and are skipped; `PLUGIN_ROOT` exported; omitted cwd is the plugin root | Same order. The `sh` resolver skips a leftover root arg that still starts with `$` and uses the exported root |
 | Claude Code | `.claude-plugin/plugin.json` `mcpServers` path → `.claude-plugin/mcp.json` | `${CLAUDE_PLUGIN_ROOT}` expanded in the command and exported | Same order |
 | Grok Build / other spec clients | portable `mcp.json` | `${PLUGIN_ROOT}`, same as Codex | Same order |
 
 Cursor's manifest precedence is `.cursor-plugin/plugin.json`, then `.claude-plugin/plugin.json`, then `plugin.json`, so the Claude package does not change Cursor spawn. Codex accepts a bare command or a contained `./` command and rejects `${CURSOR_PLUGIN_ROOT}` in `command`. A root `./` command is resolved by Cursor against the workspace (ENOENT), so the portable manifest uses bare `sh`. The resolver script contains no `${` sequence: Cursor's interpolator would rewrite `${X:-default}` inside `args` to the default when `X` is unset.
+
+## Cloud: plugin not materialized
+
+Cursor cloud sends `.cursor-plugin/mcp.json` even when the VM has no plugin directory, so `${CURSOR_PLUGIN_ROOT}` stays literal and a `cwd` of that token would fail spawn. The Cursor manifest is `command` `sh` with no `cwd`. Its resolver, and the portable resolver after the root checks above:
+
+1. Exec `$1/bin/context-ledger-mcp` when `$1` is non-empty, does not start with `$`, and that launcher is executable. The portable resolver still tries its three root args and the exported root variables first.
+2. Else exec the highest `plugin.json` `version` among executable `context-ledger` launchers under `~/.cursor/plugins/cache` (`cache/*/context-ledger/*/bin/context-ledger-mcp` and `cache/*/*/*/bin/context-ledger-mcp`). Equal versions use the newest mtime.
+3. Else download tag `context-ledger-v<version>` into `${XDG_CACHE_HOME:-~/.cache}/context-ledger/plugin-<version>` and exec it. The version literal appears once per manifest and matches `plugin.json`. Failure is one stderr JSON line, `PLUGIN_BOOTSTRAP_FAILED`, and a nonzero exit. Stdout stays empty until the launcher runs.
+
+Each release must push tag `context-ledger-v<version>` after merge.
 
 HTTP entries are not shipped. Cursor CLI expands `${env:NAME}` in HTTP headers, and a missing variable fails with `HTTP 404 Invalid OAuth error response`. Codex and the Agent Plugins spec keep headers literal, and headers must not hold secrets. The Mini GUI has no header env. Remote mode stays inside the stdio launcher's bridge.

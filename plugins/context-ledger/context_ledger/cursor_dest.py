@@ -6,8 +6,10 @@ not use that file: it loads `.cursor-plugin/mcp.json` and expands
 literal `${PLUGIN_ROOT}` / `${PLUGIN_DATA}` cannot spawn. When
 `dest/.cursor-plugin/plugin.json` sets
 `mcpServers` to a relative path, that file is the Cursor-effective config:
-healthy iff command is CURSOR_PLUGIN_COMMAND, cwd is in CURSOR_PLUGIN_CWDS,
-and the server has no `${PLUGIN_` token. `rewrite_dest` leaves a healthy
+healthy iff the server has no `${PLUGIN_` token and either command is
+CURSOR_PLUGIN_COMMAND with cwd in CURSOR_PLUGIN_CWDS, or command is `sh`
+with a resolver (no `${` in the script), arg `${CURSOR_PLUGIN_ROOT}`, and
+no cwd. `rewrite_dest` leaves a healthy
 override untouched (`mode` `cursor_override`) and fails loud on a broken one.
 Dests with no override are still rewritten to the absolute launcher so
 pre-override cache copies can spawn.
@@ -92,6 +94,19 @@ def _plugin_override_ref(dest: Path) -> tuple[str, Path | None, str]:
     return "ok", target, ""
 
 
+def _sh_resolver_override(server: dict) -> bool:
+    """Cursor cloud manifest: bare sh, literal-root arg, resolver has no ${."""
+    if str(server.get("command") or "") != "sh":
+        return False
+    args = server.get("args")
+    if not isinstance(args, list) or len(args) < 4 or args[0] != "-c":
+        return False
+    script = args[1]
+    if not isinstance(script, str) or "${" in script or "|| true" in script:
+        return False
+    return args[3] == "${CURSOR_PLUGIN_ROOT}"
+
+
 def inspect_dest(dest: Path) -> dict | None:
     """Return a problem object when this dest cannot be spawned, else None.
 
@@ -123,6 +138,9 @@ def inspect_dest(dest: Path) -> dict | None:
     cwd = server.get("cwd")
     if command == CURSOR_PLUGIN_COMMAND:
         if cwd not in CURSOR_PLUGIN_CWDS:
+            issues.append("cwd")
+    elif _sh_resolver_override(server):
+        if cwd is not None:
             issues.append("cwd")
     else:
         if not command.startswith("/"):
