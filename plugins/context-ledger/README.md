@@ -10,7 +10,7 @@ This pass exercised macOS arm64 only. Other architecture targets stay release-bl
 
 ## Install notes
 
-Data defaults to `~/.context-ledger/` (`0700`), even when the client sets `PLUGIN_DATA`. Use explicit `--data` or `CONTEXT_LEDGER_DATA` for another root. One `context-ledger` server: a binding uses local stdio; no binding plus `CONTEXT_LEDGER_MCP_TOKEN` bridges to `serve-http`. The Cursor catalog entry spawns `${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp`. Source `mcp.json` stays portable (`./bin/context-ledger-mcp`, `cwd` `./`). `doctor` accepts that `${CURSOR_PLUGIN_ROOT}` command with `cwd` `${CURSOR_PLUGIN_ROOT}` or `./`, and fails with `CURSOR_DEST` for a relative command or literal `${PLUGIN_ROOT}` / `${PLUGIN_DATA}`. `python3 scripts/install_cursor_dest.py` rewrites those dest files to the absolute launcher. Full steps: [`AGENTS.md`](AGENTS.md).
+Data defaults to `~/.context-ledger/` (`0700`), even when the client sets `PLUGIN_DATA`. Use explicit `--data` or `CONTEXT_LEDGER_DATA` for another root. One `context-ledger` server: a binding uses local stdio; no binding plus `CONTEXT_LEDGER_MCP_TOKEN` bridges to `serve-http`. Cursor spawns `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp`, `cwd` `${CURSOR_PLUGIN_ROOT}`). Portable root `mcp.json` stays `./bin/context-ledger-mcp`, `cwd` `./`. `doctor` fails with `CURSOR_DEST` when a dest has no healthy override and still has a relative command or literal `${PLUGIN_ROOT}` / `${PLUGIN_DATA}`. `python3 scripts/install_cursor_dest.py` only repairs those pre-override dests. Full steps: [`AGENTS.md`](AGENTS.md).
 
 ## Benchmarks
 

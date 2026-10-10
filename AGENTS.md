@@ -11,7 +11,7 @@ This repository is a **collection of portable [Agent Plugins](https://agent-plug
 
 | In the repo | Not in the repo |
 | --- | --- |
-| `plugins/<name>/` with closed `plugin.json` | Cursor-specific plugin packages (`.cursor-plugin/plugin.json`) |
+| `plugins/<name>/` with closed `plugin.json`. A stdio `./` command also ships `.cursor-plugin/plugin.json` and `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`) | Duplicate Cursor packages outside `plugins/<name>/` |
 | `skills/`, optional `mcp.json`, optional `bin/`, runtime files that package needs | Codex plugin packages (`.codex-plugin/`) |
 | Thin Codex, Cursor, and Grok marketplace catalogs that point at the same portable packages | Duplicate client-specific copies of plugin contents |
 
@@ -24,12 +24,12 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 | Trigger | First hop |
 | --- | --- |
 | Install a plugin | That plugin's `AGENTS.md`. Do not dump steps here. |
-| Create, add, or update a portable plugin (layout, MCP packaging, Cursor dest rewrite, docs) | `workflow summary agent-plugin-routing-sync` → `workflow read agent-plugin-routing-sync --section "Create or Update"`. Fetch [spec](https://github.com/agentplugins/agent-plugins-spec), [plugin-authors](https://agent-plugins.org/plugin-authors), [manifest](https://agent-plugins.org/plugin-authors/manifest); if MCP also [mcp-servers](https://agent-plugins.org/plugin-authors/mcp-servers). Scaffold/validate: `python3 scripts/create_agent_plugin.py` then `python3 scripts/check.py`. Land in `plugins/<name>/` with plugin `AGENTS.md` + `README.md`. Add/update the Plugins table here in the same pass. |
+| Create, add, or update a portable plugin (layout, MCP packaging, Cursor package override, docs) | `workflow summary agent-plugin-routing-sync` → `workflow read agent-plugin-routing-sync --section "Create or Update"`. Fetch [spec](https://github.com/agentplugins/agent-plugins-spec), [plugin-authors](https://agent-plugins.org/plugin-authors), [manifest](https://agent-plugins.org/plugin-authors/manifest); if MCP also [mcp-servers](https://agent-plugins.org/plugin-authors/mcp-servers). Scaffold/validate: `python3 scripts/create_agent_plugin.py` then `python3 scripts/check.py`. Land in `plugins/<name>/` with plugin `AGENTS.md` + `README.md`. Add/update the Plugins table here in the same pass. |
 | Add or rename a plugin | `plugins/<name>/` → update the Plugins table here in the same pass |
 | Change plugin behavior | That plugin's `SKILL.md` and `mcp.json` |
 | Change how this plugin installs | That plugin's `AGENTS.md` |
 | Change published benchmark scores | That plugin's `README.md` |
-| Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That plugin's dest-rewrite (`install_harness.py cursor-plugin` or `scripts/install_cursor_dest.py`); rules in `workflow read agent-plugin-routing-sync --section "Create or Update"` |
+| Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That package's `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`). Dest rewrite (`install_harness.py cursor-plugin` or `scripts/install_cursor_dest.py`) only repairs pre-override installs |
 | Checks, CI, pre-commit | `scripts/check.py` |
 | Claim a plugin fix is done | Live-verify the installed client copy (MCP/CLI). Update the standing canvas from that run. `scripts/check.py` is not that proof. |
 
@@ -56,6 +56,6 @@ If the client is missing or has no setup link, say so and stop.
 
 - One portable package per `plugins/<name>/`. Shape comes from the live spec, not this file.
 - Adding a plugin without a Plugins row, `plugins/<name>/AGENTS.md`, and `plugins/<name>/README.md` is incomplete.
-- Source `mcp.json` stays portable (`./bin/…-mcp`). Cursor absolute launchers are dest-only. See `agent-plugin-routing-sync`.
+- Portable root `mcp.json` stays `./bin/…-mcp` for spec clients (Codex, Grok). Cursor uses the per-package override `.cursor-plugin/plugin.json` + `.cursor-plugin/mcp.json` with `${CURSOR_PLUGIN_ROOT}`. Dest rewrite only repairs pre-override installs.
 - Before shipping changed installed package contents (runtime, skill, references, or install docs), bump that plugin's `plugin.json` SemVer; keep any in-package runtime version and assertions aligned. Skip test-only and collection-tooling changes.
 - This repo is public. No personal case data.

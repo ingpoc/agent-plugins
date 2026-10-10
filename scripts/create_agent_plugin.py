@@ -24,22 +24,20 @@ DEFAULT_AUTHOR = {
 }
 DEFAULT_REPOSITORY = "https://github.com/ingpoc/agent-plugins"
 DEFAULT_MCP_INSTALL = (
-    "Source `mcp.json` stays portable: `command` is `./bin/<name>-mcp` "
-    "(or a bare executable), never absolute, never a shell, never "
-    "`${PLUGIN_ROOT}` in `command`. Prefer a `#!/bin/sh` launcher that "
-    "resolves `python3`/`python` (optional `*_PYTHON` override) so Cursor's "
-    "thin PATH does not ENOENT. "
-    "Clients should expand `${PLUGIN_DATA}` / `${PLUGIN_ROOT}` in args/cwd; "
-    "Cursor often leaves them literal — expand in the bootstrap or bake an "
-    "absolute `--data` default (e.g. `~/.context-ledger/`) for Cursor dests. "
-    "If Cursor: run the plugin's dest-rewrite script (e.g. "
-    "`scripts/install_cursor_dest.py` or `install_harness.py cursor-plugin`) "
-    "so **local + marketplace cache** `mcp.json` use the absolute dest "
-    "launcher with `cwd` `./`. After marketplace re-Add/refresh, re-run "
-    "(or `--rewrite-only`). Do not copy dest-absolute `command` back into "
-    "source `mcp.json`. Comet-style plugins may omit `mcp.json` entirely."
+    "Portable root `mcp.json` stays `./bin/<name>-mcp` (or a bare executable), "
+    "never absolute, never a shell, never `${PLUGIN_ROOT}` in `command`. "
+    "Prefer a `#!/bin/sh` launcher that resolves `python3`/`python` "
+    "(optional `*_PYTHON` override). Spec clients (Codex, Grok) use that "
+    "root file. Cursor loads `.cursor-plugin/plugin.json` → "
+    "`.cursor-plugin/mcp.json` with `command` "
+    "`${CURSOR_PLUGIN_ROOT}/bin/<name>-mcp` and `cwd` `${CURSOR_PLUGIN_ROOT}`. "
+    "Cursor resolves a root `./` command against the workspace. "
+    "`scripts/install_cursor_dest.py` or `install_harness.py cursor-plugin` "
+    "only repairs pre-override dest copies. Do not copy a dest-absolute "
+    "`command` back into source `mcp.json`. Comet-style plugins may omit "
+    "`mcp.json` entirely."
 )
-FORBIDDEN_CLIENT_DIRS = (".cursor-plugin", ".codex-plugin")
+FORBIDDEN_CLIENT_DIRS = (".codex-plugin",)
 README_AXES = (
     "Reliability",
     "Robustness",
@@ -215,7 +213,7 @@ def write_plugin_agents(root: Path, name: str, extra: str) -> None:
     (root / "AGENTS.md").write_text(
         f"""# {name} — install
 
-This directory is the portable [Agent Plugin](https://agent-plugins.org/specification). Load this folder (`plugin.json` here). Do not load the collection root. Do not add `.cursor-plugin/` or `.codex-plugin/` to this package.
+This directory is the portable [Agent Plugin](https://agent-plugins.org/specification). Load this folder (`plugin.json` here). Do not load the collection root. Do not add `.codex-plugin/` to this package. A stdio `./` command also ships `.cursor-plugin/plugin.json` and `.cursor-plugin/mcp.json` (`${{CURSOR_PLUGIN_ROOT}}`).
 
 Collection routing: repo-root `AGENTS.md`. Client load path: [compatible-clients](https://agent-plugins.org/compatible-clients) → that client's setup page.
 
@@ -276,7 +274,41 @@ def create(
         launcher.parent.mkdir(parents=True)
         launcher.write_text("#!/bin/sh\nset -eu\necho 'replace this launcher' >&2\nexit 127\n")
         launcher.chmod(0o755)
+        _write_cursor_override(root, manifest, f"./bin/{name}")
     return root
+
+
+def _write_cursor_override(root: Path, manifest: dict, command: str) -> None:
+    dest = root / ".cursor-plugin"
+    dest.mkdir()
+    plugin = {
+        "name": manifest["name"],
+        "version": manifest["version"],
+        "mcpServers": "./.cursor-plugin/mcp.json",
+    }
+    if "description" in manifest:
+        plugin["description"] = manifest["description"]
+    server = {
+        "type": "stdio",
+        "command": "${CURSOR_PLUGIN_ROOT}/" + command[2:],
+        "cwd": "${CURSOR_PLUGIN_ROOT}",
+    }
+    (dest / "plugin.json").write_text(json.dumps(plugin, indent=2) + "\n")
+    (dest / "mcp.json").write_text(
+        json.dumps({"mcpServers": {manifest["name"]: server}}, indent=2) + "\n"
+    )
+
+
+def _check_module():
+    import importlib.util
+
+    path = Path(__file__).resolve().with_name("check.py")
+    spec = importlib.util.spec_from_file_location("_agent_plugins_check", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def register_in_collection(collection: Path, name: str, extra: str) -> None:
@@ -352,6 +384,7 @@ def validate(root: Path, plugin_schema: str, mcp_schema: str) -> list[str]:
     for forbidden in FORBIDDEN_CLIENT_DIRS:
         if (root / forbidden).exists():
             errors.append(f"{forbidden}/ is not part of an Agent Plugin package.")
+    errors.extend(_check_module().cursor_package_errors(root, data))
     return errors
 
 
@@ -420,7 +453,7 @@ def main() -> int:
         default="",
         help=(
             "Body for plugins/<name>/AGENTS.md after-load section. "
-            "Default with --with-mcp: dest-rewrite note."
+            "Default with --with-mcp: Cursor override note."
         ),
     )
     parser.add_argument(

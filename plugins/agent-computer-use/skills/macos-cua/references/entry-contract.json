@@ -153,5 +153,5 @@
     }
   },
   "safety": "No chat dumps. No personal identifiers. No new send/payment authority. Live gate uses Calculator/TextEdit/Finder. WhatsApp benchmark is query/compact observe only; require Message yourself then (You) before any send.",
-  "baseline": "Thin 2-tool MCP (state+act) vs Sky ~10 methods. With a clean Calculator fixture and pointer capture graded separately, persistent in-process dispatch measured 55.0%\u201371.8% faster than per-call CLI across successful interleaved Calculator state+act runs, with cli_invocations=0. The source-frozen gate measured 0.606s versus 1.348s p50. Live parity passed on cua-driver 0.20.0. Cursor plugin ./bin spawn is dest-absolute after install_harness cursor-plugin."
+  "baseline": "Thin 2-tool MCP (state+act) vs Sky ~10 methods. With a clean Calculator fixture and pointer capture graded separately, persistent in-process dispatch measured 55.0%\u201371.8% faster than per-call CLI across successful interleaved Calculator state+act runs, with cli_invocations=0. The source-frozen gate measured 0.606s versus 1.348s p50. Live parity passed on cua-driver 0.20.0. Cursor plugin spawn uses .cursor-plugin/mcp.json with ${CURSOR_PLUGIN_ROOT}."
 }

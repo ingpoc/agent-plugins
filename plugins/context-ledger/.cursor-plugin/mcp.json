@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "context-ledger": {
+      "type": "stdio",
+      "command": "${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp",
+      "args": [
+        "serve"
+      ],
+      "cwd": "${CURSOR_PLUGIN_ROOT}"
+    }
+  }
+}
