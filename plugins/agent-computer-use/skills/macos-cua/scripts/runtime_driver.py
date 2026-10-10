@@ -513,6 +513,8 @@ def driver_status():
         }
     except subprocess.TimeoutExpired:
         daemon = {"running": False, "detail": "cua-driver status timed out"}
+    except FileNotFoundError:
+        daemon = {"running": False, "detail": f"cua-driver retired (no {CUA_DRIVER})"}
     return {"daemon": daemon, "permissions": perms, "cuaservice": cuaservice_health()}
 
 
