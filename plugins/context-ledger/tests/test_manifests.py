@@ -15,26 +15,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LAUNCHER = ROOT / "bin" / "context-ledger-mcp"
 DESCRIPTION = "Scoped, local decision traces with sparse capture and progressive retrieval."
-
-# Same string as plugins/context-ledger/mcp.json args[1]. Drift fails this file.
-RESOLVER = (
-    'root=; for c in "$1" "$2" "$3"; do case "$c" in ""|\\$*) ;; *) '
-    'if [ -x "$c/bin/context-ledger-mcp" ]; then root=$c; break; fi ;; esac; done; '
-    'if [ -z "$root" ] && [ -n "$PLUGIN_ROOT" ] && [ -x "$PLUGIN_ROOT/bin/context-ledger-mcp" ]; then root=$PLUGIN_ROOT; fi; '
-    'if [ -z "$root" ] && [ -n "$CLAUDE_PLUGIN_ROOT" ] && [ -x "$CLAUDE_PLUGIN_ROOT/bin/context-ledger-mcp" ]; then root=$CLAUDE_PLUGIN_ROOT; fi; '
-    'if [ -z "$root" ] && [ -n "$CURSOR_PLUGIN_ROOT" ] && [ -x "$CURSOR_PLUGIN_ROOT/bin/context-ledger-mcp" ]; then root=$CURSOR_PLUGIN_ROOT; fi; '
-    'if [ -z "$root" ] && [ -n "$PWD" ] && [ -x "$PWD/bin/context-ledger-mcp" ]; then root=$PWD; fi; '
-    'if [ -n "$root" ]; then shift 3; exec "$root/bin/context-ledger-mcp" "$@"; fi; '
-    "echo '{\"ok\":false,\"error\":{\"code\":\"PLUGIN_ROOT_UNRESOLVED\",\"retryable\":false,\"message\":\"client must expand PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT/CURSOR_PLUGIN_ROOT, or load the package via .cursor-plugin/ or .claude-plugin/\"}}' >&2; "
-    "exit 127"
-)
-PORTABLE_ARGS = [
-    "-c",
-    RESOLVER,
+PORTABLE_TAIL = [
     "context-ledger-mcp",
     "${PLUGIN_ROOT}",
     "${CURSOR_PLUGIN_ROOT}",
     "${CLAUDE_PLUGIN_ROOT}",
+    "serve",
+]
+CURSOR_TAIL = [
+    "context-ledger-mcp",
+    "${CURSOR_PLUGIN_ROOT}",
     "serve",
 ]
 CLIENT_TOKEN_ENV = {
@@ -153,9 +143,19 @@ class ManifestContractTests(unittest.TestCase):
             self.skipTest("client-transformed copy is not a portable package")
 
     def test_resolver_constant_matches_manifest(self) -> None:
-        server = _servers(ROOT / "mcp.json")["context-ledger"]
-        self.assertEqual(server["args"][1], RESOLVER)
-        self.assertNotIn("${", RESOLVER)
+        version = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
+        for rel in ("mcp.json", ".cursor-plugin/mcp.json"):
+            server = _servers(ROOT / rel)["context-ledger"]
+            script = server["args"][1]
+            self.assertNotIn("${", script, rel)
+            self.assertNotIn("|| true", script, rel)
+            self.assertEqual(script.count(version), 1, rel)
+            self.assertIn(f"ver={version}", script, rel)
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "resolver.sh"
+                path.write_text(script, encoding="utf-8")
+                proc = subprocess.run(["sh", "-n", str(path)], capture_output=True, text=True)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
 
     def test_every_stdio_manifest_is_absolute_to_its_client_root(self) -> None:
         manifests = _shipped_mcp_manifests()
@@ -180,23 +180,18 @@ class ManifestContractTests(unittest.TestCase):
                 command = server.get("command")
                 self.assertIsInstance(command, str)
                 assert isinstance(command, str)
-                if kind == "portable":
+                if kind == "claude":
+                    self.assertTrue(command.startswith("${CLAUDE_PLUGIN_ROOT}/"), (path, command))
+                else:
+                    self.assertEqual(command, "sh", path)
                     self.assertNotIn("/", command, path)
                     self.assertFalse(command.startswith("."), path)
-                else:
-                    prefix = (
-                        "${CURSOR_PLUGIN_ROOT}/"
-                        if kind == "cursor"
-                        else "${CLAUDE_PLUGIN_ROOT}/"
-                    )
-                    self.assertTrue(command.startswith(prefix), (path, command))
+                    self.assertIsNone(server.get("cwd"), path)
                 cwd = server.get("cwd", None)
                 self.assertNotIn(cwd, ("./", ".", "bin"), path)
                 if cwd is None:
                     continue
-                if kind == "cursor":
-                    self.assertEqual(cwd, "${CURSOR_PLUGIN_ROOT}")
-                elif kind == "claude":
+                if kind == "claude":
                     self.assertEqual(cwd, "${CLAUDE_PLUGIN_ROOT}")
                 else:
                     self.assertIn(cwd, ("${PLUGIN_ROOT}", "${PLUGIN_DATA}"))
@@ -214,7 +209,7 @@ class ManifestContractTests(unittest.TestCase):
             )
         ]
         self.assertEqual(versions, [context_ledger.__version__] * 3)
-        self.assertEqual(context_ledger.__version__, "0.1.16")
+        self.assertEqual(context_ledger.__version__, "0.1.17")
         descriptions = [
             json.loads((ROOT / rel).read_text(encoding="utf-8"))["description"]
             for rel in (
@@ -231,8 +226,19 @@ class ManifestContractTests(unittest.TestCase):
             self.assertEqual(server["type"], "stdio")
             command = server["command"]
             args = server["args"]
-            if command == "sh":
-                self.assertEqual(args, PORTABLE_ARGS)
+            kind = _classify(path)
+            if kind == "portable":
+                self.assertEqual(command, "sh")
+                self.assertEqual(args[0], "-c")
+                self.assertEqual(args[2:], PORTABLE_TAIL)
+                self.assertNotIn("${", args[1])
+                self.assertEqual(server["env"], CLIENT_TOKEN_ENV)
+            elif kind == "cursor":
+                self.assertEqual(command, "sh")
+                self.assertEqual(args[0], "-c")
+                self.assertEqual(args[2:], CURSOR_TAIL)
+                self.assertNotIn("${", args[1])
+                self.assertIsNone(server.get("cwd"))
                 self.assertEqual(server["env"], CLIENT_TOKEN_ENV)
             else:
                 self.assertTrue(str(command).endswith("/bin/context-ledger-mcp"), command)
@@ -241,17 +247,19 @@ class ManifestContractTests(unittest.TestCase):
     def test_cursor_and_codex_interpolation(self) -> None:
         server = _servers(ROOT / "mcp.json")["context-ledger"]
         args = list(server["args"])
-        self.assertEqual(args, PORTABLE_ARGS)
+        self.assertEqual(args[0], "-c")
+        self.assertEqual(args[2:], PORTABLE_TAIL)
+        self.assertNotIn("${", args[1])
         self.assertEqual(server["env"], CLIENT_TOKEN_ENV)
         root = "/plugin/context-ledger"
         codex_args = [codex_expand(arg, root) for arg in args]
-        self.assertEqual(codex_args[1], RESOLVER)
+        self.assertEqual(codex_args[1], args[1])
         self.assertEqual(codex_args[3], root)
         self.assertEqual(codex_args[4], "${CURSOR_PLUGIN_ROOT}")
         self.assertEqual(codex_args[5], "${CLAUDE_PLUGIN_ROOT}")
         self.assertEqual(codex_expand(server["env"]["CONTEXT_LEDGER_MCP_CLIENT_TOKEN"], root), CLIENT_TOKEN_PLACEHOLDER)
         cursor_args = [cursor_expand(arg, root, {}) for arg in args]
-        self.assertEqual(cursor_args[1], RESOLVER)
+        self.assertEqual(cursor_args[1], args[1])
         self.assertEqual(cursor_args[3], "${PLUGIN_ROOT}")
         self.assertEqual(cursor_args[4], root)
         self.assertEqual(cursor_args[5], root)
@@ -266,7 +274,8 @@ class ManifestContractTests(unittest.TestCase):
     def test_resolver_picks_the_first_real_root(self) -> None:
         server = _servers(ROOT / "mcp.json")["context-ledger"]
         template = list(server["args"])
-        self.assertEqual(template, PORTABLE_ARGS)
+        self.assertEqual(template[0], "-c")
+        self.assertEqual(template[2:], PORTABLE_TAIL)
 
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
@@ -283,11 +292,19 @@ class ManifestContractTests(unittest.TestCase):
             plant(other, 'printf "second\\n"\n')
             empty = base / "empty"
             empty.mkdir()
+            home = base / "home"
+            home.mkdir()
+            stub = base / "stubbin"
+            stub.mkdir()
+            curl = stub / "curl"
+            curl.write_text("#!/bin/sh\nprintf '%s\\n' 'curl failed' >&2\nexit 1\n", encoding="utf-8")
+            curl.chmod(0o755)
             root = str(fake)
 
             def run(args: list[str], extra: dict[str, str], cwd: Path) -> subprocess.CompletedProcess[str]:
                 env = {
-                    "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+                    "PATH": str(stub) + os.pathsep + "/usr/bin:/bin",
+                    "HOME": str(home),
                     "CL_MARKER": "resolved",
                     "PWD": str(cwd),
                 }
@@ -302,9 +319,9 @@ class ManifestContractTests(unittest.TestCase):
 
             codex_args = [codex_expand(arg, root) for arg in template]
             cursor_args = [cursor_expand(arg, root, {}) for arg in template]
-            self.assertEqual(codex_args[1], RESOLVER)
+            self.assertEqual(codex_args[1], template[1])
             self.assertEqual(codex_args[3], root)
-            self.assertEqual(cursor_args[1], RESOLVER)
+            self.assertEqual(cursor_args[1], template[1])
             self.assertEqual(cursor_args[3], "${PLUGIN_ROOT}")
             self.assertEqual(cursor_args[4], root)
             self.assertEqual(cursor_args[5], root)
@@ -326,13 +343,12 @@ class ManifestContractTests(unittest.TestCase):
             self.assertEqual(proc.returncode, 0, proc.stderr)
             self.assertEqual(proc.stdout, expected)
             self.assertEqual(proc.stderr, "")
-        self.assertEqual(missing.returncode, 127)
+        self.assertNotEqual(missing.returncode, 0)
         self.assertEqual(missing.stdout, "")
-        self.assertIn("PLUGIN_ROOT_UNRESOLVED", missing.stderr)
         payload = json.loads(missing.stderr)
-        self.assertEqual(payload["error"]["code"], "PLUGIN_ROOT_UNRESOLVED")
-        self.assertIn(".cursor-plugin/", payload["error"]["message"])
-        self.assertIn(".claude-plugin/", payload["error"]["message"])
+        self.assertEqual(payload["error"]["code"], "PLUGIN_BOOTSTRAP_FAILED")
+        self.assertIn("download", payload["error"]["message"])
+        self.assertIn("context-ledger-v0.1.17", payload["error"]["message"])
 
     def test_shell_files_have_no_or_true(self) -> None:
         files: list[str] = []
@@ -357,6 +373,210 @@ class ManifestContractTests(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0, proc.stdout)
         self.assertEqual(proc.stdout, "")
         self.assertEqual(proc.returncode, 1)
+
+
+class ResolverFallbackTests(unittest.TestCase):
+    def setUp(self) -> None:
+        if _collection_root() is None:
+            self.skipTest("client-transformed copy is not a portable package")
+
+    def _servers(self) -> dict[str, dict]:
+        return {
+            "portable": _servers(ROOT / "mcp.json")["context-ledger"],
+            "cursor": _servers(ROOT / ".cursor-plugin/mcp.json")["context-ledger"],
+        }
+
+    def _invoke(
+        self,
+        server: dict,
+        args: list[str],
+        home: Path,
+        cwd: Path,
+        path: str,
+        extra: dict[str, str] | None = None,
+    ) -> subprocess.CompletedProcess[str]:
+        env = {"PATH": path, "HOME": str(home), "PWD": str(cwd)}
+        if extra:
+            env.update(extra)
+        return subprocess.run(
+            [server["command"], *args],
+            cwd=cwd,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_cache_highest_version_beats_newer_mtime_and_root_wins(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            home = base / "home"
+            cwd = base / "cwd"
+            home.mkdir()
+            cwd.mkdir()
+
+            def plant(directory: Path, version: str, name: str = "context-ledger") -> Path:
+                launcher = directory / "bin" / "context-ledger-mcp"
+                launcher.parent.mkdir(parents=True)
+                launcher.write_text(
+                    "#!/bin/sh\nprintf '%s\\n' \"$0\" >&2\nprintf '%s\\n' \"$@\" >&2\nexit 0\n",
+                    encoding="utf-8",
+                )
+                launcher.chmod(0o755)
+                (directory / "plugin.json").write_text(
+                    json.dumps({"name": name, "version": version}) + "\n",
+                    encoding="utf-8",
+                )
+                return launcher
+
+            older = plant(
+                home / ".cursor/plugins/cache/ingpoc-agent-plugins/context-ledger/oldsha",
+                "0.1.9",
+            )
+            newer = plant(
+                home / ".cursor/plugins/cache/ingpoc-agent-plugins/99/newsha",
+                "0.1.17",
+            )
+            decoy = plant(
+                home / ".cursor/plugins/cache/ingpoc-agent-plugins/7/other",
+                "9.9.9",
+                name="other-plugin",
+            )
+            os.utime(older, (2_000_000_000, 2_000_000_000))
+            os.utime(newer, (1_000_000_000, 1_000_000_000))
+            os.utime(decoy, (2_100_000_000, 2_100_000_000))
+            real = plant(base / "real-root", "0.0.1")
+            path = "/usr/bin:/bin"
+            expected = f"{newer}\nserve\n"
+            root_expected = f"{real}\nserve\n"
+            for server in self._servers().values():
+                literal = self._invoke(server, list(server["args"]), home, cwd, path)
+                self.assertEqual(literal.returncode, 0, literal.stderr)
+                self.assertEqual(literal.stdout, "")
+                self.assertEqual(literal.stderr, expected)
+                expanded = list(server["args"])
+                expanded[3] = str(real.parent.parent)
+                chosen = self._invoke(server, expanded, home, cwd, path)
+                self.assertEqual(chosen.returncode, 0, chosen.stderr)
+                self.assertEqual(chosen.stdout, "")
+                self.assertEqual(chosen.stderr, root_expected)
+
+    def test_bootstrap_failure_and_tarball(self) -> None:
+        version = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
+        url = (
+            "https://codeload.github.com/ingpoc/agent-plugins/tar.gz/refs/tags/"
+            f"context-ledger-v{version}"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            cwd = base / "cwd"
+            cwd.mkdir()
+            stub = base / "stub"
+            stub.mkdir()
+            curl = stub / "curl"
+            path = str(stub) + os.pathsep + "/usr/bin:/bin"
+
+            def write_curl(body: str) -> None:
+                curl.write_text(body, encoding="utf-8")
+                curl.chmod(0o755)
+
+            write_curl("#!/bin/sh\nprintf '%s\\n' 'curl failed' >&2\nexit 1\n")
+            for rel in ("mcp.json", ".cursor-plugin/mcp.json"):
+                text = (ROOT / rel).read_text(encoding="utf-8")
+                self.assertEqual(text.count(version), 1, rel)
+            for server in self._servers().values():
+                home = base / f"fail-{id(server)}"
+                home.mkdir()
+                proc = self._invoke(server, list(server["args"]), home, cwd, path)
+                self.assertNotEqual(proc.returncode, 0)
+                self.assertEqual(proc.stdout, "")
+                self.assertEqual(proc.stderr.count("\n"), 1)
+                payload = json.loads(proc.stderr)
+                self.assertEqual(payload["error"]["code"], "PLUGIN_BOOTSTRAP_FAILED")
+                self.assertIn("download", payload["error"]["message"])
+                self.assertIn(url, payload["error"]["message"])
+
+            def archive(version_in_tarball: str) -> Path:
+                import io
+                import tarfile
+
+                dest = base / f"src-{version_in_tarball}.tar.gz"
+                prefix = f"agent-plugins-context-ledger-v{version}/plugins/context-ledger"
+                body = b"#!/bin/sh\nprintf '%s\\n' \"$0\" >&2\nprintf '%s\\n' \"$@\" >&2\nexit 0\n"
+                plugin = (json.dumps({"name": "context-ledger", "version": version_in_tarball}) + "\n").encode()
+                with tarfile.open(dest, "w:gz") as tar:
+                    for name in (
+                        f"agent-plugins-context-ledger-v{version}/",
+                        f"agent-plugins-context-ledger-v{version}/plugins/",
+                        prefix + "/",
+                        prefix + "/bin/",
+                    ):
+                        info = tarfile.TarInfo(name)
+                        info.type = tarfile.DIRTYPE
+                        info.mode = 0o755
+                        tar.addfile(info)
+                    info = tarfile.TarInfo(prefix + "/plugin.json")
+                    info.size = len(plugin)
+                    info.mode = 0o644
+                    tar.addfile(info, io.BytesIO(plugin))
+                    info = tarfile.TarInfo(prefix + "/bin/context-ledger-mcp")
+                    info.size = len(body)
+                    info.mode = 0o755
+                    tar.addfile(info, io.BytesIO(body))
+                    extra = b'{"name":"other"}\n'
+                    info = tarfile.TarInfo(
+                        f"agent-plugins-context-ledger-v{version}/plugins/other/plugin.json"
+                    )
+                    info.size = len(extra)
+                    tar.addfile(info, io.BytesIO(extra))
+                return dest
+
+            good = archive(version)
+            bad = archive("0.0.1")
+            write_curl(
+                "#!/bin/sh\n"
+                "out=\n"
+                "while [ $# -gt 0 ]; do\n"
+                "  if [ \"$1\" = \"-o\" ]; then shift; out=$1; fi\n"
+                "  if [ $# -gt 0 ]; then shift; fi\n"
+                "done\n"
+                "if [ -z \"$out\" ]; then printf '%s\\n' 'missing -o' >&2; exit 2; fi\n"
+                "cat \"$CL_TARBALL\" > \"$out\"\n"
+                "exit 0\n"
+            )
+            for server in self._servers().values():
+                home = base / f"boot-{id(server)}"
+                home.mkdir()
+                proc = self._invoke(
+                    server,
+                    list(server["args"]),
+                    home,
+                    cwd,
+                    path,
+                    {"CL_TARBALL": str(good)},
+                )
+                dest = home / ".cache/context-ledger" / f"plugin-{version}" / "bin/context-ledger-mcp"
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                self.assertEqual(proc.stdout, "")
+                self.assertEqual(proc.stderr, f"{dest}\nserve\n")
+                self.assertTrue(dest.is_file())
+                self.assertFalse((home / ".cache/context-ledger" / f"plugin-{version}" / "other").exists())
+                wrong_home = base / f"bad-{id(server)}"
+                wrong_home.mkdir()
+                wrong = self._invoke(
+                    server,
+                    list(server["args"]),
+                    wrong_home,
+                    cwd,
+                    path,
+                    {"CL_TARBALL": str(bad)},
+                )
+                self.assertNotEqual(wrong.returncode, 0)
+                self.assertEqual(wrong.stdout, "")
+                wrong_payload = json.loads(wrong.stderr)
+                self.assertEqual(wrong_payload["error"]["code"], "PLUGIN_BOOTSTRAP_FAILED")
+                self.assertIn("verify", wrong_payload["error"]["message"])
+                self.assertIn(url, wrong_payload["error"]["message"])
+                self.assertFalse((wrong_home / ".cache/context-ledger" / f"plugin-{version}").exists())
 
 
 def _write_probe(path: Path) -> None:

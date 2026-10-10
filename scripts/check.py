@@ -193,46 +193,86 @@ _ABSENT = object()
 
 
 def _cursor_stdio_expectation(root_server: dict) -> tuple[str | None, object]:
-    """Cursor override command and args for one portable stdio server.
+    """Cursor override for a legacy `./…` stdio command.
 
-    A legacy `./…` command maps to `${CURSOR_PLUGIN_ROOT}/…` with the same args.
-    A bare `sh` resolver (no `${` in the script) maps to
-    `${CURSOR_PLUGIN_ROOT}/bin/<launcher>` and the args after the root
-    placeholders (`${PLUGIN_ROOT}`, `${CURSOR_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_ROOT}`).
+    Maps to `${CURSOR_PLUGIN_ROOT}/…` with the same args. A bare `sh` resolver
+    is validated by `_sh_cursor_override_errors` (no cwd; the script falls
+    through to a local cache copy, then a pinned tag bootstrap).
     """
     command = str(root_server.get("command") or "")
     if command.startswith("./"):
         return "${CURSOR_PLUGIN_ROOT}/" + command[2:], root_server.get("args", _ABSENT)
-    args = root_server.get("args")
-    if (
-        command
-        and "/" not in command
-        and "${" not in command
+    return None, _ABSENT
+
+
+def _is_sh_resolver(server: dict) -> bool:
+    command = str(server.get("command") or "")
+    args = server.get("args")
+    return bool(
+        command == "sh"
         and isinstance(args, list)
         and args[:1] == ["-c"]
         and len(args) >= 4
         and isinstance(args[1], str)
         and "${" not in args[1]
+        and "|| true" not in args[1]
+    )
+
+
+def _stdio_root_tail(args: list) -> list | None:
+    try:
+        root_at = args.index("${PLUGIN_ROOT}")
+    except ValueError:
+        return None
+    if root_at < 2:
+        return None
+    tail = args[root_at + 1 :]
+    placeholders = {"${PLUGIN_ROOT}", "${CURSOR_PLUGIN_ROOT}", "${CLAUDE_PLUGIN_ROOT}"}
+    while tail and isinstance(tail[0], str) and tail[0] in placeholders:
+        tail = tail[1:]
+    return list(tail)
+
+
+def _launcher_from_resolver(script: str) -> str | None:
+    names = re.findall(r"bin/([A-Za-z0-9._-]+)", script)
+    if not names or any(name != names[0] for name in names):
+        return None
+    return names[0]
+
+
+def _sh_cursor_override_errors(root: Path, name: str, server: dict, root_server: dict) -> list[str]:
+    """Cursor cloud manifest: sh, one root arg, no cwd. Same launcher and tail."""
+    errors: list[str] = []
+    prefix = f"{root}: .cursor-plugin/mcp.json mcpServers.{name}"
+    if server.get("type") != "stdio":
+        errors.append(f"{prefix}.type must be stdio.")
+    if server.get("command") != "sh":
+        errors.append(f"{prefix}.command must be sh.")
+    if server.get("cwd") is not None:
+        errors.append(f"{prefix}.cwd must be omitted.")
+    args = server.get("args")
+    root_args = root_server.get("args")
+    if not isinstance(args, list) or not isinstance(root_args, list):
+        errors.append(f"{prefix}.args must be a list.")
+        return errors
+    root_script = root_args[1] if len(root_args) > 1 and isinstance(root_args[1], str) else ""
+    script = args[1] if len(args) > 1 and isinstance(args[1], str) else ""
+    launcher = _launcher_from_resolver(root_script)
+    tail = _stdio_root_tail(root_args)
+    if (
+        not _is_sh_resolver(server)
+        or launcher is None
+        or _launcher_from_resolver(script) != launcher
+        or args[2:4] != [launcher, "${CURSOR_PLUGIN_ROOT}"]
+        or args[4:] != tail
     ):
-        try:
-            root_at = args.index("${PLUGIN_ROOT}")
-        except ValueError:
-            return None, _ABSENT
-        if root_at < 2:
-            return None, _ABSENT
-        tail = args[root_at + 1 :]
-        root_placeholders = {
-            "${PLUGIN_ROOT}",
-            "${CURSOR_PLUGIN_ROOT}",
-            "${CLAUDE_PLUGIN_ROOT}",
-        }
-        while tail and isinstance(tail[0], str) and tail[0] in root_placeholders:
-            tail = tail[1:]
-        launchers = re.findall(r"bin/([A-Za-z0-9._-]+)", args[1])
-        if not launchers or not tail or any(name != launchers[0] for name in launchers):
-            return None, _ABSENT
-        return "${CURSOR_PLUGIN_ROOT}/bin/" + launchers[0], tail
-    return None, _ABSENT
+        errors.append(
+            f"{prefix}.args must be a sh resolver with {launcher}, "
+            "${CURSOR_PLUGIN_ROOT}, and the root manifest tail."
+        )
+    if server.get("env") != root_server.get("env"):
+        errors.append(f"{prefix}.env must match root mcp.json.")
+    return errors
 
 
 def _root_stdio_needs_cursor_override(servers: dict) -> bool:
@@ -326,6 +366,20 @@ def cursor_package_errors(root: Path, manifest: dict) -> list[str]:
     if set(servers) != set(root_servers):
         errors.append(f"{root}: .cursor-plugin/mcp.json server names must match root mcp.json.")
         return errors
+    sh_resolvers = [
+        server
+        for server in root_servers.values()
+        if isinstance(server, dict) and _is_sh_resolver(server)
+    ]
+    if sh_resolvers:
+        version = str(manifest.get("version") or "")
+        for path in (mcp_path, cursor_mcp_path):
+            count = path.read_text(encoding="utf-8").count(version)
+            if not version or count != 1:
+                errors.append(
+                    f"{path}: version {version} must appear exactly once "
+                    "(pinned tag and cache dir share that single literal)."
+                )
     for name, server in servers.items():
         root_server = root_servers[name]
         if not isinstance(server, dict) or not isinstance(root_server, dict):
@@ -342,6 +396,9 @@ def cursor_package_errors(root: Path, manifest: dict) -> list[str]:
                 errors.append(
                     f"{root}: .cursor-plugin/mcp.json mcpServers.{name} must equal the root entry."
                 )
+            continue
+        if _is_sh_resolver(root_server):
+            errors.extend(_sh_cursor_override_errors(root, name, server, root_server))
             continue
         expected, expected_args = _cursor_stdio_expectation(root_server)
         if server.get("type") != "stdio":
