@@ -207,6 +207,12 @@ def scroll(
 
 
 def set_value(pid, window_id, element_index, value):
+    if window_id is not None:
+        snap = cua_snapshot(pid, window_id, max(80, int(element_index) + 1), retries=0)
+        if snap.get("error"):
+            return {"ok": False, "accepted": False, "error": snap["error"],
+                    "element": int(element_index),
+                    "error_code": snap.get("error_code") or "window_mismatch"}
     return cua_set_value(pid, element_index, value)
 
 

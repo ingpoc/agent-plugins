@@ -533,7 +533,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     agent_docs = skill_md + "\n" + fast_workflow + "\n" + architecture
     mcp = "\n".join(
         (scripts / name).read_text()
-        for name in ("compact_mcp.py", "compact_backend.py")
+        for name in ("compact_mcp.py", "compact_backend.py", "compact_instructions.txt")
     )
     method_router = (
         root / "service" / "Sources" / "CUAService" / "MethodRouter.swift"

@@ -268,7 +268,17 @@ def type_label_action(
 
 
 def click(pid, window_id, element_index, *, app_name=None):
-    """CUAService click by index (tip lands before the press, else refused)."""
+    """CUAService click by index (tip lands before the press, else refused).
+
+    When window_id is set, refuse if CUAService is observing a different window
+    so the same index cannot press a control in the wrong focused window.
+    """
+    if window_id is not None:
+        snap = cua_snapshot(pid, window_id, max(80, int(element_index) + 1), retries=0)
+        if snap.get("error"):
+            return {"ok": False, "accepted": False, "error": snap["error"],
+                    "element": int(element_index),
+                    "error_code": snap.get("error_code") or "window_mismatch"}
     return cua_click(pid, element_index)
 
 

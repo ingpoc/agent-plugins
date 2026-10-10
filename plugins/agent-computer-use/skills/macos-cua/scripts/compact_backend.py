@@ -13,6 +13,12 @@ from typing import Any
 
 from state_delta import action_state_text
 from fail_feedback import apply_failure_feedback, VERIFICATION_REQUIRED
+from compact_form_fills import (
+    expectation_supports_value,
+    expectation_value_needle,
+    fill_value_from_step,
+    resolve_set_value_index,
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_ROOT = SCRIPT_DIR.parents[2]
@@ -25,27 +31,7 @@ META_VERSION = "io.modelcontextprotocol/protocolVersion"
 META_CLIENT_CAPS = "io.modelcontextprotocol/clientCapabilities"
 META_SERVER_INFO = "io.modelcontextprotocol/serverInfo"
 TOOL_NAMES = ("state", "act")
-INSTRUCTIONS = (
-    "Thin MCP over CUAService (state + act only). Do not call start_session, "
-    "verify, end_session, list_apps, or raw cua-driver. "
-    "Two wall clocks: within-app batch one asserted act (steps+expect); "
-    "cross-app one act per surface then switch — each extra tool is a full "
-    "agent turn. Act-first when labels are known; state first only for "
-    "discovery or after act miss. Never probe with state then state then act "
-    "on the same app. Do not call verify — act already returns a compact AX "
-    "delta on success (not a full tree) and error_type taxonomy on failure. "
-    "Friction or rooted inefficiency: encode an app-agnostic fast_path grader "
-    "that fails the old trace, then retry; no named-app helpers; do not leave "
-    "the fix in chat. "
-    "Best first: overlay tip lands, then AX press (ax_timeout fail-closed). "
-    "Fallback only on miss: at most one fresh state; then screenshot/PIXEL_CLICK. "
-    "Never silent pixel fallback. Dispatch ok is never proof; no desktop-global click. "
-    "Screenshots attach only when pixels are the evidence (empty AX, Stage Manager thumb, "
-    "or screenshot:true). Verified expect and typed failures return AX delta / error_type "
-    "only — no JPEG. If a returned shot is the wrong window or a Stage Manager thumb, stop "
-    "and correct bounds — do not add a third MCP tool. "
-    "WhatsApp send/attach: $whatsapp skill, not these tools."
-)
+INSTRUCTIONS = (SCRIPT_DIR / "compact_instructions.txt").read_text()
 _BIDI = dict.fromkeys(
     map(
         ord,
@@ -106,6 +92,8 @@ def expectation_is_supported(expect: Any) -> bool:
         return bool(expect) and all(expectation_is_supported(item) for item in expect)
     if not isinstance(expect, dict) or not expect:
         return False
+    if expectation_supports_value(expect):
+        return True
     return any(
         bool(_norm_text(str(expect.get(key) or "")))
         for key in ("text", "not_text", "path")
@@ -143,6 +131,9 @@ def expectation_is_new(
             for item in (results or [])
             if item.get("path")
         ))
+    needle = expectation_value_needle(expect)
+    if needle:
+        checks.append(expect_is_new(needle, before_tree, after_tree))
     return bool(checks) and all(checks)
 
 
@@ -465,6 +456,15 @@ class CUABackend:
         if step.get("key"):
             return {"method": "press_key", "params": {"key": str(step["key"])}}
         element = step.get("element")
+        action_l = str(action or "").lower()
+        fill_value = fill_value_from_step(step)
+        if action_l == "set_value" and fill_value is not None:
+            params = {"value": str(fill_value)}
+            if element is not None:
+                params["element_index"] = int(element)
+            if step.get("label"):
+                params["label"] = str(step["label"])
+            return {"method": "set_value", "params": params}
         if step.get("text") is not None and element is not None and not step.get("label"):
             return {
                 "method": "set_value",
@@ -478,7 +478,7 @@ class CUABackend:
                     "after_new_document": after_new_document,
                 },
             }
-        if action and element is not None:
+        if action and element is not None and action_l not in {"click", "set_value", "type"}:
             return {
                 "method": "perform_secondary_action",
                 "params": {"element_index": int(element), "action": action},
@@ -558,15 +558,29 @@ class CUABackend:
             return client.press_key(app, str(key))
         text = step.get("text")
         element = step.get("element")
+        action = step.get("action")
+        action_name = str(action or "").lower()
+        fill_value = fill_value_from_step(step)
+        if action_name == "set_value" and fill_value is not None:
+            idx = int(element) if element is not None else None
+            if idx is None and step.get("label"):
+                idx = resolve_set_value_index(
+                    self._get_app_state(client, app, includeElements=True, disableDiff=True),
+                    str(step["label"]),
+                )
+            if idx is None:
+                err = (f"set_value: field not found: {step.get('label')}" if step.get("label")
+                       else "set_value needs label or element")
+                return {"ok": False, "error": err, "method": "set_value"}
+            return client.set_value(app, idx, str(fill_value))
         if text is not None and element is not None and step.get("label") is None:
             return client.set_value(app, int(element), str(text))
         if text is not None and step.get("label") is None and element is None:
             return client.type_text(
                 app, str(text), after_new_document=after_new_document
             )
-        action = step.get("action")
         element = step.get("element")
-        if action and element is not None:
+        if action and element is not None and action_name not in {"click", "set_value", "type"}:
             return client.perform_secondary_action(app, int(element), str(action))
         kwargs: dict[str, Any] = {}
         if step.get("label"):

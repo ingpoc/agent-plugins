@@ -110,30 +110,34 @@ class CUAServiceRuntimeTests(unittest.TestCase):
             self.assertTrue(out.is_file())
             self.assertEqual((state["screenshot"]["path"], state["screenshot"]["width"]), (str(out), 1200))
         self.assertIn("[2] AXButton \"Close\"", state["text"])
-        clicked, client = self._run({"click": {"ok": True, "method": "ax-press",
+        clicked, client = self._run({"get_app_state": _state(), "click": {"ok": True, "method": "ax-press",
                                                "cursor_landing": {"landed": True}}}, macos_cua.click, 4242, 77, 2)
-        self.assertEqual(client.calls, [("click", {"app": BUNDLE, "element_index": 2})])
+        self.assertEqual([c[0] for c in client.calls], ["get_app_state", "click"])
+        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2}))
         self.assertTrue(macos_cua._accepted(clicked))
         self.assertEqual(clicked["cursor_landing"], {"landed": True})
 
     def test_refused_unlanded_press_is_not_accepted_and_names_the_code(self):
         err = Exception("RPC error -32010")
         err.code, err.message = -32010, "CURSOR_NOT_LANDED: agent cursor did not land"
-        result, _ = self._run({"click": err}, macos_cua.click, 4242, 77, 2)
+        result, _ = self._run({"get_app_state": _state(), "click": err}, macos_cua.click, 4242, 77, 2)
         self.assertFalse(macos_cua._accepted(result))
         self.assertEqual(result["error_code"], "CURSOR_NOT_LANDED")
 
     def test_allow_unlanded_is_opt_in_via_env(self):
-        _, client = self._run({"click": {"ok": True}}, macos_cua.click, 4242, 77, 1,
+        _, client = self._run({"get_app_state": _state(), "click": {"ok": True}}, macos_cua.click, 4242, 77, 1,
                               env={"MACOS_CUA_ALLOW_UNLANDED": "1"})
-        self.assertTrue(client.calls[0][1]["allow_unlanded"])
-        _, client = self._run({"click": {"ok": True}}, macos_cua.click, 4242, 77, 1)
-        self.assertNotIn("allow_unlanded", client.calls[0][1])
+        click_params = [p for m, p in client.calls if m == "click"][0]
+        self.assertTrue(click_params["allow_unlanded"])
+        _, client = self._run({"get_app_state": _state(), "click": {"ok": True}}, macos_cua.click, 4242, 77, 1)
+        click_params = [p for m, p in client.calls if m == "click"][0]
+        self.assertNotIn("allow_unlanded", click_params)
 
     def test_set_value_reads_back_from_the_same_walk(self):
         replies = {"set_value": {"ok": True, "method": "ax-set-value"}, "get_app_state": _state(value="new text")}
         ok, client = self._run(replies, macos_cua.set_value, 4242, 77, 1, "new text")
-        self.assertEqual(client.calls[0], ("set_value", {"app": BUNDLE, "element_index": 1, "value": "new text"}))
+        self.assertEqual([c[0] for c in client.calls[:2]], ["get_app_state", "set_value"])
+        self.assertEqual(client.calls[1], ("set_value", {"app": BUNDLE, "element_index": 1, "value": "new text"}))
         self.assertEqual(ok["readback"], "matched")
         replies["get_app_state"] = _state(value="stale")
         bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "new text")
@@ -150,23 +154,26 @@ class CUAServiceRuntimeTests(unittest.TestCase):
     def test_set_value_readback_error_or_missing_target_is_not_accepted(self):
         err = Exception("RPC error -32000")
         err.code, err.message = -32000, "walk failed"
-        replies = {"set_value": {"ok": True}, "get_app_state": err}
+        states = iter([_state(value="x"), err])
+        replies = {"set_value": {"ok": True}, "get_app_state": lambda params: next(states)}
         bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "x")
         self.assertFalse(macos_cua._accepted(bad))
         self.assertIn("readback failed", bad["error"])
         state = _state(value="x")
         state["elements"] = state["elements"][:1]
-        replies["get_app_state"] = state
+        states = iter([_state(value="x"), state])
+        replies = {"set_value": {"ok": True}, "get_app_state": lambda params: next(states)}
         bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "x")
         self.assertFalse(macos_cua._accepted(bad))
         self.assertIn("target missing", bad["error"])
         slider = _state(value="50.0")
         slider["elements"][1]["role"] = "AXSlider"
-        replies["get_app_state"] = slider
+        replies = {"set_value": {"ok": True}, "get_app_state": slider}
         ok, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "50")
         self.assertEqual(ok["readback"], "matched")
-        text = _state(value="1")
-        replies["get_app_state"] = text  # AXTextArea: "1" is not "001"
+        text_state = _state(value="1")
+        replies = {"set_value": {"ok": True}, "get_app_state": text_state}  # AXTextArea: "1" is not "001"
+        bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "001")
         bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "001")
         self.assertEqual(bad["error"], "set_value readback mismatch")
 
@@ -245,6 +252,18 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         dbl, client = self._run(replies, macos_cua.click_point, 4242, 77, 20, 40, click_count=2)
         self.assertEqual((dbl["ok"], dbl["error_code"]), (False, "unsupported_click"))
         self.assertEqual(client.calls, [])
+
+    def test_index_click_enforces_requested_window_id(self):
+        bad = _state(); bad["windowId"] = 88
+        res, client = self._run({"get_app_state": bad}, macos_cua.click, 4242, 77, 2)
+        self.assertFalse(res["ok"])
+        self.assertIn("requested window 77", res["error"])
+        self.assertEqual([c[0] for c in client.calls], ["get_app_state"])
+        # Matching window proceeds to click.
+        res, client = self._run({"get_app_state": _state(), "click": {"ok": True, "method": "ax-press"}},
+                                macos_cua.click, 4242, 77, 2)
+        self.assertTrue(res["ok"], res)
+        self.assertEqual([c[0] for c in client.calls], ["get_app_state", "click"])
 
     def test_point_click_enforces_requested_window_id(self):
         # Focused/observed window 88 != requested 77 -> refuse before click.

@@ -489,6 +489,47 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertIn("nonfinite click point", out["text"])
         self.assertEqual(out["failure"]["failed_step"], 1)
 
+    def test_act_set_value_by_label_and_expect_value(self):
+        """compile_cua schema (action/label/value + expect.value) must dispatch fills, not clicks."""
+        calls = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {
+                            "text": '[1] AXTextField label="Full name" value=""\n[2] AXTextField label="Email" value="ada@example.com"',
+                            "elements": [
+                                {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": ""},
+                                {"element_index": 2, "role": "AXTextField", "label": "Email", "value": "ada@example.com"},
+                            ],
+                            "screenshot": {"url": "file:///tmp/s.png"},
+                        }
+
+                    def set_value(self, app, element, value):
+                        calls.append(("set_value", app, element, value))
+                        return {"ok": True, "method": "ax-set-value"}
+
+                    def click(self, app, **kwargs):
+                        calls.append(("click", kwargs))
+                        raise AssertionError("set_value-by-label must not fall through to click")
+
+                return fn(Client())
+
+        out = Backend().act(
+            "System Settings",
+            {
+                "steps": [{"action": "set_value", "label": "Full name", "value": "Ada Lovelace"}],
+                "expect": {"value": {"label": "Email", "equals": "ada@example.com"}},
+            },
+        )
+        self.assertTrue(out.get("ok") or out.get("dispatched"), out)
+        self.assertEqual(calls, [("set_value", "System Settings", 1, "Ada Lovelace")])
+        self.assertNotIn("click", [c[0] for c in calls])
+
     def test_act_expect_already_true_before_is_not_verified(self):
         class Backend(compact_mcp.CUABackend):
             def __init__(self):

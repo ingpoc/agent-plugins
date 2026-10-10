@@ -179,19 +179,28 @@ def ax_health(pid: int | None) -> dict[str, Any]:
 
 
 def ax_press(pid: int, title: str, label: str) -> dict[str, Any]:
+    """AXPress a button in the unique AX window with this exact title.
+
+    Multiple same-title AX windows are refused (do not guess which is the
+    bound rzp_test_ popup vs a live-payment sibling). Caller should fall
+    back to applescript-js with the bound Comet window_id.
+    """
     from ApplicationServices import (AXUIElementCreateApplication, AXUIElementCopyAttributeValue,
                                      AXUIElementPerformAction)
     app = AXUIElementCreateApplication(pid)
     _, wins = AXUIElementCopyAttributeValue(app, "AXWindows", None)
-    target = None
+    titled = []
     for w in wins or []:
         _, r = AXUIElementCopyAttributeValue(w, "AXRole", None)
         _, t = AXUIElementCopyAttributeValue(w, "AXTitle", None)
         if str(r) == "AXWindow" and str(t) == title:
-            target = w
-            break
-    if target is None:
+            titled.append(w)
+    if not titled:
         return {"pressed": False, "error": "ax_window_not_found"}
+    if len(titled) > 1:
+        return {"pressed": False, "error": "ax_ambiguous_windows", "matches": len(titled),
+                "hint": "use applescript-js with the bound --window-id"}
+    target = titled[0]
     stack, seen, hits = [target], 0, []
     while stack and seen < 5000:
         node = stack.pop(); seen += 1

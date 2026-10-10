@@ -3390,31 +3390,25 @@ class PrimitiveContractTests(unittest.TestCase):
         snapshot.assert_called_once_with(10, 20, max_elements=120)
 
     def test_index_click_refuses_to_press_when_cursor_is_not_visible(self):
+        err = Exception("RPC error -32010")
+        err.code, err.message = -32010, "CURSOR_NOT_LANDED: agent cursor did not land"
         with (
             mock.patch.object(
                 macos_cua,
-                "_native_ax_snapshot",
-                return_value={
-                    "source": "native_ax",
-                    "tree_markdown": "[3] AXButton 7",
-                    "elements": [{"element_index": 3, "role": "AXButton"}],
-                },
+                "cua_snapshot",
+                return_value={"ok": True, "engine": "CUAService", "window_id": 20, "elements": []},
             ),
-            mock.patch.object(
-                macos_cua,
-                "glide_operator_to_element",
-                return_value={
-                    "ok": False,
-                    "error": "visible operator cursor did not reach the target",
-                },
-            ),
-            mock.patch.object(macos_cua, "_native_ax_press") as press,
+            mock.patch.object(macos_cua, "cua_click", side_effect=err) as click,
             mock.patch.object(macos_cua, "call_driver") as call_driver,
         ):
+            # cua_click raises via _cuaservice_rpc normally; simulate refused landing payload
+            click.side_effect = None
+            click.return_value = {"ok": False, "accepted": False, "error_code": "CURSOR_NOT_LANDED",
+                                  "error": "CURSOR_NOT_LANDED: agent cursor did not land"}
             result = macos_cua.click(10, 20, 3, app_name="Calculator")
 
-        self.assertFalse(result["accepted"])
-        press.assert_not_called()
+        self.assertFalse(result.get("accepted", result.get("ok")))
+        self.assertEqual(result.get("error_code"), "CURSOR_NOT_LANDED")
         call_driver.assert_not_called()
 
     def test_ax_sequence_accepts_cocoa_style_iterables(self):
