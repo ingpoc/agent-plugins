@@ -359,7 +359,8 @@ final class InputActions: @unchecked Sendable {
         resolved: ResolvedApp,
         element: AXElement?,
         direction: String,
-        pages: Int
+        pages: Int,
+        windowFrame: CGRect? = nil
     ) -> [String: Any] {
         let dy: Int32
         switch direction.lowercased() {
@@ -368,9 +369,13 @@ final class InputActions: @unchecked Sendable {
         default: return ["ok": false, "error": "Invalid direction: \(direction)"]
         }
 
-        let point = element.map {
-            CGPoint(x: $0.frame.midX, y: $0.frame.midY)
-        } ?? CGPoint(x: 400, y: 400)
+        // Element center, else the target window's center; never a fixed
+        // screen point that may be over another app.
+        guard let point = element.map({ CGPoint(x: $0.frame.midX, y: $0.frame.midY) })
+            ?? windowFrame.map({ CGPoint(x: $0.midX, y: $0.midY) })
+        else {
+            return ["ok": false, "error": "scroll has no element and no window frame to target"]
+        }
 
         // Move mouse to scroll position first
         let move = CGEvent(
