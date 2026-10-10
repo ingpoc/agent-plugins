@@ -74,10 +74,9 @@ ledger only for backend selection, regression review, or a parity claim.
 Beat bundled Computer Use on watched speed, accuracy, visible cursor,
 robustness, and tokens — not by copying Sky/`node_repl` or exposing raw
 `cua-driver mcp`. Driver-field and MCP-catalog decisions live only in
-[`cua-driver-mcp.md`](cua-driver-mcp.md). Current losses: Cursor host
-resolves plugin `./bin` against the workspace (dest rewrite is the owner
-workaround); Catalyst composers still need Voice→Send or screenshot
-proof. Current wins: 2-tool MCP facade (state+act), asserted `run`, `--query`/`--diff`,
+[`cua-driver-mcp.md`](cua-driver-mcp.md). Current losses: Catalyst composers still need Voice→Send or screenshot
+proof. Cursor stdio uses `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`);
+dest rewrite only repairs pre-override installs. Current wins: 2-tool MCP facade (state+act), asserted `run`, `--query`/`--diff`,
 equal-weight live suite, portable CLI.
 
 ## Claim boundary

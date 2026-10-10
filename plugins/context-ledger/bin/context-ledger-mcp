@@ -2,12 +2,15 @@
 set -eu
 
 # Thin MCP facade. Cwd-independent (Cursor may spawn with the wrong cwd).
-# Portable source mcp.json uses ./bin/context-ledger-mcp; Cursor dest rewrites
-# command to this absolute launcher (same pattern as agent-computer-use).
+# `serve` (optional leading `--data DIR`): binding.json -> local stdio;
+# else a non-empty CONTEXT_LEDGER_MCP_TOKEN -> remote bridge.
+# Neither -> LEDGER_UNBOUND on stderr, nonzero, and no data dir is created.
+# Other commands stay on the local CLI.
 export PYTHONUNBUFFERED=1
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SCRIPT="$ROOT/bin/context_ledger.py"
+BRIDGE="$ROOT/bin/remote_bridge.py"
 if [ ! -f "$SCRIPT" ]; then
   echo "context-ledger: bootstrap missing at $SCRIPT" >&2
   exit 127
@@ -23,6 +26,31 @@ fi
 if [ -z "$PY" ]; then
   echo '{"ok":false,"error":{"code":"PYTHON_MISSING","retryable":false}}' >&2
   exit 127
+fi
+
+is_serve=0
+data_dir=""
+if [ "${1:-}" = "serve" ]; then
+  is_serve=1
+  data_dir=${CONTEXT_LEDGER_DATA:-$HOME/.context-ledger}
+elif [ "${1:-}" = "--data" ] && [ "${3:-}" = "serve" ]; then
+  is_serve=1
+  data_dir=$2
+  if [ -z "$data_dir" ]; then
+    "$PY" -c 'import json,sys; sys.stderr.write(json.dumps({"ok":False,"error":{"code":"INVALID_ARGUMENT","retryable":False,"message":"serve --data requires a directory"}})+"\n")'
+    exit 1
+  fi
+fi
+
+if [ "$is_serve" -eq 1 ]; then
+  if [ -f "$data_dir/binding.json" ]; then
+    exec "$PY" -u "$SCRIPT" "$@"
+  fi
+  if [ -n "${CONTEXT_LEDGER_MCP_TOKEN:-}" ]; then
+    exec "$PY" -u "$BRIDGE"
+  fi
+  DATA_DIR=$data_dir "$PY" -c 'import json,os,sys; path=os.environ["DATA_DIR"]; msg="no binding at %s/binding.json and no CONTEXT_LEDGER_MCP_TOKEN for the remote bridge" % path; sys.stderr.write(json.dumps({"ok":False,"error":{"code":"LEDGER_UNBOUND","retryable":False,"message":msg}})+"\n")'
+  exit 1
 fi
 
 exec "$PY" -u "$SCRIPT" "$@"

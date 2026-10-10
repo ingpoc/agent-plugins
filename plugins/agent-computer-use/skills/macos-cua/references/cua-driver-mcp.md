@@ -59,7 +59,7 @@ has no `target`. Do not code from hosted examples.
 | Empty Catalyst type is not accepted | `typed_text_is_proven` / `ax_incomplete_value` | Trusting `typed_path` / `ok` |
 | Session omitted on observe | `get_window_state` / MCP `state` | Injecting `MACOS_CUA_SESSION` on every RPC |
 | Pixel/desktop clicks stay sessionless | `runtime_pointer_actions` | Passing the glide session (mints cyan `auto-*`) |
-| Dest MCP uses absolute launcher, `cwd` `./` | `install_harness.py cursor-plugin` | Writing `~/.cursor/mcp.json` or dest `cwd` as an absolute path |
+| Cursor spawn is `.cursor-plugin/mcp.json` with `${CURSOR_PLUGIN_ROOT}` | package override | Inline marketplace mcpServers or `~/.cursor/mcp.json` |
 | TCC principal is signed `Cua Driver.app` (`com.trycua.driver`) | LaunchAgent + `check_permissions`. MCP `bin/agent-computer-use-mcp` is a Cursor-child Python facade only | Granting AX/Screen Recording to Cursor/Terminal or wrapping the facade as a second signed app |
 | 2-tool facade (state+act), no default screenshots, no `list_apps` | Community-validated; MCP `state` is `--compact --no-screenshot` | Growing toward 54/56 tools or always-on pixels |
 | Equal-weight live suite | `references/entry-contract.json` | Loosening a budget to force green |
@@ -100,7 +100,7 @@ has no `target`. Do not code from hosted examples.
 | Lift WhatsApp Open-sheet osascript into this plugin | Attach completion stays `$whatsapp` `attach-file` | A generic Open-panel owner is proven on more than WhatsApp |
 | Loosen suite budgets after one slow WhatsApp/pointer run | 18s WhatsApp and 47s pointer were cold/Catalyst flakes; reruns passed | A warm rerun still misses the budget |
 | Cursor dest `cwd` as an absolute dest path | Host then ignored dest `mcp.json` | Cursor spawn contract changes |
-| Plugin-relative `./bin` without dest rewrite | Cursor spawns `{workspace}/bin/…` (ENOENT) | Cursor resolves plugin `cwd` against the plugin root |
+| Root `./bin` without a `.cursor-plugin` override | Cursor spawns `{workspace}/bin/…` (ENOENT) | Cursor resolves `./` against the workspace |
 
 ## What to update when a feature actually lands
 
@@ -127,10 +127,6 @@ Agent catalog: **`state`**, **`act`** only. Do not re-add `start_session` /
 - Modern `tools/call` returns `content[].text` **and** `structuredContent` (same payload).
 - `bin/cua-driver-mcp` stays diagnostic-only (not the agent path).
 
-## Cursor host (workaround, not a Vehicle fix)
+## Cursor host
 
-`install_harness.py cursor-plugin` rsyncs
-`~/.cursor/plugins/local/agent-computer-use`, rewrites dest `command` to the
-absolute launcher, keeps dest `cwd` as `"./"`, and removes
-`agent-computer-use` from `~/.cursor/mcp.json`. Do not “fix” this by adding
-files to an application workspace.
+Cursor loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-computer-use-mcp`, cwd `${CURSOR_PLUGIN_ROOT}`). Root `mcp.json` stays `./bin/…` for spec clients. `install_harness.py cursor-plugin` only repairs pre-override cache copies (absolute launcher, `cwd` `./`) and removes `agent-computer-use` from `~/.cursor/mcp.json`.

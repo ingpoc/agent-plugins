@@ -7,7 +7,7 @@
       "args": [
         "serve"
       ],
-      "cwd": "${PLUGIN_ROOT}"
+      "cwd": "./"
     }
   }
 }

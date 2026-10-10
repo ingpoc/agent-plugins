@@ -32,7 +32,29 @@ class PluginPackageTests(unittest.TestCase):
         }
         self.assertEqual(extra, set())
         self.assertNotIn("logo", data)
-        self.assertFalse((PLUGIN_ROOT / ".cursor-plugin").exists())
+        cursor_plugin = json.loads((PLUGIN_ROOT / ".cursor-plugin/plugin.json").read_text())
+        self.assertEqual(
+            cursor_plugin,
+            {
+                "name": "agent-computer-use",
+                "version": data["version"],
+                "description": data["description"],
+                "mcpServers": "./.cursor-plugin/mcp.json",
+            },
+        )
+        cursor_mcp = json.loads((PLUGIN_ROOT / ".cursor-plugin/mcp.json").read_text())
+        self.assertEqual(
+            cursor_mcp,
+            {
+                "mcpServers": {
+                    "agent-computer-use": {
+                        "type": "stdio",
+                        "command": "${CURSOR_PLUGIN_ROOT}/bin/agent-computer-use-mcp",
+                        "cwd": "${CURSOR_PLUGIN_ROOT}",
+                    }
+                }
+            },
+        )
         self.assertFalse((PLUGIN_ROOT / ".codex-plugin").exists())
         self.assertTrue((PLUGIN_ROOT / "AGENTS.md").is_file())
         readme = (PLUGIN_ROOT / "README.md").read_text()

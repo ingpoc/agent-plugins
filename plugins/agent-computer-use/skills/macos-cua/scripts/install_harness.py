@@ -174,7 +174,7 @@ def main() -> int:
     parser.add_argument(
         "--rewrite-only",
         action="store_true",
-        help="Absolutize local+cache mcp.json without rsync (after marketplace refresh)",
+        help="Repair pre-override local+cache mcp.json (absolute launcher) without rsync",
     )
     args = parser.parse_args()
     payload = {

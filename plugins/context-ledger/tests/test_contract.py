@@ -108,6 +108,7 @@ class PackageTests(unittest.TestCase):
         if _collection_root() is not None:
             self.assertEqual(command, "./bin/context-ledger-mcp")
             self.assertTrue(launcher.is_file())
+            self.assertEqual(server.get("cwd"), "./")
         elif ".cursor" in ROOT.parts and Path(command).is_absolute():
             self.assertTrue(Path(command).is_file())
         else:
@@ -146,11 +147,151 @@ class PackageTests(unittest.TestCase):
             names = [p["name"] for p in data["plugins"]]
             self.assertIn("context-ledger", names, rel)
 
+    def test_cursor_package_override(self) -> None:
+        collection = _collection_root()
+        if collection is None:
+            self.skipTest("collection catalogs are not part of an installed package")
+        data = json.loads((collection / ".cursor-plugin/marketplace.json").read_text(encoding="utf-8"))
+        entry = next(plugin for plugin in data["plugins"] if plugin["name"] == "context-ledger")
+        self.assertNotIn("mcpServers", entry)
+        root_plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
+        override = json.loads((ROOT / ".cursor-plugin/plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            override,
+            {
+                "name": "context-ledger",
+                "version": root_plugin["version"],
+                "description": root_plugin["description"],
+                "mcpServers": "./.cursor-plugin/mcp.json",
+            },
+        )
+        cursor_mcp = json.loads((ROOT / ".cursor-plugin/mcp.json").read_text(encoding="utf-8"))
+        self.assertEqual(
+            cursor_mcp,
+            {
+                "mcpServers": {
+                    "context-ledger": {
+                        "type": "stdio",
+                        "command": "${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp",
+                        "args": ["serve"],
+                        "cwd": "${CURSOR_PLUGIN_ROOT}",
+                    }
+                }
+            },
+        )
+        portable = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["context-ledger"]
+        self.assertEqual(portable["command"], "./bin/context-ledger-mcp")
+        self.assertEqual(portable.get("cwd"), "./")
+        self.assertNotIn("${", portable["command"])
+
+    def test_relative_stdio_requires_cursor_override(self) -> None:
+        collection = _collection_root()
+        if collection is None:
+            self.skipTest("collection scripts/check.py is not part of an installed package")
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location(
+            "agent_plugins_collection_check",
+            collection / "scripts" / "check.py",
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        schema = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+        mcp_schema = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
+        axes = ("Reliability", "Robustness", "Context efficiency", "Speed", "Efficiency")
+
+        def build(directory: Path, override: str | None) -> Path:
+            root = directory / "demo"
+            root.mkdir()
+            (root / "plugin.json").write_text(
+                json.dumps(
+                    {
+                        "$schema": schema,
+                        "name": "demo",
+                        "version": "0.0.1",
+                        "description": "fixture",
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            skill = root / "skills" / "demo"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: demo\ndescription: fixture\n---\n\n", encoding="utf-8")
+            (root / "AGENTS.md").write_text("# demo\n", encoding="utf-8")
+            (root / "README.md").write_text(
+                "".join(f"### {axis}\n\nunmeasured\n\n" for axis in axes),
+                encoding="utf-8",
+            )
+            (root / "mcp.json").write_text(
+                json.dumps(
+                    {
+                        "$schema": mcp_schema,
+                        "mcpServers": {
+                            "demo": {"type": "stdio", "command": "./bin/x", "cwd": "./"}
+                        },
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            if override is None:
+                return root
+            dest = root / ".cursor-plugin"
+            dest.mkdir()
+            (dest / "plugin.json").write_text(
+                json.dumps(
+                    {
+                        "name": "demo",
+                        "version": "0.0.1",
+                        "description": "fixture",
+                        "mcpServers": "./.cursor-plugin/mcp.json",
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            command = "./bin/x" if override == "relative" else "${CURSOR_PLUGIN_ROOT}/bin/x"
+            (dest / "mcp.json").write_text(
+                json.dumps(
+                    {
+                        "mcpServers": {
+                            "demo": {
+                                "type": "stdio",
+                                "command": command,
+                                "cwd": "${CURSOR_PLUGIN_ROOT}",
+                            }
+                        }
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            return root
+
+        with tempfile.TemporaryDirectory() as tmp:
+            errors = module.validate_plugin(build(Path(tmp), None))
+        self.assertTrue(
+            any("Cursor resolves ./ against the workspace -> ENOENT" in error for error in errors),
+            errors,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            errors = module.validate_plugin(build(Path(tmp), "relative"))
+        self.assertTrue(errors, errors)
+        self.assertTrue(any("command must be" in error for error in errors), errors)
+        with tempfile.TemporaryDirectory() as tmp:
+            errors = module.validate_plugin(build(Path(tmp), "ok"))
+        self.assertEqual(errors, [])
+
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.10")
-        self.assertIn('__version__ = "0.1.10"', init)
+        self.assertEqual(plugin["version"], "0.1.14")
+        self.assertIn('__version__ = "0.1.14"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -793,6 +934,24 @@ class StoreTests(unittest.TestCase):
                 mcp=False,
             )
         self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+
+    def test_outcome_null_task_id_is_absent(self) -> None:
+        from context_ledger.contracts import validate_outcome
+
+        parsed = validate_outcome({"status": "pending", "note": "", "evidence": [], "task_id": None})
+        self.assertNotIn("task_id", parsed)
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="null task id"),
+                "outcome": _outcome("pending", task_id=None),
+            },
+            mcp=False,
+        )
+        got = self.store.get({"decision_id": rec["decision_id"]}, mcp=True)
+        self.assertNotIn("task_id", got["record"]["outcome"])
+        self.assertEqual(got["record"]["outcome"]["status"], "pending")
 
     def test_bind_replace(self) -> None:
         from context_ledger.store import bind_ledger
@@ -1842,6 +2001,277 @@ class McpTests(unittest.TestCase):
                 proc.stdout.close()
             if proc.stderr:
                 proc.stderr.close()
+
+
+class CursorDestTests(unittest.TestCase):
+    def test_doctor_rejects_relative_plugin_token_dest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dest = root / ".cursor/plugins/cache/other-market/context-ledger/deadbeef"
+            dest.mkdir(parents=True)
+            (dest / "mcp.json").write_text(
+                json.dumps(
+                    {
+                        "mcpServers": {
+                            "context-ledger": {
+                                "type": "stdio",
+                                "command": "./bin/context-ledger-mcp",
+                                "args": ["--data", "${PLUGIN_DATA}", "serve"],
+                                "cwd": "${PLUGIN_ROOT}",
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            data = root / "data"
+            data.mkdir()
+            proc = _run(
+                [sys.executable, str(BOOT), "--data", str(data), "doctor"],
+                env={"CONTEXT_LEDGER_CURSOR_HOME": str(root)},
+            )
+            self.assertEqual(proc.returncode, 2, proc.stderr)
+            payload = json.loads(proc.stderr)
+            self.assertFalse(payload["ok"])
+            self.assertEqual(payload["error"]["code"], "CURSOR_DEST")
+            issues = payload["error"]["dests"][0]["issues"]
+            self.assertIn("relative_command", issues)
+            self.assertIn("literal_plugin_token", issues)
+
+    def test_rewrite_discovers_cache_hash_and_clears_problems(self) -> None:
+        sys.path.insert(0, str(ROOT))
+        from context_ledger.cursor_dest import candidate_dests, cursor_dest_problems, rewrite_dest
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dest = root / ".cursor/plugins/cache/ingpoc-agent-plugins/context-ledger/abc123"
+            launcher = dest / "bin" / "context-ledger-mcp"
+            launcher.parent.mkdir(parents=True)
+            launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            launcher.chmod(0o644)
+            (dest / "mcp.json").write_text(
+                json.dumps(
+                    {
+                        "mcpServers": {
+                            "context-ledger": {
+                                "type": "stdio",
+                                "command": "./bin/context-ledger-mcp",
+                                "args": ["serve"],
+                                "cwd": "${PLUGIN_ROOT}",
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            found = candidate_dests(root)
+            self.assertEqual(found, [dest])
+            self.assertTrue(cursor_dest_problems([dest]))
+            data = root / "ledger-data"
+            result = rewrite_dest(dest, data_dir=data)
+            self.assertTrue(result["ok"], result)
+            server = json.loads((dest / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["context-ledger"]
+            self.assertEqual(server["command"], str(launcher.resolve()))
+            self.assertEqual(server["cwd"], "./")
+            self.assertEqual(server["args"], ["--data", str(data.resolve()), "serve"])
+            self.assertEqual(cursor_dest_problems([dest]), [])
+            self.assertTrue(os.access(launcher, os.X_OK))
+
+    def test_cursor_plugin_root_command_is_valid(self) -> None:
+        sys.path.insert(0, str(ROOT))
+        from context_ledger.cursor_dest import cursor_dest_problems, rewrite_dest
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dest = root / "dest"
+            launcher = dest / "bin" / "context-ledger-mcp"
+            launcher.parent.mkdir(parents=True)
+            launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            launcher.chmod(0o755)
+
+            def write(command: str, cwd: str) -> None:
+                (dest / "mcp.json").write_text(
+                    json.dumps(
+                        {
+                            "mcpServers": {
+                                "context-ledger": {
+                                    "type": "stdio",
+                                    "command": command,
+                                    "args": ["serve"],
+                                    "cwd": cwd,
+                                }
+                            }
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            write("${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp", "${CURSOR_PLUGIN_ROOT}")
+            self.assertEqual(cursor_dest_problems([dest]), [])
+            write("${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp", "./")
+            self.assertEqual(cursor_dest_problems([dest]), [])
+            write("./bin/context-ledger-mcp", "./")
+            self.assertIn("relative_command", cursor_dest_problems([dest])[0]["issues"])
+            write("${PLUGIN_ROOT}/bin/context-ledger-mcp", "${PLUGIN_ROOT}")
+            issues = cursor_dest_problems([dest])[0]["issues"]
+            self.assertIn("literal_plugin_token", issues)
+            self.assertIn("relative_command", issues)
+            write("${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp", "${PLUGIN_DATA}")
+            issues = cursor_dest_problems([dest])[0]["issues"]
+            self.assertIn("literal_plugin_token", issues)
+            self.assertIn("cwd", issues)
+            write("${CURSOR_PLUGIN_ROOT}/bin/other", "${CURSOR_PLUGIN_ROOT}")
+            self.assertIn("relative_command", cursor_dest_problems([dest])[0]["issues"])
+            write("${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp", "${CURSOR_PLUGIN_ROOT}")
+            result = rewrite_dest(dest, data_dir=root / "data")
+            self.assertTrue(result["ok"], result)
+            server = json.loads((dest / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["context-ledger"]
+            self.assertEqual(server["command"], str(launcher.resolve()))
+            self.assertEqual(server["cwd"], "./")
+            self.assertEqual(cursor_dest_problems([dest]), [])
+
+    def test_cursor_override_dest_and_legacy_rewrite(self) -> None:
+        sys.path.insert(0, str(ROOT))
+        from context_ledger.cursor_dest import cursor_dest_problems, rewrite_dest
+
+        def tree(dest: Path) -> dict:
+            snap = {}
+            for path in sorted(dest.rglob("*")):
+                if path.is_file():
+                    mode = stat.S_IMODE(path.stat().st_mode)
+                    snap[str(path.relative_to(dest))] = (path.read_bytes(), mode)
+            return snap
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dest = root / "override"
+            (dest / "bin").mkdir(parents=True)
+            launcher = dest / "bin" / "context-ledger-mcp"
+            launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            launcher.chmod(0o755)
+            (dest / "mcp.json").write_text(
+                json.dumps(
+                    {
+                        "mcpServers": {
+                            "context-ledger": {
+                                "type": "stdio",
+                                "command": "./bin/context-ledger-mcp",
+                                "args": ["serve"],
+                                "cwd": "./",
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            cursor = dest / ".cursor-plugin"
+            cursor.mkdir()
+            (cursor / "plugin.json").write_text(
+                json.dumps(
+                    {
+                        "name": "context-ledger",
+                        "version": "0.1.14",
+                        "mcpServers": "./.cursor-plugin/mcp.json",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (cursor / "mcp.json").write_text(
+                json.dumps(
+                    {
+                        "mcpServers": {
+                            "context-ledger": {
+                                "type": "stdio",
+                                "command": "${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp",
+                                "args": ["serve"],
+                                "cwd": "${CURSOR_PLUGIN_ROOT}",
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            before = tree(dest)
+            self.assertEqual(cursor_dest_problems([dest]), [])
+            result = rewrite_dest(dest, data_dir=root / "unused-data")
+            self.assertTrue(result["ok"], result)
+            self.assertEqual(result.get("mode"), "cursor_override")
+            self.assertEqual(tree(dest), before)
+            self.assertFalse((root / "unused-data").exists())
+
+            (cursor / "mcp.json").write_text(
+                json.dumps(
+                    {
+                        "mcpServers": {
+                            "context-ledger": {
+                                "type": "stdio",
+                                "command": "./bin/context-ledger-mcp",
+                                "args": ["serve"],
+                                "cwd": "${CURSOR_PLUGIN_ROOT}",
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            broken = tree(dest)
+            problems = cursor_dest_problems([dest])
+            self.assertIn("relative_command", problems[0]["issues"])
+            result = rewrite_dest(dest, data_dir=root / "unused-data")
+            self.assertFalse(result["ok"])
+            self.assertEqual(tree(dest), broken)
+
+            (cursor / "plugin.json").write_text(
+                json.dumps({"mcpServers": "./.cursor-plugin/missing.json"}),
+                encoding="utf-8",
+            )
+            problems = cursor_dest_problems([dest])
+            self.assertIn("override_missing", problems[0]["issues"])
+            missing = tree(dest)
+            result = rewrite_dest(dest, data_dir=root / "unused-data")
+            self.assertFalse(result["ok"])
+            self.assertEqual(tree(dest), missing)
+
+            legacy = root / "legacy"
+            legacy_launcher = legacy / "bin" / "context-ledger-mcp"
+            legacy_launcher.parent.mkdir(parents=True)
+            legacy_launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            legacy_launcher.chmod(0o644)
+            (legacy / "mcp.json").write_text(
+                json.dumps(
+                    {
+                        "mcpServers": {
+                            "context-ledger": {
+                                "type": "stdio",
+                                "command": "./bin/context-ledger-mcp",
+                                "args": ["serve"],
+                                "cwd": "./",
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            data = root / "ledger-data"
+            result = rewrite_dest(legacy, data_dir=data)
+            self.assertTrue(result["ok"], result)
+            self.assertNotIn("mode", result)
+            server = json.loads((legacy / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["context-ledger"]
+            self.assertEqual(server["command"], str(legacy_launcher.resolve()))
+            self.assertEqual(server["cwd"], "./")
+            self.assertEqual(server["args"], ["--data", str(data.resolve()), "serve"])
+            self.assertEqual(cursor_dest_problems([legacy]), [])
+
+    def test_tunnel_trap_initializes_fifo(self) -> None:
+        text = (ROOT / "scripts/remote/tunnel.sh").read_text(encoding="utf-8")
+        self.assertIn('FIFO=""', text)
+        self.assertIn("${FIFO:-}", text)
+        proc = subprocess.run(
+            ["sh", "-n", str(ROOT / "scripts/remote/tunnel.sh")],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
 
 
 if __name__ == "__main__":

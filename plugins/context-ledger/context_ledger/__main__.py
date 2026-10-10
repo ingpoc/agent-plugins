@@ -70,8 +70,17 @@ def _dispatch(plugin_data: Path, command: str, args: list[str]) -> int:
         from context_ledger.server import serve
 
         return serve(plugin_data)
+    if command == "serve-http":
+        from context_ledger.http_server import serve_http
+
+        return serve_http(plugin_data, args)
     store = Store(plugin_data, actor_channel="owner_cli")
     if command == "doctor":
+        from context_ledger.cursor_dest import cursor_dest_failure
+
+        failure = cursor_dest_failure()
+        if failure is not None:
+            return _print(failure)
         return _print(ok(store.doctor()))
     if command == "scope-add":
         return _print(ok(store.scope_add(_req(args, "--scope"))))
@@ -133,7 +142,7 @@ def main() -> int:
     if not argv or argv[0] in {"-h", "--help"}:
         sys.stderr.write(
             "usage: python -m context_ledger --data DIR "
-            "init|bind|serve|doctor|export|import|attest|purge|rebuild|migrate|"
+            "init|bind|serve|serve-http|doctor|export|import|attest|purge|rebuild|migrate|"
             "resume-maintenance|scope-add|ensure-global-triggers ...\n"
         )
         return 0

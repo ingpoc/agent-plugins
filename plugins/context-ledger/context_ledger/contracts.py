@@ -420,7 +420,8 @@ def validate_outcome(value: Any) -> dict[str, Any]:
         "note": require_str(obj["note"], 500, allow_empty=True),
         "evidence": validate_evidence_list(obj["evidence"]),
     }
-    if "task_id" in obj:
+    # Schema advertises task_id as string | null. JSON null is absent, not invalid.
+    if "task_id" in obj and obj["task_id"] is not None:
         result["task_id"] = require_uuid(obj["task_id"])
     return result
 

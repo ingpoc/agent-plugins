@@ -1,0 +1,6 @@
+{
+  "name": "context-ledger",
+  "version": "0.1.14",
+  "description": "Scoped, local decision traces with sparse capture and progressive retrieval.",
+  "mcpServers": "./.cursor-plugin/mcp.json"
+}
