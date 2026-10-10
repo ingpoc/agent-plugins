@@ -1081,8 +1081,9 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "CATransaction.setCompletionBlock" in overlay_src
         and "CVDisplayLinkSetOutputHandler" in overlay_src
         and "windowServerPlacement()" in confirm
-        and "kCGWindowIsOnscreen" in overlay_src,
-        "ack = CATransaction commit + display-link frame + WindowServer bounds/on-screen",
+        and "kCGWindowIsOnscreen" in overlay_src
+        and 'frame == "frame"' in overlay_src,
+        "ack = CATransaction commit + display-link frame (asleep display = miss) + WindowServer bounds/on-screen",
     )
     agents = (root.parents[1] / "AGENTS.md").read_text()
     add(

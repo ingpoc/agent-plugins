@@ -115,6 +115,14 @@ def cua_snapshot(pid, window_id=None, max_elements=80, *, include_screenshot=Fal
             shutil.copyfile(shot, out)
             shot = out
     width, height = _png_size(shot) if shot else (None, None)
+    elements = list(last.get("elements") or [])
+    tree = last.get("text") or ""
+    if not elements and not tree.strip() and not shot:
+        # Empty output is a failure, never an empty-but-ok observation.
+        return _cuaservice_error(
+            "CUAService returned an empty observation (no AX elements, no tree, no screenshot) "
+            f"after {max(0, int(retries)) + 1} attempt(s); retry with screenshot or check Accessibility",
+            pid=pid, window_id=last.get("windowId"))
     snap = {
         "ok": True,
         "engine": "CUAService",
@@ -125,8 +133,8 @@ def cua_snapshot(pid, window_id=None, max_elements=80, *, include_screenshot=Fal
         "requested_window_id": window_id,
         "window_title": last.get("windowTitle"),
         "window_frame": last.get("windowFrame"),
-        "tree_markdown": last.get("text") or "",
-        "elements": list(last.get("elements") or []),
+        "tree_markdown": tree,
+        "elements": elements,
         "element_count": int(last.get("elementCount") or 0),
         "ax_trusted": last.get("axTrusted"),
         "screenshot_file_path": shot,
@@ -237,14 +245,28 @@ def cua_set_value(pid, element_index, value):
     if result.get("error") or result.get("ok") is not True:
         return {**result, "element": index}
     after = cua_snapshot(pid, None, max(80, index + 1), retries=0)
+    if after.get("error") or after.get("ok") is not True:
+        return {**result, "ok": False, "accepted": False, "element": index,
+                "error": f"set_value readback failed: {after.get('error') or 'snapshot not ok'}"}
     target = next((e for e in after.get("elements") or [] if e.get("element_index") == index), None)
-    if target and target.get("role") in {"AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"}:
-        observed = str(target.get("value") or "")
-        if observed != str(value):
-            return {**result, "ok": False, "accepted": False, "element": index,
-                    "error": "set_value readback mismatch", "observed": observed[:200]}
-        result = {**result, "readback": "matched"}
-    return {**result, "element": index}
+    if target is None:
+        return {**result, "ok": False, "accepted": False, "element": index,
+                "error": f"set_value readback target missing: element {index} not in the fresh walk"}
+    observed = "" if target.get("value") is None else str(target.get("value"))
+    if not _readback_matches(observed, str(value)):
+        return {**result, "ok": False, "accepted": False, "element": index,
+                "error": "set_value readback mismatch", "role": target.get("role"),
+                "observed": observed[:200]}
+    return {**result, "readback": "matched", "element": index}
+
+
+def _readback_matches(observed, wanted):
+    if observed == wanted:
+        return True
+    try:  # sliders/steppers report numbers ("50" vs "50.0")
+        return float(observed) == float(wanted)
+    except ValueError:
+        return False
 
 
 def cua_type_text(pid, text, *, element_index=None, x=None, y=None):

@@ -51,8 +51,9 @@ final class CursorOverlay: @unchecked Sendable {
     /// Proof that the landed position was actually drawn, not just modeled:
     /// the position commit reached the render server (CATransaction
     /// completion after an explicit flush), a display-link frame fired after
-    /// that commit (or the display is asleep, so nothing can be presented),
-    /// and WindowServer reports the panel window on screen at the target.
+    /// that commit, and WindowServer reports the panel window on screen at the
+    /// target. An asleep display presents nothing, so it is a miss (reported
+    /// as frame "display_asleep" so the refusal hint can say why).
     struct Presentation {
         let committed: Bool
         /// "frame" (vsync after commit), "display_asleep", or "no_frame".
@@ -61,7 +62,7 @@ final class CursorOverlay: @unchecked Sendable {
         let wsOnscreen: Bool
 
         var ok: Bool {
-            committed && frame != "no_frame" && wsOnscreen
+            committed && frame == "frame" && wsOnscreen
                 && (wsErrorPt.map { $0 <= 0.5 } ?? false)
         }
 

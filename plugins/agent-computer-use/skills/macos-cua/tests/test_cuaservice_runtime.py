@@ -131,6 +131,32 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         self.assertFalse(macos_cua._accepted(bad))
         self.assertEqual(bad["error"], "set_value readback mismatch")
 
+    def test_empty_observation_is_an_error_not_ok(self):
+        empty = {"app": "TextEdit", "pid": 4242, "windowId": 77, "text": "", "elementCount": 0, "elements": []}
+        snap, client = self._run({"get_app_state": empty}, macos_cua.snapshot, 4242, 77, 30)
+        self.assertNotEqual(snap.get("ok"), True)
+        self.assertIn("empty observation", snap["error"])
+        self.assertGreater(len(client.calls), 1)  # retried before failing
+
+    def test_set_value_readback_error_or_missing_target_is_not_accepted(self):
+        err = Exception("RPC error -32000")
+        err.code, err.message = -32000, "walk failed"
+        replies = {"set_value": {"ok": True}, "get_app_state": err}
+        bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "x")
+        self.assertFalse(macos_cua._accepted(bad))
+        self.assertIn("readback failed", bad["error"])
+        state = _state(value="x")
+        state["elements"] = state["elements"][:1]
+        replies["get_app_state"] = state
+        bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "x")
+        self.assertFalse(macos_cua._accepted(bad))
+        self.assertIn("target missing", bad["error"])
+        slider = _state(value="50.0")
+        slider["elements"][1]["role"] = "AXSlider"
+        replies["get_app_state"] = slider
+        ok, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "50")
+        self.assertEqual(ok["readback"], "matched")
+
     def test_type_text_focuses_element_then_types(self):
         replies = {"click": {"ok": True, "method": "ax-press"}, "type_text": {"ok": True, "method": "ax-insert"}}
         res, client = self._run(replies, macos_cua.type_text, 4242, 77, 1, "abc")
