@@ -508,39 +508,19 @@ def click_at_desktop(
 
 
 def _cleanup_driver_cursors(*, include_named: bool = False) -> dict:
-    """Hide/end cua-driver agent cursors so only the signed Hermes overlay shows.
+    """cua-driver is retired, so there are no driver cursors/sessions to end.
 
-    Pixel/desktop clicks and interrupted proves leave cyan `auto-*` sessions
-    (default arrow, no custom icon). Ending without disable first can leave the
-    overlay painted for a frame; always disable, then end.
+    Per-action cleanup is a no-op (no socket round-trip). Closeout
+    (include_named) hides the CUAService overlay cursor over its socket.
     """
-    state = call_driver("get_agent_cursor_state", {})
-    ended: list[str] = []
-    for c in state.get("cursors", []) if isinstance(state, dict) else []:
-        cid = (c.get("config") or {}).get("cursor_id") or ""
-        if not cid:
-            continue
-        if not include_named and not cid.startswith("auto-"):
-            continue
-        call_driver(
-            "set_agent_cursor_enabled",
-            {"enabled": False, "session": cid},
-        )
-        call_driver("end_session", {"session": cid})
-        ended.append(cid)
-    # Avoid a redundant driver round-trip when state already proves there is
-    # no enabled cursor. A dirty/unknown state still fails safe by disabling.
-    global_enabled = state.get("enabled") if isinstance(state, dict) else None
-    if ended or global_enabled is not False or include_named:
-        call_driver("set_agent_cursor_enabled", {"enabled": False})
-    if include_named:
-        if CUA_SESSION not in ended:
-            call_driver(
-                "set_agent_cursor_enabled",
-                {"enabled": False, "session": CUA_SESSION},
-            )
-            call_driver("end_session", {"session": CUA_SESSION})
-    return {"ended": ended, "enabled": False}
+    if not include_named:
+        return {"ended": [], "enabled": False, "engine": "CUAService"}
+    client = _cuaservice_client()
+    try:
+        hidden = client.hide_agent_cursor() or {"ok": True}
+    finally:
+        client.close()
+    return {"ended": [], "enabled": False, "engine": "CUAService", "hidden": hidden}
 
 
 # Back-compat alias for older callers/tests.

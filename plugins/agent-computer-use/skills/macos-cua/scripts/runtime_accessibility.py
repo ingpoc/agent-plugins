@@ -94,8 +94,16 @@ def _verify_or_repair_native_select_all(pid):
     return _native_input().verify_or_repair_native_select_all(pid)
 
 
+_KEY_MODIFIERS = {"cmd", "shift", "option", "ctrl"}
+
+
 def press_key(pid, window_id, keys, delivery_mode="background"):
-    """Normalize a single key or combo before native/driver delivery."""
+    """Normalize a key/combo and deliver it through the CUAService socket.
+
+    cua-driver is retired: background and foreground both go to CUAService
+    press_key (it resolves and raises the app's window for input itself).
+    system_events stays the exact-PID osascript fallback.
+    """
     aliases = {
         "super": "cmd",
         "command": "cmd",
@@ -112,52 +120,61 @@ def press_key(pid, window_id, keys, delivery_mode="background"):
         keys = keys.strip()
     if delivery_mode == "system_events":
         return _system_events_press_key(pid, keys, aliases=aliases)
-    if delivery_mode == "foreground":
-        foreground = bring_resolved_window_to_front(pid, window_id)
-        if foreground.get("error"):
-            return foreground
-    if "+" in keys:
-        parts = [p.strip() for p in keys.split("+")]
-        normalized = [aliases.get(p.lower(), p.lower()) for p in parts]
-        if delivery_mode == "background" and normalized == ["cmd", "a"]:
-            native = _verify_or_repair_native_select_all(pid)
-            if _accepted(native):
-                return native
-        result = call_driver(
-            "hotkey",
-            {
-                "pid": pid,
-                "window_id": window_id,
-                "keys": normalized,
-                "delivery_mode": delivery_mode,
-            },
-        )
-    else:
-        result = call_driver(
-            "press_key",
-            {
-                "pid": pid,
-                "window_id": window_id,
-                "key": keys.lower(),
-                "delivery_mode": delivery_mode,
-            },
-        )
-    if driver_session_ended(result) or "global_input" in str(
-        result.get("route") or result.get("path") or ""
-    ).lower():
-        native = _native_input().press_key_after_dropped_session(
-            pid, keys, delivery_mode, aliases=aliases
-        )
+    parts = [aliases.get(p.strip().lower(), p.strip().lower()) for p in keys.split("+")]
+    if not all(parts) or any(p not in _KEY_MODIFIERS for p in parts[:-1]):
+        return {"ok": False, "error": f"unsupported key combo {keys!r}; modifiers: cmd, shift, option, ctrl"}
+    if delivery_mode == "background" and parts == ["cmd", "a"]:
+        native = _verify_or_repair_native_select_all(pid)
         if _accepted(native):
             return native
-    if delivery_mode == "background" and (
-        result.get("code") == "off_space_or_ax_unresolved"
-        or (result.get("escalation") or {}).get("recommended") == "foreground"
-    ):
-        retried = press_key(pid, window_id, keys, "foreground")
-        retried["escalated"] = "foreground"
-        return retried
-    return result
+    return _cuaservice_press_key(pid, "+".join(parts))
+
+
+def _cuaservice_press_key(pid, combo):
+    identity = _running_app_identity(f"pid:{pid}")
+    if not identity:
+        return {"ok": False, "error": f"no running app with pid {pid}", "engine": "CUAService"}
+    app = identity.get("bundle_id")
+    if not app:
+        # Swift falls back to fuzzy name matching; that cannot pin a pid.
+        return {
+            "ok": False,
+            "error": f"pid {pid} has no bundle id; CUAService cannot target it exactly. Use --system-events (exact-PID).",
+            "engine": "CUAService",
+        }
+    # CUAService resolves by bundle id/name (first match). Never let it pick a
+    # different instance than the pid the caller resolved.
+    twins = _pids_for_app(app)
+    if twins != [pid]:
+        return {
+            "ok": False,
+            "error": (
+                f"{app} has instances {twins}; CUAService press_key cannot target "
+                f"pid {pid} exactly. Use --system-events (exact-PID) instead."
+            ),
+            "engine": "CUAService",
+        }
+    client = _cuaservice_client()
+    try:
+        result = client.press_key(app, combo)
+    except Exception as exc:  # RPCError / socket failure: report, never swallow
+        return {"ok": False, "error": f"CUAService press_key failed: {exc}", "engine": "CUAService"}
+    finally:
+        client.close()
+    if not isinstance(result, dict):
+        return {"ok": False, "error": f"CUAService press_key returned {result!r}", "engine": "CUAService"}
+    return {**result, "app": app, "pid": pid, "engine": "CUAService"}
+
+
+def _pids_for_app(app):
+    """Sorted pids of running apps whose bundle id equals ``app``."""
+    from AppKit import NSWorkspace
+
+    return sorted(
+        int(a.processIdentifier())
+        for a in NSWorkspace.sharedWorkspace().runningApplications()
+        if str(a.bundleIdentifier() or "") == app
+    )
 
 
 def _system_events_press_key(pid, keys, *, aliases=None):

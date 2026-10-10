@@ -335,23 +335,25 @@ final class MethodRouter: @unchecked Sendable {
 
     // MARK: - Cursor sync (agent pointer follows every input surface)
 
+    /// Last tip landing (reported on click results as `cursor_landing`).
+    private var lastLanding: CursorOverlay.Landing?
+
     @MainActor
     private func syncCursorToPoint(
         _ point: CGPoint,
         windowID: CGWindowID,
         axBounds: CGRect?
     ) async throws -> CGPoint {
-        let tip = cursorOverlay.glideTo(
+        // Tip lands (confirmed: final frame acknowledged + measured origin)
+        // before any press. Unconfirmed → overlay hidden, press proceeds blind
+        // and the result says landed=false (dispatch ok is never proof).
+        let landing = await cursorOverlay.glideAndLand(
             screenPoint: point,
             windowID: windowID,
             axBounds: axBounds
         )
-        if tip.wait > 0 {
-            try await Task.sleep(
-                nanoseconds: UInt64((tip.wait * 1_000_000_000).rounded())
-            )
-        }
-        return tip.point
+        lastLanding = landing
+        return landing.point
     }
 
     @MainActor
@@ -502,6 +504,7 @@ final class MethodRouter: @unchecked Sendable {
             || method == "ax-set-value" || method == "cgevent-click"
             || method == "cgevent-click-pid" {
             var result = pressResult
+            result["cursor_landing"] = lastLanding?.dict as Any
             result["settled"] = [
                 "settled": true,
                 "elapsed_ms": 0,
@@ -525,6 +528,7 @@ final class MethodRouter: @unchecked Sendable {
         }
 
         var result = pressResult
+        result["cursor_landing"] = lastLanding?.dict as Any
         result["settled"] = settled.dict
         result["label"] = label as Any
         result["element_index"] = (target?.index ?? elementIndex) as Any

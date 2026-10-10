@@ -336,14 +336,16 @@ def _wait_for_operator_cursor(
 def glide_operator_to_element(
     app_name, pid, window_id, snap, idx, *, message="Moving"
 ):
-    """Publish the operator cursor to an AX element.  Fire-and-forget.
+    """Publish the operator cursor to an AX element and wait until it LANDS.
 
-    The overlay picks up the JSON write on its 50ms poll timer and runs
-    a ~120ms ease-out animation.  The caller fires the AX action
-    immediately after this returns — the cursor glide and the action
-    run concurrently, like Codex Computer Use (@oai/sky).
-
-    No ack polling.  No retry loop.  No sleep.  Publish success = ok.
+    Land = the signed operator acknowledges the final rendered position for
+    this update id (``cursor_rendered_update_id`` + exact normalized point,
+    written when its glide animation completes). Only then may the caller
+    fire the AX press, so the tip never glides while the press lands.
+    A timed-out acknowledgement is not a hit: hide the cursor, re-publish once,
+    re-wait; still unacknowledged → stay hidden and return ``ok: False`` /
+    ``landed: False`` (callers that soft-fall back press without a cursor).
+    Publish success alone proves nothing.
     """
     center = element_center(snap, idx)
     if not center:
@@ -366,27 +368,61 @@ def glide_operator_to_element(
     screen_x = screen_y = None
     if snap_window is None:
         screen_x, screen_y = center
-    published = operator_update(
-        app_name,
-        pid,
-        window_id,
-        status="acting",
-        active=True,
-        cursor_x=normalized["x"],
-        cursor_y=normalized["y"],
-        cursor_screen_x=screen_x,
-        cursor_screen_y=screen_y,
-        cursor_visible=True,
-        message=message,
-    )
+    land_timeout = float(os.environ.get("MACOS_CUA_CURSOR_LAND_TIMEOUT", "0.8"))
+
+    def _publish():
+        return operator_update(
+            app_name,
+            pid,
+            window_id,
+            status="acting",
+            active=True,
+            cursor_x=normalized["x"],
+            cursor_y=normalized["y"],
+            cursor_screen_x=screen_x,
+            cursor_screen_y=screen_y,
+            cursor_visible=True,
+            message=message,
+        )
+
+    def _land(published):
+        return _wait_for_operator_cursor(
+            normalized["x"],
+            normalized["y"],
+            update_id=(published.get("state") or {}).get("cursor_update_id"),
+            app_name=app_name,
+            pid=pid,
+            window_id=window_id,
+            timeout=land_timeout,
+        )
+
+    published = _publish()
     pub_ok = bool(published.get("ok"))
-    move = {"ok": pub_ok, "publish": published}
+    sync = _land(published) if pub_ok else {"ok": False, "error": "publish failed"}
+    retried = False
+    if pub_ok and not sync.get("ok"):
+        # Not a hit: hide, retry once.
+        operator_update(app_name, pid, window_id, status="acting", active=True,
+                        cursor_visible=False, message=message)
+        retried = True
+        published = _publish()
+        pub_ok = bool(published.get("ok"))
+        sync = _land(published) if pub_ok else {"ok": False, "error": "publish failed"}
+        if not sync.get("ok"):
+            operator_update(app_name, pid, window_id, status="acting", active=True,
+                            cursor_visible=False, message=message)
+    landed = bool(pub_ok and sync.get("ok"))
+    move = {"ok": landed, "publish": published, "sync": sync, "retried": retried}
     return {
-        "ok": pub_ok,
+        "ok": landed,
+        "landed": landed,
         "move": move,
         "cursor_normalized": normalized,
         "coords": {"x": center[0], "y": center[1]},
-        "error": None if pub_ok else "operator cursor publish failed",
+        "error": None if landed else (
+            "operator cursor publish failed" if not pub_ok
+            else "operator cursor did not land (hidden; not a hit)"
+        ),
     }
 
 
