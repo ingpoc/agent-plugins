@@ -25,23 +25,8 @@ def type_text(
                 "use set_value for multiline content or explicitly allow the newline"
             ),
         }
-    if x is None and y is None:
-        native = _native_type_selected_text(
-            pid, text, window_id=window_id, element_index=element_index
-        )
-        if _accepted(native):
-            return native
-    params = {
-        "pid": pid,
-        "window_id": window_id,
-        "text": text,
-        "delivery_mode": delivery_mode,
-    }
-    if element_index is not None:
-        params["element_index"] = element_index
-    elif x is not None and y is not None:
-        params.update(x=float(x), y=float(y))
-    return call_driver("type_text", params)
+    return cua_type_text(pid, text, element_index=element_index, x=x, y=y)
+
 
 def _native_type_selected_text(pid, text, *, window_id=None, element_index=None):
     try:
@@ -216,56 +201,13 @@ def scroll(
     y=None,
     delivery_mode="background",
 ):
-    if element_index is not None and by == "page":
-        native = _native_ax_snapshot(
-            pid, max_elements=max(120, int(element_index) + 1), window_id=window_id
-        )
-        native_result = _native_input().scroll_page(native, element_index, direction)
-        if _accepted(native_result):
-            return native_result
-    params = {
-        "pid": pid,
-        "window_id": window_id,
-        "direction": direction,
-        "amount": amount,
-        "by": by,
-        "delivery_mode": delivery_mode,
-    }
-    if element_index is not None:
-        params["element_index"] = element_index
-    elif x is not None and y is not None:
-        params.update(x=float(x), y=float(y))
-    result = call_driver("scroll", params)
-    if (
-        driver_session_ended(result)
-        or "global_input" in str(result.get("route") or result.get("path") or "").lower()
-        or (result.get("code") == "px_capture_unavailable" and by == "page")
-    ):
-        native = _native_input().page_key_scroll(
-            _post_key_event, pid, direction, amount
-        )
-        if _accepted(native):
-            return {**native, "session_recovered": True}
-    return result
+    return cua_scroll(
+        pid, direction, amount, by=by, element_index=element_index, x=x, y=y
+    )
 
 
 def set_value(pid, window_id, element_index, value):
-    native = _native_ax_snapshot(
-        pid, max_elements=max(120, int(element_index) + 1), window_id=window_id
-    )
-    if not snapshot_content_error(native):
-        result = _native_ax_set_value(native, element_index, value)
-        if _accepted(result):
-            return result
-    return _native_input().set_value_with_readback(
-        call_driver=call_driver,
-        snapshot=snapshot,
-        accepted=_accepted,
-        pid=pid,
-        window_id=window_id,
-        element_index=element_index,
-        value=value,
-    )
+    return cua_set_value(pid, element_index, value)
 
 
 def _selection_range(value, text, *, prefix=None, suffix=None, selection_type="text"):

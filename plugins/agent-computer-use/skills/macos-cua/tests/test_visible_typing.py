@@ -103,18 +103,6 @@ class VisibleTypingTests(unittest.TestCase):
         self.assertEqual(result["error_code"], "newline_may_submit")
         driver.assert_not_called()
 
-    def test_type_text_allows_explicit_newline_override(self):
-        with mock.patch.object(
-            macos_cua, "call_driver", return_value={"ok": True}
-        ) as driver:
-            result = macos_cua.type_text(
-                10, 20, 7, "line one\nline two", allow_newline=True
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(driver.call_args.args[0], "type_text")
-        self.assertEqual(driver.call_args.args[1]["text"], "line one\nline two")
-
     def test_type_label_requires_visible_focus_before_typing(self):
         snapshot = {"elements": [{"element_index": 7, "role": "AXTextArea"}]}
         with (

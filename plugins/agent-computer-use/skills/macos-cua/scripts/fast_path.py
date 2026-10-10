@@ -420,9 +420,10 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "mcp_runtime must not spawn macos-cua.py per state/act",
     )
     add(
-        "start_session clears resolution cache",
-        "clear_resolution_cache" in _function_source(runtime, "start_driver"),
-        "start_driver must drop stale app PIDs before resolve",
+        "MCP runtime has no driver sessions",
+        "start_session" not in runtime and "end_session" not in runtime
+        and "cuaservice_health" in _function_source(runtime, "closeout"),
+        "cua-driver sessions are retired; closeout health is CUAService",
     )
     walk = (scripts / "runtime_accessibility.py").read_text()
     add(
@@ -443,11 +444,26 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "_cuaservice_press_key" in press and "call_driver" not in press,
         "macos-cua key must use CUAService press_key, never the retired cua-driver",
     )
+    routed = {
+        "runtime_accessibility.py": ("scroll", "set_value", "type_text"),
+        "runtime_labels.py": ("click",),
+        "runtime_pointer.py": ("right_click",),
+        "runtime_pointer_actions.py": ("drag",),
+        "runtime_snapshot.py": ("snapshot",),
+        "runtime_capture.py": ("app_state",),
+        "runtime_apps.py": ("list_apps",),
+    }
+    stray = [
+        f"{name}:{fn}"
+        for name, fns in routed.items()
+        for fn in fns
+        if "cua_" not in _function_source((scripts / name).read_text(), f"{fn}(")
+        or "call_driver" in _function_source((scripts / name).read_text(), f"{fn}(")
+    ]
     add(
-        "page scroll survives global_input after a dropped session",
-        "global_input" in _function_source(walk, "scroll")
-        and "page_key_scroll" in _function_source(walk, "scroll"),
-        "scroll must not accept unverifiable global_input as the outcome",
+        "observation and index input share the CUAService index space",
+        not stray,
+        ",".join(stray) or "snap/state/click/scroll/type/set-value/drag/right-click/apps use CUAService",
     )
     labels = (scripts / "runtime_labels.py").read_text()
     add(
@@ -1046,6 +1062,27 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "dump-docs" not in validator
         and "operator_build" not in validator,
         "validation must not restore cua-driver or build macos-cua Operator",
+    )
+    router_src = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
+    overlay_src = (root / "service" / "Sources" / "CUAService" / "CursorOverlay.swift").read_text()
+    gate = router_src.split("private func requireLanded", 1)[-1].split("\n    }\n", 1)[0]
+    add(
+        "unlanded tip refuses the press unless the caller opted in",
+        "if gate { try requireLanded(landing) }" in router_src
+        and "if landing.landed || allowUnlanded { return }" in gate
+        and "throw RPCMethodError" in gate
+        and router_src.count("gate: false") == 2,  # observe-raise + drag end only
+        "a failed landing must not click; allow_unlanded is the only blind-press opt-in",
+    )
+    confirm = overlay_src.split("private func confirmPresented", 1)[-1].split("private func commitToRenderServer", 1)[0]
+    add(
+        "landing ack is a drawn frame, not the model position",
+        "await confirmPresented()" in overlay_src.split("func glideAndLand", 1)[-1]
+        and "CATransaction.setCompletionBlock" in overlay_src
+        and "CVDisplayLinkSetOutputHandler" in overlay_src
+        and "windowServerPlacement()" in confirm
+        and "kCGWindowIsOnscreen" in overlay_src,
+        "ack = CATransaction commit + display-link frame + WindowServer bounds/on-screen",
     )
     agents = (root.parents[1] / "AGENTS.md").read_text()
     add(

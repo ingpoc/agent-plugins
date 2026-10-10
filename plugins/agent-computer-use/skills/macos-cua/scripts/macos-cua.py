@@ -95,6 +95,7 @@ _RUNTIME_FILES = (
     "runtime_pointer.py",
     "runtime_pointer_actions.py",
     "runtime_accessibility.py",
+    "runtime_cuaservice.py",
     "runtime_plan.py",
     "runtime_cli.py",
 )

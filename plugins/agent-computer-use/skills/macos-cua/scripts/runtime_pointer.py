@@ -455,48 +455,7 @@ def merge_pointer_proof(result, preflight):
 
 
 def right_click(pid, window_id, element_index, *, app_name=None, snapshot_data=None):
-    native = snapshot_data or _native_ax_snapshot(
-        pid, max_elements=max(120, int(element_index) + 1), window_id=window_id
-    )
-    pre = pointer_preflight(
-        True, app_name, pid, window_id, native, element_index, "Right-click"
-    )
-    if pre and not pre.get("ok"):
-        return pre
-    if not snapshot_content_error(native):
-        result = perform_action(
-            pid, window_id, element_index, "showmenu", snapshot_data=native
-        )
-        if _accepted(result):
-            return merge_pointer_proof(result, pre)
-        target = next(
-            (
-                item
-                for item in native.get("elements", [])
-                if item.get("element_index") == element_index
-            ),
-            None,
-        )
-        frame = (target or {}).get("frame") or {}
-        window, _ = _exact_ax_window_frame(pid, window_id)
-        if frame and window:
-            return merge_pointer_proof(
-                call_driver(
-                    "right_click",
-                    {
-                        "pid": pid,
-                        "window_id": window_id,
-                        "x": float(frame["x"] + frame["w"] / 2 - window["x"]),
-                        "y": float(frame["y"] + frame["h"] / 2 - window["y"]),
-                        "delivery_mode": "background",
-                    },
-                ),
-                pre,
-            )
-    return merge_pointer_proof(
-        call_driver(
-            "right_click",
-            {"pid": pid, "window_id": window_id, "element_index": element_index},
-        ),
-        pre,
-    )
+    """AXShowMenu on the CUAService element (same index space as snap/state)."""
+    return cua_right_click(pid, element_index)
+
+

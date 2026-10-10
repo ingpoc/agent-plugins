@@ -59,15 +59,6 @@ class SessionRuntime:
     def telemetry_read(self) -> dict[str, float | int]:
         return self.cua.telemetry_read()
 
-    def start_driver(self, session: str) -> dict[str, Any]:
-        os.environ["MACOS_CUA_SESSION"] = session
-        self.cua.CUA_SESSION = session
-        self.cua.clear_resolution_cache()
-        return self.cua.call_driver("start_session", {"session": session}, timeout=8)
-
-    def end_driver(self, session: str) -> dict[str, Any]:
-        return self.cua.call_driver("end_session", {"session": session}, timeout=8)
-
     def ensure_operator(self) -> dict[str, Any]:
         return self.cua._operator_ui().ensure()
 
@@ -78,15 +69,16 @@ class SessionRuntime:
         operator = cua.operator_update(
             status="idle", active=False, message="No controlled app"
         )
-        daemon = cua.call_driver("check_permissions", {"prompt": False}, timeout=5)
-        daemon_ready = "error" not in daemon and daemon.get("ok") is not False
+        service = cua.cuaservice_health()
+        ready = service.get("ok") is True
         return {
-            "success": daemon_ready,
+            "success": ready,
             "cleared_cache": True,
             "cleared_entries": cleared,
             "ended_cursor_sessions": len(cleanup.get("ended") or []),
             "operator": operator,
-            "daemon_ready": daemon_ready,
+            "daemon_ready": ready,
+            "cuaservice": service,
         }
 
     def _resolve(
