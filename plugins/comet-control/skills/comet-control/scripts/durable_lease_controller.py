@@ -794,6 +794,7 @@ def cmd_send(args: argparse.Namespace) -> int:
                         time.sleep(0.02)
                         continue
                     result = wrapped.get("result", wrapped)
+                    _append_calls(workdir, seq, result)
                     text = json.dumps(result, ensure_ascii=False)
                     print(text if text.endswith("\n") else text + "\n", end="")
                     return 0
@@ -806,6 +807,43 @@ def cmd_send(args: argparse.Namespace) -> int:
             )
         finally:
             fcntl.flock(lock_fh.fileno(), fcntl.LOCK_UN)
+
+
+def _run_calls(result: object) -> dict | None:
+    """telemetry.calls from a run reply (success) or its failure_record (failure)."""
+    if not isinstance(result, dict):
+        return None
+    resp = result.get("response") if isinstance(result.get("response"), dict) else result
+    calls = (resp.get("telemetry") or {}).get("calls") or (resp.get("failure_record") or {}).get("calls")
+    return calls if isinstance(calls, dict) else None
+
+
+def _append_calls(workdir: Path, seq: int, result: object) -> None:
+    calls = _run_calls(result)
+    if calls is None:
+        return
+    row = {"seq": seq, "cdp": int(calls.get("cdp_total") or 0), "scripting": int(calls.get("scripting") or 0),
+           "messages": int(calls.get("messages") or 0), "cdp_methods": calls.get("cdp") or {},
+           "counter_installed": calls.get("counter_installed")}
+    with (workdir / "calls.jsonl").open("a") as fh:
+        fh.write(json.dumps(row) + "\n")
+
+
+def _calls_total(workdir: Path) -> dict | None:
+    path = workdir / "calls.jsonl"
+    if not path.exists():
+        return None
+    total = {"runs": 0, "cdp": 0, "scripting": 0, "messages": 0}
+    for line in path.read_text().splitlines():
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        total["runs"] += 1
+        for key in ("cdp", "scripting", "messages"):
+            total[key] += int(row.get(key) or 0)
+    total["all"] = total["cdp"] + total["scripting"] + total["messages"]
+    return total
 
 
 def cmd_status(args: argparse.Namespace) -> int:
@@ -858,6 +896,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         "restored_at": (ready or {}).get("restored_at"),
         "idle_gap_s": (ready or {}).get("idle_gap_s"),
         "last_response_event": last_event,
+        "calls": _calls_total(workdir),
         "workdir": str(workdir),
     }
     if not payload["ok"]:
