@@ -30,12 +30,12 @@ final class CursorOverlay: @unchecked Sendable {
     // MARK: Idle auto-hide state
     /// UserDefaults key persisting `cursor configure --idle-hide-ms`.
     static let idleHideDefaultsKey = "cursorIdleHideMs"
-    /// Hide after this long with no action (0 = never auto-hide).
-    static let defaultIdleHideMs = 1500
+    /// Crash-safety net only: the cursor stays visible for the whole task and
+    /// is hidden explicitly at task end (`cursor hide`, execute_plan end).
+    /// Auto-hide after this long with no action (0 = never auto-hide).
+    static let defaultIdleHideMs = 120_000
     /// Upper bound accepted by configure (10 min).
     static let maxIdleHideMs = 600_000
-    /// Minimum visible time after an action ends so the click itself is seen.
-    static let postActionLingerMs = 600
     private(set) var idleHideMs: Int
     /// >0 while an RPC action (glide + press) is in flight: never hide then.
     private var activeActions = 0
@@ -216,10 +216,9 @@ final class CursorOverlay: @unchecked Sendable {
         if activeActions == 0 { scheduleIdleHide() }
     }
 
-    /// Effective delay: the idle timeout, never shorter than the post-click
-    /// linger. nil = auto-hide off.
+    /// Effective safety-net delay. nil = auto-hide off.
     var effectiveHideMs: Int? {
-        idleHideMs > 0 ? max(idleHideMs, Self.postActionLingerMs) : nil
+        idleHideMs > 0 ? idleHideMs : nil
     }
 
     private func scheduleIdleHide() {
@@ -266,7 +265,6 @@ final class CursorOverlay: @unchecked Sendable {
             "ws_onscreen": ws.onscreen,
             "idle_hide_ms": idleHideMs,
             "auto_hide": idleHideMs > 0,
-            "post_action_linger_ms": Self.postActionLingerMs,
             "effective_hide_ms": effectiveHideMs as Any,
             "active_actions": activeActions,
             "hide_pending": hideDeadline != nil,

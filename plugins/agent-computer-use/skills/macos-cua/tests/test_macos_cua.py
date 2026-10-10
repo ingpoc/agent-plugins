@@ -63,6 +63,8 @@ workflow = importlib.util.module_from_spec(WORKFLOW_SPEC)
 WORKFLOW_SPEC.loader.exec_module(workflow)
 
 _ORIGINAL_RESTART = macos_cua._restart_driver_daemon
+_ORIGINAL_HIDE_TASK_CURSOR = macos_cua._hide_task_cursor
+_HIDE_GUARD = None
 
 
 def setUpModule():
@@ -76,11 +78,16 @@ def setUpModule():
         macos_cua, "_restart_driver_daemon", return_value=False
     )
     _RESTART_GUARD.start()
+    global _HIDE_GUARD  # run_actions hides the live cursor at plan end: never in unit tests
+    _HIDE_GUARD = mock.patch.object(macos_cua, "_hide_task_cursor", return_value={"ok": True})
+    _HIDE_GUARD.start()
 
 
 def tearDownModule():
     if _RESTART_GUARD is not None:
         _RESTART_GUARD.stop()
+    if _HIDE_GUARD is not None:
+        _HIDE_GUARD.stop()
     path = os.environ.get("MACOS_CUA_DRIVER_SOCKET")
     if _PREV_SOCKET_PATH is None:
         os.environ.pop("MACOS_CUA_DRIVER_SOCKET", None)
@@ -2285,7 +2292,7 @@ class CursorProofTests(unittest.TestCase):
     def test_native_cursor_configure_never_calls_cua_driver(self):
         """Legacy cua-driver set_agent_cursor_style/motion (300ms) is gone."""
         client = mock.Mock()
-        client.cursor_status.return_value = {"ok": True, "visible": False, "idle_hide_ms": 1500}
+        client.cursor_status.return_value = {"ok": True, "visible": False, "idle_hide_ms": 120000}
         with (
             mock.patch.object(
                 macos_cua, "cursor_raster_path", return_value="/tmp/hermes-pointer.png"
@@ -2308,13 +2315,13 @@ class CursorProofTests(unittest.TestCase):
     def test_cursor_status_reports_live_idle_hide_and_visibility(self):
         client = mock.Mock()
         client.cursor_status.return_value = {
-            "ok": True, "visible": False, "idle_hide_ms": 1500, "auto_hide": True,
-            "post_action_linger_ms": 600, "effective_hide_ms": 1500, "hide_pending": False,
+            "ok": True, "visible": False, "idle_hide_ms": 120000, "auto_hide": True,
+            "effective_hide_ms": 120000, "hide_pending": False,
         }
         with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
             status = macos_cua.cursor("status")
         self.assertTrue(status["ok"])
-        self.assertEqual(status["overlay"]["idle_hide_ms"], 1500)
+        self.assertEqual(status["overlay"]["idle_hide_ms"], 120000)
         self.assertIs(status["overlay"]["visible"], False)
         self.assertNotIn("ok", status["overlay"])
         client.configure_cursor.assert_not_called()
@@ -2355,20 +2362,53 @@ class CursorProofTests(unittest.TestCase):
         self.assertIsNone(parser.parse_args(["cursor", "status"]).idle_hide_ms)
 
     def test_cursor_overlay_idle_hide_never_races_a_press(self):
-        """Source guard: the idle countdown starts only after the whole RPC
-        (glide + landing gate + press) returned; new moves cancel it."""
+        """Source guard: the cursor stays visible for the whole task; idle hide
+        is a 120 s crash-safety net that starts only after the whole RPC
+        returned; new moves cancel it; execute_plan hides at plan end."""
         svc = Path(__file__).parents[1] / "service" / "Sources" / "CUAService"
         overlay = (svc / "CursorOverlay.swift").read_text()
         router = (svc / "MethodRouter.swift").read_text()
-        self.assertIn("static let defaultIdleHideMs = 1500", overlay)
-        self.assertIn("static let postActionLingerMs = 600", overlay)
+        self.assertIn("static let defaultIdleHideMs = 120_000", overlay)
+        self.assertNotIn("postActionLingerMs", overlay)
+        self.assertIn("idleHideMs > 0 ? idleHideMs : nil", overlay)
         self.assertIn("gen == self.hideGeneration, self.activeActions == 0", overlay)
         glide = overlay.split("func glideTo(", 1)[1].split("func hide(", 1)[0]
         self.assertIn("cancelPendingHide()", glide)
         self.assertIn("cursorOverlay.beginAction(request.method)", router)
         self.assertIn("defer { if isAction { cursorOverlay.endAction(request.method) } }", router)
         plan = router.split("func handleExecutePlan(", 1)[1].split("guard let app", 1)[0]
-        self.assertNotIn("cursorOverlay.hide()", plan)
+        self.assertIn('defer { cursorOverlay.hide(reason: "plan_end") }', plan)
+
+    def test_run_actions_hides_cursor_when_plan_ends_success_or_failure(self):
+        plan = {"allow_unverified": True, "capture": "never", "settle_ms": 0,
+                "actions": [{"action": "wait", "seconds": 0}]}
+        for raised in (False, True):
+            with self.subTest(raised=raised), \
+                    mock.patch.object(macos_cua, "operator_update"), \
+                    mock.patch.object(macos_cua, "_plan_snapshot", return_value={"elements": []}), \
+                    mock.patch.object(macos_cua, "_hide_task_cursor",
+                                      return_value={"ok": True}) as hide:
+                if raised:
+                    with mock.patch.object(macos_cua, "_run_actions",
+                                           side_effect=RuntimeError("boom")):
+                        with self.assertRaises(RuntimeError):
+                            macos_cua.run_actions(1, 2, plan, app_name="Fixture")
+                else:
+                    result = macos_cua.run_actions(1, 2, plan, app_name="Fixture")
+                    self.assertIs(result["cursor_hidden"], True)
+                hide.assert_called_once()
+
+    def test_hide_task_cursor_reports_failure_without_raising(self):
+        client = mock.Mock()
+        client.hide_agent_cursor.return_value = {"ok": True}
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+            self.assertEqual(_ORIGINAL_HIDE_TASK_CURSOR(), {"ok": True})
+        client.close.assert_called_once()
+        with mock.patch.object(macos_cua, "_cuaservice_client",
+                               side_effect=ConnectionError("no socket")):
+            down = _ORIGINAL_HIDE_TASK_CURSOR()
+        self.assertFalse(down["ok"])
+        self.assertIn("cursor hide failed", down["error"])
 
     def test_cursor_hide_routes_to_cuaservice_and_move_is_refused(self):
         client = mock.Mock()

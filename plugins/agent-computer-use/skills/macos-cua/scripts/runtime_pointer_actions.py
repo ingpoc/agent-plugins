@@ -293,6 +293,15 @@ def _cleanup_driver_cursors(*, include_named: bool = False) -> dict:
     return {"ended": [], "enabled": False, "engine": "CUAService", "hidden": hidden}
 
 
+def _hide_task_cursor() -> dict:
+    """Task end: hide the CUAService agent cursor. Never masks the plan result."""
+    try:
+        hidden = _cleanup_driver_cursors(include_named=True).get("hidden")
+        return hidden if isinstance(hidden, dict) else {"ok": True}
+    except Exception as exc:  # report, do not raise over the plan outcome
+        return {"ok": False, "error": f"cursor hide failed: {exc}"}
+
+
 # Back-compat alias for older callers/tests.
 def _cleanup_auto_cursors():
     return _cleanup_driver_cursors()

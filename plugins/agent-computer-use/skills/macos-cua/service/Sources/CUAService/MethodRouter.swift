@@ -162,8 +162,9 @@ final class MethodRouter: @unchecked Sendable {
 
     @MainActor
     private func handleExecutePlan(_ req: JSONRPCRequest) async throws -> Any {
-        // No hide here: the plan is one action; the idle countdown starts when
-        // it returns (post-click linger keeps the last press visible).
+        // A plan is a whole task: the cursor stays visible across its steps
+        // and hides when the plan ends, success or failure.
+        defer { cursorOverlay.hide(reason: "plan_end") }
         guard let app: String = req.param("app"),
               let steps: [Any] = req.param("steps"),
               !steps.isEmpty, steps.count <= 50

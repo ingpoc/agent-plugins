@@ -376,7 +376,7 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
     p.add_argument("--y", type=float)
     p.add_argument(
         "--idle-hide-ms", type=int, dest="idle_hide_ms",
-        help="configure: hide the agent cursor after N ms with no action (0 = never; default 1500)",
+        help="configure: hide the agent cursor after N ms with no action (crash-safety net; 0 = never; default 120000)",
     )
     p.add_argument("--session", default=cua_session)
 

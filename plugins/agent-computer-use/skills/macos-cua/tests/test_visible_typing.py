@@ -17,6 +17,16 @@ NATIVE_INPUT_SPEC = importlib.util.spec_from_file_location(
 native_input = importlib.util.module_from_spec(NATIVE_INPUT_SPEC)
 NATIVE_INPUT_SPEC.loader.exec_module(native_input)
 
+_HIDE_GUARD = mock.patch.object(macos_cua, "_hide_task_cursor", return_value={"ok": True})
+
+
+def setUpModule():  # run_actions hides the live cursor at plan end: never in unit tests
+    _HIDE_GUARD.start()
+
+
+def tearDownModule():
+    _HIDE_GUARD.stop()
+
 
 class VisibleTypingTests(unittest.TestCase):
     def test_slider_drag_rejects_source_above_accessibility_frame(self):

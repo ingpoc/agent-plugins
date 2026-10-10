@@ -609,9 +609,9 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     add(
         "native plans always hide the agent cursor",
         "private func handleExecutePlan" in method_router
-        and "defer { if isAction { cursorOverlay.endAction(request.method) } }" in method_router
+        and "defer { cursorOverlay.hide(reason: \"plan_end\") }" in method_router
         and "self.hide(reason: \"idle\")" in cursor_overlay,
-        "the overlay must close (idle auto-hide after the post-click linger) after every completed or failed act",
+        "the overlay must close when every completed or failed plan ends (idle hide = crash-safety net only)",
     )
     add(
         "session-shape benchmark encodes two wall clocks",
