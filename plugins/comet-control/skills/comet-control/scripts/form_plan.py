@@ -187,8 +187,8 @@ def compile_comet(
         f = by_id[s.field_id]
         loc = {"by": "label", "label": f.label}
         if s.op == FILL:
-            # No expect.value: page_context caps inputs (8 compact), so later fields false-fail.
-            # The locator fill result echoes element.value; `checks` compares it after the send.
+            # No per-fill expect.value (one round trip per field); the locator fill result
+            # echoes element.value and `checks` compares it after the send.
             checks.append({"action_index": len(actions), "field": f.id, "value": s.value})
             actions.append({"type": "locator", "locator": loc, "operation": "fill", "value": s.value})
         elif s.op == CHECK and f.kind == "select":

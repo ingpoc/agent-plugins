@@ -1451,6 +1451,28 @@
     const linkCap = compact ? 20 : 35;
     const btnCap = compact ? 10 : 15;
     const inputCap = compact ? 8 : 10;
+    // expect.value evidence (internal, never echoed to the agent): a bounded but
+    // complete-enough field list, and the targeted field read directly, so a
+    // value past the 8th visible input is not a false EXPECT_UNVERIFIED.
+    const boundedInt = (v, lo, hi, dflt) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.floor(n))) : dflt;
+    };
+    const effInputCap = options.input_cap != null ? boundedInt(options.input_cap, 1, 200, inputCap) : inputCap;
+    const inputValueCap = options.input_value_chars != null
+      ? boundedInt(options.input_value_chars, 1, 500, compact ? 40 : 60)
+      : (compact ? 40 : 60);
+    let fieldEntry;
+    if (options.field != null) {
+      try {
+        const el = document.querySelector(String(options.field));
+        fieldEntry = el
+          ? { found: true, value: String(el.value ?? el.textContent ?? '').slice(0, inputValueCap) }
+          : { found: false };
+      } catch (error) {
+        fieldEntry = { found: false, error: String(error?.message || error).slice(0, 120) };
+      }
+    }
 
     function labelOf(el) {
       return _accessibleName(el).slice(0, textCap);
@@ -1551,9 +1573,10 @@
         .map(el => ({
           name: (el.name || el.id || el.getAttribute('aria-label') || el.placeholder || '').slice(0, textCap),
           type: el.type || el.tagName.toLowerCase(),
-          value: String(el.value || '').slice(0, compact ? 40 : 60),
+          value: String(el.value || '').slice(0, inputValueCap),
         }))
-        .filter(x => x.name).slice(0, inputCap) } : {}),
+        .filter(x => x.name).slice(0, effInputCap) } : {}),
+      ...(fieldEntry ? { field: fieldEntry } : {}),
       ...(compact ? { compact: true } : {}),
     };
   }
