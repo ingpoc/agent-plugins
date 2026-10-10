@@ -1710,7 +1710,7 @@ function element(seq) {
         cursor = CURSOR_AGENT.read_text()
         worker = SERVICE_WORKER.read_text()
         assert_packaged_version(self)
-        self.assertEqual(json.loads(PLUGIN_JSON.read_text())["version"], "0.1.13")
+        self.assertEqual(json.loads(PLUGIN_JSON.read_text())["version"], "0.1.14")
 
         miss = worker.split("function isLocatorMissError(error) {", 1)[1].split(
             "function isContentScriptTimeoutError", 1
