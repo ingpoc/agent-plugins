@@ -123,7 +123,7 @@ def emit_json(
 def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
     parser = SuggestingArgumentParser(
         prog="macos-cua",
-        description="Reliable macOS Computer Use through cua-driver.",
+        description="Reliable macOS Computer Use through CUAService.",
     )
     parser.add_argument(
         "--browser-intent",
@@ -143,7 +143,7 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", help="Driver health + permissions")
+    sub.add_parser("status", help="CUAService health (+ legacy driver detail)")
     sub.add_parser("reset", help="Clear the app-resolution cache")
     p = sub.add_parser("apps", help="List installed and running macOS apps")
     p.add_argument(
@@ -227,7 +227,7 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
 
     p = sub.add_parser(
         "click-desktop",
-        help="Click global Quartz desktop coordinates (non-AX surfaces / widgets)",
+        help="Retired: desktop-global clicks fail (use click-point <app> x y)",
     )
     p.add_argument("x", type=float)
     p.add_argument("y", type=float)
@@ -348,7 +348,7 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
 
     p = sub.add_parser(
         "click-label-pointer",
-        help="Agent cursor glide + driver click (does not move user mouse)",
+        help="CUAService label click under the landing gate (does not move user mouse)",
     )
     p.add_argument("app")
     p.add_argument("label")
