@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "context-ledger": {
+      "type": "stdio",
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/context-ledger-mcp",
+      "args": ["serve"]
+    }
+  }
+}

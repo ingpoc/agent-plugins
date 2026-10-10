@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Repair Cursor dests that predate the package override.
 
-Portable root mcp.json stays `./bin/context-ledger-mcp` with cwd `./`.
+Portable root mcp.json is bare `sh` plus a resolver (no cwd).
 A dest whose `.cursor-plugin/plugin.json` points at a healthy
 `${CURSOR_PLUGIN_ROOT}` mcp.json is left unchanged (`mode` `cursor_override`).
 A broken override fails the process and is not rewritten. Dests with no

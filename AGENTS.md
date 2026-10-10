@@ -11,9 +11,9 @@ This repository is a **collection of portable [Agent Plugins](https://agent-plug
 
 | In the repo | Not in the repo |
 | --- | --- |
-| `plugins/<name>/` with closed `plugin.json`. A stdio `./` command also ships `.cursor-plugin/plugin.json` and `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`) | Duplicate Cursor packages outside `plugins/<name>/` |
+| `plugins/<name>/` with closed `plugin.json`. context-ledger ships three MCP manifests: portable `mcp.json` (bare `sh` resolver, no `${` in the script), `.cursor-plugin/` (`${CURSOR_PLUGIN_ROOT}`), `.claude-plugin/` (`${CLAUDE_PLUGIN_ROOT}`). A legacy stdio `./` command still ships `.cursor-plugin/` | Duplicate Cursor packages outside `plugins/<name>/` |
 | `skills/`, optional `mcp.json`, optional `bin/`, runtime files that package needs | Codex plugin packages (`.codex-plugin/`) |
-| Thin Codex, Cursor, and Grok marketplace catalogs that point at the same portable packages | Duplicate client-specific copies of plugin contents |
+| Thin Codex, Cursor, Grok, and Claude marketplace catalogs that point at the same portable packages. `.claude-plugin/marketplace.json` lists only plugins that ship `.claude-plugin/` | Duplicate client-specific copies of plugin contents |
 
 The collection root is not a plugin. The install unit is always `plugins/<name>/`.
 
@@ -29,7 +29,8 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 | Change plugin behavior | That plugin's `SKILL.md` and `mcp.json` |
 | Change how this plugin installs | That plugin's `AGENTS.md` |
 | Change published benchmark scores | That plugin's `README.md` |
-| Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That package's `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`). Dest rewrite (`install_harness.py cursor-plugin` or `scripts/install_cursor_dest.py`) only repairs pre-override installs |
+| Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That package's `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`). context-ledger portable `mcp.json` is the `sh` resolver. Dest rewrite (`install_harness.py cursor-plugin` or `scripts/install_cursor_dest.py`) only repairs pre-override relative installs |
+| Change context-ledger MCP manifests or the serve launcher | `plugins/context-ledger/tests/test_manifests.py` and `tests/test_contract.py` (stdio shape, resolver, keychain, shell files reject or-true) |
 | Checks, CI, pre-commit | `scripts/check.py` |
 | Claim a plugin fix is done | Live-verify the installed client copy (MCP/CLI). Update the standing canvas from that run. `scripts/check.py` is not that proof. |
 
@@ -45,7 +46,7 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 
 1. Detect the running client.
 2. Open [compatible-clients](https://agent-plugins.org/compatible-clients). Match the client. Take its setup-instructions link. If the page has no cards (JS shell), read the owner [`lib/compatible-clients.ts`](https://raw.githubusercontent.com/agentplugins/agent-plugins-site/main/lib/compatible-clients.ts) and use that row's `instructionsUrl`.
-3. Prefer the repository catalog for Codex (`.agents/plugins/marketplace.json`), Cursor (`.cursor-plugin/marketplace.json`), or Grok Build (`.grok-plugin/marketplace.json`). All catalogs load **`plugins/<name>/` only** (the directory with `plugin.json`); the collection root is never a plugin.
+3. Prefer the repository catalog for Codex (`.agents/plugins/marketplace.json`), Cursor (`.cursor-plugin/marketplace.json`), Claude Code (`.claude-plugin/marketplace.json`), or Grok Build (`.grok-plugin/marketplace.json`). All catalogs load **`plugins/<name>/` only** (the directory with `plugin.json`); the collection root is never a plugin. The Claude catalog lists only plugins that ship `.claude-plugin/`.
 4. Read and apply `plugins/<name>/AGENTS.md`.
 5. Verify the client lists the plugin. Fix from the same setup page if it does not. On Cursor: if the plugin is in `.cursor-plugin/marketplace.json` but missing under this marketplace in Customize, remove and re-add (or update) the marketplace so the catalog re-indexes — do not install a parallel local copy as the fix.
 6. Stop only for an OS or store consent the agent cannot complete.
@@ -56,6 +57,6 @@ If the client is missing or has no setup link, say so and stop.
 
 - One portable package per `plugins/<name>/`. Shape comes from the live spec, not this file.
 - Adding a plugin without a Plugins row, `plugins/<name>/AGENTS.md`, and `plugins/<name>/README.md` is incomplete.
-- Portable root `mcp.json` stays `./bin/…-mcp` for spec clients (Codex, Grok). Cursor uses the per-package override `.cursor-plugin/plugin.json` + `.cursor-plugin/mcp.json` with `${CURSOR_PLUGIN_ROOT}`. Dest rewrite only repairs pre-override installs.
+- context-ledger portable `mcp.json` is bare `sh` plus a resolver with no `${` (Codex expands only the `${PLUGIN_ROOT}` root arg). Cursor uses `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`). Claude Code uses `.claude-plugin/plugin.json` + `.claude-plugin/mcp.json` (`${CLAUDE_PLUGIN_ROOT}`). A legacy `./bin/…-mcp` still requires the Cursor override. Dest rewrite only repairs pre-override relative installs. Contract tests: `plugins/context-ledger/tests/test_contract.py` and `tests/test_manifests.py`.
 - Before shipping changed installed package contents (runtime, skill, references, or install docs), bump that plugin's `plugin.json` SemVer; keep any in-package runtime version and assertions aligned. Skip test-only and collection-tooling changes.
 - This repo is public. No personal case data.

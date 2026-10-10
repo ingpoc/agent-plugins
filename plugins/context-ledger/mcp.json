@@ -3,11 +3,14 @@
   "mcpServers": {
     "context-ledger": {
       "type": "stdio",
-      "command": "./bin/context-ledger-mcp",
+      "command": "sh",
       "args": [
+        "-c",
+        "root=; c=$1; case \"$c\" in \"\"|\\$*) ;; *) if [ -x \"$c/bin/context-ledger-mcp\" ]; then root=$c; fi ;; esac; if [ -z \"$root\" ] && [ -n \"$PLUGIN_ROOT\" ] && [ -x \"$PLUGIN_ROOT/bin/context-ledger-mcp\" ]; then root=$PLUGIN_ROOT; fi; if [ -z \"$root\" ] && [ -n \"$CLAUDE_PLUGIN_ROOT\" ] && [ -x \"$CLAUDE_PLUGIN_ROOT/bin/context-ledger-mcp\" ]; then root=$CLAUDE_PLUGIN_ROOT; fi; if [ -z \"$root\" ] && [ -n \"$CURSOR_PLUGIN_ROOT\" ] && [ -x \"$CURSOR_PLUGIN_ROOT/bin/context-ledger-mcp\" ]; then root=$CURSOR_PLUGIN_ROOT; fi; if [ -z \"$root\" ] && [ -n \"$PWD\" ] && [ -x \"$PWD/bin/context-ledger-mcp\" ]; then root=$PWD; fi; if [ -n \"$root\" ]; then shift; exec \"$root/bin/context-ledger-mcp\" \"$@\"; fi; echo '{\"ok\":false,\"error\":{\"code\":\"PLUGIN_ROOT_UNRESOLVED\",\"retryable\":false,\"message\":\"client must expand PLUGIN_ROOT/CLAUDE_PLUGIN_ROOT/CURSOR_PLUGIN_ROOT, or load the package via .cursor-plugin/ or .claude-plugin/\"}}' >&2; exit 127",
+        "context-ledger-mcp",
+        "${PLUGIN_ROOT}",
         "serve"
-      ],
-      "cwd": "./"
+      ]
     }
   }
 }

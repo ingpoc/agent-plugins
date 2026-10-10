@@ -105,23 +105,30 @@ class PackageTests(unittest.TestCase):
         server = mcp["mcpServers"]["context-ledger"]
         command = server["command"]
         launcher = ROOT / "bin" / "context-ledger-mcp"
-        if _collection_root() is not None:
-            self.assertEqual(command, "./bin/context-ledger-mcp")
-            self.assertTrue(launcher.is_file())
-            self.assertEqual(server.get("cwd"), "./")
-        elif ".cursor" in ROOT.parts and Path(command).is_absolute():
-            self.assertTrue(Path(command).is_file())
-        else:
-            self.assertIn(command, ("python", "python3", "./bin/context-ledger-mcp"))
-            if command == "./bin/context-ledger-mcp":
-                self.assertTrue(launcher.is_file())
         cwd = server.get("cwd")
-        if ".cursor" in ROOT.parts and Path(str(cwd)).is_absolute():
-            self.assertEqual(cwd, str(ROOT))
-        else:
-            self.assertFalse(command.startswith("/") and command.count("/") == 1)
-            self.assertNotIn(" ", command)
-            self.assertNotIn("${", command)
+        if _collection_root() is not None:
+            self.assertEqual(command, "sh")
+            self.assertIsNone(cwd)
+            self.assertEqual(server["args"][0], "-c")
+            self.assertNotIn("${", server["args"][1])
+            self.assertIn("${PLUGIN_ROOT}", server["args"])
+            self.assertTrue(launcher.is_file())
+            return
+        if ".cursor" in ROOT.parts and Path(command).is_absolute():
+            self.assertTrue(Path(command).is_file())
+            if cwd is not None and Path(str(cwd)).is_absolute():
+                self.assertEqual(cwd, str(ROOT))
+            return
+        self.assertIn(command, ("python", "python3", "./bin/context-ledger-mcp", "sh"))
+        self.assertNotIn("${", command)
+        self.assertFalse(command.startswith("/") and command.count("/") == 1)
+        self.assertNotIn(" ", command)
+        if command == "./bin/context-ledger-mcp":
+            self.assertTrue(launcher.is_file())
+            self.assertIn(cwd, ("${PLUGIN_ROOT}", "./"))
+        elif command == "sh":
+            self.assertIsNone(cwd)
+        elif cwd is not None:
             self.assertIn(cwd, ("${PLUGIN_ROOT}", "./"))
 
     def test_skill_frontmatter(self) -> None:
@@ -146,6 +153,9 @@ class PackageTests(unittest.TestCase):
             data = json.loads((collection / rel).read_text(encoding="utf-8"))
             names = [p["name"] for p in data["plugins"]]
             self.assertIn("context-ledger", names, rel)
+        claude = json.loads((collection / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
+        claude_names = [p["name"] for p in claude["plugins"]]
+        self.assertEqual(claude_names, ["context-ledger"])
 
     def test_cursor_package_override(self) -> None:
         collection = _collection_root()
@@ -180,9 +190,11 @@ class PackageTests(unittest.TestCase):
             },
         )
         portable = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["context-ledger"]
-        self.assertEqual(portable["command"], "./bin/context-ledger-mcp")
-        self.assertEqual(portable.get("cwd"), "./")
+        self.assertEqual(portable["command"], "sh")
+        self.assertIsNone(portable.get("cwd"))
         self.assertNotIn("${", portable["command"])
+        self.assertNotIn("${", portable["args"][1])
+        self.assertEqual(portable["args"][-1], "serve")
 
     def test_relative_stdio_requires_cursor_override(self) -> None:
         collection = _collection_root()
@@ -290,8 +302,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.14")
-        self.assertIn('__version__ = "0.1.14"', init)
+        self.assertEqual(plugin["version"], "0.1.15")
+        self.assertIn('__version__ = "0.1.15"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
