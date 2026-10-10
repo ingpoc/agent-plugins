@@ -21,6 +21,13 @@ One ledger on the owner's Mac Mini, reachable by remote agents (e.g. Cursor clou
 
 - Server mode: stateless with JSON responses. Send `Accept: application/json, text/event-stream` and call `initialize`, then `tools/list`.
 
+## Enable a Cursor cloud agent or Project
+
+1. Secret: Cursor dashboard, Cloud Agents, My Secrets (`cursor.com/dashboard/cloud-agents?view=my-secrets`) must list `CONTEXT_LEDGER_MCP_TOKEN` with scope All Repositories, type Runtime Secret. Guru's account already has it, so new agents get it automatically. If it's missing, the owner adds it by copying the value with `security find-generic-password -s context-ledger.mcp -a bearer_token -w | tr -d '\n' | pbcopy`, pasting it into the form, then clearing the clipboard with `printf '' | pbcopy`. Bots can't forward secrets with `secret_names` on this account.
+2. Brief: in the launch or reply prompt, give the URL `https://gurusharan-mac-codex.taild2e98e.ts.net/mcp`, the header `Authorization: Bearer $CONTEXT_LEDGER_MCP_TOKEN`, the four tools, and the rule "follow the context-ledger skill: look up at task start, capture and close out at the end; if the token is missing or the ledger is unreachable, fail loud and never fall back to a local copy". Either the agent adds the `mcp.json` entry above, or it calls over HTTP.
+3. Project: put that same rule in the Project's shared context (`docs/project-context.md` in its Agent Store) so every thread inherits it.
+4. Verify: the agent's first run reports `initialize` succeeding and `tools/list` returning exactly `append_event`, `find`, `get`, `record`. Treat an empty or missing result as a failure.
+
 ## Owner setup (Mini)
 
 1. Token: `security add-generic-password -s context-ledger.mcp -a bearer_token -l context-ledger.mcp.bearer_token -w "$(python3 -c 'import secrets;print(secrets.token_hex(32))')" -U`
