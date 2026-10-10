@@ -113,7 +113,7 @@ def _require_absolute(path: Path) -> Path:
 def _help() -> int:
     sys.stderr.write(
         "usage: context_ledger.py [--data ABSOLUTE_DIR] "
-        "setup|init|bind|serve|doctor|export|import|attest|purge|rebuild|migrate|"
+        "setup|init|bind|serve|serve-http|doctor|export|import|attest|purge|rebuild|migrate|"
         "resume-maintenance|scope-add|ensure-global-triggers ...\n"
         f"default --data: {DEFAULT_PLUGIN_DATA}\n"
     )
