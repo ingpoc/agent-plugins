@@ -25,6 +25,10 @@ def type_text(
                 "use set_value for multiline content or explicitly allow the newline"
             ),
         }
+    bound = max(80, int(element_index) + 1) if element_index is not None else 80
+    refused = require_cuaservice_window(pid, window_id, bound)
+    if refused:
+        return refused
     return cua_type_text(pid, text, element_index=element_index, x=x, y=y)
 
 
@@ -201,18 +205,22 @@ def scroll(
     y=None,
     delivery_mode="background",
 ):
+    if x is not None or y is not None:
+        return {"ok": False, "error": "CUAService scroll targets an element or the window; use --element N",
+                "engine": "CUAService"}
+    bound = max(80, int(element_index) + 1) if element_index is not None else 80
+    refused = require_cuaservice_window(pid, window_id, bound)
+    if refused:
+        return refused
     return cua_scroll(
         pid, direction, amount, by=by, element_index=element_index, x=x, y=y
     )
 
 
 def set_value(pid, window_id, element_index, value):
-    if window_id is not None:
-        snap = cua_snapshot(pid, window_id, max(80, int(element_index) + 1), retries=0)
-        if snap.get("error"):
-            return {"ok": False, "accepted": False, "error": snap["error"],
-                    "element": int(element_index),
-                    "error_code": snap.get("error_code") or "window_mismatch"}
+    refused = require_cuaservice_window(pid, window_id, max(80, int(element_index) + 1))
+    if refused:
+        return {**refused, "element": int(element_index)}
     return cua_set_value(pid, element_index, value)
 
 

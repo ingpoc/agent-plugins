@@ -499,12 +499,18 @@ class CompactMcpDispatchTests(unittest.TestCase):
 
             def _rpc(self, fn, *, retry=True):
                 class Client:
+                    def __init__(self):
+                        self.n = 0
+
                     def get_app_state(self, app, **kwargs):
+                        self.n += 1
+                        email = "ada@example.com" if self.n >= 2 else ""
+                        name = "Ada Lovelace" if self.n >= 2 else ""
                         return {
-                            "text": '[1] AXTextField label="Full name" value=""\n[2] AXTextField label="Email" value="ada@example.com"',
+                            "text": f'[1] AXTextField value="{name}"\n[2] AXTextField value="{email}"',
                             "elements": [
-                                {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": ""},
-                                {"element_index": 2, "role": "AXTextField", "label": "Email", "value": "ada@example.com"},
+                                {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": name},
+                                {"element_index": 2, "role": "AXTextField", "label": "Email", "value": email},
                             ],
                             "screenshot": {"url": "file:///tmp/s.png"},
                         }
@@ -526,9 +532,18 @@ class CompactMcpDispatchTests(unittest.TestCase):
                 "expect": {"value": {"label": "Email", "equals": "ada@example.com"}},
             },
         )
-        self.assertTrue(out.get("ok") or out.get("dispatched"), out)
+        self.assertTrue(out.get("ok"), out)
+        self.assertTrue(out.get("verified"), out)
         self.assertEqual(calls, [("set_value", "System Settings", 1, "Ada Lovelace")])
-        self.assertNotIn("click", [c[0] for c in calls])
+        evil = Backend().act(
+            "System Settings",
+            {
+                "steps": [{"action": "set_value", "label": "Full name", "value": "Ada Lovelace"}],
+                "expect": {"value": {"label": "Email", "equals": "ada@example.com.evil"}},
+            },
+        )
+        self.assertFalse(evil.get("verified"))
+        self.assertFalse(evil.get("ok"))
 
     def test_act_expect_already_true_before_is_not_verified(self):
         class Backend(compact_mcp.CUABackend):

@@ -183,31 +183,36 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         self.assertIn("requested window 99", snap["error"])
 
     def test_type_text_focuses_element_then_types(self):
-        replies = {"click": {"ok": True, "method": "ax-press"}, "type_text": {"ok": True, "method": "ax-insert"}}
+        replies = {"get_app_state": _state(), "click": {"ok": True, "method": "ax-press"},
+                   "type_text": {"ok": True, "method": "ax-insert"}}
         res, client = self._run(replies, macos_cua.type_text, 4242, 77, 1, "abc")
-        self.assertEqual([c[0] for c in client.calls], ["click", "type_text"])
-        self.assertEqual(client.calls[1][1], {"app": BUNDLE, "text": "abc"})
+        self.assertEqual([c[0] for c in client.calls], ["get_app_state", "click", "type_text"])
+        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "text": "abc"})
         self.assertTrue(macos_cua._accepted(res))
 
     def test_type_text_newline_guard_kept(self):
         res, client = self._run({}, macos_cua.type_text, 4242, 77, None, "a\nb")
         self.assertEqual(res["error_code"], "newline_may_submit")
         self.assertEqual(client.calls, [])
-        res, client = self._run({"type_text": {"ok": True}}, macos_cua.type_text, 4242, 77, None, "a\nb",
-                                allow_newline=True)
-        self.assertEqual(client.calls, [("type_text", {"app": BUNDLE, "text": "a\nb"})])
+        res, client = self._run({"get_app_state": _state(), "type_text": {"ok": True}},
+                                macos_cua.type_text, 4242, 77, None, "a\nb", allow_newline=True)
+        self.assertEqual([c[0] for c in client.calls], ["get_app_state", "type_text"])
+        self.assertEqual(client.calls[-1], ("type_text", {"app": BUNDLE, "text": "a\nb"}))
 
     def test_scroll_element_and_point_contract(self):
-        res, client = self._run({"scroll": {"ok": True}}, macos_cua.scroll, 4242, 77, "down", 2,
+        res, client = self._run({"get_app_state": _state(), "scroll": {"ok": True}}, macos_cua.scroll, 4242, 77, "down", 2,
                                 by="page", element_index=1)
-        self.assertEqual(client.calls[0][1], {"app": BUNDLE, "direction": "down", "pages": 2, "element_index": 1})
+        self.assertEqual([c[0] for c in client.calls], ["get_app_state", "scroll"])
+        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "direction": "down", "pages": 2, "element_index": 1})
         res, client = self._run({}, macos_cua.scroll, 4242, 77, "down", 3, x=10, y=10)
         self.assertIn("--element", res["error"])
         self.assertEqual(client.calls, [])
 
     def test_right_click_is_show_menu_on_the_cuaservice_element(self):
-        _, client = self._run({"perform_secondary_action": {"ok": True}}, macos_cua.right_click, 4242, 77, 2)
-        self.assertEqual(client.calls[0][1], {"app": BUNDLE, "element_index": 2, "action": "AXShowMenu"})
+        _, client = self._run({"get_app_state": _state(), "perform_secondary_action": {"ok": True}},
+                              macos_cua.right_click, 4242, 77, 2)
+        self.assertEqual([c[0] for c in client.calls], ["get_app_state", "perform_secondary_action"])
+        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "element_index": 2, "action": "AXShowMenu"})
 
     def test_drag_maps_window_local_pixels_to_global_points(self):
         replies = {"get_app_state": _state(), "drag": {"ok": True, "method": "cgevent-drag-pid"}}

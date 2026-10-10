@@ -273,12 +273,9 @@ def click(pid, window_id, element_index, *, app_name=None):
     When window_id is set, refuse if CUAService is observing a different window
     so the same index cannot press a control in the wrong focused window.
     """
-    if window_id is not None:
-        snap = cua_snapshot(pid, window_id, max(80, int(element_index) + 1), retries=0)
-        if snap.get("error"):
-            return {"ok": False, "accepted": False, "error": snap["error"],
-                    "element": int(element_index),
-                    "error_code": snap.get("error_code") or "window_mismatch"}
+    refused = require_cuaservice_window(pid, window_id, max(80, int(element_index) + 1))
+    if refused:
+        return {**refused, "element": int(element_index)}
     return cua_click(pid, element_index)
 
 

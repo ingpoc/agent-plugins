@@ -15,7 +15,7 @@ from state_delta import action_state_text
 from fail_feedback import apply_failure_feedback, VERIFICATION_REQUIRED
 from compact_form_fills import (
     expectation_supports_value,
-    expectation_value_needle,
+    expectation_value_field_matches,
     fill_value_from_step,
     resolve_set_value_index,
 )
@@ -131,9 +131,7 @@ def expectation_is_new(
             for item in (results or [])
             if item.get("path")
         ))
-    needle = expectation_value_needle(expect)
-    if needle:
-        checks.append(expect_is_new(needle, before_tree, after_tree))
+    # expect.value is verified against unique field elements in act(), not tree text.
     return bool(checks) and all(checks)
 
 
@@ -301,7 +299,7 @@ class CUABackend:
                 ]
             else:
                 before = self._get_app_state(
-                    client, app, disableDiff=True, includeScreenshot=False
+                    client, app, disableDiff=True, includeScreenshot=False, includeElements=True
                 )
                 results = []
                 after_new = False
@@ -321,17 +319,18 @@ class CUABackend:
                     elif step.get("wait") is None:
                         after_new = False
                 after = self._get_app_state(
-                    client, app, disableDiff=True, includeScreenshot=False
+                    client, app, disableDiff=True, includeScreenshot=False, includeElements=True
                 )
 
             before_text = str(before.get("text") or "") if isinstance(before, dict) else ""
             text = str(after.get("text") or "") if isinstance(after, dict) else ""
             dispatched = all(item.get("ok") is True for item in results) and bool(results)
-            verified = (
-                expectation_is_new(expect, before_text, text, results)
-                if effectful and expectation_is_supported(expect)
-                else bool(dispatched and not effectful and text)
-            )
+            if effectful and expectation_supports_value(expect):
+                verified = expectation_value_field_matches(expect, after if isinstance(after, dict) else {})
+            elif effectful and expectation_is_supported(expect):
+                verified = expectation_is_new(expect, before_text, text, results)
+            else:
+                verified = bool(dispatched and not effectful and text)
             ok = bool(dispatched and verified)
             last = results[-1] if results else {}
             payload = {

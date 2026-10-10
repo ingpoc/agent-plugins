@@ -243,7 +243,10 @@ def drag(
     app_name=None,
 ):
     """CUAService drag between window-local screenshot coordinates."""
-    return cua_drag(pid, from_x, from_y, to_x, to_y)
+    refused = require_cuaservice_window(pid, window_id, 1)
+    if refused:
+        return refused
+    return cua_drag(pid, from_x, from_y, to_x, to_y, window_id=window_id)
 
 
 def _system_pointer_position():

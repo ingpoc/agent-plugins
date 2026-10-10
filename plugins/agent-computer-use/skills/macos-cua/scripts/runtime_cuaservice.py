@@ -205,6 +205,18 @@ def cua_app_state(app_name, pid, window_id, *, max_elements=120, query=None,
     }
 
 
+def require_cuaservice_window(pid, window_id, max_elements=80):
+    """Refuse when window_id is set but CUAService observes a different window."""
+    if window_id is None:
+        return None
+    snap = cua_snapshot(pid, window_id, int(max_elements), retries=0)
+    if snap.get("error"):
+        return {"ok": False, "accepted": False, "error": snap["error"],
+                "error_code": snap.get("error_code") or "window_mismatch",
+                "window_id": window_id}
+    return None
+
+
 def _window_global_point(pid, x, y, window_id=None):
     """Window-local screenshot pixels -> global Quartz points (CUAService frame + scale).
 
@@ -322,11 +334,11 @@ def cua_scroll(pid, direction, amount=3, *, by="line", element_index=None, x=Non
     return {**_cuaservice_rpc(pid, "scroll", params), "pages": pages}
 
 
-def cua_drag(pid, from_x, from_y, to_x, to_y):
-    source, error = _window_global_point(pid, from_x, from_y)
+def cua_drag(pid, from_x, from_y, to_x, to_y, window_id=None):
+    source, error = _window_global_point(pid, from_x, from_y, window_id=window_id)
     if error:
         return error
-    dest, error = _window_global_point(pid, to_x, to_y)
+    dest, error = _window_global_point(pid, to_x, to_y, window_id=window_id)
     if error:
         return error
     return _cuaservice_rpc(pid, "drag", {"from_x": source["x"], "from_y": source["y"],

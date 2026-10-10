@@ -456,6 +456,9 @@ def merge_pointer_proof(result, preflight):
 
 def right_click(pid, window_id, element_index, *, app_name=None, snapshot_data=None):
     """AXShowMenu on the CUAService element (same index space as snap/state)."""
+    refused = require_cuaservice_window(pid, window_id, max(80, int(element_index) + 1))
+    if refused:
+        return {**refused, "element": int(element_index)}
     return cua_right_click(pid, element_index)
 
 
