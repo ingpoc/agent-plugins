@@ -2,8 +2,10 @@
 
 Source mcp.json stays portable (`./bin/context-ledger-mcp`, cwd `./`).
 Cursor resolves that relative command against the workspace and does not
-expand `${PLUGIN_*}`. A marketplace refresh copies the source file back over
-any dest rewrite, so doctor must refuse a dest that is still relative.
+expand `${PLUGIN_ROOT}` or `${PLUGIN_DATA}`. It does expand
+`${CURSOR_PLUGIN_ROOT}` in command and cwd. A marketplace refresh copies the
+source file back over any dest rewrite, so doctor must refuse a dest that is
+still relative or still has those unexpanded Agent Plugins tokens.
 """
 
 from __future__ import annotations
@@ -15,6 +17,8 @@ from pathlib import Path
 LAUNCHER_NAME = "context-ledger-mcp"
 SERVER_NAME = "context-ledger"
 HOME_ENV = "CONTEXT_LEDGER_CURSOR_HOME"
+CURSOR_PLUGIN_COMMAND = "${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp"
+CURSOR_PLUGIN_CWDS = frozenset({"./", "${CURSOR_PLUGIN_ROOT}"})
 
 
 def scan_home() -> Path:
@@ -78,12 +82,17 @@ def inspect_dest(dest: Path) -> dict | None:
     if "${PLUGIN_" in blob:
         issues.append("literal_plugin_token")
     command = str(server.get("command") or "")
-    if not command.startswith("/"):
-        issues.append("relative_command")
-    elif not Path(command).is_file():
-        issues.append("missing_launcher")
-    if server.get("cwd") != "./":
-        issues.append("cwd")
+    cwd = server.get("cwd")
+    if command == CURSOR_PLUGIN_COMMAND:
+        if cwd not in CURSOR_PLUGIN_CWDS:
+            issues.append("cwd")
+    else:
+        if not command.startswith("/"):
+            issues.append("relative_command")
+        elif not Path(command).is_file():
+            issues.append("missing_launcher")
+        if cwd != "./":
+            issues.append("cwd")
     if not issues:
         return None
     return {

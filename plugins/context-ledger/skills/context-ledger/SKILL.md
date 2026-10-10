@@ -41,4 +41,4 @@ Outcome feedback is idempotent by `(task_id, decision_id)`: an identical retry a
 
 Skip routine work, duplicate decisions, temporary status, raw prompts, hidden reasoning, and secrets.
 
-Remote agents (Cursor cloud agents and Projects) use the one Mini ledger over HTTPS; to enable one, follow `references/remote-mcp.md`, section "Enable a Cursor cloud agent or Project".
+Remote agents use the same `context-ledger` server. No local binding plus `CONTEXT_LEDGER_MCP_TOKEN` bridges to the Mini; a binding stays on local stdio. Only the helper calls the MCP. See `references/remote-mcp.md`.
