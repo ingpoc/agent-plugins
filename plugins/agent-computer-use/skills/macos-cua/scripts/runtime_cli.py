@@ -60,10 +60,39 @@ def configure_cursor_icon(
     }
 
 
+def _cursor_overlay_state(idle_hide_ms: int | None = None) -> dict:
+    """Live overlay visibility + idle-hide setting. Fail loud on RPC error."""
+    client = _cuaservice_client()
+    try:
+        if idle_hide_ms is not None:
+            state = client.configure_cursor(idle_hide_ms)
+        else:
+            state = client.cursor_status()
+    finally:
+        client.close()
+    if not isinstance(state, dict) or state.get("ok") is not True:
+        raise RuntimeError(f"CUAService cursor state failed: {state!r}")
+    return {k: v for k, v in state.items() if k != "ok"}
+
+
 def cursor(action, **kwargs):
     """`macos-cua cursor <action>` routed to CUAService (socket only)."""
     if action in {"status", "configure"}:
-        return configure_cursor_icon(icon_path=kwargs.get("icon"))
+        idle = kwargs.get("idle_hide_ms")
+        if idle is not None and action != "configure":
+            return {"ok": False, "error": "--idle-hide-ms is only valid with `cursor configure`",
+                    "engine": "CUAService"}
+        if idle is not None and idle < 0:
+            return {"ok": False, "error": f"--idle-hide-ms must be >= 0 (0 = never), got {idle}",
+                    "engine": "CUAService"}
+        out = configure_cursor_icon(icon_path=kwargs.get("icon"))
+        try:
+            out["overlay"] = _cursor_overlay_state(idle)
+        except Exception as exc:  # fail loud: status without live state is not ok
+            return {**out, "ok": False, "error": f"CUAService cursor_status unavailable: {exc}"}
+        if idle is not None:
+            out["configured"] = True
+        return out
     if action == "show":
         return {
             "ok": False,
@@ -207,6 +236,8 @@ def _main():
         kw = {"session": args.session}
         if args.icon:
             kw["icon"] = args.icon
+        if args.idle_hide_ms is not None:
+            kw["idle_hide_ms"] = args.idle_hide_ms
         if args.action == "move":
             if args.x is None or args.y is None:
                 print(json.dumps({"error": "move requires --x and --y"}))

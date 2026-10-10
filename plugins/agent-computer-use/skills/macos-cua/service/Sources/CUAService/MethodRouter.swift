@@ -32,8 +32,23 @@ final class MethodRouter: @unchecked Sendable {
         self.logger = logger
     }
 
+    /// Read/config RPCs for the overlay. They bypass the request lock so
+    /// `cursor status` can observe visibility while an action is in flight.
+    static let cursorControlMethods: Set<String> = ["cursor_status", "configure_cursor"]
+    /// Methods that never move the tip: no action bracket (no idle countdown).
+    static let nonActionMethods: Set<String> = ["list_apps", "hide_agent_cursor"]
+
     @MainActor
     func handle(_ request: JSONRPCRequest) async -> JSONRPCResponse {
+        if Self.cursorControlMethods.contains(request.method) {
+            do {
+                return .success(id: request.id, try handleCursorControl(request))
+            } catch let e as RPCMethodError {
+                return .error(id: request.id, code: e.code, message: e.message)
+            } catch {
+                return .error(id: request.id, code: -32603, message: error.localizedDescription)
+            }
+        }
         // ponytail: desktop input is one shared resource; split lanes only if
         // independent displays become a measured concurrent use case.
         while requestRunning {
@@ -41,6 +56,11 @@ final class MethodRouter: @unchecked Sendable {
         }
         requestRunning = true
         defer { requestRunning = false }
+        // Action bracket: the idle-hide countdown starts only after the whole
+        // request (glide, landing gate, press) returned — never mid-press.
+        let isAction = !Self.nonActionMethods.contains(request.method)
+        if isAction { cursorOverlay.beginAction(request.method) }
+        defer { if isAction { cursorOverlay.endAction(request.method) } }
         do {
             let result = try await dispatch(request)
             return .success(id: request.id, result)
@@ -121,8 +141,22 @@ final class MethodRouter: @unchecked Sendable {
     }
 
     @MainActor
+    private func handleCursorControl(_ req: JSONRPCRequest) throws -> Any {
+        if req.method == "configure_cursor" {
+            guard let ms = req.paramInt("idle_hide_ms") else {
+                throw RPCMethodError(code: -32602, message: "configure_cursor needs integer idle_hide_ms")
+            }
+            try cursorOverlay.configure(idleHideMs: ms)
+        }
+        var d = cursorOverlay.status(includeEvents: (req.param("events") as Bool?) == true)
+        d["ok"] = true
+        return d
+    }
+
+    @MainActor
     private func handleExecutePlan(_ req: JSONRPCRequest) async throws -> Any {
-        defer { cursorOverlay.hide() }
+        // No hide here: the plan is one action; the idle countdown starts when
+        // it returns (post-click linger keeps the last press visible).
         guard let app: String = req.param("app"),
               let steps: [Any] = req.param("steps"),
               !steps.isEmpty, steps.count <= 50

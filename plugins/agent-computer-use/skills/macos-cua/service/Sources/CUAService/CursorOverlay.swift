@@ -27,6 +27,26 @@ final class CursorOverlay: @unchecked Sendable {
     /// supersede / hide (false). Keyed so each waiter resolves exactly once.
     private var landWaiters: [UUID: (Bool) -> Void] = [:]
 
+    // MARK: Idle auto-hide state
+    /// UserDefaults key persisting `cursor configure --idle-hide-ms`.
+    static let idleHideDefaultsKey = "cursorIdleHideMs"
+    /// Hide after this long with no action (0 = never auto-hide).
+    static let defaultIdleHideMs = 1500
+    /// Upper bound accepted by configure (10 min).
+    static let maxIdleHideMs = 600_000
+    /// Minimum visible time after an action ends so the click itself is seen.
+    static let postActionLingerMs = 600
+    private(set) var idleHideMs: Int
+    /// >0 while an RPC action (glide + press) is in flight: never hide then.
+    private var activeActions = 0
+    /// Bumped by every cancel; a scheduled hide only fires if still current.
+    private var hideGeneration = 0
+    private var hideDeadline: TimeInterval?
+    private var lastActionEnd: TimeInterval?
+    private var autoHides = 0
+    /// Ring of recent visibility events (uptime ms) for `cursor status`.
+    private var events: [[String: Any]] = []
+
     /// Result of a glide that must land before any press is dispatched.
     struct Landing {
         let point: CGPoint
@@ -77,7 +97,9 @@ final class CursorOverlay: @unchecked Sendable {
     }
 
     init() {
-        setupPanel()
+        let stored = UserDefaults.standard.object(forKey: Self.idleHideDefaultsKey) as? Int
+        idleHideMs = min(max(stored ?? Self.defaultIdleHideMs, 0), Self.maxIdleHideMs)
+        setupPanel()  // created ordered-out: hidden until the first action glides
     }
 
     private func setupPanel() {
@@ -126,6 +148,7 @@ final class CursorOverlay: @unchecked Sendable {
         // Integral points: WindowServer bounds are compared exactly below.
         let origin = NSPoint(x: (appKitPt.x - 15).rounded(), y: (appKitPt.y - 76).rounded())
 
+        cancelPendingHide()  // any new move cancels a pending idle hide
         animationTimer?.invalidate()
         animationTimer = nil
         resolveLandWaiters(false)  // a new glide supersedes any pending landing
@@ -164,11 +187,108 @@ final class CursorOverlay: @unchecked Sendable {
         return (quartz, animDuration)
     }
 
-    func hide() {
+    func hide(reason: String = "explicit") {
+        cancelPendingHide()
         animationTimer?.invalidate()
         animationTimer = nil
         resolveLandWaiters(false)
+        let wasVisible = panel.isVisible
         panel.orderOut(nil)
+        if wasVisible { record("hide", ["reason": reason]) }
+    }
+
+    // MARK: - Idle auto-hide
+
+    /// An RPC action (glide + press) starts: cancel any pending hide. Calls
+    /// nest; the hide is only scheduled when the outermost action ends, so
+    /// hiding can never race a press in flight.
+    func beginAction(_ method: String) {
+        activeActions += 1
+        cancelPendingHide()
+        record("action_begin", ["method": method, "visible": panel.isVisible])
+    }
+
+    /// The action (including its press) returned: start the idle countdown.
+    func endAction(_ method: String) {
+        activeActions = max(0, activeActions - 1)
+        lastActionEnd = ProcessInfo.processInfo.systemUptime
+        record("action_end", ["method": method, "visible": panel.isVisible])
+        if activeActions == 0 { scheduleIdleHide() }
+    }
+
+    /// Effective delay: the idle timeout, never shorter than the post-click
+    /// linger. nil = auto-hide off.
+    var effectiveHideMs: Int? {
+        idleHideMs > 0 ? max(idleHideMs, Self.postActionLingerMs) : nil
+    }
+
+    private func scheduleIdleHide() {
+        cancelPendingHide()
+        guard let delayMs = effectiveHideMs, panel.isVisible, activeActions == 0 else { return }
+        let gen = hideGeneration
+        let delay = TimeInterval(delayMs) / 1000
+        hideDeadline = ProcessInfo.processInfo.systemUptime + delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, gen == self.hideGeneration, self.activeActions == 0 else { return }
+                self.hideDeadline = nil
+                if self.panel.isVisible { self.autoHides += 1 }
+                self.hide(reason: "idle")
+            }
+        }
+    }
+
+    private func cancelPendingHide() {
+        hideGeneration += 1
+        hideDeadline = nil
+    }
+
+    /// `cursor configure --idle-hide-ms N` (0 = never auto-hide). Persisted.
+    func configure(idleHideMs ms: Int) throws {
+        guard (0...Self.maxIdleHideMs).contains(ms) else {
+            throw RPCMethodError(
+                code: -32602,
+                message: "idle_hide_ms must be 0...\(Self.maxIdleHideMs) (0 = never auto-hide), got \(ms)"
+            )
+        }
+        idleHideMs = ms
+        UserDefaults.standard.set(ms, forKey: Self.idleHideDefaultsKey)
+        record("configure", ["idle_hide_ms": ms])
+        if activeActions == 0 { scheduleIdleHide() }
+    }
+
+    /// Visibility + idle-hide settings for `cursor status`.
+    func status(includeEvents: Bool) -> [String: Any] {
+        let now = ProcessInfo.processInfo.systemUptime
+        let ws = panel.isVisible ? windowServerPlacement() : (errorPt: nil, onscreen: false)
+        var d: [String: Any] = [
+            "visible": panel.isVisible,
+            "ws_onscreen": ws.onscreen,
+            "idle_hide_ms": idleHideMs,
+            "auto_hide": idleHideMs > 0,
+            "post_action_linger_ms": Self.postActionLingerMs,
+            "effective_hide_ms": effectiveHideMs as Any,
+            "active_actions": activeActions,
+            "hide_pending": hideDeadline != nil,
+            "hide_in_ms": hideDeadline.map { max(0, Int((($0 - now) * 1000).rounded())) } as Any,
+            "last_action_end_ms_ago": lastActionEnd.map { Int(((now - $0) * 1000).rounded()) } as Any,
+            "auto_hides": autoHides,
+            "now_uptime_ms": Self.ms(now),
+        ]
+        if includeEvents { d["events"] = events }
+        return d
+    }
+
+    private func record(_ event: String, _ extra: [String: Any] = [:]) {
+        var e = extra
+        e["event"] = event
+        e["t_ms"] = Self.ms(ProcessInfo.processInfo.systemUptime)
+        events.append(e)
+        if events.count > 128 { events.removeFirst(events.count - 128) }
+    }
+
+    private static func ms(_ t: TimeInterval) -> Double {
+        (t * 10_000).rounded() / 10
     }
 
     /// Glide, then wait for CONFIRMED landing: the animation's final frame was
@@ -195,7 +315,7 @@ final class CursorOverlay: @unchecked Sendable {
             presented = await confirmPresented()
         }
         if !(presented?.ok ?? false) {
-            hide()
+            hide(reason: "landing_retry")
             panel.setFrameOrigin(animTarget)
             orderPanel(above: lastWindowID)
             error = landingError()
@@ -205,6 +325,7 @@ final class CursorOverlay: @unchecked Sendable {
                 method = "snap_retry"
             } else {
                 panel.orderOut(nil)
+                record("hide", ["reason": "unlanded"])
                 return Landing(
                     point: tip.point, landed: false, method: "unconfirmed",
                     errorPt: Double(error), waitMs: elapsedMs(since: started),
@@ -212,6 +333,8 @@ final class CursorOverlay: @unchecked Sendable {
                 )
             }
         }
+        record("landed", ["method": method, "visible": panel.isVisible])
+        if activeActions == 0 { scheduleIdleHide() }  // glide outside an RPC action
         return Landing(
             point: tip.point, landed: true, method: method,
             errorPt: Double(error), waitMs: elapsedMs(since: started),

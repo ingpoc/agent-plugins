@@ -538,6 +538,9 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     method_router = (
         root / "service" / "Sources" / "CUAService" / "MethodRouter.swift"
     ).read_text()
+    cursor_overlay = (
+        root / "service" / "Sources" / "CUAService" / "CursorOverlay.swift"
+    ).read_text()
     cua_client = (root / "service" / "cua_client.py").read_text()
     installer = (root / "service" / "install_service.py").read_text()
     workflow = (scripts / "workflow.py").read_text()
@@ -606,8 +609,9 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     add(
         "native plans always hide the agent cursor",
         "private func handleExecutePlan" in method_router
-        and "defer { cursorOverlay.hide() }" in method_router,
-        "the overlay must close after every completed or failed act",
+        and "defer { if isAction { cursorOverlay.endAction(request.method) } }" in method_router
+        and "self.hide(reason: \"idle\")" in cursor_overlay,
+        "the overlay must close (idle auto-hide after the post-click linger) after every completed or failed act",
     )
     add(
         "session-shape benchmark encodes two wall clocks",

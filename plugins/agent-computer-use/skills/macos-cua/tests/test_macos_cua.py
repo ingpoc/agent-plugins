@@ -2284,11 +2284,14 @@ class CursorProofTests(unittest.TestCase):
 
     def test_native_cursor_configure_never_calls_cua_driver(self):
         """Legacy cua-driver set_agent_cursor_style/motion (300ms) is gone."""
+        client = mock.Mock()
+        client.cursor_status.return_value = {"ok": True, "visible": False, "idle_hide_ms": 1500}
         with (
             mock.patch.object(
                 macos_cua, "cursor_raster_path", return_value="/tmp/hermes-pointer.png"
             ),
             mock.patch.object(macos_cua, "call_driver") as call_driver,
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
         ):
             result = macos_cua.configure_cursor_icon("test")
             status = macos_cua.cursor("status")
@@ -2301,6 +2304,71 @@ class CursorProofTests(unittest.TestCase):
         self.assertEqual(status["engine"], "CUAService")
         self.assertTrue(ensured["ok"])
         call_driver.assert_not_called()
+
+    def test_cursor_status_reports_live_idle_hide_and_visibility(self):
+        client = mock.Mock()
+        client.cursor_status.return_value = {
+            "ok": True, "visible": False, "idle_hide_ms": 1500, "auto_hide": True,
+            "post_action_linger_ms": 600, "effective_hide_ms": 1500, "hide_pending": False,
+        }
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+            status = macos_cua.cursor("status")
+        self.assertTrue(status["ok"])
+        self.assertEqual(status["overlay"]["idle_hide_ms"], 1500)
+        self.assertIs(status["overlay"]["visible"], False)
+        self.assertNotIn("ok", status["overlay"])
+        client.configure_cursor.assert_not_called()
+        client.close.assert_called_once()
+
+    def test_cursor_configure_idle_hide_ms_routes_to_cuaservice(self):
+        client = mock.Mock()
+        client.configure_cursor.return_value = {"ok": True, "visible": False, "idle_hide_ms": 0,
+                                                "auto_hide": False}
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+            res = macos_cua.cursor("configure", idle_hide_ms=0)
+        self.assertTrue(res["ok"])
+        self.assertTrue(res["configured"])
+        self.assertIs(res["overlay"]["auto_hide"], False)
+        client.configure_cursor.assert_called_once_with(0)
+
+    def test_cursor_idle_hide_ms_fails_loud(self):
+        client = mock.Mock()
+        client.cursor_status.side_effect = ConnectionError("no socket")
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client) as make:
+            down = macos_cua.cursor("status")
+            neg = macos_cua.cursor("configure", idle_hide_ms=-5)
+            wrong = macos_cua.cursor("status", idle_hide_ms=100)
+        self.assertFalse(down["ok"])
+        self.assertIn("cursor_status unavailable", down["error"])
+        self.assertFalse(neg["ok"])
+        self.assertFalse(wrong["ok"])
+        self.assertEqual(make.call_count, 1)  # invalid args never reach the service
+        bad = mock.Mock()
+        bad.configure_cursor.return_value = {"ok": False}
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=bad):
+            self.assertFalse(macos_cua.cursor("configure", idle_hide_ms=10)["ok"])
+
+    def test_cursor_parser_accepts_idle_hide_ms(self):
+        parser = macos_cua._cli_parser().build_parser(cua_session="s", key_codes={})
+        args = parser.parse_args(["cursor", "configure", "--idle-hide-ms", "2500"])
+        self.assertEqual(args.idle_hide_ms, 2500)
+        self.assertIsNone(parser.parse_args(["cursor", "status"]).idle_hide_ms)
+
+    def test_cursor_overlay_idle_hide_never_races_a_press(self):
+        """Source guard: the idle countdown starts only after the whole RPC
+        (glide + landing gate + press) returned; new moves cancel it."""
+        svc = Path(__file__).parents[1] / "service" / "Sources" / "CUAService"
+        overlay = (svc / "CursorOverlay.swift").read_text()
+        router = (svc / "MethodRouter.swift").read_text()
+        self.assertIn("static let defaultIdleHideMs = 1500", overlay)
+        self.assertIn("static let postActionLingerMs = 600", overlay)
+        self.assertIn("gen == self.hideGeneration, self.activeActions == 0", overlay)
+        glide = overlay.split("func glideTo(", 1)[1].split("func hide(", 1)[0]
+        self.assertIn("cancelPendingHide()", glide)
+        self.assertIn("cursorOverlay.beginAction(request.method)", router)
+        self.assertIn("defer { if isAction { cursorOverlay.endAction(request.method) } }", router)
+        plan = router.split("func handleExecutePlan(", 1)[1].split("guard let app", 1)[0]
+        self.assertNotIn("cursorOverlay.hide()", plan)
 
     def test_cursor_hide_routes_to_cuaservice_and_move_is_refused(self):
         client = mock.Mock()

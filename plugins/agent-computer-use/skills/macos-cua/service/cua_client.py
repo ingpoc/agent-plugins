@@ -289,6 +289,14 @@ class CUAClient:
     def hide_agent_cursor(self) -> dict:
         return self.call("hide_agent_cursor") or {"ok": True}
 
+    def cursor_status(self, events: bool = False) -> dict:
+        """Overlay visibility + idle-hide setting (bypasses the request lock)."""
+        return self.call("cursor_status", {"events": True} if events else None)
+
+    def configure_cursor(self, idle_hide_ms: int) -> dict:
+        """Idle auto-hide delay in ms (0 = never auto-hide); persisted."""
+        return self.call("configure_cursor", {"idle_hide_ms": int(idle_hide_ms)})
+
 
 def owner_pids() -> list[int]:
     """PIDs of the installed CUAService serving the default socket.
