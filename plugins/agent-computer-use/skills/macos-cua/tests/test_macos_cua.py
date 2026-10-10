@@ -3514,6 +3514,13 @@ class KeyboardTests(unittest.TestCase):
         make.assert_not_called()
         self.assertIn("no running app with pid 10", result["error"])
 
+    def test_cursor_show_is_rejected_not_silently_ok(self):
+        with mock.patch.object(macos_cua, "_cuaservice_client") as make:
+            result = macos_cua.cursor("show")
+        make.assert_not_called()
+        self.assertIs(result["ok"], False)
+        self.assertIn("not a CUAService RPC", result["error"])
+
     def test_invalid_key_list_returns_structured_error(self):
         with mock.patch.object(macos_cua, "call_driver") as call_driver:
             result = macos_cua.press_key(10, 20, ["cmd", ""])

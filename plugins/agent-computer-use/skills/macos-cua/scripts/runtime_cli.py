@@ -62,8 +62,14 @@ def configure_cursor_icon(
 
 def cursor(action, **kwargs):
     """`macos-cua cursor <action>` routed to CUAService (socket only)."""
-    if action in {"status", "configure", "show"}:
+    if action in {"status", "configure"}:
         return configure_cursor_icon(icon_path=kwargs.get("icon"))
+    if action == "show":
+        return {
+            "ok": False,
+            "error": "cursor show is not a CUAService RPC; the overlay appears on the next act/click",
+            "engine": "CUAService",
+        }
     if action == "hide":
         client = _cuaservice_client()
         try:
@@ -206,7 +212,7 @@ def _main():
                 print(json.dumps({"error": "move requires --x and --y"}))
                 sys.exit(1)
             kw.update(x=args.x, y=args.y)
-        print(json.dumps(cursor(args.action, **kw), indent=2, default=str))
+        _emit_json(cursor(args.action, **kw), require_ok=True)
         return
 
     if args.command == "click-desktop":
