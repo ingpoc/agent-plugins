@@ -433,21 +433,15 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     driver = (scripts / "runtime_driver.py").read_text()
     call = _function_source(driver, "call_driver")
     add(
-        "driver calls revive a dropped session once",
-        "driver_session_ended" in driver
-        and "start_session" in call
-        and "end_session" in call
-        and "retry_params" in call
-        and 'retry_params["session"]' in call,
-        "call_driver must start_session once on session_ended, not fail the key",
+        "driver calls never auto-start a session",
+        "start_session" not in call and "retry_params" not in call,
+        "start_session is banned; a session_ended refusal must surface, not revive",
     )
     press = _function_source(walk, "press_key")
     add(
-        "keys survive a dropped driver session via native PID delivery",
-        "driver_session_ended" in press
-        and "press_key_after_dropped_session" in press
-        and "global_input" in press,
-        "Escape/hotkey must not die when cua-driver session_ended after AX",
+        "keys route through the CUAService socket",
+        "_cuaservice_press_key" in press and "call_driver" not in press,
+        "macos-cua key must use CUAService press_key, never the retired cua-driver",
     )
     add(
         "page scroll survives global_input after a dropped session",

@@ -2363,50 +2363,21 @@ class CursorProofTests(unittest.TestCase):
         self.assertEqual(result["method"], "agent-cursor-glide+ax-frame-hid")
         native.post_mouse_click.assert_called_once()
 
-    def test_cleanup_driver_cursors_disables_then_ends_auto_sessions(self):
-        state = {
-            "enabled": True,
-            "cursors": [
-                {
-                    "config": {
-                        "cursor_id": "auto-cyan",
-                        "cursor_color": "#00FFFF",
-                        "cursor_icon": None,
-                        "enabled": True,
-                    }
-                },
-                {
-                    "config": {
-                        "cursor_id": "macos-cua",
-                        "enabled": True,
-                    }
-                },
-            ],
-        }
-        calls = []
-
-        def fake_call(tool, params=None, timeout=None):
-            calls.append((tool, params or {}))
-            if tool == "get_agent_cursor_state":
-                return state
-            return {"ok": True}
-
-        with mock.patch.object(macos_cua, "call_driver", side_effect=fake_call):
-            result = macos_cua._cleanup_driver_cursors()
-
-        self.assertEqual(result["ended"], ["auto-cyan"])
-        self.assertEqual(
-            calls,
-            [
-                ("get_agent_cursor_state", {}),
-                (
-                    "set_agent_cursor_enabled",
-                    {"enabled": False, "session": "auto-cyan"},
-                ),
-                ("end_session", {"session": "auto-cyan"}),
-                ("set_agent_cursor_enabled", {"enabled": False}),
-            ],
-        )
+    def test_cleanup_driver_cursors_never_touches_retired_cua_driver(self):
+        client = mock.Mock()
+        client.hide_agent_cursor.return_value = {"ok": True}
+        with (
+            mock.patch.object(macos_cua, "call_driver") as driver,
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client) as make,
+        ):
+            per_action = macos_cua._cleanup_driver_cursors()
+            closeout = macos_cua._cleanup_driver_cursors(include_named=True)
+        driver.assert_not_called()
+        self.assertEqual(per_action["ended"], [])
+        make.assert_called_once()  # per-action cleanup: no socket round-trip
+        client.hide_agent_cursor.assert_called_once()
+        client.close.assert_called_once()
+        self.assertEqual(closeout["hidden"], {"ok": True})
 
     def test_click_at_desktop_wipes_driver_cursors_before_and_after(self):
         with (
@@ -3471,154 +3442,77 @@ class KeyboardTests(unittest.TestCase):
         run.assert_not_called()
         self.assertIn("unsupported System Events key", result["error"])
 
-    def test_combo_uses_hotkey_with_normalized_modifiers(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        foreground = None
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
-            foreground = mock.patch.object(
-                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
-            )
-            foreground.start()
+    def _cuaservice(self, result=None, error=None):
+        client = mock.Mock()
+        if error is not None:
+            client.press_key.side_effect = error
+        else:
+            client.press_key.return_value = result or {"ok": True, "method": "cgevent-key-pid"}
+        identity = {"pid": 10, "name": "Comet", "bundle_id": "ai.perplexity.comet", "active": False}
+        return client, (
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(macos_cua, "_running_app_identity", return_value=identity),
+            mock.patch.object(macos_cua, "call_driver"),
+            mock.patch.object(macos_cua, "bring_resolved_window_to_front"),
+        )
 
-            macos_cua.press_key(10, 20, "super+shift+A", "foreground")
+    def test_combo_goes_to_cuaservice_with_normalized_modifiers(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2] as driver, patches[3] as front:
+            result = macos_cua.press_key(10, 20, "super+shift+A", "foreground")
+        client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+shift+a")
+        client.close.assert_called_once()
+        driver.assert_not_called()
+        front.assert_not_called()  # CUAService raises the window for input itself
+        self.assertTrue(macos_cua._accepted(result))
+        self.assertEqual(result["engine"], "CUAService")
 
-            self.assertEqual(
-                calls,
-                [
-                    (
-                        "hotkey",
-                        {
-                            "pid": 10,
-                            "window_id": 20,
-                            "keys": ["cmd", "shift", "a"],
-                            "delivery_mode": "foreground",
-                        },
-                    )
-                ],
-            )
-        finally:
-            if foreground is not None:
-                foreground.stop()
-            macos_cua.call_driver = original_call_driver
+    def test_cmd_v_reaches_cuaservice_press_key(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2] as driver, patches[3]:
+            result = macos_cua.press_key(10, 20, "cmd+v")
+        client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+v")
+        driver.assert_not_called()
+        self.assertTrue(result["ok"])
 
-    def test_single_key_uses_press_key(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
+    def test_single_key_and_list_are_normalized(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2], patches[3]:
             macos_cua.press_key(10, 20, "Escape")
-
-            self.assertEqual(calls[0][0], "press_key")
-            self.assertEqual(calls[0][1]["key"], "escape")
-            self.assertEqual(calls[0][1]["delivery_mode"], "background")
-        finally:
-            macos_cua.call_driver = original_call_driver
-
-    def test_press_key_uses_native_pid_when_driver_session_ended(self):
-        ended = {
-            "refusal": {
-                "code": "session_ended",
-                "message": "this session has ended; call start_session explicitly to reuse its label",
-            },
-            "status": "refused",
-        }
-        native = SimpleNamespace(
-            press_key_after_dropped_session=mock.Mock(
-                return_value={
-                    "ok": True,
-                    "accepted": True,
-                    "path": "native_cg_key",
-                    "session_recovered": True,
-                }
-            )
+            macos_cua.press_key(10, 20, ["command", "shift", "A"])
+        self.assertEqual(
+            [c.args for c in client.press_key.call_args_list],
+            [("ai.perplexity.comet", "escape"), ("ai.perplexity.comet", "cmd+shift+a")],
         )
+
+    def test_unknown_modifier_fails_before_dispatch(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2], patches[3]:
+            result = macos_cua.press_key(10, 20, "hyper+a")
+        client.press_key.assert_not_called()
+        self.assertFalse(macos_cua._accepted(result))
+        self.assertIn("unsupported key combo", result["error"])
+
+    def test_cuaservice_refusal_or_socket_failure_is_not_accepted(self):
+        client, patches = self._cuaservice(result={"ok": False, "error": "Unknown key: f13"})
+        with patches[0], patches[1], patches[2], patches[3]:
+            refused = macos_cua.press_key(10, 20, "f13")
+        self.assertFalse(macos_cua._accepted(refused))
+        client, patches = self._cuaservice(error=ConnectionError("refusing; Recover with: pkill"))
+        with patches[0], patches[1], patches[2], patches[3]:
+            failed = macos_cua.press_key(10, 20, "escape")
+        self.assertFalse(macos_cua._accepted(failed))
+        self.assertIn("Recover with", failed["error"])
+        client.close.assert_called_once()
+
+    def test_missing_pid_fails_loud(self):
         with (
-            mock.patch.object(macos_cua, "call_driver", return_value=ended),
-            mock.patch.object(macos_cua, "_native_input", return_value=native),
-            mock.patch.object(
-                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
-            ),
+            mock.patch.object(macos_cua, "_running_app_identity", return_value=None),
+            mock.patch.object(macos_cua, "_cuaservice_client") as make,
         ):
-            result = macos_cua.press_key(10, 20, "Escape", "foreground")
-
-        self.assertTrue(result["ok"])
-        self.assertTrue(result["session_recovered"])
-        self.assertEqual(result["path"], "native_cg_key")
-        native.press_key_after_dropped_session.assert_called_once()
-
-    def test_press_key_rejects_recovered_global_input(self):
-        recovered = {
-            "delivery": {"mode": "foreground"},
-            "effect": "unverifiable",
-            "route": "global_input",
-            "session_recovered": True,
-        }
-        native = SimpleNamespace(
-            press_key_after_dropped_session=mock.Mock(
-                return_value={
-                    "ok": True,
-                    "accepted": True,
-                    "path": "native_cg_key",
-                    "session_recovered": True,
-                }
-            )
-        )
-        with (
-            mock.patch.object(macos_cua, "call_driver", return_value=recovered),
-            mock.patch.object(macos_cua, "_native_input", return_value=native),
-            mock.patch.object(
-                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
-            ),
-        ):
-            result = macos_cua.press_key(10, 20, "Escape", "foreground")
-
-        self.assertEqual(result["path"], "native_cg_key")
-        native.press_key_after_dropped_session.assert_called_once()
-
-    def test_background_key_retries_once_when_foreground_recommended(self):
-        calls = []
-
-        def driver(tool, params):
-            calls.append((tool, params))
-            if params.get("delivery_mode") == "background":
-                return {
-                    "ok": False,
-                    "code": "off_space_or_ax_unresolved",
-                    "escalation": {"recommended": "foreground"},
-                }
-            return {"ok": True}
-
-        with (
-            mock.patch.object(macos_cua, "call_driver", side_effect=driver),
-            mock.patch.object(
-                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
-            ),
-        ):
-            result = macos_cua.press_key(10, 20, "cmd+c")
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["escalated"], "foreground")
-        self.assertEqual(calls[0][1]["delivery_mode"], "background")
-        self.assertEqual(calls[1][1]["delivery_mode"], "foreground")
-
-    def test_key_list_is_normalized_before_driver_dispatch(self):
-        calls = []
-        with mock.patch.object(
-            macos_cua,
-            "call_driver",
-            side_effect=lambda tool, params: calls.append((tool, params)) or {"ok": True},
-        ):
-            result = macos_cua.press_key(10, 20, ["cmd", "shift", "A"])
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(calls[0][0], "hotkey")
-        self.assertEqual(calls[0][1]["keys"], ["cmd", "shift", "a"])
+            result = macos_cua.press_key(10, 20, "escape")
+        make.assert_not_called()
+        self.assertIn("no running app with pid 10", result["error"])
 
     def test_invalid_key_list_returns_structured_error(self):
         with mock.patch.object(macos_cua, "call_driver") as call_driver:
@@ -5955,7 +5849,7 @@ class DriverSocketTransportTests(unittest.TestCase):
         self.assertEqual(result, {"error": "boom"})
         run.assert_not_called()
 
-    def test_session_ended_revives_named_session_once(self):
+    def test_session_ended_is_returned_without_start_session(self):
         ended = {
             "refusal": {
                 "code": "session_ended",
@@ -5963,26 +5857,16 @@ class DriverSocketTransportTests(unittest.TestCase):
             },
             "status": "refused",
         }
-        fake = _FakeDriverSocket(
-            chunks=[
-                _envelope_line(ended),
-                _envelope_line({"ok": True}),
-                _envelope_line({"ok": True, "accepted": True}),
-            ]
-        )
+        fake = _FakeDriverSocket(chunks=[_envelope_line(ended)])
         with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
             with mock.patch.object(macos_cua.subprocess, "run") as run:
                 result = macos_cua.call_driver(
                     "press_key", {"pid": 10, "window_id": 20, "key": "escape"}
                 )
-        self.assertEqual(result.get("ok"), True)
-        self.assertTrue(result.get("session_recovered"))
+        self.assertTrue(macos_cua.driver_session_ended(result))
+        self.assertFalse(macos_cua._accepted(result))
         payloads = [json.loads(item) for item in fake.sent]
-        self.assertEqual(
-            [item["name"] for item in payloads],
-            ["press_key", "start_session", "press_key"],
-        )
-        self.assertEqual(payloads[2]["args"].get("session"), macos_cua.CUA_SESSION)
+        self.assertEqual([item["name"] for item in payloads], ["press_key"])
         run.assert_not_called()
 
     def test_reconnect_waits_for_restarted_daemon_socket(self):

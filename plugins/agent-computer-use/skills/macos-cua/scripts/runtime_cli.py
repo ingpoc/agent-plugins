@@ -122,7 +122,10 @@ def _main():
             _emit_json({"ok": False, **visual}, require_ok=True)
 
     if args.command == "status":
-        print(json.dumps(driver_status(), indent=2, default=str))
+        status = driver_status()
+        print(json.dumps(status, indent=2, default=str))
+        if (status.get("cuaservice") or {}).get("ok") is not True:
+            sys.exit(1)
         return
     if args.command == "reset":
         removed = clear_resolution_cache()
@@ -439,7 +442,7 @@ def _main():
         mode = "system_events" if args.system_events else (
             "foreground" if args.foreground else "background"
         )
-        print(json.dumps(press_key(pid, wid, args.keys, mode), indent=2, default=str))
+        _emit_json(press_key(pid, wid, args.keys, mode), require_accepted=True)
     elif args.command == "hold-key":
         _emit_json(
             hold_key(
