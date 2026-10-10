@@ -111,7 +111,20 @@ class PackageTests(unittest.TestCase):
             self.assertIsNone(cwd)
             self.assertEqual(server["args"][0], "-c")
             self.assertNotIn("${", server["args"][1])
-            self.assertIn("${PLUGIN_ROOT}", server["args"])
+            self.assertEqual(
+                server["args"][2:],
+                [
+                    "context-ledger-mcp",
+                    "${PLUGIN_ROOT}",
+                    "${CURSOR_PLUGIN_ROOT}",
+                    "${CLAUDE_PLUGIN_ROOT}",
+                    "serve",
+                ],
+            )
+            self.assertEqual(
+                server["env"],
+                {"CONTEXT_LEDGER_MCP_CLIENT_TOKEN": "${env:CONTEXT_LEDGER_MCP_TOKEN}"},
+            )
             self.assertTrue(launcher.is_file())
             return
         if ".cursor" in ROOT.parts and Path(command).is_absolute():
@@ -185,15 +198,32 @@ class PackageTests(unittest.TestCase):
                         "command": "${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp",
                         "args": ["serve"],
                         "cwd": "${CURSOR_PLUGIN_ROOT}",
+                        "env": {
+                            "CONTEXT_LEDGER_MCP_CLIENT_TOKEN": "${env:CONTEXT_LEDGER_MCP_TOKEN}",
+                        },
                     }
                 }
             },
         )
+        claude_mcp = json.loads((ROOT / ".claude-plugin/mcp.json").read_text(encoding="utf-8"))
+        self.assertNotIn("env", claude_mcp["mcpServers"]["context-ledger"])
+        self.assertNotIn("${env:", (ROOT / ".claude-plugin/mcp.json").read_text(encoding="utf-8"))
         portable = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["context-ledger"]
         self.assertEqual(portable["command"], "sh")
         self.assertIsNone(portable.get("cwd"))
         self.assertNotIn("${", portable["command"])
         self.assertNotIn("${", portable["args"][1])
+        self.assertEqual(
+            portable["args"][2:],
+            [
+                "context-ledger-mcp",
+                "${PLUGIN_ROOT}",
+                "${CURSOR_PLUGIN_ROOT}",
+                "${CLAUDE_PLUGIN_ROOT}",
+                "serve",
+            ],
+        )
+        self.assertEqual(portable["env"], cursor_mcp["mcpServers"]["context-ledger"]["env"])
         self.assertEqual(portable["args"][-1], "serve")
 
     def test_relative_stdio_requires_cursor_override(self) -> None:
@@ -302,8 +332,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.15")
-        self.assertIn('__version__ = "0.1.15"', init)
+        self.assertEqual(plugin["version"], "0.1.16")
+        self.assertIn('__version__ = "0.1.16"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

@@ -11,7 +11,7 @@ This repository is a **collection of portable [Agent Plugins](https://agent-plug
 
 | In the repo | Not in the repo |
 | --- | --- |
-| `plugins/<name>/` with closed `plugin.json`. context-ledger ships three MCP manifests: portable `mcp.json` (bare `sh` resolver, no `${` in the script), `.cursor-plugin/` (`${CURSOR_PLUGIN_ROOT}`), `.claude-plugin/` (`${CLAUDE_PLUGIN_ROOT}`). A legacy stdio `./` command still ships `.cursor-plugin/` | Duplicate Cursor packages outside `plugins/<name>/` |
+| `plugins/<name>/` with closed `plugin.json`. context-ledger ships three MCP manifests: portable `mcp.json` (bare `sh` resolver, no `${` in the script; root args `${PLUGIN_ROOT}`, `${CURSOR_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_ROOT}`), `.cursor-plugin/` (`${CURSOR_PLUGIN_ROOT}`), `.claude-plugin/` (`${CLAUDE_PLUGIN_ROOT}`). Client-token env is on the portable and Cursor manifests only. A legacy stdio `./` command still ships `.cursor-plugin/` | Duplicate Cursor packages outside `plugins/<name>/` |
 | `skills/`, optional `mcp.json`, optional `bin/`, runtime files that package needs | Codex plugin packages (`.codex-plugin/`) |
 | Thin Codex, Cursor, Grok, and Claude marketplace catalogs that point at the same portable packages. `.claude-plugin/marketplace.json` lists only plugins that ship `.claude-plugin/` | Duplicate client-specific copies of plugin contents |
 
@@ -29,7 +29,7 @@ The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plug
 | Change plugin behavior | That plugin's `SKILL.md` and `mcp.json` |
 | Change how this plugin installs | That plugin's `AGENTS.md` |
 | Change published benchmark scores | That plugin's `README.md` |
-| Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That package's `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`). context-ledger portable `mcp.json` is the `sh` resolver. Dest rewrite (`install_harness.py cursor-plugin` or `scripts/install_cursor_dest.py`) only repairs pre-override relative installs |
+| Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That package's `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`). context-ledger portable `mcp.json` is the `sh` resolver (root args `${PLUGIN_ROOT}`, `${CURSOR_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_ROOT}`). Dest rewrite (`install_harness.py cursor-plugin` or `scripts/install_cursor_dest.py`) only repairs pre-override relative installs |
 | Change context-ledger MCP manifests or the serve launcher | `plugins/context-ledger/tests/test_manifests.py` and `tests/test_contract.py` (stdio shape, resolver, keychain, shell files reject or-true) |
 | Checks, CI, pre-commit | `scripts/check.py` |
 | Claim a plugin fix is done | Live-verify the installed client copy (MCP/CLI). Update the standing canvas from that run. `scripts/check.py` is not that proof. |
@@ -57,6 +57,6 @@ If the client is missing or has no setup link, say so and stop.
 
 - One portable package per `plugins/<name>/`. Shape comes from the live spec, not this file.
 - Adding a plugin without a Plugins row, `plugins/<name>/AGENTS.md`, and `plugins/<name>/README.md` is incomplete.
-- context-ledger portable `mcp.json` is bare `sh` plus a resolver with no `${` (Codex expands only the `${PLUGIN_ROOT}` root arg). Cursor uses `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}`). Claude Code uses `.claude-plugin/plugin.json` + `.claude-plugin/mcp.json` (`${CLAUDE_PLUGIN_ROOT}`). A legacy `./bin/…-mcp` still requires the Cursor override. Dest rewrite only repairs pre-override relative installs. Contract tests: `plugins/context-ledger/tests/test_contract.py` and `tests/test_manifests.py`.
+- context-ledger portable `mcp.json` is bare `sh` plus a resolver with no `${`. Args are the resolver, then `${PLUGIN_ROOT}`, `${CURSOR_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_ROOT}`, then `serve` (Codex expands only `${PLUGIN_ROOT}`; a Cursor surface that reads the root manifest expands `${CURSOR_PLUGIN_ROOT}` and `${CLAUDE_PLUGIN_ROOT}`). Portable and `.cursor-plugin/mcp.json` set `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` to `${env:CONTEXT_LEDGER_MCP_TOKEN}`. Claude Code uses `.claude-plugin/plugin.json` + `.claude-plugin/mcp.json` (`${CLAUDE_PLUGIN_ROOT}`) with no env interpolation. A legacy `./bin/…-mcp` still requires the Cursor override. Dest rewrite only repairs pre-override relative installs. Contract tests: `plugins/context-ledger/tests/test_contract.py` and `tests/test_manifests.py`.
 - Before shipping changed installed package contents (runtime, skill, references, or install docs), bump that plugin's `plugin.json` SemVer; keep any in-package runtime version and assertions aligned. Skip test-only and collection-tooling changes.
 - This repo is public. No personal case data.

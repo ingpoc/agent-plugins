@@ -6,7 +6,10 @@
       "args": [
         "serve"
       ],
-      "cwd": "${CURSOR_PLUGIN_ROOT}"
+      "cwd": "${CURSOR_PLUGIN_ROOT}",
+      "env": {
+        "CONTEXT_LEDGER_MCP_CLIENT_TOKEN": "${env:CONTEXT_LEDGER_MCP_TOKEN}"
+      }
     }
   }
 }

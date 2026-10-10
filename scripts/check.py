@@ -197,7 +197,8 @@ def _cursor_stdio_expectation(root_server: dict) -> tuple[str | None, object]:
 
     A legacy `./…` command maps to `${CURSOR_PLUGIN_ROOT}/…` with the same args.
     A bare `sh` resolver (no `${` in the script) maps to
-    `${CURSOR_PLUGIN_ROOT}/bin/<launcher>` and the args after `${PLUGIN_ROOT}`.
+    `${CURSOR_PLUGIN_ROOT}/bin/<launcher>` and the args after the root
+    placeholders (`${PLUGIN_ROOT}`, `${CURSOR_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_ROOT}`).
     """
     command = str(root_server.get("command") or "")
     if command.startswith("./"):
@@ -220,6 +221,13 @@ def _cursor_stdio_expectation(root_server: dict) -> tuple[str | None, object]:
         if root_at < 2:
             return None, _ABSENT
         tail = args[root_at + 1 :]
+        root_placeholders = {
+            "${PLUGIN_ROOT}",
+            "${CURSOR_PLUGIN_ROOT}",
+            "${CLAUDE_PLUGIN_ROOT}",
+        }
+        while tail and isinstance(tail[0], str) and tail[0] in root_placeholders:
+            tail = tail[1:]
         launchers = re.findall(r"bin/([A-Za-z0-9._-]+)", args[1])
         if not launchers or not tail or any(name != launchers[0] for name in launchers):
             return None, _ABSENT
