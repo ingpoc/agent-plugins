@@ -2,7 +2,11 @@
 """Ensure generic MCP errors are diagnosable without logging payload text."""
 import json
 import logging
+import sys
 import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from context_ledger.server import _call
 

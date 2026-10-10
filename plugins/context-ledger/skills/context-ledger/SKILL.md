@@ -40,3 +40,5 @@ At closeout, send the same `task_id`. A candidate is one short object (`summary`
 Outcome feedback is idempotent by `(task_id, decision_id)`: an identical retry adds no event; corrected feedback replaces that task's prior observation. Confidence is the **observed usefulness rate**: `successes / (successes + failures)`, over distinct task IDs and using the latest feedback per task. Return the score, success/failure/inconclusive counts, and conclusive sample count. Inconclusive outcomes do not enter the score; use `null` when there are no conclusive observations. This is descriptive usefulness, not probability of correctness, and task outcomes may be correlated.
 
 Skip routine work, duplicate decisions, temporary status, raw prompts, hidden reasoning, and secrets.
+
+Remote agents use the same `context-ledger` server. No local binding plus `CONTEXT_LEDGER_MCP_TOKEN` bridges to the Mini; a binding stays on local stdio. Only the helper calls the MCP. See `references/remote-mcp.md`.

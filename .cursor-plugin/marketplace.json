@@ -17,7 +17,15 @@
     {
       "name": "context-ledger",
       "source": "./plugins/context-ledger",
-      "description": "Scoped, local decision traces with sparse capture and progressive retrieval."
+      "description": "Scoped, local decision traces with sparse capture and progressive retrieval.",
+      "mcpServers": {
+        "context-ledger": {
+          "type": "stdio",
+          "command": "${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp",
+          "args": ["serve"],
+          "cwd": "${CURSOR_PLUGIN_ROOT}"
+        }
+      }
     }
   ]
 }
