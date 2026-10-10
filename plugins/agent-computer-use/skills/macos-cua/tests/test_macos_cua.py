@@ -3454,11 +3454,12 @@ class KeyboardTests(unittest.TestCase):
             mock.patch.object(macos_cua, "_running_app_identity", return_value=identity),
             mock.patch.object(macos_cua, "call_driver"),
             mock.patch.object(macos_cua, "bring_resolved_window_to_front"),
+            mock.patch.object(macos_cua, "_pids_for_app", return_value=[10]),
         )
 
     def test_combo_goes_to_cuaservice_with_normalized_modifiers(self):
         client, patches = self._cuaservice()
-        with patches[0], patches[1], patches[2] as driver, patches[3] as front:
+        with patches[0], patches[1], patches[2] as driver, patches[3] as front, patches[4]:
             result = macos_cua.press_key(10, 20, "super+shift+A", "foreground")
         client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+shift+a")
         client.close.assert_called_once()
@@ -3469,7 +3470,7 @@ class KeyboardTests(unittest.TestCase):
 
     def test_cmd_v_reaches_cuaservice_press_key(self):
         client, patches = self._cuaservice()
-        with patches[0], patches[1], patches[2] as driver, patches[3]:
+        with patches[0], patches[1], patches[2] as driver, patches[3], patches[4]:
             result = macos_cua.press_key(10, 20, "cmd+v")
         client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+v")
         driver.assert_not_called()
@@ -3477,7 +3478,7 @@ class KeyboardTests(unittest.TestCase):
 
     def test_single_key_and_list_are_normalized(self):
         client, patches = self._cuaservice()
-        with patches[0], patches[1], patches[2], patches[3]:
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
             macos_cua.press_key(10, 20, "Escape")
             macos_cua.press_key(10, 20, ["command", "shift", "A"])
         self.assertEqual(
@@ -3487,7 +3488,7 @@ class KeyboardTests(unittest.TestCase):
 
     def test_unknown_modifier_fails_before_dispatch(self):
         client, patches = self._cuaservice()
-        with patches[0], patches[1], patches[2], patches[3]:
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
             result = macos_cua.press_key(10, 20, "hyper+a")
         client.press_key.assert_not_called()
         self.assertFalse(macos_cua._accepted(result))
@@ -3495,15 +3496,24 @@ class KeyboardTests(unittest.TestCase):
 
     def test_cuaservice_refusal_or_socket_failure_is_not_accepted(self):
         client, patches = self._cuaservice(result={"ok": False, "error": "Unknown key: f13"})
-        with patches[0], patches[1], patches[2], patches[3]:
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
             refused = macos_cua.press_key(10, 20, "f13")
         self.assertFalse(macos_cua._accepted(refused))
         client, patches = self._cuaservice(error=ConnectionError("refusing; Recover with: pkill"))
-        with patches[0], patches[1], patches[2], patches[3]:
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
             failed = macos_cua.press_key(10, 20, "escape")
         self.assertFalse(macos_cua._accepted(failed))
         self.assertIn("Recover with", failed["error"])
         client.close.assert_called_once()
+
+    def test_second_instance_of_same_bundle_fails_loud_instead_of_wrong_target(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with mock.patch.object(macos_cua, "_pids_for_app", return_value=[10, 11]):
+                result = macos_cua.press_key(10, 20, "cmd+v")
+        client.press_key.assert_not_called()
+        self.assertFalse(macos_cua._accepted(result))
+        self.assertIn("--system-events", result["error"])
 
     def test_missing_pid_fails_loud(self):
         with (

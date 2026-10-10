@@ -71,7 +71,7 @@ class CUAServiceHealthTests(unittest.TestCase):
 
         with (
             mock.patch.dict(os.environ, {"MACOS_CUA_NO_RELAUNCH": ""}),
-            mock.patch.object(cua_client, "service_pids", side_effect=lambda: sorted(alive)),
+            mock.patch.object(cua_client, "owner_pids", side_effect=lambda: sorted(alive)),
             mock.patch.object(cua_client.os, "kill", side_effect=fake_kill),
             mock.patch.object(cua_client.subprocess, "run", side_effect=fake_run) as run,
             mock.patch.object(cua_client.CUAClient, "_ensure_service") as spawn,
@@ -87,7 +87,7 @@ class CUAServiceHealthTests(unittest.TestCase):
     def test_refusing_socket_without_relaunch_fails_loud_with_recovery(self):
         with (
             mock.patch.dict(os.environ, {"MACOS_CUA_NO_RELAUNCH": "1"}),
-            mock.patch.object(cua_client, "service_pids", return_value=[4242]),
+            mock.patch.object(cua_client, "owner_pids", return_value=[4242]),
             mock.patch.object(cua_client.os, "kill") as kill,
             mock.patch.object(cua_client.CUAClient, "_ensure_service") as spawn,
         ):
@@ -104,7 +104,7 @@ class CUAServiceHealthTests(unittest.TestCase):
 
     def test_stale_socket_without_service_spawns_instead_of_killing(self):
         with (
-            mock.patch.object(cua_client, "service_pids", return_value=[]),
+            mock.patch.object(cua_client, "owner_pids", return_value=[]),
             mock.patch.object(cua_client.os, "kill") as kill,
             mock.patch.object(
                 cua_client.CUAClient, "_ensure_service", side_effect=self._listen
@@ -115,30 +115,71 @@ class CUAServiceHealthTests(unittest.TestCase):
         client.close()
         spawn.assert_called_once()
         kill.assert_not_called()
-        self.assertIsNone(client.relaunch)
+        self.assertEqual(client.relaunch, {"spawned": True, "probe": "ConnectionRefusedError"})
 
-    def test_relaunch_respects_cooldown_and_concurrent_lock(self):
+    def test_relaunch_cooldown_blocks_a_second_kill(self):
         client = cua_client.CUAClient(self.sock_path)
         with (
             mock.patch.dict(os.environ, {"MACOS_CUA_NO_RELAUNCH": ""}),
-            mock.patch.object(cua_client, "service_pids", return_value=[4242]),
+            mock.patch.object(cua_client, "owner_pids", return_value=[4242]),
             mock.patch.object(cua_client.os, "kill") as kill,
             mock.patch.object(cua_client.subprocess, "run") as run,
         ):
             cua_client.RELAUNCH_STAMP.touch()
-            cooled = client._guarded_relaunch()
-            cua_client.RELAUNCH_STAMP.unlink()
+            cooled = client._recover()
+        self.assertFalse(cooled["relaunched"])
+        self.assertIn("ago", cooled["reason"])
+        kill.assert_not_called()
+        run.assert_not_called()
+
+    def test_waiter_rechecks_under_lock_and_never_spawns_beside_a_peer(self):
+        """Codex: a lock loser must not spawn during the winner's TERM->open gap."""
+        client = cua_client.CUAClient(self.sock_path)
+        with (
+            mock.patch.object(cua_client, "owner_pids", return_value=[]),
+            mock.patch.object(cua_client.os, "kill") as kill,
+            mock.patch.object(cua_client.CUAClient, "_ensure_service") as spawn,
+        ):
             with open(cua_client.RELAUNCH_LOCK, "w") as held:
                 fcntl.flock(held, fcntl.LOCK_EX)
                 result = {}
-                t = threading.Thread(target=lambda: result.update(client._guarded_relaunch()))
+                t = threading.Thread(target=lambda: result.update(client._recover()))
                 t.start()
-                t.join(5)
-        self.assertFalse(cooled["relaunched"])
-        self.assertIn("ago", cooled["reason"])
-        self.assertEqual(result, {"relaunched": False, "reason": "another agent is relaunching"})
+                time.sleep(0.4)  # waiter is blocked on the lock, socket still dead
+                self.assertTrue(t.is_alive())
+                self._listen()  # the peer heals, then releases
+            t.join(5)
+        self.assertEqual(result, {"recovered": True, "by": "peer"})
+        spawn.assert_not_called()
         kill.assert_not_called()
-        run.assert_not_called()
+
+    def test_custom_socket_never_kills_any_instance(self):
+        other = self.tmp / "other.sock"
+        with (
+            mock.patch.object(cua_client, "owner_pids", return_value=[4242]),
+            mock.patch.object(cua_client.os, "kill") as kill,
+            mock.patch.object(cua_client.CUAClient, "_ensure_service") as spawn,
+        ):
+            result = cua_client.CUAClient(other)._recover()
+        kill.assert_not_called()
+        spawn.assert_called_once()
+        self.assertTrue(result["spawned"])
+
+    def test_owner_pids_only_matches_the_default_socket_install(self):
+        bin_ = str(cua_client.SERVICE_BIN)
+        out = (
+            f"  101 {bin_}\n"
+            f"  102 {bin_} --socket-path {self.sock_path}\n"
+            f"  103 {bin_} --socket-path /tmp/elsewhere.sock\n"
+            "  104 /Applications/Other/CUAService\n"
+        )
+        ok = mock.Mock(returncode=0, stdout=out, stderr="")
+        with mock.patch.object(cua_client.subprocess, "run", return_value=ok):
+            self.assertEqual(cua_client.owner_pids(), [101, 102])
+        bad = mock.Mock(returncode=1, stdout="", stderr="ps: denied")
+        with mock.patch.object(cua_client.subprocess, "run", return_value=bad):
+            with self.assertRaises(cua_client.CUAServiceUnavailable):
+                cua_client.owner_pids()
 
     def test_health_requires_a_real_list_apps_round_trip(self):
         fake = mock.Mock()
@@ -153,7 +194,7 @@ class CUAServiceHealthTests(unittest.TestCase):
         fake.call.return_value = [{"name": "Finder"}]
         with (
             mock.patch.object(cua_client, "CUAClient", return_value=fake),
-            mock.patch.object(cua_client, "service_pids", return_value=[7]),
+            mock.patch.object(cua_client, "owner_pids", return_value=[7]),
         ):
             packet = cua_client.health()
         self.assertEqual(packet["apps"], 1)

@@ -135,6 +135,18 @@ def _cuaservice_press_key(pid, combo):
     if not identity:
         return {"ok": False, "error": f"no running app with pid {pid}", "engine": "CUAService"}
     app = identity.get("bundle_id") or identity.get("name")
+    # CUAService resolves by bundle id/name (first match). Never let it pick a
+    # different instance than the pid the caller resolved.
+    twins = _pids_for_app(app)
+    if twins != [pid]:
+        return {
+            "ok": False,
+            "error": (
+                f"{app} has instances {twins}; CUAService press_key cannot target "
+                f"pid {pid} exactly. Use --system-events (exact-PID) instead."
+            ),
+            "engine": "CUAService",
+        }
     client = _cuaservice_client()
     try:
         result = client.press_key(app, combo)
@@ -145,6 +157,18 @@ def _cuaservice_press_key(pid, combo):
     if not isinstance(result, dict):
         return {"ok": False, "error": f"CUAService press_key returned {result!r}", "engine": "CUAService"}
     return {**result, "app": app, "pid": pid, "engine": "CUAService"}
+
+
+def _pids_for_app(app):
+    """Sorted pids of running apps whose bundle id (or name) equals ``app``."""
+    from AppKit import NSWorkspace
+
+    return sorted(
+        int(a.processIdentifier())
+        for a in NSWorkspace.sharedWorkspace().runningApplications()
+        if str(a.bundleIdentifier() or "") == app
+        or (not a.bundleIdentifier() and str(a.localizedName() or "") == app)
+    )
 
 
 def _system_events_press_key(pid, keys, *, aliases=None):

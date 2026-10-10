@@ -47,46 +47,37 @@ class CUAClient:
         self.relaunch: dict[str, Any] | None = None
 
     def connect(self, timeout: float = 5.0) -> None:
-        """Connect, healing a refusing socket with at most one guarded relaunch.
+        """Connect, healing a dead socket through one serialized recovery.
 
-        Missing socket: spawn the service. Socket file present but refusing
-        while CUAService runs (wedged listener): one guarded relaunch (kill +
-        open the app), unless MACOS_CUA_NO_RELAUNCH=1. Still unusable: raise
+        Missing socket or refusing listener: _recover() under a cross-agent
+        flock re-probes, then spawns (no service) or does one guarded relaunch
+        (wedged default-socket service: kill + open the app; 30s cooldown;
+        MACOS_CUA_NO_RELAUNCH=1 opts out). Still unusable: raise
         CUAServiceUnavailable naming the exact recovery command.
         """
         deadline = time.monotonic() + timeout
-        spawned = False
-        relaunch: dict[str, Any] | None = None
+        recovery: dict[str, Any] | None = None
         refused_since: float | None = None
         last: Exception | None = None
         while True:
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             try:
-                sock.settimeout(15.0)
-                sock.connect(self.socket_path)
-                self._sock = sock
-                self.relaunch = relaunch
+                self._sock = self._probe()
+                self.relaunch = recovery
                 return
             except OSError as exc:
-                sock.close()
                 last = exc
             now = time.monotonic()
             if isinstance(last, ConnectionRefusedError):
+                # A starting service can refuse briefly; act after 1s.
                 refused_since = refused_since if refused_since is not None else now
-                # A starting service can refuse briefly; wedged = refusing >= 1s
-                # while a CUAService process is alive.
-                if (relaunch is None and now - refused_since >= 1.0
-                        and service_pids()):
-                    relaunch = self._guarded_relaunch()
-                    if relaunch.get("relaunched"):
-                        deadline = max(deadline, time.monotonic() + 8.0)
-                        refused_since = None
-                elif not spawned and not service_pids():
-                    self._ensure_service()  # stale socket file, no service
-                    spawned = True
-            elif not spawned:
-                self._ensure_service()
-                spawned = True
+                due = now - refused_since >= 1.0
+            else:
+                due = True
+            if recovery is None and due:
+                recovery = self._recover()
+                if recovery.get("relaunched") or recovery.get("spawned"):
+                    deadline = max(deadline, time.monotonic() + 8.0)
+                    refused_since = None
             if time.monotonic() >= deadline:
                 break
             time.sleep(0.2)
@@ -94,20 +85,47 @@ class CUAClient:
             last, ConnectionRefusedError) else f"unreachable ({last})"
         raise CUAServiceUnavailable(
             f"CUAService {state} at {self.socket_path} after {timeout}s "
-            f"(pids={service_pids()}, relaunch={relaunch}). "
+            f"(pids={owner_pids()}, recovery={recovery}). "
             f"Recover with: {RECOVERY_COMMAND}"
         )
 
-    def _guarded_relaunch(self) -> dict[str, Any]:
-        """Kill + reopen CUAService once; serialized across agents, with cooldown."""
-        if os.environ.get("MACOS_CUA_NO_RELAUNCH") == "1":
-            return {"relaunched": False, "reason": "MACOS_CUA_NO_RELAUNCH=1"}
+    def _probe(self) -> socket.socket:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            sock.settimeout(15.0)
+            sock.connect(self.socket_path)
+        except OSError:
+            sock.close()
+            raise
+        return sock
+
+    def _recover(self) -> dict[str, Any]:
+        """All spawn/relaunch decisions happen under one cross-agent flock."""
         RELAUNCH_LOCK.parent.mkdir(parents=True, exist_ok=True)
         with open(RELAUNCH_LOCK, "w") as lock:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                return {"relaunched": False, "reason": "another agent is relaunching"}
+            end = time.monotonic() + 15.0
+            while True:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= end:
+                        return {"recovered": False, "reason": "recovery lock busy for 15s"}
+                    time.sleep(0.1)
+            try:  # a peer may have healed it while we waited
+                self._probe().close()
+                return {"recovered": True, "by": "peer"}
+            except OSError as exc:
+                failure = exc
+            default = Path(self.socket_path) == DEFAULT_SOCKET
+            pids = owner_pids() if default else []
+            if not pids:
+                self._ensure_service()
+                return {"spawned": True, "probe": type(failure).__name__}
+            if not isinstance(failure, ConnectionRefusedError):
+                return {"recovered": False, "reason": f"service running, socket {failure}"}
+            if os.environ.get("MACOS_CUA_NO_RELAUNCH") == "1":
+                return {"relaunched": False, "reason": "MACOS_CUA_NO_RELAUNCH=1"}
             try:
                 age = time.time() - RELAUNCH_STAMP.stat().st_mtime
             except FileNotFoundError:
@@ -115,21 +133,17 @@ class CUAClient:
             if age is not None and age < RELAUNCH_COOLDOWN_S:
                 return {"relaunched": False, "reason": f"relaunched {age:.0f}s ago"}
             RELAUNCH_STAMP.touch()
-            old = service_pids()
-            for pid in old:
+            for pid in pids:
                 _signal(pid, signal.SIGTERM)
-            end = time.monotonic() + 2.0
-            while time.monotonic() < end and set(old) & set(service_pids()):
+            stop = time.monotonic() + 2.0
+            while time.monotonic() < stop and set(pids) & set(owner_pids()):
                 time.sleep(0.1)
-            for pid in set(old) & set(service_pids()):
+            for pid in set(pids) & set(owner_pids()):
                 _signal(pid, signal.SIGKILL)
-            if Path(self.socket_path) == DEFAULT_SOCKET and SERVICE_APP.exists():
-                subprocess.run(["open", str(SERVICE_APP)], check=True,
-                               stdin=subprocess.DEVNULL, capture_output=True,
-                               timeout=15)
-            else:
-                self._ensure_service()
-            return {"relaunched": True, "killed": old}
+            subprocess.run(["open", str(SERVICE_APP)], check=True,
+                           stdin=subprocess.DEVNULL, capture_output=True,
+                           timeout=15)
+            return {"relaunched": True, "killed": pids}
 
     def close(self) -> None:
         if self._sock:
@@ -276,11 +290,31 @@ class CUAClient:
         return self.call("hide_agent_cursor") or {"ok": True}
 
 
-def service_pids() -> list[int]:
-    """PIDs of running CUAService processes (exact executable name)."""
-    found = subprocess.run(["pgrep", "-x", "CUAService"], capture_output=True,
-                           text=True, stdin=subprocess.DEVNULL, timeout=5)
-    return [int(p) for p in found.stdout.split()]
+def owner_pids() -> list[int]:
+    """PIDs of the installed CUAService serving the default socket.
+
+    Only processes whose executable is SERVICE_BIN and that were not pointed
+    at another socket with --socket-path count; other installs are never
+    touched. Fails loud if process discovery itself fails.
+    """
+    found = subprocess.run(["ps", "-axww", "-o", "pid=,command="],
+                           capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL, timeout=5)
+    if found.returncode != 0:
+        raise CUAServiceUnavailable(
+            f"ps failed ({found.returncode}): {found.stderr.strip()}")
+    pids = []
+    for line in found.stdout.splitlines():
+        pid, _, command = line.strip().partition(" ")
+        if not command.startswith(str(SERVICE_BIN)):
+            continue
+        args = command[len(str(SERVICE_BIN)):].split()
+        if "--socket-path" in args:
+            i = args.index("--socket-path")
+            if i + 1 >= len(args) or Path(args[i + 1]).expanduser() != DEFAULT_SOCKET:
+                continue
+        pids.append(int(pid))
+    return pids
 
 
 def _signal(pid: int, sig: int) -> None:
@@ -299,7 +333,7 @@ def health(socket_path: str | Path | None = None, timeout: float = 5.0) -> dict:
         if not isinstance(apps, list) or not apps:
             raise CUAServiceUnavailable(
                 f"CUAService list_apps returned {apps!r}. Recover with: {RECOVERY_COMMAND}")
-        return {"ok": True, "socket": client.socket_path, "pids": service_pids(),
+        return {"ok": True, "socket": client.socket_path, "pids": owner_pids(),
                 "apps": len(apps), "relaunch": client.relaunch}
     finally:
         client.close()
