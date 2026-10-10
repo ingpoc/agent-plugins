@@ -35,12 +35,15 @@ def click_label_pointer(
     (CURSOR_NOT_LANDED) unless the overlay tip was drawn at the target.
     """
     snap = snapshot_data
+    foreign_index_space = isinstance(snap, dict) and snap.get("engine") != "CUAService"
     if not (isinstance(snap, dict) and snap.get("engine") == "CUAService"):
         snap = cua_snapshot(pid, window_id, max(int(max_elements), 50))
     if snap.get("error"):
         return {"ok": False, "error": snap["error"], "label": label,
                 "error_code": snap.get("error_code") or "observation_failed"}
-    idx = element_index
+    # Native/one-based walks are a different index space than CUAService; never
+    # reuse those indices after refreshing into the CUAService walk.
+    idx = None if foreign_index_space else element_index
     if idx is None:
         try:
             idx = find_clickable_index(snap, label)

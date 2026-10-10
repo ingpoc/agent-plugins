@@ -205,9 +205,13 @@ def cua_app_state(app_name, pid, window_id, *, max_elements=120, query=None,
     }
 
 
-def _window_global_point(pid, x, y):
-    """Window-local screenshot pixels -> global Quartz points (CUAService frame + scale)."""
-    snap = cua_snapshot(pid, None, 1, retries=0)
+def _window_global_point(pid, x, y, window_id=None):
+    """Window-local screenshot pixels -> global Quartz points (CUAService frame + scale).
+
+    When window_id is set, refuse if CUAService observed a different window
+    (same contract as cua_snapshot) instead of converting against the wrong frame.
+    """
+    snap = cua_snapshot(pid, window_id, 1, retries=0)
     if snap.get("error"):
         return None, snap
     frame = snap.get("window_frame") or {}

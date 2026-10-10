@@ -362,7 +362,13 @@ def _main():
             active=True,
             message="Accessibility state",
         )
-        _print_snap(snapshot(pid, wid, args.max_elements, args.mode))
+        snap = snapshot(pid, wid, args.max_elements, args.mode)
+        if snap.get("error") or snap.get("ok") is False:
+            payload = dict(snap)
+            payload.setdefault("ok", False)
+            _emit_json(payload, require_ok=True)
+        else:
+            _print_snap(snap)
     elif args.command == "state":
         result = app_state(
             name or args.app,

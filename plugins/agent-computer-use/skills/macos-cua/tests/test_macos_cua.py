@@ -2398,6 +2398,27 @@ class CursorProofTests(unittest.TestCase):
                     self.assertIs(result["cursor_hidden"], True)
                 hide.assert_called_once()
 
+    def test_run_actions_hide_failure_marks_plan_not_ok(self):
+        plan = {"allow_unverified": True, "capture": "never", "settle_ms": 0,
+                "actions": [{"action": "wait", "seconds": 0}]}
+        with mock.patch.object(macos_cua, "operator_update"), \
+                mock.patch.object(macos_cua, "_plan_snapshot", return_value={"elements": [], "engine": "CUAService"}), \
+                mock.patch.object(macos_cua, "_hide_task_cursor",
+                                  return_value={"ok": False, "error": "socket down"}):
+            result = macos_cua.run_actions(1, 2, plan, app_name="Fixture")
+        self.assertIs(result["ok"], False)
+        self.assertIs(result["accepted"], False)
+        self.assertIs(result["verified"], False)
+        self.assertIs(result["cursor_hidden"], False)
+        self.assertEqual(result["cursor_hide_error"], "socket down")
+
+    def test_plan_snapshot_uses_cuaservice_not_native(self):
+        with mock.patch.object(macos_cua, "snapshot", return_value={"engine": "CUAService", "elements": [{"element_index": 0}]}) as snap, \
+             mock.patch.object(macos_cua, "_native_ax_snapshot", side_effect=AssertionError("native walk retired for plans")):
+            out = macos_cua._plan_snapshot(42, 7, max_elements=30)
+        snap.assert_called_once_with(42, 7, max_elements=30)
+        self.assertEqual(out["engine"], "CUAService")
+
     def test_hide_task_cursor_reports_failure_without_raising(self):
         client = mock.Mock()
         client.hide_agent_cursor.return_value = {"ok": True}

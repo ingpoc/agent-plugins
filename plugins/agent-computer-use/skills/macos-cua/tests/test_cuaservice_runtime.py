@@ -69,6 +69,15 @@ class CUAServiceRuntimeTests(unittest.TestCase):
             result = fn(*args, **kwargs)
         return result, client
 
+    def test_cli_snap_source_fails_loud_on_error(self):
+        src = (Path(__file__).parents[1] / "scripts" / "runtime_cli.py").read_text()
+        # Must check snapshot errors before pretty-printing Elements: 0.
+        self.assertIn('snap = snapshot(pid, wid, args.max_elements, args.mode)', src)
+        self.assertIn('snap.get("error")', src)
+        self.assertIn('_emit_json(payload, require_ok=True)', src)
+        # Pretty printer remains for success path only.
+        self.assertIn('_print_snap(snap)', src)
+
     def test_snapshot_is_cuaservice_walk_in_legacy_shape(self):
         snap, client = self._run({"get_app_state": _state()}, macos_cua.snapshot, 4242, 77, 30)
         method, params = client.calls[0]
@@ -236,6 +245,32 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         dbl, client = self._run(replies, macos_cua.click_point, 4242, 77, 20, 40, click_count=2)
         self.assertEqual((dbl["ok"], dbl["error_code"]), (False, "unsupported_click"))
         self.assertEqual(client.calls, [])
+
+    def test_point_click_enforces_requested_window_id(self):
+        # Focused/observed window 88 != requested 77 -> refuse before click.
+        bad = _state()
+        bad["windowId"] = 88
+        res, client = self._run({"get_app_state": bad}, macos_cua.click_point, 4242, 77, 20, 40)
+        self.assertFalse(res["ok"])
+        self.assertIn("requested window 77", res["error"])
+        self.assertEqual([c[0] for c in client.calls], ["get_app_state"])
+
+    def test_label_click_discards_foreign_native_index(self):
+        # Native one-based index 1 would hit AXTextArea in CUAService space; label
+        # resolution in the refreshed CUAService walk must click Close (index 2).
+        native = {"source": "native_ax", "elements": [
+            {"element_index": 1, "role": "AXButton", "label": "Close", "value": None,
+             "frame": {}, "actions": ["AXPress"], "parent_index": None},
+        ]}
+        replies = {"get_app_state": _state(), "click": {"ok": True, "method": "ax-press",
+                                                        "cursor_landing": {"landed": True}}}
+        res, client = self._run(
+            replies, macos_cua.click_label_pointer, 4242, 77, "Close",
+            snapshot_data=native, element_index=1,
+        )
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(res["element"], 2)
+        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2}))
 
     def test_desktop_click_is_retired(self):
         res, client = self._run({}, macos_cua.click_at_desktop, 10, 10)

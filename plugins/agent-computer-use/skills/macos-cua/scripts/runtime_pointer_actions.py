@@ -33,7 +33,7 @@ def click_point(
     if isinstance(verified_screen_point, dict):
         point = {"x": float(verified_screen_point["x"]), "y": float(verified_screen_point["y"])}
     else:
-        point, error = _window_global_point(pid, x, y)
+        point, error = _window_global_point(pid, x, y, window_id=window_id)
         if error:
             return {"ok": False, **error}
     result = _cuaservice_rpc(pid, "click", {"x": point["x"], "y": point["y"]})

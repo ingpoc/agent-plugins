@@ -6,10 +6,8 @@ from __future__ import annotations
 import time
 
 def _plan_snapshot(pid, window_id, max_elements=120):
-    state = _native_ax_snapshot(pid, max_elements=max_elements, window_id=window_id)
-    if snapshot_content_error(state):
-        return snapshot(pid, window_id, max_elements=max_elements)
-    return state
+    """CUAService walk only — same zero-based index space as click/type/set-value."""
+    return snapshot(pid, window_id, max_elements=max_elements)
 
 def evaluate_expectations(snapshot_data, expectations, *, ignore_element_indices=None):
     """Evaluate deterministic state assertions against a fresh snapshot."""
@@ -72,7 +70,11 @@ def run_actions(
         if isinstance(result, dict):
             result["cursor_hidden"] = hidden.get("ok") is True
             if hidden.get("ok") is not True:
-                result["cursor_hide_error"] = hidden.get("error")
+                result["cursor_hide_error"] = hidden.get("error") or "cursor hide failed"
+                # Required cleanup: do not report success with the agent cursor still up.
+                result["ok"] = False
+                result["accepted"] = False
+                result["verified"] = False
 
 
 def _run_actions(
