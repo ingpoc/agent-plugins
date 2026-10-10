@@ -1,5 +1,7 @@
 import AppKit
+import CoreVideo
 import Foundation
+import QuartzCore
 
 /// In-process cursor overlay — no IPC, no file polling.
 /// Animates on the main thread via Core Animation.
@@ -16,6 +18,10 @@ final class CursorOverlay: @unchecked Sendable {
     private let landTolerance: CGFloat = 0.5
     /// Extra time past animDuration before an unacknowledged glide is a miss.
     private let landGrace: TimeInterval = 0.25
+    /// Bound for the render-server commit ack (CATransaction completion).
+    private let commitTimeout: TimeInterval = 0.25
+    /// Bound for one display-link frame after the commit (awake display).
+    private let frameTimeout: TimeInterval = 0.25
     private var lastWindowID: CGWindowID?
     /// Resumed by tick() when the final frame is set (true) or by timeout /
     /// supersede / hide (false). Keyed so each waiter resolves exactly once.
@@ -28,13 +34,43 @@ final class CursorOverlay: @unchecked Sendable {
         let method: String
         let errorPt: Double
         let waitMs: Int
+        let presented: Presentation?
 
         var dict: [String: Any] {
-            [
+            var d: [String: Any] = [
                 "landed": landed,
                 "method": method,
                 "error_pt": (errorPt * 100).rounded() / 100,
                 "wait_ms": waitMs,
+            ]
+            if let presented { d["render"] = presented.dict }
+            return d
+        }
+    }
+
+    /// Proof that the landed position was actually drawn, not just modeled:
+    /// the position commit reached the render server (CATransaction
+    /// completion after an explicit flush), a display-link frame fired after
+    /// that commit (or the display is asleep, so nothing can be presented),
+    /// and WindowServer reports the panel window on screen at the target.
+    struct Presentation {
+        let committed: Bool
+        /// "frame" (vsync after commit), "display_asleep", or "no_frame".
+        let frame: String
+        let wsErrorPt: Double?
+        let wsOnscreen: Bool
+
+        var ok: Bool {
+            committed && frame != "no_frame" && wsOnscreen
+                && (wsErrorPt.map { $0 <= 0.5 } ?? false)
+        }
+
+        var dict: [String: Any] {
+            [
+                "committed": committed,
+                "frame": frame,
+                "ws_error_pt": wsErrorPt.map { ($0 * 100).rounded() / 100 } as Any,
+                "ws_onscreen": wsOnscreen,
             ]
         }
     }
@@ -86,7 +122,8 @@ final class CursorOverlay: @unchecked Sendable {
             quartz = Self.clamp(quartz, to: windowBounds.insetBy(dx: 8, dy: 8))
         }
         let appKitPt = appKitPoint(fromQuartz: quartz, windowBounds: windowBounds)
-        let origin = NSPoint(x: appKitPt.x - 15, y: appKitPt.y - 76)
+        // Integral points: WindowServer bounds are compared exactly below.
+        let origin = NSPoint(x: (appKitPt.x - 15).rounded(), y: (appKitPt.y - 76).rounded())
 
         animationTimer?.invalidate()
         animationTimer = nil
@@ -151,25 +188,130 @@ final class CursorOverlay: @unchecked Sendable {
             finished = await waitForLanding(timeout: tip.wait + landGrace)
         }
         var error = landingError()
-        if !finished || error > landTolerance || !panel.isVisible {
+        var presented: Presentation?
+        if finished && error <= landTolerance && panel.isVisible {
+            // The model says landed; the ack is the drawn frame, not the model.
+            presented = await confirmPresented()
+        }
+        if !(presented?.ok ?? false) {
             hide()
             panel.setFrameOrigin(animTarget)
             orderPanel(above: lastWindowID)
             error = landingError()
-            if error <= landTolerance && panel.isVisible {
+            presented = error <= landTolerance && panel.isVisible
+                ? await confirmPresented() : nil
+            if presented?.ok ?? false {
                 method = "snap_retry"
             } else {
                 panel.orderOut(nil)
                 return Landing(
                     point: tip.point, landed: false, method: "unconfirmed",
-                    errorPt: Double(error), waitMs: elapsedMs(since: started)
+                    errorPt: Double(error), waitMs: elapsedMs(since: started),
+                    presented: presented
                 )
             }
         }
         return Landing(
             point: tip.point, landed: true, method: method,
-            errorPt: Double(error), waitMs: elapsedMs(since: started)
+            errorPt: Double(error), waitMs: elapsedMs(since: started),
+            presented: presented
         )
+    }
+
+    /// Render/display-cycle ack for the CURRENT panel position (see
+    /// Presentation). Every wait is bounded; a bound expiring is a miss.
+    private func confirmPresented() async -> Presentation {
+        let committed = await commitToRenderServer()
+        var frame = "no_frame"
+        if committed {
+            let display = panelDisplayID()
+            if let display, CGDisplayIsAsleep(display) != 0 {
+                frame = "display_asleep"
+            } else if await waitForDisplayFrame(display: display ?? CGMainDisplayID()) {
+                frame = "frame"
+            }
+        }
+        let ws = windowServerPlacement()
+        return Presentation(
+            committed: committed, frame: frame,
+            wsErrorPt: ws.errorPt, wsOnscreen: ws.onscreen
+        )
+    }
+
+    /// Flush the position commit to the render server and wait for its
+    /// CATransaction completion (fires once that transaction is committed).
+    private func commitToRenderServer() async -> Bool {
+        await boundedWait(timeout: commitTimeout) { done in
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { done(true) }
+            self.panel.contentView?.needsDisplay = true
+            self.panel.displayIfNeeded()
+            CATransaction.commit()
+            CATransaction.flush()
+        }
+    }
+
+    /// One display-link (vsync) callback on the panel's display AFTER the
+    /// commit: the compositor has had a frame to present the new position.
+    private func waitForDisplayFrame(display: CGDirectDisplayID) async -> Bool {
+        var link: CVDisplayLink?
+        guard CVDisplayLinkCreateWithCGDisplay(display, &link) == kCVReturnSuccess,
+              let link else { return false }
+        let ok = await boundedWait(timeout: frameTimeout) { done in
+            CVDisplayLinkSetOutputHandler(link) { _, _, _, _, _ in
+                DispatchQueue.main.async { done(true) }
+                return kCVReturnSuccess
+            }
+            if CVDisplayLinkStart(link) != kCVReturnSuccess { done(false) }
+        }
+        CVDisplayLinkStop(link)
+        return ok
+    }
+
+    /// Resume exactly once: by `body` calling done(ok) or by the timeout (false).
+    private func boundedWait(
+        timeout: TimeInterval,
+        _ body: @escaping (@escaping (Bool) -> Void) -> Void
+    ) async -> Bool {
+        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            var resumed = false
+            let finish: (Bool) -> Void = { ok in
+                MainActor.assumeIsolated {
+                    if resumed { return }
+                    resumed = true
+                    cont.resume(returning: ok)
+                }
+            }
+            body(finish)
+            DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { finish(false) }
+        }
+    }
+
+    private func panelDisplayID() -> CGDirectDisplayID? {
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        return (panel.screen?.deviceDescription[key] as? NSNumber).map {
+            CGDirectDisplayID($0.uint32Value)
+        }
+    }
+
+    /// WindowServer's view of the panel: on screen, and |origin - target|
+    /// in Quartz points (the bounds WindowServer composites, not panel.frame).
+    private func windowServerPlacement() -> (errorPt: Double?, onscreen: Bool) {
+        let wid = CGWindowID(panel.windowNumber)
+        guard wid > 0,
+              let info = CGWindowListCopyWindowInfo([.optionIncludingWindow], wid)
+                as? [[String: Any]],
+              let win = info.first,
+              let b = win[kCGWindowBounds as String] as? [String: Any],
+              let x = (b["X"] as? NSNumber)?.doubleValue,
+              let y = (b["Y"] as? NSNumber)?.doubleValue,
+              let primary = NSScreen.screens.first
+        else { return (nil, false) }
+        let onscreen = (win[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue ?? false
+        let height = Double(panel.frame.height)
+        let wantX = Double(animTarget.x)
+        let wantY = Double(primary.frame.maxY) - Double(animTarget.y) - height
+        return (hypot(x - wantX, y - wantY), onscreen)
     }
 
     private func landingError() -> CGFloat {
