@@ -21,6 +21,12 @@ itself; PiP reuses the proof image already captured through `cua-driver`.
   the app or moving the hardware pointer. The glide uses an explicit main-run-loop
   timer because implicit `NSPanel.animator()` movement was ignored after the first
   target on this window level.
+- Land before press: CUAService `click` awaits `CursorOverlay.glideAndLand` —
+  the final-frame ack from the glide timer plus a measured panel origin within
+  0.5 pt — before AX press, never a fixed sleep. A miss is not a hit: hide, snap
+  retry once, else press with the cursor hidden and `cursor_landing.landed=false`.
+  The legacy operator glide waits for the render ack (`cursor_rendered_update_id`)
+  the same way (hide + republish once, then `landed: false`).
 - Proof PNG: a fresh `state` after a pointer action composites the same cursor
   asset into a deterministic `*-cursor.png`; the raw capture remains available.
 - Active state shows PiP by default. `workflow.py closeout` marks the session

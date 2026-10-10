@@ -2079,8 +2079,8 @@ class CursorProofTests(unittest.TestCase):
         update.assert_called_once()
         driver_cursor.assert_not_called()
 
-    def test_glide_is_fire_and_forget_on_publish_success(self):
-        """Glide publishes once and returns ok without ack polling or retry."""
+    def test_glide_waits_for_land_ack_before_press(self):
+        """Tip lands (operator render ack) BEFORE the AX press fires."""
         snapshot = {
             "elements": [
                 {
@@ -2089,13 +2089,23 @@ class CursorProofTests(unittest.TestCase):
                 },
             ],
         }
+        order = []
         with (
             mock.patch.object(macos_cua, "find_clickable_index", return_value=3),
             mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
             mock.patch.object(
-                macos_cua, "operator_update", return_value={"ok": True}
+                macos_cua, "operator_update",
+                side_effect=lambda *a, **k: order.append("publish") or {
+                    "ok": True, "state": {"cursor_update_id": "u1"}},
             ) as update,
-            mock.patch.object(macos_cua, "click_with_retry", return_value={"ok": True}),
+            mock.patch.object(
+                macos_cua, "_wait_for_operator_cursor",
+                side_effect=lambda *a, **k: order.append("land") or {"ok": True},
+            ) as wait,
+            mock.patch.object(
+                macos_cua, "click_with_retry",
+                side_effect=lambda *a, **k: order.append("press") or {"ok": True},
+            ),
         ):
             result = macos_cua.click_label_pointer(
                 10, 20, "Target", snapshot_data=snapshot, app_name="App"
@@ -2103,7 +2113,55 @@ class CursorProofTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertTrue(result["move"]["ok"])
+        self.assertEqual(order, ["publish", "land", "press"])
         update.assert_called_once()
+        self.assertEqual(wait.call_args.kwargs["update_id"], "u1")
+
+    def test_glide_land_timeout_hides_and_retries_once(self):
+        """A timed-out land ack is not a hit: hide, republish once, re-wait."""
+        snapshot = {"elements": [
+            {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
+        ]}
+        with (
+            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
+            mock.patch.object(
+                macos_cua, "operator_update",
+                return_value={"ok": True, "state": {"cursor_update_id": "u"}},
+            ) as update,
+            mock.patch.object(
+                macos_cua, "_wait_for_operator_cursor",
+                side_effect=[{"ok": False, "error": "timeout"}, {"ok": True}],
+            ) as wait,
+        ):
+            result = macos_cua.glide_operator_to_element("App", 1, 2, snapshot, 1)
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["landed"])
+        self.assertTrue(result["move"]["retried"])
+        self.assertEqual(wait.call_count, 2)
+        visible = [c.kwargs.get("cursor_visible") for c in update.call_args_list]
+        self.assertEqual(visible, [True, False, True])
+
+    def test_glide_double_land_timeout_stays_hidden_and_is_not_a_hit(self):
+        snapshot = {"elements": [
+            {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
+        ]}
+        with (
+            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
+            mock.patch.object(
+                macos_cua, "operator_update",
+                return_value={"ok": True, "state": {"cursor_update_id": "u"}},
+            ) as update,
+            mock.patch.object(
+                macos_cua, "_wait_for_operator_cursor",
+                return_value={"ok": False, "error": "timeout"},
+            ) as wait,
+        ):
+            result = macos_cua.glide_operator_to_element("App", 1, 2, snapshot, 1)
+        self.assertFalse(result["ok"])
+        self.assertFalse(result["landed"])
+        self.assertEqual(wait.call_count, 2)
+        visible = [c.kwargs.get("cursor_visible") for c in update.call_args_list]
+        self.assertEqual(visible, [True, False, True, False])
 
     def test_glide_publish_failure_falls_through_to_native_ax_press(self):
         """When cursor publish fails, click_label_pointer must proceed via
@@ -2160,8 +2218,8 @@ class CursorProofTests(unittest.TestCase):
             )
         self.assertFalse(result["ok"])
 
-    def test_pointer_preflight_returns_ok_on_publish_success(self):
-        """pointer_preflight returns ok when cursor publish succeeds (no ack gate)."""
+    def test_pointer_preflight_returns_ok_on_confirmed_land(self):
+        """pointer_preflight returns ok only once the tip land ack arrives."""
         snapshot = {
             "elements": [
                 {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
@@ -2170,6 +2228,9 @@ class CursorProofTests(unittest.TestCase):
         with (
             mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
             mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+            mock.patch.object(
+                macos_cua, "_wait_for_operator_cursor", return_value={"ok": True}
+            ),
         ):
             result = macos_cua.pointer_preflight(
                 True, "App", 10, 20, snapshot, 1, "Moving to test"
@@ -3016,32 +3077,46 @@ class CursorProofTests(unittest.TestCase):
         ensure_session.assert_not_called()
         call_driver.assert_not_called()
 
-    def test_native_cursor_defaults_to_custom_raster_not_generic_arrow(self):
-        calls = []
+    def test_native_cursor_configure_never_calls_cua_driver(self):
+        """Legacy cua-driver set_agent_cursor_style/motion (300ms) is gone."""
         with (
-            mock.patch.object(macos_cua, "ensure_session"),
             mock.patch.object(
                 macos_cua, "cursor_raster_path", return_value="/tmp/hermes-pointer.png"
             ),
-            mock.patch.object(macos_cua.os.path, "isfile", return_value=True),
-            mock.patch.object(
-                macos_cua,
-                "call_driver",
-                side_effect=lambda tool, params, **_kwargs: (
-                    calls.append((tool, params)) or {"ok": True}
-                ),
-            ),
-            mock.patch.dict(os.environ, {}, clear=False),
+            mock.patch.object(macos_cua, "call_driver") as call_driver,
         ):
-            os.environ.pop("MACOS_CUA_CURSOR_ARROW", None)
             result = macos_cua.configure_cursor_icon("test")
+            status = macos_cua.cursor("status")
+            ensured = macos_cua.ensure_session("test")
 
         self.assertTrue(result["ok"])
         self.assertFalse(result["using_generic_arrow"])
-        self.assertEqual(calls[0][0], "set_agent_cursor_style")
-        self.assertEqual(calls[0][1]["image_path"], "/tmp/hermes-pointer.png")
-        self.assertEqual(calls[1][1]["cursor_icon"], "/tmp/hermes-pointer.png")
-        self.assertTrue(calls[1][1]["cursor_label"].startswith("macos-cua · "))
+        self.assertEqual(result["engine"], "CUAService")
+        self.assertEqual(result["glide_ms"], 120)
+        self.assertEqual(status["engine"], "CUAService")
+        self.assertTrue(ensured["ok"])
+        call_driver.assert_not_called()
+
+    def test_cursor_hide_routes_to_cuaservice_and_move_is_refused(self):
+        client = mock.Mock()
+        client.hide_agent_cursor.return_value = {"ok": True}
+        with (
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(macos_cua, "call_driver") as call_driver,
+        ):
+            hidden = macos_cua.cursor("hide")
+            moved = macos_cua.cursor("move", x=1, y=2)
+        self.assertTrue(hidden["ok"])
+        self.assertEqual(hidden["engine"], "CUAService")
+        client.hide_agent_cursor.assert_called_once()
+        client.close.assert_called_once()
+        self.assertFalse(moved["ok"])
+        call_driver.assert_not_called()
+
+        source = (Path(__file__).parents[1] / "scripts" / "runtime_cli.py").read_text()
+        self.assertNotIn("set_agent_cursor_motion", source)
+        self.assertNotIn("set_agent_cursor_style", source)
+        self.assertNotIn('"start_session"', source)
 
 
 class OperatorUITests(unittest.TestCase):

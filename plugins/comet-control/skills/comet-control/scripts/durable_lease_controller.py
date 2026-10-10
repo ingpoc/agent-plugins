@@ -271,9 +271,15 @@ def _attach_absence_proof(paths: dict[str, Path], payload: dict) -> tuple[dict, 
         response["browser_use_daemons"] = reaped
     try:
         ready = json.loads(paths["ready"].read_text())
-        session_id = ready["session_id"]
+        if not isinstance(ready, dict):
+            ready = {}
+        session_id = ready.get("session_id") or _session_id_from_ready(paths)
+        if not session_id:
+            raise RuntimeError("session_id unknown; cannot prove lease absence")
+        if ready.get("ok") is False and ready.get("error") == "no_ready":
+            response["never_ready"] = True
         proof = _session_absence_proof(
-            ready.get("socket_path", DEFAULT_SOCKET), session_id
+            ready.get("socket_path") or DEFAULT_SOCKET, str(session_id)
         )
         response.update(proof)
     except Exception as error:
@@ -392,7 +398,16 @@ def _controller_main(args: argparse.Namespace) -> int:
     lease_ready = first.get("event") == "ready" or bool(first.get("lease"))
     if not lease_ready:
         p["ready"].write_text(
-            json.dumps({"ok": False, "error": "no_ready", "first": first}, indent=2)
+            # session_id/socket_path let closeout prove absence for a lease that
+            # never became ready (fixture down, preflight_failed) instead of
+            # KeyError('session_id') → verified_absent:false.
+            json.dumps({
+                "ok": False,
+                "error": "no_ready",
+                "first": first,
+                "session_id": args.session_id,
+                "socket_path": args.socket,
+            }, indent=2)
             + "\n"
         )
         try:
