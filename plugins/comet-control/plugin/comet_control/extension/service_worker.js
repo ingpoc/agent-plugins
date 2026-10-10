@@ -57,6 +57,39 @@ let viewportCaptureQueue = Promise.resolve(); // captureVisibleTab is active-win
 let lastViewportCaptureStartedAt = 0;
 const tabConsoleCdp = new Map(); // tabId → ring buffer from CDP Runtime events
 const tabNetworkCdp = new Map(); // tabId → opt-in compact Network diagnostics
+// Per-run call ledger (ACU #33/#94). Behavior-neutral: wraps the three Chrome
+// APIs every action funnels through and counts calls for each active run on the
+// same tab. Run results carry telemetry.calls; counter_installed=false is loud.
+function newRunCallLedger() {
+  return { counter_installed: callCounterInstalled, cdp_total: 0, cdp: {}, scripting: 0, messages: 0 };
+}
+function countRunCall(tabId, kind, method) {
+  if (!activeRunStates.size) return;
+  for (const state of activeRunStates) {
+    if (!state.calls || state.tabId !== tabId) continue;
+    if (kind === "cdp") {
+      state.calls.cdp_total += 1;
+      state.calls.cdp[method] = (state.calls.cdp[method] || 0) + 1;
+    } else {
+      state.calls[kind] += 1;
+    }
+  }
+}
+function wrapCountedApi(namespace, name, kind, tabOf, methodOf) {
+  const original = namespace?.[name];
+  if (typeof original !== "function") return false;
+  const counted = function (...args) {
+    try { countRunCall(tabOf(args), kind, methodOf ? methodOf(args) : undefined); } catch {}
+    return original.apply(this, args);
+  };
+  try { namespace[name] = counted; } catch { return false; }
+  return namespace[name] === counted;
+}
+const callCounterInstalled = [
+  wrapCountedApi(chrome.debugger, "sendCommand", "cdp", (a) => a[0]?.tabId, (a) => String(a[1] || "")),
+  wrapCountedApi(chrome.scripting, "executeScript", "scripting", (a) => a[0]?.target?.tabId),
+  wrapCountedApi(chrome.tabs, "sendMessage", "messages", (a) => a[0]),
+].every(Boolean);
 const SESSION_STORAGE_KEY = "comet-control-agent-session-leases-v1";
 const LEASE_REMOVAL_STORAGE_KEY = "comet-control-agent-lease-removals-v1";
 const CUA_CLAIM_STORAGE_KEY = "comet-control-cua-runtime-claim-v1";
@@ -3933,6 +3966,7 @@ async function handleUnlockedHostMessage(message) {
     deviceMetricsOverrideWidth: leaseRecord.deviceMetricsOverrideWidth,
     deviceMetricsOverrideHeight: leaseRecord.deviceMetricsOverrideHeight,
     lastVisibleTabCaptureFingerprint: leaseRecord.lastVisibleTabCaptureFingerprint || "",
+    calls: newRunCallLedger(),
   };
 
   activeRunStates.add(state);
@@ -3974,6 +4008,7 @@ async function handleUnlockedHostMessage(message) {
         startedAt,
         error,
       });
+      if (error.failureRecord && typeof error.failureRecord === "object") error.failureRecord.calls = state.calls;
       throw error;
     }
     const tab = state.tabId ? await chrome.tabs.get(state.tabId).catch(() => null) : null;
@@ -3986,6 +4021,7 @@ async function handleUnlockedHostMessage(message) {
       final_url: tab?.url || state.lastUrl,
       final_title: tab?.title || "",
       results,
+      telemetry: { calls: state.calls },
     });
   } finally {
     activeRunStates.delete(state);
