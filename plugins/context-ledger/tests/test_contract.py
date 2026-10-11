@@ -2970,6 +2970,81 @@ class StoreTests(unittest.TestCase):
             outs.append(out.strip())
         self.assertEqual(sorted(outs), ["REVISION_CONFLICT", "ok"])
 
+    def test_recall_check_ranks_without_writing(self) -> None:
+        _require_sentence_embedding(self)
+        near_situation = "Shipping the catalog change"
+        near_need = "Run the installed example before merge"
+        near = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Catalog example",
+                    situation=near_situation,
+                    action=near_need,
+                    applicability=near_situation,
+                ),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        far = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Chart palette",
+                    situation="Picking chart color",
+                    action="Keep palette file",
+                    rationale="Use swatches",
+                    applicability="Picking chart color",
+                ),
+                "outcome": _outcome("success"),
+            },
+            mcp=False,
+        )
+        near_id = near["decision_id"]
+        far_id = far["decision_id"]
+        fixture = Path(self.tmp.name) / "recall.json"
+        fixture.write_text(
+            json.dumps(
+                {
+                    "cases": [
+                        {
+                            "name": "near",
+                            "situation": near_situation,
+                            "need": near_need,
+                            "target_id": near_id,
+                        },
+                        {
+                            "name": "far",
+                            "situation": near_situation,
+                            "need": near_need,
+                            "target_id": far_id,
+                        },
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        db = self.store.db_path
+        before = db.stat()
+        proc = _run(
+            [sys.executable, str(ROOT / "scripts" / "recall_check.py"), "--fixture", str(fixture)],
+            env={"CONTEXT_LEDGER_DATA": str(self.data)},
+        )
+        after = db.stat()
+        self.assertEqual(before.st_ino, after.st_ino)
+        self.assertEqual(before.st_size, after.st_size)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        payload = json.loads(proc.stdout)
+        by_name = {row["name"]: row for row in payload["cases"]}
+        self.assertEqual(by_name["near"]["select_rank"], 1)
+        self.assertEqual(by_name["far"]["select_rank"], 2)
+        self.assertEqual(payload["select_top1"], "1/2")
+        self.assertEqual(by_name["near"]["find_rank"], 1)
+        self.assertIsNone(by_name["far"]["find_rank"])
+
 
 class McpTests(unittest.TestCase):
     @classmethod
