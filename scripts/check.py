@@ -636,6 +636,13 @@ def main() -> int:
         code = run_tests(plugin)
         if code != 0:
             return code
+    print("test refresh_cursor_marketplace_index", flush=True)
+    proc = subprocess.run(
+        [sys.executable, "scripts/test_refresh_cursor_marketplace_index.py", "-q"],
+        cwd=ROOT,
+    )
+    if proc.returncode != 0:
+        return proc.returncode
     print("check ok", flush=True)
     return 0
 
