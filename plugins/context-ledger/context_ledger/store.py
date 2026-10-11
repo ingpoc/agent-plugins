@@ -318,6 +318,32 @@ class Store:
         self.db_path = self.ledger_dir / "ledger.sqlite3"
         self.conn: sqlite3.Connection | None = None
         self._lock = threading.Lock()
+        self._reachable = False
+
+    def probe(self) -> None:
+        conn = self.open()
+        try:
+            row = conn.execute("select 1").fetchone()
+        except sqlite3.Error as exc:
+            raise LedgerError("UNAVAILABLE") from exc
+        if row is None:
+            raise LedgerError("UNAVAILABLE")
+
+    def _ensure_reachable(self) -> None:
+        if self._reachable:
+            return
+        for _attempt in range(2):
+            try:
+                self.probe()
+            except LedgerError:
+                self.close()
+                continue
+            self._reachable = True
+            return
+        raise LedgerError(
+            "UNAVAILABLE",
+            message=f"ledger unreachable at {self.db_path}",
+        )
 
     def open(self) -> sqlite3.Connection:
         if self.conn is not None:
@@ -580,7 +606,7 @@ class Store:
                 prior_payload = prior["payload"]
                 same = all(
                     prior_payload.get(key) == parsed["payload"].get(key)
-                    for key in ("status", "note", "evidence")
+                    for key in ("status", "note", "evidence", "applied_event_id")
                 )
                 if same:
                     receipt = {
@@ -658,12 +684,35 @@ class Store:
                 raise LedgerError("UNAVAILABLE")
             if "expected_revision" in parsed and rec["revision"] != parsed["expected_revision"]:
                 raise LedgerError("REVISION_CONFLICT")
+            rec = dict(rec)
+            rec["events"] = self._trace_events(conn, parsed["decision_id"])
             encoded = canonical_json(rec)
             if len(encoded.encode("utf-8")) > MAX_GET_RESPONSE:
                 raise LedgerError("LIMIT_EXCEEDED")
             return {"record": rec}
 
+    def _trace_events(self, conn: sqlite3.Connection, decision_id: str) -> list[dict[str, Any]]:
+        rows = conn.execute(
+            "select event_json from events where decision_id=? order by revision",
+            (decision_id,),
+        ).fetchall()
+        traced: list[dict[str, Any]] = []
+        for row in rows:
+            event = parse_json(row["event_json"])
+            if event["event_type"] not in {"applied", "outcome"}:
+                continue
+            traced.append(
+                {
+                    "event_id": event["event_id"],
+                    "event_type": event["event_type"],
+                    "revision": event["revision"],
+                    "payload": event["payload"],
+                }
+            )
+        return traced
+
     def find(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
+        self._ensure_reachable()
         parsed = validate_find_input(arguments)
         tokens = fts_tokens(parsed["query"])
         if not tokens and not parsed["entities"]:
@@ -1345,6 +1394,13 @@ class Store:
             return
         if et == "attested" and mcp:
             raise LedgerError("INVALID_ARGUMENT")
+        if et == "applied":
+            if event["decision_id"] not in payload["decision_ids"]:
+                raise LedgerError(
+                    "INVALID_ARGUMENT",
+                    message="applied decision_ids must include this decision",
+                )
+            return
         if et == "outcome":
             note_required = rec["outcome"]["status"] in {
                 "success",
@@ -1354,6 +1410,43 @@ class Store:
             } and payload["status"] != rec["outcome"]["status"]
             if note_required and not payload["note"]:
                 raise LedgerError("INVALID_ARGUMENT")
+            applied_event_id = payload.get("applied_event_id")
+            if applied_event_id:
+                self._require_applied_link(
+                    conn,
+                    applied_event_id,
+                    decision_id=event["decision_id"],
+                    task_id=payload.get("task_id"),
+                )
+
+    def _require_applied_link(
+        self,
+        conn: sqlite3.Connection,
+        applied_event_id: str,
+        *,
+        decision_id: str,
+        task_id: str | None,
+    ) -> None:
+        row = conn.execute(
+            "select event_json from events where event_id=?",
+            (applied_event_id,),
+        ).fetchone()
+        if row is None:
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message="applied_event_id does not match an applied event",
+            )
+        linked = parse_json(row["event_json"])
+        if linked["event_type"] != "applied" or linked["decision_id"] != decision_id:
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message="applied_event_id does not match an applied event on this decision",
+            )
+        if task_id and linked["payload"].get("task_id") != task_id:
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message="outcome task_id does not match the applied event",
+            )
 
     def _require_visible_counterpart(
         self,
@@ -1422,6 +1515,21 @@ class Store:
                 resolves.append(event)
                 oid = payload["opened_event_id"]
                 resolved_counts[oid] = resolved_counts.get(oid, 0) + 1
+            elif et == "outcome" and payload.get("applied_event_id"):
+                linked = conn.execute(
+                    "select event_json from events where event_id=?",
+                    (payload["applied_event_id"],),
+                ).fetchone()
+                if linked is None:
+                    raise LedgerError("INVALID_TRANSITION")
+                applied = parse_json(linked["event_json"])
+                if (
+                    applied["event_type"] != "applied"
+                    or applied["decision_id"] != event["decision_id"]
+                ):
+                    raise LedgerError("INVALID_TRANSITION")
+                if payload.get("task_id") and applied["payload"].get("task_id") != payload["task_id"]:
+                    raise LedgerError("INVALID_TRANSITION")
         for oid, count in resolved_counts.items():
             if count > 1 or oid not in opened:
                 raise LedgerError("INVALID_TRANSITION")
@@ -1881,7 +1989,26 @@ class Store:
             "has_conflict": bool(rec.get("conflicts")),
             "has_replacement": rec.get("replacement_id") is not None,
             "staleness": rec["staleness"],
+            "flag": self._visible_flag(rec),
         }
+
+    def _visible_flag(self, rec: dict[str, Any]) -> str | None:
+        if rec["lifecycle"] == "superseded":
+            replacement = rec.get("replacement_id")
+            if replacement:
+                return f"superseded_by {replacement}"
+            return "superseded"
+        if rec["outcome"]["status"] == "failed":
+            return "status failed"
+        return None
+
+    def _outcome_rank(self, rec: dict[str, Any]) -> int:
+        # Latest outcome status, with or without task_id. Confidence is separate.
+        if rec["lifecycle"] == "superseded" or rec["outcome"]["status"] == "failed":
+            return 2
+        if rec["outcome"]["status"] == "success":
+            return 0
+        return 1
 
     def _rank(self, rec: dict[str, Any], parsed: dict[str, Any], tokens: list[str]) -> tuple:
         ents = rec["body"]["entities"]
@@ -1890,7 +2017,6 @@ class Store:
         constraint_hits = sum(1 for c in parsed["constraints"] if c in cons)
         ev = rec["evidence_state"]
         ev_rank = 0 if ev == "reported_verified" else 1 if ev in {"unverified", "none"} else 2
-        active_rank = 0 if rec["lifecycle"] == "active" else 1
         blob = " ".join(
             [
                 rec["body"]["summary"],
@@ -1905,8 +2031,8 @@ class Store:
         return (
             -entity_hits,
             -constraint_hits,
+            self._outcome_rank(rec),
             ev_rank,
-            active_rank,
             -token_hits,
             -_ts_key(rec["updated_at"]),
             rec["decision_id"],

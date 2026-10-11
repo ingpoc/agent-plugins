@@ -188,6 +188,46 @@ def _post(url: str, payload: bytes, token: str, timeout: float, session: dict[st
         return exc.code, exc.headers, exc.read()
 
 
+def _is_find_call(message: dict) -> bool:
+    if message.get("method") != "tools/call":
+        return False
+    params = message.get("params")
+    return isinstance(params, dict) and params.get("name") == "find"
+
+
+def _probe_ledger(url: str, token: str, timeout: float, session: dict[str, str]) -> str | None:
+    """One reachability probe. None means the ledger answered. Never falls back."""
+    payload = json.dumps({"jsonrpc": "2.0", "id": "health", "method": "ping"}).encode("utf-8")
+    try:
+        status, headers, _body = _post(url, payload, token, timeout, session)
+    except Exception as exc:  # noqa: BLE001 — network failures name the URL
+        return f"ledger unreachable at {url} ({_cause(exc)})"
+    _capture(headers, session)
+    if status == 401:
+        return f"UNAUTHORIZED ledger at {url}"
+    if status == 202 or 200 <= status < 300:
+        return None
+    return f"ledger unreachable at {url} (HTTP {status})"
+
+
+def _ensure_ledger(
+    url: str,
+    token: str,
+    timeout: float,
+    session: dict[str, str],
+    state: dict[str, bool],
+) -> str | None:
+    if state["ok"]:
+        return None
+    failure = _probe_ledger(url, token, timeout, session)
+    if failure is not None:
+        failure = _probe_ledger(url, token, timeout, session)
+    if failure is not None:
+        return failure
+    state["ok"] = True
+    return None
+
+
 def _forward(message: dict, url: str, token: str, timeout: float, session: dict[str, str]) -> None:
     req_id, is_request = _request_id(message)
     host = _host(url)
@@ -238,6 +278,7 @@ def main() -> int:
     if timeout is None:
         return 2
     session: dict[str, str] = {}
+    health = {"ok": False}
     for line in sys.stdin:
         if not line.strip():
             continue
@@ -249,6 +290,12 @@ def main() -> int:
         if not isinstance(message, dict):
             _stderr("PARSE_ERROR", "stdin line is not a JSON object", retryable=False)
             continue
+        if _is_find_call(message):
+            failure = _ensure_ledger(url, token, timeout, session, health)
+            if failure is not None:
+                req_id, is_request = _request_id(message)
+                _fail(is_request, req_id, "UNAVAILABLE", failure, retryable=True)
+                continue
         _forward(message, url, token, timeout, session)
     return 0
 

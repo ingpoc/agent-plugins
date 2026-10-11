@@ -64,6 +64,7 @@ PLUGIN_TESTS = {
     "context-ledger": [
         [sys.executable, "tests/test_contract.py", "-q"],
         [sys.executable, "tests/test_manifests.py", "-q"],
+        [sys.executable, "tests/test_remote_bridge.py", "-q"],
     ],
     "comet-control": [
         sys.executable,

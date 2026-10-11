@@ -23,7 +23,7 @@ A dest whose `.cursor-plugin/mcp.json` uses `${CURSOR_PLUGIN_ROOT}/bin/context-l
 
 `CONTEXT_LEDGER_MCP_TOKEN` is the bearer token for the Mini's `serve-http`. On Cursor cloud agents it is a Runtime Secret, scope All Repositories. The owner copies it from the Mini login keychain (service `context-ledger.mcp`, account `bearer_token`) into that secret. Do not paste the token into a repo, chat, or log.
 
-A missing token or an unreachable ledger fails loud. The bridge does not create a local ledger.
+A missing token or an unreachable ledger fails loud. The bridge does not create a local ledger. Before the first `tools/call` named `find`, the bridge probes the ledger URL, retries that probe once, and on failure returns an error naming that URL. It does not forward the find and does not open a local ledger.
 
 ## Enable a Cursor cloud agent or Project
 

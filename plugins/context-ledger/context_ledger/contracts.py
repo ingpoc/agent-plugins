@@ -70,6 +70,7 @@ EVENT_TYPE = (
     "conflict_opened",
     "conflict_resolved",
     "attested",
+    "applied",
 )
 CHANNEL = ("agent", "owner_cli")
 LIFECYCLE = ("active", "superseded")
@@ -79,6 +80,7 @@ APPEND_TYPES = (
     "superseded",
     "conflict_opened",
     "conflict_resolved",
+    "applied",
 )
 
 
@@ -159,12 +161,18 @@ class ConflictResolvedPayload(TypedDict):
     reason: str
 
 
+class AppliedPayload(TypedDict):
+    task_id: str
+    decision_ids: list[str]
+
+
 AppendPayload = (
     OutcomeInput
     | CorrectedPayload
     | SupersededPayload
     | ConflictOpenedPayload
     | ConflictResolvedPayload
+    | AppliedPayload
 )
 McpAppendPayload = (
     OutcomeInput
@@ -172,6 +180,7 @@ McpAppendPayload = (
     | SupersededPayload
     | ConflictOpenedPayload
     | ConflictResolvedPayload
+    | AppliedPayload
 )
 AppendEventType = Literal[
     "outcome",
@@ -179,19 +188,26 @@ AppendEventType = Literal[
     "superseded",
     "conflict_opened",
     "conflict_resolved",
+    "applied",
 ]
 
 
 class LedgerError(Exception):
-    def __init__(self, code: str, retryable: bool | None = None) -> None:
+    def __init__(
+        self, code: str, retryable: bool | None = None, message: str | None = None
+    ) -> None:
         if code not in ERROR_CODES:
             code = "INTERNAL"
         self.code = code
         self.retryable = RETRYABLE.__contains__(code) if retryable is None else retryable
+        self.message = message
         super().__init__(code)
 
     def as_dict(self) -> dict[str, Any]:
-        return {"ok": False, "error": {"code": self.code, "retryable": self.retryable}}
+        error: dict[str, Any] = {"code": self.code, "retryable": self.retryable}
+        if self.message:
+            error["message"] = self.message
+        return {"ok": False, "error": error}
 
 
 def canonical_json(value: Any) -> str:
@@ -414,7 +430,7 @@ def validate_body(value: Any, *, allow_owner_attested: bool) -> dict[str, Any]:
 
 
 def validate_outcome(value: Any) -> dict[str, Any]:
-    obj = require_keys(value, {"status", "note", "evidence"}, {"task_id"})
+    obj = require_keys(value, {"status", "note", "evidence"}, {"task_id", "applied_event_id"})
     result = {
         "status": require_enum(obj["status"], OUTCOME_STATUS),
         "note": require_str(obj["note"], 500, allow_empty=True),
@@ -423,7 +439,20 @@ def validate_outcome(value: Any) -> dict[str, Any]:
     # Schema advertises task_id as string | null. JSON null is absent, not invalid.
     if "task_id" in obj and obj["task_id"] is not None:
         result["task_id"] = require_uuid(obj["task_id"])
+    if "applied_event_id" in obj and obj["applied_event_id"] is not None:
+        result["applied_event_id"] = require_uuid(obj["applied_event_id"])
     return result
+
+
+def validate_applied(value: Any) -> dict[str, Any]:
+    obj = require_keys(value, {"task_id", "decision_ids"})
+    ids = obj["decision_ids"]
+    if not isinstance(ids, list) or not ids or len(ids) > 8:
+        raise LedgerError("INVALID_ARGUMENT")
+    decision_ids = [require_uuid(item) for item in ids]
+    if len(decision_ids) != len(set(decision_ids)):
+        raise LedgerError("INVALID_ARGUMENT")
+    return {"task_id": require_uuid(obj["task_id"]), "decision_ids": decision_ids}
 
 
 def _str_list(value: Any, max_item: int, max_n: int) -> list[str]:
@@ -476,6 +505,8 @@ def validate_payload(event_type: str, value: Any, *, allow_owner_attested: bool)
         if approval["state"] != "owner_attested":
             raise LedgerError("INVALID_ARGUMENT")
         return {"approval": approval, "reason": require_str(obj["reason"], 500)}
+    if event_type == "applied":
+        return validate_applied(value)
     raise LedgerError("INVALID_ARGUMENT")
 
 
@@ -529,6 +560,8 @@ def validate_find_input(value: Any) -> dict[str, Any]:
     if type(include) is not bool:
         raise LedgerError("INVALID_ARGUMENT")
     limit = obj.get("limit", 3)
+    if type(limit) is int and limit > 3:
+        raise LedgerError("INVALID_ARGUMENT", message="find limit max is 3")
     offset = obj.get("offset", 0)
     return {
         "query": require_str(obj["query"], 240, allow_empty=True),

@@ -10,6 +10,8 @@ On your first call, read the installed `SKILL.md` beside this file once. The par
 
 For every new `task_id`, reset your served set and inspect the ledger for applicable decisions. The parent sends `served: []` for a new task. Never suppress a decision because it was served in a different task. On a same-task resume, return only information new to that task; skip a search only when the task, constraints, owner, and store are unchanged. A changed constraint requires an applicability recheck.
 
+Before the first `find`, verify the ledger is reachable, retry once, and on failure return an error naming the URL or socket. Do not fall back to a local ledger or turn that failure into an empty result. `find` ranks success above pending, and ranks failed or superseded records below both, using the latest outcome status even when it has no `task_id`. Read `flag` (`status failed` or `superseded_by <id>`). Record application with `append_event` `event_type` `applied` (`task_id`, `decision_ids`). `get` returns applied and outcome events; an outcome cites `applied_event_id`.
+
 1. Read the current owner/config when available.
 2. Search with at most four distinctive words derived from the task. `find` returns at most three summaries; check applicability, outcome, lifecycle, conflict, and staleness. Preserve useful failed or unresolved decisions as negative evidence.
 3. If one relevant summary is too vague, call `get` at most once.
