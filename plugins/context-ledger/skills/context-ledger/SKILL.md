@@ -52,6 +52,8 @@ At closeout, send the same `task_id`. A candidate is one short object (`summary`
 
 Outcome feedback is idempotent by `(task_id, decision_id)`: an identical retry adds no event; corrected feedback replaces that task's prior observation. Confidence is the **observed usefulness rate**: `successes / (successes + failures)`, over distinct task IDs and using the latest feedback per task. Return the score, success/failure/inconclusive counts, and conclusive sample count. Inconclusive outcomes do not enter the score; use `null` when there are no conclusive observations. This is descriptive usefulness, not probability of correctness, and task outcomes may be correlated.
 
+Before reporting done, run `scripts/ledger_loop.py close <task_id>` (after `ledger_loop.py start <task_id>` at lookup); it fails loud with one FAIL line and the fix unless the task has a start lookup and every applied decision id has a final outcome with evidence.
+
 Skip routine work, duplicate decisions, temporary status, raw prompts, hidden reasoning, and secrets.
 
 A Cursor cloud main agent hands the helper JSON to one retained worker on the Mac and never calls ledger tools, storage, or CLI itself. That worker runs `scripts/lookup.py select` and `feedback`. Codex cloud has no ledger. `select` and `feedback` stay on that worker; they are not server tools.
