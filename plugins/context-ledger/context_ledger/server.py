@@ -25,6 +25,7 @@ from context_ledger.contracts import (
 )
 from context_ledger.mcp_schema import (
     AppendEventInput,
+    AppliedPayloadModel,
     ConflictOpenedPayloadModel,
     ConflictResolvedPayloadModel,
     CorrectedPayloadModel,
@@ -180,6 +181,7 @@ def build_server(store: Store) -> MCPServer:
             "superseded",
             "conflict_opened",
             "conflict_resolved",
+            "applied",
         ],
         payload: (
             OutcomeModel
@@ -187,6 +189,7 @@ def build_server(store: Store) -> MCPServer:
             | SupersededPayloadModel
             | ConflictOpenedPayloadModel
             | ConflictResolvedPayloadModel
+            | AppliedPayloadModel
         ),
     ) -> CallToolResult:
         try:

@@ -339,8 +339,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.17")
-        self.assertIn('__version__ = "0.1.17"', init)
+        self.assertEqual(plugin["version"], "0.1.18")
+        self.assertIn('__version__ = "0.1.18"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -784,7 +784,36 @@ class StoreTests(unittest.TestCase):
             self.store.get({"decision_id": rec["decision_id"]}, mcp=True)
         self.assertEqual(ctx.exception.code, "UNAVAILABLE")
 
-    def test_failure_ranks_equal_to_success(self) -> None:
+    def test_failure_ranks_below_success_without_task_id(self) -> None:
+        ok_rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="alpha ok", entities=["same-ent"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": ok_rec["decision_id"],
+                "expected_revision": ok_rec["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome("success", note="ok"),
+            },
+            mcp=False,
+        )
+        pending = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="alpha pending", entities=["same-ent"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
         fail = self.store.record(
             {
                 "request_id": _uuid(),
@@ -794,23 +823,278 @@ class StoreTests(unittest.TestCase):
             },
             mcp=False,
         )
-        ok_rec = self.store.record(
-            {
-                "request_id": _uuid(),
-                "occurred_at": None,
-                "body": _body(summary="alpha ok", entities=["same-ent"]),
-                "outcome": _outcome("success", note="ok"),
-            },
-            mcp=False,
-        )
         found = self.store.find(
             {"query": "alpha", "entities": ["same-ent"], "constraints": []},
             mcp=True,
         )
         ids = [m["decision_id"] for m in found["matches"]]
-        self.assertEqual(set(ids), {fail["decision_id"], ok_rec["decision_id"]})
-        # same evidence none, both active: order by updated_at then uuid, not success bias
-        self.assertEqual(found["matches"][0]["evidence_state"], found["matches"][1]["evidence_state"])
+        self.assertEqual(ids, [ok_rec["decision_id"], pending["decision_id"], fail["decision_id"]])
+        self.assertIsNone(found["matches"][0]["flag"])
+        self.assertEqual(found["matches"][2]["flag"], "status failed")
+        got = self.store.get({"decision_id": ok_rec["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(got["outcome"]["status"], "success")
+        self.assertNotIn("task_id", got["outcome"])
+        self.assertEqual(got["confidence"]["successes"], 0)
+        self.assertEqual(got["confidence"]["sample_count"], 0)
+
+    def test_superseded_ranks_below_pending_with_flag(self) -> None:
+        old = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="beta old", entities=["beta-ent"]),
+                "outcome": _outcome("success", note="ok"),
+            },
+            mcp=False,
+        )
+        replacement = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="beta new", entities=["beta-ent"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": old["decision_id"],
+                "expected_revision": old["revision"],
+                "occurred_at": None,
+                "event_type": "superseded",
+                "payload": {"replacement_id": replacement["decision_id"], "reason": "replaced"},
+            },
+            mcp=False,
+        )
+        found = self.store.find(
+            {
+                "query": "beta",
+                "entities": ["beta-ent"],
+                "constraints": [],
+                "include_superseded": True,
+            },
+            mcp=True,
+        )
+        ids = [m["decision_id"] for m in found["matches"]]
+        self.assertEqual(ids[0], replacement["decision_id"])
+        self.assertEqual(ids[-1], old["decision_id"])
+        self.assertEqual(
+            found["matches"][-1]["flag"],
+            f"superseded_by {replacement['decision_id']}",
+        )
+
+    def test_find_limit_above_three_names_max(self) -> None:
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "alpha", "entities": [], "constraints": [], "limit": 4},
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+        self.assertEqual(ctx.exception.message, "find limit max is 3")
+
+    def test_find_names_path_when_ledger_file_removed_after_startup(self) -> None:
+        self.store.open()
+        path = self.store.db_path
+        self.assertIsNotNone(self.store.conn)
+        path.unlink()
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "startup", "entities": [], "constraints": []},
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        self.assertTrue(ctx.exception.retryable)
+        self.assertEqual(ctx.exception.message, f"ledger unreachable at {path}")
+        fresh = self.Store(self.data, actor_channel="owner_cli")
+        with self.assertRaises(self.LedgerError) as startup:
+            fresh.open()
+        self.assertEqual(startup.exception.code, "UNAVAILABLE")
+        self.assertTrue(startup.exception.retryable)
+        self.assertEqual(startup.exception.message, f"ledger unreachable at {path}")
+
+    def test_corrupt_ledger_after_startup_is_not_unreachable(self) -> None:
+        self.store.open()
+        self.store.db_path.write_bytes(b"not a sqlite database")
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "startup", "entities": [], "constraints": []},
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "CORRUPT_LEDGER")
+
+    def test_abandoned_and_inconclusive_rank_below_pending(self) -> None:
+        pending = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band pending", entities=["rank-band"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        abandoned = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band abandoned", entities=["rank-band"]),
+                "outcome": _outcome("abandoned", note="left"),
+            },
+            mcp=False,
+        )
+        failed = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band failed", entities=["rank-band"]),
+                "outcome": _outcome("failed", note="no"),
+            },
+            mcp=False,
+        )
+        inconclusive = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band inconclusive", entities=["rank-incon"]),
+                "outcome": _outcome("inconclusive", note="unsure"),
+            },
+            mcp=False,
+        )
+        pending_other = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band still pending", entities=["rank-incon"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        ranked = self.store.find(
+            {"query": "band", "entities": ["rank-band"], "constraints": []},
+            mcp=True,
+        )
+        self.assertEqual(
+            [item["decision_id"] for item in ranked["matches"]],
+            [pending["decision_id"], abandoned["decision_id"], failed["decision_id"]],
+        )
+        other = self.store.find(
+            {"query": "band", "entities": ["rank-incon"], "constraints": [], "limit": 2},
+            mcp=True,
+        )
+        self.assertEqual(
+            [item["decision_id"] for item in other["matches"]],
+            [pending_other["decision_id"], inconclusive["decision_id"]],
+        )
+
+    def test_find_health_retries_once_and_names_path(self) -> None:
+        calls = {"n": 0}
+
+        def boom() -> None:
+            calls["n"] += 1
+            raise self.LedgerError("UNAVAILABLE")
+
+        self.store.probe = boom  # type: ignore[method-assign]
+        self.store._reachable = False
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "alpha", "entities": [], "constraints": []},
+                mcp=True,
+            )
+        self.assertEqual(calls["n"], 2)
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        self.assertIn(str(self.store.db_path), ctx.exception.message or "")
+        self.assertIn("ledger unreachable at", ctx.exception.message or "")
+
+    def test_applied_event_is_queryable_and_links_outcome(self) -> None:
+        task_id = _uuid()
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="apply me sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        other = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="also applied sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        applied = self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rec["decision_id"],
+                "expected_revision": rec["revision"],
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {
+                    "task_id": task_id,
+                    "decision_ids": [rec["decision_id"], other["decision_id"]],
+                },
+            },
+            mcp=True,
+        )
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.append_event(
+                {
+                    "request_id": _uuid(),
+                    "decision_id": rec["decision_id"],
+                    "expected_revision": applied["revision"],
+                    "occurred_at": None,
+                    "event_type": "applied",
+                    "payload": {"task_id": task_id, "decision_ids": [other["decision_id"]]},
+                },
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+        closed = self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rec["decision_id"],
+                "expected_revision": applied["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome(
+                    "success",
+                    note="applied then checked",
+                    applied_event_id=applied["event_id"],
+                ),
+            },
+            mcp=True,
+        )
+        self.assertEqual(closed["revision"], applied["revision"] + 1)
+        got = self.store.get({"decision_id": rec["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(
+            [event["event_type"] for event in got["events"]],
+            ["applied", "outcome"],
+        )
+        self.assertEqual(got["events"][0]["payload"]["task_id"], task_id)
+        self.assertEqual(got["events"][0]["payload"]["decision_ids"][1], other["decision_id"])
+        self.assertEqual(got["events"][1]["payload"]["applied_event_id"], applied["event_id"])
+        self.assertNotIn("task_id", got["events"][1]["payload"])
+        self.assertEqual(got["confidence"]["sample_count"], 0)
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.append_event(
+                {
+                    "request_id": _uuid(),
+                    "decision_id": other["decision_id"],
+                    "expected_revision": other["revision"],
+                    "occurred_at": None,
+                    "event_type": "outcome",
+                    "payload": _outcome(
+                        "success",
+                        note="wrong link",
+                        applied_event_id=applied["event_id"],
+                    ),
+                },
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
 
     def test_export_import_and_purge(self) -> None:
         rec = self.store.record(
@@ -1961,6 +2245,9 @@ class McpTests(unittest.TestCase):
             self.assertIn("replacement_id", append_schema)
             self.assertIn("opened_event_id", append_schema)
             self.assertIn("conflict_opened", append_schema)
+            self.assertIn("applied", append_schema)
+            self.assertIn("applied_event_id", append_schema)
+            self.assertIn("decision_ids", append_schema)
             self.assertNotIn("owner_attested", append_schema)
             defs = rec.get("$defs") or {}
             body = defs.get("McpBodyModel") or {}

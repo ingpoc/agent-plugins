@@ -265,6 +265,73 @@ class BridgeTests(_ServerCase):
         self.assertIn("TIMEOUT", payload["error"]["message"])
         self.assertIn("127.0.0.1", payload["error"]["message"])
 
+    def test_find_health_retries_once_names_url_and_does_not_forward(self) -> None:
+        url = self._start(
+            [
+                {"status": 503, "body": b"nope"},
+                {"status": 503, "body": b"nope"},
+                {"status": 200, "body": b'{"jsonrpc":"2.0","id":1,"result":{"forwarded":true}}'},
+            ]
+        )
+        call = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 11,
+                "method": "tools/call",
+                "params": {"name": "find", "arguments": {"query": "alpha"}},
+            }
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            env = self._env(Path(tmp), CONTEXT_LEDGER_MCP_TOKEN=TOKEN, CONTEXT_LEDGER_MCP_URL=url)
+            proc = self._bridge(call + "\n", env)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self._assert_token_hidden(proc)
+        payload = json.loads(proc.stdout)
+        self.assertEqual(payload["id"], 11)
+        self.assertIn(url, payload["error"]["message"])
+        self.assertIn("ledger unreachable at", payload["error"]["message"])
+        self.assertEqual(len(self.httpd.seen), 2)
+        self.assertNotIn("forwarded", proc.stdout)
+
+    def test_find_health_succeeds_once_then_forwards(self) -> None:
+        url = self._start(
+            [
+                {"status": 200, "body": b'{"jsonrpc":"2.0","id":"health","result":{}}'},
+                {
+                    "status": 200,
+                    "body": b'{"jsonrpc":"2.0","id":1,"result":{"forwarded":1}}',
+                },
+                {
+                    "status": 200,
+                    "body": b'{"jsonrpc":"2.0","id":2,"result":{"forwarded":2}}',
+                },
+            ]
+        )
+        first = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "find", "arguments": {}},
+            }
+        )
+        second = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": "find", "arguments": {}},
+            }
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            env = self._env(Path(tmp), CONTEXT_LEDGER_MCP_TOKEN=TOKEN, CONTEXT_LEDGER_MCP_URL=url)
+            proc = self._bridge(first + "\n" + second + "\n", env)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self._assert_token_hidden(proc)
+        lines = [json.loads(line) for line in proc.stdout.splitlines()]
+        self.assertEqual([line["result"]["forwarded"] for line in lines], [1, 2])
+        self.assertEqual(len(self.httpd.seen), 3)
+
     def test_missing_token_fails_at_startup(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             env = self._env(Path(tmp))

@@ -209,7 +209,7 @@ class ManifestContractTests(unittest.TestCase):
             )
         ]
         self.assertEqual(versions, [context_ledger.__version__] * 3)
-        self.assertEqual(context_ledger.__version__, "0.1.17")
+        self.assertEqual(context_ledger.__version__, "0.1.18")
         descriptions = [
             json.loads((ROOT / rel).read_text(encoding="utf-8"))["description"]
             for rel in (
@@ -348,7 +348,7 @@ class ManifestContractTests(unittest.TestCase):
         payload = json.loads(missing.stderr)
         self.assertEqual(payload["error"]["code"], "PLUGIN_BOOTSTRAP_FAILED")
         self.assertIn("download", payload["error"]["message"])
-        self.assertIn("context-ledger-v0.1.17", payload["error"]["message"])
+        self.assertIn("context-ledger-v0.1.18", payload["error"]["message"])
 
     def test_shell_files_have_no_or_true(self) -> None:
         files: list[str] = []
