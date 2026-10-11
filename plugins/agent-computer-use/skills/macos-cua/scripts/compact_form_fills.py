@@ -140,7 +140,9 @@ def step_mutates_layout(step: dict[str, Any]) -> bool:
     if step.get("wait") is not None:
         return False
     action = str(step.get("action") or step.get("op") or "").lower()
-    if action in {"focus", "raise", "activate", "set_value"}:
+    # set_value IS a mutation: a fill can add/remove/reorder fields, so a
+    # later label→index compiled before it would be stale (Codex r10 #2).
+    if action in {"focus", "raise", "activate"}:
         return False
     if step.get("key") is not None:
         return True

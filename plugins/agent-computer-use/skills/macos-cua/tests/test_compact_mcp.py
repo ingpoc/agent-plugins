@@ -716,6 +716,57 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertEqual(set_values, [(5, "ada@example.com")])
         self.assertGreaterEqual(len(states), 2)
 
+    def test_act_second_label_fill_re_resolves_after_first_fill(self):
+        """A fill can reorder the form; the next label fill re-resolves (r10 #2)."""
+        set_values = []
+        plans = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        if not set_values:
+                            els = [
+                                {"element_index": 2, "role": "AXTextField", "label": "Country", "value": ""},
+                                {"element_index": 3, "role": "AXTextField", "label": "City", "value": ""},
+                            ]
+                        else:
+                            # Country fill inserted a State field; City moved to 4.
+                            els = [
+                                {"element_index": 2, "role": "AXTextField", "label": "Country", "value": "IN"},
+                                {"element_index": 3, "role": "AXTextField", "label": "State", "value": ""},
+                                {"element_index": 4, "role": "AXTextField", "label": "City",
+                                 "value": "Pune" if len(set_values) > 1 else ""},
+                            ]
+                        return {"text": "", "elements": els}
+
+                    def execute_plan(self, app, steps):
+                        plans.append(list(steps))
+                        raise AssertionError("fill-after-fill must not run a pre-compiled plan")
+
+                    def set_value(self, app, element, value):
+                        set_values.append((element, value))
+                        return {"ok": True, "method": "ax-set-value"}
+
+                return fn(Client())
+
+        out = Backend().act(
+            "App",
+            {
+                "steps": [
+                    {"action": "set_value", "label": "Country", "value": "IN"},
+                    {"action": "set_value", "label": "City", "value": "Pune"},
+                ],
+                "expect": {"value": {"label": "City", "equals": "Pune"}},
+            },
+        )
+        self.assertEqual(plans, [])
+        self.assertEqual(set_values, [(2, "IN"), (4, "Pune")])
+        self.assertTrue(out.get("ok"), out)
+
     def test_act_expect_already_true_before_is_not_verified(self):
         class Backend(compact_mcp.CUABackend):
             def __init__(self):

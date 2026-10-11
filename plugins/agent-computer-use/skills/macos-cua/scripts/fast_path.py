@@ -865,7 +865,6 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "raiseForInput: true" in settle
         and "raiseForInput" in resolver
         and "waitUntilFrontmost" in resolver
-        and "key_target_not_front" in actions_src
         and "kAXFocusedApplicationAttribute" in resolver
         and "timeout: TimeInterval =" in resolver
         and "Date().addingTimeInterval(timeout)" in resolver
@@ -903,7 +902,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "AXPress only when the control advertises it; CG posts HID at the AX frame",
         'element.actions.contains("AXPress")' in actions_src
         and "func postHid" in actions_src
-        and "cghidEventTap" in actions_src
+        and "cghidEventTap" not in actions_src
         and "postToPid" in post_hid_body
         and not hid_dual_posts_same_helper(actions_src)
         and "doubled glyphs" in actions_src
@@ -923,8 +922,10 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     add(
         "PostEvent TCC is preflighted fail-closed",
         "CGPreflightPostEventAccess" in actions_src
-        and "ensurePostEventAccess" in actions_src,
-        "Accessibility grant alone still silent-no-op PostEvent HID",
+        and "ensurePostEventAccess" in actions_src
+        and "postevent_denied" in actions_src
+        and "func hidRefusal" in actions_src,
+        "Accessibility grant alone still silent-no-op PostEvent HID; denied + frontmost returned ok:true",
     )
     add(
         "expect must be new versus the before-tree",
