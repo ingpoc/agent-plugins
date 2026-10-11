@@ -3,7 +3,7 @@
 ## 0.1.22
 
 - Helper selection is `scripts/lookup.py select`. It compares the situation with applicability and the needed decision with the action using the on-device sentence embedding (cosine distance). Success count does not choose the result. `find` outcome order is unchanged.
-- `scripts/lookup.py feedback` records whether provided decisions helped. A similar precedent is returned and not rewritten. A missing decision is recorded only when none is similar. Without the on-device embedding, both commands fail with `EMBEDDING_UNAVAILABLE`.
+- `scripts/lookup.py feedback` records whether provided decisions helped. A precedent is similar only when the needed action is near the stored action as well as the situation. A different action is recorded, and its rationale names the decisions that did not help. `helped: false` is inconclusive. `select` returns `outcome`, `flag`, and `approval`. Without the on-device embedding, both commands fail with `EMBEDDING_UNAVAILABLE`.
 
 ## 0.1.21
 

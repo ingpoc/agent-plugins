@@ -25,6 +25,9 @@ DATA = Path(
 # A fit is the situation against applicability plus the needed decision against the action.
 SELECT_MAX_DISTANCE = 1.95
 SIMILAR_MAX_DISTANCE = 1.75
+# Need vs action, on its own. A paraphrase of the stored action is near 0.3.
+# A different action in the same situation is past 1.0.
+ACTION_SIMILAR_MAX_DISTANCE = 0.6
 _EMBEDDING = None
 
 
@@ -112,6 +115,17 @@ def _best(embedding, situation: str, need: str, records: list[dict]):
     return chosen, chosen_distance
 
 
+def _flag(record: dict) -> str | None:
+    if record["lifecycle"] == "superseded":
+        replacement = record.get("replacement_id")
+        if replacement:
+            return f"superseded_by {replacement}"
+        return "superseded"
+    if record["outcome"]["status"] == "failed":
+        return "status failed"
+    return None
+
+
 def _decision_view(record: dict) -> dict:
     body = record["body"]
     return {
@@ -119,7 +133,46 @@ def _decision_view(record: dict) -> dict:
         "summary": body["summary"],
         "action": body["action"],
         "applicability": body["applicability"],
+        "outcome": record["outcome"]["status"],
+        "flag": _flag(record),
+        "approval": body["approval"]["state"],
     }
+
+
+def _similar(embedding, situation: str, need: str, records: list[dict]):
+    """A precedent matches only when the needed action is near, not the situation alone."""
+    chosen = None
+    chosen_distance = None
+    for record in records:
+        action_distance = _distance(embedding, need, record["body"]["action"])
+        if action_distance > ACTION_SIMILAR_MAX_DISTANCE:
+            continue
+        distance = _distance(embedding, situation, record["body"]["applicability"]) + action_distance
+        if distance > SIMILAR_MAX_DISTANCE:
+            continue
+        nearer = chosen is None or distance < chosen_distance
+        tie = (
+            chosen is not None
+            and chosen_distance is not None
+            and abs(distance - chosen_distance) <= 1e-9
+            and record["decision_id"] < chosen["decision_id"]
+        )
+        if nearer or tie:
+            chosen = record
+            chosen_distance = distance
+    return chosen
+
+
+def _gap_rationale(items: list[tuple[str, bool, str]]) -> str:
+    parts = []
+    for decision_id, helped, issue in items:
+        if helped:
+            continue
+        parts.append(f"{decision_id}: {issue.strip() or 'did not help'}")
+    text = "The provided decisions left this case unresolved."
+    if parts:
+        text = f"{text} {'; '.join(parts)}"
+    return text[:800]
 
 
 def _select(store: Store, body: dict) -> dict:
@@ -143,7 +196,7 @@ def _uuid_text(value: object) -> str:
     return str(value)
 
 
-def _feedback(store: Store, body: dict) -> dict:
+def _parse_feedback(body: dict) -> tuple[str, list[tuple[str, bool, str]], tuple[str, str] | None] | dict:
     if not isinstance(body, dict):
         return {"written": [], "write": "unavailable"}
     try:
@@ -153,31 +206,60 @@ def _feedback(store: Store, body: dict) -> dict:
     provided = body.get("provided")
     if not isinstance(provided, list):
         return {"written": [], "write": "unavailable"}
+    items: list[tuple[str, bool, str]] = []
+    seen: set[str] = set()
+    for item in provided:
+        if (
+            not isinstance(item, dict)
+            or set(item) - {"id", "helped", "issue"}
+            or "id" not in item
+            or "helped" not in item
+            or item["helped"] not in (True, False)
+        ):
+            return {"written": [], "write": "unavailable"}
+        issue = item.get("issue", "")
+        if not isinstance(issue, str):
+            return {"written": [], "write": "unavailable"}
+        try:
+            decision_id = _uuid_text(item["id"])
+        except ValueError:
+            return {"written": [], "write": "unavailable"}
+        if decision_id in seen:
+            return {"written": [], "write": "unavailable"}
+        seen.add(decision_id)
+        items.append((decision_id, item["helped"], issue))
+    missing = body.get("would_have_helped", None)
+    if missing is None:
+        return task_id, items, None
+    if not isinstance(missing, dict) or set(missing) != {"situation", "need"}:
+        return {"written": [], "write": "unavailable"}
+    try:
+        situation = _text(missing.get("situation"), "situation", 320)
+        need = _text(missing.get("need"), "need", 160)
+    except ValueError:
+        return {"written": [], "write": "unavailable"}
+    return task_id, items, (situation, need)
+
+
+def _feedback(store: Store, body: dict) -> dict:
+    parsed = _parse_feedback(body)
+    if isinstance(parsed, dict):
+        return parsed
+    task_id, items, missing = parsed
+    embedding = _sentence_embedding() if missing is not None else None
     outcomes: list[str] = []
     try:
-        for item in provided:
-            if (
-                not isinstance(item, dict)
-                or set(item) - {"id", "helped", "issue"}
-                or "id" not in item
-                or "helped" not in item
-                or item["helped"] not in (True, False)
-            ):
-                return {"written": [], "write": "unavailable"}
-            issue = item.get("issue", "")
-            if not isinstance(issue, str):
-                return {"written": [], "write": "unavailable"}
-            note = issue.strip() or ("helped" if item["helped"] else "did not help")
+        for decision_id, helped, issue in items:
+            note = issue.strip() or ("helped" if helped else "did not help")
             _outcome(
                 store,
                 task_id,
-                _uuid_text(item["id"]),
-                "success" if item["helped"] else "failed",
+                decision_id,
+                "success" if helped else "inconclusive",
                 note,
                 f"task://{task_id}",
             )
-            outcomes.append(item["id"])
-        missing = body.get("would_have_helped", None)
+            outcomes.append(decision_id)
         if missing is None:
             return {
                 "task_id": task_id,
@@ -185,14 +267,9 @@ def _feedback(store: Store, body: dict) -> dict:
                 "similar": None,
                 "written": [],
             }
-        if not isinstance(missing, dict) or set(missing) != {"situation", "need"}:
-            return {"written": outcomes, "write": "unavailable"}
-        situation = _text(missing.get("situation"), "situation", 320)
-        need = _text(missing.get("need"), "need", 160)
-        embedding = _sentence_embedding()
-        records = _visible(store)
-        chosen, distance = _best(embedding, situation, need, records)
-        if chosen is not None and distance is not None and distance <= SIMILAR_MAX_DISTANCE:
+        situation, need = missing
+        chosen = _similar(embedding, situation, need, _visible(store))
+        if chosen is not None:
             return {
                 "task_id": task_id,
                 "outcomes": outcomes,
@@ -208,7 +285,7 @@ def _feedback(store: Store, body: dict) -> dict:
                     "summary": need,
                     "situation": situation,
                     "action": need,
-                    "rationale": "The provided decisions left this case unresolved.",
+                    "rationale": _gap_rationale(items),
                     "constraints": [],
                     "applicability": situation,
                     "entities": [],

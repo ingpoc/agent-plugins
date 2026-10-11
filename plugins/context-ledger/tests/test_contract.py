@@ -761,7 +761,13 @@ class StoreTests(unittest.TestCase):
             },
         )
         self.assertEqual(live["decision"]["id"], pending_id)
+        self.assertEqual(live["decision"]["outcome"], "pending")
+        self.assertIsNone(live["decision"]["flag"])
+        self.assertEqual(live["decision"]["approval"], "none")
         self.assertEqual(badge["decision"]["id"], success_id)
+        self.assertEqual(badge["decision"]["outcome"], "success")
+        self.assertIsNone(badge["decision"]["flag"])
+        self.assertEqual(badge["decision"]["approval"], "none")
         self.assertNotEqual(live["decision"]["id"], badge["decision"]["id"])
         found = self.store.find(
             {
@@ -834,6 +840,91 @@ class StoreTests(unittest.TestCase):
         )
         self.assertEqual(again["similar"], new_id)
         self.assertEqual(again["written"], [])
+        self.assertIn(pending_id, saved["body"]["rationale"])
+        self.assertIn(
+            "The provided decisions left the publish outage unresolved",
+            saved["body"]["rationale"],
+        )
+        marked = self.store.get({"decision_id": pending_id}, mcp=True)["record"]
+        self.assertEqual(marked["outcome"]["status"], "inconclusive")
+
+    def test_feedback_records_a_different_action_and_rejects_bad_input_first(self) -> None:
+        pending_id, success_id = self._seed_situation_and_success()
+        success_revision = self.store.get({"decision_id": success_id}, mcp=True)["record"]["revision"]
+        pending_revision = self.store.get({"decision_id": pending_id}, mcp=True)["record"]["revision"]
+        duplicate = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [
+                    {"id": success_id, "helped": True},
+                    {"id": success_id, "helped": False, "issue": "again"},
+                ],
+            },
+        )
+        malformed = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [
+                    {"id": success_id, "helped": True},
+                    {"id": "not-a-uuid", "helped": False},
+                ],
+            },
+        )
+        incomplete = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [{"id": pending_id, "helped": False, "issue": "gap"}],
+                "would_have_helped": {
+                    "situation": "A plugin change is about to ship with only unit tests as proof",
+                },
+            },
+        )
+        self.assertEqual(duplicate, {"written": [], "write": "unavailable"})
+        self.assertEqual(malformed, {"written": [], "write": "unavailable"})
+        self.assertEqual(incomplete, {"written": [], "write": "unavailable"})
+        self.assertEqual(
+            self.store.get({"decision_id": success_id}, mcp=True)["record"]["revision"],
+            success_revision,
+        )
+        self.assertEqual(
+            self.store.get({"decision_id": pending_id}, mcp=True)["record"]["revision"],
+            pending_revision,
+        )
+        _require_sentence_embedding(self)
+        issue = "Unit tests were the wrong gate"
+        created = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [{"id": pending_id, "helped": False, "issue": issue}],
+                "would_have_helped": {
+                    "situation": "A plugin change is about to ship and unit tests are the only proof",
+                    "need": "Do not ship; revert the change",
+                },
+            },
+        )
+        self.assertIsNone(created["similar"])
+        self.assertEqual(len(created["written"]), 1)
+        saved = self.store.get({"decision_id": created["written"][0]}, mcp=True)["record"]
+        self.assertEqual(saved["body"]["action"], "Do not ship; revert the change")
+        self.assertIn(pending_id, saved["body"]["rationale"])
+        self.assertIn(issue, saved["body"]["rationale"])
+        marked = self.store.get({"decision_id": pending_id}, mcp=True)["record"]
+        self.assertEqual(marked["outcome"]["status"], "inconclusive")
+        found = self.store.find(
+            {
+                "query": "",
+                "entities": ["helper-selection"],
+                "constraints": [],
+                "limit": 3,
+                "offset": 0,
+            },
+            mcp=True,
+        )
+        self.assertEqual(found["matches"][0]["decision_id"], success_id)
 
     def test_task_closeout_is_idempotent_and_confidence_uses_latest_task_feedback(self) -> None:
         helper = ROOT / "skills/context-ledger/scripts/lookup.py"
