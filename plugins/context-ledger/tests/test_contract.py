@@ -1259,25 +1259,162 @@ class StoreTests(unittest.TestCase):
         self.store.export(export_path, include_local_only=False)
         text = export_path.read_text(encoding="utf-8")
         self.assertNotIn(hidden["decision_id"], text)
-        self.assertIn(visible["decision_id"], text)
+        self.assertNotIn(visible["decision_id"], text)
         data2 = Path(self.tmp.name) / "import-no-local"
         data2.mkdir()
         os.chmod(data2, 0o700)
         self.init_ledger(data2, None, "dest-scope", "dest-actor")
         other = self.Store(data2, actor_channel="owner_cli")
-        imported = other.import_file(
+        other.import_file(
             export_path,
             self.binding["ledger_id"],
             self.binding["scope_id"],
             include_local_only=False,
         )
-        self.assertGreaterEqual(imported["imported_events"], 1)
-        got = other.get({"decision_id": visible["decision_id"]}, mcp=True)["record"]
-        self.assertEqual(got["events"][0]["payload"]["decision_ids"], [visible["decision_id"]])
-        with self.assertRaises(self.LedgerError) as ctx:
-            other.get({"decision_id": hidden["decision_id"]}, mcp=False)
-        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        for decision_id in (visible["decision_id"], hidden["decision_id"]):
+            with self.assertRaises(self.LedgerError) as ctx:
+                other.get({"decision_id": decision_id}, mcp=False)
+            self.assertEqual(ctx.exception.code, "UNAVAILABLE")
         other.close()
+
+    def test_export_import_flag_combinations(self) -> None:
+        plain = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="plain export sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="hidden export sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        linked = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="linked export sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        rival = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="rival export sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": linked["decision_id"],
+                "expected_revision": linked["revision"],
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {
+                    "task_id": _uuid(),
+                    "decision_ids": [linked["decision_id"], hidden["decision_id"]],
+                },
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rival["decision_id"],
+                "expected_revision": rival["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_opened",
+                "payload": {"other_id": hidden["decision_id"], "reason": "same claim"},
+            },
+            mcp=False,
+        )
+        files = {}
+        for flag in (False, True):
+            path = Path(self.tmp.name) / f"combo-{int(flag)}.jsonl"
+            self.store.export(path, include_local_only=flag)
+            files[flag] = path
+        default_text = files[False].read_text(encoding="utf-8")
+        self.assertIn(plain["decision_id"], default_text)
+        for dropped in (hidden["decision_id"], linked["decision_id"], rival["decision_id"]):
+            self.assertNotIn(dropped, default_text)
+        full_text = files[True].read_text(encoding="utf-8")
+        for kept in (
+            plain["decision_id"],
+            hidden["decision_id"],
+            linked["decision_id"],
+            rival["decision_id"],
+        ):
+            self.assertIn(kept, full_text)
+
+        def fresh(name: str):
+            data = Path(self.tmp.name) / name
+            data.mkdir()
+            os.chmod(data, 0o700)
+            self.init_ledger(data, None, "dest-scope", "dest-actor")
+            return self.Store(data, actor_channel="owner_cli")
+
+        def present(store, decision_id: str) -> bool:
+            try:
+                store.get({"decision_id": decision_id}, mcp=False)
+            except self.LedgerError as exc:
+                self.assertEqual(exc.code, "UNAVAILABLE")
+                return False
+            return True
+
+        n = 0
+        for first in (False, True):
+            for second in (False, True):
+                dest = fresh(f"combo-{int(first)}-{int(second)}")
+                for flag in (first, first, second, second):
+                    dest.import_file(
+                        files[flag],
+                        self.binding["ledger_id"],
+                        self.binding["scope_id"],
+                        include_local_only=flag,
+                    )
+                self.assertTrue(present(dest, plain["decision_id"]))
+                wants_private = first or second
+                self.assertEqual(present(dest, hidden["decision_id"]), wants_private)
+                self.assertEqual(present(dest, linked["decision_id"]), wants_private)
+                self.assertEqual(present(dest, rival["decision_id"]), wants_private)
+                if wants_private:
+                    got = dest.get({"decision_id": linked["decision_id"]}, mcp=False)["record"]
+                    applied = next(ev for ev in got["events"] if ev["event_type"] == "applied")
+                    self.assertEqual(
+                        applied["payload"]["decision_ids"],
+                        [linked["decision_id"], hidden["decision_id"]],
+                    )
+                again = fresh(f"reexport-{n}")
+                n += 1
+                replay = Path(self.tmp.name) / f"replay-{n}.jsonl"
+                dest.export(replay, include_local_only=wants_private)
+                again.import_file(
+                    replay,
+                    dest.binding["ledger_id"],
+                    dest.binding["scope_id"],
+                    include_local_only=wants_private,
+                )
+                again.import_file(
+                    replay,
+                    dest.binding["ledger_id"],
+                    dest.binding["scope_id"],
+                    include_local_only=wants_private,
+                )
+                self.assertTrue(present(again, plain["decision_id"]))
+                self.assertEqual(present(again, hidden["decision_id"]), wants_private)
+                dest.close()
+                again.close()
 
     def test_purge_of_applied_ref_still_imports(self) -> None:
         kept = self.store.record(

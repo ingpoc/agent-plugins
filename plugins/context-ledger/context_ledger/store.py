@@ -936,14 +936,25 @@ class Store:
                 changed = True
                 while changed:
                     changed = False
-                    for did, rec in projections.items():
+                    for did, evs in by_decision.items():
                         if did in excluded:
                             continue
-                        rels = set()
-                        if rec.get("replacement_id"):
-                            rels.add(rec["replacement_id"])
-                        for c in rec.get("conflicts") or []:
-                            rels.add(c["other_id"])
+                        rec = projections.get(did)
+                        rels: set[str] = set()
+                        if rec is not None:
+                            if rec.get("replacement_id"):
+                                rels.add(rec["replacement_id"])
+                            for c in rec.get("conflicts") or []:
+                                rels.add(c["other_id"])
+                        for event in evs:
+                            payload = event.get("payload") or {}
+                            if event["event_type"] == "applied":
+                                rels.update(payload.get("decision_ids") or [])
+                            elif event["event_type"] == "superseded" and payload.get("replacement_id"):
+                                rels.add(payload["replacement_id"])
+                            elif event["event_type"] in {"conflict_opened", "conflict_resolved"} and payload.get("other_id"):
+                                rels.add(payload["other_id"])
+                        rels.discard(did)
                         if rels & excluded:
                             excluded.add(did)
                             changed = True
@@ -964,16 +975,6 @@ class Store:
                     continue
                 exported += 1
                 for event in by_decision[did]:
-                    if excluded and event["event_type"] == "applied":
-                        ids = event["payload"]["decision_ids"]
-                        kept = [item for item in ids if item not in excluded]
-                        if event["decision_id"] not in kept:
-                            kept.insert(0, event["decision_id"])
-                        if kept != ids:
-                            event = dict(event)
-                            payload = dict(event["payload"])
-                            payload["decision_ids"] = kept
-                            event["payload"] = payload
                     lines.append(
                         canonical_json({"type": "event", "scope_id": scope, "event": event})
                     )
