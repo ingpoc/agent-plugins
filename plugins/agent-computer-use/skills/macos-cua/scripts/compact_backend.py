@@ -14,10 +14,13 @@ from typing import Any
 from state_delta import action_state_text
 from fail_feedback import apply_failure_feedback, VERIFICATION_REQUIRED
 from compact_form_fills import (
+    compile_error_payload,
+    compile_set_value_step,
     expectation_supports_value,
     expectation_value_field_matches,
     fill_value_from_step,
     resolve_set_value_index,
+    steps_need_label_state,
 )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -277,11 +280,25 @@ class CUABackend:
                 steps = [arguments]
             native_steps: list[dict[str, Any]] = []
             after_new = False
+            elements_state: dict[str, Any] | None = None
+            if steps_need_label_state(steps) and hasattr(client, "execute_plan"):
+                elements_state = self._get_app_state(
+                    client, app, includeElements=True, disableDiff=True
+                )
             for step in steps:
                 if not isinstance(step, dict):
                     native_steps = []
                     break
-                native_steps.append(self._native_step(step, after_new_document=after_new))
+                native = self._native_step(
+                    step,
+                    after_new_document=after_new,
+                    elements_state=elements_state,
+                )
+                if native.get("compile_error"):
+                    if not hasattr(client, "execute_plan"):
+                        native_steps = []; break  # _dispatch resolves labels
+                    return compile_error_payload(native["compile_error"], expect)
+                native_steps.append(native)
                 key = str(step.get("key") or "").lower().replace(" ", "")
                 if key in {"cmd+n", "command+n", "cmd+t", "command+t"}:
                     after_new = True
@@ -405,9 +422,8 @@ class CUABackend:
                 payload, arguments=arguments, before_text="", after_text=after
             )
 
-    def _native_step(
-        self, step: dict[str, Any], *, after_new_document: bool = False
-    ) -> dict[str, Any]:
+    def _native_step(self, step: dict[str, Any], *, after_new_document: bool = False,
+                     elements_state: dict[str, Any] | None = None) -> dict[str, Any]:
         if step.get("wait") is not None:
             return {"method": "wait", "params": {"seconds": step["wait"]}}
         op = str(step.get("op") or "").lower()
@@ -458,12 +474,7 @@ class CUABackend:
         action_l = str(action or "").lower()
         fill_value = fill_value_from_step(step)
         if action_l == "set_value" and fill_value is not None:
-            params = {"value": str(fill_value)}
-            if element is not None:
-                params["element_index"] = int(element)
-            if step.get("label"):
-                params["label"] = str(step["label"])
-            return {"method": "set_value", "params": params}
+            return compile_set_value_step(step, elements_state=elements_state)
         if step.get("text") is not None and element is not None and not step.get("label"):
             return {
                 "method": "set_value",

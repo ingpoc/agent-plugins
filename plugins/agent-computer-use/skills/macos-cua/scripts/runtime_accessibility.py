@@ -29,7 +29,7 @@ def type_text(
     refused = require_cuaservice_window(pid, window_id, bound)
     if refused:
         return refused
-    return cua_type_text(pid, text, element_index=element_index, x=x, y=y)
+    return cua_type_text(pid, text, element_index=element_index, x=x, y=y, window_id=window_id)
 
 
 def _native_type_selected_text(pid, text, *, window_id=None, element_index=None):
@@ -213,7 +213,8 @@ def scroll(
     if refused:
         return refused
     return cua_scroll(
-        pid, direction, amount, by=by, element_index=element_index, x=x, y=y
+        pid, direction, amount, by=by, element_index=element_index, x=x, y=y,
+        window_id=window_id,
     )
 
 
@@ -221,7 +222,7 @@ def set_value(pid, window_id, element_index, value):
     refused = require_cuaservice_window(pid, window_id, max(80, int(element_index) + 1))
     if refused:
         return {**refused, "element": int(element_index)}
-    return cua_set_value(pid, element_index, value)
+    return cua_set_value(pid, element_index, value, window_id=window_id)
 
 
 def _selection_range(value, text, *, prefix=None, suffix=None, selection_type="text"):

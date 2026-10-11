@@ -545,6 +545,75 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertFalse(evil.get("verified"))
         self.assertFalse(evil.get("ok"))
 
+    def test_native_plan_resolves_label_fill_and_expect_uses_elements(self):
+        """execute_plan fills must compile with element_index; after carries elements (r8 #2/#3)."""
+        plans = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {
+                            "text": '[1] AXTextField "Full name"',
+                            "elements": [
+                                {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": ""},
+                                {"element_index": 2, "role": "AXTextField", "label": "Email", "value": "ada@example.com"},
+                            ],
+                        }
+
+                    def execute_plan(self, app, steps):
+                        plans.append(list(steps))
+                        return {
+                            "ok": True,
+                            "before": {
+                                "text": "",
+                                "elements": [
+                                    {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": ""},
+                                    {"element_index": 2, "role": "AXTextField", "label": "Email", "value": ""},
+                                ],
+                            },
+                            "after": {
+                                "text": "Ada",
+                                "elements": [
+                                    {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": "Ada Lovelace"},
+                                    {"element_index": 2, "role": "AXTextField", "label": "Email", "value": "ada@example.com"},
+                                ],
+                            },
+                            "results": [{"ok": True, "method": "set_value"}],
+                        }
+
+                return fn(Client())
+
+        out = Backend().act(
+            "System Settings",
+            {
+                "steps": [{"action": "set_value", "label": "Full name", "value": "Ada Lovelace"}],
+                "expect": {"value": {"label": "Full name", "equals": "Ada Lovelace"}},
+            },
+        )
+        self.assertTrue(out.get("ok"), out)
+        self.assertTrue(out.get("verified"), out)
+        self.assertEqual(len(plans), 1)
+        step = plans[0][0]
+        self.assertEqual(step["method"], "set_value")
+        self.assertEqual(step["params"].get("element_index"), 1)
+        self.assertNotIn("label", step["params"])
+        # Missing label fails loud before execute_plan.
+        plans.clear()
+        miss = Backend().act(
+            "System Settings",
+            {
+                "steps": [{"action": "set_value", "label": "Nope", "value": "x"}],
+                "expect": {"value": {"label": "Full name", "equals": "Ada Lovelace"}},
+            },
+        )
+        self.assertFalse(miss.get("ok"))
+        self.assertIn("field not found", miss.get("error", ""))
+        self.assertEqual(plans, [])
+
     def test_act_expect_already_true_before_is_not_verified(self):
         class Backend(compact_mcp.CUABackend):
             def __init__(self):

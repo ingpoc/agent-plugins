@@ -57,3 +57,58 @@ def fill_value_from_step(step: dict[str, Any]):
     if step.get("value") is not None:
         return step.get("value")
     return step.get("text")
+
+
+
+def compile_set_value_step(
+    step: dict[str, Any],
+    *,
+    elements_state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compile set_value for native plans. Always emits element_index or compile_error.
+
+    CUAService rejects label-only set_value; resolve label→index before execute_plan.
+    """
+    fill_value = fill_value_from_step(step)
+    if fill_value is None:
+        raise ValueError("compile_set_value_step requires a fill value")
+    element = step.get("element")
+    idx = int(element) if element is not None else None
+    if idx is None and step.get("label"):
+        idx = resolve_set_value_index(elements_state or {}, str(step["label"]))
+    if idx is None:
+        err = (
+            f"set_value: field not found: {step.get('label')}"
+            if step.get("label")
+            else "set_value needs label or element"
+        )
+        return {
+            "method": "set_value",
+            "params": {"value": str(fill_value)},
+            "compile_error": err,
+        }
+    return {
+        "method": "set_value",
+        "params": {"element_index": int(idx), "value": str(fill_value)},
+    }
+
+
+def steps_need_label_state(steps: list) -> bool:
+    return any(
+        isinstance(s, dict)
+        and str(s.get("action") or "").lower() == "set_value"
+        and fill_value_from_step(s) is not None
+        and s.get("element") is None
+        and s.get("label")
+        for s in steps
+    )
+
+
+
+def compile_error_payload(err: str, expect: Any) -> dict[str, Any]:
+    return {
+        "ok": False, "verified": False, "dispatched": False,
+        "completion": "unverified", "error": err, "method": "set_value",
+        "results": [{"ok": False, "error": err, "method": "set_value"}],
+        "expect": expect,
+    }

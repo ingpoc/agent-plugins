@@ -36,7 +36,7 @@ def click_point(
         point, error = _window_global_point(pid, x, y, window_id=window_id)
         if error:
             return {"ok": False, **error}
-    result = _cuaservice_rpc(pid, "click", {"x": point["x"], "y": point["y"]})
+    result = _cuaservice_rpc(pid, "click", _pin_window({"x": point["x"], "y": point["y"]}, window_id))
     err = result.get("error")
     out = {**result, "ok": not err and result.get("ok") is not False, "path": "cuaservice-point",
            "screen_point": point}

@@ -55,7 +55,7 @@ def click_label_pointer(
     if idx is None:
         return {"ok": False, "error": "not found", "error_code": "target_missing", "label": label,
                 "element_count": snap.get("element_count")}
-    res = cua_click(pid, idx)
+    res = cua_click(pid, idx, window_id=window_id)
     err = res.get("error") if isinstance(res, dict) else "CUAService click returned no result"
     ok = not err and res.get("ok") is not False
     payload = {
@@ -276,7 +276,7 @@ def click(pid, window_id, element_index, *, app_name=None):
     refused = require_cuaservice_window(pid, window_id, max(80, int(element_index) + 1))
     if refused:
         return {**refused, "element": int(element_index)}
-    return cua_click(pid, element_index)
+    return cua_click(pid, element_index, window_id=window_id)
 
 
 def _bounded_ax_perform_action(element, services, action_name, seconds=1.5):

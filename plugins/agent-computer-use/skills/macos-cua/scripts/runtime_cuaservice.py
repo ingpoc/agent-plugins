@@ -17,6 +17,15 @@ import time
 from pathlib import Path
 
 CURSOR_NOT_LANDED_CODE = -32010
+
+
+def _pin_window(params, window_id):
+    """Attach caller-pinned windowId so CUAService does not re-resolve focus."""
+    if window_id is not None:
+        params["windowId"] = int(window_id)
+    return params
+
+
 _INPUT_METHODS = frozenset({
     "click", "type_text", "scroll", "set_value", "drag",
     "perform_secondary_action", "select_text",
@@ -88,13 +97,14 @@ def cua_snapshot(pid, window_id=None, max_elements=80, *, include_screenshot=Fal
     """CUAService AX walk in the legacy snapshot shape (elements + tree_markdown)."""
     last = None
     for attempt in range(max(0, int(retries)) + 1):
-        last = _cuaservice_rpc(pid, "get_app_state", {
+        snap_params = {
             "maxElements": int(max_elements),
             "includeElements": True,
             "includeScreenshot": bool(include_screenshot),
             "disableDiff": True,
             "raiseForInput": bool(raise_for_input),
-        })
+        }
+        last = _cuaservice_rpc(pid, "get_app_state", _pin_window(snap_params, window_id))
         if last.get("error") or last.get("elementCount"):
             break
         if attempt < retries:
@@ -255,24 +265,28 @@ def _backing_scale(qx, qy):
     return 1.0
 
 
-def cua_click(pid, element_index):
-    result = _cuaservice_rpc(pid, "click", {"element_index": int(element_index)})
+def cua_click(pid, element_index, window_id=None):
+    params = _pin_window({"element_index": int(element_index)}, window_id)
+    result = _cuaservice_rpc(pid, "click", params)
     return {**result, "element": int(element_index)}
 
 
-def cua_right_click(pid, element_index):
-    result = _cuaservice_rpc(pid, "perform_secondary_action",
-                             {"element_index": int(element_index), "action": "AXShowMenu"})
+def cua_right_click(pid, element_index, window_id=None):
+    params = _pin_window(
+        {"element_index": int(element_index), "action": "AXShowMenu"}, window_id
+    )
+    result = _cuaservice_rpc(pid, "perform_secondary_action", params)
     return {**result, "element": int(element_index)}
 
 
-def cua_set_value(pid, element_index, value):
+def cua_set_value(pid, element_index, value, window_id=None):
     """AX set through CUAService, then a readback from the same walk (text roles)."""
     index = int(element_index)
-    result = _cuaservice_rpc(pid, "set_value", {"element_index": index, "value": str(value)})
+    params = _pin_window({"element_index": index, "value": str(value)}, window_id)
+    result = _cuaservice_rpc(pid, "set_value", params)
     if result.get("error") or result.get("ok") is not True:
         return {**result, "element": index}
-    after = cua_snapshot(pid, None, max(80, index + 1), retries=0)
+    after = cua_snapshot(pid, window_id, max(80, index + 1), retries=0)
     if after.get("error") or after.get("ok") is not True:
         return {**result, "ok": False, "accepted": False, "element": index,
                 "error": f"set_value readback failed: {after.get('error') or 'snapshot not ok'}"}
@@ -305,33 +319,33 @@ def _readback_matches(observed, wanted, role=None):
     return False
 
 
-def cua_type_text(pid, text, *, element_index=None, x=None, y=None):
+def cua_type_text(pid, text, *, element_index=None, x=None, y=None, window_id=None):
     """Focus the target (element or window-local point) via CUAService click, then type."""
     focus = None
     if element_index is not None:
-        focus = cua_click(pid, element_index)
+        focus = cua_click(pid, element_index, window_id=window_id)
     elif x is not None and y is not None:
-        point, error = _window_global_point(pid, x, y)
+        point, error = _window_global_point(pid, x, y, window_id=window_id)
         if error:
             return error
-        focus = _cuaservice_rpc(pid, "click", {"x": point["x"], "y": point["y"]})
+        focus = _cuaservice_rpc(pid, "click", _pin_window({"x": point["x"], "y": point["y"]}, window_id))
     if focus is not None and (focus.get("error") or focus.get("ok") is not True):
         return {**focus, "ok": False, "accepted": False,
                 "error": focus.get("error") or "focus click before typing failed"}
-    result = _cuaservice_rpc(pid, "type_text", {"text": text})
+    result = _cuaservice_rpc(pid, "type_text", _pin_window({"text": text}, window_id))
     if focus is not None:
         result = {**result, "focus": {k: focus.get(k) for k in ("method", "cursor_landing") if k in focus}}
     return result
 
 
-def cua_scroll(pid, direction, amount=3, *, by="line", element_index=None, x=None, y=None):
+def cua_scroll(pid, direction, amount=3, *, by="line", element_index=None, x=None, y=None, window_id=None):
     if x is not None or y is not None:
         return _cuaservice_error("CUAService scroll targets an element or the window; use --element N")
     pages = max(1, int(amount)) if by == "page" else max(1, round(int(amount) / 5))
     params = {"direction": direction, "pages": pages}
     if element_index is not None:
         params["element_index"] = int(element_index)
-    return {**_cuaservice_rpc(pid, "scroll", params), "pages": pages}
+    return {**_cuaservice_rpc(pid, "scroll", _pin_window(params, window_id)), "pages": pages}
 
 
 def cua_drag(pid, from_x, from_y, to_x, to_y, window_id=None):
@@ -341,8 +355,11 @@ def cua_drag(pid, from_x, from_y, to_x, to_y, window_id=None):
     dest, error = _window_global_point(pid, to_x, to_y, window_id=window_id)
     if error:
         return error
-    return _cuaservice_rpc(pid, "drag", {"from_x": source["x"], "from_y": source["y"],
-                                         "to_x": dest["x"], "to_y": dest["y"]})
+    params = _pin_window(
+        {"from_x": source["x"], "from_y": source["y"], "to_x": dest["x"], "to_y": dest["y"]},
+        window_id,
+    )
+    return _cuaservice_rpc(pid, "drag", params)
 
 
 def cua_list_apps():

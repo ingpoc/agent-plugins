@@ -228,6 +228,8 @@ final class MethodRouter: @unchecked Sendable {
 
     @MainActor
     private func planState(app: String) async -> [String: Any] {
+        // includeElements so compact expect.value can verify fields after mutations
+        // (Codex r8 major 2). Screenshots stay off — planState must skip capture.
         let request = JSONRPCRequest(
             jsonrpc: "2.0",
             method: "get_app_state",
@@ -235,6 +237,7 @@ final class MethodRouter: @unchecked Sendable {
                 "app": AnyCodable(app),
                 "disableDiff": AnyCodable(true),
                 "includeScreenshot": AnyCodable(false),
+                "includeElements": AnyCodable(true),
             ],
             id: nil
         )
@@ -243,6 +246,14 @@ final class MethodRouter: @unchecked Sendable {
         } catch {
             return ["text": "", "error": error.localizedDescription]
         }
+    }
+
+    /// Optional caller-pinned CGWindowID (windowId / window_id). When set,
+    /// action RPCs must not re-resolve to a different focused window.
+    private func pinnedWindowID(_ req: JSONRPCRequest) -> CGWindowID? {
+        if let id = req.paramInt("windowId"), id != 0 { return CGWindowID(id) }
+        if let id = req.paramInt("window_id"), id != 0 { return CGWindowID(id) }
+        return nil
     }
 
     @MainActor
@@ -325,7 +336,7 @@ final class MethodRouter: @unchecked Sendable {
         let raiseForInput: Bool = req.param("raiseForInput") ?? false
         let includeScreenshot: Bool = req.param("includeScreenshot") ?? true
         let t0 = ProcessInfo.processInfo.systemUptime
-        let resolved0 = try appResolver.resolve(app, raiseForInput: raiseForInput)
+        let resolved0 = try appResolver.resolve(app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req))
         var resolved = resolved0
         let t1 = ProcessInfo.processInfo.systemUptime
         var snapshot = axTree.walk(
@@ -351,7 +362,7 @@ final class MethodRouter: @unchecked Sendable {
             if screenshotPath == nil {
                 captureRetry = true
                 try await Task.sleep(nanoseconds: 120_000_000)
-                resolved = try appResolver.resolve(app, raiseForInput: raiseForInput)
+                resolved = try appResolver.resolve(app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req))
                 snapshot = axTree.walk(
                     axApp: resolved.axApp,
                     windowID: resolved.windowID,
@@ -587,7 +598,7 @@ final class MethodRouter: @unchecked Sendable {
         guard let app: String = req.param("app") else {
             throw RPCMethodError(code: -32602, message: "Missing 'app' parameter")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         screenshotCapture.invalidate()
         let elementIndex: Int? = req.paramInt("element_index")
         let cached = axTree.cachedSnapshot(windowID: resolved.windowID)
@@ -695,7 +706,7 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing app or key")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
@@ -721,7 +732,8 @@ final class MethodRouter: @unchecked Sendable {
         }
         let afterNew: Bool = req.param("after_new_document") ?? false
         let resolved = try appResolver.resolve(
-            app, raiseForInput: true, preferFocusedWindow: afterNew
+            app, raiseForInput: true, preferFocusedWindow: afterNew,
+            windowID: pinnedWindowID(req)
         )
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
@@ -743,7 +755,7 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing app or direction")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
@@ -781,7 +793,7 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing app, element_index, or value")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
@@ -807,7 +819,7 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing required params")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
             windowID: resolved.windowID,
@@ -837,7 +849,7 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing required params")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
             windowID: resolved.windowID,
@@ -864,7 +876,7 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing required drag params")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         let snapshot = axTree.cachedSnapshot(windowID: resolved.windowID)
             ?? axTree.walk(
                 axApp: resolved.axApp,

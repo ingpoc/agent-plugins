@@ -83,7 +83,8 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         method, params = client.calls[0]
         self.assertEqual(method, "get_app_state")
         self.assertEqual((params["app"], params["maxElements"], params["includeElements"],
-                          params["disableDiff"], params["raiseForInput"]), (BUNDLE, 30, True, True, False))
+                          params["disableDiff"], params["raiseForInput"], params.get("windowId")),
+                         (BUNDLE, 30, True, True, False, 77))
         self.assertEqual(snap["engine"], "CUAService")
         self.assertEqual([e["element_index"] for e in snap["elements"]], [0, 1, 2])
         self.assertEqual(snap["window_id"], 77)
@@ -113,7 +114,7 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         clicked, client = self._run({"get_app_state": _state(), "click": {"ok": True, "method": "ax-press",
                                                "cursor_landing": {"landed": True}}}, macos_cua.click, 4242, 77, 2)
         self.assertEqual([c[0] for c in client.calls], ["get_app_state", "click"])
-        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2}))
+        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2, "windowId": 77}))
         self.assertTrue(macos_cua._accepted(clicked))
         self.assertEqual(clicked["cursor_landing"], {"landed": True})
 
@@ -137,7 +138,7 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         replies = {"set_value": {"ok": True, "method": "ax-set-value"}, "get_app_state": _state(value="new text")}
         ok, client = self._run(replies, macos_cua.set_value, 4242, 77, 1, "new text")
         self.assertEqual([c[0] for c in client.calls[:2]], ["get_app_state", "set_value"])
-        self.assertEqual(client.calls[1], ("set_value", {"app": BUNDLE, "element_index": 1, "value": "new text"}))
+        self.assertEqual(client.calls[1], ("set_value", {"app": BUNDLE, "element_index": 1, "value": "new text", "windowId": 77}))
         self.assertEqual(ok["readback"], "matched")
         replies["get_app_state"] = _state(value="stale")
         bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "new text")
@@ -187,7 +188,7 @@ class CUAServiceRuntimeTests(unittest.TestCase):
                    "type_text": {"ok": True, "method": "ax-insert"}}
         res, client = self._run(replies, macos_cua.type_text, 4242, 77, 1, "abc")
         self.assertEqual([c[0] for c in client.calls], ["get_app_state", "click", "type_text"])
-        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "text": "abc"})
+        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "text": "abc", "windowId": 77})
         self.assertTrue(macos_cua._accepted(res))
 
     def test_type_text_newline_guard_kept(self):
@@ -197,13 +198,13 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         res, client = self._run({"get_app_state": _state(), "type_text": {"ok": True}},
                                 macos_cua.type_text, 4242, 77, None, "a\nb", allow_newline=True)
         self.assertEqual([c[0] for c in client.calls], ["get_app_state", "type_text"])
-        self.assertEqual(client.calls[-1], ("type_text", {"app": BUNDLE, "text": "a\nb"}))
+        self.assertEqual(client.calls[-1], ("type_text", {"app": BUNDLE, "text": "a\nb", "windowId": 77}))
 
     def test_scroll_element_and_point_contract(self):
         res, client = self._run({"get_app_state": _state(), "scroll": {"ok": True}}, macos_cua.scroll, 4242, 77, "down", 2,
                                 by="page", element_index=1)
         self.assertEqual([c[0] for c in client.calls], ["get_app_state", "scroll"])
-        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "direction": "down", "pages": 2, "element_index": 1})
+        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "direction": "down", "pages": 2, "element_index": 1, "windowId": 77})
         res, client = self._run({}, macos_cua.scroll, 4242, 77, "down", 3, x=10, y=10)
         self.assertIn("--element", res["error"])
         self.assertEqual(client.calls, [])
@@ -212,7 +213,7 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         _, client = self._run({"get_app_state": _state(), "perform_secondary_action": {"ok": True}},
                               macos_cua.right_click, 4242, 77, 2)
         self.assertEqual([c[0] for c in client.calls], ["get_app_state", "perform_secondary_action"])
-        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "element_index": 2, "action": "AXShowMenu"})
+        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "element_index": 2, "action": "AXShowMenu", "windowId": 77})
 
     def test_drag_maps_window_local_pixels_to_global_points(self):
         replies = {"get_app_state": _state(), "drag": {"ok": True, "method": "cgevent-drag-pid"}}
@@ -234,7 +235,7 @@ class CUAServiceRuntimeTests(unittest.TestCase):
             res, client = self._run(replies, macos_cua.click_label_pointer, 4242, 77, "Close", app_name="TextEdit")
         self.assertTrue(res["ok"], res)
         self.assertEqual((res["element"], res["method"], res["cursor_landing"]), (2, "cuaservice-click", {"landed": True}))
-        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2}))
+        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2, "windowId": 77}))
 
     def test_refused_label_click_does_not_fall_through(self):
         err = Exception("RPC error -32010")
@@ -253,7 +254,7 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         with mock.patch.object(macos_cua, "_backing_scale", return_value=2.0):
             res, client = self._run(replies, macos_cua.click_point, 4242, 77, 20, 40)
         self.assertTrue(res["ok"], res)
-        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "x": 110.0, "y": 70.0}))
+        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "x": 110.0, "y": 70.0, "windowId": 77}))
         dbl, client = self._run(replies, macos_cua.click_point, 4242, 77, 20, 40, click_count=2)
         self.assertEqual((dbl["ok"], dbl["error_code"]), (False, "unsupported_click"))
         self.assertEqual(client.calls, [])
@@ -294,7 +295,7 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         )
         self.assertTrue(res["ok"], res)
         self.assertEqual(res["element"], 2)
-        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2}))
+        self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2, "windowId": 77}))
 
     def test_desktop_click_is_retired(self):
         res, client = self._run({}, macos_cua.click_at_desktop, 10, 10)
@@ -329,6 +330,39 @@ class CUAServiceRuntimeTests(unittest.TestCase):
                      "type_text", "scroll", "drag", "list_apps"):
             src = inspect.getsource(inspect.unwrap(getattr(macos_cua, name)))
             self.assertNotIn("call_driver", src, name)
+
+    def test_action_rpcs_pin_requested_window_id(self):
+        """Action RPCs must carry windowId so CUAService does not re-resolve focus (r8 #1)."""
+        replies = {"get_app_state": _state(), "click": {"ok": True, "method": "ax-press"},
+                   "type_text": {"ok": True}, "scroll": {"ok": True},
+                   "perform_secondary_action": {"ok": True}, "set_value": {"ok": True},
+                   "drag": {"ok": True}}
+        _, client = self._run(replies, macos_cua.type_text, 4242, 77, 1, "hi")
+        typed = [c for c in client.calls if c[0] == "type_text"][-1][1]
+        clicked = [c for c in client.calls if c[0] == "click"][-1][1]
+        self.assertEqual(typed.get("windowId"), 77)
+        self.assertEqual(clicked.get("windowId"), 77)
+        _, client = self._run(replies, macos_cua.scroll, 4242, 77, "down", 2, by="page", element_index=1)
+        self.assertEqual(client.calls[-1][1].get("windowId"), 77)
+        _, client = self._run(replies, macos_cua.right_click, 4242, 77, 2)
+        self.assertEqual(client.calls[-1][1].get("windowId"), 77)
+        _, client = self._run(replies, macos_cua.set_value, 4242, 77, 1, "hello")
+        setp = [c for c in client.calls if c[0] == "set_value"][-1][1]
+        self.assertEqual(setp.get("windowId"), 77)
+        with mock.patch.object(macos_cua, "_backing_scale", return_value=2.0):
+            _, client = self._run(replies, macos_cua.drag, 4242, 77, 20, 40, 220, 40)
+        self.assertEqual(client.calls[-1][1].get("windowId"), 77)
+
+    def test_plan_state_swift_includes_elements(self):
+        """Native plan snapshots must request includeElements (r8 #2)."""
+        router = (Path(__file__).parents[1] / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
+        # planState block must include both flags.
+        start = router.index("private func planState")
+        block = router[start:start + 700]
+        self.assertIn('"includeScreenshot": AnyCodable(false)', block)
+        self.assertIn('"includeElements": AnyCodable(true)', block)
+
+
 
 
 if __name__ == "__main__":
