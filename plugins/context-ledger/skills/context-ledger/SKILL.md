@@ -54,4 +54,4 @@ Outcome feedback is idempotent by `(task_id, decision_id)`: an identical retry a
 
 Skip routine work, duplicate decisions, temporary status, raw prompts, hidden reasoning, and secrets.
 
-Remote agents use the same `context-ledger` server. No local binding plus `CONTEXT_LEDGER_MCP_TOKEN` bridges to the Mini. Cursor cloud fills that from `cloudAgentEnvLookup` via `CONTEXT_LEDGER_MCP_CLIENT_TOKEN`. A binding stays on local stdio. Only the helper calls the MCP. See `references/remote-mcp.md`.
+Remote agents use the same `context-ledger` server through the MCP token, and stop with `LEDGER_UNBOUND` when there is no binding. Cursor cloud fills that from `cloudAgentEnvLookup` via `CONTEXT_LEDGER_MCP_CLIENT_TOKEN`. A binding stays on local stdio. Only the helper calls the MCP. See `references/remote-mcp.md`.
