@@ -35,17 +35,8 @@ Never dual-drive Browser Use CLI and `send` (optional bridge: [browser-use.md](r
 
 | Need | Ref |
 | --- | --- |
-| Probe/start/send/closeout | [fast-path.md](references/fast-path.md) |
-| Speed / observe thrash | [speed-bar.md](references/speed-bar.md) |
-| Website APIs / WebMCP | [api-first.md](references/api-first.md) |
-| Compact success / failures | [observe-feedback.md](references/observe-feedback.md) |
-| Actions / screenshots | [operate.md](references/operate.md) |
-| Locators / misses | [locator-misses.md](references/locator-misses.md) |
-| Dialogs / CDP / click_at_xy | [advanced-capabilities.md](references/advanced-capabilities.md) |
-| CUA / OAuth | [native-coexistence.md](references/native-coexistence.md) · [multi-agent.md](references/multi-agent.md) |
-| Google Accounts window | [google-accountchooser-ax.md](references/google-accountchooser-ax.md) |
-| Razorpay Bank popup (Success/Failure) | [razorpay-bank-popup.md](references/razorpay-bank-popup.md) |
-| Diagnosis / install | [optimize.md](references/optimize.md) · [extension-install.md](references/extension-install.md) |
-| Author a product wrapper skill | [wrapper-skills.md](references/wrapper-skills.md) |
-| Optional Browser Use | [browser-use.md](references/browser-use.md) |
-| Copy→Keychain / architecture | [secure-copy-keychain.md](references/secure-copy-keychain.md) · [agent-handbook.md](references/agent-handbook.md) |
+| Probe/start/send/closeout · speed / observe thrash · compact success / failures · actions / screenshots | [fast-path.md](references/fast-path.md) · [speed-bar.md](references/speed-bar.md) · [observe-feedback.md](references/observe-feedback.md) · [operate.md](references/operate.md) |
+| Website APIs / WebMCP · locators / misses · dialogs / CDP / click_at_xy · console / network evidence | [api-first.md](references/api-first.md) · [locator-misses.md](references/locator-misses.md) · [advanced-capabilities.md](references/advanced-capabilities.md) · [devtools.md](references/devtools.md) |
+| CUA / OAuth · Google Accounts window · Razorpay Bank popup (Success/Failure) | [native-coexistence.md](references/native-coexistence.md) · [multi-agent.md](references/multi-agent.md) · [google-accountchooser-ax.md](references/google-accountchooser-ax.md) · [razorpay-bank-popup.md](references/razorpay-bank-popup.md) |
+| Diagnosis / install · capability boundary · author a product wrapper skill · optional Browser Use · Copy→Keychain / architecture | [optimize.md](references/optimize.md) · [extension-install.md](references/extension-install.md) · [comet-capabilities.md](references/comet-capabilities.md) · [wrapper-skills.md](references/wrapper-skills.md) · [browser-use.md](references/browser-use.md) · [secure-copy-keychain.md](references/secure-copy-keychain.md) · [agent-handbook.md](references/agent-handbook.md) |
+| Helper scripts (each ref above names when to run one) | `lease_driver.py` · `durable_lease_controller.py` · `cua_slice.py` · `razorpay_bank_popup.py` · `settle_preflight.py` · `browser_use_cdp_bridge.py` · `agent_cli.py` (shared JSON CLI contract) · `form_plan.py` (one-pass form plans) |
