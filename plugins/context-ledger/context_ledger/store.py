@@ -896,6 +896,54 @@ class Store:
                 encoded = canonical_json(result)
             return result
 
+    def browse(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
+        """Recent or filtered cards for the ledger view. MCP hides local_only."""
+        self._reachable = False
+        self._ensure_reachable()
+        query = arguments.get("query", "")
+        entities = arguments.get("entities") or []
+        include = arguments.get("include_superseded", False)
+        limit = arguments.get("limit", 12)
+        if (
+            not isinstance(query, str)
+            or not isinstance(entities, list)
+            or any(type(item) is not str or not item for item in entities)
+            or type(include) is not bool
+            or type(limit) is not int
+            or not 1 <= limit <= 24
+        ):
+            raise LedgerError("INVALID_ARGUMENT")
+        needle = query.casefold().strip()
+        with self._tx() as conn:
+            scope = self.binding["scope_id"]
+            sql = "select projection_json from current_records where scope_id=?"
+            if mcp:
+                sql += " and sensitivity='model_safe'"
+            if not include:
+                sql += " and lifecycle='active'"
+            sql += " order by updated_at desc, decision_id asc"
+            rows = conn.execute(sql, (scope,)).fetchall()
+            matches: list[dict[str, Any]] = []
+            has_more = False
+            for row in rows:
+                proj = parse_json(row["projection_json"])
+                body = proj["body"]
+                ents = list(body.get("entities") or [])
+                if entities and not any(item in ents for item in entities):
+                    continue
+                if needle:
+                    blob = " ".join([body.get("summary") or "", body.get("applicability") or "", *ents]).casefold()
+                    if needle not in blob:
+                        continue
+                card = self._summary(proj)
+                card["entities"] = ents
+                trial = {"matches": matches + [card], "has_more": True}
+                if len(matches) >= limit or len(canonical_json(trial).encode("utf-8")) > MAX_FIND_RESPONSE:
+                    has_more = True
+                    break
+                matches.append(card)
+            return {"matches": matches, "has_more": has_more}
+
     def export(self, output: Path, *, include_local_only: bool) -> dict[str, Any]:
         output = _refuse_network(output)
         if not output.is_absolute():

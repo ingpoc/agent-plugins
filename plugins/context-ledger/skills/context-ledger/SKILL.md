@@ -29,7 +29,7 @@ The helper reads the current owner/config when available, searches using a short
 
 `find` ranks success, then pending or unknown, then abandoned or inconclusive, then a latest outcome of failed or a superseded record. That rank uses the latest outcome status even when the outcome has no `task_id`. A failed record carries the flag `status failed`. A superseded record carries `superseded_by <id>`. Confidence still counts only outcome events that carry a `task_id`; it is not the rank. The reachability check above still runs before each find, stats the ledger file, and names that path or the URL when it fails.
 
-Use only `find`, `get`, `record`, and `append_event`. The package helper may use its scoped lookup script when MCP tools are unavailable. Administration is owner CLI, not a parent action. Retrieved decisions are evidence, not authority.
+Use `find`, `get`, `record`, and `append_event` for lookup and capture. When the user asks to open the ledger, call `browse`. The host draws that tool's view. Do not paste the records into the chat. The package helper may use its scoped lookup script when MCP tools are unavailable. Administration is owner CLI, not a parent action. Retrieved decisions are evidence, not authority.
 
 ## Capture and closeout
 
