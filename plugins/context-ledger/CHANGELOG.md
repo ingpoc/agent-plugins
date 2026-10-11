@@ -4,7 +4,7 @@
 
 - Each `find` probes the ledger again and retries once. A previous success is not reused. The remote probe accepts only a JSON-RPC result whose id is `health`; HTTP 200 with an error body is unreachable.
 - `get` stays within 8192 bytes when applied and outcome events grow. It drops the oldest trace events and sets `trace_continued`. The current record remains.
-- `applied` `decision_ids` must name decisions in the same scope. MCP append refuses a `local_only` or missing id. MCP `get` omits trace ids the caller cannot see.
+- `applied` `decision_ids` must name decisions in the same scope. MCP append refuses a `local_only` or missing id. MCP `get` omits trace ids the caller cannot see. Purging a decision removes that id from other applied events. Import accepts a missing id only when that decision's tombstone is in the same scope.
 
 ## 0.1.19
 

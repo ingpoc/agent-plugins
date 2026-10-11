@@ -1264,6 +1264,18 @@ class Store:
                 refs.append(payload.get("replacement_id"))
             if event["event_type"] in {"conflict_opened", "conflict_resolved"}:
                 refs.append(payload.get("other_id"))
+            if event["event_type"] == "applied" and decision_id in (payload.get("decision_ids") or []):
+                kept = [item for item in payload["decision_ids"] if item != decision_id]
+                if event["decision_id"] not in kept:
+                    kept.insert(0, event["decision_id"])
+                revised = dict(event)
+                revised["payload"] = dict(payload)
+                revised["payload"]["decision_ids"] = kept
+                conn.execute(
+                    "update events set event_json=? where event_id=?",
+                    (canonical_json(revised), row["event_id"]),
+                )
+                continue
             if decision_id in refs:
                 conn.execute(
                     "insert or ignore into tombstones(kind,id,scope_id,decision_id,revision,purged_at) values ('event',?,?,?,?,?)",
@@ -1630,7 +1642,15 @@ class Store:
             elif et == "applied":
                 owner = reduced[event["decision_id"]]
                 for did in payload["decision_ids"]:
-                    if did not in reduced or reduced[did]["scope_id"] != owner["scope_id"]:
+                    if did in reduced:
+                        if reduced[did]["scope_id"] != owner["scope_id"]:
+                            raise LedgerError("INVALID_TRANSITION")
+                        continue
+                    tomb = conn.execute(
+                        "select scope_id from tombstones where kind='decision' and id=?",
+                        (did,),
+                    ).fetchone()
+                    if tomb is None or tomb["scope_id"] != owner["scope_id"]:
                         raise LedgerError("INVALID_TRANSITION")
             elif et == "outcome" and payload.get("applied_event_id"):
                 linked = conn.execute(

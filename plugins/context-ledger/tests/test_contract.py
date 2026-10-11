@@ -1222,6 +1222,82 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(mcp_ids, [rec["decision_id"]])
         self.assertNotIn("trace_continued", mcp_view)
 
+    def test_purge_of_applied_ref_still_imports(self) -> None:
+        kept = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="kept apply sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        dropped = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="dropped apply sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": kept["decision_id"],
+                "expected_revision": kept["revision"],
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {
+                    "task_id": _uuid(),
+                    "decision_ids": [kept["decision_id"], dropped["decision_id"]],
+                },
+            },
+            mcp=False,
+        )
+        self.store.purge(dropped["decision_id"], dropped["revision"], self.binding["ledger_id"])
+        after = self.store.get({"decision_id": kept["decision_id"]}, mcp=False)["record"]
+        self.assertEqual(after["events"][0]["payload"]["decision_ids"], [kept["decision_id"]])
+        export_path = Path(self.tmp.name) / "purged-apply.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        data2 = Path(self.tmp.name) / "import-after-purge"
+        data2.mkdir()
+        os.chmod(data2, 0o700)
+        self.init_ledger(data2, None, "dest-scope", "dest-actor")
+        other = self.Store(data2, actor_channel="owner_cli")
+        imported = other.import_file(
+            export_path,
+            self.binding["ledger_id"],
+            self.binding["scope_id"],
+            include_local_only=False,
+        )
+        self.assertGreaterEqual(imported["imported_events"], 1)
+        got = other.get({"decision_id": kept["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(got["events"][0]["payload"]["decision_ids"], [kept["decision_id"]])
+        extra = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="later import sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        extra_path = Path(self.tmp.name) / "later.jsonl"
+        self.store.export(extra_path, include_local_only=False)
+        again = other.import_file(
+            extra_path,
+            self.binding["ledger_id"],
+            self.binding["scope_id"],
+            include_local_only=False,
+        )
+        self.assertGreaterEqual(again["imported_events"], 1)
+        self.assertEqual(
+            other.get({"decision_id": extra["decision_id"]}, mcp=True)["record"]["decision_id"],
+            extra["decision_id"],
+        )
+        other.close()
+
     def test_export_import_and_purge(self) -> None:
         rec = self.store.record(
             {
