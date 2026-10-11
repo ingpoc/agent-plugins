@@ -725,11 +725,10 @@ class Store:
             if "expected_revision" in parsed and rec["revision"] != parsed["expected_revision"]:
                 raise LedgerError("REVISION_CONFLICT")
             rec = dict(rec)
-            rec["events"] = self._trace_events(conn, parsed["decision_id"])
-            encoded = canonical_json(rec)
-            if len(encoded.encode("utf-8")) > MAX_GET_RESPONSE:
-                raise LedgerError("LIMIT_EXCEEDED")
-            return {"record": rec}
+            events = self._visible_trace(
+                conn, self._trace_events(conn, parsed["decision_id"]), mcp=mcp
+            )
+            return {"record": self._pack_trace(rec, events)}
 
     def _trace_events(self, conn: sqlite3.Connection, decision_id: str) -> list[dict[str, Any]]:
         rows = conn.execute(
@@ -751,7 +750,75 @@ class Store:
             )
         return traced
 
+    def _visible_trace(
+        self,
+        conn: sqlite3.Connection,
+        events: list[dict[str, Any]],
+        *,
+        mcp: bool,
+    ) -> list[dict[str, Any]]:
+        if not mcp:
+            return events
+        scope = self.binding["scope_id"]
+        visible: list[dict[str, Any]] = []
+        for event in events:
+            if event["event_type"] != "applied":
+                visible.append(event)
+                continue
+            payload = dict(event["payload"])
+            payload["decision_ids"] = [
+                did
+                for did in payload["decision_ids"]
+                if self._trace_ref_visible(conn, did, required_scope=scope)
+            ]
+            copied = dict(event)
+            copied["payload"] = payload
+            visible.append(copied)
+        return visible
+
+    def _trace_ref_visible(
+        self,
+        conn: sqlite3.Connection,
+        decision_id: str,
+        *,
+        required_scope: str,
+    ) -> bool:
+        row = conn.execute(
+            "select sensitivity, scope_id from current_records where decision_id=?",
+            (decision_id,),
+        ).fetchone()
+        if row is None or row["scope_id"] != required_scope:
+            return False
+        return row["sensitivity"] == "model_safe"
+
+    def _pack_trace(self, rec: dict[str, Any], events: list[dict[str, Any]]) -> dict[str, Any]:
+        """Keep the current record under the get cap. Drop oldest trace events first."""
+        packed = dict(rec)
+        packed["events"] = events
+        if self._get_len(packed) <= MAX_GET_RESPONSE:
+            return packed
+        packed["trace_continued"] = True
+        best = len(events)
+        left, right = 0, len(events)
+        while left <= right:
+            mid = (left + right) // 2
+            packed["events"] = events[mid:]
+            if self._get_len(packed) <= MAX_GET_RESPONSE:
+                best = mid
+                right = mid - 1
+            else:
+                left = mid + 1
+        packed["events"] = events[best:]
+        if self._get_len(packed) > MAX_GET_RESPONSE:
+            raise LedgerError("LIMIT_EXCEEDED")
+        return packed
+
+    @staticmethod
+    def _get_len(rec: dict[str, Any]) -> int:
+        return len(canonical_json({"record": rec}).encode("utf-8"))
+
     def find(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
+        self._reachable = False
         self._ensure_reachable()
         parsed = validate_find_input(arguments)
         tokens = fts_tokens(parsed["query"])
@@ -1440,6 +1507,11 @@ class Store:
                     "INVALID_ARGUMENT",
                     message="applied decision_ids must include this decision",
                 )
+            if ingest_kind != "import":
+                for did in payload["decision_ids"]:
+                    self._require_visible_counterpart(
+                        conn, did, mcp=mcp, required_scope=cur["scope_id"]
+                    )
             return
         if et == "outcome":
             note_required = rec["outcome"]["status"] in {
@@ -1555,6 +1627,11 @@ class Store:
                 resolves.append(event)
                 oid = payload["opened_event_id"]
                 resolved_counts[oid] = resolved_counts.get(oid, 0) + 1
+            elif et == "applied":
+                owner = reduced[event["decision_id"]]
+                for did in payload["decision_ids"]:
+                    if did not in reduced or reduced[did]["scope_id"] != owner["scope_id"]:
+                        raise LedgerError("INVALID_TRANSITION")
             elif et == "outcome" and payload.get("applied_event_id"):
                 linked = conn.execute(
                     "select event_json from events where event_id=?",

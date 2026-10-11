@@ -195,18 +195,40 @@ def _is_find_call(message: dict) -> bool:
     return isinstance(params, dict) and params.get("name") == "find"
 
 
+def _probe_succeeded(status: int, headers, body: bytes) -> bool:
+    """A matching JSON-RPC result. HTTP 200 with an error body is not healthy."""
+    if status < 200 or status >= 300 or not body.strip():
+        return False
+    content_type = ""
+    if headers is not None:
+        content_type = headers.get("Content-Type", "") or ""
+    try:
+        if "text/event-stream" in content_type.lower():
+            messages = _parse_sse(body)
+        else:
+            messages = _parse_json_body(body)
+    except (UnicodeError, json.JSONDecodeError):
+        return False
+    return any(
+        item.get("id") == "health" and "result" in item and "error" not in item
+        for item in messages
+    )
+
+
 def _probe_ledger(url: str, token: str, timeout: float, session: dict[str, str]) -> str | None:
-    """One reachability probe. None means the ledger answered. Never falls back."""
+    """One reachability probe. None means the ledger answered ping. Never falls back."""
     payload = json.dumps({"jsonrpc": "2.0", "id": "health", "method": "ping"}).encode("utf-8")
     try:
-        status, headers, _body = _post(url, payload, token, timeout, session)
+        status, headers, body = _post(url, payload, token, timeout, session)
     except Exception as exc:  # noqa: BLE001 — network failures name the URL
         return f"ledger unreachable at {url} ({_cause(exc)})"
     _capture(headers, session)
     if status == 401:
         return f"UNAUTHORIZED ledger at {url}"
-    if status == 202 or 200 <= status < 300:
+    if _probe_succeeded(status, headers, body):
         return None
+    if 200 <= status < 300:
+        return f"ledger unreachable at {url} (HTTP {status} probe failed)"
     return f"ledger unreachable at {url} (HTTP {status})"
 
 
@@ -217,15 +239,11 @@ def _ensure_ledger(
     session: dict[str, str],
     state: dict[str, bool],
 ) -> str | None:
-    if state["ok"]:
-        return None
+    state["ok"] = False
     failure = _probe_ledger(url, token, timeout, session)
     if failure is not None:
         failure = _probe_ledger(url, token, timeout, session)
-    if failure is not None:
-        return failure
-    state["ok"] = True
-    return None
+    return failure
 
 
 def _forward(message: dict, url: str, token: str, timeout: float, session: dict[str, str]) -> None:
