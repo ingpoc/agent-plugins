@@ -90,7 +90,9 @@ def _evidence(state="reported_verified", ref="doc://example"):
 
 
 def _require_sentence_embedding(test: unittest.TestCase) -> None:
-    """Skip only when the on-device sentence embedding cannot load."""
+    """Off darwin, a skip is not proof of select or feedback. On darwin, fail."""
+    if sys.platform != "darwin":
+        test.skipTest("not proof of select or feedback off darwin")
     try:
         import objc
 
@@ -101,9 +103,9 @@ def _require_sentence_embedding(test: unittest.TestCase) -> None:
         )
         embedding = objc.lookUpClass("NLEmbedding").sentenceEmbeddingForLanguage_("en")
     except Exception as exc:
-        test.skipTest(f"sentence embedding unavailable: {exc}")
+        test.fail(f"sentence embedding unavailable: {exc}")
     if embedding is None:
-        test.skipTest("sentence embedding unavailable")
+        test.fail("sentence embedding unavailable")
 
 
 class PackageTests(unittest.TestCase):
@@ -669,7 +671,7 @@ class StoreTests(unittest.TestCase):
             {"written": [], "write": "unavailable"})
         self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], 3)
 
-    def _lookup(self, command: str, body: dict) -> dict:
+    def _lookup(self, command: str, body: dict, *, ok: bool = True) -> dict:
         helper = ROOT / "skills/context-ledger/scripts/lookup.py"
         env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
         proc = subprocess.run(
@@ -679,7 +681,10 @@ class StoreTests(unittest.TestCase):
             capture_output=True,
             env=env,
         )
-        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        if ok:
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        else:
+            self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         return json.loads(proc.stdout)
 
     def _seed_situation_and_success(self) -> tuple[str, str]:
@@ -838,8 +843,9 @@ class StoreTests(unittest.TestCase):
                 "would_have_helped": missing,
             },
         )
-        self.assertEqual(again["similar"], new_id)
-        self.assertEqual(again["written"], [])
+        self.assertIsNone(again["similar"])
+        self.assertEqual(len(again["written"]), 1)
+        self.assertNotEqual(again["written"][0], new_id)
         self.assertIn(pending_id, saved["body"]["rationale"])
         self.assertIn(
             "The provided decisions left the publish outage unresolved",
@@ -861,6 +867,7 @@ class StoreTests(unittest.TestCase):
                     {"id": success_id, "helped": False, "issue": "again"},
                 ],
             },
+            ok=False,
         )
         malformed = self._lookup(
             "feedback",
@@ -871,6 +878,7 @@ class StoreTests(unittest.TestCase):
                     {"id": "not-a-uuid", "helped": False},
                 ],
             },
+            ok=False,
         )
         incomplete = self._lookup(
             "feedback",
@@ -881,7 +889,20 @@ class StoreTests(unittest.TestCase):
                     "situation": "A plugin change is about to ship with only unit tests as proof",
                 },
             },
+            ok=False,
         )
+        unknown = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [
+                    {"id": success_id, "helped": True},
+                    {"id": _uuid(), "helped": False, "issue": "missing"},
+                ],
+            },
+            ok=False,
+        )
+        self.assertEqual(unknown, {"written": [], "write": "unavailable"})
         self.assertEqual(duplicate, {"written": [], "write": "unavailable"})
         self.assertEqual(malformed, {"written": [], "write": "unavailable"})
         self.assertEqual(incomplete, {"written": [], "write": "unavailable"})
@@ -912,6 +933,46 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(saved["body"]["action"], "Do not ship; revert the change")
         self.assertIn(pending_id, saved["body"]["rationale"])
         self.assertIn(issue, saved["body"]["rationale"])
+        marked = self.store.get({"decision_id": pending_id}, mcp=True)["record"]
+        self.assertEqual(marked["outcome"]["status"], "inconclusive")
+        found = self.store.find(
+            {
+                "query": "",
+                "entities": ["helper-selection"],
+                "constraints": [],
+                "limit": 3,
+                "offset": 0,
+            },
+            mcp=True,
+        )
+        self.assertEqual(found["matches"][0]["decision_id"], success_id)
+
+    def test_feedback_excludes_the_decision_that_did_not_help(self) -> None:
+        _require_sentence_embedding(self)
+        pending_id, success_id = self._seed_situation_and_success()
+        need = "Run a live end-to-end pass on the staging server before the change goes to main"
+        created = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [{
+                    "id": pending_id,
+                    "helped": False,
+                    "issue": "The live pass has to run on the staging server",
+                }],
+                "would_have_helped": {
+                    "situation": "A plugin change is about to ship and unit tests are the only proof",
+                    "need": need,
+                },
+            },
+        )
+        self.assertIsNone(created["similar"])
+        self.assertNotIn(pending_id, created.get("similar") or "")
+        self.assertEqual(created["written"], [created["written"][0]])
+        self.assertNotEqual(created["written"][0], pending_id)
+        self.assertNotEqual(created["written"][0], success_id)
+        saved = self.store.get({"decision_id": created["written"][0]}, mcp=True)["record"]
+        self.assertEqual(saved["body"]["action"], need)
         marked = self.store.get({"decision_id": pending_id}, mcp=True)["record"]
         self.assertEqual(marked["outcome"]["status"], "inconclusive")
         found = self.store.find(

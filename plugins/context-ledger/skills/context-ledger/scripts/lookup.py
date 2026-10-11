@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -14,12 +15,45 @@ from pathlib import Path
 PLUGIN = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PLUGIN))
 
-from context_ledger.store import Store  # noqa: E402
-
 DATA = Path(
     os.environ.get("CONTEXT_LEDGER_DATA")
     or Path.home() / ".context-ledger"
 )
+
+
+def _runtime_python() -> Path | None:
+    lock = PLUGIN / "requirements.lock"
+    if not lock.is_file():
+        return None
+    sha = hashlib.sha256(lock.read_bytes()).hexdigest()
+    base = DATA / "runtime" / sha
+    py = base / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    return py if py.is_file() else None
+
+
+def _use_runtime_python() -> None:
+    """Use the setup interpreter when this one has no objc."""
+    if os.environ.get("CONTEXT_LEDGER_LOOKUP_RUNTIME") == "1":
+        return
+    try:
+        import objc  # noqa: F401
+    except ImportError:
+        py = _runtime_python()
+    else:
+        return
+    if py is None:
+        return
+    env = os.environ.copy()
+    env["CONTEXT_LEDGER_LOOKUP_RUNTIME"] = "1"
+    env["PYTHONNOUSERSITE"] = "1"
+    os.execve(str(py), [str(py), str(Path(__file__).resolve()), *sys.argv[1:]], env)
+
+
+if __name__ == "__main__":
+    _use_runtime_python()
+
+from context_ledger.store import Store  # noqa: E402
+
 # NLEmbedding sentence embedding, cosine distance (1 - cosine similarity).
 # https://developer.apple.com/documentation/naturallanguage/finding-similarities-between-pieces-of-text
 # A fit is the situation against applicability plus the needed decision against the action.
@@ -139,11 +173,13 @@ def _decision_view(record: dict) -> dict:
     }
 
 
-def _similar(embedding, situation: str, need: str, records: list[dict]):
+def _similar(embedding, situation: str, need: str, records: list[dict], excluded: set[str]):
     """A precedent matches only when the needed action is near, not the situation alone."""
     chosen = None
     chosen_distance = None
     for record in records:
+        if record["decision_id"] in excluded:
+            continue
         action_distance = _distance(embedding, need, record["body"]["action"])
         if action_distance > ACTION_SIMILAR_MAX_DISTANCE:
             continue
@@ -246,6 +282,11 @@ def _feedback(store: Store, body: dict) -> dict:
     if isinstance(parsed, dict):
         return parsed
     task_id, items, missing = parsed
+    try:
+        for decision_id, _helped, _issue in items:
+            store.get({"decision_id": decision_id}, mcp=True)
+    except Exception:
+        return {"written": [], "write": "unavailable"}
     embedding = _sentence_embedding() if missing is not None else None
     outcomes: list[str] = []
     try:
@@ -268,7 +309,8 @@ def _feedback(store: Store, body: dict) -> dict:
                 "written": [],
             }
         situation, need = missing
-        chosen = _similar(embedding, situation, need, _visible(store))
+        excluded = {decision_id for decision_id, helped, _issue in items if not helped}
+        chosen = _similar(embedding, situation, need, _visible(store), excluded)
         if chosen is not None:
             return {
                 "task_id": task_id,
@@ -419,6 +461,8 @@ def main() -> int:
         return _fail(fail_kind)
     json.dump(payload, sys.stdout)
     sys.stdout.write("\n")
+    if args.cmd == "feedback" and isinstance(payload, dict) and payload.get("write") == "unavailable":
+        return 1
     return 0
 
 

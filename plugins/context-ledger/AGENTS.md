@@ -24,7 +24,7 @@ There is one ledger, and it stays on the user's own machine. Do not start a seco
 
 `find` is entity-scoped. A missing id is not proof of the wrong ledger. Confirm with `get` of the full decision id.
 
-On the machine that hosts the ledger, and only when the access check reports no binding, the owner runs `python bin/context_ledger.py setup` (repeat when `requirements.lock` changes) and `python bin/context_ledger.py init --scope SCOPE --actor ACTOR`. Do not run those when a binding already exists.
+On the machine that hosts the ledger, and only when the access check reports no binding, the owner runs `python bin/context_ledger.py setup` (repeat when `requirements.lock` changes) and `python bin/context_ledger.py init --scope SCOPE --actor ACTOR`. Do not run those when a binding already exists. On macOS, setup installs `pyobjc-core`, `pyobjc-framework-Cocoa`, and `pyobjc-framework-NaturalLanguage` into that runtime. The helper uses that interpreter when the current one cannot import `objc`.
 
 ## After the client has loaded this package
 
