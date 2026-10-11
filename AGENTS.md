@@ -19,6 +19,8 @@ The collection root is not a plugin. The install unit is always `plugins/<name>/
 
 The user gives their agent the GitHub URL (`https://github.com/ingpoc/agent-plugins`) and a plugin name. The agent does the install. The user does not clone, symlink, edit settings, or follow a recipe.
 
+Cursor Origin (`https://cursor.com/codebase/gurusharan/agent-plugins`) is the forge of record. GitHub is the outbound mirror of `main`. See [`docs/AGENTS.md`](docs/AGENTS.md).
+
 ## Trigger Map
 
 | Trigger | First hop |
