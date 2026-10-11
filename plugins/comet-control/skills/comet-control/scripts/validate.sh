@@ -10,7 +10,7 @@
 #
 # Exit codes match audit.py: 0 clean (or soft-only), 1 hard findings, 2 IO error.
 
-set -eu
+set -euo pipefail
 
 SKILL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SKILL_NAME="$(basename "$SKILL_DIR")"

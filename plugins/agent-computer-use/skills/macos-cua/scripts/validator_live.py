@@ -468,8 +468,7 @@ def live_checks(*, progress=False):
     timed("TextEdit native substring selection", textedit_selection)
     timed("operator PiP menu bar and Cursor link", operator_visibility)
     cua.operator_update(status="idle", active=False, message="Validation complete")
-    cua.call_driver(
-        "set_agent_cursor_enabled", {"enabled": False, "session": cua.CUA_SESSION}
-    )
-    cua.call_driver("end_session", {"session": cua.CUA_SESSION})
+    hidden = cua.cursor("hide")
+    if hidden.get("ok") is not True:
+        raise AssertionError(f"CUAService hide_agent_cursor failed: {hidden}")
     return checks

@@ -246,24 +246,12 @@ def driver_session_ended(result):
 
 
 def call_driver(tool_name, params=None, timeout=30, _recover_timeout=True):
+    """Legacy cua-driver transport. Never revives a dropped driver session
+    (session starts are banned); session_ended is returned so callers fail loud."""
     started = time.monotonic()
     result = _call_driver_socket(tool_name, params, timeout, _recover_timeout)
     telemetry_record_driver(time.monotonic() - started)
     _note_driver_call(json.dumps(result))
-    if tool_name in {"start_session", "end_session"} or not driver_session_ended(
-        result
-    ):
-        return result
-    sid = (params or {}).get("session") or CUA_SESSION
-    _call_driver_socket("start_session", {"session": sid}, 10, True)
-    retry_params = dict(params or {})
-    retry_params["session"] = sid
-    started = time.monotonic()
-    result = _call_driver_socket(tool_name, retry_params, timeout, _recover_timeout)
-    telemetry_record_driver(time.monotonic() - started)
-    _note_driver_call(json.dumps(result))
-    if isinstance(result, dict) and not driver_session_ended(result):
-        result = {**result, "session_recovered": True}
     return result
 
 
@@ -525,4 +513,19 @@ def driver_status():
         }
     except subprocess.TimeoutExpired:
         daemon = {"running": False, "detail": "cua-driver status timed out"}
-    return {"daemon": daemon, "permissions": perms}
+    except FileNotFoundError:
+        daemon = {"running": False, "detail": f"cua-driver retired (no {CUA_DRIVER})"}
+    return {"daemon": daemon, "permissions": perms, "cuaservice": cuaservice_health()}
+
+
+def cuaservice_health():
+    """CUAService socket health (connect + list_apps), with the exact recovery."""
+    service_dir = str(Path(__file__).resolve().parents[1] / "service")
+    if service_dir not in sys.path:
+        sys.path.insert(0, service_dir)
+    import cua_client  # noqa: WPS433
+
+    try:
+        return cua_client.health()
+    except Exception as exc:
+        return {"ok": False, "error": str(exc), "recovery": cua_client.RECOVERY_COMMAND}

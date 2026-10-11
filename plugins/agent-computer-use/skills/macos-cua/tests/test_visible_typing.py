@@ -17,6 +17,16 @@ NATIVE_INPUT_SPEC = importlib.util.spec_from_file_location(
 native_input = importlib.util.module_from_spec(NATIVE_INPUT_SPEC)
 NATIVE_INPUT_SPEC.loader.exec_module(native_input)
 
+_HIDE_GUARD = mock.patch.object(macos_cua, "_hide_task_cursor", return_value={"ok": True})
+
+
+def setUpModule():  # run_actions hides the live cursor at plan end: never in unit tests
+    _HIDE_GUARD.start()
+
+
+def tearDownModule():
+    _HIDE_GUARD.stop()
+
 
 class VisibleTypingTests(unittest.TestCase):
     def test_slider_drag_rejects_source_above_accessibility_frame(self):
@@ -43,57 +53,6 @@ class VisibleTypingTests(unittest.TestCase):
         self.assertIn("no accessible slider", result["error"])
         resolve.assert_not_called()
 
-    def test_resolved_text_area_index_bypasses_button_role_filter(self):
-        snapshot = {
-            "source": "driver_ax",
-            "elements": [
-                {
-                    "element_index": 0,
-                    "role": "AXWindow",
-                    "frame": {"x": 0, "y": 0, "w": 100, "h": 100},
-                },
-                {
-                    "element_index": 7,
-                    "role": "AXTextArea",
-                    "label": "Compose message",
-                    "frame": {"x": 10, "y": 70, "w": 80, "h": 20},
-                },
-            ],
-        }
-        with (
-            mock.patch.object(
-                macos_cua,
-                "find_clickable_index",
-                side_effect=AssertionError("field must not be re-resolved as a button"),
-            ),
-            mock.patch.object(
-                macos_cua,
-                "operator_update",
-                return_value={"ok": True, "state": {"cursor_update_id": "u1"}},
-            ),
-            mock.patch.object(
-                macos_cua, "_wait_for_operator_cursor", return_value={"ok": True}
-            ),
-            mock.patch.object(
-                macos_cua, "click_with_retry", return_value={"ok": True}
-            ),
-            mock.patch.object(
-                macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
-            ),
-        ):
-            result = macos_cua.click_label_pointer(
-                10,
-                20,
-                "Compose message",
-                snapshot_data=snapshot,
-                app_name="WhatsApp",
-                element_index=7,
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["element"], 7)
-        self.assertEqual(result["method"], "agent-cursor-glide+ax-click")
-
     def test_type_text_rejects_newline_before_driver_dispatch(self):
         with mock.patch.object(macos_cua, "call_driver") as driver:
             result = macos_cua.type_text(10, 20, 7, "Hi there\n")
@@ -102,18 +61,6 @@ class VisibleTypingTests(unittest.TestCase):
         self.assertFalse(result["accepted"])
         self.assertEqual(result["error_code"], "newline_may_submit")
         driver.assert_not_called()
-
-    def test_type_text_allows_explicit_newline_override(self):
-        with mock.patch.object(
-            macos_cua, "call_driver", return_value={"ok": True}
-        ) as driver:
-            result = macos_cua.type_text(
-                10, 20, 7, "line one\nline two", allow_newline=True
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(driver.call_args.args[0], "type_text")
-        self.assertEqual(driver.call_args.args[1]["text"], "line one\nline two")
 
     def test_type_label_requires_visible_focus_before_typing(self):
         snapshot = {"elements": [{"element_index": 7, "role": "AXTextArea"}]}

@@ -82,6 +82,7 @@ PLUGIN_TESTS = {
         "unittest",
         "skills/macos-cua/tests/test_plugin_package.py",
         "skills/macos-cua/tests/test_jev_act.py",
+        "skills/macos-cua/tests/test_cua_service_health.py",
         "-q",
     ],
 }

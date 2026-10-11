@@ -63,6 +63,8 @@ workflow = importlib.util.module_from_spec(WORKFLOW_SPEC)
 WORKFLOW_SPEC.loader.exec_module(workflow)
 
 _ORIGINAL_RESTART = macos_cua._restart_driver_daemon
+_ORIGINAL_HIDE_TASK_CURSOR = macos_cua._hide_task_cursor
+_HIDE_GUARD = None
 
 
 def setUpModule():
@@ -76,11 +78,16 @@ def setUpModule():
         macos_cua, "_restart_driver_daemon", return_value=False
     )
     _RESTART_GUARD.start()
+    global _HIDE_GUARD  # run_actions hides the live cursor at plan end: never in unit tests
+    _HIDE_GUARD = mock.patch.object(macos_cua, "_hide_task_cursor", return_value={"ok": True})
+    _HIDE_GUARD.start()
 
 
 def tearDownModule():
     if _RESTART_GUARD is not None:
         _RESTART_GUARD.stop()
+    if _HIDE_GUARD is not None:
+        _HIDE_GUARD.stop()
     path = os.environ.get("MACOS_CUA_DRIVER_SOCKET")
     if _PREV_SOCKET_PATH is None:
         os.environ.pop("MACOS_CUA_DRIVER_SOCKET", None)
@@ -891,174 +898,6 @@ class WindowResolutionTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["foreground_method"], "system-events-pid")
 
-    def test_driver_error_returns_without_retrying(self):
-        with (
-            mock.patch.object(
-                macos_cua,
-                "call_driver",
-                return_value={"error": "AX request timed out"},
-            ) as call_driver,
-            mock.patch.object(macos_cua.time, "sleep") as sleep,
-            mock.patch.dict(os.environ, {"MACOS_CUA_STATE_TIMEOUT": "7"}),
-        ):
-            result = macos_cua.snapshot(899, 99, retries=2)
-
-        self.assertEqual(result, {"error": "AX request timed out"})
-        call_driver.assert_called_once_with(
-            "get_window_state",
-            {
-                "pid": 899,
-                "window_id": 99,
-                "max_elements": 20,
-                "include_screenshot": False,
-                "capture_mode": "ax",
-            },
-            timeout=7,
-        )
-        sleep.assert_not_called()
-
-    def test_vision_snapshot_uses_driver_schema_and_output_path(self):
-        with mock.patch.object(
-            macos_cua,
-            "call_driver",
-            return_value={"tree_markdown": "AXApplication > AXMenuBar"},
-        ) as call_driver:
-            macos_cua.snapshot(
-                899,
-                99,
-                mode="vision",
-                retries=0,
-                include_screenshot=True,
-                screenshot_out_file="/tmp/vision.png",
-            )
-
-        call_driver.assert_called_once_with(
-            "get_window_state",
-            {
-                "pid": 899,
-                "window_id": 99,
-                "max_elements": 20,
-                "include_screenshot": True,
-                "capture_mode": "vision",
-                "screenshot_out_file": "/tmp/vision.png",
-            },
-            timeout=12,
-        )
-
-    def test_snapshot_retries_until_required_screenshot_is_materialized(self):
-        tree = "AXWindow " + ("content " * 20)
-        with tempfile.TemporaryDirectory() as directory:
-            capture = Path(directory) / "state.png"
-            capture.write_bytes(b"png")
-            responses = [
-                {"tree_markdown": tree, "elements": []},
-                {
-                    "tree_markdown": tree,
-                    "elements": [],
-                    "screenshot_file_path": str(capture),
-                },
-            ]
-            with (
-                mock.patch.object(
-                    macos_cua, "call_driver", side_effect=responses
-                ) as call_driver,
-                mock.patch.object(macos_cua.time, "sleep") as sleep,
-            ):
-                result = macos_cua.snapshot(
-                    899,
-                    99,
-                    retries=2,
-                    include_screenshot=True,
-                    screenshot_out_file=str(capture),
-                )
-
-            self.assertEqual(result["screenshot_file_path"], str(capture))
-            self.assertEqual(call_driver.call_count, 2)
-            sleep.assert_called_once_with(0.4)
-
-    def test_app_state_foregrounds_once_after_background_capture_is_exhausted(self):
-        tree = "AXWindow " + ("content " * 20)
-        missing = {"tree_markdown": tree, "elements": []}
-        captured = {
-            "tree_markdown": tree,
-            "elements": [],
-            "screenshot_file_path": "/tmp/recovered.png",
-            "screenshot_width": 200,
-            "screenshot_height": 100,
-        }
-        with (
-            mock.patch.object(
-                macos_cua, "snapshot", side_effect=[missing, captured]
-            ) as snapshot,
-            mock.patch.object(
-                macos_cua,
-                "bring_resolved_window_to_front",
-                return_value={"ok": True},
-            ) as foreground,
-            mock.patch.object(macos_cua, "_operator_cursor", return_value=None),
-            mock.patch.object(macos_cua, "operator_update"),
-        ):
-            result = macos_cua.app_state("Fixture", 899, 99)
-
-        foreground.assert_called_once_with(899, 99)
-        self.assertEqual(snapshot.call_count, 2)
-        self.assertEqual(snapshot.call_args_list[1].kwargs["retries"], 1)
-        self.assertEqual(result["screenshot"]["path"], "/tmp/recovered.png")
-        self.assertEqual(
-            result["capture_recovery"],
-            {"attempted": True, "foreground": {"ok": True}, "captured": True},
-        )
-
-    def test_app_state_retries_native_ax_before_driver_fallback(self):
-        empty = {"elements": [], "tree_markdown": ""}
-        native = {
-            "elements": [{"role": "AXWindow", "label": "Fixture"}],
-            "tree_markdown": "[1] AXWindow Fixture",
-        }
-        with (
-            mock.patch.object(
-                macos_cua, "_native_ax_snapshot", side_effect=[empty, native]
-            ) as native_snapshot,
-            mock.patch.object(macos_cua, "snapshot") as driver_snapshot,
-            mock.patch.object(macos_cua.time, "sleep"),
-            mock.patch.object(macos_cua, "operator_update"),
-        ):
-            result = macos_cua.app_state(
-                "Fixture", 10, 20, include_screenshot=False
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(native_snapshot.call_count, 2)
-        driver_snapshot.assert_not_called()
-
-    def test_app_state_absorbs_brief_native_ax_instability_without_driver(self):
-        empty = {"elements": [], "tree_markdown": ""}
-        native = {
-            "elements": [{"role": "AXWindow", "label": "Fixture"}],
-            "tree_markdown": "[1] AXWindow Fixture",
-        }
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_snapshot",
-                side_effect=[empty, empty, empty, native],
-            ) as native_snapshot,
-            mock.patch.object(macos_cua, "snapshot") as driver_snapshot,
-            mock.patch.object(macos_cua.time, "sleep") as sleep,
-            mock.patch.object(macos_cua, "operator_update"),
-        ):
-            result = macos_cua.app_state(
-                "Fixture", 10, 20, include_screenshot=False
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(native_snapshot.call_count, 4)
-        self.assertEqual(
-            [call.args[0] for call in sleep.call_args_list],
-            [0.12, 0.24, 0.36],
-        )
-        driver_snapshot.assert_not_called()
-
     def test_capture_geometry_rejects_stage_manager_thumbnail(self):
         with mock.patch.object(
             macos_cua,
@@ -1356,177 +1195,6 @@ class WindowResolutionTests(unittest.TestCase):
         self.assertEqual(value, 1568)
         self.assertEqual(run.call_args.args[0], [macos_cua.CUA_DRIVER, "config"])
         self.assertIs(run.call_args.kwargs["stdin"], macos_cua.subprocess.DEVNULL)
-
-    def test_app_state_recaptures_geometry_mismatch_once(self):
-        tree = "AXWindow " + ("content " * 20)
-        bad = {
-            "tree_markdown": tree,
-            "elements": [],
-            "screenshot_file_path": "/tmp/bad.png",
-            "screenshot_width": 212,
-            "screenshot_height": 353,
-        }
-        good = {
-            "tree_markdown": tree,
-            "elements": [],
-            "screenshot_file_path": "/tmp/good.png",
-            "screenshot_width": 230,
-            "screenshot_height": 404,
-        }
-        with (
-            mock.patch.object(macos_cua, "snapshot", side_effect=[bad, good]) as snapshot,
-            mock.patch.object(
-                macos_cua,
-                "bring_resolved_window_to_front",
-                return_value={"ok": True},
-            ) as foreground,
-            mock.patch.object(
-                macos_cua,
-                "_quartz_window_bounds",
-                return_value=({"x": 0, "y": 0, "width": 230, "height": 408}, None),
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_driver_max_image_dimension",
-                return_value=(1568, None),
-            ),
-            mock.patch.object(macos_cua, "_operator_cursor", return_value=None),
-            mock.patch.object(macos_cua, "operator_update"),
-            mock.patch.object(macos_cua.time, "sleep"),
-        ):
-            result = macos_cua.app_state("Fixture", 10, 20)
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(snapshot.call_count, 2)
-        self.assertEqual(foreground.call_count, 2)
-        self.assertEqual(result["screenshot"]["raw_path"], "/tmp/good.png")
-        self.assertEqual(result["capture_recovery"]["reason"], "capture_geometry_mismatch")
-        self.assertTrue(result["capture_geometry"]["verified"])
-
-    def test_required_capture_with_fresh_verified_geometry_is_ok(self):
-        raw = {
-            "tree_markdown": "AXWindow " + ("content " * 20),
-            "elements": [
-                {
-                    "role": "AXWindow",
-                    "frame": {"x": 0, "y": 0, "w": 230, "h": 408},
-                }
-            ],
-            "screenshot_file_path": "/tmp/fresh.png",
-            "screenshot_width": 230,
-            "screenshot_height": 404,
-        }
-        with (
-            mock.patch.object(macos_cua, "snapshot", return_value=raw) as snapshot,
-            mock.patch.object(
-                macos_cua,
-                "bring_resolved_window_to_front",
-                return_value={"ok": True},
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_quartz_window_bounds",
-                return_value=({"x": 0, "y": 0, "width": 230, "height": 408}, None),
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_driver_max_image_dimension",
-                return_value=(1568, None),
-            ),
-            mock.patch.object(macos_cua, "_operator_cursor", return_value=None),
-            mock.patch.object(macos_cua, "operator_update"),
-            mock.patch.object(macos_cua.time, "sleep"),
-        ):
-            result = macos_cua.app_state("Fixture", 10, 20)
-
-        self.assertTrue(result["ok"])
-        self.assertTrue(result["capture_geometry"]["verified"])
-        snapshot.assert_called_once()
-
-    def test_required_capture_reuses_already_prepared_foreground(self):
-        raw = {
-            "snapshot_id": "fresh-1",
-            "tree_markdown": "AXWindow " + ("content " * 20),
-            "elements": [
-                {
-                    "role": "AXWindow",
-                    "frame": {"x": 0, "y": 0, "w": 230, "h": 408},
-                }
-            ],
-            "screenshot_file_path": "/tmp/fresh.png",
-            "screenshot_width": 230,
-            "screenshot_height": 404,
-        }
-        with (
-            mock.patch.object(macos_cua, "snapshot", return_value=raw),
-            mock.patch.object(macos_cua, "bring_resolved_window_to_front") as foreground,
-            mock.patch.object(
-                macos_cua,
-                "_quartz_window_bounds",
-                return_value=({"x": 0, "y": 0, "width": 230, "height": 408}, None),
-            ),
-            mock.patch.object(
-                macos_cua, "_driver_max_image_dimension", return_value=(1568, None)
-            ),
-            mock.patch.object(macos_cua, "_operator_cursor", return_value=None),
-            mock.patch.object(macos_cua, "operator_update") as operator,
-        ):
-            result = macos_cua.app_state(
-                "Fixture", 10, 20, foreground_prepared=True
-            )
-
-        self.assertTrue(result["ok"])
-        foreground.assert_not_called()
-        self.assertEqual(operator.call_args.kwargs["snapshot_id"], "fresh-1")
-        self.assertEqual(operator.call_args.kwargs["screenshot_width"], 230)
-
-    def test_required_capture_fails_closed_for_ambiguous_ax_identity(self):
-        raw = {
-            "tree_markdown": "AXWindow " + ("content " * 20),
-            "elements": [
-                {
-                    "role": "AXWindow",
-                    "frame": {"x": 0, "y": 0, "w": 500, "h": 400},
-                },
-                {
-                    "role": "AXWindow",
-                    "frame": {"x": 600, "y": 0, "w": 600, "h": 500},
-                },
-            ],
-            "screenshot_file_path": "/tmp/ambiguous.png",
-            "screenshot_width": 500,
-            "screenshot_height": 400,
-        }
-        with (
-            mock.patch.object(macos_cua, "snapshot", return_value=raw) as snapshot,
-            mock.patch.object(
-                macos_cua,
-                "bring_resolved_window_to_front",
-                return_value={"ok": True},
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_quartz_window_bounds",
-                return_value=(None, "exact Quartz window unavailable"),
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_driver_max_image_dimension",
-                return_value=(1568, None),
-            ),
-            mock.patch.object(macos_cua, "_operator_cursor", return_value=None),
-            mock.patch.object(macos_cua, "operator_update"),
-            mock.patch.object(macos_cua.time, "sleep"),
-        ):
-            result = macos_cua.app_state("Fixture", 10, 20)
-
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["error"], "capture_geometry_unresolved")
-        self.assertEqual(
-            result["capture_geometry"]["identity"]["reason"],
-            "ambiguous-ax-windows",
-        )
-        snapshot.assert_called_once()
 
     def test_prefers_titled_window_over_larger_untitled_desktop(self):
         original_read_cache = macos_cua._read_cache
@@ -2050,99 +1718,51 @@ class CursorProofTests(unittest.TestCase):
         finally:
             macos_cua.CACHE_DIR = original_cache
 
-    def test_pointer_position_is_normalized_to_the_logical_window(self):
-        snapshot = {
-            "elements": [
-                {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
-            ],
-        }
+    def test_glide_land_timeout_hides_and_retries_once(self):
+        """A timed-out land ack is not a hit: hide, republish once, re-wait."""
+        snapshot = {"elements": [
+            {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
+        ]}
         with (
-            mock.patch.object(macos_cua, "find_clickable_index", return_value=3),
-            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}) as update,
-            mock.patch.object(
-                macos_cua,
-                "_wait_for_operator_cursor",
-                return_value={"ok": True, "duration_ms": 320},
-            ),
-            mock.patch.object(macos_cua, "cursor") as driver_cursor,
-            mock.patch.object(macos_cua, "click_with_retry", return_value={"ok": True}),
-            mock.patch.object(macos_cua.time, "sleep"),
-        ):
-            result = macos_cua.click_label_pointer(
-                10, 20, "Target", snapshot_data=snapshot, app_name="App"
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["cursor_normalized"], {"x": 0.5, "y": 0.5})
-        self.assertTrue(result["move"]["ok"])
-        update.assert_called_once()
-        driver_cursor.assert_not_called()
-
-    def test_glide_is_fire_and_forget_on_publish_success(self):
-        """Glide publishes once and returns ok without ack polling or retry."""
-        snapshot = {
-            "elements": [
-                {
-                    "role": "AXWindow",
-                    "frame": {"x": 100, "y": 200, "w": 400, "h": 600},
-                },
-            ],
-        }
-        with (
-            mock.patch.object(macos_cua, "find_clickable_index", return_value=3),
             mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
             mock.patch.object(
-                macos_cua, "operator_update", return_value={"ok": True}
+                macos_cua, "operator_update",
+                return_value={"ok": True, "state": {"cursor_update_id": "u"}},
             ) as update,
-            mock.patch.object(macos_cua, "click_with_retry", return_value={"ok": True}),
-        ):
-            result = macos_cua.click_label_pointer(
-                10, 20, "Target", snapshot_data=snapshot, app_name="App"
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertTrue(result["move"]["ok"])
-        update.assert_called_once()
-
-    def test_glide_publish_failure_falls_through_to_native_ax_press(self):
-        """When cursor publish fails, click_label_pointer must proceed via
-        native AX press instead of hard-failing.  Regression guard for
-        transient surfaces where operator_update can't write."""
-        native_snapshot = {
-            "source": "native_ax",
-            "tree_markdown": "[1] AXWindow App\n[2] AXButton File",
-            "elements": [
-                {
-                    "element_index": 1,
-                    "role": "AXWindow",
-                    "label": "App",
-                    "frame": {"x": 100, "y": 200, "w": 400, "h": 600},
-                },
-                {
-                    "element_index": 2,
-                    "role": "AXButton",
-                    "label": "File",
-                    "frame": {"x": 200, "y": 350, "w": 80, "h": 40},
-                    "_native_element": "native-file",
-                    "_native_services": SimpleNamespace(
-                        AXUIElementPerformAction=mock.Mock(return_value=0),
-                    ),
-                },
-            ],
-        }
-        with (
             mock.patch.object(
-                macos_cua, "_native_ax_snapshot", return_value=native_snapshot,
-            ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": False, "error": "file write failed"}),
-            mock.patch.object(macos_cua.time, "sleep"),
+                macos_cua, "_wait_for_operator_cursor",
+                side_effect=[{"ok": False, "error": "timeout"}, {"ok": True}],
+            ) as wait,
         ):
-            result = macos_cua.click_label_pointer(
-                10, 20, "File", app_name="App"
-            )
-        self.assertTrue(result["ok"], f"expected ok=True after glide publish fail fallthrough, got {result}")
-        self.assertEqual(result["method"], "agent-cursor-glide+native-axpress-fallback")
+            result = macos_cua.glide_operator_to_element("App", 1, 2, snapshot, 1)
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["landed"])
+        self.assertTrue(result["move"]["retried"])
+        self.assertEqual(wait.call_count, 2)
+        visible = [c.kwargs.get("cursor_visible") for c in update.call_args_list]
+        self.assertEqual(visible, [True, False, True])
+
+    def test_glide_double_land_timeout_stays_hidden_and_is_not_a_hit(self):
+        snapshot = {"elements": [
+            {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
+        ]}
+        with (
+            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
+            mock.patch.object(
+                macos_cua, "operator_update",
+                return_value={"ok": True, "state": {"cursor_update_id": "u"}},
+            ) as update,
+            mock.patch.object(
+                macos_cua, "_wait_for_operator_cursor",
+                return_value={"ok": False, "error": "timeout"},
+            ) as wait,
+        ):
+            result = macos_cua.glide_operator_to_element("App", 1, 2, snapshot, 1)
+        self.assertFalse(result["ok"])
+        self.assertFalse(result["landed"])
+        self.assertEqual(wait.call_count, 2)
+        visible = [c.kwargs.get("cursor_visible") for c in update.call_args_list]
+        self.assertEqual(visible, [True, False, True, False])
 
     def test_glide_failure_blocks_when_no_ax_element(self):
         """When no AX element is found and glide fails, hard-fail is correct."""
@@ -2160,8 +1780,8 @@ class CursorProofTests(unittest.TestCase):
             )
         self.assertFalse(result["ok"])
 
-    def test_pointer_preflight_returns_ok_on_publish_success(self):
-        """pointer_preflight returns ok when cursor publish succeeds (no ack gate)."""
+    def test_pointer_preflight_returns_ok_on_confirmed_land(self):
+        """pointer_preflight returns ok only once the tip land ack arrives."""
         snapshot = {
             "elements": [
                 {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
@@ -2170,6 +1790,9 @@ class CursorProofTests(unittest.TestCase):
         with (
             mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
             mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+            mock.patch.object(
+                macos_cua, "_wait_for_operator_cursor", return_value={"ok": True}
+            ),
         ):
             result = macos_cua.pointer_preflight(
                 True, "App", 10, 20, snapshot, 1, "Moving to test"
@@ -2193,332 +1816,21 @@ class CursorProofTests(unittest.TestCase):
             )
         self.assertIsNone(result, "pointer_preflight must return None on publish failure")
 
-    def test_pointer_click_falls_back_to_reactivated_native_ax_content(self):
-        driver_snapshot = {
-            "tree_markdown": "AXApplication > AXMenuBar",
-            "elements": [
-                {"element_index": 1, "role": "AXApplication", "label": "App"},
-                {"element_index": 2, "role": "AXMenuBar", "label": ""},
-            ],
-        }
-        services = SimpleNamespace(
-            AXUIElementPerformAction=mock.Mock(return_value=0),
-        )
-        native_snapshot = {
-            "source": "native_ax",
-            "tree_markdown": "[1] AXWindow App\n[2] AXButton Members",
-            "elements": [
-                {
-                    "element_index": 1,
-                    "role": "AXWindow",
-                    "label": "App",
-                    "frame": {"x": 100, "y": 200, "w": 400, "h": 600},
-                },
-                {
-                    "element_index": 2,
-                    "role": "AXButton",
-                    "label": "Members",
-                    "frame": {"x": 180, "y": 280, "w": 80, "h": 40},
-                    "_native_element": "native-members",
-                    "_native_services": services,
-                },
-            ],
-        }
+    def test_cleanup_driver_cursors_never_touches_retired_cua_driver(self):
+        client = mock.Mock()
+        client.hide_agent_cursor.return_value = {"ok": True}
         with (
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_snapshot",
-                return_value=native_snapshot,
-            ) as native_state,
-            mock.patch.object(macos_cua.time, "sleep"),
+            mock.patch.object(macos_cua, "call_driver") as driver,
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client) as make,
         ):
-            result = macos_cua.click_label_pointer(
-                10,
-                20,
-                "Members",
-                snapshot_data=driver_snapshot,
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(
-            result["method"], "agent-cursor-glide+native-axpress-fallback"
-        )
-        self.assertEqual(result["element"], 2)
-        native_state.assert_called_once_with(10, max_elements=50, window_id=20)
-        services.AXUIElementPerformAction.assert_called_once_with(
-            "native-members", "AXPress"
-        )
-
-    def test_click_label_uses_ax_frame_hid_when_row_press_unsupported(self):
-        snap = {
-            "source": "native_ax",
-            "elements": [
-                {
-                    "element_index": 2,
-                    "role": "AXRow",
-                    "label": "Folder",
-                    "frame": {"x": 10, "y": 20, "w": 30, "h": 40},
-                },
-            ],
-        }
-        native = SimpleNamespace(
-            post_mouse_click=mock.Mock(
-                return_value={
-                    "ok": True,
-                    "accepted": True,
-                    "path": "native_hid_mouse",
-                }
-            )
-        )
-        with (
-            mock.patch.object(macos_cua, "find_clickable_index", return_value=2),
-            mock.patch.object(macos_cua, "snapshot_content_error", return_value=None),
-            mock.patch.object(
-                macos_cua,
-                "glide_operator_to_element",
-                return_value={
-                    "ok": True,
-                    "move": {"ok": True},
-                    "coords": {"x": 25, "y": 40},
-                },
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_press_label_with_retry",
-                return_value=(
-                    {"error": "AXUIElementPerformAction(AXPress) returned -25206"},
-                    snap,
-                    2,
-                ),
-            ),
-            mock.patch.object(macos_cua, "_native_input", return_value=native),
-            mock.patch.object(macos_cua, "_cleanup_driver_cursors"),
-        ):
-            result = macos_cua.click_label_pointer(
-                10, 20, "Folder", snapshot_data=snap, app_name="App"
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["method"], "agent-cursor-glide+ax-frame-hid")
-        native.post_mouse_click.assert_called_once()
-
-    def test_cleanup_driver_cursors_disables_then_ends_auto_sessions(self):
-        state = {
-            "enabled": True,
-            "cursors": [
-                {
-                    "config": {
-                        "cursor_id": "auto-cyan",
-                        "cursor_color": "#00FFFF",
-                        "cursor_icon": None,
-                        "enabled": True,
-                    }
-                },
-                {
-                    "config": {
-                        "cursor_id": "macos-cua",
-                        "enabled": True,
-                    }
-                },
-            ],
-        }
-        calls = []
-
-        def fake_call(tool, params=None, timeout=None):
-            calls.append((tool, params or {}))
-            if tool == "get_agent_cursor_state":
-                return state
-            return {"ok": True}
-
-        with mock.patch.object(macos_cua, "call_driver", side_effect=fake_call):
-            result = macos_cua._cleanup_driver_cursors()
-
-        self.assertEqual(result["ended"], ["auto-cyan"])
-        self.assertEqual(
-            calls,
-            [
-                ("get_agent_cursor_state", {}),
-                (
-                    "set_agent_cursor_enabled",
-                    {"enabled": False, "session": "auto-cyan"},
-                ),
-                ("end_session", {"session": "auto-cyan"}),
-                ("set_agent_cursor_enabled", {"enabled": False}),
-            ],
-        )
-
-    def test_click_at_desktop_wipes_driver_cursors_before_and_after(self):
-        with (
-            mock.patch.object(
-                macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
-            ) as cleanup,
-            mock.patch.object(
-                macos_cua, "call_driver", return_value={"ok": True}
-            ) as call_driver,
-        ):
-            result = macos_cua.click_at_desktop(10.0, 20.0)
-
-        self.assertTrue(result["ok"])
-        self.assertTrue(result["user_interruptive"])
-        self.assertFalse(result["isolated_pointer"])
-        self.assertFalse(result["pointer_preserve_requested"])
-        self.assertIsNone(result["pointer_restored"])
-        self.assertEqual(cleanup.call_count, 2)
-        call_driver.assert_called_once_with(
-            "click",
-            {
-                "x": 10.0,
-                "y": 20.0,
-                "scope": "desktop",
-                "button": "left",
-                "count": 1,
-            },
-        )
-
-    def test_click_at_desktop_passes_right_button(self):
-        with (
-            mock.patch.object(
-                macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
-            ),
-            mock.patch.object(
-                macos_cua, "call_driver", return_value={"ok": True}
-            ) as call_driver,
-        ):
-            result = macos_cua.click_at_desktop(
-                3480.0, 220.0, button="right", click_count=1
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertTrue(result["user_interruptive"])
-        call_driver.assert_called_once_with(
-            "click",
-            {
-                "x": 3480.0,
-                "y": 220.0,
-                "scope": "desktop",
-                "button": "right",
-                "count": 1,
-            },
-        )
-
-    def test_click_at_desktop_can_restore_pointer_as_explicit_mitigation(self):
-        with (
-            mock.patch.object(
-                macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
-            ),
-            mock.patch.object(
-                macos_cua, "_system_pointer_position", return_value=(91.0, 42.0)
-            ) as position,
-            mock.patch.object(
-                macos_cua, "_restore_system_pointer", return_value=True
-            ) as restore,
-            mock.patch.object(
-                macos_cua, "call_driver", return_value={"ok": True}
-            ),
-        ):
-            result = macos_cua.click_at_desktop(
-                10.0, 20.0, preserve_pointer=True
-            )
-
-        position.assert_called_once_with()
-        restore.assert_called_once_with((91.0, 42.0))
-        self.assertTrue(result["pointer_preserve_requested"])
-        self.assertTrue(result["pointer_restored"])
-        self.assertTrue(result["user_interruptive"])
-        self.assertFalse(result["isolated_pointer"])
-
-    def test_pointer_click_only_uses_vision_coordinates_when_explicit(self):
-        menu_only = {
-            "tree_markdown": "AXApplication > AXMenuBar",
-            "elements": [
-                {"element_index": 1, "role": "AXApplication", "label": "App"},
-            ],
-        }
-        native_missing = {
-            "error": "snapshot has no target-window AX content",
-            "elements": [],
-            "tree_markdown": "",
-        }
-        visual = {
-            "source": "driver_vision",
-            "tree_markdown": "[7] VisionText Members",
-            "elements": [
-                {
-                    "element_index": 7,
-                    "role": "VisionText",
-                    "label": "Members",
-                    "frame": {"x": 180, "y": 280, "w": 80, "h": 40},
-                }
-            ],
-        }
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_snapshot",
-                return_value=native_missing,
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_vision_snapshot_after_activation",
-                return_value=visual,
-            ) as vision_state,
-            mock.patch.object(
-                macos_cua, "click_at_desktop", return_value={"ok": True}
-            ) as click_at,
-            mock.patch.dict(os.environ, {"MACOS_CUA_PIXEL_CLICK": "1"}),
-            mock.patch.object(macos_cua.time, "sleep"),
-        ):
-            result = macos_cua.click_label_pointer(
-                10,
-                20,
-                "Members",
-                snapshot_data=menu_only,
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(
-            result["method"], "agent-cursor-glide+vision-desktop-click-fallback"
-        )
-        vision_state.assert_called_once_with(10, 20, max_elements=50)
-        click_at.assert_called_once_with(220.0, 300.0)
-
-    def test_pointer_click_rejects_implicit_vision_coordinate_fallback(self):
-        visual = {
-            "source": "driver_vision",
-            "tree_markdown": "[7] VisionText Members",
-            "elements": [
-                {
-                    "element_index": 7,
-                    "role": "VisionText",
-                    "label": "Members",
-                    "frame": {"x": 180, "y": 280, "w": 80, "h": 40},
-                }
-            ],
-        }
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_snapshot",
-                return_value={"error": "no AX", "elements": []},
-            ),
-            mock.patch.object(
-                macos_cua, "_vision_snapshot_after_activation", return_value=visual
-            ) as vision_state,
-            mock.patch.object(macos_cua, "click_at_desktop") as click_at,
-            mock.patch.dict(os.environ, {}, clear=False),
-        ):
-            os.environ.pop("MACOS_CUA_PIXEL_CLICK", None)
-            result = macos_cua.click_label_pointer(
-                10,
-                20,
-                "Members",
-                snapshot_data={"elements": [], "tree_markdown": ""},
-            )
-
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["error"], "not found")
-        vision_state.assert_not_called()
-        click_at.assert_not_called()
+            per_action = macos_cua._cleanup_driver_cursors()
+            closeout = macos_cua._cleanup_driver_cursors(include_named=True)
+        driver.assert_not_called()
+        self.assertEqual(per_action["ended"], [])
+        make.assert_called_once()  # per-action cleanup: no socket round-trip
+        client.hide_agent_cursor.assert_called_once()
+        client.close.assert_called_once()
+        self.assertEqual(closeout["hidden"], {"ok": True})
 
     def test_driver_vision_without_frames_falls_back_to_native_vision(self):
         driver_visual = {
@@ -2961,45 +2273,6 @@ class CursorProofTests(unittest.TestCase):
         self.assertIn("raster failed", result["error"])
         operator_ui.assert_not_called()
 
-    def test_app_state_fails_closed_when_required_cursor_proof_fails(self):
-        raw = {
-            "tree_markdown": "AXWindow " + ("content " * 20),
-            "elements": [],
-            "screenshot_file_path": "/tmp/raw-state.png",
-            "screenshot_width": 200,
-            "screenshot_height": 100,
-        }
-        with (
-            mock.patch.object(macos_cua, "snapshot", return_value=raw),
-            mock.patch.object(
-                macos_cua, "_operator_cursor", return_value={"x": 0.5, "y": 0.5}
-            ),
-            mock.patch.object(
-                macos_cua,
-                "annotate_cursor_screenshot",
-                return_value={
-                    "ok": False,
-                    "error": "cursor rasterization failed after 2 attempts",
-                    "path": "/tmp/raw-state.png",
-                },
-            ),
-            mock.patch.object(
-                macos_cua,
-                "operator_update",
-                return_value={"ok": False, "error": "operator raster failed"},
-            ),
-        ):
-            result = macos_cua.app_state(
-                "Fixture", 10, 20, prepare_foreground=False
-            )
-
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["error"], "cursor_proof_failed")
-        self.assertIn("after 2 attempts", result["cursor_proof_error"])
-        self.assertEqual(result["operator_error"], "operator raster failed")
-        self.assertEqual(result["screenshot"]["path"], "/tmp/raw-state.png")
-        self.assertFalse(result["screenshot"]["cursor_included"])
-
     def test_legacy_cursor_configuration_fails_closed_on_raster_error(self):
         with (
             mock.patch.object(
@@ -3016,32 +2289,168 @@ class CursorProofTests(unittest.TestCase):
         ensure_session.assert_not_called()
         call_driver.assert_not_called()
 
-    def test_native_cursor_defaults_to_custom_raster_not_generic_arrow(self):
-        calls = []
+    def test_native_cursor_configure_never_calls_cua_driver(self):
+        """Legacy cua-driver set_agent_cursor_style/motion (300ms) is gone."""
+        client = mock.Mock()
+        client.cursor_status.return_value = {"ok": True, "visible": False, "idle_hide_ms": 120000}
         with (
-            mock.patch.object(macos_cua, "ensure_session"),
             mock.patch.object(
                 macos_cua, "cursor_raster_path", return_value="/tmp/hermes-pointer.png"
             ),
-            mock.patch.object(macos_cua.os.path, "isfile", return_value=True),
-            mock.patch.object(
-                macos_cua,
-                "call_driver",
-                side_effect=lambda tool, params, **_kwargs: (
-                    calls.append((tool, params)) or {"ok": True}
-                ),
-            ),
-            mock.patch.dict(os.environ, {}, clear=False),
+            mock.patch.object(macos_cua, "call_driver") as call_driver,
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
         ):
-            os.environ.pop("MACOS_CUA_CURSOR_ARROW", None)
             result = macos_cua.configure_cursor_icon("test")
+            status = macos_cua.cursor("status")
+            ensured = macos_cua.ensure_session("test")
 
         self.assertTrue(result["ok"])
         self.assertFalse(result["using_generic_arrow"])
-        self.assertEqual(calls[0][0], "set_agent_cursor_style")
-        self.assertEqual(calls[0][1]["image_path"], "/tmp/hermes-pointer.png")
-        self.assertEqual(calls[1][1]["cursor_icon"], "/tmp/hermes-pointer.png")
-        self.assertTrue(calls[1][1]["cursor_label"].startswith("macos-cua · "))
+        self.assertEqual(result["engine"], "CUAService")
+        self.assertEqual(result["glide_ms"], 120)
+        self.assertEqual(status["engine"], "CUAService")
+        self.assertTrue(ensured["ok"])
+        call_driver.assert_not_called()
+
+    def test_cursor_status_reports_live_idle_hide_and_visibility(self):
+        client = mock.Mock()
+        client.cursor_status.return_value = {
+            "ok": True, "visible": False, "idle_hide_ms": 120000, "auto_hide": True,
+            "effective_hide_ms": 120000, "hide_pending": False,
+        }
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+            status = macos_cua.cursor("status")
+        self.assertTrue(status["ok"])
+        self.assertEqual(status["overlay"]["idle_hide_ms"], 120000)
+        self.assertIs(status["overlay"]["visible"], False)
+        self.assertNotIn("ok", status["overlay"])
+        client.configure_cursor.assert_not_called()
+        client.close.assert_called_once()
+
+    def test_cursor_configure_idle_hide_ms_routes_to_cuaservice(self):
+        client = mock.Mock()
+        client.configure_cursor.return_value = {"ok": True, "visible": False, "idle_hide_ms": 0,
+                                                "auto_hide": False}
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+            res = macos_cua.cursor("configure", idle_hide_ms=0)
+        self.assertTrue(res["ok"])
+        self.assertTrue(res["configured"])
+        self.assertIs(res["overlay"]["auto_hide"], False)
+        client.configure_cursor.assert_called_once_with(0)
+
+    def test_cursor_idle_hide_ms_fails_loud(self):
+        client = mock.Mock()
+        client.cursor_status.side_effect = ConnectionError("no socket")
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client) as make:
+            down = macos_cua.cursor("status")
+            neg = macos_cua.cursor("configure", idle_hide_ms=-5)
+            wrong = macos_cua.cursor("status", idle_hide_ms=100)
+        self.assertFalse(down["ok"])
+        self.assertIn("cursor_status unavailable", down["error"])
+        self.assertFalse(neg["ok"])
+        self.assertFalse(wrong["ok"])
+        self.assertEqual(make.call_count, 1)  # invalid args never reach the service
+        bad = mock.Mock()
+        bad.configure_cursor.return_value = {"ok": False}
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=bad):
+            self.assertFalse(macos_cua.cursor("configure", idle_hide_ms=10)["ok"])
+
+    def test_cursor_parser_accepts_idle_hide_ms(self):
+        parser = macos_cua._cli_parser().build_parser(cua_session="s", key_codes={})
+        args = parser.parse_args(["cursor", "configure", "--idle-hide-ms", "2500"])
+        self.assertEqual(args.idle_hide_ms, 2500)
+        self.assertIsNone(parser.parse_args(["cursor", "status"]).idle_hide_ms)
+
+    def test_cursor_overlay_idle_hide_never_races_a_press(self):
+        """Source guard: the cursor stays visible for the whole task; idle hide
+        is a 120 s crash-safety net that starts only after the whole RPC
+        returned; new moves cancel it; execute_plan hides at plan end."""
+        svc = Path(__file__).parents[1] / "service" / "Sources" / "CUAService"
+        overlay = (svc / "CursorOverlay.swift").read_text()
+        router = (svc / "MethodRouter.swift").read_text()
+        self.assertIn("static let defaultIdleHideMs = 120_000", overlay)
+        self.assertNotIn("postActionLingerMs", overlay)
+        self.assertIn("idleHideMs > 0 ? idleHideMs : nil", overlay)
+        self.assertIn("gen == self.hideGeneration, self.activeActions == 0", overlay)
+        glide = overlay.split("func glideTo(", 1)[1].split("func hide(", 1)[0]
+        self.assertIn("cancelPendingHide()", glide)
+        self.assertIn("cursorOverlay.beginAction(request.method)", router)
+        self.assertIn("defer { if isAction { cursorOverlay.endAction(request.method) } }", router)
+        plan = router.split("func handleExecutePlan(", 1)[1].split("guard let app", 1)[0]
+        self.assertIn('defer { cursorOverlay.hide(reason: "plan_end") }', plan)
+
+    def test_run_actions_hides_cursor_when_plan_ends_success_or_failure(self):
+        plan = {"allow_unverified": True, "capture": "never", "settle_ms": 0,
+                "actions": [{"action": "wait", "seconds": 0}]}
+        for raised in (False, True):
+            with self.subTest(raised=raised), \
+                    mock.patch.object(macos_cua, "operator_update"), \
+                    mock.patch.object(macos_cua, "_plan_snapshot", return_value={"elements": []}), \
+                    mock.patch.object(macos_cua, "_hide_task_cursor",
+                                      return_value={"ok": True}) as hide:
+                if raised:
+                    with mock.patch.object(macos_cua, "_run_actions",
+                                           side_effect=RuntimeError("boom")):
+                        with self.assertRaises(RuntimeError):
+                            macos_cua.run_actions(1, 2, plan, app_name="Fixture")
+                else:
+                    result = macos_cua.run_actions(1, 2, plan, app_name="Fixture")
+                    self.assertIs(result["cursor_hidden"], True)
+                hide.assert_called_once()
+
+    def test_run_actions_hide_failure_marks_plan_not_ok(self):
+        plan = {"allow_unverified": True, "capture": "never", "settle_ms": 0,
+                "actions": [{"action": "wait", "seconds": 0}]}
+        with mock.patch.object(macos_cua, "operator_update"), \
+                mock.patch.object(macos_cua, "_plan_snapshot", return_value={"elements": [], "engine": "CUAService"}), \
+                mock.patch.object(macos_cua, "_hide_task_cursor",
+                                  return_value={"ok": False, "error": "socket down"}):
+            result = macos_cua.run_actions(1, 2, plan, app_name="Fixture")
+        self.assertIs(result["ok"], False)
+        self.assertIs(result["accepted"], False)
+        self.assertIs(result["verified"], False)
+        self.assertIs(result["cursor_hidden"], False)
+        self.assertEqual(result["cursor_hide_error"], "socket down")
+
+    def test_plan_snapshot_uses_cuaservice_not_native(self):
+        with mock.patch.object(macos_cua, "snapshot", return_value={"engine": "CUAService", "elements": [{"element_index": 0}]}) as snap, \
+             mock.patch.object(macos_cua, "_native_ax_snapshot", side_effect=AssertionError("native walk retired for plans")):
+            out = macos_cua._plan_snapshot(42, 7, max_elements=30)
+        snap.assert_called_once_with(42, 7, max_elements=30)
+        self.assertEqual(out["engine"], "CUAService")
+
+    def test_hide_task_cursor_reports_failure_without_raising(self):
+        client = mock.Mock()
+        client.hide_agent_cursor.return_value = {"ok": True}
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+            self.assertEqual(_ORIGINAL_HIDE_TASK_CURSOR(), {"ok": True})
+        client.close.assert_called_once()
+        with mock.patch.object(macos_cua, "_cuaservice_client",
+                               side_effect=ConnectionError("no socket")):
+            down = _ORIGINAL_HIDE_TASK_CURSOR()
+        self.assertFalse(down["ok"])
+        self.assertIn("cursor hide failed", down["error"])
+
+    def test_cursor_hide_routes_to_cuaservice_and_move_is_refused(self):
+        client = mock.Mock()
+        client.hide_agent_cursor.return_value = {"ok": True}
+        with (
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(macos_cua, "call_driver") as call_driver,
+        ):
+            hidden = macos_cua.cursor("hide")
+            moved = macos_cua.cursor("move", x=1, y=2)
+        self.assertTrue(hidden["ok"])
+        self.assertEqual(hidden["engine"], "CUAService")
+        client.hide_agent_cursor.assert_called_once()
+        client.close.assert_called_once()
+        self.assertFalse(moved["ok"])
+        call_driver.assert_not_called()
+
+        source = (Path(__file__).parents[1] / "scripts" / "runtime_cli.py").read_text()
+        self.assertNotIn("set_agent_cursor_motion", source)
+        self.assertNotIn("set_agent_cursor_style", source)
+        self.assertNotIn('"start_session"', source)
 
 
 class OperatorUITests(unittest.TestCase):
@@ -3324,31 +2733,6 @@ class OperatorUITests(unittest.TestCase):
 
 
 class KeyboardTests(unittest.TestCase):
-    def test_right_click_prefers_native_show_menu(self):
-        state = {
-            "elements": [
-                {
-                    "element_index": 3,
-                    "role": "AXTextArea",
-                    "actions": ["AXShowMenu"],
-                }
-            ],
-            "tree_markdown": "[3] AXTextArea",
-        }
-        with (
-            mock.patch.object(macos_cua, "_native_ax_snapshot", return_value=state),
-            mock.patch.object(
-                macos_cua,
-                "perform_action",
-                return_value={"ok": True, "path": "native_ax"},
-            ),
-            mock.patch.object(macos_cua, "call_driver") as driver,
-        ):
-            result = macos_cua.right_click(10, 20, 3)
-
-        self.assertEqual(result["path"], "native_ax")
-        driver.assert_not_called()
-
     def test_background_cmd_a_requires_native_text_readback_when_available(self):
         with (
             mock.patch.object(macos_cua, "call_driver") as driver,
@@ -3396,154 +2780,104 @@ class KeyboardTests(unittest.TestCase):
         run.assert_not_called()
         self.assertIn("unsupported System Events key", result["error"])
 
-    def test_combo_uses_hotkey_with_normalized_modifiers(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        foreground = None
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
-            foreground = mock.patch.object(
-                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
-            )
-            foreground.start()
+    def _cuaservice(self, result=None, error=None):
+        client = mock.Mock()
+        if error is not None:
+            client.press_key.side_effect = error
+        else:
+            client.press_key.return_value = result or {"ok": True, "method": "cgevent-key-pid"}
+        identity = {"pid": 10, "name": "Comet", "bundle_id": "ai.perplexity.comet", "active": False}
+        return client, (
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(macos_cua, "_running_app_identity", return_value=identity),
+            mock.patch.object(macos_cua, "call_driver"),
+            mock.patch.object(macos_cua, "bring_resolved_window_to_front"),
+            mock.patch.object(macos_cua, "_pids_for_app", return_value=[10]),
+        )
 
-            macos_cua.press_key(10, 20, "super+shift+A", "foreground")
+    def test_combo_goes_to_cuaservice_with_normalized_modifiers(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2] as driver, patches[3] as front, patches[4]:
+            result = macos_cua.press_key(10, 20, "super+shift+A", "foreground")
+        client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+shift+a")
+        client.close.assert_called_once()
+        driver.assert_not_called()
+        front.assert_not_called()  # CUAService raises the window for input itself
+        self.assertTrue(macos_cua._accepted(result))
+        self.assertEqual(result["engine"], "CUAService")
 
-            self.assertEqual(
-                calls,
-                [
-                    (
-                        "hotkey",
-                        {
-                            "pid": 10,
-                            "window_id": 20,
-                            "keys": ["cmd", "shift", "a"],
-                            "delivery_mode": "foreground",
-                        },
-                    )
-                ],
-            )
-        finally:
-            if foreground is not None:
-                foreground.stop()
-            macos_cua.call_driver = original_call_driver
+    def test_cmd_v_reaches_cuaservice_press_key(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2] as driver, patches[3], patches[4]:
+            result = macos_cua.press_key(10, 20, "cmd+v")
+        client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+v")
+        driver.assert_not_called()
+        self.assertTrue(result["ok"])
 
-    def test_single_key_uses_press_key(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
+    def test_single_key_and_list_are_normalized(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
             macos_cua.press_key(10, 20, "Escape")
-
-            self.assertEqual(calls[0][0], "press_key")
-            self.assertEqual(calls[0][1]["key"], "escape")
-            self.assertEqual(calls[0][1]["delivery_mode"], "background")
-        finally:
-            macos_cua.call_driver = original_call_driver
-
-    def test_press_key_uses_native_pid_when_driver_session_ended(self):
-        ended = {
-            "refusal": {
-                "code": "session_ended",
-                "message": "this session has ended; call start_session explicitly to reuse its label",
-            },
-            "status": "refused",
-        }
-        native = SimpleNamespace(
-            press_key_after_dropped_session=mock.Mock(
-                return_value={
-                    "ok": True,
-                    "accepted": True,
-                    "path": "native_cg_key",
-                    "session_recovered": True,
-                }
-            )
+            macos_cua.press_key(10, 20, ["command", "shift", "A"])
+        self.assertEqual(
+            [c.args for c in client.press_key.call_args_list],
+            [("ai.perplexity.comet", "escape"), ("ai.perplexity.comet", "cmd+shift+a")],
         )
+
+    def test_unknown_modifier_fails_before_dispatch(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            result = macos_cua.press_key(10, 20, "hyper+a")
+        client.press_key.assert_not_called()
+        self.assertFalse(macos_cua._accepted(result))
+        self.assertIn("unsupported key combo", result["error"])
+
+    def test_cuaservice_refusal_or_socket_failure_is_not_accepted(self):
+        client, patches = self._cuaservice(result={"ok": False, "error": "Unknown key: f13"})
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            refused = macos_cua.press_key(10, 20, "f13")
+        self.assertFalse(macos_cua._accepted(refused))
+        client, patches = self._cuaservice(error=ConnectionError("refusing; Recover with: pkill"))
+        with patches[0], patches[1], patches[2], patches[3], patches[4]:
+            failed = macos_cua.press_key(10, 20, "escape")
+        self.assertFalse(macos_cua._accepted(failed))
+        self.assertIn("Recover with", failed["error"])
+        client.close.assert_called_once()
+
+    def test_second_instance_of_same_bundle_fails_loud_instead_of_wrong_target(self):
+        client, patches = self._cuaservice()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with mock.patch.object(macos_cua, "_pids_for_app", return_value=[10, 11]):
+                result = macos_cua.press_key(10, 20, "cmd+v")
+        client.press_key.assert_not_called()
+        self.assertFalse(macos_cua._accepted(result))
+        self.assertIn("--system-events", result["error"])
+
+    def test_bundleless_target_fails_loud(self):
+        identity = {"pid": 10, "name": "Helper", "bundle_id": "", "active": False}
         with (
-            mock.patch.object(macos_cua, "call_driver", return_value=ended),
-            mock.patch.object(macos_cua, "_native_input", return_value=native),
-            mock.patch.object(
-                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
-            ),
+            mock.patch.object(macos_cua, "_running_app_identity", return_value=identity),
+            mock.patch.object(macos_cua, "_cuaservice_client") as make,
         ):
-            result = macos_cua.press_key(10, 20, "Escape", "foreground")
+            result = macos_cua.press_key(10, 20, "escape")
+        make.assert_not_called()
+        self.assertIn("no bundle id", result["error"])
 
-        self.assertTrue(result["ok"])
-        self.assertTrue(result["session_recovered"])
-        self.assertEqual(result["path"], "native_cg_key")
-        native.press_key_after_dropped_session.assert_called_once()
-
-    def test_press_key_rejects_recovered_global_input(self):
-        recovered = {
-            "delivery": {"mode": "foreground"},
-            "effect": "unverifiable",
-            "route": "global_input",
-            "session_recovered": True,
-        }
-        native = SimpleNamespace(
-            press_key_after_dropped_session=mock.Mock(
-                return_value={
-                    "ok": True,
-                    "accepted": True,
-                    "path": "native_cg_key",
-                    "session_recovered": True,
-                }
-            )
-        )
+    def test_missing_pid_fails_loud(self):
         with (
-            mock.patch.object(macos_cua, "call_driver", return_value=recovered),
-            mock.patch.object(macos_cua, "_native_input", return_value=native),
-            mock.patch.object(
-                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
-            ),
+            mock.patch.object(macos_cua, "_running_app_identity", return_value=None),
+            mock.patch.object(macos_cua, "_cuaservice_client") as make,
         ):
-            result = macos_cua.press_key(10, 20, "Escape", "foreground")
+            result = macos_cua.press_key(10, 20, "escape")
+        make.assert_not_called()
+        self.assertIn("no running app with pid 10", result["error"])
 
-        self.assertEqual(result["path"], "native_cg_key")
-        native.press_key_after_dropped_session.assert_called_once()
-
-    def test_background_key_retries_once_when_foreground_recommended(self):
-        calls = []
-
-        def driver(tool, params):
-            calls.append((tool, params))
-            if params.get("delivery_mode") == "background":
-                return {
-                    "ok": False,
-                    "code": "off_space_or_ax_unresolved",
-                    "escalation": {"recommended": "foreground"},
-                }
-            return {"ok": True}
-
-        with (
-            mock.patch.object(macos_cua, "call_driver", side_effect=driver),
-            mock.patch.object(
-                macos_cua, "bring_resolved_window_to_front", return_value={"ok": True}
-            ),
-        ):
-            result = macos_cua.press_key(10, 20, "cmd+c")
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["escalated"], "foreground")
-        self.assertEqual(calls[0][1]["delivery_mode"], "background")
-        self.assertEqual(calls[1][1]["delivery_mode"], "foreground")
-
-    def test_key_list_is_normalized_before_driver_dispatch(self):
-        calls = []
-        with mock.patch.object(
-            macos_cua,
-            "call_driver",
-            side_effect=lambda tool, params: calls.append((tool, params)) or {"ok": True},
-        ):
-            result = macos_cua.press_key(10, 20, ["cmd", "shift", "A"])
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(calls[0][0], "hotkey")
-        self.assertEqual(calls[0][1]["keys"], ["cmd", "shift", "a"])
+    def test_cursor_show_is_rejected_not_silently_ok(self):
+        with mock.patch.object(macos_cua, "_cuaservice_client") as make:
+            result = macos_cua.cursor("show")
+        make.assert_not_called()
+        self.assertIs(result["ok"], False)
+        self.assertIn("not a CUAService RPC", result["error"])
 
     def test_invalid_key_list_returns_structured_error(self):
         with mock.patch.object(macos_cua, "call_driver") as call_driver:
@@ -3632,27 +2966,6 @@ class KeyboardTests(unittest.TestCase):
 
 
 class StateEnrichmentTests(unittest.TestCase):
-    def test_snapshot_fails_closed_when_claimed_capture_never_materializes(self):
-        with tempfile.TemporaryDirectory() as directory:
-            missing = str(Path(directory) / "missing.png")
-            packet = {
-                "tree_markdown": "x" * 100,
-                "elements": [],
-                "screenshot_file_path": missing,
-            }
-            with mock.patch.object(macos_cua, "call_driver", return_value=packet):
-                result = macos_cua.snapshot(
-                    10,
-                    20,
-                    include_screenshot=True,
-                    screenshot_out_file=missing,
-                    retries=0,
-                    delay=0,
-                )
-
-        self.assertEqual(result["error"], "screenshot artifact did not materialize")
-        self.assertEqual(result["capture_path"], missing)
-
     def test_resolution_reset_preserves_operator_json(self):
         original_cache = macos_cua.CACHE_DIR
         try:
@@ -3939,21 +3252,6 @@ class StateEnrichmentTests(unittest.TestCase):
 
 
 class PrimitiveContractTests(unittest.TestCase):
-    def test_type_text_prefers_focused_native_selection(self):
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_native_type_selected_text",
-                return_value={"ok": True, "path": "native_ax_selected_text"},
-            ) as native,
-            mock.patch.object(macos_cua, "call_driver") as driver,
-        ):
-            result = macos_cua.type_text(10, 20, None, "BETA")
-
-        self.assertEqual(result["path"], "native_ax_selected_text")
-        native.assert_called_once_with(10, "BETA", window_id=20, element_index=None)
-        driver.assert_not_called()
-
     def test_native_ax_click_retries_stale_element_with_fresh_label(self):
         stale = {"elements": [{"element_index": 3, "label": "Clear"}]}
         fresh = {"elements": [{"element_index": 8, "label": "Clear"}]}
@@ -4091,174 +3389,27 @@ class PrimitiveContractTests(unittest.TestCase):
         self.assertEqual(click.call_count, 2)
         snapshot.assert_called_once_with(10, 20, max_elements=120)
 
-    def test_click_uses_native_ax_press_when_available(self):
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_snapshot",
-                return_value={"source": "native_ax", "elements": []},
-            ) as native_snap,
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_press",
-                return_value={"ok": True, "path": "native_ax", "action": "press"},
-            ) as native_press,
-            mock.patch.object(macos_cua, "snapshot") as snapshot,
-            mock.patch.object(macos_cua, "call_driver") as call_driver,
-        ):
-            result = macos_cua.click(10, 20, 3)
-
-        self.assertTrue(result["ok"])
-        self.assertTrue(result["accepted"])
-        self.assertEqual(result["path"], "native_ax")
-        native_snap.assert_called_once_with(10, max_elements=120, window_id=20)
-        native_press.assert_called_once()
-        snapshot.assert_not_called()
-        call_driver.assert_not_called()
-
-    def test_index_click_glides_visible_cursor_before_pressing(self):
-        order = []
-        native_snap = {
-            "source": "native_ax",
-            "tree_markdown": "[3] AXButton 7",
-            "elements": [{"element_index": 3, "role": "AXButton", "label": "7"}],
-        }
-        with (
-            mock.patch.object(
-                macos_cua, "_native_ax_snapshot", return_value=native_snap
-            ),
-            mock.patch.object(
-                macos_cua,
-                "glide_operator_to_element",
-                side_effect=lambda *a, **k: order.append("glide")
-                or {"ok": True, "move": {"ok": True}, "cursor_normalized": {"x": 0.5, "y": 0.5}},
-            ) as glide,
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_press",
-                side_effect=lambda *a, **k: order.append("press")
-                or {"ok": True, "path": "native_ax"},
-            ),
-        ):
-            result = macos_cua.click(10, 20, 3, app_name="Calculator")
-
-        self.assertEqual(order, ["glide", "press"])
-        self.assertEqual(result["method"], "agent-cursor-glide+native-axpress")
-        self.assertEqual(result["move"], {"ok": True})
-        self.assertEqual(glide.call_args.args[0], "Calculator")
-
     def test_index_click_refuses_to_press_when_cursor_is_not_visible(self):
+        err = Exception("RPC error -32010")
+        err.code, err.message = -32010, "CURSOR_NOT_LANDED: agent cursor did not land"
         with (
             mock.patch.object(
                 macos_cua,
-                "_native_ax_snapshot",
-                return_value={
-                    "source": "native_ax",
-                    "tree_markdown": "[3] AXButton 7",
-                    "elements": [{"element_index": 3, "role": "AXButton"}],
-                },
+                "cua_snapshot",
+                return_value={"ok": True, "engine": "CUAService", "window_id": 20, "elements": []},
             ),
-            mock.patch.object(
-                macos_cua,
-                "glide_operator_to_element",
-                return_value={
-                    "ok": False,
-                    "error": "visible operator cursor did not reach the target",
-                },
-            ),
-            mock.patch.object(macos_cua, "_native_ax_press") as press,
+            mock.patch.object(macos_cua, "cua_click", side_effect=err) as click,
             mock.patch.object(macos_cua, "call_driver") as call_driver,
         ):
+            # cua_click raises via _cuaservice_rpc normally; simulate refused landing payload
+            click.side_effect = None
+            click.return_value = {"ok": False, "accepted": False, "error_code": "CURSOR_NOT_LANDED",
+                                  "error": "CURSOR_NOT_LANDED: agent cursor did not land"}
             result = macos_cua.click(10, 20, 3, app_name="Calculator")
 
-        self.assertFalse(result["accepted"])
-        press.assert_not_called()
+        self.assertFalse(result.get("accepted", result.get("ok")))
+        self.assertEqual(result.get("error_code"), "CURSOR_NOT_LANDED")
         call_driver.assert_not_called()
-
-    def test_click_sends_fresh_snapshot_id(self):
-        before = {
-            "snapshot_id": "snap-click-1",
-            "elements": [{"element_index": 3, "role": "AXButton", "label": "7"}],
-        }
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_snapshot",
-                return_value={"error": "native unavailable", "elements": []},
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_press",
-                return_value={"error": "native AX element 3 is unavailable"},
-            ),
-            mock.patch.object(macos_cua, "snapshot", return_value=before) as snapshot,
-            mock.patch.object(
-                macos_cua, "call_driver", return_value={"ok": True, "accepted": True}
-            ) as call_driver,
-        ):
-            result = macos_cua.click(10, 20, 3)
-
-        self.assertTrue(result["ok"])
-        snapshot.assert_called_once_with(10, 20, max_elements=120, retries=1, delay=0.1)
-        self.assertEqual(call_driver.call_args.args[0], "click")
-        self.assertEqual(call_driver.call_args.args[1]["snapshot_id"], "snap-click-1")
-        self.assertEqual(call_driver.call_args.args[1]["element_index"], 3)
-
-    def test_set_value_on_text_requires_matching_ax_readback(self):
-        before = {
-            "snapshot_id": "snapshot-1",
-            "elements": [
-                {"element_index": 1, "role": "AXTextArea", "value": "before"}
-            ],
-            "tree_markdown": "x" * 100,
-        }
-        after = {
-            "elements": [
-                {"element_index": 1, "role": "AXTextArea", "value": "after"}
-            ],
-            "tree_markdown": "x" * 100,
-        }
-        with (
-            mock.patch.object(macos_cua, "snapshot", side_effect=[before, after]),
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_snapshot",
-                return_value={"error": "native unavailable", "elements": []},
-            ),
-            mock.patch.object(
-                macos_cua, "call_driver", return_value={"ok": True}
-            ) as call_driver,
-        ):
-            result = macos_cua.set_value(10, 20, 1, "after")
-
-        self.assertTrue(result["verified"])
-        self.assertEqual(result["path"], "driver+ax-value-readback")
-        self.assertEqual(
-            call_driver.call_args.args[1]["snapshot_id"], "snapshot-1"
-        )
-
-    def test_set_value_prefers_verified_native_ax(self):
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_snapshot",
-                return_value={
-                    "elements": [{"element_index": 4, "role": "AXTextArea"}],
-                    "tree_markdown": "[4] AXTextArea",
-                },
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_native_ax_set_value",
-                return_value={"ok": True, "verified": True},
-            ) as native_set,
-            mock.patch.object(macos_cua, "call_driver") as driver,
-        ):
-            result = macos_cua.set_value(10, 20, 4, "after")
-
-        self.assertTrue(result["verified"])
-        native_set.assert_called_once()
-        driver.assert_not_called()
 
     def test_ax_sequence_accepts_cocoa_style_iterables(self):
         class CocoaArray:
@@ -4287,125 +3438,6 @@ class PrimitiveContractTests(unittest.TestCase):
                 Path(output).resolve(), Path(directory, "proof", "state.png").resolve()
             )
             self.assertTrue(Path(directory, "proof").is_dir())
-
-    def test_point_click_uses_driver_count_field(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
-
-            macos_cua.click_point(10, 20, 30, 40, click_count=2)
-
-            click_calls = [c for c in calls if c[0] == "click"]
-            self.assertEqual(len(click_calls), 1)
-            self.assertEqual(click_calls[0][1]["count"], 2)
-            self.assertNotIn("click_count", click_calls[0][1])
-        finally:
-            macos_cua.call_driver = original_call_driver
-
-    def test_point_click_renders_and_acknowledges_operator_cursor_first(self):
-        move = {"ok": True, "cursor_normalized": {"x": 0.25, "y": 0.5}}
-        with (
-            mock.patch.object(
-                macos_cua, "_move_operator_cursor_to_point", return_value=move
-            ) as render,
-            mock.patch.object(
-                macos_cua, "call_driver", return_value={"ok": True}
-            ) as click,
-        ):
-            result = macos_cua.click_point(
-                10, 20, 30, 40, app_name="Example App"
-            )
-
-        render.assert_called_once_with("Example App", 10, 20, 30.0, 40.0)
-        self.assertEqual(
-            [call for call in click.call_args_list if call.args[0] == "click"],
-            [mock.call(
-                "click",
-                {
-                    "pid": 10,
-                    "window_id": 20,
-                    "x": 30.0,
-                    "y": 40.0,
-                    "button": "left",
-                    "count": 1,
-                    "delivery_mode": "background",
-                },
-            )],
-        )
-        self.assertEqual(result["move"], move)
-
-    def test_foreground_point_posts_verified_screen_point_to_target_pid(self):
-        move = {
-            "ok": True,
-            "cursor_normalized": {"x": 0.25, "y": 0.5},
-            "screen_point": {"x": 410.0, "y": 320.0},
-        }
-        native_text_pointer = SimpleNamespace(
-            accessible_text_click=mock.Mock(return_value=None)
-        )
-        native_input = SimpleNamespace(
-            post_mouse_click=mock.Mock(
-                return_value={"ok": True, "path": "native_pid_mouse"}
-            )
-        )
-        with (
-            mock.patch.object(
-                macos_cua,
-                "bring_resolved_window_to_front",
-                return_value={"ok": True},
-            ),
-            mock.patch.object(
-                macos_cua, "_move_operator_cursor_to_point", return_value=move
-            ),
-            mock.patch.object(
-                macos_cua,
-                "_native_text_pointer",
-                return_value=native_text_pointer,
-            ),
-            mock.patch.object(macos_cua, "_native_input", return_value=native_input),
-            mock.patch.object(macos_cua, "call_driver") as driver,
-        ):
-            result = macos_cua.click_point(
-                10,
-                20,
-                30,
-                40,
-                delivery_mode="foreground",
-                app_name="Example App",
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(
-            result["path"], "verified-screen-point+native-pid-mouse"
-        )
-        native_text_pointer.accessible_text_click.assert_called_once()
-        native_input.post_mouse_click.assert_called_once_with(
-            10,
-            {"x": 410.0, "y": 320.0},
-            button="left",
-            count=1,
-        )
-        driver.assert_not_called()
-
-    def test_point_click_fails_closed_when_operator_cursor_is_not_visible(self):
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_move_operator_cursor_to_point",
-                return_value={"ok": False, "error": "cursor unavailable"},
-            ),
-            mock.patch.object(macos_cua, "call_driver") as click,
-        ):
-            result = macos_cua.click_point(
-                10, 20, 30, 40, app_name="Example App"
-            )
-
-        self.assertFalse(result["ok"])
-        self.assertIn("visible operator cursor", result["error"])
-        click.assert_not_called()
 
     def test_point_target_rejects_stale_operator_screenshot(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -4436,99 +3468,6 @@ class PrimitiveContractTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("stale", result["error"])
         publish.assert_not_called()
-
-    def test_point_click_keeps_raw_png_pixels_and_forwards_foreground_debug(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
-
-            with mock.patch.object(
-                macos_cua,
-                "bring_resolved_window_to_front",
-                return_value={"ok": True},
-            ) as foreground:
-                macos_cua.click_point(
-                    10,
-                    20,
-                    70,
-                    14,
-                    delivery_mode="foreground",
-                    debug_image_out="/tmp/click.png",
-                )
-
-            foreground.assert_called_once_with(10, 20)
-            click_calls = [c for c in calls if c[0] == "click"]
-            self.assertEqual(len(click_calls), 1)
-            self.assertEqual(click_calls[0][1]["x"], 70.0)
-            self.assertEqual(click_calls[0][1]["y"], 14.0)
-            self.assertEqual(click_calls[0][1]["delivery_mode"], "foreground")
-            self.assertEqual(click_calls[0][1]["debug_image_out"], "/tmp/click.png")
-        finally:
-            macos_cua.call_driver = original_call_driver
-
-    def test_double_click_reuses_window_local_click_mapping(self):
-        with mock.patch.object(
-            macos_cua,
-            "click_point",
-            return_value={"effect": "unverifiable"},
-        ) as click:
-            result = macos_cua.double_click(
-                10,
-                20,
-                x=30,
-                y=40,
-                delivery_mode="background",
-            )
-
-        self.assertEqual(result["effect"], "unverifiable")
-        click.assert_called_once_with(
-            10,
-            20,
-            30,
-            40,
-            click_count=2,
-            delivery_mode="background",
-        )
-
-    def test_double_click_uses_center_of_visible_element_intersection(self):
-        state = {
-            "elements": [
-                {
-                    "element_index": 1,
-                    "role": "AXWindow",
-                    "frame": {"x": 100, "y": 200, "w": 400, "h": 300},
-                },
-                {
-                    "element_index": 2,
-                    "role": "AXTextArea",
-                    "frame": {"x": 120, "y": 220, "w": 200, "h": 1000},
-                },
-            ]
-        }
-        with mock.patch.object(
-            macos_cua, "click_point", return_value={"ok": True}
-        ) as click:
-            result = macos_cua.double_click(
-                10,
-                20,
-                element_index=2,
-                delivery_mode="foreground",
-                snapshot_data=state,
-            )
-
-        self.assertEqual(result, {"ok": True})
-        click.assert_called_once_with(
-            10,
-            20,
-            120.0,
-            160.0,
-            click_count=2,
-            delivery_mode="foreground",
-            verified_screen_point={"x": 220.0, "y": 360.0},
-        )
 
     def test_double_click_uses_two_native_presses_for_accessible_button(self):
         state = {
@@ -4654,79 +3593,6 @@ class PrimitiveContractTests(unittest.TestCase):
             ),
             (10, 0),
         )
-
-    def test_drag_forwards_foreground_delivery(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
-
-            moves = [
-                {
-                    "ok": True,
-                    "cursor_normalized": {"x": 0.1, "y": 0.2},
-                    "publish": {"state": {"cursor_update_id": "source"}},
-                    "sync": {"ok": True},
-                },
-                {
-                    "ok": True,
-                    "cursor_normalized": {"x": 0.3, "y": 0.4},
-                    "publish": {"state": {"cursor_update_id": "destination"}},
-                    "sync": None,
-                },
-            ]
-            with (
-                mock.patch.object(
-                    macos_cua,
-                    "bring_resolved_window_to_front",
-                    return_value={"ok": True},
-                ) as foreground,
-                mock.patch.object(
-                    macos_cua,
-                    "app_state",
-                    return_value={
-                        "ok": True,
-                        "screenshot": {"width": 100, "height": 100},
-                        "capture_geometry": {
-                            "expected": {"x": 0, "y": 0, "width": 100, "height": 100}
-                        },
-                    },
-                ),
-                mock.patch.object(
-                    macos_cua, "_move_operator_cursor_to_point", side_effect=moves
-                ) as move,
-                mock.patch.object(
-                    macos_cua,
-                    "_wait_for_operator_cursor",
-                    return_value={"ok": True},
-                ),
-            ):
-                result = macos_cua.drag(
-                    10,
-                    20,
-                    1,
-                    2,
-                    3,
-                    4,
-                    delivery_mode="foreground",
-                    duration_ms=900,
-                    steps=36,
-                )
-
-            foreground.assert_called_once_with(10, 20)
-            self.assertEqual(calls[0][0], "drag")
-            self.assertEqual(calls[0][1]["delivery_mode"], "foreground")
-            self.assertEqual(calls[0][1]["duration_ms"], 900)
-            self.assertEqual(calls[0][1]["steps"], 36)
-            self.assertEqual(result["effect"], "unverified")
-            self.assertTrue(result["system_cursor_used"])
-            self.assertTrue(result["move"]["destination"]["sync"]["ok"])
-            self.assertEqual(move.call_count, 2)
-        finally:
-            macos_cua.call_driver = original_call_driver
-
 
 class PlanEfficiencyTests(unittest.TestCase):
     @staticmethod
@@ -5476,137 +4342,6 @@ class PlanEfficiencyTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["state_reuses"], 1)
         self.assertEqual(result["steps"][1]["state_reused"], True)
 
-    def test_pointer_label_click_prefers_native_ax_without_driver_snapshot(self):
-        native = self._snapshot("Go", "Ready")
-        native["source"] = "native_ax"
-        native["elements"].insert(
-            0,
-            {
-                "element_index": 0,
-                "role": "AXWindow",
-                "label": "Fixture",
-                "frame": {"x": 0, "y": 0, "w": 200, "h": 200},
-            },
-        )
-        native["elements"][1]["_native_element"] = object()
-        native["elements"][1]["_native_services"] = object()
-        with (
-            mock.patch.object(macos_cua, "_native_ax_snapshot", return_value=native),
-            mock.patch.object(macos_cua, "snapshot") as driver_snapshot,
-            mock.patch.object(macos_cua, "_native_ax_press", return_value={"ok": True}),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
-            mock.patch.object(
-                macos_cua,
-                "_wait_for_operator_cursor",
-                return_value={"ok": True, "duration_ms": 1},
-            ),
-            mock.patch.object(
-                macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
-            ),
-        ):
-            result = macos_cua.click_label_pointer(
-                10, 20, "Go", app_name="Fixture"
-            )
-
-        self.assertTrue(result["ok"])
-        self.assertEqual(result["method"], "agent-cursor-glide+native-axpress-fallback")
-        driver_snapshot.assert_not_called()
-
-    def test_scroll_forwards_foreground_delivery(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
-
-            macos_cua.scroll(
-                10,
-                20,
-                "down",
-                1,
-                by="page",
-                element_index=30,
-                delivery_mode="foreground",
-            )
-
-            self.assertEqual(calls[0][0], "scroll")
-            self.assertEqual(calls[0][1]["delivery_mode"], "foreground")
-            self.assertEqual(calls[0][1]["element_index"], 30)
-        finally:
-            macos_cua.call_driver = original_call_driver
-
-    def test_page_scroll_prefers_exact_window_native_ax(self):
-        native = {"elements": [{"element_index": 30, "role": "AXOutline"}]}
-        native_input = SimpleNamespace(
-            scroll_page=mock.Mock(return_value={"ok": True, "path": "native_ax_scroll"})
-        )
-        with (
-            mock.patch.object(macos_cua, "_native_ax_snapshot", return_value=native) as snapshot,
-            mock.patch.object(macos_cua, "_native_input", return_value=native_input),
-            mock.patch.object(macos_cua, "call_driver") as driver,
-        ):
-            result = macos_cua.scroll(
-                10, 20, "down", 1, by="page", element_index=30
-            )
-
-        self.assertEqual(result["path"], "native_ax_scroll")
-        snapshot.assert_called_once_with(10, max_elements=120, window_id=20)
-        native_input.scroll_page.assert_called_once_with(native, 30, "down")
-        driver.assert_not_called()
-
-    def test_page_scroll_recovers_capture_failure_with_pid_key(self):
-        native_input = SimpleNamespace(
-            scroll_page=mock.Mock(return_value={"error": "unavailable"}),
-            page_key_scroll=mock.Mock(
-                return_value={"ok": True, "path": "native_pid_page_key"}
-            ),
-        )
-        with (
-            mock.patch.object(macos_cua, "_native_ax_snapshot", return_value={}),
-            mock.patch.object(macos_cua, "_native_input", return_value=native_input),
-            mock.patch.object(
-                macos_cua,
-                "call_driver",
-                return_value={"code": "px_capture_unavailable"},
-            ),
-        ):
-            result = macos_cua.scroll(
-                10, 20, "down", 2, by="page", x=30, y=40
-            )
-
-        self.assertEqual(result["path"], "native_pid_page_key")
-        native_input.page_key_scroll.assert_called_once_with(
-            macos_cua._post_key_event, 10, "down", 2
-        )
-
-    def test_page_scroll_rejects_recovered_global_input(self):
-        native_input = SimpleNamespace(
-            page_key_scroll=mock.Mock(
-                return_value={
-                    "ok": True,
-                    "accepted": True,
-                    "path": "native_pid_page_key",
-                }
-            ),
-        )
-        with (
-            mock.patch.object(macos_cua, "_native_input", return_value=native_input),
-            mock.patch.object(
-                macos_cua,
-                "call_driver",
-                return_value={
-                    "effect": "unverifiable",
-                    "route": "global_input",
-                    "session_recovered": True,
-                },
-            ),
-        ):
-            result = macos_cua.scroll(10, 20, "down", 1, by="page", x=30, y=40)
-
-        self.assertEqual(result["path"], "native_pid_page_key")
-        native_input.page_key_scroll.assert_called_once()
-
     def test_native_page_scroll_uses_scrollable_ancestor(self):
         target, parent = object(), object()
         services = SimpleNamespace(
@@ -5634,24 +4369,6 @@ class PlanEfficiencyTests(unittest.TestCase):
         services.AXUIElementPerformAction.assert_called_once_with(
             parent, "AXScrollDownByPage"
         )
-
-    def test_focused_type_omits_element_index(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
-
-            macos_cua.type_text(10, 20, None, "hello", delivery_mode="foreground")
-
-            self.assertEqual(calls[0][0], "type_text")
-            self.assertEqual(calls[0][1]["text"], "hello")
-            self.assertNotIn("element_index", calls[0][1])
-            self.assertEqual(calls[0][1]["delivery_mode"], "foreground")
-        finally:
-            macos_cua.call_driver = original_call_driver
-
 
 class ListButtonsTests(unittest.TestCase):
     def test_vision_inventory_prints_labeled_framed_targets(self):
@@ -5880,7 +4597,7 @@ class DriverSocketTransportTests(unittest.TestCase):
         self.assertEqual(result, {"error": "boom"})
         run.assert_not_called()
 
-    def test_session_ended_revives_named_session_once(self):
+    def test_session_ended_is_returned_without_start_session(self):
         ended = {
             "refusal": {
                 "code": "session_ended",
@@ -5888,26 +4605,16 @@ class DriverSocketTransportTests(unittest.TestCase):
             },
             "status": "refused",
         }
-        fake = _FakeDriverSocket(
-            chunks=[
-                _envelope_line(ended),
-                _envelope_line({"ok": True}),
-                _envelope_line({"ok": True, "accepted": True}),
-            ]
-        )
+        fake = _FakeDriverSocket(chunks=[_envelope_line(ended)])
         with mock.patch.object(macos_cua, "_connect_driver_socket", return_value=fake):
             with mock.patch.object(macos_cua.subprocess, "run") as run:
                 result = macos_cua.call_driver(
                     "press_key", {"pid": 10, "window_id": 20, "key": "escape"}
                 )
-        self.assertEqual(result.get("ok"), True)
-        self.assertTrue(result.get("session_recovered"))
+        self.assertTrue(macos_cua.driver_session_ended(result))
+        self.assertFalse(macos_cua._accepted(result))
         payloads = [json.loads(item) for item in fake.sent]
-        self.assertEqual(
-            [item["name"] for item in payloads],
-            ["press_key", "start_session", "press_key"],
-        )
-        self.assertEqual(payloads[2]["args"].get("session"), macos_cua.CUA_SESSION)
+        self.assertEqual([item["name"] for item in payloads], ["press_key"])
         run.assert_not_called()
 
     def test_reconnect_waits_for_restarted_daemon_socket(self):

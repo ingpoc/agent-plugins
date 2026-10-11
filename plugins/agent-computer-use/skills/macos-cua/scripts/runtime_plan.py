@@ -6,10 +6,8 @@ from __future__ import annotations
 import time
 
 def _plan_snapshot(pid, window_id, max_elements=120):
-    state = _native_ax_snapshot(pid, max_elements=max_elements, window_id=window_id)
-    if snapshot_content_error(state):
-        return snapshot(pid, window_id, max_elements=max_elements)
-    return state
+    """CUAService walk only — same zero-based index space as click/type/set-value."""
+    return snapshot(pid, window_id, max_elements=max_elements)
 
 def evaluate_expectations(snapshot_data, expectations, *, ignore_element_indices=None):
     """Evaluate deterministic state assertions against a fresh snapshot."""
@@ -57,6 +55,29 @@ def _unasserted_plan_steps(plan):
 
 
 def run_actions(
+    pid, window_id, plan, *, app_name="app", foreground_prepared=False
+):
+    """Run a plan as one task: the agent cursor stays visible across its steps
+    and is hidden when the plan ends, success or failure."""
+    result = None
+    try:
+        result = _run_actions(
+            pid, window_id, plan, app_name=app_name, foreground_prepared=foreground_prepared
+        )
+        return result
+    finally:
+        hidden = _hide_task_cursor()
+        if isinstance(result, dict):
+            result["cursor_hidden"] = hidden.get("ok") is True
+            if hidden.get("ok") is not True:
+                result["cursor_hide_error"] = hidden.get("error") or "cursor hide failed"
+                # Required cleanup: do not report success with the agent cursor still up.
+                result["ok"] = False
+                result["accepted"] = False
+                result["verified"] = False
+
+
+def _run_actions(
     pid, window_id, plan, *, app_name="app", foreground_prepared=False
 ):
     """Run a state-aware action plan with fresh indices and assertions."""

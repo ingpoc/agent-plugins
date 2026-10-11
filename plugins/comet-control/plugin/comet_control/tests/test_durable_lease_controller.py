@@ -277,6 +277,39 @@ class DurableLeaseControllerSequencingTests(unittest.TestCase):
             self.assertTrue(on_disk["result"]["response"]["verified_absent"])
             self.assertEqual(on_disk["result"]["event"], "closeout")
 
+    def test_closeout_of_never_ready_lease_proves_absence(self) -> None:
+        # 2026-10-06: fixture died → preflight_failed → ready.json had no top-level
+        # session_id → closeout KeyError('session_id') → verified_absent:false.
+        import io
+        from contextlib import redirect_stdout
+        mod = _load_controller()
+        seen = []
+        mod._session_absence_proof = lambda sock, sid: (seen.append((sock, sid)) or {
+            "verified_absent": True, "matching_session_count": 0})
+        for ready in (
+            {"ok": False, "error": "no_ready", "first": {"event": "preflight_failed"},
+             "session_id": "never-ready-1", "socket_path": "/s.sock"},
+            {"ok": False, "error": "no_ready", "first": {"session_id": "never-ready-1"}},
+        ):
+            with tempfile.TemporaryDirectory(prefix="comet-never-ready-") as tmp:
+                work = Path(tmp)
+                (work / "ready.json").write_text(json.dumps(ready))
+
+                class Args:
+                    workdir = str(work)
+                    timeout = 5.0
+
+                out = io.StringIO()
+                with redirect_stdout(out):
+                    rc = mod.cmd_closeout(Args())
+                payload = json.loads(out.getvalue())
+                self.assertEqual(rc, 0)
+                self.assertTrue(payload["response"]["verified_absent"])
+                self.assertTrue(payload["response"]["never_ready"])
+                self.assertNotIn("error", payload["response"])
+        self.assertEqual(seen[0], ("/s.sock", "never-ready-1"))
+        self.assertEqual(seen[1][1], "never-ready-1")
+
     def test_closeout_reaps_lease_browser_use_daemons_without_failing_closeout(self) -> None:
         import io
         from contextlib import redirect_stdout

@@ -17,91 +17,100 @@ import tempfile
 import time
 from pathlib import Path
 
+_CUASERVICE_CURSOR = {
+    "engine": "CUAService",
+    "glide_ms": 120,
+    "note": (
+        "CUAService CursorOverlay owns cursor style + motion (0.12s cubic "
+        "ease-out, tip lands before press). The legacy cua-driver "
+        "cursor style/motion (300ms glide) and session calls were removed."
+    ),
+}
+
+
+def _cuaservice_client():
+    service_dir = str(Path(__file__).resolve().parents[1] / "service")
+    if service_dir not in sys.path:
+        sys.path.insert(0, service_dir)
+    from cua_client import CUAClient  # noqa: WPS433
+
+    client = CUAClient()
+    client.connect()
+    return client
+
+
 def ensure_session(session: str | None = None) -> dict:
-    """Revive an explicit legacy cua-driver cursor session."""
-    sid = session or CUA_SESSION
-    return call_driver("start_session", {"session": sid}, timeout=10)
+    """No-op: CUAService has no driver session (start_session is banned)."""
+    return {"ok": True, "skipped": "cuaservice_has_no_session", **_CUASERVICE_CURSOR}
 
 
 def configure_cursor_icon(
     session: str | None = None, *, icon_path: str | None = None
 ) -> dict:
-    """Configure an explicit legacy driver cursor; primary clicks do not call this."""
-    sid = session or CUA_SESSION
+    """Report CUAService cursor ownership; never calls cua-driver."""
     source_path = icon_path or CURSOR_ICON
     path = cursor_raster_path(source_path)
-    use_arrow = os.environ.get("MACOS_CUA_CURSOR_ARROW", "0") == "1"
-    cursor_label = os.environ.get(
-        "MACOS_CUA_CURSOR_LABEL", f"macos-cua · {_operator_ui().detect_harness()}"
-    )
-    ensure_session(sid)
-    style = {"raw": "skipped-svg-arrow-default"}
-    if not use_arrow and os.path.isfile(path):
-        style = call_driver(
-            "set_agent_cursor_style",
-            {"session": sid, "cursor_id": sid, "image_path": path},
-            timeout=10,
-        )
-    motion = call_driver(
-        "set_agent_cursor_motion",
-        {
-            "session": sid,
-            "cursor_id": sid,
-            **({} if use_arrow else {"cursor_icon": path}),
-            "cursor_size": int(os.environ.get("MACOS_CUA_CURSOR_SIZE", "64")),
-            "cursor_opacity": 1.0,
-            "cursor_color": os.environ.get("MACOS_CUA_CURSOR_COLOR", "#00FFFF"),
-            "cursor_label": cursor_label,
-            "glide_duration_ms": int(os.environ.get("MACOS_CUA_GLIDE_MS", "300")),
-            "dwell_after_click_ms": int(os.environ.get("MACOS_CUA_DWELL_MS", "300")),
-            "idle_hide_ms": 0,
-        },
-        timeout=10,
-    )
-    ok = "error" not in motion and (use_arrow or "error" not in style)
     return {
-        "ok": ok,
+        "ok": True,
+        "configured": False,
         "icon": path,
         "source_icon": source_path,
-        "using_generic_arrow": use_arrow,
-        "style": style,
-        "motion": motion,
+        "using_generic_arrow": False,
+        **_CUASERVICE_CURSOR,
     }
 
 
-def cursor(action, **kwargs):
-    global _CURSOR_CONFIGURED
-    session = kwargs.get("session", CUA_SESSION)
-    ensure_session(session)
-    if action == "status":
-        sess = call_driver("get_agent_cursor_state", {"session": session})
-        return sess
-    if action == "configure":
-        configured = configure_cursor_icon(session, icon_path=kwargs.get("icon"))
-        _CURSOR_CONFIGURED = True
-        return configured
-    if action == "show":
-        if (
-            _CURSOR_CONFIGURED
-            and os.environ.get("MACOS_CUA_FORCE_CURSOR_CONFIG") != "1"
-        ):
-            configured = {"ok": True, "skipped": "already_configured"}
+def _cursor_overlay_state(idle_hide_ms: int | None = None) -> dict:
+    """Live overlay visibility + idle-hide setting. Fail loud on RPC error."""
+    client = _cuaservice_client()
+    try:
+        if idle_hide_ms is not None:
+            state = client.configure_cursor(idle_hide_ms)
         else:
-            configured = configure_cursor_icon(session, icon_path=kwargs.get("icon"))
-            _CURSOR_CONFIGURED = True
-        enabled = call_driver(
-            "set_agent_cursor_enabled",
-            {"enabled": True, "session": session},
-        )
-        return {"configured": configured, "enabled": enabled}
+            state = client.cursor_status()
+    finally:
+        client.close()
+    if not isinstance(state, dict) or state.get("ok") is not True:
+        raise RuntimeError(f"CUAService cursor state failed: {state!r}")
+    return {k: v for k, v in state.items() if k != "ok"}
+
+
+def cursor(action, **kwargs):
+    """`macos-cua cursor <action>` routed to CUAService (socket only)."""
+    if action in {"status", "configure"}:
+        idle = kwargs.get("idle_hide_ms")
+        if idle is not None and action != "configure":
+            return {"ok": False, "error": "--idle-hide-ms is only valid with `cursor configure`",
+                    "engine": "CUAService"}
+        if idle is not None and idle < 0:
+            return {"ok": False, "error": f"--idle-hide-ms must be >= 0 (0 = never), got {idle}",
+                    "engine": "CUAService"}
+        out = configure_cursor_icon(icon_path=kwargs.get("icon"))
+        try:
+            out["overlay"] = _cursor_overlay_state(idle)
+        except Exception as exc:  # fail loud: status without live state is not ok
+            return {**out, "ok": False, "error": f"CUAService cursor_status unavailable: {exc}"}
+        if idle is not None:
+            out["configured"] = True
+        return out
+    if action == "show":
+        return {
+            "ok": False,
+            "error": "cursor show is not a CUAService RPC; the overlay appears on the next act/click",
+            "engine": "CUAService",
+        }
     if action == "hide":
-        return call_driver(
-            "set_agent_cursor_enabled", {"enabled": False, "session": session}
-        )
+        client = _cuaservice_client()
+        try:
+            return {**(client.hide_agent_cursor() or {"ok": True}), "engine": "CUAService"}
+        finally:
+            client.close()
     if action == "move":
-        return call_driver(
-            "move_cursor", {"x": kwargs["x"], "y": kwargs["y"], "session": session}
-        )
+        return {
+            "ok": False,
+            "error": "bare cursor move is not a CUAService RPC; use act/click (tip lands, then AX press)",
+            "engine": "CUAService",
+        }
     raise ValueError(f"unknown cursor action: {action}")
 
 
@@ -148,7 +157,10 @@ def _main():
             _emit_json({"ok": False, **visual}, require_ok=True)
 
     if args.command == "status":
-        print(json.dumps(driver_status(), indent=2, default=str))
+        status = driver_status()
+        print(json.dumps(status, indent=2, default=str))
+        if (status.get("cuaservice") or {}).get("ok") is not True:
+            sys.exit(1)
         return
     if args.command == "reset":
         removed = clear_resolution_cache()
@@ -224,12 +236,14 @@ def _main():
         kw = {"session": args.session}
         if args.icon:
             kw["icon"] = args.icon
+        if args.idle_hide_ms is not None:
+            kw["idle_hide_ms"] = args.idle_hide_ms
         if args.action == "move":
             if args.x is None or args.y is None:
                 print(json.dumps({"error": "move requires --x and --y"}))
                 sys.exit(1)
             kw.update(x=args.x, y=args.y)
-        print(json.dumps(cursor(args.action, **kw), indent=2, default=str))
+        _emit_json(cursor(args.action, **kw), require_ok=True)
         return
 
     if args.command == "click-desktop":
@@ -348,7 +362,13 @@ def _main():
             active=True,
             message="Accessibility state",
         )
-        _print_snap(snapshot(pid, wid, args.max_elements, args.mode))
+        snap = snapshot(pid, wid, args.max_elements, args.mode)
+        if snap.get("error") or snap.get("ok") is False:
+            payload = dict(snap)
+            payload.setdefault("ok", False)
+            _emit_json(payload, require_ok=True)
+        else:
+            _print_snap(snap)
     elif args.command == "state":
         result = app_state(
             name or args.app,
@@ -465,7 +485,7 @@ def _main():
         mode = "system_events" if args.system_events else (
             "foreground" if args.foreground else "background"
         )
-        print(json.dumps(press_key(pid, wid, args.keys, mode), indent=2, default=str))
+        _emit_json(press_key(pid, wid, args.keys, mode), require_accepted=True)
     elif args.command == "hold-key":
         _emit_json(
             hold_key(

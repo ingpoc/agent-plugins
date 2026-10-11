@@ -420,9 +420,10 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "mcp_runtime must not spawn macos-cua.py per state/act",
     )
     add(
-        "start_session clears resolution cache",
-        "clear_resolution_cache" in _function_source(runtime, "start_driver"),
-        "start_driver must drop stale app PIDs before resolve",
+        "MCP runtime has no driver sessions",
+        "start_session" not in runtime and "end_session" not in runtime
+        and "cuaservice_health" in _function_source(runtime, "closeout"),
+        "cua-driver sessions are retired; closeout health is CUAService",
     )
     walk = (scripts / "runtime_accessibility.py").read_text()
     add(
@@ -433,27 +434,36 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     driver = (scripts / "runtime_driver.py").read_text()
     call = _function_source(driver, "call_driver")
     add(
-        "driver calls revive a dropped session once",
-        "driver_session_ended" in driver
-        and "start_session" in call
-        and "end_session" in call
-        and "retry_params" in call
-        and 'retry_params["session"]' in call,
-        "call_driver must start_session once on session_ended, not fail the key",
+        "driver calls never auto-start a session",
+        "start_session" not in call and "retry_params" not in call,
+        "start_session is banned; a session_ended refusal must surface, not revive",
     )
     press = _function_source(walk, "press_key")
     add(
-        "keys survive a dropped driver session via native PID delivery",
-        "driver_session_ended" in press
-        and "press_key_after_dropped_session" in press
-        and "global_input" in press,
-        "Escape/hotkey must not die when cua-driver session_ended after AX",
+        "keys route through the CUAService socket",
+        "_cuaservice_press_key" in press and "call_driver" not in press,
+        "macos-cua key must use CUAService press_key, never the retired cua-driver",
     )
+    routed = {
+        "runtime_accessibility.py": ("scroll", "set_value", "type_text"),
+        "runtime_labels.py": ("click",),
+        "runtime_pointer.py": ("right_click",),
+        "runtime_pointer_actions.py": ("drag",),
+        "runtime_snapshot.py": ("snapshot",),
+        "runtime_capture.py": ("app_state",),
+        "runtime_apps.py": ("list_apps",),
+    }
+    stray = [
+        f"{name}:{fn}"
+        for name, fns in routed.items()
+        for fn in fns
+        if "cua_" not in _function_source((scripts / name).read_text(), f"{fn}(")
+        or "call_driver" in _function_source((scripts / name).read_text(), f"{fn}(")
+    ]
     add(
-        "page scroll survives global_input after a dropped session",
-        "global_input" in _function_source(walk, "scroll")
-        and "page_key_scroll" in _function_source(walk, "scroll"),
-        "scroll must not accept unverifiable global_input as the outcome",
+        "observation and index input share the CUAService index space",
+        not stray,
+        ",".join(stray) or "snap/state/click/scroll/type/set-value/drag/right-click/apps use CUAService",
     )
     labels = (scripts / "runtime_labels.py").read_text()
     add(
@@ -467,17 +477,19 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "_ax_press_unsupported" in retry and "find_clickable_index" in retry,
         "retitled controls rematch on the current tree via aliases/frame",
     )
-    click_label = _function_source(labels, "click_label_pointer")
+    click_label = _function_source(labels, "click_label_pointer(")
+    point_actions = (scripts / "runtime_pointer_actions.py").read_text()
+    click_point_src = _function_source(point_actions, "click_point(")
+    desktop_src = _function_source(point_actions, "click_at_desktop(")
     add(
-        "unsupported container press after glide uses AX-frame HID",
-        "ax-frame-hid" in click_label and "delivery_mode=\"foreground\"" in click_label,
-        "row/cell AXPress miss after glide must click the AX frame, not desktop-global search",
-    )
-    add(
-        "cursor glide failure does not block native AX press fallback",
-        "native_fallback or idx is not None" in click_label
-        and click_label.index("native_fallback or idx") < click_label.index("native_fallback:"),
-        "glide is UX; when the AX element exists, action dispatch must proceed via AX press",
+        "label and point clicks are CUAService clicks under the landing gate",
+        "cua_click(" in click_label
+        and not any(x in click_label for x in ("_native_ax_press_label_with_retry(", "click_at_desktop(", "post_mouse_click", "call_driver"))
+        and '_cuaservice_rpc(pid, "click"' in click_point_src
+        and "call_driver" not in click_point_src
+        and "desktop_click_retired" in desktop_src
+        and "_dispatch_coordinate_click" not in point_actions,
+        "a refused landing (CURSOR_NOT_LANDED) must not fall through to native AX/HID/desktop clicks",
     )
     pointer = (scripts / "runtime_pointer.py").read_text()
     preflight_fn = _function_source(pointer, "pointer_preflight")
@@ -489,21 +501,23 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     )
     glide_fn = _function_source(pointer, "glide_operator_to_element")
     add(
-        "legacy operator glide stays non-blocking",
-        "_wait_for_operator_cursor" not in glide_fn
-        and "time.sleep" not in glide_fn,
-        "operator twin is not the CUAService tip; do not resurrect wait-ack there",
+        "legacy operator glide waits for render ack before press",
+        "_wait_for_operator_cursor" in glide_fn
+        and "time.sleep" not in glide_fn
+        and "cursor_visible=False" in glide_fn,
+        "operator tip must land (render ack) before AX press; timeout hides + retries once",
     )
     settle = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
     overlay = (root / "service" / "Sources" / "CUAService" / "CursorOverlay.swift").read_text()
     add(
-        "CUAService click waits for overlay tip before press",
-        "tip.wait" in settle
-        and "Task.sleep" in settle
+        "CUAService click waits for confirmed overlay landing before press",
+        "glideAndLand" in settle
         and "Tip lands first" in settle
-        and "return (quartz, animDuration)" in overlay
-        and "wait: TimeInterval)" in overlay,
-        "fire-and-forget glide left the badge mid-air while AX already pressed",
+        and "cursor_landing" in settle
+        and "resolveLandWaiters(true)" in overlay
+        and "landingError()" in overlay
+        and "return (quartz, animDuration)" in overlay,
+        "timer sleep is not arrival; press only after final frame ack + measured tip",
     )
     vision = (scripts / "runtime_vision.py").read_text()
     add(
@@ -519,10 +533,18 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     agent_docs = skill_md + "\n" + fast_workflow + "\n" + architecture
     mcp = "\n".join(
         (scripts / name).read_text()
-        for name in ("compact_mcp.py", "compact_backend.py")
+        for name in (
+            "compact_mcp.py",
+            "compact_backend.py",
+            "compact_form_fills.py",
+            "compact_instructions.txt",
+        )
     )
     method_router = (
         root / "service" / "Sources" / "CUAService" / "MethodRouter.swift"
+    ).read_text()
+    cursor_overlay = (
+        root / "service" / "Sources" / "CUAService" / "CursorOverlay.swift"
     ).read_text()
     cua_client = (root / "service" / "cua_client.py").read_text()
     installer = (root / "service" / "install_service.py").read_text()
@@ -592,8 +614,9 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     add(
         "native plans always hide the agent cursor",
         "private func handleExecutePlan" in method_router
-        and "defer { cursorOverlay.hide() }" in method_router,
-        "the overlay must close after every completed or failed act",
+        and "defer { cursorOverlay.hide(reason: \"plan_end\") }" in method_router
+        and "self.hide(reason: \"idle\")" in cursor_overlay,
+        "the overlay must close when every completed or failed plan ends (idle hide = crash-safety net only)",
     )
     add(
         "session-shape benchmark encodes two wall clocks",
@@ -657,7 +680,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     )
     add(
         "mutating compact acts fail closed until the settled state verifies",
-        "def _has_ui_effect" in mcp
+        ("def _has_ui_effect" in mcp or "def has_ui_effect" in mcp)
         and "verification_required: mutating act needs expect" in mcp
         and '"dispatched": dispatched' in mcp
         and '"completion": "verified" if verified else "unverified"' in mcp,
@@ -842,7 +865,6 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "raiseForInput: true" in settle
         and "raiseForInput" in resolver
         and "waitUntilFrontmost" in resolver
-        and "key_target_not_front" in actions_src
         and "kAXFocusedApplicationAttribute" in resolver
         and "timeout: TimeInterval =" in resolver
         and "Date().addingTimeInterval(timeout)" in resolver
@@ -880,7 +902,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "AXPress only when the control advertises it; CG posts HID at the AX frame",
         'element.actions.contains("AXPress")' in actions_src
         and "func postHid" in actions_src
-        and "cghidEventTap" in actions_src
+        and "cghidEventTap" not in actions_src
         and "postToPid" in post_hid_body
         and not hid_dual_posts_same_helper(actions_src)
         and "doubled glyphs" in actions_src
@@ -900,8 +922,10 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     add(
         "PostEvent TCC is preflighted fail-closed",
         "CGPreflightPostEventAccess" in actions_src
-        and "ensurePostEventAccess" in actions_src,
-        "Accessibility grant alone still silent-no-op PostEvent HID",
+        and "ensurePostEventAccess" in actions_src
+        and "postevent_denied" in actions_src
+        and "func hidRefusal" in actions_src,
+        "Accessibility grant alone still silent-no-op PostEvent HID; denied + frontmost returned ok:true",
     )
     add(
         "expect must be new versus the before-tree",
@@ -1050,6 +1074,29 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "dump-docs" not in validator
         and "operator_build" not in validator,
         "validation must not restore cua-driver or build macos-cua Operator",
+    )
+    router_src = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
+    overlay_src = (root / "service" / "Sources" / "CUAService" / "CursorOverlay.swift").read_text()
+    gate = router_src.split("private func requireLanded", 1)[-1].split("\n    }\n", 1)[0]
+    add(
+        "unlanded tip refuses the press unless the caller opted in",
+        "if gate { try requireLanded(landing) }" in router_src
+        and "if landing.landed || allowUnlanded { return }" in gate
+        and "throw RPCMethodError" in gate
+        and router_src.count("gate: false") == 2  # observe-raise + drag end only
+        and 'method: "no_window_frame"' in router_src,  # opted-in blind press still reports landed:false
+        "a failed landing must not click; allow_unlanded is the only blind-press opt-in",
+    )
+    confirm = overlay_src.split("private func confirmPresented", 1)[-1].split("private func commitToRenderServer", 1)[0]
+    add(
+        "landing ack is a drawn frame, not the model position",
+        "await confirmPresented()" in overlay_src.split("func glideAndLand", 1)[-1]
+        and "CATransaction.setCompletionBlock" in overlay_src
+        and "CVDisplayLinkSetOutputHandler" in overlay_src
+        and "windowServerPlacement()" in confirm
+        and "kCGWindowIsOnscreen" in overlay_src
+        and 'frame == "frame"' in overlay_src,
+        "ack = CATransaction commit + display-link frame (asleep display = miss) + WindowServer bounds/on-screen",
     )
     agents = (root.parents[1] / "AGENTS.md").read_text()
     add(

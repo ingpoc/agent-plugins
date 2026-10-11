@@ -13,6 +13,18 @@ from typing import Any
 
 from state_delta import action_state_text
 from fail_feedback import apply_failure_feedback, VERIFICATION_REQUIRED
+from compact_form_fills import (
+    compile_error_payload,
+    compile_set_value_step,
+    expectation_supports_value,
+    expectation_value_field_matches,
+    fill_value_from_step,
+    has_ui_effect,
+    is_label_fill_step,
+    label_fill_follows_mutation,
+    resolve_set_value_index,
+    steps_need_label_state,
+)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_ROOT = SCRIPT_DIR.parents[2]
@@ -25,27 +37,7 @@ META_VERSION = "io.modelcontextprotocol/protocolVersion"
 META_CLIENT_CAPS = "io.modelcontextprotocol/clientCapabilities"
 META_SERVER_INFO = "io.modelcontextprotocol/serverInfo"
 TOOL_NAMES = ("state", "act")
-INSTRUCTIONS = (
-    "Thin MCP over CUAService (state + act only). Do not call start_session, "
-    "verify, end_session, list_apps, or raw cua-driver. "
-    "Two wall clocks: within-app batch one asserted act (steps+expect); "
-    "cross-app one act per surface then switch — each extra tool is a full "
-    "agent turn. Act-first when labels are known; state first only for "
-    "discovery or after act miss. Never probe with state then state then act "
-    "on the same app. Do not call verify — act already returns a compact AX "
-    "delta on success (not a full tree) and error_type taxonomy on failure. "
-    "Friction or rooted inefficiency: encode an app-agnostic fast_path grader "
-    "that fails the old trace, then retry; no named-app helpers; do not leave "
-    "the fix in chat. "
-    "Best first: overlay tip lands, then AX press (ax_timeout fail-closed). "
-    "Fallback only on miss: at most one fresh state; then screenshot/PIXEL_CLICK. "
-    "Never silent pixel fallback. Dispatch ok is never proof; no desktop-global click. "
-    "Screenshots attach only when pixels are the evidence (empty AX, Stage Manager thumb, "
-    "or screenshot:true). Verified expect and typed failures return AX delta / error_type "
-    "only — no JPEG. If a returned shot is the wrong window or a Stage Manager thumb, stop "
-    "and correct bounds — do not add a third MCP tool. "
-    "WhatsApp send/attach: $whatsapp skill, not these tools."
-)
+INSTRUCTIONS = (SCRIPT_DIR / "compact_instructions.txt").read_text()
 _BIDI = dict.fromkeys(
     map(
         ord,
@@ -106,6 +98,8 @@ def expectation_is_supported(expect: Any) -> bool:
         return bool(expect) and all(expectation_is_supported(item) for item in expect)
     if not isinstance(expect, dict) or not expect:
         return False
+    if expectation_supports_value(expect):
+        return True
     return any(
         bool(_norm_text(str(expect.get(key) or "")))
         for key in ("text", "not_text", "path")
@@ -143,6 +137,7 @@ def expectation_is_new(
             for item in (results or [])
             if item.get("path")
         ))
+    # expect.value is verified against unique field elements in act(), not tree text.
     return bool(checks) and all(checks)
 
 
@@ -185,21 +180,6 @@ def apply_screenshot_policy(payload, *, before, after, arguments, fetch=None):
     payload.update(screenshot_before=before_shot, screenshot_after=after_shot, screenshot=after_shot or before_shot)
     return payload
 
-
-def _has_ui_effect(arguments: dict[str, Any]) -> bool:
-    keys = (
-        "label", "element", "action", "op", "text", "key", "x", "y",
-        "path", "url", "direction", "from_x", "from_y", "to_x", "to_y",
-    )
-    steps = arguments.get("steps")
-    candidates = steps if isinstance(steps, list) and steps else [arguments]
-    return any(
-        isinstance(step, dict)
-        and any(step.get(key) is not None for key in keys)
-        and str(step.get("op") or step.get("action") or "").lower()
-        not in {"focus", "raise", "activate"}
-        for step in candidates
-    )
 
 
 class CUABackend:
@@ -267,7 +247,7 @@ class CUABackend:
         }
 
     def act(self, app: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        effectful = _has_ui_effect(arguments)
+        effectful = has_ui_effect(arguments)
         expect = arguments.get("expect")
         allow_unverified = arguments.get("allow_unverified") is True
         if effectful and not expectation_is_supported(expect) and not allow_unverified:
@@ -286,20 +266,40 @@ class CUABackend:
             steps = arguments.get("steps")
             if not isinstance(steps, list) or not steps:
                 steps = [arguments]
+            # Label fills after nav/click/type must not compile against a stale
+            # pre-plan snapshot — sequential _one re-resolves each fill (r9 #3).
+            use_execute_plan = hasattr(client, "execute_plan") and not (
+                steps_need_label_state(steps) and label_fill_follows_mutation(steps)
+            )
             native_steps: list[dict[str, Any]] = []
             after_new = False
+            elements_state: dict[str, Any] | None = None
             for step in steps:
                 if not isinstance(step, dict):
                     native_steps = []
                     break
-                native_steps.append(self._native_step(step, after_new_document=after_new))
+                if use_execute_plan and is_label_fill_step(step):
+                    # Re-resolve immediately before each fill compile.
+                    elements_state = self._get_app_state(
+                        client, app, includeElements=True, disableDiff=True
+                    )
+                native = self._native_step(
+                    step,
+                    after_new_document=after_new,
+                    elements_state=elements_state,
+                )
+                if native.get("compile_error"):
+                    if not use_execute_plan:
+                        native_steps = []; break  # _dispatch resolves labels
+                    return compile_error_payload(native["compile_error"], expect)
+                native_steps.append(native)
                 key = str(step.get("key") or "").lower().replace(" ", "")
                 if key in {"cmd+n", "command+n", "cmd+t", "command+t"}:
                     after_new = True
                 elif step.get("wait") is None:
                     after_new = False
 
-            if native_steps and hasattr(client, "execute_plan"):
+            if native_steps and use_execute_plan:
                 plan = client.execute_plan(app, native_steps)
                 before = plan.get("before") if isinstance(plan, dict) else {}
                 after = plan.get("after") if isinstance(plan, dict) else {}
@@ -310,7 +310,7 @@ class CUABackend:
                 ]
             else:
                 before = self._get_app_state(
-                    client, app, disableDiff=True, includeScreenshot=False
+                    client, app, disableDiff=True, includeScreenshot=False, includeElements=True
                 )
                 results = []
                 after_new = False
@@ -330,17 +330,18 @@ class CUABackend:
                     elif step.get("wait") is None:
                         after_new = False
                 after = self._get_app_state(
-                    client, app, disableDiff=True, includeScreenshot=False
+                    client, app, disableDiff=True, includeScreenshot=False, includeElements=True
                 )
 
             before_text = str(before.get("text") or "") if isinstance(before, dict) else ""
             text = str(after.get("text") or "") if isinstance(after, dict) else ""
             dispatched = all(item.get("ok") is True for item in results) and bool(results)
-            verified = (
-                expectation_is_new(expect, before_text, text, results)
-                if effectful and expectation_is_supported(expect)
-                else bool(dispatched and not effectful and text)
-            )
+            if effectful and expectation_supports_value(expect):
+                verified = expectation_value_field_matches(expect, after if isinstance(after, dict) else {})
+            elif effectful and expectation_is_supported(expect):
+                verified = expectation_is_new(expect, before_text, text, results)
+            else:
+                verified = bool(dispatched and not effectful and text)
             ok = bool(dispatched and verified)
             last = results[-1] if results else {}
             payload = {
@@ -415,9 +416,8 @@ class CUABackend:
                 payload, arguments=arguments, before_text="", after_text=after
             )
 
-    def _native_step(
-        self, step: dict[str, Any], *, after_new_document: bool = False
-    ) -> dict[str, Any]:
+    def _native_step(self, step: dict[str, Any], *, after_new_document: bool = False,
+                     elements_state: dict[str, Any] | None = None) -> dict[str, Any]:
         if step.get("wait") is not None:
             return {"method": "wait", "params": {"seconds": step["wait"]}}
         op = str(step.get("op") or "").lower()
@@ -465,6 +465,10 @@ class CUABackend:
         if step.get("key"):
             return {"method": "press_key", "params": {"key": str(step["key"])}}
         element = step.get("element")
+        action_l = str(action or "").lower()
+        fill_value = fill_value_from_step(step)
+        if action_l == "set_value" and fill_value is not None:
+            return compile_set_value_step(step, elements_state=elements_state)
         if step.get("text") is not None and element is not None and not step.get("label"):
             return {
                 "method": "set_value",
@@ -478,7 +482,7 @@ class CUABackend:
                     "after_new_document": after_new_document,
                 },
             }
-        if action and element is not None:
+        if action and element is not None and action_l not in {"click", "set_value", "type"}:
             return {
                 "method": "perform_secondary_action",
                 "params": {"element_index": int(element), "action": action},
@@ -558,15 +562,34 @@ class CUABackend:
             return client.press_key(app, str(key))
         text = step.get("text")
         element = step.get("element")
+        action = step.get("action")
+        action_name = str(action or "").lower()
+        fill_value = fill_value_from_step(step)
+        if action_name == "set_value" and fill_value is not None:
+            idx = int(element) if element is not None else None
+            if idx is None and step.get("label"):
+                try:
+                    idx = resolve_set_value_index(
+                        self._get_app_state(
+                            client, app, includeElements=True, disableDiff=True
+                        ),
+                        str(step["label"]),
+                    )
+                except ValueError as exc:
+                    return {"ok": False, "error": f"set_value: {exc}", "method": "set_value"}
+            if idx is None:
+                err = (f"set_value: field not found: {step.get('label')}" if step.get("label")
+                       else "set_value needs label or element")
+                return {"ok": False, "error": err, "method": "set_value"}
+            return client.set_value(app, idx, str(fill_value))
         if text is not None and element is not None and step.get("label") is None:
             return client.set_value(app, int(element), str(text))
         if text is not None and step.get("label") is None and element is None:
             return client.type_text(
                 app, str(text), after_new_document=after_new_document
             )
-        action = step.get("action")
         element = step.get("element")
-        if action and element is not None:
+        if action and element is not None and action_name not in {"click", "set_value", "type"}:
             return client.perform_secondary_action(app, int(element), str(action))
         kwargs: dict[str, Any] = {}
         if step.get("label"):

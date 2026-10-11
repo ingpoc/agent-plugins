@@ -25,23 +25,12 @@ def type_text(
                 "use set_value for multiline content or explicitly allow the newline"
             ),
         }
-    if x is None and y is None:
-        native = _native_type_selected_text(
-            pid, text, window_id=window_id, element_index=element_index
-        )
-        if _accepted(native):
-            return native
-    params = {
-        "pid": pid,
-        "window_id": window_id,
-        "text": text,
-        "delivery_mode": delivery_mode,
-    }
-    if element_index is not None:
-        params["element_index"] = element_index
-    elif x is not None and y is not None:
-        params.update(x=float(x), y=float(y))
-    return call_driver("type_text", params)
+    bound = max(80, int(element_index) + 1) if element_index is not None else 80
+    refused = require_cuaservice_window(pid, window_id, bound)
+    if refused:
+        return refused
+    return cua_type_text(pid, text, element_index=element_index, x=x, y=y, window_id=window_id)
+
 
 def _native_type_selected_text(pid, text, *, window_id=None, element_index=None):
     try:
@@ -94,8 +83,16 @@ def _verify_or_repair_native_select_all(pid):
     return _native_input().verify_or_repair_native_select_all(pid)
 
 
+_KEY_MODIFIERS = {"cmd", "shift", "option", "ctrl"}
+
+
 def press_key(pid, window_id, keys, delivery_mode="background"):
-    """Normalize a single key or combo before native/driver delivery."""
+    """Normalize a key/combo and deliver it through the CUAService socket.
+
+    cua-driver is retired: background and foreground both go to CUAService
+    press_key (it resolves and raises the app's window for input itself).
+    system_events stays the exact-PID osascript fallback.
+    """
     aliases = {
         "super": "cmd",
         "command": "cmd",
@@ -112,52 +109,61 @@ def press_key(pid, window_id, keys, delivery_mode="background"):
         keys = keys.strip()
     if delivery_mode == "system_events":
         return _system_events_press_key(pid, keys, aliases=aliases)
-    if delivery_mode == "foreground":
-        foreground = bring_resolved_window_to_front(pid, window_id)
-        if foreground.get("error"):
-            return foreground
-    if "+" in keys:
-        parts = [p.strip() for p in keys.split("+")]
-        normalized = [aliases.get(p.lower(), p.lower()) for p in parts]
-        if delivery_mode == "background" and normalized == ["cmd", "a"]:
-            native = _verify_or_repair_native_select_all(pid)
-            if _accepted(native):
-                return native
-        result = call_driver(
-            "hotkey",
-            {
-                "pid": pid,
-                "window_id": window_id,
-                "keys": normalized,
-                "delivery_mode": delivery_mode,
-            },
-        )
-    else:
-        result = call_driver(
-            "press_key",
-            {
-                "pid": pid,
-                "window_id": window_id,
-                "key": keys.lower(),
-                "delivery_mode": delivery_mode,
-            },
-        )
-    if driver_session_ended(result) or "global_input" in str(
-        result.get("route") or result.get("path") or ""
-    ).lower():
-        native = _native_input().press_key_after_dropped_session(
-            pid, keys, delivery_mode, aliases=aliases
-        )
+    parts = [aliases.get(p.strip().lower(), p.strip().lower()) for p in keys.split("+")]
+    if not all(parts) or any(p not in _KEY_MODIFIERS for p in parts[:-1]):
+        return {"ok": False, "error": f"unsupported key combo {keys!r}; modifiers: cmd, shift, option, ctrl"}
+    if delivery_mode == "background" and parts == ["cmd", "a"]:
+        native = _verify_or_repair_native_select_all(pid)
         if _accepted(native):
             return native
-    if delivery_mode == "background" and (
-        result.get("code") == "off_space_or_ax_unresolved"
-        or (result.get("escalation") or {}).get("recommended") == "foreground"
-    ):
-        retried = press_key(pid, window_id, keys, "foreground")
-        retried["escalated"] = "foreground"
-        return retried
-    return result
+    return _cuaservice_press_key(pid, "+".join(parts))
+
+
+def _cuaservice_press_key(pid, combo):
+    identity = _running_app_identity(f"pid:{pid}")
+    if not identity:
+        return {"ok": False, "error": f"no running app with pid {pid}", "engine": "CUAService"}
+    app = identity.get("bundle_id")
+    if not app:
+        # Swift falls back to fuzzy name matching; that cannot pin a pid.
+        return {
+            "ok": False,
+            "error": f"pid {pid} has no bundle id; CUAService cannot target it exactly. Use --system-events (exact-PID).",
+            "engine": "CUAService",
+        }
+    # CUAService resolves by bundle id/name (first match). Never let it pick a
+    # different instance than the pid the caller resolved.
+    twins = _pids_for_app(app)
+    if twins != [pid]:
+        return {
+            "ok": False,
+            "error": (
+                f"{app} has instances {twins}; CUAService press_key cannot target "
+                f"pid {pid} exactly. Use --system-events (exact-PID) instead."
+            ),
+            "engine": "CUAService",
+        }
+    client = _cuaservice_client()
+    try:
+        result = client.press_key(app, combo)
+    except Exception as exc:  # RPCError / socket failure: report, never swallow
+        return {"ok": False, "error": f"CUAService press_key failed: {exc}", "engine": "CUAService"}
+    finally:
+        client.close()
+    if not isinstance(result, dict):
+        return {"ok": False, "error": f"CUAService press_key returned {result!r}", "engine": "CUAService"}
+    return {**result, "app": app, "pid": pid, "engine": "CUAService"}
+
+
+def _pids_for_app(app):
+    """Sorted pids of running apps whose bundle id equals ``app``."""
+    from AppKit import NSWorkspace
+
+    return sorted(
+        int(a.processIdentifier())
+        for a in NSWorkspace.sharedWorkspace().runningApplications()
+        if str(a.bundleIdentifier() or "") == app
+    )
 
 
 def _system_events_press_key(pid, keys, *, aliases=None):
@@ -199,56 +205,24 @@ def scroll(
     y=None,
     delivery_mode="background",
 ):
-    if element_index is not None and by == "page":
-        native = _native_ax_snapshot(
-            pid, max_elements=max(120, int(element_index) + 1), window_id=window_id
-        )
-        native_result = _native_input().scroll_page(native, element_index, direction)
-        if _accepted(native_result):
-            return native_result
-    params = {
-        "pid": pid,
-        "window_id": window_id,
-        "direction": direction,
-        "amount": amount,
-        "by": by,
-        "delivery_mode": delivery_mode,
-    }
-    if element_index is not None:
-        params["element_index"] = element_index
-    elif x is not None and y is not None:
-        params.update(x=float(x), y=float(y))
-    result = call_driver("scroll", params)
-    if (
-        driver_session_ended(result)
-        or "global_input" in str(result.get("route") or result.get("path") or "").lower()
-        or (result.get("code") == "px_capture_unavailable" and by == "page")
-    ):
-        native = _native_input().page_key_scroll(
-            _post_key_event, pid, direction, amount
-        )
-        if _accepted(native):
-            return {**native, "session_recovered": True}
-    return result
+    if x is not None or y is not None:
+        return {"ok": False, "error": "CUAService scroll targets an element or the window; use --element N",
+                "engine": "CUAService"}
+    bound = max(80, int(element_index) + 1) if element_index is not None else 80
+    refused = require_cuaservice_window(pid, window_id, bound)
+    if refused:
+        return refused
+    return cua_scroll(
+        pid, direction, amount, by=by, element_index=element_index, x=x, y=y,
+        window_id=window_id,
+    )
 
 
 def set_value(pid, window_id, element_index, value):
-    native = _native_ax_snapshot(
-        pid, max_elements=max(120, int(element_index) + 1), window_id=window_id
-    )
-    if not snapshot_content_error(native):
-        result = _native_ax_set_value(native, element_index, value)
-        if _accepted(result):
-            return result
-    return _native_input().set_value_with_readback(
-        call_driver=call_driver,
-        snapshot=snapshot,
-        accepted=_accepted,
-        pid=pid,
-        window_id=window_id,
-        element_index=element_index,
-        value=value,
-    )
+    refused = require_cuaservice_window(pid, window_id, max(80, int(element_index) + 1))
+    if refused:
+        return {**refused, "element": int(element_index)}
+    return cua_set_value(pid, element_index, value, window_id=window_id)
 
 
 def _selection_range(value, text, *, prefix=None, suffix=None, selection_type="text"):

@@ -421,7 +421,7 @@ def _reopen_running_identity(pid):
 
 
 def list_apps():
-    return call_driver("list_apps")
+    return cua_list_apps()
 
 
 def list_windows():

@@ -44,7 +44,8 @@ final class AppResolver: @unchecked Sendable {
     func resolve(
         _ app: String,
         raiseForInput: Bool = false,
-        preferFocusedWindow: Bool = false
+        preferFocusedWindow: Bool = false,
+        windowID preferredWindowID: CGWindowID? = nil
     ) throws -> ResolvedApp {
         let runningApp = findRunningApp(app)
         guard let runningApp else {
@@ -56,17 +57,30 @@ final class AppResolver: @unchecked Sendable {
         // Multi-window apps (TextEdit): never snap state/act to the largest
         // CGWindow when a focused window exists. preferFocusedWindow still
         // forces a cache bust after New Document.
-        if preferFocusedWindow {
+        if preferFocusedWindow || preferredWindowID != nil {
             invalidateWindowCache()
         }
-        guard let listedID = findMainWindow(pid: pid) else {
-            throw RPCMethodError(code: -32002, message: "No window for app: \(app)")
+        let windowID: CGWindowID
+        if let preferred = preferredWindowID, preferred != 0 {
+            // Caller pinned a window: refuse foreign IDs and do not re-resolve
+            // to whatever is AX-focused after raise (Codex r8 major 1).
+            guard windowBelongsToPid(preferred, pid: pid) else {
+                throw RPCMethodError(
+                    code: -32002,
+                    message: "window \(preferred) does not belong to app: \(app) (pid \(pid))"
+                )
+            }
+            windowID = preferred
+        } else {
+            guard let listedID = findMainWindow(pid: pid) else {
+                throw RPCMethodError(code: -32002, message: "No window for app: \(app)")
+            }
+            let focusedID = focusedWindowID(axApp: axApp)
+            if let focusedID, focusedID != listedID {
+                invalidateWindowCache()
+            }
+            windowID = focusedID ?? listedID
         }
-        let focusedID = focusedWindowID(axApp: axApp)
-        if let focusedID, focusedID != listedID {
-            invalidateWindowCache()
-        }
-        let windowID = focusedID ?? listedID
         let cg = quartzBounds(windowID)
         let tiny = (cg?.width ?? 0) * (cg?.height ?? 0) < 80 * 80
         reveal(
@@ -76,16 +90,33 @@ final class AppResolver: @unchecked Sendable {
         if tiny {
             Thread.sleep(forTimeInterval: 0.08)
         }
-        // Re-read focus after raise; keep largest only as last resort.
-        let raisedID = focusedWindowID(axApp: axApp) ?? windowID
+        let finalID: CGWindowID
+        if preferredWindowID != nil {
+            // Keep the pin even if raise left focus elsewhere.
+            finalID = windowID
+        } else {
+            // Re-read focus after raise; keep largest only as last resort.
+            finalID = focusedWindowID(axApp: axApp) ?? windowID
+        }
         return ResolvedApp(
             pid: pid,
             bundleID: runningApp.bundleIdentifier,
             name: runningApp.localizedName ?? app,
-            windowID: raisedID,
-            windowTitle: windowTitle(axApp: axApp),
+            windowID: finalID,
+            windowTitle: windowTitle(axApp: axApp, windowID: finalID),
             axApp: axApp
         )
+    }
+
+    /// True when CGWindowList reports ``windowID`` owned by ``pid``.
+    private func windowBelongsToPid(_ windowID: CGWindowID, pid: pid_t) -> Bool {
+        guard let info = CGWindowListCopyWindowInfo(
+            [.optionIncludingWindow], windowID
+        ) as? [[String: Any]],
+              let win = info.first,
+              let owner = win[kCGWindowOwnerPID as String] as? pid_t
+        else { return false }
+        return owner == pid
     }
 
     func listApps() -> [[String: Any]] {
@@ -321,11 +352,24 @@ final class AppResolver: @unchecked Sendable {
         return CGRect(x: x, y: y, width: w, height: h)
     }
 
-    private func windowTitle(axApp: AXUIElement) -> String? {
-        var ref: CFTypeRef?
-        AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &ref)
-        guard let win = ref else { return nil }
-        let axWin = win as! AXUIElement
+    private func windowTitle(axApp: AXUIElement, windowID: CGWindowID? = nil) -> String? {
+        var axWin: AXUIElement?
+        if let windowID, windowID != 0 {
+            var windowsRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef)
+            if let windows = windowsRef as? [AXUIElement] {
+                axWin = windows.first { win in
+                    var id: CGWindowID = 0
+                    return _CGSGetWindowID(win, &id) == .success && id == windowID
+                }
+            }
+        }
+        if axWin == nil {
+            var ref: CFTypeRef?
+            AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &ref)
+            axWin = ref.map { $0 as! AXUIElement }
+        }
+        guard let axWin else { return nil }
         var titleRef: CFTypeRef?
         AXUIElementCopyAttributeValue(axWin, kAXTitleAttribute as CFString, &titleRef)
         return titleRef as? String

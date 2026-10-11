@@ -1,5 +1,7 @@
 import AppKit
+import CoreVideo
 import Foundation
+import QuartzCore
 
 /// In-process cursor overlay — no IPC, no file polling.
 /// Animates on the main thread via Core Animation.
@@ -12,9 +14,92 @@ final class CursorOverlay: @unchecked Sendable {
     private var animTarget = NSPoint.zero
     private var animStartTime: TimeInterval = 0
     private let animDuration: TimeInterval = 0.12
+    /// Max |panel origin - target| (pt) that counts as "tip landed".
+    private let landTolerance: CGFloat = 0.5
+    /// Extra time past animDuration before an unacknowledged glide is a miss.
+    private let landGrace: TimeInterval = 0.25
+    /// Bound for the render-server commit ack (CATransaction completion).
+    private let commitTimeout: TimeInterval = 0.25
+    /// Bound for one display-link frame after the commit (awake display).
+    private let frameTimeout: TimeInterval = 0.25
+    private var lastWindowID: CGWindowID?
+    /// Resumed by tick() when the final frame is set (true) or by timeout /
+    /// supersede / hide (false). Keyed so each waiter resolves exactly once.
+    private var landWaiters: [UUID: (Bool) -> Void] = [:]
+
+    // MARK: Idle auto-hide state
+    /// UserDefaults key persisting `cursor configure --idle-hide-ms`.
+    static let idleHideDefaultsKey = "cursorIdleHideMs"
+    /// Crash-safety net only: the cursor stays visible for the whole task and
+    /// is hidden explicitly at task end (`cursor hide`, execute_plan end).
+    /// Auto-hide after this long with no action (0 = never auto-hide).
+    static let defaultIdleHideMs = 120_000
+    /// Upper bound accepted by configure (10 min).
+    static let maxIdleHideMs = 600_000
+    private(set) var idleHideMs: Int
+    /// >0 while an RPC action (glide + press) is in flight: never hide then.
+    private var activeActions = 0
+    /// Bumped by every cancel; a scheduled hide only fires if still current.
+    private var hideGeneration = 0
+    private var hideDeadline: TimeInterval?
+    private var lastActionEnd: TimeInterval?
+    private var autoHides = 0
+    /// Ring of recent visibility events (uptime ms) for `cursor status`.
+    private var events: [[String: Any]] = []
+
+    /// Result of a glide that must land before any press is dispatched.
+    struct Landing {
+        let point: CGPoint
+        let landed: Bool
+        let method: String
+        let errorPt: Double
+        let waitMs: Int
+        let presented: Presentation?
+
+        var dict: [String: Any] {
+            var d: [String: Any] = [
+                "landed": landed,
+                "method": method,
+                "error_pt": (errorPt * 100).rounded() / 100,
+                "wait_ms": waitMs,
+            ]
+            if let presented { d["render"] = presented.dict }
+            return d
+        }
+    }
+
+    /// Proof that the landed position was actually drawn, not just modeled:
+    /// the position commit reached the render server (CATransaction
+    /// completion after an explicit flush), a display-link frame fired after
+    /// that commit, and WindowServer reports the panel window on screen at the
+    /// target. An asleep display presents nothing, so it is a miss (reported
+    /// as frame "display_asleep" so the refusal hint can say why).
+    struct Presentation {
+        let committed: Bool
+        /// "frame" (vsync after commit), "display_asleep", or "no_frame".
+        let frame: String
+        let wsErrorPt: Double?
+        let wsOnscreen: Bool
+
+        var ok: Bool {
+            committed && frame == "frame" && wsOnscreen
+                && (wsErrorPt.map { $0 <= 0.5 } ?? false)
+        }
+
+        var dict: [String: Any] {
+            [
+                "committed": committed,
+                "frame": frame,
+                "ws_error_pt": wsErrorPt.map { ($0 * 100).rounded() / 100 } as Any,
+                "ws_onscreen": wsOnscreen,
+            ]
+        }
+    }
 
     init() {
-        setupPanel()
+        let stored = UserDefaults.standard.object(forKey: Self.idleHideDefaultsKey) as? Int
+        idleHideMs = min(max(stored ?? Self.defaultIdleHideMs, 0), Self.maxIdleHideMs)
+        setupPanel()  // created ordered-out: hidden until the first action glides
     }
 
     private func setupPanel() {
@@ -60,10 +145,15 @@ final class CursorOverlay: @unchecked Sendable {
             quartz = Self.clamp(quartz, to: windowBounds.insetBy(dx: 8, dy: 8))
         }
         let appKitPt = appKitPoint(fromQuartz: quartz, windowBounds: windowBounds)
-        let origin = NSPoint(x: appKitPt.x - 15, y: appKitPt.y - 76)
+        // Integral points: WindowServer bounds are compared exactly below.
+        let origin = NSPoint(x: (appKitPt.x - 15).rounded(), y: (appKitPt.y - 76).rounded())
 
+        cancelPendingHide()  // any new move cancels a pending idle hide
         animationTimer?.invalidate()
         animationTimer = nil
+        resolveLandWaiters(false)  // a new glide supersedes any pending landing
+        animTarget = origin
+        lastWindowID = windowID
         if !panel.isVisible {
             panel.setFrameOrigin(origin)
             orderPanel(above: windowID)
@@ -97,10 +187,280 @@ final class CursorOverlay: @unchecked Sendable {
         return (quartz, animDuration)
     }
 
-    func hide() {
+    func hide(reason: String = "explicit") {
+        cancelPendingHide()
         animationTimer?.invalidate()
         animationTimer = nil
+        resolveLandWaiters(false)
+        let wasVisible = panel.isVisible
         panel.orderOut(nil)
+        if wasVisible { record("hide", ["reason": reason]) }
+    }
+
+    // MARK: - Idle auto-hide
+
+    /// An RPC action (glide + press) starts: cancel any pending hide. Calls
+    /// nest; the hide is only scheduled when the outermost action ends, so
+    /// hiding can never race a press in flight.
+    func beginAction(_ method: String) {
+        activeActions += 1
+        cancelPendingHide()
+        record("action_begin", ["method": method, "visible": panel.isVisible])
+    }
+
+    /// The action (including its press) returned: start the idle countdown.
+    func endAction(_ method: String) {
+        activeActions = max(0, activeActions - 1)
+        lastActionEnd = ProcessInfo.processInfo.systemUptime
+        record("action_end", ["method": method, "visible": panel.isVisible])
+        if activeActions == 0 { scheduleIdleHide() }
+    }
+
+    /// Effective safety-net delay. nil = auto-hide off.
+    var effectiveHideMs: Int? {
+        idleHideMs > 0 ? idleHideMs : nil
+    }
+
+    private func scheduleIdleHide() {
+        cancelPendingHide()
+        guard let delayMs = effectiveHideMs, panel.isVisible, activeActions == 0 else { return }
+        let gen = hideGeneration
+        let delay = TimeInterval(delayMs) / 1000
+        hideDeadline = ProcessInfo.processInfo.systemUptime + delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, gen == self.hideGeneration, self.activeActions == 0 else { return }
+                self.hideDeadline = nil
+                if self.panel.isVisible { self.autoHides += 1 }
+                self.hide(reason: "idle")
+            }
+        }
+    }
+
+    private func cancelPendingHide() {
+        hideGeneration += 1
+        hideDeadline = nil
+    }
+
+    /// `cursor configure --idle-hide-ms N` (0 = never auto-hide). Persisted.
+    func configure(idleHideMs ms: Int) throws {
+        guard (0...Self.maxIdleHideMs).contains(ms) else {
+            throw RPCMethodError(
+                code: -32602,
+                message: "idle_hide_ms must be 0...\(Self.maxIdleHideMs) (0 = never auto-hide), got \(ms)"
+            )
+        }
+        idleHideMs = ms
+        UserDefaults.standard.set(ms, forKey: Self.idleHideDefaultsKey)
+        record("configure", ["idle_hide_ms": ms])
+        if activeActions == 0 { scheduleIdleHide() }
+    }
+
+    /// Visibility + idle-hide settings for `cursor status`.
+    func status(includeEvents: Bool) -> [String: Any] {
+        let now = ProcessInfo.processInfo.systemUptime
+        let ws = panel.isVisible ? windowServerPlacement() : (errorPt: nil, onscreen: false)
+        var d: [String: Any] = [
+            "visible": panel.isVisible,
+            "ws_onscreen": ws.onscreen,
+            "idle_hide_ms": idleHideMs,
+            "auto_hide": idleHideMs > 0,
+            "effective_hide_ms": effectiveHideMs as Any,
+            "active_actions": activeActions,
+            "hide_pending": hideDeadline != nil,
+            "hide_in_ms": hideDeadline.map { max(0, Int((($0 - now) * 1000).rounded())) } as Any,
+            "last_action_end_ms_ago": lastActionEnd.map { Int(((now - $0) * 1000).rounded()) } as Any,
+            "auto_hides": autoHides,
+            "now_uptime_ms": Self.ms(now),
+        ]
+        if includeEvents { d["events"] = events }
+        return d
+    }
+
+    private func record(_ event: String, _ extra: [String: Any] = [:]) {
+        var e = extra
+        e["event"] = event
+        e["t_ms"] = Self.ms(ProcessInfo.processInfo.systemUptime)
+        events.append(e)
+        if events.count > 128 { events.removeFirst(events.count - 128) }
+    }
+
+    private static func ms(_ t: TimeInterval) -> Double {
+        (t * 10_000).rounded() / 10
+    }
+
+    /// Glide, then wait for CONFIRMED landing: the animation's final frame was
+    /// set (tick acknowledgement) AND the panel origin is measured within
+    /// landTolerance of the target. Never a bare timer. A timeout is not a hit:
+    /// hide, snap-retry once, re-measure; still off → stay hidden and report
+    /// landed=false so the caller never glides at the same moment as the press.
+    func glideAndLand(
+        screenPoint: CGPoint,
+        windowID: CGWindowID?,
+        axBounds: CGRect? = nil
+    ) async -> Landing {
+        let started = ProcessInfo.processInfo.systemUptime
+        let tip = glideTo(screenPoint: screenPoint, windowID: windowID, axBounds: axBounds)
+        var method = tip.wait > 0 ? "glide" : "snap"
+        var finished = true
+        if tip.wait > 0 {
+            finished = await waitForLanding(timeout: tip.wait + landGrace)
+        }
+        var error = landingError()
+        var presented: Presentation?
+        if finished && error <= landTolerance && panel.isVisible {
+            // The model says landed; the ack is the drawn frame, not the model.
+            presented = await confirmPresented()
+        }
+        if !(presented?.ok ?? false) {
+            hide(reason: "landing_retry")
+            panel.setFrameOrigin(animTarget)
+            orderPanel(above: lastWindowID)
+            error = landingError()
+            presented = error <= landTolerance && panel.isVisible
+                ? await confirmPresented() : nil
+            if presented?.ok ?? false {
+                method = "snap_retry"
+            } else {
+                panel.orderOut(nil)
+                record("hide", ["reason": "unlanded"])
+                return Landing(
+                    point: tip.point, landed: false, method: "unconfirmed",
+                    errorPt: Double(error), waitMs: elapsedMs(since: started),
+                    presented: presented
+                )
+            }
+        }
+        record("landed", ["method": method, "visible": panel.isVisible])
+        if activeActions == 0 { scheduleIdleHide() }  // glide outside an RPC action
+        return Landing(
+            point: tip.point, landed: true, method: method,
+            errorPt: Double(error), waitMs: elapsedMs(since: started),
+            presented: presented
+        )
+    }
+
+    /// Render/display-cycle ack for the CURRENT panel position (see
+    /// Presentation). Every wait is bounded; a bound expiring is a miss.
+    private func confirmPresented() async -> Presentation {
+        let committed = await commitToRenderServer()
+        var frame = "no_frame"
+        if committed {
+            let display = panelDisplayID()
+            if let display, CGDisplayIsAsleep(display) != 0 {
+                frame = "display_asleep"
+            } else if await waitForDisplayFrame(display: display ?? CGMainDisplayID()) {
+                frame = "frame"
+            }
+        }
+        let ws = windowServerPlacement()
+        return Presentation(
+            committed: committed, frame: frame,
+            wsErrorPt: ws.errorPt, wsOnscreen: ws.onscreen
+        )
+    }
+
+    /// Flush the position commit to the render server and wait for its
+    /// CATransaction completion (fires once that transaction is committed).
+    private func commitToRenderServer() async -> Bool {
+        await boundedWait(timeout: commitTimeout) { done in
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { done(true) }
+            self.panel.contentView?.needsDisplay = true
+            self.panel.displayIfNeeded()
+            CATransaction.commit()
+            CATransaction.flush()
+        }
+    }
+
+    /// One display-link (vsync) callback on the panel's display AFTER the
+    /// commit: the compositor has had a frame to present the new position.
+    private func waitForDisplayFrame(display: CGDirectDisplayID) async -> Bool {
+        var link: CVDisplayLink?
+        guard CVDisplayLinkCreateWithCGDisplay(display, &link) == kCVReturnSuccess,
+              let link else { return false }
+        let ok = await boundedWait(timeout: frameTimeout) { done in
+            CVDisplayLinkSetOutputHandler(link) { _, _, _, _, _ in
+                DispatchQueue.main.async { done(true) }
+                return kCVReturnSuccess
+            }
+            if CVDisplayLinkStart(link) != kCVReturnSuccess { done(false) }
+        }
+        CVDisplayLinkStop(link)
+        return ok
+    }
+
+    /// Resume exactly once: by `body` calling done(ok) or by the timeout (false).
+    private func boundedWait(
+        timeout: TimeInterval,
+        _ body: @escaping (@escaping (Bool) -> Void) -> Void
+    ) async -> Bool {
+        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            var resumed = false
+            let finish: (Bool) -> Void = { ok in
+                MainActor.assumeIsolated {
+                    if resumed { return }
+                    resumed = true
+                    cont.resume(returning: ok)
+                }
+            }
+            body(finish)
+            DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { finish(false) }
+        }
+    }
+
+    private func panelDisplayID() -> CGDirectDisplayID? {
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        return (panel.screen?.deviceDescription[key] as? NSNumber).map {
+            CGDirectDisplayID($0.uint32Value)
+        }
+    }
+
+    /// WindowServer's view of the panel: on screen, and |origin - target|
+    /// in Quartz points (the bounds WindowServer composites, not panel.frame).
+    private func windowServerPlacement() -> (errorPt: Double?, onscreen: Bool) {
+        let wid = CGWindowID(panel.windowNumber)
+        guard wid > 0,
+              let info = CGWindowListCopyWindowInfo([.optionIncludingWindow], wid)
+                as? [[String: Any]],
+              let win = info.first,
+              let b = win[kCGWindowBounds as String] as? [String: Any],
+              let x = (b["X"] as? NSNumber)?.doubleValue,
+              let y = (b["Y"] as? NSNumber)?.doubleValue,
+              let primary = NSScreen.screens.first
+        else { return (nil, false) }
+        let onscreen = (win[kCGWindowIsOnscreen as String] as? NSNumber)?.boolValue ?? false
+        let height = Double(panel.frame.height)
+        let wantX = Double(animTarget.x)
+        let wantY = Double(primary.frame.maxY) - Double(animTarget.y) - height
+        return (hypot(x - wantX, y - wantY), onscreen)
+    }
+
+    private func landingError() -> CGFloat {
+        let o = panel.frame.origin
+        return hypot(o.x - animTarget.x, o.y - animTarget.y)
+    }
+
+    private func elapsedMs(since start: TimeInterval) -> Int {
+        Int(((ProcessInfo.processInfo.systemUptime - start) * 1000).rounded())
+    }
+
+    private func waitForLanding(timeout: TimeInterval) async -> Bool {
+        if animationTimer == nil { return true }
+        let id = UUID()
+        return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            landWaiters[id] = { ok in cont.resume(returning: ok) }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64((timeout * 1_000_000_000).rounded()))
+                self?.landWaiters.removeValue(forKey: id)?(false)
+            }
+        }
+    }
+
+    private func resolveLandWaiters(_ ok: Bool) {
+        let waiters = landWaiters
+        landWaiters.removeAll()
+        for waiter in waiters.values { waiter(ok) }
     }
 
     private func orderPanel(above windowID: CGWindowID?) {
@@ -124,6 +484,7 @@ final class CursorOverlay: @unchecked Sendable {
             animationTimer?.invalidate()
             animationTimer = nil
             panel.setFrameOrigin(animTarget)
+            resolveLandWaiters(true)  // final frame set: landing acknowledged
         }
     }
 

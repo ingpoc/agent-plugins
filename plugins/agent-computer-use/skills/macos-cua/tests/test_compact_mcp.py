@@ -489,6 +489,284 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertIn("nonfinite click point", out["text"])
         self.assertEqual(out["failure"]["failed_step"], 1)
 
+    def test_act_set_value_by_label_and_expect_value(self):
+        """compile_cua schema (action/label/value + expect.value) must dispatch fills, not clicks."""
+        calls = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def __init__(self):
+                        self.n = 0
+
+                    def get_app_state(self, app, **kwargs):
+                        self.n += 1
+                        email = "ada@example.com" if self.n >= 2 else ""
+                        name = "Ada Lovelace" if self.n >= 2 else ""
+                        return {
+                            "text": f'[1] AXTextField value="{name}"\n[2] AXTextField value="{email}"',
+                            "elements": [
+                                {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": name},
+                                {"element_index": 2, "role": "AXTextField", "label": "Email", "value": email},
+                            ],
+                            "screenshot": {"url": "file:///tmp/s.png"},
+                        }
+
+                    def set_value(self, app, element, value):
+                        calls.append(("set_value", app, element, value))
+                        return {"ok": True, "method": "ax-set-value"}
+
+                    def click(self, app, **kwargs):
+                        calls.append(("click", kwargs))
+                        raise AssertionError("set_value-by-label must not fall through to click")
+
+                return fn(Client())
+
+        out = Backend().act(
+            "System Settings",
+            {
+                "steps": [{"action": "set_value", "label": "Full name", "value": "Ada Lovelace"}],
+                "expect": {"value": {"label": "Email", "equals": "ada@example.com"}},
+            },
+        )
+        self.assertTrue(out.get("ok"), out)
+        self.assertTrue(out.get("verified"), out)
+        self.assertEqual(calls, [("set_value", "System Settings", 1, "Ada Lovelace")])
+        evil = Backend().act(
+            "System Settings",
+            {
+                "steps": [{"action": "set_value", "label": "Full name", "value": "Ada Lovelace"}],
+                "expect": {"value": {"label": "Email", "equals": "ada@example.com.evil"}},
+            },
+        )
+        self.assertFalse(evil.get("verified"))
+        self.assertFalse(evil.get("ok"))
+
+    def test_native_plan_resolves_label_fill_and_expect_uses_elements(self):
+        """execute_plan fills must compile with element_index; after carries elements (r8 #2/#3)."""
+        plans = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {
+                            "text": '[1] AXTextField "Full name"',
+                            "elements": [
+                                {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": ""},
+                                {"element_index": 2, "role": "AXTextField", "label": "Email", "value": "ada@example.com"},
+                            ],
+                        }
+
+                    def execute_plan(self, app, steps):
+                        plans.append(list(steps))
+                        return {
+                            "ok": True,
+                            "before": {
+                                "text": "",
+                                "elements": [
+                                    {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": ""},
+                                    {"element_index": 2, "role": "AXTextField", "label": "Email", "value": ""},
+                                ],
+                            },
+                            "after": {
+                                "text": "Ada",
+                                "elements": [
+                                    {"element_index": 1, "role": "AXTextField", "label": "Full name", "value": "Ada Lovelace"},
+                                    {"element_index": 2, "role": "AXTextField", "label": "Email", "value": "ada@example.com"},
+                                ],
+                            },
+                            "results": [{"ok": True, "method": "set_value"}],
+                        }
+
+                return fn(Client())
+
+        out = Backend().act(
+            "System Settings",
+            {
+                "steps": [{"action": "set_value", "label": "Full name", "value": "Ada Lovelace"}],
+                "expect": {"value": {"label": "Full name", "equals": "Ada Lovelace"}},
+            },
+        )
+        self.assertTrue(out.get("ok"), out)
+        self.assertTrue(out.get("verified"), out)
+        self.assertEqual(len(plans), 1)
+        step = plans[0][0]
+        self.assertEqual(step["method"], "set_value")
+        self.assertEqual(step["params"].get("element_index"), 1)
+        self.assertNotIn("label", step["params"])
+        # Missing label fails loud before execute_plan.
+        plans.clear()
+        miss = Backend().act(
+            "System Settings",
+            {
+                "steps": [{"action": "set_value", "label": "Nope", "value": "x"}],
+                "expect": {"value": {"label": "Full name", "equals": "Ada Lovelace"}},
+            },
+        )
+        self.assertFalse(miss.get("ok"))
+        self.assertIn("field not found", miss.get("error", ""))
+        self.assertEqual(plans, [])
+
+    def test_act_ambiguous_duplicate_label_fails_loud(self):
+        """Duplicate field labels must not silently pick the first (r9 #4)."""
+        plans = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {
+                            "text": '[1] AXTextField "Name"\n[3] AXTextField "Name"',
+                            "elements": [
+                                {"element_index": 1, "role": "AXTextField", "label": "Name", "value": ""},
+                                {"element_index": 3, "role": "AXTextField", "label": "Name", "value": ""},
+                            ],
+                        }
+
+                    def execute_plan(self, app, steps):
+                        plans.append(list(steps))
+                        raise AssertionError("ambiguous label must fail before execute_plan")
+
+                    def set_value(self, app, element, value):
+                        raise AssertionError("ambiguous label must not dispatch set_value")
+
+                return fn(Client())
+
+        out = Backend().act(
+            "App",
+            {
+                "steps": [{"action": "set_value", "label": "Name", "value": "Ada"}],
+                "expect": {"value": {"label": "Name", "equals": "Ada"}},
+            },
+        )
+        self.assertFalse(out.get("ok"))
+        self.assertFalse(out.get("dispatched"))
+        self.assertIn("ambiguous label", out.get("error", ""))
+        self.assertEqual(plans, [])
+
+    def test_act_label_fill_after_click_skips_stale_plan_snapshot(self):
+        """Nav/click before a label fill must re-resolve (not one pre-plan snap) (r9 #3)."""
+        plans = []
+        states = []
+        set_values = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def __init__(self):
+                        self.n = 0
+
+                    def get_app_state(self, app, **kwargs):
+                        self.n += 1
+                        states.append(self.n)
+                        if self.n == 1:
+                            # before click
+                            return {
+                                "text": '[1] AXButton "Next"',
+                                "elements": [
+                                    {"element_index": 1, "role": "AXButton", "label": "Next", "value": ""},
+                                ],
+                            }
+                        # after click: form fields appear; Email at index 5
+                        return {
+                            "text": '[5] AXTextField "Email"',
+                            "elements": [
+                                {"element_index": 5, "role": "AXTextField", "label": "Email", "value": "ada@example.com"},
+                            ],
+                        }
+
+                    def execute_plan(self, app, steps):
+                        plans.append(list(steps))
+                        raise AssertionError("mutation-before-fill must not use stale execute_plan compile")
+
+                    def click(self, app, **kwargs):
+                        return {"ok": True, "method": "ax-press"}
+
+                    def set_value(self, app, element, value):
+                        set_values.append((element, value))
+                        return {"ok": True, "method": "ax-set-value"}
+
+                return fn(Client())
+
+        out = Backend().act(
+            "App",
+            {
+                "steps": [
+                    {"label": "Next"},
+                    {"action": "set_value", "label": "Email", "value": "ada@example.com"},
+                ],
+                "expect": {"value": {"label": "Email", "equals": "ada@example.com"}},
+            },
+        )
+        self.assertTrue(out.get("ok"), out)
+        self.assertEqual(plans, [])
+        self.assertEqual(set_values, [(5, "ada@example.com")])
+        self.assertGreaterEqual(len(states), 2)
+
+    def test_act_second_label_fill_re_resolves_after_first_fill(self):
+        """A fill can reorder the form; the next label fill re-resolves (r10 #2)."""
+        set_values = []
+        plans = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        if not set_values:
+                            els = [
+                                {"element_index": 2, "role": "AXTextField", "label": "Country", "value": ""},
+                                {"element_index": 3, "role": "AXTextField", "label": "City", "value": ""},
+                            ]
+                        else:
+                            # Country fill inserted a State field; City moved to 4.
+                            els = [
+                                {"element_index": 2, "role": "AXTextField", "label": "Country", "value": "IN"},
+                                {"element_index": 3, "role": "AXTextField", "label": "State", "value": ""},
+                                {"element_index": 4, "role": "AXTextField", "label": "City",
+                                 "value": "Pune" if len(set_values) > 1 else ""},
+                            ]
+                        return {"text": "", "elements": els}
+
+                    def execute_plan(self, app, steps):
+                        plans.append(list(steps))
+                        raise AssertionError("fill-after-fill must not run a pre-compiled plan")
+
+                    def set_value(self, app, element, value):
+                        set_values.append((element, value))
+                        return {"ok": True, "method": "ax-set-value"}
+
+                return fn(Client())
+
+        out = Backend().act(
+            "App",
+            {
+                "steps": [
+                    {"action": "set_value", "label": "Country", "value": "IN"},
+                    {"action": "set_value", "label": "City", "value": "Pune"},
+                ],
+                "expect": {"value": {"label": "City", "equals": "Pune"}},
+            },
+        )
+        self.assertEqual(plans, [])
+        self.assertEqual(set_values, [(2, "IN"), (4, "Pune")])
+        self.assertTrue(out.get("ok"), out)
+
     def test_act_expect_already_true_before_is_not_verified(self):
         class Backend(compact_mcp.CUABackend):
             def __init__(self):

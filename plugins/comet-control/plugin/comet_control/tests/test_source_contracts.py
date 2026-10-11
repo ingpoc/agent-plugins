@@ -202,14 +202,18 @@ async function check(actions, expected) {
 (async () => {
  await check([{type:'reload_page'}], 0);
  await check([{type:'goto'}], 0);
- await check([{type:'reload_page'}, {type:'page_context'}], 1);
+ // Leading navigation: identity is set inside the nav action on the fresh
+ // document, never on the old (possibly error-page/wedged) one.
+ await check([{type:'reload_page'}, {type:'page_context'}], 0);
+ await check([{type:'goto'}, {type:'wait'}, {type:'page_context'}], 0);
+ await check([{type:'page_context'}, {type:'goto'}], 1);
  await check([{type:'page_context'}], 1);
  await check([], 1);
 })().catch(e => { console.error(e); process.exit(1); });
 """
         result = subprocess.run(["node", "-e", harness.replace("GUARD", guard)], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        mutant = guard.replace("!navigationOnly && ", "")
+        mutant = guard.replace("!navigationOnly && !leadingNavigation && ", "")
         result = subprocess.run(["node", "-e", harness.replace("GUARD", mutant)], capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0, "identity regression escaped probe")
         self.assertIn('throw codedError(ready.error_code || "CONTENT_SCRIPT_MISSING"', source)
@@ -1097,6 +1101,27 @@ async function check(actions, expected) {
         self.assertIn("End:", keys)
         self.assertIn("Home:", keys)
 
+    def test_dead_fixture_error_page_does_not_wedge_goto_recovery(self) -> None:
+        # 2026-10-06: fixture server died → "Frame with ID 0 is showing error page"
+        # poisoned the tab → even goto failed "Tab scripting wedged".
+        source = (ROOT / "extension" / "service_worker.js").read_text()
+        exec_fn = source.split("async function executeScriptOnTab", 1)[1].split(
+            "function sendContentScriptMessage", 1)[0]
+        catch = exec_fn.split("} catch (error) {", 1)[1]
+        self.assertLess(catch.index("timed out after"), catch.index("tabScriptingPoisoned.add(tabId)"))
+        goto = source.split('if (type === "goto") {', 1)[1].split(
+            'if (type === "back" || type === "forward" || type === "reload_page")', 1)[0]
+        # Event-based: armed before the navigation, poison cleared only inside
+        # settleArmedNavigation (new document complete), before reinject.
+        self.assertLess(goto.index("armNavigationWaiter(state.tabId)"), goto.index("chrome.tabs.update(state.tabId"))
+        self.assertLess(goto.index("settleArmedNavigation(waiter"), goto.index("await ensureContentScript(state.tabId)"))
+        self.assertNotIn("tabScriptingPoisoned.delete", goto)
+        self.assertNotIn("boundedWait(", goto)
+        settle = source.split("async function settleArmedNavigation", 1)[1].split("\n}\n", 1)[0]
+        self.assertLess(settle.index("invalidateTabInjection(tabId)"), settle.index("tabScriptingPoisoned.delete(tabId)"))
+        self.assertIn("if (nav.complete && tabScriptingPoisoned.has(tabId))", settle)
+        self.assertIn("!leadingNavigation", source)
+
     def test_locator_fill_uses_bounded_executeScriptOnTab(self) -> None:
         """Raw chrome.scripting.executeScript on locator fill wedges Draft.js / large contenteditable."""
         parity = PARITY_CAPABILITIES.read_text()
@@ -1690,7 +1715,7 @@ function element(seq) {
         cursor = CURSOR_AGENT.read_text()
         worker = SERVICE_WORKER.read_text()
         assert_packaged_version(self)
-        self.assertEqual(json.loads(PLUGIN_JSON.read_text())["version"], "0.1.13")
+        self.assertEqual(json.loads(PLUGIN_JSON.read_text())["version"], "0.1.15")
 
         miss = worker.split("function isLocatorMissError(error) {", 1)[1].split(
             "function isContentScriptTimeoutError", 1

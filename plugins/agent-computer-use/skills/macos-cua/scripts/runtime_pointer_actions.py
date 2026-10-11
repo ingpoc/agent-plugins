@@ -23,117 +23,35 @@ def click_point(
     app_name=None,
     verified_screen_point=None,
 ):
-    """Click raw PNG pixels; optionally restore the single system pointer."""
-    foreground_prepared = None
-    if delivery_mode == "foreground":
-        foreground_prepared = bring_resolved_window_to_front(pid, window_id)
-        if foreground_prepared.get("error"):
-            return {
-                "ok": False,
-                "error": "foreground preparation failed before point click",
-                "detail": foreground_prepared,
-            }
-    pointer_move = None
-    if app_name:
-        pointer_move = _move_operator_cursor_to_point(
-            app_name, pid, window_id, float(x), float(y)
-        )
-        if not pointer_move.get("ok"):
-            return {
-                "ok": False,
-                "error": "visible operator cursor did not reach the point target",
-                "move": pointer_move,
-            }
-    screen_point = verified_screen_point or (
-        pointer_move.get("screen_point") if isinstance(pointer_move, dict) else None
-    )
-    if isinstance(screen_point, dict):
-        native = _native_ax_snapshot(
-            pid, max_elements=160, window_id=window_id
-        )
-        text_result = _native_text_pointer().accessible_text_click(
-            resolve=_resolve_native_ax_element,
-            ax_value=_ax_value,
-            pid=pid,
-            observation=native,
-            point=screen_point,
-            click_count=click_count,
-        )
-        if text_result is not None:
-            return {
-                "ok": bool(text_result.get("ok")),
-                "path": "verified-screen-point+native-ax-text",
-                "result": text_result,
-                "move": pointer_move,
-                "foreground_prepared": foreground_prepared,
-                "debug_image_omitted": bool(debug_image_out),
-            }
-        result = _native_input().post_mouse_click(
-            pid,
-            screen_point,
-            button=button,
-            count=click_count,
-        )
-        error = result.get("error") if isinstance(result, dict) else None
-        return {
-            "ok": not error,
-            "path": "verified-screen-point+native-pid-mouse",
-            "result": result,
-            "move": pointer_move,
-            "foreground_prepared": foreground_prepared,
-            "debug_image_omitted": bool(debug_image_out),
-        }
-    recovery = (
-        _logical_pixel_target(pid, window_id, x, y)
-        if logical_frame_recovery
-        else None
-    )
-    if recovery and recovery.get("error"):
-        return {"ok": False, **recovery}
-    if recovery:
-        params = {
-            "pid": pid,
-            "x": recovery["x"],
-            "y": recovery["y"],
-            "button": button,
-            "count": click_count,
-            "delivery_mode": "background",
-        }
-        # No session → cursor-less per driver docs; still wipe if one appears.
-        _cleanup_driver_cursors()
-        result = _dispatch_coordinate_click(
-            params, preserve_pointer=preserve_pointer
-        )
-        _cleanup_driver_cursors()
-        error = result.get("error") if isinstance(result, dict) else None
-        return {
-            "ok": not error,
-            "path": "logical-ax-screen-coordinate",
-            "result": result,
-            "mapping": recovery,
-            "move": pointer_move,
-            "foreground_prepared": foreground_prepared,
-            "debug_image_omitted": bool(debug_image_out),
-        }
-    params = {
-        "pid": pid,
-        "window_id": window_id,
-        "x": float(x),
-        "y": float(y),
-        "button": button,
-        "count": click_count,
-        "delivery_mode": delivery_mode,
-    }
+    """Window-local PNG pixels (or a verified global point) -> CUAService click.
+
+    Same landing gate as index clicks; the hardware pointer is never moved.
+    """
+    if button != "left" or int(click_count) != 1:
+        return {"ok": False, "error_code": "unsupported_click",
+                "error": "CUAService point click is a single left click; use right-click/double-click by element"}
+    if isinstance(verified_screen_point, dict):
+        point = {"x": float(verified_screen_point["x"]), "y": float(verified_screen_point["y"])}
+    else:
+        point, error = _window_global_point(pid, x, y, window_id=window_id)
+        if error:
+            return {"ok": False, **error}
+    result = _cuaservice_rpc(pid, "click", _pin_window({"x": point["x"], "y": point["y"]}, window_id))
+    err = result.get("error")
+    out = {**result, "ok": not err and result.get("ok") is not False, "path": "cuaservice-point",
+           "screen_point": point}
     if debug_image_out:
-        params["debug_image_out"] = _absolute_output_path(debug_image_out)
-    _cleanup_driver_cursors()
-    result = _dispatch_coordinate_click(
-        params, preserve_pointer=preserve_pointer
-    )
-    _cleanup_driver_cursors()
-    if isinstance(result, dict) and pointer_move is not None:
-        result = {**result, "move": pointer_move}
-    return result
+        out["debug_image_omitted"] = True
+    return out
+
+
+def _native_double_click_point(pid, screen_point):
+    if not isinstance(screen_point, dict):
+        return {"ok": False, "error_code": "unsupported_click",
+                "error": "double-click needs an element (verified screen point); raw pixel double-click is retired"}
+    result = _native_input().post_mouse_click(pid, screen_point, button="left", count=2)
+    error = result.get("error") if isinstance(result, dict) else None
+    return {"ok": not error, "path": "verified-screen-point+native-pid-mouse", "result": result}
 
 
 def double_click(
@@ -244,13 +162,7 @@ def double_click(
     }
     if verified_screen_point is not None:
         click_options["verified_screen_point"] = verified_screen_point
-    point_result = click_point(
-        pid,
-        window_id,
-        x,
-        y,
-        **click_options,
-    )
+    point_result = _native_double_click_point(pid, click_options.get("verified_screen_point"))
     if element_index is None or (element or {}).get("role") not in {
         "AXTextArea",
         "AXTextField",
@@ -330,117 +242,11 @@ def drag(
     steps=20,
     app_name=None,
 ):
-    prepared = None
-    if delivery_mode == "foreground":
-        prepared = bring_resolved_window_to_front(pid, window_id)
-        if prepared.get("error"):
-            return {
-                "ok": False,
-                "error": "foreground preparation failed before drag",
-                "detail": prepared,
-            }
-    identity = _running_app_identity(f"pid:{int(pid)}") or {}
-    pointer_app = app_name or identity.get("name") or f"pid:{int(pid)}"
-    observation = app_state(
-        pointer_app,
-        pid,
-        window_id,
-        max_elements=40,
-        include_screenshot=True,
-        prepare_foreground=True,
-        foreground_prepared=prepared is not None,
-    )
-    if not observation.get("ok"):
-        return {
-            "ok": False,
-            "error": "fresh drag observation failed",
-            "detail": observation.get("error"),
-        }
-    source_global = _native_input().drag_global_point(observation, from_x, from_y)
-    destination_global = _native_input().drag_global_point(
-        observation, to_x, to_y
-    )
-    if source_global is None or destination_global is None:
-        return {
-            "ok": False,
-            "error": "drag coordinates cannot be mapped through verified capture geometry",
-        }
-    source_move = _move_operator_cursor_to_point(
-        pointer_app, pid, window_id, float(from_x), float(from_y)
-    )
-    if not source_move.get("ok"):
-        return {
-            "ok": False,
-            "error": "visible operator cursor did not reach the drag source",
-            "move": {"source": source_move},
-        }
-    destination_move = _move_operator_cursor_to_point(
-        pointer_app,
-        pid,
-        window_id,
-        float(to_x),
-        float(to_y),
-        duration_ms=duration_ms,
-        wait_for_sync=False,
-    )
-    if not destination_move.get("ok"):
-        return {
-            "ok": False,
-            "error": "visible operator cursor did not start the drag trajectory",
-            "move": {"source": source_move, "destination": destination_move},
-        }
-    result = _native_input().accessible_slider_drag(
-        resolve=_resolve_native_ax_element,
-        ax_value=_ax_value,
-        pid=pid,
-        observation=observation,
-        source=source_global,
-        destination=destination_global,
-    )
-    system_cursor_used = False
-    if not _accepted(result):
-        result = call_driver(
-            "drag",
-            {
-                "pid": pid,
-                "window_id": window_id,
-                "from_x": float(from_x),
-                "from_y": float(from_y),
-                "to_x": float(to_x),
-                "to_y": float(to_y),
-                "delivery_mode": "foreground",
-                "duration_ms": int(duration_ms),
-                "steps": int(steps),
-            },
-        )
-        system_cursor_used = True
-    normalized = destination_move["cursor_normalized"]
-    destination_sync = _wait_for_operator_cursor(
-        normalized["x"],
-        normalized["y"],
-        update_id=(destination_move.get("publish", {}).get("state") or {}).get(
-            "cursor_update_id"
-        ),
-        app_name=pointer_app,
-        pid=pid,
-        window_id=window_id,
-        timeout=max(1.5, float(duration_ms) / 1000 + 0.5),
-    )
-    if isinstance(result, dict) and not result.get("error"):
-        result = dict(result)
-        result.setdefault("ok", True)
-        result.setdefault("effect", "unverified")
-        result["system_cursor_used"] = system_cursor_used
-        result["move"] = {
-            "source": source_move,
-            "destination": {**destination_move, "sync": destination_sync},
-        }
-        if not destination_sync.get("ok"):
-            result["ok"] = False
-            result["error"] = "visible operator cursor did not finish the drag trajectory"
-        if prepared is not None:
-            result["foreground_prepared"] = prepared
-    return result
+    """CUAService drag between window-local screenshot coordinates."""
+    refused = require_cuaservice_window(pid, window_id, 1)
+    if refused:
+        return refused
+    return cua_drag(pid, from_x, from_y, to_x, to_y, window_id=window_id)
 
 
 def _system_pointer_position():
@@ -456,26 +262,6 @@ def _restore_system_pointer(position):
     return CGWarpMouseCursorPosition(CGPointMake(*position)) == 0
 
 
-def _dispatch_coordinate_click(params, *, preserve_pointer=False):
-    """Dispatch an interruptive CGEvent click, optionally restoring the pointer."""
-    before = _system_pointer_position() if preserve_pointer else None
-    restored = False
-    try:
-        result = call_driver("click", params)
-    finally:
-        if before is not None:
-            restored = _restore_system_pointer(before)
-    if not isinstance(result, dict):
-        result = {"result": result}
-    return {
-        **result,
-        "user_interruptive": True,
-        "isolated_pointer": False,
-        "pointer_preserve_requested": bool(preserve_pointer),
-        "pointer_restored": restored if preserve_pointer else None,
-    }
-
-
 def click_at_desktop(
     x: float,
     y: float,
@@ -484,63 +270,39 @@ def click_at_desktop(
     click_count: int = 1,
     preserve_pointer=False,
 ):
-    """Screen-absolute pixel click, sessionless by design.
-
-    NEVER pass the glide session here: the driver would snap that session's
-    cursor to these GLOBAL coords while move_cursor uses OVERLAY-LOCAL coords,
-    making the pointer sweep across the screen. Sessionless clicks can mint a
-    stray cyan `auto-*` driver cursor beside the signed Hermes overlay — wipe
-    driver cursors before and after so only the signed operator stays visible.
-    """
-    _cleanup_driver_cursors()
-    res = _dispatch_coordinate_click(
-        {
-            "x": float(x),
-            "y": float(y),
-            "scope": "desktop",
-            "button": button,
-            "count": int(click_count),
-        },
-        preserve_pointer=preserve_pointer,
-    )
-    _cleanup_driver_cursors()
-    return res
+    """Desktop-global clicks are retired: no app target, no landing gate."""
+    return {
+        "ok": False,
+        "error_code": "desktop_click_retired",
+        "error": "desktop-global click is retired (no target app for the CUAService landing gate); "
+                 "use click-point <app> <x> <y> or click by label/element",
+        "coords": {"x": float(x), "y": float(y)},
+    }
 
 
 def _cleanup_driver_cursors(*, include_named: bool = False) -> dict:
-    """Hide/end cua-driver agent cursors so only the signed Hermes overlay shows.
+    """cua-driver is retired, so there are no driver cursors/sessions to end.
 
-    Pixel/desktop clicks and interrupted proves leave cyan `auto-*` sessions
-    (default arrow, no custom icon). Ending without disable first can leave the
-    overlay painted for a frame; always disable, then end.
+    Per-action cleanup is a no-op (no socket round-trip). Closeout
+    (include_named) hides the CUAService overlay cursor over its socket.
     """
-    state = call_driver("get_agent_cursor_state", {})
-    ended: list[str] = []
-    for c in state.get("cursors", []) if isinstance(state, dict) else []:
-        cid = (c.get("config") or {}).get("cursor_id") or ""
-        if not cid:
-            continue
-        if not include_named and not cid.startswith("auto-"):
-            continue
-        call_driver(
-            "set_agent_cursor_enabled",
-            {"enabled": False, "session": cid},
-        )
-        call_driver("end_session", {"session": cid})
-        ended.append(cid)
-    # Avoid a redundant driver round-trip when state already proves there is
-    # no enabled cursor. A dirty/unknown state still fails safe by disabling.
-    global_enabled = state.get("enabled") if isinstance(state, dict) else None
-    if ended or global_enabled is not False or include_named:
-        call_driver("set_agent_cursor_enabled", {"enabled": False})
-    if include_named:
-        if CUA_SESSION not in ended:
-            call_driver(
-                "set_agent_cursor_enabled",
-                {"enabled": False, "session": CUA_SESSION},
-            )
-            call_driver("end_session", {"session": CUA_SESSION})
-    return {"ended": ended, "enabled": False}
+    if not include_named:
+        return {"ended": [], "enabled": False, "engine": "CUAService"}
+    client = _cuaservice_client()
+    try:
+        hidden = client.hide_agent_cursor() or {"ok": True}
+    finally:
+        client.close()
+    return {"ended": [], "enabled": False, "engine": "CUAService", "hidden": hidden}
+
+
+def _hide_task_cursor() -> dict:
+    """Task end: hide the CUAService agent cursor. Never masks the plan result."""
+    try:
+        hidden = _cleanup_driver_cursors(include_named=True).get("hidden")
+        return hidden if isinstance(hidden, dict) else {"ok": True}
+    except Exception as exc:  # report, do not raise over the plan outcome
+        return {"ok": False, "error": f"cursor hide failed: {exc}"}
 
 
 # Back-compat alias for older callers/tests.

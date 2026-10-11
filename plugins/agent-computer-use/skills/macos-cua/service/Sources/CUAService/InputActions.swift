@@ -106,20 +106,15 @@ final class InputActions: @unchecked Sendable {
             mouseCursorPosition: point,
             mouseButton: .left
         )
-        // PID-targeted first — no focus steal / cursor warp. Never also post
-        // global (doubled input). Global HID only if pid post unavailable.
-        let method: String
-        if postHid(mouseDown, to: resolved.pid), postHid(mouseUp, to: resolved.pid) {
-            method = "cgevent-click-pid"
-        } else {
-            postHidGlobal(mouseDown)
-            postHidGlobal(mouseUp)
-            method = "cgevent-click"
-        }
+        // PID-targeted only — no focus steal / cursor warp, never doubled
+        // input. PostEvent denied or no event → fail loud, nothing "ok".
+        if let refuse = hidRefusal(mouseDown, mouseUp) { return refuse }
+        postHid(mouseDown, to: resolved.pid)
+        postHid(mouseUp, to: resolved.pid)
 
         return [
             "ok": true,
-            "method": method,
+            "method": "cgevent-click-pid",
             "point": ["x": Double(point.x), "y": Double(point.y)],
         ]
     }
@@ -141,15 +136,12 @@ final class InputActions: @unchecked Sendable {
         keyDown?.flags = parsed.flags
         keyUp?.flags = parsed.flags
 
-        // Prefer PID post — works without raise/frontmost. Global only if
-        // target is already front (legacy path); never refuse solely for focus.
-        if postHid(keyDown, to: resolved.pid), postHid(keyUp, to: resolved.pid) {
-            return ["ok": true, "method": "cgevent-key-pid", "key": key]
-        }
-        if let refuse = hidFrontOrRefuse(resolved) { return refuse }
-        postHidGlobal(keyDown)
-        postHidGlobal(keyUp)
-        return ["ok": true, "method": "cgevent-key", "key": key]
+        // PID post — works without raise/frontmost. No global fallback: it
+        // only ran when PostEvent was denied, i.e. it posted nothing.
+        if let refuse = hidRefusal(keyDown, keyUp) { return refuse }
+        postHid(keyDown, to: resolved.pid)
+        postHid(keyUp, to: resolved.pid)
+        return ["ok": true, "method": "cgevent-key-pid", "key": key]
     }
 
     // MARK: - Type Text
@@ -166,10 +158,23 @@ final class InputActions: @unchecked Sendable {
                 "method": "refused",
             ]
         }
+        // areas/live come from the pinned-window walk. Focused UI can still
+        // belong to another window of the same app — never type there.
         let areas = axTree?.liveTextAreaTargets() ?? []
         let live = axTree?.liveTextElements() ?? []
-        let focused = focusedElement(resolved.axApp).flatMap {
+        let rawFocused = focusedElement(resolved.axApp).flatMap {
             isTextRole($0) ? $0 : nil
+        }
+        let focused = rawFocused.flatMap { el in
+            elementBelongsToWindow(el, windowID: resolved.windowID) ? el : nil
+        }
+        if rawFocused != nil, focused == nil, areas.isEmpty, live.isEmpty {
+            return [
+                "ok": false,
+                "error": "type_focus_outside_pinned_window",
+                "method": "refused",
+                "windowId": Int(resolved.windowID),
+            ]
         }
         let focusedIsArea = focused.map { axRole($0) == "AXTextArea" } ?? false
 
@@ -193,30 +198,97 @@ final class InputActions: @unchecked Sendable {
         if let (_, frame) = areas.first,
            frame.width > 1, frame.height > 1, frame.origin.x.isFinite,
            frame.origin.y.isFinite {
-            _ = coordinateClick(
+            if let refuse = hidRefusal() { return refuse }
+            // Click pins HID focus into the pinned-window field first. The
+            // click can be ignored (sheet, modal, other window): HID only
+            // once AX focus is a text field inside the pinned window.
+            let click = coordinateClick(
                 resolved: resolved,
                 point: CGPoint(x: frame.midX, y: frame.midY)
             )
-            if hidTypeUnicode(text, to: resolved.pid) {
-                return ["ok": true, "method": "cgevent-type-pid", "length": text.count]
+            guard click["ok"] as? Bool == true else { return click }
+            guard waitForPinnedTextFocus(resolved) else {
+                return [
+                    "ok": false,
+                    "error": "type_click_focus_not_in_pinned_window",
+                    "method": "refused",
+                    "windowId": Int(resolved.windowID),
+                    "hint": "click did not focus a text field in the pinned window; nothing was typed",
+                ]
             }
-            if let refuse = hidFrontOrRefuse(resolved) { return refuse }
-            hidTypeUnicodeGlobal(text)
-            return ["ok": true, "method": "cgevent-type", "length": text.count]
+            return hidTypeResult(text, resolved: resolved)
         }
-        if focused != nil || !live.isEmpty {
-            if hidTypeUnicode(text, to: resolved.pid) {
-                return ["ok": true, "method": "cgevent-type-pid", "length": text.count]
-            }
-            if let refuse = hidFrontOrRefuse(resolved) { return refuse }
-            hidTypeUnicodeGlobal(text)
-            return ["ok": true, "method": "cgevent-type", "length": text.count]
+        // HID without a prior pinned-window click only when focus is already
+        // inside the pinned window — otherwise we would type into the wrong one.
+        if focused != nil {
+            if let refuse = hidRefusal() { return refuse }
+            return hidTypeResult(text, resolved: resolved)
+        }
+        if rawFocused != nil || !live.isEmpty {
+            return [
+                "ok": false,
+                "error": "type_focus_outside_pinned_window",
+                "method": "refused",
+                "windowId": Int(resolved.windowID),
+            ]
         }
         return [
             "ok": false,
             "error": "type_no_text_target",
             "method": "refused",
         ]
+    }
+
+    /// HID unicode to the pid; access was preflighted by the caller.
+    private func hidTypeResult(_ text: String, resolved: ResolvedApp) -> [String: Any] {
+        guard hidTypeUnicode(text, to: resolved.pid) else {
+            return [
+                "ok": false,
+                "error": "cgevent_create_failed",
+                "method": "refused",
+            ]
+        }
+        return ["ok": true, "method": "cgevent-type-pid", "length": text.count]
+    }
+
+    /// After a focusing click: AX focus must be a text role inside the
+    /// pinned window (polls briefly; the click is async to the app).
+    private func waitForPinnedTextFocus(
+        _ resolved: ResolvedApp, timeout: TimeInterval = 0.5
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if let el = focusedElement(resolved.axApp), isTextRole(el),
+               elementBelongsToWindow(el, windowID: resolved.windowID) {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.02)
+        } while Date() < deadline
+        return false
+    }
+
+    /// Walk AX parents to the window and compare CGWindowID (Codex r9 #1).
+    private func elementBelongsToWindow(_ el: AXUIElement, windowID: CGWindowID) -> Bool {
+        guard windowID != 0 else { return true }
+        var current: AXUIElement? = el
+        for _ in 0..<64 {
+            guard let node = current else { break }
+            var id: CGWindowID = 0
+            if _CGSGetWindowID(node, &id) == .success, id != 0 {
+                return id == windowID
+            }
+            var roleRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(node, kAXRoleAttribute as CFString, &roleRef)
+            let role = (roleRef as? String) ?? ""
+            if role == "AXWindow" || role == "AXSheet" || role == "AXDrawer" {
+                return false
+            }
+            if role == "AXApplication" { return false }
+            var parentRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(node, kAXParentAttribute as CFString, &parentRef)
+            current = parentRef.map { $0 as! AXUIElement }
+        }
+        return false
     }
 
     private func focusedElement(_ axApp: AXUIElement) -> AXUIElement? {
@@ -328,30 +400,6 @@ final class InputActions: @unchecked Sendable {
         return ok
     }
 
-    private func hidTypeUnicodeGlobal(_ text: String) {
-        let units = Array(text.utf16)
-        var i = 0
-        let cap = 20
-        while i < units.count {
-            let end = min(i + cap, units.count)
-            let slice = Array(units[i..<end])
-            let down = CGEvent(
-                keyboardEventSource: Self.hidSource, virtualKey: 0, keyDown: true
-            )
-            down?.keyboardSetUnicodeString(
-                stringLength: slice.count, unicodeString: slice
-            )
-            postHidGlobal(down)
-            let up = CGEvent(
-                keyboardEventSource: Self.hidSource, virtualKey: 0, keyDown: false
-            )
-            up?.keyboardSetUnicodeString(
-                stringLength: slice.count, unicodeString: slice
-            )
-            postHidGlobal(up)
-            i = end
-        }
-    }
 
     // MARK: - Scroll
 
@@ -359,7 +407,8 @@ final class InputActions: @unchecked Sendable {
         resolved: ResolvedApp,
         element: AXElement?,
         direction: String,
-        pages: Int
+        pages: Int,
+        windowFrame: CGRect? = nil
     ) -> [String: Any] {
         let dy: Int32
         switch direction.lowercased() {
@@ -368,18 +417,22 @@ final class InputActions: @unchecked Sendable {
         default: return ["ok": false, "error": "Invalid direction: \(direction)"]
         }
 
-        let point = element.map {
-            CGPoint(x: $0.frame.midX, y: $0.frame.midY)
-        } ?? CGPoint(x: 400, y: 400)
+        // Element center, else the target window's center; never a fixed
+        // screen point that may be over another app.
+        guard let point = element.map({ CGPoint(x: $0.frame.midX, y: $0.frame.midY) })
+            ?? windowFrame.map({ CGPoint(x: $0.midX, y: $0.midY) })
+        else {
+            return ["ok": false, "error": "scroll has no element and no window frame to target"]
+        }
 
         // Move mouse to scroll position first
+        if let refuse = hidRefusal() { return refuse }
         let move = CGEvent(
             mouseEventSource: Self.hidSource,
             mouseType: .mouseMoved,
             mouseCursorPosition: point,
             mouseButton: .left
         )
-        postHid(move, to: resolved.pid)
         let scroll = CGEvent(
             scrollWheelEvent2Source: Self.hidSource,
             units: .line,
@@ -388,12 +441,10 @@ final class InputActions: @unchecked Sendable {
             wheel2: 0,
             wheel3: 0
         )
-        if postHid(scroll, to: resolved.pid) {
-            return ["ok": true, "method": "cgevent-scroll-pid", "direction": direction, "pages": pages]
-        }
-        postHidGlobal(move)
-        postHidGlobal(scroll)
-        return ["ok": true, "method": "cgevent-scroll", "direction": direction, "pages": pages]
+        if let refuse = hidRefusal(move, scroll) { return refuse }
+        postHid(move, to: resolved.pid)
+        postHid(scroll, to: resolved.pid)
+        return ["ok": true, "method": "cgevent-scroll-pid", "direction": direction, "pages": pages]
     }
 
     // MARK: - Set Value
@@ -491,30 +542,8 @@ final class InputActions: @unchecked Sendable {
             mouseCursorPosition: to,
             mouseButton: .left
         )
-        if postHid(down, to: resolved.pid) {
-            let steps = 10
-            for i in 1...steps {
-                let t = Double(i) / Double(steps)
-                let pt = CGPoint(
-                    x: from.x + (to.x - from.x) * t,
-                    y: from.y + (to.y - from.y) * t
-                )
-                let move = CGEvent(
-                    mouseEventSource: Self.hidSource,
-                    mouseType: .leftMouseDragged,
-                    mouseCursorPosition: pt,
-                    mouseButton: .left
-                )
-                _ = postHid(move, to: resolved.pid)
-                Thread.sleep(forTimeInterval: 0.02)
-            }
-            _ = postHid(up, to: resolved.pid)
-            return ["ok": true, "method": "cgevent-drag-pid"]
-        }
-
-        postHidGlobal(down)
-
-        // Interpolate drag path
+        if let refuse = hidRefusal(down, up) { return refuse }
+        postHid(down, to: resolved.pid)
         let steps = 10
         for i in 1...steps {
             let t = Double(i) / Double(steps)
@@ -528,13 +557,11 @@ final class InputActions: @unchecked Sendable {
                 mouseCursorPosition: pt,
                 mouseButton: .left
             )
-            postHidGlobal(move)
+            _ = postHid(move, to: resolved.pid)
             Thread.sleep(forTimeInterval: 0.02)
         }
-
-        postHidGlobal(up)
-
-        return ["ok": true, "method": "cgevent-drag"]
+        postHid(up, to: resolved.pid)
+        return ["ok": true, "method": "cgevent-drag-pid"]
     }
 
     // MARK: - Secondary Action
@@ -572,11 +599,6 @@ final class InputActions: @unchecked Sendable {
         return true
     }
 
-    private func postHidGlobal(_ event: CGEvent?) {
-        guard ensurePostEventAccess() else { return }
-        event?.post(tap: .cghidEventTap)
-    }
-
     /// Accessibility ≠ PostEvent. Prompt at most once; then fail closed.
     private func ensurePostEventAccess() -> Bool {
         if CGPreflightPostEventAccess() { return true }
@@ -589,13 +611,22 @@ final class InputActions: @unchecked Sendable {
         return false
     }
 
-    private func hidFrontOrRefuse(_ resolved: ResolvedApp) -> [String: Any]? {
-        if AppResolver.hidFrontPid() == resolved.pid { return nil }
-        return [
-            "ok": false,
-            "error": "key_target_not_front",
-            "method": "refused",
-        ]
+    /// Fail loud before any HID: PostEvent denied (Accessibility alone is
+    /// not enough) or an event could not be created. Never `ok: true` with
+    /// nothing posted, whether or not the target is frontmost.
+    private func hidRefusal(_ events: CGEvent?...) -> [String: Any]? {
+        guard ensurePostEventAccess() else {
+            return [
+                "ok": false,
+                "error": "postevent_denied",
+                "method": "refused",
+                "hint": "grant CUAService in System Settings > Privacy & Security > Accessibility (PostEvent), then restart CUAService",
+            ]
+        }
+        if events.contains(where: { $0 == nil }) {
+            return ["ok": false, "error": "cgevent_create_failed", "method": "refused"]
+        }
+        return nil
     }
 
     // MARK: - Key Parsing

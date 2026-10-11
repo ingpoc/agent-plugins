@@ -57,6 +57,39 @@ let viewportCaptureQueue = Promise.resolve(); // captureVisibleTab is active-win
 let lastViewportCaptureStartedAt = 0;
 const tabConsoleCdp = new Map(); // tabId → ring buffer from CDP Runtime events
 const tabNetworkCdp = new Map(); // tabId → opt-in compact Network diagnostics
+// Per-run call ledger (ACU #33/#94). Behavior-neutral: wraps the three Chrome
+// APIs every action funnels through and counts calls for each active run on the
+// same tab. Run results carry telemetry.calls; counter_installed=false is loud.
+function newRunCallLedger() {
+  return { counter_installed: callCounterInstalled, cdp_total: 0, cdp: {}, scripting: 0, messages: 0 };
+}
+function countRunCall(tabId, kind, method) {
+  if (!activeRunStates.size) return;
+  for (const state of activeRunStates) {
+    if (!state.calls || state.tabId !== tabId) continue;
+    if (kind === "cdp") {
+      state.calls.cdp_total += 1;
+      state.calls.cdp[method] = (state.calls.cdp[method] || 0) + 1;
+    } else {
+      state.calls[kind] += 1;
+    }
+  }
+}
+function wrapCountedApi(namespace, name, kind, tabOf, methodOf) {
+  const original = namespace?.[name];
+  if (typeof original !== "function") return false;
+  const counted = function (...args) {
+    try { countRunCall(tabOf(args), kind, methodOf ? methodOf(args) : undefined); } catch {}
+    return original.apply(this, args);
+  };
+  try { namespace[name] = counted; } catch { return false; }
+  return namespace[name] === counted;
+}
+const callCounterInstalled = [
+  wrapCountedApi(chrome.debugger, "sendCommand", "cdp", (a) => a[0]?.tabId, (a) => String(a[1] || "")),
+  wrapCountedApi(chrome.scripting, "executeScript", "scripting", (a) => a[0]?.target?.tabId),
+  wrapCountedApi(chrome.tabs, "sendMessage", "messages", (a) => a[0]),
+].every(Boolean);
 const SESSION_STORAGE_KEY = "comet-control-agent-session-leases-v1";
 const LEASE_REMOVAL_STORAGE_KEY = "comet-control-agent-lease-removals-v1";
 const CUA_CLAIM_STORAGE_KEY = "comet-control-cua-runtime-claim-v1";
@@ -2329,6 +2362,11 @@ async function executeScriptOnTab(tabId, options, ms, label) {
       tabScriptingPoisoned.delete(tabId);
       return value;
     } catch (error) {
+      // Only a TIMEOUT means Comet's per-tab scripting FIFO is wedged. A fast
+      // rejection (e.g. "Frame with ID 0 is showing error page" after a dead
+      // fixture/server) is not a wedge; poisoning on it blocked even the goto
+      // that would recover the tab.
+      if (!/timed out after/.test(String(error?.message || error))) throw error;
       tabScriptingPoisoned.add(tabId);
       // Keep queue on raw settle (bounded) so we do not start a second inject
       // while Comet still holds the first.
@@ -2492,6 +2530,149 @@ async function sendToContentScript(tabId, action, args = [], frameId) {
 }
 
 // ---- Browser Actions ----
+// ---- Event-based navigation tracking (no sleep races) ----
+// Arm BEFORE triggering a navigation. The navigation id is the main-frame
+// documentId committed after arming (webNavigation.onCommitted). "complete"
+// counts only for THAT document: webNavigation.onCompleted with the same
+// documentId, or tabs.onUpdated status:"complete" while the main frame's
+// current documentId is still it. A same-document (fragment/history) commit
+// is reported as such and is never a fresh scripting world. Timers only bound
+// the wait; they never stand in for the event.
+const NAV_POISON_CLEAR_MAX_MS = 8000;
+// A slow server may not commit within the action's waitMs; wait (bounded by
+// the request deadline) for the commit, then fail loud if none arrived.
+const NAV_COMMIT_MAX_MS = 15000;
+function armNavigationWaiter(tabId, api = chrome) {
+  const nav = {
+    committed: false, document_id: null, complete: false,
+    same_document: false, error: null, aborted: false, waited_ms: 0,
+  };
+  const armedAt = Date.now();
+  let wake = null;
+  const notify = () => { if (wake) { const w = wake; wake = null; w(); } };
+  const isMain = (d) => d && Number(d.tabId) === Number(tabId) && d.frameId === 0;
+  const onCommitted = (d) => {
+    if (!isMain(d)) return;
+    nav.committed = true;
+    nav.document_id = d.documentId || null;
+    nav.complete = false;
+    nav.error = null;
+    notify();
+  };
+  const onSameDocument = (d) => {
+    if (!isMain(d) || nav.committed) return;
+    nav.same_document = true;
+    notify();
+  };
+  const onCompleted = (d) => {
+    if (!isMain(d) || !nav.committed) return;
+    if (!nav.document_id || d.documentId !== nav.document_id) return;
+    nav.complete = true;
+    notify();
+  };
+  const onError = (d) => {
+    if (!isMain(d)) return;
+    const error = String(d.error || "navigation error");
+    // ERR_ABORTED = superseded by a newer navigation (redirect, script); the
+    // newer commit settles it, a missing commit fails as NAVIGATION_TIMEOUT.
+    if (error === "net::ERR_ABORTED") { nav.aborted = true; return; }
+    nav.error = error;
+    notify();
+  };
+  const onUpdated = async (id, info) => {
+    if (Number(id) !== Number(tabId) || info?.status !== "complete") return;
+    if (!nav.committed || nav.complete || !nav.document_id) return;
+    const committedId = nav.document_id;
+    const frame = await api.webNavigation.getFrame({ tabId, frameId: 0 }).catch(() => null);
+    if (frame?.documentId === committedId && nav.document_id === committedId) {
+      nav.complete = true;
+      notify();
+    }
+  };
+  const wn = api.webNavigation;
+  const subs = [
+    [wn.onCommitted, onCommitted], [wn.onCompleted, onCompleted],
+    [wn.onErrorOccurred, onError], [wn.onReferenceFragmentUpdated, onSameDocument],
+    [wn.onHistoryStateUpdated, onSameDocument], [api.tabs.onUpdated, onUpdated],
+  ];
+  for (const [ev, fn] of subs) ev.addListener(fn);
+  const settled = (n) => n.complete || n.same_document || Boolean(n.error);
+  return {
+    nav,
+    async wait(ms, until = settled) {
+      const deadline = Date.now() + Math.max(0, Number(ms) || 0);
+      while (!until(nav)) {
+        const left = deadline - Date.now();
+        if (left <= 0) break;
+        let timer = null;
+        await new Promise((resolve) => {
+          wake = resolve;
+          timer = setTimeout(resolve, left);
+        });
+        clearTimeout(timer);
+        wake = null;
+      }
+      nav.waited_ms = Date.now() - armedAt;
+      return { ...nav };
+    },
+    dispose() {
+      for (const [ev, fn] of subs) ev.removeListener(fn);
+      notify();
+    },
+  };
+}
+
+function navigationBudget(ms, state) {
+  assertRequestLive(state);
+  const remaining = state.deadlineAt ? state.deadlineAt - Date.now() : ms;
+  return Math.max(0, Math.min(Number(ms || 0), remaining));
+}
+
+// Wait for the armed navigation, clear scripting poison only when the NEW
+// document completed (a fresh scripting world), and report what happened.
+async function settleArmedNavigation(waiter, tabId, waitMs, state) {
+  let nav = await waiter.wait(navigationBudget(waitMs, state));
+  if (!nav.committed && !nav.same_document && !nav.error) {
+    nav = await waiter.wait(
+      navigationBudget(NAV_COMMIT_MAX_MS, state),
+      (n) => n.committed || n.same_document || Boolean(n.error)
+    );
+  }
+  if (!nav.complete && !nav.same_document && !nav.error && tabScriptingPoisoned.has(tabId)) {
+    nav = await waiter.wait(navigationBudget(NAV_POISON_CLEAR_MAX_MS, state));
+  }
+  assertRequestLive(state);
+  // Navigation always invalidates the previous content-script world.
+  invalidateTabInjection(tabId);
+  nav.poison_cleared = false;
+  if (nav.complete && tabScriptingPoisoned.has(tabId)) {
+    tabScriptingPoisoned.delete(tabId);
+    nav.poison_cleared = true;
+  }
+  nav.poisoned = tabScriptingPoisoned.has(tabId);
+  return nav;
+}
+
+// A navigation action succeeds only when a new document committed (or a
+// same-document navigation happened) without a main-frame error. "complete"
+// is reported, not required: a committed page that is still loading is usable.
+function requireNavigation(nav, what) {
+  if (nav.error) {
+    const err = new Error(`NAVIGATION_FAILED: ${what}: ${nav.error}`);
+    err.code = "NAVIGATION_FAILED";
+    throw err;
+  }
+  if (!nav.committed && !nav.same_document) {
+    const err = new Error(
+      `NAVIGATION_TIMEOUT: ${what}: no new document committed within ${nav.waited_ms} ms`
+        + (nav.aborted ? " (navigation aborted)" : "")
+    );
+    err.code = "NAVIGATION_TIMEOUT";
+    throw err;
+  }
+  return nav;
+}
+
 function assertRequestLive(state) {
   if (state.cancelled) throw new Error("Agent browser request was cancelled during closeout");
   if (state.deadlineAt && Date.now() >= state.deadlineAt) {
@@ -2552,23 +2733,33 @@ async function runBrowserAction(action, state) {
     await ensureAttached(state.tabId).catch(() => {});
     const current = await chrome.tabs.get(state.tabId);
     let tab;
-    if (current.url === action.url) {
-      // tabs.update is a no-op for the current URL. A real goto must refresh
-      // stale service-worker/cache fallbacks such as TickerTape maintenance.
-      await chrome.tabs.reload(state.tabId, { bypassCache: action.bypassCache !== false });
-      tab = await chrome.tabs.get(state.tabId);
-    } else {
-      tab = await chrome.tabs.update(state.tabId, { url: action.url, active: false });
+    // Armed before the navigation starts: the old document's "complete" can
+    // never satisfy it (no sleep race on slow or same-document navigations).
+    const waiter = armNavigationWaiter(state.tabId);
+    let navigation;
+    try {
+      if (current.url === action.url) {
+        // tabs.update is a no-op for the current URL. A real goto must refresh
+        // stale service-worker/cache fallbacks such as TickerTape maintenance.
+        await chrome.tabs.reload(state.tabId, { bypassCache: action.bypassCache !== false });
+        tab = await chrome.tabs.get(state.tabId);
+      } else {
+        tab = await chrome.tabs.update(state.tabId, { url: action.url, active: false });
+      }
+      state.tabId = tab.id;
+      // The new document completing is a fresh scripting world (one fresh
+      // canary allowed); a still-wedged FIFO re-poisons on the next bounded
+      // executeScript timeout. No completion -> poison stays.
+      navigation = await settleArmedNavigation(waiter, state.tabId, action.waitMs || 2000, state);
+    } finally {
+      waiter.dispose();
     }
-    state.tabId = tab.id;
-    await boundedWait(action.waitMs || 2000, state);
-    // Navigation always invalidates the previous content-script world.
-    invalidateTabInjection(state.tabId);
+    requireNavigation(navigation, `goto ${action.url}`);
     // Do not pre-attach the debugger here. debugger + scripting.executeScript
     // on the same tab wedges Seller Accept→Dispatch (injectCanary timeout).
     // Screenshots/network attach lazily when those actions run.
     // Action-scoped inject via ensure/executeScript (no static content_scripts).
-    await ensureContentScript(state.tabId).catch(() => {});
+    await ensureContentScript(state.tabId);
     if (state.leaseRecord) {
       state.leaseRecord.lastSeen = Date.now();
       await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true });
@@ -2579,7 +2770,7 @@ async function runBrowserAction(action, state) {
     const settled = await chrome.tabs.get(state.tabId).catch(() => null);
     const finalUrl = settled?.url || action.url;
     state.lastUrl = finalUrl;
-    return { type, tabId: state.tabId, url: finalUrl };
+    return { type, tabId: state.tabId, url: finalUrl, navigation };
   }
 
   if (type === "back" || type === "forward" || type === "reload_page") {
@@ -2587,26 +2778,31 @@ async function runBrowserAction(action, state) {
     if (network) clearNetworkState(network);
     tabConsoleCdp.set(state.tabId, []);
     await ensureAttached(state.tabId).catch(() => {});
-    if (type === "back" || type === "forward") {
-      const history = await send(state.tabId, "Page.getNavigationHistory");
-      const offset = type === "back" ? -1 : 1;
-      const target = history?.entries?.[Number(history.currentIndex) + offset];
-      if (!target?.id) throw new Error(`Cannot find a ${type === "back" ? "previous" : "next"} page in history`);
-      await send(state.tabId, "Page.navigateToHistoryEntry", { entryId: target.id });
+    const waiter = armNavigationWaiter(state.tabId);
+    let navigation;
+    try {
+      if (type === "back" || type === "forward") {
+        const history = await send(state.tabId, "Page.getNavigationHistory");
+        const offset = type === "back" ? -1 : 1;
+        const target = history?.entries?.[Number(history.currentIndex) + offset];
+        if (!target?.id) throw new Error(`Cannot find a ${type === "back" ? "previous" : "next"} page in history`);
+        await send(state.tabId, "Page.navigateToHistoryEntry", { entryId: target.id });
+      }
+      if (type === "reload_page") {
+        await chrome.tabs.reload(state.tabId, { bypassCache: Boolean(action.bypassCache) });
+      }
+      // A completed new document can clear a wedged scripting FIFO (fresh canary).
+      navigation = await settleArmedNavigation(waiter, state.tabId, action.waitMs || 1000, state);
+    } finally {
+      waiter.dispose();
     }
-    if (type === "reload_page") {
-      await chrome.tabs.reload(state.tabId, { bypassCache: Boolean(action.bypassCache) });
-    }
-    await boundedWait(action.waitMs || 1000, state);
-    invalidateTabInjection(state.tabId);
-    // Full reload can clear a wedged scripting FIFO — allow a fresh canary later.
-    tabScriptingPoisoned.delete(state.tabId);
-    await ensureContentScript(state.tabId).catch(() => {});
+    requireNavigation(navigation, type);
+    await ensureContentScript(state.tabId);
     if (state.leaseRecord) {
       await setAgentIdentity(state.tabId, state.leaseRecord, { sessionWarm: true }).catch(() => {});
     }
     const tab = await chrome.tabs.get(state.tabId).catch(() => null);
-    return { type, tabId: state.tabId, url: tab?.url || "" };
+    return { type, tabId: state.tabId, url: tab?.url || "", navigation };
   }
 
   if (type === "wait") {
@@ -3137,10 +3333,15 @@ async function runBrowserAction(action, state) {
       try {
         const tabBefore = await chrome.tabs.get(state.tabId).catch(() => null);
         const targetUrl = tabBefore?.url || "";
-        tabScriptingPoisoned.delete(state.tabId);
-        invalidateTabInjection(state.tabId);
-        await chrome.tabs.reload(state.tabId, { bypassCache: true });
-        await boundedWait(3500, state);
+        const waiter = armNavigationWaiter(state.tabId);
+        let navigation;
+        try {
+          await chrome.tabs.reload(state.tabId, { bypassCache: true });
+          navigation = await settleArmedNavigation(waiter, state.tabId, 3500, state);
+        } finally {
+          waiter.dispose();
+        }
+        requireNavigation(navigation, "recovery reload");
         let ready = false;
         for (let i = 0; i < 40; i += 1) {
           if (await probeContentScript(state.tabId, 500)) {
@@ -3355,6 +3556,9 @@ function normalizeExpect(raw) {
   });
 }
 
+const EXPECT_INPUT_CAP = 100;
+const EXPECT_INPUT_VALUE_CHARS = 200;
+
 function expectHaystack(evidence) {
   const parts = [evidence?.title, evidence?.url];
   for (const heading of evidence?.headings || []) parts.push(heading?.text || heading);
@@ -3387,8 +3591,15 @@ function unmatchedExpect(preds, evidence) {
       continue;
     }
     if (pred.kind === "value") {
+      // Selector-scoped (explicit or the action's own selector): only that
+      // field's direct read counts; a missing/unread target is a miss.
+      const scope = String(pred.selector || evidence?.action_selector || "");
+      if (scope) {
+        if (scope !== evidence?.value_selector || evidence?.selector_value == null) return pred;
+        if (!String(evidence.selector_value).toLowerCase().includes(want)) return pred;
+        continue;
+      }
       const values = (evidence?.inputs || []).map((input) => String(input?.value || "").toLowerCase());
-      if (evidence?.selector_value != null) values.unshift(String(evidence.selector_value).toLowerCase());
       if (!values.some((value) => value.includes(want))) return pred;
       continue;
     }
@@ -3441,7 +3652,10 @@ async function collectExpectEvidence(preds, action, result, state) {
     source: fromResult ? ["dom"] : ["url"],
   };
   if (!needsDom) return evidence;
-  if (fromResult && (result.headings || result.buttons || result.inputs || result.title)) {
+  const wantsValue = preds.some((pred) => pred.kind === "value");
+  // A compact page_context carries <=8 inputs: value checks always take the
+  // expanded/direct read below (agent payload unchanged).
+  if (fromResult && !wantsValue && (result.headings || result.buttons || result.inputs || result.title)) {
     return evidence;
   }
   const sections = [];
@@ -3451,7 +3665,16 @@ async function collectExpectEvidence(preds, action, result, state) {
   if (preds.some((pred) => pred.kind === "value" || pred.kind === "text" || pred.kind === "not_text")) {
     sections.push("inputs");
   }
-  const resp = await sendToContentScript(state.tabId, "getPageContext", [[...new Set(sections)], { compact: true }], 0);
+  const valuePred = preds.find((pred) => pred.kind === "value" && (pred.selector || action.selector));
+  const valueSelector = valuePred ? String(valuePred.selector || action.selector || "") : "";
+  const pcOptions = {
+    compact: true,
+    // Value checks read past the compact 8-input cap (bounded) and the target
+    // field directly; the agent never sees this payload.
+    ...(wantsValue ? { input_cap: EXPECT_INPUT_CAP, input_value_chars: EXPECT_INPUT_VALUE_CHARS } : {}),
+    ...(valueSelector ? { field: valueSelector } : {}),
+  };
+  const resp = await sendToContentScript(state.tabId, "getPageContext", [[...new Set(sections)], pcOptions], 0);
   const page = requireContentScriptResult(resp, "expect page context returned no result");
   evidence.url = page.url || evidence.url;
   evidence.title = page.title || evidence.title;
@@ -3468,13 +3691,10 @@ async function collectExpectEvidence(preds, action, result, state) {
       ? String(textResult.text || "")
       : String(textResult || "");
   }
-  const valuePred = preds.find((pred) => pred.kind === "value" && (pred.selector || action.selector));
-  if (valuePred) {
-    const selector = String(valuePred.selector || action.selector || "");
-    const key = selector.replace(/^#/, "");
-    const hit = (evidence.inputs || []).find((input) => input.name === key || input.name === selector);
-    if (hit) evidence.selector_value = hit.value;
-  }
+  evidence.action_selector = String(action.selector || "");
+  evidence.value_selector = valueSelector;
+  // Only the exact selector's direct read counts (no name-based guess).
+  if (valuePred && page.field?.found) evidence.selector_value = page.field.value;
   return evidence;
 }
 
@@ -3924,6 +4144,7 @@ async function handleUnlockedHostMessage(message) {
     deviceMetricsOverrideWidth: leaseRecord.deviceMetricsOverrideWidth,
     deviceMetricsOverrideHeight: leaseRecord.deviceMetricsOverrideHeight,
     lastVisibleTabCaptureFingerprint: leaseRecord.lastVisibleTabCaptureFingerprint || "",
+    calls: newRunCallLedger(),
   };
 
   activeRunStates.add(state);
@@ -3936,7 +4157,14 @@ async function handleUnlockedHostMessage(message) {
       && (message.actions || []).every((action) => ["dialog_get", "dialog_handle"].includes(action?.type));
     const navigationOnly = (message.actions || []).length > 0
       && message.actions.every((action) => ["reload_page", "goto", "navigate", "back", "forward"].includes(action?.type));
-    if (!navigationOnly && !dialogControlOnly && !cdpObservationOnly) await setAgentIdentity(state.tabId, leaseRecord);
+    // A batch that starts by navigating sets identity inside the nav action;
+    // pre-identity on the old (possibly error/wedged) document would block the
+    // very goto that recovers it.
+    const leadingNavigation = ["reload_page", "goto", "navigate", "back", "forward"]
+      .includes(message.actions?.[0]?.type);
+    if (!navigationOnly && !leadingNavigation && !dialogControlOnly && !cdpObservationOnly) {
+      await setAgentIdentity(state.tabId, leaseRecord);
+    }
     const results = [];
     try {
       for (const [index, action] of (message.actions || []).entries()) {
@@ -3958,6 +4186,7 @@ async function handleUnlockedHostMessage(message) {
         startedAt,
         error,
       });
+      if (error.failureRecord && typeof error.failureRecord === "object") error.failureRecord.calls = state.calls;
       throw error;
     }
     const tab = state.tabId ? await chrome.tabs.get(state.tabId).catch(() => null) : null;
@@ -3970,6 +4199,7 @@ async function handleUnlockedHostMessage(message) {
       final_url: tab?.url || state.lastUrl,
       final_title: tab?.title || "",
       results,
+      telemetry: { calls: state.calls },
     });
   } finally {
     activeRunStates.delete(state);

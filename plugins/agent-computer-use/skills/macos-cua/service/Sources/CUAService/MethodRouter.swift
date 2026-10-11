@@ -32,8 +32,30 @@ final class MethodRouter: @unchecked Sendable {
         self.logger = logger
     }
 
+    /// Read/config RPCs for the overlay. They bypass the request lock so
+    /// `cursor status` can observe visibility while an action is in flight.
+    static let cursorControlMethods: Set<String> = ["cursor_status", "configure_cursor"]
+    /// Methods that never move the tip: no action bracket, so observers
+    /// polling them neither show the tip nor extend its idle countdown.
+    static let nonActionMethods: Set<String> = ["list_apps", "hide_agent_cursor", "wait"]
+
+    static func movesTip(_ req: JSONRPCRequest) -> Bool {
+        if nonActionMethods.contains(req.method) { return false }
+        if req.method == "get_app_state" { return (req.param("raiseForInput") as Bool?) == true }
+        return true
+    }
+
     @MainActor
     func handle(_ request: JSONRPCRequest) async -> JSONRPCResponse {
+        if Self.cursorControlMethods.contains(request.method) {
+            do {
+                return .success(id: request.id, try handleCursorControl(request))
+            } catch let e as RPCMethodError {
+                return .error(id: request.id, code: e.code, message: e.message)
+            } catch {
+                return .error(id: request.id, code: -32603, message: error.localizedDescription)
+            }
+        }
         // ponytail: desktop input is one shared resource; split lanes only if
         // independent displays become a measured concurrent use case.
         while requestRunning {
@@ -41,6 +63,11 @@ final class MethodRouter: @unchecked Sendable {
         }
         requestRunning = true
         defer { requestRunning = false }
+        // Action bracket: the idle-hide countdown starts only after the whole
+        // request (glide, landing gate, press) returned — never mid-press.
+        let isAction = Self.movesTip(request)
+        if isAction { cursorOverlay.beginAction(request.method) }
+        defer { if isAction { cursorOverlay.endAction(request.method) } }
         do {
             let result = try await dispatch(request)
             return .success(id: request.id, result)
@@ -53,6 +80,21 @@ final class MethodRouter: @unchecked Sendable {
 
     @MainActor
     private func dispatch(_ req: JSONRPCRequest) async throws -> Any {
+        // Per-request landing contract (requests are serialized above).
+        lastLanding = nil
+        allowUnlanded = (req.param("allow_unlanded") as Bool?) == true
+        let value = try await route(req)
+        // Every input result reports how the tip landed before its press.
+        if var dict = value as? [String: Any], dict["cursor_landing"] == nil,
+           let landing = lastLanding {
+            dict["cursor_landing"] = landing.dict
+            return dict
+        }
+        return value
+    }
+
+    @MainActor
+    private func route(_ req: JSONRPCRequest) async throws -> Any {
         switch req.method {
         case "list_apps":
             return appResolver.listApps()
@@ -106,8 +148,23 @@ final class MethodRouter: @unchecked Sendable {
     }
 
     @MainActor
+    private func handleCursorControl(_ req: JSONRPCRequest) throws -> Any {
+        if req.method == "configure_cursor" {
+            guard let ms = req.paramInt("idle_hide_ms") else {
+                throw RPCMethodError(code: -32602, message: "configure_cursor needs integer idle_hide_ms")
+            }
+            try cursorOverlay.configure(idleHideMs: ms)
+        }
+        var d = cursorOverlay.status(includeEvents: (req.param("events") as Bool?) == true)
+        d["ok"] = true
+        return d
+    }
+
+    @MainActor
     private func handleExecutePlan(_ req: JSONRPCRequest) async throws -> Any {
-        defer { cursorOverlay.hide() }
+        // A plan is a whole task: the cursor stays visible across its steps
+        // and hides when the plan ends, success or failure.
+        defer { cursorOverlay.hide(reason: "plan_end") }
         guard let app: String = req.param("app"),
               let steps: [Any] = req.param("steps"),
               !steps.isEmpty, steps.count <= 50
@@ -130,13 +187,26 @@ final class MethodRouter: @unchecked Sendable {
             }
             var params = step["params"] as? [String: Any] ?? [:]
             params["app"] = params["app"] ?? app
+            if (req.param("allow_unlanded") as Bool?) == true {
+                params["allow_unlanded"] = params["allow_unlanded"] ?? true
+            }
             let child = JSONRPCRequest(
                 jsonrpc: "2.0",
                 method: method,
                 params: params.mapValues(AnyCodable.init),
                 id: nil
             )
-            let value = try await dispatch(child)
+            let value: Any
+            do {
+                value = try await dispatch(child)
+            } catch let e as RPCMethodError where e.code == Self.cursorNotLandedCode {
+                // Refused press: stop the plan, keep before/after evidence.
+                results.append([
+                    "ok": false, "error": e.message,
+                    "error_code": "CURSOR_NOT_LANDED", "method": method,
+                ])
+                break
+            }
             var result = value as? [String: Any] ?? ["ok": false, "error": "invalid step result"]
             if method == "get_app_state" && result["error"] == nil {
                 result["ok"] = true
@@ -158,6 +228,8 @@ final class MethodRouter: @unchecked Sendable {
 
     @MainActor
     private func planState(app: String) async -> [String: Any] {
+        // includeElements so compact expect.value can verify fields after mutations
+        // (Codex r8 major 2). Screenshots stay off — planState must skip capture.
         let request = JSONRPCRequest(
             jsonrpc: "2.0",
             method: "get_app_state",
@@ -165,6 +237,7 @@ final class MethodRouter: @unchecked Sendable {
                 "app": AnyCodable(app),
                 "disableDiff": AnyCodable(true),
                 "includeScreenshot": AnyCodable(false),
+                "includeElements": AnyCodable(true),
             ],
             id: nil
         )
@@ -174,6 +247,28 @@ final class MethodRouter: @unchecked Sendable {
             return ["text": "", "error": error.localizedDescription]
         }
     }
+
+    /// Optional caller-pinned CGWindowID (windowId / window_id). When set,
+    /// action RPCs must not re-resolve to a different focused window.
+    private func pinnedWindowID(_ req: JSONRPCRequest) -> CGWindowID? {
+        if let id = req.paramInt("windowId"), id != 0 { return CGWindowID(id) }
+        if let id = req.paramInt("window_id"), id != 0 { return CGWindowID(id) }
+        return nil
+    }
+
+    /// Index actions must target the pinned window — never another window's tree.
+    private func requirePinnedAXWindow(_ resolved: ResolvedApp) throws {
+        guard resolved.windowID != 0 else { return }
+        guard axTree.hasPinnedAXWindow(
+            axApp: resolved.axApp, windowID: resolved.windowID
+        ) else {
+            throw RPCMethodError(
+                code: -32002,
+                message: "Pinned AX window \(resolved.windowID) not found; refusing fallback to focused/first window"
+            )
+        }
+    }
+
 
     @MainActor
     private func handleWait(_ req: JSONRPCRequest) async throws -> Any {
@@ -255,7 +350,7 @@ final class MethodRouter: @unchecked Sendable {
         let raiseForInput: Bool = req.param("raiseForInput") ?? false
         let includeScreenshot: Bool = req.param("includeScreenshot") ?? true
         let t0 = ProcessInfo.processInfo.systemUptime
-        let resolved0 = try appResolver.resolve(app, raiseForInput: raiseForInput)
+        let resolved0 = try appResolver.resolve(app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req))
         var resolved = resolved0
         let t1 = ProcessInfo.processInfo.systemUptime
         var snapshot = axTree.walk(
@@ -281,7 +376,7 @@ final class MethodRouter: @unchecked Sendable {
             if screenshotPath == nil {
                 captureRetry = true
                 try await Task.sleep(nanoseconds: 120_000_000)
-                resolved = try appResolver.resolve(app, raiseForInput: raiseForInput)
+                resolved = try appResolver.resolve(app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req))
                 snapshot = axTree.walk(
                     axApp: resolved.axApp,
                     windowID: resolved.windowID,
@@ -321,6 +416,13 @@ final class MethodRouter: @unchecked Sendable {
             result["windowWidth"] = frame.width
             result["windowHeight"] = frame.height
         }
+        if (req.param("includeElements") as Bool?) == true {
+            // Structured view of the SAME walk the input methods index into.
+            result["elements"] = snapshot.elements.map(Self.elementDict)
+            if let frame = snapshot.windowFrame {
+                result["windowFrame"] = Self.frameDict(frame)
+            }
+        }
         if let enrich {
             result["ax_enrich"] = enrich
         }
@@ -328,30 +430,90 @@ final class MethodRouter: @unchecked Sendable {
             result["screenshot"] = ["url": "file://\(screenshotPath)"]
         }
         if raiseForInput {
-            try await syncCursorToWindow(resolved: resolved, snapshot: snapshot)
+            try await syncCursorToWindow(resolved: resolved, snapshot: snapshot, gate: false)
+            result["cursor_landing"] = lastLanding?.dict as Any
         }
         return result
     }
 
+    static func frameDict(_ r: CGRect) -> [String: Any] {
+        ["x": Double(r.origin.x), "y": Double(r.origin.y),
+         "w": Double(r.width), "h": Double(r.height)]
+    }
+
+    static func elementDict(_ e: AXElement) -> [String: Any] {
+        [
+            "element_index": e.index,
+            "role": e.role,
+            "label": e.label as Any,
+            "value": e.value as Any,
+            "frame": frameDict(e.frame),
+            "actions": e.actions,
+            "parent_index": e.parentIndex as Any,
+            "depth": e.depth,
+        ]
+    }
+
+    /// Walk bound for index-addressed input: always include the index so a
+    /// snapshot taken with a larger maxElements stays addressable.
+    static func walkBound(for index: Int?) -> Int {
+        max(80, (index ?? 0) + 1)
+    }
+
     // MARK: - Cursor sync (agent pointer follows every input surface)
+
+    /// Last tip landing (reported on click results as `cursor_landing`).
+    private var lastLanding: CursorOverlay.Landing?
+    /// Caller opted in (`allow_unlanded: true`) to press blind when the tip
+    /// cannot be confirmed; the result then carries cursor_landing.landed=false.
+    private var allowUnlanded = false
+
+    /// Error code for a press refused because the tip did not land.
+    static let cursorNotLandedCode = -32010
 
     @MainActor
     private func syncCursorToPoint(
         _ point: CGPoint,
         windowID: CGWindowID,
-        axBounds: CGRect?
+        axBounds: CGRect?,
+        gate: Bool = true
     ) async throws -> CGPoint {
-        let tip = cursorOverlay.glideTo(
+        // Tip lands (confirmed: final frame + measured origin + drawn frame)
+        // before any press. Unconfirmed after hide + one retry → the press is
+        // REFUSED (fail loud) unless the caller opted in with allow_unlanded.
+        let landing = await cursorOverlay.glideAndLand(
             screenPoint: point,
             windowID: windowID,
             axBounds: axBounds
         )
-        if tip.wait > 0 {
-            try await Task.sleep(
-                nanoseconds: UInt64((tip.wait * 1_000_000_000).rounded())
-            )
-        }
-        return tip.point
+        lastLanding = landing
+        if gate { try requireLanded(landing) }
+        return landing.point
+    }
+
+    @MainActor
+    private func requireLanded(_ landing: CursorOverlay.Landing) throws {
+        if landing.landed || allowUnlanded { return }
+        let render = landing.presented.map { "\($0.dict)" } ?? "none"
+        throw RPCMethodError(
+            code: Self.cursorNotLandedCode,
+            message: "CURSOR_NOT_LANDED: agent cursor did not land after hide + one retry "
+                + "(method=\(landing.method) error_pt=\(landing.errorPt) wait_ms=\(landing.waitMs) render=\(render)); "
+                + "press NOT sent. Hint: wake/unlock the display or check Screen Recording/overlay, then retry; "
+                + "only if a blind press is acceptable pass allow_unlanded:true (result reports cursor_landing.landed=false)."
+        )
+    }
+
+    /// Input with no window frame cannot show a tip: same contract as a miss.
+    @MainActor
+    private func requireWindowFrame(_ snapshot: AXSnapshot) throws {
+        if let frame = snapshot.windowFrame, frame.width > 0, frame.height > 0 { return }
+        if allowUnlanded { return }
+        throw RPCMethodError(
+            code: Self.cursorNotLandedCode,
+            message: "CURSOR_NOT_LANDED: target window has no frame, the agent cursor cannot land; press NOT sent. "
+                + "Hint: bring the window on screen, or pass allow_unlanded:true for a blind press."
+        )
     }
 
     @MainActor
@@ -370,14 +532,27 @@ final class MethodRouter: @unchecked Sendable {
     @MainActor
     private func syncCursorToWindow(
         resolved: ResolvedApp,
-        snapshot: AXSnapshot
+        snapshot: AXSnapshot,
+        gate: Bool = true
     ) async throws {
+        if gate { try requireWindowFrame(snapshot) }
         guard let frame = snapshot.windowFrame,
-              frame.width > 0, frame.height > 0 else { return }
+              frame.width > 0, frame.height > 0 else {
+            // Only reachable for a gated press with allow_unlanded:true (or an
+            // ungated observe): the press must still report landed:false.
+            if gate {
+                lastLanding = CursorOverlay.Landing(
+                    point: .zero, landed: false, method: "no_window_frame",
+                    errorPt: 0, waitMs: 0, presented: nil
+                )
+            }
+            return
+        }
         _ = try await syncCursorToPoint(
             CGPoint(x: frame.midX, y: frame.midY),
             windowID: resolved.windowID,
-            axBounds: frame
+            axBounds: frame,
+            gate: gate
         )
     }
 
@@ -437,18 +612,22 @@ final class MethodRouter: @unchecked Sendable {
         guard let app: String = req.param("app") else {
             throw RPCMethodError(code: -32602, message: "Missing 'app' parameter")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
+        try requirePinnedAXWindow(resolved)
         screenshotCapture.invalidate()
-        let snapshot = axTree.cachedSnapshot(windowID: resolved.windowID)
+        let elementIndex: Int? = req.paramInt("element_index")
+        let cached = axTree.cachedSnapshot(windowID: resolved.windowID)
+            .flatMap { snap in snap.elements.count > (elementIndex ?? -1) ? snap : nil }
+        let snapshot = cached
             ?? axTree.walk(
                 axApp: resolved.axApp,
                 windowID: resolved.windowID,
+                maxElements: Self.walkBound(for: elementIndex),
                 pid: resolved.pid,
                 bundleID: resolved.bundleID
             )
 
         let label: String? = req.param("label")
-        let elementIndex: Int? = req.paramInt("element_index")
         let x: Double? = req.paramDouble("x")
         let y: Double? = req.paramDouble("y")
 
@@ -502,6 +681,7 @@ final class MethodRouter: @unchecked Sendable {
             || method == "ax-set-value" || method == "cgevent-click"
             || method == "cgevent-click-pid" {
             var result = pressResult
+            result["cursor_landing"] = lastLanding?.dict as Any
             result["settled"] = [
                 "settled": true,
                 "elapsed_ms": 0,
@@ -525,6 +705,7 @@ final class MethodRouter: @unchecked Sendable {
         }
 
         var result = pressResult
+        result["cursor_landing"] = lastLanding?.dict as Any
         result["settled"] = settled.dict
         result["label"] = label as Any
         result["element_index"] = (target?.index ?? elementIndex) as Any
@@ -540,7 +721,7 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing app or key")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
@@ -566,8 +747,10 @@ final class MethodRouter: @unchecked Sendable {
         }
         let afterNew: Bool = req.param("after_new_document") ?? false
         let resolved = try appResolver.resolve(
-            app, raiseForInput: true, preferFocusedWindow: afterNew
+            app, raiseForInput: true, preferFocusedWindow: afterNew,
+            windowID: pinnedWindowID(req)
         )
+        try requirePinnedAXWindow(resolved)
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
@@ -588,11 +771,12 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing app or direction")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
             windowID: resolved.windowID,
+            maxElements: Self.walkBound(for: req.paramInt("element_index")),
             pid: resolved.pid,
             bundleID: resolved.bundleID
         )
@@ -612,7 +796,8 @@ final class MethodRouter: @unchecked Sendable {
             resolved: resolved,
             element: element,
             direction: direction,
-            pages: pages
+            pages: pages,
+            windowFrame: snapshot.windowFrame
         )
     }
 
@@ -624,11 +809,13 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing app, element_index, or value")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
+        try requirePinnedAXWindow(resolved)
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
             windowID: resolved.windowID,
+            maxElements: Self.walkBound(for: idx),
             pid: resolved.pid,
             bundleID: resolved.bundleID
         )
@@ -649,10 +836,12 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing required params")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
+        try requirePinnedAXWindow(resolved)
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
             windowID: resolved.windowID,
+            maxElements: Self.walkBound(for: idx),
             pid: resolved.pid,
             bundleID: resolved.bundleID
         )
@@ -678,10 +867,12 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing required params")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
+        try requirePinnedAXWindow(resolved)
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
             windowID: resolved.windowID,
+            maxElements: Self.walkBound(for: idx),
             pid: resolved.pid,
             bundleID: resolved.bundleID
         )
@@ -704,7 +895,7 @@ final class MethodRouter: @unchecked Sendable {
         else {
             throw RPCMethodError(code: -32602, message: "Missing required drag params")
         }
-        let resolved = try appResolver.resolve(app, raiseForInput: true)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
         let snapshot = axTree.cachedSnapshot(windowID: resolved.windowID)
             ?? axTree.walk(
                 axApp: resolved.axApp,
@@ -723,11 +914,15 @@ final class MethodRouter: @unchecked Sendable {
             fromX: fromX, fromY: fromY,
             toX: toX, toY: toY
         )
+        let pressLanding = lastLanding
         _ = try await syncCursorToPoint(
             CGPoint(x: toX, y: toY),
             windowID: resolved.windowID,
-            axBounds: bounds
+            axBounds: bounds,
+            gate: false
         )
-        return result
+        var out = result
+        out["cursor_landing"] = pressLanding?.dict as Any
+        return out
     }
 }

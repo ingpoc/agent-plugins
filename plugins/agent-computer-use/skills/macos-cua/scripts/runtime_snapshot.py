@@ -26,75 +26,26 @@ def snapshot(
     screenshot_out_file=None,
     query=None,
 ):
-    """Get a window tree. Retries when the tree comes back empty, which
-    happens when the app is mid-navigation/animation and cua-driver's
-    internal AX walk races the UI.
+    """CUAService AX walk (cua-driver is retired): the index space every input uses.
 
-    Note: `element_count` only counts interactive nodes (buttons/menus), so a
-    content-rich screen with few buttons can legitimately report a small
-    element_count. We retry only when the tree is genuinely empty.
+    Retries only a genuinely empty walk (app mid-navigation/animation).
+    ``query`` filters rendered text in callers; it never changes indices.
     """
-    last = None
-    for _ in range(retries + 1):
-        params = {
-            "pid": pid,
-            "window_id": window_id,
-            "max_elements": max_elements,
-            "include_screenshot": include_screenshot,
-            # cua-driver 0.7.x rejects unknown fields because the tool schema
-            # has additionalProperties=false. Its accepted compatibility
-            # field is capture_mode (som maps to the normal AX snapshot).
-            "capture_mode": "vision" if mode == "vision" else "ax",
+    if mode == "vision":
+        return {
+            "error": "snap --mode vision needed the retired cua-driver; use `state` "
+            "(CUAService AX + window screenshot)",
+            "engine": "CUAService",
         }
-        if screenshot_out_file:
-            params["screenshot_out_file"] = screenshot_out_file
-        if query:
-            params["query"] = query
-        last = call_driver(
-            "get_window_state",
-            params,
-            timeout=int(os.environ.get("MACOS_CUA_STATE_TIMEOUT", "12")),
-        )
-        if isinstance(last, dict) and last.get("error"):
-            return last
-        if isinstance(last, dict):
-            last.setdefault("source", f"driver_{mode}")
-        if isinstance(last, dict) and last.get("degraded"):
-            tree = ""
-        else:
-            tree = last.get("tree_markdown", "") if isinstance(last, dict) else ""
-        captured = last.get("screenshot_file_path") if isinstance(last, dict) else None
-        capture_ready = not include_screenshot
-        if include_screenshot and captured:
-            materialize_deadline = time.monotonic() + 1.0
-            while time.monotonic() < materialize_deadline:
-                try:
-                    if Path(captured).is_file() and Path(captured).stat().st_size > 0:
-                        capture_ready = True
-                        break
-                except OSError:
-                    pass
-                time.sleep(0.05)
-        if len(tree) > 80 and capture_ready:  # non-empty tree + required proof
-            _enrich_elements(last)
-            return last
-        time.sleep(delay)
-    if isinstance(last, dict):
-        _enrich_elements(last)
-        if include_screenshot:
-            captured = last.get("screenshot_file_path")
-            try:
-                capture_ready = bool(
-                    captured
-                    and Path(captured).is_file()
-                    and Path(captured).stat().st_size > 0
-                )
-            except OSError:
-                capture_ready = False
-            if not capture_ready:
-                last["error"] = "screenshot artifact did not materialize"
-                last["capture_path"] = captured or screenshot_out_file
-    return last
+    return cua_snapshot(
+        pid,
+        window_id,
+        max_elements,
+        include_screenshot=include_screenshot,
+        screenshot_out_file=screenshot_out_file,
+        retries=retries,
+        delay=delay,
+    )
 
 
 ACTIVE_SURFACE_ROLES = frozenset({"AXSheet", "AXPopover", "AXDialog"})
