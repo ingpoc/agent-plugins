@@ -1,4 +1,4 @@
-"""Token-protected Streamable HTTP facade: same four tools, loopback only."""
+"""Token-protected Streamable HTTP facade: the ledger tools, loopback only."""
 
 from __future__ import annotations
 
