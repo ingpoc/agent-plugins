@@ -99,8 +99,8 @@ One ledger. Each client reads its own manifest and spawns the same launcher. `se
 | Client | Manifest | Root variable | Runtime |
 | --- | --- | --- | --- |
 | Cursor IDE / CLI local | `.cursor-plugin/plugin.json` → `.cursor-plugin/mcp.json` | root arg `${CURSOR_PLUGIN_ROOT}`; no `cwd` | Binding on this machine → local; else env token; else Keychain → bridge; else `LEDGER_UNBOUND` |
-| Cursor cloud VM | `.cursor-plugin/mcp.json` `sh` resolver | literal `${CURSOR_PLUGIN_ROOT}` falls through to a cache copy, else pinned tag bootstrap | No binding and no Keychain. `cloudAgentEnvLookup` → `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` → bridge; else `LEDGER_UNBOUND` |
-| Cursor cloud on Mini worker | `.cursor-plugin/mcp.json` `sh` resolver | Mini cache copy when present, else pinned tag bootstrap | Mini home binding → local; else env token or `CONTEXT_LEDGER_MCP_CLIENT_TOKEN`; else the Mini Keychain item → bridge |
+| Cursor cloud VM | `.cursor-plugin/mcp.json` `sh` resolver | literal `${CURSOR_PLUGIN_ROOT}` falls through to a cache copy at least the pinned version, else pinned tag bootstrap | No binding and no Keychain. `cloudAgentEnvLookup` → `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` → bridge; else `LEDGER_UNBOUND` |
+| Cursor cloud on Mini worker | `.cursor-plugin/mcp.json` `sh` resolver | cache copy at least the pinned version when present, else pinned tag bootstrap | Mini home binding → local; else env token or `CONTEXT_LEDGER_MCP_CLIENT_TOKEN`; else the Mini Keychain item → bridge |
 | Codex | portable `mcp.json` | `${PLUGIN_ROOT}` expanded in root arg 1; args 2 and 3 stay literal and are skipped; `PLUGIN_ROOT` exported; omitted cwd is the plugin root | Same order. The `sh` resolver skips a leftover root arg that still starts with `$` and uses the exported root |
 | Claude Code | `.claude-plugin/plugin.json` `mcpServers` path → `.claude-plugin/mcp.json` | `${CLAUDE_PLUGIN_ROOT}` expanded in the command and exported | Same order |
 | Grok Build / other spec clients | portable `mcp.json` | `${PLUGIN_ROOT}`, same as Codex | Same order |
@@ -112,8 +112,8 @@ Cursor's manifest precedence is `.cursor-plugin/plugin.json`, then `.claude-plug
 Cursor cloud sends `.cursor-plugin/mcp.json` even when the VM has no plugin directory, so `${CURSOR_PLUGIN_ROOT}` stays literal and a `cwd` of that token would fail spawn. The Cursor manifest is `command` `sh` with no `cwd`. Its resolver, and the portable resolver after the root checks above:
 
 1. Exec `$1/bin/context-ledger-mcp` when `$1` is non-empty, does not start with `$`, and that launcher is executable. The portable resolver still tries its three root args and the exported root variables first.
-2. Else exec the highest `plugin.json` `version` among executable `context-ledger` launchers under `~/.cursor/plugins/cache` (`cache/*/context-ledger/*/bin/context-ledger-mcp` and `cache/*/*/*/bin/context-ledger-mcp`). Equal versions use the newest mtime.
-3. Else download tag `context-ledger-v<version>` into `${XDG_CACHE_HOME:-~/.cache}/context-ledger/plugin-<version>` and exec it. The version literal appears once per manifest and matches `plugin.json`. Failure is one stderr JSON line, `PLUGIN_BOOTSTRAP_FAILED`, and a nonzero exit. Stdout stays empty until the launcher runs.
+2. Else exec the highest `plugin.json` `version` among executable `context-ledger` launchers under `~/.cursor/plugins/cache` (`cache/*/context-ledger/*/bin/context-ledger-mcp` and `cache/*/*/*/bin/context-ledger-mcp`) whose version is at least the pinned version. Equal versions use the newest mtime. An older materialized copy is not executed.
+3. Else download tag `context-ledger-v<version>` into `${XDG_CACHE_HOME:-~/.cache}/context-ledger/plugin-<version>` and exec it. The version literal appears once per manifest and matches `plugin.json`. Failure is one stderr JSON line, `PLUGIN_BOOTSTRAP_FAILED`, and a nonzero exit. The older copy is not executed. Stdout stays empty until the launcher runs.
 
 Each release must push tag `context-ledger-v<version>` after merge.
 

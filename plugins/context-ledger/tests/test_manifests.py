@@ -209,7 +209,7 @@ class ManifestContractTests(unittest.TestCase):
             )
         ]
         self.assertEqual(versions, [context_ledger.__version__] * 3)
-        self.assertEqual(context_ledger.__version__, "0.1.18")
+        self.assertEqual(context_ledger.__version__, "0.1.19")
         descriptions = [
             json.loads((ROOT / rel).read_text(encoding="utf-8"))["description"]
             for rel in (
@@ -290,6 +290,12 @@ class ManifestContractTests(unittest.TestCase):
 
             plant(fake, 'printf "%s\\n" "$@"\nprintf "MARKER=%s\\n" "$CL_MARKER"\n')
             plant(other, 'printf "second\\n"\n')
+            version = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
+            for directory in (fake, other):
+                (directory / "plugin.json").write_text(
+                    json.dumps({"name": "context-ledger", "version": version}) + "\n",
+                    encoding="utf-8",
+                )
             empty = base / "empty"
             empty.mkdir()
             home = base / "home"
@@ -348,7 +354,7 @@ class ManifestContractTests(unittest.TestCase):
         payload = json.loads(missing.stderr)
         self.assertEqual(payload["error"]["code"], "PLUGIN_BOOTSTRAP_FAILED")
         self.assertIn("download", payload["error"]["message"])
-        self.assertIn("context-ledger-v0.1.18", payload["error"]["message"])
+        self.assertIn(f"context-ledger-v{version}", payload["error"]["message"])
 
     def test_shell_files_have_no_or_true(self) -> None:
         files: list[str] = []
@@ -428,25 +434,26 @@ class ResolverFallbackTests(unittest.TestCase):
                 )
                 return launcher
 
-            older = plant(
+            version = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
+            stale = plant(
                 home / ".cursor/plugins/cache/ingpoc-agent-plugins/context-ledger/oldsha",
-                "0.1.9",
+                "0.1.0",
             )
-            newer = plant(
-                home / ".cursor/plugins/cache/ingpoc-agent-plugins/99/newsha",
-                "0.1.17",
+            current = plant(
+                home / ".cursor/plugins/cache/ingpoc-agent-plugins/context-ledger/newsha",
+                version,
             )
             decoy = plant(
                 home / ".cursor/plugins/cache/ingpoc-agent-plugins/7/other",
                 "9.9.9",
                 name="other-plugin",
             )
-            os.utime(older, (2_000_000_000, 2_000_000_000))
-            os.utime(newer, (1_000_000_000, 1_000_000_000))
+            os.utime(stale, (2_200_000_000, 2_200_000_000))
+            os.utime(current, (1_000_000_000, 1_000_000_000))
             os.utime(decoy, (2_100_000_000, 2_100_000_000))
-            real = plant(base / "real-root", "0.0.1")
+            real = plant(base / "real-root", version)
             path = "/usr/bin:/bin"
-            expected = f"{newer}\nserve\n"
+            expected = f"{current}\nserve\n"
             root_expected = f"{real}\nserve\n"
             for server in self._servers().values():
                 literal = self._invoke(server, list(server["args"]), home, cwd, path)
@@ -459,6 +466,55 @@ class ResolverFallbackTests(unittest.TestCase):
                 self.assertEqual(chosen.returncode, 0, chosen.stderr)
                 self.assertEqual(chosen.stdout, "")
                 self.assertEqual(chosen.stderr, root_expected)
+
+    def test_stale_materialized_copy_is_not_executed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            home = base / "home"
+            cwd = base / "cwd"
+            home.mkdir()
+            cwd.mkdir()
+            stub = base / "stub"
+            stub.mkdir()
+            curl = stub / "curl"
+            curl.write_text("#!/bin/sh\nprintf '%s\\n' 'curl failed' >&2\nexit 1\n", encoding="utf-8")
+            curl.chmod(0o755)
+            path = str(stub) + os.pathsep + "/usr/bin:/bin"
+
+            def plant(directory: Path, version: str) -> Path:
+                launcher = directory / "bin" / "context-ledger-mcp"
+                launcher.parent.mkdir(parents=True)
+                launcher.write_text(
+                    "#!/bin/sh\nprintf '%s\\n' \"$0\" >&2\nprintf '%s\\n' \"$@\" >&2\nexit 0\n",
+                    encoding="utf-8",
+                )
+                launcher.chmod(0o755)
+                (directory / "plugin.json").write_text(
+                    json.dumps({"name": "context-ledger", "version": version}) + "\n",
+                    encoding="utf-8",
+                )
+                return launcher
+
+            stale = plant(
+                home / ".cursor/plugins/cache/ingpoc-agent-plugins/context-ledger/oldsha",
+                "0.1.17",
+            )
+            stale_root = plant(base / "stale-root", "0.1.17")
+            for server in self._servers().values():
+                cached = self._invoke(server, list(server["args"]), home, cwd, path)
+                self.assertNotEqual(cached.returncode, 0)
+                self.assertEqual(cached.stdout, "")
+                self.assertNotIn(str(stale), cached.stderr)
+                payload = json.loads(cached.stderr)
+                self.assertEqual(payload["error"]["code"], "PLUGIN_BOOTSTRAP_FAILED")
+                args = list(server["args"])
+                args[3] = str(stale_root.parent.parent)
+                rooted = self._invoke(server, args, home, cwd, path)
+                self.assertNotEqual(rooted.returncode, 0, rooted.stderr)
+                self.assertEqual(rooted.stdout, "")
+                self.assertNotIn(str(stale_root), rooted.stderr)
+                rooted_payload = json.loads(rooted.stderr)
+                self.assertEqual(rooted_payload["error"]["code"], "PLUGIN_BOOTSTRAP_FAILED")
 
     def test_bootstrap_failure_and_tarball(self) -> None:
         version = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
@@ -836,6 +892,111 @@ class LauncherModeTests(unittest.TestCase):
         self.assertEqual(proc.stdout, "local\n")
         self.assertNotIn(client_token, proc.stdout)
         self.assertNotIn(client_token, proc.stderr)
+
+
+class ClientScriptTests(unittest.TestCase):
+    def _plant(self, directory: Path, version: str) -> None:
+        launcher = directory / "bin" / "context-ledger-mcp"
+        launcher.parent.mkdir(parents=True)
+        launcher.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        launcher.chmod(0o755)
+        (directory / "plugin.json").write_text(
+            json.dumps({"name": "context-ledger", "version": version}) + "\n",
+            encoding="utf-8",
+        )
+
+    def _run(self, home: Path, script: str, *args: str, extra: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        env = {"PATH": "/usr/bin:/bin", "HOME": str(home)}
+        if extra:
+            env.update(extra)
+        return subprocess.run(
+            ["bash", str(ROOT / "scripts" / script), *args],
+            cwd=ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+
+    def test_install_refresh_and_access_do_not_create_a_ledger(self) -> None:
+        version = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            for client, dest in (
+                ("cursor", home / ".cursor/plugins/local/context-ledger"),
+                ("codex", home / ".agents/plugins/context-ledger"),
+                ("grok", home / ".grok/plugins/context-ledger"),
+            ):
+                missing = self._run(home, "refresh-client.sh", client)
+                self.assertNotEqual(missing.returncode, 0, missing.stderr)
+                self.assertIn(f"no context-ledger install for {client}", missing.stderr)
+                installed = self._run(home, "install-client.sh", client)
+                self.assertEqual(installed.returncode, 0, installed.stderr)
+                self.assertIn(f"version={version}", installed.stdout)
+                self.assertEqual(
+                    json.loads((dest / "plugin.json").read_text(encoding="utf-8"))["version"],
+                    version,
+                )
+                refreshed = self._run(home, "refresh-client.sh", client)
+                self.assertEqual(refreshed.returncode, 0, refreshed.stderr)
+                self.assertFalse((home / ".context-ledger").exists())
+
+    def test_refresh_replaces_stale_cache_in_place(self) -> None:
+        version = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            stale = home / ".cursor/plugins/cache/ingpoc-agent-plugins/context-ledger/oldsha"
+            self._plant(stale, "0.1.17")
+            proc = self._run(home, "refresh-client.sh", "cursor")
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertEqual(
+                json.loads((stale / "plugin.json").read_text(encoding="utf-8"))["version"],
+                version,
+            )
+            self.assertFalse((home / ".cursor/plugins/local/context-ledger").exists())
+            self.assertFalse((home / ".context-ledger").exists())
+            siblings = list((home / ".cursor/plugins/cache/ingpoc-agent-plugins/context-ledger").iterdir())
+            self.assertEqual([path.name for path in siblings], ["oldsha"])
+
+    def test_access_check_fails_loud_without_a_second_root(self) -> None:
+        secret = "token-must-not-appear"
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            unbound = self._run(home, "check-ledger-access.sh")
+            self.assertNotEqual(unbound.returncode, 0)
+            self.assertIn("LEDGER_UNBOUND", unbound.stderr)
+            self.assertFalse((home / ".context-ledger").exists())
+            ledger = home / "ledger"
+            ledger.mkdir()
+            data = home / "data"
+            data.mkdir()
+            (data / "binding.json").write_text(
+                json.dumps({"ledger_dir": str(ledger), "ledger_id": "x"}) + "\n",
+                encoding="utf-8",
+            )
+            missing = self._run(home, "check-ledger-access.sh", "--data", str(data))
+            self.assertNotEqual(missing.returncode, 0, missing.stderr)
+            self.assertIn(str(ledger / "ledger.sqlite3"), missing.stderr)
+            self.assertFalse((ledger / "ledger.sqlite3").exists())
+            (ledger / "ledger.sqlite3").write_bytes(b"ok")
+            ready = self._run(home, "check-ledger-access.sh", "--data", str(data))
+            self.assertEqual(ready.returncode, 0, ready.stderr)
+            self.assertEqual(ready.stdout, "ok local\n")
+            empty = home / "empty-home"
+            empty.mkdir()
+            remote = self._run(
+                home,
+                "check-ledger-access.sh",
+                extra={
+                    "CONTEXT_LEDGER_MCP_TOKEN": secret,
+                    "CONTEXT_LEDGER_MCP_URL": "http://127.0.0.1:9/mcp",
+                    "CONTEXT_LEDGER_MCP_TIMEOUT": "0.2",
+                    "HOME": str(empty),
+                },
+            )
+            self.assertNotEqual(remote.returncode, 0, remote.stderr)
+            self.assertNotIn(secret, remote.stdout)
+            self.assertNotIn(secret, remote.stderr)
+            self.assertFalse((home / "empty-home" / ".context-ledger").exists())
 
 
 if __name__ == "__main__":

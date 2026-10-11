@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.19
+
+Install, refresh, and the one-ledger access check are `scripts/install-client.sh`, `scripts/refresh-client.sh`, and `scripts/check-ledger-access.sh`. A materialized plugin copy older than this package is replaced in place for Cursor, Codex, and Grok. The MCP resolver does not execute a root or cache copy older than the pinned version; if the pinned tag cannot be fetched, it exits `PLUGIN_BOOTSTRAP_FAILED`.
+
 ## 0.1.18
 
 Before the first find, the server checks that the ledger file is still present and readable, retries once, and stops with an error that names the URL or the ledger file. It does not fall back to another store. That check is `UNAVAILABLE` and retryable, same as the remote bridge. Find ranks success, then pending or unknown, then abandoned or inconclusive, then failed or superseded. Ranking uses the latest outcome status even when that outcome has no task id. Failed records carry `status failed`. Superseded records carry `superseded_by <id>`. An `applied` event records `task_id` and `decision_ids`. `get` returns applied and outcome events, and an outcome may set `applied_event_id`. Find limit above 3 is `INVALID_ARGUMENT` with the message `find limit max is 3`.
