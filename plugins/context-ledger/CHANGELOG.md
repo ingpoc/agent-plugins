@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.21
+
+- `browse` is the ledger view. It declares `ui://context-ledger/browse.html` (`text/html;profile=mcp-app`). The host draws that page. The page reads through `browse` and `get`. MCP still hides `local_only`.
+
 ## 0.1.20
 
 - Each `find` probes the ledger again and retries once. A previous success is not reused. The remote probe accepts only a JSON-RPC result whose id is `health`; HTTP 200 with an error body is unreachable.

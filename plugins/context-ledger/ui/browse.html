@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ledger</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --ink: #101614;
+    --panel: #17211c;
+    --line: #2a3a32;
+    --paper: #e7efe8;
+    --muted: #8ea398;
+    --text: #e8f0ea;
+    --lime: #d6f25c;
+    --success: #9dce7c;
+    --pending: #e2c16b;
+    --failed: #e07a62;
+    --abandoned: #8ea398;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    min-height: 100%;
+    background:
+      radial-gradient(1200px 400px at 10% -10%, #24362c 0%, transparent 55%),
+      var(--ink);
+    color: var(--text);
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  button, input { font: inherit; color: inherit; }
+  .app {
+    min-height: 100%;
+    display: grid;
+    grid-template-rows: auto auto minmax(280px, 1fr);
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 22px 8px;
+  }
+  .mark {
+    font-family: Charter, "Iowan Old Style", Palatino, serif;
+    font-size: 28px;
+    letter-spacing: -0.03em;
+    margin: 0;
+  }
+  .mark span { color: var(--lime); }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    padding: 0 22px 12px;
+  }
+  input[type="search"] {
+    flex: 1 1 220px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 8px 14px;
+    outline: none;
+  }
+  input[type="search"]:focus { border-color: var(--lime); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip, .ghost {
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 999px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .chip.on, .ghost.on { background: var(--lime); color: var(--ink); border-color: var(--lime); }
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(240px, 0.9fr) minmax(280px, 1.1fr);
+    gap: 12px;
+    padding: 0 22px 22px;
+    min-height: 0;
+  }
+  .list, .detail {
+    background: color-mix(in srgb, var(--panel) 88%, black);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    overflow: auto;
+    min-height: 280px;
+  }
+  .row {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 12px 14px;
+    cursor: pointer;
+    display: grid;
+    gap: 4px;
+  }
+  .row:hover, .row.on { background: #203028; }
+  .row strong { font-weight: 600; }
+  .meta { color: var(--muted); font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    border-radius: 999px;
+    padding: 1px 7px;
+    background: #243028;
+    color: var(--paper);
+  }
+  .pill.success { color: var(--success); }
+  .pill.pending { color: var(--pending); }
+  .pill.failed { color: var(--failed); }
+  .pill.superseded, .pill.abandoned, .pill.inconclusive { color: var(--abandoned); }
+  .detail { padding: 18px 20px 24px; }
+  .detail h2 {
+    font-family: Charter, "Iowan Old Style", Palatino, serif;
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    margin: 0 0 8px;
+  }
+  .detail h3 {
+    margin: 16px 0 4px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .detail p { margin: 0; }
+  .empty { color: var(--muted); padding: 28px 18px; }
+  .continued { margin-top: 12px; color: var(--pending); font-size: 13px; }
+  @media (max-width: 800px) {
+    .stage { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1 class="mark">Led<span>ger</span></h1>
+    <p id="count">Opening the current list</p>
+  </header>
+  <div class="filters">
+    <input id="q" type="search" placeholder="Search summary or entity" autocomplete="off">
+    <button id="superseded" class="ghost" type="button">Superseded</button>
+    <div id="chips" class="chips"></div>
+  </div>
+  <div class="stage">
+    <div id="list" class="list" role="listbox" aria-label="Decisions"></div>
+    <article id="detail" class="detail"><p class="empty">Select a decision.</p></article>
+  </div>
+</div>
+<script>
+(function () {
+  const q = document.getElementById("q");
+  const list = document.getElementById("list");
+  const detail = document.getElementById("detail");
+  const count = document.getElementById("count");
+  const chips = document.getElementById("chips");
+  const superseded = document.getElementById("superseded");
+  let rows = [];
+  let selected = -1;
+  let entity = "";
+  const knownEntities = [];
+  let timer = 0;
+  let nextId = 1;
+  let painted = false;
+  let ready = false;
+  const pending = new Map();
+
+  function post(message) {
+    parent.postMessage(message, "*");
+  }
+  function send(method, params) {
+    const id = nextId++;
+    return new Promise(function (resolve, reject) {
+      pending.set(id, { resolve: resolve, reject: reject });
+      post({ jsonrpc: "2.0", id: id, method: method, params: params });
+    });
+  }
+  function notify(method, params) {
+    post({ jsonrpc: "2.0", method: method, params: params || {} });
+  }
+  function payload(result) {
+    if (!result) return {};
+    if (result.structuredContent) return result.structuredContent;
+    if (result.structured_content) return result.structured_content;
+    const text = result.content && result.content[0] && result.content[0].text;
+    if (!text) return {};
+    try { return JSON.parse(text); } catch (err) { return {}; }
+  }
+  function dataOf(result) {
+    const body = payload(result);
+    if ((result && result.isError) || body.ok === false) {
+      const code = body.error && body.error.code ? body.error.code : "UNAVAILABLE";
+      throw new Error(code);
+    }
+    return body.data || body;
+  }
+  function resize() {
+    notify("ui/notifications/size-changed", {
+      width: document.documentElement.scrollWidth,
+      height: Math.max(document.documentElement.scrollHeight, 520)
+    });
+  }
+  function pill(status) {
+    const name = String(status || "pending");
+    return '<span class="pill ' + escapeHtml(name) + '">' + escapeHtml(name) + "</span>";
+  }
+  function renderList() {
+    if (!rows.length) {
+      list.innerHTML = '<p class="empty">No decisions in this list.</p>';
+      count.textContent = "0 decisions";
+      resize();
+      return;
+    }
+    count.textContent = rows.length + (rows.hasMore ? "+" : "") + " decisions";
+    list.innerHTML = rows.map(function (row, index) {
+      const ents = (row.entities || []).join(" · ");
+      return '<button class="row' + (index === selected ? " on" : "") + '" data-i="' + index + '" type="button">' +
+        "<strong>" + escapeHtml(row.summary || "Untitled") + "</strong>" +
+        '<span class="meta">' + pill(row.outcome || "pending") + pill(row.lifecycle || "active") +
+        (row.flag ? "<span>" + escapeHtml(row.flag) + "</span>" : "") +
+        (ents ? "<span>" + escapeHtml(ents) + "</span>" : "") + "</span></button>";
+    }).join("");
+    resize();
+  }
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, function (ch) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch];
+    });
+  }
+  function renderChips() {
+    rows.forEach(function (row) {
+      (row.entities || []).forEach(function (name) {
+        if (knownEntities.indexOf(name) < 0) knownEntities.push(name);
+      });
+    });
+    chips.innerHTML = knownEntities.map(function (name) {
+      return '<button class="chip' + (name === entity ? " on" : "") + '" data-entity="' +
+        escapeHtml(name) + '" type="button">' + escapeHtml(name) + "</button>";
+    }).join("");
+  }
+  function field(title, text) {
+    if (!text) return "";
+    return "<h3>" + title + "</h3><p>" + escapeHtml(text) + "</p>";
+  }
+  async function openRow(index) {
+    selected = index;
+    renderList();
+    const row = rows[index];
+    if (!row) return;
+    detail.innerHTML = "<p class=\"empty\">Loading…</p>";
+    try {
+      const result = await send("tools/call", { name: "get", arguments: { decision_id: row.decision_id } });
+      const record = dataOf(result).record;
+      const body = record.body || {};
+      const outcome = record.outcome || {};
+      const events = record.events || [];
+      detail.innerHTML =
+        "<h2>" + escapeHtml(body.summary || row.summary) + "</h2>" +
+        '<div class="meta">' + pill(outcome.status || row.outcome) + pill(record.lifecycle || row.lifecycle) +
+        "<span>rev " + escapeHtml(record.revision) + "</span></div>" +
+        field("Situation", body.situation) +
+        field("Action", body.action) +
+        field("Rationale", body.rationale) +
+        field("Applicability", body.applicability) +
+        field("Entities", (body.entities || []).join(" · ")) +
+        field("Outcome", outcome.note) +
+        (events.length ? "<h3>Trace</h3>" + events.map(function (event) {
+          const note = event.payload && (event.payload.note || event.payload.status || event.event_type);
+          return "<p>" + escapeHtml(event.event_type) + " · " + escapeHtml(note || "") + "</p>";
+        }).join("") : "") +
+        (record.trace_continued ? '<p class="continued">Older trace events were omitted.</p>' : "");
+    } catch (err) {
+      detail.innerHTML = '<p class="empty">' + escapeHtml(err.message || "UNAVAILABLE") + "</p>";
+    }
+    resize();
+  }
+  async function load() {
+    count.textContent = "Loading";
+    try {
+      const result = await send("tools/call", {
+        name: "browse",
+        arguments: {
+          query: q.value,
+          entities: entity ? [entity] : [],
+          include_superseded: superseded.classList.contains("on"),
+          limit: 12
+        }
+      });
+      showList(dataOf(result));
+    } catch (err) {
+      list.innerHTML = '<p class="empty">' + escapeHtml(err.message || "UNAVAILABLE") + "</p>";
+      count.textContent = "Unavailable";
+    }
+  }
+  function showList(data) {
+    painted = true;
+    rows = data.matches || [];
+    rows.hasMore = !!data.has_more;
+    selected = rows.length ? 0 : -1;
+    renderChips();
+    renderList();
+    if (selected >= 0) openRow(0);
+    else detail.innerHTML = '<p class="empty">No decision matches.</p>';
+  }
+  window.addEventListener("message", function (event) {
+    if (event.source !== parent) return;
+    const msg = event.data;
+    if (!msg || msg.jsonrpc !== "2.0") return;
+    if (msg.id != null && msg.method == null && pending.has(msg.id)) {
+      const waiter = pending.get(msg.id);
+      pending.delete(msg.id);
+      if (msg.error) waiter.reject(new Error(msg.error.message || "UNAVAILABLE"));
+      else waiter.resolve(msg.result);
+      return;
+    }
+    if (msg.method === "ui/notifications/tool-result") {
+      try {
+        const data = dataOf(msg.params);
+        if (data.matches) showList(data);
+      } catch (err) {
+        list.innerHTML = '<p class="empty">' + escapeHtml(err.message) + "</p>";
+        count.textContent = "Unavailable";
+      }
+    }
+    if (msg.method === "ui/resource-teardown" && msg.id != null) {
+      post({ jsonrpc: "2.0", id: msg.id, result: {} });
+    }
+  });
+  q.addEventListener("input", function () {
+    clearTimeout(timer);
+    timer = setTimeout(load, 200);
+  });
+  superseded.addEventListener("click", function () {
+    superseded.classList.toggle("on");
+    load();
+  });
+  chips.addEventListener("click", function (event) {
+    const button = event.target.closest("[data-entity]");
+    if (!button) return;
+    entity = entity === button.dataset.entity ? "" : button.dataset.entity;
+    load();
+  });
+  list.addEventListener("click", function (event) {
+    const button = event.target.closest("[data-i]");
+    if (!button) return;
+    openRow(Number(button.dataset.i));
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.target === q || !rows.length) return;
+    if (event.key === "ArrowDown") { event.preventDefault(); openRow(Math.min(rows.length - 1, selected + 1)); }
+    if (event.key === "ArrowUp") { event.preventDefault(); openRow(Math.max(0, selected - 1)); }
+  });
+  send("ui/initialize", {
+    protocolVersion: "2026-01-26",
+    appInfo: { name: "context-ledger", version: "0.1.21" },
+    appCapabilities: { availableDisplayModes: ["inline"] }
+  }).then(function () {
+    ready = true;
+    notify("ui/notifications/initialized");
+    resize();
+    setTimeout(function () {
+      if (!painted) load();
+    }, 60);
+  }).catch(function () {
+    ready = true;
+    count.textContent = "This view opens in a host that supports MCP Apps.";
+  });
+  setTimeout(function () {
+    if (!ready) count.textContent = "This view opens in a host that supports MCP Apps.";
+  }, 2500);
+})();
+</script>
+</body>
+</html>

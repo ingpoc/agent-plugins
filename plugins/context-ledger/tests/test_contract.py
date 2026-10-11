@@ -339,8 +339,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.20")
-        self.assertIn('__version__ = "0.1.20"', init)
+        self.assertEqual(plugin["version"], "0.1.21")
+        self.assertIn('__version__ = "0.1.21"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -352,6 +352,12 @@ class PackageTests(unittest.TestCase):
         self.assertIn("release-blocked", readme)
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
+        page = (ROOT / "ui/browse.html").read_text(encoding="utf-8")
+        self.assertIn('version: "0.1.21"', page)
+        self.assertIn("ui/initialize", page)
+        self.assertNotIn("<script src", page)
+        self.assertNotIn("https://", page)
+        self.assertNotIn("http://", page)
 
 
 class LaunchTests(unittest.TestCase):
@@ -1415,6 +1421,69 @@ class StoreTests(unittest.TestCase):
                 self.assertEqual(present(again, hidden["decision_id"]), wants_private)
                 dest.close()
                 again.close()
+
+    def test_browse_lists_recent_model_safe_decisions(self) -> None:
+        visible = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="browse visible sqlite", entities=["ledger-v1"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="browse hidden sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        listed = self.store.browse({}, mcp=True)
+        ids = [row["decision_id"] for row in listed["matches"]]
+        self.assertIn(visible["decision_id"], ids)
+        self.assertNotIn(hidden["decision_id"], ids)
+        self.assertEqual(listed["matches"][0]["entities"], ["ledger-v1"])
+        narrowed = self.store.browse({"query": "visible", "entities": ["ledger-v1"]}, mcp=True)
+        self.assertEqual([row["decision_id"] for row in narrowed["matches"]], [visible["decision_id"]])
+        owner = self.store.browse({}, mcp=False)
+        self.assertIn(hidden["decision_id"], [row["decision_id"] for row in owner["matches"]])
+        replacement = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="browse replacement sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": visible["decision_id"],
+                "expected_revision": visible["revision"],
+                "occurred_at": None,
+                "event_type": "superseded",
+                "payload": {"replacement_id": replacement["decision_id"], "reason": "replaced"},
+            },
+            mcp=False,
+        )
+        active = [row["decision_id"] for row in self.store.browse({}, mcp=True)["matches"]]
+        self.assertNotIn(visible["decision_id"], active)
+        self.assertIn(replacement["decision_id"], active)
+        wide = [row["decision_id"] for row in self.store.browse({"include_superseded": True}, mcp=True)["matches"]]
+        self.assertIn(visible["decision_id"], wide)
+        missed = self.store.browse({"query": "no-such-token"}, mcp=True)
+        self.assertEqual(missed["matches"], [])
+        self.assertFalse(missed["has_more"])
+        capped = self.store.browse({"limit": 1, "include_superseded": True}, mcp=False)
+        self.assertEqual(len(capped["matches"]), 1)
+        self.assertTrue(capped["has_more"])
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.browse({"limit": 25}, mcp=True)
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
 
     def test_purge_of_applied_ref_still_imports(self) -> None:
         kept = self.store.record(
@@ -2630,7 +2699,10 @@ class McpTests(unittest.TestCase):
 
         for mode in ("legacy", "2026-07-28"):
             info = anyio.run(once, mode)
-            self.assertEqual(info["names"], ["append_event", "find", "get", "record"], mode)
+            self.assertEqual(info["names"], ["append_event", "browse", "find", "get", "record"], mode)
+            ui = ((info["by_name"]["browse"].get("_meta") or {}).get("ui") or {})
+            self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/browse.html", mode)
+            self.assertEqual(ui.get("visibility"), ["model", "app"], mode)
             rec = info["by_name"]["record"].get("inputSchema") or {}
             app = info["by_name"]["append_event"].get("inputSchema") or {}
             record_schema = json.dumps(rec)
