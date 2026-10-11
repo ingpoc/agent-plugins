@@ -256,6 +256,20 @@ final class MethodRouter: @unchecked Sendable {
         return nil
     }
 
+    /// Index actions must target the pinned window — never another window's tree.
+    private func requirePinnedAXWindow(_ resolved: ResolvedApp) throws {
+        guard resolved.windowID != 0 else { return }
+        guard axTree.hasPinnedAXWindow(
+            axApp: resolved.axApp, windowID: resolved.windowID
+        ) else {
+            throw RPCMethodError(
+                code: -32002,
+                message: "Pinned AX window \(resolved.windowID) not found; refusing fallback to focused/first window"
+            )
+        }
+    }
+
+
     @MainActor
     private func handleWait(_ req: JSONRPCRequest) async throws -> Any {
         let seconds = min(max(req.paramDouble("seconds") ?? 0, 0), 45)
@@ -599,6 +613,7 @@ final class MethodRouter: @unchecked Sendable {
             throw RPCMethodError(code: -32602, message: "Missing 'app' parameter")
         }
         let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
+        try requirePinnedAXWindow(resolved)
         screenshotCapture.invalidate()
         let elementIndex: Int? = req.paramInt("element_index")
         let cached = axTree.cachedSnapshot(windowID: resolved.windowID)
@@ -735,6 +750,7 @@ final class MethodRouter: @unchecked Sendable {
             app, raiseForInput: true, preferFocusedWindow: afterNew,
             windowID: pinnedWindowID(req)
         )
+        try requirePinnedAXWindow(resolved)
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
@@ -794,6 +810,7 @@ final class MethodRouter: @unchecked Sendable {
             throw RPCMethodError(code: -32602, message: "Missing app, element_index, or value")
         }
         let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
+        try requirePinnedAXWindow(resolved)
         screenshotCapture.invalidate()
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
@@ -820,6 +837,7 @@ final class MethodRouter: @unchecked Sendable {
             throw RPCMethodError(code: -32602, message: "Missing required params")
         }
         let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
+        try requirePinnedAXWindow(resolved)
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
             windowID: resolved.windowID,
@@ -850,6 +868,7 @@ final class MethodRouter: @unchecked Sendable {
             throw RPCMethodError(code: -32602, message: "Missing required params")
         }
         let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
+        try requirePinnedAXWindow(resolved)
         let snapshot = axTree.walk(
             axApp: resolved.axApp,
             windowID: resolved.windowID,

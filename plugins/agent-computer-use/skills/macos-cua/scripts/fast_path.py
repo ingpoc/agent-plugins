@@ -533,7 +533,12 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     agent_docs = skill_md + "\n" + fast_workflow + "\n" + architecture
     mcp = "\n".join(
         (scripts / name).read_text()
-        for name in ("compact_mcp.py", "compact_backend.py", "compact_instructions.txt")
+        for name in (
+            "compact_mcp.py",
+            "compact_backend.py",
+            "compact_form_fills.py",
+            "compact_instructions.txt",
+        )
     )
     method_router = (
         root / "service" / "Sources" / "CUAService" / "MethodRouter.swift"
@@ -675,7 +680,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     )
     add(
         "mutating compact acts fail closed until the settled state verifies",
-        "def _has_ui_effect" in mcp
+        ("def _has_ui_effect" in mcp or "def has_ui_effect" in mcp)
         and "verification_required: mutating act needs expect" in mcp
         and '"dispatched": dispatched' in mcp
         and '"completion": "verified" if verified else "unverified"' in mcp,

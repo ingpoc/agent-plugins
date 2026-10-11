@@ -166,10 +166,23 @@ final class InputActions: @unchecked Sendable {
                 "method": "refused",
             ]
         }
+        // areas/live come from the pinned-window walk. Focused UI can still
+        // belong to another window of the same app — never type there.
         let areas = axTree?.liveTextAreaTargets() ?? []
         let live = axTree?.liveTextElements() ?? []
-        let focused = focusedElement(resolved.axApp).flatMap {
+        let rawFocused = focusedElement(resolved.axApp).flatMap {
             isTextRole($0) ? $0 : nil
+        }
+        let focused = rawFocused.flatMap { el in
+            elementBelongsToWindow(el, windowID: resolved.windowID) ? el : nil
+        }
+        if rawFocused != nil, focused == nil, areas.isEmpty, live.isEmpty {
+            return [
+                "ok": false,
+                "error": "type_focus_outside_pinned_window",
+                "method": "refused",
+                "windowId": Int(resolved.windowID),
+            ]
         }
         let focusedIsArea = focused.map { axRole($0) == "AXTextArea" } ?? false
 
@@ -193,6 +206,7 @@ final class InputActions: @unchecked Sendable {
         if let (_, frame) = areas.first,
            frame.width > 1, frame.height > 1, frame.origin.x.isFinite,
            frame.origin.y.isFinite {
+            // Click pins HID focus into the pinned-window field first.
             _ = coordinateClick(
                 resolved: resolved,
                 point: CGPoint(x: frame.midX, y: frame.midY)
@@ -204,7 +218,9 @@ final class InputActions: @unchecked Sendable {
             hidTypeUnicodeGlobal(text)
             return ["ok": true, "method": "cgevent-type", "length": text.count]
         }
-        if focused != nil || !live.isEmpty {
+        // HID without a prior pinned-window click only when focus is already
+        // inside the pinned window — otherwise we would type into the wrong one.
+        if focused != nil {
             if hidTypeUnicode(text, to: resolved.pid) {
                 return ["ok": true, "method": "cgevent-type-pid", "length": text.count]
             }
@@ -212,11 +228,43 @@ final class InputActions: @unchecked Sendable {
             hidTypeUnicodeGlobal(text)
             return ["ok": true, "method": "cgevent-type", "length": text.count]
         }
+        if rawFocused != nil || !live.isEmpty {
+            return [
+                "ok": false,
+                "error": "type_focus_outside_pinned_window",
+                "method": "refused",
+                "windowId": Int(resolved.windowID),
+            ]
+        }
         return [
             "ok": false,
             "error": "type_no_text_target",
             "method": "refused",
         ]
+    }
+
+    /// Walk AX parents to the window and compare CGWindowID (Codex r9 #1).
+    private func elementBelongsToWindow(_ el: AXUIElement, windowID: CGWindowID) -> Bool {
+        guard windowID != 0 else { return true }
+        var current: AXUIElement? = el
+        for _ in 0..<64 {
+            guard let node = current else { break }
+            var id: CGWindowID = 0
+            if _CGSGetWindowID(node, &id) == .success, id != 0 {
+                return id == windowID
+            }
+            var roleRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(node, kAXRoleAttribute as CFString, &roleRef)
+            let role = (roleRef as? String) ?? ""
+            if role == "AXWindow" || role == "AXSheet" || role == "AXDrawer" {
+                return false
+            }
+            if role == "AXApplication" { return false }
+            var parentRef: CFTypeRef?
+            AXUIElementCopyAttributeValue(node, kAXParentAttribute as CFString, &parentRef)
+            current = parentRef.map { $0 as! AXUIElement }
+        }
+        return false
     }
 
     private func focusedElement(_ axApp: AXUIElement) -> AXUIElement? {

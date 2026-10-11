@@ -253,19 +253,23 @@ final class AXTreeWalker: @unchecked Sendable {
         return snap
     }
 
-    /// Resolve the live AXUIElement at a given BFS index.
     /// Resolve a live AXUIElement by BFS index. Uses the same root selection
-    /// as `walk()` (walkRoots → surfaces/popovers → focused window) so indices match.
+    /// as `walk()` so indices match. Pinned window missing → nil (no fallback).
     func resolveAXUIElement(
         axApp: AXUIElement,
         windowID: CGWindowID,
         index: Int
     ) -> AXUIElement? {
+        if windowID != 0, !hasPinnedAXWindow(axApp: axApp, windowID: windowID) {
+            return nil
+        }
         lock.lock()
-        let cached = (index >= 0 && index < liveElements.count) ? liveElements[index] : nil
+        let cached = (index >= 0 && index < liveElements.count
+                      && liveWindowID == windowID) ? liveElements[index] : nil
         lock.unlock()
         if let cached { return cached }
         let roots = walkRoots(axApp: axApp, windowID: windowID)
+        if roots.isEmpty { return nil }
         var queue: [AXUIElement] = roots
         var visited = 0
         while !queue.isEmpty {
@@ -325,17 +329,22 @@ final class AXTreeWalker: @unchecked Sendable {
 
     // MARK: - AX Helpers
 
-    /// Match the CG window. App-root fallback walks the menu bar (banned).
+    /// Match the CG window. When `windowID` is pinned (non-zero) and missing,
+    /// return empty — never silently fall back to focused/first (Codex r9 #2).
+    /// Unpinned (`windowID == 0`) still uses focused then first.
     private func walkRoots(axApp: AXUIElement, windowID: CGWindowID) -> [AXUIElement] {
         var ref: CFTypeRef?
         AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &ref)
         let windows = (ref as? [AXUIElement]) ?? []
-        for win in windows {
-            var id: CGWindowID = 0
-            if _CGSGetWindowID(win, &id) == .success, id == windowID {
-                let surfaces = axSurfaces(win)
-                return surfaces.isEmpty ? [win] : surfaces
+        if windowID != 0 {
+            for win in windows {
+                var id: CGWindowID = 0
+                if _CGSGetWindowID(win, &id) == .success, id == windowID {
+                    let surfaces = axSurfaces(win)
+                    return surfaces.isEmpty ? [win] : surfaces
+                }
             }
+            return []
         }
         AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &ref)
         if let focusedWin = ref {
@@ -347,6 +356,21 @@ final class AXTreeWalker: @unchecked Sendable {
             return [first]
         }
         return []
+    }
+
+    /// True when AX lists a window with this CGWindowID (no fallback).
+    func hasPinnedAXWindow(axApp: AXUIElement, windowID: CGWindowID) -> Bool {
+        guard windowID != 0 else { return true }
+        var ref: CFTypeRef?
+        AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &ref)
+        let windows = (ref as? [AXUIElement]) ?? []
+        for win in windows {
+            var id: CGWindowID = 0
+            if _CGSGetWindowID(win, &id) == .success, id == windowID {
+                return true
+            }
+        }
+        return false
     }
 
     private func axSurfaces(_ window: AXUIElement) -> [AXUIElement] {

@@ -19,6 +19,9 @@ from compact_form_fills import (
     expectation_supports_value,
     expectation_value_field_matches,
     fill_value_from_step,
+    has_ui_effect,
+    is_label_fill_step,
+    label_fill_follows_mutation,
     resolve_set_value_index,
     steps_need_label_state,
 )
@@ -178,21 +181,6 @@ def apply_screenshot_policy(payload, *, before, after, arguments, fetch=None):
     return payload
 
 
-def _has_ui_effect(arguments: dict[str, Any]) -> bool:
-    keys = (
-        "label", "element", "action", "op", "text", "key", "x", "y",
-        "path", "url", "direction", "from_x", "from_y", "to_x", "to_y",
-    )
-    steps = arguments.get("steps")
-    candidates = steps if isinstance(steps, list) and steps else [arguments]
-    return any(
-        isinstance(step, dict)
-        and any(step.get(key) is not None for key in keys)
-        and str(step.get("op") or step.get("action") or "").lower()
-        not in {"focus", "raise", "activate"}
-        for step in candidates
-    )
-
 
 class CUABackend:
     """Lazy JSON-RPC client. Tests replace compact_mcp._BACKEND."""
@@ -259,7 +247,7 @@ class CUABackend:
         }
 
     def act(self, app: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        effectful = _has_ui_effect(arguments)
+        effectful = has_ui_effect(arguments)
         expect = arguments.get("expect")
         allow_unverified = arguments.get("allow_unverified") is True
         if effectful and not expectation_is_supported(expect) and not allow_unverified:
@@ -278,24 +266,30 @@ class CUABackend:
             steps = arguments.get("steps")
             if not isinstance(steps, list) or not steps:
                 steps = [arguments]
+            # Label fills after nav/click/type must not compile against a stale
+            # pre-plan snapshot — sequential _one re-resolves each fill (r9 #3).
+            use_execute_plan = hasattr(client, "execute_plan") and not (
+                steps_need_label_state(steps) and label_fill_follows_mutation(steps)
+            )
             native_steps: list[dict[str, Any]] = []
             after_new = False
             elements_state: dict[str, Any] | None = None
-            if steps_need_label_state(steps) and hasattr(client, "execute_plan"):
-                elements_state = self._get_app_state(
-                    client, app, includeElements=True, disableDiff=True
-                )
             for step in steps:
                 if not isinstance(step, dict):
                     native_steps = []
                     break
+                if use_execute_plan and is_label_fill_step(step):
+                    # Re-resolve immediately before each fill compile.
+                    elements_state = self._get_app_state(
+                        client, app, includeElements=True, disableDiff=True
+                    )
                 native = self._native_step(
                     step,
                     after_new_document=after_new,
                     elements_state=elements_state,
                 )
                 if native.get("compile_error"):
-                    if not hasattr(client, "execute_plan"):
+                    if not use_execute_plan:
                         native_steps = []; break  # _dispatch resolves labels
                     return compile_error_payload(native["compile_error"], expect)
                 native_steps.append(native)
@@ -305,7 +299,7 @@ class CUABackend:
                 elif step.get("wait") is None:
                     after_new = False
 
-            if native_steps and hasattr(client, "execute_plan"):
+            if native_steps and use_execute_plan:
                 plan = client.execute_plan(app, native_steps)
                 before = plan.get("before") if isinstance(plan, dict) else {}
                 after = plan.get("after") if isinstance(plan, dict) else {}
@@ -574,10 +568,15 @@ class CUABackend:
         if action_name == "set_value" and fill_value is not None:
             idx = int(element) if element is not None else None
             if idx is None and step.get("label"):
-                idx = resolve_set_value_index(
-                    self._get_app_state(client, app, includeElements=True, disableDiff=True),
-                    str(step["label"]),
-                )
+                try:
+                    idx = resolve_set_value_index(
+                        self._get_app_state(
+                            client, app, includeElements=True, disableDiff=True
+                        ),
+                        str(step["label"]),
+                    )
+                except ValueError as exc:
+                    return {"ok": False, "error": f"set_value: {exc}", "method": "set_value"}
             if idx is None:
                 err = (f"set_value: field not found: {step.get('label')}" if step.get("label")
                        else "set_value needs label or element")
