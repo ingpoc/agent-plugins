@@ -766,6 +766,7 @@ class StoreTests(unittest.TestCase):
             },
         )
         self.assertEqual(live["decision"]["id"], pending_id)
+        self.assertIsInstance(live["distance"], float)
         self.assertEqual(live["decision"]["outcome"], "pending")
         self.assertIsNone(live["decision"]["flag"])
         self.assertEqual(live["decision"]["approval"], "none")
@@ -774,6 +775,16 @@ class StoreTests(unittest.TestCase):
         self.assertIsNone(badge["decision"]["flag"])
         self.assertEqual(badge["decision"]["approval"], "none")
         self.assertNotEqual(live["decision"]["id"], badge["decision"]["id"])
+        unrelated = self._lookup(
+            "select",
+            {
+                "situation": "Booking a train ticket for tomorrow morning",
+                "need": "Which coach and payment method to use",
+            },
+        )
+        self.assertIn(unrelated["decision"]["id"], {pending_id, success_id})
+        self.assertIsInstance(unrelated["distance"], float)
+        self.assertGreater(unrelated["distance"], live["distance"])
         found = self.store.find(
             {
                 "query": "",

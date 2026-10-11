@@ -57,7 +57,6 @@ from context_ledger.store import Store  # noqa: E402
 # NLEmbedding sentence embedding, cosine distance (1 - cosine similarity).
 # https://developer.apple.com/documentation/naturallanguage/finding-similarities-between-pieces-of-text
 # A fit is the situation against applicability plus the needed decision against the action.
-SELECT_MAX_DISTANCE = 1.95
 SIMILAR_MAX_DISTANCE = 1.75
 # Need vs action, on its own. A paraphrase of the stored action is near 0.3.
 # A different action in the same situation is past 1.0.
@@ -218,9 +217,9 @@ def _select(store: Store, body: dict) -> dict:
     need = _text(body.get("need"), "need", 160)
     embedding = _sentence_embedding()
     chosen, distance = _best(embedding, situation, need, _visible(store))
-    if chosen is None or distance is None or distance > SELECT_MAX_DISTANCE:
-        return {"decision": None}
-    return {"decision": _decision_view(chosen)}
+    if chosen is None or distance is None:
+        return {"decision": None, "distance": None}
+    return {"decision": _decision_view(chosen), "distance": distance}
 
 
 def _uuid_text(value: object) -> str:

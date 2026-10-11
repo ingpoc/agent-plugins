@@ -20,7 +20,7 @@ bash scripts/check-ledger-access.sh
 
 `install-client.sh` copies this package into the client only when that client has no copy, and replaces every older copy in place. `refresh-client.sh` does that replacement and exits nonzero when the client has no copy or any copy stays older than this package. `check-ledger-access.sh` checks the one ledger. The default data root is `~/.context-ledger/` (mode `0700`). A shared root is explicit `--data ABSOLUTE_DIR` or `CONTEXT_LEDGER_DATA`. `PLUGIN_DATA` does not select it. Clients share that one root and `ledger_id`. Tools cannot choose either path.
 
-There is one ledger, and it stays on the user's own machine. Do not start a second database, data root, or server for a cloud agent. Local use is `binding.json` in that one root. Cloud use is the same ledger through `CONTEXT_LEDGER_MCP_TOKEN` when no binding exists. The access check probes that endpoint, retries once, and exits nonzero if it cannot be reached. It does not start a local ledger. Do not print the token.
+There is one ledger, and it stays on the user's own machine. Do not start a second database, data root, or server for a cloud agent. Local use is `binding.json` in that one root. A Cursor cloud main agent hands lookup to a retained local worker and does not call the ledger itself. Codex cloud has no ledger. The access check still probes the existing bridge, retries once, and exits nonzero if it cannot be reached. It does not start a local ledger. Do not print the token.
 
 `find` is entity-scoped. A missing id is not proof of the wrong ledger. Confirm with `get` of the full decision id.
 
