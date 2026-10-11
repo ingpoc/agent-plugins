@@ -893,6 +893,99 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
         self.assertEqual(ctx.exception.message, "find limit max is 3")
 
+    def test_find_names_path_when_ledger_file_removed_after_startup(self) -> None:
+        self.store.open()
+        path = self.store.db_path
+        self.assertIsNotNone(self.store.conn)
+        path.unlink()
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "startup", "entities": [], "constraints": []},
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        self.assertTrue(ctx.exception.retryable)
+        self.assertEqual(ctx.exception.message, f"ledger unreachable at {path}")
+        fresh = self.Store(self.data, actor_channel="owner_cli")
+        with self.assertRaises(self.LedgerError) as startup:
+            fresh.open()
+        self.assertEqual(startup.exception.code, "UNAVAILABLE")
+        self.assertTrue(startup.exception.retryable)
+        self.assertEqual(startup.exception.message, f"ledger unreachable at {path}")
+
+    def test_corrupt_ledger_after_startup_is_not_unreachable(self) -> None:
+        self.store.open()
+        self.store.db_path.write_bytes(b"not a sqlite database")
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "startup", "entities": [], "constraints": []},
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "CORRUPT_LEDGER")
+
+    def test_abandoned_and_inconclusive_rank_below_pending(self) -> None:
+        pending = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band pending", entities=["rank-band"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        abandoned = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band abandoned", entities=["rank-band"]),
+                "outcome": _outcome("abandoned", note="left"),
+            },
+            mcp=False,
+        )
+        failed = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band failed", entities=["rank-band"]),
+                "outcome": _outcome("failed", note="no"),
+            },
+            mcp=False,
+        )
+        inconclusive = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band inconclusive", entities=["rank-incon"]),
+                "outcome": _outcome("inconclusive", note="unsure"),
+            },
+            mcp=False,
+        )
+        pending_other = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band still pending", entities=["rank-incon"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        ranked = self.store.find(
+            {"query": "band", "entities": ["rank-band"], "constraints": []},
+            mcp=True,
+        )
+        self.assertEqual(
+            [item["decision_id"] for item in ranked["matches"]],
+            [pending["decision_id"], abandoned["decision_id"], failed["decision_id"]],
+        )
+        other = self.store.find(
+            {"query": "band", "entities": ["rank-incon"], "constraints": [], "limit": 2},
+            mcp=True,
+        )
+        self.assertEqual(
+            [item["decision_id"] for item in other["matches"]],
+            [pending_other["decision_id"], inconclusive["decision_id"]],
+        )
+
     def test_find_health_retries_once_and_names_path(self) -> None:
         calls = {"n": 0}
 

@@ -47,7 +47,7 @@ ERROR_CODES = (
     "CORRUPT_LEDGER",
     "INTERNAL",
 )
-RETRYABLE = {"BUSY", "MAINTENANCE"}
+RETRYABLE = {"BUSY", "MAINTENANCE", "UNAVAILABLE"}
 
 KIND = ("decision", "observation")
 SENSITIVITY = ("model_safe", "local_only")

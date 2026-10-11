@@ -10,7 +10,7 @@ This pass exercised macOS arm64 only. Other architecture targets stay release-bl
 
 ## 0.1.18
 
-Before the first find, the server checks that the ledger is reachable, retries once, and stops with an error that names the URL or the ledger file. It does not fall back to another store. Find ranks a latest outcome of success above pending, and ranks failed or superseded records below both, using that status even when the outcome has no task id. Those records carry `status failed` or `superseded_by <id>`. An `applied` event records `task_id` and `decision_ids`. `get` returns applied and outcome events, and an outcome may set `applied_event_id`. Find limit above 3 is `INVALID_ARGUMENT` with the message `find limit max is 3`.
+Before the first find, the server checks that the ledger file is still present and readable, retries once, and stops with an error that names the URL or the ledger file. It does not fall back to another store. That check is `UNAVAILABLE` and retryable, same as the remote bridge. Find ranks success, then pending or unknown, then abandoned or inconclusive, then failed or superseded. Ranking uses the latest outcome status even when that outcome has no task id. Failed records carry `status failed`. Superseded records carry `superseded_by <id>`. An `applied` event records `task_id` and `decision_ids`. `get` returns applied and outcome events, and an outcome may set `applied_event_id`. Find limit above 3 is `INVALID_ARGUMENT` with the message `find limit max is 3`.
 
 ## Install notes
 

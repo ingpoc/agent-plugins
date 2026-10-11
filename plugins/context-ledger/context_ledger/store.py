@@ -320,30 +320,67 @@ class Store:
         self._lock = threading.Lock()
         self._reachable = False
 
+    def _unreachable(self, exc: BaseException | None = None) -> LedgerError:
+        err = LedgerError(
+            "UNAVAILABLE",
+            message=f"ledger unreachable at {self.db_path}",
+        )
+        if exc is not None:
+            raise err from exc
+        return err
+
     def probe(self) -> None:
-        conn = self.open()
+        """Stat the ledger file and query a new connection, not the startup handle."""
+        path = self.db_path
         try:
-            row = conn.execute("select 1").fetchone()
+            st = os.stat(path, follow_symlinks=False)
+        except OSError as exc:
+            raise self._unreachable(exc)
+        if not stat.S_ISREG(st.st_mode):
+            raise self._unreachable()
+        try:
+            conn = sqlite3.connect(
+                path.resolve().as_uri() + "?mode=ro",
+                uri=True,
+                timeout=5.0,
+                isolation_level=None,
+                check_same_thread=False,
+            )
         except sqlite3.Error as exc:
-            raise LedgerError("UNAVAILABLE") from exc
-        if row is None:
-            raise LedgerError("UNAVAILABLE")
+            text = str(exc).casefold()
+            if "malformed" in text or "not a database" in text or "corrupt" in text:
+                raise LedgerError("CORRUPT_LEDGER") from exc
+            raise self._unreachable(exc)
+        try:
+            try:
+                row = conn.execute("pragma quick_check").fetchone()
+            except sqlite3.Error as exc:
+                text = str(exc).casefold()
+                if "malformed" in text or "not a database" in text or "corrupt" in text:
+                    raise LedgerError("CORRUPT_LEDGER") from exc
+                raise self._unreachable(exc)
+        finally:
+            conn.close()
+        if row is None or str(row[0]) != "ok":
+            raise LedgerError("CORRUPT_LEDGER")
 
     def _ensure_reachable(self) -> None:
         if self._reachable:
             return
+        last: LedgerError | None = None
         for _attempt in range(2):
             try:
                 self.probe()
-            except LedgerError:
-                self.close()
+            except LedgerError as exc:
+                if exc.code != "UNAVAILABLE":
+                    raise
+                last = exc
                 continue
             self._reachable = True
             return
-        raise LedgerError(
-            "UNAVAILABLE",
-            message=f"ledger unreachable at {self.db_path}",
-        )
+        if last is not None and last.message:
+            raise last
+        raise self._unreachable()
 
     def open(self) -> sqlite3.Connection:
         if self.conn is not None:
@@ -351,7 +388,10 @@ class Store:
         _posix_check_dir(self.ledger_dir)
         _refuse_symlink(self.db_path)
         if not self.db_path.is_file():
-            raise LedgerError("UNAVAILABLE")
+            raise LedgerError(
+                "UNAVAILABLE",
+                message=f"ledger unreachable at {self.db_path}",
+            )
         _posix_check_file(self.db_path)
         try:
             conn = sqlite3.connect(
@@ -2004,7 +2044,11 @@ class Store:
 
     def _outcome_rank(self, rec: dict[str, Any]) -> int:
         # Latest outcome status, with or without task_id. Confidence is separate.
+        # success, then pending or unknown, then abandoned or inconclusive,
+        # then failed or superseded.
         if rec["lifecycle"] == "superseded" or rec["outcome"]["status"] == "failed":
+            return 3
+        if rec["outcome"]["status"] in {"abandoned", "inconclusive"}:
             return 2
         if rec["outcome"]["status"] == "success":
             return 0
