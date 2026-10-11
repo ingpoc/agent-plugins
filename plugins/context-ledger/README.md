@@ -10,7 +10,7 @@ This pass exercised macOS arm64 only. Other architecture targets stay release-bl
 
 ## 0.1.20
 
-Each `find` probes the ledger again, retries once, and does not reuse an earlier success. The remote probe counts only a JSON-RPC result whose id is `health`. `get` keeps the current record when the applied and outcome trace exceeds 8192 bytes, omits the oldest trace events, and sets `trace_continued`. An `applied` event's `decision_ids` must name decisions in scope. MCP reads omit ids the caller cannot see.
+Each `find` probes the ledger again, retries once, and does not reuse an earlier success. The remote probe counts only a JSON-RPC result whose id is `health`. `get` keeps the current record when the applied and outcome trace exceeds 8192 bytes, omits the oldest trace events, and sets `trace_continued`. An `applied` event's `decision_ids` must name decisions in scope. MCP reads omit ids the caller cannot see. Purging a decision removes that id from other applied events, and import accepts a missing id only with that decision's tombstone.
 
 ## 0.1.19
 
