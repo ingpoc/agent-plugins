@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.22
+
+The helper selects the stored decision whose applicability fits the situation and whose action fits the needed decision, using the on-device Natural Language sentence embedding and cosine distance. A higher success count does not win that choice. `find` still ranks success ahead of a flagged failure. Feedback records whether a provided decision helped, and records a missing decision only when no similar precedent is already stored. On a host without that embedding, `select` and `feedback` fail with `EMBEDDING_UNAVAILABLE`.
+
 ## 0.1.21
 
 `browse` opens the ledger view. The host draws `ui://context-ledger/browse.html`. The list is the current model-safe decisions. A filter calls `browse` again. A row calls `get`.

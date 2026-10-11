@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.22
+
+- Helper selection is `scripts/lookup.py select`. It compares the situation with applicability and the needed decision with the action using the on-device sentence embedding (cosine distance). Success count does not choose the result. `find` outcome order is unchanged.
+- `scripts/lookup.py feedback` records whether provided decisions helped. A similar precedent is returned and not rewritten. A missing decision is recorded only when none is similar. Without the on-device embedding, both commands fail with `EMBEDDING_UNAVAILABLE`.
+
 ## 0.1.21
 
 - `browse` is the ledger view. It declares `ui://context-ledger/browse.html` (`text/html;profile=mcp-app`). The host draws that page. The page reads through `browse` and `get`. MCP still hides `local_only`.
