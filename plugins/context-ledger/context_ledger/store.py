@@ -964,6 +964,16 @@ class Store:
                     continue
                 exported += 1
                 for event in by_decision[did]:
+                    if excluded and event["event_type"] == "applied":
+                        ids = event["payload"]["decision_ids"]
+                        kept = [item for item in ids if item not in excluded]
+                        if event["decision_id"] not in kept:
+                            kept.insert(0, event["decision_id"])
+                        if kept != ids:
+                            event = dict(event)
+                            payload = dict(event["payload"])
+                            payload["decision_ids"] = kept
+                            event["payload"] = payload
                     lines.append(
                         canonical_json({"type": "event", "scope_id": scope, "event": event})
                     )
