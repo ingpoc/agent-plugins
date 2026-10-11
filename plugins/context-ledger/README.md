@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.20
+
+Each `find` probes the ledger again, retries once, and does not reuse an earlier success. The remote probe counts only a JSON-RPC result whose id is `health`. `get` keeps the current record when the applied and outcome trace exceeds 8192 bytes, omits the oldest trace events, and sets `trace_continued`. An `applied` event's `decision_ids` must name decisions in scope. MCP reads omit ids the caller cannot see. Purging a decision removes that id from other applied events. A default export never rewrites an event: it omits a `local_only` decision and every decision that references one. Import accepts a missing id only with that decision's tombstone.
+
 ## 0.1.19
 
 Install, refresh, and the one-ledger access check are `scripts/install-client.sh`, `scripts/refresh-client.sh`, and `scripts/check-ledger-access.sh`. A materialized plugin copy older than this package is replaced in place for Cursor, Codex, and Grok. The MCP resolver does not execute a root or cache copy older than the pinned version; if the pinned tag cannot be fetched, it exits `PLUGIN_BOOTSTRAP_FAILED`.
