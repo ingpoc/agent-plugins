@@ -73,5 +73,59 @@ class RazorpayAxPressTests(unittest.TestCase):
         self.assertEqual([a for _, a in presses], ["AXRaise", "AXPress"])
 
 
+class RazorpayBindTests(unittest.TestCase):
+    def test_test_mode_requires_key_id_value(self):
+        self.assertTrue(rzp.is_test_key("https://api.razorpay.com/v1/gateway/?key_id=rzp_test_abc"))
+        self.assertFalse(rzp.is_test_key(
+            "https://api.razorpay.com/v1/gateway/?key_id=rzp_live_abc&note=key_id%3Drzp_test_"
+        ))
+        self.assertFalse(rzp.is_test_key("https://api.razorpay.com/v1/gateway/?note=key_id=rzp_test_"))
+
+    def test_explicit_ax_does_not_probe_and_uses_bound_tab(self):
+        window = {
+            "id": "9", "name": "Razorpay Bank",
+            "url": "https://api.razorpay.com/v1/gateway/?key_id=rzp_test_abc",
+            "active_tab_id": "3", "tabs": 1,
+            "tab_list": [{
+                "id": "3",
+                "url": "https://api.razorpay.com/v1/gateway/?key_id=rzp_test_abc",
+                "active": True,
+            }],
+        }
+        with (
+            mock.patch.object(rzp, "comet_windows", return_value=[window]),
+            mock.patch.object(rzp, "_probe_all", side_effect=AssertionError("js probe")),
+            mock.patch.object(rzp, "exec_js", side_effect=AssertionError("exec js")),
+            mock.patch.object(rzp, "preflight", return_value={"comet_pid": 1, "recommended_method": "ax"}),
+            mock.patch.object(rzp, "ax_press", return_value={"pressed": True}) as press,
+        ):
+            code = rzp.main(["press", "--method", "ax", "--verify-seconds", "0"])
+        press.assert_called_once_with(1, "Razorpay Bank", "Success")
+        self.assertEqual(code, 6)
+
+    def test_ax_refuses_when_probed_tab_is_not_active(self):
+        window = {
+            "id": "9", "name": "Razorpay Bank",
+            "url": "https://example.test/other",
+            "active_tab_id": "8", "tabs": 2,
+            "tab_list": [
+                {"id": "3", "url": "https://api.razorpay.com/v1/gateway/?key_id=rzp_test_abc", "active": False},
+                {"id": "8", "url": "https://example.test/other", "active": True},
+            ],
+        }
+        with (
+            mock.patch.object(rzp, "comet_windows", return_value=[window]),
+            mock.patch.object(rzp, "_probe_all", side_effect=AssertionError("js probe")),
+            mock.patch.object(rzp, "preflight", return_value={"comet_pid": 1}),
+            mock.patch.object(rzp, "ax_press") as press,
+        ):
+            code = rzp.main(["press", "--method", "ax", "--verify-seconds", "0"])
+        press.assert_not_called()
+        self.assertEqual(code, 5)
+
+    def test_exec_script_targets_tab_by_id(self):
+        self.assertIn("w.tabs.byId", rzp._JXA_EXEC)
+
+
 if __name__ == "__main__":
     unittest.main()

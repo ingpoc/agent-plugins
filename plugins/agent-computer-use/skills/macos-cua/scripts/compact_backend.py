@@ -16,14 +16,15 @@ from fail_feedback import apply_failure_feedback, VERIFICATION_REQUIRED
 from compact_form_fills import (
     compile_error_payload,
     compile_set_value_step,
+    dispatch_labeled_set_value,
+    dispatch_set_checked,
     expectation_supports_value,
     expectation_value_field_matches,
     fill_value_from_step,
     has_ui_effect,
     is_label_fill_step,
-    label_fill_follows_mutation,
-    resolve_set_value_index,
-    steps_need_label_state,
+    observed_window_id,
+    plan_must_be_sequential,
 )
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -111,13 +112,15 @@ def expectation_is_new(
     before_tree: str,
     after_tree: str,
     results: list[dict[str, Any]] | None = None,
+    after_state: Any = None,
 ) -> bool:
     """Verify compact positive/negative postconditions against settled AX values."""
     if isinstance(expect, str):
         return expect_is_new(expect, before_tree, after_tree)
     if isinstance(expect, list):
         return bool(expect) and all(
-            expectation_is_new(item, before_tree, after_tree, results) for item in expect
+            expectation_is_new(item, before_tree, after_tree, results, after_state)
+            for item in expect
         )
     if not isinstance(expect, dict):
         return False
@@ -137,7 +140,10 @@ def expectation_is_new(
             for item in (results or [])
             if item.get("path")
         ))
-    # expect.value is verified against unique field elements in act(), not tree text.
+    if expectation_supports_value(expect):
+        checks.append(expectation_value_field_matches(
+            expect, after_state if isinstance(after_state, dict) else {}
+        ))
     return bool(checks) and all(checks)
 
 
@@ -268,12 +274,11 @@ class CUABackend:
                 steps = [arguments]
             # Label fills after nav/click/type must not compile against a stale
             # pre-plan snapshot — sequential _one re-resolves each fill (r9 #3).
-            use_execute_plan = hasattr(client, "execute_plan") and not (
-                steps_need_label_state(steps) and label_fill_follows_mutation(steps)
-            )
+            use_execute_plan = hasattr(client, "execute_plan") and not plan_must_be_sequential(steps)
             native_steps: list[dict[str, Any]] = []
             after_new = False
             elements_state: dict[str, Any] | None = None
+            plan_window = None
             for step in steps:
                 if not isinstance(step, dict):
                     native_steps = []
@@ -283,6 +288,9 @@ class CUABackend:
                     elements_state = self._get_app_state(
                         client, app, includeElements=True, disableDiff=True
                     )
+                    seen = observed_window_id(elements_state)
+                    if seen is not None:
+                        plan_window = seen
                 native = self._native_step(
                     step,
                     after_new_document=after_new,
@@ -300,7 +308,7 @@ class CUABackend:
                     after_new = False
 
             if native_steps and use_execute_plan:
-                plan = client.execute_plan(app, native_steps)
+                plan = client.execute_plan(app, native_steps) if plan_window is None else client.execute_plan(app, native_steps, window_id=plan_window)
                 before = plan.get("before") if isinstance(plan, dict) else {}
                 after = plan.get("after") if isinstance(plan, dict) else {}
                 raw_results = plan.get("results") if isinstance(plan, dict) else []
@@ -336,10 +344,10 @@ class CUABackend:
             before_text = str(before.get("text") or "") if isinstance(before, dict) else ""
             text = str(after.get("text") or "") if isinstance(after, dict) else ""
             dispatched = all(item.get("ok") is True for item in results) and bool(results)
-            if effectful and expectation_supports_value(expect):
-                verified = expectation_value_field_matches(expect, after if isinstance(after, dict) else {})
-            elif effectful and expectation_is_supported(expect):
+            if effectful and expectation_is_supported(expect):
                 verified = expectation_is_new(expect, before_text, text, results)
+                if isinstance(expect, (list, dict)):
+                    verified = expectation_is_new(expect, before_text, text, results, after if isinstance(after, dict) else {})
             else:
                 verified = bool(dispatched and not effectful and text)
             ok = bool(dispatched and verified)
@@ -531,6 +539,8 @@ class CUABackend:
             "open", "reveal", "scroll", "drag", "select_text",
         }:
             op = action_name.lower()
+        if op in {"focus", "raise", "activate"}:
+            return self._focus_app(client, app)
         if op in {"open", "reveal"}:
             kwargs = {
                 key: step[key] for key in ("path", "url") if step.get(key) is not None
@@ -565,23 +575,16 @@ class CUABackend:
         action = step.get("action")
         action_name = str(action or "").lower()
         fill_value = fill_value_from_step(step)
+        if action_name == "set_checked":
+            return dispatch_set_checked(
+                client, app, step,
+                lambda: self._get_app_state(client, app, includeElements=True, disableDiff=True),
+            )
         if action_name == "set_value" and fill_value is not None:
-            idx = int(element) if element is not None else None
-            if idx is None and step.get("label"):
-                try:
-                    idx = resolve_set_value_index(
-                        self._get_app_state(
-                            client, app, includeElements=True, disableDiff=True
-                        ),
-                        str(step["label"]),
-                    )
-                except ValueError as exc:
-                    return {"ok": False, "error": f"set_value: {exc}", "method": "set_value"}
-            if idx is None:
-                err = (f"set_value: field not found: {step.get('label')}" if step.get("label")
-                       else "set_value needs label or element")
-                return {"ok": False, "error": err, "method": "set_value"}
-            return client.set_value(app, idx, str(fill_value))
+            return dispatch_labeled_set_value(
+                client, app, step, element, fill_value,
+                lambda: self._get_app_state(client, app, includeElements=True, disableDiff=True),
+            )
         if text is not None and element is not None and step.get("label") is None:
             return client.set_value(app, int(element), str(text))
         if text is not None and step.get("label") is None and element is None:

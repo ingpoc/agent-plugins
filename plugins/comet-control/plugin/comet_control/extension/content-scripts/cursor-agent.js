@@ -1463,15 +1463,21 @@
       ? boundedInt(options.input_value_chars, 1, 500, compact ? 40 : 60)
       : (compact ? 40 : 60);
     let fieldEntry;
-    if (options.field != null) {
+    const readField = (selector) => {
       try {
-        const el = document.querySelector(String(options.field));
-        fieldEntry = el
+        const el = document.querySelector(String(selector));
+        return el
           ? { found: true, value: String(el.value ?? el.textContent ?? '').slice(0, inputValueCap) }
           : { found: false };
       } catch (error) {
-        fieldEntry = { found: false, error: String(error?.message || error).slice(0, 120) };
+        return { found: false, error: String(error?.message || error).slice(0, 120) };
       }
+    };
+    if (options.field != null) fieldEntry = readField(options.field);
+    let fieldsEntry;
+    if (Array.isArray(options.fields)) {
+      fieldsEntry = {};
+      for (const sel of options.fields.slice(0, 20)) fieldsEntry[String(sel)] = readField(sel);
     }
 
     function labelOf(el) {
@@ -1577,6 +1583,7 @@
         }))
         .filter(x => x.name).slice(0, effInputCap) } : {}),
       ...(fieldEntry ? { field: fieldEntry } : {}),
+      ...(fieldsEntry ? { fields: fieldsEntry } : {}),
       ...(compact ? { compact: true } : {}),
     };
   }

@@ -28,7 +28,7 @@ def _pin_window(params, window_id):
 
 _INPUT_METHODS = frozenset({
     "click", "type_text", "scroll", "set_value", "drag",
-    "perform_secondary_action", "select_text",
+    "perform_secondary_action", "select_text", "press_key", "hold_key",
 })
 
 
@@ -279,9 +279,33 @@ def cua_right_click(pid, element_index, window_id=None):
     return {**result, "element": int(element_index)}
 
 
+def _same_set_value_target(before, after):
+    """Index identity: role, label, and a nearby frame. A rerender that parks
+    another field on this index must not read back as a match."""
+    if str(before.get("role") or "") != str(after.get("role") or ""):
+        return False
+    if str(before.get("label") or "") != str(after.get("label") or ""):
+        return False
+    bf, af = before.get("frame") or {}, after.get("frame") or {}
+    try:
+        dx = abs(float(bf.get("x") or 0) - float(af.get("x") or 0))
+        dy = abs(float(bf.get("y") or 0) - float(af.get("y") or 0))
+    except (TypeError, ValueError):
+        return False
+    return dx <= 12 and dy <= 12
+
+
 def cua_set_value(pid, element_index, value, window_id=None):
-    """AX set through CUAService, then a readback from the same walk (text roles)."""
+    """AX set through CUAService, then a readback of the same element identity."""
     index = int(element_index)
+    before = cua_snapshot(pid, window_id, max(80, index + 1), retries=0)
+    if before.get("error") or before.get("ok") is not True:
+        return {"ok": False, "accepted": False, "element": index,
+                "error": f"set_value readback failed: {before.get('error') or 'snapshot not ok'}"}
+    before_target = next((e for e in before.get("elements") or [] if e.get("element_index") == index), None)
+    if before_target is None:
+        return {"ok": False, "accepted": False, "element": index,
+                "error": f"set_value readback target missing: element {index} not in the fresh walk"}
     params = _pin_window({"element_index": index, "value": str(value)}, window_id)
     result = _cuaservice_rpc(pid, "set_value", params)
     if result.get("error") or result.get("ok") is not True:
@@ -294,6 +318,10 @@ def cua_set_value(pid, element_index, value, window_id=None):
     if target is None:
         return {**result, "ok": False, "accepted": False, "element": index,
                 "error": f"set_value readback target missing: element {index} not in the fresh walk"}
+    if not _same_set_value_target(before_target, target):
+        return {**result, "ok": False, "accepted": False, "element": index,
+                "error": "set_value readback identity changed",
+                "role": target.get("role"), "label": target.get("label")}
     if target.get("value") is None:
         return {**result, "ok": False, "accepted": False, "element": index, "role": target.get("role"),
                 "error": f"set_value readback unavailable: element {index} reports no AX value"}
@@ -332,7 +360,10 @@ def cua_type_text(pid, text, *, element_index=None, x=None, y=None, window_id=No
     if focus is not None and (focus.get("error") or focus.get("ok") is not True):
         return {**focus, "ok": False, "accepted": False,
                 "error": focus.get("error") or "focus click before typing failed"}
-    result = _cuaservice_rpc(pid, "type_text", _pin_window({"text": text}, window_id))
+    params = {"text": text}
+    if element_index is not None:
+        params["element_index"] = int(element_index)
+    result = _cuaservice_rpc(pid, "type_text", _pin_window(params, window_id))
     if focus is not None:
         result = {**result, "focus": {k: focus.get(k) for k in ("method", "cursor_landing") if k in focus}}
     return result
