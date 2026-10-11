@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.19
+
+- `scripts/install-client.sh`, `scripts/refresh-client.sh`, and `scripts/check-ledger-access.sh` install or refresh Cursor, Codex, and Grok and check the one ledger. They do not create a data root. An older materialized copy is replaced in place. If that cannot be done, the script exits nonzero.
+- The stdio resolver executes a plugin root or cache copy only when its `plugin.json` version is at least the pinned version. An older copy is not executed. Tag bootstrap failure is `PLUGIN_BOOTSTRAP_FAILED`.
+
 ## 0.1.18
 
 - Before the first find, the MCP server checks that the ledger is reachable, retries once, and stops with an error that names the URL or the ledger file. It does not fall back to another store.
