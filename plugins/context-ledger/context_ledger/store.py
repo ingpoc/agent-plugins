@@ -21,6 +21,7 @@ from context_ledger.contracts import (
     MAX_DB_BYTES,
     MAX_EVENT,
     MAX_EVENTS,
+    BROWSE_OFFSET_MAX,
     MAX_FIND_RESPONSE,
     MAX_GET_RESPONSE,
     MAX_IMPORT_BYTES,
@@ -897,13 +898,14 @@ class Store:
             return result
 
     def browse(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
-        """Recent or filtered cards for the ledger view. MCP hides local_only."""
+        """Recent or filtered cards for the ledger view. MCP uses get's visibility."""
         self._reachable = False
         self._ensure_reachable()
         query = arguments.get("query", "")
         entities = arguments.get("entities") or []
         include = arguments.get("include_superseded", False)
         limit = arguments.get("limit", 12)
+        offset = arguments.get("offset", 0)
         if (
             not isinstance(query, str)
             or not isinstance(entities, list)
@@ -911,6 +913,8 @@ class Store:
             or type(include) is not bool
             or type(limit) is not int
             or not 1 <= limit <= 24
+            or type(offset) is not int
+            or not 0 <= offset <= BROWSE_OFFSET_MAX
         ):
             raise LedgerError("INVALID_ARGUMENT")
         needle = query.casefold().strip()
@@ -923,8 +927,7 @@ class Store:
                 sql += " and lifecycle='active'"
             sql += " order by updated_at desc, decision_id asc"
             rows = conn.execute(sql, (scope,)).fetchall()
-            matches: list[dict[str, Any]] = []
-            has_more = False
+            matched: list[dict[str, Any]] = []
             for row in rows:
                 proj = parse_json(row["projection_json"])
                 body = proj["body"]
@@ -935,13 +938,23 @@ class Store:
                     blob = " ".join([body.get("summary") or "", body.get("applicability") or "", *ents]).casefold()
                     if needle not in blob:
                         continue
-                card = self._summary(proj)
-                card["entities"] = ents
+                rec = self._get_record(conn, proj["decision_id"], mcp=mcp)
+                if rec is None:
+                    continue
+                card = self._summary(rec)
+                card["entities"] = list(rec["body"].get("entities") or [])
+                matched.append(card)
+            window = matched[offset:]
+            matches: list[dict[str, Any]] = []
+            has_more = False
+            for card in window:
                 trial = {"matches": matches + [card], "has_more": True}
                 if len(matches) >= limit or len(canonical_json(trial).encode("utf-8")) > MAX_FIND_RESPONSE:
                     has_more = True
                     break
                 matches.append(card)
+            if has_more and offset + len(matches) > BROWSE_OFFSET_MAX:
+                has_more = False
             return {"matches": matches, "has_more": has_more}
 
     def export(self, output: Path, *, include_local_only: bool) -> dict[str, Any]:
