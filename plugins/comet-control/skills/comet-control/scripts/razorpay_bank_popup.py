@@ -34,7 +34,7 @@ import subprocess
 import sys
 import time
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 DEFAULT_TITLE = "Razorpay Bank"
 DEFAULT_EXCLUDES = ("Baroda", "Mock Bank")
@@ -49,9 +49,19 @@ function run(){
   var app = Application(%s);
   var out = [];
   app.windows().forEach(function(w){
-    var t = null; try { t = w.activeTab(); } catch(e) {}
+    var activeId = "";
+    try { activeId = String(w.activeTab().id()); } catch(e) {}
+    var tabs = [];
+    w.tabs().forEach(function(t){
+      var id = "", url = "";
+      try { id = String(t.id()); } catch(e) {}
+      try { url = String(t.url()); } catch(e) {}
+      tabs.push({id: id, url: url, active: id !== "" && id === activeId});
+    });
+    var activeUrl = "";
+    tabs.forEach(function(t){ if (t.active) activeUrl = t.url; });
     out.push({id: String(w.id()), name: String(w.name()),
-              url: t ? String(t.url()) : "", tabs: w.tabs().length});
+              url: activeUrl, active_tab_id: activeId, tabs: tabs.length, tab_list: tabs});
   });
   return JSON.stringify(out);
 }
@@ -62,9 +72,13 @@ function run(){
   var env = $.NSProcessInfo.processInfo.environment;
   var wid = env.objectForKey('RZP_WINDOW_ID').js;
   var code = env.objectForKey('RZP_JS').js;
+  var tid = env.objectForKey('RZP_TAB_ID');
   var app = Application(%s);
   var w = app.windows.byId(Number(wid));
-  var r = w.activeTab().execute({javascript: code});
+  var tab = null;
+  if (tid && String(tid.js || "") !== "") tab = w.tabs.byId(Number(tid.js));
+  else tab = w.activeTab();
+  var r = tab.execute({javascript: code});
   return (r === undefined || r === null) ? "null" : String(r);
 }
 """
@@ -122,12 +136,35 @@ def comet_windows() -> list[dict[str, Any]]:
     return json.loads(_osa_jxa(_JXA_LIST % json.dumps(APP)))
 
 
-def exec_js(window_id: str, code: str) -> Any:
-    raw = _osa_jxa(_JXA_EXEC % json.dumps(APP), env={"RZP_WINDOW_ID": str(window_id), "RZP_JS": code})
+def is_test_key(url: str) -> bool:
+    """True only when the key_id query value itself starts with rzp_test_."""
+    try:
+        values = parse_qs(urlsplit(url).query, keep_blank_values=True).get("key_id") or []
+    except Exception:
+        return False
+    return bool(values) and all(str(value).startswith("rzp_test_") for value in values)
+
+
+def exec_js(window_id: str, code: str, tab_id: str | None = None, *, require_tab: bool = False) -> Any:
+    if require_tab and not tab_id:
+        raise RuntimeError("press requires the probed tab id")
+    env = {"RZP_WINDOW_ID": str(window_id), "RZP_JS": code}
+    if tab_id:
+        env["RZP_TAB_ID"] = str(tab_id)
+    raw = _osa_jxa(_JXA_EXEC % json.dumps(APP), env=env)
     try:
         return json.loads(raw)
     except json.JSONDecodeError:
         return raw
+
+
+def _tab_matches(url: str, prefixes: list[str]) -> str | None:
+    if prefixes and not any(url.startswith(p) for p in prefixes):
+        return "url_prefix_mismatch"
+    host = urlsplit(url).netloc.lower() if url else ""
+    if host.endswith("razorpay.com") and not is_test_key(url):
+        return "not_test_mode"
+    return None
 
 
 def bind(title: str, excludes: list[str], prefixes: list[str]) -> tuple[list[dict], list[dict]]:
@@ -135,22 +172,60 @@ def bind(title: str, excludes: list[str], prefixes: list[str]) -> tuple[list[dic
     hits, skipped = [], []
     for w in wins:
         name = w["name"]
-        rec = {"window_id": w["id"], "name": name, "url": _safe_url(w["url"]), "tabs": w["tabs"]}
         if name != title and not name.startswith(title + " \u2014"):
             continue
+        tabs = w.get("tab_list") or [{"id": w.get("active_tab_id") or "", "url": w.get("url") or "", "active": True}]
         if any(x.lower() in name.lower() for x in excludes):
-            skipped.append({**rec, "why": "excluded_title"})
+            skipped.append({"window_id": w["id"], "name": name, "url": _safe_url(w.get("url") or ""), "tabs": w["tabs"], "why": "excluded_title"})
             continue
-        if prefixes and not any(w["url"].startswith(p) for p in prefixes):
-            skipped.append({**rec, "why": "url_prefix_mismatch"})
+        matched = None
+        why = "url_prefix_mismatch"
+        for tab in tabs:
+            url = str(tab.get("url") or "")
+            reason = _tab_matches(url, prefixes)
+            if reason:
+                why = reason
+                continue
+            matched = tab
+            break
+        if matched is None:
+            skipped.append({"window_id": w["id"], "name": name, "url": _safe_url(w.get("url") or ""), "tabs": w["tabs"], "why": why})
             continue
-        # Test mode only: a razorpay.com popup must carry a rzp_test_ key id.
-        host = urlsplit(w["url"]).netloc.lower()
-        if host.endswith("razorpay.com") and "key_id=rzp_test_" not in w["url"]:
-            skipped.append({**rec, "why": "not_test_mode"})
-            continue
-        hits.append(rec)
+        hits.append({
+            "window_id": w["id"],
+            "name": name,
+            "url": _safe_url(str(matched.get("url") or "")),
+            "tabs": w["tabs"],
+            "tab_id": str(matched.get("id") or ""),
+            "active_tab_id": str(w.get("active_tab_id") or ""),
+            "tab_active": bool(matched.get("active")),
+        })
     return hits, skipped
+
+
+def refresh_bound(hit: dict[str, Any], prefixes: list[str]) -> tuple[dict[str, Any] | None, str]:
+    """Re-read the probed tab. Never trust whichever tab is active now."""
+    wins = comet_windows()
+    window = next((item for item in wins if str(item.get("id")) == str(hit.get("window_id"))), None)
+    if window is None:
+        return None, "window_gone"
+    tab_id = str(hit.get("tab_id") or "")
+    tabs = window.get("tab_list") or []
+    tab = next((item for item in tabs if str(item.get("id") or "") == tab_id), None)
+    if tab is None:
+        return None, "tab_gone"
+    url = str(tab.get("url") or "")
+    reason = _tab_matches(url, prefixes)
+    if reason:
+        return None, reason
+    active_id = str(window.get("active_tab_id") or "")
+    return {
+        **hit,
+        "url": _safe_url(url),
+        "tab_id": tab_id,
+        "active_tab_id": active_id,
+        "tab_active": tab_id != "" and tab_id == active_id,
+    }, ""
 
 
 # ------------------------------------------------------------------- AX path
@@ -287,14 +362,17 @@ def _probe_all(hits: list[dict], label: str) -> list[dict]:
     for h in hits:
         rec = dict(h)
         try:
-            rec["page"] = exec_js(h["window_id"], _JS_PROBE % json.dumps(label))
+            rec["page"] = exec_js(
+                h["window_id"], _JS_PROBE % json.dumps(label),
+                tab_id=h.get("tab_id") or None, require_tab=True,
+            )
         except RuntimeError as exc:
             rec["page_error"] = str(exc)[:200]
         out.append(rec)
     return out
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["preflight", "probe", "press"])
     ap.add_argument("--action", choices=sorted(LABELS), default="success")
@@ -306,7 +384,7 @@ def main() -> int:
                     help="several actionable windows: fail (only) or take the highest window id (newest)")
     ap.add_argument("--method", choices=["auto", "ax", "applescript-js"], default="auto")
     ap.add_argument("--verify-seconds", type=float, default=8.0)
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     started = time.time()
     label = LABELS[a.action]
     excludes = a.exclude or list(DEFAULT_EXCLUDES)
@@ -327,11 +405,19 @@ def main() -> int:
         hits = [h for h in hits if h["window_id"] == str(a.window_id)]
     if not hits:
         return emit({"ok": False, "error": "no_bound_window", "title": a.title, "skipped": skipped}, 2)
-    probed = _probe_all(hits, label)
     if a.command == "probe":
-        return emit({"ok": True, "bound": probed, "skipped": skipped}, 0)
+        return emit({"ok": True, "bound": _probe_all(hits, label), "skipped": skipped}, 0)
 
-    actionable = [p for p in probed if isinstance(p.get("page"), dict) and p["page"].get("matches") == 1]
+    # Explicit AX never runs the AppleScript-JS probe. Auto falls through to AX
+    # when every probe is a JS error (Apple Events JavaScript disabled).
+    if a.method == "ax":
+        probed = [dict(hit) for hit in hits]
+        actionable = probed
+    else:
+        probed = _probe_all(hits, label)
+        actionable = [p for p in probed if isinstance(p.get("page"), dict) and p["page"].get("matches") == 1]
+        if not actionable and a.method == "auto" and probed and all(p.get("page_error") for p in probed):
+            actionable = [dict(hit) for hit in hits]
     if not actionable:
         return emit({"ok": False, "error": "button_not_found", "label": label, "bound": probed}, 3)
     if len(actionable) > 1:
@@ -340,20 +426,28 @@ def main() -> int:
                          "hint": "rerun with --window-id <id> or --pick newest"}, 4)
         actionable.sort(key=lambda p: int(p["window_id"]), reverse=True)
     target = actionable[0]
+    fresh, reason = refresh_bound(target, prefixes)
+    if fresh is None:
+        return emit({"ok": False, "error": reason, "target": {k: target.get(k) for k in ("window_id", "name", "url", "tab_id")}}, 3)
+    target = fresh
 
-    pf = preflight(a.title, js_window_id=target["window_id"])
+    pf = preflight(a.title, js_window_id=None if a.method == "ax" else target["window_id"])
     method = a.method if a.method != "auto" else pf.get("recommended_method", "none")
     attempts: list[dict[str, Any]] = []
     pressed = False
     if method == "ax":
-        res = ax_press(pf["comet_pid"], target["name"], label) if pf.get("comet_pid") else {"pressed": False, "error": "no_pid"}
+        if not target.get("tab_active"):
+            res = {"pressed": False, "error": "ax_tab_not_active",
+                   "tab_id": target.get("tab_id"), "active_tab_id": target.get("active_tab_id")}
+        else:
+            res = ax_press(pf["comet_pid"], target["name"], label) if pf.get("comet_pid") else {"pressed": False, "error": "no_pid"}
         attempts.append({"method": "ax", **res})
         pressed = bool(res.get("pressed"))
         if not pressed and a.method == "auto" and pf.get("applescript_js"):
             method = "applescript-js"
     if not pressed and method == "applescript-js":
         try:
-            res = exec_js(target["window_id"], _JS_PRESS % json.dumps(label))
+            res = exec_js(target["window_id"], _JS_PRESS % json.dumps(label), tab_id=target.get("tab_id"), require_tab=True)
         except RuntimeError as exc:
             res = {"pressed": False, "error": str(exc)[:200]}
         res = res if isinstance(res, dict) else {"pressed": False, "raw": str(res)[:200]}
@@ -372,10 +466,12 @@ def main() -> int:
             popup_state = "closed"
             break
         try:
-            after = exec_js(target["window_id"], _JS_PROBE % json.dumps(label))
+            after = exec_js(target["window_id"], _JS_PROBE % json.dumps(label), tab_id=target.get("tab_id"), require_tab=True)
         except RuntimeError:
             continue
-        if isinstance(after, dict) and (after.get("matches") != 1 or after.get("title") != target["page"].get("title")):
+        page = target.get("page") if isinstance(target.get("page"), dict) else {}
+        title_changed = page.get("title") is not None and after.get("title") != page.get("title")
+        if isinstance(after, dict) and (after.get("matches") != 1 or title_changed):
             popup_state = "advanced"
             break
     return emit({"ok": popup_state != "unchanged", "action": a.action, "method": attempts[-1]["method"],

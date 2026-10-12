@@ -108,6 +108,9 @@ final class MethodRouter: @unchecked Sendable {
         case "press_key":
             return try await handlePressKey(req)
 
+        case "hold_key":
+            return try await handleHoldKey(req)
+
         case "type_text":
             return try await handleTypeText(req)
 
@@ -176,7 +179,8 @@ final class MethodRouter: @unchecked Sendable {
             "select_text", "perform_secondary_action", "drag", "open_item",
             "get_app_state", "wait",
         ])
-        let before = await planState(app: app)
+        let pin = try req.paramCGWindowID("windowId", "window_id")
+        let before = await planState(app: app, windowID: pin)
         var results: [[String: Any]] = []
         for raw in steps {
             guard let step = raw as? [String: Any],
@@ -187,6 +191,7 @@ final class MethodRouter: @unchecked Sendable {
             }
             var params = step["params"] as? [String: Any] ?? [:]
             params["app"] = params["app"] ?? app
+            params = Self.pinPlanParams(params, windowID: pin)
             if (req.param("allow_unlanded") as Bool?) == true {
                 params["allow_unlanded"] = params["allow_unlanded"] ?? true
             }
@@ -217,7 +222,7 @@ final class MethodRouter: @unchecked Sendable {
                 break
             }
         }
-        let after = await planState(app: app)
+        let after = await planState(app: app, windowID: pin)
         return [
             "ok": results.count == steps.count && results.allSatisfy { $0["ok"] as? Bool == true },
             "before": before,
@@ -227,18 +232,23 @@ final class MethodRouter: @unchecked Sendable {
     }
 
     @MainActor
-    private func planState(app: String) async -> [String: Any] {
+    private func planState(app: String, windowID: CGWindowID? = nil) async -> [String: Any] {
         // includeElements so compact expect.value can verify fields after mutations
         // (Codex r8 major 2). Screenshots stay off — planState must skip capture.
+        // The enclosing plan windowId is part of the observation, not only the steps.
+        var params: [String: AnyCodable] = [
+            "app": AnyCodable(app),
+            "disableDiff": AnyCodable(true),
+            "includeScreenshot": AnyCodable(false),
+            "includeElements": AnyCodable(true),
+        ]
+        if let windowID, windowID != 0 {
+            params["windowId"] = AnyCodable(Int(windowID))
+        }
         let request = JSONRPCRequest(
             jsonrpc: "2.0",
             method: "get_app_state",
-            params: [
-                "app": AnyCodable(app),
-                "disableDiff": AnyCodable(true),
-                "includeScreenshot": AnyCodable(false),
-                "includeElements": AnyCodable(true),
-            ],
+            params: params,
             id: nil
         )
         do {
@@ -250,10 +260,19 @@ final class MethodRouter: @unchecked Sendable {
 
     /// Optional caller-pinned CGWindowID (windowId / window_id). When set,
     /// action RPCs must not re-resolve to a different focused window.
-    private func pinnedWindowID(_ req: JSONRPCRequest) -> CGWindowID? {
-        if let id = req.paramInt("windowId"), id != 0 { return CGWindowID(id) }
-        if let id = req.paramInt("window_id"), id != 0 { return CGWindowID(id) }
-        return nil
+    /// Invalid integers are an RPC error, never a trapping UInt32 conversion.
+    private func pinnedWindowID(_ req: JSONRPCRequest) throws -> CGWindowID? {
+        try req.paramCGWindowID("windowId", "window_id")
+    }
+
+    /// Copy the enclosing plan pin onto a child that did not set its own.
+    static func pinPlanParams(_ params: [String: Any], windowID: CGWindowID?) -> [String: Any] {
+        var params = params
+        guard let windowID, windowID != 0 else { return params }
+        if params["windowId"] == nil && params["window_id"] == nil {
+            params["windowId"] = Int(windowID)
+        }
+        return params
     }
 
     /// Index actions must target the pinned window — never another window's tree.
@@ -665,14 +684,15 @@ final class MethodRouter: @unchecked Sendable {
             axBounds: snapshot.windowFrame
         )
 
+        let clickCount = max(1, min(req.paramInt("click_count") ?? 1, 3))
         let pressResult: [String: Any]
-        if let target {
+        if let target, clickCount == 1 {
             pressResult = inputActions.performPress(
                 resolved, element: target, snapshot: snapshot
             )
         } else {
             pressResult = inputActions.coordinateClick(
-                resolved: resolved, point: aimPoint
+                resolved: resolved, point: aimPoint, clickCount: clickCount
             )
         }
 
@@ -730,12 +750,50 @@ final class MethodRouter: @unchecked Sendable {
             bundleID: resolved.bundleID
         )
         try await syncCursorToWindow(resolved: resolved, snapshot: snapshot)
+        try recheckPinnedFocus(resolved)
         let pressed = inputActions.pressKey(resolved: resolved, key: key)
         let keyNorm = key.lowercased().replacingOccurrences(of: " ", with: "")
         if ["cmd+n", "command+n", "cmd+t", "command+t"].contains(keyNorm) {
             appResolver.invalidateWindowCache()
         }
         return pressed
+    }
+
+    /// After the cursor glide, the key must still be aimed at the pinned window.
+    /// Focus can move to another window while the tip is in flight.
+    @MainActor
+    private func recheckPinnedFocus(_ resolved: ResolvedApp) throws {
+        guard resolved.windowID != 0 else { return }
+        let focused = appResolver.focusedCGWindowID(axApp: resolved.axApp)
+        guard focused == resolved.windowID else {
+            throw RPCMethodError(
+                code: -32002,
+                message: "pinned window \(resolved.windowID) is not focused after cursor landing"
+                    + " (focused \(focused.map { String($0) } ?? "none")); key NOT sent"
+            )
+        }
+    }
+
+    @MainActor
+    private func handleHoldKey(_ req: JSONRPCRequest) async throws -> Any {
+        guard let app: String = req.param("app"),
+              let key: String = req.param("key")
+        else {
+            throw RPCMethodError(code: -32602, message: "Missing app or key")
+        }
+        let seconds = min(max(req.paramDouble("seconds") ?? 0, 0.05), 10)
+        let resolved = try appResolver.resolve(app, raiseForInput: true, windowID: pinnedWindowID(req))
+        try requirePinnedAXWindow(resolved)
+        screenshotCapture.invalidate()
+        let snapshot = axTree.walk(
+            axApp: resolved.axApp,
+            windowID: resolved.windowID,
+            pid: resolved.pid,
+            bundleID: resolved.bundleID
+        )
+        try await syncCursorToWindow(resolved: resolved, snapshot: snapshot)
+        try recheckPinnedFocus(resolved)
+        return inputActions.holdKey(resolved: resolved, key: key, seconds: seconds)
     }
 
     @MainActor
@@ -758,9 +816,17 @@ final class MethodRouter: @unchecked Sendable {
             pid: resolved.pid,
             bundleID: resolved.bundleID
         )
+        let elementIndex: Int? = req.paramInt("element_index")
+        let target = elementIndex.flatMap { axTree.findElementByIndex(snapshot, index: $0) }
+        if elementIndex != nil && target == nil {
+            throw RPCMethodError(
+                code: -32602,
+                message: "Element not found at index \(elementIndex ?? -1)"
+            )
+        }
         try await syncCursorToFocusedInput(resolved: resolved, snapshot: snapshot)
         return inputActions.typeText(
-            resolved: resolved, text: text, afterNewDocument: afterNew
+            resolved: resolved, text: text, afterNewDocument: afterNew, target: target
         )
     }
 

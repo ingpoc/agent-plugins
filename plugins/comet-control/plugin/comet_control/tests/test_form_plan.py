@@ -101,7 +101,17 @@ class FormPlanTests(unittest.TestCase):
         out = compile_cua(self.plan(), FIELDS, DOC, app="System Settings")
         steps = out["act"]["steps"]
         self.assertEqual(steps[0], {"action": "set_value", "label": "Full name", "value": "Ada Lovelace"})
-        self.assertEqual(out["act"]["expect"]["value"]["equals"], "ada@example.com")
+        self.assertEqual(
+            [item["value"] for item in out["act"]["expect"]],
+            [
+                {"label": "Full name", "equals": "Ada Lovelace"},
+                {"label": "Email address", "equals": "ada@example.com"},
+            ],
+        )
+        self.assertIn(
+            {"action": "set_checked", "label": "I agree to the terms", "checked": True},
+            steps,
+        )
         self.assertEqual(out["pending_submit"], "Submit application")
 
     def test_radio_uses_option_label_and_checkbox_set_checked(self):
@@ -109,9 +119,10 @@ class FormPlanTests(unittest.TestCase):
                   Field("b", "Bacon", "checkbox", dom_index=1), Field("t", "Delivery time", "time", dom_index=2)]
         doc = {"pizza size": "Medium", "bacon": False, "delivery time": "18:30"}
         acts = compile_comet(plan_form(fields, doc), fields, doc)["body"]["actions"]
-        self.assertIn({"type": "locator", "locator": {"by": "label", "label": "Medium"}, "operation": "check"}, acts)
-        self.assertIn({"type": "locator", "locator": {"by": "label", "label": "Bacon"}, "operation": "set_checked",
+        self.assertIn({"type": "locator", "locator": {"by": "label", "label": "Medium", "exact": True}, "operation": "check"}, acts)
+        self.assertIn({"type": "locator", "locator": {"by": "label", "label": "Bacon", "exact": True}, "operation": "set_checked",
                        "checked": False}, acts)
+        self.assertTrue(all(a["locator"].get("exact") is True for a in acts if a.get("locator", {}).get("by") == "label"))
         self.assertEqual(acts[0]["operation"], "fill")
 
     def test_cli_compile_one_body_and_exit_64_when_invalid(self):

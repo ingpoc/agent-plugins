@@ -218,11 +218,37 @@ def type_label_action(
             "label": field_label,
             "focus": focus,
         }
+    # Click, select, and delete can rerender. Re-resolve the label before
+    # each later fill, and fail if a clearing key was refused (Codex r11).
     time.sleep(0.15)
-    press_key(pid, window_id, "cmd+a")
+    snap = snapshot(pid, window_id, max_elements=max_elements)
+    idx = find_field_index(snap, field_label)
+    if idx is None:
+        return {"ok": False, "error": "field not found after focus", "label": field_label, "focus": focus}
+    selected = press_key(pid, window_id, "cmd+a")
+    if not _accepted(selected):
+        return {
+            "ok": False,
+            "error": "clear selection refused",
+            "label": field_label,
+            "focus": focus,
+            "clear": selected,
+        }
     time.sleep(0.08)
-    press_key(pid, window_id, "delete")
+    deleted = press_key(pid, window_id, "delete")
+    if not _accepted(deleted):
+        return {
+            "ok": False,
+            "error": "clear deletion refused",
+            "label": field_label,
+            "focus": focus,
+            "clear": deleted,
+        }
     time.sleep(0.08)
+    snap = snapshot(pid, window_id, max_elements=max_elements)
+    idx = find_field_index(snap, field_label)
+    if idx is None:
+        return {"ok": False, "error": "field not found after clear", "label": field_label, "focus": focus}
     res = type_text(
         pid,
         window_id,
@@ -231,7 +257,10 @@ def type_label_action(
         allow_newline=allow_newline,
     )
     if isinstance(res, dict) and "not found in cache" in str(res.get("error", "")):
-        snapshot(pid, window_id, max_elements=max_elements)
+        snap = snapshot(pid, window_id, max_elements=max_elements)
+        idx = find_field_index(snap, field_label)
+        if idx is None:
+            return {"ok": False, "error": "field not found after clear", "label": field_label, "focus": focus}
         res = type_text(
             pid,
             window_id,
@@ -386,12 +415,23 @@ def perform_action(pid, window_id, element_index, action, snapshot_data=None):
             "open",
         }:
             return {"error": error or f"native AX action failed: {normalized}"}
-    return call_driver(
-        "click",
-        {
-            "pid": pid,
-            "window_id": window_id,
-            "element_index": element_index,
-            "action": normalized,
-        },
+    ax_name = {
+        "show_menu": "AXShowMenu",
+        "press": "AXPress",
+        "pick": "AXPick",
+        "confirm": "AXConfirm",
+        "cancel": "AXCancel",
+        "open": "AXOpen",
+        "increment": "AXIncrement",
+        "decrement": "AXDecrement",
+        "raise": "AXRaise",
+        "zoom_window": "AXZoomWindow",
+    }[normalized]
+    refused = require_cuaservice_window(pid, window_id, max(80, int(element_index) + 1))
+    if refused:
+        return {**refused, "element": int(element_index), "action": normalized}
+    return _cuaservice_rpc(
+        pid,
+        "perform_secondary_action",
+        _pin_window({"element_index": int(element_index), "action": ax_name}, window_id),
     )

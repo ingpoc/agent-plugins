@@ -21,7 +21,8 @@ struct ResolvedApp: @unchecked Sendable {
                 return win
             }
         }
-        return windows.first
+        // A missing pin must not become some other window.
+        return nil
     }
 }
 
@@ -85,7 +86,8 @@ final class AppResolver: @unchecked Sendable {
         let tiny = (cg?.width ?? 0) * (cg?.height ?? 0) < 80 * 80
         reveal(
             runningApp, axApp: axApp, windowID: windowID,
-            tiny: tiny, raiseForInput: raiseForInput
+            tiny: tiny, raiseForInput: raiseForInput,
+            pinned: preferredWindowID != nil
         )
         if tiny {
             Thread.sleep(forTimeInterval: 0.08)
@@ -246,6 +248,10 @@ final class AppResolver: @unchecked Sendable {
         return best.0
     }
 
+    func focusedCGWindowID(axApp: AXUIElement) -> CGWindowID? {
+        focusedWindowID(axApp: axApp)
+    }
+
     private func focusedWindowID(axApp: AXUIElement) -> CGWindowID? {
         var ref: CFTypeRef?
         AXUIElementCopyAttributeValue(
@@ -274,7 +280,8 @@ final class AppResolver: @unchecked Sendable {
         axApp: AXUIElement,
         windowID: CGWindowID,
         tiny: Bool,
-        raiseForInput: Bool
+        raiseForInput: Bool,
+        pinned: Bool = false
     ) {
         // HID goes to the front app. Skipping raise because isActive was
         // stale true still posted cmd+n into Cursor.
@@ -288,9 +295,13 @@ final class AppResolver: @unchecked Sendable {
             let target = windows.first { win in
                 var id: CGWindowID = 0
                 return _CGSGetWindowID(win, &id) == .success && id == windowID
-            } ?? windows.first
+            }
             if let target {
                 AXUIElementPerformAction(target, kAXRaiseAction as CFString)
+            } else if !pinned, let fallback = windows.first {
+                // Unpinned resolve may raise the first window. A missing pin
+                // must not steal focus onto an unrelated window.
+                AXUIElementPerformAction(fallback, kAXRaiseAction as CFString)
             }
         }
         if raiseForInput {
@@ -364,7 +375,7 @@ final class AppResolver: @unchecked Sendable {
                 }
             }
         }
-        if axWin == nil {
+        if axWin == nil, windowID == nil || windowID == 0 {
             var ref: CFTypeRef?
             AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &ref)
             axWin = ref.map { $0 as! AXUIElement }

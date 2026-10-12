@@ -185,7 +185,7 @@ def compile_comet(
     pending_submit = None
     for s in order_plan(plan, fields):
         f = by_id[s.field_id]
-        loc = {"by": "label", "label": f.label}
+        loc = {"by": "label", "label": f.label, "exact": True}
         if s.op == FILL:
             # No per-fill expect.value (one round trip per field); the locator fill result
             # echoes element.value and `checks` compares it after the send.
@@ -195,7 +195,7 @@ def compile_comet(
             actions.append({"type": "locator", "locator": loc, "operation": "select_option", "value": s.value})
         elif s.op == CHECK and f.kind == "radio":
             # A radio group is chosen by the option's own label, not the group legend.
-            actions.append({"type": "locator", "locator": {"by": "label", "label": str(s.value)}, "operation": "check"})
+            actions.append({"type": "locator", "locator": {"by": "label", "label": str(s.value), "exact": True}, "operation": "check"})
         elif s.op == CHECK:
             actions.append({"type": "locator", "locator": loc, "operation": "set_checked", "checked": bool(s.value)})
         elif s.op == CLICK:
@@ -238,6 +238,8 @@ def compile_cua(
         f = by_id[s.field_id]
         if s.op == FILL:
             steps.append({"action": "set_value", "label": f.label, "value": s.value})
+        elif s.op == CHECK and f.kind == "checkbox":
+            steps.append({"action": "set_checked", "label": f.label, "checked": bool(s.value)})
         elif s.op == CHECK:
             steps.append({"action": "click", "label": str(s.value) if f.kind in {"radio", "select"} else f.label})
         elif s.op == CLICK:
@@ -246,7 +248,9 @@ def compile_cua(
                 continue
             steps.append({"action": "click", "label": f.label})
     fills = [s for s in order_plan(plan, fields) if s.op == FILL]
-    expect = {"value": {"label": by_id[fills[-1].field_id].label, "equals": fills[-1].value}} if fills else None
+    expect = [
+        {"value": {"label": by_id[s.field_id].label, "equals": s.value}} for s in fills
+    ] or None
     out: dict[str, Any] = {"ok": True, "act": {"app": app, "steps": steps, **({"expect": expect} if expect else {})}}
     if pending_submit:
         out["pending_submit"] = pending_submit

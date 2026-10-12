@@ -86,7 +86,9 @@ final class InputActions: @unchecked Sendable {
         )
     }
 
-    func coordinateClick(resolved: ResolvedApp, point: CGPoint) -> [String: Any] {
+    func coordinateClick(
+        resolved: ResolvedApp, point: CGPoint, clickCount: Int = 1
+    ) -> [String: Any] {
         guard point.x.isFinite, point.y.isFinite else {
             return [
                 "ok": false,
@@ -94,27 +96,42 @@ final class InputActions: @unchecked Sendable {
                 "error": "nonfinite click point",
             ]
         }
-        let mouseDown = CGEvent(
-            mouseEventSource: Self.hidSource,
-            mouseType: .leftMouseDown,
-            mouseCursorPosition: point,
-            mouseButton: .left
-        )
-        let mouseUp = CGEvent(
-            mouseEventSource: Self.hidSource,
-            mouseType: .leftMouseUp,
-            mouseCursorPosition: point,
-            mouseButton: .left
-        )
+        let count = max(1, min(clickCount, 3))
+        var events: [CGEvent] = []
+        for index in 1...count {
+            let mouseDown = CGEvent(
+                mouseEventSource: Self.hidSource,
+                mouseType: .leftMouseDown,
+                mouseCursorPosition: point,
+                mouseButton: .left
+            )
+            let mouseUp = CGEvent(
+                mouseEventSource: Self.hidSource,
+                mouseType: .leftMouseUp,
+                mouseCursorPosition: point,
+                mouseButton: .left
+            )
+            mouseDown?.location = point
+            mouseUp?.location = point
+            mouseDown?.setIntegerValueField(.mouseEventClickState, value: Int64(index))
+            mouseUp?.setIntegerValueField(.mouseEventClickState, value: Int64(index))
+            if let mouseDown { events.append(mouseDown) }
+            if let mouseUp { events.append(mouseUp) }
+        }
         // PID-targeted only — no focus steal / cursor warp, never doubled
         // input. PostEvent denied or no event → fail loud, nothing "ok".
-        if let refuse = hidRefusal(mouseDown, mouseUp) { return refuse }
-        postHid(mouseDown, to: resolved.pid)
-        postHid(mouseUp, to: resolved.pid)
+        if events.count != count * 2 {
+            return ["ok": false, "error": "cgevent_create_failed", "method": "refused"]
+        }
+        if let refuse = hidRefusal() { return refuse }
+        for event in events {
+            postHid(event, to: resolved.pid)
+        }
 
         return [
             "ok": true,
             "method": "cgevent-click-pid",
+            "click_count": count,
             "point": ["x": Double(point.x), "y": Double(point.y)],
         ]
     }
@@ -144,12 +161,39 @@ final class InputActions: @unchecked Sendable {
         return ["ok": true, "method": "cgevent-key-pid", "key": key]
     }
 
+    /// Key-down, dwell, key-up — one pid-targeted RPC. No native side path.
+    func holdKey(resolved: ResolvedApp, key: String, seconds: Double) -> [String: Any] {
+        let parsed = parseKeySpec(key)
+        guard let keyCode = parsed.keyCode else {
+            return ["ok": false, "error": "Unknown key: \(key)"]
+        }
+        let keyDown = CGEvent(
+            keyboardEventSource: Self.hidSource, virtualKey: keyCode, keyDown: true
+        )
+        let keyUp = CGEvent(
+            keyboardEventSource: Self.hidSource, virtualKey: keyCode, keyDown: false
+        )
+        keyDown?.flags = parsed.flags
+        keyUp?.flags = parsed.flags
+        if let refuse = hidRefusal(keyDown, keyUp) { return refuse }
+        postHid(keyDown, to: resolved.pid)
+        Thread.sleep(forTimeInterval: min(max(seconds, 0.05), 10))
+        postHid(keyUp, to: resolved.pid)
+        return [
+            "ok": true,
+            "method": "cgevent-hold-pid",
+            "key": key,
+            "duration_seconds": seconds,
+        ]
+    }
+
     // MARK: - Type Text
 
     func typeText(
         resolved: ResolvedApp,
         text: String,
-        afterNewDocument: Bool = false
+        afterNewDocument: Bool = false,
+        target: AXElement? = nil
     ) -> [String: Any] {
         if afterNewDocument, axTree?.longestTextValue() ?? 0 >= 24 {
             return [
@@ -157,6 +201,9 @@ final class InputActions: @unchecked Sendable {
                 "error": "type_refused_stale_document",
                 "method": "refused",
             ]
+        }
+        if let target {
+            return typeIntoTarget(resolved: resolved, text: text, target: target)
         }
         // areas/live come from the pinned-window walk. Focused UI can still
         // belong to another window of the same app — never type there.
@@ -176,18 +223,19 @@ final class InputActions: @unchecked Sendable {
                 "windowId": Int(resolved.windowID),
             ]
         }
+        // The focused text role in THIS window wins over any other text area.
+        // A search field must not lose to the document editor (Codex r11).
         let focusedIsArea = focused.map { axRole($0) == "AXTextArea" } ?? false
-
-        if focusedIsArea, let focused, axInsertText(focused, text) {
-            return ["ok": true, "method": "ax-set-value", "length": text.count]
+        if let focused, axInsertText(focused, text) {
+            return [
+                "ok": true, "method": "ax-set-value", "length": text.count,
+                "focused_is_area": focusedIsArea,
+            ]
         }
         for (el, _) in areas {
             if axInsertText(el, text) {
                 return ["ok": true, "method": "ax-set-value", "length": text.count]
             }
-        }
-        if let focused, !focusedIsArea, axInsertText(focused, text) {
-            return ["ok": true, "method": "ax-set-value", "length": text.count]
         }
         for el in live {
             if axInsertText(el, text) {
@@ -195,7 +243,7 @@ final class InputActions: @unchecked Sendable {
             }
         }
 
-        if let (_, frame) = areas.first,
+        if let (el, frame) = areas.first,
            frame.width > 1, frame.height > 1, frame.origin.x.isFinite,
            frame.origin.y.isFinite {
             if let refuse = hidRefusal() { return refuse }
@@ -207,13 +255,13 @@ final class InputActions: @unchecked Sendable {
                 point: CGPoint(x: frame.midX, y: frame.midY)
             )
             guard click["ok"] as? Bool == true else { return click }
-            guard waitForPinnedTextFocus(resolved) else {
+            guard waitForPinnedTextFocus(resolved, expected: el) else {
                 return [
                     "ok": false,
                     "error": "type_click_focus_not_in_pinned_window",
                     "method": "refused",
                     "windowId": Int(resolved.windowID),
-                    "hint": "click did not focus a text field in the pinned window; nothing was typed",
+                    "hint": "click did not focus the requested text field; nothing was typed",
                 ]
             }
             return hidTypeResult(text, resolved: resolved)
@@ -251,15 +299,78 @@ final class InputActions: @unchecked Sendable {
         return ["ok": true, "method": "cgevent-type-pid", "length": text.count]
     }
 
-    /// After a focusing click: AX focus must be a text role inside the
-    /// pinned window (polls briefly; the click is async to the app).
+    /// Type only into the requested element. Never scan sibling text areas.
+    private func typeIntoTarget(
+        resolved: ResolvedApp, text: String, target: AXElement
+    ) -> [String: Any] {
+        guard let axEl = axTree?.resolveAXUIElement(
+            axApp: resolved.axApp,
+            windowID: resolved.windowID,
+            index: target.index
+        ) else {
+            return [
+                "ok": false,
+                "error": "type_target_missing",
+                "method": "refused",
+                "element_index": target.index,
+                "windowId": Int(resolved.windowID),
+            ]
+        }
+        guard elementBelongsToWindow(axEl, windowID: resolved.windowID) else {
+            return [
+                "ok": false,
+                "error": "type_focus_outside_pinned_window",
+                "method": "refused",
+                "element_index": target.index,
+                "windowId": Int(resolved.windowID),
+            ]
+        }
+        if isTextRole(axEl), axInsertText(axEl, text) {
+            return [
+                "ok": true, "method": "ax-set-value", "length": text.count,
+                "element_index": target.index,
+            ]
+        }
+        let frame = target.frame
+        guard frame.width > 1, frame.height > 1, frame.origin.x.isFinite, frame.origin.y.isFinite else {
+            return [
+                "ok": false,
+                "error": "type_target_has_no_frame",
+                "method": "refused",
+                "element_index": target.index,
+            ]
+        }
+        if let refuse = hidRefusal() { return refuse }
+        let click = coordinateClick(
+            resolved: resolved,
+            point: CGPoint(x: frame.midX, y: frame.midY)
+        )
+        guard click["ok"] as? Bool == true else { return click }
+        guard waitForPinnedTextFocus(resolved, expected: axEl) else {
+            return [
+                "ok": false,
+                "error": "type_click_focus_not_requested_element",
+                "method": "refused",
+                "element_index": target.index,
+                "windowId": Int(resolved.windowID),
+                "hint": "click did not focus the requested element; nothing was typed",
+            ]
+        }
+        var typed = hidTypeResult(text, resolved: resolved)
+        typed["element_index"] = target.index
+        return typed
+    }
+
+    /// After a focusing click: AX focus must be that element, not any text
+    /// field in the pinned window (an ignored click can leave another field focused).
     private func waitForPinnedTextFocus(
-        _ resolved: ResolvedApp, timeout: TimeInterval = 0.5
+        _ resolved: ResolvedApp, expected: AXUIElement, timeout: TimeInterval = 0.5
     ) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
             if let el = focusedElement(resolved.axApp), isTextRole(el),
-               elementBelongsToWindow(el, windowID: resolved.windowID) {
+               elementBelongsToWindow(el, windowID: resolved.windowID),
+               CFEqual(el, expected) {
                 return true
             }
             Thread.sleep(forTimeInterval: 0.02)
@@ -433,6 +544,7 @@ final class InputActions: @unchecked Sendable {
             mouseCursorPosition: point,
             mouseButton: .left
         )
+        move?.location = point
         let scroll = CGEvent(
             scrollWheelEvent2Source: Self.hidSource,
             units: .line,
@@ -441,6 +553,9 @@ final class InputActions: @unchecked Sendable {
             wheel2: 0,
             wheel3: 0
         )
+        // Scroll-wheel events do not take a point at init. Without location
+        // the wheel hits whatever pane is under the real cursor.
+        scroll?.location = point
         if let refuse = hidRefusal(move, scroll) { return refuse }
         postHid(move, to: resolved.pid)
         postHid(scroll, to: resolved.pid)

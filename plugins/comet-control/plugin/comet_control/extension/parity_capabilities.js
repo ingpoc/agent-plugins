@@ -425,39 +425,78 @@ function axQueryFor(action) {
   return null;
 }
 
+function axNodeText(node) {
+  const read = (value) => {
+    if (value && typeof value === "object" && "value" in value) return String(value.value ?? "");
+    return value == null ? "" : String(value);
+  };
+  return [read(node?.name), read(node?.description), read(node?.value)].join("\n").toLowerCase();
+}
+
+function constrainAxNodes(nodes, spec) {
+  let list = (nodes || []).filter((node) => !node.ignored && node.backendDOMNodeId);
+  if (spec.hasText != null) {
+    const needle = String(spec.hasText).toLowerCase();
+    list = list.filter((node) => axNodeText(node).includes(needle));
+  }
+  if (spec.notHasText != null) {
+    const needle = String(spec.notHasText).toLowerCase();
+    list = list.filter((node) => !axNodeText(node).includes(needle));
+  }
+  if (spec.first) list = list.slice(0, 1);
+  if (spec.last) list = list.slice(-1);
+  if (Number.isInteger(spec.nth)) {
+    const index = spec.nth < 0 ? list.length + spec.nth : spec.nth;
+    list = index >= 0 && index < list.length ? [list[index]] : [];
+  }
+  return list;
+}
+
 async function axFallbackLookup(tabId, action, send) {
   const query = axQueryFor(action);
   if (!query) return { matches: [], info: { used: false, reason: "unsupported_locator" } };
+  const spec = locatorSpec(action);
   const info = { used: true, role: query.role || null, name: query.accessibleName };
   const doc = await send(tabId, "DOM.getDocument", { depth: 0 });
   const found = await send(tabId, "Accessibility.queryAXTree", { nodeId: doc.root.nodeId, ...query });
-  const nodes = (found?.nodes || []).filter((node) => !node.ignored && node.backendDOMNodeId);
+  const nodes = constrainAxNodes(found?.nodes, spec);
   info.candidates = nodes.length;
   if (nodes.length !== 1) return { matches: [], info: { ...info, reason: nodes.length ? "ambiguous" : "no_ax_match" } };
   const resolved = await send(tabId, "DOM.resolveNode", { backendNodeId: nodes[0].backendDOMNodeId });
   const objectId = resolved?.object?.objectId;
   if (!objectId) return { matches: [], info: { ...info, reason: "unresolvable" } };
   const ref = `ax${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const within = spec.within || "";
+  let marked = false;
   try {
-    await send(tabId, "Runtime.callFunctionOn", {
+    const called = await send(tabId, "Runtime.callFunctionOn", {
       objectId,
-      functionDeclaration: "function (ref) { const el = this.nodeType === 1 ? this : this.parentElement; if (el) el.setAttribute('data-comet-ax-ref', ref); return Boolean(el); }",
-      arguments: [{ value: ref }],
+      functionDeclaration: "function (ref, within) { const el = this.nodeType === 1 ? this : this.parentElement; if (!el) return false; if (within) { const root = document.querySelector(within); if (!root || !root.contains(el)) return false; } el.setAttribute('data-comet-ax-ref', ref); return true; }",
+      arguments: [{ value: ref }, { value: within }],
       returnByValue: true,
     });
+    marked = (called?.result?.value ?? called?.value) === true;
   } finally {
     await send(tabId, "Runtime.releaseObject", { objectId }).catch(() => {});
   }
+  if (!marked) return { matches: [], info: { ...info, reason: within ? "outside_within" : "unresolvable" } };
   let matches = [];
+  let kept = false;
   try {
     matches = await resolveLocator(tabId, { locator: { by: "css", selector: `[data-comet-ax-ref="${ref}"]` } });
+    kept = matches.length === 1;
   } finally {
-    await send(tabId, "Runtime.evaluate", {
-      expression: `document.querySelector('[data-comet-ax-ref="${ref}"]')?.removeAttribute('data-comet-ax-ref')`,
-    }).catch(() => {});
+    if (!kept) {
+      await send(tabId, "Runtime.evaluate", {
+        expression: `document.querySelector('[data-comet-ax-ref="${ref}"]')?.removeAttribute('data-comet-ax-ref')`,
+      }).catch(() => {});
+    }
   }
   if (matches.length !== 1) return { matches: [], info: { ...info, reason: "not_visible" } };
-  return { matches: matches.map((item) => ({ ...item, via: "ax_fallback" })), info: { ...info, reason: "resolved" } };
+  return {
+    matches: matches.map((item) => ({ ...item, via: "ax_fallback", axRef: ref })),
+    info: { ...info, reason: "resolved" },
+  };
 }
 
 async function dispatchMouse(send, tabId, point, clickCount = 1, button = "left") {
@@ -568,6 +607,14 @@ async function locatorAction(action, state, hooks) {
     const ax = axFallback ? ` (ax_fallback: ${axFallback.info.reason}, candidates=${axFallback.info.candidates ?? 0})` : "";
     throw new Error(`Locator did not resolve for ${operation}${ax}`);
   }
+  const axRef = match.via === "ax_fallback" ? String(match.axRef || "") : "";
+  const releaseAxRef = async () => {
+    if (!axRef) return;
+    await hooks.send(state.tabId, "Runtime.evaluate", {
+      expression: `document.querySelector('[data-comet-ax-ref="${axRef}"]')?.removeAttribute('data-comet-ax-ref')`,
+    }).catch(() => {});
+  };
+  try {
 
   if (["is_visible", "is_enabled", "is_checked", "inner_text", "text_content", "get_attribute", "value"].includes(operation)) {
     if (operation === "is_visible") return { type: "locator", operation, value: match.visible };
@@ -585,10 +632,11 @@ async function locatorAction(action, state, hooks) {
   }
 
   await hooks.moveCursorToPoint(state.tabId, match.point);
-  // An AX-resolved target has no DOM name match; refresh it by its own css path.
+  // AX targets stay pinned to the marker. A CSS-path occupant with a different name/role is not the target.
   const refreshedMatches = match.via === "ax_fallback"
-    ? (await resolveLocator(state.tabId, { locator: { by: "css", selector: match.selector } }))
-      .filter((item) => item.frame_id === match.frame_id).map((item) => ({ ...item, via: "ax_fallback" }))
+    ? (await resolveLocator(state.tabId, { locator: { by: "css", selector: `[data-comet-ax-ref="${axRef}"]` } }))
+      .filter((item) => item.frame_id === match.frame_id && item.name === match.name && item.role === match.role)
+      .map((item) => ({ ...item, via: "ax_fallback", axRef }))
     : await resolveLocator(state.tabId, action);
   const refreshedMatch = refreshedMatches[0];
   if (!refreshedMatch) {
@@ -742,6 +790,9 @@ async function locatorAction(action, state, hooks) {
     throw new Error(`Unsupported locator operation: ${operation}`);
   }
   return { type: "locator", operation, match };
+  } finally {
+    await releaseAxRef();
+  }
 }
 
 function permittedCdpMethod(method) {
