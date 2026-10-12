@@ -133,6 +133,7 @@
   .detail p { margin: 0; }
   .empty { color: var(--muted); padding: 28px 18px; }
   .continued { margin-top: 12px; color: var(--pending); font-size: 13px; }
+  .more, .retry { margin: 12px; }
   @media (max-width: 800px) {
     .stage { grid-template-columns: 1fr; }
   }
@@ -170,7 +171,11 @@
   let nextId = 1;
   let painted = false;
   let ready = false;
+  let listGen = 0;
+  let detailGen = 0;
+  let activeFilter = { query: "", entities: [], include_superseded: false };
   const pending = new Map();
+  const REQUEST_MS = 8000;
 
   function post(message) {
     parent.postMessage(message, "*");
@@ -178,9 +183,39 @@
   function send(method, params) {
     const id = nextId++;
     return new Promise(function (resolve, reject) {
-      pending.set(id, { resolve: resolve, reject: reject });
+      const timerId = setTimeout(function () {
+        if (!pending.has(id)) return;
+        pending.delete(id);
+        reject(new Error("TIMEOUT"));
+      }, REQUEST_MS);
+      pending.set(id, {
+        resolve: function (value) {
+          clearTimeout(timerId);
+          resolve(value);
+        },
+        reject: function (err) {
+          clearTimeout(timerId);
+          reject(err);
+        }
+      });
       post({ jsonrpc: "2.0", id: id, method: method, params: params });
     });
+  }
+  function readFilter() {
+    return {
+      query: q.value,
+      entities: entity ? [entity] : [],
+      include_superseded: superseded.classList.contains("on")
+    };
+  }
+  function browseArgs(filter, offset) {
+    return {
+      query: filter.query,
+      entities: filter.entities,
+      include_superseded: filter.include_superseded,
+      limit: 12,
+      offset: offset
+    };
   }
   function notify(method, params) {
     post({ jsonrpc: "2.0", method: method, params: params || {} });
@@ -219,6 +254,9 @@
       return;
     }
     count.textContent = rows.length + (rows.hasMore ? "+" : "") + " decisions";
+    const more = rows.hasMore
+      ? '<button id="more" class="ghost more" type="button">More</button>'
+      : "";
     list.innerHTML = rows.map(function (row, index) {
       const ents = (row.entities || []).join(" · ");
       return '<button class="row' + (index === selected ? " on" : "") + '" data-i="' + index + '" type="button">' +
@@ -226,7 +264,7 @@
         '<span class="meta">' + pill(row.outcome || "pending") + pill(row.lifecycle || "active") +
         (row.flag ? "<span>" + escapeHtml(row.flag) + "</span>" : "") +
         (ents ? "<span>" + escapeHtml(ents) + "</span>" : "") + "</span></button>";
-    }).join("");
+    }).join("") + more;
     resize();
   }
   function escapeHtml(value) {
@@ -250,13 +288,20 @@
     return "<h3>" + title + "</h3><p>" + escapeHtml(text) + "</p>";
   }
   async function openRow(index) {
+    const gen = ++detailGen;
     selected = index;
     renderList();
     const row = rows[index];
-    if (!row) return;
+    if (!row) {
+      detail.innerHTML = '<p class="empty">Select a decision.</p>';
+      resize();
+      return;
+    }
+    const decisionId = row.decision_id;
     detail.innerHTML = "<p class=\"empty\">Loading…</p>";
     try {
-      const result = await send("tools/call", { name: "get", arguments: { decision_id: row.decision_id } });
+      const result = await send("tools/call", { name: "get", arguments: { decision_id: decisionId } });
+      if (gen !== detailGen || !rows[index] || rows[index].decision_id !== decisionId) return;
       const record = dataOf(result).record;
       const body = record.body || {};
       const outcome = record.outcome || {};
@@ -277,37 +322,72 @@
         }).join("") : "") +
         (record.trace_continued ? '<p class="continued">Older trace events were omitted.</p>' : "");
     } catch (err) {
-      detail.innerHTML = '<p class="empty">' + escapeHtml(err.message || "UNAVAILABLE") + "</p>";
+      if (gen !== detailGen) return;
+      detail.innerHTML = '<p class="empty">' + escapeHtml(err.message || "UNAVAILABLE") + "</p>" +
+        '<button id="retry-detail" class="ghost retry" type="button">Retry</button>';
     }
     resize();
   }
+  function failBrowse(err) {
+    detailGen++;
+    rows = [];
+    selected = -1;
+    list.innerHTML = '<p class="empty">' + escapeHtml(err.message || "UNAVAILABLE") + "</p>" +
+      '<button id="retry" class="ghost retry" type="button">Retry</button>';
+    count.textContent = "Unavailable";
+    detail.innerHTML = '<p class="empty">Select a decision.</p>';
+    resize();
+  }
   async function load() {
+    const gen = ++listGen;
+    detailGen++;
+    const filter = readFilter();
     count.textContent = "Loading";
     try {
-      const result = await send("tools/call", {
-        name: "browse",
-        arguments: {
-          query: q.value,
-          entities: entity ? [entity] : [],
-          include_superseded: superseded.classList.contains("on"),
-          limit: 12
-        }
-      });
-      showList(dataOf(result));
+      const result = await send("tools/call", { name: "browse", arguments: browseArgs(filter, 0) });
+      if (gen !== listGen) return;
+      activeFilter = filter;
+      showList(dataOf(result), false);
     } catch (err) {
-      list.innerHTML = '<p class="empty">' + escapeHtml(err.message || "UNAVAILABLE") + "</p>";
-      count.textContent = "Unavailable";
+      if (gen !== listGen) return;
+      failBrowse(err);
     }
   }
-  function showList(data) {
+  async function loadMore() {
+    if (!rows.hasMore) return;
+    const gen = ++listGen;
+    const offset = rows.length;
+    const filter = activeFilter;
+    try {
+      const result = await send("tools/call", { name: "browse", arguments: browseArgs(filter, offset) });
+      if (gen !== listGen) return;
+      showList(dataOf(result), true);
+    } catch (err) {
+      if (gen !== listGen) return;
+      failBrowse(err);
+    }
+  }
+  function showList(data, append) {
     painted = true;
-    rows = data.matches || [];
+    const incoming = data.matches || [];
+    if (append && !incoming.length) {
+      rows.hasMore = false;
+      renderList();
+      return;
+    }
+    if (append) {
+      const kept = rows.slice();
+      incoming.forEach(function (row) { kept.push(row); });
+      rows = kept;
+    } else {
+      rows = incoming.slice();
+      selected = rows.length ? 0 : -1;
+    }
     rows.hasMore = !!data.has_more;
-    selected = rows.length ? 0 : -1;
     renderChips();
     renderList();
-    if (selected >= 0) openRow(0);
-    else detail.innerHTML = '<p class="empty">No decision matches.</p>';
+    if (!append && selected >= 0) openRow(0);
+    else if (!append) detail.innerHTML = '<p class="empty">No decision matches.</p>';
   }
   window.addEventListener("message", function (event) {
     if (event.source !== parent) return;
@@ -320,13 +400,15 @@
       else waiter.resolve(msg.result);
       return;
     }
-    if (msg.method === "ui/notifications/tool-result") {
+    if (msg.method === "ui/notifications/tool-result" && listGen === 0) {
       try {
         const data = dataOf(msg.params);
-        if (data.matches) showList(data);
+        if (data.matches) {
+          activeFilter = readFilter();
+          showList(data, false);
+        }
       } catch (err) {
-        list.innerHTML = '<p class="empty">' + escapeHtml(err.message) + "</p>";
-        count.textContent = "Unavailable";
+        failBrowse(err);
       }
     }
     if (msg.method === "ui/resource-teardown" && msg.id != null) {
@@ -348,9 +430,14 @@
     load();
   });
   list.addEventListener("click", function (event) {
+    if (event.target.closest("#retry")) { load(); return; }
+    if (event.target.closest("#more")) { loadMore(); return; }
     const button = event.target.closest("[data-i]");
     if (!button) return;
     openRow(Number(button.dataset.i));
+  });
+  detail.addEventListener("click", function (event) {
+    if (event.target.closest("#retry-detail")) openRow(selected);
   });
   document.addEventListener("keydown", function (event) {
     if (event.target === q || !rows.length) return;
@@ -359,7 +446,7 @@
   });
   send("ui/initialize", {
     protocolVersion: "2026-01-26",
-    appInfo: { name: "context-ledger", version: "0.1.22" },
+    appInfo: { name: "context-ledger", version: "0.1.23" },
     appCapabilities: { availableDisplayModes: ["inline"] }
   }).then(function () {
     ready = true;

@@ -358,8 +358,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.22")
-        self.assertIn('__version__ = "0.1.22"', init)
+        self.assertEqual(plugin["version"], "0.1.23")
+        self.assertIn('__version__ = "0.1.23"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -372,7 +372,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/browse.html").read_text(encoding="utf-8")
-        self.assertIn('version: "0.1.22"', page)
+        self.assertIn('version: "0.1.23"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
@@ -1829,6 +1829,122 @@ class StoreTests(unittest.TestCase):
         self.assertTrue(capped["has_more"])
         with self.assertRaises(self.LedgerError) as ctx:
             self.store.browse({"limit": 25}, mcp=True)
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+
+    def test_browse_hides_local_only_links_like_get(self) -> None:
+        visible = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="browse public superseded sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="browse private replacement sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": visible["decision_id"],
+                "expected_revision": visible["revision"],
+                "occurred_at": None,
+                "event_type": "superseded",
+                "payload": {"replacement_id": hidden["decision_id"], "reason": "private replacement"},
+            },
+            mcp=False,
+        )
+        got = self.store.get({"decision_id": visible["decision_id"]}, mcp=True)["record"]
+        self.assertIsNone(got.get("replacement_id"))
+        listed = self.store.browse({"include_superseded": True}, mcp=True)["matches"]
+        card = next(row for row in listed if row["decision_id"] == visible["decision_id"])
+        self.assertNotIn(hidden["decision_id"], json.dumps(card))
+        self.assertEqual(card["flag"], "superseded")
+        self.assertFalse(card["has_replacement"])
+        owner = self.store.browse({"include_superseded": True}, mcp=False)["matches"]
+        owner_card = next(row for row in owner if row["decision_id"] == visible["decision_id"])
+        self.assertEqual(owner_card["flag"], f"superseded_by {hidden['decision_id']}")
+        rival = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="browse public conflict sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rival["decision_id"],
+                "expected_revision": rival["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_opened",
+                "payload": {"other_id": hidden["decision_id"], "reason": "hidden clash"},
+            },
+            mcp=False,
+        )
+        rival_got = self.store.get({"decision_id": rival["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(rival_got["conflicts"], [])
+        rival_card = next(
+            row
+            for row in self.store.browse({}, mcp=True)["matches"]
+            if row["decision_id"] == rival["decision_id"]
+        )
+        self.assertFalse(rival_card["has_conflict"])
+        self.assertNotIn(hidden["decision_id"], json.dumps(rival_card))
+        owner_rival = next(
+            row
+            for row in self.store.browse({}, mcp=False)["matches"]
+            if row["decision_id"] == rival["decision_id"]
+        )
+        self.assertTrue(owner_rival["has_conflict"])
+
+    def test_browse_offset_reaches_the_next_page(self) -> None:
+        ids = []
+        for index in range(13):
+            rec = self.store.record(
+                {
+                    "request_id": _uuid(),
+                    "occurred_at": None,
+                    "body": _body(summary=f"paged shared {index}", entities=["paged-shared"]),
+                    "outcome": _outcome("pending"),
+                },
+                mcp=False,
+            )
+            ids.append(rec["decision_id"])
+        query = {
+            "query": "paged shared",
+            "entities": ["paged-shared"],
+            "limit": 12,
+        }
+        seen = []
+        offset = 0
+        pages = 0
+        while True:
+            page = self.store.browse({**query, "offset": offset}, mcp=True)
+            self.assertGreater(len(page["matches"]), 0)
+            seen.extend(row["decision_id"] for row in page["matches"])
+            pages += 1
+            if not page["has_more"]:
+                break
+            offset += len(page["matches"])
+            self.assertLess(pages, 5)
+        self.assertGreater(pages, 1)
+        self.assertEqual(sorted(seen), sorted(ids))
+        self.assertEqual(len(set(seen)), 13)
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.browse({"offset": -1}, mcp=True)
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.browse({"offset": 20001}, mcp=True)
         self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
 
     def test_purge_of_applied_ref_still_imports(self) -> None:
@@ -3503,6 +3619,23 @@ class CursorDestTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
+
+
+class BrowseUiTests(unittest.TestCase):
+    def test_browse_view_discards_stale_replies_and_retries(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is required to execute browse.html")
+        proc = subprocess.run(
+            [node, str(ROOT / "tests" / "browse_ui_harness.mjs"), str(ROOT / "ui" / "browse.html")],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
+        report = json.loads(proc.stdout)
+        for key, value in report.items():
+            self.assertTrue(value, key)
 
 
 if __name__ == "__main__":

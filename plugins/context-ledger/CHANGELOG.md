@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.23
+
+- `browse` builds each card from the same record `get` would return. MCP omits a `local_only` replacement id and does not set `has_conflict` for a hidden conflict. Owner reads still see those links.
+- The ledger view applies a list reply only for the latest filter request, and a detail reply only for the latest selection. An older error is dropped the same way.
+- `browse` accepts `offset` from 0 through 20000. `limit` stays 1 through 24. A `has_more` page is the next offset. The view asks for that page.
+- A failed browse clears the rows, the selection, and the open detail, and shows the failure. Retry sends the current filter again.
+- A browse or get request that draws no reply within 8 seconds is removed from the pending set. Retry sends it again.
+
 ## 0.1.22
 
 - Helper selection is `scripts/lookup.py select`. It compares the situation with applicability and the needed decision with the action using the on-device sentence embedding (cosine distance) and returns the nearest decision with that distance. The helper judges whether it applies. An unrelated situation still returns the nearest record and its distance. Success count does not choose the result. `find` outcome order is unchanged.
