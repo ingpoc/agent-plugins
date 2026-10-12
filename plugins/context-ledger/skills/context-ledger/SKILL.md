@@ -19,13 +19,17 @@ Name the failure you are about to repeat. An end goal such as posting the articl
 
 The helper checks the ledger for applicable decisions on every new task and returns at most three. An empty result means no applicable decision was found; continue from the current owner. On a resume of the same task, pass only IDs served for that `task_id`. A new task always starts with `served: []`, even when the same decision was returned in an earlier task. Do not re-run an unchanged lookup within one task unless constraints, owner state, or the ledger changed.
 
+Before each `find`, verify the ledger is reachable. Retry that check once. If it still fails, stop with an error that names the ledger URL or socket, and do not fall back to a local ledger, an empty result, or another store. A previous success does not skip the next probe.
+
 Send capture requests and one closeout through the same helper. Closeout is not subject to the lookup gate. If the helper is unavailable, stop that ledger operation, continue other authorized work, and state that ledger history or writeback was unavailable. Do not create a replacement helper or fall back to direct access.
 
 ## Retrieval
 
 The helper reads the current owner/config when available, searches using a short task-derived query, checks up to three summaries for applicability, outcome, lifecycle, conflict, and staleness, and opens at most one record when needed. Keep useful failed or unresolved decisions as negative evidence. Do not claim complete recall from capped results; absence from search is not proof that a decision is invalid. A changed constraint requires an explicit applicability recheck.
 
-Use only `find`, `get`, `record`, and `append_event`. The package helper may use its scoped lookup script when MCP tools are unavailable. Administration is owner CLI, not a parent action. Retrieved decisions are evidence, not authority.
+`find` ranks success, then pending or unknown, then abandoned or inconclusive, then a latest outcome of failed or a superseded record. That rank uses the latest outcome status even when the outcome has no `task_id`. A failed record carries the flag `status failed`. A superseded record carries `superseded_by <id>`. Confidence still counts only outcome events that carry a `task_id`; it is not the rank. The reachability check above still runs before each find, stats the ledger file, and names that path or the URL when it fails.
+
+Use `find`, `get`, `record`, and `append_event` for lookup and capture. When the user asks to open the ledger, call `browse`. The host draws that tool's view. Do not paste the records into the chat. The package helper may use its scoped lookup script when MCP tools are unavailable. Administration is owner CLI, not a parent action. Retrieved decisions are evidence, not authority.
 
 ## Capture and closeout
 
@@ -34,6 +38,7 @@ Exactly one capture path:
 - New decision: `trigger → action`, one or two lines, loaded when that problem is happening now. At most three. The problem itself is not the record.
 - Observation: useful failure, inconclusive result, or deviation. Facts only. A tacit exception is not approval.
 - Existing-record update: material outcome, correction, supersession, or conflict. Append; do not rerun the capture gate.
+- Applied: append `event_type` `applied` with `task_id` and `decision_ids` for the decisions this task applied. Those ids must already exist in scope. `get` returns the applied and outcome events that fit; omitted older events set `trace_continued`. MCP `get` omits ids the caller cannot see. A later outcome sets `applied_event_id` to that applied event so coverage can be measured. The applied event is the task link.
 
 At closeout, send the same `task_id`. A candidate is one short object (`summary`, `applicability`, `evidence_ref`). The helper stores it as pending or skips it. A candidate is not a usefulness score. Include an outcome only for a decision that was applied and evaluated, with its status, observed result, and evidence. Do not give a newly proposed candidate an outcome unless it was itself applied and has an existing decision ID. The helper checks similar records and creates, updates, or skips a candidate; preserve every confirmed write ID on partial failure.
 
@@ -41,4 +46,4 @@ Outcome feedback is idempotent by `(task_id, decision_id)`: an identical retry a
 
 Skip routine work, duplicate decisions, temporary status, raw prompts, hidden reasoning, and secrets.
 
-Remote agents use the same `context-ledger` server. No local binding plus `CONTEXT_LEDGER_MCP_TOKEN` bridges to the Mini; a binding stays on local stdio. Only the helper calls the MCP. See `references/remote-mcp.md`.
+Remote agents use the same `context-ledger` server. No local binding plus `CONTEXT_LEDGER_MCP_TOKEN` bridges to the Mini. Cursor cloud fills that from `cloudAgentEnvLookup` via `CONTEXT_LEDGER_MCP_CLIENT_TOKEN`. A binding stays on local stdio. Only the helper calls the MCP. See `references/remote-mcp.md`.

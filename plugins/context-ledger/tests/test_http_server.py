@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""serve-http: bearer gate, loopback bind, same four tools. Stdlib unittest."""
+"""serve-http: bearer gate, loopback bind, the ledger tools. Stdlib unittest."""
 
 from __future__ import annotations
 
@@ -211,14 +211,33 @@ class LiveServerTests(unittest.TestCase):
             self.assertEqual(resp_headers.get("www-authenticate") or resp_headers.get("WWW-Authenticate"), "Bearer")
             self.assertEqual(json.loads(body)["error"]["code"], "UNAUTHORIZED")
 
-    def test_initialize_and_exactly_four_tools(self) -> None:
+    def test_initialize_lists_the_ledger_view(self) -> None:
         status, _, body = _post(self.port, INIT, self._auth())
         self.assertEqual(status, 200, body)
         self.assertEqual(json.loads(body)["result"]["serverInfo"]["name"], "context-ledger")
         status, _, body = _post(self.port, LIST, self._auth())
         self.assertEqual(status, 200, body)
-        names = sorted(t["name"] for t in json.loads(body)["result"]["tools"])
-        self.assertEqual(names, ["append_event", "find", "get", "record"])
+        tools = json.loads(body)["result"]["tools"]
+        names = sorted(t["name"] for t in tools)
+        self.assertEqual(names, ["append_event", "browse", "find", "get", "record"])
+        browse = next(t for t in tools if t["name"] == "browse")
+        ui = (browse.get("_meta") or {}).get("ui") or {}
+        self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/browse.html")
+        self.assertEqual(ui.get("visibility"), ["model", "app"])
+        required = set((browse.get("inputSchema") or {}).get("required") or [])
+        self.assertNotIn("query", required)
+        read = {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "resources/read",
+            "params": {"uri": "ui://context-ledger/browse.html"},
+        }
+        status, _, body = _post(self.port, read, self._auth())
+        self.assertEqual(status, 200, body)
+        content = json.loads(body)["result"]["contents"][0]
+        self.assertEqual(content["mimeType"], "text/html;profile=mcp-app")
+        self.assertIn("ui/initialize", content["text"])
+        self.assertEqual(content["_meta"]["ui"]["prefersBorder"], True)
 
     def test_host_allow_list(self) -> None:
         status, _, _ = _post(self.port, LIST, {**self._auth(), "Host": "evil.example.test"})
@@ -295,7 +314,7 @@ class LiveServerTests(unittest.TestCase):
         status, headers, body = _raw(self.port, "POST", "/mcp", LIST, sse_headers)
         self.assertEqual(status, 200, body)
         names = sorted(tool["name"] for tool in _sse_json(body)["result"]["tools"])
-        self.assertEqual(names, ["append_event", "find", "get", "record"])
+        self.assertEqual(names, ["append_event", "browse", "find", "get", "record"])
 
         find = {
             "jsonrpc": "2.0",
@@ -353,7 +372,7 @@ class LiveServerTests(unittest.TestCase):
                         listed = await session.list_tools()
                         return sorted(tool.name for tool in listed.tools)
 
-        self.assertEqual(asyncio.run(run()), ["append_event", "find", "get", "record"])
+        self.assertEqual(asyncio.run(run()), ["append_event", "browse", "find", "get", "record"])
 
 
 def _raw(

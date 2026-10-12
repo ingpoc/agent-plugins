@@ -105,23 +105,43 @@ class PackageTests(unittest.TestCase):
         server = mcp["mcpServers"]["context-ledger"]
         command = server["command"]
         launcher = ROOT / "bin" / "context-ledger-mcp"
-        if _collection_root() is not None:
-            self.assertEqual(command, "./bin/context-ledger-mcp")
-            self.assertTrue(launcher.is_file())
-            self.assertEqual(server.get("cwd"), "./")
-        elif ".cursor" in ROOT.parts and Path(command).is_absolute():
-            self.assertTrue(Path(command).is_file())
-        else:
-            self.assertIn(command, ("python", "python3", "./bin/context-ledger-mcp"))
-            if command == "./bin/context-ledger-mcp":
-                self.assertTrue(launcher.is_file())
         cwd = server.get("cwd")
-        if ".cursor" in ROOT.parts and Path(str(cwd)).is_absolute():
-            self.assertEqual(cwd, str(ROOT))
-        else:
-            self.assertFalse(command.startswith("/") and command.count("/") == 1)
-            self.assertNotIn(" ", command)
-            self.assertNotIn("${", command)
+        if _collection_root() is not None:
+            self.assertEqual(command, "sh")
+            self.assertIsNone(cwd)
+            self.assertEqual(server["args"][0], "-c")
+            self.assertNotIn("${", server["args"][1])
+            self.assertEqual(
+                server["args"][2:],
+                [
+                    "context-ledger-mcp",
+                    "${PLUGIN_ROOT}",
+                    "${CURSOR_PLUGIN_ROOT}",
+                    "${CLAUDE_PLUGIN_ROOT}",
+                    "serve",
+                ],
+            )
+            self.assertEqual(
+                server["env"],
+                {"CONTEXT_LEDGER_MCP_CLIENT_TOKEN": "${env:CONTEXT_LEDGER_MCP_TOKEN}"},
+            )
+            self.assertTrue(launcher.is_file())
+            return
+        if ".cursor" in ROOT.parts and Path(command).is_absolute():
+            self.assertTrue(Path(command).is_file())
+            if cwd is not None and Path(str(cwd)).is_absolute():
+                self.assertEqual(cwd, str(ROOT))
+            return
+        self.assertIn(command, ("python", "python3", "./bin/context-ledger-mcp", "sh"))
+        self.assertNotIn("${", command)
+        self.assertFalse(command.startswith("/") and command.count("/") == 1)
+        self.assertNotIn(" ", command)
+        if command == "./bin/context-ledger-mcp":
+            self.assertTrue(launcher.is_file())
+            self.assertIn(cwd, ("${PLUGIN_ROOT}", "./"))
+        elif command == "sh":
+            self.assertIsNone(cwd)
+        elif cwd is not None:
             self.assertIn(cwd, ("${PLUGIN_ROOT}", "./"))
 
     def test_skill_frontmatter(self) -> None:
@@ -146,6 +166,9 @@ class PackageTests(unittest.TestCase):
             data = json.loads((collection / rel).read_text(encoding="utf-8"))
             names = [p["name"] for p in data["plugins"]]
             self.assertIn("context-ledger", names, rel)
+        claude = json.loads((collection / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
+        claude_names = [p["name"] for p in claude["plugins"]]
+        self.assertEqual(claude_names, ["context-ledger"])
 
     def test_cursor_package_override(self) -> None:
         collection = _collection_root()
@@ -166,23 +189,49 @@ class PackageTests(unittest.TestCase):
             },
         )
         cursor_mcp = json.loads((ROOT / ".cursor-plugin/mcp.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(cursor_mcp), {"mcpServers"})
+        cursor_server = cursor_mcp["mcpServers"]["context-ledger"]
+        self.assertEqual(cursor_server["type"], "stdio")
+        self.assertEqual(cursor_server["command"], "sh")
+        self.assertNotIn("cwd", cursor_server)
+        self.assertEqual(cursor_server["args"][0], "-c")
         self.assertEqual(
-            cursor_mcp,
-            {
-                "mcpServers": {
-                    "context-ledger": {
-                        "type": "stdio",
-                        "command": "${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp",
-                        "args": ["serve"],
-                        "cwd": "${CURSOR_PLUGIN_ROOT}",
-                    }
-                }
-            },
+            cursor_server["args"][2:],
+            ["context-ledger-mcp", "${CURSOR_PLUGIN_ROOT}", "serve"],
         )
+        self.assertNotIn("${", cursor_server["args"][1])
+        self.assertNotIn("|| true", cursor_server["args"][1])
+        self.assertIn("ver=" + root_plugin["version"], cursor_server["args"][1])
+        self.assertEqual(
+            cursor_server["env"],
+            {"CONTEXT_LEDGER_MCP_CLIENT_TOKEN": "${env:CONTEXT_LEDGER_MCP_TOKEN}"},
+        )
+        self.assertEqual(
+            (ROOT / ".cursor-plugin/mcp.json").read_text(encoding="utf-8").count(root_plugin["version"]),
+            1,
+        )
+        self.assertEqual((ROOT / "mcp.json").read_text(encoding="utf-8").count(root_plugin["version"]), 1)
+        claude_mcp = json.loads((ROOT / ".claude-plugin/mcp.json").read_text(encoding="utf-8"))
+        self.assertNotIn("env", claude_mcp["mcpServers"]["context-ledger"])
+        self.assertNotIn("${env:", (ROOT / ".claude-plugin/mcp.json").read_text(encoding="utf-8"))
         portable = json.loads((ROOT / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["context-ledger"]
-        self.assertEqual(portable["command"], "./bin/context-ledger-mcp")
-        self.assertEqual(portable.get("cwd"), "./")
+        self.assertEqual(portable["command"], "sh")
+        self.assertIsNone(portable.get("cwd"))
         self.assertNotIn("${", portable["command"])
+        self.assertNotIn("${", portable["args"][1])
+        self.assertEqual(
+            portable["args"][2:],
+            [
+                "context-ledger-mcp",
+                "${PLUGIN_ROOT}",
+                "${CURSOR_PLUGIN_ROOT}",
+                "${CLAUDE_PLUGIN_ROOT}",
+                "serve",
+            ],
+        )
+        self.assertEqual(portable["env"], cursor_mcp["mcpServers"]["context-ledger"]["env"])
+        self.assertEqual(portable["args"][-1], "serve")
+        self.assertIn("ver=" + root_plugin["version"], portable["args"][1])
 
     def test_relative_stdio_requires_cursor_override(self) -> None:
         collection = _collection_root()
@@ -290,8 +339,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.15")
-        self.assertIn('__version__ = "0.1.15"', init)
+        self.assertEqual(plugin["version"], "0.1.21")
+        self.assertIn('__version__ = "0.1.21"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -303,6 +352,12 @@ class PackageTests(unittest.TestCase):
         self.assertIn("release-blocked", readme)
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
+        page = (ROOT / "ui/browse.html").read_text(encoding="utf-8")
+        self.assertIn('version: "0.1.21"', page)
+        self.assertIn("ui/initialize", page)
+        self.assertNotIn("<script src", page)
+        self.assertNotIn("https://", page)
+        self.assertNotIn("http://", page)
 
 
 class LaunchTests(unittest.TestCase):
@@ -735,7 +790,36 @@ class StoreTests(unittest.TestCase):
             self.store.get({"decision_id": rec["decision_id"]}, mcp=True)
         self.assertEqual(ctx.exception.code, "UNAVAILABLE")
 
-    def test_failure_ranks_equal_to_success(self) -> None:
+    def test_failure_ranks_below_success_without_task_id(self) -> None:
+        ok_rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="alpha ok", entities=["same-ent"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": ok_rec["decision_id"],
+                "expected_revision": ok_rec["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome("success", note="ok"),
+            },
+            mcp=False,
+        )
+        pending = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="alpha pending", entities=["same-ent"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
         fail = self.store.record(
             {
                 "request_id": _uuid(),
@@ -745,23 +829,737 @@ class StoreTests(unittest.TestCase):
             },
             mcp=False,
         )
-        ok_rec = self.store.record(
-            {
-                "request_id": _uuid(),
-                "occurred_at": None,
-                "body": _body(summary="alpha ok", entities=["same-ent"]),
-                "outcome": _outcome("success", note="ok"),
-            },
-            mcp=False,
-        )
         found = self.store.find(
             {"query": "alpha", "entities": ["same-ent"], "constraints": []},
             mcp=True,
         )
         ids = [m["decision_id"] for m in found["matches"]]
-        self.assertEqual(set(ids), {fail["decision_id"], ok_rec["decision_id"]})
-        # same evidence none, both active: order by updated_at then uuid, not success bias
-        self.assertEqual(found["matches"][0]["evidence_state"], found["matches"][1]["evidence_state"])
+        self.assertEqual(ids, [ok_rec["decision_id"], pending["decision_id"], fail["decision_id"]])
+        self.assertIsNone(found["matches"][0]["flag"])
+        self.assertEqual(found["matches"][2]["flag"], "status failed")
+        got = self.store.get({"decision_id": ok_rec["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(got["outcome"]["status"], "success")
+        self.assertNotIn("task_id", got["outcome"])
+        self.assertEqual(got["confidence"]["successes"], 0)
+        self.assertEqual(got["confidence"]["sample_count"], 0)
+
+    def test_superseded_ranks_below_pending_with_flag(self) -> None:
+        old = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="beta old", entities=["beta-ent"]),
+                "outcome": _outcome("success", note="ok"),
+            },
+            mcp=False,
+        )
+        replacement = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="beta new", entities=["beta-ent"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": old["decision_id"],
+                "expected_revision": old["revision"],
+                "occurred_at": None,
+                "event_type": "superseded",
+                "payload": {"replacement_id": replacement["decision_id"], "reason": "replaced"},
+            },
+            mcp=False,
+        )
+        found = self.store.find(
+            {
+                "query": "beta",
+                "entities": ["beta-ent"],
+                "constraints": [],
+                "include_superseded": True,
+            },
+            mcp=True,
+        )
+        ids = [m["decision_id"] for m in found["matches"]]
+        self.assertEqual(ids[0], replacement["decision_id"])
+        self.assertEqual(ids[-1], old["decision_id"])
+        self.assertEqual(
+            found["matches"][-1]["flag"],
+            f"superseded_by {replacement['decision_id']}",
+        )
+
+    def test_find_limit_above_three_names_max(self) -> None:
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "alpha", "entities": [], "constraints": [], "limit": 4},
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+        self.assertEqual(ctx.exception.message, "find limit max is 3")
+
+    def test_find_names_path_when_ledger_file_removed_after_startup(self) -> None:
+        self.store.open()
+        path = self.store.db_path
+        self.assertIsNotNone(self.store.conn)
+        path.unlink()
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "startup", "entities": [], "constraints": []},
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        self.assertTrue(ctx.exception.retryable)
+        self.assertEqual(ctx.exception.message, f"ledger unreachable at {path}")
+        fresh = self.Store(self.data, actor_channel="owner_cli")
+        with self.assertRaises(self.LedgerError) as startup:
+            fresh.open()
+        self.assertEqual(startup.exception.code, "UNAVAILABLE")
+        self.assertTrue(startup.exception.retryable)
+        self.assertEqual(startup.exception.message, f"ledger unreachable at {path}")
+
+    def test_corrupt_ledger_after_startup_is_not_unreachable(self) -> None:
+        self.store.open()
+        self.store.db_path.write_bytes(b"not a sqlite database")
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "startup", "entities": [], "constraints": []},
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "CORRUPT_LEDGER")
+
+    def test_abandoned_and_inconclusive_rank_below_pending(self) -> None:
+        pending = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band pending", entities=["rank-band"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        abandoned = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band abandoned", entities=["rank-band"]),
+                "outcome": _outcome("abandoned", note="left"),
+            },
+            mcp=False,
+        )
+        failed = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band failed", entities=["rank-band"]),
+                "outcome": _outcome("failed", note="no"),
+            },
+            mcp=False,
+        )
+        inconclusive = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band inconclusive", entities=["rank-incon"]),
+                "outcome": _outcome("inconclusive", note="unsure"),
+            },
+            mcp=False,
+        )
+        pending_other = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="band still pending", entities=["rank-incon"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        ranked = self.store.find(
+            {"query": "band", "entities": ["rank-band"], "constraints": []},
+            mcp=True,
+        )
+        self.assertEqual(
+            [item["decision_id"] for item in ranked["matches"]],
+            [pending["decision_id"], abandoned["decision_id"], failed["decision_id"]],
+        )
+        other = self.store.find(
+            {"query": "band", "entities": ["rank-incon"], "constraints": [], "limit": 2},
+            mcp=True,
+        )
+        self.assertEqual(
+            [item["decision_id"] for item in other["matches"]],
+            [pending_other["decision_id"], inconclusive["decision_id"]],
+        )
+
+    def test_find_health_retries_once_and_names_path(self) -> None:
+        calls = {"n": 0}
+
+        def boom() -> None:
+            calls["n"] += 1
+            raise self.LedgerError("UNAVAILABLE")
+
+        self.store.probe = boom  # type: ignore[method-assign]
+        self.store._reachable = False
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.find(
+                {"query": "alpha", "entities": [], "constraints": []},
+                mcp=True,
+            )
+        self.assertEqual(calls["n"], 2)
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        self.assertIn(str(self.store.db_path), ctx.exception.message or "")
+        self.assertIn("ledger unreachable at", ctx.exception.message or "")
+
+    def test_find_probes_before_each_call(self) -> None:
+        calls = {"n": 0}
+        real = self.store.probe
+
+        def wrapped() -> None:
+            calls["n"] += 1
+            real()
+
+        self.store.probe = wrapped  # type: ignore[method-assign]
+        args = {"query": "alpha", "entities": [], "constraints": []}
+        self.store.find(args, mcp=True)
+        self.store.find(args, mcp=True)
+        self.assertEqual(calls["n"], 2)
+
+    def test_applied_event_is_queryable_and_links_outcome(self) -> None:
+        task_id = _uuid()
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="apply me sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        other = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="also applied sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        applied = self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rec["decision_id"],
+                "expected_revision": rec["revision"],
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {
+                    "task_id": task_id,
+                    "decision_ids": [rec["decision_id"], other["decision_id"]],
+                },
+            },
+            mcp=True,
+        )
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.append_event(
+                {
+                    "request_id": _uuid(),
+                    "decision_id": rec["decision_id"],
+                    "expected_revision": applied["revision"],
+                    "occurred_at": None,
+                    "event_type": "applied",
+                    "payload": {"task_id": task_id, "decision_ids": [other["decision_id"]]},
+                },
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+        closed = self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rec["decision_id"],
+                "expected_revision": applied["revision"],
+                "occurred_at": None,
+                "event_type": "outcome",
+                "payload": _outcome(
+                    "success",
+                    note="applied then checked",
+                    applied_event_id=applied["event_id"],
+                ),
+            },
+            mcp=True,
+        )
+        self.assertEqual(closed["revision"], applied["revision"] + 1)
+        got = self.store.get({"decision_id": rec["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(
+            [event["event_type"] for event in got["events"]],
+            ["applied", "outcome"],
+        )
+        self.assertEqual(got["events"][0]["payload"]["task_id"], task_id)
+        self.assertEqual(got["events"][0]["payload"]["decision_ids"][1], other["decision_id"])
+        self.assertEqual(got["events"][1]["payload"]["applied_event_id"], applied["event_id"])
+        self.assertNotIn("task_id", got["events"][1]["payload"])
+        self.assertEqual(got["confidence"]["sample_count"], 0)
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.append_event(
+                {
+                    "request_id": _uuid(),
+                    "decision_id": other["decision_id"],
+                    "expected_revision": other["revision"],
+                    "occurred_at": None,
+                    "event_type": "outcome",
+                    "payload": _outcome(
+                        "success",
+                        note="wrong link",
+                        applied_event_id=applied["event_id"],
+                    ),
+                },
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+
+    def test_get_drops_oldest_trace_events_when_the_cap_is_exceeded(self) -> None:
+        from context_ledger.contracts import MAX_GET_RESPONSE, canonical_json
+
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="trace cap sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        note = "n" * 480
+        revision = rec["revision"]
+        for _ in range(20):
+            appended = self.store.append_event(
+                {
+                    "request_id": _uuid(),
+                    "decision_id": rec["decision_id"],
+                    "expected_revision": revision,
+                    "occurred_at": None,
+                    "event_type": "outcome",
+                    "payload": _outcome("success", note=note),
+                },
+                mcp=True,
+            )
+            revision = appended["revision"]
+        got = self.store.get({"decision_id": rec["decision_id"]}, mcp=True)["record"]
+        encoded = canonical_json({"record": got}).encode("utf-8")
+        self.assertLessEqual(len(encoded), MAX_GET_RESPONSE)
+        self.assertTrue(got["trace_continued"])
+        self.assertLess(len(got["events"]), 20)
+        self.assertEqual(got["events"][-1]["payload"]["note"], note)
+        self.assertEqual(got["events"][-1]["revision"], revision)
+        self.assertEqual(got["outcome"]["note"], note)
+        self.assertEqual(got["revision"], revision)
+
+    def test_applied_refs_are_checked_and_hidden_on_mcp_read(self) -> None:
+        rec = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="visible apply sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="local apply sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        missing = _uuid()
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.append_event(
+                {
+                    "request_id": _uuid(),
+                    "decision_id": rec["decision_id"],
+                    "expected_revision": rec["revision"],
+                    "occurred_at": None,
+                    "event_type": "applied",
+                    "payload": {
+                        "task_id": _uuid(),
+                        "decision_ids": [rec["decision_id"], missing],
+                    },
+                },
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.append_event(
+                {
+                    "request_id": _uuid(),
+                    "decision_id": rec["decision_id"],
+                    "expected_revision": rec["revision"],
+                    "occurred_at": None,
+                    "event_type": "applied",
+                    "payload": {
+                        "task_id": _uuid(),
+                        "decision_ids": [rec["decision_id"], hidden["decision_id"]],
+                    },
+                },
+                mcp=True,
+            )
+        self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        applied = self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rec["decision_id"],
+                "expected_revision": rec["revision"],
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {
+                    "task_id": _uuid(),
+                    "decision_ids": [rec["decision_id"], hidden["decision_id"]],
+                },
+            },
+            mcp=False,
+        )
+        owner = self.store.get({"decision_id": rec["decision_id"]}, mcp=False)["record"]
+        mcp_view = self.store.get({"decision_id": rec["decision_id"]}, mcp=True)["record"]
+        owner_ids = owner["events"][0]["payload"]["decision_ids"]
+        mcp_ids = mcp_view["events"][0]["payload"]["decision_ids"]
+        self.assertEqual(owner["events"][0]["event_id"], applied["event_id"])
+        self.assertEqual(owner_ids, [rec["decision_id"], hidden["decision_id"]])
+        self.assertEqual(mcp_ids, [rec["decision_id"]])
+        self.assertNotIn("trace_continued", mcp_view)
+
+    def test_default_export_drops_local_only_applied_ids(self) -> None:
+        visible = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="export visible sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="export hidden sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": visible["decision_id"],
+                "expected_revision": visible["revision"],
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {
+                    "task_id": _uuid(),
+                    "decision_ids": [visible["decision_id"], hidden["decision_id"]],
+                },
+            },
+            mcp=False,
+        )
+        export_path = Path(self.tmp.name) / "no-local.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        text = export_path.read_text(encoding="utf-8")
+        self.assertNotIn(hidden["decision_id"], text)
+        self.assertNotIn(visible["decision_id"], text)
+        data2 = Path(self.tmp.name) / "import-no-local"
+        data2.mkdir()
+        os.chmod(data2, 0o700)
+        self.init_ledger(data2, None, "dest-scope", "dest-actor")
+        other = self.Store(data2, actor_channel="owner_cli")
+        other.import_file(
+            export_path,
+            self.binding["ledger_id"],
+            self.binding["scope_id"],
+            include_local_only=False,
+        )
+        for decision_id in (visible["decision_id"], hidden["decision_id"]):
+            with self.assertRaises(self.LedgerError) as ctx:
+                other.get({"decision_id": decision_id}, mcp=False)
+            self.assertEqual(ctx.exception.code, "UNAVAILABLE")
+        other.close()
+
+    def test_export_import_flag_combinations(self) -> None:
+        plain = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="plain export sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="hidden export sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        linked = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="linked export sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        rival = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="rival export sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": linked["decision_id"],
+                "expected_revision": linked["revision"],
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {
+                    "task_id": _uuid(),
+                    "decision_ids": [linked["decision_id"], hidden["decision_id"]],
+                },
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": rival["decision_id"],
+                "expected_revision": rival["revision"],
+                "occurred_at": None,
+                "event_type": "conflict_opened",
+                "payload": {"other_id": hidden["decision_id"], "reason": "same claim"},
+            },
+            mcp=False,
+        )
+        files = {}
+        for flag in (False, True):
+            path = Path(self.tmp.name) / f"combo-{int(flag)}.jsonl"
+            self.store.export(path, include_local_only=flag)
+            files[flag] = path
+        default_text = files[False].read_text(encoding="utf-8")
+        self.assertIn(plain["decision_id"], default_text)
+        for dropped in (hidden["decision_id"], linked["decision_id"], rival["decision_id"]):
+            self.assertNotIn(dropped, default_text)
+        full_text = files[True].read_text(encoding="utf-8")
+        for kept in (
+            plain["decision_id"],
+            hidden["decision_id"],
+            linked["decision_id"],
+            rival["decision_id"],
+        ):
+            self.assertIn(kept, full_text)
+
+        def fresh(name: str):
+            data = Path(self.tmp.name) / name
+            data.mkdir()
+            os.chmod(data, 0o700)
+            self.init_ledger(data, None, "dest-scope", "dest-actor")
+            return self.Store(data, actor_channel="owner_cli")
+
+        def present(store, decision_id: str) -> bool:
+            try:
+                store.get({"decision_id": decision_id}, mcp=False)
+            except self.LedgerError as exc:
+                self.assertEqual(exc.code, "UNAVAILABLE")
+                return False
+            return True
+
+        n = 0
+        for first in (False, True):
+            for second in (False, True):
+                dest = fresh(f"combo-{int(first)}-{int(second)}")
+                for flag in (first, first, second, second):
+                    dest.import_file(
+                        files[flag],
+                        self.binding["ledger_id"],
+                        self.binding["scope_id"],
+                        include_local_only=flag,
+                    )
+                self.assertTrue(present(dest, plain["decision_id"]))
+                wants_private = first or second
+                self.assertEqual(present(dest, hidden["decision_id"]), wants_private)
+                self.assertEqual(present(dest, linked["decision_id"]), wants_private)
+                self.assertEqual(present(dest, rival["decision_id"]), wants_private)
+                if wants_private:
+                    got = dest.get({"decision_id": linked["decision_id"]}, mcp=False)["record"]
+                    applied = next(ev for ev in got["events"] if ev["event_type"] == "applied")
+                    self.assertEqual(
+                        applied["payload"]["decision_ids"],
+                        [linked["decision_id"], hidden["decision_id"]],
+                    )
+                again = fresh(f"reexport-{n}")
+                n += 1
+                replay = Path(self.tmp.name) / f"replay-{n}.jsonl"
+                dest.export(replay, include_local_only=wants_private)
+                again.import_file(
+                    replay,
+                    dest.binding["ledger_id"],
+                    dest.binding["scope_id"],
+                    include_local_only=wants_private,
+                )
+                again.import_file(
+                    replay,
+                    dest.binding["ledger_id"],
+                    dest.binding["scope_id"],
+                    include_local_only=wants_private,
+                )
+                self.assertTrue(present(again, plain["decision_id"]))
+                self.assertEqual(present(again, hidden["decision_id"]), wants_private)
+                dest.close()
+                again.close()
+
+    def test_browse_lists_recent_model_safe_decisions(self) -> None:
+        visible = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="browse visible sqlite", entities=["ledger-v1"]),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="browse hidden sqlite", sensitivity="local_only"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        listed = self.store.browse({}, mcp=True)
+        ids = [row["decision_id"] for row in listed["matches"]]
+        self.assertIn(visible["decision_id"], ids)
+        self.assertNotIn(hidden["decision_id"], ids)
+        self.assertEqual(listed["matches"][0]["entities"], ["ledger-v1"])
+        narrowed = self.store.browse({"query": "visible", "entities": ["ledger-v1"]}, mcp=True)
+        self.assertEqual([row["decision_id"] for row in narrowed["matches"]], [visible["decision_id"]])
+        owner = self.store.browse({}, mcp=False)
+        self.assertIn(hidden["decision_id"], [row["decision_id"] for row in owner["matches"]])
+        replacement = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="browse replacement sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": visible["decision_id"],
+                "expected_revision": visible["revision"],
+                "occurred_at": None,
+                "event_type": "superseded",
+                "payload": {"replacement_id": replacement["decision_id"], "reason": "replaced"},
+            },
+            mcp=False,
+        )
+        active = [row["decision_id"] for row in self.store.browse({}, mcp=True)["matches"]]
+        self.assertNotIn(visible["decision_id"], active)
+        self.assertIn(replacement["decision_id"], active)
+        wide = [row["decision_id"] for row in self.store.browse({"include_superseded": True}, mcp=True)["matches"]]
+        self.assertIn(visible["decision_id"], wide)
+        missed = self.store.browse({"query": "no-such-token"}, mcp=True)
+        self.assertEqual(missed["matches"], [])
+        self.assertFalse(missed["has_more"])
+        capped = self.store.browse({"limit": 1, "include_superseded": True}, mcp=False)
+        self.assertEqual(len(capped["matches"]), 1)
+        self.assertTrue(capped["has_more"])
+        with self.assertRaises(self.LedgerError) as ctx:
+            self.store.browse({"limit": 25}, mcp=True)
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+
+    def test_purge_of_applied_ref_still_imports(self) -> None:
+        kept = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="kept apply sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        dropped = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="dropped apply sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": kept["decision_id"],
+                "expected_revision": kept["revision"],
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {
+                    "task_id": _uuid(),
+                    "decision_ids": [kept["decision_id"], dropped["decision_id"]],
+                },
+            },
+            mcp=False,
+        )
+        self.store.purge(dropped["decision_id"], dropped["revision"], self.binding["ledger_id"])
+        after = self.store.get({"decision_id": kept["decision_id"]}, mcp=False)["record"]
+        self.assertEqual(after["events"][0]["payload"]["decision_ids"], [kept["decision_id"]])
+        export_path = Path(self.tmp.name) / "purged-apply.jsonl"
+        self.store.export(export_path, include_local_only=False)
+        data2 = Path(self.tmp.name) / "import-after-purge"
+        data2.mkdir()
+        os.chmod(data2, 0o700)
+        self.init_ledger(data2, None, "dest-scope", "dest-actor")
+        other = self.Store(data2, actor_channel="owner_cli")
+        imported = other.import_file(
+            export_path,
+            self.binding["ledger_id"],
+            self.binding["scope_id"],
+            include_local_only=False,
+        )
+        self.assertGreaterEqual(imported["imported_events"], 1)
+        got = other.get({"decision_id": kept["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(got["events"][0]["payload"]["decision_ids"], [kept["decision_id"]])
+        extra = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(summary="later import sqlite"),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        extra_path = Path(self.tmp.name) / "later.jsonl"
+        self.store.export(extra_path, include_local_only=False)
+        again = other.import_file(
+            extra_path,
+            self.binding["ledger_id"],
+            self.binding["scope_id"],
+            include_local_only=False,
+        )
+        self.assertGreaterEqual(again["imported_events"], 1)
+        self.assertEqual(
+            other.get({"decision_id": extra["decision_id"]}, mcp=True)["record"]["decision_id"],
+            extra["decision_id"],
+        )
+        other.close()
 
     def test_export_import_and_purge(self) -> None:
         rec = self.store.record(
@@ -1901,7 +2699,10 @@ class McpTests(unittest.TestCase):
 
         for mode in ("legacy", "2026-07-28"):
             info = anyio.run(once, mode)
-            self.assertEqual(info["names"], ["append_event", "find", "get", "record"], mode)
+            self.assertEqual(info["names"], ["append_event", "browse", "find", "get", "record"], mode)
+            ui = ((info["by_name"]["browse"].get("_meta") or {}).get("ui") or {})
+            self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/browse.html", mode)
+            self.assertEqual(ui.get("visibility"), ["model", "app"], mode)
             rec = info["by_name"]["record"].get("inputSchema") or {}
             app = info["by_name"]["append_event"].get("inputSchema") or {}
             record_schema = json.dumps(rec)
@@ -1912,6 +2713,9 @@ class McpTests(unittest.TestCase):
             self.assertIn("replacement_id", append_schema)
             self.assertIn("opened_event_id", append_schema)
             self.assertIn("conflict_opened", append_schema)
+            self.assertIn("applied", append_schema)
+            self.assertIn("applied_event_id", append_schema)
+            self.assertIn("decision_ids", append_schema)
             self.assertNotIn("owner_attested", append_schema)
             defs = rec.get("$defs") or {}
             body = defs.get("McpBodyModel") or {}
@@ -2130,59 +2934,11 @@ class CursorDestTests(unittest.TestCase):
             self.assertEqual(server["cwd"], "./")
             self.assertEqual(cursor_dest_problems([dest]), [])
 
-    def test_sh_resolver_override_is_healthy_and_malformed_sh_is_not(self) -> None:
+    def test_shipped_sh_resolver_override_is_healthy(self) -> None:
         sys.path.insert(0, str(ROOT))
         from context_ledger.cursor_dest import cursor_dest_problems
 
-        def write(server: dict) -> Path:
-            dest = root / "dest"
-            dest.mkdir(parents=True, exist_ok=True)
-            (dest / "mcp.json").write_text(
-                json.dumps({"mcpServers": {"context-ledger": server}}),
-                encoding="utf-8",
-            )
-            return dest
-
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            healthy = {
-                "type": "stdio",
-                "command": "sh",
-                "args": [
-                    "-c",
-                    'root=$1; exec "$root/bin/context-ledger-mcp" "$@"',
-                    "context-ledger-mcp",
-                    "${CURSOR_PLUGIN_ROOT}",
-                    "serve",
-                ],
-            }
-            self.assertEqual(cursor_dest_problems([write(healthy)]), [])
-            with_cwd = {**healthy, "cwd": "./"}
-            self.assertIn("cwd", cursor_dest_problems([write(with_cwd)])[0]["issues"])
-            dollar = {
-                **healthy,
-                "args": [
-                    "-c",
-                    'exec "${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp"',
-                    "context-ledger-mcp",
-                    "${CURSOR_PLUGIN_ROOT}",
-                    "serve",
-                ],
-            }
-            issues = cursor_dest_problems([write(dollar)])[0]["issues"]
-            self.assertIn("relative_command", issues)
-            or_true = {
-                **healthy,
-                "args": ["-c", "false || true", "context-ledger-mcp", "${CURSOR_PLUGIN_ROOT}", "serve"],
-            }
-            self.assertIn("relative_command", cursor_dest_problems([write(or_true)])[0]["issues"])
-            wrong_root = {
-                **healthy,
-                "args": ["-c", "exec true", "context-ledger-mcp", "${PLUGIN_ROOT}", "serve"],
-            }
-            issues = cursor_dest_problems([write(wrong_root)])[0]["issues"]
-            self.assertIn("literal_plugin_token", issues)
-            self.assertIn("relative_command", issues)
+        self.assertEqual(cursor_dest_problems([ROOT]), [])
 
     def test_cursor_override_dest_and_legacy_rewrite(self) -> None:
         sys.path.insert(0, str(ROOT))

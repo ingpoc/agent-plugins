@@ -53,6 +53,7 @@ class OutcomeModel(Closed):
     note: str = Field(max_length=500)
     evidence: list[EvidenceModel] = Field(max_length=4)
     task_id: Uuid | None = None
+    applied_event_id: Uuid | None = None
 
 
 class CorrectedPayloadModel(Closed):
@@ -76,6 +77,11 @@ class ConflictResolvedPayloadModel(Closed):
     reason: str = Field(min_length=1, max_length=500)
 
 
+class AppliedPayloadModel(Closed):
+    task_id: Uuid
+    decision_ids: list[Uuid] = Field(min_length=1, max_length=8)
+
+
 class AppendEventInput(Closed):
     request_id: Uuid
     decision_id: Uuid
@@ -87,6 +93,7 @@ class AppendEventInput(Closed):
         "superseded",
         "conflict_opened",
         "conflict_resolved",
+        "applied",
     ]
     payload: (
         OutcomeModel
@@ -94,6 +101,7 @@ class AppendEventInput(Closed):
         | SupersededPayloadModel
         | ConflictOpenedPayloadModel
         | ConflictResolvedPayloadModel
+        | AppliedPayloadModel
     )
 
     @model_validator(mode="after")
@@ -104,6 +112,7 @@ class AppendEventInput(Closed):
             "superseded": SupersededPayloadModel,
             "conflict_opened": ConflictOpenedPayloadModel,
             "conflict_resolved": ConflictResolvedPayloadModel,
+            "applied": AppliedPayloadModel,
         }[self.event_type]
         if not isinstance(self.payload, expected):
             raise ValueError("payload must match event_type")

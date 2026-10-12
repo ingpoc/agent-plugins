@@ -44,6 +44,9 @@ CATALOGS = (
     ".agents/plugins/marketplace.json",
     ".grok-plugin/marketplace.json",
 )
+# Claude Code catalog. Lists only plugins that ship .claude-plugin/, not the full set.
+CLAUDE_CATALOG = ".claude-plugin/marketplace.json"
+CLAUDE_MCP_REL = "./.claude-plugin/mcp.json"
 CURSOR_PLUGIN_KEYS = {"name", "version", "description", "mcpServers"}
 CURSOR_MCP_REL = "./.cursor-plugin/mcp.json"
 CURSOR_ENOENT = "Cursor resolves ./ against the workspace -> ENOENT"
@@ -55,12 +58,13 @@ FULL_TRIGGERS = (
     ".github/workflows/ci.yml",
     ".githooks/pre-commit",
     *CATALOGS,
+    CLAUDE_CATALOG,
 )
 PLUGIN_TESTS = {
     "context-ledger": [
-        sys.executable,
-        "tests/test_contract.py",
-        "-q",
+        [sys.executable, "tests/test_contract.py", "-q"],
+        [sys.executable, "tests/test_manifests.py", "-q"],
+        [sys.executable, "tests/test_remote_bridge.py", "-q"],
     ],
     "comet-control": [
         sys.executable,
@@ -187,6 +191,92 @@ def _string_values(value: object):
             yield from _string_values(item)
 
 
+_ABSENT = object()
+
+
+def _cursor_stdio_expectation(root_server: dict) -> tuple[str | None, object]:
+    """Cursor override for a legacy `./…` stdio command.
+
+    Maps to `${CURSOR_PLUGIN_ROOT}/…` with the same args. A bare `sh` resolver
+    is validated by `_sh_cursor_override_errors` (no cwd; the script falls
+    through to a local cache copy, then a pinned tag bootstrap).
+    """
+    command = str(root_server.get("command") or "")
+    if command.startswith("./"):
+        return "${CURSOR_PLUGIN_ROOT}/" + command[2:], root_server.get("args", _ABSENT)
+    return None, _ABSENT
+
+
+def _is_sh_resolver(server: dict) -> bool:
+    command = str(server.get("command") or "")
+    args = server.get("args")
+    return bool(
+        command == "sh"
+        and isinstance(args, list)
+        and args[:1] == ["-c"]
+        and len(args) >= 4
+        and isinstance(args[1], str)
+        and "${" not in args[1]
+        and "|| true" not in args[1]
+    )
+
+
+def _stdio_root_tail(args: list) -> list | None:
+    try:
+        root_at = args.index("${PLUGIN_ROOT}")
+    except ValueError:
+        return None
+    if root_at < 2:
+        return None
+    tail = args[root_at + 1 :]
+    placeholders = {"${PLUGIN_ROOT}", "${CURSOR_PLUGIN_ROOT}", "${CLAUDE_PLUGIN_ROOT}"}
+    while tail and isinstance(tail[0], str) and tail[0] in placeholders:
+        tail = tail[1:]
+    return list(tail)
+
+
+def _launcher_from_resolver(script: str) -> str | None:
+    names = re.findall(r"bin/([A-Za-z0-9._-]+)", script)
+    if not names or any(name != names[0] for name in names):
+        return None
+    return names[0]
+
+
+def _sh_cursor_override_errors(root: Path, name: str, server: dict, root_server: dict) -> list[str]:
+    """Cursor cloud manifest: sh, one root arg, no cwd. Same launcher and tail."""
+    errors: list[str] = []
+    prefix = f"{root}: .cursor-plugin/mcp.json mcpServers.{name}"
+    if server.get("type") != "stdio":
+        errors.append(f"{prefix}.type must be stdio.")
+    if server.get("command") != "sh":
+        errors.append(f"{prefix}.command must be sh.")
+    if server.get("cwd") is not None:
+        errors.append(f"{prefix}.cwd must be omitted.")
+    args = server.get("args")
+    root_args = root_server.get("args")
+    if not isinstance(args, list) or not isinstance(root_args, list):
+        errors.append(f"{prefix}.args must be a list.")
+        return errors
+    root_script = root_args[1] if len(root_args) > 1 and isinstance(root_args[1], str) else ""
+    script = args[1] if len(args) > 1 and isinstance(args[1], str) else ""
+    launcher = _launcher_from_resolver(root_script)
+    tail = _stdio_root_tail(root_args)
+    if (
+        not _is_sh_resolver(server)
+        or launcher is None
+        or _launcher_from_resolver(script) != launcher
+        or args[2:4] != [launcher, "${CURSOR_PLUGIN_ROOT}"]
+        or args[4:] != tail
+    ):
+        errors.append(
+            f"{prefix}.args must be a sh resolver with {launcher}, "
+            "${CURSOR_PLUGIN_ROOT}, and the root manifest tail."
+        )
+    if server.get("env") != root_server.get("env"):
+        errors.append(f"{prefix}.env must match root mcp.json.")
+    return errors
+
+
 def _root_stdio_needs_cursor_override(servers: dict) -> bool:
     for server in servers.values():
         if not isinstance(server, dict) or server.get("type") != "stdio":
@@ -278,6 +368,20 @@ def cursor_package_errors(root: Path, manifest: dict) -> list[str]:
     if set(servers) != set(root_servers):
         errors.append(f"{root}: .cursor-plugin/mcp.json server names must match root mcp.json.")
         return errors
+    sh_resolvers = [
+        server
+        for server in root_servers.values()
+        if isinstance(server, dict) and _is_sh_resolver(server)
+    ]
+    if sh_resolvers:
+        version = str(manifest.get("version") or "")
+        for path in (mcp_path, cursor_mcp_path):
+            count = path.read_text(encoding="utf-8").count(version)
+            if not version or count != 1:
+                errors.append(
+                    f"{path}: version {version} must appear exactly once "
+                    "(pinned tag and cache dir share that single literal)."
+                )
     for name, server in servers.items():
         root_server = root_servers[name]
         if not isinstance(server, dict) or not isinstance(root_server, dict):
@@ -295,16 +399,17 @@ def cursor_package_errors(root: Path, manifest: dict) -> list[str]:
                     f"{root}: .cursor-plugin/mcp.json mcpServers.{name} must equal the root entry."
                 )
             continue
-        root_command = str(root_server.get("command") or "")
-        expected = "${CURSOR_PLUGIN_ROOT}/" + root_command[2:]
+        if _is_sh_resolver(root_server):
+            errors.extend(_sh_cursor_override_errors(root, name, server, root_server))
+            continue
+        expected, expected_args = _cursor_stdio_expectation(root_server)
         if server.get("type") != "stdio":
             errors.append(f"{root}: .cursor-plugin/mcp.json mcpServers.{name}.type must be stdio.")
-        if server.get("command") != expected:
+        if expected is None or server.get("command") != expected:
             errors.append(
                 f"{root}: .cursor-plugin/mcp.json mcpServers.{name}.command must be {expected}."
             )
-        missing = object()
-        if server.get("args", missing) != root_server.get("args", missing):
+        if server.get("args", _ABSENT) != expected_args:
             errors.append(
                 f"{root}: .cursor-plugin/mcp.json mcpServers.{name}.args must match root mcp.json."
             )
@@ -313,6 +418,38 @@ def cursor_package_errors(root: Path, manifest: dict) -> list[str]:
                 f"{root}: .cursor-plugin/mcp.json mcpServers.{name}.cwd must be "
                 "${CURSOR_PLUGIN_ROOT}."
             )
+    return errors
+
+
+def claude_package_errors(root: Path, manifest: dict) -> list[str]:
+    """Optional Claude Code package. Absent for plugins that have no Claude manifest."""
+    claude_dir = root / ".claude-plugin"
+    if not claude_dir.exists():
+        return []
+    plugin_path = claude_dir / "plugin.json"
+    mcp_path = claude_dir / "mcp.json"
+    if not plugin_path.is_file() or not mcp_path.is_file():
+        return [f"{root}: .claude-plugin/ must contain plugin.json and mcp.json."]
+    errors: list[str] = []
+    try:
+        data = json.loads(plugin_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return errors + [f"{root}: .claude-plugin/plugin.json is not valid JSON: {error.msg}"]
+    if not isinstance(data, dict):
+        return errors + [f"{root}: .claude-plugin/plugin.json must be an object."]
+    if data.get("name") != root.name:
+        errors.append(f"{root}: .claude-plugin/plugin.json name must match the package directory.")
+    if data.get("version") != manifest.get("version"):
+        errors.append(
+            f"{root}: .claude-plugin/plugin.json version must match plugin.json "
+            f"({manifest.get('version')})."
+        )
+    if data.get("description") != manifest.get("description"):
+        errors.append(f"{root}: .claude-plugin/plugin.json description must match plugin.json.")
+    if data.get("mcpServers") != CLAUDE_MCP_REL:
+        errors.append(
+            f"{root}: .claude-plugin/plugin.json mcpServers must be {CLAUDE_MCP_REL}."
+        )
     return errors
 
 
@@ -360,6 +497,7 @@ def validate_plugin(root: Path) -> list[str]:
     if (root / ".codex-plugin").exists():
         errors.append(f"{root}: .codex-plugin/ is not part of an Agent Plugin package.")
     errors.extend(cursor_package_errors(root, data))
+    errors.extend(claude_package_errors(root, data))
     return errors
 
 
@@ -390,6 +528,45 @@ def check_catalogs() -> list[str]:
                 ".cursor-plugin/marketplace.json: "
                 f"{entry.get('name')} must not carry {', '.join(shadow)} (shadows the package)."
             )
+    errors.extend(check_claude_catalog())
+    return errors
+
+
+def check_claude_catalog() -> list[str]:
+    """Claude marketplace lists the subset of plugins that ship .claude-plugin/."""
+    errors: list[str] = []
+    path = ROOT / CLAUDE_CATALOG
+    if not path.is_file():
+        return [f"{CLAUDE_CATALOG} is missing."]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return [f"{CLAUDE_CATALOG} is not valid JSON: {error.msg}"]
+    plugins = data.get("plugins")
+    if not isinstance(plugins, list):
+        return [f"{CLAUDE_CATALOG} plugins must be a list."]
+    names = {plugin.name for plugin in plugin_dirs()}
+    listed: list[str] = []
+    for entry in plugins:
+        if not isinstance(entry, dict):
+            errors.append(f"{CLAUDE_CATALOG}: plugin entry must be an object.")
+            continue
+        name = entry.get("name")
+        if name not in names:
+            errors.append(f"{CLAUDE_CATALOG} lists unknown plugin {name}.")
+            continue
+        listed.append(name)
+        if not (ROOT / "plugins" / name / ".claude-plugin" / "plugin.json").is_file():
+            errors.append(
+                f"{CLAUDE_CATALOG} lists {name} but .claude-plugin/plugin.json is missing."
+            )
+        if entry.get("source") != f"./plugins/{name}":
+            errors.append(f"{CLAUDE_CATALOG} {name} source must be ./plugins/{name}.")
+    for plugin in plugin_dirs():
+        if (plugin / ".claude-plugin" / "plugin.json").is_file() and plugin.name not in listed:
+            errors.append(
+                f"{CLAUDE_CATALOG} omits {plugin.name}, which ships .claude-plugin/."
+            )
     return errors
 
 
@@ -409,9 +586,18 @@ def check_host_dest() -> list[str]:
     return errors
 
 
+def plugin_test_commands(plugin: Path) -> list[list[str]]:
+    spec = PLUGIN_TESTS.get(plugin.name)
+    if not spec:
+        return []
+    if spec and isinstance(spec[0], list):
+        return spec
+    return [spec]
+
+
 def run_tests(plugin: Path) -> int:
-    argv = PLUGIN_TESTS.get(plugin.name)
-    if not argv:
+    commands = plugin_test_commands(plugin)
+    if not commands:
         return 0
     if plugin.name == "comet-control" and not comet_optional_deps_ok():
         print(
@@ -425,9 +611,12 @@ def run_tests(plugin: Path) -> int:
     env["PYTHONPATH"] = str(plugin)
     env["PYTHONNOUSERSITE"] = "1"
     env["AGENT_PLUGINS_COLLECTION"] = str(ROOT)
-    print(f"test {plugin.name}", flush=True)
-    proc = subprocess.run(argv, cwd=plugin, env=env)
-    return proc.returncode
+    for argv in commands:
+        print(f"test {plugin.name}", flush=True)
+        proc = subprocess.run(argv, cwd=plugin, env=env)
+        if proc.returncode != 0:
+            return proc.returncode
+    return 0
 
 
 def main() -> int:
@@ -447,6 +636,13 @@ def main() -> int:
         code = run_tests(plugin)
         if code != 0:
             return code
+    print("test refresh_cursor_marketplace_index", flush=True)
+    proc = subprocess.run(
+        [sys.executable, "scripts/test_refresh_cursor_marketplace_index.py", "-q"],
+        cwd=ROOT,
+    )
+    if proc.returncode != 0:
+        return proc.returncode
     print("check ok", flush=True)
     return 0
 

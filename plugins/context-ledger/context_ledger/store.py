@@ -318,6 +318,69 @@ class Store:
         self.db_path = self.ledger_dir / "ledger.sqlite3"
         self.conn: sqlite3.Connection | None = None
         self._lock = threading.Lock()
+        self._reachable = False
+
+    def _unreachable(self, exc: BaseException | None = None) -> LedgerError:
+        err = LedgerError(
+            "UNAVAILABLE",
+            message=f"ledger unreachable at {self.db_path}",
+        )
+        if exc is not None:
+            raise err from exc
+        return err
+
+    def probe(self) -> None:
+        """Stat the ledger file and query a new connection, not the startup handle."""
+        path = self.db_path
+        try:
+            st = os.stat(path, follow_symlinks=False)
+        except OSError as exc:
+            raise self._unreachable(exc)
+        if not stat.S_ISREG(st.st_mode):
+            raise self._unreachable()
+        try:
+            conn = sqlite3.connect(
+                path.resolve().as_uri() + "?mode=ro",
+                uri=True,
+                timeout=5.0,
+                isolation_level=None,
+                check_same_thread=False,
+            )
+        except sqlite3.Error as exc:
+            text = str(exc).casefold()
+            if "malformed" in text or "not a database" in text or "corrupt" in text:
+                raise LedgerError("CORRUPT_LEDGER") from exc
+            raise self._unreachable(exc)
+        try:
+            try:
+                row = conn.execute("pragma quick_check").fetchone()
+            except sqlite3.Error as exc:
+                text = str(exc).casefold()
+                if "malformed" in text or "not a database" in text or "corrupt" in text:
+                    raise LedgerError("CORRUPT_LEDGER") from exc
+                raise self._unreachable(exc)
+        finally:
+            conn.close()
+        if row is None or str(row[0]) != "ok":
+            raise LedgerError("CORRUPT_LEDGER")
+
+    def _ensure_reachable(self) -> None:
+        if self._reachable:
+            return
+        last: LedgerError | None = None
+        for _attempt in range(2):
+            try:
+                self.probe()
+            except LedgerError as exc:
+                if exc.code != "UNAVAILABLE":
+                    raise
+                last = exc
+                continue
+            self._reachable = True
+            return
+        if last is not None and last.message:
+            raise last
+        raise self._unreachable()
 
     def open(self) -> sqlite3.Connection:
         if self.conn is not None:
@@ -325,7 +388,10 @@ class Store:
         _posix_check_dir(self.ledger_dir)
         _refuse_symlink(self.db_path)
         if not self.db_path.is_file():
-            raise LedgerError("UNAVAILABLE")
+            raise LedgerError(
+                "UNAVAILABLE",
+                message=f"ledger unreachable at {self.db_path}",
+            )
         _posix_check_file(self.db_path)
         try:
             conn = sqlite3.connect(
@@ -580,7 +646,7 @@ class Store:
                 prior_payload = prior["payload"]
                 same = all(
                     prior_payload.get(key) == parsed["payload"].get(key)
-                    for key in ("status", "note", "evidence")
+                    for key in ("status", "note", "evidence", "applied_event_id")
                 )
                 if same:
                     receipt = {
@@ -658,12 +724,102 @@ class Store:
                 raise LedgerError("UNAVAILABLE")
             if "expected_revision" in parsed and rec["revision"] != parsed["expected_revision"]:
                 raise LedgerError("REVISION_CONFLICT")
-            encoded = canonical_json(rec)
-            if len(encoded.encode("utf-8")) > MAX_GET_RESPONSE:
-                raise LedgerError("LIMIT_EXCEEDED")
-            return {"record": rec}
+            rec = dict(rec)
+            events = self._visible_trace(
+                conn, self._trace_events(conn, parsed["decision_id"]), mcp=mcp
+            )
+            return {"record": self._pack_trace(rec, events)}
+
+    def _trace_events(self, conn: sqlite3.Connection, decision_id: str) -> list[dict[str, Any]]:
+        rows = conn.execute(
+            "select event_json from events where decision_id=? order by revision",
+            (decision_id,),
+        ).fetchall()
+        traced: list[dict[str, Any]] = []
+        for row in rows:
+            event = parse_json(row["event_json"])
+            if event["event_type"] not in {"applied", "outcome"}:
+                continue
+            traced.append(
+                {
+                    "event_id": event["event_id"],
+                    "event_type": event["event_type"],
+                    "revision": event["revision"],
+                    "payload": event["payload"],
+                }
+            )
+        return traced
+
+    def _visible_trace(
+        self,
+        conn: sqlite3.Connection,
+        events: list[dict[str, Any]],
+        *,
+        mcp: bool,
+    ) -> list[dict[str, Any]]:
+        if not mcp:
+            return events
+        scope = self.binding["scope_id"]
+        visible: list[dict[str, Any]] = []
+        for event in events:
+            if event["event_type"] != "applied":
+                visible.append(event)
+                continue
+            payload = dict(event["payload"])
+            payload["decision_ids"] = [
+                did
+                for did in payload["decision_ids"]
+                if self._trace_ref_visible(conn, did, required_scope=scope)
+            ]
+            copied = dict(event)
+            copied["payload"] = payload
+            visible.append(copied)
+        return visible
+
+    def _trace_ref_visible(
+        self,
+        conn: sqlite3.Connection,
+        decision_id: str,
+        *,
+        required_scope: str,
+    ) -> bool:
+        row = conn.execute(
+            "select sensitivity, scope_id from current_records where decision_id=?",
+            (decision_id,),
+        ).fetchone()
+        if row is None or row["scope_id"] != required_scope:
+            return False
+        return row["sensitivity"] == "model_safe"
+
+    def _pack_trace(self, rec: dict[str, Any], events: list[dict[str, Any]]) -> dict[str, Any]:
+        """Keep the current record under the get cap. Drop oldest trace events first."""
+        packed = dict(rec)
+        packed["events"] = events
+        if self._get_len(packed) <= MAX_GET_RESPONSE:
+            return packed
+        packed["trace_continued"] = True
+        best = len(events)
+        left, right = 0, len(events)
+        while left <= right:
+            mid = (left + right) // 2
+            packed["events"] = events[mid:]
+            if self._get_len(packed) <= MAX_GET_RESPONSE:
+                best = mid
+                right = mid - 1
+            else:
+                left = mid + 1
+        packed["events"] = events[best:]
+        if self._get_len(packed) > MAX_GET_RESPONSE:
+            raise LedgerError("LIMIT_EXCEEDED")
+        return packed
+
+    @staticmethod
+    def _get_len(rec: dict[str, Any]) -> int:
+        return len(canonical_json({"record": rec}).encode("utf-8"))
 
     def find(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
+        self._reachable = False
+        self._ensure_reachable()
         parsed = validate_find_input(arguments)
         tokens = fts_tokens(parsed["query"])
         if not tokens and not parsed["entities"]:
@@ -740,6 +896,54 @@ class Store:
                 encoded = canonical_json(result)
             return result
 
+    def browse(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
+        """Recent or filtered cards for the ledger view. MCP hides local_only."""
+        self._reachable = False
+        self._ensure_reachable()
+        query = arguments.get("query", "")
+        entities = arguments.get("entities") or []
+        include = arguments.get("include_superseded", False)
+        limit = arguments.get("limit", 12)
+        if (
+            not isinstance(query, str)
+            or not isinstance(entities, list)
+            or any(type(item) is not str or not item for item in entities)
+            or type(include) is not bool
+            or type(limit) is not int
+            or not 1 <= limit <= 24
+        ):
+            raise LedgerError("INVALID_ARGUMENT")
+        needle = query.casefold().strip()
+        with self._tx() as conn:
+            scope = self.binding["scope_id"]
+            sql = "select projection_json from current_records where scope_id=?"
+            if mcp:
+                sql += " and sensitivity='model_safe'"
+            if not include:
+                sql += " and lifecycle='active'"
+            sql += " order by updated_at desc, decision_id asc"
+            rows = conn.execute(sql, (scope,)).fetchall()
+            matches: list[dict[str, Any]] = []
+            has_more = False
+            for row in rows:
+                proj = parse_json(row["projection_json"])
+                body = proj["body"]
+                ents = list(body.get("entities") or [])
+                if entities and not any(item in ents for item in entities):
+                    continue
+                if needle:
+                    blob = " ".join([body.get("summary") or "", body.get("applicability") or "", *ents]).casefold()
+                    if needle not in blob:
+                        continue
+                card = self._summary(proj)
+                card["entities"] = ents
+                trial = {"matches": matches + [card], "has_more": True}
+                if len(matches) >= limit or len(canonical_json(trial).encode("utf-8")) > MAX_FIND_RESPONSE:
+                    has_more = True
+                    break
+                matches.append(card)
+            return {"matches": matches, "has_more": has_more}
+
     def export(self, output: Path, *, include_local_only: bool) -> dict[str, Any]:
         output = _refuse_network(output)
         if not output.is_absolute():
@@ -780,14 +984,25 @@ class Store:
                 changed = True
                 while changed:
                     changed = False
-                    for did, rec in projections.items():
+                    for did, evs in by_decision.items():
                         if did in excluded:
                             continue
-                        rels = set()
-                        if rec.get("replacement_id"):
-                            rels.add(rec["replacement_id"])
-                        for c in rec.get("conflicts") or []:
-                            rels.add(c["other_id"])
+                        rec = projections.get(did)
+                        rels: set[str] = set()
+                        if rec is not None:
+                            if rec.get("replacement_id"):
+                                rels.add(rec["replacement_id"])
+                            for c in rec.get("conflicts") or []:
+                                rels.add(c["other_id"])
+                        for event in evs:
+                            payload = event.get("payload") or {}
+                            if event["event_type"] == "applied":
+                                rels.update(payload.get("decision_ids") or [])
+                            elif event["event_type"] == "superseded" and payload.get("replacement_id"):
+                                rels.add(payload["replacement_id"])
+                            elif event["event_type"] in {"conflict_opened", "conflict_resolved"} and payload.get("other_id"):
+                                rels.add(payload["other_id"])
+                        rels.discard(did)
                         if rels & excluded:
                             excluded.add(did)
                             changed = True
@@ -1108,6 +1323,18 @@ class Store:
                 refs.append(payload.get("replacement_id"))
             if event["event_type"] in {"conflict_opened", "conflict_resolved"}:
                 refs.append(payload.get("other_id"))
+            if event["event_type"] == "applied" and decision_id in (payload.get("decision_ids") or []):
+                kept = [item for item in payload["decision_ids"] if item != decision_id]
+                if event["decision_id"] not in kept:
+                    kept.insert(0, event["decision_id"])
+                revised = dict(event)
+                revised["payload"] = dict(payload)
+                revised["payload"]["decision_ids"] = kept
+                conn.execute(
+                    "update events set event_json=? where event_id=?",
+                    (canonical_json(revised), row["event_id"]),
+                )
+                continue
             if decision_id in refs:
                 conn.execute(
                     "insert or ignore into tombstones(kind,id,scope_id,decision_id,revision,purged_at) values ('event',?,?,?,?,?)",
@@ -1345,6 +1572,18 @@ class Store:
             return
         if et == "attested" and mcp:
             raise LedgerError("INVALID_ARGUMENT")
+        if et == "applied":
+            if event["decision_id"] not in payload["decision_ids"]:
+                raise LedgerError(
+                    "INVALID_ARGUMENT",
+                    message="applied decision_ids must include this decision",
+                )
+            if ingest_kind != "import":
+                for did in payload["decision_ids"]:
+                    self._require_visible_counterpart(
+                        conn, did, mcp=mcp, required_scope=cur["scope_id"]
+                    )
+            return
         if et == "outcome":
             note_required = rec["outcome"]["status"] in {
                 "success",
@@ -1354,6 +1593,43 @@ class Store:
             } and payload["status"] != rec["outcome"]["status"]
             if note_required and not payload["note"]:
                 raise LedgerError("INVALID_ARGUMENT")
+            applied_event_id = payload.get("applied_event_id")
+            if applied_event_id:
+                self._require_applied_link(
+                    conn,
+                    applied_event_id,
+                    decision_id=event["decision_id"],
+                    task_id=payload.get("task_id"),
+                )
+
+    def _require_applied_link(
+        self,
+        conn: sqlite3.Connection,
+        applied_event_id: str,
+        *,
+        decision_id: str,
+        task_id: str | None,
+    ) -> None:
+        row = conn.execute(
+            "select event_json from events where event_id=?",
+            (applied_event_id,),
+        ).fetchone()
+        if row is None:
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message="applied_event_id does not match an applied event",
+            )
+        linked = parse_json(row["event_json"])
+        if linked["event_type"] != "applied" or linked["decision_id"] != decision_id:
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message="applied_event_id does not match an applied event on this decision",
+            )
+        if task_id and linked["payload"].get("task_id") != task_id:
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message="outcome task_id does not match the applied event",
+            )
 
     def _require_visible_counterpart(
         self,
@@ -1422,6 +1698,34 @@ class Store:
                 resolves.append(event)
                 oid = payload["opened_event_id"]
                 resolved_counts[oid] = resolved_counts.get(oid, 0) + 1
+            elif et == "applied":
+                owner = reduced[event["decision_id"]]
+                for did in payload["decision_ids"]:
+                    if did in reduced:
+                        if reduced[did]["scope_id"] != owner["scope_id"]:
+                            raise LedgerError("INVALID_TRANSITION")
+                        continue
+                    tomb = conn.execute(
+                        "select scope_id from tombstones where kind='decision' and id=?",
+                        (did,),
+                    ).fetchone()
+                    if tomb is None or tomb["scope_id"] != owner["scope_id"]:
+                        raise LedgerError("INVALID_TRANSITION")
+            elif et == "outcome" and payload.get("applied_event_id"):
+                linked = conn.execute(
+                    "select event_json from events where event_id=?",
+                    (payload["applied_event_id"],),
+                ).fetchone()
+                if linked is None:
+                    raise LedgerError("INVALID_TRANSITION")
+                applied = parse_json(linked["event_json"])
+                if (
+                    applied["event_type"] != "applied"
+                    or applied["decision_id"] != event["decision_id"]
+                ):
+                    raise LedgerError("INVALID_TRANSITION")
+                if payload.get("task_id") and applied["payload"].get("task_id") != payload["task_id"]:
+                    raise LedgerError("INVALID_TRANSITION")
         for oid, count in resolved_counts.items():
             if count > 1 or oid not in opened:
                 raise LedgerError("INVALID_TRANSITION")
@@ -1881,7 +2185,30 @@ class Store:
             "has_conflict": bool(rec.get("conflicts")),
             "has_replacement": rec.get("replacement_id") is not None,
             "staleness": rec["staleness"],
+            "flag": self._visible_flag(rec),
         }
+
+    def _visible_flag(self, rec: dict[str, Any]) -> str | None:
+        if rec["lifecycle"] == "superseded":
+            replacement = rec.get("replacement_id")
+            if replacement:
+                return f"superseded_by {replacement}"
+            return "superseded"
+        if rec["outcome"]["status"] == "failed":
+            return "status failed"
+        return None
+
+    def _outcome_rank(self, rec: dict[str, Any]) -> int:
+        # Latest outcome status, with or without task_id. Confidence is separate.
+        # success, then pending or unknown, then abandoned or inconclusive,
+        # then failed or superseded.
+        if rec["lifecycle"] == "superseded" or rec["outcome"]["status"] == "failed":
+            return 3
+        if rec["outcome"]["status"] in {"abandoned", "inconclusive"}:
+            return 2
+        if rec["outcome"]["status"] == "success":
+            return 0
+        return 1
 
     def _rank(self, rec: dict[str, Any], parsed: dict[str, Any], tokens: list[str]) -> tuple:
         ents = rec["body"]["entities"]
@@ -1890,7 +2217,6 @@ class Store:
         constraint_hits = sum(1 for c in parsed["constraints"] if c in cons)
         ev = rec["evidence_state"]
         ev_rank = 0 if ev == "reported_verified" else 1 if ev in {"unverified", "none"} else 2
-        active_rank = 0 if rec["lifecycle"] == "active" else 1
         blob = " ".join(
             [
                 rec["body"]["summary"],
@@ -1905,8 +2231,8 @@ class Store:
         return (
             -entity_hits,
             -constraint_hits,
+            self._outcome_rank(rec),
             ev_rank,
-            active_rank,
             -token_hits,
             -_ts_key(rec["updated_at"]),
             rec["decision_id"],
