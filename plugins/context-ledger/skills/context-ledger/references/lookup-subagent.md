@@ -2,22 +2,24 @@
 
 The parent starts one helper for its session and resumes that same helper for each task and closeout. The parent reads only your JSON. Do not edit files or direct the parent to ledger storage, CLI, or tools.
 
+Run on the Mac. A main agent on the Mac keeps you as its local helper. A Cursor cloud parent only hands you the helper JSON and does not call the ledger. If this session is Codex cloud, return `{"lookup":"unavailable"}` and do not open a ledger. `select` and `feedback` are local commands on the Mac worker, not server tools.
+
 On your first call, read the installed `SKILL.md` beside this file once. The parent sends:
 
 ```json
-{"task_id":"<stable UUID>","task":"<short goal>","constraints":["<material limits>"],"served":[]}
+{"task_id":"<stable UUID>","situation":"<situation about to handle>","need":"<kind of decision this work needs>","served":[]}
 ```
 
-For every new `task_id`, reset your served set and inspect the ledger for applicable decisions. The parent sends `served: []` for a new task. Never suppress a decision because it was served in a different task. On a same-task resume, return only information new to that task; skip a search only when the task, constraints, owner, and store are unchanged. A changed constraint requires an applicability recheck.
+For every new `task_id`, reset your served set and select the stored decision for that situation and need. The parent sends `served: []` for a new task. Never suppress a decision because it was served in a different task. On a same-task resume, return only information new to that task; skip a search only when the situation, the needed decision, the owner, and the store are unchanged. A changed situation or need requires another selection.
 
 Before each `find`, verify the ledger is reachable, retry once, and on failure return an error naming the URL or socket. A previous success does not skip the next probe. Do not fall back to a local ledger or turn that failure into an empty result. `find` ranks success above pending, and ranks failed or superseded records below both, using the latest outcome status even when it has no `task_id`. Read `flag` (`status failed` or `superseded_by <id>`). Record application with `append_event` `event_type` `applied` (`task_id`, `decision_ids` that already exist in scope). `get` returns applied and outcome events that fit, sets `trace_continued` when older events are omitted, and on MCP omits ids the caller cannot see. An outcome cites `applied_event_id`.
 
 1. Read the current owner/config when available.
-2. Search with at most four distinctive words derived from the task. `find` returns at most three summaries; check applicability, outcome, lifecycle, conflict, and staleness. Preserve useful failed or unresolved decisions as negative evidence.
-3. If one relevant summary is too vague, call `get` at most once.
-4. Return JSON only. Echo `task_id`; put at most three applicable items across `added` and `rechecked`. `added` contains decisions first served in this task. `rechecked` contains previously served decisions whose applicability changed.
+2. Run `scripts/lookup.py select` with the situation and the needed decision. It uses the on-device sentence embedding and returns the nearest decision and its `distance`, including `outcome`, `flag`, and `approval`. You judge whether that decision applies. An unrelated situation still returns the nearest record and its distance. A higher success count does not win. Preserve useful failed or unresolved decisions as negative evidence.
+3. If that decision does not apply, do not follow it. Call `get` at most once when the returned decision is too vague to judge.
+4. Return JSON only. Echo `task_id`. `added` contains the decision first served in this task. `rechecked` contains a previously served decision whose applicability changed.
 
-Use the Context Ledger MCP `find` and `get` tools when mounted. Otherwise use this package's `scripts/lookup.py find/get` helper. If lookup fails, return exactly `{"lookup":"unavailable"}`. Do not turn failure into an empty result or create a replacement helper.
+Use `scripts/lookup.py select` for that choice. `find` remains the outcome-ordered search for callers that ask for `find`. If lookup fails, return exactly `{"lookup":"unavailable"}`. Do not turn failure into an empty result or create a replacement helper. When the parent reports what helped and what did not, and which decision would have helped, run `scripts/lookup.py feedback`. A similar precedent matches the needed action, not only the situation. Leave every id marked `helped: false` in this feedback out of that check. Return another precedent instead of writing a duplicate. Write the missing decision when the action differs or the decision that did not help is the only near match. `helped: false` is inconclusive. A feedback batch that cannot be applied writes nothing and exits nonzero.
 
 ## Capture
 
