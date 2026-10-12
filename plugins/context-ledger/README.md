@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.22
+
+The helper selects the stored decision whose applicability fits the situation and whose action fits the needed decision, using the on-device Natural Language sentence embedding and cosine distance. `select` returns the nearest decision and its distance. The helper judges whether it applies. An unrelated situation still returns that nearest record and its distance. The result includes outcome, flag, and approval. A higher success count does not win that choice. `find` still ranks success ahead of a flagged failure. Feedback records whether a provided decision helped. `helped: false` is inconclusive and that id is left out of the similar check. A missing decision is recorded when the needed action is not already stored, and its rationale names the decisions that did not help. On a host without that embedding, `select` and `feedback` fail with `EMBEDDING_UNAVAILABLE`. macOS setup installs `pyobjc-framework-NaturalLanguage` for the helper interpreter. A Cursor cloud main agent hands lookup to one retained worker on the Mac and never calls the ledger itself. Codex cloud has no ledger.
+
 ## 0.1.21
 
 `browse` opens the ledger view. The host draws `ui://context-ledger/browse.html`. The list is the current model-safe decisions. A filter calls `browse` again. A row calls `get`.

@@ -89,6 +89,25 @@ def _evidence(state="reported_verified", ref="doc://example"):
     return [{"ref": ref, "revision": None, "sha256": None, "state": state}]
 
 
+def _require_sentence_embedding(test: unittest.TestCase) -> None:
+    """Off darwin, a skip is not proof of select or feedback. On darwin, fail."""
+    if sys.platform != "darwin":
+        test.skipTest("not proof of select or feedback off darwin")
+    try:
+        import objc
+
+        objc.loadBundle(
+            "NaturalLanguage",
+            bundle_path="/System/Library/Frameworks/NaturalLanguage.framework",
+            module_globals={},
+        )
+        embedding = objc.lookUpClass("NLEmbedding").sentenceEmbeddingForLanguage_("en")
+    except Exception as exc:
+        test.fail(f"sentence embedding unavailable: {exc}")
+    if embedding is None:
+        test.fail("sentence embedding unavailable")
+
+
 class PackageTests(unittest.TestCase):
     def test_creator_validate(self) -> None:
         if not CREATOR.is_file():
@@ -339,8 +358,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.21")
-        self.assertIn('__version__ = "0.1.21"', init)
+        self.assertEqual(plugin["version"], "0.1.22")
+        self.assertIn('__version__ = "0.1.22"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -353,7 +372,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/browse.html").read_text(encoding="utf-8")
-        self.assertIn('version: "0.1.21"', page)
+        self.assertIn('version: "0.1.22"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
@@ -651,6 +670,333 @@ class StoreTests(unittest.TestCase):
             "summary": "unreviewed", "reason": "repeatable", "evidence_ref": "session://test"}}),
             {"written": [], "write": "unavailable"})
         self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], 3)
+
+    def _lookup(self, command: str, body: dict, *, ok: bool = True) -> dict:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+        proc = subprocess.run(
+            [sys.executable, str(helper), command, "--json", "-"],
+            input=json.dumps(body),
+            text=True,
+            capture_output=True,
+            env=env,
+        )
+        if ok:
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        else:
+            self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        return json.loads(proc.stdout)
+
+    def _seed_situation_and_success(self) -> tuple[str, str]:
+        pending = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Live client pass before main",
+                    situation="A plugin change is about to ship with only unit tests as proof",
+                    action="Run a live end-to-end pass on the installed client before the change goes to main",
+                    applicability="A plugin change is about to ship with only unit tests as proof",
+                    entities=["helper-selection"],
+                    constraints=[],
+                    evidence=[],
+                ),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        success = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Refresh the marketplace badge",
+                    situation="Cursor is showing a plugin version that should change",
+                    action="Commit matching plugin.json and version, then refresh the marketplace so the badge is the indexed commit",
+                    applicability="Cursor is showing a plugin version that should change",
+                    entities=["helper-selection"],
+                    constraints=[],
+                    evidence=[],
+                ),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        revision = 1
+        for _ in range(3):
+            self.store.append_event(
+                {
+                    "request_id": _uuid(),
+                    "decision_id": success["decision_id"],
+                    "expected_revision": revision,
+                    "occurred_at": None,
+                    "event_type": "outcome",
+                    "payload": _outcome(
+                        "success",
+                        note="badge matched the indexed commit",
+                        task_id=_uuid(),
+                    ),
+                },
+                mcp=False,
+            )
+            revision += 1
+        recorded = self.store.get({"decision_id": success["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(recorded["outcome"]["status"], "success")
+        self.assertGreater(recorded["confidence"]["successes"], 0)
+        waiting = self.store.get({"decision_id": pending["decision_id"]}, mcp=True)["record"]
+        self.assertEqual(waiting["outcome"]["status"], "pending")
+        self.assertEqual(waiting["confidence"]["successes"], 0)
+        return pending["decision_id"], success["decision_id"]
+
+    def test_select_fits_situation_ahead_of_higher_success(self) -> None:
+        _require_sentence_embedding(self)
+        pending_id, success_id = self._seed_situation_and_success()
+        live = self._lookup(
+            "select",
+            {
+                "situation": "About to change a plugin and the only proof so far is the automated suite",
+                "need": "What has to happen before that change goes to main",
+            },
+        )
+        badge = self._lookup(
+            "select",
+            {
+                "situation": "Shipping a plugin version badge into the marketplace index",
+                "need": "What has to happen so the badge matches the indexed commit",
+            },
+        )
+        self.assertEqual(live["decision"]["id"], pending_id)
+        self.assertIsInstance(live["distance"], float)
+        self.assertEqual(live["decision"]["outcome"], "pending")
+        self.assertIsNone(live["decision"]["flag"])
+        self.assertEqual(live["decision"]["approval"], "none")
+        self.assertEqual(badge["decision"]["id"], success_id)
+        self.assertEqual(badge["decision"]["outcome"], "success")
+        self.assertIsNone(badge["decision"]["flag"])
+        self.assertEqual(badge["decision"]["approval"], "none")
+        self.assertNotEqual(live["decision"]["id"], badge["decision"]["id"])
+        unrelated = self._lookup(
+            "select",
+            {
+                "situation": "Booking a train ticket for tomorrow morning",
+                "need": "Which coach and payment method to use",
+            },
+        )
+        self.assertIn(unrelated["decision"]["id"], {pending_id, success_id})
+        self.assertIsInstance(unrelated["distance"], float)
+        self.assertGreater(unrelated["distance"], live["distance"])
+        found = self.store.find(
+            {
+                "query": "",
+                "entities": ["helper-selection"],
+                "constraints": [],
+                "limit": 3,
+                "offset": 0,
+            },
+            mcp=True,
+        )
+        self.assertEqual(found["matches"][0]["decision_id"], success_id)
+
+    def test_feedback_reuses_similar_precedent_and_records_a_missing_decision(self) -> None:
+        _require_sentence_embedding(self)
+        pending_id, success_id = self._seed_situation_and_success()
+        task_id = _uuid()
+        similar = self._lookup(
+            "feedback",
+            {
+                "task_id": task_id,
+                "provided": [{"id": success_id, "helped": True, "issue": ""}],
+                "would_have_helped": {
+                    "situation": "A plugin change is about to ship and unit tests are the only proof",
+                    "need": "Run a live end-to-end pass on the installed client before main",
+                },
+            },
+        )
+        self.assertEqual(similar["similar"], pending_id)
+        self.assertEqual(similar["written"], [])
+        quiet = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [{"id": success_id, "helped": True}],
+            },
+        )
+        self.assertIsNone(quiet["similar"])
+        self.assertEqual(quiet["written"], [])
+        missing = {
+            "situation": "A funnel publish is down and find must fail closed until that same publish is restored",
+            "need": "Stop only the publish job, prove find fails, and restore that job before exiting",
+        }
+        created = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [{
+                    "id": pending_id,
+                    "helped": False,
+                    "issue": "The provided decisions left the publish outage unresolved",
+                }],
+                "would_have_helped": missing,
+            },
+        )
+        self.assertIsNone(created["similar"])
+        self.assertEqual(len(created["written"]), 1)
+        new_id = created["written"][0]
+        saved = self.store.get({"decision_id": new_id}, mcp=True)["record"]
+        self.assertEqual(saved["body"]["applicability"], missing["situation"])
+        self.assertEqual(saved["body"]["action"], missing["need"])
+        self.assertEqual(saved["outcome"]["status"], "pending")
+        again = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [{"id": new_id, "helped": False, "issue": "still unresolved"}],
+                "would_have_helped": missing,
+            },
+        )
+        self.assertIsNone(again["similar"])
+        self.assertEqual(len(again["written"]), 1)
+        self.assertNotEqual(again["written"][0], new_id)
+        self.assertIn(pending_id, saved["body"]["rationale"])
+        self.assertIn(
+            "The provided decisions left the publish outage unresolved",
+            saved["body"]["rationale"],
+        )
+        marked = self.store.get({"decision_id": pending_id}, mcp=True)["record"]
+        self.assertEqual(marked["outcome"]["status"], "inconclusive")
+
+    def test_feedback_records_a_different_action_and_rejects_bad_input_first(self) -> None:
+        pending_id, success_id = self._seed_situation_and_success()
+        success_revision = self.store.get({"decision_id": success_id}, mcp=True)["record"]["revision"]
+        pending_revision = self.store.get({"decision_id": pending_id}, mcp=True)["record"]["revision"]
+        duplicate = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [
+                    {"id": success_id, "helped": True},
+                    {"id": success_id, "helped": False, "issue": "again"},
+                ],
+            },
+            ok=False,
+        )
+        malformed = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [
+                    {"id": success_id, "helped": True},
+                    {"id": "not-a-uuid", "helped": False},
+                ],
+            },
+            ok=False,
+        )
+        incomplete = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [{"id": pending_id, "helped": False, "issue": "gap"}],
+                "would_have_helped": {
+                    "situation": "A plugin change is about to ship with only unit tests as proof",
+                },
+            },
+            ok=False,
+        )
+        unknown = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [
+                    {"id": success_id, "helped": True},
+                    {"id": _uuid(), "helped": False, "issue": "missing"},
+                ],
+            },
+            ok=False,
+        )
+        self.assertEqual(unknown, {"written": [], "write": "unavailable"})
+        self.assertEqual(duplicate, {"written": [], "write": "unavailable"})
+        self.assertEqual(malformed, {"written": [], "write": "unavailable"})
+        self.assertEqual(incomplete, {"written": [], "write": "unavailable"})
+        self.assertEqual(
+            self.store.get({"decision_id": success_id}, mcp=True)["record"]["revision"],
+            success_revision,
+        )
+        self.assertEqual(
+            self.store.get({"decision_id": pending_id}, mcp=True)["record"]["revision"],
+            pending_revision,
+        )
+        _require_sentence_embedding(self)
+        issue = "Unit tests were the wrong gate"
+        created = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [{"id": pending_id, "helped": False, "issue": issue}],
+                "would_have_helped": {
+                    "situation": "A plugin change is about to ship and unit tests are the only proof",
+                    "need": "Do not ship; revert the change",
+                },
+            },
+        )
+        self.assertIsNone(created["similar"])
+        self.assertEqual(len(created["written"]), 1)
+        saved = self.store.get({"decision_id": created["written"][0]}, mcp=True)["record"]
+        self.assertEqual(saved["body"]["action"], "Do not ship; revert the change")
+        self.assertIn(pending_id, saved["body"]["rationale"])
+        self.assertIn(issue, saved["body"]["rationale"])
+        marked = self.store.get({"decision_id": pending_id}, mcp=True)["record"]
+        self.assertEqual(marked["outcome"]["status"], "inconclusive")
+        found = self.store.find(
+            {
+                "query": "",
+                "entities": ["helper-selection"],
+                "constraints": [],
+                "limit": 3,
+                "offset": 0,
+            },
+            mcp=True,
+        )
+        self.assertEqual(found["matches"][0]["decision_id"], success_id)
+
+    def test_feedback_excludes_the_decision_that_did_not_help(self) -> None:
+        _require_sentence_embedding(self)
+        pending_id, success_id = self._seed_situation_and_success()
+        need = "Run a live end-to-end pass on the staging server before the change goes to main"
+        created = self._lookup(
+            "feedback",
+            {
+                "task_id": _uuid(),
+                "provided": [{
+                    "id": pending_id,
+                    "helped": False,
+                    "issue": "The live pass has to run on the staging server",
+                }],
+                "would_have_helped": {
+                    "situation": "A plugin change is about to ship and unit tests are the only proof",
+                    "need": need,
+                },
+            },
+        )
+        self.assertIsNone(created["similar"])
+        self.assertNotIn(pending_id, created.get("similar") or "")
+        self.assertEqual(created["written"], [created["written"][0]])
+        self.assertNotEqual(created["written"][0], pending_id)
+        self.assertNotEqual(created["written"][0], success_id)
+        saved = self.store.get({"decision_id": created["written"][0]}, mcp=True)["record"]
+        self.assertEqual(saved["body"]["action"], need)
+        marked = self.store.get({"decision_id": pending_id}, mcp=True)["record"]
+        self.assertEqual(marked["outcome"]["status"], "inconclusive")
+        found = self.store.find(
+            {
+                "query": "",
+                "entities": ["helper-selection"],
+                "constraints": [],
+                "limit": 3,
+                "offset": 0,
+            },
+            mcp=True,
+        )
+        self.assertEqual(found["matches"][0]["decision_id"], success_id)
 
     def test_task_closeout_is_idempotent_and_confidence_uses_latest_task_feedback(self) -> None:
         helper = ROOT / "skills/context-ledger/scripts/lookup.py"
@@ -2623,6 +2969,81 @@ class StoreTests(unittest.TestCase):
             out, err = proc.communicate(timeout=15)
             outs.append(out.strip())
         self.assertEqual(sorted(outs), ["REVISION_CONFLICT", "ok"])
+
+    def test_recall_check_ranks_without_writing(self) -> None:
+        _require_sentence_embedding(self)
+        near_situation = "Shipping the catalog change"
+        near_need = "Run the installed example before merge"
+        near = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Catalog example",
+                    situation=near_situation,
+                    action=near_need,
+                    applicability=near_situation,
+                ),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        far = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Chart palette",
+                    situation="Picking chart color",
+                    action="Keep palette file",
+                    rationale="Use swatches",
+                    applicability="Picking chart color",
+                ),
+                "outcome": _outcome("success"),
+            },
+            mcp=False,
+        )
+        near_id = near["decision_id"]
+        far_id = far["decision_id"]
+        fixture = Path(self.tmp.name) / "recall.json"
+        fixture.write_text(
+            json.dumps(
+                {
+                    "cases": [
+                        {
+                            "name": "near",
+                            "situation": near_situation,
+                            "need": near_need,
+                            "target_id": near_id,
+                        },
+                        {
+                            "name": "far",
+                            "situation": near_situation,
+                            "need": near_need,
+                            "target_id": far_id,
+                        },
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        db = self.store.db_path
+        before = db.stat()
+        proc = _run(
+            [sys.executable, str(ROOT / "scripts" / "recall_check.py"), "--fixture", str(fixture)],
+            env={"CONTEXT_LEDGER_DATA": str(self.data)},
+        )
+        after = db.stat()
+        self.assertEqual(before.st_ino, after.st_ino)
+        self.assertEqual(before.st_size, after.st_size)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        payload = json.loads(proc.stdout)
+        by_name = {row["name"]: row for row in payload["cases"]}
+        self.assertEqual(by_name["near"]["select_rank"], 1)
+        self.assertEqual(by_name["far"]["select_rank"], 2)
+        self.assertEqual(payload["select_top1"], "1/2")
+        self.assertEqual(by_name["near"]["find_rank"], 1)
+        self.assertIsNone(by_name["far"]["find_rank"])
 
 
 class McpTests(unittest.TestCase):

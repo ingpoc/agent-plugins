@@ -309,8 +309,11 @@ def _cmd_setup(data: Path, args: list[str]) -> int:
     if proc.returncode != 0:
         sys.stderr.write(proc.stderr[-2000:] if proc.stderr else "")
         return _err("UNAVAILABLE")
+    smoke_import = "import mcp, jsonschema, sqlite3"
+    if sys.platform == "darwin":
+        smoke_import = "import objc; " + smoke_import
     smoke = subprocess.run(
-        [str(py), "-c", "import mcp, jsonschema, sqlite3; sqlite3.connect(':memory:').execute('create virtual table t using fts5(x)')"],
+        [str(py), "-c", smoke_import + "; sqlite3.connect(':memory:').execute('create virtual table t using fts5(x)')"],
         env={**env, "PYTHONPATH": str(PLUGIN_ROOT)},
         capture_output=True,
         text=True,
