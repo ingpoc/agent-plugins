@@ -292,7 +292,135 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertTrue(out.get("ok"), out)
         self.assertEqual(fills, [(4, "Pune", 44)])
 
+    def test_set_checked_readback_refuses_when_click_ignored(self):
+        """Radio/checkbox click that leaves value unchanged must not ok:true (r11c #4)."""
+        clicks = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {
+                            "app": app,
+                            "windowId": 44,
+                            "text": "form",
+                            "elements": [
+                                {"element_index": 1, "role": "AXCheckBox", "label": "Bacon", "value": 1},
+                            ],
+                        }
+
+                    def click(self, app, **kwargs):
+                        clicks.append(kwargs)
+                        return {"ok": True, "method": "ax-press"}
+
+                    def execute_plan(self, app, steps, **kwargs):
+                        raise AssertionError("must stay sequential")
+
+                return fn(Client())
+
+        out = Backend().act("App", {
+            "steps": [
+                {"action": "set_checked", "label": "Bacon", "checked": False},
+            ],
+            "expect": "x",
+            "allow_unverified": True,
+        })
+        self.assertEqual(len(clicks), 1, clicks)
+        self.assertFalse(out.get("dispatched"), out)
+        blob = str(out).lower()
+        self.assertIn("readback", blob)
+
+    def test_execute_plan_keyboard_pins_observed_window(self):
+        """execute_plan for key-only must pass observed windowId (r11c #3)."""
+        plans = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {
+                            "app": app,
+                            "windowId": 77,
+                            "text": "doc",
+                            "elements": [
+                                {"element_index": 0, "role": "AXTextArea", "label": "Body", "value": "hi"},
+                            ],
+                        }
+
+                    def press_key(self, app, key, window_id=None):
+                        raise AssertionError("key-only should use execute_plan")
+
+                    def execute_plan(self, app, steps, **kwargs):
+                        plans.append((app, steps, kwargs))
+                        return {
+                            "ok": True,
+                            "results": [{"ok": True, "method": "cgevent-pid"}],
+                            "before": {"text": "doc"},
+                            "after": {"text": "x"},
+                        }
+
+                return fn(Client())
+
+        out = Backend().act("App", {
+            "steps": [{"key": "Delete"}],
+            "expect": "x",
+            "allow_unverified": True,
+        })
+        self.assertEqual(len(plans), 1, plans)
+        self.assertEqual(plans[0][2].get("window_id"), 77, plans)
+        self.assertTrue(out.get("dispatched"), out)
+
+    def test_sequential_press_key_pins_observed_window(self):
+        """Sequential keyboard after set_checked must pin windowId (r11c #3)."""
+        presses = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def get_app_state(self, app, **kwargs):
+                        return {
+                            "app": app,
+                            "windowId": 77,
+                            "text": "form",
+                            "elements": [
+                                {"element_index": 1, "role": "AXCheckBox", "label": "Bacon", "value": 0},
+                            ],
+                        }
+
+                    def press_key(self, app, key, window_id=None):
+                        presses.append((app, key, window_id))
+                        return {"ok": True, "method": "cgevent-pid"}
+
+                    def click(self, app, **kwargs):
+                        return {"ok": True, "method": "ax-press"}
+
+                    def execute_plan(self, app, steps, **kwargs):
+                        raise AssertionError("set_checked forces sequential")
+
+                return fn(Client())
+
+        out = Backend().act("App", {
+            "steps": [
+                {"action": "set_checked", "label": "Bacon", "checked": False},
+                {"key": "Delete"},
+            ],
+            "expect": "x",
+            "allow_unverified": True,
+        })
+        self.assertEqual(presses, [("App", "Delete", 77)], presses)
+        self.assertTrue(out.get("dispatched"), out)
+
     def test_state_dispatches_in_process_without_cli(self):
+
         calls = []
 
         class Backend:

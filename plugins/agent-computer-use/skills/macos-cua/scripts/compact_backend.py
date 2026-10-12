@@ -308,6 +308,27 @@ class CUABackend:
                     after_new = False
 
             if native_steps and use_execute_plan:
+                # Pin keyboard plans to the observed window so press_key /
+                # type_text children cannot land in a sibling window after a
+                # focus switch (Codex r11 confirm major 3). Click-only plans
+                # keep prior behavior (label fills already set plan_window).
+                needs_keyboard_pin = any(
+                    isinstance(s, dict)
+                    and (
+                        s.get("key")
+                        or (
+                            s.get("text") is not None
+                            and not s.get("label")
+                            and s.get("element") is None
+                        )
+                    )
+                    for s in steps
+                )
+                if plan_window is None and needs_keyboard_pin:
+                    elements_state = self._get_app_state(
+                        client, app, includeElements=True, disableDiff=True
+                    )
+                    plan_window = observed_window_id(elements_state)
                 plan = client.execute_plan(app, native_steps) if plan_window is None else client.execute_plan(app, native_steps, window_id=plan_window)
                 before = plan.get("before") if isinstance(plan, dict) else {}
                 after = plan.get("after") if isinstance(plan, dict) else {}
@@ -569,6 +590,13 @@ class CUABackend:
             )
         key = step.get("key")
         if key:
+            # Pin keyboard to the observed window (Codex r11 confirm major 3).
+            state = self._get_app_state(
+                client, app, includeElements=True, disableDiff=True
+            )
+            wid = observed_window_id(state)
+            if wid is not None:
+                return client.press_key(app, str(key), window_id=wid)
             return client.press_key(app, str(key))
         text = step.get("text")
         element = step.get("element")
@@ -586,8 +614,22 @@ class CUABackend:
                 lambda: self._get_app_state(client, app, includeElements=True, disableDiff=True),
             )
         if text is not None and element is not None and step.get("label") is None:
+            state = self._get_app_state(
+                client, app, includeElements=True, disableDiff=True
+            )
+            wid = observed_window_id(state)
+            if wid is not None:
+                return client.set_value(app, int(element), str(text), window_id=wid)
             return client.set_value(app, int(element), str(text))
         if text is not None and step.get("label") is None and element is None:
+            state = self._get_app_state(
+                client, app, includeElements=True, disableDiff=True
+            )
+            wid = observed_window_id(state)
+            if wid is not None:
+                return client.type_text(
+                    app, str(text), after_new_document=after_new_document, window_id=wid
+                )
             return client.type_text(
                 app, str(text), after_new_document=after_new_document
             )

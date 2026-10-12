@@ -225,11 +225,22 @@ final class InputActions: @unchecked Sendable {
         }
         // The focused text role in THIS window wins over any other text area.
         // A search field must not lose to the document editor (Codex r11).
+        // If the focused field rejects AX insert, refuse — never spill into
+        // a sibling writable area (Codex r11 confirm major 1).
         let focusedIsArea = focused.map { axRole($0) == "AXTextArea" } ?? false
-        if let focused, axInsertText(focused, text) {
+        if let focused {
+            if axInsertText(focused, text) {
+                return [
+                    "ok": true, "method": "ax-set-value", "length": text.count,
+                    "focused_is_area": focusedIsArea,
+                ]
+            }
             return [
-                "ok": true, "method": "ax-set-value", "length": text.count,
-                "focused_is_area": focusedIsArea,
+                "ok": false,
+                "error": "type_focused_insert_failed",
+                "method": "refused",
+                "windowId": Int(resolved.windowID),
+                "hint": "focused field rejected AX insert; refusing sibling fallthrough",
             ]
         }
         for (el, _) in areas {

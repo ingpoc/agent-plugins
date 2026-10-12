@@ -286,23 +286,28 @@ final class AppResolver: @unchecked Sendable {
         // HID goes to the front app. Skipping raise because isActive was
         // stale true still posted cmd+n into Cursor.
         if !tiny && !raiseForInput { return }
-        activateForInput(runningApp)
+        // Locate the pinned AX window BEFORE activating. Activating first
+        // can raise a sibling window when the pin has no AX match (Codex
+        // r11 confirm major 5).
         var windowsRef: CFTypeRef?
         AXUIElementCopyAttributeValue(
             axApp, kAXWindowsAttribute as CFString, &windowsRef
         )
-        if let windows = windowsRef as? [AXUIElement] {
-            let target = windows.first { win in
-                var id: CGWindowID = 0
-                return _CGSGetWindowID(win, &id) == .success && id == windowID
-            }
-            if let target {
-                AXUIElementPerformAction(target, kAXRaiseAction as CFString)
-            } else if !pinned, let fallback = windows.first {
-                // Unpinned resolve may raise the first window. A missing pin
-                // must not steal focus onto an unrelated window.
-                AXUIElementPerformAction(fallback, kAXRaiseAction as CFString)
-            }
+        let windows = windowsRef as? [AXUIElement] ?? []
+        let target = windows.first { win in
+            var id: CGWindowID = 0
+            return _CGSGetWindowID(win, &id) == .success && id == windowID
+        }
+        if pinned && target == nil {
+            // Caller will refuse via requirePinnedAXWindow; do not steal focus.
+            return
+        }
+        activateForInput(runningApp)
+        if let target {
+            AXUIElementPerformAction(target, kAXRaiseAction as CFString)
+        } else if let fallback = windows.first {
+            // Unpinned resolve may raise the first window.
+            AXUIElementPerformAction(fallback, kAXRaiseAction as CFString)
         }
         if raiseForInput {
             waitUntilFrontmost(runningApp.processIdentifier)

@@ -246,10 +246,21 @@ class CUAClient:
             params["windowId"] = int(window_id)
         return self.call("press_key", params, retry=False)
 
-    def type_text(self, app: str, text: str, after_new_document: bool = False) -> dict:
+    def type_text(
+        self,
+        app: str,
+        text: str,
+        after_new_document: bool = False,
+        window_id: int | None = None,
+        element_index: int | None = None,
+    ) -> dict:
         params: dict[str, Any] = {"app": app, "text": text}
         if after_new_document:
             params["after_new_document"] = True
+        if window_id is not None:
+            params["windowId"] = int(window_id)
+        if element_index is not None:
+            params["element_index"] = int(element_index)
         return self.call("type_text", params, retry=False)
 
     def scroll(self, app: str, direction: str, **kwargs) -> dict:

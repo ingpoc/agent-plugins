@@ -361,7 +361,10 @@ def cua_type_text(pid, text, *, element_index=None, x=None, y=None, window_id=No
         return {**focus, "ok": False, "accepted": False,
                 "error": focus.get("error") or "focus click before typing failed"}
     params = {"text": text}
-    if element_index is not None:
+    # After a mutating focus click, AX indices may reorder. Do not reuse the
+    # pre-click index — type into the pinned-window focused field (Swift
+    # refuses outside-pin / sibling spill). Codex r11 confirm major 2.
+    if element_index is not None and focus is None:
         params["element_index"] = int(element_index)
     result = _cuaservice_rpc(pid, "type_text", _pin_window(params, window_id))
     if focus is not None:
