@@ -252,7 +252,8 @@ def dispatch_set_checked(client, app, step, state_fn):
         return {"ok": False, "error": "set_checked requires boolean checked", "method": "set_checked"}
     if not step.get("label"):
         return {"ok": False, "error": "set_checked needs label", "method": "set_checked"}
-    decision = checkbox_click_decision(state_fn(), str(step["label"]), checked)
+    label = str(step["label"])
+    decision = checkbox_click_decision(state_fn(), label, checked)
     if decision.get("ok") is not True:
         return {"ok": False, "error": decision.get("error"), "method": "set_checked"}
     if not decision["click"]:
@@ -261,9 +262,32 @@ def dispatch_set_checked(client, app, step, state_fn):
     if decision.get("window_id") is not None:
         kwargs["window_id"] = decision["window_id"]
     result = client.click(app, **kwargs)
-    if isinstance(result, dict):
-        return {**result, "checked": checked, "changed": True}
-    return {"ok": False, "error": "set_checked click failed", "method": "set_checked"}
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        return {
+            "ok": False,
+            "error": (result.get("error") if isinstance(result, dict) else None)
+            or "set_checked click failed",
+            "method": "set_checked",
+        }
+    # Post-click readback: radio/checkbox may ignore the click (Codex r11
+    # confirm major 4). Refuse unless the observed value matches `checked`.
+    after = checkbox_click_decision(state_fn(), label, checked)
+    if after.get("ok") is not True:
+        return {
+            "ok": False,
+            "error": after.get("error") or "set_checked readback failed",
+            "method": "set_checked",
+            "checked": checked,
+        }
+    if after["click"]:
+        return {
+            "ok": False,
+            "error": "set_checked readback mismatch",
+            "method": "set_checked",
+            "checked": checked,
+            "hint": "control still not at the requested boolean after click",
+        }
+    return {**result, "checked": checked, "changed": True, "readback": "matched"}
 
 
 def label_fill_follows_mutation(steps: list) -> bool:

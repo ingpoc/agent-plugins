@@ -188,7 +188,8 @@ class CUAServiceRuntimeTests(unittest.TestCase):
                    "type_text": {"ok": True, "method": "ax-insert"}}
         res, client = self._run(replies, macos_cua.type_text, 4242, 77, 1, "abc")
         self.assertEqual([c[0] for c in client.calls], ["get_app_state", "click", "type_text"])
-        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "text": "abc", "element_index": 1, "windowId": 77})
+        # After the mutating focus click, omit stale element_index (r11c #2).
+        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "text": "abc", "windowId": 77})
         self.assertTrue(macos_cua._accepted(res))
 
     def test_type_text_newline_guard_kept(self):
