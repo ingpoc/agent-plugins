@@ -74,6 +74,20 @@ def fill_value_from_step(step: dict[str, Any]):
     return step.get("text")
 
 
+def observed_window_id(state: Any) -> int | None:
+    """Window the snapshot actually walked. 0 and missing mean unpinned."""
+    if not isinstance(state, dict):
+        return None
+    raw = state.get("windowId")
+    if raw is None:
+        raw = state.get("window_id")
+    try:
+        wid = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return wid or None
+
+
 
 def compile_set_value_step(
     step: dict[str, Any],
@@ -109,10 +123,11 @@ def compile_set_value_step(
             "params": {"value": str(fill_value)},
             "compile_error": err,
         }
-    return {
-        "method": "set_value",
-        "params": {"element_index": int(idx), "value": str(fill_value)},
-    }
+    params: dict[str, Any] = {"element_index": int(idx), "value": str(fill_value)}
+    wid = observed_window_id(elements_state)
+    if wid is not None:
+        params["windowId"] = wid
+    return {"method": "set_value", "params": params}
 
 
 def steps_need_label_state(steps: list) -> bool:
@@ -137,13 +152,12 @@ def is_label_fill_step(step: dict[str, Any]) -> bool:
 
 def step_mutates_layout(step: dict[str, Any]) -> bool:
     """True when the step can retarget later label→index mappings."""
+    # wait, focus, and fills can show, hide, or reorder fields (Codex r11).
     if step.get("wait") is not None:
-        return False
+        return True
     action = str(step.get("action") or step.get("op") or "").lower()
-    # set_value IS a mutation: a fill can add/remove/reorder fields, so a
-    # later label→index compiled before it would be stale (Codex r10 #2).
-    if action in {"focus", "raise", "activate"}:
-        return False
+    if action in {"focus", "raise", "activate", "set_checked", "clear"}:
+        return True
     if step.get("key") is not None:
         return True
     if step.get("label") is not None or step.get("element") is not None:
@@ -157,6 +171,99 @@ def step_mutates_layout(step: dict[str, Any]) -> bool:
     if step.get("path") is not None or step.get("url") is not None:
         return True
     return False
+
+
+def plan_must_be_sequential(steps: list) -> bool:
+    """execute_plan cannot re-resolve labels or toggle a checkbox by boolean."""
+    if any(
+        isinstance(step, dict) and str(step.get("action") or "").lower() == "set_checked"
+        for step in steps
+    ):
+        return True
+    return steps_need_label_state(steps) and label_fill_follows_mutation(steps)
+
+
+_CHECK_ROLES = {"AXCheckBox", "AXRadioButton"}
+
+
+def _checkbox_bool(raw: Any) -> bool | None:
+    if isinstance(raw, bool):
+        return raw
+    if raw in (1, "1", "true", "True"):
+        return True
+    if raw in (0, "0", "false", "False"):
+        return False
+    return None
+
+
+def checkbox_click_decision(state: dict[str, Any], label: str, checked: bool) -> dict[str, Any]:
+    """Click only when the unique checkbox's readable value differs."""
+    want = str(label).strip().lower()
+    matches = [
+        item for item in (state.get("elements") or [])
+        if str(item.get("label") or "").strip().lower() == want
+        and str(item.get("role") or "") in _CHECK_ROLES
+    ]
+    if len(matches) != 1:
+        err = (
+            f"ambiguous checkbox {label!r}: {len(matches)} matches"
+            if len(matches) > 1
+            else f"checkbox not found: {label}"
+        )
+        return {"ok": False, "error": err}
+    current = _checkbox_bool(matches[0].get("value"))
+    if current is None:
+        return {"ok": False, "error": f"checkbox value unreadable: {label}"}
+    return {
+        "ok": True,
+        "click": current != checked,
+        "element_index": int(matches[0]["element_index"]),
+        "window_id": observed_window_id(state),
+    }
+
+
+def dispatch_labeled_set_value(client, app, step, element, fill_value, state_fn):
+    """Resolve a label against the snapshot just taken and pin that window."""
+    idx = int(element) if element is not None else None
+    state = None
+    if idx is None and step.get("label"):
+        state = state_fn()
+        try:
+            idx = resolve_set_value_index(state, str(step["label"]))
+        except ValueError as exc:
+            return {"ok": False, "error": f"set_value: {exc}", "method": "set_value"}
+    if idx is None:
+        err = (
+            f"set_value: field not found: {step.get('label')}"
+            if step.get("label")
+            else "set_value needs label or element"
+        )
+        return {"ok": False, "error": err, "method": "set_value"}
+    wid = observed_window_id(state)
+    if wid is None:
+        return client.set_value(app, idx, str(fill_value))
+    return client.set_value(app, idx, str(fill_value), window_id=wid)
+
+
+def dispatch_set_checked(client, app, step, state_fn):
+    """Honor the boolean: noop when already set, click when it differs, else fail."""
+    checked = step.get("checked")
+    if not isinstance(checked, bool):
+        return {"ok": False, "error": "set_checked requires boolean checked", "method": "set_checked"}
+    if not step.get("label"):
+        return {"ok": False, "error": "set_checked needs label", "method": "set_checked"}
+    decision = checkbox_click_decision(state_fn(), str(step["label"]), checked)
+    if decision.get("ok") is not True:
+        return {"ok": False, "error": decision.get("error"), "method": "set_checked"}
+    if not decision["click"]:
+        return {"ok": True, "method": "set_checked", "checked": checked, "changed": False}
+    kwargs: dict[str, Any] = {"element_index": decision["element_index"]}
+    if decision.get("window_id") is not None:
+        kwargs["window_id"] = decision["window_id"]
+    result = client.click(app, **kwargs)
+    if isinstance(result, dict):
+        return {**result, "checked": checked, "changed": True}
+    return {"ok": False, "error": "set_checked click failed", "method": "set_checked"}
 
 
 def label_fill_follows_mutation(steps: list) -> bool:

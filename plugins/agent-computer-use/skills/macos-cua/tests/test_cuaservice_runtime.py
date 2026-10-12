@@ -137,8 +137,8 @@ class CUAServiceRuntimeTests(unittest.TestCase):
     def test_set_value_reads_back_from_the_same_walk(self):
         replies = {"set_value": {"ok": True, "method": "ax-set-value"}, "get_app_state": _state(value="new text")}
         ok, client = self._run(replies, macos_cua.set_value, 4242, 77, 1, "new text")
-        self.assertEqual([c[0] for c in client.calls[:2]], ["get_app_state", "set_value"])
-        self.assertEqual(client.calls[1], ("set_value", {"app": BUNDLE, "element_index": 1, "value": "new text", "windowId": 77}))
+        self.assertEqual([c[0] for c in client.calls[:3]], ["get_app_state", "get_app_state", "set_value"])
+        self.assertEqual(client.calls[2], ("set_value", {"app": BUNDLE, "element_index": 1, "value": "new text", "windowId": 77}))
         self.assertEqual(ok["readback"], "matched")
         replies["get_app_state"] = _state(value="stale")
         bad, _ = self._run(replies, macos_cua.set_value, 4242, 77, 1, "new text")
@@ -188,7 +188,7 @@ class CUAServiceRuntimeTests(unittest.TestCase):
                    "type_text": {"ok": True, "method": "ax-insert"}}
         res, client = self._run(replies, macos_cua.type_text, 4242, 77, 1, "abc")
         self.assertEqual([c[0] for c in client.calls], ["get_app_state", "click", "type_text"])
-        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "text": "abc", "windowId": 77})
+        self.assertEqual(client.calls[-1][1], {"app": BUNDLE, "text": "abc", "element_index": 1, "windowId": 77})
         self.assertTrue(macos_cua._accepted(res))
 
     def test_type_text_newline_guard_kept(self):

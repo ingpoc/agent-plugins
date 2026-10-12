@@ -92,7 +92,9 @@ class AxFallbackContract(unittest.TestCase):
 
     def test_ax_match_refreshes_by_css_path_after_cursor_move(self):
         self.assertIn('match.via === "ax_fallback"', PARITY)
-        self.assertIn('{ locator: { by: "css", selector: match.selector } }', PARITY)
+        self.assertIn('selector: `[data-comet-ax-ref="${axRef}"]`', PARITY)
+        self.assertIn("item.name === match.name && item.role === match.role", PARITY)
+        self.assertIn("constrainAxNodes", PARITY)
 
     def test_runs_only_after_dom_miss(self):
         loop = PARITY[PARITY.index("const axWanted"):PARITY.index("if (operation === \"count\")")]

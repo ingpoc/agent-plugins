@@ -3595,8 +3595,12 @@ function unmatchedExpect(preds, evidence) {
       // field's direct read counts; a missing/unread target is a miss.
       const scope = String(pred.selector || evidence?.action_selector || "");
       if (scope) {
-        if (scope !== evidence?.value_selector || evidence?.selector_value == null) return pred;
-        if (!String(evidence.selector_value).toLowerCase().includes(want)) return pred;
+        const scoped = evidence?.selector_values?.[scope];
+        const fromFields = scoped && scoped.found ? scoped.value : null;
+        const fromFirst = scope === evidence?.value_selector ? evidence?.selector_value : null;
+        const got = fromFields != null ? fromFields : fromFirst;
+        if (got == null) return pred;
+        if (!String(got).toLowerCase().includes(want)) return pred;
         continue;
       }
       const values = (evidence?.inputs || []).map((input) => String(input?.value || "").toLowerCase());
@@ -3665,14 +3669,20 @@ async function collectExpectEvidence(preds, action, result, state) {
   if (preds.some((pred) => pred.kind === "value" || pred.kind === "text" || pred.kind === "not_text")) {
     sections.push("inputs");
   }
-  const valuePred = preds.find((pred) => pred.kind === "value" && (pred.selector || action.selector));
-  const valueSelector = valuePred ? String(valuePred.selector || action.selector || "") : "";
+  const valueSelectors = [...new Set(
+    preds
+      .filter((pred) => pred.kind === "value" && (pred.selector || action.selector))
+      .map((pred) => String(pred.selector || action.selector || ""))
+      .filter(Boolean)
+  )].slice(0, 20);
+  const valueSelector = valueSelectors[0] || "";
   const pcOptions = {
     compact: true,
     // Value checks read past the compact 8-input cap (bounded) and the target
     // field directly; the agent never sees this payload.
     ...(wantsValue ? { input_cap: EXPECT_INPUT_CAP, input_value_chars: EXPECT_INPUT_VALUE_CHARS } : {}),
     ...(valueSelector ? { field: valueSelector } : {}),
+    ...(valueSelectors.length ? { fields: valueSelectors } : {}),
   };
   const resp = await sendToContentScript(state.tabId, "getPageContext", [[...new Set(sections)], pcOptions], 0);
   const page = requireContentScriptResult(resp, "expect page context returned no result");
@@ -3694,7 +3704,8 @@ async function collectExpectEvidence(preds, action, result, state) {
   evidence.action_selector = String(action.selector || "");
   evidence.value_selector = valueSelector;
   // Only the exact selector's direct read counts (no name-based guess).
-  if (valuePred && page.field?.found) evidence.selector_value = page.field.value;
+  if (valueSelector && page.field?.found) evidence.selector_value = page.field.value;
+  if (page.fields && typeof page.fields === "object") evidence.selector_values = page.fields;
   return evidence;
 }
 

@@ -96,11 +96,23 @@ def tool_schemas() -> list[dict[str, Any]]:
         "suffix": {"type": "string"},
         "selection_type": {"type": "string"},
         "wait": {"type": "number", "minimum": 0, "maximum": 45},
+        "value": {"type": "string"},
+        "checked": {"type": "boolean"},
     }
     predicate = _schema({
         "text": {"type": "string", "minLength": 1},
         "not_text": {"type": "string", "minLength": 1},
         "path": {"type": "string", "minLength": 1},
+        "value": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["label"],
+            "properties": {
+                "label": {"type": "string", "minLength": 1},
+                "equals": {"type": "string"},
+                "text": {"type": "string"},
+            },
+        },
     })
     predicate["minProperties"] = 1
     expect_schema = {

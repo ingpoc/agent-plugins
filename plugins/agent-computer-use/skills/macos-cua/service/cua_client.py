@@ -240,8 +240,11 @@ class CUAClient:
     def click(self, app: str, **kwargs) -> dict:
         return self.call("click", {"app": app, **kwargs}, retry=False)
 
-    def press_key(self, app: str, key: str) -> dict:
-        return self.call("press_key", {"app": app, "key": key}, retry=False)
+    def press_key(self, app: str, key: str, window_id: int | None = None) -> dict:
+        params: dict[str, Any] = {"app": app, "key": key}
+        if window_id is not None:
+            params["windowId"] = int(window_id)
+        return self.call("press_key", params, retry=False)
 
     def type_text(self, app: str, text: str, after_new_document: bool = False) -> dict:
         params: dict[str, Any] = {"app": app, "text": text}
@@ -254,10 +257,15 @@ class CUAClient:
             "scroll", {"app": app, "direction": direction, **kwargs}, retry=False
         )
 
-    def set_value(self, app: str, element_index: int, value: str) -> dict:
-        return self.call("set_value", {
-            "app": app, "element_index": element_index, "value": value
-        }, retry=False)
+    def set_value(
+        self, app: str, element_index: int, value: str, window_id: int | None = None
+    ) -> dict:
+        params: dict[str, Any] = {
+            "app": app, "element_index": element_index, "value": value,
+        }
+        if window_id is not None:
+            params["windowId"] = int(window_id)
+        return self.call("set_value", params, retry=False)
 
     def drag(self, app: str, from_x: float, from_y: float,
              to_x: float, to_y: float) -> dict:
@@ -281,10 +289,14 @@ class CUAClient:
     def open_item(self, app: str, **kwargs) -> dict:
         return self.call("open_item", {"app": app, **kwargs}, retry=False)
 
-    def execute_plan(self, app: str, steps: list[dict]) -> dict:
-        return self.call(
-            "execute_plan", {"app": app, "steps": steps}, retry=False
-        )
+    def execute_plan(
+        self, app: str, steps: list[dict], window_id: int | None = None
+    ) -> dict:
+        params: dict[str, Any] = {"app": app, "steps": steps}
+        if window_id is not None:
+            params["windowId"] = int(window_id)
+            return self.call("execute_plan", params, retry=False)
+        return self.call("execute_plan", {"app": app, "steps": steps}, retry=False)
 
     def hide_agent_cursor(self) -> dict:
         return self.call("hide_agent_cursor") or {"ok": True}

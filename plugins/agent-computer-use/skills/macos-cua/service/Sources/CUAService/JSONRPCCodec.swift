@@ -23,6 +23,41 @@ struct JSONRPCRequest: Codable {
         if let v: Int = param(key) { return Double(v) }
         return nil
     }
+
+    /// CGWindowID is UInt32. A trapping `CGWindowID(Int)` on a negative or
+    /// overflowing JSON number would kill the sole backend; return an RPC error.
+    func paramCGWindowID(_ keys: String...) throws -> CGWindowID? {
+        for key in keys {
+            guard let raw = params?[key]?.value else { continue }
+            if raw is NSNull { continue }
+            if let value = raw as? Int {
+                if value == 0 { continue }
+                guard let id = UInt32(exactly: value) else {
+                    throw RPCMethodError(
+                        code: -32602,
+                        message: "windowId \(value) is not a valid CGWindowID"
+                    )
+                }
+                return CGWindowID(id)
+            }
+            if let value = raw as? Double {
+                guard value.isFinite, value >= 1, value <= Double(UInt32.max),
+                      value == value.rounded(), let id = UInt32(exactly: Int(value))
+                else {
+                    throw RPCMethodError(
+                        code: -32602,
+                        message: "windowId \(value) is not a valid CGWindowID"
+                    )
+                }
+                return CGWindowID(id)
+            }
+            throw RPCMethodError(
+                code: -32602,
+                message: "windowId must be an integer CGWindowID"
+            )
+        }
+        return nil
+    }
 }
 
 struct JSONRPCResponse: Codable {

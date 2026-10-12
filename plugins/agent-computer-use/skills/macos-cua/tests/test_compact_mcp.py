@@ -216,6 +216,82 @@ class CompactMcpDispatchTests(unittest.TestCase):
             )
         )
 
+    def test_value_expect_does_not_skip_sibling_text_and_lists_are_all_checked(self):
+        state = {"elements": [
+            {"element_index": 1, "role": "AXTextField", "label": "Name", "value": "Ada"},
+            {"element_index": 2, "role": "AXTextField", "label": "Email", "value": "ada@example.com"},
+        ]}
+        before = ""
+        after = '[1] AXTextField value="Ada"\n[2] AXStaticText value="saved"'
+        both = {"value": {"label": "Name", "equals": "Ada"}, "text": "saved"}
+        self.assertTrue(compact_mcp.expectation_is_new(both, before, after, None, state))
+        self.assertFalse(compact_mcp.expectation_is_new(
+            {"value": {"label": "Name", "equals": "Ada"}, "text": "missing"}, before, after, None, state
+        ))
+        expects = [
+            {"value": {"label": "Name", "equals": "Ada"}},
+            {"value": {"label": "Email", "equals": "ada@example.com"}},
+        ]
+        self.assertTrue(compact_mcp.expectation_is_new(expects, before, after, None, state))
+        self.assertFalse(compact_mcp.expectation_is_new(expects, before, after, None, None))
+
+    def test_focus_checkbox_and_wait_reresolve_stay_pinned(self):
+        clicks = []
+        fills = []
+
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def __init__(self):
+                        self.snaps = [
+                            {"text": "", "elements": []},
+                            {"text": "", "elements": [
+                                {"element_index": 1, "role": "AXCheckBox", "label": "Bacon", "value": 0},
+                                {"element_index": 9, "role": "AXTextField", "label": "City", "value": ""},
+                            ]},
+                            {"text": "", "elements": [
+                                {"element_index": 4, "role": "AXTextField", "label": "City", "value": ""},
+                            ]},
+                            {"text": '[4] AXTextField value="Pune"', "elements": [
+                                {"element_index": 4, "role": "AXTextField", "label": "City", "value": "Pune"},
+                            ]},
+                        ]
+
+                    def get_app_state(self, app, **kwargs):
+                        if kwargs.get("raiseForInput"):
+                            return {"app": app, "text": "front", "windowId": 44, "elements": []}
+                        snap = self.snaps.pop(0)
+                        return {"app": app, "windowId": 44, **snap}
+
+                    def execute_plan(self, app, steps, **kwargs):
+                        raise AssertionError(f"sequential plan must not execute_plan {kwargs}")
+
+                    def click(self, app, **kwargs):
+                        clicks.append(kwargs)
+                        return {"ok": True, "method": "ax-press"}
+
+                    def set_value(self, app, element, value, window_id=None):
+                        fills.append((element, value, window_id))
+                        return {"ok": True, "method": "ax-set-value"}
+
+                return fn(Client())
+
+        out = Backend().act("App", {
+            "steps": [
+                {"op": "focus"},
+                {"wait": 0},
+                {"action": "set_checked", "label": "Bacon", "checked": False},
+                {"action": "set_value", "label": "City", "value": "Pune"},
+            ],
+            "expect": [{"value": {"label": "City", "equals": "Pune"}}],
+        })
+        self.assertEqual(clicks, [])
+        self.assertTrue(out.get("ok"), out)
+        self.assertEqual(fills, [(4, "Pune", 44)])
+
     def test_state_dispatches_in_process_without_cli(self):
         calls = []
 
@@ -300,6 +376,9 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertIn("open", step_props["op"]["enum"])
         self.assertIn("scroll", step_props["op"]["enum"])
         self.assertEqual(step_props["path"]["type"], "string")
+        self.assertEqual(step_props["value"]["type"], "string")
+        self.assertEqual(step_props["checked"]["type"], "boolean")
+        self.assertEqual(props["expect"]["oneOf"][1]["properties"]["value"]["type"], "object")
 
     def test_exact_path_uses_one_native_plan_and_verifies_result(self):
         calls = []

@@ -92,6 +92,34 @@ final class RequestParamTests: XCTestCase {
         let missing: String? = request.param("nonexistent")
         XCTAssertNil(missing)
     }
+
+    func testParamCGWindowIDRejectsNegativeAndOverflow() throws {
+        let negative = """
+        {"jsonrpc":"2.0","method":"click","params":{"windowId":-1},"id":1}
+        """.data(using: .utf8)!
+        let overflow = """
+        {"jsonrpc":"2.0","method":"click","params":{"windowId":4294967296},"id":1}
+        """.data(using: .utf8)!
+        let ok = """
+        {"jsonrpc":"2.0","method":"click","params":{"windowId":42},"id":1}
+        """.data(using: .utf8)!
+        let negReq = try JSONDecoder().decode(JSONRPCRequest.self, from: negative)
+        let overReq = try JSONDecoder().decode(JSONRPCRequest.self, from: overflow)
+        let okReq = try JSONDecoder().decode(JSONRPCRequest.self, from: ok)
+        XCTAssertThrowsError(try negReq.paramCGWindowID("windowId"))
+        XCTAssertThrowsError(try overReq.paramCGWindowID("windowId"))
+        XCTAssertEqual(try okReq.paramCGWindowID("windowId"), 42)
+    }
+
+    func testPinPlanParamsCopiesWindowWithoutOverwrite() {
+        let pinned = MethodRouter.pinPlanParams(["element_index": 1], windowID: 77)
+        XCTAssertEqual(pinned["windowId"] as? Int, 77)
+        let own = MethodRouter.pinPlanParams(["windowId": 9], windowID: 77)
+        XCTAssertEqual(own["windowId"] as? Int, 9)
+        let snake = MethodRouter.pinPlanParams(["window_id": 9], windowID: 77)
+        XCTAssertNil(snake["windowId"])
+        XCTAssertEqual(snake["window_id"] as? Int, 9)
+    }
 }
 
 final class AppResolverTests: XCTestCase {

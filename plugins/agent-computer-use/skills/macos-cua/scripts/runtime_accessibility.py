@@ -87,11 +87,10 @@ _KEY_MODIFIERS = {"cmd", "shift", "option", "ctrl"}
 
 
 def press_key(pid, window_id, keys, delivery_mode="background"):
-    """Normalize a key/combo and deliver it through the CUAService socket.
+    """Normalize a key/combo and deliver it through CUAService, pinned to window_id.
 
-    cua-driver is retired: background and foreground both go to CUAService
-    press_key (it resolves and raises the app's window for input itself).
-    system_events stays the exact-PID osascript fallback.
+    Background, foreground, and system_events all use that pin. Native select-all,
+    osascript, and cua-driver are not side paths.
     """
     aliases = {
         "super": "cmd",
@@ -107,19 +106,15 @@ def press_key(pid, window_id, keys, delivery_mode="background"):
         return {"error": "keys must be a non-empty string or list of strings"}
     else:
         keys = keys.strip()
-    if delivery_mode == "system_events":
-        return _system_events_press_key(pid, keys, aliases=aliases)
+    # system_events, background cmd+a, and hold-key are not native side paths.
+    # Every combo goes through CUAService pinned to window_id (Codex r11).
     parts = [aliases.get(p.strip().lower(), p.strip().lower()) for p in keys.split("+")]
     if not all(parts) or any(p not in _KEY_MODIFIERS for p in parts[:-1]):
         return {"ok": False, "error": f"unsupported key combo {keys!r}; modifiers: cmd, shift, option, ctrl"}
-    if delivery_mode == "background" and parts == ["cmd", "a"]:
-        native = _verify_or_repair_native_select_all(pid)
-        if _accepted(native):
-            return native
-    return _cuaservice_press_key(pid, "+".join(parts))
+    return _cuaservice_press_key(pid, "+".join(parts), window_id=window_id)
 
 
-def _cuaservice_press_key(pid, combo):
+def _cuaservice_press_key(pid, combo, window_id=None):
     identity = _running_app_identity(f"pid:{pid}")
     if not identity:
         return {"ok": False, "error": f"no running app with pid {pid}", "engine": "CUAService"}
@@ -128,7 +123,7 @@ def _cuaservice_press_key(pid, combo):
         # Swift falls back to fuzzy name matching; that cannot pin a pid.
         return {
             "ok": False,
-            "error": f"pid {pid} has no bundle id; CUAService cannot target it exactly. Use --system-events (exact-PID).",
+            "error": f"pid {pid} has no bundle id; CUAService cannot target it exactly.",
             "engine": "CUAService",
         }
     # CUAService resolves by bundle id/name (first match). Never let it pick a
@@ -139,13 +134,13 @@ def _cuaservice_press_key(pid, combo):
             "ok": False,
             "error": (
                 f"{app} has instances {twins}; CUAService press_key cannot target "
-                f"pid {pid} exactly. Use --system-events (exact-PID) instead."
+                f"pid {pid} exactly."
             ),
             "engine": "CUAService",
         }
     client = _cuaservice_client()
     try:
-        result = client.press_key(app, combo)
+        result = client.press_key(app, combo, window_id=window_id)
     except Exception as exc:  # RPCError / socket failure: report, never swallow
         return {"ok": False, "error": f"CUAService press_key failed: {exc}", "engine": "CUAService"}
     finally:
@@ -181,15 +176,26 @@ def _post_key_event(pid, key_code, is_down, delivery_mode="background"):
 
 
 def hold_key(pid, key, duration, *, window_id=None, foreground=False):
-    return _native_input().hold_key(
-        post=_post_key_event,
-        prepare_foreground=bring_resolved_window_to_front,
-        key_codes=KEY_CODES,
-        pid=pid,
-        key=key,
-        duration=duration,
-        window_id=window_id,
-        foreground=foreground,
+    """Hold through CUAService, pinned to window_id. Native key-down is retired."""
+    del foreground  # CUAService raises the pinned window; no System Events front
+    normalized = str(key).lower()
+    if normalized not in KEY_CODES:
+        raise ValueError(
+            f"Unsupported hold key {key!r}; choose {', '.join(sorted(KEY_CODES))}"
+        )
+    if duration < 0.05 or duration > 10.0:
+        raise ValueError("duration must be between 0.05 and 10.0 seconds")
+    if window_id is None:
+        return {
+            "ok": False,
+            "accepted": False,
+            "error": "hold_key requires window_id",
+            "engine": "CUAService",
+        }
+    return _cuaservice_rpc(
+        pid,
+        "hold_key",
+        _pin_window({"key": normalized, "seconds": float(duration)}, window_id),
     )
 
 
@@ -513,7 +519,21 @@ def _resolve_native_ax_element(pid, snapshot_data, element_index):
     target_frame = target.get("frame") or {}
     root = services.AXUIElementCreateApplication(pid)
     _ax_set_timeout(root, services)
-    stack = [root]
+    roots = [
+        element["_native_element"]
+        for element in snapshot_data.get("elements", [])
+        if element.get("role") == "AXWindow" and element.get("_native_element") is not None
+    ]
+    if not roots:
+        wid = snapshot_data.get("window_id")
+        if wid is not None:
+            found = _unique_ax_windows(root, services, pid, wid)
+            if not found:
+                return None, f"pinned AX window {wid} is unavailable; refusing app-wide rematch"
+            roots = list(found)
+    if not roots:
+        return None, "refusing app-wide AX rematch without a pinned window"
+    stack = list(roots)
     best = None
     best_score = -1
     visited = 0

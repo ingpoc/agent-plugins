@@ -2734,51 +2734,47 @@ class OperatorUITests(unittest.TestCase):
 
 class KeyboardTests(unittest.TestCase):
     def test_background_cmd_a_requires_native_text_readback_when_available(self):
+        client = mock.Mock()
+        client.press_key.return_value = {"ok": True, "method": "cgevent-key-pid"}
+        identity = {"pid": 10, "name": "TextEdit", "bundle_id": "com.apple.TextEdit", "active": False}
         with (
             mock.patch.object(macos_cua, "call_driver") as driver,
-            mock.patch.object(
-                macos_cua,
-                "_verify_or_repair_native_select_all",
-                return_value={
-                    "ok": True,
-                    "path": "hotkey+native_ax_readback",
-                    "verified": True,
-                    "repaired": True,
-                },
-            ) as verify,
+            mock.patch.object(macos_cua, "_verify_or_repair_native_select_all") as verify,
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(macos_cua, "_running_app_identity", return_value=identity),
+            mock.patch.object(macos_cua, "_pids_for_app", return_value=[10]),
         ):
             result = macos_cua.press_key(10, 20, "cmd+a", "background")
 
-        self.assertTrue(result["verified"])
-        self.assertTrue(result["repaired"])
         driver.assert_not_called()
-        verify.assert_called_once_with(10)
+        verify.assert_not_called()
+        client.press_key.assert_called_once_with("com.apple.TextEdit", "cmd+a", window_id=20)
+        self.assertTrue(macos_cua._accepted(result))
 
     def test_system_events_key_targets_exact_pid_and_requires_readback(self):
-        completed = SimpleNamespace(returncode=0, stdout="", stderr="")
-        with mock.patch.object(
-            macos_cua.subprocess, "run", return_value=completed
-        ) as run:
-            result = macos_cua.press_key(
-                32734, 125239, "Return", "system_events"
-            )
+        client = mock.Mock()
+        client.press_key.return_value = {"ok": True, "method": "cgevent-key-pid"}
+        identity = {"pid": 32734, "name": "Chrome", "bundle_id": "com.google.Chrome", "active": False}
+        with (
+            mock.patch.object(macos_cua.subprocess, "run") as run,
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(macos_cua, "_running_app_identity", return_value=identity),
+            mock.patch.object(macos_cua, "_pids_for_app", return_value=[32734]),
+        ):
+            result = macos_cua.press_key(32734, 125239, "Return", "system_events")
 
-        command = run.call_args.args[0]
-        self.assertEqual(command[:2], ["osascript", "-e"])
-        self.assertIn("unix id is 32734", command[2])
-        self.assertIn("key code 36", command[2])
-        self.assertIs(run.call_args.kwargs["stdin"], macos_cua.subprocess.DEVNULL)
-        self.assertEqual(result["path"], "system_events_pid")
-        self.assertTrue(result["accepted"])
-        self.assertFalse(result["verified"])
+        run.assert_not_called()
+        client.press_key.assert_called_once_with("com.google.Chrome", "return", window_id=125239)
+        self.assertTrue(macos_cua._accepted(result))
+        self.assertEqual(result["engine"], "CUAService")
 
     def test_system_events_key_rejects_unknown_key_before_dispatch(self):
         with mock.patch.object(macos_cua.subprocess, "run") as run:
             result = macos_cua.press_key(
-                32734, 125239, "not-a-real-key", "system_events"
+                32734, 125239, "hyper+not-a-real-key", "system_events"
             )
         run.assert_not_called()
-        self.assertIn("unsupported System Events key", result["error"])
+        self.assertIn("unsupported key combo", result["error"])
 
     def _cuaservice(self, result=None, error=None):
         client = mock.Mock()
@@ -2799,7 +2795,7 @@ class KeyboardTests(unittest.TestCase):
         client, patches = self._cuaservice()
         with patches[0], patches[1], patches[2] as driver, patches[3] as front, patches[4]:
             result = macos_cua.press_key(10, 20, "super+shift+A", "foreground")
-        client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+shift+a")
+        client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+shift+a", window_id=20)
         client.close.assert_called_once()
         driver.assert_not_called()
         front.assert_not_called()  # CUAService raises the window for input itself
@@ -2810,7 +2806,7 @@ class KeyboardTests(unittest.TestCase):
         client, patches = self._cuaservice()
         with patches[0], patches[1], patches[2] as driver, patches[3], patches[4]:
             result = macos_cua.press_key(10, 20, "cmd+v")
-        client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+v")
+        client.press_key.assert_called_once_with("ai.perplexity.comet", "cmd+v", window_id=20)
         driver.assert_not_called()
         self.assertTrue(result["ok"])
 
@@ -2823,6 +2819,7 @@ class KeyboardTests(unittest.TestCase):
             [c.args for c in client.press_key.call_args_list],
             [("ai.perplexity.comet", "escape"), ("ai.perplexity.comet", "cmd+shift+a")],
         )
+        self.assertEqual([c.kwargs.get("window_id") for c in client.press_key.call_args_list], [20, 20])
 
     def test_unknown_modifier_fails_before_dispatch(self):
         client, patches = self._cuaservice()
@@ -2851,7 +2848,7 @@ class KeyboardTests(unittest.TestCase):
                 result = macos_cua.press_key(10, 20, "cmd+v")
         client.press_key.assert_not_called()
         self.assertFalse(macos_cua._accepted(result))
-        self.assertIn("--system-events", result["error"])
+        self.assertIn("instances", result["error"])
 
     def test_bundleless_target_fails_loud(self):
         identity = {"pid": 10, "name": "Helper", "bundle_id": "", "active": False}
@@ -2887,75 +2884,38 @@ class KeyboardTests(unittest.TestCase):
         self.assertIn("non-empty string", result["error"])
 
     def test_hold_key_posts_down_waits_and_posts_up(self):
-        calls = []
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_post_key_event",
-                side_effect=lambda pid, code, down, mode: calls.append(
-                    (pid, code, down, mode)
-                ),
-            ),
-            mock.patch.object(macos_cua.time, "sleep") as sleep,
-        ):
-            result = macos_cua.hold_key(10, "w", 0.75)
+        with mock.patch.object(
+            macos_cua, "_cuaservice_rpc", return_value={"ok": True, "method": "cgevent-hold-pid"}
+        ) as rpc:
+            result = macos_cua.hold_key(10, "w", 0.75, window_id=20)
 
         self.assertTrue(result["ok"])
-        self.assertEqual(
-            calls,
-            [(10, 13, True, "background"), (10, 13, False, "background")],
-        )
-        sleep.assert_called_once_with(0.75)
+        self.assertEqual(rpc.call_args.args[1], "hold_key")
+        self.assertEqual(rpc.call_args.args[2]["key"], "w")
+        self.assertEqual(rpc.call_args.args[2]["seconds"], 0.75)
+        self.assertEqual(rpc.call_args.args[2]["windowId"], 20)
 
     def test_hold_key_releases_after_wait_failure(self):
-        calls = []
-        with (
-            mock.patch.object(
-                macos_cua,
-                "_post_key_event",
-                side_effect=lambda pid, code, down, mode: calls.append(
-                    (pid, code, down, mode)
-                ),
-            ),
-            mock.patch.object(
-                macos_cua.time, "sleep", side_effect=RuntimeError("stop")
-            ),
-        ):
-            with self.assertRaises(RuntimeError):
-                macos_cua.hold_key(10, "w", 0.5)
-
-        self.assertEqual(
-            calls,
-            [(10, 13, True, "background"), (10, 13, False, "background")],
-        )
+        refused = macos_cua.hold_key(10, "w", 0.75)
+        self.assertFalse(refused["ok"])
+        self.assertIn("window_id", refused["error"])
+        with mock.patch.object(macos_cua, "_cuaservice_rpc") as rpc:
+            with self.assertRaises(ValueError):
+                macos_cua.hold_key(10, "w", 0.01, window_id=20)
+        rpc.assert_not_called()
 
     def test_hold_key_foreground_fronts_window_and_targets_pid(self):
-        calls = []
         with (
+            mock.patch.object(macos_cua, "bring_resolved_window_to_front") as foreground,
             mock.patch.object(
-                macos_cua,
-                "bring_resolved_window_to_front",
-                return_value={"ok": True},
-            ) as foreground,
-            mock.patch.object(
-                macos_cua,
-                "_post_key_event",
-                side_effect=lambda pid, code, down, mode: calls.append(
-                    (pid, code, down, mode)
-                ),
-            ),
-            mock.patch.object(macos_cua.time, "sleep"),
+                macos_cua, "_cuaservice_rpc", return_value={"ok": True, "method": "cgevent-hold-pid"}
+            ) as rpc,
         ):
-            result = macos_cua.hold_key(
-                10, "w", 0.25, window_id=20, foreground=True
-            )
+            result = macos_cua.hold_key(10, "w", 0.25, window_id=20, foreground=True)
 
-        foreground.assert_called_once_with(10, 20)
-        self.assertEqual(result["delivery_mode"], "foreground_pid")
-        self.assertEqual(
-            calls,
-            [(10, 13, True, "foreground_pid"), (10, 13, False, "foreground_pid")],
-        )
+        foreground.assert_not_called()
+        self.assertTrue(result["ok"])
+        self.assertEqual(rpc.call_args.args[2]["windowId"], 20)
 
     def test_physical_pointer_warp_path_is_not_present(self):
         source = SCRIPT.read_text()
@@ -3510,34 +3470,25 @@ class PrimitiveContractTests(unittest.TestCase):
         self.assertEqual(sleep.call_count, 2)
 
     def test_secondary_action_uses_click_action_field(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
-
+        with (
+            mock.patch.object(macos_cua, "require_cuaservice_window", return_value=None),
+            mock.patch.object(macos_cua, "_cuaservice_rpc", return_value={"ok": True}) as rpc,
+            mock.patch.object(macos_cua, "call_driver") as driver,
+        ):
             macos_cua.perform_action(10, 20, 30, "open")
-
-            self.assertEqual(calls[0][0], "click")
-            self.assertEqual(calls[0][1]["action"], "open")
-            self.assertEqual(calls[0][1]["element_index"], 30)
-        finally:
-            macos_cua.call_driver = original_call_driver
+        driver.assert_not_called()
+        self.assertEqual(rpc.call_args.args[1], "perform_secondary_action")
+        self.assertEqual(rpc.call_args.args[2]["action"], "AXOpen")
+        self.assertEqual(rpc.call_args.args[2]["element_index"], 30)
+        self.assertEqual(rpc.call_args.args[2]["windowId"], 20)
 
     def test_secondary_action_normalizes_advertised_showmenu(self):
-        calls = []
-        original_call_driver = macos_cua.call_driver
-        try:
-            macos_cua.call_driver = lambda tool, params: (
-                calls.append((tool, params)) or {"ok": True}
-            )
-
+        with (
+            mock.patch.object(macos_cua, "require_cuaservice_window", return_value=None),
+            mock.patch.object(macos_cua, "_cuaservice_rpc", return_value={"ok": True}) as rpc,
+        ):
             macos_cua.perform_action(10, 20, 30, "Show Menu")
-
-            self.assertEqual(calls[0][1]["action"], "show_menu")
-        finally:
-            macos_cua.call_driver = original_call_driver
+        self.assertEqual(rpc.call_args.args[2]["action"], "AXShowMenu")
 
     def test_secondary_action_accepts_native_ax_action_name(self):
         services = SimpleNamespace(

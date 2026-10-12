@@ -45,13 +45,26 @@ def click_point(
     return out
 
 
-def _native_double_click_point(pid, screen_point):
+def _native_double_click_point(pid, screen_point, window_id=None):
+    """Double-click through CUAService (landing gate + PostEvent preflight)."""
     if not isinstance(screen_point, dict):
         return {"ok": False, "error_code": "unsupported_click",
                 "error": "double-click needs an element (verified screen point); raw pixel double-click is retired"}
-    result = _native_input().post_mouse_click(pid, screen_point, button="left", count=2)
+    result = _cuaservice_rpc(
+        pid,
+        "click",
+        _pin_window(
+            {
+                "x": float(screen_point["x"]),
+                "y": float(screen_point["y"]),
+                "click_count": 2,
+            },
+            window_id,
+        ),
+    )
     error = result.get("error") if isinstance(result, dict) else None
-    return {"ok": not error, "path": "verified-screen-point+native-pid-mouse", "result": result}
+    ok = not error and result.get("ok") is not False
+    return {**result, "ok": ok, "path": "cuaservice-double-click", "result": result}
 
 
 def double_click(
@@ -162,7 +175,9 @@ def double_click(
     }
     if verified_screen_point is not None:
         click_options["verified_screen_point"] = verified_screen_point
-    point_result = _native_double_click_point(pid, click_options.get("verified_screen_point"))
+    point_result = _native_double_click_point(
+        pid, click_options.get("verified_screen_point"), window_id=window_id
+    )
     if element_index is None or (element or {}).get("role") not in {
         "AXTextArea",
         "AXTextField",
@@ -195,37 +210,12 @@ def double_click(
         selection = selected_range()
     if selection and selection["length"] > 0:
         return {**point_result, "verified": True, "selection": selection}
-
-    _cleanup_driver_cursors()
-    fallback = call_driver(
-        "click",
-        {
-            "pid": pid,
-            "window_id": window_id,
-            "x": float(x),
-            "y": float(y),
-            "button": "left",
-            "count": 2,
-            "delivery_mode": "background",
-        },
-    )
-    _cleanup_driver_cursors()
-    deadline = time.monotonic() + 0.6
-    selection = selected_range()
-    while (not selection or selection["length"] <= 0) and time.monotonic() < deadline:
-        time.sleep(0.05)
-        selection = selected_range()
-    verified = bool(selection and selection["length"] > 0)
     return {
-        "ok": verified,
-        "accepted": _accepted(fallback),
-        "verified": verified,
-        "path": "native-target-pid+driver-window-local-fallback",
+        **point_result,
+        "ok": False,
+        "verified": False,
         "selection": selection,
-        "native": point_result,
-        "driver": fallback,
-        "system_cursor_used": fallback.get("system_cursor_used"),
-        "error": None if verified else "double-click did not select text",
+        "error": "double-click did not select text",
     }
 
 
