@@ -51,6 +51,7 @@ class BrowserUseCDPBridge:
         self._client_lock = threading.Lock()
         self._client_active = False
         self._active_websocket: ServerConnection | None = None
+        self._handler_threads: set[threading.Thread] = set()
 
     def start(self, env_file: Path) -> dict[str, str]:
         self._server_thread.start()
@@ -70,11 +71,20 @@ class BrowserUseCDPBridge:
     def stop(self) -> None:
         with self._client_lock:
             active = self._active_websocket
+            handlers = [
+                thread
+                for thread in self._handler_threads
+                if thread is not threading.current_thread()
+            ]
         if active is not None:
             active.close(code=1001, reason="Comet Control closeout")
         self.server.shutdown()
         if self._server_thread.is_alive():
             self._server_thread.join(timeout=2)
+        # The handler hides the cursor in finally, after its event pump joins
+        # (up to 2s). Closeout must observe that hide before stop returns.
+        for thread in handlers:
+            thread.join(timeout=5)
 
     def _target_info(self) -> dict[str, Any]:
         page = self.page_info()
@@ -211,6 +221,16 @@ class BrowserUseCDPBridge:
             websocket.close(code=1011, reason="Comet CDP event stream interrupted")
 
     def _handle(self, websocket: ServerConnection) -> None:
+        thread = threading.current_thread()
+        with self._client_lock:
+            self._handler_threads.add(thread)
+        try:
+            self._handle_client(websocket)
+        finally:
+            with self._client_lock:
+                self._handler_threads.discard(thread)
+
+    def _handle_client(self, websocket: ServerConnection) -> None:
         if not secrets.compare_digest(urlsplit(websocket.request.path).path, self.path):
             websocket.close(code=1008, reason="invalid bridge capability")
             return

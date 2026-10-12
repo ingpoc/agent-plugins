@@ -290,8 +290,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.14")
-        self.assertIn('__version__ = "0.1.14"', init)
+        self.assertEqual(plugin["version"], "0.1.15")
+        self.assertIn('__version__ = "0.1.15"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -2129,6 +2129,60 @@ class CursorDestTests(unittest.TestCase):
             self.assertEqual(server["command"], str(launcher.resolve()))
             self.assertEqual(server["cwd"], "./")
             self.assertEqual(cursor_dest_problems([dest]), [])
+
+    def test_sh_resolver_override_is_healthy_and_malformed_sh_is_not(self) -> None:
+        sys.path.insert(0, str(ROOT))
+        from context_ledger.cursor_dest import cursor_dest_problems
+
+        def write(server: dict) -> Path:
+            dest = root / "dest"
+            dest.mkdir(parents=True, exist_ok=True)
+            (dest / "mcp.json").write_text(
+                json.dumps({"mcpServers": {"context-ledger": server}}),
+                encoding="utf-8",
+            )
+            return dest
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            healthy = {
+                "type": "stdio",
+                "command": "sh",
+                "args": [
+                    "-c",
+                    'root=$1; exec "$root/bin/context-ledger-mcp" "$@"',
+                    "context-ledger-mcp",
+                    "${CURSOR_PLUGIN_ROOT}",
+                    "serve",
+                ],
+            }
+            self.assertEqual(cursor_dest_problems([write(healthy)]), [])
+            with_cwd = {**healthy, "cwd": "./"}
+            self.assertIn("cwd", cursor_dest_problems([write(with_cwd)])[0]["issues"])
+            dollar = {
+                **healthy,
+                "args": [
+                    "-c",
+                    'exec "${CURSOR_PLUGIN_ROOT}/bin/context-ledger-mcp"',
+                    "context-ledger-mcp",
+                    "${CURSOR_PLUGIN_ROOT}",
+                    "serve",
+                ],
+            }
+            issues = cursor_dest_problems([write(dollar)])[0]["issues"]
+            self.assertIn("relative_command", issues)
+            or_true = {
+                **healthy,
+                "args": ["-c", "false || true", "context-ledger-mcp", "${CURSOR_PLUGIN_ROOT}", "serve"],
+            }
+            self.assertIn("relative_command", cursor_dest_problems([write(or_true)])[0]["issues"])
+            wrong_root = {
+                **healthy,
+                "args": ["-c", "exec true", "context-ledger-mcp", "${PLUGIN_ROOT}", "serve"],
+            }
+            issues = cursor_dest_problems([write(wrong_root)])[0]["issues"]
+            self.assertIn("literal_plugin_token", issues)
+            self.assertIn("relative_command", issues)
 
     def test_cursor_override_dest_and_legacy_rewrite(self) -> None:
         sys.path.insert(0, str(ROOT))
