@@ -206,8 +206,19 @@ class BridgeTests(_ServerCase):
         self._assert_token_hidden(proc)
         payload = json.loads(proc.stdout)
         self.assertEqual(payload["id"], 5)
-        self.assertEqual(payload["error"]["message"], "UNAUTHORIZED")
+        self.assertTrue(payload["error"]["message"].startswith("UNAUTHORIZED"), payload)
+        self.assertIn("CONTEXT_LEDGER_MCP_TOKEN", payload["error"]["message"])
         self.assertNotIn("ok", payload)
+
+    def test_401_names_server_auth_code(self) -> None:
+        body = b'{"ok":false,"error":{"code":"AUTH_INVALID","message":"bearer token does not match"}}'
+        url = self._start([{"status": 401, "body": body}])
+        with tempfile.TemporaryDirectory() as tmp:
+            env = self._env(Path(tmp), CONTEXT_LEDGER_MCP_TOKEN=TOKEN, CONTEXT_LEDGER_MCP_URL=url)
+            proc = self._bridge('{"jsonrpc":"2.0","id":6,"method":"find"}\n', env)
+        self._assert_token_hidden(proc)
+        payload = json.loads(proc.stdout)
+        self.assertIn("AUTH_INVALID", payload["error"]["message"])
 
     def test_401_notification_is_stderr_only(self) -> None:
         url = self._start([{"status": 401, "body": b""}])

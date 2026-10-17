@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -119,6 +120,24 @@ class LedgerLoopBase(unittest.TestCase):
         return r.stdout
 
 
+class GateTests(LedgerLoopBase):
+    def test_gated_out_one_word_passes_without_lookup(self) -> None:
+        r = self.run_loop("close", self.task, "--gated-out", "simple")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(r.stdout.startswith(f"PASS {self.task}: gated out (simple)"), r.stdout)
+
+    def test_gated_out_needs_one_word(self) -> None:
+        r = self.run_loop("close", self.task, "--gated-out", "two words")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("one lowercase word", r.stderr)
+
+    def test_placeholder_task_id_rejected(self) -> None:
+        for bad in ("TASK_ID", "<task>", "todo", "00000000-0000-0000-0000-000000000000", "11111111-1111-1111-1111-111111111111"):
+            r = self.run_loop("close", bad, "--gated-out", "simple")
+            self.assertNotEqual(r.returncode, 0, bad)
+            self.assertIn("task_id", r.stderr)
+
+
 class StoreModeTests(LedgerLoopBase):
     def test_close_without_start_fails(self) -> None:
         self.assert_fail(self.run_loop("close", self.task), "no start lookup")
@@ -197,14 +216,17 @@ class StoreModeTests(LedgerLoopBase):
         self.start()
         db = Path(json.loads((self.data / "binding.json").read_text())["ledger_dir"]) / "ledger.sqlite3"
         db.rename(db.with_suffix(".moved"))
-        self.assert_fail(self.run_loop("close", self.task), f"ledger unreadable at {db}", code=2)
+        self.assert_fail(self.run_loop("close", self.task, "--audit"), "ledger unreadable", code=2)
+        r = self.run_loop("close", self.task)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("WARN fail-open", r.stdout)
 
     def test_unbound_without_token_fails_loud(self) -> None:
         empty = Path(self._tmp.name) / "unbound"
         empty.mkdir(mode=0o700)
         r = self.run_loop("start", self.task, "--bot", "t", "--query", "q", data=empty)
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assert_fail(self.run_loop("close", self.task, data=empty), "CONTEXT_LEDGER_MCP_TOKEN empty", code=2)
+        self.assert_fail(self.run_loop("close", self.task, "--audit", data=empty), "CONTEXT_LEDGER_MCP_TOKEN empty", code=2)
 
 
 TOKEN = "t" * 40
@@ -215,6 +237,7 @@ class _FakeMcp(BaseHTTPRequestHandler):
 
     store: Store
     sse = False
+    delay = 0.0
 
     def log_message(self, *args) -> None:  # noqa: ANN002
         return
@@ -229,11 +252,20 @@ class _FakeMcp(BaseHTTPRequestHandler):
             self.send_response(202)
             self.end_headers()
             return
+        if self.delay:
+            time.sleep(self.delay)
         if msg["method"] == "initialize":
             result = {"protocolVersion": "2025-06-18", "capabilities": {}, "serverInfo": {"name": "fake"}}
         else:
+            name = msg["params"]["name"]
+            args = msg["params"]["arguments"]
             try:
-                payload = ok(self.store.get(msg["params"]["arguments"], mcp=True))
+                if name == "find":
+                    payload = ok(self.store.find(args, mcp=True))
+                elif name == "save":
+                    payload = ok(self.store.save(args, mcp=True))
+                else:
+                    payload = ok(self.store.get(args, mcp=True))
             except LedgerError as exc:
                 payload = fail_dict(exc)
             result = {"content": [{"type": "text", "text": canonical_json(payload)}],
@@ -316,8 +348,53 @@ class RemoteModeTests(LedgerLoopBase):
         self.box_start([])
         self.httpd.shutdown()
         self.httpd.server_close()
+        self.assert_fail(self.box_run("close", self.task, "--audit"), "ledger unreadable", code=2)
         r = self.box_run("close", self.task)
-        self.assert_fail(r, f"ledger unreadable at {self.url}", code=2)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("WARN fail-open", r.stdout)
+
+    def test_find_server_down_fails_open_in_one_line(self) -> None:
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        r = self.box_run("find", self.task, "--bot", "box", "--query", "codex model rejected")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)["matches"], [])
+        self.assertEqual(len(r.stderr.strip().splitlines()), 1)
+        self.assertTrue(r.stderr.startswith("WARN ledger find skipped"), r.stderr)
+
+    def test_find_slow_server_fails_open_within_deadline(self) -> None:
+        self.handler.delay = 3.0
+        t0 = time.monotonic()
+        r = self.box_run("find", self.task, "--bot", "box", "--query", "codex model rejected")
+        took = time.monotonic() - t0
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue(r.stderr.startswith("WARN ledger find skipped"), r.stderr)
+        self.assertLess(took, 2.9)
+
+    def test_find_audit_mode_fails_loud(self) -> None:
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        r = self.box_run("find", self.task, "--bot", "box", "--query", "codex model rejected", "--audit")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertTrue(r.stderr.startswith("FAIL "), r.stderr)
+
+    def test_find_then_save_remote(self) -> None:
+        r = self.box_run("save", self.task, "--bot", "box", "--type", "agent_conclusion", "--crit", "4",
+                         "--decision", "Codex ChatGPT login rejects gpt-6.1-sol; use an API-key login",
+                         "--why", "HTTP 400 model not supported with a ChatGPT account",
+                         "--entity", "codex-cli")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        saved = json.loads(r.stdout)
+        self.assertTrue(saved["saved"], saved)
+        r = self.box_run("find", self.task, "--bot", "box", "--query", "codex rejects model with chatgpt account")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)["matches"][0]["decision_id"], saved["decision_id"])
+
+    def test_save_rejects_long_decision_loudly(self) -> None:
+        r = self.box_run("save", self.task, "--bot", "box", "--type", "agent_conclusion", "--crit", "3",
+                         "--decision", " ".join(["word"] * 16), "--why", "short why", "--entity", "x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("max 15", r.stderr)
 
 
 if __name__ == "__main__":

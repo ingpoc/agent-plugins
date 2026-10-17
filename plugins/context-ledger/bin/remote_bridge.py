@@ -188,6 +188,17 @@ def _post(url: str, payload: bytes, token: str, timeout: float, session: dict[st
         return exc.code, exc.headers, exc.read()
 
 
+def _auth_message(body: bytes) -> str:
+    """The server's named auth error (AUTH_MISSING / AUTH_INVALID), never an empty result."""
+    try:
+        err = json.loads(body.decode("utf-8")).get("error") or {}
+    except (UnicodeError, json.JSONDecodeError, AttributeError):
+        err = {}
+    code = err.get("code") or "UNAUTHORIZED"
+    msg = err.get("message") or "check CONTEXT_LEDGER_MCP_TOKEN; this is an auth failure, not an empty result"
+    return f"{code}: {msg}"
+
+
 def _is_find_call(message: dict) -> bool:
     if message.get("method") != "tools/call":
         return False
@@ -224,7 +235,7 @@ def _probe_ledger(url: str, token: str, timeout: float, session: dict[str, str])
         return f"ledger unreachable at {url} ({_cause(exc)})"
     _capture(headers, session)
     if status == 401:
-        return f"UNAUTHORIZED ledger at {url}"
+        return f"UNAUTHORIZED ledger at {url}: {_auth_message(body)}"
     if _probe_succeeded(status, headers, body):
         return None
     if 200 <= status < 300:
@@ -263,7 +274,7 @@ def _forward(message: dict, url: str, token: str, timeout: float, session: dict[
         return
     _capture(headers, session)
     if status == 401:
-        _fail(is_request, req_id, "UNAUTHORIZED", "UNAUTHORIZED", retryable=False)
+        _fail(is_request, req_id, "UNAUTHORIZED", _auth_message(body), retryable=False)
         return
     if status == 202 or not body.strip():
         return

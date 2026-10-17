@@ -54,6 +54,7 @@ class OutcomeModel(Closed):
     evidence: list[EvidenceModel] = Field(max_length=4)
     task_id: Uuid | None = None
     applied_event_id: Uuid | None = None
+    helpful: bool | None = None
 
 
 class CorrectedPayloadModel(Closed):

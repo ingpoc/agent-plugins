@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.24
+
+`find` ranks by text match (BM25 plus a coverage floor) and returns nothing rather than an off-topic record; confidence only breaks ties. Replies are compact cards within 1,200 bytes, sent once. `save` records a compact trace: `user_decision` (Guru's override with its why, ranked first) or `agent_conclusion` (why plus criticality), with typed fields and precedent links; long text is rejected, never trimmed. Every find and get is logged per caller. Auth failures are named errors. `ledger_loop.py` is gated, has a 2 s fail-open deadline, and supports `close --gated-out WORD`.
+
 ## 0.1.23
 
 `browse` cards use the same visibility as `get`. A model-safe decision superseded by a `local_only` decision does not reveal that id, and a conflict that only names a hidden decision does not set `has_conflict`. The ledger view drops a list or detail reply that is older than the current filter or selection. `offset` reads a later page (0 through 20000) at the existing limit of 24. The view requests that next page when `has_more` is set. A failed browse clears the list, the selection, and the detail, and shows the failure with Retry. A browse or get with no reply within 8 seconds leaves the pending set and can be retried.

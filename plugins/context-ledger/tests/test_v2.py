@@ -1,0 +1,275 @@
+"""v2 retrieval: text-first ranking with a relevance floor, user_decision first, compact traces."""
+
+from __future__ import annotations
+
+import contextlib
+import io
+import json
+import sys
+import tempfile
+import unittest
+import uuid
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+
+from context_ledger.contracts import MAX_FIND_BYTES, LedgerError, canonical_json  # noqa: E402
+from context_ledger.store import Store, init_ledger  # noqa: E402
+
+
+def _u() -> str:
+    return str(uuid.uuid4())
+
+
+def _legacy(summary: str, rationale: str = "legacy reason", entities=None, applicability="any") -> dict:
+    return {
+        "kind": "decision", "summary": summary, "situation": summary, "action": summary,
+        "rationale": rationale, "constraints": [], "applicability": applicability,
+        "entities": entities or ["legacy"], "evidence": [], "sensitivity": "model_safe",
+        "approval": {"state": "none", "authority_ref": None},
+    }
+
+
+class V2Base(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.data = Path(self._tmp.name) / "data"
+        self.data.mkdir(mode=0o700)
+        init_ledger(self.data, None, "v2-test", "tester")
+        self.store = Store(self.data, actor_channel="agent")
+        self._quiet = contextlib.redirect_stderr(io.StringIO())
+        self.log = self._quiet.__enter__()
+
+    def tearDown(self) -> None:
+        self._quiet.__exit__(None, None, None)
+        self.store.close()
+        self._tmp.cleanup()
+
+    def legacy(self, summary: str, **kw) -> str:
+        return self.store.record(
+            {"request_id": _u(), "occurred_at": None, "body": _legacy(summary, **kw),
+             "outcome": {"status": "pending", "note": "", "evidence": []}},
+            mcp=True,
+        )["decision_id"]
+
+    def save(self, **kw) -> str:
+        args = {"request_id": _u(), "type": "agent_conclusion", "criticality": 3, "actor": "test-bot",
+                "entities": ["codex-cli"], **kw}
+        return self.store.save(args, mcp=True)["decision_id"]
+
+    def find(self, query: str, **kw) -> dict:
+        return self.store.find({"query": query, **kw}, mcp=True)
+
+    def ids(self, query: str, **kw) -> list[str]:
+        return [m["decision_id"] for m in self.find(query, **kw)["matches"]]
+
+
+class RankingThresholdTests(V2Base):
+    def setUp(self) -> None:
+        super().setUp()
+        # A high-confidence, success record about something else entirely (the ORN problem).
+        self.offtopic = self.legacy(
+            "ORN forge is Cursor Origin; CI runs on a Mini launchd reporter",
+            rationale="Owner decision for open resource network merges",
+            entities=["open-resource-network"],
+        )
+        for i in range(4):
+            self.legacy(f"Unrelated fixture number {i} about travel quotes and fares")
+        self.codex = self.save(
+            decision="Mini Codex ChatGPT login rejects gpt-6.1-sol; use an API-key login",
+            why="HTTP 400 says the model is not supported with a ChatGPT account",
+        )
+
+    def test_off_topic_query_returns_nothing(self) -> None:
+        for q in ("FPL captain pick for this gameweek", "weekly digest of new AI model releases",
+                  "smallcase rebalance sell a stock that dropped"):
+            self.assertEqual(self.find(q)["matches"], [], q)
+
+    def test_one_shared_common_word_is_below_the_floor(self) -> None:
+        # "Mini" appears in both records, but one generic word is not relevance.
+        self.assertNotIn(self.offtopic, self.ids("Mini fan noise is loud tonight"))
+
+    def test_natural_problem_query_finds_the_record_first(self) -> None:
+        got = self.find("codex exec fails: model not supported with my ChatGPT account")
+        self.assertEqual(got["matches"][0]["decision_id"], self.codex)
+        self.assertIn("ChatGPT account", got["matches"][0]["why"])
+
+    def test_confidence_never_lifts_an_off_topic_record(self) -> None:
+        rev = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]["revision"]
+        for _ in range(3):
+            task = _u()
+            applied = self.store.append_event(
+                {"request_id": _u(), "decision_id": self.offtopic, "expected_revision": rev, "occurred_at": None,
+                 "event_type": "applied", "payload": {"task_id": task, "decision_ids": [self.offtopic]}}, mcp=True)
+            rev += 1
+            self.store.append_event(
+                {"request_id": _u(), "decision_id": self.offtopic, "expected_revision": rev, "occurred_at": None,
+                 "event_type": "outcome", "payload": {"status": "success", "note": "ok", "evidence": [],
+                                                      "task_id": task, "applied_event_id": applied["event_id"]}},
+                mcp=True)
+            rev += 1
+        got = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]
+        self.assertEqual(got["confidence"]["score"], 1.0)
+        self.assertEqual(self.ids("codex model not supported with ChatGPT account"), [self.codex])
+
+    def test_hourly_check_in_outcomes_do_not_count(self) -> None:
+        rev = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]["revision"]
+        for hour in range(3):
+            self.store.append_event(
+                {"request_id": _u(), "decision_id": self.offtopic, "expected_revision": rev, "occurred_at": None,
+                 "event_type": "outcome", "payload": {"status": "success", "note": f"Hourly {hour}:00 check-in",
+                                                      "evidence": [], "task_id": _u()}}, mcp=True)
+            rev += 1
+        conf = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]["confidence"]
+        self.assertEqual(conf["sample_count"], 0)
+
+    def test_entities_and_constraints_are_optional(self) -> None:
+        self.assertEqual(self.find("codex chatgpt account")["matches"][0]["decision_id"], self.codex)
+
+    def test_stop_words_only_query_is_a_named_error(self) -> None:
+        with self.assertRaises(LedgerError) as ctx:
+            self.find("how do I do it")
+        self.assertIn("query words", ctx.exception.message)
+
+
+class UserDecisionRankingTests(V2Base):
+    def test_user_decision_outranks_agent_conclusion_on_equal_match(self) -> None:
+        agent = self.save(decision="Kite reads for WH6470 go through Mini Comet",
+                          why="The Kite MCP needs authorize links on every session",
+                          entities=["kite"], criticality=5)
+        guru = self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
+                         why="Guru standing rule: never the Kite MCP for funds or holdings",
+                         entities=["kite"], criticality=None, approver="guru")
+        self.assertEqual(self.ids("kite reads for WH6470 through comet")[:2], [guru, agent])
+
+    def test_user_decision_below_the_floor_is_not_returned(self) -> None:
+        self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
+                  why="Guru standing rule for Zerodha", entities=["kite"], approver="guru")
+        self.assertEqual(self.find("IRCTC tatkal captcha keeps failing")["matches"], [])
+
+    def test_hit_is_compact_and_has_no_duplicate_fields(self) -> None:
+        self.save(type="user_decision", decision="Private X items use the signed-in Comet path",
+                  why="Guru 2026-10-14: bookmarks redirect unless signed in; public reads use x connector",
+                  entities=["x.com"], rule="x-read-path", exception="private items", approver="guru")
+        hit = self.find("x bookmarks redirect")["matches"][0]
+        self.assertEqual(hit["type"], "user_decision")
+        self.assertEqual(hit["override_by"], "guru")
+        self.assertNotIn("summary", hit)
+        self.assertNotIn("applicability", hit)
+        values = [v for v in hit.values() if isinstance(v, str)]
+        self.assertEqual(len(values), len(set(values)), hit)
+
+
+class TraceLimitTests(V2Base):
+    def assert_rejected(self, needle: str, **kw) -> None:
+        with self.assertRaises(LedgerError) as ctx:
+            self.save(**kw)
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+        self.assertIn(needle, ctx.exception.message)
+        self.assertIn("nothing was saved", ctx.exception.message)
+        self.assertEqual(self.store.open().execute("select count(*) from events").fetchone()[0], 0)
+
+    def test_decision_over_15_words_is_rejected_not_trimmed(self) -> None:
+        self.assert_rejected("decision is 16 words; max 15", decision=" ".join(["word"] * 16), why="short why")
+
+    def test_why_over_20_words_is_rejected(self) -> None:
+        self.assert_rejected("why is 21 words; max 20", decision="short decision", why=" ".join(["w"] * 21))
+
+    def test_multi_line_fields_are_rejected(self) -> None:
+        self.assert_rejected("one line", decision="first line\nsecond line", why="short why")
+        self.assert_rejected("one line", decision="short", why="why\nmore")
+
+    def test_why_is_required(self) -> None:
+        self.assert_rejected("why is required", decision="short decision", why="")
+
+    def test_agent_conclusion_needs_criticality(self) -> None:
+        self.assert_rejected("criticality", decision="short decision", why="short why", criticality=None)
+
+    def test_user_decision_needs_guru_as_approver(self) -> None:
+        self.assert_rejected("approver guru", type="user_decision", decision="short", why="short why",
+                             approver="smm-bot")
+
+    def test_exactly_at_the_limits_is_saved(self) -> None:
+        did = self.save(decision=" ".join(["w"] * 15), why=" ".join(["y"] * 20))
+        rec = self.store.get({"decision_id": did}, mcp=True)["record"]
+        self.assertEqual(rec["body"]["trace"]["criticality"], 3)
+        self.assertEqual(rec["provenance"]["actor_id"], "test-bot")
+
+    def test_precedent_must_exist(self) -> None:
+        self.assert_rejected("precedent", decision="short decision", why="short why", precedent_ids=[_u()])
+
+
+class LinksAndSignalsTests(V2Base):
+    def test_find_surfaces_linked_precedent_once(self) -> None:
+        base = self.save(decision="Mini Codex ChatGPT login rejects gpt-6.1-sol",
+                         why="HTTP 400 model not supported with a ChatGPT account", entities=["codex-cli"])
+        ud = self.save(type="user_decision", decision="Review with Opus 5.5 until Codex API-key login works",
+                       why="Guru rule: gpt-6-astra or 6.1-sol reviews, Opus 5.5 fallback",
+                       entities=["codex-cli"], approver="guru", precedent_ids=[base])
+        got = self.find("codex review blocked, which reviewer now", limit=1)
+        self.assertEqual(got["matches"][0]["decision_id"], ud)
+        self.assertEqual(got["matches"][0]["related"], [{"id": base, "decision": "Mini Codex ChatGPT login rejects gpt-6.1-sol"}])
+
+    def test_off_topic_link_is_not_surfaced(self) -> None:
+        other = self.save(decision="Travel quotes go stale after a day", why="fares move", entities=["travel"])
+        hit = self.save(decision="Kite reads go through Mini Comet", why="Guru rule", entities=["kite"],
+                        precedent_ids=[other])
+        got = self.find("kite reads comet")
+        self.assertEqual(got["matches"][0]["decision_id"], hit)
+        self.assertNotIn("related", got["matches"][0])
+
+    def test_repeated_rule_and_exception_counts_as_automation_candidate(self) -> None:
+        for i in range(3):
+            self.save(decision=f"Skipped Kite MCP for WH6470 read {i}", why="Guru rule applies",
+                      entities=["kite"], rule="kite-via-comet", exception="none")
+        hit = self.find("kite mcp WH6470 read")["matches"][0]
+        self.assertEqual(hit["repeats"], 3)
+
+    def test_find_and_get_are_logged_with_caller_query_count_and_bytes(self) -> None:
+        did = self.save(decision="Kite reads go through Mini Comet", why="Guru rule", entities=["kite"])
+        task = _u()
+        self.find("kite comet", actor="smallcase-bot", task_id=task)
+        self.store.get({"decision_id": did, "actor": "smallcase-bot"}, mcp=True)
+        rows = self.store.open().execute("select tool, caller, task_id, query, n, bytes, ids from access_log").fetchall()
+        self.assertEqual([r["tool"] for r in rows], ["find", "get"])
+        self.assertEqual(rows[0]["caller"], "smallcase-bot")
+        self.assertEqual(rows[0]["task_id"], task)
+        self.assertEqual(rows[0]["n"], 1)
+        self.assertGreater(rows[0]["bytes"], 0)
+        self.assertEqual(json.loads(rows[0]["ids"]), [did])
+        self.assertIn('"event":"find"', self.log.getvalue())
+        # helpful mark at closeout joins back to what find returned
+        rev = self.store.get({"decision_id": did}, mcp=True)["record"]["revision"]
+        self.store.append_event(
+            {"request_id": _u(), "decision_id": did, "expected_revision": rev, "occurred_at": None,
+             "event_type": "outcome", "payload": {"status": "success", "note": "used", "evidence": [],
+                                                  "task_id": task, "helpful": True}}, mcp=True)
+        report = self.store.access_report()
+        self.assertEqual(report["helpful"], {"marked": 1, "helpful": 1})
+        self.assertEqual(report["by_caller"]["smallcase-bot"]["find"], 1)
+
+    def test_top3_with_precedents_stays_under_the_byte_budget(self) -> None:
+        prev = None
+        for i in range(5):
+            prev = self.save(
+                decision=f"Codex review fallback case {i} uses Opus 5.5 while ChatGPT login fails",
+                why="Guru rule: gpt-6-astra or gpt-6.1-sol reviews, Opus 5.5 when they are unavailable today",
+                entities=["codex-cli", "mac-mini"], rule="reviewer-fallback", exception="chatgpt-login",
+                precedent_ids=[prev] if prev else None)
+        got = self.find("codex review fallback opus chatgpt login")
+        self.assertLessEqual(len(canonical_json(got).encode("utf-8")), MAX_FIND_BYTES)
+        self.assertTrue(got["matches"])
+
+
+class McpOutputTests(V2Base):
+    def test_find_sends_one_copy(self) -> None:
+        from context_ledger.server import _call
+
+        result = _call(lambda a: {"matches": [], "has_more": False}, {}, structured=False)
+        self.assertIsNone(result.structured_content)
+        self.assertEqual(len(result.content), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

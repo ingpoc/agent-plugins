@@ -1,28 +1,34 @@
 #!/usr/bin/env python3
-"""Fail-loud Context Ledger closeout check (Guru 2026-10-11).
+"""Context Ledger loop: gated, never-blocking find/save plus the closeout check (Guru 2026-10-17).
 
-  ledger_loop.py [--data DIR] start <task_id> --bot NAME --query "<problem now>" [--found id,id]
-  ledger_loop.py [--data DIR] close <task_id> [--decision id ...]
+Gate first. Use the ledger only for critical, recurring, research or debugging tasks, or to
+record a Guru override. Simple or one-shot tasks skip it: `close <task_id> --gated-out <word>`.
 
-`close` prints one PASS line (exit 0) or one FAIL line with the fix (exit 1; exit 2 when the
-ledger cannot be read). PASS needs:
-  1. a `start` lookup recorded for task_id, and
-  2. for every decision id in that task's `applied` events, a latest task outcome
-     (outcome event with this task_id) whose status is final
-     (success=worked, failed, inconclusive=partial, abandoned) and that cites evidence.
+  ledger_loop.py [--data DIR] find  <task_id> --bot NAME --query "<problem now>" [--audit]
+  ledger_loop.py [--data DIR] save  <task_id> --bot NAME --type user_decision|agent_conclusion
+                 --decision "<=15 words" --why "<=20 words" --entity E [--entity E] [--crit 1-5]
+                 [--rule R] [--exception X] [--state S] [--outcome success|failed|partial|pending]
+                 [--precedent ID] [--input I] [--audit]
+  ledger_loop.py [--data DIR] start <task_id> --bot NAME --query "<q>" [--found id,id | --lookup-failed CODE]
+  ledger_loop.py [--data DIR] close <task_id> [--decision id ...] [--gated-out WORD] [--audit]
 
-Applied and outcome events are read from the ledger, never from a local log:
-  store   DATA/binding.json exists: open the bound SQLite ledger through
-          context_ledger.store.Store (same binding, path, integrity and schema checks).
-  remote  no binding and CONTEXT_LEDGER_MCP_TOKEN set: MCP `get` on the Mini serve-http
-          (CONTEXT_LEDGER_MCP_URL, default below) for the decision ids named by
-          `start --found` and `--decision`, following the decision_ids of applied events.
-          MCP has no read by task_id, so this only sees applied events on those decisions.
-  else    FAIL, exit 2. No fallback.
+Never block: find and save use a LEDGER_TIMEOUT deadline (default 2 s). A slow or unreachable
+ledger prints one `WARN ...; continuing without the ledger` line and exits 0, so the task goes on.
+A lookup that failed is logged as `lookup: failed:<code>`, never as an empty found list. Auth
+errors (AUTH_MISSING / AUTH_INVALID) are named in that line. `--audit` (or LEDGER_AUDIT=1) turns
+every warning into a loud FAIL (exit 2) for audits.
 
-DATA is --data, else CONTEXT_LEDGER_DATA, else ~/.context-ledger (same as the launcher).
-The ledger records no lookup event, so `start` appends to DATA/ledger-loop/starts.jsonl
-(override LEDGER_LOOP_LOG).
+`close` prints one PASS line (exit 0) or one FAIL line with the fix (exit 1; exit 2 = ledger
+unreadable in audit mode, or bad auth). PASS needs either --gated-out WORD, or:
+  1. a find/start lookup recorded for a real task_id (UUID, not a placeholder), and
+  2. for every decision id in that task's `applied` events, a latest task outcome (outcome
+     event with this task_id) whose status is final and that cites evidence.
+
+Backends: DATA/binding.json -> the bound SQLite ledger via context_ledger.store.Store;
+else CONTEXT_LEDGER_MCP_TOKEN -> MCP over HTTP (CONTEXT_LEDGER_MCP_URL, default below);
+else the ledger is unavailable (WARN, or FAIL in audit mode).
+DATA is --data, else CONTEXT_LEDGER_DATA, else ~/.context-ledger. Lookups are logged to
+DATA/ledger-loop/starts.jsonl (override LEDGER_LOOP_LOG).
 """
 
 from __future__ import annotations
@@ -34,6 +40,7 @@ import re
 import sys
 import time
 import urllib.error
+import uuid as uuidlib
 import urllib.request
 from pathlib import Path
 
@@ -47,6 +54,36 @@ OUTCOME_FIX = (
 )
 
 
+PLACEHOLDER_IDS = {
+    "00000000-0000-0000-0000-000000000000",
+    "12345678-1234-1234-1234-123456789abc",
+    "12345678-1234-5678-1234-567812345678",
+    "ffffffff-ffff-ffff-ffff-ffffffffffff",
+}
+WORD_RE = re.compile(r"^[a-z][a-z-]{1,23}$")
+
+
+def timeout_s() -> float:
+    raw = os.environ.get("LEDGER_TIMEOUT", "").strip()
+    try:
+        value = float(raw) if raw else 2.0
+    except ValueError:
+        value = 2.0
+    return value if value > 0 else 2.0
+
+
+def audit_mode(o: argparse.Namespace) -> bool:
+    return bool(getattr(o, "audit", False)) or os.environ.get("LEDGER_AUDIT", "") == "1"
+
+
+class Unavailable(Exception):
+    """The ledger was slow, unreachable or unbound. Fail open unless in audit mode."""
+
+    def __init__(self, code: str, detail: str) -> None:
+        super().__init__(detail)
+        self.code, self.detail = code, detail
+
+
 class Fail(Exception):
     def __init__(self, line: str, code: int = 1) -> None:
         super().__init__(line)
@@ -57,6 +94,15 @@ class Fail(Exception):
 def _uuid(value: str, what: str) -> str:
     if not UUID_RE.fullmatch(value):
         raise Fail(f"FAIL bad {what} {value!r}; fix: pass the lowercase UUID the ledger uses")
+    return value
+
+
+def _task_id(value: str) -> str:
+    """A real task id: the task's own UUID, not a placeholder or a hand-typed pattern."""
+    _uuid(value, "task_id")
+    hexes = value.replace("-", "")
+    if value in PLACEHOLDER_IDS or len(set(hexes)) <= 2:
+        raise Fail(f"FAIL placeholder task_id {value}; fix: pass the real task UUID (the task's own id)")
     return value
 
 
@@ -124,6 +170,8 @@ def store_events(data: Path, task_id: str) -> tuple[list[dict], str]:
         events = [parse_json(row["event_json"]) for row in rows]
     except LedgerError as exc:
         detail = exc.code + (f": {exc.message}" if exc.message else "")
+        if exc.code == "UNAVAILABLE":
+            raise Unavailable(exc.code, f"ledger unreadable at {where} ({detail})")
         raise Fail(f"FAIL {task_id}: ledger unreadable at {where} ({detail}); fix: run context_ledger.py doctor", 2)
     except sqlite3.Error as exc:
         raise Fail(f"FAIL {task_id}: ledger unreadable at {where} (sqlite: {exc}); fix: run context_ledger.py doctor", 2)
@@ -142,14 +190,23 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class Mcp:
-    def __init__(self, url: str, token: str, task_id: str) -> None:
+    def __init__(self, url: str, token: str, task_id: str, timeout: float | None = None) -> None:
         self.url, self.token, self.task_id = url, token, task_id
         self.session: dict[str, str] = {}
         self.next_id = 0
         self.opener = urllib.request.build_opener(_NoRedirect())
+        self.deadline = None if timeout is None else time.monotonic() + timeout
 
     def _fail(self, why: str) -> Fail:
         return Fail(f"FAIL {self.task_id}: ledger unreadable at {self.url} ({why}); fix: check the Mini serve-http and CONTEXT_LEDGER_MCP_TOKEN", 2)
+
+    def _left(self) -> float:
+        if self.deadline is None:
+            return float(os.environ.get("CONTEXT_LEDGER_MCP_TIMEOUT") or 30)
+        left = self.deadline - time.monotonic()
+        if left <= 0:
+            raise Unavailable("TIMEOUT", f"no answer from {self.url} within {timeout_s():g}s")
+        return left
 
     def _post(self, msg: dict) -> dict | None:
         headers = {
@@ -160,17 +217,23 @@ class Mcp:
         }
         req = urllib.request.Request(self.url, data=json.dumps(msg).encode(), headers=headers, method="POST")
         try:
-            with self.opener.open(req, timeout=float(os.environ.get("CONTEXT_LEDGER_MCP_TIMEOUT") or 30)) as resp:
+            with self.opener.open(req, timeout=self._left()) as resp:
                 status, hdrs, body = resp.status, resp.headers, resp.read()
         except urllib.error.HTTPError as exc:
             status, hdrs, body = exc.code, exc.headers, exc.read()
         except (urllib.error.URLError, OSError) as exc:
-            raise self._fail(f"{type(exc).__name__}: {getattr(exc, 'reason', exc)}")
+            reason = getattr(exc, "reason", exc)
+            code = "TIMEOUT" if isinstance(reason, TimeoutError) or isinstance(exc, TimeoutError) or "timed out" in str(reason) else "UNREACHABLE"
+            raise Unavailable(code, f"{self.url} {code.lower()} ({type(exc).__name__}: {reason})")
         for name in ("Mcp-Session-Id", "Mcp-Protocol-Version"):
             if hdrs is not None and hdrs.get(name):
                 self.session[name] = hdrs.get(name)
         if status == 401:
-            raise self._fail("UNAUTHORIZED")
+            try:
+                err = json.loads(body.decode("utf-8")).get("error") or {}
+            except (UnicodeError, json.JSONDecodeError, AttributeError):
+                err = {}
+            raise self._fail(f"UNAUTHORIZED {err.get('code', 'AUTH_INVALID')}: {err.get('message', 'check CONTEXT_LEDGER_MCP_TOKEN')}")
         if not 200 <= status < 300:
             raise self._fail(f"HTTP {status}")
         if "id" not in msg or status == 202 or not body.strip():
@@ -203,6 +266,17 @@ class Mcp:
         })
         self._post({"jsonrpc": "2.0", "method": "notifications/initialized"})
 
+    def tool(self, name: str, arguments: dict) -> dict:
+        result = self._req("tools/call", {"name": name, "arguments": arguments})
+        payload = result.get("structuredContent")
+        if payload is None:
+            payload = json.loads(result["content"][0]["text"])
+        if not payload.get("ok"):
+            err = payload.get("error") or {}
+            raise Fail(f"FAIL {self.task_id}: {name} rejected: {err.get('code')} {err.get('message', '')}".rstrip()
+                       + "; fix: correct the arguments named above")
+        return payload["data"]
+
     def get(self, decision_id: str) -> dict:
         result = self._req("tools/call", {"name": "get", "arguments": {"decision_id": decision_id}})
         payload = result.get("structuredContent")
@@ -218,7 +292,7 @@ class Mcp:
 
 def remote_events(task_id: str, candidates: list[str], token: str) -> tuple[list[dict], str]:
     url = (os.environ.get("CONTEXT_LEDGER_MCP_URL") or "").strip() or DEFAULT_URL
-    client = Mcp(url, token, task_id)
+    client = Mcp(url, token, task_id, timeout=timeout_s() * 3)
     client.open()
     events: list[dict] = []
     seen: set[str] = set()
@@ -263,25 +337,129 @@ def check(task_id: str, events: list[dict]) -> tuple[int, int]:
     return len(applied), linked
 
 
-def cmd_start(o: argparse.Namespace, data: Path) -> str:
-    task_id = _uuid(o.task_id, "task_id")
-    if not o.query.strip():
-        raise Fail(f"FAIL {task_id}: empty query; fix: name the problem happening now")
-    if not o.bot.strip():
-        raise Fail(f"FAIL {task_id}: empty --bot; fix: name the bot doing the task")
-    found = [_uuid(i.strip(), "--found id") for i in o.found.split(",") if i.strip()]
+def _log_row(data: Path, row: dict) -> Path:
     log = start_log(data)
     log.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    row = {"task_id": task_id, "ev": "start", "bot": o.bot, "query": o.query, "found": found,
-           "at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    row = {**row, "at": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
     fd = os.open(log, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
     with os.fdopen(fd, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(row) + "\n")
+    return log
+
+
+def _bot(o: argparse.Namespace, task_id: str) -> str:
+    if not o.bot.strip():
+        raise Fail(f"FAIL {task_id}: empty --bot; fix: name the bot doing the task")
+    return o.bot.strip().lower()
+
+
+def cmd_start(o: argparse.Namespace, data: Path) -> str:
+    task_id = _task_id(o.task_id)
+    if not o.query.strip():
+        raise Fail(f"FAIL {task_id}: empty query; fix: name the problem happening now")
+    bot = _bot(o, task_id)
+    found = [_uuid(i.strip(), "--found id") for i in o.found.split(",") if i.strip()]
+    row = {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "found": found}
+    if o.lookup_failed:
+        if found:
+            raise Fail(f"FAIL {task_id}: --found and --lookup-failed together; fix: pass one")
+        row = {**row, "lookup": f"failed:{o.lookup_failed}"}
+        del row["found"]
+    log = _log_row(data, row)
     return f"start logged {task_id} -> {log}"
 
 
+def _call(data: Path, task_id: str, name: str, arguments: dict) -> tuple[dict, str]:
+    """One ledger tool call under the never-block deadline."""
+    if (data / "binding.json").exists():
+        root = plugin_root()
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from context_ledger.contracts import LedgerError
+        from context_ledger.store import Store
+        store = None
+        try:
+            store = Store(data, actor_channel="agent")
+            fn = {"find": store.find, "save": store.save}[name]
+            return fn(arguments, mcp=True), f"store {store.db_path}"
+        except LedgerError as exc:
+            if exc.code in {"UNAVAILABLE", "BUSY", "MAINTENANCE", "CORRUPT_LEDGER"}:
+                raise Unavailable(exc.code, exc.message or exc.code)
+            raise Fail(f"FAIL {task_id}: {name} rejected: {exc.code} {exc.message or ''}".rstrip()
+                       + "; fix: correct the arguments named above")
+        finally:
+            if store is not None:
+                store.close()
+    token = os.environ.get("CONTEXT_LEDGER_MCP_TOKEN", "").strip()
+    if not token:
+        raise Unavailable("UNBOUND", f"no {data / 'binding.json'} and CONTEXT_LEDGER_MCP_TOKEN is empty")
+    url = (os.environ.get("CONTEXT_LEDGER_MCP_URL") or "").strip() or DEFAULT_URL
+    client = Mcp(url, token, task_id, timeout=timeout_s())
+    client.open()
+    return client.tool(name, arguments), f"remote {url}"
+
+
+def _warn(o: argparse.Namespace, task_id: str, what: str, exc: Unavailable) -> str:
+    line = f"{exc.code} {exc.detail}"
+    if audit_mode(o):
+        raise Fail(f"FAIL {task_id}: ledger {what} failed ({line}); fix: audit mode needs a reachable ledger", 2)
+    print(f"WARN ledger {what} skipped ({line}); continuing without the ledger", file=sys.stderr)
+    return exc.code
+
+
+def cmd_find(o: argparse.Namespace, data: Path) -> str:
+    task_id = _task_id(o.task_id)
+    if not o.query.strip():
+        raise Fail(f"FAIL {task_id}: empty query; fix: name the problem happening now")
+    bot = _bot(o, task_id)
+    started = time.monotonic()
+    try:
+        result, _source = _call(data, task_id, "find", {"query": o.query, "actor": bot, "task_id": task_id})
+    except Unavailable as exc:
+        code = _warn(o, task_id, "find", exc)
+        _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "lookup": f"failed:{code}",
+                        "ms": int((time.monotonic() - started) * 1000)})
+        return json.dumps({"matches": [], "lookup": f"failed:{code}"})
+    ids = [m["decision_id"] for m in result["matches"]]
+    ids += [r["id"] for m in result["matches"] for r in m.get("related", [])]
+    _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "found": ids,
+                    "ms": int((time.monotonic() - started) * 1000)})
+    return json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+
+
+def cmd_save(o: argparse.Namespace, data: Path) -> str:
+    task_id = _task_id(o.task_id)
+    bot = _bot(o, task_id)
+    args: dict = {
+        "request_id": str(uuidlib.uuid5(uuidlib.NAMESPACE_URL, f"ledger-loop:{task_id}:{o.decision}")),
+        "type": o.type, "decision": o.decision, "why": o.why, "entities": o.entity,
+        "task_id": task_id, "actor": bot,
+    }
+    for key in ("rule", "exception", "state", "outcome", "approver", "override_by"):
+        if getattr(o, key):
+            args[key] = getattr(o, key)
+    if o.crit is not None:
+        args["criticality"] = o.crit
+    if o.precedent:
+        args["precedent_ids"] = o.precedent
+    if o.input:
+        args["inputs"] = o.input
+    try:
+        receipt, _source = _call(data, task_id, "save", args)
+    except Unavailable as exc:
+        code = _warn(o, task_id, "save", exc)
+        return json.dumps({"saved": False, "reason": f"failed:{code}"})
+    _log_row(data, {"task_id": task_id, "ev": "save", "bot": bot, "decision_id": receipt["decision_id"]})
+    return json.dumps({"saved": True, **receipt})
+
+
 def cmd_close(o: argparse.Namespace, data: Path) -> str:
-    task_id = _uuid(o.task_id, "task_id")
+    task_id = _task_id(o.task_id)
+    if o.gated_out:
+        if not WORD_RE.fullmatch(o.gated_out):
+            raise Fail(f"FAIL {task_id}: --gated-out needs one lowercase word (simple, one-shot, routine); fix: pass one word")
+        _log_row(data, {"task_id": task_id, "ev": "gated_out", "reason": o.gated_out})
+        return f"PASS {task_id}: gated out ({o.gated_out}); no ledger lookup needed"
     extra = [_uuid(d, "--decision id") for d in o.decision]
     log = start_log(data)
     starts = read_starts(log, task_id)
@@ -291,17 +469,22 @@ def cmd_close(o: argparse.Namespace, data: Path) -> str:
             f"then `ledger_loop.py start {task_id} --bot NAME --query \"...\" --found ids`"
         )
     token = os.environ.get("CONTEXT_LEDGER_MCP_TOKEN", "").strip()
-    if (data / "binding.json").exists():
-        events, source = store_events(data, task_id)
-    elif token:
-        found = [d for row in starts for d in row.get("found", [])]
-        events, source = remote_events(task_id, list(dict.fromkeys(found + extra)), token)
-    else:
-        raise Fail(
-            f"FAIL {task_id}: no ledger to read: {data / 'binding.json'} missing and CONTEXT_LEDGER_MCP_TOKEN empty; "
-            "fix: run on the Mini (bound ledger) or export CONTEXT_LEDGER_MCP_TOKEN",
-            2,
-        )
+    try:
+        if (data / "binding.json").exists():
+            events, source = store_events(data, task_id)
+        elif token:
+            found = [d for row in starts for d in row.get("found", [])]
+            events, source = remote_events(task_id, list(dict.fromkeys(found + extra)), token)
+        else:
+            raise Unavailable(
+                "UNBOUND",
+                f"no ledger to read: {data / 'binding.json'} missing and CONTEXT_LEDGER_MCP_TOKEN empty",
+            )
+    except Unavailable as exc:
+        if audit_mode(o):
+            raise Fail(f"FAIL {task_id}: ledger unreadable ({exc.code} {exc.detail}); fix: run on the Mini (bound ledger) "
+                       "or export CONTEXT_LEDGER_MCP_TOKEN", 2)
+        return f"PASS {task_id}: closeout check skipped, ledger unavailable ({exc.code}); WARN fail-open, task continues"
     n, linked = check(task_id, events)
     return f"PASS {task_id}: lookup done, {n} applied, all with final outcome + evidence ({linked} linked by applied_event_id) [{source}]"
 
@@ -310,17 +493,40 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--data", help="ledger data dir (default CONTEXT_LEDGER_DATA or ~/.context-ledger)")
     sub = p.add_subparsers(dest="cmd", required=True)
-    x = sub.add_parser("start", help="record the task-start ledger lookup")
+    x = sub.add_parser("find", help="gated lookup: one find, 2 s deadline, fail-open")
+    x.add_argument("task_id")
+    x.add_argument("--bot", required=True)
+    x.add_argument("--query", required=True)
+    x.add_argument("--audit", action="store_true")
+    x = sub.add_parser("save", help="capture one compact trace, 2 s deadline, fail-open")
+    x.add_argument("task_id")
+    x.add_argument("--bot", required=True)
+    x.add_argument("--type", required=True, choices=["user_decision", "agent_conclusion"])
+    x.add_argument("--decision", required=True)
+    x.add_argument("--why", required=True)
+    x.add_argument("--entity", action="append", default=[], required=True)
+    x.add_argument("--crit", type=int)
+    for flag in ("--rule", "--exception", "--state", "--approver", "--override-by"):
+        x.add_argument(flag)
+    x.add_argument("--outcome", choices=["success", "failed", "partial", "pending"])
+    x.add_argument("--precedent", action="append", default=[])
+    x.add_argument("--input", action="append", default=[])
+    x.add_argument("--audit", action="store_true")
+    x = sub.add_parser("start", help="record a lookup made with the connector find")
     x.add_argument("task_id")
     x.add_argument("--bot", required=True)
     x.add_argument("--query", required=True)
     x.add_argument("--found", default="", help="comma-separated decision ids the lookup returned")
-    x = sub.add_parser("close", help="fail unless lookup done and every applied id has an outcome")
+    x.add_argument("--lookup-failed", dest="lookup_failed", help="error code when the connector find failed")
+    x = sub.add_parser("close", help="fail unless gated out, or lookup done and every applied id has an outcome")
     x.add_argument("task_id")
     x.add_argument("--decision", action="append", default=[], help="extra decision id to read (remote mode)")
+    x.add_argument("--gated-out", dest="gated_out", help="one word: why this task skipped the ledger")
+    x.add_argument("--audit", action="store_true")
     o = p.parse_args(argv)
+    cmds = {"find": cmd_find, "save": cmd_save, "start": cmd_start, "close": cmd_close}
     try:
-        print(cmd_start(o, data_dir(o.data)) if o.cmd == "start" else cmd_close(o, data_dir(o.data)))
+        print(cmds[o.cmd](o, data_dir(o.data)))
     except Fail as exc:
         print(exc.line, file=sys.stderr)
         return exc.code

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.24
+
+- `find` ranks by text match first: BM25 over decision (2.0), why (1.5) and the other body fields, with an IDF-weighted coverage floor (0.40, and at least 2 matched terms for queries of 3+ terms). A record below the floor is not returned. Confidence and outcome only break ties and never lift an off-topic record.
+- Confidence counts an outcome only when it carries a real task id. A routine "Hourly ..." check-in without an applied event, and a placeholder task id, are not uses.
+- `find` returns compact cards only: `decision_id`, `type`, `decision` (15 words), `why` (20 words), optional `crit`, `rule`, `exception`, `override_by`, `repeats`, up to 3 entities, `outcome`, `flag`, and up to 2 on-topic one-hop `related` precedents. A find reply stays within 1,200 bytes; related entries and then trailing hits are dropped first. MCP `find` and `get` send the JSON once (text only), not twice.
+- `entities`, `constraints`, `task_id` and `actor` are optional in `find`.
+- New `save` tool records a compact decision trace: `type` `user_decision` (Guru's accept or override; needs `why`; ranked above agent conclusions) or `agent_conclusion` (needs `why` and `criticality` 1-5), plus typed fields `rule`, `exception`, `override_by`, `approver`, `inputs`, `state`, `outcome`, `precedent_ids`, `entities`. `decision` over 15 words or `why` over 20 words, or either spanning lines, is rejected with a named error; nothing is trimmed.
+- Additive schema: `links` (precedent edges, rebuilt from traces) and `access_log` (every MCP find and get: caller, task, query, result count, bytes, ids, ms; also one stderr JSON line). `repeats` counts traces with the same rule and exception (automation-candidate signal). An outcome may set `helpful`.
+- Each caller may pass `actor`; provenance uses it instead of the shared binding actor.
+- HTTP 401 names `AUTH_MISSING` or `AUTH_INVALID` and says it is an auth failure, not an empty result. The stdio bridge passes that code through.
+- `scripts/ledger_loop.py` is gated and never blocks: `find` and `save` use a 2 s deadline (`LEDGER_TIMEOUT`) and fail open with one WARN line; `--audit` or `LEDGER_AUDIT=1` fails loud. `close --gated-out WORD` passes for a simple or one-shot task. Placeholder task ids are rejected.
+
 ## 0.1.23
 
 - `browse` builds each card from the same record `get` would return. MCP omits a `local_only` replacement id and does not set `has_conflict` for a hidden conflict. Owner reads still see those links.

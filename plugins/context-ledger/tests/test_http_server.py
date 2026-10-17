@@ -209,7 +209,11 @@ class LiveServerTests(unittest.TestCase):
             status, resp_headers, body = _post(self.port, INIT, headers)
             self.assertEqual(status, 401)
             self.assertEqual(resp_headers.get("www-authenticate") or resp_headers.get("WWW-Authenticate"), "Bearer")
-            self.assertEqual(json.loads(body)["error"]["code"], "UNAUTHORIZED")
+            err = json.loads(body)["error"]
+            expected = "AUTH_MISSING" if not headers else "AUTH_INVALID"
+            self.assertEqual(err["code"], expected)
+            self.assertIn("not an empty result", err["message"])
+            self.assertNotIn(self.token, body.decode() if isinstance(body, bytes) else body)
 
     def test_initialize_lists_the_ledger_view(self) -> None:
         status, _, body = _post(self.port, INIT, self._auth())
@@ -219,7 +223,7 @@ class LiveServerTests(unittest.TestCase):
         self.assertEqual(status, 200, body)
         tools = json.loads(body)["result"]["tools"]
         names = sorted(t["name"] for t in tools)
-        self.assertEqual(names, ["append_event", "browse", "find", "get", "record"])
+        self.assertEqual(names, ["append_event", "browse", "find", "get", "record", "save"])
         browse = next(t for t in tools if t["name"] == "browse")
         ui = (browse.get("_meta") or {}).get("ui") or {}
         self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/browse.html")
@@ -261,7 +265,7 @@ class LiveServerTests(unittest.TestCase):
         status, headers, body = _raw(self.port, "POST", "/mcp", INIT, {"Content-Type": "application/json"})
         self.assertEqual(status, 401, body)
         self.assertEqual(headers.get("www-authenticate"), "Bearer")
-        self.assertEqual(json.loads(body)["error"]["code"], "UNAUTHORIZED")
+        self.assertEqual(json.loads(body)["error"]["code"], "AUTH_MISSING")
 
         status, headers, _ = _raw(
             self.port,
@@ -314,7 +318,7 @@ class LiveServerTests(unittest.TestCase):
         status, headers, body = _raw(self.port, "POST", "/mcp", LIST, sse_headers)
         self.assertEqual(status, 200, body)
         names = sorted(tool["name"] for tool in _sse_json(body)["result"]["tools"])
-        self.assertEqual(names, ["append_event", "browse", "find", "get", "record"])
+        self.assertEqual(names, ["append_event", "browse", "find", "get", "record", "save"])
 
         find = {
             "jsonrpc": "2.0",
@@ -372,7 +376,7 @@ class LiveServerTests(unittest.TestCase):
                         listed = await session.list_tools()
                         return sorted(tool.name for tool in listed.tools)
 
-        self.assertEqual(asyncio.run(run()), ["append_event", "browse", "find", "get", "record"])
+        self.assertEqual(asyncio.run(run()), ["append_event", "browse", "find", "get", "record", "save"])
 
 
 def _raw(
