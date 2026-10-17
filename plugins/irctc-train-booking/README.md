@@ -1,6 +1,6 @@
 # irctc-train-booking
 
-Book an IRCTC ticket through the comet-control lease controller. Login reads the macOS Keychain service irctc at runtime. Aadhaar OTP uses macOS iPhone Mirroring OCR (ocr.swift). Stops before payment.
+Book an IRCTC ticket through the comet-control lease controller. Login reads the macOS Keychain service irctc at runtime. Aadhaar OTP uses macOS iPhone Mirroring OCR (ocr.swift). Default stops on the Pay & Book screen. `--confirm-pay` opens the iPay gateway and does not charge.
 
 Portable [Agent Plugin](https://agent-plugins.org/specification). Install: this folder's `AGENTS.md`. Collection routing: repo-root `AGENTS.md`.
 
