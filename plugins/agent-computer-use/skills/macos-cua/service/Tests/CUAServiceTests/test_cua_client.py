@@ -153,6 +153,13 @@ class TestCUAClientWire(unittest.TestCase):
     """The former live-socket cases, against FakeCUAService on every platform."""
 
     def setUp(self):
+        # A failed probe must never reach _recover(), which can spawn or
+        # relaunch the real CUAService on macOS.
+        recover = patch.object(
+            CUAClient, "_recover", side_effect=AssertionError("fake socket probe failed")
+        )
+        recover.start()
+        self.addCleanup(recover.stop)
         self.service = FakeCUAService()
         self.addCleanup(self.service.close)
         self.client = CUAClient(self.service.socket_path)
