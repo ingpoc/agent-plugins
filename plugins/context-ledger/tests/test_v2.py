@@ -106,7 +106,8 @@ class RankingThresholdTests(V2Base):
             self.store.append_event(
                 {"request_id": _u(), "decision_id": self.offtopic, "expected_revision": rev, "occurred_at": None,
                  "event_type": "outcome", "payload": {"status": "success", "note": "ok", "evidence": [],
-                                                      "task_id": task, "applied_event_id": applied["event_id"]}},
+                                                      "task_id": task, "applied_event_id": applied["event_id"],
+                                                      "helpful": True}},
                 mcp=True)
             rev += 1
         got = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]
@@ -260,6 +261,84 @@ class LinksAndSignalsTests(V2Base):
         got = self.find("codex review fallback opus chatgpt login")
         self.assertLessEqual(len(canonical_json(got).encode("utf-8")), MAX_FIND_BYTES)
         self.assertTrue(got["matches"])
+
+
+class NotHelpedFixTests(V2Base):
+    """Applied decision did not help -> outcome not_helped|misled + reason, a linked fix with context,
+    and in that context the old decision drops below the fix."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.old = self.save(type="user_decision", decision="Reviews run on Codex gpt-6-astra with Opus fallback",
+                             why="Guru rule 2026-10-12: Codex plans and reviews, Grok implements",
+                             entities=["code-review"], rule="reviewer-model")
+        self.task = _u()
+        rev = self.store.get({"decision_id": self.old}, mcp=True)["record"]["revision"]
+        self.applied = self.store.append_event(
+            {"request_id": _u(), "decision_id": self.old, "expected_revision": rev, "occurred_at": None,
+             "event_type": "applied", "payload": {"task_id": self.task, "decision_ids": [self.old]}}, mcp=True)
+
+    def outcome(self, **payload) -> dict:
+        rev = self.store.get({"decision_id": self.old}, mcp=True)["record"]["revision"]
+        base = {"status": "success", "note": "", "evidence": [], "task_id": self.task,
+                "applied_event_id": self.applied["event_id"]}
+        return self.store.append_event(
+            {"request_id": _u(), "decision_id": self.old, "expected_revision": rev, "occurred_at": None,
+             "event_type": "outcome", "payload": {**base, **payload}}, mcp=True)
+
+    def reject(self, fn, needle: str) -> None:
+        with self.assertRaises(LedgerError) as ctx:
+            fn()
+        self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
+        self.assertIn(needle, ctx.exception.message or "")
+
+    def test_applied_outcome_requires_helpful(self) -> None:
+        self.reject(lambda: self.outcome(), "needs helpful")
+
+    def test_not_helped_requires_effect_and_short_reason(self) -> None:
+        self.reject(lambda: self.outcome(helpful=False), "effect not_helped|misled")
+        self.reject(lambda: self.outcome(helpful=False, effect="wrong"), "effect not_helped|misled")
+        self.reject(lambda: self.outcome(helpful=False, effect="misled"), "reason is required")
+        self.reject(lambda: self.outcome(helpful=False, effect="misled", reason=" ".join(["w"] * 21)), "max 20")
+        self.reject(lambda: self.outcome(helpful=True, effect="misled", reason="x"), "only with helpful false")
+        self.outcome(helpful=False, effect="not_helped", reason="Codex subscription lapsed; reviewer unavailable")
+
+    def test_fix_needs_context_and_a_real_target(self) -> None:
+        kw = dict(type="user_decision", decision="Reviews run on Cursor composer-2.5", why="Codex lapsed",
+                  entities=["code-review"])
+        self.reject(lambda: self.save(supersedes=self.old, **kw), "needs context")
+        self.reject(lambda: self.save(supersedes=_u(), context="code review", **kw), "not a visible record")
+        self.reject(lambda: self.save(supersedes=self.old, exception_for=self.old, context="x", **kw), "not both")
+        self.reject(lambda: self.save(context="code review", **kw), "context goes with")
+        self.reject(lambda: self.save(supersedes=self.old, context=" ".join(["w"] * 11), **kw), "max 10")
+
+    def test_fix_ranks_first_in_context_and_old_confidence_drops(self) -> None:
+        # Before: the old rule is the top hit for a review question.
+        self.assertEqual(self.ids("who reviews the code now")[0], self.old)
+        self.outcome(helpful=False, effect="not_helped", reason="Codex subscription lapsed; reviewer unavailable")
+        fix = self.save(type="user_decision", decision="Reviews run on Cursor agent composer-2.5",
+                        why="Codex not renewed; strongest non-Grok model available", entities=["code-review"],
+                        supersedes=self.old, context="code review and planning", task_id=self.task)
+        got = self.find("who reviews the code now")
+        ids = [m["decision_id"] for m in got["matches"]]
+        self.assertEqual(ids[0], fix)
+        self.assertEqual(got["matches"][0]["supersedes"], self.old)
+        self.assertEqual(got["matches"][0]["context"], "code review and planning")
+        if self.old in ids:
+            self.assertEqual(got["matches"][ids.index(self.old)]["flag"], "not_helped here")
+        self.assertLessEqual(len(canonical_json(got).encode()), MAX_FIND_BYTES)
+        rec = self.store.get({"decision_id": self.old}, mcp=True)["record"]
+        self.assertEqual(rec["fixed_by"][0]["id"], fix)
+        self.assertEqual(rec["fixed_by"][0]["not_helped"], 1)
+        self.assertLess(rec["fixed_by"][0]["confidence_here"], rec["confidence"]["score"] or 1.0)
+
+    def test_out_of_context_query_is_not_reordered(self) -> None:
+        other = self.save(decision="Mini fan noise: check launchd jobs first", why="fan spikes track cron jobs",
+                          entities=["mac-mini"])
+        self.save(type="user_decision", decision="Reviews run on Cursor agent composer-2.5",
+                  why="Codex not renewed", entities=["code-review"], supersedes=self.old,
+                  context="code review and planning", task_id=self.task)
+        self.assertEqual(self.ids("mini fan noise launchd"), [other])
 
 
 class McpOutputTests(V2Base):

@@ -50,7 +50,7 @@ FINAL = {"success", "failed", "inconclusive", "abandoned"}
 USABLE_EVIDENCE = {"unverified", "reported_verified"}
 OUTCOME_FIX = (
     "append_event outcome on {ids} with task_id {tid}, status success|failed|inconclusive, "
-    "an evidence ref and applied_event_id, then rerun close"
+    "an evidence ref, applied_event_id and helpful true|false (false: effect not_helped|misled + reason), then rerun close"
 )
 
 
@@ -168,6 +168,9 @@ def store_events(data: Path, task_id: str) -> tuple[list[dict], str]:
             (task_id,),
         ).fetchall()
         events = [parse_json(row["event_json"]) for row in rows]
+        for row in conn.execute("select src, dst, kind from fix_links where task_id=? order by src", (task_id,)):
+            events.append({"event_type": "fix", "decision_id": row["dst"], "revision": 0,
+                           "payload": {"task_id": task_id, "fix_id": row["src"], "kind": row["kind"]}})
     except LedgerError as exc:
         detail = exc.code + (f": {exc.message}" if exc.message else "")
         if exc.code == "UNAVAILABLE":
@@ -179,7 +182,7 @@ def store_events(data: Path, task_id: str) -> tuple[list[dict], str]:
         if store is not None:
             store.close()
     keep = ("event_id", "event_type", "decision_id", "revision", "payload")
-    return [{k: e[k] for k in keep} for e in events if e["event_type"] in {"applied", "outcome"}], f"store {where}"
+    return [{k: e.get(k) for k in keep} for e in events if e["event_type"] in {"applied", "outcome", "fix"}], f"store {where}"
 
 
 # ---- remote backend: MCP over HTTP to the Mini serve-http --------------------------------
@@ -302,7 +305,12 @@ def remote_events(task_id: str, candidates: list[str], token: str) -> tuple[list
         if decision_id in seen:
             continue
         seen.add(decision_id)
-        for ev in client.get(decision_id)["events"]:
+        record = client.get(decision_id)
+        for fix in record.get("fixed_by") or []:
+            if fix.get("task_id") == task_id:
+                events.append({"event_type": "fix", "decision_id": decision_id, "revision": 0,
+                               "payload": {"task_id": task_id, "fix_id": fix["id"], "kind": fix["kind"]}})
+        for ev in record["events"]:
             if ev["payload"].get("task_id") != task_id:
                 continue
             events.append({**ev, "decision_id": decision_id})
@@ -333,6 +341,23 @@ def check(task_id: str, events: list[dict]) -> tuple[int, int]:
     if bare:
         ids = ",".join(bare)
         raise Fail(f"FAIL {task_id}: outcome without evidence for {ids}; fix: " + OUTCOME_FIX.format(ids=ids, tid=task_id))
+    unmarked = [d for d in applied if type(latest[d].get("helpful")) is not bool]
+    if unmarked:
+        ids = ",".join(unmarked)
+        raise Fail(f"FAIL {task_id}: outcome without helpful true|false for {ids}; fix: " + OUTCOME_FIX.format(ids=ids, tid=task_id))
+    vague = [d for d in applied if latest[d].get("helpful") is False
+             and (latest[d].get("effect") not in ("not_helped", "misled") or not latest[d].get("reason"))]
+    if vague:
+        ids = ",".join(vague)
+        raise Fail(f"FAIL {task_id}: helpful false without effect not_helped|misled and a reason for {ids}; "
+                   "fix: append the outcome again with effect and a reason (<=20 words)")
+    fixed = {e["decision_id"] for e in events if e["event_type"] == "fix"}
+    unfixed = [d for d in applied if latest[d].get("helpful") is False and latest[d]["status"] == "success" and d not in fixed]
+    if unfixed:
+        ids = ",".join(unfixed)
+        raise Fail(f"FAIL {task_id}: {ids} did not help but the task succeeded, and no fix is saved; "
+                   f"fix: `ledger_loop.py save {task_id} ... --supersedes {unfixed[0]} --context \"<where it failed>\"` "
+                   "(or --exception-for)")
     linked = sum(1 for d in applied if latest[d].get("applied_event_id"))
     return len(applied), linked
 
@@ -451,6 +476,9 @@ def cmd_save(o: argparse.Namespace, data: Path) -> str:
         args["precedent_ids"] = o.precedent
     if o.input:
         args["inputs"] = o.input
+    for key in ("supersedes", "exception_for", "context"):
+        if getattr(o, key):
+            args[key] = getattr(o, key)
     try:
         receipt, _source = _call(data, task_id, "save", args)
     except Unavailable as exc:
@@ -518,6 +546,9 @@ def main(argv: list[str] | None = None) -> int:
     x.add_argument("--outcome", choices=["success", "failed", "partial", "pending"])
     x.add_argument("--precedent", action="append", default=[])
     x.add_argument("--input", action="append", default=[])
+    x.add_argument("--supersedes", help="decision id this fix replaces in --context")
+    x.add_argument("--exception-for", dest="exception_for", help="decision id this fix is an exception to")
+    x.add_argument("--context", help="<=10 words: where the old decision did not help")
     x.add_argument("--audit", action="store_true")
     x = sub.add_parser("start", help="record a lookup made with the connector find")
     x.add_argument("task_id")

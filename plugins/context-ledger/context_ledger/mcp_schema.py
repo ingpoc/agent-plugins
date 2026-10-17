@@ -55,6 +55,8 @@ class OutcomeModel(Closed):
     task_id: Uuid | None = None
     applied_event_id: Uuid | None = None
     helpful: bool | None = None
+    effect: Literal["not_helped", "misled"] | None = None
+    reason: str | None = Field(default=None, max_length=160)
 
 
 class CorrectedPayloadModel(Closed):

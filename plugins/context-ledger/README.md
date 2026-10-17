@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.25
+
+An applied outcome must say `helpful`. A decision that did not help gets `effect` (`not_helped`/`misled`) and a short reason, and the fix found by debugging is saved with `supersedes` or `exception_for` plus a short `context`. In that context the fix ranks above the old decision, whose confidence there drops. `ledger_loop.py close` enforces all of it.
+
 ## 0.1.24
 
 `find` ranks by text match (BM25 plus a coverage floor) and returns nothing rather than an off-topic record; confidence only breaks ties. Replies are compact cards within 1,200 bytes, sent once. `save` records a compact trace: `user_decision` (Guru's override with its why, ranked first) or `agent_conclusion` (why plus criticality), with typed fields and precedent links; long text is rejected, never trimmed. Every find and get is logged per caller. Auth failures are named errors. `ledger_loop.py` is gated, has a 2 s fail-open deadline, and supports `close --gated-out WORD`.

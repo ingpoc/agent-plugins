@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.25
+
+- An applied outcome (one with `applied_event_id`) must set `helpful` true or false. `helpful: false` needs `effect` `not_helped` or `misled` and a one-line `reason` of 20 words or fewer. Otherwise the outcome is rejected and nothing is written.
+- `save` takes `supersedes` or `exception_for` (the old decision id) plus `context` (10 words or fewer: where the old decision did not help). The link lives in a new additive `fix_links` table, rebuilt from traces.
+- In that context, meaning the query covers half the context words or the fix itself matches, `find` halves the old decision's text score, ranks the fix above it, and flags the old card `not_helped here`. A fix card shows `supersedes`/`exception_for` and `context`. `get` lists `fixed_by` with `not_helped` and `confidence_here`.
+- `ledger_loop.py close` fails when an applied outcome has no `helpful`, when `helpful: false` has no effect or reason, or when an applied decision did not help, the task succeeded, and no fix in this task links to it. `save` gains `--supersedes`, `--exception-for` and `--context`.
+
 ## 0.1.24
 
 - `find` ranks by text match first: BM25 over decision (2.0), why (1.5) and the other body fields, with an IDF-weighted coverage floor (0.40, and at least 2 matched terms for queries of 3+ terms). A record below the floor is not returned. Confidence and outcome only break ties and never lift an off-topic record.

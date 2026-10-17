@@ -33,6 +33,7 @@ B = 0.6
 # Relevance floor: share of the query's IDF mass the record must match, and the minimum
 # number of distinct query terms (1 for a one- or two-term query, else 2).
 MIN_COVERAGE = 0.40
+NOT_HELPED_FACTOR = 0.5  # an old decision's text score in a context where it did not help
 TYPE_BOOST = {"user_decision": 1.6, "agent_conclusion": 1.0, "legacy": 1.0}
 
 

@@ -185,11 +185,15 @@ def build_server(store: Store) -> MCPServer:
         precedent_ids: list[str] | None = None,
         task_id: str | None = None,
         actor: str | None = None,
+        supersedes: str | None = None,
+        exception_for: str | None = None,
+        context: str | None = None,
     ) -> CallToolResult:
         given = {
             "criticality": criticality, "rule": rule, "exception": exception,
             "override_by": override_by, "approver": approver, "inputs": inputs, "state": state,
             "outcome": outcome, "precedent_ids": precedent_ids, "task_id": task_id, "actor": actor,
+            "supersedes": supersedes, "exception_for": exception_for, "context": context,
         }
         args: dict[str, Any] = {
             "request_id": request_id, "type": type, "decision": decision, "why": why,

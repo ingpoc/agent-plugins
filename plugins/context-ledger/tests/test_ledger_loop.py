@@ -90,11 +90,18 @@ class LedgerLoopBase(unittest.TestCase):
         return receipt["event_id"]
 
     def outcome(self, decision_id: str, status: str = "success", evidence=None, task: str | None = None,
-                applied_event_id: str | None = None) -> None:
+                applied_event_id: str | None = None, helpful: bool | None = True,
+                effect: str | None = None, reason: str | None = None) -> None:
         payload = {"status": status, "note": f"test {status}", "evidence": EVIDENCE if evidence is None else evidence,
                    "task_id": task or self.task}
         if applied_event_id:
             payload["applied_event_id"] = applied_event_id
+        if helpful is not None:
+            payload["helpful"] = helpful
+        if effect:
+            payload["effect"] = effect
+        if reason:
+            payload["reason"] = reason
         self.store.append_event(
             {"request_id": _u(), "decision_id": decision_id, "expected_revision": self.revision(decision_id),
              "occurred_at": None, "event_type": "outcome", "payload": payload},
@@ -136,6 +143,34 @@ class GateTests(LedgerLoopBase):
             r = self.run_loop("close", bad, "--gated-out", "simple")
             self.assertNotEqual(r.returncode, 0, bad)
             self.assertIn("task_id", r.stderr)
+
+
+class HelpfulGateTests(LedgerLoopBase):
+    def test_outcome_without_helpful_fails(self) -> None:
+        d = self.decision()
+        self.start([d])
+        self.applied(d, [d])
+        self.outcome(d, helpful=None)
+        self.assert_fail(self.run_loop("close", self.task), "without helpful true|false")
+
+    def test_not_helped_success_needs_a_linked_fix(self) -> None:
+        d = self.decision("old reviewer path")
+        self.start([d])
+        ev = self.applied(d, [d])
+        self.outcome(d, applied_event_id=ev, helpful=False, effect="not_helped", reason="reviewer subscription lapsed")
+        self.assert_fail(self.run_loop("close", self.task), "no fix is saved")
+        self.store.save({"request_id": _u(), "type": "agent_conclusion", "criticality": 4, "actor": "tester",
+                         "decision": "Review through Cursor agent instead", "why": "old path lapsed",
+                         "entities": ["review"], "supersedes": d, "context": "code review", "task_id": self.task},
+                        mcp=False)
+        self.assert_pass(self.run_loop("close", self.task), 1)
+
+    def test_not_helped_failed_task_needs_no_fix(self) -> None:
+        d = self.decision()
+        self.start([d])
+        ev = self.applied(d, [d])
+        self.outcome(d, status="failed", applied_event_id=ev, helpful=False, effect="misled", reason="pointed at a dead path")
+        self.assert_pass(self.run_loop("close", self.task), 1)
 
 
 class StoreModeTests(LedgerLoopBase):
@@ -352,6 +387,18 @@ class RemoteModeTests(LedgerLoopBase):
         r = self.box_run("close", self.task)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("WARN fail-open", r.stdout)
+
+    def test_remote_not_helped_fix_is_read_over_mcp(self) -> None:
+        d = self.decision("old reviewer path")
+        self.box_start([d])
+        ev = self.applied(d, [d])
+        self.outcome(d, applied_event_id=ev, helpful=False, effect="not_helped", reason="reviewer subscription lapsed")
+        self.assert_fail(self.box_run("close", self.task), "no fix is saved")
+        r = self.box_run("save", self.task, "--bot", "box", "--type", "agent_conclusion", "--crit", "4",
+                         "--decision", "Review through Cursor agent instead", "--why", "old path lapsed",
+                         "--entity", "review", "--supersedes", d, "--context", "code review")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assert_pass(self.box_run("close", self.task), 1)
 
     def test_find_server_down_fails_open_in_one_line(self) -> None:
         self.httpd.shutdown()

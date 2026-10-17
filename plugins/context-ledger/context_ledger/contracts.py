@@ -437,8 +437,14 @@ def validate_body(value: Any, *, allow_owner_attested: bool) -> dict[str, Any]:
     return body
 
 
+HELP_EFFECTS = ("not_helped", "misled")
+REASON_WORDS = 20
+
+
 def validate_outcome(value: Any) -> dict[str, Any]:
-    obj = require_keys(value, {"status", "note", "evidence"}, {"task_id", "applied_event_id", "helpful"})
+    obj = require_keys(
+        value, {"status", "note", "evidence"}, {"task_id", "applied_event_id", "helpful", "effect", "reason"}
+    )
     result = {
         "status": require_enum(obj["status"], OUTCOME_STATUS),
         "note": require_str(obj["note"], 500, allow_empty=True),
@@ -449,10 +455,30 @@ def validate_outcome(value: Any) -> dict[str, Any]:
         result["task_id"] = require_uuid(obj["task_id"])
     if "applied_event_id" in obj and obj["applied_event_id"] is not None:
         result["applied_event_id"] = require_uuid(obj["applied_event_id"])
-    if "helpful" in obj and obj["helpful"] is not None:
-        if type(obj["helpful"]) is not bool:
+    helpful = obj.get("helpful")
+    if helpful is not None:
+        if type(helpful) is not bool:
             raise LedgerError("INVALID_ARGUMENT", message="helpful must be true or false")
-        result["helpful"] = obj["helpful"]
+        result["helpful"] = helpful
+    elif "applied_event_id" in result:
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message="an applied outcome needs helpful true|false; nothing was saved",
+        )
+    effect, reason = obj.get("effect"), obj.get("reason")
+    if helpful is False:
+        if effect not in HELP_EFFECTS:
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message="helpful false needs effect not_helped|misled; nothing was saved",
+            )
+        result["effect"] = effect
+        result["reason"] = _line(reason, "reason", max_chars=160, max_words=REASON_WORDS)
+    elif effect is not None or reason is not None:
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message="effect and reason go only with helpful false; nothing was saved",
+        )
     return result
 
 
@@ -607,6 +633,8 @@ def validate_get_input(value: Any) -> dict[str, Any]:
 # live in skills; a trace only names the rule it applied. Limits are enforced, never trimmed.
 TRACE_TYPES = ("user_decision", "agent_conclusion")
 TRACE_OUTCOMES = ("success", "failed", "partial", "pending")
+FIX_KINDS = ("supersedes", "exception_for")
+CONTEXT_WORDS = 10
 DECISION_WORDS = 15
 WHY_WORDS = 20
 ACTOR_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,39}$")
@@ -659,7 +687,7 @@ def validate_trace(value: Any) -> dict[str, Any]:
     obj = require_keys(
         value,
         {"type", "criticality", "approver"},
-        {"rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id"},
+        {"rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id", "fix_kind", "fix_of", "context"},
     )
     rtype = obj["type"]
     if rtype not in TRACE_TYPES:
@@ -688,6 +716,16 @@ def validate_trace(value: Any) -> dict[str, Any]:
         out["precedent_ids"] = prec
     if obj.get("task_id"):
         out["task_id"] = require_uuid(obj["task_id"])
+    if obj.get("fix_kind") is not None or obj.get("fix_of") is not None:
+        if obj.get("fix_kind") not in FIX_KINDS:
+            raise LedgerError("INVALID_ARGUMENT", message="fix_kind must be supersedes or exception_for; nothing was saved")
+        out["fix_kind"] = obj["fix_kind"]
+        out["fix_of"] = require_uuid(obj.get("fix_of"))
+        if out["fix_of"] in prec:
+            raise LedgerError("INVALID_ARGUMENT", message="the decision you fix is not also a precedent; nothing was saved")
+        out["context"] = _line(obj.get("context"), "context", max_chars=80, max_words=CONTEXT_WORDS)
+    elif obj.get("context") is not None:
+        raise LedgerError("INVALID_ARGUMENT", message="context goes with supersedes or exception_for; nothing was saved")
     return out
 
 
@@ -698,7 +736,7 @@ def validate_save_input(value: Any) -> dict[str, Any]:
         {"request_id", "type", "decision", "why", "entities"},
         {
             "criticality", "rule", "exception", "override_by", "approver", "inputs", "state",
-            "outcome", "precedent_ids", "task_id", "actor",
+            "outcome", "precedent_ids", "task_id", "actor", "supersedes", "exception_for", "context",
         },
     )
     rtype = obj["type"]
@@ -724,6 +762,19 @@ def validate_save_input(value: Any) -> dict[str, Any]:
         "approver": approver,
         **{k: obj[k] for k in ("rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id") if obj.get(k) is not None},
     }
+    fixes = [k for k in FIX_KINDS if obj.get(k)]
+    if len(fixes) > 1:
+        raise LedgerError("INVALID_ARGUMENT", message="pass supersedes or exception_for, not both; nothing was saved")
+    if fixes:
+        trace_in["fix_kind"] = fixes[0]
+        trace_in["fix_of"] = obj[fixes[0]]
+        if not obj.get("context"):
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message=f"{fixes[0]} needs context (<=10 words: where the old decision failed); nothing was saved",
+            )
+    if obj.get("context") is not None:
+        trace_in["context"] = obj["context"]
     if rtype == "user_decision" and not trace_in.get("override_by"):
         trace_in["override_by"] = "guru"
     trace = validate_trace(trace_in)

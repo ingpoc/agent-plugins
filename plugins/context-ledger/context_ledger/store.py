@@ -116,6 +116,15 @@ CREATE TABLE IF NOT EXISTS links (
   PRIMARY KEY(src,dst,kind)
 );
 CREATE INDEX IF NOT EXISTS links_dst ON links(dst);
+CREATE TABLE IF NOT EXISTS fix_links (
+  src TEXT NOT NULL,
+  dst TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK(kind IN ('supersedes','exception_for')),
+  context TEXT NOT NULL,
+  task_id TEXT,
+  PRIMARY KEY(src,dst)
+);
+CREATE INDEX IF NOT EXISTS fix_links_dst ON fix_links(dst);
 CREATE TABLE IF NOT EXISTS access_log (
   seq INTEGER PRIMARY KEY AUTOINCREMENT,
   ts TEXT NOT NULL,
@@ -466,6 +475,7 @@ class Store:
             conn.execute("begin immediate")
             try:
                 conn.execute("delete from links")
+                conn.execute("delete from fix_links")
                 for row in conn.execute("select decision_id, projection_json from current_records").fetchall():
                     self._write_links(conn, row["decision_id"], parse_json(row["projection_json"])["body"])
                 conn.execute("commit")
@@ -478,6 +488,13 @@ class Store:
     @staticmethod
     def _write_links(conn: sqlite3.Connection, decision_id: str, body: dict[str, Any]) -> None:
         conn.execute("delete from links where src=?", (decision_id,))
+        conn.execute("delete from fix_links where src=?", (decision_id,))
+        trace = body.get("trace") or {}
+        if trace.get("fix_of"):
+            conn.execute(
+                "insert or replace into fix_links(src,dst,kind,context,task_id) values (?,?,?,?,?)",
+                (decision_id, trace["fix_of"], trace["fix_kind"], trace["context"], trace.get("task_id")),
+            )
         for dst in (body.get("trace") or {}).get("precedent_ids") or []:
             conn.execute(
                 "insert or ignore into links(src,dst,kind) values (?,?,'precedent')", (decision_id, dst)
@@ -800,6 +817,9 @@ class Store:
                 conn, self._trace_events(conn, parsed["decision_id"]), mcp=mcp
             )
             packed = {"record": self._pack_trace(rec, events)}
+            fixed = self._fixed_by(conn, rec, events, mcp=mcp)
+            if fixed:
+                packed["record"]["fixed_by"] = fixed
             if mcp:
                 self._log_access(
                     conn, tool="get", caller=parsed["actor"], task_id=None, query=None,
@@ -807,6 +827,34 @@ class Store:
                     started=started,
                 )
             return packed
+
+    def _fixed_by(
+        self, conn: sqlite3.Connection, rec: dict[str, Any], events: list[dict[str, Any]], *, mcp: bool
+    ) -> list[dict[str, Any]]:
+        """Fixes that supersede this decision or are an exception to it, with the confidence
+        this decision keeps in each fix's context (not_helped outcomes count against it there)."""
+        out: list[dict[str, Any]] = []
+        conf = rec.get("confidence") or {}
+        succ, n = conf.get("successes") or 0, conf.get("sample_count") or 0
+        for row in conn.execute(
+            "select src, kind, context, task_id from fix_links where dst=? order by src", (rec["decision_id"],)
+        ).fetchall():
+            if self._get_record(conn, row["src"], mcp=mcp) is None:
+                continue
+            not_helped = sum(
+                1
+                for e in events
+                if e["event_type"] == "outcome"
+                and e["payload"].get("helpful") is False
+                and (row["task_id"] is None or e["payload"].get("task_id") == row["task_id"])
+            )
+            out.append({
+                "id": row["src"], "kind": row["kind"], "context": row["context"],
+                **({"task_id": row["task_id"]} if row["task_id"] else {}),
+                "not_helped": not_helped,
+                "confidence_here": round(succ / (n + not_helped), 2) if (n + not_helped) else 0.0,
+            })
+        return out
 
     def _trace_events(self, conn: sqlite3.Connection, decision_id: str) -> list[dict[str, Any]]:
         rows = conn.execute(
@@ -925,6 +973,8 @@ class Store:
             text_of: dict[str, tuple[float, float, int]] = {}
             for did, rec in recs.items():
                 text_of[did] = corpus.score(did, qterms) if qterms else (0.0, 0.0, 0)
+            fix_pairs = self._fixes_in_context(recs, text_of, qterms)
+            demoted = {old for _fix, old in fix_pairs}
             for did, rec in recs.items():
                 if rec["lifecycle"] != "active" and not parsed["include_superseded"]:
                     continue
@@ -939,6 +989,8 @@ class Store:
                 crit = (body.get("trace") or {}).get("criticality", 0)
                 boost = ranking.TYPE_BOOST[rtype] * (1 + 0.05 * crit)
                 final = round(bm25 * boost, 1) if text_ok else 0.0
+                if did in demoted:
+                    final = round(final * ranking.NOT_HELPED_FACTOR, 1)
                 ev = rec["evidence_state"]
                 ev_rank = 0 if ev == "reported_verified" else 1 if ev in {"unverified", "none"} else 2
                 conf = rec["confidence"]["score"] or 0.0
@@ -956,12 +1008,24 @@ class Store:
                 scored.append((key, rec))
             scored.sort(key=lambda item: item[0])
             ranked = [rec for _key, rec in scored]
+            for fix, old in fix_pairs:
+                ids = [r["decision_id"] for r in ranked]
+                if old not in ids:
+                    continue
+                if fix in ids and ids.index(fix) < ids.index(old):
+                    continue
+                if fix in ids:
+                    ranked.pop(ids.index(fix))
+                    ids.remove(fix)
+                ranked.insert(ids.index(old), recs[fix])
             offset = parsed["offset"]
             window = ranked[offset : offset + parsed["limit"]]
             shown = {rec["decision_id"] for rec in window}
             matches = []
             for rec in window:
                 hit = self._compact(rec, repeats)
+                if rec["decision_id"] in demoted:
+                    hit["flag"] = "not_helped here"
                 rel = self._related(conn, rec, recs, text_of, shown)
                 if rel:
                     hit["related"] = rel
@@ -994,6 +1058,28 @@ class Store:
             )
             return result
 
+    @staticmethod
+    def _fixes_in_context(
+        recs: dict[str, dict[str, Any]], text_of: dict[str, tuple[float, float, int]], qterms: list[str]
+    ) -> list[tuple[str, str]]:
+        """(fix, old) pairs whose context this query is in: the query covers half the fix's context
+        words, or the fix itself is a relevant hit. In that context the old decision drops and the
+        fix ranks above it."""
+        qset = set(qterms)
+        pairs: list[tuple[str, str]] = []
+        for did, rec in recs.items():
+            trace = rec["body"].get("trace") or {}
+            old = trace.get("fix_of")
+            if not old or old not in recs or rec["lifecycle"] != "active":
+                continue
+            ctx = set(ranking.query_terms(trace.get("context") or ""))
+            covered = len(ctx & qset)
+            _bm, cov, matched = text_of.get(did, (0.0, 0.0, 0))
+            fix_ok = bool(qterms) and ranking.relevant(cov, matched, len(qterms))
+            if (ctx and covered * 2 >= len(ctx)) or fix_ok:
+                pairs.append((did, old))
+        return sorted(pairs)
+
     def _compact(self, rec: dict[str, Any], repeats: dict[tuple[str, str], int]) -> dict[str, Any]:
         body = rec["body"]
         trace = body.get("trace") or {}
@@ -1009,6 +1095,9 @@ class Store:
             for key in ("rule", "exception", "override_by"):
                 if trace.get(key):
                     hit[key] = trace[key]
+            if trace.get("fix_of"):
+                hit[trace["fix_kind"]] = trace["fix_of"]
+                hit["context"] = trace["context"]
             rk = self._repeat_key(trace)
             if rk and repeats.get(rk, 0) >= 2:
                 hit["repeats"] = repeats[rk]
@@ -1103,6 +1192,11 @@ class Store:
                         "INVALID_ARGUMENT",
                         message=f"precedent {pid} is not a visible record; nothing was saved",
                     )
+            if trace.get("fix_of") and self._get_record(conn, trace["fix_of"], mcp=mcp) is None:
+                raise LedgerError(
+                    "INVALID_ARGUMENT",
+                    message=f"{trace['fix_kind']} {trace['fix_of']} is not a visible record; nothing was saved",
+                )
         body = {
             "kind": "decision",
             "summary": parsed["decision"],
@@ -2074,6 +2168,7 @@ class Store:
         conn.execute("delete from current_records")
         conn.execute("delete from search_fts")
         conn.execute("delete from links")
+        conn.execute("delete from fix_links")
         ids = [r[0] for r in conn.execute("select distinct decision_id from events")]
         reduced = {did: self._reduce_decision(conn, did) for did in ids}
         rels = self._relations(reduced)
