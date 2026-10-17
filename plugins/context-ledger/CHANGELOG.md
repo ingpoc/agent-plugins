@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased: ledger viewer v1
+
+- `browse` now draws `ui://context-ledger/ledger-v2.html`, the approved prototype on real data: decisions with why, search, activity in IST, outcomes, confidence, trust tier, and the A/B trial. `ui/browse.html` and its harness are removed.
+- App-only read tools `ledger_query`, `ledger_activity`, `ledger_stats` (visibility `["app"]`, `readOnlyHint`). SQLite `mode=ro`, model-safe only, replies capped at 16 KB with integer cursors, no `access_log` rows. Tiers come from `Store._tier`; A/B maths from `ledger_stats.py` (`load`, `arm_stats`), loaded by path, not copied.
+- `context_ledger.viewer_local`: the Mini localhost fallback (127.0.0.1, Host check, GET only).
+
+## 0.1.26
+
+- `Store.open` creates the v2 tables and backfills `links` and `fix_links` once. Later opens do not delete and rescan them. A projection write still updates links for that decision.
+- `scripts/ledger_loop.py` has no default MCP URL. A `CONTEXT_LEDGER_MCP_TOKEN` with an empty `CONTEXT_LEDGER_MCP_URL` is not sent.
+- `find` ranks a `user_decision` above an equal text match only when `approval.state` is `owner_attested`. A `self_reported` save does not get that boost.
+- The one-copy find/get JSON shape lives in `tool_content`. `tests/test_v2.py` does not import the MCP server.
+- Freeze (Guru 2026-10-17): `exception_for` is removed; `supersedes` is the only fix link. A not-helped applied decision with no fix makes `ledger_loop.py close` WARN with a count instead of failing.
+- Each find card carries `tier`: `trusted` (3+ helped applied outcomes, failure (not_helped+misled)/applied 10% or less, and no fix supersedes it in this context; tune `TRUST_MIN_HELPED`/`TRUST_MAX_FAIL` in `ranking.py`), else `user_decision` for an owner-attested user_decision, else `hint`.
+- A/B 2026-10-18 to 2026-10-31 IST: `find` over MCP returns `{"matches": [], "arm": "off"}` on even days; saves and outcomes stay on. `ledger_loop.py` applies the same rule and `close` appends one row per task to `ledger-loop/tasks.jsonl` (`--repeat-of`, `--guru-correction`, `--bot`). `LEDGER_AB_DATE` pins the day for dry runs.
+
+## 0.1.25
+
+- An applied outcome (one with `applied_event_id`) must set `helpful` true or false. `helpful: false` needs `effect` `not_helped` or `misled` and a one-line `reason` of 20 words or fewer. Otherwise the outcome is rejected and nothing is written.
+- `save` takes `supersedes` or `exception_for` (the old decision id) plus `context` (10 words or fewer: where the old decision did not help). The link lives in a new additive `fix_links` table, rebuilt from traces.
+- In that context, meaning the query covers half the context words or the fix itself matches, `find` halves the old decision's text score, ranks the fix above it, and flags the old card `not_helped here`. A fix card shows `supersedes`/`exception_for` and `context`. `get` lists `fixed_by` with `not_helped` and `confidence_here`.
+- `ledger_loop.py close` fails when an applied outcome has no `helpful`, when `helpful: false` has no effect or reason, or when an applied decision did not help, the task succeeded, and no fix in this task links to it. `save` gains `--supersedes`, `--exception-for` and `--context`.
+
+## 0.1.24
+
+- `find` ranks by text match first: BM25 over decision (2.0), why (1.5) and the other body fields, with an IDF-weighted coverage floor (0.40, and at least 2 matched terms for queries of 3+ terms). A record below the floor is not returned. Confidence and outcome only break ties and never lift an off-topic record.
+- Confidence counts an outcome only when it carries a real task id. A routine "Hourly ..." check-in without an applied event, and a placeholder task id, are not uses.
+- `find` returns compact cards only: `decision_id`, `type`, `decision` (15 words), `why` (20 words), optional `crit`, `rule`, `exception`, `override_by`, `repeats`, up to 3 entities, `outcome`, `flag`, and up to 2 on-topic one-hop `related` precedents. A find reply stays within 1,200 bytes; related entries and then trailing hits are dropped first. MCP `find` and `get` send the JSON once (text only), not twice.
+- `entities`, `constraints`, `task_id` and `actor` are optional in `find`.
+- New `save` tool records a compact decision trace: `type` `user_decision` (Guru's accept or override; needs `why`; ranked above agent conclusions) or `agent_conclusion` (needs `why` and `criticality` 1-5), plus typed fields `rule`, `exception`, `override_by`, `approver`, `inputs`, `state`, `outcome`, `precedent_ids`, `entities`. `decision` over 15 words or `why` over 20 words, or either spanning lines, is rejected with a named error; nothing is trimmed.
+- Additive schema: `links` (precedent edges, rebuilt from traces) and `access_log` (every MCP find and get: caller, task, query, result count, bytes, ids, ms; also one stderr JSON line). `repeats` counts traces with the same rule and exception (automation-candidate signal). An outcome may set `helpful`.
+- Each caller may pass `actor`; provenance uses it instead of the shared binding actor.
+- HTTP 401 names `AUTH_MISSING` or `AUTH_INVALID` and says it is an auth failure, not an empty result. The stdio bridge passes that code through.
+- `scripts/ledger_loop.py` is gated and never blocks: `find` and `save` use a 2 s deadline (`LEDGER_TIMEOUT`) and fail open with one WARN line; `--audit` or `LEDGER_AUDIT=1` fails loud. `close --gated-out WORD` passes for a simple or one-shot task. Placeholder task ids are rejected.
+
 ## 0.1.23
 
 - `browse` builds each card from the same record `get` would return. MCP omits a `local_only` replacement id and does not set `has_conflict` for a hidden conflict. Owner reads still see those links.

@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import unicodedata
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal, TypedDict
 
 SCHEMA_VERSION = 1
@@ -15,6 +16,8 @@ MAX_REQUEST_LINE = 64 * 1024
 MAX_EVENT = 12 * 1024
 MAX_BODY = 4 * 1024
 MAX_FIND_RESPONSE = 4 * 1024
+MAX_FIND_BYTES = 1200  # v2 find budget: top-3 compact hits plus linked precedents
+RELATED_CAP = 2
 BROWSE_OFFSET_MAX = 20_000
 MAX_GET_RESPONSE = 8 * 1024
 MAX_NESTING = 12
@@ -409,6 +412,7 @@ def validate_body(value: Any, *, allow_owner_attested: bool) -> dict[str, Any]:
             "sensitivity",
             "approval",
         },
+        {"trace"},
     )
     kind = require_enum(obj["kind"], KIND)
     rationale_empty = kind == "observation"
@@ -425,13 +429,23 @@ def validate_body(value: Any, *, allow_owner_attested: bool) -> dict[str, Any]:
         "sensitivity": require_enum(obj["sensitivity"], SENSITIVITY),
         "approval": validate_approval(obj["approval"], allow_owner_attested=allow_owner_attested),
     }
+    if "trace" in obj:
+        body["trace"] = validate_trace(obj["trace"])
+        if len(body["summary"].split()) > DECISION_WORDS or len(body["rationale"].split()) > WHY_WORDS:
+            raise LedgerError("INVALID_ARGUMENT", message="trace body: summary or rationale over the word limit")
     if len(canonical_json(body).encode("utf-8")) > MAX_BODY:
         raise LedgerError("LIMIT_EXCEEDED")
     return body
 
 
+HELP_EFFECTS = ("not_helped", "misled")
+REASON_WORDS = 20
+
+
 def validate_outcome(value: Any) -> dict[str, Any]:
-    obj = require_keys(value, {"status", "note", "evidence"}, {"task_id", "applied_event_id"})
+    obj = require_keys(
+        value, {"status", "note", "evidence"}, {"task_id", "applied_event_id", "helpful", "effect", "reason"}
+    )
     result = {
         "status": require_enum(obj["status"], OUTCOME_STATUS),
         "note": require_str(obj["note"], 500, allow_empty=True),
@@ -442,6 +456,30 @@ def validate_outcome(value: Any) -> dict[str, Any]:
         result["task_id"] = require_uuid(obj["task_id"])
     if "applied_event_id" in obj and obj["applied_event_id"] is not None:
         result["applied_event_id"] = require_uuid(obj["applied_event_id"])
+    helpful = obj.get("helpful")
+    if helpful is not None:
+        if type(helpful) is not bool:
+            raise LedgerError("INVALID_ARGUMENT", message="helpful must be true or false")
+        result["helpful"] = helpful
+    elif "applied_event_id" in result:
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message="an applied outcome needs helpful true|false; nothing was saved",
+        )
+    effect, reason = obj.get("effect"), obj.get("reason")
+    if helpful is False:
+        if effect not in HELP_EFFECTS:
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message="helpful false needs effect not_helped|misled; nothing was saved",
+            )
+        result["effect"] = effect
+        result["reason"] = _line(reason, "reason", max_chars=160, max_words=REASON_WORDS)
+    elif effect is not None or reason is not None:
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message="effect and reason go only with helpful false; nothing was saved",
+        )
     return result
 
 
@@ -514,13 +552,17 @@ def validate_payload(event_type: str, value: Any, *, allow_owner_attested: bool)
 def validate_record_input(
     value: Any, *, allow_owner_attested: bool
 ) -> dict[str, Any]:
-    obj = require_keys(value, {"request_id", "occurred_at", "body", "outcome"})
-    return {
+    obj = require_keys(value, {"request_id", "occurred_at", "body", "outcome"}, {"actor"})
+    out = {
         "request_id": require_uuid(obj["request_id"]),
         "occurred_at": require_ts(obj["occurred_at"], allow_null=True),
         "body": validate_body(obj["body"], allow_owner_attested=allow_owner_attested),
         "outcome": validate_outcome(obj["outcome"]),
     }
+    actor = require_actor(obj.get("actor"))
+    if actor:
+        out["actor"] = actor
+    return out
 
 
 def validate_append_input(
@@ -536,6 +578,7 @@ def validate_append_input(
             "event_type",
             "payload",
         },
+        {"actor"},
     )
     event_type = require_enum(
         obj["event_type"],
@@ -548,14 +591,15 @@ def validate_append_input(
         "occurred_at": require_ts(obj["occurred_at"], allow_null=True),
         "event_type": event_type,
         "payload": validate_payload(event_type, obj["payload"], allow_owner_attested=allow_owner_attested),
+        **({"actor": require_actor(obj["actor"])} if obj.get("actor") else {}),
     }
 
 
 def validate_find_input(value: Any) -> dict[str, Any]:
     obj = require_keys(
         value,
-        {"query", "entities", "constraints"},
-        {"include_superseded", "limit", "offset"},
+        {"query"},
+        {"entities", "constraints", "include_superseded", "limit", "offset", "task_id", "actor"},
     )
     include = obj.get("include_superseded", False)
     if type(include) is not bool:
@@ -566,20 +610,201 @@ def validate_find_input(value: Any) -> dict[str, Any]:
     offset = obj.get("offset", 0)
     return {
         "query": require_str(obj["query"], 240, allow_empty=True),
-        "entities": [nfc(item) for item in _str_list(obj["entities"], 128, 4)],
-        "constraints": _str_list(obj["constraints"], 160, 4),
+        "entities": [nfc(item) for item in _str_list(obj.get("entities") or [], 128, 4)],
+        "constraints": _str_list(obj.get("constraints") or [], 160, 4),
         "include_superseded": include,
         "limit": require_int(limit, min_v=1, max_v=3),
         "offset": require_int(offset, min_v=0, max_v=30),
+        "task_id": require_uuid(obj["task_id"]) if obj.get("task_id") else None,
+        "actor": require_actor(obj.get("actor")),
     }
 
 
 def validate_get_input(value: Any) -> dict[str, Any]:
-    obj = require_keys(value, {"decision_id"}, {"expected_revision"})
-    out: dict[str, Any] = {"decision_id": require_uuid(obj["decision_id"])}
+    obj = require_keys(value, {"decision_id"}, {"expected_revision", "actor"})
+    out: dict[str, Any] = {"decision_id": require_uuid(obj["decision_id"]), "actor": require_actor(obj.get("actor"))}
     if "expected_revision" in obj:
         out["expected_revision"] = require_int(obj["expected_revision"], min_v=1)
     return out
+
+
+
+# ---- compact decision traces (v2) -------------------------------------------------------
+# A trace is what happened in one case: decision + why + short typed fields. Rules (policy)
+# live in skills; a trace only names the rule it applied. Limits are enforced, never trimmed.
+TRACE_TYPES = ("user_decision", "agent_conclusion")
+TRACE_OUTCOMES = ("success", "failed", "partial", "pending")
+FIX_KINDS = ("supersedes",)
+# A/B (Guru 2026-10-17): inside the window find is ON on odd IST calendar days, OFF on even days.
+# Saves and outcomes stay on. scripts/ledger_loop.py carries the same rule for its own log.
+IST = timezone(timedelta(hours=5, minutes=30))
+AB_START, AB_END = date(2026, 10, 18), date(2026, 10, 31)
+
+
+def ab_arm(day: date) -> str:
+    if not AB_START <= day <= AB_END:
+        return "none"
+    return "on" if day.day % 2 else "off"
+
+
+def ist_today() -> date:
+    """Today in IST; LEDGER_AB_DATE=YYYY-MM-DD pins it for dry runs and tests."""
+    raw = os.environ.get("LEDGER_AB_DATE", "").strip()
+    return date.fromisoformat(raw) if raw else datetime.now(IST).date()
+CONTEXT_WORDS = 10
+DECISION_WORDS = 15
+WHY_WORDS = 20
+ACTOR_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,39}$")
+
+
+def require_actor(value: Any) -> str | None:
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str) or not ACTOR_RE.fullmatch(value):
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message="actor must be a lowercase slug like smm-bot (a-z 0-9 . _ -, max 40)",
+        )
+    return value
+
+
+def _line(value: Any, field: str, *, max_chars: int, max_words: int | None = None, required: bool = True) -> str | None:
+    if value is None or value == "":
+        if required:
+            raise LedgerError("INVALID_ARGUMENT", message=f"{field} is required; nothing was saved")
+        return None
+    if not isinstance(value, str) or "\x00" in value:
+        raise LedgerError("INVALID_ARGUMENT", message=f"{field} must be a string; nothing was saved")
+    if "\n" in value or "\r" in value:
+        raise LedgerError("INVALID_ARGUMENT", message=f"{field} must be one line; nothing was saved")
+    words = len(value.split())
+    if max_words is not None and words > max_words:
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message=f"{field} is {words} words; max {max_words}. Shorten it; nothing was saved",
+        )
+    if len(value) > max_chars:
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message=f"{field} is {len(value)} chars; max {max_chars}. Shorten it; nothing was saved",
+        )
+    return value.strip()
+
+
+def _short_list(value: Any, field: str, *, max_n: int, max_chars: int) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or len(value) > max_n:
+        raise LedgerError("INVALID_ARGUMENT", message=f"{field} takes at most {max_n} items; nothing was saved")
+    return [nfc(_line(item, field, max_chars=max_chars)) for item in value]  # type: ignore[arg-type]
+
+
+def validate_trace(value: Any) -> dict[str, Any]:
+    """The typed trace fields stored inside a body. Shared by save and replay."""
+    obj = require_keys(
+        value,
+        {"type", "criticality", "approver"},
+        {"rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id", "fix_kind", "fix_of", "context"},
+    )
+    rtype = obj["type"]
+    if rtype not in TRACE_TYPES:
+        raise LedgerError("INVALID_ARGUMENT", message="type must be user_decision or agent_conclusion")
+    crit = obj["criticality"]
+    if type(crit) is not int or not 1 <= crit <= 5:
+        raise LedgerError("INVALID_ARGUMENT", message="criticality must be an integer 1-5; nothing was saved")
+    approver = _line(obj["approver"], "approver", max_chars=40)
+    if rtype == "user_decision" and approver != "guru":
+        raise LedgerError("INVALID_ARGUMENT", message="a user_decision needs approver guru; nothing was saved")
+    out: dict[str, Any] = {"type": rtype, "criticality": crit, "approver": approver}
+    for key, limit in (("rule", 80), ("exception", 80), ("override_by", 40), ("state", 60)):
+        got = _line(obj.get(key), key, max_chars=limit, required=False)
+        if got is not None:
+            out[key] = got
+    inputs = _short_list(obj.get("inputs"), "inputs", max_n=4, max_chars=60)
+    if inputs:
+        out["inputs"] = inputs
+    prec = obj.get("precedent_ids") or []
+    if not isinstance(prec, list) or len(prec) > 4:
+        raise LedgerError("INVALID_ARGUMENT", message="precedent_ids takes at most 4 ids; nothing was saved")
+    prec = [require_uuid(item) for item in prec]
+    if len(prec) != len(set(prec)):
+        raise LedgerError("INVALID_ARGUMENT", message="precedent_ids repeat; nothing was saved")
+    if prec:
+        out["precedent_ids"] = prec
+    if obj.get("task_id"):
+        out["task_id"] = require_uuid(obj["task_id"])
+    if obj.get("fix_kind") is not None or obj.get("fix_of") is not None:
+        if obj.get("fix_kind") not in FIX_KINDS:
+            raise LedgerError("INVALID_ARGUMENT", message="fix_kind must be supersedes; nothing was saved")
+        out["fix_kind"] = obj["fix_kind"]
+        out["fix_of"] = require_uuid(obj.get("fix_of"))
+        if out["fix_of"] in prec:
+            raise LedgerError("INVALID_ARGUMENT", message="the decision you fix is not also a precedent; nothing was saved")
+        out["context"] = _line(obj.get("context"), "context", max_chars=80, max_words=CONTEXT_WORDS)
+    elif obj.get("context") is not None:
+        raise LedgerError("INVALID_ARGUMENT", message="context goes with supersedes; nothing was saved")
+    return out
+
+
+def validate_save_input(value: Any) -> dict[str, Any]:
+    """Compact save: decision <=15 words, why <=20 words, everything else short typed fields."""
+    obj = require_keys(
+        value,
+        {"request_id", "type", "decision", "why", "entities"},
+        {
+            "criticality", "rule", "exception", "override_by", "approver", "inputs", "state",
+            "outcome", "precedent_ids", "task_id", "actor", "supersedes", "context",
+        },
+    )
+    rtype = obj["type"]
+    if rtype not in TRACE_TYPES:
+        raise LedgerError("INVALID_ARGUMENT", message="type must be user_decision or agent_conclusion")
+    decision = _line(obj["decision"], "decision", max_chars=120, max_words=DECISION_WORDS)
+    why = _line(obj["why"], "why", max_chars=160, max_words=WHY_WORDS)
+    entities = _short_list(obj["entities"], "entities", max_n=4, max_chars=40)
+    if not entities:
+        raise LedgerError("INVALID_ARGUMENT", message="entities needs 1-4 names (repo, plugin, site, bot); nothing was saved")
+    crit = obj.get("criticality")
+    if crit is None:
+        if rtype == "agent_conclusion":
+            raise LedgerError("INVALID_ARGUMENT", message="agent_conclusion needs criticality 1-5; nothing was saved")
+        crit = 5
+    actor = require_actor(obj.get("actor"))
+    approver = obj.get("approver") or ("guru" if rtype == "user_decision" else actor)
+    if approver is None:
+        raise LedgerError("INVALID_ARGUMENT", message="approver (or actor) is required; nothing was saved")
+    trace_in = {
+        "type": rtype,
+        "criticality": crit,
+        "approver": approver,
+        **{k: obj[k] for k in ("rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id") if obj.get(k) is not None},
+    }
+    fixes = [k for k in FIX_KINDS if obj.get(k)]
+    if fixes:
+        trace_in["fix_kind"] = fixes[0]
+        trace_in["fix_of"] = obj[fixes[0]]
+        if not obj.get("context"):
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message=f"{fixes[0]} needs context (<=10 words: where the old decision failed); nothing was saved",
+            )
+    if obj.get("context") is not None:
+        trace_in["context"] = obj["context"]
+    if rtype == "user_decision" and not trace_in.get("override_by"):
+        trace_in["override_by"] = "guru"
+    trace = validate_trace(trace_in)
+    outcome = obj.get("outcome") or "pending"
+    if outcome not in TRACE_OUTCOMES:
+        raise LedgerError("INVALID_ARGUMENT", message="outcome must be success, failed, partial or pending")
+    return {
+        "request_id": require_uuid(obj["request_id"]),
+        "decision": decision,
+        "why": why,
+        "entities": entities,
+        "trace": trace,
+        "outcome": {"partial": "inconclusive"}.get(outcome, outcome),
+        "actor": actor,
+    }
 
 
 def request_hash(tool: str, arguments: dict[str, Any]) -> str:
@@ -620,6 +845,14 @@ def truncate_unicode(text: str, max_len: int) -> str:
 
 def ok(data: Any) -> dict[str, Any]:
     return {"ok": True, "data": data}
+
+
+def tool_content(payload: dict[str, Any], *, structured: bool) -> tuple[str, dict[str, Any] | None]:
+    """JSON for one MCP tool result. structured=False is a single text copy (find and get)."""
+    text = canonical_json(payload)
+    if not structured:
+        return text, None
+    return text, payload
 
 
 def fail_dict(exc: LedgerError) -> dict[str, Any]:

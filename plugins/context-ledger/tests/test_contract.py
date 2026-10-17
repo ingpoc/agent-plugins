@@ -14,6 +14,7 @@ import time
 import unittest
 import uuid
 from pathlib import Path
+os.environ["LEDGER_AB_DATE"] = "2026-10-17"  # pre-A/B-window day: find on; A/B tests pin their own days
 
 ROOT = Path(__file__).resolve().parent.parent
 BOOT = ROOT / "bin" / "context_ledger.py"
@@ -358,8 +359,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.23")
-        self.assertIn('__version__ = "0.1.23"', init)
+        self.assertEqual(plugin["version"], "0.1.26")
+        self.assertIn('__version__ = "0.1.26"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -371,12 +372,12 @@ class PackageTests(unittest.TestCase):
         self.assertIn("release-blocked", readme)
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
-        page = (ROOT / "ui/browse.html").read_text(encoding="utf-8")
-        self.assertIn('version: "0.1.23"', page)
+        page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
+        self.assertIn('version:"0.1.26"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
-        self.assertNotIn("http://", page)
+        self.assertNotIn("http://", page.replace('"http://www.w3.org/2000/svg"', ""))  # SVG namespace, not a fetch
 
 
 class LaunchTests(unittest.TestCase):
@@ -1073,7 +1074,9 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(record["confidence"], expected)
         found = self.store.find({"query": "Apply known decision", "entities": [],
                                  "constraints": [], "limit": 3, "offset": 0}, mcp=True)
-        self.assertEqual(found["matches"][0]["confidence"], expected)
+        # v2 find is compact: confidence lives on get, find only names the hit.
+        self.assertEqual(found["matches"][0]["decision_id"], decision_id)
+        self.assertNotIn("confidence", found["matches"][0])
 
     def test_idempotency_and_revision(self) -> None:
         req = _uuid()
@@ -1181,7 +1184,7 @@ class StoreTests(unittest.TestCase):
         )
         ids = [m["decision_id"] for m in found["matches"]]
         self.assertEqual(ids, [ok_rec["decision_id"], pending["decision_id"], fail["decision_id"]])
-        self.assertIsNone(found["matches"][0]["flag"])
+        self.assertIsNone(found["matches"][0].get("flag"))
         self.assertEqual(found["matches"][2]["flag"], "status failed")
         got = self.store.get({"decision_id": ok_rec["decision_id"]}, mcp=True)["record"]
         self.assertEqual(got["outcome"]["status"], "success")
@@ -1429,6 +1432,7 @@ class StoreTests(unittest.TestCase):
                     "success",
                     note="applied then checked",
                     applied_event_id=applied["event_id"],
+                    helpful=True,
                 ),
             },
             mcp=True,
@@ -1456,6 +1460,7 @@ class StoreTests(unittest.TestCase):
                         "success",
                         note="wrong link",
                         applied_event_id=applied["event_id"],
+                        helpful=True,
                     ),
                 },
                 mcp=True,
@@ -2313,7 +2318,7 @@ class StoreTests(unittest.TestCase):
                 mcp=False,
             )
         found = self.store.find({"query": "capterm", "entities": [], "constraints": []}, mcp=True)
-        self.assertTrue(found["incomplete"])
+        self.assertTrue(found["has_more"])
 
     def test_projection_write_cap(self) -> None:
         from context_ledger import store as store_mod
@@ -3236,9 +3241,9 @@ class McpTests(unittest.TestCase):
 
         for mode in ("legacy", "2026-07-28"):
             info = anyio.run(once, mode)
-            self.assertEqual(info["names"], ["append_event", "browse", "find", "get", "record"], mode)
+            self.assertEqual(info["names"], ["append_event", "browse", "find", "get", "ledger_activity", "ledger_query", "ledger_stats", "record", "save"], mode)
             ui = ((info["by_name"]["browse"].get("_meta") or {}).get("ui") or {})
-            self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/browse.html", mode)
+            self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/ledger-v2.html", mode)
             self.assertEqual(ui.get("visibility"), ["model", "app"], mode)
             rec = info["by_name"]["record"].get("inputSchema") or {}
             app = info["by_name"]["append_event"].get("inputSchema") or {}
@@ -3619,23 +3624,6 @@ class CursorDestTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
-
-
-class BrowseUiTests(unittest.TestCase):
-    def test_browse_view_discards_stale_replies_and_retries(self) -> None:
-        node = shutil.which("node")
-        if not node:
-            self.skipTest("node is required to execute browse.html")
-        proc = subprocess.run(
-            [node, str(ROOT / "tests" / "browse_ui_harness.mjs"), str(ROOT / "ui" / "browse.html")],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
-        report = json.loads(proc.stdout)
-        for key, value in report.items():
-            self.assertTrue(value, key)
 
 
 if __name__ == "__main__":

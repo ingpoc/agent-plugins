@@ -19,7 +19,24 @@ DEFAULT_PORT = 8787
 MCP_PATH = "/mcp"
 MIN_TOKEN_CHARS = 32
 
-_UNAUTHORIZED = canonical_json({"ok": False, "error": {"code": "UNAUTHORIZED"}}).encode()
+_AUTH_FIX = "send Authorization: Bearer $CONTEXT_LEDGER_MCP_TOKEN (the connector or env secret)"
+_UNAUTHORIZED = {
+    reason: canonical_json(
+        {
+            "ok": False,
+            "error": {
+                "code": code,
+                "retryable": False,
+                "message": f"{text}; fix: {_AUTH_FIX}. This is an auth failure, not an empty result.",
+            },
+        }
+    ).encode()
+    for reason, code, text in (
+        ("missing", "AUTH_MISSING", "no Authorization header"),
+        ("malformed", "AUTH_INVALID", "Authorization is not 'Bearer <token>'"),
+        ("mismatch", "AUTH_INVALID", "bearer token does not match the server token"),
+    )
+}
 
 
 def _auth_logger() -> logging.Logger:
@@ -91,11 +108,11 @@ class BearerAuth:
                 "headers": [
                     (b"content-type", b"application/json"),
                     (b"www-authenticate", b"Bearer"),
-                    (b"content-length", str(len(_UNAUTHORIZED)).encode()),
+                    (b"content-length", str(len(_UNAUTHORIZED[reason])).encode()),
                 ],
             }
         )
-        await send({"type": "http.response.body", "body": _UNAUTHORIZED})
+        await send({"type": "http.response.body", "body": _UNAUTHORIZED[reason]})
 
 
 _NOT_FOUND = canonical_json(

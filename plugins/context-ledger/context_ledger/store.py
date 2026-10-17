@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sqlite3
 import stat
 import subprocess
@@ -14,6 +15,8 @@ from typing import Any
 
 from context_ledger.contracts import (
     APPEND_TYPES,
+    ab_arm,
+    ist_today,
     CANDIDATE_CAP,
     EVENT_TYPE,
     MAX_COMBINED_ROWS,
@@ -22,7 +25,9 @@ from context_ledger.contracts import (
     MAX_EVENT,
     MAX_EVENTS,
     BROWSE_OFFSET_MAX,
+    MAX_FIND_BYTES,
     MAX_FIND_RESPONSE,
+    RELATED_CAP,
     MAX_GET_RESPONSE,
     MAX_IMPORT_BYTES,
     MAX_IMPORT_LINES,
@@ -49,7 +54,9 @@ from context_ledger.contracts import (
     validate_get_input,
     validate_payload,
     validate_record_input,
+    validate_save_input,
 )
+from context_ledger import ranking
 
 DDL = """
 CREATE TABLE ledger_meta (
@@ -100,6 +107,42 @@ CREATE TABLE current_records (
 );
 CREATE INDEX current_scope ON current_records(scope_id,sensitivity,lifecycle,updated_at);
 CREATE VIRTUAL TABLE search_fts USING fts5(decision_id UNINDEXED, text, tokenize='unicode61');
+"""
+
+# v2, additive: projections and logs only; events stay the source of truth.
+V2_DDL = """
+CREATE TABLE IF NOT EXISTS links (
+  src TEXT NOT NULL,
+  dst TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK(kind IN ('precedent')),
+  PRIMARY KEY(src,dst,kind)
+);
+CREATE INDEX IF NOT EXISTS links_dst ON links(dst);
+CREATE TABLE IF NOT EXISTS fix_links (
+  src TEXT NOT NULL,
+  dst TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK(kind IN ('supersedes')),
+  context TEXT NOT NULL,
+  task_id TEXT,
+  PRIMARY KEY(src,dst)
+);
+CREATE INDEX IF NOT EXISTS fix_links_dst ON fix_links(dst);
+CREATE TABLE IF NOT EXISTS access_log (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  tool TEXT NOT NULL,
+  caller TEXT NOT NULL,
+  task_id TEXT,
+  query TEXT,
+  n INTEGER NOT NULL,
+  bytes INTEGER NOT NULL,
+  ids TEXT NOT NULL CHECK(json_valid(ids)),
+  ms INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS v2_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 """
 
 WINDOWS_ACL_SCRIPT = r"""
@@ -310,10 +353,27 @@ def _refuse_network(path: Path) -> Path:
     return resolved
 
 
+_CHECKIN_RE = re.compile(r"^\s*hourly\b", re.IGNORECASE)
+_PLACEHOLDER_TASK_RE = re.compile(r"^(a1b2c3d4|00000000|11111111|12345678|deadbeef)-", re.IGNORECASE)
+
+
+def _counts_as_use(payload: dict[str, Any]) -> bool:
+    """An outcome is a use when it carries a real task id. Status check-ins are not uses:
+    an outcome tied to an applied event always counts; an untied one whose note is a
+    routine "Hourly ..." check-in (the pre-v2 pattern) does not; placeholder task ids never do."""
+    task_id = payload.get("task_id")
+    if not task_id or _PLACEHOLDER_TASK_RE.match(task_id):
+        return False
+    if payload.get("applied_event_id"):
+        return True
+    return not _CHECKIN_RE.match(payload.get("note") or "")
+
+
 class Store:
     def __init__(self, plugin_data: Path, *, actor_channel: str = "owner_cli") -> None:
         self.plugin_data = Path(plugin_data)
         self.actor_channel = actor_channel
+        self.ab_today = ist_today
         self.binding = load_binding(self.plugin_data)
         self.ledger_dir = _refuse_network(Path(self.binding["ledger_dir"]))
         self.db_path = self.ledger_dir / "ledger.sqlite3"
@@ -411,8 +471,47 @@ class Store:
                 raise LedgerError("CORRUPT_LEDGER")
         except sqlite3.Error as exc:
             raise LedgerError("CORRUPT_LEDGER") from exc
+        self._ensure_v2(conn)
         self.conn = conn
         return conn
+
+    def _ensure_v2(self, conn: sqlite3.Connection) -> None:
+        """Additive v2 tables. Backfill links once; later opens do not rescan or take a write lock."""
+        try:
+            conn.executescript(V2_DDL)
+            if conn.execute("select 1 from v2_meta where key='links_backfill'").fetchone():
+                return
+            conn.execute("begin immediate")
+            try:
+                if conn.execute("select 1 from v2_meta where key='links_backfill'").fetchone() is None:
+                    conn.execute("delete from links")
+                    conn.execute("delete from fix_links")
+                    for row in conn.execute(
+                        "select decision_id, projection_json from current_records"
+                    ).fetchall():
+                        self._write_links(conn, row["decision_id"], parse_json(row["projection_json"])["body"])
+                    conn.execute("insert into v2_meta(key, value) values ('links_backfill', '1')")
+                conn.execute("commit")
+            except BaseException:
+                conn.execute("rollback")
+                raise
+        except sqlite3.Error as exc:
+            raise LedgerError("UNAVAILABLE", message=f"v2 tables could not be created in {self.db_path}: {exc}") from exc
+
+    @staticmethod
+    def _write_links(conn: sqlite3.Connection, decision_id: str, body: dict[str, Any]) -> None:
+        conn.execute("delete from links where src=?", (decision_id,))
+        conn.execute("delete from fix_links where src=?", (decision_id,))
+        trace = body.get("trace") or {}
+        if trace.get("fix_of"):
+            conn.execute(
+                "insert or replace into fix_links(src,dst,kind,context,task_id) values (?,?,?,?,?)",
+                (decision_id, trace["fix_of"], trace["fix_kind"], trace["context"], trace.get("task_id")),
+            )
+        for dst in (body.get("trace") or {}).get("precedent_ids") or []:
+            conn.execute(
+                "insert or ignore into links(src,dst,kind) values (?,?,'precedent')", (decision_id, dst)
+            )
 
     def close(self) -> None:
         if self.conn is not None:
@@ -531,7 +630,7 @@ class Store:
                 "recorded_at": recorded,
                 "occurred_at": parsed["occurred_at"],
                 "provenance": {
-                    "actor_id": self.binding["actor_id"],
+                    "actor_id": parsed.get("actor") or self.binding["actor_id"],
                     "channel": "agent" if mcp else self.actor_channel,
                 },
                 "request_id": parsed["request_id"],
@@ -594,7 +693,7 @@ class Store:
                 "recorded_at": recorded,
                 "occurred_at": parsed["occurred_at"],
                 "provenance": {
-                    "actor_id": self.binding["actor_id"],
+                    "actor_id": parsed.get("actor") or self.binding["actor_id"],
                     "channel": "agent" if mcp else self.actor_channel,
                 },
                 "request_id": parsed["request_id"],
@@ -682,7 +781,7 @@ class Store:
                 "recorded_at": now_ts(),
                 "occurred_at": parsed["occurred_at"],
                 "provenance": {
-                    "actor_id": self.binding["actor_id"],
+                    "actor_id": parsed.get("actor") or self.binding["actor_id"],
                     "channel": "agent" if mcp else self.actor_channel,
                 },
                 "request_id": parsed["request_id"],
@@ -718,6 +817,7 @@ class Store:
         )
 
     def get(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
+        started = time.monotonic()
         parsed = validate_get_input(arguments)
         with self._tx() as conn:
             rec = self._get_record(conn, parsed["decision_id"], mcp=mcp)
@@ -729,7 +829,45 @@ class Store:
             events = self._visible_trace(
                 conn, self._trace_events(conn, parsed["decision_id"]), mcp=mcp
             )
-            return {"record": self._pack_trace(rec, events)}
+            packed = {"record": self._pack_trace(rec, events)}
+            fixed = self._fixed_by(conn, rec, events, mcp=mcp)
+            if fixed:
+                packed["record"]["fixed_by"] = fixed
+            if mcp:
+                self._log_access(
+                    conn, tool="get", caller=parsed["actor"], task_id=None, query=None,
+                    ids=[parsed["decision_id"]], nbytes=len(canonical_json(packed).encode("utf-8")),
+                    started=started,
+                )
+            return packed
+
+    def _fixed_by(
+        self, conn: sqlite3.Connection, rec: dict[str, Any], events: list[dict[str, Any]], *, mcp: bool
+    ) -> list[dict[str, Any]]:
+        """Fixes that supersede this decision, with the confidence
+        this decision keeps in each fix's context (not_helped outcomes count against it there)."""
+        out: list[dict[str, Any]] = []
+        conf = rec.get("confidence") or {}
+        succ, n = conf.get("successes") or 0, conf.get("sample_count") or 0
+        for row in conn.execute(
+            "select src, kind, context, task_id from fix_links where dst=? order by src", (rec["decision_id"],)
+        ).fetchall():
+            if self._get_record(conn, row["src"], mcp=mcp) is None:
+                continue
+            not_helped = sum(
+                1
+                for e in events
+                if e["event_type"] == "outcome"
+                and e["payload"].get("helpful") is False
+                and (row["task_id"] is None or e["payload"].get("task_id") == row["task_id"])
+            )
+            out.append({
+                "id": row["src"], "kind": row["kind"], "context": row["context"],
+                **({"task_id": row["task_id"]} if row["task_id"] else {}),
+                "not_helped": not_helped,
+                "confidence_here": round(succ / (n + not_helped), 2) if (n + not_helped) else 0.0,
+            })
+        return out
 
     def _trace_events(self, conn: sqlite3.Connection, decision_id: str) -> list[dict[str, Any]]:
         rows = conn.execute(
@@ -819,83 +957,326 @@ class Store:
         return len(canonical_json({"record": rec}).encode("utf-8"))
 
     def find(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
+        """Compact, text-first find. One copy of each field; nothing below the relevance floor."""
+        started = time.monotonic()
         self._reachable = False
         self._ensure_reachable()
         parsed = validate_find_input(arguments)
-        tokens = fts_tokens(parsed["query"])
-        if not tokens and not parsed["entities"]:
-            raise LedgerError("INVALID_ARGUMENT")
+        qterms = ranking.query_terms(parsed["query"])
+        if not qterms and not parsed["entities"] and not parsed["constraints"]:
+            raise LedgerError(
+                "INVALID_ARGUMENT",
+                message="find needs query words (or entities); stop-words alone match nothing",
+            )
+        if mcp and ab_arm(self.ab_today()) == "off":
+            with self._tx() as conn:
+                self._log_access(conn, tool="find", caller=parsed["actor"], task_id=parsed["task_id"],
+                                 query=parsed["query"], ids=[], nbytes=0, started=started)
+            return {"matches": [], "has_more": False, "arm": "off"}
         with self._tx() as conn:
             scope = self.binding["scope_id"]
-            lifecycle_sql = "" if parsed["include_superseded"] else " and lifecycle='active'"
-            fts_ids: list[str] = []
-            incomplete = False
-            if tokens:
-                match = " OR ".join('"' + tok.replace('"', "") + '"' for tok in tokens)
-                rows = conn.execute(
-                    "select c.decision_id from search_fts f "
-                    "join current_records c on c.decision_id=f.decision_id "
-                    "where c.scope_id=? and c.sensitivity='model_safe'"
-                    + lifecycle_sql
-                    + " and search_fts match ? "
-                    "order by c.updated_at desc, c.decision_id asc limit ?",
-                    (scope, match, CANDIDATE_CAP + 1),
-                ).fetchall()
-                if len(rows) > CANDIDATE_CAP:
-                    incomplete = True
-                    rows = rows[:CANDIDATE_CAP]
-                fts_ids = [r["decision_id"] for r in rows]
-            entity_ids: list[str] = []
-            if parsed["entities"]:
-                rows = conn.execute(
-                    "select decision_id, projection_json, updated_at from current_records "
-                    "where scope_id=? and sensitivity='model_safe'" + lifecycle_sql + " "
-                    "order by updated_at desc, decision_id asc",
-                    (scope,),
-                ).fetchall()
-                matched: list[str] = []
-                for row in rows:
-                    proj = parse_json(row["projection_json"])
-                    ents = set(proj["body"]["entities"])
-                    if any(e in ents for e in parsed["entities"]):
-                        matched.append(row["decision_id"])
-                    if len(matched) > CANDIDATE_CAP:
-                        incomplete = True
-                        matched = matched[:CANDIDATE_CAP]
-                        break
-                entity_ids = matched
-            union: dict[str, dict[str, Any]] = {}
-            for did in fts_ids + entity_ids:
-                if did in union:
+            rows = conn.execute(
+                "select decision_id, projection_json from current_records "
+                "where scope_id=? and sensitivity='model_safe'",
+                (scope,),
+            ).fetchall()
+            recs: dict[str, dict[str, Any]] = {}
+            for row in rows:
+                rec = self._get_record(conn, row["decision_id"], mcp=True)
+                if rec is not None:
+                    recs[row["decision_id"]] = rec
+            corpus = ranking.Corpus((did, rec["body"], rec.get("revision")) for did, rec in recs.items())
+            repeats = self._repeat_counts(recs)
+            scored: list[tuple[tuple, dict[str, Any]]] = []
+            text_of: dict[str, tuple[float, float, int]] = {}
+            for did, rec in recs.items():
+                text_of[did] = corpus.score(did, qterms) if qterms else (0.0, 0.0, 0)
+            fix_pairs = self._fixes_in_context(recs, text_of, qterms)
+            demoted = {old for _fix, old in fix_pairs}
+            for did, rec in recs.items():
+                if rec["lifecycle"] != "active" and not parsed["include_superseded"]:
                     continue
-                rec = self._get_record(conn, did, mcp=True)
-                if rec is None:
+                body = rec["body"]
+                ent_hits = sum(1 for e in parsed["entities"] if e in body["entities"])
+                con_hits = sum(1 for c in parsed["constraints"] if c in body["constraints"])
+                bm25, cov, matched = text_of[did]
+                text_ok = bool(qterms) and ranking.relevant(cov, matched, len(qterms))
+                if not (text_ok or ent_hits or con_hits):
                     continue
-                union[did] = rec
-            ranked = sorted(union.values(), key=lambda rec: self._rank(rec, parsed, tokens))
+                rtype = ranking.record_type(body)
+                rank_as = ranking.rank_type(body)
+                crit = (body.get("trace") or {}).get("criticality") or 0
+                boost = ranking.TYPE_BOOST[rank_as] * (1 + 0.05 * crit)
+                final = round(bm25 * boost, 1) if text_ok else 0.0
+                if did in demoted:
+                    final = round(final * ranking.NOT_HELPED_FACTOR, 1)
+                ev = rec["evidence_state"]
+                ev_rank = 0 if ev == "reported_verified" else 1 if ev in {"unverified", "none"} else 2
+                conf = rec["confidence"]["score"] or 0.0
+                key = (
+                    -ent_hits,
+                    -con_hits,
+                    -final,
+                    0 if rank_as == "user_decision" else 1,
+                    self._outcome_rank(rec),
+                    ev_rank,
+                    -conf,
+                    -_ts_key(rec["updated_at"]),
+                    did,
+                )
+                scored.append((key, rec))
+            scored.sort(key=lambda item: item[0])
+            ranked = [rec for _key, rec in scored]
+            for fix, old in fix_pairs:
+                ids = [r["decision_id"] for r in ranked]
+                if old not in ids:
+                    continue
+                if fix in ids and ids.index(fix) < ids.index(old):
+                    continue
+                if fix in ids:
+                    ranked.pop(ids.index(fix))
+                    ids.remove(fix)
+                ranked.insert(ids.index(old), recs[fix])
             offset = parsed["offset"]
-            window = ranked[offset:]
+            window = ranked[offset : offset + parsed["limit"]]
+            shown = {rec["decision_id"] for rec in window}
             matches = []
-            has_more = False
             for rec in window:
-                summary = self._summary(rec)
-                encoded = canonical_json({"matches": matches + [summary], "has_more": True, "incomplete": incomplete})
-                if len(encoded.encode("utf-8")) > MAX_FIND_RESPONSE:
-                    has_more = True
+                hit = self._compact(rec, repeats)
+                hit["tier"] = self._tier(conn, rec, rec["decision_id"] in demoted)
+                if rec["decision_id"] in demoted:
+                    hit["flag"] = "not_helped here"
+                rel = self._related(conn, rec, recs, text_of, shown)
+                if rel:
+                    hit["related"] = rel
+                    shown |= {r["id"] for r in rel}
+                matches.append(hit)
+            has_more = offset + len(window) < len(ranked)
+            result: dict[str, Any] = {"matches": matches, "has_more": has_more}
+            # Byte budget: drop related cases first, then trailing hits. Never truncate a field.
+            while len(canonical_json(result).encode("utf-8")) > MAX_FIND_BYTES:
+                with_rel = [m for m in matches if m.get("related")]
+                if with_rel:
+                    with_rel[-1]["related"].pop()
+                    if not with_rel[-1]["related"]:
+                        del with_rel[-1]["related"]
+                elif matches:
+                    matches.pop()
+                    result["has_more"] = True
+                else:
                     break
-                matches.append(summary)
-                if len(matches) >= parsed["limit"]:
-                    has_more = has_more or (offset + len(matches)) < len(ranked)
-                    break
-            else:
-                has_more = has_more or (offset + len(matches)) < len(ranked)
-            result = {"matches": matches, "has_more": has_more, "incomplete": incomplete}
-            encoded = canonical_json(result)
-            while len(encoded.encode("utf-8")) > MAX_FIND_RESPONSE and matches:
-                matches.pop()
-                result = {"matches": matches, "has_more": True, "incomplete": incomplete}
-                encoded = canonical_json(result)
+            nbytes = len(canonical_json(result).encode("utf-8"))
+            self._log_access(
+                conn,
+                tool="find",
+                caller=parsed["actor"],
+                task_id=parsed["task_id"],
+                query=parsed["query"],
+                ids=[m["decision_id"] for m in matches] + [r["id"] for m in matches for r in m.get("related", [])],
+                nbytes=nbytes,
+                started=started,
+            )
             return result
+
+    def _tier(self, conn: sqlite3.Connection, rec: dict[str, Any], fixed_here: bool) -> str:
+        """Trust tier from existing outcome events: latest outcome per applied event counts once."""
+        latest: dict[str, dict[str, Any]] = {}
+        for ev in self._trace_events(conn, rec["decision_id"]):
+            aid = ev["payload"].get("applied_event_id") if ev["event_type"] == "outcome" else None
+            if aid:
+                latest[aid] = ev["payload"]
+        helped = sum(1 for p in latest.values() if p.get("helpful") is True)
+        failed = sum(1 for p in latest.values() if p.get("effect") in ("not_helped", "misled"))
+        return ranking.trust_tier(ranking.rank_type(rec["body"]), helped, failed, len(latest), fixed_here)
+
+    @staticmethod
+    def _fixes_in_context(
+        recs: dict[str, dict[str, Any]], text_of: dict[str, tuple[float, float, int]], qterms: list[str]
+    ) -> list[tuple[str, str]]:
+        """(fix, old) pairs whose context this query is in: the query covers half the fix's context
+        words, or the fix itself is a relevant hit. In that context the old decision drops and the
+        fix ranks above it."""
+        qset = set(qterms)
+        pairs: list[tuple[str, str]] = []
+        for did, rec in recs.items():
+            trace = rec["body"].get("trace") or {}
+            old = trace.get("fix_of")
+            if not old or old not in recs or rec["lifecycle"] != "active":
+                continue
+            ctx = set(ranking.query_terms(trace.get("context") or ""))
+            covered = len(ctx & qset)
+            _bm, cov, matched = text_of.get(did, (0.0, 0.0, 0))
+            fix_ok = bool(qterms) and ranking.relevant(cov, matched, len(qterms))
+            if (ctx and covered * 2 >= len(ctx)) or fix_ok:
+                pairs.append((did, old))
+        return sorted(pairs)
+
+    def _compact(self, rec: dict[str, Any], repeats: dict[tuple[str, str], int]) -> dict[str, Any]:
+        body = rec["body"]
+        trace = body.get("trace") or {}
+        rtype = ranking.record_type(body)
+        hit: dict[str, Any] = {
+            "decision_id": rec["decision_id"],
+            "type": rtype,
+            "decision": ranking.words(body["summary"], 15) if rtype == "legacy" else body["summary"],
+            "why": ranking.words(body["rationale"], 20) if rtype == "legacy" else body["rationale"],
+        }
+        if trace:
+            hit["crit"] = trace["criticality"]
+            for key in ("rule", "exception", "override_by"):
+                if trace.get(key):
+                    hit[key] = trace[key]
+            if trace.get("fix_of"):
+                hit[trace["fix_kind"]] = trace["fix_of"]
+                hit["context"] = trace["context"]
+            rk = self._repeat_key(trace)
+            if rk and repeats.get(rk, 0) >= 2:
+                hit["repeats"] = repeats[rk]
+        if body["entities"]:
+            hit["entities"] = body["entities"][:3]
+        hit["outcome"] = rec["outcome"]["status"]
+        flag = self._visible_flag(rec)
+        if flag:
+            hit["flag"] = flag
+        return hit
+
+    @staticmethod
+    def _repeat_key(trace: dict[str, Any]) -> tuple[str, str] | None:
+        if not trace.get("rule"):
+            return None
+        norm = lambda text: " ".join(ranking.terms(text or ""))  # noqa: E731
+        return norm(trace.get("rule")), norm(trace.get("exception"))
+
+    def _repeat_counts(self, recs: dict[str, dict[str, Any]]) -> dict[tuple[str, str], int]:
+        """Same rule + same exception, counted across active traces: an automation-candidate signal."""
+        counts: dict[tuple[str, str], int] = {}
+        for rec in recs.values():
+            if rec["lifecycle"] != "active":
+                continue
+            key = self._repeat_key(rec["body"].get("trace") or {})
+            if key:
+                counts[key] = counts.get(key, 0) + 1
+        return counts
+
+    def _related(
+        self,
+        conn: sqlite3.Connection,
+        rec: dict[str, Any],
+        recs: dict[str, dict[str, Any]],
+        text_of: dict[str, tuple[float, float, int]],
+        shown: set[str],
+    ) -> list[dict[str, Any]]:
+        """One hop over links (precedents it relied on, then cases that cite it), capped, on-topic."""
+        did = rec["decision_id"]
+        ids = [r[0] for r in conn.execute("select dst from links where src=? order by dst", (did,))]
+        ids += [r[0] for r in conn.execute("select src from links where dst=? order by src", (did,))]
+        ents = set(rec["body"]["entities"])
+        out: list[dict[str, Any]] = []
+        for other in ids:
+            if other in shown or other not in recs or any(o["id"] == other for o in out):
+                continue
+            orec = recs[other]
+            if orec["lifecycle"] != "active":
+                continue
+            on_topic = text_of.get(other, (0, 0, 0))[2] >= 1 or bool(ents & set(orec["body"]["entities"]))
+            if not on_topic:
+                continue
+            out.append({"id": other, "decision": orec["body"]["summary"]})
+            if len(out) >= RELATED_CAP:
+                break
+        return out
+
+    def _log_access(
+        self,
+        conn: sqlite3.Connection,
+        *,
+        tool: str,
+        caller: str | None,
+        task_id: str | None,
+        query: str | None,
+        ids: list[str],
+        nbytes: int,
+        started: float,
+    ) -> None:
+        ms = int((time.monotonic() - started) * 1000)
+        who = caller or "unnamed"
+        conn.execute(
+            "insert into access_log(ts,tool,caller,task_id,query,n,bytes,ids,ms) values (?,?,?,?,?,?,?,?,?)",
+            (now_ts(), tool, who, task_id, (query or "")[:240], len(ids), nbytes, canonical_json(ids), ms),
+        )
+        line = {"event": tool, "caller": who, "n": len(ids), "bytes": nbytes, "ms": ms}
+        if query:
+            line["query"] = query[:120]
+        if task_id:
+            line["task_id"] = task_id
+        sys.stderr.write(canonical_json(line) + "\n")
+        sys.stderr.flush()
+
+    def save(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
+        """Compact trace capture. Over-limit text is rejected loudly, never trimmed."""
+        parsed = validate_save_input(arguments)
+        trace = parsed["trace"]
+        with self._tx() as conn:
+            for pid in trace.get("precedent_ids", []):
+                if self._get_record(conn, pid, mcp=mcp) is None:
+                    raise LedgerError(
+                        "INVALID_ARGUMENT",
+                        message=f"precedent {pid} is not a visible record; nothing was saved",
+                    )
+            if trace.get("fix_of") and self._get_record(conn, trace["fix_of"], mcp=mcp) is None:
+                raise LedgerError(
+                    "INVALID_ARGUMENT",
+                    message=f"{trace['fix_kind']} {trace['fix_of']} is not a visible record; nothing was saved",
+                )
+        body = {
+            "kind": "decision",
+            "summary": parsed["decision"],
+            "situation": "; ".join(trace.get("inputs", [])) or parsed["decision"],
+            "action": parsed["decision"],
+            "rationale": parsed["why"],
+            "constraints": [],
+            "applicability": trace.get("rule") or parsed["decision"],
+            "entities": parsed["entities"],
+            "evidence": [],
+            "sensitivity": "model_safe",
+            "approval": (
+                {"state": "self_reported", "authority_ref": "guru"}
+                if trace["type"] == "user_decision"
+                else {"state": "none", "authority_ref": None}
+            ),
+            "trace": trace,
+        }
+        args: dict[str, Any] = {
+            "request_id": parsed["request_id"],
+            "occurred_at": None,
+            "body": body,
+            "outcome": {"status": parsed["outcome"], "note": "", "evidence": []},
+        }
+        if parsed["actor"]:
+            args["actor"] = parsed["actor"]
+        receipt = self.record(args, mcp=mcp, tool="save")
+        return {"decision_id": receipt["decision_id"], "revision": receipt["revision"]}
+
+    def access_report(self) -> dict[str, Any]:
+        """Per-caller lookups, bytes, and helpful marks (outcome.helpful on the returned ids)."""
+        conn = self.open()
+        by_caller: dict[str, dict[str, Any]] = {}
+        returned: dict[str, set[str]] = {}
+        for row in conn.execute("select tool, caller, task_id, n, bytes, ids from access_log"):
+            item = by_caller.setdefault(row["caller"], {"find": 0, "get": 0, "bytes": 0, "hits": 0})
+            item[row["tool"]] = item.get(row["tool"], 0) + 1
+            item["bytes"] += row["bytes"]
+            item["hits"] += row["n"]
+            if row["task_id"]:
+                returned.setdefault(row["task_id"], set()).update(parse_json(row["ids"]))
+        helpful = {"marked": 0, "helpful": 0}
+        for row in conn.execute("select decision_id, event_json from events"):
+            ev = parse_json(row["event_json"])
+            p = ev["payload"]
+            if ev["event_type"] == "outcome" and "helpful" in p and row["decision_id"] in returned.get(p.get("task_id"), set()):
+                helpful["marked"] += 1
+                helpful["helpful"] += 1 if p["helpful"] else 0
+        return {"by_caller": by_caller, "helpful": helpful}
 
     def browse(self, arguments: dict[str, Any], *, mcp: bool) -> dict[str, Any]:
         """Recent or filtered cards for the ledger view. MCP uses get's visibility."""
@@ -1817,6 +2198,8 @@ class Store:
     def _rebuild_projections(self, conn: sqlite3.Connection) -> None:
         conn.execute("delete from current_records")
         conn.execute("delete from search_fts")
+        conn.execute("delete from links")
+        conn.execute("delete from fix_links")
         ids = [r[0] for r in conn.execute("select distinct decision_id from events")]
         reduced = {did: self._reduce_decision(conn, did) for did in ids}
         rels = self._relations(reduced)
@@ -1901,7 +2284,7 @@ class Store:
                 prev_selected = self._selected_evidence(outcome, body)
                 supplied = payload.get("evidence") or []
                 outcome = payload
-                if payload.get("task_id"):
+                if _counts_as_use(payload):
                     task_outcomes[payload["task_id"]] = payload
                 evidence_event_ingest = self._supplied_evidence_ingest(
                     prev_ingest=evidence_event_ingest,
@@ -2065,6 +2448,7 @@ class Store:
                 encoded,
             ),
         )
+        self._write_links(conn, decision_id, body)
         conn.execute("delete from search_fts where decision_id=?", (decision_id,))
         if body["sensitivity"] == "model_safe":
             text = " ".join(

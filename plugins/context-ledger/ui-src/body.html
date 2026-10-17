@@ -1,0 +1,75 @@
+<div class="app" id="app">
+  <header class="top">
+    <div class="mark">
+      <h1>Context Ledger</h1>
+      <span class="count" id="ledgerCount"></span>
+    </div>
+    <span class="badge acc" id="liveTag" title="Real ledger data, opened read-only. Nothing here can change the ledger.">Live · read-only</span>
+    <span class="sp"></span>
+    <button class="btn ghost" id="themeBtn" type="button" aria-label="Theme: follows system. Switch theme">
+      <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11" /><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor" stroke="none"/></svg>
+      <span class="themelabel" id="themeLabel">Auto</span>
+    </button>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" id="t-decisions" aria-controls="p-decisions" aria-selected="true">Decisions <span class="n" id="n-dec"></span></button>
+    <button class="tab" role="tab" id="t-activity" aria-controls="p-activity" aria-selected="false" tabindex="-1">Activity <span class="n" id="n-act"></span></button>
+    <button class="tab" role="tab" id="t-outcomes" aria-controls="p-outcomes" aria-selected="false" tabindex="-1">Outcomes <span class="n" id="n-out"></span></button>
+    <span class="hint" aria-hidden="true"><kbd>/</kbd> search <kbd>&uarr;</kbd><kbd>&darr;</kbd> move <kbd>&crarr;</kbd> open <kbd>esc</kbd> close</span>
+  </nav>
+
+  <main class="panel" id="p-decisions" role="tabpanel" aria-labelledby="t-decisions">
+    <section class="listcol" aria-label="Decision list">
+      <div class="tools">
+        <div class="searchrow">
+          <div class="search">
+            <label for="q" class="vh">Search decisions, reasons, rules</label>
+            <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg>
+            <input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search decisions, why, rules" aria-describedby="resultCount" aria-controls="list">
+            <kbd aria-hidden="true">/</kbd>
+          </div>
+          <button class="btn filtertoggle" id="filterToggle" type="button" aria-expanded="false" aria-controls="filters">
+            <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M4.5 8h7M6.5 12h3"/></svg>
+            <span>Filters</span><span class="mono" id="fcount"></span>
+          </button>
+        </div>
+        <div class="filters" id="filters" role="group" aria-label="Filters">
+          <div class="field"><label for="f-type">Type</label>
+            <select id="f-type"><option value="">Any type</option><option value="user_decision">I · user decision</option><option value="agent_conclusion">II · agent conclusion</option><option value="legacy">II · legacy (before v2)</option></select></div>
+          <div class="field"><label for="f-entity">Entity</label><select id="f-entity"></select></div>
+          <div class="field"><label for="f-bot">Agent</label><select id="f-bot"></select></div>
+          <div class="field"><label for="f-date">Decided</label>
+            <select id="f-date"><option value="">Any time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="custom">Custom range</option></select></div>
+          <div class="field"><label for="f-outcome">Outcome</label>
+            <select id="f-outcome"><option value="">Any outcome</option><option value="helped">Includes helped</option><option value="failed">Includes misled or not helped</option><option value="misled">Includes misled</option><option value="not_helped">Includes not helped</option><option value="neutral">Includes unmarked</option><option value="none">No outcome yet</option></select></div>
+          <div class="field"><label for="f-status">Status</label>
+            <select id="f-status"><option value="">All statuses</option><option value="active">Active only</option><option value="superseded">Superseded only</option><option value="trusted">Trusted tier</option><option value="hint">Hint tier</option></select></div>
+          <div class="field"><label for="f-sort">Sort</label>
+            <select id="f-sort"><option value="rank">Rank, newest</option><option value="recent">Newest first</option><option value="helpful">Most helpful</option><option value="used">Most used</option></select></div>
+          <div class="custom" id="customRange" hidden>
+            <div class="field"><label for="f-from">From</label><input type="date" id="f-from"></div>
+            <div class="field"><label for="f-to">To</label><input type="date" id="f-to"></div>
+          </div>
+        </div>
+      </div>
+      <div class="resultline"><span id="resultCount" aria-live="polite"></span><span class="sp"></span><button class="linkbtn" id="clearBtn" type="button" hidden>Clear filters</button></div>
+      <ul class="list" id="list" aria-label="Decisions"></ul>
+    </section>
+    <section class="detailcol" id="detail" aria-label="Decision detail">
+      <div class="dhead">
+        <button class="btn ghost back" id="backBtn" type="button" aria-label="Back">
+          <svg class="ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg><span>Back</span>
+        </button>
+        <nav class="crumbs" aria-label="Precedent trail"><ol id="crumbs"></ol></nav>
+      </div>
+      <div class="dbody" id="dbody"></div>
+    </section>
+  </main>
+
+  <section class="panel" id="p-activity" role="tabpanel" aria-labelledby="t-activity" hidden>
+    <div class="scroll"><div class="wrap" id="activity"></div></div>
+  </section>
+  <section class="panel" id="p-outcomes" role="tabpanel" aria-labelledby="t-outcomes" hidden>
+    <div class="scroll"><div class="wrap" id="outcomes"></div></div>
+  </section>
+</div>

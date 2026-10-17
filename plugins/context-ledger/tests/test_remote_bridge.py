@@ -13,6 +13,7 @@ import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+os.environ["LEDGER_AB_DATE"] = "2026-10-17"  # pre-A/B-window day: find on; A/B tests pin their own days
 
 ROOT = Path(__file__).resolve().parent.parent
 LAUNCHER = ROOT / "bin" / "context-ledger-mcp"
@@ -206,8 +207,19 @@ class BridgeTests(_ServerCase):
         self._assert_token_hidden(proc)
         payload = json.loads(proc.stdout)
         self.assertEqual(payload["id"], 5)
-        self.assertEqual(payload["error"]["message"], "UNAUTHORIZED")
+        self.assertTrue(payload["error"]["message"].startswith("UNAUTHORIZED"), payload)
+        self.assertIn("CONTEXT_LEDGER_MCP_TOKEN", payload["error"]["message"])
         self.assertNotIn("ok", payload)
+
+    def test_401_names_server_auth_code(self) -> None:
+        body = b'{"ok":false,"error":{"code":"AUTH_INVALID","message":"bearer token does not match"}}'
+        url = self._start([{"status": 401, "body": body}])
+        with tempfile.TemporaryDirectory() as tmp:
+            env = self._env(Path(tmp), CONTEXT_LEDGER_MCP_TOKEN=TOKEN, CONTEXT_LEDGER_MCP_URL=url)
+            proc = self._bridge('{"jsonrpc":"2.0","id":6,"method":"find"}\n', env)
+        self._assert_token_hidden(proc)
+        payload = json.loads(proc.stdout)
+        self.assertIn("AUTH_INVALID", payload["error"]["message"])
 
     def test_401_notification_is_stderr_only(self) -> None:
         url = self._start([{"status": 401, "body": b""}])

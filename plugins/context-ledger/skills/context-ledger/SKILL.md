@@ -52,6 +52,8 @@ At closeout, send the same `task_id`. A candidate is one short object (`summary`
 
 Outcome feedback is idempotent by `(task_id, decision_id)`: an identical retry adds no event; corrected feedback replaces that task's prior observation. Confidence is the **observed usefulness rate**: `successes / (successes + failures)`, over distinct task IDs and using the latest feedback per task. Return the score, success/failure/inconclusive counts, and conclusive sample count. Inconclusive outcomes do not enter the score; use `null` when there are no conclusive observations. This is descriptive usefulness, not probability of correctness, and task outcomes may be correlated.
 
+Gate: run the loop only for critical, recurring, research or debugging tasks, or a Guru override; otherwise `scripts/ledger_loop.py close <task_id> --gated-out simple`. In the loop, `ledger_loop.py find` at lookup, `save` at the end of research, debugging or a Guru override, and `close <task_id>` before done. find and save fail open after 2 s with one WARN line. Every applied outcome sets `helpful`. If a decision did not help and debugging found the fix, mark it `not_helped`/`misled` with a reason, then `save` the fix with `--supersedes` and `--context`; a not-helped id without a fix makes `close` WARN, not fail. A/B 2026-10-18 to 10-31 IST: find is OFF on even days (saves and outcomes stay on).
+
 Skip routine work, duplicate decisions, temporary status, raw prompts, hidden reasoning, and secrets.
 
 A Cursor cloud main agent hands the helper JSON to one retained worker on the Mac and never calls ledger tools, storage, or CLI itself. That worker runs `scripts/lookup.py select` and `feedback`. Codex cloud has no ledger. `select` and `feedback` stay on that worker; they are not server tools.
