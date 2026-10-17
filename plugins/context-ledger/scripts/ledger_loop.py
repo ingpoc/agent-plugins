@@ -7,7 +7,7 @@ record a Guru override. Simple or one-shot tasks skip it: `close <task_id> --gat
   ledger_loop.py [--data DIR] find  <task_id> --bot NAME --query "<problem now>" [--audit]
   ledger_loop.py [--data DIR] save  <task_id> --bot NAME --type user_decision|agent_conclusion
                  --decision "<=15 words" --why "<=20 words" --entity E [--entity E] [--crit 1-5]
-                 [--rule R] [--exception X] [--state S] [--outcome success|failed|partial|pending]
+                 [--rule R] [--exception X] [--state S] [--override-by guru] [--approver A] [--outcome success|failed|partial|pending]
                  [--precedent ID] [--input I] [--audit]
   ledger_loop.py [--data DIR] start <task_id> --bot NAME --query "<q>" [--found id,id | --lookup-failed CODE]
   ledger_loop.py [--data DIR] close <task_id> [--decision id ...] [--gated-out WORD] [--audit]
@@ -395,6 +395,13 @@ def _call(data: Path, task_id: str, name: str, arguments: dict) -> tuple[dict, s
         raise Unavailable("UNBOUND", f"no {data / 'binding.json'} and CONTEXT_LEDGER_MCP_TOKEN is empty")
     url = (os.environ.get("CONTEXT_LEDGER_MCP_URL") or "").strip() or DEFAULT_URL
     client = Mcp(url, token, task_id, timeout=timeout_s())
+    try:
+        # serve-http answers a stateless tools/call: one round trip keeps the box under the deadline.
+        return client.tool(name, arguments), f"remote {url}"
+    except Fail as exc:
+        text = str(exc)
+        if "UNAUTHORIZED" in text or " rejected: " in text or not ("HTTP 4" in text or "JSON-RPC error" in text):
+            raise
     client.open()
     return client.tool(name, arguments), f"remote {url}"
 
