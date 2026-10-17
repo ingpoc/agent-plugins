@@ -372,12 +372,12 @@ class PackageTests(unittest.TestCase):
         self.assertIn("release-blocked", readme)
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
-        page = (ROOT / "ui/browse.html").read_text(encoding="utf-8")
-        self.assertIn('version: "0.1.26"', page)
+        page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
+        self.assertIn('version:"0.1.26"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
-        self.assertNotIn("http://", page)
+        self.assertNotIn("http://", page.replace('"http://www.w3.org/2000/svg"', ""))  # SVG namespace, not a fetch
 
 
 class LaunchTests(unittest.TestCase):
@@ -3241,9 +3241,9 @@ class McpTests(unittest.TestCase):
 
         for mode in ("legacy", "2026-07-28"):
             info = anyio.run(once, mode)
-            self.assertEqual(info["names"], ["append_event", "browse", "find", "get", "record", "save"], mode)
+            self.assertEqual(info["names"], ["append_event", "browse", "find", "get", "ledger_activity", "ledger_query", "ledger_stats", "record", "save"], mode)
             ui = ((info["by_name"]["browse"].get("_meta") or {}).get("ui") or {})
-            self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/browse.html", mode)
+            self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/ledger-v2.html", mode)
             self.assertEqual(ui.get("visibility"), ["model", "app"], mode)
             rec = info["by_name"]["record"].get("inputSchema") or {}
             app = info["by_name"]["append_event"].get("inputSchema") or {}
@@ -3624,23 +3624,6 @@ class CursorDestTests(unittest.TestCase):
             text=True,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
-
-
-class BrowseUiTests(unittest.TestCase):
-    def test_browse_view_discards_stale_replies_and_retries(self) -> None:
-        node = shutil.which("node")
-        if not node:
-            self.skipTest("node is required to execute browse.html")
-        proc = subprocess.run(
-            [node, str(ROOT / "tests" / "browse_ui_harness.mjs"), str(ROOT / "ui" / "browse.html")],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
-        report = json.loads(proc.stdout)
-        for key, value in report.items():
-            self.assertTrue(value, key)
 
 
 if __name__ == "__main__":

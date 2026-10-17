@@ -224,10 +224,15 @@ class LiveServerTests(unittest.TestCase):
         self.assertEqual(status, 200, body)
         tools = json.loads(body)["result"]["tools"]
         names = sorted(t["name"] for t in tools)
-        self.assertEqual(names, ["append_event", "browse", "find", "get", "record", "save"])
+        self.assertEqual(names, ["append_event", "browse", "find", "get", "ledger_activity", "ledger_query", "ledger_stats", "record", "save"])
+        for name in ("ledger_query", "ledger_activity", "ledger_stats"):
+            app_tool = next(t for t in tools if t["name"] == name)
+            self.assertEqual(app_tool["_meta"]["ui"]["visibility"], ["app"], name)
+            self.assertEqual(app_tool["_meta"]["ui"]["resourceUri"], "ui://context-ledger/ledger-v2.html", name)
+            self.assertTrue(app_tool["annotations"]["readOnlyHint"], name)
         browse = next(t for t in tools if t["name"] == "browse")
         ui = (browse.get("_meta") or {}).get("ui") or {}
-        self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/browse.html")
+        self.assertEqual(ui.get("resourceUri"), "ui://context-ledger/ledger-v2.html")
         self.assertEqual(ui.get("visibility"), ["model", "app"])
         required = set((browse.get("inputSchema") or {}).get("required") or [])
         self.assertNotIn("query", required)
@@ -235,7 +240,7 @@ class LiveServerTests(unittest.TestCase):
             "jsonrpc": "2.0",
             "id": 4,
             "method": "resources/read",
-            "params": {"uri": "ui://context-ledger/browse.html"},
+            "params": {"uri": "ui://context-ledger/ledger-v2.html"},
         }
         status, _, body = _post(self.port, read, self._auth())
         self.assertEqual(status, 200, body)
@@ -243,6 +248,13 @@ class LiveServerTests(unittest.TestCase):
         self.assertEqual(content["mimeType"], "text/html;profile=mcp-app")
         self.assertIn("ui/initialize", content["text"])
         self.assertEqual(content["_meta"]["ui"]["prefersBorder"], True)
+        for i, name in enumerate(("ledger_query", "ledger_activity", "ledger_stats"), 10):
+            call = {"jsonrpc": "2.0", "id": i, "method": "tools/call", "params": {"name": name, "arguments": {}}}
+            status, _, body = _post(self.port, call, self._auth())
+            self.assertEqual(status, 200, body)
+            result = json.loads(body)["result"]
+            self.assertFalse(result.get("isError"), (name, result))
+            self.assertTrue(result["structuredContent"]["ok"], name)
 
     def test_host_allow_list(self) -> None:
         status, _, _ = _post(self.port, LIST, {**self._auth(), "Host": "evil.example.test"})
@@ -319,7 +331,7 @@ class LiveServerTests(unittest.TestCase):
         status, headers, body = _raw(self.port, "POST", "/mcp", LIST, sse_headers)
         self.assertEqual(status, 200, body)
         names = sorted(tool["name"] for tool in _sse_json(body)["result"]["tools"])
-        self.assertEqual(names, ["append_event", "browse", "find", "get", "record", "save"])
+        self.assertEqual(names, ["append_event", "browse", "find", "get", "ledger_activity", "ledger_query", "ledger_stats", "record", "save"])
 
         find = {
             "jsonrpc": "2.0",
@@ -377,7 +389,7 @@ class LiveServerTests(unittest.TestCase):
                         listed = await session.list_tools()
                         return sorted(tool.name for tool in listed.tools)
 
-        self.assertEqual(asyncio.run(run()), ["append_event", "browse", "find", "get", "record", "save"])
+        self.assertEqual(asyncio.run(run()), ["append_event", "browse", "find", "get", "ledger_activity", "ledger_query", "ledger_stats", "record", "save"])
 
 
 def _raw(

@@ -37,6 +37,7 @@ from context_ledger.mcp_schema import (
     Uuid,
 )
 from context_ledger.store import Store
+from context_ledger.viewer import LedgerView
 
 logging.getLogger().handlers.clear()
 logging.basicConfig(stream=sys.stderr, level=logging.CRITICAL)
@@ -82,8 +83,12 @@ def _call(fn, arguments: dict[str, Any], *, structured: bool = True) -> CallTool
         return _result(fail_dict(LedgerError("INTERNAL")), is_error=True, structured=structured)
 
 
-_UI_URI = "ui://context-ledger/browse.html"
-_UI_PAGE = (Path(__file__).resolve().parent.parent / "ui" / "browse.html").read_text(encoding="utf-8")
+_UI_URI = "ui://context-ledger/ledger-v2.html"
+_UI_PAGE = (Path(__file__).resolve().parent.parent / "ui" / "ledger-v2.html").read_text(encoding="utf-8")
+# App-only, read-only viewer tools. Visibility is not a security boundary, so each one is also
+# safe if a model calls it: mode=ro SQLite, model_safe records only, no access_log rows.
+_APP_META = {"ui": {"resourceUri": _UI_URI, "visibility": ["app"]}}
+_READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False)
 
 
 def build_server(store: Store) -> MCPServer:
@@ -305,11 +310,48 @@ def build_server(store: Store) -> MCPServer:
             },
         )
 
+    view = LedgerView(store.plugin_data)
+
+    @server.tool(
+        name="ledger_query",
+        description="Ledger view only: one page of decision cards (decision, why, trace fields, confidence, tier). q searches with find's ranking.",
+        annotations=_READ_ONLY,
+        structured_output=True,
+        meta=_APP_META,
+    )
+    def ledger_query(q: str = "", limit: int = 25, cursor: int = 0) -> CallToolResult:
+        return _call(view.query, {"q": q, "limit": limit, "cursor": cursor})
+
+    @server.tool(
+        name="ledger_activity",
+        description="Ledger view only: one page of the merged timeline of lookups, applied and outcome events, newest first.",
+        annotations=_READ_ONLY,
+        structured_output=True,
+        meta=_APP_META,
+    )
+    def ledger_activity(
+        actor: str = "", decision_id: str = "", kind: str = "", since: str = "", limit: int = 120, cursor: int = 0
+    ) -> CallToolResult:
+        return _call(
+            view.activity,
+            {"actor": actor, "decision_id": decision_id, "kind": kind, "since": since, "limit": limit, "cursor": cursor},
+        )
+
+    @server.tool(
+        name="ledger_stats",
+        description="Ledger view only: A/B arm per IST day, helpful-hit rate, overhead tokens, fail-open and trusted-tier precision, plus tier counts.",
+        annotations=_READ_ONLY,
+        structured_output=True,
+        meta=_APP_META,
+    )
+    def ledger_stats() -> CallToolResult:
+        return _call(view.stats, {})
+
     @server.resource(
         _UI_URI,
-        name="browse",
+        name="ledger",
         title="Ledger",
-        description="Decision list drawn by the host for the browse tool.",
+        description="Ledger view drawn by the host for the browse tool: decisions, activity, outcomes and the A/B trial.",
         mime_type="text/html;profile=mcp-app",
         meta={"ui": {"prefersBorder": True}},
     )

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased: ledger viewer v1
+
+- `browse` now draws `ui://context-ledger/ledger-v2.html`, the approved prototype on real data: decisions with why, search, activity in IST, outcomes, confidence, trust tier, and the A/B trial. `ui/browse.html` and its harness are removed.
+- App-only read tools `ledger_query`, `ledger_activity`, `ledger_stats` (visibility `["app"]`, `readOnlyHint`). SQLite `mode=ro`, model-safe only, replies capped at 16 KB with integer cursors, no `access_log` rows. Tiers come from `Store._tier`; A/B maths from `ledger_stats.py` (`load`, `arm_stats`), loaded by path, not copied.
+- `context_ledger.viewer_local`: the Mini localhost fallback (127.0.0.1, Host check, GET only).
+
 ## 0.1.26
 
 - `Store.open` creates the v2 tables and backfills `links` and `fix_links` once. Later opens do not delete and rescan them. A projection write still updates links for that decision.

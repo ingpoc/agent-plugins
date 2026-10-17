@@ -32,7 +32,9 @@ The helper selects the stored decision whose applicability fits the situation an
 
 ## 0.1.21
 
-`browse` opens the ledger view. The host draws `ui://context-ledger/browse.html`. The list is the current model-safe decisions. A filter calls `browse` again. A row calls `get`.
+`browse` opens the ledger view. The host draws `ui://context-ledger/ledger-v2.html` (one self-contained file built from `ui-src/` by `python3 ui-src/build.py`). The view is read-only: decisions with their why, search (find's own ranking), the activity log (who looked up, applied or reported what, in IST), outcomes, confidence and trust tier, and the A/B trial (helpful-hit rate per 15 gated tasks, median/p90 overhead tokens, fail-open %, trusted-tier precision, arm per day). It reads through three app-only tools, `ledger_query`, `ledger_activity` and `ledger_stats` (`_meta.ui.visibility: ["app"]`); there is no write tool. They open SQLite `mode=ro`, show model-safe records only, and never write `access_log`. A/B numbers come from `ledger_stats.py` (agent-context-efficiency; path in `LEDGER_STATS_SCRIPT`) over the `ledger-loop/tasks.jsonl` logs (`LEDGER_VIEWER_TASK_LOGS`).
+
+Mini fallback: `python -m context_ledger.viewer_local --plugin-data DIR --port 8790` serves the same page and the same three reads as GET JSON on `127.0.0.1` only (Host-checked, no CORS, GET only).
 
 ## 0.1.20
 
