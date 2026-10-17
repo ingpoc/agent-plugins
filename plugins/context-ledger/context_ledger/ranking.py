@@ -91,13 +91,28 @@ def fields(body: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
     return terms(body.get("summary", "")), terms(body.get("rationale", "")), terms(other)
 
 
+_FIELDS_CACHE: dict[tuple[str, Any], tuple[list[str], list[str], list[str]]] = {}
+_FIELDS_CACHE_MAX = 20000
+
+
+def cached_fields(did: str, key: Any, body: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:
+    """Tokenized fields per (decision_id, revision): a record's text only changes with its revision."""
+    hit = _FIELDS_CACHE.get((did, key))
+    if hit is None:
+        if len(_FIELDS_CACHE) >= _FIELDS_CACHE_MAX:
+            _FIELDS_CACHE.clear()
+        hit = _FIELDS_CACHE[(did, key)] = fields(body)
+    return hit
+
+
 class Corpus:
-    def __init__(self, docs: Iterable[tuple[str, dict[str, Any]]]) -> None:
+    def __init__(self, docs: Iterable[tuple]) -> None:
         self.docs: dict[str, tuple[list[str], list[str], list[str]]] = {}
         self.df: dict[str, int] = {}
         total = 0
-        for did, body in docs:
-            f = fields(body)
+        for doc in docs:
+            did, body = doc[0], doc[1]
+            f = cached_fields(did, doc[2], body) if len(doc) > 2 and doc[2] is not None else fields(body)
             self.docs[did] = f
             total += sum(len(x) for x in f)
             for t in set(f[0]) | set(f[1]) | set(f[2]):

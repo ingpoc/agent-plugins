@@ -919,7 +919,7 @@ class Store:
                 rec = self._get_record(conn, row["decision_id"], mcp=True)
                 if rec is not None:
                     recs[row["decision_id"]] = rec
-            corpus = ranking.Corpus((did, rec["body"]) for did, rec in recs.items())
+            corpus = ranking.Corpus((did, rec["body"], rec.get("revision")) for did, rec in recs.items())
             repeats = self._repeat_counts(recs)
             scored: list[tuple[tuple, dict[str, Any]]] = []
             text_of: dict[str, tuple[float, float, int]] = {}
