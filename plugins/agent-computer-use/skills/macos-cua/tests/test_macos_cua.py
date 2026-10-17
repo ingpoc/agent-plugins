@@ -729,7 +729,10 @@ class WindowResolutionTests(unittest.TestCase):
 
     def test_foreground_window_uses_short_bounded_driver_call(self):
         readiness = {"ok": True, "pid": 899, "window_id": 99, "duration_ms": 84}
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
         with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
             mock.patch.object(
                 macos_cua,
                 "call_driver",
@@ -753,7 +756,15 @@ class WindowResolutionTests(unittest.TestCase):
 
     def test_foreground_window_fails_closed_without_readiness(self):
         readiness = {"ok": False, "error": "foreground acknowledgement timed out"}
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
         with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(
+                macos_cua,
+                "_raise_resolved_ax_window",
+                return_value={"error": "resolved AX window is unavailable"},
+            ),
             mock.patch.object(
                 macos_cua, "call_driver", return_value={"ok": True}
             ) as call_driver,
@@ -777,7 +788,15 @@ class WindowResolutionTests(unittest.TestCase):
     def test_foreground_window_recovers_once_via_authoritative_pid(self):
         missed = {"ok": False, "error": "foreground acknowledgement timed out"}
         ready = {"ok": True, "pid": 899, "window_id": 99, "duration_ms": 82}
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
         with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(
+                macos_cua,
+                "_raise_resolved_ax_window",
+                return_value={"error": "resolved AX window is unavailable"},
+            ),
             mock.patch.object(macos_cua, "call_driver", return_value={"ok": True}),
             mock.patch.object(
                 macos_cua,
@@ -800,10 +819,15 @@ class WindowResolutionTests(unittest.TestCase):
         self.assertEqual(wait_ready.call_count, 2)
 
     def test_foreground_window_surfaces_driver_timeout(self):
-        with mock.patch.object(
-            macos_cua,
-            "call_driver",
-            return_value={"error": "timed out"},
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
+        with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(
+                macos_cua,
+                "call_driver",
+                return_value={"error": "timed out"},
+            ),
         ):
             result = macos_cua.bring_resolved_window_to_front(899, 99)
 
@@ -833,7 +857,10 @@ class WindowResolutionTests(unittest.TestCase):
     def test_foreground_window_raises_exact_ax_window_before_process_recovery(self):
         missed = {"ok": False, "error": "foreground window is not AX-ready"}
         ready = {"ok": True, "window_id": 99}
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
         with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
             mock.patch.object(macos_cua, "call_driver", return_value={"ok": True}),
             mock.patch.object(
                 macos_cua,
@@ -854,10 +881,15 @@ class WindowResolutionTests(unittest.TestCase):
         activate.assert_not_called()
 
     def test_foreground_window_surfaces_driver_rejection(self):
-        with mock.patch.object(
-            macos_cua,
-            "call_driver",
-            return_value={"ok": False, "reason": "window unavailable"},
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
+        with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(
+                macos_cua,
+                "call_driver",
+                return_value={"ok": False, "reason": "window unavailable"},
+            ),
         ):
             result = macos_cua.bring_resolved_window_to_front(899, 99)
 
@@ -1369,6 +1401,9 @@ class DisplayAlignmentTests(unittest.TestCase):
                 displays.subprocess, "run", return_value=completed
             ) as run,
             mock.patch.object(displays, "window_on_display", return_value=after),
+            # No logical AX frame: keep this on the Quartz verification path
+            # instead of the host AX/pyobjc fallback.
+            mock.patch.object(displays, "logical_window_on_display", return_value=None),
         ):
             result = displays.move_process_window(
                 "TestApp", "DELL", width=1880, height=1000, margin=20
@@ -1376,6 +1411,7 @@ class DisplayAlignmentTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertTrue(result["frame_matches"])
+        self.assertEqual(result["verification"], "quartz-onscreen")
         apple_script = next(
             call.args[0][-1]
             for call in run.call_args_list
@@ -1415,6 +1451,9 @@ class DisplayAlignmentTests(unittest.TestCase):
                 side_effect=[transient, settled],
             ),
             mock.patch.object(displays.time, "sleep") as sleep,
+            # No logical AX frame: keep this on the Quartz verification path
+            # instead of the host AX/pyobjc fallback.
+            mock.patch.object(displays, "logical_window_on_display", return_value=None),
         ):
             result = displays.move_process_window(
                 "TestApp", "DELL", width=1880, height=1000, margin=20
@@ -1422,6 +1461,7 @@ class DisplayAlignmentTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["window_after"], settled)
+        self.assertEqual(result["verification"], "quartz-onscreen")
         sleep.assert_called_once_with(0.1)
 
     def test_move_process_window_uses_logical_frame_for_stage_manager(self):

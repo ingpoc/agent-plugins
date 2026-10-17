@@ -268,7 +268,7 @@ class ToolsTests(unittest.TestCase):
         self.assertIn("op", props)
         self.assertIn("open", props["op"]["enum"])
         self.assertEqual(props["path"]["type"], "string")
-        self.assertIn("ok only when expect verifies", act["description"])
+        self.assertIn("ok/verified only when expect matches", act["description"])
         self.assertIn("never search Finder for a known path", SYSTEM_INSTRUCTIONS)
         self.assertIn("never a preliminary Finder open", SYSTEM_INSTRUCTIONS)
         self.assertIn("never say done", SYSTEM_INSTRUCTIONS)
