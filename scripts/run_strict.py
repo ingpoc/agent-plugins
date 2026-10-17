@@ -83,6 +83,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"allowed skip {test.id()}: {rule.reason}", flush=True)
             continue
         kept.append(test)
+    if not kept:
+        print("unittest harness skipped every test", file=sys.stderr)
+        return 1
     runner = unittest.TextTestRunner(verbosity=0 if args.q else 1)
     result = runner.run(unittest.TestSuite(kept))
     unallowed = []

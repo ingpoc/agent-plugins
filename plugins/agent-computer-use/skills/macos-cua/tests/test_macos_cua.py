@@ -4750,6 +4750,7 @@ class DriverSocketTransportTests(unittest.TestCase):
         be accepted by that daemon.
         """
         received: dict[str, str] = {}
+        failed: list[str] = []
         path = f"/tmp/cua-envelope-{os.getpid()}.sock"
 
         def serve(ready: threading.Event) -> None:
@@ -4760,10 +4761,16 @@ class DriverSocketTransportTests(unittest.TestCase):
                 server.bind(path)
                 server.listen(1)
                 server.settimeout(5)
+            except OSError as exc:
+                failed.append(f"listen failed: {exc}")
                 ready.set()
+                server.close()
+                return
+            ready.set()
+            try:
                 conn, _addr = server.accept()
-            except OSError:
-                ready.set()
+            except OSError as exc:
+                failed.append(f"accept failed: {exc}")
                 server.close()
                 return
             try:
@@ -4784,6 +4791,7 @@ class DriverSocketTransportTests(unittest.TestCase):
         thread = threading.Thread(target=serve, args=(ready,), daemon=True)
         thread.start()
         self.assertTrue(ready.wait(2), "local driver socket did not listen")
+        self.assertEqual(failed, [])
         try:
             macos_cua.reset_driver_socket()
             with mock.patch.dict(os.environ, {"MACOS_CUA_DRIVER_SOCKET": path}):

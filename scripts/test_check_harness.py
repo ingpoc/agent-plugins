@@ -186,6 +186,33 @@ class InventoryTests(unittest.TestCase):
             accepted = self._run(allowed, sample)
             self.assertEqual(accepted.returncode, 0, accepted.stderr)
 
+    def test_harness_skip_of_every_case_fails(self) -> None:
+        with self._tmp() as root:
+            sample = root / "test_only_skip.py"
+            sample.write_text(
+                "import unittest\nclass Only(unittest.TestCase):\n    def test_one(self):\n        pass\n",
+                encoding="utf-8",
+            )
+            allow = root / "allow.json"
+            allow.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "unittest_skips": [],
+                        "harness_skips": [
+                            {
+                                "id": "test_only_skip.Only.test_one",
+                                "reason": "fixture proves an empty kept suite is not a pass",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            denied = self._run(allow, sample)
+            self.assertNotEqual(denied.returncode, 0)
+            self.assertIn("unittest harness skipped every test", denied.stderr)
+
     def test_main_only_scripts_are_not_passing_runs(self) -> None:
         with self._tmp() as root:
             script = root / "plugins" / "demo" / "tests" / "test_live_only.py"
