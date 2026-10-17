@@ -4,12 +4,16 @@
 from __future__ import annotations
 
 import builtins
+import contextlib
+import io
 import json
+import os
 import subprocess
 import sys
 import textwrap
 import unittest
 from pathlib import Path
+from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parent
 ROOT = SCRIPTS.parent
@@ -271,6 +275,92 @@ class InventoryTests(unittest.TestCase):
         finally:
             builtins.__import__ = real
         self.assertNotEqual(code, 0)
+
+    def test_integration_suites_are_opt_in_and_reported(self) -> None:
+        with self._tmp() as root:
+            suite = root / "plugins" / "demo" / "tests" / "integration_live.py"
+            suite.parent.mkdir(parents=True)
+            suite.write_text(
+                'INTEGRATION_REQUIRES = "macOS DemoService"\n'
+                "import unittest\nclass L(unittest.TestCase):\n    def test_live(self):\n        pass\n",
+                encoding="utf-8",
+            )
+            unit = root / "plugins" / "demo" / "tests" / "test_unit.py"
+            unit.write_text(
+                "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [path.name for path in check_inventory.python_test_files(root)], ["test_unit.py"]
+            )
+            suites = check_inventory.integration_suites(root)
+            self.assertEqual([(s.path.name, s.requires) for s in suites], [("integration_live.py", "macOS DemoService")])
+            report = check_inventory.audit(root, platform="linux", env={})
+            self.assertEqual(report["integration_suites"], ["plugins/demo/tests/integration_live.py"])
+            self.assertEqual(report["python"]["found"], 1)
+            plugins = [root / "plugins" / "demo"]
+            env = {k: v for k, v in os.environ.items() if k != check_inventory.INTEGRATION_ENV}
+            out = io.StringIO()
+            with (
+                mock.patch.object(check, "ROOT", root),
+                mock.patch.dict(os.environ, env, clear=True),
+                mock.patch.object(check, "_exec_python") as exec_python,
+                contextlib.redirect_stdout(out),
+            ):
+                self.assertEqual(check.run_integration(plugins), 0)
+            exec_python.assert_not_called()
+            self.assertIn(
+                "integration: skipped plugins/demo/tests/integration_live.py, needs macOS DemoService",
+                out.getvalue(),
+            )
+            with (
+                mock.patch.object(check, "ROOT", root),
+                mock.patch.dict(os.environ, {check_inventory.INTEGRATION_ENV: "1"}),
+                mock.patch.object(check, "_exec_python", return_value=1) as exec_python,
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(check.run_integration(plugins), 1)
+            run = exec_python.call_args.args[0]
+            self.assertEqual((run.path, run.mode), (suite, "module"))
+            suite.write_text(
+                "import unittest\nclass L(unittest.TestCase):\n    def test_live(self):\n        pass\n",
+                encoding="utf-8",
+            )
+            err = io.StringIO()
+            with (
+                mock.patch.object(check, "ROOT", root),
+                contextlib.redirect_stderr(err),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(check.run_integration(plugins), 1)
+            self.assertIn("must declare INTEGRATION_REQUIRES", err.getvalue())
+
+    def test_integration_skip_under_strict_runner_fails(self) -> None:
+        with self._tmp() as root:
+            sample = root / "integration_sample.py"
+            sample.write_text(
+                'INTEGRATION_REQUIRES = "nothing real"\n'
+                "import unittest\nclass L(unittest.TestCase):\n    def test_live(self):\n"
+                '        self.skipTest("service missing")\n',
+                encoding="utf-8",
+            )
+            empty = root / "empty.json"
+            empty.write_text(json.dumps({"version": 1, "unittest_skips": [], "harness_skips": []}), encoding="utf-8")
+            denied = self._run(empty, sample)
+            self.assertNotEqual(denied.returncode, 0)
+            self.assertIn("unallowed unittest skip", denied.stderr)
+
+    def test_repo_cua_client_live_cases_are_an_integration_suite(self) -> None:
+        service = ROOT / "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests"
+        unit = service / "test_cua_client.py"
+        live = service / "integration_cua_client.py"
+        self.assertNotIn("SkipTest", unit.read_text(encoding="utf-8"))
+        self.assertNotIn("skipTest", unit.read_text(encoding="utf-8"))
+        rels = {run.path for run in check_inventory.python_runs(ROOT)}
+        self.assertIn(unit, rels)
+        self.assertNotIn(live, rels)
+        suites = {s.path: s.requires for s in check_inventory.integration_suites(ROOT)}
+        self.assertIn("macOS CUAService", suites[live])
 
     def _run(self, allowlist: Path, sample: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(

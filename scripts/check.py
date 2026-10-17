@@ -10,6 +10,10 @@ is unittest discover of that file. Other test_*.py files run as a single
 module. test_*.py scripts that only provide main() are reported as
 script_files and are not counted as a passing run. Swift packages that declare
 .testTarget run on macOS. Off macOS, CUAService is an allow-listed harness skip.
+plugins/**/integration_*.py are opt-in live suites that declare
+INTEGRATION_REQUIRES. Each one prints "integration: skipped <path>, needs
+<requires>" unless AGENT_PLUGINS_INTEGRATION=1, which runs it under
+run_strict.py, where a skip or a missing service fails.
 
 --fast validates only the selected plugins and runs discovered tests for those
 plugins. Collection scripts/ tests still run.
@@ -686,6 +690,34 @@ def run_swift(plugins: list[Path]) -> int:
     return 0
 
 
+def run_integration(plugins: list[Path]) -> int:
+    names = {plugin.name for plugin in plugins}
+    enabled = os.environ.get(check_inventory.INTEGRATION_ENV) == "1"
+    for suite in check_inventory.integration_suites(ROOT, names):
+        rel = suite.path.relative_to(ROOT).as_posix()
+        if not suite.requires:
+            print(f"integration suite {rel} must declare INTEGRATION_REQUIRES", file=sys.stderr)
+            return 1
+        if not enabled:
+            print(
+                f"integration: skipped {rel}, needs {suite.requires} "
+                f"(set {check_inventory.INTEGRATION_ENV}=1 to run)",
+                flush=True,
+            )
+            continue
+        plugin = ROOT / "plugins" / suite.path.relative_to(ROOT).parts[1]
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(plugin)
+        env["PYTHONNOUSERSITE"] = "1"
+        env["AGENT_PLUGINS_COLLECTION"] = str(ROOT)
+        run = check_inventory.PythonRun(suite.path, plugin, "module", None)
+        print(f"integration {rel}", flush=True)
+        code = _exec_python(run, env, _python_for(plugin, env))
+        if code != 0:
+            return code
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate packages and run discovered tests.")
     parser.add_argument(
@@ -739,6 +771,9 @@ def main(argv: list[str] | None = None) -> int:
     if code != 0:
         return code
     code = run_swift(plugins)
+    if code != 0:
+        return code
+    code = run_integration(plugins)
     if code != 0:
         return code
     print("check ok", flush=True)

@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""Integration smoke test for CUAService via the Python client.
+"""Unit tests for the CUAService Python client.
 
-Requires the service to be running. Skips gracefully if not.
+Every case runs on any platform. Wire cases talk to an in-process fake
+CUAService on a private Unix socket, so the client's real framing, request
+shape, and error mapping are exercised without the macOS service. The
+real-socket cases live in integration_cua_client.py and run only when
+scripts/check.py is given AGENT_PLUGINS_INTEGRATION=1.
 """
 import json
 import os
 import socket
 import struct
 import sys
+import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -80,36 +86,97 @@ class TestCUAClientUnit(unittest.TestCase):
         )
 
 
-class TestCUAClientIntegration(unittest.TestCase):
-    """Integration tests — skip if service not running."""
+class FakeCUAService:
+    """Minimal CUAService stand-in: length-prefixed JSON-RPC over AF_UNIX.
 
-    @classmethod
-    def setUpClass(cls):
-        sock_path = Path("~/.cache/macos-cua/cua-service.sock").expanduser()
-        if not sock_path.exists():
-            raise unittest.SkipTest("CUAService not running")
+    Replies mirror MethodRouter.swift: list_apps returns the AppResolver
+    listApps() rows, any other method is -32601 "Method not found: <m>".
+    """
+
+    APPS = [
+        {"bundleId": "com.apple.finder", "name": "Finder", "pid": 501, "isActive": True},
+    ]
+
+    def __init__(self) -> None:
+        self._dir = tempfile.TemporaryDirectory(prefix="cua-")
+        self.socket_path = os.path.join(self._dir.name, "s.sock")
+        self.requests: list[dict] = []
+        self._listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self._listener.bind(self.socket_path)
+        self._listener.listen(1)
+        self._thread = threading.Thread(target=self._serve, daemon=True)
+        self._thread.start()
+
+    def _recv_exact(self, conn: socket.socket, n: int) -> bytes | None:
+        data = b""
+        while len(data) < n:
+            chunk = conn.recv(n - len(data))
+            if not chunk:
+                return None
+            data += chunk
+        return data
+
+    def _reply(self, request: dict) -> dict:
+        if request.get("method") == "list_apps":
+            return {"jsonrpc": "2.0", "id": request.get("id"), "result": self.APPS}
+        return {
+            "jsonrpc": "2.0",
+            "id": request.get("id"),
+            "error": {"code": -32601, "message": f"Method not found: {request.get('method')}"},
+        }
+
+    def _serve(self) -> None:
         try:
-            cls.client = CUAClient(str(sock_path))
-            cls.client.connect(timeout=2.0)
-        except ConnectionError:
-            raise unittest.SkipTest("CUAService not reachable")
+            conn, _ = self._listener.accept()
+        except OSError:
+            return
+        with conn:
+            while True:
+                header = self._recv_exact(conn, 4)
+                if header is None:
+                    return
+                body = self._recv_exact(conn, struct.unpack("<I", header)[0])
+                if body is None:
+                    return
+                request = json.loads(body)
+                self.requests.append(request)
+                out = json.dumps(self._reply(request)).encode("utf-8")
+                conn.sendall(struct.pack("<I", len(out)) + out)
 
-    @classmethod
-    def tearDownClass(cls):
-        if hasattr(cls, "client"):
-            cls.client.close()
+    def close(self) -> None:
+        self._listener.close()
+        self._thread.join(timeout=2.0)
+        self._dir.cleanup()
+
+
+class TestCUAClientWire(unittest.TestCase):
+    """The former live-socket cases, against FakeCUAService on every platform."""
+
+    def setUp(self):
+        self.service = FakeCUAService()
+        self.addCleanup(self.service.close)
+        self.client = CUAClient(self.service.socket_path)
+        self.client.connect(timeout=2.0)
+        self.addCleanup(self.client.close)
 
     def test_list_apps(self):
         apps = self.client.list_apps()
         self.assertIsInstance(apps, list)
-        if apps:
-            self.assertIn("name", apps[0])
-            self.assertIn("pid", apps[0])
+        self.assertTrue(apps)
+        self.assertIn("name", apps[0])
+        self.assertIn("pid", apps[0])
+        request = self.service.requests[-1]
+        self.assertEqual(request["jsonrpc"], "2.0")
+        self.assertEqual(request["method"], "list_apps")
+        self.assertEqual(request["params"], {})
+        self.assertIsInstance(request["id"], int)
 
     def test_unknown_method(self):
         with self.assertRaises(RPCError) as ctx:
             self.client.call("nonexistent_method")
         self.assertEqual(ctx.exception.code, -32601)
+        self.assertIn("nonexistent_method", str(ctx.exception))
+        self.assertEqual(self.service.requests[-1]["method"], "nonexistent_method")
 
 
 if __name__ == "__main__":

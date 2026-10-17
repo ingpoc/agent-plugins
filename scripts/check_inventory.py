@@ -106,6 +106,52 @@ def script_files(root: Path, plugin_names: set[str] | None = None) -> list[str]:
     return rows
 
 
+INTEGRATION_ENV = "AGENT_PLUGINS_INTEGRATION"
+
+
+@dataclass(frozen=True)
+class IntegrationSuite:
+    path: Path
+    requires: str
+
+
+def integration_requires(path: Path) -> str | None:
+    """Module-level INTEGRATION_REQUIRES string literal, or None."""
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return None
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if any(isinstance(t, ast.Name) and t.id == "INTEGRATION_REQUIRES" for t in node.targets):
+            value = node.value
+            if isinstance(value, ast.Constant) and isinstance(value.value, str) and value.value.strip():
+                return value.value.strip()
+    return None
+
+
+def integration_suites(root: Path, plugin_names: set[str] | None = None) -> list[IntegrationSuite]:
+    """plugins/**/integration_*.py opt-in suites. Never part of unit discovery.
+
+    A suite without a non-empty INTEGRATION_REQUIRES gets requires="" so the
+    caller fails closed instead of reporting a nameless skip.
+    """
+    base = root / "plugins"
+    if not base.is_dir():
+        return []
+    found: list[IntegrationSuite] = []
+    for path in base.rglob("integration_*.py"):
+        if not path.is_file():
+            continue
+        if any(part in EXCLUDE_PARTS for part in path.relative_to(root).parts):
+            continue
+        if not _in_scope(path, root, plugin_names):
+            continue
+        found.append(IntegrationSuite(path, integration_requires(path) or ""))
+    return sorted(found, key=lambda item: item.path.relative_to(root).as_posix())
+
+
 def swift_packages(root: Path) -> list[Path]:
     base = root / "plugins"
     if not base.is_dir():
@@ -281,4 +327,8 @@ def audit(
         "swift": _counts(len(packages), swift_run, swift_allowed, swift_unallowed),
         "harness_skips": unallowed_ids,
         "script_files": script_files(root, plugin_names),
+        "integration_suites": [
+            suite.path.relative_to(root).as_posix()
+            for suite in integration_suites(root, plugin_names)
+        ],
     }
