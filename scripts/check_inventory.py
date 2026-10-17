@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
@@ -49,7 +50,33 @@ class PythonRun:
     start: Path | None
 
 
-def python_test_files(root: Path) -> list[Path]:
+def _base_name(node: ast.expr) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return ""
+
+
+def defines_testcase(path: Path) -> bool:
+    """True when the file defines a unittest.TestCase, or cannot be parsed.
+
+    Live scripts named test_*.py that only provide main() are not unit tests.
+    A syntax error stays in the run set so the runner fails closed.
+    """
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except SyntaxError:
+        return True
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if any(_base_name(base) == "TestCase" for base in node.bases):
+            return True
+    return False
+
+
+def _candidate_test_files(root: Path) -> list[Path]:
     found: list[Path] = []
     for name in ("plugins", "scripts"):
         base = root / name
@@ -62,6 +89,21 @@ def python_test_files(root: Path) -> list[Path]:
                 continue
             found.append(path)
     return sorted(found, key=lambda item: item.relative_to(root).as_posix())
+
+
+def python_test_files(root: Path) -> list[Path]:
+    return [path for path in _candidate_test_files(root) if defines_testcase(path)]
+
+
+def script_files(root: Path, plugin_names: set[str] | None = None) -> list[str]:
+    rows: list[str] = []
+    for path in _candidate_test_files(root):
+        if not _in_scope(path, root, plugin_names):
+            continue
+        if defines_testcase(path):
+            continue
+        rows.append(path.relative_to(root).as_posix())
+    return rows
 
 
 def swift_packages(root: Path) -> list[Path]:
@@ -238,4 +280,5 @@ def audit(
         "python": _counts(len(files), py_run, py_allowed, py_unallowed),
         "swift": _counts(len(packages), swift_run, swift_allowed, swift_unallowed),
         "harness_skips": unallowed_ids,
+        "script_files": script_files(root, plugin_names),
     }

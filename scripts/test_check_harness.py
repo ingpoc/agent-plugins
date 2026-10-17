@@ -84,7 +84,10 @@ def _layout(root: Path) -> None:
     for rel in MAIN_LAYOUT:
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("import unittest\n", encoding="utf-8")
+        path.write_text(
+            "import unittest\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n",
+            encoding="utf-8",
+        )
     package = root / "plugins/agent-computer-use/skills/macos-cua/service/Package.swift"
     package.write_text(PACKAGE, encoding="utf-8")
     decoy = root / "plugins/agent-computer-use/skills/macos-cua/service/.build/checkouts/vendor/test_vendor.py"
@@ -182,6 +185,46 @@ class InventoryTests(unittest.TestCase):
             )
             accepted = self._run(allowed, sample)
             self.assertEqual(accepted.returncode, 0, accepted.stderr)
+
+    def test_main_only_scripts_are_not_passing_runs(self) -> None:
+        with self._tmp() as root:
+            script = root / "plugins" / "demo" / "tests" / "test_live_only.py"
+            script.parent.mkdir(parents=True)
+            script.write_text(
+                "def main():\n    return 0\n\nif __name__ == '__main__':\n    raise SystemExit(main())\n",
+                encoding="utf-8",
+            )
+            unit = root / "plugins" / "demo" / "tests" / "test_real.py"
+            unit.write_text(
+                "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                [path.name for path in check_inventory.python_test_files(root)],
+                ["test_real.py"],
+            )
+            report = check_inventory.audit(root, platform="linux", env={})
+            self.assertEqual(report["script_files"], ["plugins/demo/tests/test_live_only.py"])
+            self.assertEqual(report["python"]["found"], 1)
+            empty = root / "empty.json"
+            empty.write_text(
+                json.dumps({"version": 1, "unittest_skips": [], "harness_skips": []}),
+                encoding="utf-8",
+            )
+            denied = self._run(empty, script)
+            self.assertNotEqual(denied.returncode, 0)
+            self.assertIn("unittest load collected zero tests", denied.stderr)
+
+    def test_repo_live_scripts_stay_out_of_unittest_runs(self) -> None:
+        rels = {
+            run.path.relative_to(ROOT).as_posix() for run in check_inventory.python_runs(ROOT)
+        }
+        for rel in (
+            "plugins/agent-computer-use/skills/macos-cua/tests/test_live_computer_parity.py",
+            "plugins/agent-computer-use/skills/macos-cua/tests/test_live_pointer_isolation.py",
+        ):
+            self.assertNotIn(rel, rels)
+            self.assertIn(rel, check_inventory.script_files(ROOT))
 
     def test_comet_missing_deps_not_allowlisted(self) -> None:
         text = check_inventory.DEFAULT_ALLOWLIST.read_text(encoding="utf-8")

@@ -4,9 +4,11 @@
 Owner of portable package shape: same rules as scripts/create_agent_plugin.py --validate.
 Owner of context-ledger regressions: plugins/context-ledger/tests/test_contract.py.
 
-Every plugins/ and scripts/ test_*.py outside VCS, SwiftPM checkouts, and caches
-is executed. A path with a tests/ segment is unittest discover of that file.
-Other test_*.py files run as a single module. Swift packages that declare
+Every plugins/ and scripts/ test_*.py that defines unittest.TestCase, outside
+VCS, SwiftPM checkouts, and caches, is executed. A path with a tests/ segment
+is unittest discover of that file. Other test_*.py files run as a single
+module. test_*.py scripts that only provide main() are reported as
+script_files and are not counted as a passing run. Swift packages that declare
 .testTarget run on macOS. Off macOS, CUAService is an allow-listed harness skip.
 
 --fast validates only the selected plugins and runs discovered tests for those

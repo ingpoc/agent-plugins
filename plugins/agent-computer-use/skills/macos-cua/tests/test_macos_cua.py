@@ -3,6 +3,7 @@ import io
 import json
 import os
 from pathlib import Path
+import socket
 import plistlib
 import sys
 from types import SimpleNamespace
@@ -4743,22 +4744,83 @@ class DriverSocketTransportTests(unittest.TestCase):
         self.assertEqual(result, {"error": "Missing required integer field: pid"})
 
     def test_live_daemon_parses_our_argument_envelope(self):
-        """The daemon reads args under one specific key; fakes cannot prove which."""
-        sock_path = os.path.expanduser(
-            "~/Library/Caches/cua-driver/cua-driver.sock"
-        )
-        if not os.path.exists(sock_path):
-            self.skipTest("cua-driver daemon socket not present")
-        macos_cua.reset_driver_socket()
-        with mock.patch.dict(os.environ, {"MACOS_CUA_DRIVER_SOCKET": sock_path}):
-            result = macos_cua.call_driver(
-                "get_window_state", {"pid": os.getpid(), "window_id": 0}, timeout=20
-            )
-        macos_cua.reset_driver_socket()
-        error = str(result.get("error") or "")
+        """pid is sent under args. A local socket proves the key with no skip.
+
+        When the real cua-driver socket is present, the same call also has to
+        be accepted by that daemon.
+        """
+        received: dict[str, str] = {}
+        path = f"/tmp/cua-envelope-{os.getpid()}.sock"
+
+        def serve(ready: threading.Event) -> None:
+            server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            try:
+                if os.path.exists(path):
+                    os.unlink(path)
+                server.bind(path)
+                server.listen(1)
+                server.settimeout(5)
+                ready.set()
+                conn, _addr = server.accept()
+            except OSError:
+                ready.set()
+                server.close()
+                return
+            try:
+                conn.settimeout(5)
+                data = b""
+                while b"\n" not in data:
+                    chunk = conn.recv(4096)
+                    if not chunk:
+                        break
+                    data += chunk
+                received["line"] = data.split(b"\n", 1)[0].decode()
+                conn.sendall(_envelope_line({"ok": True}))
+            finally:
+                conn.close()
+                server.close()
+
+        ready = threading.Event()
+        thread = threading.Thread(target=serve, args=(ready,), daemon=True)
+        thread.start()
+        self.assertTrue(ready.wait(2), "local driver socket did not listen")
+        try:
+            macos_cua.reset_driver_socket()
+            with mock.patch.dict(os.environ, {"MACOS_CUA_DRIVER_SOCKET": path}):
+                result = macos_cua.call_driver(
+                    "get_window_state",
+                    {"pid": os.getpid(), "window_id": 0},
+                    timeout=5,
+                )
+            macos_cua.reset_driver_socket()
+        finally:
+            thread.join(timeout=2)
+            if os.path.exists(path):
+                os.unlink(path)
+        payload = json.loads(received["line"])
+        self.assertEqual(payload["method"], "call")
+        self.assertEqual(payload["name"], "get_window_state")
+        self.assertEqual(payload["args"]["pid"], os.getpid())
+        self.assertNotIn("arguments", payload)
         self.assertNotIn(
             "Missing required integer field: pid",
-            error,
+            str(result.get("error") or ""),
+        )
+
+        live = os.path.expanduser("~/Library/Caches/cua-driver/cua-driver.sock")
+        if not os.path.exists(live):
+            return
+        macos_cua.reset_driver_socket()
+        with mock.patch.dict(os.environ, {"MACOS_CUA_DRIVER_SOCKET": live}):
+            live_result = macos_cua.call_driver(
+                "get_window_state",
+                {"pid": os.getpid(), "window_id": 0},
+                timeout=20,
+            )
+        macos_cua.reset_driver_socket()
+        self.assertNotIn(
+            "Missing required integer field: pid",
+            str(live_result.get("error") or ""),
             "daemon did not read pid from our envelope: arguments are not reaching it",
         )
 

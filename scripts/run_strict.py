@@ -72,8 +72,12 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         print(f"unittest load failed: {exc}", file=sys.stderr)
         return 1
+    collected = list(_iter_tests(suite))
+    if not collected:
+        print("unittest load collected zero tests", file=sys.stderr)
+        return 1
     kept: list[unittest.TestCase] = []
-    for test in _iter_tests(suite):
+    for test in collected:
         rule = allow.match("harness", test.id(), sys.platform, os.environ)
         if rule is not None:
             print(f"allowed skip {test.id()}: {rule.reason}", flush=True)
