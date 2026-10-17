@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - "**"
   pull_request:
 
 concurrency:
@@ -22,8 +23,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Voice CUA system deps
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2 portaudio19-dev
       - name: Comet optional test deps
-        run: python3 -m pip install --quiet 'websockets==16.0' Pillow 'mcp==2.2.0'
+        run: python3 -m pip install --quiet 'websockets==16.0' Pillow 'mcp==2.2.0' numpy sounddevice
       - name: Audit test inventory
         run: |
           python3 scripts/check.py --audit-tests | python3 -c '
