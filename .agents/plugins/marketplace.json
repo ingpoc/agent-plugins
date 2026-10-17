@@ -27,6 +27,15 @@
         "path": "./plugins/context-ledger"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "irctc-train-booking",
+      "source": {
+        "source": "local",
+        "path": "./plugins/irctc-train-booking"
+      },
+      "category": "Productivity"
     }
+
   ]
 }

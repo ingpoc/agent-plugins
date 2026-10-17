@@ -18,6 +18,12 @@
       "name": "context-ledger",
       "source": "./plugins/context-ledger",
       "description": "Scoped, local decision traces with sparse capture and progressive retrieval."
+    },
+    {
+      "name": "irctc-train-booking",
+      "source": "./plugins/irctc-train-booking",
+      "description": "Book an IRCTC ticket through the comet-control lease controller. Login reads the macOS Keychain service irctc at runtime. Aadhaar OTP uses macOS iPhone Mirroring OCR (ocr.swift). Stops before payment."
     }
+
   ]
 }
