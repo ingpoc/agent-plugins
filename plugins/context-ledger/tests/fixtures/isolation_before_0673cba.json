@@ -1,0 +1,523 @@
+{
+ "label": "BEFORE main 0673cba, fresh sqlite3 .backup of the live ledger 2026-10-17 IST",
+ "audit_reconciliation": "Hits and bytes match the audit exactly for all 20 finds (A1-C2, T1-T6). Leaks 2 (A6: 6c7fd233, 364b7d61) = audit. Fillers 17 vs audit prose '~14': the audit table itself tags 17 such hits (b32beeea x6 in A1-A6, 3 each in B1/B3/B4, a8babf06+d897c824 in B5); B2 a8babf06 is labelled relevant (judgment) and B6 a8babf06 passes the frozen text floor. The audit's '30' is hits over 14 entity finds; the fixture also keeps the 6 text-only controls (20 finds).",
+ "fixture": "isolation_30.json",
+ "db": "fresh.sqlite3",
+ "plugin_id": {
+  "version": "0.1.26",
+  "git_head": "0673cba"
+ },
+ "db_records": 136,
+ "ambiguous_prefixes": [],
+ "metrics": {
+  "all": {
+   "finds": 20,
+   "hits": 36,
+   "cross_project_leaks": 2,
+   "unbound_project_hits": 2,
+   "offtopic_fillers": 17,
+   "fleet_lessons_found": 7,
+   "fleet_lessons_expected": 10,
+   "relevant_found": 11,
+   "relevant_labelled": 21,
+   "mean_bytes": 697.9,
+   "mean_hits": 1.8,
+   "zero_hit": 4,
+   "zero_hit_violations": 0,
+   "errors": 0
+  },
+  "audit_entity_runs": {
+   "finds": 14,
+   "hits": 30,
+   "cross_project_leaks": 2,
+   "unbound_project_hits": 0,
+   "offtopic_fillers": 17,
+   "fleet_lessons_found": 4,
+   "fleet_lessons_expected": 7,
+   "relevant_found": 8,
+   "relevant_labelled": 16,
+   "mean_bytes": 823.6,
+   "mean_hits": 2.14,
+   "zero_hit": 1,
+   "zero_hit_violations": 0,
+   "errors": 0
+  }
+ },
+ "finds": [
+  {
+   "id": "A1",
+   "query": "ONDC seller signing key rotation registry lookup",
+   "project": "aadhaarchain",
+   "hits": [
+    "b32beeea"
+   ],
+   "bytes": 369,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 1,
+   "filler_ids": [
+    "b32beeea"
+   ],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "A2",
+   "query": "ONDC buyer search callback on_search not received",
+   "project": "aadhaarchain",
+   "hits": [
+    "b32beeea"
+   ],
+   "bytes": 369,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 1,
+   "filler_ids": [
+    "b32beeea"
+   ],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "A3",
+   "query": "preprod deploy on Render failing health check",
+   "project": "aadhaarchain",
+   "hits": [
+    "b32beeea"
+   ],
+   "bytes": 369,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 1,
+   "filler_ids": [
+    "b32beeea"
+   ],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "A4",
+   "query": "Cursor CLI review keychain prompt blocks headless run",
+   "project": "aadhaarchain",
+   "hits": [
+    "b32beeea",
+    "d7f6cc8d"
+   ],
+   "bytes": 659,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 1,
+   "filler_ids": [
+    "b32beeea"
+   ],
+   "fleet_found": 1,
+   "fleet_expected": 1,
+   "relevant_ids": [
+    "d7f6cc8d",
+    "a4abc29c"
+   ],
+   "relevant_found": 1,
+   "zero_hits_ok": false,
+   "scope_passed": false
+  },
+  {
+   "id": "A5",
+   "query": "comet browser lease held by another agent",
+   "project": "aadhaarchain",
+   "hits": [
+    "b32beeea",
+    "e5ff9784",
+    "2599cee1"
+   ],
+   "bytes": 1030,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 1,
+   "filler_ids": [
+    "b32beeea"
+   ],
+   "fleet_found": 2,
+   "fleet_expected": 2,
+   "relevant_ids": [
+    "e5ff9784",
+    "2599cee1",
+    "04f17360"
+   ],
+   "relevant_found": 2,
+   "zero_hits_ok": false,
+   "scope_passed": false
+  },
+  {
+   "id": "A6",
+   "query": "codex review fails before posting PR comments",
+   "project": "aadhaarchain",
+   "hits": [
+    "b32beeea",
+    "6c7fd233",
+    "364b7d61"
+   ],
+   "bytes": 1192,
+   "leaks": 2,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [
+    "6c7fd233",
+    "364b7d61"
+   ],
+   "fillers": 1,
+   "filler_ids": [
+    "b32beeea"
+   ],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "B1",
+   "query": "p2p transport relay connection drops behind NAT",
+   "project": "open-resource-network",
+   "hits": [
+    "a8babf06",
+    "d897c824",
+    "364b7d61"
+   ],
+   "bytes": 1148,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 3,
+   "filler_ids": [
+    "a8babf06",
+    "d897c824",
+    "364b7d61"
+   ],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "B2",
+   "query": "check.py merge gate failing on PR",
+   "project": "open-resource-network",
+   "hits": [
+    "7d3941cc",
+    "a8babf06"
+   ],
+   "bytes": 878,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [
+    "7d3941cc",
+    "a8babf06",
+    "b13d5e4f"
+   ],
+   "relevant_found": 2,
+   "zero_hits_ok": false,
+   "scope_passed": false
+  },
+  {
+   "id": "B3",
+   "query": "signing key length validation ed25519",
+   "project": "open-resource-network",
+   "hits": [
+    "a8babf06",
+    "d897c824",
+    "364b7d61"
+   ],
+   "bytes": 1148,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 3,
+   "filler_ids": [
+    "a8babf06",
+    "d897c824",
+    "364b7d61"
+   ],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "B4",
+   "query": "Cursor CLI review keychain prompt blocks headless run",
+   "project": "open-resource-network",
+   "hits": [
+    "a8babf06",
+    "d897c824",
+    "364b7d61"
+   ],
+   "bytes": 1148,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 3,
+   "filler_ids": [
+    "a8babf06",
+    "d897c824",
+    "364b7d61"
+   ],
+   "fleet_found": 0,
+   "fleet_expected": 1,
+   "relevant_ids": [
+    "d7f6cc8d",
+    "a4abc29c"
+   ],
+   "relevant_found": 0,
+   "zero_hits_ok": false,
+   "scope_passed": false
+  },
+  {
+   "id": "B5",
+   "query": "comet browser lease held by another agent",
+   "project": "open-resource-network",
+   "hits": [
+    "4f7f4626",
+    "a8babf06",
+    "d897c824"
+   ],
+   "bytes": 1106,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 2,
+   "filler_ids": [
+    "a8babf06",
+    "d897c824"
+   ],
+   "fleet_found": 0,
+   "fleet_expected": 2,
+   "relevant_ids": [
+    "e5ff9784",
+    "2599cee1",
+    "04f17360"
+   ],
+   "relevant_found": 0,
+   "zero_hits_ok": false,
+   "scope_passed": false
+  },
+  {
+   "id": "B6",
+   "query": "codex review fails before posting PR comments",
+   "project": "open-resource-network",
+   "hits": [
+    "364b7d61",
+    "4e5d0bad",
+    "a8babf06"
+   ],
+   "bytes": 1219,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [
+    "4e5d0bad"
+   ],
+   "relevant_found": 1,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "C1",
+   "query": "Cursor CLI review keychain prompt",
+   "project": null,
+   "hits": [
+    "d7f6cc8d",
+    "a4abc29c"
+   ],
+   "bytes": 846,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 1,
+   "fleet_expected": 1,
+   "relevant_ids": [
+    "d7f6cc8d",
+    "a4abc29c"
+   ],
+   "relevant_found": 2,
+   "zero_hits_ok": false,
+   "scope_passed": false
+  },
+  {
+   "id": "C2",
+   "query": "signing key length validation",
+   "project": null,
+   "hits": [],
+   "bytes": 50,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "T1",
+   "query": "ONDC seller signing key rotation registry lookup",
+   "project": null,
+   "hits": [],
+   "bytes": 50,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "T2",
+   "query": "preprod deploy on Render failing health check",
+   "project": null,
+   "hits": [],
+   "bytes": 50,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "T3",
+   "query": "p2p transport relay connection drops behind NAT",
+   "project": null,
+   "hits": [],
+   "bytes": 50,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "T4",
+   "query": "comet browser lease held by another agent",
+   "project": null,
+   "hits": [
+    "e5ff9784",
+    "2599cee1",
+    "4f7f4626"
+   ],
+   "bytes": 1065,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 2,
+   "fleet_expected": 2,
+   "relevant_ids": [
+    "e5ff9784",
+    "2599cee1",
+    "04f17360"
+   ],
+   "relevant_found": 2,
+   "zero_hits_ok": false,
+   "scope_passed": false
+  },
+  {
+   "id": "T5",
+   "query": "codex review fails before posting PR comments",
+   "project": null,
+   "hits": [
+    "6c7fd233",
+    "364b7d61"
+   ],
+   "bytes": 872,
+   "leaks": 0,
+   "unbound_project_hits": 2,
+   "forbidden_hits": [
+    "6c7fd233",
+    "364b7d61"
+   ],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 0,
+   "fleet_expected": 0,
+   "relevant_ids": [],
+   "relevant_found": 0,
+   "zero_hits_ok": true,
+   "scope_passed": false
+  },
+  {
+   "id": "T6",
+   "query": "Cursor CLI review keychain prompt blocks headless run",
+   "project": null,
+   "hits": [
+    "d7f6cc8d"
+   ],
+   "bytes": 339,
+   "leaks": 0,
+   "unbound_project_hits": 0,
+   "forbidden_hits": [],
+   "fillers": 0,
+   "filler_ids": [],
+   "fleet_found": 1,
+   "fleet_expected": 1,
+   "relevant_ids": [
+    "d7f6cc8d",
+    "a4abc29c"
+   ],
+   "relevant_found": 1,
+   "zero_hits_ok": false,
+   "scope_passed": false
+  }
+ ]
+}
