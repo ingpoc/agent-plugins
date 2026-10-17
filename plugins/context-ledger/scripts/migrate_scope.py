@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 """One-time re-scope. Default is a dry-run JSON report. --apply writes events.
 
-Refuses the live ~/.context-ledger. Never hard-deletes. Archive sets lifecycle
-archived and copies the row into data/archive/<date>.json.
+Refuses a --data dir that is, or binds to the same ledger_dir as, a live root
+(~/.context-ledger, ~/.agents/plugin-data/context-ledger, $CONTEXT_LEDGER_DATA).
+Never hard-deletes. Archive sets lifecycle archived and copies the row, body
+included, into data/archive/<date>.json.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import uuid
@@ -20,16 +23,25 @@ if str(ROOT) not in sys.path:
 
 from context_ledger.contracts import (  # noqa: E402
     APPLICABILITY_SCOPE_RE,
+    PROJECT_SCOPE_IDS,
     SCOPE_RE,
     TOOL_SCOPE_IDS,
     decision_surface,
     pure_status,
+    strip_volatile_tokens,
     volatile_kinds,
 )
 from context_ledger.store import Store  # noqa: E402
 
 _TEXT_FIELDS = ("summary", "situation", "action", "rationale", "applicability")
-_FLEET_TEXT = re.compile(r"\b(?:any|every|another) project\b", re.I)
+_FLEET_TEXT = re.compile(
+    r"\b(?:any|every|another) project\b|\bfleet lesson\b|\bnot about (?:this|the) project\b",
+    re.I,
+)
+_CODE_CUE = re.compile(
+    r"\b(?:check\.py|merge gate|repo|codebase|source|module|package|plugin|product|own code|own product)\b",
+    re.I,
+)
 
 
 def _sentences(text: str) -> list[str]:
@@ -39,25 +51,76 @@ def _sentences(text: str) -> list[str]:
     return [part.strip() for part in re.split(r"(?<=[.!;])\s+", text) if part.strip()]
 
 
-def infer_scope(body: dict) -> tuple[str, str]:
+def project_allowlist(data: Path | None) -> frozenset[str]:
+    """Built-in project ids plus any named in binding.json or project-registry.json."""
+    extra: list[str] = []
+    if data is not None:
+        registry = data / "project-registry.json"
+        if registry.is_file():
+            try:
+                obj = json.loads(registry.read_text(encoding="utf-8"))
+                extra.extend(str(item) for item in (obj.get("projects") or []))
+            except (OSError, ValueError, TypeError):
+                pass
+        binding = data / "binding.json"
+        if binding.is_file():
+            try:
+                obj = json.loads(binding.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                obj = {}
+            if isinstance(obj.get("project"), str):
+                extra.append(obj["project"])
+            if isinstance(obj.get("projects"), list):
+                extra.extend(str(item) for item in obj["projects"])
+    ids = set(PROJECT_SCOPE_IDS)
+    for item in extra:
+        folded = item.casefold()
+        if folded != "fleet" and folded not in TOOL_SCOPE_IDS and SCOPE_RE.fullmatch(folded):
+            ids.add(folded)
+    return frozenset(ids)
+
+
+def _kept_scope(existing: str, projects: frozenset[str]) -> str | None:
+    if existing == "fleet":
+        return existing
+    if existing == "project:fleet":
+        return None
+    if existing.startswith("project:"):
+        return existing if existing.split(":", 1)[1] in projects else None
+    if existing.startswith("tool:"):
+        return existing if existing.split(":", 1)[1] in TOOL_SCOPE_IDS else None
+    return None
+
+
+def about_own_product(text: str, project_id: str) -> bool:
+    """True when the decision is about that project's product or code."""
+    if not project_id or _FLEET_TEXT.search(text):
+        return False
+    return _CODE_CUE.search(text) is not None
+
+
+def infer_scope(body: dict, projects: frozenset[str] | None = None) -> tuple[str, str]:
+    allowed = projects if projects is not None else PROJECT_SCOPE_IDS
     existing = body.get("scope")
     if isinstance(existing, str) and APPLICABILITY_SCOPE_RE.fullmatch(existing):
-        return existing, "scope already set"
+        kept = _kept_scope(existing, allowed)
+        if kept is not None:
+            return kept, "scope already set"
     entities = [str(item).casefold() for item in body.get("entities") or []]
     text = decision_surface(body.get("summary"), body.get("rationale"), body.get("applicability"))
-    if _FLEET_TEXT.search(text):
-        return "fleet", "text holds in another project"
-    projects = [item for item in entities if item not in TOOL_SCOPE_IDS and SCOPE_RE.fullmatch(item)]
+    if _FLEET_TEXT.search(text) or "fleet" in entities:
+        return "fleet", "fleet lesson or fleet entity"
+    project_ids = [item for item in entities if item in allowed]
     tools = [item for item in entities if item in TOOL_SCOPE_IDS]
-    if len(projects) == 1 and not tools:
-        return f"project:{projects[0]}", "single project entity"
-    if len(tools) == 1 and not projects:
-        return f"tool:{tools[0]}", "single tool entity"
-    if projects:
-        return f"project:{projects[0]}", "project entity"
+    if len(project_ids) == 1 and about_own_product(text, project_ids[0]):
+        if not tools:
+            return f"project:{project_ids[0]}", "about that project's product or code"
+        return f"project:{project_ids[0]}", "project product wins over the tool"
+    if len(tools) == 1:
+        return f"tool:{tools[0]}", "known tool, not the project's own product"
     if tools:
-        return f"tool:{tools[0]}", "tool entity"
-    return "fleet", "no project or tool entity"
+        return "fleet", "unsure, wider scope"
+    return "fleet", "no project product or known tool"
 
 
 def _blank_required(body: dict) -> str | None:
@@ -73,14 +136,16 @@ def rewrite_body(body: dict) -> tuple[dict | None, str]:
     new = json.loads(json.dumps(body))
     moved: list[str] = []
     for field in _TEXT_FIELDS:
+        cleaned, tokens = strip_volatile_tokens(str(new.get(field) or ""))
+        moved.extend(tokens)
         kept: list[str] = []
-        for sentence in _sentences(str(new.get(field) or "")):
-            if volatile_kinds(sentence) or pure_status(sentence):
+        for sentence in _sentences(cleaned):
+            if pure_status(sentence):
                 moved.append(sentence)
             else:
                 kept.append(sentence)
         if field in new:
-            new[field] = " ".join(kept)
+            new[field] = " ".join(kept).strip()
     if not moved:
         return new, "rescope"
     surface = decision_surface(new.get("summary"), new.get("rationale"))
@@ -99,10 +164,10 @@ def rewrite_body(body: dict) -> tuple[dict | None, str]:
     return new, "volatile pins moved to evidence"
 
 
-def classify(row: dict) -> dict:
+def classify(row: dict, projects: frozenset[str] | None = None) -> dict:
     body = row["body"]
     old = body.get("scope") or body.get("applicability") or ""
-    new_scope, scope_reason = infer_scope(body)
+    new_scope, scope_reason = infer_scope(body, projects)
     surface = decision_surface(body.get("summary"), body.get("rationale"))
     kind = "state" if pure_status(surface) else "decision"
     if row["lifecycle"] == "archived":
@@ -115,6 +180,7 @@ def classify(row: dict) -> dict:
         return {
             "id": row["id"], "old_scope": old, "new_scope": new_scope, "kind": "state",
             "action": "archive", "reason": reason, "_revision": row["revision"],
+            "_archived_body": body,
         }
     rewritten["scope"] = new_scope
     action = "rewrite" if reason != "rescope" else "rescope"
@@ -150,17 +216,48 @@ def load_rows(store: Store) -> list[dict]:
 
 
 def plan(store: Store) -> list[dict]:
-    return [classify(row) for row in load_rows(store)]
+    projects = project_allowlist(store.plugin_data)
+    return [classify(row, projects) for row in load_rows(store)]
 
 
 def _public(row: dict) -> dict:
     return {key: row[key] for key in ("id", "old_scope", "new_scope", "kind", "action", "reason")}
 
 
-def _refuse_live(data: Path) -> None:
-    live = (Path.home() / ".context-ledger").resolve()
-    if data.resolve() == live:
-        raise SystemExit("refusing live ledger ~/.context-ledger")
+def _live_roots() -> list[Path]:
+    roots = [Path.home() / ".context-ledger", Path.home() / ".agents" / "plugin-data" / "context-ledger"]
+    env = os.environ.get("CONTEXT_LEDGER_DATA")
+    if env:
+        roots.append(Path(env))
+    return roots
+
+
+def _bound_ledger_dir(data: Path) -> Path | None:
+    try:
+        obj = json.loads((data / "binding.json").read_text(encoding="utf-8"))
+        ledger = Path(obj["ledger_dir"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return ledger.resolve() if ledger.is_absolute() else None
+
+
+def _live_ledger_dirs(root: Path) -> set[Path]:
+    dirs = {(root / "ledger").resolve()}
+    bound = _bound_ledger_dir(root)
+    if bound is not None:
+        dirs.add(bound)
+    return dirs
+
+
+def _refuse_live(data: Path, live_roots: list[Path] | None = None) -> None:
+    roots = [Path(root).resolve() for root in (live_roots if live_roots is not None else _live_roots())]
+    target = data.resolve()
+    target_ledger = _bound_ledger_dir(target)
+    for root in roots:
+        if target == root:
+            raise SystemExit(f"refusing live ledger root {root}")
+        if target_ledger is not None and target_ledger in _live_ledger_dirs(root):
+            raise SystemExit(f"refusing: --data binds to the live ledger_dir of {root}")
 
 
 def apply(store: Store, rows: list[dict], *, on: str, data: Path) -> dict:
@@ -183,7 +280,7 @@ def apply(store: Store, rows: list[dict], *, on: str, data: Path) -> dict:
                 },
                 mcp=False,
             )
-            archived_bodies.append(_public(row))
+            archived_bodies.append({**_public(row), "body": row.get("_archived_body")})
             wrote += 1
             continue
         store.append_event(

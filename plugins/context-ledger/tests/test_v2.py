@@ -28,7 +28,7 @@ def _legacy(summary: str, rationale: str = "legacy reason", entities=None, appli
     return {
         "kind": "decision", "summary": summary, "situation": summary, "action": summary,
         "rationale": rationale, "constraints": [], "applicability": applicability,
-        "entities": entities or ["legacy"], "evidence": [], "sensitivity": "model_safe",
+        "entities": entities or ["legacy"], "scope": "fleet", "evidence": [], "sensitivity": "model_safe",
         "approval": {"state": "none", "authority_ref": None},
     }
 
@@ -169,7 +169,7 @@ class UserDecisionRankingTests(V2Base):
 
     def test_hit_is_compact_and_has_no_duplicate_fields(self) -> None:
         self.save(type="user_decision", decision="Private X items use the signed-in Comet path",
-                  why="Guru 2026-10-14: bookmarks redirect unless signed in; public reads use x connector",
+                  why="Guru note: bookmarks redirect unless signed in; public reads use x connector",
                   entities=["x.com"], rule="x-read-path", exception="private items", approver="guru")
         hit = self.find("x bookmarks redirect")["matches"][0]
         self.assertEqual(hit["type"], "user_decision")

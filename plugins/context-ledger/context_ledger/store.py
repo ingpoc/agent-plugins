@@ -185,20 +185,35 @@ def load_binding(plugin_data: Path) -> dict[str, Any]:
         raise LedgerError("UNAVAILABLE") from exc
     obj = parse_json(raw)
     data = require_keys(
-        obj, {"schema_version", "ledger_dir", "ledger_id", "scope_id", "actor_id"}
+        obj,
+        {"schema_version", "ledger_dir", "ledger_id", "scope_id", "actor_id"},
+        {"project", "tools", "projects"},
     )
     if data["schema_version"] != 1:
         raise LedgerError("UPGRADE_REQUIRED")
     ledger_dir = Path(require_str(data["ledger_dir"], 4096))
     if not ledger_dir.is_absolute():
         raise LedgerError("INVALID_ARGUMENT")
-    return {
+    loaded = {
         "schema_version": 1,
         "ledger_dir": str(ledger_dir),
         "ledger_id": require_uuid(data["ledger_id"]),
         "scope_id": require_scope(data["scope_id"]),
         "actor_id": require_scope(data["actor_id"]),
     }
+    if data.get("project"):
+        loaded["project"] = require_scope(data["project"])
+    if data.get("tools") is not None:
+        tools = data["tools"]
+        if not isinstance(tools, list):
+            raise LedgerError("INVALID_ARGUMENT")
+        loaded["tools"] = [require_scope(item) for item in tools]
+    if data.get("projects") is not None:
+        projects = data["projects"]
+        if not isinstance(projects, list):
+            raise LedgerError("INVALID_ARGUMENT")
+        loaded["projects"] = [require_scope(item) for item in projects]
+    return loaded
 
 
 def write_binding(plugin_data: Path, binding: dict[str, Any], *, replace: bool) -> None:
@@ -602,7 +617,9 @@ class Store:
         tool: str = "record",
     ) -> dict[str, Any]:
         allow_owner = not mcp
-        parsed = validate_record_input(arguments, allow_owner_attested=allow_owner)
+        parsed = validate_record_input(
+            arguments, allow_owner_attested=allow_owner, require_scope=mcp
+        )
         if mcp and parsed["body"]["approval"]["state"] == "owner_attested":
             raise LedgerError("INVALID_ARGUMENT")
         req_hash = request_hash(tool, parsed)
@@ -982,7 +999,7 @@ class Store:
                 (scope,),
             ).fetchall()
             recs: dict[str, dict[str, Any]] = {}
-            allowed = allowed_scopes(parsed["caller_scope"]) if parsed["caller_scope"] else None
+            allowed = allowed_scopes(parsed["caller_scope"]) if parsed["caller_scope"] else {"fleet"}
             now = now_ts()
             for row in rows:
                 rec = self._get_record(conn, row["decision_id"], mcp=True)

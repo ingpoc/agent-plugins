@@ -35,7 +35,7 @@ def _u() -> str:
 def _body(summary: str, sensitivity: str = "model_safe") -> dict:
     return {"kind": "decision", "summary": summary, "situation": summary, "action": summary,
             "rationale": "fixture reason", "constraints": [], "applicability": "any",
-            "entities": ["fixture"], "evidence": [], "sensitivity": sensitivity,
+            "entities": ["fixture"], "scope": "fleet", "evidence": [], "sensitivity": sensitivity,
             "approval": {"state": "none", "authority_ref": None}}
 
 

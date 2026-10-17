@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.28
+
+`find` with no caller scope returns fleet only. `ledger_loop.py find` and the helper inject the caller's project and tools from `binding.json`. `record` requires a scope. A project scope is an allowlisted project id. A tool scope is a known tool id. Anything else is fleet. Version strings, commit SHAs, PR or Project ids, and dates belong in evidence. A model name or a status word does not make a save volatile. A pure status save, one whose main claim is a state, is refused.
+
 ## 0.1.27
 
 `find` hard-filters by the caller's scope (fleet, the bound project, and the tools in play) and ranks by text only, at most 3 hits. `save` requires a scope and refuses a status update or a volatile pin in the decision text. `scripts/migrate_scope.py` prints a dry-run report and, when applied, archives volatile records.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.28
+
+- A record is `project:<id>` only when `<id>` is on the allowlist: `agent-plugins`, `open-resource-network`, `aadhaarchain`, `brandgpt`, `hisab-pune`, plus ids named in `binding.json` (`project`, `projects`) or `data/project-registry.json`. A record is `tool:<id>` only for a known tool id. Every other entity, including a free-form topic, is `fleet`.
+- When a record names both a project and a tool, the project wins only if the decision is about that project's own product or code. Otherwise the scope is the tool, or `fleet` when more than one tool is named. When unsure, the wider scope wins.
+- Volatile tokens are version strings, commit SHAs, PR or Project ids, and dates. A model name or a status word is not volatile on its own. Migration strips volatile tokens into evidence and keeps the rule. It archives a row only when nothing durable remains. A pure status save is one whose main claim is a state.
+- `find` with no `caller_scope` returns fleet records only. `ledger_loop.py find` and the helper `find` inject `caller_scope` from `binding.json`. `record` refuses a body with no scope.
+
 ## 0.1.27
 
 - Every record has an applicability scope, `fleet`, `project:<id>`, or `tool:<id>`. `find` takes `caller_scope` and hard-filters to fleet plus that project and those tools, then ranks by text only. An entity or tag does not return a record with no text match.

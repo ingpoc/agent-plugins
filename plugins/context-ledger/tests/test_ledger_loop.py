@@ -37,6 +37,7 @@ def _body(summary: str) -> dict:
         "constraints": [],
         "applicability": "tests only",
         "entities": ["ledger-loop-test"],
+        "scope": "fleet",
         "evidence": [],
         "sensitivity": "model_safe",
         "approval": {"state": "none", "authority_ref": None},
@@ -232,6 +233,33 @@ class ABLogTests(LedgerLoopBase):
 
 
 class StoreModeTests(LedgerLoopBase):
+    def test_find_uses_the_binding_project(self) -> None:
+        path = self.data / "binding.json"
+        binding = json.loads(path.read_text(encoding="utf-8"))
+        binding["project"] = "brandgpt"
+        binding["tools"] = ["git"]
+        path.write_text(json.dumps(binding) + "\n", encoding="utf-8")
+        path.chmod(0o600)
+        summary = "Review gate stays closed for the caller"
+        rationale = "because the review gate stays closed"
+        brand = self.store.record(
+            {"request_id": _u(), "occurred_at": None,
+             "body": _body(summary) | {"scope": "project:brandgpt", "rationale": rationale},
+             "outcome": {"status": "pending", "note": "", "evidence": []}},
+            mcp=True,
+        )["decision_id"]
+        other = self.store.record(
+            {"request_id": _u(), "occurred_at": None,
+             "body": _body(summary) | {"scope": "project:aadhaarchain", "rationale": rationale},
+             "outcome": {"status": "pending", "note": "", "evidence": []}},
+            mcp=True,
+        )["decision_id"]
+        r = self.run_loop("find", self.task, "--bot", "efficient", "--query", "review gate stays closed")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        ids = [hit["decision_id"] for hit in json.loads(r.stdout)["matches"]]
+        self.assertIn(brand, ids)
+        self.assertNotIn(other, ids)
+
     def test_close_without_start_fails(self) -> None:
         self.assert_fail(self.run_loop("close", self.task), "no start lookup")
 

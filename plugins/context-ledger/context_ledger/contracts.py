@@ -38,12 +38,22 @@ APPLICABILITY_SCOPE_RE = re.compile(
 TOOL_SCOPE_IDS = frozenset(
     {"comet", "cursor-cli", "codex-cli", "git", "python", "render", "kite"}
 )
+# Callers bind these project ids. A registry or binding may add more.
+PROJECT_SCOPE_IDS = frozenset(
+    {"agent-plugins", "open-resource-network", "aadhaarchain", "brandgpt", "hisab-pune"}
+)
 STATUS_WORDS = frozenset(
     "pending success failed merged blocked passing wip shipped inconclusive abandoned".split()
 )
-VERSION_RE = re.compile(r"\b\d+\.\d+(?:\.\d+)?\b")
-SHA_RE = re.compile(r"\b[0-9a-f]{7,40}\b", re.I)
+VERSION_RE = re.compile(r"\bv?\d+\.\d+(?:\.\d+)?\b", re.I)
+SHA_RE = re.compile(r"\b(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b", re.I)
 PR_ID_RE = re.compile(r"\b(?:pr|pull request|project)\s*#?\s*\d+\b|\bpull/\d+\b", re.I)
+DATE_RE = re.compile(
+    r"\b\d{4}-\d{2}-\d{2}\b"
+    r"|\b\d{1,2}/\d{1,2}/\d{2,4}\b"
+    r"|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2},?\s+\d{4}\b",
+    re.I,
+)
 MODEL_RE = re.compile(
     r"\b(?:gpt-\d[\w.-]*|chatgpt|claude[\w.-]*|grok[\w.-]*|gemini[\w.-]*|opus[\w.-]*|sonnet[\w.-]*|haiku[\w.-]*|composer[\w.-]*|fable[\w.-]*)\b",
     re.I,
@@ -390,32 +400,98 @@ def decision_surface(*parts: str | None) -> str:
     return " ".join(part for part in parts if part)
 
 
+def caller_scope_from_binding(binding: dict[str, Any]) -> dict[str, Any]:
+    """Fleet plus the project and tools named on binding.json."""
+    project = binding.get("project") or binding.get("scope_id")
+    tools = binding.get("tools") or []
+    if not isinstance(tools, list):
+        tools = []
+    scope: dict[str, Any] = {"tools": [str(item) for item in tools if isinstance(item, str) and item]}
+    if isinstance(project, str) and project:
+        scope["project"] = project
+    return scope
+
+
+def _mask_models(text: str) -> str:
+    return MODEL_RE.sub(lambda match: " " * (match.end() - match.start()), text)
+
+
+def volatile_matches(text: str) -> list[tuple[int, int, str]]:
+    """Volatile tokens are versions, SHAs, PR or Project ids, and dates.
+
+    A model name is masked first so its version digits are not a pin.
+    A status word is not a volatile token.
+    """
+    masked = _mask_models(text or "")
+    found: list[tuple[int, int, str]] = []
+    for kind, pattern in (
+        ("date", DATE_RE),
+        ("version", VERSION_RE),
+        ("sha", SHA_RE),
+        ("pr-or-project-id", PR_ID_RE),
+    ):
+        for match in pattern.finditer(masked):
+            found.append((match.start(), match.end(), kind))
+    found.sort()
+    kept: list[tuple[int, int, str]] = []
+    end = -1
+    for start, stop, kind in found:
+        if start < end:
+            continue
+        kept.append((start, stop, kind))
+        end = stop
+    return kept
+
+
 def volatile_kinds(text: str) -> list[str]:
     found: list[str] = []
-    if VERSION_RE.search(text):
-        found.append("version")
-    if SHA_RE.search(text):
-        found.append("sha")
-    if PR_ID_RE.search(text):
-        found.append("pr-or-project-id")
-    if MODEL_RE.search(text):
-        found.append("model-name")
-    words = set(re.findall(r"[a-z0-9]+", text.casefold()))
-    if words & STATUS_WORDS:
-        found.append("status-word")
+    seen: set[str] = set()
+    for _start, _stop, kind in volatile_matches(text):
+        if kind not in seen:
+            seen.add(kind)
+            found.append(kind)
     return found
 
 
+def strip_volatile_tokens(text: str) -> tuple[str, list[str]]:
+    matches = volatile_matches(text)
+    if not matches:
+        return text, []
+    tokens = [text[start:stop] for start, stop, _kind in matches]
+    parts: list[str] = []
+    cursor = 0
+    for start, stop, _kind in matches:
+        parts.append(text[cursor:start])
+        cursor = stop
+    parts.append(text[cursor:])
+    cleaned = re.sub(r"\s+", " ", "".join(parts))
+    cleaned = re.sub(r"\s+([.,;])", r"\1", cleaned).strip(" .,;")
+    return cleaned, tokens
+
+
+_STATE_CLAIM_RE = re.compile(
+    r"\b(?:is|are|was|were|remains|remained)\s+(?:still\s+)?(?:pending|open|merged|blocked|failed)\b",
+    re.I,
+)
+_STATUS_ONLY = frozenset(
+    "status update pending open merged blocked failed success".split()
+)
+_STATUS_STOP = frozenset("a an the is are was were on to for and of in re".split())
+
+
 def pure_status(text: str) -> bool:
-    words = re.findall(r"[a-z0-9]+", text.casefold())
+    """True when the main claim is a state, such as 'X is merged' or a short status line."""
+    words = re.findall(r"[a-z0-9]+", (text or "").casefold())
     if not words:
         return True
     if any(word in RULE_CUES for word in words):
         return False
-    skip = {"a", "an", "the", "is", "are", "was", "were", "on", "to", "for", "and", "of", "in"}
-    content = [word for word in words if word not in skip]
-    statusish = [word for word in content if word in STATUS_WORDS or word in {"status", "update"}]
-    return bool(statusish) and len(statusish) * 2 >= len(content)
+    if _STATE_CLAIM_RE.search(text or ""):
+        return True
+    content = [word for word in words if word not in _STATUS_STOP]
+    if content and all(word in _STATUS_ONLY for word in content):
+        return True
+    return bool(content) and content[-1] in {"pending", "open", "merged", "blocked", "failed"} and len(content) <= 6
 
 
 def time_bound(text: str) -> bool:
@@ -505,7 +581,7 @@ def validate_approval(value: Any, *, allow_owner_attested: bool) -> dict[str, An
     return {"state": state, "authority_ref": ref}
 
 
-def validate_body(value: Any, *, allow_owner_attested: bool) -> dict[str, Any]:
+def validate_body(value: Any, *, allow_owner_attested: bool, require_scope: bool = False) -> dict[str, Any]:
     obj = require_keys(
         value,
         {
@@ -538,6 +614,11 @@ def validate_body(value: Any, *, allow_owner_attested: bool) -> dict[str, Any]:
         "sensitivity": require_enum(obj["sensitivity"], SENSITIVITY),
         "approval": validate_approval(obj["approval"], allow_owner_attested=allow_owner_attested),
     }
+    if require_scope and "scope" not in obj:
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message="scope must be fleet, project:<id>, or tool:<id>; nothing was saved",
+        )
     if "scope" in obj:
         body["scope"] = parse_applicability_scope(obj["scope"])
     if "trace" in obj:
@@ -664,13 +745,15 @@ def validate_payload(event_type: str, value: Any, *, allow_owner_attested: bool)
 
 
 def validate_record_input(
-    value: Any, *, allow_owner_attested: bool
+    value: Any, *, allow_owner_attested: bool, require_scope: bool = False
 ) -> dict[str, Any]:
     obj = require_keys(value, {"request_id", "occurred_at", "body", "outcome"}, {"actor", "decision_id"})
     out = {
         "request_id": require_uuid(obj["request_id"]),
         "occurred_at": require_ts(obj["occurred_at"], allow_null=True),
-        "body": validate_body(obj["body"], allow_owner_attested=allow_owner_attested),
+        "body": validate_body(
+            obj["body"], allow_owner_attested=allow_owner_attested, require_scope=require_scope
+        ),
         "outcome": validate_outcome(obj["outcome"]),
     }
     if obj.get("decision_id"):

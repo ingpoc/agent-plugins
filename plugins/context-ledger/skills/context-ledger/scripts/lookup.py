@@ -52,6 +52,7 @@ def _use_runtime_python() -> None:
 if __name__ == "__main__":
     _use_runtime_python()
 
+from context_ledger.contracts import caller_scope_from_binding  # noqa: E402
 from context_ledger.store import Store  # noqa: E402
 
 # NLEmbedding sentence embedding, cosine distance (1 - cosine similarity).
@@ -330,6 +331,7 @@ def _feedback(store: Store, body: dict) -> dict:
                     "constraints": [],
                     "applicability": situation,
                     "entities": [],
+                    "scope": "fleet",
                     "evidence": [
                         {
                             "ref": f"task://{task_id}",
@@ -394,6 +396,7 @@ def main() -> int:
                         "constraints": [],
                         "limit": 3,
                         "offset": 0,
+                        "caller_scope": caller_scope_from_binding(store.binding),
                     },
                     mcp=True,
                 )
@@ -438,7 +441,7 @@ def main() -> int:
                             "situation": "Parent proposed a reusable decision at closeout.",
                             "action": request["summary"], "rationale": request["reason"],
                             "constraints": [], "applicability": request["applicability"],
-                            "entities": [], "evidence": evidence,
+                            "entities": [], "scope": "fleet", "evidence": evidence,
                             "sensitivity": "model_safe",
                             "approval": {"state": "self_reported",
                                          "authority_ref": request["evidence_ref"]},

@@ -46,6 +46,7 @@ class McpBodyModel(Closed):
     evidence: list[EvidenceModel] = Field(max_length=4)
     sensitivity: Literal["model_safe", "local_only"]
     approval: McpApprovalModel
+    scope: str | None = None
 
 
 class OutcomeModel(Closed):

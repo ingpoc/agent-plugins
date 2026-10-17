@@ -26,10 +26,10 @@ _spec.loader.exec_module(iso)  # type: ignore[union-attr]
 FIXTURE = ROOT / "tests" / "fixtures" / "isolation_30.json"
 
 
-def _body(summary: str, entities: list[str]) -> dict:
+def _body(summary: str, entities: list[str], scope: str) -> dict:
     return {"kind": "decision", "summary": summary, "situation": summary, "action": summary,
             "rationale": "fixture reason", "constraints": [], "applicability": "any",
-            "entities": entities, "evidence": [], "sensitivity": "model_safe",
+            "entities": entities, "scope": scope, "evidence": [], "sensitivity": "model_safe",
             "approval": {"state": "none", "authority_ref": None}}
 
 
@@ -44,13 +44,13 @@ class IsolationEvalTests(unittest.TestCase):
         store = Store(self.data, actor_channel="agent")
         ids = {}
         with contextlib.redirect_stderr(io.StringIO()):
-            for key, summary, ents in (
-                ("lease", "Comet browser lease is held by one agent at a time", []),
-                ("proj", "Project alpha deploy uses blue green switch", ["alpha"]),
-                ("other", "Project beta comet browser lease is held nightly", ["beta"]),
+            for key, summary, ents, scope in (
+                ("lease", "Comet browser lease is held by one agent at a time", [], "fleet"),
+                ("proj", "Project alpha deploy uses blue green switch", ["alpha"], "project:alpha"),
+                ("other", "Project beta comet browser lease is held nightly", ["beta"], "project:beta"),
             ):
                 ids[key] = store.record({"request_id": str(uuid.uuid4()), "occurred_at": None,
-                                         "body": _body(summary, ents),
+                                         "body": _body(summary, ents, scope),
                                          "outcome": {"status": "pending", "note": "", "evidence": []}},
                                         mcp=True)["decision_id"]
         store.close()
@@ -82,7 +82,7 @@ class IsolationEvalTests(unittest.TestCase):
         self.assertNotIn(self.p["proj"], a1["hits"])
         self.assertEqual(a1["fillers"], 0)
         self.assertEqual(a1["fleet_found"], 1)
-        self.assertEqual(a1["leaks"], 1)  # beta lease record text-matches and these rows have no scope token
+        self.assertEqual(a1["leaks"], 0)  # beta lease is project:beta; unscoped find is fleet only
         t1 = rep["finds"][1]
         self.assertEqual(t1["hits"], [])
         m = rep["metrics"]["all"]

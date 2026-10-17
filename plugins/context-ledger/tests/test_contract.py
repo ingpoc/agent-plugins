@@ -72,6 +72,7 @@ def _body(**overrides):
         "constraints": ["local-only-runtime"],
         "applicability": "V1 local agents",
         "entities": ["ledger-v1"],
+        "scope": "fleet",
         "evidence": [],
         "sensitivity": "model_safe",
         "approval": {"state": "none", "authority_ref": None},
@@ -359,8 +360,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.27")
-        self.assertIn('__version__ = "0.1.27"', init)
+        self.assertEqual(plugin["version"], "0.1.28")
+        self.assertIn('__version__ = "0.1.28"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -373,7 +374,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
-        self.assertIn('version:"0.1.27"', page)
+        self.assertIn('version:"0.1.28"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)

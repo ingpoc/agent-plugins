@@ -132,6 +132,24 @@ class ScopeFilterTests(ScopeCase):
         hits = self.find("kite reads stay on the mini", {"project": None, "tools": []})
         self.assertEqual(len(hits), 3)
 
+    def test_find_without_caller_scope_is_fleet_only(self) -> None:
+        fleet = self.record(
+            "Shared comet lease rule for agents", ["comet"], scope="fleet",
+            rationale="because the comet lease is shared",
+        )
+        project = self.record(
+            "Shared comet lease rule for agents in alpha", ["alpha"], scope="project:alpha",
+            rationale="because alpha holds a comet lease",
+        )
+        hits = [
+            hit["decision_id"]
+            for hit in self.store.find(
+                {"query": "shared comet lease rule for agents", "entities": []}, mcp=True
+            )["matches"]
+        ]
+        self.assertIn(fleet, hits)
+        self.assertNotIn(project, hits)
+
 
 class SaveContractTests(ScopeCase):
     def test_scope_is_required(self) -> None:
@@ -146,19 +164,45 @@ class SaveContractTests(ScopeCase):
             )
         self.assertEqual(ctx.exception.code, "INVALID_ARGUMENT")
 
+    def test_record_refuses_a_missing_scope(self) -> None:
+        body = _body("Keep the gate closed", ["kite"])
+        with self.assertRaises(LedgerError) as ctx:
+            self.store.record(
+                {
+                    "request_id": _u(), "occurred_at": None, "body": body,
+                    "outcome": {"status": "pending", "note": "", "evidence": []},
+                },
+                mcp=True,
+            )
+        self.assertIn("scope", ctx.exception.message or "")
+        saved = self.store.record(
+            {
+                "request_id": _u(), "occurred_at": None, "body": body,
+                "outcome": {"status": "pending", "note": "", "evidence": []},
+            },
+            mcp=False,
+        )
+        self.assertTrue(saved["decision_id"])
+
     def test_status_and_volatile_tokens_are_rejected(self) -> None:
         cases = [
             {"kind": "state", "decision": "Keep the gate closed", "why": "because the gate is the rule"},
             {"decision": "PR 15 merged", "why": "status update"},
             {"decision": "Pinned at 0.1.26", "why": "because the pin moved"},
-            {"decision": "Use gpt-6.1 for reviews", "why": "because that model answered"},
             {"decision": "sha abcdef1 is the build", "why": "because that commit shipped"},
+            {"decision": "The pull request is merged", "why": "status line"},
+            {"decision": "Ship the rule on 2026-10-17", "why": "because the date is the pin"},
         ]
         for extra in cases:
             with self.subTest(extra=extra):
                 with self.assertRaises(LedgerError) as ctx:
                     self.save(**extra)
                 self.assertIn("tracker", ctx.exception.message)
+
+    def test_model_name_and_a_rule_that_mentions_status_are_saved(self) -> None:
+        model = self.save(decision="Use gpt-6.1 for reviews", why="because that model answered")
+        rule = self.save(decision="CI must stay passing before merge", why="because the gate is the rule")
+        self.assertTrue(model and rule)
 
     def test_time_bound_needs_a_condition(self) -> None:
         with self.assertRaises(LedgerError) as ctx:
@@ -207,6 +251,12 @@ class MigrationTests(unittest.TestCase):
         self.assertGreaterEqual(actions.get("archive", 0), 2)
         self.assertGreaterEqual(actions.get("rewrite", 0), 1)
         self.assertGreaterEqual(actions.get("rescope", 0), 1)
+        by_id = {row["id"][:8]: row for row in rows}
+        self.assertIn(by_id["2599cee1"]["new_scope"], {"fleet", "tool:comet"})
+        self.assertNotEqual(by_id["2599cee1"]["new_scope"], "project:irctc")
+        self.assertEqual(by_id["4e5d0bad"]["action"], "archive")
+        self.assertNotEqual(by_id["a4abc29c"]["action"], "archive")
+        self.assertEqual(by_id["6c7fd233"]["new_scope"], "project:context-ledger")
         store = Store(self.data, actor_channel="owner_cli")
         try:
             migrate_scope.apply(store, rows, on="2026-10-17", data=self.data)
@@ -217,7 +267,8 @@ class MigrationTests(unittest.TestCase):
             )
         finally:
             store.close()
-        self.assertTrue((self.data / "archive" / "2026-10-17.json").is_file())
+        archive = json.loads((self.data / "archive" / "2026-10-17.json").read_text(encoding="utf-8"))
+        self.assertTrue(archive and all(item["body"]["summary"] for item in archive))
         self.assertTrue(all(row["reason"] in {"already at new scope", "already archived"} for row in again))
         ids = [hit["decision_id"][:8] for hit in fleet["matches"]]
         self.assertIn("d7f6cc8d", ids)
@@ -227,6 +278,136 @@ class MigrationTests(unittest.TestCase):
         live = Path.home() / ".context-ledger"
         with self.assertRaises(SystemExit):
             migrate_scope._refuse_live(live)
+
+    def test_refuses_any_root_bound_to_the_live_ledger_dir(self) -> None:
+        live = Path(self._tmp.name) / "live"
+        other = Path(self._tmp.name) / "other"
+        copy = Path(self._tmp.name) / "copy"
+        for root, ledger in ((live, live / "ledger"), (other, live / "ledger"), (copy, copy / "ledger")):
+            root.mkdir(mode=0o700)
+            (root / "binding.json").write_text(json.dumps({"ledger_dir": str(ledger)}), encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            migrate_scope._refuse_live(live, [live])
+        with self.assertRaises(SystemExit):
+            migrate_scope._refuse_live(other, [live])
+        migrate_scope._refuse_live(copy, [live])
+        bare = Path(self._tmp.name) / "bare"
+        (bare / "ledger").mkdir(parents=True, mode=0o700)
+        sneaky = Path(self._tmp.name) / "sneaky"
+        sneaky.mkdir(mode=0o700)
+        (sneaky / "binding.json").write_text(json.dumps({"ledger_dir": str(bare / "ledger")}), encoding="utf-8")
+        with self.assertRaises(SystemExit):
+            migrate_scope._refuse_live(sneaky, [bare])
+
+    def test_fleet_entity_maps_to_fleet(self) -> None:
+        scope, _ = migrate_scope.infer_scope(_body("Save a decision not a status", ["fleet", "context-ledger"]))
+        self.assertEqual(scope, "fleet")
+        scope, _ = migrate_scope.infer_scope(_body("Send handoffs with priority", ["handoff", "fleet"]))
+        self.assertEqual(scope, "fleet")
+        scope, _ = migrate_scope.infer_scope(_body("Send handoffs with priority", ["fleet"], scope="project:fleet"))
+        self.assertEqual(scope, "fleet")
+
+    def test_named_ids_and_scope_rules(self) -> None:
+        def row(prefix: str, summary: str, rationale: str, entities: list[str]) -> dict:
+            return {
+                "id": f"{prefix}-0000-4000-8000-000000000001",
+                "revision": 1,
+                "lifecycle": "active",
+                "body": _body(summary, entities, rationale=rationale),
+            }
+
+        kept = [
+            ("4f7f4626", "Keep a pin out of a lasting rule",
+             "The rule stays because a pin is not the rule. The pin was 1.2.3."),
+            ("e47b091b", "Keep a commit pin out of a lasting rule",
+             "The rule stays because a commit pin is not the rule. The pin was abcdef1."),
+            ("7ab0366c", "Keep a pull request id out of a lasting rule",
+             "The rule stays because a pull request id is not the rule. See pr 19."),
+            ("fd157e72", "Keep a date out of a lasting rule",
+             "The rule stays because a date is not the rule. The date was 2026-10-17."),
+        ]
+        for prefix, summary, rationale in kept:
+            item = migrate_scope.classify(row(prefix, summary, rationale, ["skills"]))
+            self.assertEqual(item["action"], "rewrite", prefix)
+            self.assertNotEqual(item["action"], "archive", prefix)
+            self.assertEqual(item["new_scope"], "fleet", prefix)
+        model = migrate_scope.classify(row(
+            "3bfca7a8",
+            "Use a named model only when the rule needs that name",
+            "gpt-6.1 is a label and not a pin",
+            ["skills"],
+        ))
+        self.assertNotEqual(model["action"], "archive")
+        self.assertEqual(model["new_scope"], "fleet")
+        passing = migrate_scope.classify(row(
+            "4bafacf3",
+            "CI must stay passing before merge",
+            "because a passing check is the rule",
+            ["agent-plugins"],
+        ))
+        self.assertNotEqual(passing["action"], "archive")
+        self.assertEqual(passing["new_scope"], "fleet")
+        review = migrate_scope.classify(row(
+            "a4abc29c",
+            "Cursor CLI review answers with the cursor agent reviewer",
+            "That review half is separate from the keychain prompt on Cursor CLI",
+            ["cursor-cli"],
+        ))
+        self.assertNotEqual(review["action"], "archive")
+        self.assertEqual(review["new_scope"], "tool:cursor-cli")
+        status = migrate_scope.classify(row(
+            "4e5d0bad",
+            "Codex re-review failed.",
+            "sha abcdef1 and pr 15 merged.",
+            ["open-resource-network"],
+        ))
+        self.assertEqual(status["action"], "archive")
+        comet = migrate_scope.classify(row(
+            "2599cee1",
+            "Comet browser lease held by another agent waits for release",
+            "The comet browser lease stays with the agent that holds it",
+            ["comet", "irctc"],
+        ))
+        self.assertIn(comet["new_scope"], {"fleet", "tool:comet"})
+        self.assertNotEqual(comet["new_scope"], "project:irctc")
+        for prefix in ("41badbdc", "77b5eb43", "cb291f09", "d81dd34c", "f06e057d", "d897c824"):
+            item = migrate_scope.classify(row(
+                prefix,
+                "Fleet lesson. Holds in another project.",
+                "The lesson is not about this project.",
+                ["open-resource-network"],
+            ))
+            self.assertEqual(item["new_scope"], "fleet", prefix)
+            self.assertNotEqual(item["action"], "archive", prefix)
+        for topic in ("skills", "keychain", "chrome", "shell", "travel", "irctc"):
+            item = migrate_scope.classify(row(
+                "aa000000",
+                "Keep the lasting rule for this topic",
+                "because the topic is not a project",
+                [topic],
+            ))
+            self.assertEqual(item["new_scope"], "fleet", topic)
+        own = migrate_scope.classify(row(
+            "bb000000",
+            "check.py merge gate stays in this repo",
+            "because the merge gate is the product",
+            ["open-resource-network", "git"],
+        ))
+        self.assertEqual(own["new_scope"], "project:open-resource-network")
+        tool = migrate_scope.classify(row(
+            "cc000000",
+            "The comet lease waits for release",
+            "because one agent holds the lease",
+            ["aadhaarchain", "comet"],
+        ))
+        self.assertEqual(tool["new_scope"], "tool:comet")
+        wider = migrate_scope.classify(row(
+            "dd000000",
+            "Use both tools for the same job",
+            "because neither tool owns the rule",
+            ["git", "python"],
+        ))
+        self.assertEqual(wider["new_scope"], "fleet")
 
     def test_isolation_after(self) -> None:
         build(self.data)

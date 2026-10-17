@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from pathlib import Path
 
@@ -33,13 +34,25 @@ def _put(store: Store, prefix: str, summary: str, rationale: str, entities: list
             },
             "outcome": {"status": "pending", "note": "", "evidence": []},
         },
-        mcp=True,
+        mcp=False,
     )
 
 
 def build(data: Path) -> Path:
     data.mkdir(mode=0o700, exist_ok=True)
     init_ledger(data, None, "agent-plugins", "synthetic")
+    registry = {
+        "projects": [
+            "agent-plugins",
+            "open-resource-network",
+            "aadhaarchain",
+            "brandgpt",
+            "hisab-pune",
+            "context-ledger",
+            "databricks-interview",
+        ]
+    }
+    (data / "project-registry.json").write_text(json.dumps(registry) + "\n", encoding="utf-8")
     store = Store(data, actor_channel="agent")
     try:
         rows = [
@@ -50,7 +63,7 @@ def build(data: Path) -> Path:
             ("e5ff9784", "Comet browser lease is held by one agent at a time",
              "One agent holds the comet browser lease", ["comet"]),
             ("2599cee1", "Comet browser lease held by another agent waits for release",
-             "The comet browser lease stays with the agent that holds it", ["comet"]),
+             "The comet browser lease stays with the agent that holds it", ["comet", "irctc"]),
             ("04f17360", "Comet Control owns the browser lease for every agent",
              "The comet browser lease has one owner across agents", ["comet"]),
             ("7d3941cc", "check.py merge gate failing on PR stays fail loud",
@@ -65,8 +78,8 @@ def build(data: Path) -> Path:
              "The codex review fails before posting PR comments", ["context-ledger"]),
             ("b32beeea", "Garden watering schedule for the courtyard beds",
              "Water the courtyard beds on a fixed weekday", ["aadhaarchain"]),
-            ("aa11aa11", "Keep the merge gate closed for every project.",
-             "The gate stays closed because a pin is not a rule. The pin was 0.1.26.", ["context-ledger"]),
+            ("aa11aa11", "Keep a version pin out of a lasting rule for every project.",
+             "The rule stays because a pin is not the rule. The pin was 0.1.26.", ["context-ledger"]),
             ("bb22bb22", "Status update.",
              "pr 9 merged.", ["aadhaarchain"]),
         ]

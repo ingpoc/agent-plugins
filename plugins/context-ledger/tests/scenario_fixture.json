@@ -106,6 +106,7 @@
           "constraints": ["local-only-runtime"],
           "applicability": "V1 local agents",
           "entities": ["ledger-v1"],
+          "scope": "fleet",
           "evidence": [],
           "sensitivity": "model_safe",
           "approval": {"state": "none", "authority_ref": null}

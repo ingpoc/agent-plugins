@@ -481,6 +481,27 @@ def _warn(o: argparse.Namespace, task_id: str, what: str, exc: Unavailable) -> s
     return exc.code
 
 
+def _binding_caller_scope(data: Path) -> dict | None:
+    """Project and tools from binding.json. Absent binding means the find stays fleet-only."""
+    path = data / "binding.json"
+    if not path.is_file():
+        return None
+    try:
+        binding = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(binding, dict):
+        return None
+    root = plugin_root()
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from context_ledger.contracts import caller_scope_from_binding
+    except ImportError:
+        return None
+    return caller_scope_from_binding(binding)
+
+
 def cmd_find(o: argparse.Namespace, data: Path) -> str:
     task_id = _task_id(o.task_id)
     if not o.query.strip():
@@ -491,8 +512,12 @@ def cmd_find(o: argparse.Namespace, data: Path) -> str:
         _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "lookup": "arm_off", "arm": arm, "ms": 0})
         return json.dumps({"matches": [], "arm": "off", "note": "A/B OFF day: no lookup; saves and outcomes stay on"})
     started = time.monotonic()
+    find_args: dict = {"query": o.query, "actor": bot, "task_id": task_id}
+    caller_scope = _binding_caller_scope(data)
+    if caller_scope is not None:
+        find_args["caller_scope"] = caller_scope
     try:
-        result, _source = _call(data, task_id, "find", {"query": o.query, "actor": bot, "task_id": task_id})
+        result, _source = _call(data, task_id, "find", find_args)
     except Unavailable as exc:
         code = _warn(o, task_id, "find", exc)
         _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "lookup": f"failed:{code}",
