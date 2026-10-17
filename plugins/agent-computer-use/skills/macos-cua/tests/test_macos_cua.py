@@ -2139,6 +2139,30 @@ class CursorProofTests(unittest.TestCase):
                 self.assertTrue(all(not path.exists() for path in calls))
                 self.assertFalse(output.exists())
 
+    def test_cursor_raster_validation_reads_alpha_in_either_sample_order(self):
+        cases = {
+            ("alpha-last", "visible"): (False, 255, None),
+            ("alpha-last", "transparent"): (False, 0, "cursor raster has no visible pixels"),
+            ("alpha-first", "visible"): (True, 255, None),
+            ("alpha-first", "transparent"): (True, 0, "cursor raster has no visible pixels"),
+        }
+        for (order, label), (alpha_first, alpha, expected_error) in cases.items():
+            with (
+                self.subTest(order=order, label=label),
+                tempfile.TemporaryDirectory() as directory,
+                mock.patch.dict(
+                    sys.modules,
+                    {"AppKit": cursor_png_fixtures.fake_appkit(alpha_first=alpha_first)},
+                ),
+            ):
+                path = Path(directory) / "cursor.png"
+                path.write_bytes(self._png_bytes(alpha=alpha))
+                if expected_error is None:
+                    self.assertEqual(macos_cua._validate_cursor_raster(path, 96), (96, 96))
+                else:
+                    with self.assertRaisesRegex(ValueError, expected_error):
+                        macos_cua._validate_cursor_raster(path, 96)
+
     def test_cursor_raster_regenerates_corrupt_or_wrong_size_fresh_cache(self):
         cache_cases = {
             "corrupt": b"not a png",

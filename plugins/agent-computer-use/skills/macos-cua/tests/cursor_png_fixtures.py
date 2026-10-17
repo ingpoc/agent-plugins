@@ -60,10 +60,18 @@ class _Bitmap:
 class FakeBitmapImageRep:
     """Decoded 8-bit RGB/RGBA bitmap with AppKit's accessor names."""
 
+    # Class-level so fake_appkit(alpha_first=True) can model AppKit handing
+    # back ARGB sample order (NSBitmapFormatAlphaFirst) for the same PNG.
+    alpha_first = False
+
     def __init__(self, width: int, height: int, samples: int, pixels: bytes) -> None:
         self._width = width
         self._height = height
         self._samples = samples
+        if samples == 4 and self.alpha_first:
+            pixels = b"".join(
+                pixels[i + 3 : i + 4] + pixels[i : i + 3] for i in range(0, len(pixels), 4)
+            )
         self._pixels = pixels
 
     @classmethod
@@ -136,18 +144,21 @@ class FakeBitmapImageRep:
         return self._width * self._samples
 
     def bitmapFormat(self) -> int:
-        return 0  # alpha last, like a decoded RGBA PNG
+        return NS_BITMAP_FORMAT_ALPHA_FIRST if self.alpha_first else 0
 
     def colorAtX_y_(self, x: int, y: int):
         if not self.hasAlpha():
             return None
-        alpha = self._pixels[(y * self._width + x) * self._samples + 3] / 255.0
+        offset = 0 if self.alpha_first else 3
+        alpha = self._pixels[(y * self._width + x) * self._samples + offset] / 255.0
         return types.SimpleNamespace(alphaComponent=lambda: alpha)
 
 
-def fake_appkit() -> types.ModuleType:
+def fake_appkit(*, alpha_first: bool = False) -> types.ModuleType:
     """An `AppKit` module exposing only what PNG validation imports."""
     module = types.ModuleType("AppKit")
-    module.NSBitmapImageRep = FakeBitmapImageRep
+    module.NSBitmapImageRep = type(
+        "FakeBitmapImageRep", (FakeBitmapImageRep,), {"alpha_first": alpha_first}
+    )
     module.NSBitmapFormatAlphaFirst = NS_BITMAP_FORMAT_ALPHA_FIRST
     return module

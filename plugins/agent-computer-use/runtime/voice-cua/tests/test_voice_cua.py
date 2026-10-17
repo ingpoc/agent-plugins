@@ -353,8 +353,9 @@ class AudioIOTests(unittest.TestCase):
         session.ws = FakeWS()
         # response.done runs the idle hook: hide the agent cursor through
         # CUAService and publish to the island. Both are host boundaries; the
-        # real hide call blocks ~16s in CUAClient.connect() recovery when no
-        # service socket exists (Linux), outliving the 2s text wait.
+        # real hide call blocks in CUAClient.connect() (5s deadline, extended by
+        # recovery; measured ~16s on Debian) when no service socket exists,
+        # outliving the 2s text wait.
         hide_patch = patch("voice_cua.realtime_session.hide_agent_cursor")
         hide = hide_patch.start()
         self.addCleanup(hide_patch.stop)
