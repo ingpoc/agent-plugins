@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import unicodedata
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Literal, TypedDict
 
 SCHEMA_VERSION = 1
@@ -633,7 +634,23 @@ def validate_get_input(value: Any) -> dict[str, Any]:
 # live in skills; a trace only names the rule it applied. Limits are enforced, never trimmed.
 TRACE_TYPES = ("user_decision", "agent_conclusion")
 TRACE_OUTCOMES = ("success", "failed", "partial", "pending")
-FIX_KINDS = ("supersedes", "exception_for")
+FIX_KINDS = ("supersedes",)
+# A/B (Guru 2026-10-17): inside the window find is ON on odd IST calendar days, OFF on even days.
+# Saves and outcomes stay on. scripts/ledger_loop.py carries the same rule for its own log.
+IST = timezone(timedelta(hours=5, minutes=30))
+AB_START, AB_END = date(2026, 10, 18), date(2026, 10, 31)
+
+
+def ab_arm(day: date) -> str:
+    if not AB_START <= day <= AB_END:
+        return "none"
+    return "on" if day.day % 2 else "off"
+
+
+def ist_today() -> date:
+    """Today in IST; LEDGER_AB_DATE=YYYY-MM-DD pins it for dry runs and tests."""
+    raw = os.environ.get("LEDGER_AB_DATE", "").strip()
+    return date.fromisoformat(raw) if raw else datetime.now(IST).date()
 CONTEXT_WORDS = 10
 DECISION_WORDS = 15
 WHY_WORDS = 20
@@ -718,14 +735,14 @@ def validate_trace(value: Any) -> dict[str, Any]:
         out["task_id"] = require_uuid(obj["task_id"])
     if obj.get("fix_kind") is not None or obj.get("fix_of") is not None:
         if obj.get("fix_kind") not in FIX_KINDS:
-            raise LedgerError("INVALID_ARGUMENT", message="fix_kind must be supersedes or exception_for; nothing was saved")
+            raise LedgerError("INVALID_ARGUMENT", message="fix_kind must be supersedes; nothing was saved")
         out["fix_kind"] = obj["fix_kind"]
         out["fix_of"] = require_uuid(obj.get("fix_of"))
         if out["fix_of"] in prec:
             raise LedgerError("INVALID_ARGUMENT", message="the decision you fix is not also a precedent; nothing was saved")
         out["context"] = _line(obj.get("context"), "context", max_chars=80, max_words=CONTEXT_WORDS)
     elif obj.get("context") is not None:
-        raise LedgerError("INVALID_ARGUMENT", message="context goes with supersedes or exception_for; nothing was saved")
+        raise LedgerError("INVALID_ARGUMENT", message="context goes with supersedes; nothing was saved")
     return out
 
 
@@ -736,7 +753,7 @@ def validate_save_input(value: Any) -> dict[str, Any]:
         {"request_id", "type", "decision", "why", "entities"},
         {
             "criticality", "rule", "exception", "override_by", "approver", "inputs", "state",
-            "outcome", "precedent_ids", "task_id", "actor", "supersedes", "exception_for", "context",
+            "outcome", "precedent_ids", "task_id", "actor", "supersedes", "context",
         },
     )
     rtype = obj["type"]
@@ -763,8 +780,6 @@ def validate_save_input(value: Any) -> dict[str, Any]:
         **{k: obj[k] for k in ("rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id") if obj.get(k) is not None},
     }
     fixes = [k for k in FIX_KINDS if obj.get(k)]
-    if len(fixes) > 1:
-        raise LedgerError("INVALID_ARGUMENT", message="pass supersedes or exception_for, not both; nothing was saved")
     if fixes:
         trace_in["fix_kind"] = fixes[0]
         trace_in["fix_of"] = obj[fixes[0]]

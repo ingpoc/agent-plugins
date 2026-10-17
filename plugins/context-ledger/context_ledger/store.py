@@ -15,6 +15,8 @@ from typing import Any
 
 from context_ledger.contracts import (
     APPEND_TYPES,
+    ab_arm,
+    ist_today,
     CANDIDATE_CAP,
     EVENT_TYPE,
     MAX_COMBINED_ROWS,
@@ -119,7 +121,7 @@ CREATE INDEX IF NOT EXISTS links_dst ON links(dst);
 CREATE TABLE IF NOT EXISTS fix_links (
   src TEXT NOT NULL,
   dst TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK(kind IN ('supersedes','exception_for')),
+  kind TEXT NOT NULL CHECK(kind IN ('supersedes')),
   context TEXT NOT NULL,
   task_id TEXT,
   PRIMARY KEY(src,dst)
@@ -371,6 +373,7 @@ class Store:
     def __init__(self, plugin_data: Path, *, actor_channel: str = "owner_cli") -> None:
         self.plugin_data = Path(plugin_data)
         self.actor_channel = actor_channel
+        self.ab_today = ist_today
         self.binding = load_binding(self.plugin_data)
         self.ledger_dir = _refuse_network(Path(self.binding["ledger_dir"]))
         self.db_path = self.ledger_dir / "ledger.sqlite3"
@@ -841,7 +844,7 @@ class Store:
     def _fixed_by(
         self, conn: sqlite3.Connection, rec: dict[str, Any], events: list[dict[str, Any]], *, mcp: bool
     ) -> list[dict[str, Any]]:
-        """Fixes that supersede this decision or are an exception to it, with the confidence
+        """Fixes that supersede this decision, with the confidence
         this decision keeps in each fix's context (not_helped outcomes count against it there)."""
         out: list[dict[str, Any]] = []
         conf = rec.get("confidence") or {}
@@ -965,6 +968,11 @@ class Store:
                 "INVALID_ARGUMENT",
                 message="find needs query words (or entities); stop-words alone match nothing",
             )
+        if mcp and ab_arm(self.ab_today()) == "off":
+            with self._tx() as conn:
+                self._log_access(conn, tool="find", caller=parsed["actor"], task_id=parsed["task_id"],
+                                 query=parsed["query"], ids=[], nbytes=0, started=started)
+            return {"matches": [], "has_more": False, "arm": "off"}
         with self._tx() as conn:
             scope = self.binding["scope_id"]
             rows = conn.execute(
@@ -1035,6 +1043,7 @@ class Store:
             matches = []
             for rec in window:
                 hit = self._compact(rec, repeats)
+                hit["tier"] = self._tier(conn, rec, rec["decision_id"] in demoted)
                 if rec["decision_id"] in demoted:
                     hit["flag"] = "not_helped here"
                 rel = self._related(conn, rec, recs, text_of, shown)
@@ -1068,6 +1077,17 @@ class Store:
                 started=started,
             )
             return result
+
+    def _tier(self, conn: sqlite3.Connection, rec: dict[str, Any], fixed_here: bool) -> str:
+        """Trust tier from existing outcome events: latest outcome per applied event counts once."""
+        latest: dict[str, dict[str, Any]] = {}
+        for ev in self._trace_events(conn, rec["decision_id"]):
+            aid = ev["payload"].get("applied_event_id") if ev["event_type"] == "outcome" else None
+            if aid:
+                latest[aid] = ev["payload"]
+        helped = sum(1 for p in latest.values() if p.get("helpful") is True)
+        failed = sum(1 for p in latest.values() if p.get("effect") in ("not_helped", "misled"))
+        return ranking.trust_tier(ranking.rank_type(rec["body"]), helped, failed, len(latest), fixed_here)
 
     @staticmethod
     def _fixes_in_context(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -16,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 
 from context_ledger.contracts import MAX_FIND_BYTES, LedgerError, canonical_json, ok, tool_content  # noqa: E402
 from context_ledger.store import Store, init_ledger  # noqa: E402
+os.environ["LEDGER_AB_DATE"] = "2026-10-17"  # pre-A/B-window day: find on; A/B tests pin their own days
 
 
 def _u() -> str:
@@ -173,7 +175,7 @@ class UserDecisionRankingTests(V2Base):
         self.assertEqual(hit["override_by"], "guru")
         self.assertNotIn("summary", hit)
         self.assertNotIn("applicability", hit)
-        values = [v for v in hit.values() if isinstance(v, str)]
+        values = [v for k, v in hit.items() if isinstance(v, str) and k != "tier"]  # tier user_decision repeats type by spec
         self.assertEqual(len(values), len(set(values)), hit)
 
 
@@ -372,7 +374,8 @@ class NotHelpedFixTests(V2Base):
                   entities=["code-review"])
         self.reject(lambda: self.save(supersedes=self.old, **kw), "needs context")
         self.reject(lambda: self.save(supersedes=_u(), context="code review", **kw), "not a visible record")
-        self.reject(lambda: self.save(supersedes=self.old, exception_for=self.old, context="x", **kw), "not both")
+        with self.assertRaises(LedgerError):  # exception_for is deferred (Guru 2026-10-17): only supersedes links
+            self.save(exception_for=self.old, context="x", **kw)
         self.reject(lambda: self.save(context="code review", **kw), "context goes with")
         self.reject(lambda: self.save(supersedes=self.old, context=" ".join(["w"] * 11), **kw), "max 10")
 
@@ -411,6 +414,86 @@ class McpOutputTests(V2Base):
         self.assertIsNone(structured)
         self.assertEqual(json.loads(text)["data"], {"matches": [], "has_more": False})
         self.assertEqual(text.count('"matches"'), 1)
+
+
+
+class ABSwitchTests(V2Base):
+    """2026-10-18..31 IST: find OFF on even days, ON on odd days; saves stay on; same rule in ledger_loop."""
+
+    def test_rule_matches_ledger_loop(self) -> None:
+        import importlib.util
+        from datetime import date, timedelta
+        from context_ledger.contracts import ab_arm
+        spec = importlib.util.spec_from_file_location("ledger_loop", ROOT / "scripts" / "ledger_loop.py")
+        loop = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(loop)
+        days = [date(2026, 10, 16) + timedelta(days=i) for i in range(18)]
+        self.assertEqual([ab_arm(d) for d in days], [loop.ab_arm(d) for d in days])
+        self.assertEqual((ab_arm(date(2026, 10, 17)), ab_arm(date(2026, 10, 18)), ab_arm(date(2026, 10, 19)),
+                          ab_arm(date(2026, 10, 31)), ab_arm(date(2026, 11, 1))), ("none", "off", "on", "on", "none"))
+
+    def test_off_day_find_is_empty_and_save_still_works(self) -> None:
+        from datetime import date
+        self.save(decision="Kite connector never reads Zerodha holdings", why="Comet only")
+        self.store.ab_today = lambda: date(2026, 10, 18)
+        self.assertEqual(self.find("kite zerodha holdings"), {"matches": [], "has_more": False, "arm": "off"})
+        self.save(decision="Saves stay on during OFF days", why="A/B keeps writes in both arms")
+        self.store.ab_today = lambda: date(2026, 10, 19)
+        self.assertTrue(self.ids("kite zerodha holdings"))
+
+
+
+class TrustTierTests(V2Base):
+    """trusted needs >= TRUST_MIN_HELPED (3) helped and failure <= TRUST_MAX_FAIL (10%) in this context."""
+
+    def test_pure_boundaries(self) -> None:
+        from context_ledger.ranking import trust_tier
+        self.assertEqual(trust_tier("agent_conclusion", 2, 0, 2, False), "hint")
+        self.assertEqual(trust_tier("agent_conclusion", 3, 0, 3, False), "trusted")
+        self.assertEqual(trust_tier("agent_conclusion", 9, 1, 10, False), "trusted")   # 10% fail
+        self.assertEqual(trust_tier("agent_conclusion", 8, 1, 9, False), "hint")       # 11% fail
+        self.assertEqual(trust_tier("user_decision", 2, 0, 2, False), "user_decision")
+        self.assertEqual(trust_tier("user_decision", 3, 0, 3, False), "trusted")
+        self.assertEqual(trust_tier("agent_conclusion", 9, 0, 9, True), "hint")        # superseded here
+
+    def mark(self, did: str, helped: int, failed: int) -> None:
+        for k in range(helped + failed):
+            task = _u()
+            rev = self.store.get({"decision_id": did}, mcp=True)["record"]["revision"]
+            ap = self.store.append_event(
+                {"request_id": _u(), "decision_id": did, "expected_revision": rev, "occurred_at": None,
+                 "event_type": "applied", "payload": {"task_id": task, "decision_ids": [did]}}, mcp=True)
+            ok = k < helped
+            payload = {"status": "success", "note": "", "evidence": [], "task_id": task,
+                       "applied_event_id": ap["event_id"], "helpful": ok,
+                       **({} if ok else {"effect": "not_helped", "reason": "did not fit this case"})}
+            self.store.append_event(
+                {"request_id": _u(), "decision_id": did, "expected_revision": rev + 1, "occurred_at": None,
+                 "event_type": "outcome", "payload": payload}, mcp=True)
+
+    def tier(self, query: str) -> str:
+        return self.find(query)["matches"][0]["tier"]
+
+    def test_find_tiers_from_outcomes(self) -> None:
+        a = self.save(decision="Comet reads zerodha holdings for WH6470", why="kite connector blocked")
+        self.mark(a, 2, 0)
+        self.assertEqual(self.tier("comet zerodha holdings WH6470"), "hint")
+        self.mark(a, 1, 0)
+        self.assertEqual(self.tier("comet zerodha holdings WH6470"), "trusted")
+        b = self.save(decision="Tijori overview scrape uses shortlist only", why="full scrape wastes tokens")
+        self.mark(b, 9, 1)
+        self.assertEqual(self.tier("tijori overview scrape shortlist"), "trusted")
+        c = self.save(decision="Smallcase rebalance reads basket weights first", why="avoid drift")
+        self.mark(c, 8, 1)
+        self.assertEqual(self.tier("smallcase rebalance basket weights"), "hint")
+        g = self.save(type="user_decision", decision="Guru approves every Kite order himself", why="Guru rule",
+                      criticality=None, approver="guru")
+        self.assertEqual(self.tier("guru approves kite order"), "hint")  # self_reported: no Guru tier
+        rev = self.store.get({"decision_id": g}, mcp=False)["record"]["revision"]
+        self.store.attest(g, rev, _u(), "guru", "owner attested")
+        self.assertEqual(self.tier("guru approves kite order"), "user_decision")
+        self.mark(g, 3, 0)
+        self.assertEqual(self.tier("guru approves kite order"), "trusted")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,9 @@ Opening the ledger backfills precedent and fix links once. Later opens leave tho
 
 ## 0.1.25
 
-An applied outcome must say `helpful`. A decision that did not help gets `effect` (`not_helped`/`misled`) and a short reason, and the fix found by debugging is saved with `supersedes` or `exception_for` plus a short `context`. In that context the fix ranks above the old decision, whose confidence there drops. `ledger_loop.py close` enforces all of it.
+An applied outcome must say `helpful`. A decision that did not help gets `effect` (`not_helped`/`misled`) and a short reason, and the fix found by debugging is saved with `supersedes` plus a short `context`. In that context the fix ranks above the old decision, whose confidence there drops. `ledger_loop.py close` enforces `helpful` and the effect/reason, and WARNs when a not-helped decision has no fix.
+
+A/B (2026-10-18 to 2026-10-31 IST): `find` returns `{"matches": [], "arm": "off"}` on even IST days and works on odd days; saves and outcomes stay on. `ledger_loop.py close` appends one row per task to `ledger-loop/tasks.jsonl` (arm, gate, hits, helpful, misled, est. tokens, latency, fail-open, writes, `repeat_of`, `guru_correction`). `LEDGER_AB_DATE=YYYY-MM-DD` pins the day for dry runs.
 
 ## 0.1.24
 

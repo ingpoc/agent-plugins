@@ -14,6 +14,7 @@ import time
 import unittest
 import uuid
 from pathlib import Path
+os.environ["LEDGER_AB_DATE"] = "2026-10-17"  # pre-A/B-window day: find on; A/B tests pin their own days
 
 ROOT = Path(__file__).resolve().parent.parent
 BOOT = ROOT / "bin" / "context_ledger.py"

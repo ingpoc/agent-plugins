@@ -6,6 +6,9 @@
 - `scripts/ledger_loop.py` has no default MCP URL. A `CONTEXT_LEDGER_MCP_TOKEN` with an empty `CONTEXT_LEDGER_MCP_URL` is not sent.
 - `find` ranks a `user_decision` above an equal text match only when `approval.state` is `owner_attested`. A `self_reported` save does not get that boost.
 - The one-copy find/get JSON shape lives in `tool_content`. `tests/test_v2.py` does not import the MCP server.
+- Freeze (Guru 2026-10-17): `exception_for` is removed; `supersedes` is the only fix link. A not-helped applied decision with no fix makes `ledger_loop.py close` WARN with a count instead of failing.
+- Each find card carries `tier`: `trusted` (3+ helped applied outcomes, failure (not_helped+misled)/applied 10% or less, and no fix supersedes it in this context; tune `TRUST_MIN_HELPED`/`TRUST_MAX_FAIL` in `ranking.py`), else `user_decision` for an owner-attested user_decision, else `hint`.
+- A/B 2026-10-18 to 2026-10-31 IST: `find` over MCP returns `{"matches": [], "arm": "off"}` on even days; saves and outcomes stay on. `ledger_loop.py` applies the same rule and `close` appends one row per task to `ledger-loop/tasks.jsonl` (`--repeat-of`, `--guru-correction`, `--bot`). `LEDGER_AB_DATE` pins the day for dry runs.
 
 ## 0.1.25
 

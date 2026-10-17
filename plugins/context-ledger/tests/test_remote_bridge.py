@@ -13,6 +13,7 @@ import time
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+os.environ["LEDGER_AB_DATE"] = "2026-10-17"  # pre-A/B-window day: find on; A/B tests pin their own days
 
 ROOT = Path(__file__).resolve().parent.parent
 LAUNCHER = ROOT / "bin" / "context-ledger-mcp"

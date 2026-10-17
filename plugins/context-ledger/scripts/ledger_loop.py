@@ -10,7 +10,13 @@ record a Guru override. Simple or one-shot tasks skip it: `close <task_id> --gat
                  [--rule R] [--exception X] [--state S] [--override-by guru] [--approver A] [--outcome success|failed|partial|pending]
                  [--precedent ID] [--input I] [--audit]
   ledger_loop.py [--data DIR] start <task_id> --bot NAME --query "<q>" [--found id,id | --lookup-failed CODE]
-  ledger_loop.py [--data DIR] close <task_id> [--decision id ...] [--gated-out WORD] [--audit]
+  ledger_loop.py [--data DIR] close <task_id> [--bot NAME] [--decision id ...] [--gated-out WORD]
+                 [--repeat-of "<id or topic>: <reason>"] [--guru-correction "<reason>"] [--audit]
+
+A/B (Guru 2026-10-17): from AB_START to AB_END (IST), find is ON on odd calendar days and OFF on
+even days; saves and outcomes stay on. The MCP server applies the same rule, so connector finds
+follow it too. LEDGER_AB_DATE=YYYY-MM-DD overrides today for dry runs. Every close appends one
+task row to DATA/ledger-loop/tasks.jsonl (LEDGER_TASK_LOG); scripts/ledger_stats.py reads it.
 
 Never block: find and save use a LEDGER_TIMEOUT deadline (default 2 s). A slow or unreachable
 ledger prints one `WARN ...; continuing without the ledger` line and exits 0, so the task goes on.
@@ -42,6 +48,7 @@ import time
 import urllib.error
 import uuid as uuidlib
 import urllib.request
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -60,6 +67,21 @@ PLACEHOLDER_IDS = {
     "ffffffff-ffff-ffff-ffff-ffffffffffff",
 }
 WORD_RE = re.compile(r"^[a-z][a-z-]{1,23}$")
+IST = timezone(timedelta(hours=5, minutes=30))
+AB_START, AB_END = date(2026, 10, 18), date(2026, 10, 31)
+FLAG_WORDS = 20
+
+
+def ab_today() -> date:
+    raw = os.environ.get("LEDGER_AB_DATE", "").strip()
+    return date.fromisoformat(raw) if raw else datetime.now(IST).date()
+
+
+def ab_arm(day: date) -> str:
+    """on|off inside the A/B window (odd IST day = on), none outside it (find stays on)."""
+    if not AB_START <= day <= AB_END:
+        return "none"
+    return "on" if day.day % 2 else "off"
 
 
 def require_mcp_url() -> str:
@@ -126,7 +148,12 @@ def start_log(data: Path) -> Path:
     return Path(env) if env else data / "ledger-loop" / "starts.jsonl"
 
 
-def read_starts(log: Path, task_id: str) -> list[dict]:
+def task_log(data: Path) -> Path:
+    env = os.environ.get("LEDGER_TASK_LOG")
+    return Path(env) if env else data / "ledger-loop" / "tasks.jsonl"
+
+
+def read_starts(log: Path, task_id: str, evs: tuple[str, ...] = ("start",)) -> list[dict]:
     if not log.exists():
         return []
     rows = []
@@ -138,7 +165,7 @@ def read_starts(log: Path, task_id: str) -> list[dict]:
                 row = json.loads(line)
             except json.JSONDecodeError as exc:
                 raise Fail(f"FAIL {task_id}: {log}:{n} is not JSON ({exc.msg}); fix: repair or move that line", 2)
-            if row.get("task_id") == task_id and row.get("ev") == "start":
+            if row.get("task_id") == task_id and row.get("ev") in evs:
                 rows.append(row)
     return rows
 
@@ -331,7 +358,7 @@ def remote_events(task_id: str, candidates: list[str], token: str) -> tuple[list
 
 # ---- check --------------------------------------------------------------------------------
 
-def check(task_id: str, events: list[dict]) -> tuple[int, int]:
+def check(task_id: str, events: list[dict]) -> dict:
     applied: list[str] = []
     for ev in events:
         if ev["event_type"] == "applied":
@@ -363,13 +390,16 @@ def check(task_id: str, events: list[dict]) -> tuple[int, int]:
                    "fix: append the outcome again with effect and a reason (<=20 words)")
     fixed = {e["decision_id"] for e in events if e["event_type"] == "fix"}
     unfixed = [d for d in applied if latest[d].get("helpful") is False and latest[d]["status"] == "success" and d not in fixed]
-    if unfixed:
-        ids = ",".join(unfixed)
-        raise Fail(f"FAIL {task_id}: {ids} did not help but the task succeeded, and no fix is saved; "
-                   f"fix: `ledger_loop.py save {task_id} ... --supersedes {unfixed[0]} --context \"<where it failed>\"` "
-                   "(or --exception-for)")
-    linked = sum(1 for d in applied if latest[d].get("applied_event_id"))
-    return len(applied), linked
+    return {
+        "applied": len(applied),
+        "linked": sum(1 for d in applied if latest[d].get("applied_event_id")),
+        "helpful": sum(1 for d in applied if latest[d].get("helpful") is True),
+        "misled": sum(1 for d in applied if latest[d].get("effect") == "misled"),
+        "not_helped": sum(1 for d in applied if latest[d].get("effect") == "not_helped"),
+        "unfixed": unfixed,
+        "applied_ids": applied,
+        "helpful_ids": [d for d in applied if latest[d].get("helpful") is True],
+    }
 
 
 def _log_row(data: Path, row: dict) -> Path:
@@ -394,7 +424,9 @@ def cmd_start(o: argparse.Namespace, data: Path) -> str:
         raise Fail(f"FAIL {task_id}: empty query; fix: name the problem happening now")
     bot = _bot(o, task_id)
     found = [_uuid(i.strip(), "--found id") for i in o.found.split(",") if i.strip()]
-    row = {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "found": found}
+    row = {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "found": found,
+           "arm": ab_arm(ab_today()), "chars": o.chars or 0,
+           "trusted": [_uuid(i.strip(), "--trusted id") for i in (o.trusted or "").split(",") if i.strip()]}
     if o.lookup_failed:
         if found:
             raise Fail(f"FAIL {task_id}: --found and --lookup-failed together; fix: pass one")
@@ -454,19 +486,26 @@ def cmd_find(o: argparse.Namespace, data: Path) -> str:
     if not o.query.strip():
         raise Fail(f"FAIL {task_id}: empty query; fix: name the problem happening now")
     bot = _bot(o, task_id)
+    arm = ab_arm(ab_today())
+    if arm == "off":
+        _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "lookup": "arm_off", "arm": arm, "ms": 0})
+        return json.dumps({"matches": [], "arm": "off", "note": "A/B OFF day: no lookup; saves and outcomes stay on"})
     started = time.monotonic()
     try:
         result, _source = _call(data, task_id, "find", {"query": o.query, "actor": bot, "task_id": task_id})
     except Unavailable as exc:
         code = _warn(o, task_id, "find", exc)
         _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "lookup": f"failed:{code}",
-                        "ms": int((time.monotonic() - started) * 1000)})
+                        "arm": arm, "ms": int((time.monotonic() - started) * 1000)})
         return json.dumps({"matches": [], "lookup": f"failed:{code}"})
     ids = [m["decision_id"] for m in result["matches"]]
     ids += [r["id"] for m in result["matches"] for r in m.get("related", [])]
-    _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "found": ids,
-                    "ms": int((time.monotonic() - started) * 1000)})
-    return json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+    out = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
+    trusted = [m["decision_id"] for m in result["matches"] if m.get("tier") == "trusted"]
+    _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "found": ids, "arm": arm,
+                    "trusted": trusted,
+                    "chars": len(out), "ms": int((time.monotonic() - started) * 1000)})
+    return out
 
 
 def cmd_save(o: argparse.Namespace, data: Path) -> str:
@@ -486,29 +525,81 @@ def cmd_save(o: argparse.Namespace, data: Path) -> str:
         args["precedent_ids"] = o.precedent
     if o.input:
         args["inputs"] = o.input
-    for key in ("supersedes", "exception_for", "context"):
+    for key in ("supersedes", "context"):
         if getattr(o, key):
             args[key] = getattr(o, key)
+    started = time.monotonic()
+    chars = len(json.dumps(args, ensure_ascii=False))
     try:
         receipt, _source = _call(data, task_id, "save", args)
     except Unavailable as exc:
         code = _warn(o, task_id, "save", exc)
+        _log_row(data, {"task_id": task_id, "ev": "save", "bot": bot, "lookup": f"failed:{code}", "chars": chars,
+                        "ms": int((time.monotonic() - started) * 1000)})
         return json.dumps({"saved": False, "reason": f"failed:{code}"})
-    _log_row(data, {"task_id": task_id, "ev": "save", "bot": bot, "decision_id": receipt["decision_id"]})
+    _log_row(data, {"task_id": task_id, "ev": "save", "bot": bot, "decision_id": receipt["decision_id"], "chars": chars,
+                    "ms": int((time.monotonic() - started) * 1000)})
     return json.dumps({"saved": True, **receipt})
+
+
+def _flag(task_id: str, name: str, value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = value.strip()
+    if not text or "\n" in text or len(text.split()) > FLAG_WORDS:
+        raise Fail(f"FAIL {task_id}: --{name} needs one line of {FLAG_WORDS} words or fewer; fix: shorten it")
+    return text
+
+
+def _task_row(data: Path, task_id: str, o: argparse.Namespace, gate: str, stats: dict | None, fail_open: bool) -> None:
+    """One mechanical A/B row per closed task; ledger_stats.py reads these."""
+    rows = read_starts(start_log(data), task_id, ("start", "save"))
+    starts = [r for r in rows if r["ev"] == "start"]
+    saves = [r for r in rows if r["ev"] == "save"]
+    actor = (o.bot or "").strip().lower() or next((r["bot"] for r in starts + saves if r.get("bot")), "unknown")
+    found = {d for r in starts for d in r.get("found", [])}
+    trusted = {d for r in starts for d in r.get("trusted", [])}
+    chars = sum(int(r.get("chars") or 0) for r in rows)
+    failed = any(str(r.get("lookup", "")).startswith("failed:") for r in rows)
+    stats = stats or {}
+    _row = {
+        "ev": "task", "task_id": task_id, "date": ab_today().isoformat(), "arm": ab_arm(ab_today()),
+        "actor": actor, "gate": gate, "gated": gate == "in",
+        "find_ran": any("found" in r for r in starts), "hits": len(found),
+        "helpful": stats.get("helpful", 0), "misled": stats.get("misled", 0),
+        "not_helped": stats.get("not_helped", 0), "unfixed": len(stats.get("unfixed", [])),
+        "trusted_applied": sum(1 for d in stats.get("applied_ids", []) if d in trusted),
+        "trusted_helpful": sum(1 for d in stats.get("helpful_ids", []) if d in trusted),
+        "tokens_est": chars // 4, "tokens_unit": "est chars/4 of find replies + save requests",
+        "latency_ms": sum(int(r.get("ms") or 0) for r in rows),
+        "fail_open": failed or fail_open,
+        "writes": sum(1 for r in saves if r.get("decision_id")),
+        "repeat_of": _flag(task_id, "repeat-of", o.repeat_of),
+        "guru_correction": _flag(task_id, "guru-correction", o.guru_correction),
+        "at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    }
+    log = task_log(data)
+    log.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd = os.open(log, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    with os.fdopen(fd, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(_row) + "\n")
 
 
 def cmd_close(o: argparse.Namespace, data: Path) -> str:
     task_id = _task_id(o.task_id)
+    _flag(task_id, "repeat-of", o.repeat_of)
+    _flag(task_id, "guru-correction", o.guru_correction)
     if o.gated_out:
         if not WORD_RE.fullmatch(o.gated_out):
             raise Fail(f"FAIL {task_id}: --gated-out needs one lowercase word (simple, one-shot, routine); fix: pass one word")
         _log_row(data, {"task_id": task_id, "ev": "gated_out", "reason": o.gated_out})
+        _task_row(data, task_id, o, o.gated_out, None, False)
         return f"PASS {task_id}: gated out ({o.gated_out}); no ledger lookup needed"
     extra = [_uuid(d, "--decision id") for d in o.decision]
     log = start_log(data)
     starts = read_starts(log, task_id)
-    if not starts:
+    arm = ab_arm(ab_today())
+    if not starts and arm != "off":
         raise Fail(
             f"FAIL {task_id}: no start lookup in {log}; fix: run Context-ledger find for the problem now, "
             f"then `ledger_loop.py start {task_id} --bot NAME --query \"...\" --found ids`"
@@ -529,9 +620,17 @@ def cmd_close(o: argparse.Namespace, data: Path) -> str:
         if audit_mode(o):
             raise Fail(f"FAIL {task_id}: ledger unreadable ({exc.code} {exc.detail}); fix: run on the Mini (bound ledger) "
                        "or export CONTEXT_LEDGER_MCP_TOKEN", 2)
+        _task_row(data, task_id, o, "in", None, True)
         return f"PASS {task_id}: closeout check skipped, ledger unavailable ({exc.code}); WARN fail-open, task continues"
-    n, linked = check(task_id, events)
-    return f"PASS {task_id}: lookup done, {n} applied, all with final outcome + evidence ({linked} linked by applied_event_id) [{source}]"
+    stats = check(task_id, events)
+    _task_row(data, task_id, o, "in", stats, False)
+    line = (f"PASS {task_id}: lookup {'off' if arm == 'off' and not starts else 'done'}, {stats['applied']} applied, "
+            f"all with final outcome + evidence ({stats['linked']} linked by applied_event_id) [{source}] arm={arm}")
+    if stats["unfixed"]:
+        ids = ",".join(stats["unfixed"])
+        line += (f"; WARN {len(stats['unfixed'])} not_helped without a fix ({ids}): "
+                 f"`ledger_loop.py save {task_id} ... --supersedes {stats['unfixed'][0]} --context \"<where it failed>\"`")
+    return line
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -557,7 +656,6 @@ def main(argv: list[str] | None = None) -> int:
     x.add_argument("--precedent", action="append", default=[])
     x.add_argument("--input", action="append", default=[])
     x.add_argument("--supersedes", help="decision id this fix replaces in --context")
-    x.add_argument("--exception-for", dest="exception_for", help="decision id this fix is an exception to")
     x.add_argument("--context", help="<=10 words: where the old decision did not help")
     x.add_argument("--audit", action="store_true")
     x = sub.add_parser("start", help="record a lookup made with the connector find")
@@ -565,11 +663,16 @@ def main(argv: list[str] | None = None) -> int:
     x.add_argument("--bot", required=True)
     x.add_argument("--query", required=True)
     x.add_argument("--found", default="", help="comma-separated decision ids the lookup returned")
+    x.add_argument("--trusted", default="", help="comma-separated ids the lookup returned with tier trusted")
+    x.add_argument("--chars", type=int, help="characters of the find reply (token estimate = chars/4)")
     x.add_argument("--lookup-failed", dest="lookup_failed", help="error code when the connector find failed")
     x = sub.add_parser("close", help="fail unless gated out, or lookup done and every applied id has an outcome")
     x.add_argument("task_id")
     x.add_argument("--decision", action="append", default=[], help="extra decision id to read (remote mode)")
     x.add_argument("--gated-out", dest="gated_out", help="one word: why this task skipped the ledger")
+    x.add_argument("--bot", help="actor id when no find/save row names it (OFF days)")
+    x.add_argument("--repeat-of", dest="repeat_of", help="<=20 words: the earlier task/decision this re-diagnosed, and why")
+    x.add_argument("--guru-correction", dest="guru_correction", help="<=20 words: what Guru had to re-prompt or correct")
     x.add_argument("--audit", action="store_true")
     o = p.parse_args(argv)
     cmds = {"find": cmd_find, "save": cmd_save, "start": cmd_start, "close": cmd_close}

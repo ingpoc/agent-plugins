@@ -20,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 
 from context_ledger.contracts import LedgerError, canonical_json, fail_dict, ok  # noqa: E402
 from context_ledger.store import Store, init_ledger  # noqa: E402
+os.environ["LEDGER_AB_DATE"] = "2026-10-17"  # pre-A/B-window day: find on; A/B tests pin their own days
 
 
 def _u() -> str:
@@ -158,7 +159,9 @@ class HelpfulGateTests(LedgerLoopBase):
         self.start([d])
         ev = self.applied(d, [d])
         self.outcome(d, applied_event_id=ev, helpful=False, effect="not_helped", reason="reviewer subscription lapsed")
-        self.assert_fail(self.run_loop("close", self.task), "no fix is saved")
+        r = self.run_loop("close", self.task)
+        self.assert_pass(r, 1)  # warns, does not fail (Guru 2026-10-17)
+        self.assertIn("WARN 1 not_helped without a fix", r.stdout)
         self.store.save({"request_id": _u(), "type": "agent_conclusion", "criticality": 4, "actor": "tester",
                          "decision": "Review through Cursor agent instead", "why": "old path lapsed",
                          "entities": ["review"], "supersedes": d, "context": "code review", "task_id": self.task},
@@ -171,6 +174,59 @@ class HelpfulGateTests(LedgerLoopBase):
         ev = self.applied(d, [d])
         self.outcome(d, status="failed", applied_event_id=ev, helpful=False, effect="misled", reason="pointed at a dead path")
         self.assert_pass(self.run_loop("close", self.task), 1)
+        self.assertNotIn("WARN", self.run_loop("close", self.task).stdout)
+
+
+class ABLogTests(LedgerLoopBase):
+    def rows(self) -> list[dict]:
+        log = self.data / "ledger-loop" / "tasks.jsonl"
+        return [json.loads(l) for l in log.read_text().splitlines()]
+
+    def test_off_day_find_skips_lookup_and_close_logs_arm_off(self) -> None:
+        off = {"LEDGER_AB_DATE": "2026-10-18"}
+        r = self.run_loop("find", self.task, "--bot", "efficient", "--query", "kite holdings", env=off)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)["arm"], "off")
+        r = self.run_loop("close", self.task, "--guru-correction", "Guru re-stated the Kite rule", env=off)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("lookup done", r.stdout)
+        row = self.rows()[-1]
+        self.assertEqual((row["arm"], row["date"], row["actor"], row["gated"], row["find_ran"], row["hits"]),
+                         ("off", "2026-10-18", "efficient", True, False, 0))
+        self.assertEqual(row["guru_correction"], "Guru re-stated the Kite rule")
+
+    def test_off_day_close_without_start_passes(self) -> None:
+        r = self.run_loop("close", self.task, "--bot", "jev", env={"LEDGER_AB_DATE": "2026-10-20"})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("lookup off", r.stdout)
+        self.assertEqual((self.rows()[-1]["arm"], self.rows()[-1]["actor"]), ("off", "jev"))
+
+    def test_on_day_row_counts_hits_helpful_tokens_and_writes(self) -> None:
+        on = {"LEDGER_AB_DATE": "2026-10-19"}
+        d = self.decision("kite connector holdings rule")
+        r = self.run_loop("find", self.task, "--bot", "efficient", "--query", "kite connector holdings rule", env=on)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        ev = self.applied(d, [d])
+        self.outcome(d, applied_event_id=ev, helpful=True)
+        r = self.run_loop("save", self.task, "--bot", "efficient", "--type", "agent_conclusion", "--crit", "3",
+                          "--decision", "Kite holdings come from Comet", "--why", "connector is blocked",
+                          "--entity", "kite", env=on)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        r = self.run_loop("close", self.task, "--repeat-of", f"{d}: re-checked the same Kite rule", env=on)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        row = self.rows()[-1]
+        self.assertEqual((row["arm"], row["find_ran"], row["hits"], row["helpful"], row["misled"], row["writes"],
+                          row["fail_open"]), ("on", True, 1, 1, 0, 1, False))
+        self.assertGreater(row["tokens_est"], 0)
+        self.assertEqual((row["trusted_applied"], row["trusted_helpful"]), (0, 0))
+        self.assertTrue(row["repeat_of"].startswith(d))
+
+    def test_gated_out_is_logged_and_long_flags_fail(self) -> None:
+        r = self.run_loop("close", self.task, "--gated-out", "simple", "--bot", "jev")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.rows()[-1]["gate"], self.rows()[-1]["gated"], self.rows()[-1]["arm"]), ("simple", False, "none"))
+        self.assert_fail(self.run_loop("close", self.task, "--gated-out", "simple", "--repeat-of", " ".join(["w"] * 21)),
+                         "--repeat-of needs one line")
 
 
 class StoreModeTests(LedgerLoopBase):
@@ -393,12 +449,12 @@ class RemoteModeTests(LedgerLoopBase):
         self.box_start([d])
         ev = self.applied(d, [d])
         self.outcome(d, applied_event_id=ev, helpful=False, effect="not_helped", reason="reviewer subscription lapsed")
-        self.assert_fail(self.box_run("close", self.task), "no fix is saved")
+        self.assertIn("WARN 1 not_helped without a fix", self.assert_pass(self.box_run("close", self.task), 1))
         r = self.box_run("save", self.task, "--bot", "box", "--type", "agent_conclusion", "--crit", "4",
                          "--decision", "Review through Cursor agent instead", "--why", "old path lapsed",
                          "--entity", "review", "--supersedes", d, "--context", "code review")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assert_pass(self.box_run("close", self.task), 1)
+        self.assertNotIn("WARN", self.assert_pass(self.box_run("close", self.task), 1))
 
     def test_token_without_url_is_not_sent(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
