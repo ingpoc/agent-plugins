@@ -26,7 +26,7 @@ jobs:
       - name: Voice CUA system deps
         run: sudo apt-get update && sudo apt-get install -y libportaudio2 portaudio19-dev
       - name: Comet optional test deps
-        run: python3 -m pip install --quiet 'websockets==16.0' Pillow 'mcp==2.2.0' numpy sounddevice
+        run: python3 -m pip install --quiet 'websockets==16.0' Pillow 'mcp==2.2.0' numpy sounddevice websocket-client
       - name: Audit test inventory
         run: |
           python3 scripts/check.py --audit-tests | python3 -c '
