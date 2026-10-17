@@ -78,11 +78,11 @@ class IsolationEvalTests(unittest.TestCase):
         rep = iso.run(self.db, ROOT, self.fixture, None)
         self.assertEqual(self.db.read_bytes(), before, "source DB must not change")
         a1 = rep["finds"][0]
-        # entity 'alpha' pulls the off-topic alpha record (filler), text pulls the lease records.
-        self.assertIn(self.p["proj"], a1["hits"])
-        self.assertIn(self.p["proj"], a1["filler_ids"])
+        # Text match returns both lease records. The alpha entity no longer adds the off-topic project row.
+        self.assertNotIn(self.p["proj"], a1["hits"])
+        self.assertEqual(a1["fillers"], 0)
         self.assertEqual(a1["fleet_found"], 1)
-        self.assertEqual(a1["leaks"], 1)  # beta lease record text-matches: a cross-project leak
+        self.assertEqual(a1["leaks"], 1)  # beta lease record text-matches and these rows have no scope token
         t1 = rep["finds"][1]
         self.assertEqual(t1["hits"], [])
         m = rep["metrics"]["all"]

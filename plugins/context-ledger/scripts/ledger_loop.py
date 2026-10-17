@@ -514,7 +514,7 @@ def cmd_save(o: argparse.Namespace, data: Path) -> str:
     args: dict = {
         "request_id": str(uuidlib.uuid5(uuidlib.NAMESPACE_URL, f"ledger-loop:{task_id}:{o.decision}")),
         "type": o.type, "decision": o.decision, "why": o.why, "entities": o.entity,
-        "task_id": task_id, "actor": bot,
+        "scope": o.scope, "task_id": task_id, "actor": bot,
     }
     for key in ("rule", "exception", "state", "outcome", "approver", "override_by"):
         if getattr(o, key):
@@ -648,6 +648,7 @@ def main(argv: list[str] | None = None) -> int:
     x.add_argument("--type", required=True, choices=["user_decision", "agent_conclusion"])
     x.add_argument("--decision", required=True)
     x.add_argument("--why", required=True)
+    x.add_argument("--scope", required=True, help="fleet, project:<id>, or tool:<id>. Still true in another project?")
     x.add_argument("--entity", action="append", default=[], required=True)
     x.add_argument("--crit", type=int)
     for flag in ("--rule", "--exception", "--state", "--approver", "--override-by"):

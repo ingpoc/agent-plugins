@@ -32,6 +32,29 @@ FTS_TOKEN_LIMIT = 12
 CANDIDATE_CAP = 100
 MAX_CONFLICTS = 32
 SCOPE_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
+APPLICABILITY_SCOPE_RE = re.compile(
+    r"^(?:fleet|project:[a-z0-9][a-z0-9._-]{0,63}|tool:[a-z0-9][a-z0-9._-]{0,63})$"
+)
+TOOL_SCOPE_IDS = frozenset(
+    {"comet", "cursor-cli", "codex-cli", "git", "python", "render", "kite"}
+)
+STATUS_WORDS = frozenset(
+    "pending success failed merged blocked passing wip shipped inconclusive abandoned".split()
+)
+VERSION_RE = re.compile(r"\b\d+\.\d+(?:\.\d+)?\b")
+SHA_RE = re.compile(r"\b[0-9a-f]{7,40}\b", re.I)
+PR_ID_RE = re.compile(r"\b(?:pr|pull request|project)\s*#?\s*\d+\b|\bpull/\d+\b", re.I)
+MODEL_RE = re.compile(
+    r"\b(?:gpt-\d[\w.-]*|chatgpt|claude[\w.-]*|grok[\w.-]*|gemini[\w.-]*|opus[\w.-]*|sonnet[\w.-]*|haiku[\w.-]*|composer[\w.-]*|fable[\w.-]*)\b",
+    re.I,
+)
+TIME_BOUND_RE = re.compile(
+    r"\b(?:until|temporary|temporarily|for now|today|this week|this sprint|expires|deadline)\b"
+    r"|\bafter \d+ days?\b|\bby \d{4}-\d{2}-\d{2}\b",
+    re.I,
+)
+TRACKER_MESSAGE = "This belongs in the tracker, not the ledger."
+RULE_CUES = frozenset({"must", "never", "always", "only", "because", "rule", "when"})
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 )
@@ -75,9 +98,10 @@ EVENT_TYPE = (
     "conflict_resolved",
     "attested",
     "applied",
+    "archived",
 )
 CHANNEL = ("agent", "owner_cli")
-LIFECYCLE = ("active", "superseded")
+LIFECYCLE = ("active", "superseded", "archived")
 APPEND_TYPES = (
     "outcome",
     "corrected",
@@ -329,6 +353,91 @@ def require_scope(value: Any) -> str:
     return text
 
 
+def parse_applicability_scope(value: Any) -> str:
+    if not isinstance(value, str) or not APPLICABILITY_SCOPE_RE.fullmatch(value):
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message="scope must be fleet, project:<id>, or tool:<id>; nothing was saved",
+        )
+    return value
+
+
+def allowed_scopes(binding: dict[str, Any]) -> set[str]:
+    """Fleet sits above the caller's project and the tools that caller touches."""
+    allowed = {"fleet"}
+    project = binding.get("project")
+    if project:
+        allowed.add(f"project:{project}")
+    for tool in binding.get("tools") or []:
+        allowed.add(f"tool:{tool}")
+    return allowed
+
+
+def _validate_caller_scope(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise LedgerError("INVALID_ARGUMENT", message="caller_scope must be an object")
+    obj = require_keys(value, set(), {"project", "tools"})
+    project = obj.get("project", None)
+    if project is not None:
+        project = require_scope(project)
+    tools = obj.get("tools") or []
+    if not isinstance(tools, list):
+        raise LedgerError("INVALID_ARGUMENT", message="caller_scope.tools must be a list")
+    return {"project": project, "tools": [require_scope(item) for item in tools]}
+
+
+def decision_surface(*parts: str | None) -> str:
+    return " ".join(part for part in parts if part)
+
+
+def volatile_kinds(text: str) -> list[str]:
+    found: list[str] = []
+    if VERSION_RE.search(text):
+        found.append("version")
+    if SHA_RE.search(text):
+        found.append("sha")
+    if PR_ID_RE.search(text):
+        found.append("pr-or-project-id")
+    if MODEL_RE.search(text):
+        found.append("model-name")
+    words = set(re.findall(r"[a-z0-9]+", text.casefold()))
+    if words & STATUS_WORDS:
+        found.append("status-word")
+    return found
+
+
+def pure_status(text: str) -> bool:
+    words = re.findall(r"[a-z0-9]+", text.casefold())
+    if not words:
+        return True
+    if any(word in RULE_CUES for word in words):
+        return False
+    skip = {"a", "an", "the", "is", "are", "was", "were", "on", "to", "for", "and", "of", "in"}
+    content = [word for word in words if word not in skip]
+    statusish = [word for word in content if word in STATUS_WORDS or word in {"status", "update"}]
+    return bool(statusish) and len(statusish) * 2 >= len(content)
+
+
+def time_bound(text: str) -> bool:
+    return TIME_BOUND_RE.search(text) is not None
+
+
+def assert_save_text(text: str, *, kind: str, expires_at: str | None, replace_when: str | None) -> None:
+    if kind == "state" or pure_status(text):
+        raise LedgerError("INVALID_ARGUMENT", message=TRACKER_MESSAGE)
+    kinds = volatile_kinds(text)
+    if kinds:
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message=f"{kinds[0]} goes only in evidence. {TRACKER_MESSAGE}",
+        )
+    if time_bound(text) and not expires_at and not replace_when:
+        raise LedgerError(
+            "INVALID_ARGUMENT",
+            message="a time-bound decision needs expires_at or replace_when; nothing was saved",
+        )
+
+
 def require_ts(value: Any, *, allow_null: bool = False) -> str | None:
     if value is None:
         if allow_null:
@@ -412,7 +521,7 @@ def validate_body(value: Any, *, allow_owner_attested: bool) -> dict[str, Any]:
             "sensitivity",
             "approval",
         },
-        {"trace"},
+        {"trace", "scope"},
     )
     kind = require_enum(obj["kind"], KIND)
     rationale_empty = kind == "observation"
@@ -429,6 +538,8 @@ def validate_body(value: Any, *, allow_owner_attested: bool) -> dict[str, Any]:
         "sensitivity": require_enum(obj["sensitivity"], SENSITIVITY),
         "approval": validate_approval(obj["approval"], allow_owner_attested=allow_owner_attested),
     }
+    if "scope" in obj:
+        body["scope"] = parse_applicability_scope(obj["scope"])
     if "trace" in obj:
         body["trace"] = validate_trace(obj["trace"])
         if len(body["summary"].split()) > DECISION_WORDS or len(body["rationale"].split()) > WHY_WORDS:
@@ -546,19 +657,24 @@ def validate_payload(event_type: str, value: Any, *, allow_owner_attested: bool)
         return {"approval": approval, "reason": require_str(obj["reason"], 500)}
     if event_type == "applied":
         return validate_applied(value)
+    if event_type == "archived":
+        obj = require_keys(value, {"reason"})
+        return {"reason": require_str(obj["reason"], 500)}
     raise LedgerError("INVALID_ARGUMENT")
 
 
 def validate_record_input(
     value: Any, *, allow_owner_attested: bool
 ) -> dict[str, Any]:
-    obj = require_keys(value, {"request_id", "occurred_at", "body", "outcome"}, {"actor"})
+    obj = require_keys(value, {"request_id", "occurred_at", "body", "outcome"}, {"actor", "decision_id"})
     out = {
         "request_id": require_uuid(obj["request_id"]),
         "occurred_at": require_ts(obj["occurred_at"], allow_null=True),
         "body": validate_body(obj["body"], allow_owner_attested=allow_owner_attested),
         "outcome": validate_outcome(obj["outcome"]),
     }
+    if obj.get("decision_id"):
+        out["decision_id"] = require_uuid(obj["decision_id"])
     actor = require_actor(obj.get("actor"))
     if actor:
         out["actor"] = actor
@@ -582,7 +698,7 @@ def validate_append_input(
     )
     event_type = require_enum(
         obj["event_type"],
-        APPEND_TYPES + (("attested",) if allow_owner_attested else ()),
+        APPEND_TYPES + (("attested", "archived") if allow_owner_attested else ()),
     )
     return {
         "request_id": require_uuid(obj["request_id"]),
@@ -599,7 +715,7 @@ def validate_find_input(value: Any) -> dict[str, Any]:
     obj = require_keys(
         value,
         {"query"},
-        {"entities", "constraints", "include_superseded", "limit", "offset", "task_id", "actor"},
+        {"entities", "constraints", "include_superseded", "limit", "offset", "task_id", "actor", "caller_scope"},
     )
     include = obj.get("include_superseded", False)
     if type(include) is not bool:
@@ -617,6 +733,7 @@ def validate_find_input(value: Any) -> dict[str, Any]:
         "offset": require_int(offset, min_v=0, max_v=30),
         "task_id": require_uuid(obj["task_id"]) if obj.get("task_id") else None,
         "actor": require_actor(obj.get("actor")),
+        "caller_scope": _validate_caller_scope(obj["caller_scope"]) if "caller_scope" in obj else None,
     }
 
 
@@ -704,7 +821,10 @@ def validate_trace(value: Any) -> dict[str, Any]:
     obj = require_keys(
         value,
         {"type", "criticality", "approver"},
-        {"rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id", "fix_kind", "fix_of", "context"},
+        {
+            "rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id",
+            "fix_kind", "fix_of", "context", "expires_at", "replace_when",
+        },
     )
     rtype = obj["type"]
     if rtype not in TRACE_TYPES:
@@ -743,6 +863,10 @@ def validate_trace(value: Any) -> dict[str, Any]:
         out["context"] = _line(obj.get("context"), "context", max_chars=80, max_words=CONTEXT_WORDS)
     elif obj.get("context") is not None:
         raise LedgerError("INVALID_ARGUMENT", message="context goes with supersedes; nothing was saved")
+    if obj.get("expires_at"):
+        out["expires_at"] = require_ts(obj["expires_at"])
+    if obj.get("replace_when"):
+        out["replace_when"] = _line(obj["replace_when"], "replace_when", max_chars=80, max_words=12)
     return out
 
 
@@ -750,10 +874,11 @@ def validate_save_input(value: Any) -> dict[str, Any]:
     """Compact save: decision <=15 words, why <=20 words, everything else short typed fields."""
     obj = require_keys(
         value,
-        {"request_id", "type", "decision", "why", "entities"},
+        {"request_id", "type", "decision", "why", "entities", "scope"},
         {
             "criticality", "rule", "exception", "override_by", "approver", "inputs", "state",
             "outcome", "precedent_ids", "task_id", "actor", "supersedes", "context",
+            "kind", "expires_at", "replace_when", "evidence",
         },
     )
     rtype = obj["type"]
@@ -773,11 +898,34 @@ def validate_save_input(value: Any) -> dict[str, Any]:
     approver = obj.get("approver") or ("guru" if rtype == "user_decision" else actor)
     if approver is None:
         raise LedgerError("INVALID_ARGUMENT", message="approver (or actor) is required; nothing was saved")
+    kind = obj.get("kind") or "decision"
+    if kind not in ("decision", "state"):
+        raise LedgerError("INVALID_ARGUMENT", message="kind must be decision or state; nothing was saved")
+    scope = parse_applicability_scope(obj["scope"])
+    expires_at = require_ts(obj["expires_at"]) if obj.get("expires_at") else None
+    replace_when = (
+        _line(obj["replace_when"], "replace_when", max_chars=80, max_words=12) if obj.get("replace_when") else None
+    )
+    inputs = obj.get("inputs") or []
+    input_text = " ".join(inputs) if isinstance(inputs, list) else ""
+    assert_save_text(
+        decision_surface(decision, why, obj.get("rule"), obj.get("exception"), obj.get("state"), input_text),
+        kind=kind,
+        expires_at=expires_at,
+        replace_when=replace_when,
+    )
+    evidence_in = obj.get("evidence") or []
+    if isinstance(evidence_in, list):
+        evidence_in = [
+            {"ref": item, "revision": None, "sha256": None, "state": "unverified"} if isinstance(item, str) else item
+            for item in evidence_in
+        ]
+    evidence = validate_evidence_list(evidence_in)
     trace_in = {
         "type": rtype,
         "criticality": crit,
         "approver": approver,
-        **{k: obj[k] for k in ("rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id") if obj.get(k) is not None},
+        **{k: obj[k] for k in ("rule", "exception", "override_by", "inputs", "state", "precedent_ids", "task_id", "expires_at", "replace_when") if obj.get(k) is not None},
     }
     fixes = [k for k in FIX_KINDS if obj.get(k)]
     if fixes:
@@ -804,6 +952,9 @@ def validate_save_input(value: Any) -> dict[str, Any]:
         "trace": trace,
         "outcome": {"partial": "inconclusive"}.get(outcome, outcome),
         "actor": actor,
+        "scope": scope,
+        "kind": kind,
+        "evidence": evidence,
     }
 
 

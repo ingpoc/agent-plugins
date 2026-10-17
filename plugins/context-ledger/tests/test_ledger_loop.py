@@ -163,8 +163,9 @@ class HelpfulGateTests(LedgerLoopBase):
         self.assert_pass(r, 1)  # warns, does not fail (Guru 2026-10-17)
         self.assertIn("WARN 1 not_helped without a fix", r.stdout)
         self.store.save({"request_id": _u(), "type": "agent_conclusion", "criticality": 4, "actor": "tester",
-                         "decision": "Review through Cursor agent instead", "why": "old path lapsed",
-                         "entities": ["review"], "supersedes": d, "context": "code review", "task_id": self.task},
+                         "decision": "Review through Cursor agent instead", "why": "because the old path lapsed",
+                         "entities": ["review"], "scope": "fleet", "supersedes": d, "context": "code review",
+                         "task_id": self.task},
                         mcp=False)
         self.assert_pass(self.run_loop("close", self.task), 1)
 
@@ -209,7 +210,8 @@ class ABLogTests(LedgerLoopBase):
         ev = self.applied(d, [d])
         self.outcome(d, applied_event_id=ev, helpful=True)
         r = self.run_loop("save", self.task, "--bot", "efficient", "--type", "agent_conclusion", "--crit", "3",
-                          "--decision", "Kite holdings come from Comet", "--why", "connector is blocked",
+                          "--decision", "Kite holdings come from Comet", "--why", "the connector cannot be called",
+                          "--scope", "fleet",
                           "--entity", "kite", env=on)
         self.assertEqual(r.returncode, 0, r.stderr)
         r = self.run_loop("close", self.task, "--repeat-of", f"{d}: re-checked the same Kite rule", env=on)
@@ -452,7 +454,7 @@ class RemoteModeTests(LedgerLoopBase):
         self.assertIn("WARN 1 not_helped without a fix", self.assert_pass(self.box_run("close", self.task), 1))
         r = self.box_run("save", self.task, "--bot", "box", "--type", "agent_conclusion", "--crit", "4",
                          "--decision", "Review through Cursor agent instead", "--why", "old path lapsed",
-                         "--entity", "review", "--supersedes", d, "--context", "code review")
+                         "--entity", "review", "--scope", "fleet", "--supersedes", d, "--context", "code review")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertNotIn("WARN", self.assert_pass(self.box_run("close", self.task), 1))
 
@@ -496,19 +498,20 @@ class RemoteModeTests(LedgerLoopBase):
 
     def test_find_then_save_remote(self) -> None:
         r = self.box_run("save", self.task, "--bot", "box", "--type", "agent_conclusion", "--crit", "4",
-                         "--decision", "Codex ChatGPT login rejects gpt-6.1-sol; use an API-key login",
-                         "--why", "HTTP 400 model not supported with a ChatGPT account",
-                         "--entity", "codex-cli")
+                         "--decision", "Codex login rejects the pinned model and uses a key login",
+                         "--why", "because the account cannot use that model",
+                         "--entity", "codex-cli", "--scope", "fleet")
         self.assertEqual(r.returncode, 0, r.stderr)
         saved = json.loads(r.stdout)
         self.assertTrue(saved["saved"], saved)
-        r = self.box_run("find", self.task, "--bot", "box", "--query", "codex rejects model with chatgpt account")
+        r = self.box_run("find", self.task, "--bot", "box", "--query", "codex login rejects the pinned model")
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(json.loads(r.stdout)["matches"][0]["decision_id"], saved["decision_id"])
 
     def test_save_rejects_long_decision_loudly(self) -> None:
         r = self.box_run("save", self.task, "--bot", "box", "--type", "agent_conclusion", "--crit", "3",
-                         "--decision", " ".join(["word"] * 16), "--why", "short why", "--entity", "x")
+                         "--decision", " ".join(["word"] * 16), "--why", "short why", "--entity", "x",
+                         "--scope", "fleet")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("max 15", r.stderr)
 

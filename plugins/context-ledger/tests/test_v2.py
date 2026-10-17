@@ -57,7 +57,7 @@ class V2Base(unittest.TestCase):
 
     def save(self, **kw) -> str:
         args = {"request_id": _u(), "type": "agent_conclusion", "criticality": 3, "actor": "test-bot",
-                "entities": ["codex-cli"], **kw}
+                "entities": ["codex-cli"], "scope": "fleet", **kw}
         return self.store.save(args, mcp=True)["decision_id"]
 
     def find(self, query: str, **kw) -> dict:
@@ -79,8 +79,9 @@ class RankingThresholdTests(V2Base):
         for i in range(4):
             self.legacy(f"Unrelated fixture number {i} about travel quotes and fares")
         self.codex = self.save(
-            decision="Mini Codex ChatGPT login rejects gpt-6.1-sol; use an API-key login",
-            why="HTTP 400 says the model is not supported with a ChatGPT account",
+            decision="Mini Codex login rejects the pinned model; use an API-key login",
+            why="The account cannot use that model, so use a key login",
+            evidence=["gpt-6.1-sol ChatGPT"],
         )
 
     def test_off_topic_query_returns_nothing(self) -> None:
@@ -93,9 +94,9 @@ class RankingThresholdTests(V2Base):
         self.assertNotIn(self.offtopic, self.ids("Mini fan noise is loud tonight"))
 
     def test_natural_problem_query_finds_the_record_first(self) -> None:
-        got = self.find("codex exec fails: model not supported with my ChatGPT account")
+        got = self.find("codex login rejects the pinned model account")
         self.assertEqual(got["matches"][0]["decision_id"], self.codex)
-        self.assertIn("ChatGPT account", got["matches"][0]["why"])
+        self.assertIn("key login", got["matches"][0]["why"])
 
     def test_confidence_never_lifts_an_off_topic_record(self) -> None:
         rev = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]["revision"]
@@ -114,7 +115,7 @@ class RankingThresholdTests(V2Base):
             rev += 1
         got = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]
         self.assertEqual(got["confidence"]["score"], 1.0)
-        self.assertEqual(self.ids("codex model not supported with ChatGPT account"), [self.codex])
+        self.assertEqual(self.ids("codex login rejects the pinned model"), [self.codex])
 
     def test_hourly_check_in_outcomes_do_not_count(self) -> None:
         rev = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]["revision"]
@@ -128,7 +129,7 @@ class RankingThresholdTests(V2Base):
         self.assertEqual(conf["sample_count"], 0)
 
     def test_entities_and_constraints_are_optional(self) -> None:
-        self.assertEqual(self.find("codex chatgpt account")["matches"][0]["decision_id"], self.codex)
+        self.assertEqual(self.find("codex account key login")["matches"][0]["decision_id"], self.codex)
 
     def test_stop_words_only_query_is_a_named_error(self) -> None:
         with self.assertRaises(LedgerError) as ctx:
@@ -220,14 +221,15 @@ class TraceLimitTests(V2Base):
 
 class LinksAndSignalsTests(V2Base):
     def test_find_surfaces_linked_precedent_once(self) -> None:
-        base = self.save(decision="Mini Codex ChatGPT login rejects gpt-6.1-sol",
-                         why="HTTP 400 model not supported with a ChatGPT account", entities=["codex-cli"])
-        ud = self.save(type="user_decision", decision="Review with Opus 5.5 until Codex API-key login works",
-                       why="Guru rule: gpt-6-astra or 6.1-sol reviews, Opus 5.5 fallback",
+        base = self.save(decision="Mini Codex login rejects the pinned model",
+                         why="The account cannot use that pinned model, so keep a fallback reviewer",
+                         entities=["codex-cli"])
+        ud = self.save(type="user_decision", decision="Fallback reviewer covers a Codex login reject",
+                       why="because the pinned model login needs a fallback reviewer",
                        entities=["codex-cli"], approver="guru", precedent_ids=[base])
-        got = self.find("codex review blocked, which reviewer now", limit=1)
+        got = self.find("codex login rejects the pinned model fallback reviewer", limit=1)
         self.assertEqual(got["matches"][0]["decision_id"], ud)
-        self.assertEqual(got["matches"][0]["related"], [{"id": base, "decision": "Mini Codex ChatGPT login rejects gpt-6.1-sol"}])
+        self.assertEqual(got["matches"][0]["related"], [{"id": base, "decision": "Mini Codex login rejects the pinned model"}])
 
     def test_off_topic_link_is_not_surfaced(self) -> None:
         other = self.save(decision="Travel quotes go stale after a day", why="fares move", entities=["travel"])
@@ -238,10 +240,10 @@ class LinksAndSignalsTests(V2Base):
         self.assertNotIn("related", got["matches"][0])
 
     def test_open_does_not_rebuild_links(self) -> None:
-        base = self.save(decision="Mini Codex ChatGPT login rejects gpt-6.1-sol",
-                         why="HTTP 400 model not supported with a ChatGPT account", entities=["codex-cli"])
-        hit = self.save(decision="Review with Opus until the API-key login works",
-                        why="fallback reviewer while Codex login is broken", entities=["codex-cli"],
+        base = self.save(decision="Mini Codex login rejects the pinned model",
+                         why="The account cannot use that pinned model", entities=["codex-cli"])
+        hit = self.save(decision="Fallback reviewer covers a Codex login reject",
+                        why="because the pinned model login needs a fallback reviewer", entities=["codex-cli"],
                         precedent_ids=[base])
         extra = _u()
         conn = self.store.open()
@@ -256,10 +258,10 @@ class LinksAndSignalsTests(V2Base):
             again.close()
 
     def test_unmarked_ledger_backfills_links_once(self) -> None:
-        base = self.save(decision="Mini Codex ChatGPT login rejects gpt-6.1-sol",
-                         why="HTTP 400 model not supported with a ChatGPT account", entities=["codex-cli"])
-        hit = self.save(decision="Review with Opus until the API-key login works",
-                        why="fallback reviewer while Codex login is broken", entities=["codex-cli"],
+        base = self.save(decision="Mini Codex login rejects the pinned model",
+                         why="The account cannot use that pinned model", entities=["codex-cli"])
+        hit = self.save(decision="Fallback reviewer covers a Codex login reject",
+                        why="because the pinned model login needs a fallback reviewer", entities=["codex-cli"],
                         precedent_ids=[base])
         conn = self.store.open()
         conn.execute("delete from links")
@@ -320,11 +322,11 @@ class LinksAndSignalsTests(V2Base):
         prev = None
         for i in range(5):
             prev = self.save(
-                decision=f"Codex review fallback case {i} uses Opus 5.5 while ChatGPT login fails",
-                why="Guru rule: gpt-6-astra or gpt-6.1-sol reviews, Opus 5.5 when they are unavailable today",
-                entities=["codex-cli", "mac-mini"], rule="reviewer-fallback", exception="chatgpt-login",
+                decision=f"Codex review fallback case {i} keeps a reviewer ready",
+                why="The pinned reviewer covers a Codex login reject because the account login fails",
+                entities=["codex-cli", "mac-mini"], rule="reviewer-fallback", exception="account-login",
                 precedent_ids=[prev] if prev else None)
-        got = self.find("codex review fallback opus chatgpt login")
+        got = self.find("codex review fallback reviewer")
         self.assertLessEqual(len(canonical_json(got).encode("utf-8")), MAX_FIND_BYTES)
         self.assertTrue(got["matches"])
 
@@ -335,8 +337,8 @@ class NotHelpedFixTests(V2Base):
 
     def setUp(self) -> None:
         super().setUp()
-        self.old = self.save(type="user_decision", decision="Reviews run on Codex gpt-6-astra with Opus fallback",
-                             why="Guru rule 2026-10-12: Codex plans and reviews, Grok implements",
+        self.old = self.save(type="user_decision", decision="Reviews run on the Codex reviewer for code review",
+                             why="because Codex plans and reviews and another agent implements",
                              entities=["code-review"], rule="reviewer-model")
         self.task = _u()
         rev = self.store.get({"decision_id": self.old}, mcp=True)["record"]["revision"]
@@ -370,7 +372,7 @@ class NotHelpedFixTests(V2Base):
         self.outcome(helpful=False, effect="not_helped", reason="Codex subscription lapsed; reviewer unavailable")
 
     def test_fix_needs_context_and_a_real_target(self) -> None:
-        kw = dict(type="user_decision", decision="Reviews run on Cursor composer-2.5", why="Codex lapsed",
+        kw = dict(type="user_decision", decision="Reviews run on the Cursor agent", why="because the reviewer path lapsed",
                   entities=["code-review"])
         self.reject(lambda: self.save(supersedes=self.old, **kw), "needs context")
         self.reject(lambda: self.save(supersedes=_u(), context="code review", **kw), "not a visible record")
@@ -383,8 +385,8 @@ class NotHelpedFixTests(V2Base):
         # Before: the old rule is the top hit for a review question.
         self.assertEqual(self.ids("who reviews the code now")[0], self.old)
         self.outcome(helpful=False, effect="not_helped", reason="Codex subscription lapsed; reviewer unavailable")
-        fix = self.save(type="user_decision", decision="Reviews run on Cursor agent composer-2.5",
-                        why="Codex not renewed; strongest non-Grok model available", entities=["code-review"],
+        fix = self.save(type="user_decision", decision="Reviews run on the Cursor agent",
+                        why="because the previous reviewer path lapsed", entities=["code-review"],
                         supersedes=self.old, context="code review and planning", task_id=self.task)
         got = self.find("who reviews the code now")
         ids = [m["decision_id"] for m in got["matches"]]
@@ -402,8 +404,8 @@ class NotHelpedFixTests(V2Base):
     def test_out_of_context_query_is_not_reordered(self) -> None:
         other = self.save(decision="Mini fan noise: check launchd jobs first", why="fan spikes track cron jobs",
                           entities=["mac-mini"])
-        self.save(type="user_decision", decision="Reviews run on Cursor agent composer-2.5",
-                  why="Codex not renewed", entities=["code-review"], supersedes=self.old,
+        self.save(type="user_decision", decision="Reviews run on the Cursor agent",
+                  why="because the previous reviewer path lapsed", entities=["code-review"], supersedes=self.old,
                   context="code review and planning", task_id=self.task)
         self.assertEqual(self.ids("mini fan noise launchd"), [other])
 
@@ -475,7 +477,7 @@ class TrustTierTests(V2Base):
         return self.find(query)["matches"][0]["tier"]
 
     def test_find_tiers_from_outcomes(self) -> None:
-        a = self.save(decision="Comet reads zerodha holdings for WH6470", why="kite connector blocked")
+        a = self.save(decision="Comet reads zerodha holdings for WH6470", why="kite connector is the only path")
         self.mark(a, 2, 0)
         self.assertEqual(self.tier("comet zerodha holdings WH6470"), "hint")
         self.mark(a, 1, 0)

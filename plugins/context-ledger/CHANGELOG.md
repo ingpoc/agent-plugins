@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.27
+
+- Every record has an applicability scope, `fleet`, `project:<id>`, or `tool:<id>`. `find` takes `caller_scope` and hard-filters to fleet plus that project and those tools, then ranks by text only. An entity or tag does not return a record with no text match.
+- `save` requires a scope. The tool description asks whether the rule is still true in another project. Decision text is a lasting rule. Versions, SHAs, PR or Project ids, model names, and status words belong in evidence. A pure status save is refused and points at the tracker. A time-bound decision needs `expires_at` or `replace_when`. Expired decisions stay out of `find`.
+- `find` returns at most 3 hits that pass the scope filter and the relevance floor. Zero hits is allowed.
+- `scripts/migrate_scope.py` re-scopes records and rewrites or archives volatile ones. The default is a dry-run JSON report. Apply writes lifecycle `archived` into a dated archive and never deletes a row. It refuses `~/.context-ledger`.
+
 ## Unreleased: ledger viewer v1
 
 - `browse` now draws `ui://context-ledger/ledger-v2.html`, the approved prototype on real data: decisions with why, search, activity in IST, outcomes, confidence, trust tier, and the A/B trial. `ui/browse.html` and its harness are removed.

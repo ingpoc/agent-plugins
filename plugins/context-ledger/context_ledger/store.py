@@ -34,6 +34,7 @@ from context_ledger.contracts import (
     MAX_TOMBSTONE_BYTES,
     SCHEMA_VERSION,
     LedgerError,
+    allowed_scopes,
     canonical_json,
     fail_dict,
     fts_tokens,
@@ -616,7 +617,7 @@ class Store:
                 receipt = parse_json(existing["receipt_json"])
                 receipt["replayed"] = True
                 return receipt
-            decision_id = new_uuid()
+            decision_id = parsed.get("decision_id") or new_uuid()
             event_id = new_uuid()
             recorded = now_ts()
             event = {
@@ -963,10 +964,10 @@ class Store:
         self._ensure_reachable()
         parsed = validate_find_input(arguments)
         qterms = ranking.query_terms(parsed["query"])
-        if not qterms and not parsed["entities"] and not parsed["constraints"]:
+        if not qterms:
             raise LedgerError(
                 "INVALID_ARGUMENT",
-                message="find needs query words (or entities); stop-words alone match nothing",
+                message="find needs query words; stop-words alone match nothing",
             )
         if mcp and ab_arm(self.ab_today()) == "off":
             with self._tx() as conn:
@@ -981,10 +982,17 @@ class Store:
                 (scope,),
             ).fetchall()
             recs: dict[str, dict[str, Any]] = {}
+            allowed = allowed_scopes(parsed["caller_scope"]) if parsed["caller_scope"] else None
+            now = now_ts()
             for row in rows:
                 rec = self._get_record(conn, row["decision_id"], mcp=True)
-                if rec is not None:
-                    recs[row["decision_id"]] = rec
+                if rec is None or rec["lifecycle"] == "archived":
+                    continue
+                if self._expired(rec, now):
+                    continue
+                if allowed is not None and rec["body"].get("scope") not in allowed:
+                    continue
+                recs[row["decision_id"]] = rec
             corpus = ranking.Corpus((did, rec["body"], rec.get("revision")) for did, rec in recs.items())
             repeats = self._repeat_counts(recs)
             scored: list[tuple[tuple, dict[str, Any]]] = []
@@ -997,11 +1005,9 @@ class Store:
                 if rec["lifecycle"] != "active" and not parsed["include_superseded"]:
                     continue
                 body = rec["body"]
-                ent_hits = sum(1 for e in parsed["entities"] if e in body["entities"])
-                con_hits = sum(1 for c in parsed["constraints"] if c in body["constraints"])
                 bm25, cov, matched = text_of[did]
                 text_ok = bool(qterms) and ranking.relevant(cov, matched, len(qterms))
-                if not (text_ok or ent_hits or con_hits):
+                if not text_ok:
                     continue
                 rtype = ranking.record_type(body)
                 rank_as = ranking.rank_type(body)
@@ -1014,8 +1020,6 @@ class Store:
                 ev_rank = 0 if ev == "reported_verified" else 1 if ev in {"unverified", "none"} else 2
                 conf = rec["confidence"]["score"] or 0.0
                 key = (
-                    -ent_hits,
-                    -con_hits,
                     -final,
                     0 if rank_as == "user_decision" else 1,
                     self._outcome_rank(rec),
@@ -1046,7 +1050,7 @@ class Store:
                 hit["tier"] = self._tier(conn, rec, rec["decision_id"] in demoted)
                 if rec["decision_id"] in demoted:
                     hit["flag"] = "not_helped here"
-                rel = self._related(conn, rec, recs, text_of, shown)
+                rel = self._related(conn, rec, recs, text_of, shown, qterms)
                 if rel:
                     hit["related"] = rel
                     shown |= {r["id"] for r in rel}
@@ -1158,6 +1162,11 @@ class Store:
                 counts[key] = counts.get(key, 0) + 1
         return counts
 
+    @staticmethod
+    def _expired(rec: dict[str, Any], now: str) -> bool:
+        expires = (rec["body"].get("trace") or {}).get("expires_at")
+        return bool(expires) and expires < now
+
     def _related(
         self,
         conn: sqlite3.Connection,
@@ -1165,12 +1174,12 @@ class Store:
         recs: dict[str, dict[str, Any]],
         text_of: dict[str, tuple[float, float, int]],
         shown: set[str],
+        qterms: list[str],
     ) -> list[dict[str, Any]]:
-        """One hop over links (precedents it relied on, then cases that cite it), capped, on-topic."""
+        """One hop over links, capped. A shared entity is not a text match."""
         did = rec["decision_id"]
         ids = [r[0] for r in conn.execute("select dst from links where src=? order by dst", (did,))]
         ids += [r[0] for r in conn.execute("select src from links where dst=? order by src", (did,))]
-        ents = set(rec["body"]["entities"])
         out: list[dict[str, Any]] = []
         for other in ids:
             if other in shown or other not in recs or any(o["id"] == other for o in out):
@@ -1178,8 +1187,8 @@ class Store:
             orec = recs[other]
             if orec["lifecycle"] != "active":
                 continue
-            on_topic = text_of.get(other, (0, 0, 0))[2] >= 1 or bool(ents & set(orec["body"]["entities"]))
-            if not on_topic:
+            _bm, cov, matched = text_of.get(other, (0.0, 0.0, 0))
+            if not qterms or not ranking.relevant(cov, matched, len(qterms)):
                 continue
             out.append({"id": other, "decision": orec["body"]["summary"]})
             if len(out) >= RELATED_CAP:
@@ -1237,7 +1246,8 @@ class Store:
             "constraints": [],
             "applicability": trace.get("rule") or parsed["decision"],
             "entities": parsed["entities"],
-            "evidence": [],
+            "evidence": parsed["evidence"],
+            "scope": parsed["scope"],
             "sensitivity": "model_safe",
             "approval": (
                 {"state": "self_reported", "authority_ref": "guru"}
@@ -1908,6 +1918,10 @@ class Store:
         rec = parse_json(cur["projection_json"])
         if mcp and rec["body"]["sensitivity"] == "local_only":
             raise LedgerError("UNAVAILABLE")
+        if et == "archived":
+            if rec["lifecycle"] == "archived":
+                raise LedgerError("INVALID_TRANSITION")
+            return
         if et == "corrected":
             if payload["body"]["kind"] != rec["body"]["kind"]:
                 raise LedgerError("INVALID_TRANSITION")
@@ -2256,6 +2270,7 @@ class Store:
         approval_event_ingest = "local"
         kind = None
         superseded = False
+        archived = False
         replacement_id = None
         openings: list[dict[str, Any]] = []
         resolved_openings: set[str] = set()
@@ -2310,6 +2325,8 @@ class Store:
                 approval_event_ingest = ingest
                 if ingest == "import":
                     imported_evidence_ids |= self._evidence_identities(supplied)
+            elif et == "archived":
+                archived = True
             elif et == "superseded":
                 if superseded:
                     raise LedgerError("INVALID_TRANSITION")
@@ -2347,7 +2364,7 @@ class Store:
                 "inconclusive": inconclusive,
                 "sample_count": sample_count,
             },
-            "lifecycle": "superseded" if superseded else "active",
+            "lifecycle": "archived" if archived else ("superseded" if superseded else "active"),
             "replacement_id": replacement_id,
             "openings": openings,
             "resolved_openings": resolved_openings,

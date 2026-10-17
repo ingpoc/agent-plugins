@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.27
+
+`find` hard-filters by the caller's scope (fleet, the bound project, and the tools in play) and ranks by text only, at most 3 hits. `save` requires a scope and refuses a status update or a volatile pin in the decision text. `scripts/migrate_scope.py` prints a dry-run report and, when applied, archives volatile records.
+
 ## 0.1.26
 
 Opening the ledger backfills precedent and fix links once. Later opens leave those tables alone. `ledger_loop.py` sends a bearer token only when `CONTEXT_LEDGER_MCP_URL` is set. A `user_decision` ranks above an equal match only after the owner attests it; a self-reported save does not.

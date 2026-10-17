@@ -359,8 +359,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.26")
-        self.assertIn('__version__ = "0.1.26"', init)
+        self.assertEqual(plugin["version"], "0.1.27")
+        self.assertIn('__version__ = "0.1.27"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -373,7 +373,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
-        self.assertIn('version:"0.1.26"', page)
+        self.assertIn('version:"0.1.27"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
@@ -788,7 +788,7 @@ class StoreTests(unittest.TestCase):
         self.assertGreater(unrelated["distance"], live["distance"])
         found = self.store.find(
             {
-                "query": "",
+                "query": "marketplace badge",
                 "entities": ["helper-selection"],
                 "constraints": [],
                 "limit": 3,
@@ -949,7 +949,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(marked["outcome"]["status"], "inconclusive")
         found = self.store.find(
             {
-                "query": "",
+                "query": "marketplace badge",
                 "entities": ["helper-selection"],
                 "constraints": [],
                 "limit": 3,
@@ -989,7 +989,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(marked["outcome"]["status"], "inconclusive")
         found = self.store.find(
             {
-                "query": "",
+                "query": "marketplace badge",
                 "entities": ["helper-selection"],
                 "constraints": [],
                 "limit": 3,
@@ -1310,7 +1310,7 @@ class StoreTests(unittest.TestCase):
             {
                 "request_id": _uuid(),
                 "occurred_at": None,
-                "body": _body(summary="band inconclusive", entities=["rank-incon"]),
+                "body": _body(summary="marker inconclusive", entities=["rank-incon"]),
                 "outcome": _outcome("inconclusive", note="unsure"),
             },
             mcp=False,
@@ -1319,7 +1319,7 @@ class StoreTests(unittest.TestCase):
             {
                 "request_id": _uuid(),
                 "occurred_at": None,
-                "body": _body(summary="band still pending", entities=["rank-incon"]),
+                "body": _body(summary="marker still pending", entities=["rank-incon"]),
                 "outcome": _outcome("pending"),
             },
             mcp=False,
@@ -1333,7 +1333,7 @@ class StoreTests(unittest.TestCase):
             [pending["decision_id"], abandoned["decision_id"], failed["decision_id"]],
         )
         other = self.store.find(
-            {"query": "band", "entities": ["rank-incon"], "constraints": [], "limit": 2},
+            {"query": "marker", "entities": ["rank-incon"], "constraints": [], "limit": 2},
             mcp=True,
         )
         self.assertEqual(

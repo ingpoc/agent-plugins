@@ -51,11 +51,12 @@ class ViewerBase(unittest.TestCase):
         self.kite = self.store.save({"request_id": _u(), "type": "user_decision", "actor": "efficient",
                                      "decision": "Kite holdings are read through Mini Comet only",
                                      "why": "The broker session is trusted only on the Mini",
-                                     "entities": ["kite"], "rule": "broker-session"}, mcp=True)["decision_id"]
+                                     "entities": ["kite"], "rule": "broker-session", "scope": "fleet"}, mcp=True)["decision_id"]
         for i in range(30):
             self.store.save({"request_id": _u(), "type": "agent_conclusion", "criticality": 2, "actor": "orn",
                              "decision": f"Fixture conclusion {i} about train fares and seat quotas",
-                             "why": "Filler so the list needs more than one page", "entities": ["travel"]}, mcp=True)
+                             "why": "Filler so the list needs more than one page", "entities": ["travel"],
+                             "scope": "fleet"}, mcp=True)
         self.secret = self.store.record({"request_id": _u(), "occurred_at": None,
                                          "body": _body("Local only kite note", "local_only"),
                                          "outcome": {"status": "pending", "note": "", "evidence": []}}, mcp=False)["decision_id"]
