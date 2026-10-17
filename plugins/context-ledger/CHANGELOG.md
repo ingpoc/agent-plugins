@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.26
+
+- `Store.open` creates the v2 tables and backfills `links` and `fix_links` once. Later opens do not delete and rescan them. A projection write still updates links for that decision.
+- `scripts/ledger_loop.py` has no default MCP URL. A `CONTEXT_LEDGER_MCP_TOKEN` with an empty `CONTEXT_LEDGER_MCP_URL` is not sent.
+- `find` ranks a `user_decision` above an equal text match only when `approval.state` is `owner_attested`. A `self_reported` save does not get that boost.
+- The one-copy find/get JSON shape lives in `tool_content`. `tests/test_v2.py` does not import the MCP server.
+
 ## 0.1.25
 
 - An applied outcome (one with `applied_event_id`) must set `helpful` true or false. `helpful: false` needs `effect` `not_helped` or `misled` and a one-line `reason` of 20 words or fewer. Otherwise the outcome is rejected and nothing is written.

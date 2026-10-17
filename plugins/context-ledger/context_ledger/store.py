@@ -137,6 +137,10 @@ CREATE TABLE IF NOT EXISTS access_log (
   ids TEXT NOT NULL CHECK(json_valid(ids)),
   ms INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS v2_meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
 """
 
 WINDOWS_ACL_SCRIPT = r"""
@@ -469,15 +473,21 @@ class Store:
         return conn
 
     def _ensure_v2(self, conn: sqlite3.Connection) -> None:
-        """Additive v2 tables, then backfill links from current projections. Never drops data."""
+        """Additive v2 tables. Backfill links once; later opens do not rescan or take a write lock."""
         try:
             conn.executescript(V2_DDL)
+            if conn.execute("select 1 from v2_meta where key='links_backfill'").fetchone():
+                return
             conn.execute("begin immediate")
             try:
-                conn.execute("delete from links")
-                conn.execute("delete from fix_links")
-                for row in conn.execute("select decision_id, projection_json from current_records").fetchall():
-                    self._write_links(conn, row["decision_id"], parse_json(row["projection_json"])["body"])
+                if conn.execute("select 1 from v2_meta where key='links_backfill'").fetchone() is None:
+                    conn.execute("delete from links")
+                    conn.execute("delete from fix_links")
+                    for row in conn.execute(
+                        "select decision_id, projection_json from current_records"
+                    ).fetchall():
+                        self._write_links(conn, row["decision_id"], parse_json(row["projection_json"])["body"])
+                    conn.execute("insert into v2_meta(key, value) values ('links_backfill', '1')")
                 conn.execute("commit")
             except BaseException:
                 conn.execute("rollback")
@@ -986,8 +996,9 @@ class Store:
                 if not (text_ok or ent_hits or con_hits):
                     continue
                 rtype = ranking.record_type(body)
-                crit = (body.get("trace") or {}).get("criticality", 0)
-                boost = ranking.TYPE_BOOST[rtype] * (1 + 0.05 * crit)
+                rank_as = ranking.rank_type(body)
+                crit = (body.get("trace") or {}).get("criticality") or 0
+                boost = ranking.TYPE_BOOST[rank_as] * (1 + 0.05 * crit)
                 final = round(bm25 * boost, 1) if text_ok else 0.0
                 if did in demoted:
                     final = round(final * ranking.NOT_HELPED_FACTOR, 1)
@@ -998,7 +1009,7 @@ class Store:
                     -ent_hits,
                     -con_hits,
                     -final,
-                    0 if rtype == "user_decision" else 1,
+                    0 if rank_as == "user_decision" else 1,
                     self._outcome_rank(rec),
                     ev_rank,
                     -conf,

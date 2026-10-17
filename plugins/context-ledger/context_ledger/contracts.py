@@ -832,5 +832,13 @@ def ok(data: Any) -> dict[str, Any]:
     return {"ok": True, "data": data}
 
 
+def tool_content(payload: dict[str, Any], *, structured: bool) -> tuple[str, dict[str, Any] | None]:
+    """JSON for one MCP tool result. structured=False is a single text copy (find and get)."""
+    text = canonical_json(payload)
+    if not structured:
+        return text, None
+    return text, payload
+
+
 def fail_dict(exc: LedgerError) -> dict[str, Any]:
     return exc.as_dict()

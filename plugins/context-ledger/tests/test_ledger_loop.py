@@ -400,6 +400,19 @@ class RemoteModeTests(LedgerLoopBase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assert_pass(self.box_run("close", self.task), 1)
 
+    def test_token_without_url_is_not_sent(self) -> None:
+        text = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("taild2e98e", text)
+        self.assertNotIn("DEFAULT_URL", text)
+        r = self.run_loop(
+            "find", self.task, "--bot", "box", "--query", "codex model rejected",
+            data=self.box, env={"CONTEXT_LEDGER_MCP_TOKEN": "secret-token"},
+        )
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("CONTEXT_LEDGER_MCP_URL", r.stderr)
+        self.assertNotIn("secret-token", r.stdout + r.stderr)
+        self.assertNotIn("ts.net", r.stdout + r.stderr)
+
     def test_find_server_down_fails_open_in_one_line(self) -> None:
         self.httpd.shutdown()
         self.httpd.server_close()

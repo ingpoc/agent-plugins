@@ -2,7 +2,8 @@
 
 Order of evidence, strongest first:
   1. text match (BM25, field-weighted) or an exact entity match; nothing below the floor returns
-  2. record type: a user_decision (Guru's override) outranks an agent_conclusion of equal match
+  2. record type: an owner-attested user_decision outranks an agent_conclusion of equal match.
+     A self_reported user_decision does not; any caller can write that state.
   3. outcome, evidence and confidence only break ties; they never lift an off-topic record
 """
 
@@ -72,6 +73,17 @@ def query_terms(query: str, limit: int = 12) -> list[str]:
 def record_type(body: dict[str, Any]) -> str:
     trace = body.get("trace")
     return trace["type"] if trace else "legacy"
+
+
+def rank_type(body: dict[str, Any]) -> str:
+    """Type used for the rank boost. self_reported user_decision gets none."""
+    rtype = record_type(body)
+    if rtype != "user_decision":
+        return rtype
+    state = (body.get("approval") or {}).get("state")
+    if state == "owner_attested":
+        return "user_decision"
+    return "agent_conclusion"
 
 
 def fields(body: dict[str, Any]) -> tuple[list[str], list[str], list[str]]:

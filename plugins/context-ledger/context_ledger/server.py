@@ -22,6 +22,7 @@ from context_ledger.contracts import (
     fail_dict,
     ok,
     parse_json,
+    tool_content,
 )
 from context_ledger.mcp_schema import (
     AppendEventInput,
@@ -43,13 +44,12 @@ logging.getLogger(__name__).setLevel(logging.ERROR)
 
 
 def _result(payload: dict[str, Any], *, is_error: bool, structured: bool = True) -> CallToolResult:
-    text = canonical_json(payload)
-    if not structured:
-        # One copy only: find/get send the JSON once, as text (v2 dedupe).
+    text, structured_content = tool_content(payload, structured=structured)
+    if structured_content is None:
         return CallToolResult(content=[TextContent(type="text", text=text)], is_error=is_error)
     return CallToolResult(
         content=[TextContent(type="text", text=text)],
-        structured_content=payload,
+        structured_content=structured_content,
         is_error=is_error,
     )
 

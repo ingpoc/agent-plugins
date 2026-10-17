@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.26
+
+Opening the ledger backfills precedent and fix links once. Later opens leave those tables alone. `ledger_loop.py` sends a bearer token only when `CONTEXT_LEDGER_MCP_URL` is set. A `user_decision` ranks above an equal match only after the owner attests it; a self-reported save does not.
+
 ## 0.1.25
 
 An applied outcome must say `helpful`. A decision that did not help gets `effect` (`not_helped`/`misled`) and a short reason, and the fix found by debugging is saved with `supersedes` or `exception_for` plus a short `context`. In that context the fix ranks above the old decision, whose confidence there drops. `ledger_loop.py close` enforces all of it.

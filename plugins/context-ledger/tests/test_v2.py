@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from context_ledger.contracts import MAX_FIND_BYTES, LedgerError, canonical_json  # noqa: E402
+from context_ledger.contracts import MAX_FIND_BYTES, LedgerError, canonical_json, ok, tool_content  # noqa: E402
 from context_ledger.store import Store, init_ledger  # noqa: E402
 
 
@@ -135,14 +135,29 @@ class RankingThresholdTests(V2Base):
 
 
 class UserDecisionRankingTests(V2Base):
-    def test_user_decision_outranks_agent_conclusion_on_equal_match(self) -> None:
-        agent = self.save(decision="Kite reads for WH6470 go through Mini Comet",
-                          why="The Kite MCP needs authorize links on every session",
-                          entities=["kite"], criticality=5)
+    def test_self_reported_user_decision_does_not_outrank(self) -> None:
         guru = self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
                          why="Guru standing rule: never the Kite MCP for funds or holdings",
                          entities=["kite"], criticality=None, approver="guru")
-        self.assertEqual(self.ids("kite reads for WH6470 through comet")[:2], [guru, agent])
+        agent = self.save(decision="Kite reads for WH6470 go through Mini Comet",
+                          why="The Kite MCP needs authorize links on every session",
+                          entities=["kite"], criticality=5)
+        rec = self.store.get({"decision_id": guru}, mcp=True)["record"]
+        self.assertEqual(rec["body"]["approval"]["state"], "self_reported")
+        self.assertEqual(self.ids("kite reads for WH6470 through comet")[:2], [agent, guru])
+
+    def test_owner_attested_user_decision_outranks_on_equal_match(self) -> None:
+        guru = self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
+                         why="Guru standing rule: never the Kite MCP for funds or holdings",
+                         entities=["kite"], criticality=None, approver="guru")
+        rev = self.store.get({"decision_id": guru}, mcp=False)["record"]["revision"]
+        self.store.attest(guru, rev, _u(), "guru", "owner attested")
+        self.save(decision="Kite reads for WH6470 go through Mini Comet",
+                  why="The Kite MCP needs authorize links on every session",
+                  entities=["kite"], criticality=5)
+        rec = self.store.get({"decision_id": guru}, mcp=False)["record"]
+        self.assertEqual(rec["body"]["approval"]["state"], "owner_attested")
+        self.assertEqual(self.ids("kite reads for WH6470 through comet")[0], guru)
 
     def test_user_decision_below_the_floor_is_not_returned(self) -> None:
         self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
@@ -219,6 +234,55 @@ class LinksAndSignalsTests(V2Base):
         got = self.find("kite reads comet")
         self.assertEqual(got["matches"][0]["decision_id"], hit)
         self.assertNotIn("related", got["matches"][0])
+
+    def test_open_does_not_rebuild_links(self) -> None:
+        base = self.save(decision="Mini Codex ChatGPT login rejects gpt-6.1-sol",
+                         why="HTTP 400 model not supported with a ChatGPT account", entities=["codex-cli"])
+        hit = self.save(decision="Review with Opus until the API-key login works",
+                        why="fallback reviewer while Codex login is broken", entities=["codex-cli"],
+                        precedent_ids=[base])
+        extra = _u()
+        conn = self.store.open()
+        conn.execute("insert into links(src,dst,kind) values (?,?, 'precedent')", (hit, extra))
+        self.store.close()
+        again = Store(self.data, actor_channel="agent")
+        try:
+            dsts = [r[0] for r in again.open().execute("select dst from links where src=?", (hit,))]
+            self.assertIn(base, dsts)
+            self.assertIn(extra, dsts)
+        finally:
+            again.close()
+
+    def test_unmarked_ledger_backfills_links_once(self) -> None:
+        base = self.save(decision="Mini Codex ChatGPT login rejects gpt-6.1-sol",
+                         why="HTTP 400 model not supported with a ChatGPT account", entities=["codex-cli"])
+        hit = self.save(decision="Review with Opus until the API-key login works",
+                        why="fallback reviewer while Codex login is broken", entities=["codex-cli"],
+                        precedent_ids=[base])
+        conn = self.store.open()
+        conn.execute("delete from links")
+        conn.execute("delete from v2_meta")
+        self.store.close()
+        again = Store(self.data, actor_channel="agent")
+        try:
+            dsts = [r[0] for r in again.open().execute("select dst from links where src=?", (hit,))]
+            self.assertEqual(dsts, [base])
+            self.assertEqual(
+                again.conn.execute("select value from v2_meta where key='links_backfill'").fetchone()[0],
+                "1",
+            )
+            extra = _u()
+            again.conn.execute("insert into links(src,dst,kind) values (?,?, 'precedent')", (hit, extra))
+            again.close()
+            third = Store(self.data, actor_channel="agent")
+            try:
+                dsts = [r[0] for r in third.open().execute("select dst from links where src=?", (hit,))]
+                self.assertEqual(sorted(dsts), sorted([base, extra]))
+            finally:
+                third.close()
+        finally:
+            if again.conn is not None:
+                again.close()
 
     def test_repeated_rule_and_exception_counts_as_automation_candidate(self) -> None:
         for i in range(3):
@@ -343,11 +407,10 @@ class NotHelpedFixTests(V2Base):
 
 class McpOutputTests(V2Base):
     def test_find_sends_one_copy(self) -> None:
-        from context_ledger.server import _call
-
-        result = _call(lambda a: {"matches": [], "has_more": False}, {}, structured=False)
-        self.assertIsNone(result.structured_content)
-        self.assertEqual(len(result.content), 1)
+        text, structured = tool_content(ok({"matches": [], "has_more": False}), structured=False)
+        self.assertIsNone(structured)
+        self.assertEqual(json.loads(text)["data"], {"matches": [], "has_more": False})
+        self.assertEqual(text.count('"matches"'), 1)
 
 
 if __name__ == "__main__":

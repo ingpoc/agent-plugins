@@ -25,8 +25,8 @@ unreadable in audit mode, or bad auth). PASS needs either --gated-out WORD, or:
      event with this task_id) whose status is final and that cites evidence.
 
 Backends: DATA/binding.json -> the bound SQLite ledger via context_ledger.store.Store;
-else CONTEXT_LEDGER_MCP_TOKEN -> MCP over HTTP (CONTEXT_LEDGER_MCP_URL, default below);
-else the ledger is unavailable (WARN, or FAIL in audit mode).
+else CONTEXT_LEDGER_MCP_TOKEN and CONTEXT_LEDGER_MCP_URL -> MCP over HTTP.
+A token with no URL is not sent. Otherwise the ledger is unavailable (WARN, or FAIL in audit mode).
 DATA is --data, else CONTEXT_LEDGER_DATA, else ~/.context-ledger. Lookups are logged to
 DATA/ledger-loop/starts.jsonl (override LEDGER_LOOP_LOG).
 """
@@ -44,7 +44,6 @@ import uuid as uuidlib
 import urllib.request
 from pathlib import Path
 
-DEFAULT_URL = "https://gurusharan-mac-codex.taild2e98e.ts.net/mcp"
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 FINAL = {"success", "failed", "inconclusive", "abandoned"}
 USABLE_EVIDENCE = {"unverified", "reported_verified"}
@@ -61,6 +60,17 @@ PLACEHOLDER_IDS = {
     "ffffffff-ffff-ffff-ffff-ffffffffffff",
 }
 WORD_RE = re.compile(r"^[a-z][a-z-]{1,23}$")
+
+
+def require_mcp_url() -> str:
+    """URL is required before a bearer token is sent. There is no default host."""
+    url = (os.environ.get("CONTEXT_LEDGER_MCP_URL") or "").strip()
+    if not url:
+        raise Unavailable(
+            "UNBOUND",
+            "CONTEXT_LEDGER_MCP_TOKEN is set but CONTEXT_LEDGER_MCP_URL is empty; the token is not sent",
+        )
+    return url
 
 
 def timeout_s() -> float:
@@ -294,7 +304,7 @@ class Mcp:
 
 
 def remote_events(task_id: str, candidates: list[str], token: str) -> tuple[list[dict], str]:
-    url = (os.environ.get("CONTEXT_LEDGER_MCP_URL") or "").strip() or DEFAULT_URL
+    url = require_mcp_url()
     client = Mcp(url, token, task_id, timeout=timeout_s() * 3)
     client.open()
     events: list[dict] = []
@@ -418,7 +428,7 @@ def _call(data: Path, task_id: str, name: str, arguments: dict) -> tuple[dict, s
     token = os.environ.get("CONTEXT_LEDGER_MCP_TOKEN", "").strip()
     if not token:
         raise Unavailable("UNBOUND", f"no {data / 'binding.json'} and CONTEXT_LEDGER_MCP_TOKEN is empty")
-    url = (os.environ.get("CONTEXT_LEDGER_MCP_URL") or "").strip() or DEFAULT_URL
+    url = require_mcp_url()
     client = Mcp(url, token, task_id, timeout=timeout_s())
     try:
         # serve-http answers a stateless tools/call: one round trip keeps the box under the deadline.
