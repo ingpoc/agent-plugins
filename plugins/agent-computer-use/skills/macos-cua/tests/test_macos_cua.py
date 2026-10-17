@@ -42,6 +42,9 @@ def _assert_no_tool_call_spawn(run_mock):
             raise AssertionError(f"tool call spawned subprocess: {argv}")
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cursor_png_fixtures  # noqa: E402
+
 SCRIPT = Path(__file__).parents[1] / "scripts" / "macos-cua.py"
 SPEC = importlib.util.spec_from_file_location("macos_cua", SCRIPT)
 macos_cua = importlib.util.module_from_spec(SPEC)
@@ -1679,40 +1682,24 @@ class DisplayAlignmentTests(unittest.TestCase):
 
 
 class CursorProofTests(unittest.TestCase):
+    """Cursor raster/proof logic. AppKit is faked at the import boundary.
+
+    Real AppKit and /usr/bin/sips cases live in
+    integration_macos_cua_cursor.py (INTEGRATION_REQUIRES macOS).
+    """
+
+    def setUp(self):
+        appkit = mock.patch.dict(sys.modules, {"AppKit": cursor_png_fixtures.fake_appkit()})
+        appkit.start()
+        self.addCleanup(appkit.stop)
+
     @staticmethod
     def _png_header(width=96, height=96):
-        return (
-            b"\x89PNG\r\n\x1a\n"
-            + (13).to_bytes(4, "big")
-            + b"IHDR"
-            + int(width).to_bytes(4, "big")
-            + int(height).to_bytes(4, "big")
-        )
+        return cursor_png_fixtures.png_header(width, height)
 
-    @classmethod
-    def _png_bytes(cls, width=96, height=96, alpha=255):
-        def chunk(name, payload):
-            checksum = zlib.crc32(name + payload) & 0xFFFFFFFF
-            return (
-                len(payload).to_bytes(4, "big")
-                + name
-                + payload
-                + checksum.to_bytes(4, "big")
-            )
-
-        ihdr = (
-            int(width).to_bytes(4, "big")
-            + int(height).to_bytes(4, "big")
-            + bytes((8, 6, 0, 0, 0))
-        )
-        pixel = bytes((16, 32, 48, int(alpha)))
-        scanlines = (b"\x00" + pixel * int(width)) * int(height)
-        return (
-            cls._png_header(width, height)[:8]
-            + chunk(b"IHDR", ihdr)
-            + chunk(b"IDAT", zlib.compress(scanlines))
-            + chunk(b"IEND", b"")
-        )
+    @staticmethod
+    def _png_bytes(width=96, height=96, alpha=255):
+        return cursor_png_fixtures.png_bytes(width, height, alpha)
 
     def test_cursor_ack_requires_matching_update_and_target_identity(self):
         original_cache = macos_cua.CACHE_DIR
@@ -1975,75 +1962,6 @@ class CursorProofTests(unittest.TestCase):
             ],
         )
         self.assertEqual(run.call_args.kwargs["timeout"], 15)
-
-    def test_cursor_proof_uses_the_hermes_extension_asset(self):
-        from AppKit import (
-            NSBitmapImageFileTypePNG,
-            NSBitmapImageRep,
-            NSColor,
-            NSImage,
-            NSMakeRect,
-            NSRectFill,
-        )
-
-        self.assertTrue(Path(macos_cua.CURSOR_ICON).is_file())
-        self.assertEqual(Path(macos_cua.CURSOR_ICON).name, "pointer-shape-animated.svg")
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source = root / "source.png"
-            image = NSImage.alloc().initWithSize_((120, 120))
-            image.lockFocus()
-            NSColor.windowBackgroundColor().setFill()
-            NSRectFill(NSMakeRect(0, 0, 120, 120))
-            representation = NSBitmapImageRep.alloc().initWithFocusedViewRect_(
-                NSMakeRect(0, 0, 120, 120)
-            )
-            image.unlockFocus()
-            data = representation.representationUsingType_properties_(
-                NSBitmapImageFileTypePNG, {}
-            )
-            data.writeToFile_atomically_(str(source), True)
-
-            result = macos_cua.annotate_cursor_screenshot(source, 0.5, 0.5)
-
-            self.assertTrue(result["ok"], result)
-            self.assertEqual(result["cursor_asset"], macos_cua.CURSOR_ICON)
-            self.assertGreater(
-                Path(result["path"]).stat().st_size, source.stat().st_size
-            )
-
-    def test_native_cursor_raster_uses_the_same_hermes_asset(self):
-        with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "pointer.png"
-            result = macos_cua.cursor_raster_path(
-                macos_cua.CURSOR_ICON, output, size=96
-            )
-
-            self.assertEqual(Path(result), output)
-            self.assertTrue(output.is_file())
-            self.assertGreater(output.stat().st_size, 100)
-            self.assertEqual(macos_cua._validate_cursor_raster(output, 96), (96, 96))
-
-    def test_real_cursor_svg_uses_appkit_when_sips_exits_13(self):
-        failure = SimpleNamespace(
-            returncode=13,
-            stderr="Cannot extract image from file / Error 13 unknown",
-        )
-        with (
-            tempfile.TemporaryDirectory() as directory,
-            mock.patch.object(macos_cua.subprocess, "run", return_value=failure) as run,
-            mock.patch.object(macos_cua.time, "sleep") as sleep,
-        ):
-            output = Path(directory) / "pointer.png"
-            result = macos_cua.cursor_raster_path(
-                macos_cua.CURSOR_ICON, output, size=96
-            )
-
-            self.assertEqual(Path(result), output)
-            self.assertGreater(output.stat().st_size, 100)
-            self.assertEqual(macos_cua._validate_cursor_raster(output, 96), (96, 96))
-            self.assertEqual(run.call_count, 2)
-            sleep.assert_called_once_with(0.05)
 
     def test_cursor_raster_retries_once_after_sips_failure_then_succeeds(self):
         calls = []
@@ -2359,8 +2277,15 @@ class CursorProofTests(unittest.TestCase):
             "ok": True, "visible": False, "idle_hide_ms": 120000, "auto_hide": True,
             "effective_hide_ms": 120000, "hide_pending": False,
         }
-        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+        with (
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(
+                macos_cua, "cursor_raster_path", return_value="/fixture/hermes-pointer.png"
+            ) as raster,
+        ):
             status = macos_cua.cursor("status")
+        raster.assert_called_once_with(macos_cua.CURSOR_ICON)
+        self.assertEqual(status["icon"], "/fixture/hermes-pointer.png")
         self.assertTrue(status["ok"])
         self.assertEqual(status["overlay"]["idle_hide_ms"], 120000)
         self.assertIs(status["overlay"]["visible"], False)
@@ -2372,7 +2297,12 @@ class CursorProofTests(unittest.TestCase):
         client = mock.Mock()
         client.configure_cursor.return_value = {"ok": True, "visible": False, "idle_hide_ms": 0,
                                                 "auto_hide": False}
-        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+        with (
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(
+                macos_cua, "cursor_raster_path", return_value="/fixture/hermes-pointer.png"
+            ),
+        ):
             res = macos_cua.cursor("configure", idle_hide_ms=0)
         self.assertTrue(res["ok"])
         self.assertTrue(res["configured"])
@@ -2382,6 +2312,11 @@ class CursorProofTests(unittest.TestCase):
     def test_cursor_idle_hide_ms_fails_loud(self):
         client = mock.Mock()
         client.cursor_status.side_effect = ConnectionError("no socket")
+        raster = mock.patch.object(
+            macos_cua, "cursor_raster_path", return_value="/fixture/hermes-pointer.png"
+        )
+        raster.start()
+        self.addCleanup(raster.stop)
         with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client) as make:
             down = macos_cua.cursor("status")
             neg = macos_cua.cursor("configure", idle_hide_ms=-5)

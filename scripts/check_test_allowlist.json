@@ -61,11 +61,6 @@
       "id": "module:plugins/agent-computer-use/skills/macos-cua/tests/test_live_pointer_isolation.py",
       "when": "platform != darwin",
       "reason": "module imports Quartz, a macOS-only framework, at load time"
-    },
-    {
-      "id": "test_macos_cua.CursorProofTests.test_cursor_proof_uses_the_hermes_extension_asset",
-      "when": "platform != darwin",
-      "reason": "test imports AppKit to draw a cursor proof image on macOS"
     }
   ]
 }
