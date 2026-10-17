@@ -44,6 +44,7 @@ Cursor Origin (`https://cursor.com/codebase/gurusharan/agent-plugins`) is the fo
 | `agent-computer-use` | `plugins/agent-computer-use/` | `plugins/agent-computer-use/AGENTS.md` |
 | `comet-control` | `plugins/comet-control/` | `plugins/comet-control/AGENTS.md` |
 | `context-ledger` | `plugins/context-ledger/` | `plugins/context-ledger/AGENTS.md` |
+| `irctc-train-booking` | `plugins/irctc-train-booking/` | `plugins/irctc-train-booking/AGENTS.md` |
 
 ## Agent install (every client)
 
