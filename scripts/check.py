@@ -3,6 +3,20 @@
 
 Owner of portable package shape: same rules as scripts/create_agent_plugin.py --validate.
 Owner of context-ledger regressions: plugins/context-ledger/tests/test_contract.py.
+
+Every plugins/ and scripts/ test_*.py outside VCS, SwiftPM checkouts, and caches
+is executed. A path with a tests/ segment is unittest discover of that file.
+Other test_*.py files run as a single module. Swift packages that declare
+.testTarget run on macOS. Off macOS, CUAService is an allow-listed harness skip.
+
+--fast validates only the selected plugins and runs discovered tests for those
+plugins. Collection scripts/ tests still run.
+--audit-tests prints one JSON line of found/run/skip counts and exits 0
+without running tests.
+
+comet-control tests need `pip install 'websockets==16.0' Pillow`.
+context-ledger HTTP tests need `pip install 'mcp==2.2.0'` when this
+interpreter cannot import mcp.server.mcpserver.
 """
 
 from __future__ import annotations
@@ -16,6 +30,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+import check_inventory
+
 PLUGIN_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
 NAME_RE = re.compile(r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$")
@@ -60,47 +79,6 @@ FULL_TRIGGERS = (
     *CATALOGS,
     CLAUDE_CATALOG,
 )
-PLUGIN_TESTS = {
-    "context-ledger": [
-        [sys.executable, "tests/test_contract.py", "-q"],
-        [sys.executable, "tests/test_manifests.py", "-q"],
-        [sys.executable, "tests/test_remote_bridge.py", "-q"],
-    ],
-    "comet-control": [
-        sys.executable,
-        "-B",
-        "-m",
-        "unittest",
-        "discover",
-        "-s",
-        "plugin/comet_control/tests",
-        "-q",
-    ],
-    "agent-computer-use": [
-        sys.executable,
-        "-m",
-        "unittest",
-        "skills/macos-cua/tests/test_plugin_package.py",
-        "skills/macos-cua/tests/test_jev_act.py",
-        "skills/macos-cua/tests/test_cua_service_health.py",
-        "-q",
-    ],
-    "irctc-train-booking": [sys.executable, "tests/test_pay_gate.py", "-q"],
-}
-
-# Comet broker/isolation suites import these at module load; missing → soft-skip.
-COMET_OPTIONAL_IMPORTS = ("websockets", "PIL")
-
-
-def comet_optional_deps_ok() -> bool:
-    for name in COMET_OPTIONAL_IMPORTS:
-        try:
-            __import__(name)
-        except ImportError:
-            return False
-    return True
-
-
 def plugin_dirs() -> list[Path]:
     return sorted(path.parent for path in (ROOT / "plugins").glob("*/plugin.json"))
 
@@ -587,45 +565,158 @@ def check_host_dest() -> list[str]:
     return errors
 
 
-def plugin_test_commands(plugin: Path) -> list[list[str]]:
-    spec = PLUGIN_TESTS.get(plugin.name)
-    if not spec:
-        return []
-    if spec and isinstance(spec[0], list):
-        return spec
-    return [spec]
+def _missing_comet_deps() -> list[str]:
+    missing: list[str] = []
+    for name in ("websockets", "PIL"):
+        try:
+            __import__(name)
+        except ImportError:
+            missing.append(name)
+    return missing
+
+
+def _python_for(plugin: Path, env: dict[str, str]) -> str:
+    """Use the locked context-ledger runtime when this interpreter has no mcp."""
+    if plugin.name != "context-ledger":
+        return sys.executable
+    probe = subprocess.run(
+        [sys.executable, "-c", "import mcp.server.mcpserver"],
+        env=env,
+        capture_output=True,
+    )
+    if probe.returncode == 0:
+        return sys.executable
+    lock = plugin / "requirements.lock"
+    if not lock.is_file():
+        return sys.executable
+    import hashlib
+
+    digest = hashlib.sha256(lock.read_bytes()).hexdigest()
+    runtime = Path.home() / ".context-ledger" / "runtime" / digest / "bin" / "python3"
+    if runtime.is_file():
+        return str(runtime)
+    return sys.executable
+
+
+def _exec_python(run: check_inventory.PythonRun, env: dict[str, str], python: str | None = None) -> int:
+    rel = run.path.relative_to(ROOT).as_posix()
+    rule = check_inventory.load_allowlist(check_inventory.DEFAULT_ALLOWLIST).match(
+        "harness",
+        check_inventory.module_id(ROOT, run.path),
+        sys.platform,
+        os.environ,
+    )
+    if rule is not None:
+        print(f"allowed skip {rel}: {rule.reason}", flush=True)
+        return 0
+    # One module per process so a re-exec or a darwin-only import cannot drop
+    # the rest of its tests directory. The runner filename must not contain
+    # "unittest": test_http_server re-execs `python -m unittest` when argv[0] does.
+    cmd = [
+        python or sys.executable,
+        str(ROOT / "scripts" / "run_strict.py"),
+        "--allowlist",
+        str(check_inventory.DEFAULT_ALLOWLIST),
+        "-q",
+    ]
+    if run.mode == "discover":
+        assert run.start is not None
+        cmd.extend(["discover", "-s", str(run.start.relative_to(run.cwd)), "-p", run.path.name])
+    else:
+        cmd.extend(["module", str(run.path.relative_to(run.cwd))])
+    print(f"test {rel}", flush=True)
+    proc = subprocess.run(cmd, cwd=run.cwd, env=env)
+    return proc.returncode
 
 
 def run_tests(plugin: Path) -> int:
-    commands = plugin_test_commands(plugin)
-    if not commands:
-        return 0
-    if plugin.name == "comet-control" and not comet_optional_deps_ok():
+    if plugin.name == "comet-control" and _missing_comet_deps():
         print(
-            "skip comet-control tests: missing optional deps "
-            f"({', '.join(COMET_OPTIONAL_IMPORTS)}); "
-            "CI installs websockets+Pillow before check.py",
-            flush=True,
+            "comet-control tests need websockets and Pillow "
+            f"(missing {', '.join(_missing_comet_deps())}). "
+            "pip install 'websockets==16.0' Pillow",
+            file=sys.stderr,
         )
-        return 0
+        return 1
     env = os.environ.copy()
     env["PYTHONPATH"] = str(plugin)
     env["PYTHONNOUSERSITE"] = "1"
     env["AGENT_PLUGINS_COLLECTION"] = str(ROOT)
-    for argv in commands:
-        print(f"test {plugin.name}", flush=True)
-        proc = subprocess.run(argv, cwd=plugin, env=env)
+    python = _python_for(plugin, env)
+    for run in check_inventory.python_runs(ROOT, {plugin.name}):
+        if run.path.relative_to(ROOT).parts[0] != "plugins":
+            continue
+        code = _exec_python(run, env, python)
+        if code != 0:
+            return code
+    return 0
+
+
+def run_collection_scripts() -> int:
+    env = os.environ.copy()
+    for run in check_inventory.python_runs(ROOT):
+        if run.path.relative_to(ROOT).parts[0] != "scripts":
+            continue
+        code = _exec_python(run, env)
+        if code != 0:
+            return code
+    return 0
+
+
+def run_swift(plugins: list[Path]) -> int:
+    names = {plugin.name for plugin in plugins}
+    allow = check_inventory.load_allowlist(check_inventory.DEFAULT_ALLOWLIST)
+    for package in check_inventory.swift_packages(ROOT):
+        if package.relative_to(ROOT).parts[1] not in names:
+            continue
+        rel = package.relative_to(ROOT).as_posix()
+        if sys.platform != "darwin":
+            rule = allow.match("harness", check_inventory.swift_id(ROOT, package), sys.platform, os.environ)
+            if rule is not None:
+                print(f"allowed skip {check_inventory.swift_id(ROOT, package)}: {rule.reason}", flush=True)
+                continue
+            print(f"swift package {rel} did not run and is not allow-listed", file=sys.stderr)
+            return 1
+        print(f"test swift {rel}", flush=True)
+        proc = subprocess.run(["swift", "test", "--package-path", str(package), "-q"], cwd=ROOT)
         if proc.returncode != 0:
             return proc.returncode
     return 0
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--fast", action="store_true", help="Changed plugins only (pre-commit).")
-    args = parser.parse_args()
-    errors = check_catalogs()
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Validate packages and run discovered tests.")
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help=(
+            "Validate and test only plugins touched by the index. "
+            "Test execution uses the same discovery rules, scoped to those plugins. "
+            "Collection scripts/ tests still run."
+        ),
+    )
+    parser.add_argument(
+        "--audit-tests",
+        action="store_true",
+        help=(
+            "Print one JSON line of python and swift found, run, and skip counts, "
+            "then exit 0 without running tests."
+        ),
+    )
+    args = parser.parse_args(argv)
     plugins = selected_plugins(args.fast)
+    if args.audit_tests:
+        try:
+            report = check_inventory.audit(
+                ROOT,
+                plugin_names={plugin.name for plugin in plugins} if args.fast else None,
+            )
+        except check_inventory.AllowlistError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        print(json.dumps(report))
+        return 0
+    errors = check_catalogs()
     for plugin in plugins:
         print(f"validate {plugin.relative_to(ROOT)}", flush=True)
         errors.extend(validate_plugin(plugin))
@@ -633,17 +724,21 @@ def main() -> int:
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1
+    try:
+        check_inventory.load_allowlist(check_inventory.DEFAULT_ALLOWLIST)
+    except check_inventory.AllowlistError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     for plugin in plugins:
         code = run_tests(plugin)
         if code != 0:
             return code
-    print("test refresh_cursor_marketplace_index", flush=True)
-    proc = subprocess.run(
-        [sys.executable, "scripts/test_refresh_cursor_marketplace_index.py", "-q"],
-        cwd=ROOT,
-    )
-    if proc.returncode != 0:
-        return proc.returncode
+    code = run_collection_scripts()
+    if code != 0:
+        return code
+    code = run_swift(plugins)
+    if code != 0:
+        return code
     print("check ok", flush=True)
     return 0
 

@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "unittest_skips": [
+    {
+      "id": "test_contract.StoreTests.test_select_fits_situation_ahead_of_higher_success",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_feedback_reuses_similar_precedent_and_records_a_missing_decision",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_feedback_records_a_different_action_and_rejects_bad_input_first",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_feedback_excludes_the_decision_that_did_not_help",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_recall_check_ranks_without_writing",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.LaunchTests.test_literal_plugin_data_token_expands",
+      "reason": "fresh hosts have no default ~/.context-ledger binding to expand"
+    },
+    {
+      "id": "test_contract.McpTests.test_tools_legacy_and_modern",
+      "reason": "optional MCP wheel download may be skipped when pip cannot fetch the lockfile"
+    },
+    {
+      "id": "test_contract.McpTests.test_record_find_get_roundtrip",
+      "reason": "optional MCP wheel download may be skipped when pip cannot fetch the lockfile"
+    },
+    {
+      "id": "test_contract.McpTests.test_offline_setup_marker",
+      "reason": "optional MCP wheel download may be skipped when pip cannot fetch the lockfile"
+    },
+    {
+      "id": "test_contract.McpTests.test_bounded_reader_dup_and_oversize",
+      "reason": "optional MCP wheel download may be skipped when pip cannot fetch the lockfile"
+    },
+    {
+      "id": "test_http_server.LiveServerTests.test_sdk_streamable_http_client",
+      "reason": "optional mcp streamable-http client wheel not installed in CI"
+    }
+  ],
+  "harness_skips": [
+    {
+      "id": "swift:plugins/agent-computer-use/skills/macos-cua/service",
+      "when": "platform != darwin",
+      "reason": "CUAService XCTest requires macOS"
+    },
+    {
+      "id": "module:plugins/agent-computer-use/skills/macos-cua/tests/test_live_pointer_isolation.py",
+      "when": "platform != darwin",
+      "reason": "module imports Quartz, a macOS-only framework, at load time"
+    },
+    {
+      "id": "test_macos_cua.CursorProofTests.test_cursor_proof_uses_the_hermes_extension_asset",
+      "when": "platform != darwin",
+      "reason": "test imports AppKit to draw a cursor proof image on macOS"
+    }
+  ]
+}
