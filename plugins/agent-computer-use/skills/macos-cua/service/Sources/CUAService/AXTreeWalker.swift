@@ -218,6 +218,16 @@ final class AXTreeWalker: @unchecked Sendable {
         return snapshot
     }
 
+    /// One control, two labels: Calculator's clear button reads "All Clear" on a
+    /// fresh entry and "Clear" once a value is typed, so a plan must resolve
+    /// either spelling against whatever the current tree shows. Mirrors
+    /// runtime_vision.LABEL_ALIASES, which the retired Python resolver applies
+    /// and the MCP surface documents as `Clear` = `All Clear`.
+    static let labelAliases: [String: [String]] = [
+        "clear": ["all clear"],
+        "all clear": ["clear"],
+    ]
+
     func findElementByLabel(_ snapshot: AXSnapshot, label: String) -> AXElement? {
         let needle = (axNorm(label) ?? "").lowercased()
         guard !needle.isEmpty else { return nil }
@@ -225,6 +235,16 @@ final class AXTreeWalker: @unchecked Sendable {
             ($0.label).map { (axNorm($0) ?? "").lowercased() == needle } == true
         }) {
             return exact
+        }
+        // Alias-exact runs before the loose substring pass: a requested
+        // "All Clear" must not lose to an unrelated control that merely
+        // contains that text. It only ever fires on an exact full-label match.
+        for alias in Self.labelAliases[needle] ?? [] {
+            if let aliased = snapshot.elements.first(where: {
+                ($0.label).map { (axNorm($0) ?? "").lowercased() == alias } == true
+            }) {
+                return aliased
+            }
         }
         if let partial = snapshot.elements.first(where: {
             ($0.label).map { (axNorm($0) ?? "").lowercased().contains(needle) } == true

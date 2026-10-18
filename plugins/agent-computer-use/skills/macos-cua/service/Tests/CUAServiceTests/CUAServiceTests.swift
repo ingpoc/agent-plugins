@@ -1,3 +1,4 @@
+import CoreGraphics
 import XCTest
 import Logging
 @testable import CUAService
@@ -129,5 +130,52 @@ final class AppResolverTests: XCTestCase {
             resolver.applicationURL(named: "Finder")?.path,
             "/System/Library/CoreServices/Finder.app"
         )
+    }
+}
+
+final class LabelAliasTests: XCTestCase {
+    private func element(_ index: Int, _ label: String?) -> AXElement {
+        AXElement(
+            index: index,
+            role: "AXButton",
+            label: label,
+            value: nil,
+            frame: CGRect(x: 0, y: 0, width: 1, height: 1),
+            actions: [],
+            children: [],
+            parentIndex: nil,
+            depth: 1
+        )
+    }
+
+    private func snapshot(_ elements: [AXElement]) -> AXSnapshot {
+        AXSnapshot(elements: elements, markdown: "", windowFrame: nil, timestamp: 0)
+    }
+
+    /// Calculator retitles its clear button between "All Clear" and "Clear".
+    /// A plan naming either spelling must resolve against the current tree.
+    func testRetitledClearResolvesFromEitherSpelling() {
+        let walker = AXTreeWalker(logger: Logger(label: "LabelAliasTests"))
+
+        let showsClear = snapshot([element(0, "Clear"), element(1, "Delete")])
+        XCTAssertEqual(walker.findElementByLabel(showsClear, label: "All Clear")?.index, 0)
+        XCTAssertEqual(walker.findElementByLabel(showsClear, label: "Clear")?.index, 0)
+
+        let showsAllClear = snapshot([element(0, "All Clear"), element(1, "Delete")])
+        XCTAssertEqual(walker.findElementByLabel(showsAllClear, label: "Clear")?.index, 0)
+        XCTAssertEqual(walker.findElementByLabel(showsAllClear, label: "All Clear")?.index, 0)
+    }
+
+    func testExactLabelStillWinsOverAlias() {
+        let walker = AXTreeWalker(logger: Logger(label: "LabelAliasTests"))
+        let both = snapshot([element(3, "All Clear"), element(7, "Clear")])
+        XCTAssertEqual(walker.findElementByLabel(both, label: "Clear")?.index, 7)
+        XCTAssertEqual(walker.findElementByLabel(both, label: "All Clear")?.index, 3)
+    }
+
+    func testUnknownLabelIsStillNil() {
+        let walker = AXTreeWalker(logger: Logger(label: "LabelAliasTests"))
+        let tree = snapshot([element(0, "Clear"), element(1, "Delete")])
+        XCTAssertNil(walker.findElementByLabel(tree, label: "Tangent"))
     }
 }

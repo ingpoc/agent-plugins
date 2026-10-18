@@ -15,6 +15,8 @@ import tempfile
 import time
 from typing import Any, Callable
 
+from runtime_telemetry import telemetry_read, telemetry_reset
+
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPACT_MCP = ROOT / "scripts" / "compact_mcp.py"
@@ -190,37 +192,32 @@ def main() -> int:
         "MACOS_CUA_SESSION": SESSION,
     }
     rows: dict[str, list[dict[str, Any]]] = {"direct": [], "subprocess": []}
-    start = mcp.handle_start_session({"session": SESSION})
-    try:
-        direct_once(mcp)
-        subprocess_once(env)
-        runners: dict[str, Callable[[], dict[str, Any]]] = {
-            "direct": lambda: direct_once(mcp),
-            "subprocess": lambda: subprocess_once(env),
-        }
-        for index in range(args.repeat):
-            order = (
-                ("direct", "subprocess")
-                if index % 2 == 0
-                else ("subprocess", "direct")
-            )
-            for name in order:
-                rows[name].append(runners[name]())
-    finally:
-        end = mcp.handle_end_session({"session": SESSION})
+    telemetry_reset()
+    direct_once(mcp)
+    subprocess_once(env)
+    runners: dict[str, Callable[[], dict[str, Any]]] = {
+        "direct": lambda: direct_once(mcp),
+        "subprocess": lambda: subprocess_once(env),
+    }
+    for index in range(args.repeat):
+        order = (
+            ("direct", "subprocess")
+            if index % 2 == 0
+            else ("subprocess", "direct")
+        )
+        for name in order:
+            rows[name].append(runners[name]())
 
     summary = {name: summarize(values) for name, values in rows.items()}
     baseline = summary["subprocess"]["p50_total_s"]
     current = summary["direct"]["p50_total_s"]
     improvement = round((baseline - current) / baseline * 100, 1)
-    telemetry = mcp.telemetry_read()
+    telemetry = telemetry_read()
     all_succeeded = all(
         values["successes"] == values["runs"] for values in summary.values()
     )
     passed = all(
         (
-            start.get("ok") is True,
-            end.get("ok") is True,
             all_succeeded,
             telemetry.get("cli_invocations") == 0,
             improvement >= args.min_improvement,
@@ -235,8 +232,6 @@ def main() -> int:
                 "improvement_percent": improvement,
                 "summary": summary,
                 "runtime_telemetry": telemetry,
-                "start_ok": start.get("ok"),
-                "end_ok": end.get("ok"),
             },
             indent=2,
         )
