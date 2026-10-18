@@ -87,6 +87,7 @@ _RUNTIME_FILES = (
     "runtime_telemetry.py",
     "runtime_coexistence.py",
     "runtime_driver.py",
+    "runtime_identity.py",
     "runtime_apps.py",
     "runtime_snapshot.py",
     "runtime_capture.py",

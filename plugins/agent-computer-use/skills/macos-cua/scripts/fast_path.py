@@ -381,6 +381,13 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "resolve_app(app)" in reset,
         "reset_app_fixture(app_name) must quit then reuse Computer Use resolve",
     )
+    add(
+        "fixture reaps every instance, not one ranked match",
+        "_live_app_instances" in reset
+        and "SIGKILL" in reset
+        and "live_pids()" in reset,
+        "a missed duplicate is inherited by the next run and piles up on the desktop",
+    )
     launch = _function_source(
         (scripts / "runtime_apps.py").read_text(), "launch_or_activate"
     )
@@ -388,6 +395,11 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "cold launch forces a new instance",
         '"-n"' in launch and '"-b"' in launch and '"-a"' in launch,
         "open -a after quit is a LaunchServices no-op; cold launch must use -n",
+    )
+    add(
+        "cold launch cannot duplicate a live instance",
+        "_live_app_instances" in launch,
+        "open -n is only for a cold launch; a live instance must be activated",
     )
     resolve = _function_source(
         (scripts / "runtime_apps.py").read_text(), "resolve_app"

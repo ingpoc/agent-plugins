@@ -152,12 +152,10 @@ def _cuaservice_press_key(pid, combo, window_id=None):
 
 def _pids_for_app(app):
     """Sorted pids of running apps whose bundle id equals ``app``."""
-    from AppKit import NSWorkspace
-
     return sorted(
-        int(a.processIdentifier())
-        for a in NSWorkspace.sharedWorkspace().runningApplications()
-        if str(a.bundleIdentifier() or "") == app
+        instance["pid"]
+        for instance in _live_instances()
+        if instance["bundle_id"] == app
     )
 
 

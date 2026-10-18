@@ -242,68 +242,6 @@ def _exact_ax_window_frame(pid, window_id):
     return None, f"no AX window maps to exact CGWindow ID {window_id}"
 
 
-def _running_app_identity(app_name):
-    """Resolve a running app by bundle/name before inspecting window titles.
-
-    Window titles can contain unrelated app names (for example a Notification
-    Center widget titled "Codex").  NSWorkspace is the authoritative PID and
-    bundle owner and is fast enough for every resolution call.
-    """
-    try:
-        from AppKit import NSWorkspace
-    except ImportError:
-        return None
-    needle = app_name.strip().lower()
-    pid_match = re.fullmatch(r"pid:(\d+)", needle)
-    requested_pid = int(pid_match.group(1)) if pid_match else None
-    ranked = []
-    for app in NSWorkspace.sharedWorkspace().runningApplications():
-        pid = int(app.processIdentifier())
-        name = str(app.localizedName() or "")
-        bundle_id = str(app.bundleIdentifier() or "")
-        if requested_pid is not None:
-            if pid != requested_pid:
-                continue
-            return {
-                "pid": pid,
-                "name": name,
-                "bundle_id": bundle_id,
-                "active": bool(app.isActive()),
-            }
-        name_lower = name.lower()
-        bundle_lower = bundle_id.lower()
-        bundle_leaf = bundle_lower.rsplit(".", 1)[-1]
-        if needle == bundle_lower:
-            score = 5
-        elif needle == name_lower:
-            score = 4
-        elif needle == bundle_leaf:
-            score = 3
-        elif needle and needle in name_lower:
-            score = 2
-        elif needle and needle in bundle_lower:
-            score = 1
-        else:
-            continue
-        ranked.append(
-            (
-                score,
-                {
-                    "pid": pid,
-                    "name": name,
-                    "bundle_id": bundle_id,
-                    "active": bool(app.isActive()),
-                },
-            )
-        )
-    # Equal-name multi-instance apps are deterministic: active first, then the
-    # newest/highest PID. Exact callers should still prefer pid:<number>.
-    return max(
-        ranked,
-        key=lambda item: (item[0], bool(item[1]["active"]), item[1]["pid"]),
-    )[1] if ranked else None
-
-
 def _activate_running_identity(identity):
     """Dispatch activation for a running app; later fresh state proves it."""
     pid = int(identity.get("pid") or 0)
@@ -547,6 +485,17 @@ def launch_or_activate(app_name):
     display_name = (identity or {}).get("name")
     if not bundle_id:
         bundle_id, display_name = _resolve_bundle_id(app_name)
+    # `open -n` forces a new instance, so it is only correct for a genuinely
+    # cold launch. The ranked identity lookup above can miss a live copy; ask
+    # the bundle registry before spawning a duplicate on the desktop.
+    for instance in _live_app_instances(bundle_id or app_name):
+        activated = _activate_running_identity(instance)
+        if not activated.get("error"):
+            return {
+                **activated,
+                "bundle_id": instance.get("bundle_id") or bundle_id,
+                "name": instance.get("name") or display_name or app_name,
+            }
     open_command = ["open", "-n", "-b", bundle_id] if bundle_id else ["open", "-n", "-a", app_name]
     try:
         launched = subprocess.run(
