@@ -34,14 +34,22 @@ from context_ledger.contracts import (  # noqa: E402
 from context_ledger.store import Store  # noqa: E402
 
 _TEXT_FIELDS = ("summary", "situation", "action", "rationale", "applicability")
+# Explicit fleet cues. One allowlisted project entity sets that project unless one of these appears.
 _FLEET_TEXT = re.compile(
-    r"\b(?:any|every|another) project\b|\bfleet lesson\b|\bnot about (?:this|the) project\b",
+    r"\b(?:any|every|another) project\b|\bnot about (?:this|the) project\b|\bfleet\b"
+    r"|\bevery (?:bot|agent)\b|\ball (?:bots|agents|agent projects)\b|\bcross-project\b"
+    r"|\bstanding rule\b|\bnever\b[^.;]*\bon the mini\b",
     re.I,
 )
-_CODE_CUE = re.compile(
-    r"\b(?:check\.py|merge gate|repo|codebase|source|module|package|plugin|product|own code|own product)\b",
+# Entities that name a part of an allowlisted project.
+ENTITY_PROJECT_ALIASES = {"context-ledger": "agent-plugins"}
+# A task tied to a PR or Project: an imperative step plus a merge, findings, or review tie.
+_TASK_VERB = re.compile(
+    r"(?:^|[\u2192;:]\s*|\bthen\s+)(?:fix|address|resolve|rerun|re-run|run|merge|land|finish|hold)\b",
     re.I,
 )
+_TASK_TIE = re.compile(r"\bbefore (?:merge|merging|accepting)\b|\bfindings?\b|\bre-?review\b", re.I)
+_RULE_WORDS = re.compile(r"\b(?:must|never|always|only|when|whenever|because|rule)\b", re.I)
 
 
 def _sentences(text: str) -> list[str]:
@@ -92,11 +100,12 @@ def _kept_scope(existing: str, projects: frozenset[str]) -> str | None:
     return None
 
 
-def about_own_product(text: str, project_id: str) -> bool:
-    """True when the decision is about that project's product or code."""
-    if not project_id or _FLEET_TEXT.search(text):
+def task_instruction(summary: str, pr_tied: bool) -> bool:
+    """True when the decision is a one-off task step tied to a PR or Project, not a lasting rule."""
+    summary = summary or ""
+    if _RULE_WORDS.search(summary) or not _TASK_VERB.search(summary):
         return False
-    return _CODE_CUE.search(text) is not None
+    return pr_tied or _TASK_TIE.search(summary) is not None
 
 
 def infer_scope(body: dict, projects: frozenset[str] | None = None) -> tuple[str, str]:
@@ -108,19 +117,22 @@ def infer_scope(body: dict, projects: frozenset[str] | None = None) -> tuple[str
             return kept, "scope already set"
     entities = [str(item).casefold() for item in body.get("entities") or []]
     text = decision_surface(body.get("summary"), body.get("rationale"), body.get("applicability"))
-    if _FLEET_TEXT.search(text) or "fleet" in entities:
-        return "fleet", "fleet lesson or fleet entity"
-    project_ids = [item for item in entities if item in allowed]
+    if "fleet" in entities or _FLEET_TEXT.search(text):
+        return "fleet", "fleet cue or fleet entity"
+    project_ids = sorted(
+        {ENTITY_PROJECT_ALIASES.get(item, item) for item in entities}
+        & set(allowed)
+    )
+    if len(project_ids) == 1:
+        return f"project:{project_ids[0]}", "one allowlisted project"
+    if len(project_ids) > 1:
+        return "fleet", "several projects, wider scope"
     tools = [item for item in entities if item in TOOL_SCOPE_IDS]
-    if len(project_ids) == 1 and about_own_product(text, project_ids[0]):
-        if not tools:
-            return f"project:{project_ids[0]}", "about that project's product or code"
-        return f"project:{project_ids[0]}", "project product wins over the tool"
     if len(tools) == 1:
-        return f"tool:{tools[0]}", "known tool, not the project's own product"
+        return f"tool:{tools[0]}", "one known tool"
     if tools:
-        return "fleet", "unsure, wider scope"
-    return "fleet", "no project product or known tool"
+        return "fleet", "several tools, wider scope"
+    return "fleet", "no allowlisted project or known tool"
 
 
 def _blank_required(body: dict) -> str | None:
@@ -135,8 +147,12 @@ def _blank_required(body: dict) -> str | None:
 def rewrite_body(body: dict) -> tuple[dict | None, str]:
     new = json.loads(json.dumps(body))
     moved: list[str] = []
+    pr_tied = False
     for field in _TEXT_FIELDS:
-        cleaned, tokens = strip_volatile_tokens(str(new.get(field) or ""))
+        raw = str(new.get(field) or "")
+        cleaned, tokens = strip_volatile_tokens(raw)
+        if field == "summary" and "pr-or-project-id" in volatile_kinds(raw):
+            pr_tied = True
         moved.extend(tokens)
         kept: list[str] = []
         for sentence in _sentences(cleaned):
@@ -146,8 +162,11 @@ def rewrite_body(body: dict) -> tuple[dict | None, str]:
                 kept.append(sentence)
         if field in new:
             new[field] = " ".join(kept).strip()
+    if task_instruction(new.get("summary") or "", pr_tied) and not _RULE_WORDS.search(new.get("rationale") or ""):
+        return None, "task tied to a PR or Project, not a lasting rule"
     if not moved:
         return new, "rescope"
+    moved = list(dict.fromkeys(item.strip() for item in moved if item.strip()))
     surface = decision_surface(new.get("summary"), new.get("rationale"))
     if not surface.strip() or pure_status(surface) or volatile_kinds(surface):
         return None, "volatile text cannot be split from the rule"

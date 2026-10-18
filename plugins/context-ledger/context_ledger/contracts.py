@@ -40,7 +40,7 @@ TOOL_SCOPE_IDS = frozenset(
 )
 # Callers bind these project ids. A registry or binding may add more.
 PROJECT_SCOPE_IDS = frozenset(
-    {"agent-plugins", "open-resource-network", "aadhaarchain", "brandgpt", "hisab-pune"}
+    {"agent-plugins", "open-resource-network", "aadhaarchain", "brandgpt", "hisab-pune", "databricks-interview"}
 )
 STATUS_WORDS = frozenset(
     "pending success failed merged blocked passing wip shipped inconclusive abandoned".split()
@@ -400,9 +400,29 @@ def decision_surface(*parts: str | None) -> str:
     return " ".join(part for part in parts if part)
 
 
-def caller_scope_from_binding(binding: dict[str, Any]) -> dict[str, Any]:
-    """Fleet plus the project and tools named on binding.json."""
-    project = binding.get("project") or binding.get("scope_id")
+def read_project_registry(plugin_data: Any) -> dict[str, Any]:
+    """data/project-registry.json, or {} when absent or unreadable."""
+    import json as _json
+    from pathlib import Path as _Path
+
+    try:
+        obj = _json.loads((_Path(plugin_data) / "project-registry.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return {}
+    return obj if isinstance(obj, dict) else {}
+
+
+def caller_scope_from_binding(
+    binding: dict[str, Any], registry: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Fleet plus the caller's project and tools.
+
+    The project is binding.project, else the registry's own project. scope_id is the ledger
+    partition, not a caller project, so with neither the find stays fleet plus tools.
+    """
+    project = binding.get("project") or (registry or {}).get("project")
+    if isinstance(project, str) and not SCOPE_RE.fullmatch(project):
+        project = None
     tools = binding.get("tools") or []
     if not isinstance(tools, list):
         tools = []
@@ -465,8 +485,24 @@ def strip_volatile_tokens(text: str) -> tuple[str, list[str]]:
         cursor = stop
     parts.append(text[cursor:])
     cleaned = re.sub(r"\s+", " ", "".join(parts))
-    cleaned = re.sub(r"\s+([.,;])", r"\1", cleaned).strip(" .,;")
+    cleaned = _tidy_removed(cleaned)
     return cleaned, tokens
+
+
+def _tidy_removed(text: str) -> str:
+    """Drop separators and brackets left empty where volatile tokens were cut out."""
+    prev = None
+    while prev != text:
+        prev = text
+        text = re.sub(r"\(\s*[-\u2013\u2014/,;:#]*\s*\)|\[\s*[-\u2013\u2014/,;:#]*\s*\]", "", text)
+        text = re.sub(r"(^|\s)[-\u2013\u2014/#]+(?=\s|[.,;:)]|$)", r"\1", text)
+        text = re.sub(r"(?<=\w)-(?=[\s,;:)]|\.(?:\s|$)|$)", "", text)
+        text = re.sub(r"\b(?:and|or|to|through|from)\s+(?=[.,;)](?:\s|$)|$)", "", text)
+        text = re.sub(r"\s+", " ", text)
+        text = re.sub(r"\s+([.,;:)])(?=\s|$)", r"\1", text)
+        text = re.sub(r"\(\s+", "(", text)
+        text = re.sub(r"([,;:])(?=[,;:.])", "", text)
+    return text.strip(" .,;:")
 
 
 _STATE_CLAIM_RE = re.compile(

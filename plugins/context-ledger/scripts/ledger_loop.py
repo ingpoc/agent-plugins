@@ -496,10 +496,10 @@ def _binding_caller_scope(data: Path) -> dict | None:
     if str(root) not in sys.path:
         sys.path.insert(0, str(root))
     try:
-        from context_ledger.contracts import caller_scope_from_binding
+        from context_ledger.contracts import caller_scope_from_binding, read_project_registry
     except ImportError:
         return None
-    return caller_scope_from_binding(binding)
+    return caller_scope_from_binding(binding, read_project_registry(data))
 
 
 def cmd_find(o: argparse.Namespace, data: Path) -> str:

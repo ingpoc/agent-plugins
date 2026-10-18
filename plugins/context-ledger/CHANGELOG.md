@@ -2,8 +2,10 @@
 
 ## 0.1.28
 
-- A record is `project:<id>` only when `<id>` is on the allowlist: `agent-plugins`, `open-resource-network`, `aadhaarchain`, `brandgpt`, `hisab-pune`, plus ids named in `binding.json` (`project`, `projects`) or `data/project-registry.json`. A record is `tool:<id>` only for a known tool id. Every other entity, including a free-form topic, is `fleet`.
-- When a record names both a project and a tool, the project wins only if the decision is about that project's own product or code. Otherwise the scope is the tool, or `fleet` when more than one tool is named. When unsure, the wider scope wins.
+- A record is `project:<id>` only when `<id>` is on the allowlist: `agent-plugins`, `open-resource-network`, `aadhaarchain`, `brandgpt`, `hisab-pune`, `databricks-interview`, plus ids named in `binding.json` (`project`, `projects`) or `data/project-registry.json`. A record is `tool:<id>` only for a known tool id. Every other entity, including a free-form topic, is `fleet`.
+- A `fleet` entity or an explicit fleet cue (any or another project, every bot, all agents, fleet, cross-project, a standing rule, never ... on the Mini) makes the record `fleet`. Otherwise one allowlisted project entity sets that project, also when a tool is named; `context-ledger` counts as `agent-plugins`. Two or more projects are `fleet`. With no project, one known tool sets the tool, else `fleet`.
+- Migration archives a task step tied to a PR or Project (an imperative step with a PR id, before merge, findings, or re-review, and no rule word). Stripping leaves no stray marks and evidence lists each token once.
+- The caller project is `binding.project`, else the registry `project`. `scope_id` is never a caller project; with neither, find is fleet plus the binding's tools.
 - Volatile tokens are version strings, commit SHAs, PR or Project ids, and dates. A model name or a status word is not volatile on its own. Migration strips volatile tokens into evidence and keeps the rule. It archives a row only when nothing durable remains. A pure status save is one whose main claim is a state.
 - `find` with no `caller_scope` returns fleet records only. `ledger_loop.py find` and the helper `find` inject `caller_scope` from `binding.json`. `record` refuses a body with no scope.
 

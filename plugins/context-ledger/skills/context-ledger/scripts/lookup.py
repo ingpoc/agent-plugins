@@ -52,7 +52,7 @@ def _use_runtime_python() -> None:
 if __name__ == "__main__":
     _use_runtime_python()
 
-from context_ledger.contracts import caller_scope_from_binding  # noqa: E402
+from context_ledger.contracts import caller_scope_from_binding, read_project_registry  # noqa: E402
 from context_ledger.store import Store  # noqa: E402
 
 # NLEmbedding sentence embedding, cosine distance (1 - cosine similarity).
@@ -396,7 +396,9 @@ def main() -> int:
                         "constraints": [],
                         "limit": 3,
                         "offset": 0,
-                        "caller_scope": caller_scope_from_binding(store.binding),
+                        "caller_scope": caller_scope_from_binding(
+                            store.binding, read_project_registry(store.plugin_data)
+                        ),
                     },
                     mcp=True,
                 )

@@ -256,7 +256,7 @@ class MigrationTests(unittest.TestCase):
         self.assertNotEqual(by_id["2599cee1"]["new_scope"], "project:irctc")
         self.assertEqual(by_id["4e5d0bad"]["action"], "archive")
         self.assertNotEqual(by_id["a4abc29c"]["action"], "archive")
-        self.assertEqual(by_id["6c7fd233"]["new_scope"], "project:context-ledger")
+        self.assertEqual(by_id["6c7fd233"]["new_scope"], "project:agent-plugins")
         store = Store(self.data, actor_channel="owner_cli")
         try:
             migrate_scope.apply(store, rows, on="2026-10-17", data=self.data)
@@ -346,7 +346,7 @@ class MigrationTests(unittest.TestCase):
             ["agent-plugins"],
         ))
         self.assertNotEqual(passing["action"], "archive")
-        self.assertEqual(passing["new_scope"], "fleet")
+        self.assertEqual(passing["new_scope"], "project:agent-plugins")
         review = migrate_scope.classify(row(
             "a4abc29c",
             "Cursor CLI review answers with the cursor agent reviewer",
@@ -400,7 +400,7 @@ class MigrationTests(unittest.TestCase):
             "because one agent holds the lease",
             ["aadhaarchain", "comet"],
         ))
-        self.assertEqual(tool["new_scope"], "tool:comet")
+        self.assertEqual(tool["new_scope"], "project:aadhaarchain")
         wider = migrate_scope.classify(row(
             "dd000000",
             "Use both tools for the same job",
@@ -408,6 +408,94 @@ class MigrationTests(unittest.TestCase):
             ["git", "python"],
         ))
         self.assertEqual(wider["new_scope"], "fleet")
+
+    def test_one_allowlisted_project_sets_the_project_without_a_code_cue(self) -> None:
+        def scope(entities, summary="Watch the delegated thread for the done report",
+                  rationale="Working-path lesson."):
+            return migrate_scope.infer_scope(_body(summary, entities, rationale=rationale))[0]
+
+        self.assertEqual(scope(["open-resource-network"]), "project:open-resource-network")
+        self.assertEqual(scope(["open-resource-network", "orn-ci"]), "project:open-resource-network")
+        self.assertEqual(scope(["open-resource-network", "comet"]), "project:open-resource-network")
+        self.assertEqual(scope(["open-resource-network", "agent-plugins"]), "fleet")
+        self.assertEqual(scope(["context-ledger"]), "project:agent-plugins")
+        self.assertEqual(scope(["context-ledger", "agent-plugins"]), "project:agent-plugins")
+        self.assertEqual(scope(["context-ledger", "open-resource-network"]), "fleet")
+        self.assertEqual(scope(["skills"]), "fleet")
+        self.assertEqual(scope([]), "fleet")
+        self.assertEqual(scope(["open-resource-network", "fleet"]), "fleet")
+        self.assertEqual(scope(["databricks-interview"]), "project:databricks-interview")
+        only_app = _body("Watch the delegated thread for the done report", ["open-resource-network"],
+                         rationale="Working-path lesson.", applicability="Any project with delegated threads")
+        self.assertEqual(migrate_scope.infer_scope(only_app)[0], "fleet")
+
+    def test_explicit_fleet_cues_beat_one_project(self) -> None:
+        cues = [
+            "This holds for every bot.",
+            "All agents follow it.",
+            "A fleet rule.",
+            "It applies in any project.",
+            "Never write to /tmp on the Mini.",
+            "This is a standing rule.",
+            "The rule is cross-project.",
+            "All agent projects and hosts.",
+        ]
+        for cue in cues:
+            body = _body("Watch the delegated thread for the done report", ["open-resource-network"],
+                         rationale=cue)
+            self.assertEqual(migrate_scope.infer_scope(body)[0], "fleet", cue)
+        plain = _body("Never retry a blocked push", ["open-resource-network"],
+                      rationale="The Mini runs the reporter.")
+        self.assertEqual(migrate_scope.infer_scope(plain)[0], "project:open-resource-network")
+
+    def test_task_tied_to_a_pr_is_archived_and_lasting_rules_stay(self) -> None:
+        def classify(summary, rationale="Owner request 2026-10-10.", entities=("open-resource-network",)):
+            return migrate_scope.classify({
+                "id": "ee000000-0000-4000-8000-000000000001", "revision": 1, "lifecycle": "active",
+                "body": _body(summary, list(entities), rationale=rationale),
+            })
+
+        task = classify("Codex re-review of PR0 head 6dc3c7b returned FAIL \u2192 fix the 11 partial "
+                        "findings and N01\u2013N05, then run another Codex re-review before merge.")
+        self.assertEqual(task["action"], "archive")
+        self.assertIn("task tied", task["reason"])
+        no_pin = classify("Address the review findings, then rerun the gate before merge.",
+                          rationale="Owner request.")
+        self.assertEqual(no_pin["action"], "archive")
+        ruled = classify("Address the review findings, then rerun the gate before merge.",
+                         rationale="A gate must stay green before every merge.")
+        self.assertNotEqual(ruled["action"], "archive")
+        self.assertEqual(classify("Fix context-ledger 0.1.20\u20130.1.21 Codex findings 1\u20136 before accepting",
+                                  entities=("context-ledger",))["action"], "archive")
+        for summary in (
+            "A safety hook blocks an action \u2192 stop and report, and never retry it in another form.",
+            "Always run the merge gate before merge.",
+            "Verify the inbound mirror, detach, then fast-forward GitHub main.",
+            "A model is being chosen \u2192 route by difficulty, and never use the account default.",
+            "Run the path end-to-end before blind benchmarks.",
+        ):
+            self.assertNotEqual(classify(summary)["action"], "archive", summary)
+
+    def test_rewrite_leaves_no_stray_marks_or_duplicate_tokens(self) -> None:
+        body = _body(
+            "Pin context-ledger 0.1.20\u20130.1.21 (v1.2) in the install notes",
+            ["skills"],
+            rationale="Seen at 0.1.20 and 0.1.21 on 2026-10-12; again at 0.1.20.",
+        )
+        new, reason = migrate_scope.rewrite_body(body)
+        self.assertEqual(reason, "volatile pins moved to evidence")
+        for field in ("summary", "rationale", "situation", "action"):
+            text = new[field]
+            self.assertNotRegex(text, r"\(\s*\)|\s[\u2013\u2014-]\s|\s[\u2013\u2014-]$|^[\u2013\u2014-]", field)
+        self.assertEqual(new["summary"], "Pin context-ledger in the install notes")
+        tokens = new["evidence"][-1]["ref"].split()
+        self.assertEqual(len(tokens), len(set(tokens)))
+        self.assertIn("0.1.20", tokens)
+        from context_ledger.contracts import strip_volatile_tokens
+
+        cleaned, _ = strip_volatile_tokens(
+            "Tag context-ledger-v0.1.17 ships a resolver in mcp.json and .cursor-plugin/mcp.json today.")
+        self.assertEqual(cleaned, "Tag context-ledger ships a resolver in mcp.json and .cursor-plugin/mcp.json today")
 
     def test_isolation_after(self) -> None:
         build(self.data)

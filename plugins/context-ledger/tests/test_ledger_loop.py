@@ -260,6 +260,45 @@ class StoreModeTests(LedgerLoopBase):
         self.assertIn(brand, ids)
         self.assertNotIn(other, ids)
 
+    def test_orn_caller_does_not_get_agent_plugins_scope(self) -> None:
+        from context_ledger.contracts import caller_scope_from_binding
+
+        self.assertEqual(caller_scope_from_binding({"scope_id": "agent-plugins"}), {"tools": []})
+        (self.data / "project-registry.json").write_text(
+            json.dumps({"project": "open-resource-network"}) + "\n", encoding="utf-8")
+        summary = "Relay gate stays closed for the caller"
+        rationale = "because the relay gate stays closed"
+        ids = {}
+        for scope in ("project:open-resource-network", "project:agent-plugins", "project:loop-test", "fleet"):
+            ids[scope] = self.store.record(
+                {"request_id": _u(), "occurred_at": None,
+                 "body": _body(summary) | {"scope": scope, "rationale": rationale},
+                 "outcome": {"status": "pending", "note": "", "evidence": []}},
+                mcp=True,
+            )["decision_id"]
+        r = self.run_loop("find", self.task, "--bot", "efficient", "--query", "relay gate stays closed")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        hits = [hit["decision_id"] for hit in json.loads(r.stdout)["matches"]]
+        self.assertIn(ids["project:open-resource-network"], hits)
+        self.assertNotIn(ids["project:agent-plugins"], hits)
+        self.assertNotIn(ids["project:loop-test"], hits)
+
+    def test_no_project_anywhere_is_fleet_only(self) -> None:
+        summary = "Harbor gate stays closed for the caller"
+        rationale = "because the harbor gate stays closed"
+        ids = {}
+        for scope in ("project:loop-test", "fleet"):
+            ids[scope] = self.store.record(
+                {"request_id": _u(), "occurred_at": None,
+                 "body": _body(summary) | {"scope": scope, "rationale": rationale},
+                 "outcome": {"status": "pending", "note": "", "evidence": []}},
+                mcp=True,
+            )["decision_id"]
+        r = self.run_loop("find", self.task, "--bot", "efficient", "--query", "harbor gate stays closed")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        hits = [hit["decision_id"] for hit in json.loads(r.stdout)["matches"]]
+        self.assertEqual(hits, [ids["fleet"]])
+
     def test_close_without_start_fails(self) -> None:
         self.assert_fail(self.run_loop("close", self.task), "no start lookup")
 

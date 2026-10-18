@@ -13,6 +13,7 @@ Built-in project ids:
 - `aadhaarchain`
 - `brandgpt`
 - `hisab-pune`
+- `databricks-interview`
 
 `data/project-registry.json` key `projects`, and `binding.json` keys `project` and `projects`, add more ids. `binding.json` `scope_id` is the ledger partition. It is not added to the project allowlist.
 
@@ -20,11 +21,13 @@ Built-in project ids:
 
 Every other entity is `fleet`. That includes free-form topics such as skills, keychain, chrome, shell, and travel. A topic name is not a project.
 
-Fleet text wins before an entity does. Text that says the lesson holds for any, every, or another project, that it is a fleet lesson, or that it is not about this project, is `fleet`. An entity named `fleet` is `fleet`, never `project:fleet`.
+An entity named `fleet` is `fleet`, never `project:fleet`. An explicit fleet cue in the decision, why, or applicability is also `fleet`: any, every, or another project; not about this project; the word fleet; every bot or agent; all bots, agents, or agent projects; cross-project; a standing rule; or never ... on the Mini.
 
-When the entities include one allowlisted project and the decision or why is about that project's own product or code, the scope is that project. A code cue is wording such as `check.py`, merge gate, repo, codebase, source, module, package, plugin, or product. If a known tool is also named, the project still wins in that case.
+The entity `context-ledger` names part of `agent-plugins` and counts as that project.
 
-Otherwise one known tool entity sets `tool:<id>`. More than one known tool, or no allowlisted project and no known tool, sets `fleet`. When unsure, pick the wider scope.
+Otherwise exactly one allowlisted project entity sets `project:<id>`, also when a known tool is named. No code or product wording is needed. Two or more allowlisted projects set `fleet`.
+
+With no allowlisted project, one known tool entity sets `tool:<id>`. More than one known tool, or none, sets `fleet`. When unsure, pick the wider scope.
 
 A record that already has a legal scope token keeps it. `project:fleet` and a project or tool id outside the allowlists are inferred again.
 
@@ -43,7 +46,7 @@ A save is a pure status save only when the decision's main claim is a state. Exa
 
 `save` refuses a pure status save and refuses volatile tokens in the decision text. Those tokens belong in evidence. `kind: state` is refused.
 
-Migration strips volatile tokens into evidence and drops pure-status sentences, then keeps the rule. It archives only when nothing durable remains (the decision surface is empty or still a pure status line, or a required field is blank). An archive copies the record text into `data/archive/<date>.json` and never deletes the row. The script refuses a live root (`~/.context-ledger`, `~/.agents/plugin-data/context-ledger`, or `CONTEXT_LEDGER_DATA`), including a `--data` dir whose `binding.json` points at that ledger.
+Migration strips volatile tokens into evidence and drops pure-status sentences, then keeps the rule. It also archives a task step tied to a PR or Project: after stripping, the decision is an imperative step (fix, address, resolve, run, rerun, merge, land, finish, hold) with a PR or Project id in it, or with before merge, before accepting, findings, or re-review, and it carries no rule word (must, never, always, only, when, because, rule). Stripping leaves no stray dash, empty brackets, or doubled tokens, and evidence lists each token once. Otherwise it archives only when nothing durable remains (the decision surface is empty or still a pure status line, or a required field is blank). An archive copies the record text into `data/archive/<date>.json` and never deletes the row. The script refuses a live root (`~/.context-ledger`, `~/.agents/plugin-data/context-ledger`, or `CONTEXT_LEDGER_DATA`), including a `--data` dir whose `binding.json` points at that ledger.
 
 ## caller_scope
 
@@ -51,7 +54,7 @@ Migration strips volatile tokens into evidence and drops pure-status sentences, 
 
 `find` with no `caller_scope` allows fleet only. It does not return every record.
 
-`scripts/ledger_loop.py find` reads `binding.json` and passes `caller_scope`. The project is `binding.project` when set, otherwise `scope_id`. Tools are `binding.tools`. The helper `find` in `skills/context-ledger/scripts/lookup.py` does the same from the open store binding.
+`scripts/ledger_loop.py find` reads `binding.json` and passes `caller_scope`. The project is `binding.project`, else `project` in `data/project-registry.json`. `scope_id` is never used as a caller project. With no project the find is fleet plus `binding.tools`. The helper `find` in `skills/context-ledger/scripts/lookup.py` does the same from the open store binding.
 
 `record` on the MCP path refuses a body with no `scope`. An owner write (`mcp=False`) may still insert a legacy row with no scope so migration can classify it. The helper sets `fleet` when it writes a candidate or a gap and the caller did not name a narrower scope.
 
@@ -62,8 +65,8 @@ These ids are classification cases, not personal notes.
 | Id | Result |
 | --- | --- |
 | `2599cee1` | `fleet` or `tool:comet`, never `project:irctc` |
-| `41badbdc`, `77b5eb43`, `cb291f09`, `d81dd34c`, `f06e057d`, `d897c824` | `fleet` (ORN-tagged fleet lessons) |
+| `41badbdc`, `77b5eb43`, `cb291f09`, `d81dd34c`, `f06e057d`, `d897c824` | `project:open-resource-network` unless the text gains a fleet cue or a `fleet` entity (their stored text names ORN and carries no fleet cue) |
 | `4f7f4626`, `e47b091b`, `7ab0366c`, `fd157e72` | stay active, volatile token moved to evidence |
 | `3bfca7a8` | stay active (a model name is not a pin) |
 | `4bafacf3`, `a4abc29c` | stay active |
-| `4e5d0bad` | archive (a PR status with nothing durable left) |
+| `4e5d0bad` | archive (a task step tied to a PR) |
