@@ -536,6 +536,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         for name in (
             "compact_mcp.py",
             "compact_backend.py",
+            "compact_expectations.py",
             "compact_form_fills.py",
             "compact_instructions.txt",
         )

@@ -778,6 +778,15 @@ class WindowResolutionTests(unittest.TestCase):
         missed = {"ok": False, "error": "foreground acknowledgement timed out"}
         ready = {"ok": True, "pid": 899, "window_id": 99, "duration_ms": 82}
         with (
+            # Pin liveness: _pid_alive() is os.kill(pid, 0), and 899 is a real
+            # live process on some hosts, which would divert this test onto the
+            # native fast path and change both the call count and the result.
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(
+                macos_cua,
+                "_raise_resolved_ax_window",
+                return_value={"ok": False, "error": "no AX window"},
+            ),
             mock.patch.object(macos_cua, "call_driver", return_value={"ok": True}),
             mock.patch.object(
                 macos_cua,
@@ -834,6 +843,8 @@ class WindowResolutionTests(unittest.TestCase):
         missed = {"ok": False, "error": "foreground window is not AX-ready"}
         ready = {"ok": True, "window_id": 99}
         with (
+            # See above: 899 must not be resolved against the host process table.
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
             mock.patch.object(macos_cua, "call_driver", return_value={"ok": True}),
             mock.patch.object(
                 macos_cua,
