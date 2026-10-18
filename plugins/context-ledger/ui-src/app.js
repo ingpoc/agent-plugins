@@ -508,7 +508,7 @@ async function load(){
   resize();
 }
 if(EMBED){
-  rpc("ui/initialize",{protocolVersion:"2026-01-26",appInfo:{name:"context-ledger",version:"0.1.28"},appCapabilities:{availableDisplayModes:["inline","fullscreen"]}})
+  rpc("ui/initialize",{protocolVersion:"2026-01-26",appInfo:{name:"context-ledger",version:"0.1.29"},appCapabilities:{availableDisplayModes:["inline","fullscreen"]}})
     .then(()=>{ notify("ui/notifications/initialized"); resize(); load(); })
     .catch(()=>{ $("#resultCount").textContent="This view opens in a host that supports MCP Apps."; });
 } else load();

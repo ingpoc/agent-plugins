@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.29
+
+- `select` returns `verdict` and `grounding` with the nearest record and its distance. `grounded` means the chosen record's own text covers enough of the query's IDF mass; `ungrounded` means the embedding ranked an unrelated record first and that record is not evidence. `select` takes an optional terse `query` for that reading and falls back to the situation and need when it is absent. The nearest record is still returned, so the response shape is unchanged apart from the two added fields.
+- The helper runs `scripts/lookup.py find --query "<terse keywords>"` first. `find` is the grounded, outcome-ordered, A/B-measured path; `select` is the semantic expansion that reports whether its choice is grounded.
+- `find` reads a record with no applicability scope as `fleet`. Ledgers written before scopes existed store no `body.scope`, and the scope filter had excluded every one of those rows, so `find` returned zero hits on a v3 ledger with no error. Absent-scope-is-fleet restores v3's measured win: fillers 17 → 0, relevant 11/21 → 13/21, fleet lessons 7/10 → 10/10, mean bytes 751.7 → 521.9.
+- `isolation_eval.py` reports a `verdict` line and an `unscoped_records` count, so a nominal gate cannot be mistaken for a passing one and a run with no relevance cannot read as a leak fix.
+- `recall_check.py` orders `find` candidates with the same relevance floor and IDF corpus the server uses, so which records pass the floor and the hit counts agree with production instead of measuring an unfiltered search. The order stays approximate (`Store._rank`, FTS-capped candidates); exact ranks come from the real `find` in `retrieval_eval.py`.
+
 ## 0.1.28
 
 - A record is `project:<id>` only when `<id>` is on the allowlist: `agent-plugins`, `open-resource-network`, `aadhaarchain`, `brandgpt`, `hisab-pune`, plus ids named in `binding.json` (`project`, `projects`) or `data/project-registry.json`. A record is `tool:<id>` only for a known tool id. Every other entity, including a free-form topic, is `fleet`.

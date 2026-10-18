@@ -180,6 +180,25 @@ def _summ(rows: list[dict]) -> dict:
     }
 
 
+def _verdict(m: dict) -> dict:
+    """Hard pass conditions for one run.
+
+    The gate compares BEFORE to AFTER, so a run is not scored pass/fail on its own. These checks
+    exist because every headline isolation metric (leaks, fillers, mean_bytes) improves to perfect
+    when find returns nothing: on an un-re-scoped ledger the scope allowlist drops every record, so
+    the report reads leaks 2 -> 0, fillers 17 -> 0, bytes 751.7 -> 50.0 while the product is dead.
+    An empty result set is a failure, not a win.
+    """
+    checks = {
+        "hits_not_zero": m["hits"] > 0,
+        "relevant_found_not_zero": m["relevant_found"] > 0,
+        "fleet_lessons_found_not_zero": m["fleet_lessons_found"] > 0,
+        "zero_hit_violations_zero": m["zero_hit_violations"] == 0,
+        "errors_zero": m["errors"] == 0,
+    }
+    return {"pass": all(checks.values()), "checks": checks}
+
+
 def run(db: Path, plugin: Path, fixture: Path, scope_arg: str | None) -> dict:
     fx = json.loads(fixture.read_text(encoding="utf-8"))
     sys.path.insert(0, str(plugin))
@@ -191,13 +210,32 @@ def run(db: Path, plugin: Path, fixture: Path, scope_arg: str | None) -> dict:
         def canonical_json(o):  # noqa: E306
             return json.dumps(o, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
+    scope = fx["ledger"]["scope_id"]
     src = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
         ledger_id = src.execute("select ledger_id from ledger_meta where singleton=1").fetchone()[0]
         all_ids = [r[0] for r in src.execute("select decision_id from current_records")]
+        # Only a servable record can leak, and only records in this ledger scope are looked up at
+        # all: production find reads scope_id=? and sensitivity='model_safe', then drops archived.
+        servable_ids = [
+            r[0]
+            for r in src.execute(
+                "select decision_id from current_records "
+                "where scope_id=? and lifecycle='active' and sensitivity='model_safe'",
+                (scope,),
+            )
+        ]
+        # Scope v3 only isolates a record once its body carries a scope token. While this is greater
+        # than zero the allowlist is effectively off, so a green isolation report is not isolation.
+        with_scope = src.execute(
+            "select count(*) from current_records "
+            "where scope_id=? and lifecycle='active' and sensitivity='model_safe' "
+            "and json_extract(projection_json,'$.body.scope') is not null",
+            (scope,),
+        ).fetchone()[0]
     finally:
         src.close()
-    scope = fx["ledger"]["scope_id"]
+    unscoped = len(servable_ids) - with_scope
     prefixes = {p for f in fx["finds"] for k in ("relevant_ids", "fleet_ids", "forbidden_ids") for p in f[k]}
     ambiguous = sorted(p for p in prefixes if sum(1 for d in all_ids if d.startswith(p)) != 1)
     judge = TextJudge(db, scope)
@@ -268,8 +306,11 @@ def run(db: Path, plugin: Path, fixture: Path, scope_arg: str | None) -> dict:
         "db": db.name,
         "plugin_id": _plugin_id(plugin),
         "db_records": len(all_ids),
+        "servable_records": len(servable_ids),
+        "unscoped_records": unscoped,
         "ambiguous_prefixes": ambiguous,
         "metrics": {"all": _summ(rows), "audit_entity_runs": _summ(entity)},
+        "verdict": _verdict(_summ(rows)),
         "finds": rows,
     }
 
@@ -303,6 +344,18 @@ def table(rep: dict) -> str:
         mark = "" if r["leaks"] or not r["unbound_project_hits"] else "u"
         out.append(f"{r['id']:<4}{r['bytes']:>6}  {','.join(r['hits']) or '-':<29}{str(leak) + mark:>5}{r['fillers']:>5}"
                    f"{str(r['fleet_found']) + '/' + str(r['fleet_expected']):>7}{'  ERR ' + r['error'] if r.get('error') else ''}")
+    verdict = rep.get("verdict")
+    if verdict is not None:
+        failed = sorted(k for k, ok in verdict["checks"].items() if not ok)
+        unscoped = rep.get("unscoped_records")
+        note = (
+            f"  unscoped_records={unscoped} of {rep.get('servable_records')} servable"
+            " (isolation is off until this is 0)"
+            if unscoped
+            else ""
+        )
+        out.append("")
+        out.append(f"verdict: {'pass' if verdict['pass'] else 'FAIL'}" + (f"  not met: {', '.join(failed)}" if failed else "") + note)
     return "\n".join(out)
 
 

@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.29
+
+`select` returns `verdict` and `grounding` with the nearest decision and its distance. `grounded` means the chosen record's own text covers the query; `ungrounded` means the embedding ranked an unrelated record first and that record is not evidence. The helper runs `find` on terse keywords first, because `find` applies the relevance floor, ranks by outcome, and is the retrieval the A/B trial measures. `find` reads a record with no applicability scope as `fleet`, which restores hits on ledgers written before scopes existed.
+
 ## 0.1.28
 
 `find` with no caller scope returns fleet only. `ledger_loop.py find` and the helper inject the caller's project and tools from `binding.json`. `record` requires a scope. A project scope is an allowlisted project id. A tool scope is a known tool id. Anything else is fleet. Version strings, commit SHAs, PR or Project ids, and dates belong in evidence. A model name or a status word does not make a save volatile. A pure status save, one whose main claim is a state, is refused.

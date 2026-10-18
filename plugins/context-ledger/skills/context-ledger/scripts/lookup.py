@@ -52,6 +52,7 @@ def _use_runtime_python() -> None:
 if __name__ == "__main__":
     _use_runtime_python()
 
+from context_ledger import ranking  # noqa: E402
 from context_ledger.contracts import caller_scope_from_binding  # noqa: E402
 from context_ledger.store import Store  # noqa: E402
 
@@ -216,11 +217,45 @@ def _select(store: Store, body: dict) -> dict:
         raise ValueError("body")
     situation = _text(body.get("situation"), "situation", 320)
     need = _text(body.get("need"), "need", 160)
+    query = body.get("query")
+    if query is not None:
+        query = _text(query, "query", 160)
     embedding = _sentence_embedding()
-    chosen, distance = _best(embedding, situation, need, _visible(store))
+    records = _visible(store)
+    chosen, distance = _best(embedding, situation, need, records)
     if chosen is None or distance is None:
-        return {"decision": None, "distance": None}
-    return {"decision": _decision_view(chosen), "distance": distance}
+        return {
+            "decision": None,
+            "distance": None,
+            "verdict": "ungrounded",
+            "grounding": {
+                "terms": 0, "matched": 0, "coverage": 0.0, "lexical_ok": False, "query": query,
+            },
+        }
+    # The embedding ranks every record near every situation, so on its own the nearest record is
+    # weak evidence: measured over 131 records, correct answers sat at the median of the distance
+    # distribution and 6 of 8 labelled cases ranked their target below an unrelated record. The
+    # nearest record counts as evidence only when its own text covers enough of the query's IDF
+    # mass -- find's floor, applied to the choice. Pass `query` as a few terse keywords for the
+    # sharpest reading; the situation and need are used when it is absent.
+    qterms = ranking.query_terms(query or f"{situation} {need}")
+    corpus = ranking.Corpus(
+        (record["decision_id"], record["body"], record.get("revision")) for record in records
+    )
+    _bm25, coverage, matched = corpus.score(chosen["decision_id"], qterms)
+    lexical_ok = bool(qterms) and ranking.relevant(coverage, matched, len(qterms))
+    return {
+        "decision": _decision_view(chosen),
+        "distance": distance,
+        "verdict": "grounded" if lexical_ok else "ungrounded",
+        "grounding": {
+            "terms": len(qterms),
+            "matched": matched,
+            "coverage": round(coverage, 4),
+            "lexical_ok": lexical_ok,
+            "query": query,
+        },
+    }
 
 
 def _uuid_text(value: object) -> str:

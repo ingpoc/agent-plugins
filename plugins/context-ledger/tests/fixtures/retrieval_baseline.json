@@ -1,0 +1,144 @@
+{
+ "_note": [
+  "Frozen BEFORE/AFTER numbers for context-ledger retrieval (gate: BEFORE vs AFTER, exit 0 always).",
+  "Aggregates only: the runnable case file holds real decision ids and query text and is kept",
+  "outside this public repo at ~/.agents/plugin-data/context-ledger/bench/retrieval_cases_v1.json",
+  "(mode 0600), with the snapshot, the migrated copy and the per-case rows beside it.",
+  "Regenerate: plugins/context-ledger/scripts/retrieval_eval.py --help",
+  "12 cases = 8 positive (a durable answer exists) + 4 negative (correct outcome is no answer),",
+  "drawn from the 2026-10-17 IST isolation audit in tests/fixtures/isolation_30.json.",
+  "select is scored on natural-language situation+need (its production input) and on the terse",
+  "query; find is scored on the terse query, which is its production input. find on prose is",
+  "reported separately below because the helper passes prose.",
+  "The after_migration_applied block was measured on a scratch copy of the same snapshot with",
+  "scripts/migrate_scope.py --apply; the live ledger was never written."
+ ],
+ "scope_id": "agent-plugins",
+ "snapshot": "sqlite3 .backup of the live ledger, 2026-10-18 IST",
+ "records_model_safe_active": 131,
+ "records_with_a_scope_token": 0,
+ "cases": {"total": 12, "positive": 8, "negative": 4},
+ "before": {
+  "plugin": "main 0673cba (v0.1.26, the installed production plugin)",
+  "select_over_situation_and_need": {
+   "top1": "2/8", "top3": "2/8", "mrr": 0.2728, "not_returned_at_all": "0/8",
+   "mean_target_distance": 2.165, "negative_cases_answered": "4/4",
+   "negative_top_distance_range": [1.99, 2.1127]
+  },
+  "select_over_terse_query": {
+   "top1": "1/8", "top3": "1/8", "mrr": 0.2073, "not_returned_at_all": "0/8"
+  },
+  "find_on_terse_query": {
+   "top1": "7/8", "top3": "7/8", "mrr": 0.875, "total_hits": 20,
+   "mean_hits_per_query": 1.67, "negative_cases_answered": "0/4", "errors": []
+  },
+  "find_on_prose_situation": {
+   "top1_plus_correct_abstentions": "6/12",
+   "note": "find degrades 11/12 -> 6/12 on prose, and abstains (0 hits) rather than answering wrong"
+  }
+ },
+ "after_candidate_scope_branch_unfixed": {
+  "plugin": "v3 branch head 4136368, scope allowlist, ledger not re-scoped",
+  "find_on_terse_query": {
+   "top1": "0/8", "top3": "0/8", "mrr": 0.0, "total_hits": 0,
+   "mean_hits_per_query": 0.0, "negative_cases_answered": "0/4", "errors": []
+  },
+  "cause": "store.find filtered rec['body'].get('scope') against {'fleet'}; 0 of 131 records carried a scope, so every record was dropped and find failed silently"
+ },
+ "after_fix_absent_scope_reads_as_fleet": {
+  "change": "store.py: (rec['body'].get('scope') or 'fleet') not in allowed",
+  "find_on_terse_query": {
+   "top1": "7/8", "top3": "7/8", "mrr": 0.875, "total_hits": 20,
+   "mean_hits_per_query": 1.67, "negative_cases_answered": "0/4", "errors": []
+  },
+  "isolated_gate": {
+   "hits": 26, "cross_project_leaks": 3, "unbound_project_hits": 2, "offtopic_fillers": 0,
+   "relevant_found": 13, "relevant_labelled": 21, "fleet_lessons_found": 10,
+   "fleet_lessons_expected": 10, "mean_bytes": 521.9, "mean_hits": 1.3,
+   "zero_hit": 9, "zero_hit_violations": 0, "errors": 0, "unscoped_records": 131,
+   "servable_records": 131
+  }
+ },
+ "after_migration_applied": {
+  "change": "scripts/migrate_scope.py --apply on a scratch copy; 66 rewrites, 79 rescopes, 1 archive",
+  "scope_distribution": {
+   "fleet": 131, "project:agent-plugins": 3, "tool:codex-cli": 3,
+   "project:open-resource-network": 2, "tool:comet": 2, "tool:cursor-cli": 2,
+   "project:brandgpt": 1, "project:aadhaarchain": 1
+  },
+  "archived": {
+   "id_prefix": "b6545b05", "reason": "summary empty after removing volatile text",
+   "note": "a pure status row, not a labelled answer; records_model_safe_active 131 -> 130"
+  },
+  "find_scoped": {
+   "top1": "7/8", "top3": "7/8", "mrr": 0.875, "not_returned_at_all": "1/8",
+   "total_hits": 21, "mean_hits_per_query": 1.75, "negative_cases_answered": "0/4", "errors": []
+  },
+  "find_fleet": {
+   "top1": "4/8", "top3": "4/8", "mrr": 0.5, "not_returned_at_all": "4/8",
+   "total_hits": 17, "mean_hits_per_query": 1.42, "negative_cases_answered": "0/4", "errors": []
+  },
+  "find_fleet_cause": "3 labelled answers (the keychain family, target d7f6cc8d -> tool:cursor-cli) are now unreachable to a caller that names no project or tool. By design, and the cost of the migration: a scoped caller keeps 7/8, an unbound caller loses 3/8",
+  "select_over_situation_and_need": {
+   "top1": "1/8", "top3": "2/8", "mrr": 0.2105, "mean_target_distance": 2.1534,
+   "negative_cases_answered": "4/4", "negative_top_distance_range": [1.99, 2.1127]
+  },
+  "select_over_terse_query": {
+   "top1": "2/8", "top3": "2/8", "mrr": 0.2995,
+   "negative_cases_answered": "4/4", "negative_top_distance_range": [1.9095, 2.1182]
+  },
+  "isolated_gate": {
+   "hits": 29, "cross_project_leaks": 3, "unbound_project_hits": 2, "offtopic_fillers": 0,
+   "relevant_found": 13, "relevant_labelled": 21, "fleet_lessons_found": 10,
+   "fleet_lessons_expected": 10, "mean_bytes": 561.0, "mean_hits": 1.45,
+   "zero_hit": 9, "zero_hit_violations": 0, "errors": 0, "unscoped_records": 0,
+   "servable_records": 130
+  },
+  "cost_of_the_rewrite": "one extra irrelevant fleet hit on 3 queries (mean_hits 1.3 -> 1.45, mean_bytes 521.9 -> 561.0); leaks, fillers, relevant_found and fleet_lessons unchanged"
+ },
+ "isolation_gate_before_vs_after": {
+  "before_main_0673cba": {
+   "hits": 39, "cross_project_leaks": 2, "unbound_project_hits": 2, "offtopic_fillers": 17,
+   "relevant_found": 11, "fleet_lessons_found": 7, "fleet_lessons_expected": 10,
+   "mean_bytes": 751.7, "zero_hit": 4, "zero_hit_violations": 0, "errors": 0,
+   "unscoped_records": 146
+  },
+  "after_v3_plus_fix": {
+   "hits": 26, "cross_project_leaks": 3, "unbound_project_hits": 2, "offtopic_fillers": 0,
+   "relevant_found": 13, "fleet_lessons_found": 10, "fleet_lessons_expected": 10,
+   "mean_bytes": 521.9, "zero_hit": 9, "zero_hit_violations": 0, "errors": 0,
+   "unscoped_records": 131, "servable_records": 131
+  },
+  "after_v3_plus_fix_plus_migration": {
+   "hits": 29, "cross_project_leaks": 3, "unbound_project_hits": 2, "offtopic_fillers": 0,
+   "relevant_found": 13, "fleet_lessons_found": 10, "fleet_lessons_expected": 10,
+   "mean_bytes": 561.0, "zero_hit": 9, "zero_hit_violations": 0, "errors": 0,
+   "unscoped_records": 0, "servable_records": 130
+  },
+  "unfixed_v3_for_reference": {
+   "hits": 0, "cross_project_leaks": 0, "offtopic_fillers": 0, "relevant_found": 0,
+   "fleet_lessons_found": 0, "mean_bytes": 50.0, "zero_hit": 20, "zero_hit_violations": 8
+  },
+  "open_regressions": [
+   "B6: BEFORE returned the labelled answer 4e5d0bad at rank 2; v3's floor/ranking drops it and surfaces 2 cross-project rows instead, so cross_project_leaks go 2 -> 3. Re-scoping does not fix it (4e5d0bad stays active and fleet), and it is not the archive: the row migration archives is b6545b05, an unrelated pure-status row.",
+   "unbound_project_hits stay at 2: records 6c7fd233 and 364b7d61 read as project-specific to the audit but classify as fleet, so an unbound caller still receives them after the migration."
+  ]
+ },
+ "pass_conditions": {
+  "isolation_verdict_now_computed_in_script": [
+   "hits_not_zero",
+   "relevant_found_not_zero",
+   "fleet_lessons_found_not_zero",
+   "zero_hit_violations_zero",
+   "errors_zero"
+  ],
+  "still_proposed": [
+   "relevant_found and fleet_lessons_found must not fall below BEFORE",
+   "cross_project_leaks must not rise above BEFORE (currently 2 -> 3)",
+   "unscoped_records must be 0 of the servable records before an isolation claim is made. On this machine that is met only after scripts/migrate_scope.py --apply: the after_migration_applied numbers come from a scratch copy with 0 of 130, while the live ledger this branch reads is still 131 of 131 (isolation nominal)",
+   "retrieval: find top1/top3 must not fall below 7/8 for a scoped caller (fleet-only callers lose project answers by design)",
+   "retrieval: find_fleet top1 4/8 is the accepted cost of scoping; re-measure before calling it a regression",
+   "retrieval: select negative_cases_answered must fall from 4/4, with top1/top3/MRR rising"
+  ]
+ }
+}

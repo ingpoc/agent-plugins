@@ -1007,7 +1007,10 @@ class Store:
                     continue
                 if self._expired(rec, now):
                     continue
-                if allowed is not None and rec["body"].get("scope") not in allowed:
+                # A record written before scope v3 carries no scope. migrate_scope.py re-scopes those
+                # to "fleet", so an absent scope reads as fleet here too: a missing field must never
+                # hide an otherwise-retrievable record from every caller.
+                if allowed is not None and (rec["body"].get("scope") or "fleet") not in allowed:
                     continue
                 recs[row["decision_id"]] = rec
             corpus = ranking.Corpus((did, rec["body"], rec.get("revision")) for did, rec in recs.items())

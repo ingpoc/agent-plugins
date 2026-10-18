@@ -360,8 +360,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.28")
-        self.assertIn('__version__ = "0.1.28"', init)
+        self.assertEqual(plugin["version"], "0.1.29")
+        self.assertIn('__version__ = "0.1.29"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -374,7 +374,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
-        self.assertIn('version:"0.1.28"', page)
+        self.assertIn('version:"0.1.29"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
@@ -798,6 +798,46 @@ class StoreTests(unittest.TestCase):
             mcp=True,
         )
         self.assertEqual(found["matches"][0]["decision_id"], success_id)
+
+    def test_select_reports_whether_its_nearest_record_is_grounded(self) -> None:
+        """The embedding always returns a nearest record. Verdict says whether it is evidence."""
+        _require_sentence_embedding(self)
+        pending_id, success_id = self._seed_situation_and_success()
+        situation = "About to change a plugin and the only proof so far is the automated suite"
+        need = "What has to happen before that change goes to main"
+        prose = self._lookup("select", {"situation": situation, "need": need})
+        self.assertEqual(prose["decision"]["id"], pending_id)
+        self.assertIn(prose["verdict"], {"grounded", "ungrounded"})
+        self.assertGreater(prose["grounding"]["terms"], 0)
+        self.assertIsNone(prose["grounding"]["query"])
+        unrelated = self._lookup(
+            "select",
+            {
+                "situation": "Booking a train ticket for tomorrow morning",
+                "need": "Which coach and payment method to use",
+            },
+        )
+        self.assertIn(unrelated["decision"]["id"], {pending_id, success_id})
+        self.assertEqual(unrelated["verdict"], "ungrounded")
+        self.assertFalse(unrelated["grounding"]["lexical_ok"])
+        # The same situation with terse keywords is the reading the record's own text supports.
+        terse = self._lookup(
+            "select", {"situation": situation, "need": need, "query": "plugin change proof"}
+        )
+        self.assertEqual(terse["decision"]["id"], pending_id)
+        self.assertEqual(terse["verdict"], "grounded")
+        self.assertTrue(terse["grounding"]["lexical_ok"])
+        self.assertEqual(terse["grounding"]["query"], "plugin change proof")
+        badge = self._lookup(
+            "select",
+            {
+                "situation": "Shipping a plugin version badge into the marketplace index",
+                "need": "What has to happen so the badge matches the indexed commit",
+                "query": "marketplace badge version commit",
+            },
+        )
+        self.assertEqual(badge["decision"]["id"], success_id)
+        self.assertEqual(badge["verdict"], "grounded")
 
     def test_feedback_reuses_similar_precedent_and_records_a_missing_decision(self) -> None:
         _require_sentence_embedding(self)
