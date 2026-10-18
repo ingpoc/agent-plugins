@@ -120,8 +120,8 @@
    "fleet_lessons_found": 0, "mean_bytes": 50.0, "zero_hit": 20, "zero_hit_violations": 8
   },
   "open_regressions": [
-   "B6: BEFORE returned the labelled answer 4e5d0bad at rank 2; v3's floor/ranking drops it and surfaces 2 cross-project rows instead, so cross_project_leaks go 2 -> 3. Re-scoping does not fix it (4e5d0bad stays active and fleet), and it is not the archive: the row migration archives is b6545b05, an unrelated pure-status row.",
-   "unbound_project_hits stay at 2: records 6c7fd233 and 364b7d61 read as project-specific to the audit but classify as fleet, so an unbound caller still receives them after the migration."
+   "cross_project_leaks 2 -> 3 is one added hit, not a lost answer. B6's own judgment allows the drop (zero_hits_ok true: 'ORN Codex re-review FAIL is on-topic but a volatile status row; v3 may move it to state, so zero hits OK'), so losing 4e5d0bad is permitted. What is not permitted is what replaced it: v3 returns 6c7fd233, which is in B6's forbidden_ids. BEFORE returned 4e5d0bad instead, so the count goes 2 -> 3 (A6 2, B6 1).",
+   "unbound_project_hits stay at 2 and the B6 leak share one root cause: records 6c7fd233 and 364b7d61 name exactly one allowlisted project but classify as fleet, because contracts' code cue list (check.py|merge gate|repo|codebase|source|module|package|plugin|product|own code|own product) misses the words these records actually use (PR, CI, merge, review, version, release, build, finding, gate). Widening the cue list moves 15 of 146 records out of fleet (13 to project:open-resource-network, 2 to project:agent-plugins), including both of these; re-run the isolation gate before adopting it because it also narrows what an unbound caller sees."
   ]
  },
  "pass_conditions": {
