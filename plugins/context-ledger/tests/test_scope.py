@@ -252,11 +252,11 @@ class MigrationTests(unittest.TestCase):
         self.assertGreaterEqual(actions.get("rewrite", 0), 1)
         self.assertGreaterEqual(actions.get("rescope", 0), 1)
         by_id = {row["id"][:8]: row for row in rows}
-        self.assertIn(by_id["2599cee1"]["new_scope"], {"fleet", "tool:comet"})
-        self.assertNotEqual(by_id["2599cee1"]["new_scope"], "project:irctc")
-        self.assertEqual(by_id["4e5d0bad"]["action"], "archive")
-        self.assertNotEqual(by_id["a4abc29c"]["action"], "archive")
-        self.assertEqual(by_id["6c7fd233"]["new_scope"], "project:context-ledger")
+        self.assertIn(by_id["dec0de04"]["new_scope"], {"fleet", "tool:comet"})
+        self.assertNotEqual(by_id["dec0de04"]["new_scope"], "project:irctc")
+        self.assertEqual(by_id["dec0de09"]["action"], "archive")
+        self.assertNotEqual(by_id["dec0de02"]["action"], "archive")
+        self.assertEqual(by_id["dec0de10"]["new_scope"], "project:context-ledger")
         store = Store(self.data, actor_channel="owner_cli")
         try:
             migrate_scope.apply(store, rows, on="2026-10-17", data=self.data)
@@ -271,8 +271,8 @@ class MigrationTests(unittest.TestCase):
         self.assertTrue(archive and all(item["body"]["summary"] for item in archive))
         self.assertTrue(all(row["reason"] in {"already at new scope", "already archived"} for row in again))
         ids = [hit["decision_id"][:8] for hit in fleet["matches"]]
-        self.assertIn("d7f6cc8d", ids)
-        self.assertNotIn("6c7fd233", ids)
+        self.assertIn("dec0de01", ids)
+        self.assertNotIn("dec0de10", ids)
 
     def test_refuses_the_live_ledger(self) -> None:
         live = Path.home() / ".context-ledger"
@@ -317,13 +317,13 @@ class MigrationTests(unittest.TestCase):
             }
 
         kept = [
-            ("4f7f4626", "Keep a pin out of a lasting rule",
+            ("dec0de20", "Keep a pin out of a lasting rule",
              "The rule stays because a pin is not the rule. The pin was 1.2.3."),
-            ("e47b091b", "Keep a commit pin out of a lasting rule",
+            ("dec0de21", "Keep a commit pin out of a lasting rule",
              "The rule stays because a commit pin is not the rule. The pin was abcdef1."),
-            ("7ab0366c", "Keep a pull request id out of a lasting rule",
+            ("dec0de22", "Keep a pull request id out of a lasting rule",
              "The rule stays because a pull request id is not the rule. See pr 19."),
-            ("fd157e72", "Keep a date out of a lasting rule",
+            ("dec0de23", "Keep a date out of a lasting rule",
              "The rule stays because a date is not the rule. The date was 2026-10-17."),
         ]
         for prefix, summary, rationale in kept:
@@ -332,7 +332,7 @@ class MigrationTests(unittest.TestCase):
             self.assertNotEqual(item["action"], "archive", prefix)
             self.assertEqual(item["new_scope"], "fleet", prefix)
         model = migrate_scope.classify(row(
-            "3bfca7a8",
+            "dec0de24",
             "Use a named model only when the rule needs that name",
             "gpt-6.1 is a label and not a pin",
             ["skills"],
@@ -340,7 +340,7 @@ class MigrationTests(unittest.TestCase):
         self.assertNotEqual(model["action"], "archive")
         self.assertEqual(model["new_scope"], "fleet")
         passing = migrate_scope.classify(row(
-            "4bafacf3",
+            "dec0de25",
             "CI must stay passing before merge",
             "because a passing check is the rule",
             ["agent-plugins"],
@@ -366,7 +366,7 @@ class MigrationTests(unittest.TestCase):
         ))
         self.assertEqual(delivery["new_scope"], "project:agent-plugins")
         review = migrate_scope.classify(row(
-            "a4abc29c",
+            "dec0de02",
             "Cursor CLI review answers with the cursor agent reviewer",
             "That review half is separate from the keychain prompt on Cursor CLI",
             ["cursor-cli"],
@@ -374,21 +374,21 @@ class MigrationTests(unittest.TestCase):
         self.assertNotEqual(review["action"], "archive")
         self.assertEqual(review["new_scope"], "tool:cursor-cli")
         status = migrate_scope.classify(row(
-            "4e5d0bad",
+            "dec0de09",
             "Codex re-review failed.",
             "sha abcdef1 and pr 15 merged.",
             ["open-resource-network"],
         ))
         self.assertEqual(status["action"], "archive")
         comet = migrate_scope.classify(row(
-            "2599cee1",
+            "dec0de04",
             "Comet browser lease held by another agent waits for release",
             "The comet browser lease stays with the agent that holds it",
             ["comet", "irctc"],
         ))
         self.assertIn(comet["new_scope"], {"fleet", "tool:comet"})
         self.assertNotEqual(comet["new_scope"], "project:irctc")
-        for prefix in ("41badbdc", "77b5eb43", "cb291f09", "d81dd34c", "f06e057d", "d897c824"):
+        for prefix in ("dec0de26", "dec0de27", "dec0de28", "dec0de29", "dec0de30", "dec0de31"):
             item = migrate_scope.classify(row(
                 prefix,
                 "Fleet lesson. Holds in another project.",

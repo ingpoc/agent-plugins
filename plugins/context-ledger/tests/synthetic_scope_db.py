@@ -1,4 +1,9 @@
-"""Synthetic ledger for the isolation fixture. Temp data dir only. Never ~/.context-ledger."""
+"""Synthetic ledger for the isolation fixture. Temp data dir only. Never ~/.context-ledger.
+
+Every id here is a made-up `dec0deNN` prefix and every summary is written for this
+fixture. Nothing in this module or in tests/fixtures/isolation_30.json describes a
+record in the owner's ledger.
+"""
 
 from __future__ import annotations
 
@@ -49,38 +54,38 @@ def build(data: Path) -> Path:
             "brandgpt",
             "hisab-pune",
             "context-ledger",
-            "databricks-interview",
+            "example-service",
         ]
     }
     (data / "project-registry.json").write_text(json.dumps(registry) + "\n", encoding="utf-8")
     store = Store(data, actor_channel="agent")
     try:
         rows = [
-            ("d7f6cc8d", "Cursor CLI review keychain prompt blocks a headless run",
+            ("dec0de01", "Cursor CLI review keychain prompt blocks a headless run",
              "The keychain prompt blocks a headless Cursor CLI review", ["cursor-cli"]),
-            ("a4abc29c", "Cursor CLI review answers with the cursor agent reviewer",
+            ("dec0de02", "Cursor CLI review answers with the cursor agent reviewer",
              "That review half is separate from the keychain prompt on Cursor CLI", ["cursor-cli"]),
-            ("e5ff9784", "Comet browser lease is held by one agent at a time",
+            ("dec0de03", "Comet browser lease is held by one agent at a time",
              "One agent holds the comet browser lease", ["comet"]),
-            ("2599cee1", "Comet browser lease held by another agent waits for release",
+            ("dec0de04", "Comet browser lease held by another agent waits for release",
              "The comet browser lease stays with the agent that holds it", ["comet", "irctc"]),
-            ("04f17360", "Comet Control owns the browser lease for every agent",
+            ("dec0de05", "Comet Control owns the browser lease for every agent",
              "The comet browser lease has one owner across agents", ["comet"]),
-            ("7d3941cc", "check.py merge gate failing on PR stays fail loud",
+            ("dec0de06", "check.py merge gate failing on PR stays fail loud",
              "A failing check.py merge gate on a PR must stay loud", ["open-resource-network"]),
-            ("a8babf06", "check.py merge gate failing on PR names the broken check",
+            ("dec0de07", "check.py merge gate failing on PR names the broken check",
              "The check.py merge gate on a PR names the broken check", ["open-resource-network"]),
-            ("b13d5e4f", "check.py merge gate failing on PR is a free-plan lesson",
+            ("dec0de08", "check.py merge gate failing on PR is a free-plan lesson",
              "A free-plan check.py merge gate on a PR still fails loud", ["open-resource-network"]),
-            ("4e5d0bad", "Codex re-review failed.",
+            ("dec0de09", "Codex re-review failed.",
              "sha abcdef1 and pr 15 merged.", ["open-resource-network"]),
-            ("6c7fd233", "Codex review fails before posting PR comments on this repo",
+            ("dec0de10", "Codex review fails before posting PR comments on this repo",
              "The codex review fails before posting PR comments", ["context-ledger"]),
-            ("b32beeea", "Garden watering schedule for the courtyard beds",
+            ("dec0de11", "Garden watering schedule for the courtyard beds",
              "Water the courtyard beds on a fixed weekday", ["aadhaarchain"]),
-            ("aa11aa11", "Keep a version pin out of a lasting rule for every project.",
+            ("dec0de12", "Keep a version pin out of a lasting rule for every project.",
              "The rule stays because a pin is not the rule. The pin was 0.1.26.", ["context-ledger"]),
-            ("bb22bb22", "Status update.",
+            ("dec0de13", "Status update.",
              "pr 9 merged.", ["aadhaarchain"]),
         ]
         for prefix, summary, rationale, entities in rows:

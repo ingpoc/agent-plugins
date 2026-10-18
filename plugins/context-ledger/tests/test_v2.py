@@ -70,10 +70,10 @@ class V2Base(unittest.TestCase):
 class RankingThresholdTests(V2Base):
     def setUp(self) -> None:
         super().setUp()
-        # A high-confidence, success record about something else entirely (the ORN problem).
+        # A high-confidence, success record about something else entirely (the other-project problem).
         self.offtopic = self.legacy(
-            "ORN forge is Cursor Origin; CI runs on a Mini launchd reporter",
-            rationale="Owner decision for open resource network merges",
+            "The service forge is a hosted git origin; CI runs on a Mini reporter",
+            rationale="Owner decision for the other project's merges",
             entities=["open-resource-network"],
         )
         for i in range(4):
@@ -139,31 +139,31 @@ class RankingThresholdTests(V2Base):
 
 class UserDecisionRankingTests(V2Base):
     def test_self_reported_user_decision_does_not_outrank(self) -> None:
-        guru = self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
+        guru = self.save(type="user_decision", decision="Kite reads for ACCT7 go through Mini Comet",
                          why="Guru standing rule: never the Kite MCP for funds or holdings",
                          entities=["kite"], criticality=None, approver="guru")
-        agent = self.save(decision="Kite reads for WH6470 go through Mini Comet",
+        agent = self.save(decision="Kite reads for ACCT7 go through Mini Comet",
                           why="The Kite MCP needs authorize links on every session",
                           entities=["kite"], criticality=5)
         rec = self.store.get({"decision_id": guru}, mcp=True)["record"]
         self.assertEqual(rec["body"]["approval"]["state"], "self_reported")
-        self.assertEqual(self.ids("kite reads for WH6470 through comet")[:2], [agent, guru])
+        self.assertEqual(self.ids("kite reads for ACCT7 through comet")[:2], [agent, guru])
 
     def test_owner_attested_user_decision_outranks_on_equal_match(self) -> None:
-        guru = self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
+        guru = self.save(type="user_decision", decision="Kite reads for ACCT7 go through Mini Comet",
                          why="Guru standing rule: never the Kite MCP for funds or holdings",
                          entities=["kite"], criticality=None, approver="guru")
         rev = self.store.get({"decision_id": guru}, mcp=False)["record"]["revision"]
         self.store.attest(guru, rev, _u(), "guru", "owner attested")
-        self.save(decision="Kite reads for WH6470 go through Mini Comet",
+        self.save(decision="Kite reads for ACCT7 go through Mini Comet",
                   why="The Kite MCP needs authorize links on every session",
                   entities=["kite"], criticality=5)
         rec = self.store.get({"decision_id": guru}, mcp=False)["record"]
         self.assertEqual(rec["body"]["approval"]["state"], "owner_attested")
-        self.assertEqual(self.ids("kite reads for WH6470 through comet")[0], guru)
+        self.assertEqual(self.ids("kite reads for ACCT7 through comet")[0], guru)
 
     def test_user_decision_below_the_floor_is_not_returned(self) -> None:
-        self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
+        self.save(type="user_decision", decision="Kite reads for ACCT7 go through Mini Comet",
                   why="Guru standing rule for Zerodha", entities=["kite"], approver="guru")
         self.assertEqual(self.find("IRCTC tatkal captcha keeps failing")["matches"], [])
 
@@ -290,9 +290,9 @@ class LinksAndSignalsTests(V2Base):
 
     def test_repeated_rule_and_exception_counts_as_automation_candidate(self) -> None:
         for i in range(3):
-            self.save(decision=f"Skipped Kite MCP for WH6470 read {i}", why="Guru rule applies",
+            self.save(decision=f"Skipped Kite MCP for ACCT7 read {i}", why="Guru rule applies",
                       entities=["kite"], rule="kite-via-comet", exception="none")
-        hit = self.find("kite mcp WH6470 read")["matches"][0]
+        hit = self.find("kite mcp ACCT7 read")["matches"][0]
         self.assertEqual(hit["repeats"], 3)
 
     def test_find_and_get_are_logged_with_caller_query_count_and_bytes(self) -> None:
@@ -477,11 +477,11 @@ class TrustTierTests(V2Base):
         return self.find(query)["matches"][0]["tier"]
 
     def test_find_tiers_from_outcomes(self) -> None:
-        a = self.save(decision="Comet reads zerodha holdings for WH6470", why="kite connector is the only path")
+        a = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
         self.mark(a, 2, 0)
-        self.assertEqual(self.tier("comet zerodha holdings WH6470"), "hint")
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "hint")
         self.mark(a, 1, 0)
-        self.assertEqual(self.tier("comet zerodha holdings WH6470"), "trusted")
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
         b = self.save(decision="Tijori overview scrape uses shortlist only", why="full scrape wastes tokens")
         self.mark(b, 9, 1)
         self.assertEqual(self.tier("tijori overview scrape shortlist"), "trusted")

@@ -6,7 +6,9 @@
   "(mode 0600), with the snapshot, the migrated copy and the per-case rows beside it.",
   "Regenerate: plugins/context-ledger/scripts/retrieval_eval.py --help",
   "12 cases = 8 positive (a durable answer exists) + 4 negative (correct outcome is no answer),",
-  "drawn from the 2026-10-17 IST isolation audit in tests/fixtures/isolation_30.json.",
+  "drawn from the same 2026-10-17 IST isolation audit as the synthetic matrix in",
+   "tests/fixtures/isolation_30.json; the audit itself, with its real ids and query text, stays",
+   "outside this public repo.",
   "select is scored on natural-language situation+need (its production input) and on the terse",
   "query; find is scored on the terse query, which is its production input. find on prose is",
   "reported separately below because the helper passes prose.",
@@ -67,7 +69,7 @@
    "project:brandgpt": 1, "project:aadhaarchain": 1
   },
   "archived": {
-   "id_prefix": "b6545b05", "reason": "summary empty after removing volatile text",
+   "reason": "summary empty after removing volatile text",
    "note": "a pure status row, not a labelled answer; records_model_safe_active 131 -> 130"
   },
   "find_scoped": {
@@ -78,7 +80,7 @@
    "top1": "4/8", "top3": "4/8", "mrr": 0.5, "not_returned_at_all": "4/8",
    "total_hits": 17, "mean_hits_per_query": 1.42, "negative_cases_answered": "0/4", "errors": []
   },
-  "find_fleet_cause": "3 labelled answers (the keychain family, target d7f6cc8d -> tool:cursor-cli) are now unreachable to a caller that names no project or tool. By design, and the cost of the migration: a scoped caller keeps 7/8, an unbound caller loses 3/8",
+  "find_fleet_cause": "3 labelled answers (the keychain family, its target now scoped to the cursor CLI) are now unreachable to a caller that names no project or tool. By design, and the cost of the migration: a scoped caller keeps 7/8, an unbound caller loses 3/8",
   "select_over_situation_and_need": {
    "top1": "1/8", "top3": "2/8", "mrr": 0.2105, "mean_target_distance": 2.1534,
    "negative_cases_answered": "4/4", "negative_top_distance_range": [1.99, 2.1127]
@@ -98,7 +100,7 @@
  },
  "after_cue_widened": {
   "change": "scripts/migrate_scope.py _CODE_CUE widened to the vocabulary of a project's own delivery artifacts (pr, finding[s]?, ship*, version[s]?, build*, bug[s]?, contract[s]?, migration[s]?, schema[s]?). ci, merge, review, release, fix, gate and bare check stay out: they name practice that is still true in another project, so a sentence like 'CI must stay passing before merge' must still read fleet. release and fix also match 'waits for release' and 'a fixed weekday'.",
-  "why": "records 6c7fd233 and 364b7d61 name exactly one allowlisted project yet classified as fleet, so callers bound to unrelated projects received them. Those two records are the whole B6 leak and both unbound_project_hits, so one cause explains all three symptoms.",
+  "why": "two records name exactly one allowlisted project yet classified as fleet, so callers bound to unrelated projects received them. Those two records are the whole B6 leak and both unbound_project_hits, so one cause explains all three symptoms.",
   "scope_moves": {
    "records_changed": 10, "active": 8, "superseded": 2,
    "to_open_resource_network": 9, "to_agent_plugins": 1,
@@ -107,7 +109,7 @@
     "project:brandgpt": 1, "project:aadhaarchain": 1, "tool:codex-cli": 3,
     "tool:comet": 2, "tool:cursor-cli": 2
    },
-   "checked_for_false_positives": "68c44855 (a Codex CLI version and rate-limit rule recorded under open-resource-network) stays fleet, as do 41badbdc and the comet-lease and garden rows. The two superseded moves are inert."
+   "checked_for_false_positives": "a Codex CLI version and rate-limit rule recorded under open-resource-network stays fleet, as does the record whose text reads generic even though its applicability names the project, and the comet-lease and garden rows. The two superseded moves are inert."
   },
   "isolated_gate": {
    "hits": 25, "cross_project_leaks": 0, "unbound_project_hits": 0, "offtopic_fillers": 0,
@@ -145,8 +147,8 @@
    "fleet_lessons_found": 0, "mean_bytes": 50.0, "zero_hit": 20, "zero_hit_violations": 8
   },
   "open_regressions": [
-   "Resolved 2026-10-18 by widening _CODE_CUE (see after_cue_widened): cross_project_leaks 3 -> 0 and unbound_project_hits 2 -> 0. The 2 -> 3 rise was one added hit, not a lost answer. B6's own judgment allows the drop (zero_hits_ok true: 'ORN Codex re-review FAIL is on-topic but a volatile status row; v3 may move it to state, so zero hits OK'), so losing 4e5d0bad was permitted; what was not permitted was what replaced it, 6c7fd233, which is in B6's forbidden_ids. BEFORE returned 4e5d0bad instead, so the count went 2 -> 3 (A6 2, B6 1).",
-   "Still open, and not a scope leak: the B6 labelled answer 4e5d0bad is active and now project:open-resource-network, but its own caller still does not receive it, because ranking places b2657ecc, 364b7d61 and a8babf06 ahead of it. That is the pre-existing ranking limit, unchanged by scoping.",
+   "Resolved 2026-10-18 by widening _CODE_CUE (see after_cue_widened): cross_project_leaks 3 -> 0 and unbound_project_hits 2 -> 0. The 2 -> 3 rise was one added hit, not a lost answer. B6's own judgment allows the drop (zero_hits_ok true: the record is on-topic but a volatile status row that v3 may move to state), so losing that answer was permitted; what was not permitted was what replaced it, a record about a different project that sits in B6's forbidden_ids. BEFORE returned the volatile status row instead, so the count went 2 -> 3 (A6 2, B6 1).",
+   "Still open, and not a scope leak: the B6 labelled answer is active and now project:open-resource-network, but its own caller still does not receive it, because ranking places three other records ahead of it. That is the pre-existing ranking limit, unchanged by scoping.",
    "Accepted cost of the widening: find_fleet top1 4/8 -> 3/8 (mrr 0.5 -> 0.4375). On the mergegate case a fleet-only caller now sees its labelled target at rank 2 instead of rank 1, because two of that case's three labelled targets are ORN records and are now correctly project-scoped. top3 stays 4/8, so no labelled target became unreachable."
   ]
  },
