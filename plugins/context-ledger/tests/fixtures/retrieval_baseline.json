@@ -96,6 +96,31 @@
   },
   "cost_of_the_rewrite": "one extra irrelevant fleet hit on 3 queries (mean_hits 1.3 -> 1.45, mean_bytes 521.9 -> 561.0); leaks, fillers, relevant_found and fleet_lessons unchanged"
  },
+ "after_cue_widened": {
+  "change": "scripts/migrate_scope.py _CODE_CUE widened to the vocabulary of a project's own delivery artifacts (pr, finding[s]?, ship*, version[s]?, build*, bug[s]?, contract[s]?, migration[s]?, schema[s]?). ci, merge, review, release, fix, gate and bare check stay out: they name practice that is still true in another project, so a sentence like 'CI must stay passing before merge' must still read fleet. release and fix also match 'waits for release' and 'a fixed weekday'.",
+  "why": "records 6c7fd233 and 364b7d61 name exactly one allowlisted project yet classified as fleet, so callers bound to unrelated projects received them. Those two records are the whole B6 leak and both unbound_project_hits, so one cause explains all three symptoms.",
+  "scope_moves": {
+   "records_changed": 10, "active": 8, "superseded": 2,
+   "to_open_resource_network": 9, "to_agent_plugins": 1,
+   "distribution_after": {
+    "fleet": 121, "project:open-resource-network": 11, "project:agent-plugins": 4,
+    "project:brandgpt": 1, "project:aadhaarchain": 1, "tool:codex-cli": 3,
+    "tool:comet": 2, "tool:cursor-cli": 2
+   },
+   "checked_for_false_positives": "68c44855 (a Codex CLI version and rate-limit rule recorded under open-resource-network) stays fleet, as do 41badbdc and the comet-lease and garden rows. The two superseded moves are inert."
+  },
+  "isolated_gate": {
+   "hits": 25, "cross_project_leaks": 0, "unbound_project_hits": 0, "offtopic_fillers": 0,
+   "relevant_found": 13, "relevant_labelled": 21, "fleet_lessons_found": 10,
+   "fleet_lessons_expected": 10, "mean_bytes": 481.7, "mean_hits": 1.25,
+   "zero_hit": 9, "zero_hit_violations": 0, "errors": 0, "verdict": "pass"
+  },
+  "find_scoped": {"top1": "7/8", "top3": "7/8", "mrr": 0.875, "total_hits": 21},
+  "find_fleet": {"top1": "3/8", "top3": "4/8", "mrr": 0.4375, "total_hits": 17},
+  "select_unchanged": {"select_natural_top1": "1/8", "select_terse_top1": "2/8"},
+  "measured_on": "a scratch copy of the same snapshot; scripts/migrate_scope.py --apply with the widened cue list, then scripts/isolation_eval.py and scripts/retrieval_eval.py. The live ledger was never written.",
+  "actions": {"rewrite": 66, "rescope": 79, "archive": 1}
+ },
  "isolation_gate_before_vs_after": {
   "before_main_0673cba": {
    "hits": 39, "cross_project_leaks": 2, "unbound_project_hits": 2, "offtopic_fillers": 17,
@@ -120,8 +145,9 @@
    "fleet_lessons_found": 0, "mean_bytes": 50.0, "zero_hit": 20, "zero_hit_violations": 8
   },
   "open_regressions": [
-   "cross_project_leaks 2 -> 3 is one added hit, not a lost answer. B6's own judgment allows the drop (zero_hits_ok true: 'ORN Codex re-review FAIL is on-topic but a volatile status row; v3 may move it to state, so zero hits OK'), so losing 4e5d0bad is permitted. What is not permitted is what replaced it: v3 returns 6c7fd233, which is in B6's forbidden_ids. BEFORE returned 4e5d0bad instead, so the count goes 2 -> 3 (A6 2, B6 1).",
-   "unbound_project_hits stay at 2 and the B6 leak share one root cause: records 6c7fd233 and 364b7d61 name exactly one allowlisted project but classify as fleet, because contracts' code cue list (check.py|merge gate|repo|codebase|source|module|package|plugin|product|own code|own product) misses the words these records actually use (PR, CI, merge, review, version, release, build, finding, gate). Widening the cue list moves 15 of 146 records out of fleet (13 to project:open-resource-network, 2 to project:agent-plugins), including both of these; re-run the isolation gate before adopting it because it also narrows what an unbound caller sees."
+   "Resolved 2026-10-18 by widening _CODE_CUE (see after_cue_widened): cross_project_leaks 3 -> 0 and unbound_project_hits 2 -> 0. The 2 -> 3 rise was one added hit, not a lost answer. B6's own judgment allows the drop (zero_hits_ok true: 'ORN Codex re-review FAIL is on-topic but a volatile status row; v3 may move it to state, so zero hits OK'), so losing 4e5d0bad was permitted; what was not permitted was what replaced it, 6c7fd233, which is in B6's forbidden_ids. BEFORE returned 4e5d0bad instead, so the count went 2 -> 3 (A6 2, B6 1).",
+   "Still open, and not a scope leak: the B6 labelled answer 4e5d0bad is active and now project:open-resource-network, but its own caller still does not receive it, because ranking places b2657ecc, 364b7d61 and a8babf06 ahead of it. That is the pre-existing ranking limit, unchanged by scoping.",
+   "Accepted cost of the widening: find_fleet top1 4/8 -> 3/8 (mrr 0.5 -> 0.4375). On the mergegate case a fleet-only caller now sees its labelled target at rank 2 instead of rank 1, because two of that case's three labelled targets are ORN records and are now correctly project-scoped. top3 stays 4/8, so no labelled target became unreachable."
   ]
  },
  "pass_conditions": {
@@ -134,7 +160,7 @@
   ],
   "still_proposed": [
    "relevant_found and fleet_lessons_found must not fall below BEFORE",
-   "cross_project_leaks must not rise above BEFORE (currently 2 -> 3)",
+   "cross_project_leaks must not rise above BEFORE (met by the widening: 0 after, 2 BEFORE, 3 with the un-widened cue list)",
    "unscoped_records must be 0 of the servable records before an isolation claim is made. On this machine that is met only after scripts/migrate_scope.py --apply: the after_migration_applied numbers come from a scratch copy with 0 of 130, while the live ledger this branch reads is still 131 of 131 (isolation nominal)",
    "retrieval: find top1/top3 must not fall below 7/8 for a scoped caller (fleet-only callers lose project answers by design)",
    "retrieval: find_fleet top1 4/8 is the accepted cost of scoping; re-measure before calling it a regression",

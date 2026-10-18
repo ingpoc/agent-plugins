@@ -347,6 +347,24 @@ class MigrationTests(unittest.TestCase):
         ))
         self.assertNotEqual(passing["action"], "archive")
         self.assertEqual(passing["new_scope"], "fleet")
+        # The other half of that rule. Vocabulary of the project's own delivery artifacts — its
+        # PR, its findings, the version it ships — does scope to the project. The two records the
+        # 2026-10-17 isolation audit flagged as mis-scoped read like this, so an unrelated caller
+        # was receiving them. ci/merge alone must stay fleet (the row above locks that).
+        own_pr = migrate_scope.classify(row(
+            "ee000000",
+            "The project's own pull request needs approval before it lands",
+            "because that PR is not ready",
+            ["open-resource-network"],
+        ))
+        self.assertEqual(own_pr["new_scope"], "project:open-resource-network")
+        delivery = migrate_scope.classify(row(
+            "ff000000",
+            "Ship the plugin only after the Codex findings are fixed",
+            "because the findings block accepting that version",
+            ["agent-plugins"],
+        ))
+        self.assertEqual(delivery["new_scope"], "project:agent-plugins")
         review = migrate_scope.classify(row(
             "a4abc29c",
             "Cursor CLI review answers with the cursor agent reviewer",

@@ -38,8 +38,19 @@ _FLEET_TEXT = re.compile(
     r"\b(?:any|every|another) project\b|\bfleet lesson\b|\bnot about (?:this|the) project\b",
     re.I,
 )
+# "Is this about that project's own product or code?" — the migration's form of the save-time
+# question "still true in another project?". Only the vocabulary of that project's own delivery
+# artifacts counts: its PR, its findings, the version it ships, its builds, contracts, schema.
+#
+# Deliberately absent: ci, merge, review, release, fix, gate, and bare "check". Each describes a
+# practice that stays true in another project, so a sentence like "CI must stay passing before
+# merge" must still read fleet (tests/test_scope.py test_named_ids_and_scope_rules locks that).
+# "release" and "fix" also match "waits for release" and "a fixed weekday", and would scope a
+# comet-lease or garden record to a project.
 _CODE_CUE = re.compile(
-    r"\b(?:check\.py|merge gate|repo|codebase|source|module|package|plugin|product|own code|own product)\b",
+    r"\b(?:check\.py|merge gate|repo|codebase|source|module|package|plugin|product|own code|own product"
+    r"|pr|finding[s]?|ship(?:s|ped|ping)?|version[s]?|build(?:s|ing)?|bug[s]?|contract[s]?"
+    r"|migration[s]?|schema[s]?)\b",
     re.I,
 )
 
