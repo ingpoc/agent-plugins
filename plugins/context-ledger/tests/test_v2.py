@@ -11,6 +11,7 @@ import tempfile
 import unittest
 import uuid
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -230,6 +231,26 @@ class LinksAndSignalsTests(V2Base):
         got = self.find("codex login rejects the pinned model fallback reviewer", limit=1)
         self.assertEqual(got["matches"][0]["decision_id"], ud)
         self.assertEqual(got["matches"][0]["related"], [{"id": base, "decision": "Mini Codex login rejects the pinned model"}])
+
+    def test_rank_tie_follows_event_order_not_the_projection_row(self) -> None:
+        """updated_at has millisecond resolution, so two records can tie all the way down to the
+        last rank key. That order has to come from event append order: a projection row is deleted
+        and re-inserted by maintenance, and by another record's conflict or supersession, so its
+        row is not decision order. A random uuid must never decide it either."""
+        frozen = "2026-10-18T00:00:00.000Z"
+        with mock.patch("context_ledger.store.now_ts", lambda *a, **k: frozen):
+            same = {"decision": "Mini Codex login rejects the pinned model",
+                    "why": "The account cannot use that pinned model, so keep a fallback reviewer"}
+            older = self.save(**same)
+            newer = self.save(**same)
+            query = "codex login rejects the pinned model"
+            self.assertEqual(self.ids(query)[0], newer, "the newest append wins the tie")
+            conn = self.store.open()
+            self.store._rebuild_one(conn, older)
+            conn.commit()
+            self.assertEqual(self.ids(query)[0], newer, "a projection rewrite must not reorder the tie")
+            self.store.rebuild()
+            self.assertEqual(self.ids(query)[0], newer, "a full rebuild must not reorder the tie")
 
     def test_off_topic_link_is_not_surfaced(self) -> None:
         other = self.save(decision="Travel quotes go stale after a day", why="fares move", entities=["travel"])

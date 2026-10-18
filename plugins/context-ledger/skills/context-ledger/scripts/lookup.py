@@ -53,7 +53,13 @@ if __name__ == "__main__":
     _use_runtime_python()
 
 from context_ledger import ranking  # noqa: E402
-from context_ledger.contracts import caller_scope_from_binding  # noqa: E402
+from context_ledger.contracts import (  # noqa: E402
+    ab_arm,
+    allowed_scopes,
+    caller_scope_from_binding,
+    ist_today,
+    now_ts,
+)
 from context_ledger.store import Store  # noqa: E402
 
 # NLEmbedding sentence embedding, cosine distance (1 - cosine similarity).
@@ -112,17 +118,27 @@ def _text(value: object, label: str, limit: int) -> str:
 
 
 def _visible(store: Store) -> list[dict]:
+    """Candidates for semantic selection, on find's eligibility: a record scoped to another
+    project, or expired, must not come back through this route when find hides it."""
     store.open()
+    caller_scope = caller_scope_from_binding(store.binding)
+    allowed = allowed_scopes(caller_scope) if caller_scope else {"fleet"}
+    now = now_ts()
     rows = store.conn.execute(
         "select decision_id from current_records "
         "where scope_id=? and sensitivity='model_safe' and lifecycle='active' "
         "order by decision_id asc",
         (store.binding["scope_id"],),
     ).fetchall()
-    return [
-        store.get({"decision_id": row["decision_id"]}, mcp=True)["record"]
-        for row in rows
-    ]
+    visible = []
+    for row in rows:
+        rec = store.get({"decision_id": row["decision_id"]}, mcp=True)["record"]
+        if store._expired(rec, now):
+            continue
+        if (rec["body"].get("scope") or "fleet") not in allowed:
+            continue
+        visible.append(rec)
+    return visible
 
 
 def _fit_distance(embedding, situation: str, need: str, record: dict) -> float:
@@ -451,7 +467,21 @@ def main() -> int:
             elif args.cmd == "closeout":
                 payload = _closeout(store, _json_arg(args.json))
             elif args.cmd == "select":
-                payload = _select(store, _json_arg(args.json))
+                # The A/B treatment is the lookup the agent runs, not one route into it. select
+                # reads candidates itself and is not gated in the store, so without this the
+                # "find off" days still return records and the trial has no control arm.
+                if ab_arm(ist_today()) == "off":
+                    payload = {
+                        "decision": None,
+                        "distance": None,
+                        "verdict": "ungrounded",
+                        "grounding": {
+                            "terms": 0, "matched": 0, "coverage": 0.0, "lexical_ok": False, "query": None,
+                        },
+                        "arm": "off",
+                    }
+                else:
+                    payload = _select(store, _json_arg(args.json))
             elif args.cmd == "feedback":
                 payload = _feedback(store, _json_arg(args.json))
             elif args.cmd == "append":

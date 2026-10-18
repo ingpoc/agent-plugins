@@ -994,11 +994,18 @@ class Store:
         with self._tx() as conn:
             scope = self.binding["scope_id"]
             rows = conn.execute(
-                "select decision_id, projection_json from current_records "
+                # The last tie-break below needs the decision's newest event, not its projection
+                # row: a projection row is deleted and re-inserted by maintenance, and by another
+                # record's conflict or supersession, so its row is not decision order. events.seq
+                # is append order and survives every rebuild.
+                "select decision_id, projection_json, "
+                "(select max(seq) from events e where e.decision_id = current_records.decision_id) "
+                "as last_seq from current_records "
                 "where scope_id=? and sensitivity='model_safe'",
                 (scope,),
             ).fetchall()
             recs: dict[str, dict[str, Any]] = {}
+            append_order: dict[str, int] = {}
             allowed = allowed_scopes(parsed["caller_scope"]) if parsed["caller_scope"] else {"fleet"}
             now = now_ts()
             for row in rows:
@@ -1013,6 +1020,7 @@ class Store:
                 if allowed is not None and (rec["body"].get("scope") or "fleet") not in allowed:
                     continue
                 recs[row["decision_id"]] = rec
+                append_order[row["decision_id"]] = int(row["last_seq"] or 0)
             corpus = ranking.Corpus((did, rec["body"], rec.get("revision")) for did, rec in recs.items())
             repeats = self._repeat_counts(recs)
             scored: list[tuple[tuple, dict[str, Any]]] = []
@@ -1045,7 +1053,12 @@ class Store:
                     self._outcome_rank(rec),
                     ev_rank,
                     -conf,
+                    # updated_at has millisecond resolution, so two records written in the same
+                    # millisecond tie here, and a self_reported user_decision ranks as a conclusion
+                    # so it can tie above this. The decision's newest event settles it, newest
+                    # first: durable across projection rebuilds, and never a random uuid.
                     -_ts_key(rec["updated_at"]),
+                    -append_order.get(did, 0),
                     did,
                 )
                 scored.append((key, rec))

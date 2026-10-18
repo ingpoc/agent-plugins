@@ -673,15 +673,15 @@ class StoreTests(unittest.TestCase):
             {"written": [], "write": "unavailable"})
         self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], 3)
 
-    def _lookup(self, command: str, body: dict, *, ok: bool = True) -> dict:
+    def _lookup(self, command: str, body: dict, *, ok: bool = True, env: dict | None = None) -> dict:
         helper = ROOT / "skills/context-ledger/scripts/lookup.py"
-        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+        run_env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data), **(env or {})}
         proc = subprocess.run(
             [sys.executable, str(helper), command, "--json", "-"],
             input=json.dumps(body),
             text=True,
             capture_output=True,
-            env=env,
+            env=run_env,
         )
         if ok:
             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
@@ -838,6 +838,73 @@ class StoreTests(unittest.TestCase):
         )
         self.assertEqual(badge["decision"]["id"], success_id)
         self.assertEqual(badge["verdict"], "grounded")
+
+    def test_select_does_not_surface_a_record_find_hides(self) -> None:
+        """Selection reads candidates itself, so it has to apply find's eligibility: a record
+        scoped to another project must not come back through the semantic route."""
+        _require_sentence_embedding(self)
+        situation = "A Codex login was rejected for the pinned model"
+        need = "Which login the fallback reviewer uses instead"
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Fallback reviewer login for a rejected Codex login",
+                    situation=situation,
+                    action=need,
+                    applicability=situation,
+                    entities=["helper-selection"],
+                    constraints=[],
+                    evidence=[],
+                    scope="project:some-other-project",
+                ),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        visible = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Route a rejected Codex login to the API-key fallback reviewer",
+                    situation=situation,
+                    action="Use the API-key login for the fallback reviewer",
+                    applicability=situation,
+                    entities=["helper-selection"],
+                    constraints=[],
+                    evidence=[],
+                    scope="fleet",
+                ),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        found = self.store.find(
+            {"query": "fallback reviewer login", "entities": [], "constraints": [], "limit": 3, "offset": 0},
+            mcp=True,
+        )
+        ids = [m["decision_id"] for m in found["matches"]]
+        self.assertIn(visible["decision_id"], ids)
+        self.assertNotIn(hidden["decision_id"], ids, "find must hide another project's record")
+        got = self._lookup("select", {"situation": situation, "need": need})
+        self.assertEqual(got["decision"]["id"], visible["decision_id"],
+                         "select must not surface a record find hides")
+
+    def test_select_is_off_on_an_a_b_off_day(self) -> None:
+        """The A/B treatment is the agent's lookup. find is off on an even day inside the window,
+        so the semantic route must be off with it, or the trial has no control arm."""
+        _require_sentence_embedding(self)
+        self._seed_situation_and_success()
+        body = {"situation": "A plugin change is about to ship with only unit tests as proof",
+                "need": "What has to happen before that change goes to main"}
+        off = self._lookup("select", body, env={"LEDGER_AB_DATE": "2026-10-18"})
+        self.assertEqual(off.get("arm"), "off")
+        self.assertIsNone(off["decision"])
+        on = self._lookup("select", body, env={"LEDGER_AB_DATE": "2026-10-19"})
+        self.assertNotEqual(on.get("arm"), "off")
+        self.assertIsNotNone(on["decision"])
 
     def test_feedback_reuses_similar_precedent_and_records_a_missing_decision(self) -> None:
         _require_sentence_embedding(self)
