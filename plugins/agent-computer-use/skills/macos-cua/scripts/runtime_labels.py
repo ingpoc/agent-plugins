@@ -18,6 +18,25 @@ import threading
 import time
 from pathlib import Path
 
+def _element_center(snapshot_data, element_index):
+    """Center of a resolved element: the point the CUAService cursor lands on.
+
+    The landing gate draws the overlay tip at this point, so callers can check
+    the rendered overlay against it instead of re-deriving window geometry.
+    """
+    elements = (snapshot_data or {}).get("elements") or []
+    if element_index is None or not 0 <= element_index < len(elements):
+        return None
+    frame = (elements[element_index] or {}).get("frame") or {}
+    try:
+        return {
+            "x": float(frame.get("x")) + float(frame.get("w")) / 2,
+            "y": float(frame.get("y")) + float(frame.get("h")) / 2,
+        }
+    except (TypeError, ValueError):
+        return None
+
+
 def click_label_pointer(
     pid,
     window_id,
@@ -62,7 +81,7 @@ def click_label_pointer(
         "ok": ok,
         "label": label,
         "element": idx,
-        "coords": None,
+        "coords": _element_center(snap, idx),
         "result": res,
         "method": "cuaservice-click",
     }

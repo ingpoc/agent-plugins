@@ -47,6 +47,10 @@ def daemon_running() -> bool:
         return r.returncode == 0 and "daemon is running" in text
     except subprocess.TimeoutExpired:
         return False
+    except OSError:
+        # The retired driver binary is no longer installed. A missing
+        # executable is "not running", never an exception.
+        return False
 
 
 def call_driver(tool_name: str, params=None, timeout: int = 8):
@@ -64,6 +68,10 @@ def call_driver(tool_name: str, params=None, timeout: int = 8):
         )
     except subprocess.TimeoutExpired:
         return {"error": f"timeout after {timeout}s", "tool": tool_name}
+    except OSError as exc:
+        # Retired driver: report unavailability as a normal error payload so
+        # callers fail soft instead of raising from a preflight probe.
+        return {"error": f"cua-driver unavailable: {exc}", "tool": tool_name}
     if result.returncode != 0:
         return {"error": (result.stderr or result.stdout).strip(), "tool": tool_name}
     try:

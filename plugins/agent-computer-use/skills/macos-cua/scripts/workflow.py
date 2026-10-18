@@ -78,43 +78,58 @@ def cmd_preflight(*, quiet: bool = False, verbose: bool = False) -> int:
     cua = load_macos_cua()
     out: dict = {"checks": [], "ready": False}
 
-    def add(label: str, ok: bool, detail: str = ""):
-        out["checks"].append({"label": label, "ok": ok, "detail": detail})
+    def add(label: str, ok: bool, detail: str = "", *, informational: bool = False):
+        check = {"label": label, "ok": ok, "detail": detail}
+        if informational:
+            check["informational"] = True
+        out["checks"].append(check)
         return ok
 
+    # The cua-driver daemon is retired: CUAService is the only backend and the
+    # binary is no longer installed. Report these for diagnostics, but a retired
+    # component must never hold readiness down.
     binary = os.path.exists(CUA_DRIVER) and os.access(CUA_DRIVER, os.X_OK)
-    add("cua-driver binary", binary, CUA_DRIVER)
+    add("cua-driver binary (retired)", binary, CUA_DRIVER, informational=True)
     version = cua.driver_version() if binary else {"ok": False, "error": "binary missing"}
     add(
-        "cua-driver supported version",
+        "cua-driver supported version (retired)",
         bool(version.get("ok")),
         str(version),
+        informational=True,
     )
 
     healthy = wr.daemon_running()
-    if not healthy:
+    if not healthy and binary:
         wr.restart_daemon()
         healthy = wr.daemon_running()
-    add("daemon reachable", healthy)
+    add("cua-driver daemon reachable (retired)", healthy, informational=True)
 
-    perms = wr.call_driver(
-        "check_permissions",
-        {"prompt": False},
-        timeout=float(os.environ.get("MACOS_CUA_PERMISSION_TIMEOUT", "12")),
-    )
-    perms_ok = permissions_ready(perms)
-    if not perms_ok:
-        add(
-            "permissions (AX + Screen grant)",
-            False,
-            str(perms)[:240]
-            + " (run `cua-driver permissions grant`, then re-run preflight)",
+    # Accessibility can only be proven by a live AX walk through the current
+    # backend. The retired driver used to own this check.
+    ax_ok, ax_detail = False, "no AX walk"
+    try:
+        probe_pid, probe_wid, probe_name, probe_err = cua.resolve_app(
+            "Finder", launch_if_missing=False
         )
-    else:
-        add("permissions (AX + Screen grant)", True, str(perms)[:240])
+        if probe_err:
+            ax_detail = str(probe_err)[:160]
+        else:
+            snap = cua.snapshot(probe_pid, probe_wid, max_elements=25, mode="ax", retries=2)
+            tree = snap.get("tree_markdown", "") if isinstance(snap, dict) else ""
+            count = int(snap.get("element_count", 0) or 0) if isinstance(snap, dict) else 0
+            ax_ok = bool(tree) or count > 0
+            ax_detail = f"{probe_name}: {len(tree)} chars, {count} elements"
+    except Exception as exc:  # preflight must report, never raise
+        ax_detail = str(exc)[:160]
+    add("accessibility AX walk (CUAService)", ax_ok, ax_detail)
 
     plist = os.path.expanduser("~/Library/LaunchAgents/com.trycua.driver.plist")
-    add("LaunchAgent installed", os.path.exists(plist), plist)
+    add(
+        "LaunchAgent installed (retired)",
+        os.path.exists(plist),
+        plist,
+        informational=True,
+    )
 
     listed = wr.list_windows(prefer="quartz")
     win_count = len(listed["windows"])
@@ -131,7 +146,22 @@ def cmd_preflight(*, quiet: bool = False, verbose: bool = False) -> int:
     service = controller._service_status()
     signing = controller.signing_status()
     add("operator menu + PiP", bool(operator.get("ok")), str(operator)[:180])
-    add("operator launchd lifecycle", bool(service.get("running")), str(service)[:180])
+    # CUAService owns the agent pointer whenever its bundle is installed, and
+    # ensure() unloads the twin operator overlay on purpose. Requiring that
+    # launchd job to be running then would contradict the single-owner design.
+    owns_overlay = controller.CUA_SERVICE_APP.exists()
+    service_running = bool(service.get("running"))
+    add(
+        "operator launchd lifecycle",
+        service_running or owns_overlay,
+        str(service)[:180]
+        + (
+            " (CUAService owns the pointer; twin overlay stopped on purpose)"
+            if owns_overlay and not service_running
+            else ""
+        ),
+        informational=owns_overlay and not service_running,
+    )
     add(
         "operator signed app bundle",
         bool(signing.get("ok") and signing.get("mode") == "identity"),
@@ -140,7 +170,9 @@ def cmd_preflight(*, quiet: bool = False, verbose: bool = False) -> int:
 
     packet = cua._displays().display_packet()
     add("pinned display active", not packet.get("pin_error"), packet.get("pin_error") or "")
-    out["ready"] = all(check["ok"] for check in out["checks"])
+    out["ready"] = all(
+        check["ok"] for check in out["checks"] if not check.get("informational")
+    )
     out["method"] = listed.get("method")
     out["duration_ms"] = round((time.monotonic() - started) * 1000)
     out["display"] = {
