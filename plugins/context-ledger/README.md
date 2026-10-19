@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.33
+
+Two shipped test files never ran: `test_http_server.py` and `test_server_logging.py` were missing from `PLUGIN_TESTS`. Both are wired in, their shared runtime re-exec shim is now `tests/_locked_runtime.py`, and `scripts/bump-version.sh` plus `scripts/bench.sh` own the release version sites and the frozen retrieval gate. `AGENTS.md` lists `save`.
+
 ## 0.1.32
 
 The `**Ledger gate**` trigger now defers to the skill instead of restating the four questions inline, taking the line from 39 to 28 words and `~/.codex/AGENTS.md` from 595 to 584.

@@ -6,7 +6,13 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from _locked_runtime import reexec_locked_runtime
+
+reexec_locked_runtime(ROOT)
 
 from context_ledger.server import _call
 
