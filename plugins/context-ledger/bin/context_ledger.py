@@ -134,9 +134,8 @@ SAVE_LINE = (
 )
 GATE_MARK = "**Ledger gate**"
 GATE_LINE = (
-    "- **Ledger gate** → after a long workflow, answer the four questions yourself "
-    "(decision or lesson; which task applies it; would it find it; already recorded) "
-    "and decide alone which entries to add — do not ask or report"
+    "- **Ledger gate** → after a long workflow, answer the four questions in the skill "
+    "yourself and decide alone which entries to add; do not ask or report"
 )
 
 

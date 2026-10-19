@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.32
+
+- The global `**Ledger gate**` line is a trigger, not a copy of the skill. It restated the four questions inline — "answer the four questions yourself (decision or lesson; which task applies it; would it find it; already recorded)" — inside the file whose own rule is to keep triggers compressed and move the rest to a retrievable doc. The loaded skill is that doc. The line now defers: "answer the four questions in the skill yourself and decide alone which entries to add; do not ask or report". A test pins the deferral, so the questions cannot be re-inlined later.
+- `~/.codex/AGENTS.md` moves from 595 to 584 words against the 500-word lint budget, and the line itself from 39 to 28. The file was already 539 words before 0.1.31, so it stays over budget; this release does not fix that, it stops this line from adding to it. `ensure-global-triggers` rewrote the existing marked line in place — the first production use of the replace path for this mark.
+
 ## 0.1.31
 
 - The four capture questions are now the agent's own step at the moment it considers adding entries after a long workflow, and not something it asks the user or narrates. The capture section says to answer them alone, keep only what passes, and decide which entries to add without asking and without reporting the questions. The earlier text said only "answer these four before proposing anything", which left room to hand the choice back to the user — the shape the live ledger shows, where nothing is recorded without a round of questions first.
