@@ -762,9 +762,13 @@ class Store:
                     break
             if prior is not None:
                 prior_payload = prior["payload"]
+                # Every persisted outcome field is part of the comparison: a retry that only corrects
+                # helpful/effect/reason is a correction, not a replay, and dropping it would lose
+                # exactly the "this did not help" evidence the tier and confidence are read from.
                 same = all(
                     prior_payload.get(key) == parsed["payload"].get(key)
-                    for key in ("status", "note", "evidence", "applied_event_id")
+                    for key in ("status", "note", "evidence", "applied_event_id", "helpful", "effect",
+                                "reason", "task_id")
                 )
                 if same:
                     receipt = {
@@ -1116,12 +1120,31 @@ class Store:
             return result
 
     def _tier(self, conn: sqlite3.Connection, rec: dict[str, Any], fixed_here: bool) -> str:
-        """Trust tier from existing outcome events: latest outcome per applied event counts once."""
+        """Trust tier from the outcomes that judge this decision's applied events.
+
+        One observation per distinct task: the latest final, evidenced outcome that names the
+        applied event of the task that wrote it. The link is required because that is what ranking
+        reads; three applied events on one task now count once, and an outcome with no usable
+        evidence or no final status is not an observation. `trusted` is therefore self-reported
+        usefulness, not independent verification (ranking.trust_tier).
+        """
+        traced = self._trace_events(conn, rec["decision_id"])
+        applied = {ev["event_id"]: ev["payload"].get("task_id") for ev in traced
+                   if ev["event_type"] == "applied"}
         latest: dict[str, dict[str, Any]] = {}
-        for ev in self._trace_events(conn, rec["decision_id"]):
-            aid = ev["payload"].get("applied_event_id") if ev["event_type"] == "outcome" else None
-            if aid:
-                latest[aid] = ev["payload"]
+        for ev in traced:
+            if ev["event_type"] != "outcome":
+                continue
+            payload = ev["payload"]
+            task_id = applied.get(payload.get("applied_event_id"))
+            if not task_id or payload.get("task_id") != task_id:
+                continue  # the link has to name this decision's applied event, for that same task
+            if payload.get("status") not in ranking.OUTCOME_FINAL:
+                continue  # a pending or unknown outcome is not an observation yet
+            if not any(e.get("state") in ranking.OUTCOME_USABLE_EVIDENCE
+                       for e in payload.get("evidence") or []):
+                continue  # the same bar closeout applies: a conclusion cites evidence
+            latest[task_id] = payload  # _trace_events is revision order, so the latest task wins
         helped = sum(1 for p in latest.values() if p.get("helpful") is True)
         failed = sum(1 for p in latest.values() if p.get("effect") in ("not_helped", "misled"))
         return ranking.trust_tier(ranking.rank_type(rec["body"]), helped, failed, len(latest), fixed_here)

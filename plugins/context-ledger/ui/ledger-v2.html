@@ -392,7 +392,7 @@ footer.fp{padding:var(--space-4) 0 0;font-size:var(--text-xs);color:var(--ink-fa
           <div class="field"><label for="f-outcome">Outcome</label>
             <select id="f-outcome"><option value="">Any outcome</option><option value="helped">Includes helped</option><option value="failed">Includes misled or not helped</option><option value="misled">Includes misled</option><option value="not_helped">Includes not helped</option><option value="neutral">Includes unmarked</option><option value="none">No outcome yet</option></select></div>
           <div class="field"><label for="f-status">Status</label>
-            <select id="f-status"><option value="">All statuses</option><option value="active">Active only</option><option value="superseded">Superseded only</option><option value="trusted">Trusted tier</option><option value="hint">Hint tier</option></select></div>
+            <select id="f-status"><option value="">All statuses</option><option value="active">Active only</option><option value="superseded">Superseded only</option><option value="trusted">Self-reported tier</option><option value="hint">Hint tier</option></select></div>
           <div class="field"><label for="f-sort">Sort</label>
             <select id="f-sort"><option value="rank">Rank, newest</option><option value="recent">Newest first</option><option value="helpful">Most helpful</option><option value="used">Most used</option></select></div>
           <div class="custom" id="customRange" hidden>
@@ -477,7 +477,7 @@ if(EMBED) window.addEventListener("message",ev=>{ if(ev.source!==parent) return;
 /* ---------- real ledger data -> view model ---------- */
 const sid=id=>id?id.slice(0,8):"–";
 const OKIND={helped:"helped",unmarked:"neutral",not_helped:"not_helped",misled:"misled"};
-const TIER={trusted:{label:"trusted",badge:"ok",title:"3+ helped outcomes, failure rate 10% or less"},user_decision:{label:"user decision",badge:"acc",title:"Guru's attested decision; ranked above hints"},hint:{label:"hint",badge:"",title:"Not yet trusted: fewer than 3 helped outcomes or more than 10% failures"}};
+const TIER={trusted:{label:"trusted (self-reported)",badge:"ok",title:"3+ distinct tasks whose latest final, evidenced outcome reports this helped, failure rate 10% or less. The applying agents' own record: not independent verification"},user_decision:{label:"user decision",badge:"acc",title:"Guru's attested decision; ranked above hints"},hint:{label:"hint",badge:"",title:"Not yet self-reported trusted: fewer than 3 helped observations from distinct tasks, or more than 10% failures"}};
 let DECISIONS=[], EVENTS=[], RAW=[], AGENTS=[], STATS=null, ENTS=[], LOADED=false;
 const byId={};
 const WEEKS=8, wkStart=i=>NOW-(WEEKS-i)*7*DAY;
@@ -810,7 +810,7 @@ function renderAB(root){
     kpi(na(on.gated,on.helpful_per15.toFixed(2)),"per 15 · n="+on.gated,"Helpful-hit rate, gated tasks (on)",true),
     kpi(na(on.gated,String(on.tok_median)),"p90 "+na(on.gated,String(on.tok_p90)),"Overhead tokens, median (on, est)"),
     kpi(na(on.gated,f1(on.fail_open_pct)+"%"),on.gated+" gated","Fail-open (on)"),
-    kpi(on.trusted_precision==null?"–":Math.round(on.trusted_precision)+"%",on.trusted_applied+" applied","Trusted-tier precision (on)"),
+    kpi(on.trusted_precision==null?"–":Math.round(on.trusted_precision)+"%",on.trusted_applied+" applied","Self-reported usefulness: trusted-tier precision (on)"),
     kpi(na(off.gated,off.helpful_per15.toFixed(2)),"per 15 · n="+off.gated,"Helpful-hit rate (off)")));
   const tb=h("tbody"); S.days.forEach(d=>{ const today=d.date===S.today; tb.append(h("tr",null,
     h("td",{class:"dec"},h("span",{class:"mono",text:d.date+(today?" · today":"")})),
@@ -818,7 +818,7 @@ function renderAB(root){
     h("td",{class:"num",text:d.tasks}),h("td",{class:"num",text:d.gated}),h("td",{class:"num",text:d.hit_tasks}),h("td",{class:"num hide-n",text:d.fail_open}))); });
   root.append(h("table",{class:"otab"},h("caption",{class:"vh",text:"A/B arm and task counts per IST day"}),
     h("thead",null,h("tr",null,["Day (IST)","Arm","Tasks","Gated","Helpful hits","Fail-open"].map((l,i)=>h("th",{scope:"col",class:i>=2?"num"+(i===5?" hide-n":""):"",text:l})))),tb));
-  const tiers=S.tiers||{}; root.append(h("p",{class:"fineprint",text:`Trust tiers now: ${tiers.trusted||0} trusted, ${tiers.user_decision||0} user decision, ${tiers.hint||0} hint. Trusted = 3 or more helped outcomes and a failure rate of 10% or less; find may still demote one in a context where a fix supersedes it.`}));
+  const tiers=S.tiers||{}; root.append(h("p",{class:"fineprint",text:`Trust tiers now: ${tiers.trusted||0} trusted, ${tiers.user_decision||0} user decision, ${tiers.hint||0} hint. Trusted = 3 or more helped observations from distinct tasks, each the latest final, evidenced outcome that names the applied event it judges, and a failure rate of 10% or less; that tier is self-reported usefulness, not independent verification, and find may still demote one in a context where a fix supersedes it.`}));
 }
 function renderOutcomes(){
   const root=$("#outcomes"); root.replaceChildren(h("h2",{class:"vh",text:"Did it help: outcomes"}));
@@ -855,7 +855,7 @@ function renderOutcomes(){
   const thead=h("tr",null,cols.map(([k,l,c])=>{ const sortable=!["mix","trend"].includes(k); const th=h("th",{class:c,scope:"col","aria-sort":st.oSort===k?(st.oDir>0?"ascending":"descending"):null});
     th.append(sortable?h("button",{type:"button",onclick:()=>{ if(st.oSort===k) st.oDir*=-1; else {st.oSort=k; st.oDir=k==="d"?1:-1;} renderOutcomes(); }},l,st.oSort===k?(st.oDir>0?" ↑":" ↓"):""):l); return th; }));
   const tb=h("tbody"); rows.forEach(x=>tb.append(h("tr",null,
-    h("td",{class:"dec"},h("button",{type:"button",onclick:()=>go(x.id)},h("span",{class:"mono",text:x.sid+(x.status==="superseded"?" · superseded":"")+(x.tier==="trusted"?" · trusted":"")}),h("span",{class:"tt",text:x.d}))),
+    h("td",{class:"dec"},h("button",{type:"button",onclick:()=>go(x.id)},h("span",{class:"mono",text:x.sid+(x.status==="superseded"?" · superseded":"")+(x.tier==="trusted"?" · self-reported":"")}),h("span",{class:"tt",text:x.d}))),
     h("td",{class:"num hide-n",text:x.nOut}),h("td",{class:"mix"},mixbar(x,W_mix())),h("td",{class:"num",text:pct(x.helpful)}),h("td",{class:"num hide-n",text:x.conf==null?"–":x.conf.toFixed(2)}),h("td",{class:"trend"},spark(x.trend,72,20)))));
   root.append(h("table",{class:"otab"},h("caption",{class:"vh",text:"Outcomes per decision"}),h("thead",null,thead),tb));
   root.append(h("div",{class:"legend"},

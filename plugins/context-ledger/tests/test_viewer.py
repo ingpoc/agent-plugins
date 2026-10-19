@@ -73,8 +73,10 @@ class ViewerBase(unittest.TestCase):
         ap = self.store.append_event({"request_id": _u(), "decision_id": did, "expected_revision": rev, "occurred_at": None,
                                       "event_type": "applied", "actor": actor,
                                       "payload": {"task_id": task, "decision_ids": [did]}}, mcp=True)
-        payload = {"status": "success", "note": "", "evidence": [], "task_id": task,
-                   "applied_event_id": ap["event_id"], "helpful": helpful}
+        payload = {"status": "success", "note": "",
+                   "evidence": [{"ref": "session://viewer-test", "revision": None, "sha256": None,
+                                 "state": "unverified"}],
+                   "task_id": task, "applied_event_id": ap["event_id"], "helpful": helpful}
         if not helpful:
             payload.update(effect="misled", reason="stale rule")
         self.store.append_event({"request_id": _u(), "decision_id": did, "expected_revision": rev + 1, "occurred_at": None,

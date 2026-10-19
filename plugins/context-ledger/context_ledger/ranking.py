@@ -35,15 +35,24 @@ B = 0.6
 # number of distinct query terms (1 for a one- or two-term query, else 2).
 MIN_COVERAGE = 0.40
 NOT_HELPED_FACTOR = 0.5  # an old decision's text score in a context where it did not help
-# Trust tier (Guru 2026-10-17), tune here: trusted = >= TRUST_MIN_HELPED helped applied outcomes and
-# (not_helped + misled) / applied outcomes <= TRUST_MAX_FAIL, and no fix supersedes it in this query's context.
+# Trust tier (Guru 2026-10-17), tune here: trusted = >= TRUST_MIN_HELPED helped observations from
+# distinct tasks and (not_helped + misled) / observations <= TRUST_MAX_FAIL, and no fix supersedes
+# the decision in this query's context. An observation is the latest final, evidenced outcome of a
+# task that names the applied event it judges. This tier is self-reported usefulness (what applying
+# agents recorded), not independent verification: one agent can log three tasks, and no attestation
+# is required. Owner attestation is what buys `user_decision` (see rank_type).
 TRUST_MIN_HELPED = 3
 TRUST_MAX_FAIL = 0.10
+# The bar an observation has to clear before it can move a tier. These mirror the closeout check in
+# scripts/ledger_loop.py (FINAL / USABLE_EVIDENCE), which applies the same bar to the same event.
+OUTCOME_FINAL = ("success", "failed", "inconclusive", "abandoned")
+OUTCOME_USABLE_EVIDENCE = ("unverified", "reported_verified")
 
 
 def trust_tier(rtype: str, helped: int, failed: int, applied: int, fixed_here: bool) -> str:
     """trusted | user_decision | hint. rtype is rank_type (owner-attested user_decision only).
-    Applied outcomes are the latest outcome per applied event."""
+    helped/failed/applied count distinct tasks with one observation each: the latest final,
+    evidenced outcome that names the applied event of the task that wrote it."""
     if not fixed_here and helped >= TRUST_MIN_HELPED and applied and failed / applied <= TRUST_MAX_FAIL:
         return "trusted"
     return "user_decision" if rtype == "user_decision" else "hint"

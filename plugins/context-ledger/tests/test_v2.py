@@ -25,6 +25,9 @@ def _u() -> str:
     return str(uuid.uuid4())
 
 
+EVIDENCE = [{"ref": "session://tier-test", "revision": None, "sha256": None, "state": "unverified"}]
+
+
 def _legacy(summary: str, rationale: str = "legacy reason", entities=None, applicability="any") -> dict:
     return {
         "kind": "decision", "summary": summary, "situation": summary, "action": summary,
@@ -467,7 +470,8 @@ class ABSwitchTests(V2Base):
 
 
 class TrustTierTests(V2Base):
-    """trusted needs >= TRUST_MIN_HELPED (3) helped and failure <= TRUST_MAX_FAIL (10%) in this context."""
+    """trusted needs >= TRUST_MIN_HELPED (3) helped observations from distinct tasks, failure
+    <= TRUST_MAX_FAIL (10%), each observation final, evidenced and linked to its applied event."""
 
     def test_pure_boundaries(self) -> None:
         from context_ledger.ranking import trust_tier
@@ -479,23 +483,92 @@ class TrustTierTests(V2Base):
         self.assertEqual(trust_tier("user_decision", 3, 0, 3, False), "trusted")
         self.assertEqual(trust_tier("agent_conclusion", 9, 0, 9, True), "hint")        # superseded here
 
+    def observe(self, did: str, *, task: str, helped: bool, effect: str | None = None,
+                status: str = "success", evidence: list[dict] | None = None, link: bool = True) -> dict:
+        """One task applying the decision, then the outcome that judges it. Returns the receipt."""
+        rev = self.store.get({"decision_id": did}, mcp=False)["record"]["revision"]
+        ap = self.store.append_event(
+            {"request_id": _u(), "decision_id": did, "expected_revision": rev, "occurred_at": None,
+             "event_type": "applied", "payload": {"task_id": task, "decision_ids": [did]}}, mcp=True)
+        payload: dict = {"status": status, "note": "test observation", "task_id": task, "helpful": helped,
+                         "evidence": EVIDENCE if evidence is None else evidence}
+        if link:
+            payload["applied_event_id"] = ap["event_id"]
+        if effect:
+            payload.update({"effect": effect, "reason": "did not fit this case"})
+        return self.store.append_event(
+            {"request_id": _u(), "decision_id": did, "expected_revision": rev + 1, "occurred_at": None,
+             "event_type": "outcome", "payload": payload}, mcp=True)
+
     def mark(self, did: str, helped: int, failed: int) -> None:
         for k in range(helped + failed):
-            task = _u()
-            rev = self.store.get({"decision_id": did}, mcp=True)["record"]["revision"]
-            ap = self.store.append_event(
-                {"request_id": _u(), "decision_id": did, "expected_revision": rev, "occurred_at": None,
-                 "event_type": "applied", "payload": {"task_id": task, "decision_ids": [did]}}, mcp=True)
-            ok = k < helped
-            payload = {"status": "success", "note": "", "evidence": [], "task_id": task,
-                       "applied_event_id": ap["event_id"], "helpful": ok,
-                       **({} if ok else {"effect": "not_helped", "reason": "did not fit this case"})}
-            self.store.append_event(
-                {"request_id": _u(), "decision_id": did, "expected_revision": rev + 1, "occurred_at": None,
-                 "event_type": "outcome", "payload": payload}, mcp=True)
+            self.observe(did, task=_u(), helped=k < helped, effect=None if k < helped else "not_helped")
 
     def tier(self, query: str) -> str:
         return self.find(query)["matches"][0]["tier"]
+
+    def test_one_task_cannot_be_its_own_three_observations(self) -> None:
+        """The rubber stamp: three applied events on one task used to read as three observations."""
+        d = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
+        for _ in range(3):
+            self.observe(d, task=_u(), helped=True)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
+        one_task = self.save(decision="Smallcase rebalance reads basket weights first", why="avoid drift")
+        task = _u()
+        for _ in range(3):
+            self.observe(one_task, task=task, helped=True)
+        self.assertEqual(self.tier("smallcase rebalance basket weights"), "hint",
+                         "one task reporting three times is one observation")
+
+    def test_an_observation_needs_a_final_status(self) -> None:
+        d = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
+        for _ in range(3):
+            self.observe(d, task=_u(), helped=True, status="pending")
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "hint")
+        self.mark(d, 3, 0)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
+
+    def test_an_observation_needs_usable_evidence(self) -> None:
+        d = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
+        for _ in range(3):
+            self.observe(d, task=_u(), helped=True, evidence=[])
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "hint",
+                         "closeout demands evidence, so the tier cannot count evidence-free outcomes")
+        self.mark(d, 3, 0)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
+
+    def test_an_unlinked_outcome_is_not_an_observation(self) -> None:
+        d = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
+        for _ in range(3):
+            self.observe(d, task=_u(), helped=True, link=False)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "hint")
+        self.mark(d, 3, 0)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
+
+    def test_a_corrected_outcome_is_a_new_observation(self) -> None:
+        """A positive observation corrected to not_helped is the evidence the tier has to see."""
+        d = self.save(decision="Kite connector keeps reads on the Mini", why="the token never leaves the machine")
+        task = _u()
+        rev = self.store.get({"decision_id": d}, mcp=False)["record"]["revision"]
+        ap = self.store.append_event(
+            {"request_id": _u(), "decision_id": d, "expected_revision": rev, "occurred_at": None,
+             "event_type": "applied", "payload": {"task_id": task, "decision_ids": [d]}}, mcp=True)["event_id"]
+        base = {"status": "success", "note": "test observation", "task_id": task,
+                "evidence": EVIDENCE, "applied_event_id": ap}
+
+        def outcome(payload: dict, revision: int) -> dict:
+            return self.store.append_event(
+                {"request_id": _u(), "decision_id": d, "expected_revision": revision, "occurred_at": None,
+                 "event_type": "outcome", "payload": payload}, mcp=True)
+
+        first = outcome({**base, "helpful": True}, rev + 1)
+        self.assertFalse(first["replayed"])
+        corrected = {**base, "helpful": False, "effect": "not_helped", "reason": "read the wrong account"}
+        second = outcome(corrected, rev + 2)
+        self.assertFalse(second["replayed"], "the correction must not be swallowed as a replay")
+        self.assertNotEqual(second["event_id"], first["event_id"])
+        again = outcome(corrected, rev + 3)
+        self.assertTrue(again["replayed"], "an identical retry is still a replay")
 
     def test_find_tiers_from_outcomes(self) -> None:
         a = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
