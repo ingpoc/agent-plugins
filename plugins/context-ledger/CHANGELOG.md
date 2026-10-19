@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.30
+
+- The capture gate now names the questions an agent answers before proposing an entry. The skill was strict about an entry *after* it is written — the receipt, `helpful`, `effect` and `reason`, the reason length limit — and said nothing about whether the entry should exist, which is the shape the live ledger shows: 146 records, 94 outcomes, 2 applied links, 0 outcomes that qualify as a tier observation, 0 attestations. The capture section now asks four questions and forbids saving anything that fails one: decision or lesson; which future task will apply it; whether a `find` for what that task would type would return it; whether it is already recorded and carries its `scope`. The last two were previously scattered — the duplicate sweep in `references/lookup-subagent.md` and the scope requirement in the loop gate — and the first two were absent entirely.
+- The criteria are pinned by a contract test, so they cannot be dropped by a later edit without that test failing.
+- Docs and tests only. No producer, store, ranking, or ledger-format change, and the A/B trial is unaffected.
+
 ## 0.1.29
 
 - `close <task> --applied <id>` (repeatable) records the applied link, one applied event per decision, and only then demands each id's outcome. `close` accepts that outcome only through its `applied_event_id`, because ranking counts an outcome solely by that link (`Store._tier`): a final, evidenced, `helpful` outcome without the link no longer closes the task. The FAIL names the applied event id the outcome has to cite. `--applied-none "<why>"` declares that nothing was applied; an omitted declaration is logged `unknown` and is never read as `none`, and `--audit` requires `--applied` or `--applied-none` once the lookup returned hits. One applied event per decision: an `applied` event naming several ids does not stand in for the per-id links ranking reads.
