@@ -706,11 +706,21 @@ final class InputActions: @unchecked Sendable {
         }
 
         let err = AXUIElementPerformAction(axEl, action as CFString)
+        if err != .success {
+            return [
+                "ok": false,
+                "method": "ax-secondary-action",
+                "action": action,
+                "error": "AX action \(action) failed on \(element.role) at index "
+                    + "\(element.index) (AXError \(err.rawValue))",
+                "error_code": Int(err.rawValue),
+            ]
+        }
         return [
-            "ok": err == .success,
+            "ok": true,
             "method": "ax-secondary-action",
             "action": action,
-            "error_code": err.rawValue,
+            "error_code": 0,
         ]
     }
 

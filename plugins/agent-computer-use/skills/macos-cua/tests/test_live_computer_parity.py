@@ -67,12 +67,12 @@ def fresh_text_area(
                 "TextEdit", pid, window_id, max_elements=160, include_screenshot=True
             )
         else:
-            raw = MACOS_CUA._native_ax_snapshot(
-                pid, max_elements=160, window_id=window_id
-            )
-            roles = {element.get("role") for element in raw.get("elements", [])}
-            if "AXWindow" not in roles or "AXTextArea" not in roles:
-                raw = MACOS_CUA.snapshot(pid, window_id, max_elements=160)
+            # The service walk is the index space every input uses. A native
+            # (pyobjc) walk numbers elements in its own space, so an index from
+            # it presses a different element once handed to CUAService: the
+            # right-click fixture resolved index 9 to AXScrollBar rather than
+            # AXTextArea and AXShowMenu failed with kAXErrorActionUnsupported.
+            raw = MACOS_CUA.snapshot(pid, window_id, max_elements=160)
             elements = MACOS_CUA._state_elements(raw.get("elements", []))
             state = {
                 "elements": elements,

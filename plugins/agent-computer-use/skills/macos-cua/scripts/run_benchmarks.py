@@ -77,6 +77,26 @@ def load_parity():
     )
 
 
+CURSOR_METHODS = ("cuaservice-", "agent-cursor-glide")
+
+
+def step_shows_cursor(step: Any) -> bool:
+    """True when this step proves the overlay tip was drawn for its input.
+
+    CUAService refuses a press unless the tip landed (CURSOR_NOT_LANDED), so a
+    live step that carries a landing record is evidence; a live step that only
+    names its method still came through that gate. The retired driver reported
+    a `move.sync` block instead, which compact_step surfaces as
+    cursor_sync_error when it failed.
+    """
+    if not isinstance(step, dict) or step.get("cursor_sync_error"):
+        return False
+    landing = step.get("cursor_landing")
+    if isinstance(landing, dict):
+        return bool(landing.get("landed", True)) and not landing.get("error")
+    return str(step.get("method") or "").startswith(CURSOR_METHODS)
+
+
 def steps_show_cursor(steps: Any) -> bool:
     mutating = [
         step
@@ -85,11 +105,7 @@ def steps_show_cursor(steps: Any) -> bool:
     ]
     if not mutating:
         return False
-    return all(
-        str(step.get("method") or "").startswith("agent-cursor-glide")
-        and not step.get("cursor_sync_error")
-        for step in mutating
-    )
+    return all(step_shows_cursor(step) for step in mutating)
 
 
 def score(row: dict[str, Any], measured: dict[str, Any]) -> dict[str, bool]:
@@ -186,7 +202,7 @@ def probe_calculator(cua, row: dict[str, Any]) -> dict[str, Any]:
         "glided_steps": sum(
             1
             for step in result.get("steps") or []
-            if str(step.get("method") or "").startswith("agent-cursor-glide")
+            if step_shows_cursor(step)
         ),
     }
     duration_s = time.monotonic() - started
@@ -278,10 +294,7 @@ def probe_right_click(cua, parity, row: dict[str, Any]) -> dict[str, Any]:
         }
         return {
             "readback": copy_visible,
-            "cursor_visible": str((click or {}).get("method") or "").startswith(
-                "agent-cursor-glide"
-            )
-            and bool(((click or {}).get("move") or {}).get("ok")),
+            "cursor_visible": step_shows_cursor(click),
             "robust": restored and cua._accepted(click),
             "output_bytes": _compact_bytes(compact),
             "duration_s": round(time.monotonic() - started, 3),
@@ -318,19 +331,41 @@ def _heading_open_snapshot(snap: dict[str, Any]) -> bool:
 
 
 def _close_whatsapp_panel(cua, name, pid, window_id) -> tuple[bool, dict[str, Any]]:
-    """Observe first. Press Escape only when the New chat heading is open.
+    """Observe first, then dismiss the New chat sheet if it is open.
 
     Returns (closed, last_snapshot) so the probe can seed run_actions and stay
-    near floor_ax_snapshots=2 (closed tree + heading verify).
+    near floor_ax_snapshots=2 (closed tree + heading verify). The snapshot is
+    the service walk, because that is the index space run_actions presses in.
+
+    Escape cannot be used here: the sheet is its own window, so the pinned
+    window is not the focused one and press_key refuses to send. The sheet's
+    own close button is the supported dismissal.
     """
     del name
-    snap = cua._native_ax_snapshot(pid, max_elements=90, window_id=window_id)
+    snap = cua.snapshot(pid, window_id, max_elements=90)
     if not _heading_open_snapshot(snap):
         return True, snap
+    close = next(
+        (
+            element
+            for element in snap.get("elements") or []
+            if str(element.get("role") or "") in {"AXButton", "AXMenuItem"}
+            and str(element.get("label") or "").strip().lower() == "close"
+        ),
+        None,
+    )
+    if close is not None:
+        cua.perform_action(
+            pid, window_id, int(close["element_index"]), "press", snapshot_data=snap
+        )
+        time.sleep(0.2)
+        snap = cua.snapshot(pid, window_id, max_elements=90)
+        if not _heading_open_snapshot(snap):
+            return True, snap
     for delivery in ("background", "foreground"):
         cua.press_key(pid, window_id, "Escape", delivery)
         time.sleep(0.12)
-        snap = cua._native_ax_snapshot(pid, max_elements=90, window_id=window_id)
+        snap = cua.snapshot(pid, window_id, max_elements=90)
         if not _heading_open_snapshot(snap):
             return True, snap
     return False, snap
@@ -364,10 +399,9 @@ def probe_whatsapp(cua, row: dict[str, Any]) -> dict[str, Any]:
     final_text = str((result.get("final") or {}).get("text") or "")
     elapsed_s = round(time.monotonic() - started, 3)
     heading_only = _heading_open(final_text) and "message yourself" not in final_text.lower()
-    if heading_only:
-        cua.press_key(pid, window_id, "Escape", "background")
-    else:
-        _close_whatsapp_panel(cua, name, pid, window_id)
+    # Leave WhatsApp as found: the sheet stays open otherwise, and the next run
+    # then reports closed_first=false for a panel this probe opened.
+    _close_whatsapp_panel(cua, name, pid, window_id)
     compact = {
         "ok": result.get("ok"),
         "verified": result.get("verified"),

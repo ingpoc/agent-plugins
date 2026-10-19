@@ -149,6 +149,27 @@ struct AnyCodable: Codable {
             try container.encode(b)
         case let i as Int:
             try container.encode(i)
+        // AXError.rawValue, CGWindowID and friends are fixed-width integers.
+        // Without these cases the default below turned them into null, so a
+        // failed AX call reached clients as {"ok": false, "error_code": null}.
+        case let i as Int8:
+            try container.encode(Int(i))
+        case let i as Int16:
+            try container.encode(Int(i))
+        case let i as Int32:
+            try container.encode(Int(i))
+        case let i as Int64:
+            try container.encode(i)
+        case let u as UInt8:
+            try container.encode(UInt(u))
+        case let u as UInt16:
+            try container.encode(UInt(u))
+        case let u as UInt32:
+            try container.encode(UInt(u))
+        case let u as UInt64:
+            try container.encode(u)
+        case let f as Float:
+            try container.encode(Double(f))
         case let d as Double:
             try container.encode(d)
         case let f as CGFloat:
