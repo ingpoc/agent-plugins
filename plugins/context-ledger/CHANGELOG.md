@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.34
+
+- Keep the parent-facing skill as a retained-helper router; move detailed retrieval, capture and closeout rules into its existing helper reference. The efficiency skill defers to that owner, including the optional loop gate.
+- Preserve internal access rows in the audit store without emitting their normal stderr telemetry. Public access logs and errors remain visible.
+- Forward optional validated task IDs through helper find/get/select and the public get tool, so selected-record access can be attributed to its task. Retrieval, scope, expiry, grounding and A/B rules are unchanged.
+
 ## 0.1.33
 
 - Two shipped test files never ran. `tests/test_http_server.py` (8 tests) and `tests/test_server_logging.py` were absent from `PLUGIN_TESTS` in `scripts/check.py`, so `check.py` ran 8 of the 10 files it shipped. Both are wired in now.

@@ -251,6 +251,7 @@ def _gap_rationale(items: list[tuple[str, bool, str, str | None]]) -> str:
 def _select(store: Store, body: dict) -> dict:
     if not isinstance(body, dict):
         raise ValueError("body")
+    task_id = _uuid_text(body["task_id"]) if "task_id" in body else None
     situation = _text(body.get("situation"), "situation", 320)
     need = _text(body.get("need"), "need", 160)
     query = body.get("query")
@@ -282,7 +283,7 @@ def _select(store: Store, body: dict) -> dict:
     lexical_ok = bool(qterms) and ranking.relevant(coverage, matched, len(qterms))
     # `_visible` swept the candidates on the helper's own behalf; the one decision the agent
     # receives is its lookup, so that read is billed to the caller.
-    store.get({"decision_id": chosen["decision_id"], "actor": _caller(store)}, mcp=True)
+    store.get({"decision_id": chosen["decision_id"], "actor": _caller(store), "task_id": task_id}, mcp=True)
     return {
         "decision": _decision_view(chosen),
         "distance": distance,
@@ -487,8 +488,10 @@ def main() -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
     find = sub.add_parser("find")
     find.add_argument("--query", required=True)
+    find.add_argument("--task-id", type=_uuid_text)
     get = sub.add_parser("get")
     get.add_argument("--id", required=True)
+    get.add_argument("--task-id", type=_uuid_text)
     record = sub.add_parser("record")
     record.add_argument("--json", required=True)
     append = sub.add_parser("append")
@@ -514,12 +517,13 @@ def main() -> int:
                         "limit": 3,
                         "offset": 0,
                         "actor": _caller(store),
+                        "task_id": args.task_id,
                         "caller_scope": caller_scope_from_binding(store.binding),
                     },
                     mcp=True,
                 )
             elif args.cmd == "get":
-                rec = store.get({"decision_id": args.id, "actor": _caller(store)}, mcp=True)["record"]
+                rec = store.get({"decision_id": args.id, "actor": _caller(store), "task_id": args.task_id}, mcp=True)["record"]
                 payload = {
                     "id": rec["decision_id"],
                     "summary": rec["body"]["summary"],

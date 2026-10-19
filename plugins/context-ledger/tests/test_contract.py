@@ -172,6 +172,8 @@ class PackageTests(unittest.TestCase):
         self.assertIn("find", text)
         self.assertIn("append_event", text)
         self.assertIn("read/write-capable Context Ledger subagent", text)
+        self.assertIn("references/lookup-subagent.md", text)
+        text = (ROOT / "skills/context-ledger/references/lookup-subagent.md").read_text(encoding="utf-8")
         self.assertIn("answer these four yourself before adding anything", text)
         for question in (
             "Is this a decision or a lesson?",
@@ -368,8 +370,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.33")
-        self.assertIn('__version__ = "0.1.33"', init)
+        self.assertEqual(plugin["version"], "0.1.34")
+        self.assertIn('__version__ = "0.1.34"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -382,7 +384,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
-        self.assertIn('version:"0.1.33"', page)
+        self.assertIn('version:"0.1.34"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
@@ -1065,6 +1067,40 @@ class StoreTests(unittest.TestCase):
         else:
             self.assertNotEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         return json.loads(proc.stdout)
+
+    def test_lookup_task_ids_reach_access_logs_and_reject_invalid_ids(self) -> None:
+        _require_sentence_embedding(self)
+        did, _ = self._seed_situation_and_success()
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        task = _uuid()
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data), "LEDGER_AB_DATE": "2026-10-17"}
+        for command in (
+            ["find", "--query", "plugin live client", "--task-id", task],
+            ["get", "--id", did, "--task-id", task],
+        ):
+            proc = subprocess.run([sys.executable, str(helper), *command], env=env, capture_output=True, text=True)
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertEqual(json.loads(proc.stderr)["task_id"], task)
+        self._lookup("select", {
+            "task_id": task, "situation": "A plugin change is about to ship with only unit tests as proof",
+            "need": "What has to happen before the change goes to main", "query": "plugin live client",
+        }, env=env)
+        rows = self.store.open().execute(
+            "select tool, task_id from access_log where caller=?", (self.binding["actor_id"],)
+        ).fetchall()
+        self.assertEqual([(row["tool"], row["task_id"]) for row in rows],
+                         [("find", task), ("get", task), ("get", task)])
+        before = self.store.open().execute("select count(*) from access_log").fetchone()[0]
+        for command in (["find", "--query", "plugin"], ["get", "--id", did]):
+            proc = subprocess.run([sys.executable, str(helper), *command, "--task-id", "invalid"],
+                                  env=env, capture_output=True, text=True)
+            self.assertEqual(proc.returncode, 2)
+            self.assertIn("--task-id", proc.stderr)
+        invalid = self._lookup("select", {
+            "task_id": "invalid", "situation": "Plugin change", "need": "Live proof",
+        }, env=env, ok=False)
+        self.assertEqual(invalid["lookup"], "unavailable")
+        self.assertEqual(self.store.open().execute("select count(*) from access_log").fetchone()[0], before)
 
     def _seed_situation_and_success(self) -> tuple[str, str]:
         pending = self.store.record(

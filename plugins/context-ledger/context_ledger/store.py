@@ -857,7 +857,7 @@ class Store:
                 packed["record"]["fixed_by"] = fixed
             if mcp:
                 self._log_access(
-                    conn, tool="get", caller=parsed["actor"], task_id=None, query=None,
+                    conn, tool="get", caller=parsed["actor"], task_id=parsed["task_id"], query=None,
                     ids=[parsed["decision_id"]], nbytes=len(canonical_json(packed).encode("utf-8")),
                     started=started,
                 )
@@ -1269,6 +1269,9 @@ class Store:
             "insert into access_log(ts,tool,caller,task_id,query,n,bytes,ids,ms) values (?,?,?,?,?,?,?,?,?)",
             (now_ts(), tool, who, task_id, (query or "")[:240], len(ids), nbytes, canonical_json(ids), ms),
         )
+        # Internal candidate reads stay auditable without flooding the helper's context.
+        if who == "ledger-internal":
+            return
         line = {"event": tool, "caller": who, "n": len(ids), "bytes": nbytes, "ms": ms}
         if query:
             line["query"] = query[:120]
