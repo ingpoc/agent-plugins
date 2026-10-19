@@ -34,6 +34,7 @@ from context_ledger.contracts import (
     MAX_TOMBSTONE_BYTES,
     SCHEMA_VERSION,
     LedgerError,
+    allowed_scopes,
     canonical_json,
     fail_dict,
     fts_tokens,
@@ -184,20 +185,35 @@ def load_binding(plugin_data: Path) -> dict[str, Any]:
         raise LedgerError("UNAVAILABLE") from exc
     obj = parse_json(raw)
     data = require_keys(
-        obj, {"schema_version", "ledger_dir", "ledger_id", "scope_id", "actor_id"}
+        obj,
+        {"schema_version", "ledger_dir", "ledger_id", "scope_id", "actor_id"},
+        {"project", "tools", "projects"},
     )
     if data["schema_version"] != 1:
         raise LedgerError("UPGRADE_REQUIRED")
     ledger_dir = Path(require_str(data["ledger_dir"], 4096))
     if not ledger_dir.is_absolute():
         raise LedgerError("INVALID_ARGUMENT")
-    return {
+    loaded = {
         "schema_version": 1,
         "ledger_dir": str(ledger_dir),
         "ledger_id": require_uuid(data["ledger_id"]),
         "scope_id": require_scope(data["scope_id"]),
         "actor_id": require_scope(data["actor_id"]),
     }
+    if data.get("project"):
+        loaded["project"] = require_scope(data["project"])
+    if data.get("tools") is not None:
+        tools = data["tools"]
+        if not isinstance(tools, list):
+            raise LedgerError("INVALID_ARGUMENT")
+        loaded["tools"] = [require_scope(item) for item in tools]
+    if data.get("projects") is not None:
+        projects = data["projects"]
+        if not isinstance(projects, list):
+            raise LedgerError("INVALID_ARGUMENT")
+        loaded["projects"] = [require_scope(item) for item in projects]
+    return loaded
 
 
 def write_binding(plugin_data: Path, binding: dict[str, Any], *, replace: bool) -> None:
@@ -601,7 +617,9 @@ class Store:
         tool: str = "record",
     ) -> dict[str, Any]:
         allow_owner = not mcp
-        parsed = validate_record_input(arguments, allow_owner_attested=allow_owner)
+        parsed = validate_record_input(
+            arguments, allow_owner_attested=allow_owner, require_scope=mcp
+        )
         if mcp and parsed["body"]["approval"]["state"] == "owner_attested":
             raise LedgerError("INVALID_ARGUMENT")
         req_hash = request_hash(tool, parsed)
@@ -616,7 +634,7 @@ class Store:
                 receipt = parse_json(existing["receipt_json"])
                 receipt["replayed"] = True
                 return receipt
-            decision_id = new_uuid()
+            decision_id = parsed.get("decision_id") or new_uuid()
             event_id = new_uuid()
             recorded = now_ts()
             event = {
@@ -744,9 +762,13 @@ class Store:
                     break
             if prior is not None:
                 prior_payload = prior["payload"]
+                # Every persisted outcome field is part of the comparison: a retry that only corrects
+                # helpful/effect/reason is a correction, not a replay, and dropping it would lose
+                # exactly the "this did not help" evidence the tier and confidence are read from.
                 same = all(
                     prior_payload.get(key) == parsed["payload"].get(key)
-                    for key in ("status", "note", "evidence", "applied_event_id")
+                    for key in ("status", "note", "evidence", "applied_event_id", "helpful", "effect",
+                                "reason", "task_id")
                 )
                 if same:
                     receipt = {
@@ -963,10 +985,10 @@ class Store:
         self._ensure_reachable()
         parsed = validate_find_input(arguments)
         qterms = ranking.query_terms(parsed["query"])
-        if not qterms and not parsed["entities"] and not parsed["constraints"]:
+        if not qterms:
             raise LedgerError(
                 "INVALID_ARGUMENT",
-                message="find needs query words (or entities); stop-words alone match nothing",
+                message="find needs query words; stop-words alone match nothing",
             )
         if mcp and ab_arm(self.ab_today()) == "off":
             with self._tx() as conn:
@@ -976,15 +998,33 @@ class Store:
         with self._tx() as conn:
             scope = self.binding["scope_id"]
             rows = conn.execute(
-                "select decision_id, projection_json from current_records "
+                # The last tie-break below needs the decision's newest event, not its projection
+                # row: a projection row is deleted and re-inserted by maintenance, and by another
+                # record's conflict or supersession, so its row is not decision order. events.seq
+                # is append order and survives every rebuild.
+                "select decision_id, projection_json, "
+                "(select max(seq) from events e where e.decision_id = current_records.decision_id) "
+                "as last_seq from current_records "
                 "where scope_id=? and sensitivity='model_safe'",
                 (scope,),
             ).fetchall()
             recs: dict[str, dict[str, Any]] = {}
+            append_order: dict[str, int] = {}
+            allowed = allowed_scopes(parsed["caller_scope"]) if parsed["caller_scope"] else {"fleet"}
+            now = now_ts()
             for row in rows:
                 rec = self._get_record(conn, row["decision_id"], mcp=True)
-                if rec is not None:
-                    recs[row["decision_id"]] = rec
+                if rec is None or rec["lifecycle"] == "archived":
+                    continue
+                if self._expired(rec, now):
+                    continue
+                # A record written before scope v3 carries no scope. migrate_scope.py re-scopes those
+                # to "fleet", so an absent scope reads as fleet here too: a missing field must never
+                # hide an otherwise-retrievable record from every caller.
+                if allowed is not None and (rec["body"].get("scope") or "fleet") not in allowed:
+                    continue
+                recs[row["decision_id"]] = rec
+                append_order[row["decision_id"]] = int(row["last_seq"] or 0)
             corpus = ranking.Corpus((did, rec["body"], rec.get("revision")) for did, rec in recs.items())
             repeats = self._repeat_counts(recs)
             scored: list[tuple[tuple, dict[str, Any]]] = []
@@ -997,11 +1037,9 @@ class Store:
                 if rec["lifecycle"] != "active" and not parsed["include_superseded"]:
                     continue
                 body = rec["body"]
-                ent_hits = sum(1 for e in parsed["entities"] if e in body["entities"])
-                con_hits = sum(1 for c in parsed["constraints"] if c in body["constraints"])
                 bm25, cov, matched = text_of[did]
                 text_ok = bool(qterms) and ranking.relevant(cov, matched, len(qterms))
-                if not (text_ok or ent_hits or con_hits):
+                if not text_ok:
                     continue
                 rtype = ranking.record_type(body)
                 rank_as = ranking.rank_type(body)
@@ -1014,14 +1052,17 @@ class Store:
                 ev_rank = 0 if ev == "reported_verified" else 1 if ev in {"unverified", "none"} else 2
                 conf = rec["confidence"]["score"] or 0.0
                 key = (
-                    -ent_hits,
-                    -con_hits,
                     -final,
                     0 if rank_as == "user_decision" else 1,
                     self._outcome_rank(rec),
                     ev_rank,
                     -conf,
+                    # updated_at has millisecond resolution, so two records written in the same
+                    # millisecond tie here, and a self_reported user_decision ranks as a conclusion
+                    # so it can tie above this. The decision's newest event settles it, newest
+                    # first: durable across projection rebuilds, and never a random uuid.
                     -_ts_key(rec["updated_at"]),
+                    -append_order.get(did, 0),
                     did,
                 )
                 scored.append((key, rec))
@@ -1046,7 +1087,7 @@ class Store:
                 hit["tier"] = self._tier(conn, rec, rec["decision_id"] in demoted)
                 if rec["decision_id"] in demoted:
                     hit["flag"] = "not_helped here"
-                rel = self._related(conn, rec, recs, text_of, shown)
+                rel = self._related(conn, rec, recs, text_of, shown, qterms)
                 if rel:
                     hit["related"] = rel
                     shown |= {r["id"] for r in rel}
@@ -1079,12 +1120,31 @@ class Store:
             return result
 
     def _tier(self, conn: sqlite3.Connection, rec: dict[str, Any], fixed_here: bool) -> str:
-        """Trust tier from existing outcome events: latest outcome per applied event counts once."""
+        """Trust tier from the outcomes that judge this decision's applied events.
+
+        One observation per distinct task: the latest final, evidenced outcome that names the
+        applied event of the task that wrote it. The link is required because that is what ranking
+        reads; three applied events on one task now count once, and an outcome with no usable
+        evidence or no final status is not an observation. `trusted` is therefore self-reported
+        usefulness, not independent verification (ranking.trust_tier).
+        """
+        traced = self._trace_events(conn, rec["decision_id"])
+        applied = {ev["event_id"]: ev["payload"].get("task_id") for ev in traced
+                   if ev["event_type"] == "applied"}
         latest: dict[str, dict[str, Any]] = {}
-        for ev in self._trace_events(conn, rec["decision_id"]):
-            aid = ev["payload"].get("applied_event_id") if ev["event_type"] == "outcome" else None
-            if aid:
-                latest[aid] = ev["payload"]
+        for ev in traced:
+            if ev["event_type"] != "outcome":
+                continue
+            payload = ev["payload"]
+            task_id = applied.get(payload.get("applied_event_id"))
+            if not task_id or payload.get("task_id") != task_id:
+                continue  # the link has to name this decision's applied event, for that same task
+            if payload.get("status") not in ranking.OUTCOME_FINAL:
+                continue  # a pending or unknown outcome is not an observation yet
+            if not any(e.get("state") in ranking.OUTCOME_USABLE_EVIDENCE
+                       for e in payload.get("evidence") or []):
+                continue  # the same bar closeout applies: a conclusion cites evidence
+            latest[task_id] = payload  # _trace_events is revision order, so the latest task wins
         helped = sum(1 for p in latest.values() if p.get("helpful") is True)
         failed = sum(1 for p in latest.values() if p.get("effect") in ("not_helped", "misled"))
         return ranking.trust_tier(ranking.rank_type(rec["body"]), helped, failed, len(latest), fixed_here)
@@ -1158,6 +1218,11 @@ class Store:
                 counts[key] = counts.get(key, 0) + 1
         return counts
 
+    @staticmethod
+    def _expired(rec: dict[str, Any], now: str) -> bool:
+        expires = (rec["body"].get("trace") or {}).get("expires_at")
+        return bool(expires) and expires < now
+
     def _related(
         self,
         conn: sqlite3.Connection,
@@ -1165,12 +1230,12 @@ class Store:
         recs: dict[str, dict[str, Any]],
         text_of: dict[str, tuple[float, float, int]],
         shown: set[str],
+        qterms: list[str],
     ) -> list[dict[str, Any]]:
-        """One hop over links (precedents it relied on, then cases that cite it), capped, on-topic."""
+        """One hop over links, capped. A shared entity is not a text match."""
         did = rec["decision_id"]
         ids = [r[0] for r in conn.execute("select dst from links where src=? order by dst", (did,))]
         ids += [r[0] for r in conn.execute("select src from links where dst=? order by src", (did,))]
-        ents = set(rec["body"]["entities"])
         out: list[dict[str, Any]] = []
         for other in ids:
             if other in shown or other not in recs or any(o["id"] == other for o in out):
@@ -1178,8 +1243,8 @@ class Store:
             orec = recs[other]
             if orec["lifecycle"] != "active":
                 continue
-            on_topic = text_of.get(other, (0, 0, 0))[2] >= 1 or bool(ents & set(orec["body"]["entities"]))
-            if not on_topic:
+            _bm, cov, matched = text_of.get(other, (0.0, 0.0, 0))
+            if not qterms or not ranking.relevant(cov, matched, len(qterms)):
                 continue
             out.append({"id": other, "decision": orec["body"]["summary"]})
             if len(out) >= RELATED_CAP:
@@ -1237,7 +1302,8 @@ class Store:
             "constraints": [],
             "applicability": trace.get("rule") or parsed["decision"],
             "entities": parsed["entities"],
-            "evidence": [],
+            "evidence": parsed["evidence"],
+            "scope": parsed["scope"],
             "sensitivity": "model_safe",
             "approval": (
                 {"state": "self_reported", "authority_ref": "guru"}
@@ -1908,6 +1974,10 @@ class Store:
         rec = parse_json(cur["projection_json"])
         if mcp and rec["body"]["sensitivity"] == "local_only":
             raise LedgerError("UNAVAILABLE")
+        if et == "archived":
+            if rec["lifecycle"] == "archived":
+                raise LedgerError("INVALID_TRANSITION")
+            return
         if et == "corrected":
             if payload["body"]["kind"] != rec["body"]["kind"]:
                 raise LedgerError("INVALID_TRANSITION")
@@ -2256,6 +2326,7 @@ class Store:
         approval_event_ingest = "local"
         kind = None
         superseded = False
+        archived = False
         replacement_id = None
         openings: list[dict[str, Any]] = []
         resolved_openings: set[str] = set()
@@ -2310,6 +2381,8 @@ class Store:
                 approval_event_ingest = ingest
                 if ingest == "import":
                     imported_evidence_ids |= self._evidence_identities(supplied)
+            elif et == "archived":
+                archived = True
             elif et == "superseded":
                 if superseded:
                     raise LedgerError("INVALID_TRANSITION")
@@ -2347,7 +2420,7 @@ class Store:
                 "inconclusive": inconclusive,
                 "sample_count": sample_count,
             },
-            "lifecycle": "superseded" if superseded else "active",
+            "lifecycle": "archived" if archived else ("superseded" if superseded else "active"),
             "replacement_id": replacement_id,
             "openings": openings,
             "resolved_openings": resolved_openings,

@@ -8,6 +8,18 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.29
+
+`select` returns `verdict` and `grounding` with the nearest decision and its distance. `grounded` means the chosen record's own text covers the query; `ungrounded` means the embedding ranked an unrelated record first and that record is not evidence. The helper runs `find` on terse keywords first, because `find` applies the relevance floor, ranks by outcome, and is the retrieval the A/B trial measures. `find` reads a record with no applicability scope as `fleet`, which restores hits on ledgers written before scopes existed.
+
+## 0.1.28
+
+`find` with no caller scope returns fleet only. `ledger_loop.py find` and the helper inject the caller's project and tools from `binding.json`. `record` requires a scope. A project scope is an allowlisted project id. A tool scope is a known tool id. Anything else is fleet. Version strings, commit SHAs, PR or Project ids, and dates belong in evidence. A model name or a status word does not make a save volatile. A pure status save, one whose main claim is a state, is refused.
+
+## 0.1.27
+
+`find` hard-filters by the caller's scope (fleet, the bound project, and the tools in play) and ranks by text only, at most 3 hits. `save` requires a scope and refuses a status update or a volatile pin in the decision text. `scripts/migrate_scope.py` prints a dry-run report and, when applied, archives volatile records.
+
 ## 0.1.26
 
 Opening the ledger backfills precedent and fix links once. Later opens leave those tables alone. `ledger_loop.py` sends a bearer token only when `CONTEXT_LEDGER_MCP_URL` is set. A `user_decision` ranks above an equal match only after the owner attests it; a self-reported save does not.
@@ -20,7 +32,7 @@ A/B (2026-10-18 to 2026-10-31 IST): `find` returns `{"matches": [], "arm": "off"
 
 ## 0.1.24
 
-`find` ranks by text match (BM25 plus a coverage floor) and returns nothing rather than an off-topic record; confidence only breaks ties. Replies are compact cards within 1,200 bytes, sent once. `save` records a compact trace: `user_decision` (Guru's override with its why, ranked first) or `agent_conclusion` (why plus criticality), with typed fields and precedent links; long text is rejected, never trimmed. Every find and get is logged per caller. Auth failures are named errors. `ledger_loop.py` is gated, has a 2 s fail-open deadline, and supports `close --gated-out WORD`.
+`find` ranks by text match (BM25 plus a coverage floor) and returns nothing rather than an off-topic record; confidence only breaks ties. Replies are compact cards within 1,200 bytes, sent once. `save` records a compact trace: `user_decision` (Guru's override with its why, ranked first) or `agent_conclusion` (why plus criticality), with typed fields and precedent links; long text is rejected, never trimmed. Every find and get is logged per caller; the loop's and the helper's own plumbing reads are logged under `ledger-internal`, not as the agent's lookups. Auth failures are named errors. `ledger_loop.py` is gated, has a 2 s fail-open deadline, and supports `close --gated-out WORD`.
 
 ## 0.1.23
 
@@ -28,7 +40,7 @@ A/B (2026-10-18 to 2026-10-31 IST): `find` returns `{"matches": [], "arm": "off"
 
 ## 0.1.22
 
-The helper selects the stored decision whose applicability fits the situation and whose action fits the needed decision, using the on-device Natural Language sentence embedding and cosine distance. `select` returns the nearest decision and its distance. The helper judges whether it applies. An unrelated situation still returns that nearest record and its distance. The result includes outcome, flag, and approval. A higher success count does not win that choice. `find` still ranks success ahead of a flagged failure. Feedback records whether a provided decision helped. `helped: false` is inconclusive and that id is left out of the similar check. A missing decision is recorded when the needed action is not already stored, and its rationale names the decisions that did not help. On a host without that embedding, `select` and `feedback` fail with `EMBEDDING_UNAVAILABLE`. macOS setup installs `pyobjc-framework-NaturalLanguage` for the helper interpreter. A Cursor cloud main agent hands lookup to one retained worker on the Mac and never calls the ledger itself. Codex cloud has no ledger.
+The helper selects the stored decision whose applicability fits the situation and whose action fits the needed decision, using the on-device Natural Language sentence embedding and cosine distance. `select` returns the nearest decision and its distance. The helper judges whether it applies. An unrelated situation still returns that nearest record and its distance. The result includes outcome, flag, and approval. A higher success count does not win that choice. `find` still ranks success ahead of a flagged failure. Feedback records whether a provided decision helped, and the closeout writes the applied link the loop demands: an applied outcome names the applied event it judges and sets `helpful`, and `helpful: false` needs `effect` (`not_helped`/`misled`) with a reason. `helped: false` without `effect` is inconclusive and that id is left out of the similar check. A missing decision is recorded when the needed action is not already stored, and its rationale names the decisions that did not help. On a host without that embedding, `select` and `feedback` fail with `EMBEDDING_UNAVAILABLE`. macOS setup installs `pyobjc-framework-NaturalLanguage` for the helper interpreter. A Cursor cloud main agent hands lookup to one retained worker on the Mac and never calls the ledger itself. Codex cloud has no ledger.
 
 ## 0.1.21
 

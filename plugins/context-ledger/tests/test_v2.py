@@ -11,6 +11,7 @@ import tempfile
 import unittest
 import uuid
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -24,11 +25,14 @@ def _u() -> str:
     return str(uuid.uuid4())
 
 
+EVIDENCE = [{"ref": "session://tier-test", "revision": None, "sha256": None, "state": "unverified"}]
+
+
 def _legacy(summary: str, rationale: str = "legacy reason", entities=None, applicability="any") -> dict:
     return {
         "kind": "decision", "summary": summary, "situation": summary, "action": summary,
         "rationale": rationale, "constraints": [], "applicability": applicability,
-        "entities": entities or ["legacy"], "evidence": [], "sensitivity": "model_safe",
+        "entities": entities or ["legacy"], "scope": "fleet", "evidence": [], "sensitivity": "model_safe",
         "approval": {"state": "none", "authority_ref": None},
     }
 
@@ -57,7 +61,7 @@ class V2Base(unittest.TestCase):
 
     def save(self, **kw) -> str:
         args = {"request_id": _u(), "type": "agent_conclusion", "criticality": 3, "actor": "test-bot",
-                "entities": ["codex-cli"], **kw}
+                "entities": ["codex-cli"], "scope": "fleet", **kw}
         return self.store.save(args, mcp=True)["decision_id"]
 
     def find(self, query: str, **kw) -> dict:
@@ -70,17 +74,18 @@ class V2Base(unittest.TestCase):
 class RankingThresholdTests(V2Base):
     def setUp(self) -> None:
         super().setUp()
-        # A high-confidence, success record about something else entirely (the ORN problem).
+        # A high-confidence, success record about something else entirely (the other-project problem).
         self.offtopic = self.legacy(
-            "ORN forge is Cursor Origin; CI runs on a Mini launchd reporter",
-            rationale="Owner decision for open resource network merges",
+            "The service forge is a hosted git origin; CI runs on a Mini reporter",
+            rationale="Owner decision for the other project's merges",
             entities=["open-resource-network"],
         )
         for i in range(4):
             self.legacy(f"Unrelated fixture number {i} about travel quotes and fares")
         self.codex = self.save(
-            decision="Mini Codex ChatGPT login rejects gpt-6.1-sol; use an API-key login",
-            why="HTTP 400 says the model is not supported with a ChatGPT account",
+            decision="Mini Codex login rejects the pinned model; use an API-key login",
+            why="The account cannot use that model, so use a key login",
+            evidence=["gpt-6.1-sol ChatGPT"],
         )
 
     def test_off_topic_query_returns_nothing(self) -> None:
@@ -93,9 +98,9 @@ class RankingThresholdTests(V2Base):
         self.assertNotIn(self.offtopic, self.ids("Mini fan noise is loud tonight"))
 
     def test_natural_problem_query_finds_the_record_first(self) -> None:
-        got = self.find("codex exec fails: model not supported with my ChatGPT account")
+        got = self.find("codex login rejects the pinned model account")
         self.assertEqual(got["matches"][0]["decision_id"], self.codex)
-        self.assertIn("ChatGPT account", got["matches"][0]["why"])
+        self.assertIn("key login", got["matches"][0]["why"])
 
     def test_confidence_never_lifts_an_off_topic_record(self) -> None:
         rev = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]["revision"]
@@ -114,7 +119,7 @@ class RankingThresholdTests(V2Base):
             rev += 1
         got = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]
         self.assertEqual(got["confidence"]["score"], 1.0)
-        self.assertEqual(self.ids("codex model not supported with ChatGPT account"), [self.codex])
+        self.assertEqual(self.ids("codex login rejects the pinned model"), [self.codex])
 
     def test_hourly_check_in_outcomes_do_not_count(self) -> None:
         rev = self.store.get({"decision_id": self.offtopic}, mcp=True)["record"]["revision"]
@@ -128,7 +133,7 @@ class RankingThresholdTests(V2Base):
         self.assertEqual(conf["sample_count"], 0)
 
     def test_entities_and_constraints_are_optional(self) -> None:
-        self.assertEqual(self.find("codex chatgpt account")["matches"][0]["decision_id"], self.codex)
+        self.assertEqual(self.find("codex account key login")["matches"][0]["decision_id"], self.codex)
 
     def test_stop_words_only_query_is_a_named_error(self) -> None:
         with self.assertRaises(LedgerError) as ctx:
@@ -138,37 +143,37 @@ class RankingThresholdTests(V2Base):
 
 class UserDecisionRankingTests(V2Base):
     def test_self_reported_user_decision_does_not_outrank(self) -> None:
-        guru = self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
+        guru = self.save(type="user_decision", decision="Kite reads for ACCT7 go through Mini Comet",
                          why="Guru standing rule: never the Kite MCP for funds or holdings",
                          entities=["kite"], criticality=None, approver="guru")
-        agent = self.save(decision="Kite reads for WH6470 go through Mini Comet",
+        agent = self.save(decision="Kite reads for ACCT7 go through Mini Comet",
                           why="The Kite MCP needs authorize links on every session",
                           entities=["kite"], criticality=5)
         rec = self.store.get({"decision_id": guru}, mcp=True)["record"]
         self.assertEqual(rec["body"]["approval"]["state"], "self_reported")
-        self.assertEqual(self.ids("kite reads for WH6470 through comet")[:2], [agent, guru])
+        self.assertEqual(self.ids("kite reads for ACCT7 through comet")[:2], [agent, guru])
 
     def test_owner_attested_user_decision_outranks_on_equal_match(self) -> None:
-        guru = self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
+        guru = self.save(type="user_decision", decision="Kite reads for ACCT7 go through Mini Comet",
                          why="Guru standing rule: never the Kite MCP for funds or holdings",
                          entities=["kite"], criticality=None, approver="guru")
         rev = self.store.get({"decision_id": guru}, mcp=False)["record"]["revision"]
         self.store.attest(guru, rev, _u(), "guru", "owner attested")
-        self.save(decision="Kite reads for WH6470 go through Mini Comet",
+        self.save(decision="Kite reads for ACCT7 go through Mini Comet",
                   why="The Kite MCP needs authorize links on every session",
                   entities=["kite"], criticality=5)
         rec = self.store.get({"decision_id": guru}, mcp=False)["record"]
         self.assertEqual(rec["body"]["approval"]["state"], "owner_attested")
-        self.assertEqual(self.ids("kite reads for WH6470 through comet")[0], guru)
+        self.assertEqual(self.ids("kite reads for ACCT7 through comet")[0], guru)
 
     def test_user_decision_below_the_floor_is_not_returned(self) -> None:
-        self.save(type="user_decision", decision="Kite reads for WH6470 go through Mini Comet",
+        self.save(type="user_decision", decision="Kite reads for ACCT7 go through Mini Comet",
                   why="Guru standing rule for Zerodha", entities=["kite"], approver="guru")
         self.assertEqual(self.find("IRCTC tatkal captcha keeps failing")["matches"], [])
 
     def test_hit_is_compact_and_has_no_duplicate_fields(self) -> None:
         self.save(type="user_decision", decision="Private X items use the signed-in Comet path",
-                  why="Guru 2026-10-14: bookmarks redirect unless signed in; public reads use x connector",
+                  why="Guru note: bookmarks redirect unless signed in; public reads use x connector",
                   entities=["x.com"], rule="x-read-path", exception="private items", approver="guru")
         hit = self.find("x bookmarks redirect")["matches"][0]
         self.assertEqual(hit["type"], "user_decision")
@@ -220,14 +225,35 @@ class TraceLimitTests(V2Base):
 
 class LinksAndSignalsTests(V2Base):
     def test_find_surfaces_linked_precedent_once(self) -> None:
-        base = self.save(decision="Mini Codex ChatGPT login rejects gpt-6.1-sol",
-                         why="HTTP 400 model not supported with a ChatGPT account", entities=["codex-cli"])
-        ud = self.save(type="user_decision", decision="Review with Opus 5.5 until Codex API-key login works",
-                       why="Guru rule: gpt-6-astra or 6.1-sol reviews, Opus 5.5 fallback",
+        base = self.save(decision="Mini Codex login rejects the pinned model",
+                         why="The account cannot use that pinned model, so keep a fallback reviewer",
+                         entities=["codex-cli"])
+        ud = self.save(type="user_decision", decision="Fallback reviewer covers a Codex login reject",
+                       why="because the pinned model login needs a fallback reviewer",
                        entities=["codex-cli"], approver="guru", precedent_ids=[base])
-        got = self.find("codex review blocked, which reviewer now", limit=1)
+        got = self.find("codex login rejects the pinned model fallback reviewer", limit=1)
         self.assertEqual(got["matches"][0]["decision_id"], ud)
-        self.assertEqual(got["matches"][0]["related"], [{"id": base, "decision": "Mini Codex ChatGPT login rejects gpt-6.1-sol"}])
+        self.assertEqual(got["matches"][0]["related"], [{"id": base, "decision": "Mini Codex login rejects the pinned model"}])
+
+    def test_rank_tie_follows_event_order_not_the_projection_row(self) -> None:
+        """updated_at has millisecond resolution, so two records can tie all the way down to the
+        last rank key. That order has to come from event append order: a projection row is deleted
+        and re-inserted by maintenance, and by another record's conflict or supersession, so its
+        row is not decision order. A random uuid must never decide it either."""
+        frozen = "2026-10-18T00:00:00.000Z"
+        with mock.patch("context_ledger.store.now_ts", lambda *a, **k: frozen):
+            same = {"decision": "Mini Codex login rejects the pinned model",
+                    "why": "The account cannot use that pinned model, so keep a fallback reviewer"}
+            older = self.save(**same)
+            newer = self.save(**same)
+            query = "codex login rejects the pinned model"
+            self.assertEqual(self.ids(query)[0], newer, "the newest append wins the tie")
+            conn = self.store.open()
+            self.store._rebuild_one(conn, older)
+            conn.commit()
+            self.assertEqual(self.ids(query)[0], newer, "a projection rewrite must not reorder the tie")
+            self.store.rebuild()
+            self.assertEqual(self.ids(query)[0], newer, "a full rebuild must not reorder the tie")
 
     def test_off_topic_link_is_not_surfaced(self) -> None:
         other = self.save(decision="Travel quotes go stale after a day", why="fares move", entities=["travel"])
@@ -238,10 +264,10 @@ class LinksAndSignalsTests(V2Base):
         self.assertNotIn("related", got["matches"][0])
 
     def test_open_does_not_rebuild_links(self) -> None:
-        base = self.save(decision="Mini Codex ChatGPT login rejects gpt-6.1-sol",
-                         why="HTTP 400 model not supported with a ChatGPT account", entities=["codex-cli"])
-        hit = self.save(decision="Review with Opus until the API-key login works",
-                        why="fallback reviewer while Codex login is broken", entities=["codex-cli"],
+        base = self.save(decision="Mini Codex login rejects the pinned model",
+                         why="The account cannot use that pinned model", entities=["codex-cli"])
+        hit = self.save(decision="Fallback reviewer covers a Codex login reject",
+                        why="because the pinned model login needs a fallback reviewer", entities=["codex-cli"],
                         precedent_ids=[base])
         extra = _u()
         conn = self.store.open()
@@ -256,10 +282,10 @@ class LinksAndSignalsTests(V2Base):
             again.close()
 
     def test_unmarked_ledger_backfills_links_once(self) -> None:
-        base = self.save(decision="Mini Codex ChatGPT login rejects gpt-6.1-sol",
-                         why="HTTP 400 model not supported with a ChatGPT account", entities=["codex-cli"])
-        hit = self.save(decision="Review with Opus until the API-key login works",
-                        why="fallback reviewer while Codex login is broken", entities=["codex-cli"],
+        base = self.save(decision="Mini Codex login rejects the pinned model",
+                         why="The account cannot use that pinned model", entities=["codex-cli"])
+        hit = self.save(decision="Fallback reviewer covers a Codex login reject",
+                        why="because the pinned model login needs a fallback reviewer", entities=["codex-cli"],
                         precedent_ids=[base])
         conn = self.store.open()
         conn.execute("delete from links")
@@ -288,9 +314,9 @@ class LinksAndSignalsTests(V2Base):
 
     def test_repeated_rule_and_exception_counts_as_automation_candidate(self) -> None:
         for i in range(3):
-            self.save(decision=f"Skipped Kite MCP for WH6470 read {i}", why="Guru rule applies",
+            self.save(decision=f"Skipped Kite MCP for ACCT7 read {i}", why="Guru rule applies",
                       entities=["kite"], rule="kite-via-comet", exception="none")
-        hit = self.find("kite mcp WH6470 read")["matches"][0]
+        hit = self.find("kite mcp ACCT7 read")["matches"][0]
         self.assertEqual(hit["repeats"], 3)
 
     def test_find_and_get_are_logged_with_caller_query_count_and_bytes(self) -> None:
@@ -320,11 +346,11 @@ class LinksAndSignalsTests(V2Base):
         prev = None
         for i in range(5):
             prev = self.save(
-                decision=f"Codex review fallback case {i} uses Opus 5.5 while ChatGPT login fails",
-                why="Guru rule: gpt-6-astra or gpt-6.1-sol reviews, Opus 5.5 when they are unavailable today",
-                entities=["codex-cli", "mac-mini"], rule="reviewer-fallback", exception="chatgpt-login",
+                decision=f"Codex review fallback case {i} keeps a reviewer ready",
+                why="The pinned reviewer covers a Codex login reject because the account login fails",
+                entities=["codex-cli", "mac-mini"], rule="reviewer-fallback", exception="account-login",
                 precedent_ids=[prev] if prev else None)
-        got = self.find("codex review fallback opus chatgpt login")
+        got = self.find("codex review fallback reviewer")
         self.assertLessEqual(len(canonical_json(got).encode("utf-8")), MAX_FIND_BYTES)
         self.assertTrue(got["matches"])
 
@@ -335,8 +361,8 @@ class NotHelpedFixTests(V2Base):
 
     def setUp(self) -> None:
         super().setUp()
-        self.old = self.save(type="user_decision", decision="Reviews run on Codex gpt-6-astra with Opus fallback",
-                             why="Guru rule 2026-10-12: Codex plans and reviews, Grok implements",
+        self.old = self.save(type="user_decision", decision="Reviews run on the Codex reviewer for code review",
+                             why="because Codex plans and reviews and another agent implements",
                              entities=["code-review"], rule="reviewer-model")
         self.task = _u()
         rev = self.store.get({"decision_id": self.old}, mcp=True)["record"]["revision"]
@@ -370,7 +396,7 @@ class NotHelpedFixTests(V2Base):
         self.outcome(helpful=False, effect="not_helped", reason="Codex subscription lapsed; reviewer unavailable")
 
     def test_fix_needs_context_and_a_real_target(self) -> None:
-        kw = dict(type="user_decision", decision="Reviews run on Cursor composer-2.5", why="Codex lapsed",
+        kw = dict(type="user_decision", decision="Reviews run on the Cursor agent", why="because the reviewer path lapsed",
                   entities=["code-review"])
         self.reject(lambda: self.save(supersedes=self.old, **kw), "needs context")
         self.reject(lambda: self.save(supersedes=_u(), context="code review", **kw), "not a visible record")
@@ -383,8 +409,8 @@ class NotHelpedFixTests(V2Base):
         # Before: the old rule is the top hit for a review question.
         self.assertEqual(self.ids("who reviews the code now")[0], self.old)
         self.outcome(helpful=False, effect="not_helped", reason="Codex subscription lapsed; reviewer unavailable")
-        fix = self.save(type="user_decision", decision="Reviews run on Cursor agent composer-2.5",
-                        why="Codex not renewed; strongest non-Grok model available", entities=["code-review"],
+        fix = self.save(type="user_decision", decision="Reviews run on the Cursor agent",
+                        why="because the previous reviewer path lapsed", entities=["code-review"],
                         supersedes=self.old, context="code review and planning", task_id=self.task)
         got = self.find("who reviews the code now")
         ids = [m["decision_id"] for m in got["matches"]]
@@ -402,8 +428,8 @@ class NotHelpedFixTests(V2Base):
     def test_out_of_context_query_is_not_reordered(self) -> None:
         other = self.save(decision="Mini fan noise: check launchd jobs first", why="fan spikes track cron jobs",
                           entities=["mac-mini"])
-        self.save(type="user_decision", decision="Reviews run on Cursor agent composer-2.5",
-                  why="Codex not renewed", entities=["code-review"], supersedes=self.old,
+        self.save(type="user_decision", decision="Reviews run on the Cursor agent",
+                  why="because the previous reviewer path lapsed", entities=["code-review"], supersedes=self.old,
                   context="code review and planning", task_id=self.task)
         self.assertEqual(self.ids("mini fan noise launchd"), [other])
 
@@ -444,7 +470,8 @@ class ABSwitchTests(V2Base):
 
 
 class TrustTierTests(V2Base):
-    """trusted needs >= TRUST_MIN_HELPED (3) helped and failure <= TRUST_MAX_FAIL (10%) in this context."""
+    """trusted needs >= TRUST_MIN_HELPED (3) helped observations from distinct tasks, failure
+    <= TRUST_MAX_FAIL (10%), each observation final, evidenced and linked to its applied event."""
 
     def test_pure_boundaries(self) -> None:
         from context_ledger.ranking import trust_tier
@@ -456,30 +483,99 @@ class TrustTierTests(V2Base):
         self.assertEqual(trust_tier("user_decision", 3, 0, 3, False), "trusted")
         self.assertEqual(trust_tier("agent_conclusion", 9, 0, 9, True), "hint")        # superseded here
 
+    def observe(self, did: str, *, task: str, helped: bool, effect: str | None = None,
+                status: str = "success", evidence: list[dict] | None = None, link: bool = True) -> dict:
+        """One task applying the decision, then the outcome that judges it. Returns the receipt."""
+        rev = self.store.get({"decision_id": did}, mcp=False)["record"]["revision"]
+        ap = self.store.append_event(
+            {"request_id": _u(), "decision_id": did, "expected_revision": rev, "occurred_at": None,
+             "event_type": "applied", "payload": {"task_id": task, "decision_ids": [did]}}, mcp=True)
+        payload: dict = {"status": status, "note": "test observation", "task_id": task, "helpful": helped,
+                         "evidence": EVIDENCE if evidence is None else evidence}
+        if link:
+            payload["applied_event_id"] = ap["event_id"]
+        if effect:
+            payload.update({"effect": effect, "reason": "did not fit this case"})
+        return self.store.append_event(
+            {"request_id": _u(), "decision_id": did, "expected_revision": rev + 1, "occurred_at": None,
+             "event_type": "outcome", "payload": payload}, mcp=True)
+
     def mark(self, did: str, helped: int, failed: int) -> None:
         for k in range(helped + failed):
-            task = _u()
-            rev = self.store.get({"decision_id": did}, mcp=True)["record"]["revision"]
-            ap = self.store.append_event(
-                {"request_id": _u(), "decision_id": did, "expected_revision": rev, "occurred_at": None,
-                 "event_type": "applied", "payload": {"task_id": task, "decision_ids": [did]}}, mcp=True)
-            ok = k < helped
-            payload = {"status": "success", "note": "", "evidence": [], "task_id": task,
-                       "applied_event_id": ap["event_id"], "helpful": ok,
-                       **({} if ok else {"effect": "not_helped", "reason": "did not fit this case"})}
-            self.store.append_event(
-                {"request_id": _u(), "decision_id": did, "expected_revision": rev + 1, "occurred_at": None,
-                 "event_type": "outcome", "payload": payload}, mcp=True)
+            self.observe(did, task=_u(), helped=k < helped, effect=None if k < helped else "not_helped")
 
     def tier(self, query: str) -> str:
         return self.find(query)["matches"][0]["tier"]
 
+    def test_one_task_cannot_be_its_own_three_observations(self) -> None:
+        """The rubber stamp: three applied events on one task used to read as three observations."""
+        d = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
+        for _ in range(3):
+            self.observe(d, task=_u(), helped=True)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
+        one_task = self.save(decision="Smallcase rebalance reads basket weights first", why="avoid drift")
+        task = _u()
+        for _ in range(3):
+            self.observe(one_task, task=task, helped=True)
+        self.assertEqual(self.tier("smallcase rebalance basket weights"), "hint",
+                         "one task reporting three times is one observation")
+
+    def test_an_observation_needs_a_final_status(self) -> None:
+        d = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
+        for _ in range(3):
+            self.observe(d, task=_u(), helped=True, status="pending")
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "hint")
+        self.mark(d, 3, 0)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
+
+    def test_an_observation_needs_usable_evidence(self) -> None:
+        d = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
+        for _ in range(3):
+            self.observe(d, task=_u(), helped=True, evidence=[])
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "hint",
+                         "closeout demands evidence, so the tier cannot count evidence-free outcomes")
+        self.mark(d, 3, 0)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
+
+    def test_an_unlinked_outcome_is_not_an_observation(self) -> None:
+        d = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
+        for _ in range(3):
+            self.observe(d, task=_u(), helped=True, link=False)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "hint")
+        self.mark(d, 3, 0)
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
+
+    def test_a_corrected_outcome_is_a_new_observation(self) -> None:
+        """A positive observation corrected to not_helped is the evidence the tier has to see."""
+        d = self.save(decision="Kite connector keeps reads on the Mini", why="the token never leaves the machine")
+        task = _u()
+        rev = self.store.get({"decision_id": d}, mcp=False)["record"]["revision"]
+        ap = self.store.append_event(
+            {"request_id": _u(), "decision_id": d, "expected_revision": rev, "occurred_at": None,
+             "event_type": "applied", "payload": {"task_id": task, "decision_ids": [d]}}, mcp=True)["event_id"]
+        base = {"status": "success", "note": "test observation", "task_id": task,
+                "evidence": EVIDENCE, "applied_event_id": ap}
+
+        def outcome(payload: dict, revision: int) -> dict:
+            return self.store.append_event(
+                {"request_id": _u(), "decision_id": d, "expected_revision": revision, "occurred_at": None,
+                 "event_type": "outcome", "payload": payload}, mcp=True)
+
+        first = outcome({**base, "helpful": True}, rev + 1)
+        self.assertFalse(first["replayed"])
+        corrected = {**base, "helpful": False, "effect": "not_helped", "reason": "read the wrong account"}
+        second = outcome(corrected, rev + 2)
+        self.assertFalse(second["replayed"], "the correction must not be swallowed as a replay")
+        self.assertNotEqual(second["event_id"], first["event_id"])
+        again = outcome(corrected, rev + 3)
+        self.assertTrue(again["replayed"], "an identical retry is still a replay")
+
     def test_find_tiers_from_outcomes(self) -> None:
-        a = self.save(decision="Comet reads zerodha holdings for WH6470", why="kite connector blocked")
+        a = self.save(decision="Comet reads zerodha holdings for ACCT7", why="kite connector is the only path")
         self.mark(a, 2, 0)
-        self.assertEqual(self.tier("comet zerodha holdings WH6470"), "hint")
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "hint")
         self.mark(a, 1, 0)
-        self.assertEqual(self.tier("comet zerodha holdings WH6470"), "trusted")
+        self.assertEqual(self.tier("comet zerodha holdings ACCT7"), "trusted")
         b = self.save(decision="Tijori overview scrape uses shortlist only", why="full scrape wastes tokens")
         self.mark(b, 9, 1)
         self.assertEqual(self.tier("tijori overview scrape shortlist"), "trusted")

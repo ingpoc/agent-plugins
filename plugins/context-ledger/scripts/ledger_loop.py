@@ -11,7 +11,8 @@ record a Guru override. Simple or one-shot tasks skip it: `close <task_id> --gat
                  [--precedent ID] [--input I] [--audit]
   ledger_loop.py [--data DIR] start <task_id> --bot NAME --query "<q>" [--found id,id | --lookup-failed CODE]
   ledger_loop.py [--data DIR] close <task_id> [--bot NAME] [--decision id ...] [--gated-out WORD]
-                 [--repeat-of "<id or topic>: <reason>"] [--guru-correction "<reason>"] [--audit]
+                 [--applied id ... | --applied-none "<why none>"] [--repeat-of "<id or topic>: <reason>"]
+                 [--guru-correction "<reason>"] [--audit]
 
 A/B (Guru 2026-10-17): from AB_START to AB_END (IST), find is ON on odd calendar days and OFF on
 even days; saves and outcomes stay on. The MCP server applies the same rule, so connector finds
@@ -25,10 +26,20 @@ errors (AUTH_MISSING / AUTH_INVALID) are named in that line. `--audit` (or LEDGE
 every warning into a loud FAIL (exit 2) for audits.
 
 `close` prints one PASS line (exit 0) or one FAIL line with the fix (exit 1; exit 2 = ledger
-unreadable in audit mode, or bad auth). PASS needs either --gated-out WORD, or:
+unreadable, bad auth, or an unmet audit requirement). PASS needs either --gated-out WORD, or:
   1. a find/start lookup recorded for a real task_id (UUID, not a placeholder), and
   2. for every decision id in that task's `applied` events, a latest task outcome (outcome
-     event with this task_id) whose status is final and that cites evidence.
+     event with this task_id) whose status is final, cites evidence, sets helpful true|false, and
+     names that applied event in `applied_event_id`. The link matters: ranking counts an outcome
+     only through its applied_event_id (Store._tier), so a closeout that skips it verifies
+     nothing the ledger uses.
+`close --applied ID` (repeatable) is how those applied events get written: it records the link for
+the decisions this task used, prints the failing id and the event id to cite when the outcome is
+missing, and re-running it writes nothing twice. Each append commits on its own, so a failure
+keeps the links already written: a partial link is never reported as a clean closeout.
+`--applied-none "<why>"` declares that the task applied no decision. Omission is recorded as
+`unknown`, never as `none`, and --audit requires either --applied or --applied-none when the
+lookup returned hits. A lookup hit is not an application: exposure is not use.
 
 Backends: DATA/binding.json -> the bound SQLite ledger via context_ledger.store.Store;
 else CONTEXT_LEDGER_MCP_TOKEN and CONTEXT_LEDGER_MCP_URL -> MCP over HTTP.
@@ -54,6 +65,9 @@ from pathlib import Path
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 FINAL = {"success", "failed", "inconclusive", "abandoned"}
 USABLE_EVIDENCE = {"unverified", "reported_verified"}
+# The loop's own reads (the revision an append needs, the record check/close read back) are not the
+# agent's lookups: Remote.get records them under this actor so access reporting can tell them apart.
+INTERNAL_ACTOR = "ledger-internal"
 OUTCOME_FIX = (
     "append_event outcome on {ids} with task_id {tid}, status success|failed|inconclusive, "
     "an evidence ref, applied_event_id and helpful true|false (false: effect not_helped|misled + reason), then rerun close"
@@ -111,16 +125,19 @@ def audit_mode(o: argparse.Namespace) -> bool:
 class Unavailable(Exception):
     """The ledger was slow, unreachable or unbound. Fail open unless in audit mode."""
 
-    def __init__(self, code: str, detail: str) -> None:
+    def __init__(self, code: str, detail: str, committed: list[tuple[str, str]] | None = None) -> None:
         super().__init__(detail)
         self.code, self.detail = code, detail
+        # (decision_id, applied event_id) linked before this failure: a partial link is never lost.
+        self.committed: list[tuple[str, str]] = committed or []
 
 
 class Fail(Exception):
-    def __init__(self, line: str, code: int = 1) -> None:
+    def __init__(self, line: str, code: int = 1, committed: list[tuple[str, str]] | None = None) -> None:
         super().__init__(line)
         self.line = line
         self.code = code
+        self.committed: list[tuple[str, str]] = committed or []
 
 
 def _uuid(value: str, what: str) -> str:
@@ -318,7 +335,13 @@ class Mcp:
         return payload["data"]
 
     def get(self, decision_id: str) -> dict:
-        result = self._req("tools/call", {"name": "get", "arguments": {"decision_id": decision_id}})
+        # This read is the loop's own bookkeeping (the revision an append needs, and the record
+        # `check`/`close` reads back), not the agent's lookup. It is recorded under the internal
+        # actor so the access report can tell it apart from a task's own find/get.
+        result = self._req(
+            "tools/call",
+            {"name": "get", "arguments": {"decision_id": decision_id, "actor": INTERNAL_ACTOR}},
+        )
         payload = result.get("structuredContent")
         if payload is None:
             payload = json.loads(result["content"][0]["text"])
@@ -358,36 +381,53 @@ def remote_events(task_id: str, candidates: list[str], token: str) -> tuple[list
 
 # ---- check --------------------------------------------------------------------------------
 
-def check(task_id: str, events: list[dict]) -> dict:
+def check(task_id: str, events: list[dict], applied_event_ids: dict[str, list[str]] | None = None) -> dict:
     applied: list[str] = []
     for ev in events:
         if ev["event_type"] == "applied":
             applied += [d for d in ev["payload"]["decision_ids"] if d not in applied]
+    known = applied_event_ids or {}
     latest: dict[str, dict] = {}
     for ev in sorted((e for e in events if e["event_type"] == "outcome"), key=lambda e: e["revision"]):
         latest[ev["decision_id"]] = ev["payload"]
+
+    def fix_for(ids: list[str]) -> str:
+        """The append that closes this out, naming the applied event id each outcome has to cite."""
+        named = ",".join(f"{d}(applied_event_id {','.join(known.get(d) or ['?'])})" for d in ids)
+        return OUTCOME_FIX.format(ids=named, tid=task_id)
+
     missing = [d for d in applied if d not in latest]
     if missing:
         ids = ",".join(missing)
-        raise Fail(f"FAIL {task_id}: no outcome for applied {ids}; fix: " + OUTCOME_FIX.format(ids=ids, tid=task_id))
+        raise Fail(f"FAIL {task_id}: no outcome for applied {ids}; fix: " + fix_for(missing))
     pending = [d for d in applied if latest[d]["status"] not in FINAL]
     if pending:
         ids = ",".join(f"{d}={latest[d]['status']}" for d in pending)
-        raise Fail(f"FAIL {task_id}: outcome not final for {ids}; fix: " + OUTCOME_FIX.format(ids=",".join(pending), tid=task_id))
+        raise Fail(f"FAIL {task_id}: outcome not final for {ids}; fix: " + fix_for(pending))
     bare = [d for d in applied if not any(e["state"] in USABLE_EVIDENCE for e in latest[d]["evidence"])]
     if bare:
         ids = ",".join(bare)
-        raise Fail(f"FAIL {task_id}: outcome without evidence for {ids}; fix: " + OUTCOME_FIX.format(ids=ids, tid=task_id))
+        raise Fail(f"FAIL {task_id}: outcome without evidence for {ids}; fix: " + fix_for(bare))
     unmarked = [d for d in applied if type(latest[d].get("helpful")) is not bool]
     if unmarked:
         ids = ",".join(unmarked)
-        raise Fail(f"FAIL {task_id}: outcome without helpful true|false for {ids}; fix: " + OUTCOME_FIX.format(ids=ids, tid=task_id))
+        raise Fail(f"FAIL {task_id}: outcome without helpful true|false for {ids}; fix: " + fix_for(unmarked))
     vague = [d for d in applied if latest[d].get("helpful") is False
              and (latest[d].get("effect") not in ("not_helped", "misled") or not latest[d].get("reason"))]
     if vague:
         ids = ",".join(vague)
         raise Fail(f"FAIL {task_id}: helpful false without effect not_helped|misled and a reason for {ids}; "
                    "fix: append the outcome again with effect and a reason (<=20 words)")
+    # The link, not the count: ranking counts an outcome only through its applied_event_id
+    # (Store._tier), so a closeout that skips it verifies nothing that the ledger actually uses.
+    unlinked = [d for d in applied if latest[d].get("applied_event_id") not in (known.get(d) or [])]
+    if unlinked:
+        pairs = ", ".join(f"{d} -> {','.join(known.get(d) or ['?'])}" for d in unlinked)
+        raise Fail(
+            f"FAIL {task_id}: outcome for {','.join(unlinked)} is not linked to this task's applied event "
+            f"({pairs}); fix: append_event outcome again with the same status, note and evidence as the outcome "
+            f"above, task_id {task_id}, applied_event_id from that list, and helpful true|false"
+        )
     fixed = {e["decision_id"] for e in events if e["event_type"] == "fix"}
     unfixed = [d for d in applied if latest[d].get("helpful") is False and latest[d]["status"] == "success" and d not in fixed]
     return {
@@ -473,12 +513,145 @@ def _call(data: Path, task_id: str, name: str, arguments: dict) -> tuple[dict, s
     return client.tool(name, arguments), f"remote {url}"
 
 
+def _linked_applied(store, decision_id: str, task_id: str) -> str | None:
+    """The applied event this task already has on this decision, if any (events.seq is append order)."""
+    rows = store.conn.execute(
+        "select event_json from events where json_extract(event_json, '$.decision_id') = ? "
+        "and json_extract(event_json, '$.event_type') = 'applied' order by seq desc",
+        (decision_id,),
+    ).fetchall()
+    for row in rows:
+        event = json.loads(row["event_json"])
+        if event["payload"].get("task_id") == task_id:
+            return event["event_id"]
+    return None
+
+
+def _link_one(store, task_id: str, decision_id: str) -> str:
+    """One applied event for one decision, retried once across a revision race. Returns its event_id."""
+    from context_ledger.contracts import LedgerError
+
+    for attempt in (1, 2):
+        # mcp=False: this revision read is plumbing, not an access. An mcp read would log an access
+        # row and inflate the get counts the A/B trial measures.
+        record = store.get({"decision_id": decision_id}, mcp=False)["record"]
+        try:
+            receipt = store.append_event(
+                {"request_id": str(uuidlib.uuid4()), "occurred_at": None,
+                 "expected_revision": record["revision"], "decision_id": decision_id,
+                 "event_type": "applied",
+                 "payload": {"task_id": task_id, "decision_ids": [decision_id]}},
+                mcp=True,
+            )
+            return receipt["event_id"]
+        except LedgerError as exc:
+            if exc.code != "REVISION_CONFLICT":
+                raise
+            known = _linked_applied(store, decision_id, task_id)
+            if known:
+                return known
+            if attempt == 2:
+                raise
+    raise AssertionError("unreachable")
+
+
+def _link_failure(task_id: str, decision_id: str, exc, linked: list[tuple[str, str]]) -> Exception:
+    """A per-decision link failure that carries what was already written."""
+    if exc.code in {"BUSY", "MAINTENANCE", "CORRUPT_LEDGER"}:
+        return Unavailable(exc.code, f"while linking applied {decision_id} ({exc.message or exc.code})",
+                           committed=linked)
+    if exc.code == "REVISION_CONFLICT":
+        return Fail(f"FAIL {task_id}: cannot link applied {decision_id}: the record changed twice while linking; "
+                    "fix: rerun close (the link is retried once)", committed=linked)
+    if exc.code == "UNAVAILABLE":
+        return Fail(f"FAIL {task_id}: cannot link applied {decision_id}: no such decision id in this ledger, "
+                    "or it is not model-safe; fix: pass decision ids this ledger serves the caller",
+                    committed=linked)
+    return Fail(f"FAIL {task_id}: cannot link applied {decision_id} ({exc.code} {exc.message or ''})".rstrip()
+                + "; fix: correct the arguments named above", committed=linked)
+
+
+def _append_applied(data: Path, task_id: str, ids: list[str]) -> tuple[list[tuple[str, str]], str]:
+    """Record the applied link: one applied event per decision. Returns ((decision_id, event_id), ...), source.
+
+    Each append commits on its own, so a later failure must not hide an earlier link: every failure
+    carries the committed links on the exception.
+    """
+    if (data / "binding.json").exists():
+        root = plugin_root()
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        from context_ledger.contracts import LedgerError
+        from context_ledger.store import Store
+        store = None
+        linked: list[tuple[str, str]] = []
+        try:
+            store = Store(data, actor_channel="agent")
+            for decision_id in ids:
+                try:
+                    linked.append((decision_id, _link_one(store, task_id, decision_id)))
+                except LedgerError as exc:
+                    raise _link_failure(task_id, decision_id, exc, linked) from exc
+            return linked, f"store {store.db_path}"
+        finally:
+            if store is not None:
+                store.close()
+    token = os.environ.get("CONTEXT_LEDGER_MCP_TOKEN", "").strip()
+    if not token:
+        raise Unavailable("UNBOUND", f"no {data / 'binding.json'} and CONTEXT_LEDGER_MCP_TOKEN is empty")
+    url = require_mcp_url()
+    client = Mcp(url, token, task_id, timeout=timeout_s() * 3)
+    client.open()
+    linked = []
+    for decision_id in ids:
+        try:
+            record = client.get(decision_id)
+            receipt = client.tool("append", {
+                "request_id": str(uuidlib.uuid4()), "occurred_at": None,
+                "expected_revision": record["revision"], "decision_id": decision_id,
+                "event_type": "applied",
+                "payload": {"task_id": task_id, "decision_ids": [decision_id]},
+            })
+        except Unavailable as exc:
+            raise Unavailable(exc.code, exc.detail, committed=linked) from exc
+        except Fail as exc:
+            # keep the transport's reason, but name the decision that failed and what already committed
+            reason = exc.line.split("; fix:")[0].removeprefix(f"FAIL {task_id}: ")
+            raise Fail(
+                f"FAIL {task_id}: cannot link applied {decision_id}: {reason}; "
+                "fix: check the Mini serve-http and CONTEXT_LEDGER_MCP_TOKEN", exc.code, committed=linked,
+            ) from exc
+        linked.append((decision_id, receipt["event_id"]))
+    return linked, f"remote {url}"
+
+
 def _warn(o: argparse.Namespace, task_id: str, what: str, exc: Unavailable) -> str:
     line = f"{exc.code} {exc.detail}"
     if audit_mode(o):
         raise Fail(f"FAIL {task_id}: ledger {what} failed ({line}); fix: audit mode needs a reachable ledger", 2)
     print(f"WARN ledger {what} skipped ({line}); continuing without the ledger", file=sys.stderr)
     return exc.code
+
+
+def _binding_caller_scope(data: Path) -> dict | None:
+    """Project and tools from binding.json. Absent binding means the find stays fleet-only."""
+    path = data / "binding.json"
+    if not path.is_file():
+        return None
+    try:
+        binding = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(binding, dict):
+        return None
+    root = plugin_root()
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    try:
+        from context_ledger.contracts import caller_scope_from_binding
+    except ImportError:
+        return None
+    return caller_scope_from_binding(binding)
 
 
 def cmd_find(o: argparse.Namespace, data: Path) -> str:
@@ -491,8 +664,12 @@ def cmd_find(o: argparse.Namespace, data: Path) -> str:
         _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "lookup": "arm_off", "arm": arm, "ms": 0})
         return json.dumps({"matches": [], "arm": "off", "note": "A/B OFF day: no lookup; saves and outcomes stay on"})
     started = time.monotonic()
+    find_args: dict = {"query": o.query, "actor": bot, "task_id": task_id}
+    caller_scope = _binding_caller_scope(data)
+    if caller_scope is not None:
+        find_args["caller_scope"] = caller_scope
     try:
-        result, _source = _call(data, task_id, "find", {"query": o.query, "actor": bot, "task_id": task_id})
+        result, _source = _call(data, task_id, "find", find_args)
     except Unavailable as exc:
         code = _warn(o, task_id, "find", exc)
         _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "lookup": f"failed:{code}",
@@ -514,7 +691,7 @@ def cmd_save(o: argparse.Namespace, data: Path) -> str:
     args: dict = {
         "request_id": str(uuidlib.uuid5(uuidlib.NAMESPACE_URL, f"ledger-loop:{task_id}:{o.decision}")),
         "type": o.type, "decision": o.decision, "why": o.why, "entities": o.entity,
-        "task_id": task_id, "actor": bot,
+        "scope": o.scope, "task_id": task_id, "actor": bot,
     }
     for key in ("rule", "exception", "state", "outcome", "approver", "override_by"):
         if getattr(o, key):
@@ -574,6 +751,11 @@ def _task_row(data: Path, task_id: str, o: argparse.Namespace, gate: str, stats:
         "latency_ms": sum(int(r.get("ms") or 0) for r in rows),
         "fail_open": failed or fail_open,
         "writes": sum(1 for r in saves if r.get("decision_id")),
+        # Attribution completeness: ids | none | unknown, plus how many ids carry the link. Omission is
+        # unknown and is never read as "none".
+        "applied_declared": ("ids" if (getattr(o, "applied", None) or stats.get("applied"))
+                             else ("none" if getattr(o, "applied_none", None) else "unknown")),
+        "applied_linked": stats.get("linked", 0),
         "repeat_of": _flag(task_id, "repeat-of", o.repeat_of),
         "guru_correction": _flag(task_id, "guru-correction", o.guru_correction),
         "at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
@@ -596,21 +778,38 @@ def cmd_close(o: argparse.Namespace, data: Path) -> str:
         _task_row(data, task_id, o, o.gated_out, None, False)
         return f"PASS {task_id}: gated out ({o.gated_out}); no ledger lookup needed"
     extra = [_uuid(d, "--decision id") for d in o.decision]
+    applied = [_uuid(d, "--applied id") for d in o.applied]
+    none_word = _flag(task_id, "applied-none", o.applied_none)
+    if applied and o.applied_none:
+        # Both are declarations about the same question, so accepting them logs an `applied_none`
+        # row while linking ids: the task row would then read applied_declared="none" with
+        # applied_linked=1. Refuse before either is written.
+        raise Fail(
+            f"FAIL {task_id}: --applied and --applied-none declare different things; "
+            f"fix: pass `--applied <id>` for each decision this task used, or `--applied-none <word>` "
+            "when nothing was used, never both"
+        )
     log = start_log(data)
     starts = read_starts(log, task_id)
     arm = ab_arm(ab_today())
+    hits = {d for row in starts for d in row.get("found", [])}
     if not starts and arm != "off":
         raise Fail(
             f"FAIL {task_id}: no start lookup in {log}; fix: run Context-ledger find for the problem now, "
             f"then `ledger_loop.py start {task_id} --bot NAME --query \"...\" --found ids`"
         )
+    if none_word:
+        # A declaration is data. Omission stays "unknown" and never means "none".
+        _log_row(data, {"task_id": task_id, "ev": "applied_none", "reason": none_word})
     token = os.environ.get("CONTEXT_LEDGER_MCP_TOKEN", "").strip()
     try:
         if (data / "binding.json").exists():
             events, source = store_events(data, task_id)
         elif token:
+            # applied is a discovery seed too: an id that arrives only through --applied has no start
+            # row and would otherwise never be read, so close would miss its outcome and link it twice.
             found = [d for row in starts for d in row.get("found", [])]
-            events, source = remote_events(task_id, list(dict.fromkeys(found + extra)), token)
+            events, source = remote_events(task_id, list(dict.fromkeys(found + extra + applied)), token)
         else:
             raise Unavailable(
                 "UNBOUND",
@@ -622,7 +821,52 @@ def cmd_close(o: argparse.Namespace, data: Path) -> str:
                        "or export CONTEXT_LEDGER_MCP_TOKEN", 2)
         _task_row(data, task_id, o, "in", None, True)
         return f"PASS {task_id}: closeout check skipped, ledger unavailable ({exc.code}); WARN fail-open, task continues"
-    stats = check(task_id, events)
+    # Task attribution: close writes the applied link for the decisions this task used, then the check
+    # below demands a final, evidenced, linked outcome for each one. An id this task already linked is
+    # not written twice.
+    have = {d for ev in events if ev["event_type"] == "applied" for d in ev["payload"]["decision_ids"]}
+    # Audit mode asks for a declaration, and a link already recorded for this task *is* one: the
+    # task cannot re-verify a closed run if it has to restate what the ledger already holds.
+    if audit_mode(o) and hits and not (applied or none_word or have):
+        raise Fail(
+            f"FAIL {task_id}: audit mode needs a declaration for {len(hits)} lookup hit(s); "
+            f"fix: pass `--applied <id>` for each decision this task used, or `--applied-none <word>`", 2
+        )
+    fresh = [d for d in dict.fromkeys(applied) if d not in have]
+    linked: list[tuple[str, str]] = []
+    partial: Unavailable | None = None
+    if fresh:
+        try:
+            linked, _link_source = _append_applied(data, task_id, fresh)
+        except Unavailable as exc:
+            linked, partial = exc.committed, exc
+        except Fail as exc:
+            written = ",".join(d for d, _ in exc.committed)
+            raise Fail(
+                exc.line if not written else f"{exc.line} [already linked {written}]", exc.code, exc.committed
+            ) from exc
+    events += [{"event_type": "applied", "decision_id": d, "event_id": eid,
+                "payload": {"task_id": task_id, "decision_ids": [d]}} for d, eid in linked]
+    event_ids: dict[str, list[str]] = {}
+    for ev in events:
+        if ev["event_type"] == "applied":
+            for d in ev["payload"]["decision_ids"]:
+                if ev.get("event_id"):
+                    event_ids.setdefault(d, []).append(ev["event_id"])
+    try:
+        stats = check(task_id, events, event_ids)
+    except Fail as exc:
+        if partial is None:
+            raise
+        # The committed links are real, so their outcomes are still demanded; never report a clean
+        # closeout over a link that was cut in half.
+        raise Fail(f"{exc.line} [applied link incomplete: {len(linked)} of {len(fresh)} linked, "
+                   f"{partial.code} {partial.detail}]", exc.code, exc.committed) from exc
+    if partial is not None:
+        _task_row(data, task_id, o, "in", stats, True)
+        return (f"PASS {task_id}: closeout unverified, applied link incomplete "
+                f"({len(linked)} of {len(fresh)} linked, {partial.code} {partial.detail}); "
+                f"WARN fail-open, run close again to finish the link")
     _task_row(data, task_id, o, "in", stats, False)
     line = (f"PASS {task_id}: lookup {'off' if arm == 'off' and not starts else 'done'}, {stats['applied']} applied, "
             f"all with final outcome + evidence ({stats['linked']} linked by applied_event_id) [{source}] arm={arm}")
@@ -630,6 +874,10 @@ def cmd_close(o: argparse.Namespace, data: Path) -> str:
         ids = ",".join(stats["unfixed"])
         line += (f"; WARN {len(stats['unfixed'])} not_helped without a fix ({ids}): "
                  f"`ledger_loop.py save {task_id} ... --supersedes {stats['unfixed'][0]} --context \"<where it failed>\"`")
+    if hits and not (stats["applied"] or applied or none_word):
+        line += (f"; WARN {len(hits)} lookup hit(s) and no applied id declared: unknown, not none. "
+                 f"If this task used one, run `ledger_loop.py close {task_id} --applied <id>`; "
+                 f"else declare `ledger_loop.py close {task_id} --applied-none <word>`")
     return line
 
 
@@ -648,6 +896,7 @@ def main(argv: list[str] | None = None) -> int:
     x.add_argument("--type", required=True, choices=["user_decision", "agent_conclusion"])
     x.add_argument("--decision", required=True)
     x.add_argument("--why", required=True)
+    x.add_argument("--scope", required=True, help="fleet, project:<id>, or tool:<id>. Still true in another project?")
     x.add_argument("--entity", action="append", default=[], required=True)
     x.add_argument("--crit", type=int)
     for flag in ("--rule", "--exception", "--state", "--approver", "--override-by"):
@@ -669,6 +918,12 @@ def main(argv: list[str] | None = None) -> int:
     x = sub.add_parser("close", help="fail unless gated out, or lookup done and every applied id has an outcome")
     x.add_argument("task_id")
     x.add_argument("--decision", action="append", default=[], help="extra decision id to read (remote mode)")
+    x.add_argument("--applied", action="append", default=[],
+                   help="decision id this task applied (repeatable): close records the applied link "
+                        "and then requires that id's final, evidenced outcome")
+    x.add_argument("--applied-none", dest="applied_none",
+                   help="one line: why this task applied no decision. A declaration; an omitted "
+                        "declaration stays unknown and is never read as none")
     x.add_argument("--gated-out", dest="gated_out", help="one word: why this task skipped the ledger")
     x.add_argument("--bot", help="actor id when no find/save row names it (OFF days)")
     x.add_argument("--repeat-of", dest="repeat_of", help="<=20 words: the earlier task/decision this re-diagnosed, and why")

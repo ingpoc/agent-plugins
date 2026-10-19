@@ -52,6 +52,16 @@ def _use_runtime_python() -> None:
 if __name__ == "__main__":
     _use_runtime_python()
 
+from context_ledger import ranking  # noqa: E402
+from context_ledger.contracts import (  # noqa: E402
+    HELP_EFFECTS,
+    REASON_WORDS,
+    ab_arm,
+    allowed_scopes,
+    caller_scope_from_binding,
+    ist_today,
+    now_ts,
+)
 from context_ledger.store import Store  # noqa: E402
 
 # NLEmbedding sentence embedding, cosine distance (1 - cosine similarity).
@@ -61,6 +71,10 @@ SIMILAR_MAX_DISTANCE = 1.75
 # Need vs action, on its own. A paraphrase of the stored action is near 0.3.
 # A different action in the same situation is past 1.0.
 ACTION_SIMILAR_MAX_DISTANCE = 0.6
+# This helper's own plumbing reads (the revision a write needs, the re-read that reports confidence)
+# are not the agent's lookups: they are recorded under this actor so access reporting can tell them
+# apart from the agent's find/get.
+INTERNAL_ACTOR = "ledger-internal"
 _EMBEDDING = None
 
 
@@ -109,18 +123,42 @@ def _text(value: object, label: str, limit: int) -> str:
     return value.strip()
 
 
+def _caller(store: Store) -> str:
+    """The agent this ledger is bound to: who a read the agent asked for is billed to.
+
+    The CLI carries no per-request actor (the MCP path puts one in the tool arguments), so without
+    this every helper read fell through to `unnamed` and the access report could not tell the
+    agent's lookups from the helper's own plumbing."""
+    return store.binding["actor_id"]
+
+
 def _visible(store: Store) -> list[dict]:
+    """Candidates for semantic selection, on find's eligibility: a record scoped to another
+    project, or expired, must not come back through this route when find hides it.
+
+    This holds every eligible record, not the answer, so its reads are the helper's own plumbing
+    and are recorded under `INTERNAL_ACTOR` -- the same rule as the loop's revision and re-reads."""
     store.open()
+    caller_scope = caller_scope_from_binding(store.binding)
+    allowed = allowed_scopes(caller_scope) if caller_scope else {"fleet"}
+    now = now_ts()
     rows = store.conn.execute(
         "select decision_id from current_records "
         "where scope_id=? and sensitivity='model_safe' and lifecycle='active' "
         "order by decision_id asc",
         (store.binding["scope_id"],),
     ).fetchall()
-    return [
-        store.get({"decision_id": row["decision_id"]}, mcp=True)["record"]
-        for row in rows
-    ]
+    visible = []
+    for row in rows:
+        rec = store.get(
+            {"decision_id": row["decision_id"], "actor": INTERNAL_ACTOR}, mcp=True
+        )["record"]
+        if store._expired(rec, now):
+            continue
+        if (rec["body"].get("scope") or "fleet") not in allowed:
+            continue
+        visible.append(rec)
+    return visible
 
 
 def _fit_distance(embedding, situation: str, need: str, record: dict) -> float:
@@ -198,9 +236,9 @@ def _similar(embedding, situation: str, need: str, records: list[dict], excluded
     return chosen
 
 
-def _gap_rationale(items: list[tuple[str, bool, str]]) -> str:
+def _gap_rationale(items: list[tuple[str, bool, str, str | None]]) -> str:
     parts = []
-    for decision_id, helped, issue in items:
+    for decision_id, helped, issue, _effect in items:
         if helped:
             continue
         parts.append(f"{decision_id}: {issue.strip() or 'did not help'}")
@@ -215,11 +253,48 @@ def _select(store: Store, body: dict) -> dict:
         raise ValueError("body")
     situation = _text(body.get("situation"), "situation", 320)
     need = _text(body.get("need"), "need", 160)
+    query = body.get("query")
+    if query is not None:
+        query = _text(query, "query", 160)
     embedding = _sentence_embedding()
-    chosen, distance = _best(embedding, situation, need, _visible(store))
+    records = _visible(store)
+    chosen, distance = _best(embedding, situation, need, records)
     if chosen is None or distance is None:
-        return {"decision": None, "distance": None}
-    return {"decision": _decision_view(chosen), "distance": distance}
+        return {
+            "decision": None,
+            "distance": None,
+            "verdict": "ungrounded",
+            "grounding": {
+                "terms": 0, "matched": 0, "coverage": 0.0, "lexical_ok": False, "query": query,
+            },
+        }
+    # The embedding ranks every record near every situation, so on its own the nearest record is
+    # weak evidence: measured over 131 records, correct answers sat at the median of the distance
+    # distribution and 6 of 8 labelled cases ranked their target below an unrelated record. The
+    # nearest record counts as evidence only when its own text covers enough of the query's IDF
+    # mass -- find's floor, applied to the choice. Pass `query` as a few terse keywords for the
+    # sharpest reading; the situation and need are used when it is absent.
+    qterms = ranking.query_terms(query or f"{situation} {need}")
+    corpus = ranking.Corpus(
+        (record["decision_id"], record["body"], record.get("revision")) for record in records
+    )
+    _bm25, coverage, matched = corpus.score(chosen["decision_id"], qterms)
+    lexical_ok = bool(qterms) and ranking.relevant(coverage, matched, len(qterms))
+    # `_visible` swept the candidates on the helper's own behalf; the one decision the agent
+    # receives is its lookup, so that read is billed to the caller.
+    store.get({"decision_id": chosen["decision_id"], "actor": _caller(store)}, mcp=True)
+    return {
+        "decision": _decision_view(chosen),
+        "distance": distance,
+        "verdict": "grounded" if lexical_ok else "ungrounded",
+        "grounding": {
+            "terms": len(qterms),
+            "matched": matched,
+            "coverage": round(coverage, 4),
+            "lexical_ok": lexical_ok,
+            "query": query,
+        },
+    }
 
 
 def _uuid_text(value: object) -> str:
@@ -231,7 +306,7 @@ def _uuid_text(value: object) -> str:
     return str(value)
 
 
-def _parse_feedback(body: dict) -> tuple[str, list[tuple[str, bool, str]], tuple[str, str] | None] | dict:
+def _parse_feedback(body: dict) -> tuple[str, list[tuple[str, bool, str, str | None]], tuple[str, str] | None] | dict:
     if not isinstance(body, dict):
         return {"written": [], "write": "unavailable"}
     try:
@@ -246,7 +321,7 @@ def _parse_feedback(body: dict) -> tuple[str, list[tuple[str, bool, str]], tuple
     for item in provided:
         if (
             not isinstance(item, dict)
-            or set(item) - {"id", "helped", "issue"}
+            or set(item) - {"id", "helped", "issue", "effect"}
             or "id" not in item
             or "helped" not in item
             or item["helped"] not in (True, False)
@@ -255,6 +330,13 @@ def _parse_feedback(body: dict) -> tuple[str, list[tuple[str, bool, str]], tuple
         issue = item.get("issue", "")
         if not isinstance(issue, str):
             return {"written": [], "write": "unavailable"}
+        effect = item.get("effect")
+        if effect is not None and (
+            item["helped"]
+            or not isinstance(effect, str)
+            or effect not in HELP_EFFECTS
+        ):
+            return {"written": [], "write": "unavailable"}
         try:
             decision_id = _uuid_text(item["id"])
         except ValueError:
@@ -262,7 +344,7 @@ def _parse_feedback(body: dict) -> tuple[str, list[tuple[str, bool, str]], tuple
         if decision_id in seen:
             return {"written": [], "write": "unavailable"}
         seen.add(decision_id)
-        items.append((decision_id, item["helped"], issue))
+        items.append((decision_id, item["helped"], issue, effect))
     missing = body.get("would_have_helped", None)
     if missing is None:
         return task_id, items, None
@@ -282,24 +364,50 @@ def _feedback(store: Store, body: dict) -> dict:
         return parsed
     task_id, items, missing = parsed
     try:
-        for decision_id, _helped, _issue in items:
-            store.get({"decision_id": decision_id}, mcp=True)
+        for decision_id, _helped, _issue, _effect in items:
+            store.get({"decision_id": decision_id, "actor": INTERNAL_ACTOR}, mcp=True)
     except Exception:
         return {"written": [], "write": "unavailable"}
     embedding = _sentence_embedding() if missing is not None else None
     outcomes: list[str] = []
+    unlinked: list[str] = []
     try:
-        for decision_id, helped, issue in items:
+        for decision_id, helped, issue, effect in items:
             note = issue.strip() or ("helped" if helped else "did not help")
-            _outcome(
-                store,
-                task_id,
-                decision_id,
-                "success" if helped else "inconclusive",
-                note,
-                f"task://{task_id}",
-            )
+            # `helpful` is written only when this feedback judges the decision: it helped, or the
+            # caller said how it did not (`effect`). Feedback of a decision that simply did not help
+            # stays inconclusive without a verdict, and then it cannot cite the applied receipt --
+            # an applied outcome needs `helpful` (contracts.validate_outcome).
+            try:
+                _outcome(
+                    store,
+                    task_id,
+                    decision_id,
+                    "success" if helped else "inconclusive",
+                    note,
+                    f"task://{task_id}",
+                    helpful=True if helped else (False if effect else None),
+                    effect=effect,
+                    reason=issue or None,
+                )
+            except MissingApplied as exc:
+                unlinked.append(exc.decision_id)
+                continue
             outcomes.append(decision_id)
+        if unlinked:
+            # A verdict without the receipt cannot be read by the tier and would make the task's
+            # next `close` demand a linked outcome it never wrote. Refuse it and name the fix.
+            return {
+                "task_id": task_id,
+                "outcomes": outcomes,
+                "similar": None,
+                "written": [],
+                "write": "unavailable",
+                "need": "applied_event_id",
+                "fix": (f"this task has no applied event on {','.join(unlinked)}: record the receipt "
+                        "first (`ledger_loop.py close <task_id> --applied <id>`, or append_event applied "
+                        "with this task_id), then send the feedback again"),
+            }
         if missing is None:
             return {
                 "task_id": task_id,
@@ -308,7 +416,7 @@ def _feedback(store: Store, body: dict) -> dict:
                 "written": [],
             }
         situation, need = missing
-        excluded = {decision_id for decision_id, helped, _issue in items if not helped}
+        excluded = {decision_id for decision_id, helped, _issue, _effect in items if not helped}
         chosen = _similar(embedding, situation, need, _visible(store), excluded)
         if chosen is not None:
             return {
@@ -330,6 +438,7 @@ def _feedback(store: Store, body: dict) -> dict:
                     "constraints": [],
                     "applicability": situation,
                     "entities": [],
+                    "scope": "fleet",
                     "evidence": [
                         {
                             "ref": f"task://{task_id}",
@@ -349,6 +458,16 @@ def _feedback(store: Store, body: dict) -> dict:
         if str(exc) == "EMBEDDING_UNAVAILABLE":
             raise
         return {"task_id": task_id, "outcomes": outcomes, "written": [], "write": "unavailable"}
+    except ValueError:
+        return {
+            "task_id": task_id,
+            "outcomes": outcomes,
+            "written": [],
+            "write": "unavailable",
+            "need": "reason",
+            "fix": (f"an issue is a one-line reason: at most {REASON_WORDS} words and 160 characters; "
+                    "shorten it and send the feedback again"),
+        }
     except Exception:
         return {"task_id": task_id, "outcomes": outcomes, "written": [], "write": "unavailable"}
     return {
@@ -394,11 +513,13 @@ def main() -> int:
                         "constraints": [],
                         "limit": 3,
                         "offset": 0,
+                        "actor": _caller(store),
+                        "caller_scope": caller_scope_from_binding(store.binding),
                     },
                     mcp=True,
                 )
             elif args.cmd == "get":
-                rec = store.get({"decision_id": args.id}, mcp=True)["record"]
+                rec = store.get({"decision_id": args.id, "actor": _caller(store)}, mcp=True)["record"]
                 payload = {
                     "id": rec["decision_id"],
                     "summary": rec["body"]["summary"],
@@ -413,12 +534,28 @@ def main() -> int:
             elif args.cmd == "closeout":
                 payload = _closeout(store, _json_arg(args.json))
             elif args.cmd == "select":
-                payload = _select(store, _json_arg(args.json))
+                # The A/B treatment is the lookup the agent runs, not one route into it. select
+                # reads candidates itself and is not gated in the store, so without this the
+                # "find off" days still return records and the trial has no control arm.
+                if ab_arm(ist_today()) == "off":
+                    payload = {
+                        "decision": None,
+                        "distance": None,
+                        "verdict": "ungrounded",
+                        "grounding": {
+                            "terms": 0, "matched": 0, "coverage": 0.0, "lexical_ok": False, "query": None,
+                        },
+                        "arm": "off",
+                    }
+                else:
+                    payload = _select(store, _json_arg(args.json))
             elif args.cmd == "feedback":
                 payload = _feedback(store, _json_arg(args.json))
             elif args.cmd == "append":
                 event = _json_arg(args.json)
-                rec = store.get({"decision_id": event["decision_id"]}, mcp=True)["record"]
+                rec = store.get(
+                    {"decision_id": event["decision_id"], "actor": INTERNAL_ACTOR}, mcp=True
+                )["record"]
                 receipt = store.append_event(
                     {"request_id": str(uuid.uuid4()), "occurred_at": _now(),
                      "expected_revision": rec["revision"], **event},
@@ -438,7 +575,7 @@ def main() -> int:
                             "situation": "Parent proposed a reusable decision at closeout.",
                             "action": request["summary"], "rationale": request["reason"],
                             "constraints": [], "applicability": request["applicability"],
-                            "entities": [], "evidence": evidence,
+                            "entities": [], "scope": "fleet", "evidence": evidence,
                             "sensitivity": "model_safe",
                             "approval": {"state": "self_reported",
                                          "authority_ref": request["evidence_ref"]},
@@ -460,9 +597,36 @@ def main() -> int:
         return _fail(fail_kind)
     json.dump(payload, sys.stdout)
     sys.stdout.write("\n")
-    if args.cmd == "feedback" and isinstance(payload, dict) and payload.get("write") == "unavailable":
+    if args.cmd in {"feedback", "closeout"} and isinstance(payload, dict) and payload.get("write") == "unavailable":
+        # A write that wrote nothing is a failure the agent has to fix; the payload says what
+        # (`need`/`fix`). `feedback` already exited 1 here, and closeout exiting 0 made the same
+        # failure look like success.
         return 1
     return 0
+
+
+def _closeout_item_ok(item: object) -> bool:
+    """One outcome item: the documented keys, plus a verdict of its own.
+
+    `helpful` may be given outright (with `effect`/`reason` when it is false); when it is absent the
+    closeout derives it from the status (see `_closeout`). `effect`/`reason` describe a decision that
+    did not help, so they go only with `helpful: false` -- the same rule the outcome contract applies."""
+    required = {"id", "applied", "status", "note", "evidence_ref"}
+    if not isinstance(item, dict) or not required <= set(item):
+        return False
+    if set(item) - required - {"helpful", "effect", "reason"}:
+        return False
+    helpful = item.get("helpful")
+    if not (helpful is None or type(helpful) is bool):
+        return False
+    effect, reason = item.get("effect"), item.get("reason")
+    if effect is None and reason is None:
+        return True
+    if helpful is not False:
+        return False
+    if effect is not None and (not isinstance(effect, str) or effect not in HELP_EFFECTS):
+        return False
+    return reason is None or isinstance(reason, str)
 
 
 def _closeout(store: Store, body: dict) -> dict:
@@ -477,16 +641,28 @@ def _closeout(store: Store, body: dict) -> dict:
     except (ValueError, TypeError, AttributeError):
         return {"written": [], "write": "unavailable"}
     outcomes = body.get("outcomes")
-    expected_item_keys = {"id", "applied", "status", "note", "evidence_ref"}
     if not isinstance(outcomes, list) or any(
-        not isinstance(item, dict) or set(item) != expected_item_keys
-        for item in outcomes
+        not _closeout_item_ok(item) for item in outcomes
     ):
         return {"written": [], "write": "unavailable"}
     ids = [item.get("id") for item in outcomes]
-    if len(ids) != len(set(ids)) or any(
-        item.get("applied") is not True
-        or item.get("status") not in {"success", "failed", "inconclusive"}
+    if len(ids) != len(set(ids)):
+        return {"written": [], "write": "unavailable"}
+    not_applied = [item.get("id") for item in outcomes if item.get("applied") is not True]
+    if not_applied:
+        # The key is not decorative: an item asserts the decision was applied, and that assertion
+        # becomes the link the tier reads. `applied: false` is a contradiction, so it is named
+        # instead of reported as a bare refusal.
+        return {
+            "written": [],
+            "write": "unavailable",
+            "need": "applied: true",
+            "fix": (f"a closeout item asserts the decision was applied: set applied true for "
+                    f"{','.join(str(i) for i in not_applied)}, or record it with feedback if the task "
+                    "only considered it"),
+        }
+    if any(
+        item.get("status") not in {"success", "failed", "inconclusive"}
         or not str(item.get("note") or "").strip()
         or not str(item.get("evidence_ref") or "").strip()
         for item in outcomes
@@ -496,19 +672,129 @@ def _closeout(store: Store, body: dict) -> dict:
     feedback: list[dict] = []
     try:
         for item in outcomes:
+            # The item asserts the decision was applied, so the default verdict is the task's own:
+            # a successful task was helped by it, anything else did not help, unless the item says.
+            helpful = item.get("helpful")
+            if helpful is None:
+                helpful = item["status"] == "success"
             result = _outcome(store, task_id, item["id"], item["status"],
-                              item["note"], item["evidence_ref"])
+                              item["note"], item["evidence_ref"],
+                              helpful=helpful, effect=item.get("effect") or None,
+                              reason=item.get("reason") or None, require_link=True)
             written.extend(result["written"])
             feedback.append({"id": item["id"], "confidence": result["confidence"]})
+    except MissingApplied as exc:
+        return {
+            "task_id": task_id,
+            "written": written,
+            "feedback": feedback,
+            "write": "unavailable",
+            "need": "applied_event_id",
+            "fix": (f"this task has no applied event on {exc.decision_id}: record the receipt first "
+                    "(`ledger_loop.py close <task_id> --applied <id>`, or append_event applied "
+                    "with this task_id), then send the closeout again"),
+        }
+    except ValueError:
+        return {
+            "task_id": task_id,
+            "written": written,
+            "feedback": feedback,
+            "write": "unavailable",
+            "need": "reason",
+            "fix": (f"the reason is limited to {REASON_WORDS} words and 160 characters; shorten it "
+                    "and send the closeout again (the note may stay as long as the task needs)"),
+        }
     except Exception:
         return {"task_id": task_id, "written": written, "feedback": feedback,
                 "write": "unavailable"}
     return {"task_id": task_id, "written": written, "feedback": feedback}
 
 
-def _outcome(store: Store, task_id: str, decision_id: str, status: str,
-             note: str, evidence_ref: str) -> dict:
-    rec = store.get({"decision_id": decision_id}, mcp=True)["record"]
+class MissingApplied(Exception):
+    """A closeout item claimed the decision was applied, but this task has no applied event on it."""
+
+    def __init__(self, decision_id: str) -> None:
+        super().__init__(decision_id)
+        self.decision_id = decision_id
+
+
+def _applied_event(store: Store, task_id: str, decision_id: str) -> str | None:
+    """The applied event this task already has on this decision, if any (events.seq is append order).
+
+    Read straight from the table, not from the get trace: a long trace is capped and would drop it."""
+    rows = store.conn.execute(
+        "select event_json from events "
+        "where json_extract(event_json, '$.decision_id') = ? "
+        "and json_extract(event_json, '$.event_type') = 'applied' "
+        "order by seq desc",
+        (decision_id,),
+    ).fetchall()
+    for row in rows:
+        event = json.loads(row["event_json"])
+        if (event.get("payload") or {}).get("task_id") == task_id:
+            return event["event_id"]
+    return None
+
+
+def _reason_text(value: str) -> str:
+    """A reason the outcome contract accepts, enforced exactly as `contracts._line` does.
+
+    One line, at most REASON_WORDS words and 160 characters. Trimming here would silently store
+    something the caller did not write, and a looser check would let the store reject the reason
+    after this function had already accepted it."""
+    if "\n" in value or "\r" in value:
+        raise ValueError("reason")
+    if len(value.split()) > REASON_WORDS or len(value) > 160:
+        raise ValueError("reason")
+    return value.strip() or "did not help"
+
+
+def _reason_derived(value: str) -> str:
+    """A reason derived from the note: the note is the caller's prose about the task, not a reason
+    it supplied, so it is cut to the contract's limit instead of failing the whole observation."""
+    return (" ".join(value.split()[:REASON_WORDS])[:160]).strip() or "did not help"
+
+
+def _outcome(store: Store, task_id: str, decision_id: str, status: str, note: str,
+             evidence_ref: str, *, helpful: bool | None = None, effect: str | None = None,
+             reason: str | None = None, require_link: bool = False) -> dict:
+    """Write this task's observation of one decision.
+
+    The observation names the applied event it judges when the task already linked this decision
+    (the receipt `close --applied` writes, and what the trust tier counts). `require_link` is for a
+    caller that asserts the decision was applied: without the receipt the claim is unverifiable, so
+    nothing is written. `applied_event_id` needs `helpful` (contracts.validate_outcome), so the two
+    travel together: a caller with no judgement of its own cannot cite the link.
+
+    The revision read and the confidence re-read are plumbing, and are recorded under
+    `INTERNAL_ACTOR` so they do not read as the agent's own lookups."""
+    rec = store.get({"decision_id": decision_id, "actor": INTERNAL_ACTOR}, mcp=True)["record"]
+    linked = _applied_event(store, task_id, decision_id)
+    # A verdict is only usable with the receipt it judges: the tier reads an outcome solely through
+    # `applied_event_id`, and the loop's check demands that link for every applied id. An outcome
+    # that simply records "this did not fit" (no `helpful`) stays an unlinked observation.
+    if linked is None and (require_link or helpful is not None):
+        raise MissingApplied(decision_id)
+    payload: dict = {
+        "status": status,
+        "note": note[:500],
+        "task_id": task_id,
+        "evidence": [
+            {
+                "ref": evidence_ref,
+                "revision": None,
+                "sha256": None,
+                "state": "unverified",
+            }
+        ],
+    }
+    if helpful is not None:
+        payload["helpful"] = bool(helpful)
+        if linked is not None:
+            payload["applied_event_id"] = linked
+    if payload.get("helpful") is False:
+        payload["effect"] = effect or "not_helped"
+        payload["reason"] = _reason_text(reason) if reason else _reason_derived(note)
     store.append_event(
         {
             "request_id": str(uuid.uuid4()),
@@ -516,23 +802,11 @@ def _outcome(store: Store, task_id: str, decision_id: str, status: str,
             "expected_revision": rec["revision"],
             "occurred_at": _now(),
             "event_type": "outcome",
-            "payload": {
-                "status": status,
-                "note": note[:500],
-                "task_id": task_id,
-                "evidence": [
-                    {
-                        "ref": evidence_ref,
-                        "revision": None,
-                        "sha256": None,
-                        "state": "unverified",
-                    }
-                ],
-            },
+            "payload": payload,
         },
         mcp=True,
     )
-    updated = store.get({"decision_id": decision_id}, mcp=True)["record"]
+    updated = store.get({"decision_id": decision_id, "actor": INTERNAL_ACTOR}, mcp=True)["record"]
     return {"written": [decision_id], "confidence": updated["confidence"]}
 
 

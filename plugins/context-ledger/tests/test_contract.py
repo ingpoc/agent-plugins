@@ -72,6 +72,7 @@ def _body(**overrides):
         "constraints": ["local-only-runtime"],
         "applicability": "V1 local agents",
         "entities": ["ledger-v1"],
+        "scope": "fleet",
         "evidence": [],
         "sensitivity": "model_safe",
         "approval": {"state": "none", "authority_ref": None},
@@ -359,8 +360,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.26")
-        self.assertIn('__version__ = "0.1.26"', init)
+        self.assertEqual(plugin["version"], "0.1.29")
+        self.assertIn('__version__ = "0.1.29"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -373,7 +374,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
-        self.assertIn('version:"0.1.26"', page)
+        self.assertIn('version:"0.1.29"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
@@ -622,12 +623,12 @@ class StoreTests(unittest.TestCase):
         helper = ROOT / "skills/context-ledger/scripts/lookup.py"
         env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
 
-        def call(command: str, body: dict) -> dict:
+        def call(command: str, body: dict, *, code: int = 0) -> dict:
             proc = subprocess.run(
                 [sys.executable, str(helper), command, "--json", "-"],
                 input=json.dumps(body), text=True, capture_output=True, env=env,
             )
-            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertEqual(proc.returncode, code, proc.stdout + proc.stderr)
             return json.loads(proc.stdout)
 
         created = call("record", {"body": _body(summary="Keep one ledger agent"),
@@ -649,6 +650,17 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(appended["written"], [decision_id])
 
         task_id = _uuid()
+        receipt = self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": decision_id,
+                "expected_revision": 2,
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {"task_id": task_id, "decision_ids": [decision_id]},
+            },
+            mcp=False,
+        )
         closed = call("closeout", {"task_id": task_id, "outcomes": [{"id": decision_id,
             "applied": True, "status": "success", "note": "Same agent handled two actions",
             "evidence_ref": "session://agent-reuse"}]})
@@ -661,26 +673,374 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(rec["outcome"]["status"], "success")
         self.assertEqual(rec["outcome"]["evidence"][0]["state"], "unverified")
         self.assertEqual(rec["outcome"]["note"], "Same agent handled two actions")
+        # The outcome names the applied event and the verdict: without them the loop's check reads
+        # nothing the tier counts, which is the whole point of the producer writing them.
+        self.assertEqual(rec["outcome"]["applied_event_id"], receipt["event_id"])
+        self.assertEqual(rec["outcome"]["helpful"], True)
 
         duplicate = call("closeout", {"task_id": task_id, "outcomes": [{"id": decision_id,
             "applied": True, "status": "success", "note": "once", "evidence_ref": "session://first"},
             {"id": decision_id, "applied": True, "status": "failed", "note": "twice",
-             "evidence_ref": "session://second"}]})
+             "evidence_ref": "session://second"}]}, code=1)
         self.assertEqual(duplicate, {"written": [], "write": "unavailable"})
         self.assertEqual(call("closeout", {"outcomes": [], "candidate": {
-            "summary": "unreviewed", "reason": "repeatable", "evidence_ref": "session://test"}}),
+            "summary": "unreviewed", "reason": "repeatable", "evidence_ref": "session://test"}},
+            code=1),
             {"written": [], "write": "unavailable"})
-        self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], 3)
+        self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], 4)
 
-    def _lookup(self, command: str, body: dict, *, ok: bool = True) -> dict:
+    def test_closeout_without_the_applied_link_writes_nothing(self) -> None:
+        """The item asserts the decision was applied. With no receipt the claim is unverifiable."""
         helper = ROOT / "skills/context-ledger/scripts/lookup.py"
         env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+        created = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="Closeout needs a receipt"), "outcome": _outcome("pending")},
+            mcp=False,
+        )
+        decision_id = created["decision_id"]
+        proc = subprocess.run(
+            [sys.executable, str(helper), "closeout", "--json", "-"],
+            input=json.dumps({"task_id": _uuid(), "outcomes": [{"id": decision_id,
+                "applied": True, "status": "success", "note": "no receipt",
+                "evidence_ref": "session://no-receipt"}]}),
+            text=True, capture_output=True, env=env,
+        )
+        # A write that wrote nothing is a failure the agent must fix, so it exits 1 like `feedback`;
+        # the payload still carries the need and the fix.
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        body = json.loads(proc.stdout)
+        self.assertEqual(body["written"], [])
+        self.assertEqual(body["write"], "unavailable")
+        self.assertEqual(body["need"], "applied_event_id")
+        self.assertIn("--applied", body["fix"])
+        # Nothing was written, and the reason names the fix rather than only refusing.
+        rec = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
+        self.assertEqual(rec["revision"], 1)
+        self.assertNotIn("helpful", rec["outcome"])
+
+    def test_a_negative_closeout_needs_its_effect_and_carries_it(self) -> None:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+        created = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A decision that misled"), "outcome": _outcome("pending")},
+            mcp=False,
+        )
+        decision_id = created["decision_id"]
+        task_id = _uuid()
+        self.store.append_event(
+            {"request_id": _uuid(), "decision_id": decision_id, "expected_revision": 1,
+             "occurred_at": None, "event_type": "applied",
+             "payload": {"task_id": task_id, "decision_ids": [decision_id]}},
+            mcp=False,
+        )
+        empty_effect = subprocess.run(
+            [sys.executable, str(helper), "closeout", "--json", "-"],
+            input=json.dumps({"task_id": task_id, "outcomes": [{"id": decision_id,
+                "applied": True, "status": "failed", "note": "the action backfired",
+                "evidence_ref": "session://misled", "helpful": True, "effect": "misled"}]}),
+            text=True, capture_output=True, env=env,
+        )
+        # effect/reason describe a decision that did not help, so they go only with helpful: false.
+        self.assertEqual(json.loads(empty_effect.stdout), {"written": [], "write": "unavailable"})
+        stated = subprocess.run(
+            [sys.executable, str(helper), "closeout", "--json", "-"],
+            input=json.dumps({"task_id": task_id, "outcomes": [{"id": decision_id,
+                "applied": True, "status": "failed", "note": "the action backfired",
+                "evidence_ref": "session://misled", "helpful": False, "effect": "misled",
+                "reason": "it undid the earlier fix"}]}),
+            text=True, capture_output=True, env=env,
+        )
+        self.assertEqual(json.loads(stated.stdout)["written"], [decision_id])
+        outcome = self.store.get({"decision_id": decision_id}, mcp=True)["record"]["outcome"]
+        self.assertEqual(outcome["status"], "failed")
+        self.assertEqual(outcome["helpful"], False)
+        self.assertEqual(outcome["effect"], "misled")
+        self.assertEqual(outcome["reason"], "it undid the earlier fix")
+
+    def test_a_derived_negative_observation_keeps_the_note_as_its_reason(self) -> None:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+        created = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A task that did not succeed"), "outcome": _outcome("pending")},
+            mcp=False,
+        )
+        decision_id = created["decision_id"]
+        task_id = _uuid()
+        self.store.append_event(
+            {"request_id": _uuid(), "decision_id": decision_id, "expected_revision": 1,
+             "occurred_at": None, "event_type": "applied",
+             "payload": {"task_id": task_id, "decision_ids": [decision_id]}},
+            mcp=False,
+        )
+        proc = subprocess.run(
+            [sys.executable, str(helper), "closeout", "--json", "-"],
+            input=json.dumps({"task_id": task_id, "outcomes": [{"id": decision_id,
+                "applied": True, "status": "inconclusive", "note": "the run proved nothing",
+                "evidence_ref": "session://inconclusive"}]}),
+            text=True, capture_output=True, env=env,
+        )
+        self.assertEqual(json.loads(proc.stdout)["written"], [decision_id])
+        outcome = self.store.get({"decision_id": decision_id}, mcp=True)["record"]["outcome"]
+        # The item asserts application; with no verdict of its own, an inconclusive task did not help.
+        self.assertEqual(outcome["helpful"], False)
+        self.assertEqual(outcome["effect"], "not_helped")
+        self.assertEqual(outcome["reason"], "the run proved nothing")
+
+    def _applied_for(self, decision_id: str, task_id: str) -> str:
+        return self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": decision_id,
+                "expected_revision": 1,
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {"task_id": task_id, "decision_ids": [decision_id]},
+            },
+            mcp=False,
+        )["event_id"]
+
+    def test_feedback_writes_the_verdict_and_the_receipt_it_names(self) -> None:
+        """The feedback producer is the closeout producer: same verdict, same applied link."""
+        helped = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A decision that helped"),
+             "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        misled = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A decision that misled"),
+             "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        receipts = {d: self._applied_for(d, task_id) for d in (helped, misled)}
+        body = self._lookup("feedback", {"task_id": task_id, "provided": [
+            {"id": helped, "helped": True},
+            {"id": misled, "helped": False, "effect": "misled", "issue": "it undid the earlier fix"},
+        ]})
+        self.assertEqual(body["outcomes"], [helped, misled])
+        good = self.store.get({"decision_id": helped}, mcp=True)["record"]["outcome"]
+        self.assertEqual(good["status"], "success")
+        self.assertEqual(good["helpful"], True)
+        self.assertEqual(good["applied_event_id"], receipts[helped])
+        bad = self.store.get({"decision_id": misled}, mcp=True)["record"]["outcome"]
+        self.assertEqual(bad["status"], "inconclusive", "helped: false is not a failed decision")
+        self.assertEqual(bad["helpful"], False)
+        self.assertEqual(bad["effect"], "misled")
+        self.assertEqual(bad["reason"], "it undid the earlier fix")
+        self.assertEqual(bad["applied_event_id"], receipts[misled])
+        rejected = self._lookup("feedback", {"task_id": task_id, "provided": [
+            {"id": helped, "helped": True, "effect": "misled"},
+        ]}, ok=False)
+        self.assertEqual(rejected, {"written": [], "write": "unavailable"})
+
+    def test_a_plain_helped_false_feedback_stays_unlinked_and_unjudged(self) -> None:
+        """No effect means no verdict, and an applied outcome needs helpful, so it cannot cite the link."""
+        decision_id = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A decision that did not help"),
+             "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        self._applied_for(decision_id, task_id)
+        self._lookup("feedback", {"task_id": task_id, "provided": [
+            {"id": decision_id, "helped": False, "issue": "not what this task needed"},
+        ]})
+        outcome = self.store.get({"decision_id": decision_id}, mcp=True)["record"]["outcome"]
+        self.assertEqual(outcome["status"], "inconclusive")
+        self.assertNotIn("helpful", outcome)
+        self.assertNotIn("applied_event_id", outcome)
+
+    def test_the_internal_actor_keeps_plumbing_reads_out_of_the_callers(self) -> None:
+        decision_id = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="Internal reads"), "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        self._applied_for(decision_id, task_id)
+        body = self._lookup("closeout", {"task_id": task_id, "outcomes": [{"id": decision_id,
+            "applied": True, "status": "success", "note": "done",
+            "evidence_ref": "session://internal"}]})
+        self.assertEqual(body["written"], [decision_id])
+        by_caller = self.store.access_report()["by_caller"]
+        self.assertIn("ledger-internal", by_caller)
+        # The revision read and the confidence re-read are plumbing, one access row each.
+        self.assertGreaterEqual(by_caller["ledger-internal"]["get"], 2)
+        self.assertNotIn("unnamed", by_caller)
+
+    def test_the_helper_bills_every_read_it_makes_to_a_named_actor(self) -> None:
+        """`unnamed` is not a bucket: the sweep is plumbing, and the answer is the agent's lookup."""
+        _require_sentence_embedding(self)
+        ids = [
+            self.store.record(
+                {"request_id": _uuid(), "occurred_at": None,
+                 "body": _body(summary=f"Helper actor record {n}"),
+                 "outcome": _outcome("pending")},
+                mcp=False,
+            )["decision_id"]
+            for n in range(3)
+        ]
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+        self._lookup("select", {"situation": "Helper actor record 1 happens",
+                                "need": "Run helper actor record 1"})
+        appended = self._lookup("append", {"decision_id": ids[1], "event_type": "outcome",
+                                           "payload": _outcome("inconclusive", note="actor probe")})
+        self.assertEqual(appended["written"], [ids[1]])
+        for args in (["find", "--query", "helper actor record"], ["get", "--id", ids[0]]):
+            proc = _run([sys.executable, str(helper), *args], env=env)
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        by_caller = self.store.access_report()["by_caller"]
+        self.assertNotIn("unnamed", by_caller)
+        actor = self.store.binding["actor_id"]
+        self.assertIn(actor, by_caller, "a read the agent asked for names the binding's actor")
+        self.assertGreaterEqual(by_caller[actor]["find"], 1)
+        self.assertGreaterEqual(by_caller[actor]["get"], 2, "the selected decision and the explicit get")
+        self.assertGreaterEqual(by_caller["ledger-internal"]["get"], 3,
+                                "the candidate sweep and the append revision read")
+
+    def test_an_over_long_caller_reason_is_rejected_not_trimmed(self) -> None:
+        decision_id = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A reason over the limit"), "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        self._applied_for(decision_id, task_id)
+        before = self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"]
+        body = self._lookup("closeout", {"task_id": task_id, "outcomes": [{
+            "id": decision_id, "applied": True, "status": "failed", "note": "the action backfired",
+            "evidence_ref": "session://reason", "helpful": False, "effect": "not_helped",
+            "reason": " ".join(f"w{n}" for n in range(30))}]}, ok=False)
+        self.assertEqual(body["need"], "reason")
+        self.assertIn("20 words", body["fix"])
+        # Nothing was written, so the reason the caller wrote is not silently replaced by 20 words.
+        rec = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
+        self.assertEqual(rec["revision"], before)
+        self.assertNotIn("helpful", rec["outcome"])
+
+    def test_an_over_long_feedback_issue_is_rejected_with_the_limit(self) -> None:
+        decision_id = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A feedback issue over the limit"), "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        self._applied_for(decision_id, task_id)
+        body = self._lookup("feedback", {"task_id": task_id, "provided": [{
+            "id": decision_id, "helped": False, "effect": "not_helped",
+            "issue": " ".join(f"w{n}" for n in range(30))}]}, ok=False)
+        self.assertEqual(body["need"], "reason")
+        self.assertIn("20 words", body["fix"])
+
+    def test_a_long_note_still_gives_a_reason_when_the_caller_gave_none(self) -> None:
+        """The note is the caller's prose for the task, so the derived reason is cut, not fatal."""
+        decision_id = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A note over the limit"), "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        self._applied_for(decision_id, task_id)
+        note = " ".join(f"note{n}" for n in range(30))
+        body = self._lookup("closeout", {"task_id": task_id, "outcomes": [{
+            "id": decision_id, "applied": True, "status": "failed", "note": note,
+            "evidence_ref": "session://note", "helpful": False, "effect": "not_helped"}]})
+        self.assertEqual(body["written"], [decision_id])
+        rec = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
+        self.assertEqual(rec["outcome"]["reason"], " ".join(f"note{n}" for n in range(20)))
+
+    def test_a_judged_feedback_item_without_the_receipt_writes_nothing(self) -> None:
+        decision_id = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A verdict with no receipt"), "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        body = self._lookup("feedback", {"task_id": _uuid(), "provided": [
+            {"id": decision_id, "helped": True}]}, ok=False)
+        self.assertEqual(body["write"], "unavailable")
+        self.assertEqual(body["need"], "applied_event_id")
+        self.assertIn("--applied", body["fix"])
+        rec = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
+        self.assertEqual(rec["revision"], 1, "an unlinkable verdict is not stored")
+
+    def test_a_closeout_item_that_denies_applied_names_the_way_out(self) -> None:
+        decision_id = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="Considered but not applied"), "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        self._applied_for(decision_id, task_id)
+        before = self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"]
+        body = self._lookup("closeout", {"task_id": task_id, "outcomes": [{
+            "id": decision_id, "applied": False, "status": "success", "note": "considered only",
+            "evidence_ref": "session://considered"}]}, ok=False)
+        self.assertEqual(body["need"], "applied: true")
+        self.assertIn("feedback", body["fix"])
+        rec = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
+        self.assertEqual(rec["revision"], before)
+
+    def test_the_helper_producer_goes_through_the_loop_for_a_positive_and_a_negative(self) -> None:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        loop = ROOT / "scripts/ledger_loop.py"
+        env = {
+            **os.environ,
+            "CONTEXT_LEDGER_DATA": str(self.data),
+            "LEDGER_AB_DATE": "2026-10-17",
+            "LEDGER_LOOP_LOG": str(self.data / "ledger-loop" / "starts.jsonl"),
+            "LEDGER_TASK_LOG": str(self.data / "ledger-loop" / "tasks.jsonl"),
+        }
+
+        def helper_call(command: str, body: dict) -> dict:
+            proc = subprocess.run(
+                [sys.executable, str(helper), command, "--json", "-"],
+                input=json.dumps(body), text=True, capture_output=True, env=env,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            return json.loads(proc.stdout)
+
+        good = helper_call("record", {"body": _body(summary="Read the failing call first"),
+                                      "outcome": _outcome("pending")})["written"][0]
+        bad = helper_call("record", {"body": _body(summary="Retry the tool after a timeout"),
+                                     "outcome": _outcome("pending")})["written"][0]
+        task_id = _uuid()
+        started = _run([sys.executable, str(loop), "start", task_id, "--bot", "box", "--query",
+                        "the tool stalled", "--found", f"{good},{bad}"], env=env)
+        self.assertEqual(started.returncode, 0, started.stdout + started.stderr)
+        # Close writes the receipts first: that is the link the producer's outcome has to name.
+        linked = _run([sys.executable, str(loop), "close", task_id, "--applied", good,
+                       "--applied", bad], env=env)
+        self.assertEqual(linked.returncode, 1, linked.stdout + linked.stderr)
+        self.assertIn("no outcome for applied", linked.stderr)
+        closed = helper_call("closeout", {"task_id": task_id, "outcomes": [
+            {"id": good, "applied": True, "status": "success", "note": "the fix landed",
+             "evidence_ref": "session://positive"},
+            {"id": bad, "applied": True, "status": "failed", "note": "the retry masked the cause",
+             "evidence_ref": "session://negative", "helpful": False, "effect": "misled",
+             "reason": "it hid the failing call"},
+        ]})
+        self.assertEqual(closed["written"], [good, bad])
+        done = _run([sys.executable, str(loop), "close", task_id, "--applied", good,
+                     "--applied", bad], env=env)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("PASS", done.stdout)
+
+    def _lookup(self, command: str, body: dict, *, ok: bool = True, env: dict | None = None) -> dict:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        run_env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data), **(env or {})}
         proc = subprocess.run(
             [sys.executable, str(helper), command, "--json", "-"],
             input=json.dumps(body),
             text=True,
             capture_output=True,
-            env=env,
+            env=run_env,
         )
         if ok:
             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
@@ -788,7 +1148,7 @@ class StoreTests(unittest.TestCase):
         self.assertGreater(unrelated["distance"], live["distance"])
         found = self.store.find(
             {
-                "query": "",
+                "query": "marketplace badge",
                 "entities": ["helper-selection"],
                 "constraints": [],
                 "limit": 3,
@@ -798,10 +1158,129 @@ class StoreTests(unittest.TestCase):
         )
         self.assertEqual(found["matches"][0]["decision_id"], success_id)
 
+    def test_select_reports_whether_its_nearest_record_is_grounded(self) -> None:
+        """The embedding always returns a nearest record. Verdict says whether it is evidence."""
+        _require_sentence_embedding(self)
+        pending_id, success_id = self._seed_situation_and_success()
+        situation = "About to change a plugin and the only proof so far is the automated suite"
+        need = "What has to happen before that change goes to main"
+        prose = self._lookup("select", {"situation": situation, "need": need})
+        self.assertEqual(prose["decision"]["id"], pending_id)
+        self.assertIn(prose["verdict"], {"grounded", "ungrounded"})
+        self.assertGreater(prose["grounding"]["terms"], 0)
+        self.assertIsNone(prose["grounding"]["query"])
+        unrelated = self._lookup(
+            "select",
+            {
+                "situation": "Booking a train ticket for tomorrow morning",
+                "need": "Which coach and payment method to use",
+            },
+        )
+        self.assertIn(unrelated["decision"]["id"], {pending_id, success_id})
+        self.assertEqual(unrelated["verdict"], "ungrounded")
+        self.assertFalse(unrelated["grounding"]["lexical_ok"])
+        # The same situation with terse keywords is the reading the record's own text supports.
+        terse = self._lookup(
+            "select", {"situation": situation, "need": need, "query": "plugin change proof"}
+        )
+        self.assertEqual(terse["decision"]["id"], pending_id)
+        self.assertEqual(terse["verdict"], "grounded")
+        self.assertTrue(terse["grounding"]["lexical_ok"])
+        self.assertEqual(terse["grounding"]["query"], "plugin change proof")
+        badge = self._lookup(
+            "select",
+            {
+                "situation": "Shipping a plugin version badge into the marketplace index",
+                "need": "What has to happen so the badge matches the indexed commit",
+                "query": "marketplace badge version commit",
+            },
+        )
+        self.assertEqual(badge["decision"]["id"], success_id)
+        self.assertEqual(badge["verdict"], "grounded")
+
+    def test_select_does_not_surface_a_record_find_hides(self) -> None:
+        """Selection reads candidates itself, so it has to apply find's eligibility: a record
+        scoped to another project must not come back through the semantic route."""
+        _require_sentence_embedding(self)
+        situation = "A Codex login was rejected for the pinned model"
+        need = "Which login the fallback reviewer uses instead"
+        hidden = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Fallback reviewer login for a rejected Codex login",
+                    situation=situation,
+                    action=need,
+                    applicability=situation,
+                    entities=["helper-selection"],
+                    constraints=[],
+                    evidence=[],
+                    scope="project:some-other-project",
+                ),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        visible = self.store.record(
+            {
+                "request_id": _uuid(),
+                "occurred_at": None,
+                "body": _body(
+                    summary="Route a rejected Codex login to the API-key fallback reviewer",
+                    situation=situation,
+                    action="Use the API-key login for the fallback reviewer",
+                    applicability=situation,
+                    entities=["helper-selection"],
+                    constraints=[],
+                    evidence=[],
+                    scope="fleet",
+                ),
+                "outcome": _outcome("pending"),
+            },
+            mcp=False,
+        )
+        found = self.store.find(
+            {"query": "fallback reviewer login", "entities": [], "constraints": [], "limit": 3, "offset": 0},
+            mcp=True,
+        )
+        ids = [m["decision_id"] for m in found["matches"]]
+        self.assertIn(visible["decision_id"], ids)
+        self.assertNotIn(hidden["decision_id"], ids, "find must hide another project's record")
+        got = self._lookup("select", {"situation": situation, "need": need})
+        self.assertEqual(got["decision"]["id"], visible["decision_id"],
+                         "select must not surface a record find hides")
+
+    def test_select_is_off_on_an_a_b_off_day(self) -> None:
+        """The A/B treatment is the agent's lookup. find is off on an even day inside the window,
+        so the semantic route must be off with it, or the trial has no control arm."""
+        _require_sentence_embedding(self)
+        self._seed_situation_and_success()
+        body = {"situation": "A plugin change is about to ship with only unit tests as proof",
+                "need": "What has to happen before that change goes to main"}
+        off = self._lookup("select", body, env={"LEDGER_AB_DATE": "2026-10-18"})
+        self.assertEqual(off.get("arm"), "off")
+        self.assertIsNone(off["decision"])
+        on = self._lookup("select", body, env={"LEDGER_AB_DATE": "2026-10-19"})
+        self.assertNotEqual(on.get("arm"), "off")
+        self.assertIsNotNone(on["decision"])
+
     def test_feedback_reuses_similar_precedent_and_records_a_missing_decision(self) -> None:
         _require_sentence_embedding(self)
         pending_id, success_id = self._seed_situation_and_success()
+
+        def receipt(decision_id: str, task_id: str) -> None:
+            """A judged item needs the applied receipt it names (the seed left this one at revision 2)."""
+            rec = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
+            self.store.append_event({
+                "request_id": _uuid(), "decision_id": decision_id,
+                "expected_revision": rec["revision"], "occurred_at": None,
+                "event_type": "applied",
+                "payload": {"task_id": task_id, "decision_ids": [decision_id]},
+            }, mcp=False)
+
         task_id = _uuid()
+        receipt(success_id, task_id)
         similar = self._lookup(
             "feedback",
             {
@@ -815,10 +1294,12 @@ class StoreTests(unittest.TestCase):
         )
         self.assertEqual(similar["similar"], pending_id)
         self.assertEqual(similar["written"], [])
+        quiet_task = _uuid()
+        receipt(success_id, quiet_task)
         quiet = self._lookup(
             "feedback",
             {
-                "task_id": _uuid(),
+                "task_id": quiet_task,
                 "provided": [{"id": success_id, "helped": True}],
             },
         )
@@ -949,7 +1430,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(marked["outcome"]["status"], "inconclusive")
         found = self.store.find(
             {
-                "query": "",
+                "query": "marketplace badge",
                 "entities": ["helper-selection"],
                 "constraints": [],
                 "limit": 3,
@@ -989,7 +1470,7 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(marked["outcome"]["status"], "inconclusive")
         found = self.store.find(
             {
-                "query": "",
+                "query": "marketplace badge",
                 "entities": ["helper-selection"],
                 "constraints": [],
                 "limit": 3,
@@ -1021,6 +1502,18 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(created.returncode, 0, created.stdout + created.stderr)
         decision_id = json.loads(created.stdout)["written"][0]
         task_id = _uuid()
+
+        def link(tid: str) -> str:
+            """The receipt the loop writes before an outcome can name it."""
+            revision = self.store.get({"decision_id": decision_id}, mcp=False)["record"]["revision"]
+            return self.store.append_event(
+                {"request_id": _uuid(), "decision_id": decision_id,
+                 "expected_revision": revision, "occurred_at": None, "event_type": "applied",
+                 "payload": {"task_id": tid, "decision_ids": [decision_id]}},
+                mcp=False,
+            )["event_id"]
+
+        applied_event = link(task_id)
         success = {"task_id": task_id, "outcomes": [{
             "id": decision_id, "applied": True, "status": "success",
             "note": "Applied and helped", "evidence_ref": "session://task-a"}]}
@@ -1042,7 +1535,8 @@ class StoreTests(unittest.TestCase):
             "payload": {"task_id": task_id, "status": "success",
                         "note": "Applied and helped", "evidence": [{
                             "ref": "session://task-a", "revision": None,
-                            "sha256": None, "state": "unverified"}]},
+                            "sha256": None, "state": "unverified"}],
+                        "applied_event_id": applied_event, "helpful": True},
         }
         self.assertTrue(self.store.append_event(retry_event, mcp=True)["replayed"])
         conflicting_retry = json.loads(json.dumps(retry_event))
@@ -1058,13 +1552,17 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(correction, {"score": 0.0, "successes": 0, "failures": 1,
                                       "inconclusive": 0, "sample_count": 1})
 
-        inconclusive = call({"task_id": _uuid(), "outcomes": [{
+        second = _uuid()
+        link(second)
+        inconclusive = call({"task_id": second, "outcomes": [{
             "id": decision_id, "applied": True, "status": "inconclusive",
             "note": "Outcome cannot be attributed yet", "evidence_ref": "session://task-b"}]})
         self.assertEqual(inconclusive["feedback"][0]["confidence"], {
             "score": 0.0, "successes": 0, "failures": 1,
             "inconclusive": 1, "sample_count": 1})
-        next_task = call({"task_id": _uuid(), "outcomes": [{
+        third = _uuid()
+        link(third)
+        next_task = call({"task_id": third, "outcomes": [{
             "id": decision_id, "applied": True, "status": "success",
             "note": "Applied and helped again", "evidence_ref": "session://task-c"}]})
         expected = {"score": 0.5, "successes": 1, "failures": 1,
@@ -1310,7 +1808,7 @@ class StoreTests(unittest.TestCase):
             {
                 "request_id": _uuid(),
                 "occurred_at": None,
-                "body": _body(summary="band inconclusive", entities=["rank-incon"]),
+                "body": _body(summary="marker inconclusive", entities=["rank-incon"]),
                 "outcome": _outcome("inconclusive", note="unsure"),
             },
             mcp=False,
@@ -1319,7 +1817,7 @@ class StoreTests(unittest.TestCase):
             {
                 "request_id": _uuid(),
                 "occurred_at": None,
-                "body": _body(summary="band still pending", entities=["rank-incon"]),
+                "body": _body(summary="marker still pending", entities=["rank-incon"]),
                 "outcome": _outcome("pending"),
             },
             mcp=False,
@@ -1333,7 +1831,7 @@ class StoreTests(unittest.TestCase):
             [pending["decision_id"], abandoned["decision_id"], failed["decision_id"]],
         )
         other = self.store.find(
-            {"query": "band", "entities": ["rank-incon"], "constraints": [], "limit": 2},
+            {"query": "marker", "entities": ["rank-incon"], "constraints": [], "limit": 2},
             mcp=True,
         )
         self.assertEqual(

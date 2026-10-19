@@ -35,7 +35,7 @@ def _u() -> str:
 def _body(summary: str, sensitivity: str = "model_safe") -> dict:
     return {"kind": "decision", "summary": summary, "situation": summary, "action": summary,
             "rationale": "fixture reason", "constraints": [], "applicability": "any",
-            "entities": ["fixture"], "evidence": [], "sensitivity": sensitivity,
+            "entities": ["fixture"], "scope": "fleet", "evidence": [], "sensitivity": sensitivity,
             "approval": {"state": "none", "authority_ref": None}}
 
 
@@ -51,11 +51,12 @@ class ViewerBase(unittest.TestCase):
         self.kite = self.store.save({"request_id": _u(), "type": "user_decision", "actor": "efficient",
                                      "decision": "Kite holdings are read through Mini Comet only",
                                      "why": "The broker session is trusted only on the Mini",
-                                     "entities": ["kite"], "rule": "broker-session"}, mcp=True)["decision_id"]
+                                     "entities": ["kite"], "rule": "broker-session", "scope": "fleet"}, mcp=True)["decision_id"]
         for i in range(30):
             self.store.save({"request_id": _u(), "type": "agent_conclusion", "criticality": 2, "actor": "orn",
                              "decision": f"Fixture conclusion {i} about train fares and seat quotas",
-                             "why": "Filler so the list needs more than one page", "entities": ["travel"]}, mcp=True)
+                             "why": "Filler so the list needs more than one page", "entities": ["travel"],
+                             "scope": "fleet"}, mcp=True)
         self.secret = self.store.record({"request_id": _u(), "occurred_at": None,
                                          "body": _body("Local only kite note", "local_only"),
                                          "outcome": {"status": "pending", "note": "", "evidence": []}}, mcp=False)["decision_id"]
@@ -72,8 +73,10 @@ class ViewerBase(unittest.TestCase):
         ap = self.store.append_event({"request_id": _u(), "decision_id": did, "expected_revision": rev, "occurred_at": None,
                                       "event_type": "applied", "actor": actor,
                                       "payload": {"task_id": task, "decision_ids": [did]}}, mcp=True)
-        payload = {"status": "success", "note": "", "evidence": [], "task_id": task,
-                   "applied_event_id": ap["event_id"], "helpful": helpful}
+        payload = {"status": "success", "note": "",
+                   "evidence": [{"ref": "session://viewer-test", "revision": None, "sha256": None,
+                                 "state": "unverified"}],
+                   "task_id": task, "applied_event_id": ap["event_id"], "helpful": helpful}
         if not helpful:
             payload.update(effect="misled", reason="stale rule")
         self.store.append_event({"request_id": _u(), "decision_id": did, "expected_revision": rev + 1, "occurred_at": None,

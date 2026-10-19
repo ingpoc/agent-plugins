@@ -54,6 +54,7 @@ if __name__ == "__main__":
 
 import importlib.util  # noqa: E402
 
+from context_ledger import ranking  # noqa: E402
 from context_ledger.contracts import CANDIDATE_CAP, fts_tokens  # noqa: E402
 from context_ledger.store import Store  # noqa: E402
 
@@ -170,8 +171,20 @@ def _select_order(embedding, situation: str, need: str, records: list[dict]) -> 
 
 
 def _find_order(conn: sqlite3.Connection, scope_id: str, query: str, by_id: dict[str, dict]) -> list[dict]:
+    """find's candidate set and relevance floor, in an approximation of find's order.
+
+    Store.find also applies ranking.relevant(); scoring find here without it counted records that
+    production would reject, which is why this helper reported ~44 hits/query where production
+    returns ~1.7. The floor and the IDF corpus now match production, so which records pass and how
+    many there are agree. The order does not: production sorts by boosted BM25 (`-final` over
+    TYPE_BOOST and criticality, then fix demotion), while this sorts by `Store._rank`
+    (entity/constraint/token overlap). It also selects candidates through FTS up to CANDIDATE_CAP
+    where production scores every in-scope record. For exact ranks use the real call in
+    scripts/retrieval_eval.py.
+    """
     tokens = fts_tokens(query)
-    if not tokens:
+    qterms = ranking.query_terms(query)
+    if not tokens or not qterms:
         return []
     match = " OR ".join('"' + token.replace('"', "") + '"' for token in tokens)
     rows = conn.execute(
@@ -183,7 +196,15 @@ def _find_order(conn: sqlite3.Connection, scope_id: str, query: str, by_id: dict
         (scope_id, match, CANDIDATE_CAP + 1),
     ).fetchall()
     ids = [row["decision_id"] for row in rows[:CANDIDATE_CAP]]
-    ranked = [by_id[did] for did in ids if did in by_id]
+    candidates = [by_id[did] for did in ids if did in by_id]
+    # The corpus spans every record in scope, as Store.find builds it. Scoring over the candidate
+    # subset only would inflate IDF and move the coverage floor.
+    corpus = ranking.Corpus((r["decision_id"], r["body"], r.get("revision")) for r in by_id.values())
+    ranked = []
+    for rec in candidates:
+        _bm25, coverage, matched = corpus.score(rec["decision_id"], qterms)
+        if ranking.relevant(coverage, matched, len(qterms)):
+            ranked.append(rec)
     dummy = Store.__new__(Store)
     parsed = {"entities": [], "constraints": []}
     ranked.sort(key=lambda rec: Store._rank(dummy, rec, parsed, tokens))

@@ -68,6 +68,8 @@ PLUGIN_TESTS = {
         [sys.executable, "tests/test_v2.py", "-q"],
         [sys.executable, "tests/test_ledger_loop.py", "-q"],
         [sys.executable, "tests/test_viewer.py", "-q"],
+        [sys.executable, "tests/test_isolation_eval.py", "-q"],
+        [sys.executable, "tests/test_scope.py", "-q"],
     ],
     "comet-control": [
         sys.executable,
