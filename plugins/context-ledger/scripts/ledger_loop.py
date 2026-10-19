@@ -65,6 +65,9 @@ from pathlib import Path
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 FINAL = {"success", "failed", "inconclusive", "abandoned"}
 USABLE_EVIDENCE = {"unverified", "reported_verified"}
+# The loop's own reads (the revision an append needs, the record check/close read back) are not the
+# agent's lookups: Remote.get records them under this actor so access reporting can tell them apart.
+INTERNAL_ACTOR = "ledger-internal"
 OUTCOME_FIX = (
     "append_event outcome on {ids} with task_id {tid}, status success|failed|inconclusive, "
     "an evidence ref, applied_event_id and helpful true|false (false: effect not_helped|misled + reason), then rerun close"
@@ -332,7 +335,13 @@ class Mcp:
         return payload["data"]
 
     def get(self, decision_id: str) -> dict:
-        result = self._req("tools/call", {"name": "get", "arguments": {"decision_id": decision_id}})
+        # This read is the loop's own bookkeeping (the revision an append needs, and the record
+        # `check`/`close` reads back), not the agent's lookup. It is recorded under the internal
+        # actor so the access report can tell it apart from a task's own find/get.
+        result = self._req(
+            "tools/call",
+            {"name": "get", "arguments": {"decision_id": decision_id, "actor": INTERNAL_ACTOR}},
+        )
         payload = result.get("structuredContent")
         if payload is None:
             payload = json.loads(result["content"][0]["text"])

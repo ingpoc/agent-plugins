@@ -566,6 +566,21 @@ class RemoteModeTests(LedgerLoopBase):
         self.assert_pass(self.box_run("close", self.task), 0)
         self.assert_fail(self.box_run("close", self.task, "--decision", d), f"no outcome for applied {d}")
 
+    def test_the_loop_records_its_own_remote_reads_under_the_internal_actor(self) -> None:
+        """The loop's revision read and check re-read are plumbing, not the task's lookup."""
+        d = self.decision()
+        self.box_start([d])
+        looked_up = self.box_run("find", self.task, "--bot", "box", "--query", "the tool stalled")
+        self.assertEqual(looked_up.returncode, 0, looked_up.stdout + looked_up.stderr)
+        ev = self.applied(d, [d])
+        self.outcome(d, helpful=True, applied_event_id=ev)
+        self.assert_pass(self.box_run("close", self.task), 1)
+        by_caller = self.handler.store.access_report()["by_caller"]
+        self.assertIn("ledger-internal", by_caller)
+        self.assertGreaterEqual(by_caller["ledger-internal"]["get"], 1)
+        self.assertNotIn("unnamed", by_caller)
+        self.assertIn("box", by_caller, "the task's own find stays under its bot")
+
     def test_remote_records_the_applied_link(self) -> None:
         d = self.decision()
         self.box_start([d])

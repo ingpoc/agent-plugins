@@ -650,6 +650,17 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(appended["written"], [decision_id])
 
         task_id = _uuid()
+        receipt = self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": decision_id,
+                "expected_revision": 2,
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {"task_id": task_id, "decision_ids": [decision_id]},
+            },
+            mcp=False,
+        )
         closed = call("closeout", {"task_id": task_id, "outcomes": [{"id": decision_id,
             "applied": True, "status": "success", "note": "Same agent handled two actions",
             "evidence_ref": "session://agent-reuse"}]})
@@ -662,6 +673,10 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(rec["outcome"]["status"], "success")
         self.assertEqual(rec["outcome"]["evidence"][0]["state"], "unverified")
         self.assertEqual(rec["outcome"]["note"], "Same agent handled two actions")
+        # The outcome names the applied event and the verdict: without them the loop's check reads
+        # nothing the tier counts, which is the whole point of the producer writing them.
+        self.assertEqual(rec["outcome"]["applied_event_id"], receipt["event_id"])
+        self.assertEqual(rec["outcome"]["helpful"], True)
 
         duplicate = call("closeout", {"task_id": task_id, "outcomes": [{"id": decision_id,
             "applied": True, "status": "success", "note": "once", "evidence_ref": "session://first"},
@@ -671,7 +686,235 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(call("closeout", {"outcomes": [], "candidate": {
             "summary": "unreviewed", "reason": "repeatable", "evidence_ref": "session://test"}}),
             {"written": [], "write": "unavailable"})
-        self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], 3)
+        self.assertEqual(self.store.get({"decision_id": decision_id}, mcp=True)["record"]["revision"], 4)
+
+    def test_closeout_without_the_applied_link_writes_nothing(self) -> None:
+        """The item asserts the decision was applied. With no receipt the claim is unverifiable."""
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+        created = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="Closeout needs a receipt"), "outcome": _outcome("pending")},
+            mcp=False,
+        )
+        decision_id = created["decision_id"]
+        proc = subprocess.run(
+            [sys.executable, str(helper), "closeout", "--json", "-"],
+            input=json.dumps({"task_id": _uuid(), "outcomes": [{"id": decision_id,
+                "applied": True, "status": "success", "note": "no receipt",
+                "evidence_ref": "session://no-receipt"}]}),
+            text=True, capture_output=True, env=env,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        body = json.loads(proc.stdout)
+        self.assertEqual(body["written"], [])
+        self.assertEqual(body["write"], "unavailable")
+        self.assertEqual(body["need"], "applied_event_id")
+        self.assertIn("--applied", body["fix"])
+        # Nothing was written, and the reason names the fix rather than only refusing.
+        rec = self.store.get({"decision_id": decision_id}, mcp=True)["record"]
+        self.assertEqual(rec["revision"], 1)
+        self.assertNotIn("helpful", rec["outcome"])
+
+    def test_a_negative_closeout_needs_its_effect_and_carries_it(self) -> None:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+        created = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A decision that misled"), "outcome": _outcome("pending")},
+            mcp=False,
+        )
+        decision_id = created["decision_id"]
+        task_id = _uuid()
+        self.store.append_event(
+            {"request_id": _uuid(), "decision_id": decision_id, "expected_revision": 1,
+             "occurred_at": None, "event_type": "applied",
+             "payload": {"task_id": task_id, "decision_ids": [decision_id]}},
+            mcp=False,
+        )
+        empty_effect = subprocess.run(
+            [sys.executable, str(helper), "closeout", "--json", "-"],
+            input=json.dumps({"task_id": task_id, "outcomes": [{"id": decision_id,
+                "applied": True, "status": "failed", "note": "the action backfired",
+                "evidence_ref": "session://misled", "helpful": True, "effect": "misled"}]}),
+            text=True, capture_output=True, env=env,
+        )
+        # effect/reason describe a decision that did not help, so they go only with helpful: false.
+        self.assertEqual(json.loads(empty_effect.stdout), {"written": [], "write": "unavailable"})
+        stated = subprocess.run(
+            [sys.executable, str(helper), "closeout", "--json", "-"],
+            input=json.dumps({"task_id": task_id, "outcomes": [{"id": decision_id,
+                "applied": True, "status": "failed", "note": "the action backfired",
+                "evidence_ref": "session://misled", "helpful": False, "effect": "misled",
+                "reason": "it undid the earlier fix"}]}),
+            text=True, capture_output=True, env=env,
+        )
+        self.assertEqual(json.loads(stated.stdout)["written"], [decision_id])
+        outcome = self.store.get({"decision_id": decision_id}, mcp=True)["record"]["outcome"]
+        self.assertEqual(outcome["status"], "failed")
+        self.assertEqual(outcome["helpful"], False)
+        self.assertEqual(outcome["effect"], "misled")
+        self.assertEqual(outcome["reason"], "it undid the earlier fix")
+
+    def test_a_derived_negative_observation_keeps_the_note_as_its_reason(self) -> None:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        env = {**os.environ, "CONTEXT_LEDGER_DATA": str(self.data)}
+        created = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A task that did not succeed"), "outcome": _outcome("pending")},
+            mcp=False,
+        )
+        decision_id = created["decision_id"]
+        task_id = _uuid()
+        self.store.append_event(
+            {"request_id": _uuid(), "decision_id": decision_id, "expected_revision": 1,
+             "occurred_at": None, "event_type": "applied",
+             "payload": {"task_id": task_id, "decision_ids": [decision_id]}},
+            mcp=False,
+        )
+        proc = subprocess.run(
+            [sys.executable, str(helper), "closeout", "--json", "-"],
+            input=json.dumps({"task_id": task_id, "outcomes": [{"id": decision_id,
+                "applied": True, "status": "inconclusive", "note": "the run proved nothing",
+                "evidence_ref": "session://inconclusive"}]}),
+            text=True, capture_output=True, env=env,
+        )
+        self.assertEqual(json.loads(proc.stdout)["written"], [decision_id])
+        outcome = self.store.get({"decision_id": decision_id}, mcp=True)["record"]["outcome"]
+        # The item asserts application; with no verdict of its own, an inconclusive task did not help.
+        self.assertEqual(outcome["helpful"], False)
+        self.assertEqual(outcome["effect"], "not_helped")
+        self.assertEqual(outcome["reason"], "the run proved nothing")
+
+    def _applied_for(self, decision_id: str, task_id: str) -> str:
+        return self.store.append_event(
+            {
+                "request_id": _uuid(),
+                "decision_id": decision_id,
+                "expected_revision": 1,
+                "occurred_at": None,
+                "event_type": "applied",
+                "payload": {"task_id": task_id, "decision_ids": [decision_id]},
+            },
+            mcp=False,
+        )["event_id"]
+
+    def test_feedback_writes_the_verdict_and_the_receipt_it_names(self) -> None:
+        """The feedback producer is the closeout producer: same verdict, same applied link."""
+        helped = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A decision that helped"),
+             "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        misled = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A decision that misled"),
+             "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        receipts = {d: self._applied_for(d, task_id) for d in (helped, misled)}
+        body = self._lookup("feedback", {"task_id": task_id, "provided": [
+            {"id": helped, "helped": True},
+            {"id": misled, "helped": False, "effect": "misled", "issue": "it undid the earlier fix"},
+        ]})
+        self.assertEqual(body["outcomes"], [helped, misled])
+        good = self.store.get({"decision_id": helped}, mcp=True)["record"]["outcome"]
+        self.assertEqual(good["status"], "success")
+        self.assertEqual(good["helpful"], True)
+        self.assertEqual(good["applied_event_id"], receipts[helped])
+        bad = self.store.get({"decision_id": misled}, mcp=True)["record"]["outcome"]
+        self.assertEqual(bad["status"], "inconclusive", "helped: false is not a failed decision")
+        self.assertEqual(bad["helpful"], False)
+        self.assertEqual(bad["effect"], "misled")
+        self.assertEqual(bad["reason"], "it undid the earlier fix")
+        self.assertEqual(bad["applied_event_id"], receipts[misled])
+        rejected = self._lookup("feedback", {"task_id": task_id, "provided": [
+            {"id": helped, "helped": True, "effect": "misled"},
+        ]}, ok=False)
+        self.assertEqual(rejected, {"written": [], "write": "unavailable"})
+
+    def test_a_plain_helped_false_feedback_stays_unlinked_and_unjudged(self) -> None:
+        """No effect means no verdict, and an applied outcome needs helpful, so it cannot cite the link."""
+        decision_id = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="A decision that did not help"),
+             "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        self._applied_for(decision_id, task_id)
+        self._lookup("feedback", {"task_id": task_id, "provided": [
+            {"id": decision_id, "helped": False, "issue": "not what this task needed"},
+        ]})
+        outcome = self.store.get({"decision_id": decision_id}, mcp=True)["record"]["outcome"]
+        self.assertEqual(outcome["status"], "inconclusive")
+        self.assertNotIn("helpful", outcome)
+        self.assertNotIn("applied_event_id", outcome)
+
+    def test_the_internal_actor_keeps_plumbing_reads_out_of_the_callers(self) -> None:
+        decision_id = self.store.record(
+            {"request_id": _uuid(), "occurred_at": None,
+             "body": _body(summary="Internal reads"), "outcome": _outcome("pending")},
+            mcp=False,
+        )["decision_id"]
+        task_id = _uuid()
+        self._applied_for(decision_id, task_id)
+        body = self._lookup("closeout", {"task_id": task_id, "outcomes": [{"id": decision_id,
+            "applied": True, "status": "success", "note": "done",
+            "evidence_ref": "session://internal"}]})
+        self.assertEqual(body["written"], [decision_id])
+        by_caller = self.store.access_report()["by_caller"]
+        self.assertIn("ledger-internal", by_caller)
+        # The revision read and the confidence re-read are plumbing, one access row each.
+        self.assertGreaterEqual(by_caller["ledger-internal"]["get"], 2)
+        self.assertNotIn("unnamed", by_caller)
+
+    def test_the_helper_producer_goes_through_the_loop_for_a_positive_and_a_negative(self) -> None:
+        helper = ROOT / "skills/context-ledger/scripts/lookup.py"
+        loop = ROOT / "scripts/ledger_loop.py"
+        env = {
+            **os.environ,
+            "CONTEXT_LEDGER_DATA": str(self.data),
+            "LEDGER_AB_DATE": "2026-10-17",
+            "LEDGER_LOOP_LOG": str(self.data / "ledger-loop" / "starts.jsonl"),
+            "LEDGER_TASK_LOG": str(self.data / "ledger-loop" / "tasks.jsonl"),
+        }
+
+        def helper_call(command: str, body: dict) -> dict:
+            proc = subprocess.run(
+                [sys.executable, str(helper), command, "--json", "-"],
+                input=json.dumps(body), text=True, capture_output=True, env=env,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            return json.loads(proc.stdout)
+
+        good = helper_call("record", {"body": _body(summary="Read the failing call first"),
+                                      "outcome": _outcome("pending")})["written"][0]
+        bad = helper_call("record", {"body": _body(summary="Retry the tool after a timeout"),
+                                     "outcome": _outcome("pending")})["written"][0]
+        task_id = _uuid()
+        started = _run([sys.executable, str(loop), "start", task_id, "--bot", "box", "--query",
+                        "the tool stalled", "--found", f"{good},{bad}"], env=env)
+        self.assertEqual(started.returncode, 0, started.stdout + started.stderr)
+        # Close writes the receipts first: that is the link the producer's outcome has to name.
+        linked = _run([sys.executable, str(loop), "close", task_id, "--applied", good,
+                       "--applied", bad], env=env)
+        self.assertEqual(linked.returncode, 1, linked.stdout + linked.stderr)
+        self.assertIn("no outcome for applied", linked.stderr)
+        closed = helper_call("closeout", {"task_id": task_id, "outcomes": [
+            {"id": good, "applied": True, "status": "success", "note": "the fix landed",
+             "evidence_ref": "session://positive"},
+            {"id": bad, "applied": True, "status": "failed", "note": "the retry masked the cause",
+             "evidence_ref": "session://negative", "helpful": False, "effect": "misled",
+             "reason": "it hid the failing call"},
+        ]})
+        self.assertEqual(closed["written"], [good, bad])
+        done = _run([sys.executable, str(loop), "close", task_id, "--applied", good,
+                     "--applied", bad], env=env)
+        self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+        self.assertIn("PASS", done.stdout)
 
     def _lookup(self, command: str, body: dict, *, ok: bool = True, env: dict | None = None) -> dict:
         helper = ROOT / "skills/context-ledger/scripts/lookup.py"
@@ -1129,6 +1372,18 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(created.returncode, 0, created.stdout + created.stderr)
         decision_id = json.loads(created.stdout)["written"][0]
         task_id = _uuid()
+
+        def link(tid: str) -> str:
+            """The receipt the loop writes before an outcome can name it."""
+            revision = self.store.get({"decision_id": decision_id}, mcp=False)["record"]["revision"]
+            return self.store.append_event(
+                {"request_id": _uuid(), "decision_id": decision_id,
+                 "expected_revision": revision, "occurred_at": None, "event_type": "applied",
+                 "payload": {"task_id": tid, "decision_ids": [decision_id]}},
+                mcp=False,
+            )["event_id"]
+
+        applied_event = link(task_id)
         success = {"task_id": task_id, "outcomes": [{
             "id": decision_id, "applied": True, "status": "success",
             "note": "Applied and helped", "evidence_ref": "session://task-a"}]}
@@ -1150,7 +1405,8 @@ class StoreTests(unittest.TestCase):
             "payload": {"task_id": task_id, "status": "success",
                         "note": "Applied and helped", "evidence": [{
                             "ref": "session://task-a", "revision": None,
-                            "sha256": None, "state": "unverified"}]},
+                            "sha256": None, "state": "unverified"}],
+                        "applied_event_id": applied_event, "helpful": True},
         }
         self.assertTrue(self.store.append_event(retry_event, mcp=True)["replayed"])
         conflicting_retry = json.loads(json.dumps(retry_event))
@@ -1166,13 +1422,17 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(correction, {"score": 0.0, "successes": 0, "failures": 1,
                                       "inconclusive": 0, "sample_count": 1})
 
-        inconclusive = call({"task_id": _uuid(), "outcomes": [{
+        second = _uuid()
+        link(second)
+        inconclusive = call({"task_id": second, "outcomes": [{
             "id": decision_id, "applied": True, "status": "inconclusive",
             "note": "Outcome cannot be attributed yet", "evidence_ref": "session://task-b"}]})
         self.assertEqual(inconclusive["feedback"][0]["confidence"], {
             "score": 0.0, "successes": 0, "failures": 1,
             "inconclusive": 1, "sample_count": 1})
-        next_task = call({"task_id": _uuid(), "outcomes": [{
+        third = _uuid()
+        link(third)
+        next_task = call({"task_id": third, "outcomes": [{
             "id": decision_id, "applied": True, "status": "success",
             "note": "Applied and helped again", "evidence_ref": "session://task-c"}]})
         expected = {"score": 0.5, "successes": 1, "failures": 1,
