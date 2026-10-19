@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.33
+
+- Two shipped test files never ran. `tests/test_http_server.py` (8 tests) and `tests/test_server_logging.py` were absent from `PLUGIN_TESTS` in `scripts/check.py`, so `check.py` ran 8 of the 10 files it shipped. Both are wired in now.
+- The shim that re-execs into the locked runtime when the ambient interpreter lacks `mcp.server.mcpserver` lived only in `test_http_server.py`. It is `tests/_locked_runtime.py` now, shared by both, so `test_server_logging.py` no longer fails under the `PYTHONNOUSERSITE=1` that `check.py` sets.
+- `scripts/bump-version.sh` owns the ten pinned version sites and exits nonzero when one is missed or keeps the old value. A release had edited them by hand and dropped a site before.
+- `scripts/bench.sh` runs the frozen retrieval eval against the private case file, so the BEFORE/AFTER gate for `find` and `select` is one command instead of five flags.
+- `AGENTS.md` item 2 now lists `save`; the model-facing write tool was missing from the list that named `record`. The owner-CLI list adds `bind`.
+
 ## 0.1.32
 
 - The global `**Ledger gate**` line is a trigger, not a copy of the skill. It restated the four questions inline — "answer the four questions yourself (decision or lesson; which task applies it; would it find it; already recorded)" — inside the file whose own rule is to keep triggers compressed and move the rest to a retrievable doc. The loaded skill is that doc. The line now defers: "answer the four questions in the skill yourself and decide alone which entries to add; do not ask or report". A test pins the deferral, so the questions cannot be re-inlined later.

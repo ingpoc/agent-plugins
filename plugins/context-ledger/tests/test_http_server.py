@@ -4,9 +4,7 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import http.client
-import importlib.util
 import json
 import os
 import secrets
@@ -23,33 +21,10 @@ os.environ["LEDGER_AB_DATE"] = "2026-10-17"  # pre-A/B-window day: find on; A/B 
 
 ROOT = Path(__file__).resolve().parent.parent
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _locked_runtime import reexec_locked_runtime
 
-def _reexec_locked_runtime() -> None:
-    """This file's server imports mcp 2.2. Discover must still run under plain python3."""
-    if importlib.util.find_spec("mcp.server.mcpserver") is not None:
-        return
-    sha = hashlib.sha256((ROOT / "requirements.lock").read_bytes()).hexdigest()
-    py = Path.home() / ".context-ledger" / "runtime" / sha / "bin" / "python3"
-    if not py.is_file():
-        raise SystemExit(
-            json.dumps(
-                {
-                    "ok": False,
-                    "error": {
-                        "code": "UNAVAILABLE",
-                        "retryable": False,
-                        "message": f"mcp.server.mcpserver is not importable and {py} is missing",
-                    },
-                }
-            )
-        )
-    sys.stderr.write(f"re-exec {py} because this interpreter has no mcp.server.mcpserver\n")
-    if "unittest" in sys.argv[0]:
-        os.execv(str(py), [str(py), "-m", "unittest", *sys.argv[1:]])
-    os.execv(str(py), [str(py), *sys.argv])
-
-
-_reexec_locked_runtime()
+reexec_locked_runtime(ROOT)
 # Same argv the bootstrap re-execs into (bin/ on sys.path would shadow the package).
 CLI = [sys.executable, "-m", "context_ledger"]
 
