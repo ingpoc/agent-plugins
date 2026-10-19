@@ -41,7 +41,14 @@ Use `get`, `record`, and `append_event` for capture. The helper's lookup is `scr
 
 ## Capture and closeout
 
-Exactly one capture path:
+Exactly one capture path.
+
+Answer these four before proposing anything, and save nothing that fails one:
+
+1. Is this a decision or a lesson? A lesson is not the record.
+2. Which future task will apply it? If none, it does not go in.
+3. Would a `find` for what that task would type return it? If not, it cannot be retrieved, and an unretrievable record is worse than none.
+4. Is it already recorded, and does it carry its `scope`?
 
 - New decision: `trigger → action`, one or two lines, loaded when that problem is happening now. At most three. The problem itself is not the record.
 - Observation: useful failure, inconclusive result, or deviation. Facts only. A tacit exception is not approval.

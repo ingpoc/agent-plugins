@@ -172,6 +172,14 @@ class PackageTests(unittest.TestCase):
         self.assertIn("find", text)
         self.assertIn("append_event", text)
         self.assertIn("read/write-capable Context Ledger subagent", text)
+        self.assertIn("Answer these four before proposing anything", text)
+        for question in (
+            "Is this a decision or a lesson?",
+            "Which future task will apply it?",
+            "Would a `find` for what that task would type return it?",
+            "Is it already recorded, and does it carry its `scope`?",
+        ):
+            self.assertIn(question, text)
 
     def test_catalogs_and_plugins_row(self) -> None:
         collection = _collection_root()
@@ -360,8 +368,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.29")
-        self.assertIn('__version__ = "0.1.29"', init)
+        self.assertEqual(plugin["version"], "0.1.30")
+        self.assertIn('__version__ = "0.1.30"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -374,7 +382,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
-        self.assertIn('version:"0.1.29"', page)
+        self.assertIn('version:"0.1.30"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
