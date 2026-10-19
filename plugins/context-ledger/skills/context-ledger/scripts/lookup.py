@@ -123,9 +123,21 @@ def _text(value: object, label: str, limit: int) -> str:
     return value.strip()
 
 
+def _caller(store: Store) -> str:
+    """The agent this ledger is bound to: who a read the agent asked for is billed to.
+
+    The CLI carries no per-request actor (the MCP path puts one in the tool arguments), so without
+    this every helper read fell through to `unnamed` and the access report could not tell the
+    agent's lookups from the helper's own plumbing."""
+    return store.binding["actor_id"]
+
+
 def _visible(store: Store) -> list[dict]:
     """Candidates for semantic selection, on find's eligibility: a record scoped to another
-    project, or expired, must not come back through this route when find hides it."""
+    project, or expired, must not come back through this route when find hides it.
+
+    This holds every eligible record, not the answer, so its reads are the helper's own plumbing
+    and are recorded under `INTERNAL_ACTOR` -- the same rule as the loop's revision and re-reads."""
     store.open()
     caller_scope = caller_scope_from_binding(store.binding)
     allowed = allowed_scopes(caller_scope) if caller_scope else {"fleet"}
@@ -138,7 +150,9 @@ def _visible(store: Store) -> list[dict]:
     ).fetchall()
     visible = []
     for row in rows:
-        rec = store.get({"decision_id": row["decision_id"]}, mcp=True)["record"]
+        rec = store.get(
+            {"decision_id": row["decision_id"], "actor": INTERNAL_ACTOR}, mcp=True
+        )["record"]
         if store._expired(rec, now):
             continue
         if (rec["body"].get("scope") or "fleet") not in allowed:
@@ -266,6 +280,9 @@ def _select(store: Store, body: dict) -> dict:
     )
     _bm25, coverage, matched = corpus.score(chosen["decision_id"], qterms)
     lexical_ok = bool(qterms) and ranking.relevant(coverage, matched, len(qterms))
+    # `_visible` swept the candidates on the helper's own behalf; the one decision the agent
+    # receives is its lookup, so that read is billed to the caller.
+    store.get({"decision_id": chosen["decision_id"], "actor": _caller(store)}, mcp=True)
     return {
         "decision": _decision_view(chosen),
         "distance": distance,
@@ -353,6 +370,7 @@ def _feedback(store: Store, body: dict) -> dict:
         return {"written": [], "write": "unavailable"}
     embedding = _sentence_embedding() if missing is not None else None
     outcomes: list[str] = []
+    unlinked: list[str] = []
     try:
         for decision_id, helped, issue, effect in items:
             note = issue.strip() or ("helped" if helped else "did not help")
@@ -360,18 +378,36 @@ def _feedback(store: Store, body: dict) -> dict:
             # caller said how it did not (`effect`). Feedback of a decision that simply did not help
             # stays inconclusive without a verdict, and then it cannot cite the applied receipt --
             # an applied outcome needs `helpful` (contracts.validate_outcome).
-            _outcome(
-                store,
-                task_id,
-                decision_id,
-                "success" if helped else "inconclusive",
-                note,
-                f"task://{task_id}",
-                helpful=True if helped else (False if effect else None),
-                effect=effect,
-                reason=issue or None,
-            )
+            try:
+                _outcome(
+                    store,
+                    task_id,
+                    decision_id,
+                    "success" if helped else "inconclusive",
+                    note,
+                    f"task://{task_id}",
+                    helpful=True if helped else (False if effect else None),
+                    effect=effect,
+                    reason=issue or None,
+                )
+            except MissingApplied as exc:
+                unlinked.append(exc.decision_id)
+                continue
             outcomes.append(decision_id)
+        if unlinked:
+            # A verdict without the receipt cannot be read by the tier and would make the task's
+            # next `close` demand a linked outcome it never wrote. Refuse it and name the fix.
+            return {
+                "task_id": task_id,
+                "outcomes": outcomes,
+                "similar": None,
+                "written": [],
+                "write": "unavailable",
+                "need": "applied_event_id",
+                "fix": (f"this task has no applied event on {','.join(unlinked)}: record the receipt "
+                        "first (`ledger_loop.py close <task_id> --applied <id>`, or append_event applied "
+                        "with this task_id), then send the feedback again"),
+            }
         if missing is None:
             return {
                 "task_id": task_id,
@@ -422,6 +458,16 @@ def _feedback(store: Store, body: dict) -> dict:
         if str(exc) == "EMBEDDING_UNAVAILABLE":
             raise
         return {"task_id": task_id, "outcomes": outcomes, "written": [], "write": "unavailable"}
+    except ValueError:
+        return {
+            "task_id": task_id,
+            "outcomes": outcomes,
+            "written": [],
+            "write": "unavailable",
+            "need": "reason",
+            "fix": (f"an issue is a one-line reason: at most {REASON_WORDS} words and 160 characters; "
+                    "shorten it and send the feedback again"),
+        }
     except Exception:
         return {"task_id": task_id, "outcomes": outcomes, "written": [], "write": "unavailable"}
     return {
@@ -467,12 +513,13 @@ def main() -> int:
                         "constraints": [],
                         "limit": 3,
                         "offset": 0,
+                        "actor": _caller(store),
                         "caller_scope": caller_scope_from_binding(store.binding),
                     },
                     mcp=True,
                 )
             elif args.cmd == "get":
-                rec = store.get({"decision_id": args.id}, mcp=True)["record"]
+                rec = store.get({"decision_id": args.id, "actor": _caller(store)}, mcp=True)["record"]
                 payload = {
                     "id": rec["decision_id"],
                     "summary": rec["body"]["summary"],
@@ -506,7 +553,9 @@ def main() -> int:
                 payload = _feedback(store, _json_arg(args.json))
             elif args.cmd == "append":
                 event = _json_arg(args.json)
-                rec = store.get({"decision_id": event["decision_id"]}, mcp=True)["record"]
+                rec = store.get(
+                    {"decision_id": event["decision_id"], "actor": INTERNAL_ACTOR}, mcp=True
+                )["record"]
                 receipt = store.append_event(
                     {"request_id": str(uuid.uuid4()), "occurred_at": _now(),
                      "expected_revision": rec["revision"], **event},
@@ -548,7 +597,10 @@ def main() -> int:
         return _fail(fail_kind)
     json.dump(payload, sys.stdout)
     sys.stdout.write("\n")
-    if args.cmd == "feedback" and isinstance(payload, dict) and payload.get("write") == "unavailable":
+    if args.cmd in {"feedback", "closeout"} and isinstance(payload, dict) and payload.get("write") == "unavailable":
+        # A write that wrote nothing is a failure the agent has to fix; the payload says what
+        # (`need`/`fix`). `feedback` already exited 1 here, and closeout exiting 0 made the same
+        # failure look like success.
         return 1
     return 0
 
@@ -594,9 +646,23 @@ def _closeout(store: Store, body: dict) -> dict:
     ):
         return {"written": [], "write": "unavailable"}
     ids = [item.get("id") for item in outcomes]
-    if len(ids) != len(set(ids)) or any(
-        item.get("applied") is not True
-        or item.get("status") not in {"success", "failed", "inconclusive"}
+    if len(ids) != len(set(ids)):
+        return {"written": [], "write": "unavailable"}
+    not_applied = [item.get("id") for item in outcomes if item.get("applied") is not True]
+    if not_applied:
+        # The key is not decorative: an item asserts the decision was applied, and that assertion
+        # becomes the link the tier reads. `applied: false` is a contradiction, so it is named
+        # instead of reported as a bare refusal.
+        return {
+            "written": [],
+            "write": "unavailable",
+            "need": "applied: true",
+            "fix": (f"a closeout item asserts the decision was applied: set applied true for "
+                    f"{','.join(str(i) for i in not_applied)}, or record it with feedback if the task "
+                    "only considered it"),
+        }
+    if any(
+        item.get("status") not in {"success", "failed", "inconclusive"}
         or not str(item.get("note") or "").strip()
         or not str(item.get("evidence_ref") or "").strip()
         for item in outcomes
@@ -627,6 +693,16 @@ def _closeout(store: Store, body: dict) -> dict:
             "fix": (f"this task has no applied event on {exc.decision_id}: record the receipt first "
                     "(`ledger_loop.py close <task_id> --applied <id>`, or append_event applied "
                     "with this task_id), then send the closeout again"),
+        }
+    except ValueError:
+        return {
+            "task_id": task_id,
+            "written": written,
+            "feedback": feedback,
+            "write": "unavailable",
+            "need": "reason",
+            "fix": (f"the reason is limited to {REASON_WORDS} words and 160 characters; shorten it "
+                    "and send the closeout again (the note may stay as long as the task needs)"),
         }
     except Exception:
         return {"task_id": task_id, "written": written, "feedback": feedback,
@@ -661,7 +737,21 @@ def _applied_event(store: Store, task_id: str, decision_id: str) -> str | None:
 
 
 def _reason_text(value: str) -> str:
-    """A reason the outcome contract accepts: at most REASON_WORDS words and 160 characters."""
+    """A reason the outcome contract accepts, enforced exactly as `contracts._line` does.
+
+    One line, at most REASON_WORDS words and 160 characters. Trimming here would silently store
+    something the caller did not write, and a looser check would let the store reject the reason
+    after this function had already accepted it."""
+    if "\n" in value or "\r" in value:
+        raise ValueError("reason")
+    if len(value.split()) > REASON_WORDS or len(value) > 160:
+        raise ValueError("reason")
+    return value.strip() or "did not help"
+
+
+def _reason_derived(value: str) -> str:
+    """A reason derived from the note: the note is the caller's prose about the task, not a reason
+    it supplied, so it is cut to the contract's limit instead of failing the whole observation."""
     return (" ".join(value.split()[:REASON_WORDS])[:160]).strip() or "did not help"
 
 
@@ -680,7 +770,10 @@ def _outcome(store: Store, task_id: str, decision_id: str, status: str, note: st
     `INTERNAL_ACTOR` so they do not read as the agent's own lookups."""
     rec = store.get({"decision_id": decision_id, "actor": INTERNAL_ACTOR}, mcp=True)["record"]
     linked = _applied_event(store, task_id, decision_id)
-    if linked is None and require_link:
+    # A verdict is only usable with the receipt it judges: the tier reads an outcome solely through
+    # `applied_event_id`, and the loop's check demands that link for every applied id. An outcome
+    # that simply records "this did not fit" (no `helpful`) stays an unlinked observation.
+    if linked is None and (require_link or helpful is not None):
         raise MissingApplied(decision_id)
     payload: dict = {
         "status": status,
@@ -701,7 +794,7 @@ def _outcome(store: Store, task_id: str, decision_id: str, status: str, note: st
             payload["applied_event_id"] = linked
     if payload.get("helpful") is False:
         payload["effect"] = effect or "not_helped"
-        payload["reason"] = _reason_text(reason or note)
+        payload["reason"] = _reason_text(reason) if reason else _reason_derived(note)
     store.append_event(
         {
             "request_id": str(uuid.uuid4()),

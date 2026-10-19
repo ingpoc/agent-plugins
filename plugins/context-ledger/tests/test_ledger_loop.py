@@ -257,6 +257,24 @@ class AppliedLinkTests(LedgerLoopBase):
         self.assert_fail(r, "audit mode needs a declaration", code=2)
         self.assert_pass(self.run_loop("close", self.task, "--audit", "--applied-none", "no hit fitted"), 0)
 
+    def test_audit_accepts_a_link_already_recorded_for_the_task(self) -> None:
+        """The link is recorded once; an audit re-run reads it instead of demanding it again."""
+        d = self.decision()
+        self.start([d])
+        ev = self.applied(d, [d])
+        self.outcome(d, helpful=True, applied_event_id=ev)
+        self.assert_pass(self.run_loop("close", self.task, "--applied", d, "--audit"), 1)
+        self.assert_pass(self.run_loop("close", self.task, "--audit"), 1)
+
+    def test_applied_and_applied_none_together_are_refused(self) -> None:
+        d = self.decision()
+        self.start([d])
+        r = self.run_loop("close", self.task, "--applied", d, "--applied-none", "nothing was used")
+        self.assert_fail(r, "declare different things")
+        self.assertEqual(self.applied_count(d), 0, "a refused declaration must not link")
+        log = (self.data / "ledger-loop" / "starts.jsonl").read_text()
+        self.assertNotIn("applied_none", log, "a contradictory declaration must not be logged")
+
     def test_applied_with_an_unknown_id_fails_loud(self) -> None:
         self.start()
         self.assert_fail(self.run_loop("close", self.task, "--applied", _u()), "cannot link applied")

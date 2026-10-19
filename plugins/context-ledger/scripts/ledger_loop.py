@@ -780,6 +780,15 @@ def cmd_close(o: argparse.Namespace, data: Path) -> str:
     extra = [_uuid(d, "--decision id") for d in o.decision]
     applied = [_uuid(d, "--applied id") for d in o.applied]
     none_word = _flag(task_id, "applied-none", o.applied_none)
+    if applied and o.applied_none:
+        # Both are declarations about the same question, so accepting them logs an `applied_none`
+        # row while linking ids: the task row would then read applied_declared="none" with
+        # applied_linked=1. Refuse before either is written.
+        raise Fail(
+            f"FAIL {task_id}: --applied and --applied-none declare different things; "
+            f"fix: pass `--applied <id>` for each decision this task used, or `--applied-none <word>` "
+            "when nothing was used, never both"
+        )
     log = start_log(data)
     starts = read_starts(log, task_id)
     arm = ab_arm(ab_today())
@@ -788,11 +797,6 @@ def cmd_close(o: argparse.Namespace, data: Path) -> str:
         raise Fail(
             f"FAIL {task_id}: no start lookup in {log}; fix: run Context-ledger find for the problem now, "
             f"then `ledger_loop.py start {task_id} --bot NAME --query \"...\" --found ids`"
-        )
-    if audit_mode(o) and hits and not (applied or none_word):
-        raise Fail(
-            f"FAIL {task_id}: audit mode needs a declaration for {len(hits)} lookup hit(s); "
-            f"fix: pass `--applied <id>` for each decision this task used, or `--applied-none <word>`", 2
         )
     if none_word:
         # A declaration is data. Omission stays "unknown" and never means "none".
@@ -821,6 +825,13 @@ def cmd_close(o: argparse.Namespace, data: Path) -> str:
     # below demands a final, evidenced, linked outcome for each one. An id this task already linked is
     # not written twice.
     have = {d for ev in events if ev["event_type"] == "applied" for d in ev["payload"]["decision_ids"]}
+    # Audit mode asks for a declaration, and a link already recorded for this task *is* one: the
+    # task cannot re-verify a closed run if it has to restate what the ledger already holds.
+    if audit_mode(o) and hits and not (applied or none_word or have):
+        raise Fail(
+            f"FAIL {task_id}: audit mode needs a declaration for {len(hits)} lookup hit(s); "
+            f"fix: pass `--applied <id>` for each decision this task used, or `--applied-none <word>`", 2
+        )
     fresh = [d for d in dict.fromkeys(applied) if d not in have]
     linked: list[tuple[str, str]] = []
     partial: Unavailable | None = None
