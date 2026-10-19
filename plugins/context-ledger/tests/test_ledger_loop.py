@@ -11,6 +11,7 @@ import threading
 import time
 import unittest
 import uuid
+from unittest import mock
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -115,6 +116,33 @@ class LedgerLoopBase(unittest.TestCase):
                           "--found", ",".join(found or []))
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def applied_events(self, decision_id: str | None = None) -> list[dict]:
+        conn = self.store.open()
+        try:
+            rows = conn.execute(
+                "select event_json from events where json_extract(event_json, '$.payload.task_id') = ? "
+                "and json_extract(event_json, '$.event_type') = 'applied' order by seq",
+                (self.task,),
+            ).fetchall()
+        finally:
+            self.store.close()
+        events = [json.loads(row["event_json"]) for row in rows]
+        if decision_id is not None:
+            events = [e for e in events if decision_id in e["payload"]["decision_ids"]]
+        return events
+
+    def applied_count(self, decision_id: str | None = None) -> int:
+        return len(self.applied_events(decision_id))
+
+    def applied_event_id(self, decision_id: str | None = None) -> str:
+        events = self.applied_events(decision_id)
+        self.assertEqual(len(events), 1, events)
+        return events[0]["event_id"]
+
+    def rows(self) -> list[dict]:
+        log = self.data / "ledger-loop" / "tasks.jsonl"
+        return [json.loads(l) for l in log.read_text().splitlines()]
+
     def assert_fail(self, r: subprocess.CompletedProcess, needle: str, code: int = 1) -> None:
         self.assertEqual(r.returncode, code, r.stdout + r.stderr)
         lines = r.stderr.strip().splitlines()
@@ -179,11 +207,73 @@ class HelpfulGateTests(LedgerLoopBase):
         self.assertNotIn("WARN", self.run_loop("close", self.task).stdout)
 
 
-class ABLogTests(LedgerLoopBase):
-    def rows(self) -> list[dict]:
-        log = self.data / "ledger-loop" / "tasks.jsonl"
-        return [json.loads(l) for l in log.read_text().splitlines()]
+class AppliedLinkTests(LedgerLoopBase):
+    """Task attribution: close records which decisions the task applied, then verifies them."""
 
+    def test_close_records_the_applied_link_then_requires_its_outcome(self) -> None:
+        d = self.decision()
+        self.start([d])
+        r = self.run_loop("close", self.task, "--applied", d)
+        self.assert_fail(r, f"no outcome for applied {d}")
+        self.assertEqual(self.applied_count(), 1, "close must record the applied link it was asked for")
+        linked = self.applied_event_id(d)
+        self.assertIn(linked, r.stderr, "the fix has to name the event id the outcome cites")
+        self.outcome(d, helpful=True, applied_event_id=linked)
+        out = self.assert_pass(self.run_loop("close", self.task, "--applied", d), 1)
+        self.assertIn("1 applied", out)
+        self.assertEqual(self.applied_count(), 1, "a second close must not duplicate the applied link")
+
+    def test_outcome_without_the_link_still_fails(self) -> None:
+        """Final, evidenced and marked is not enough: ranking reads the outcome through the link."""
+        d = self.decision()
+        self.start([d])
+        ev = self.applied(d, [d])
+        self.outcome(d, helpful=True)
+        self.assert_fail(self.run_loop("close", self.task), f"outcome for {d} is not linked")
+        self.assertIn(ev, self.run_loop("close", self.task).stderr)
+        self.outcome(d, helpful=True, applied_event_id=ev)
+        self.assert_pass(self.run_loop("close", self.task), 1)
+
+    def test_close_warns_when_the_lookup_returned_hits_and_nothing_was_declared(self) -> None:
+        d = self.decision()
+        self.start([d])
+        out = self.assert_pass(self.run_loop("close", self.task), 0)
+        self.assertIn("WARN 1 lookup hit(s) and no applied id declared: unknown, not none", out)
+        self.assertIn(f"close {self.task} --applied <id>", out)
+        self.assertEqual(self.applied_count(), 0, "a warning must not invent an attribution")
+        self.assertEqual(self.rows()[-1]["applied_declared"], "unknown")
+
+    def test_applied_none_declares_that_nothing_was_used(self) -> None:
+        d = self.decision()
+        self.start([d])
+        out = self.assert_pass(self.run_loop("close", self.task, "--applied-none", "no hit fitted the task"), 0)
+        self.assertNotIn("WARN", out, "a declaration settles the question instead of warning")
+        self.assertEqual(self.rows()[-1]["applied_declared"], "none")
+
+    def test_audit_needs_an_attribution_declaration(self) -> None:
+        d = self.decision()
+        self.start([d])
+        r = self.run_loop("close", self.task, "--audit")
+        self.assert_fail(r, "audit mode needs a declaration", code=2)
+        self.assert_pass(self.run_loop("close", self.task, "--audit", "--applied-none", "no hit fitted"), 0)
+
+    def test_applied_with_an_unknown_id_fails_loud(self) -> None:
+        self.start()
+        self.assert_fail(self.run_loop("close", self.task, "--applied", _u()), "cannot link applied")
+        self.assertEqual(self.applied_count(), 0)
+
+    def test_a_later_rejection_keeps_the_links_already_written(self) -> None:
+        good = self.decision("good")
+        self.start([good])
+        bad = _u()
+        r = self.run_loop("close", self.task, "--applied", good, "--applied", bad)
+        self.assert_fail(r, f"cannot link applied {bad}")
+        self.assertIn(f"already linked {good}", r.stderr)
+        self.assertEqual(self.applied_count(good), 1, "the committed link must survive the failure")
+        self.assertEqual(self.applied_count(bad), 0)
+
+
+class ABLogTests(LedgerLoopBase):
     def test_off_day_find_skips_lookup_and_close_logs_arm_off(self) -> None:
         off = {"LEDGER_AB_DATE": "2026-10-18"}
         r = self.run_loop("find", self.task, "--bot", "efficient", "--query", "kite holdings", env=off)
@@ -282,21 +372,23 @@ class StoreModeTests(LedgerLoopBase):
     def test_every_id_in_applied_needs_its_own_outcome(self) -> None:
         a, b = self.decision("a"), self.decision("b")
         self.start()
-        self.applied(a, [a, b])
-        self.outcome(a)
+        ev = self.applied(a, [a, b])
+        self.outcome(a, applied_event_id=ev)
         r = self.run_loop("close", self.task)
         self.assert_fail(r, f"no outcome for applied {b}")
         self.assertNotIn(a, r.stderr.split("fix:")[0])
-        self.outcome(b, status="failed")
+        # a link has to belong to its own decision, so b needs its own applied event to cite
+        ev_b = self.applied(b, [b])
+        self.outcome(b, status="failed", applied_event_id=ev_b)
         self.assert_pass(self.run_loop("close", self.task), 2)
 
     def test_pending_outcome_is_not_final(self) -> None:
         d = self.decision()
         self.start()
-        self.applied(d, [d])
-        self.outcome(d, status="pending")
+        ev = self.applied(d, [d])
+        self.outcome(d, status="pending", applied_event_id=ev)
         self.assert_fail(self.run_loop("close", self.task), f"outcome not final for {d}=pending")
-        self.outcome(d, status="inconclusive")
+        self.outcome(d, status="inconclusive", applied_event_id=ev)
         self.assert_pass(self.run_loop("close", self.task), 1)
 
     def test_outcome_needs_usable_evidence(self) -> None:
@@ -359,6 +451,9 @@ class _FakeMcp(BaseHTTPRequestHandler):
     store: Store
     sse = False
     delay = 0.0
+    appends = 0
+    fail_append_after: int | None = None  # HTTP 500 once this many appends have been served
+    drop_append_after: int | None = None  # close the connection instead: the loop reads it as unreachable
 
     def log_message(self, *args) -> None:  # noqa: ANN002
         return
@@ -380,11 +475,23 @@ class _FakeMcp(BaseHTTPRequestHandler):
         else:
             name = msg["params"]["name"]
             args = msg["params"]["arguments"]
+            if name == "append":
+                type(self).appends += 1
+                if self.fail_append_after is not None and type(self).appends > self.fail_append_after:
+                    self.send_response(500)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
+                if self.drop_append_after is not None and type(self).appends > self.drop_append_after:
+                    self.close_connection = True  # a link cut in half: the earlier append already committed
+                    return
             try:
                 if name == "find":
                     payload = ok(self.store.find(args, mcp=True))
                 elif name == "save":
                     payload = ok(self.store.save(args, mcp=True))
+                elif name == "append":
+                    payload = ok(self.store.append_event(args, mcp=True))
                 else:
                     payload = ok(self.store.get(args, mcp=True))
             except LedgerError as exc:
@@ -408,7 +515,8 @@ class _FakeMcp(BaseHTTPRequestHandler):
 class RemoteModeTests(LedgerLoopBase):
     def setUp(self) -> None:
         super().setUp()
-        handler = type("H", (_FakeMcp,), {"store": Store(self.data)})
+        handler = type("H", (_FakeMcp,), {"store": Store(self.data), "appends": 0,
+                                        "fail_append_after": None, "drop_append_after": None})
         self.handler = handler
         self.httpd = ThreadingHTTPServer(("127.0.0.1", 0), handler)
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
@@ -422,9 +530,10 @@ class RemoteModeTests(LedgerLoopBase):
         self.handler.store.close()
         super().tearDown()
 
-    def box_run(self, *args: str, token: str = TOKEN) -> subprocess.CompletedProcess:
+    def box_run(self, *args: str, token: str = TOKEN, env: dict | None = None) -> subprocess.CompletedProcess:
         return self.run_loop(*args, data=self.box,
-                             env={"CONTEXT_LEDGER_MCP_TOKEN": token, "CONTEXT_LEDGER_MCP_URL": self.url})
+                             env={"CONTEXT_LEDGER_MCP_TOKEN": token, "CONTEXT_LEDGER_MCP_URL": self.url,
+                                  **(env or {})})
 
     def box_start(self, found: list[str]) -> None:
         r = self.box_run("start", self.task, "--bot", "box", "--query", "q", "--found", ",".join(found))
@@ -436,7 +545,8 @@ class RemoteModeTests(LedgerLoopBase):
         ev = self.applied(a, [a, b])
         self.outcome(a, applied_event_id=ev)
         self.assert_fail(self.box_run("close", self.task), f"no outcome for applied {b}")
-        self.outcome(b)
+        ev_b = self.applied(b, [b])
+        self.outcome(b, applied_event_id=ev_b)
         out = self.assert_pass(self.box_run("close", self.task), 2)
         self.assertIn(f"[remote {self.url}, 2 decision(s) read", out)
 
@@ -444,9 +554,9 @@ class RemoteModeTests(LedgerLoopBase):
         self.handler.sse = True
         d = self.decision()
         self.box_start([d])
-        self.applied(d, [d])
+        ev = self.applied(d, [d])
         self.assert_fail(self.box_run("close", self.task), f"no outcome for applied {d}")
-        self.outcome(d)
+        self.outcome(d, applied_event_id=ev)
         self.assert_pass(self.box_run("close", self.task), 1)
 
     def test_remote_extra_decision_flag(self) -> None:
@@ -455,6 +565,26 @@ class RemoteModeTests(LedgerLoopBase):
         self.applied(d, [d])
         self.assert_pass(self.box_run("close", self.task), 0)
         self.assert_fail(self.box_run("close", self.task, "--decision", d), f"no outcome for applied {d}")
+
+    def test_remote_records_the_applied_link(self) -> None:
+        d = self.decision()
+        self.box_start([d])
+        self.assert_fail(self.box_run("close", self.task, "--applied", d), f"no outcome for applied {d}")
+        self.assertEqual(self.applied_count(d), 1)
+        self.outcome(d, helpful=True, applied_event_id=self.applied_event_id(d))
+        out = self.assert_pass(self.box_run("close", self.task, "--applied", d), 1)
+        self.assertIn("1 applied", out)
+        self.assertEqual(self.applied_count(d), 1, "a second close must not duplicate the applied link")
+
+    def test_remote_applied_flag_is_a_discovery_seed(self) -> None:
+        """An id that arrives only through --applied has no start row: remote discovery must read it."""
+        d = self.decision()
+        self.box_start([])
+        ev = self.applied(d, [d])
+        self.outcome(d, helpful=True, applied_event_id=ev)
+        self.assert_pass(self.box_run("close", self.task, "--applied", d), 1)
+        self.assert_pass(self.box_run("close", self.task, "--applied", d), 1)
+        self.assertEqual(self.applied_count(d), 1, "the link must not be written twice")
 
     def test_remote_bad_token_fails_loud(self) -> None:
         d = self.decision()
@@ -542,6 +672,61 @@ class RemoteModeTests(LedgerLoopBase):
                          "--scope", "fleet")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("max 15", r.stderr)
+
+
+class StorePartialLinkTests(LedgerLoopBase):
+    """The store backend links one decision at a time, so a mid-way failure must not lose the first."""
+
+    def test_a_busy_ledger_still_reports_the_link_it_wrote(self) -> None:
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import ledger_loop
+
+        a, b = self.decision("a"), self.decision("b")
+        real = Store.append_event
+        served = {"n": 0}
+
+        def flaky(store, args, **kwargs):
+            served["n"] += 1
+            if served["n"] == 2:
+                raise LedgerError("BUSY", retryable=True)
+            return real(store, args, **kwargs)
+
+        with mock.patch.object(Store, "append_event", flaky):
+            with self.assertRaises(ledger_loop.Unavailable) as caught:
+                ledger_loop._append_applied(self.data, self.task, [a, b])
+        self.assertEqual(caught.exception.code, "BUSY")
+        self.assertEqual([d for d, _ in caught.exception.committed], [a])
+        self.assertEqual(self.applied_count(a), 1)
+        self.assertEqual(self.applied_count(b), 0)
+
+
+class PartialLinkTests(RemoteModeTests):
+    """A link that fails mid-way is never reported as a clean closeout."""
+
+    def test_a_failed_second_link_names_both_ids(self) -> None:
+        a, b = self.decision("a"), self.decision("b")
+        self.box_start([])
+        self.handler.fail_append_after = 1
+        r = self.box_run("close", self.task, "--applied", a, "--applied", b)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertEqual(len(r.stderr.strip().splitlines()), 1, r.stderr)
+        self.assertIn(f"cannot link applied {b}", r.stderr)
+        self.assertIn(f"already linked {a}", r.stderr)
+        self.assertNotIn("all with final outcome", r.stdout + r.stderr)
+        self.assertEqual(self.applied_count(a), 1, "the committed link must survive the failure")
+        self.assertEqual(self.applied_count(b), 0)
+
+    def test_an_unreachable_ledger_never_verifies_a_half_written_link(self) -> None:
+        a, b = self.decision("a"), self.decision("b")
+        self.box_start([])
+        self.handler.drop_append_after = 1
+        r = self.box_run("close", self.task, "--applied", a, "--applied", b)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("applied link incomplete", r.stderr)
+        self.assertIn(f"no outcome for applied {a}", r.stderr, "the committed link is still verified")
+        self.assertNotIn("all with final outcome", r.stdout + r.stderr)
+        self.assertEqual(self.applied_count(a), 1)
+        self.assertEqual(self.applied_count(b), 0)
 
 
 if __name__ == "__main__":
