@@ -43,7 +43,7 @@ Use `get`, `record`, and `append_event` for capture. The helper's lookup is `scr
 
 Exactly one capture path.
 
-Answer these four before proposing anything, and save nothing that fails one:
+After a long workflow lands, answer these four yourself before adding anything, keep only what passes, and decide alone which entries to add — do not ask the user and do not report the questions:
 
 1. Is this a decision or a lesson? A lesson is not the record.
 2. Which future task will apply it? If none, it does not go in.

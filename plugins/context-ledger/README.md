@@ -8,6 +8,10 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.31
+
+The four capture questions are the agent's own step when it considers adding entries after a long workflow: it answers them, keeps what passes, and decides alone — it does not ask the user and does not report the questions. `ensure-global-triggers` writes that duty into `~/.codex/AGENTS.md` as a `## AFTER` line marked `**Ledger gate**`, directly above the save line. The `**Ledger lookup**` line it writes into `## BEFORE` now names the moment and the skill: load `context-ledger` before the first step of a new task and run one lookup through a retained helper, without pre-judging applicability or asking the user.
+
 ## 0.1.30
 
 The capture section states the four questions an agent answers before proposing a record: decision or lesson, which future task will apply it, whether a `find` for what that task would type would return it, and whether it is already recorded with its `scope`. A candidate that fails one is not saved. Docs and tests only; behaviour, ledger format, and the A/B trial are unchanged.

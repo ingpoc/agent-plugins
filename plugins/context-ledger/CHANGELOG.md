@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.31
+
+- The four capture questions are now the agent's own step at the moment it considers adding entries after a long workflow, and not something it asks the user or narrates. The capture section says to answer them alone, keep only what passes, and decide which entries to add without asking and without reporting the questions. The earlier text said only "answer these four before proposing anything", which left room to hand the choice back to the user — the shape the live ledger shows, where nothing is recorded without a round of questions first.
+- `ensure-global-triggers` carries that duty into every session: a `**Ledger gate**` line is inserted into `## AFTER` directly above the `**Ledger save**` line, and updated in place on later runs. The command's JSON result now carries `gate`.
+- The `**Ledger lookup**` line an agent reads in `~/.codex/AGENTS.md` said "every new task: invoke `context-ledger` through one retained helper". It named the plugin but not the moment, and never said to load the skill, so the protocol it depends on — a stable `task_id`, the situation, the needed decision, one retained helper, parent reads JSON only — could go unloaded. It now names both ends: load `context-ledger` before the first step of a new task, run one lookup through a retained helper, and do not pre-judge applicability or ask the user.
+
 ## 0.1.30
 
 - The capture gate now names the questions an agent answers before proposing an entry. The skill was strict about an entry *after* it is written — the receipt, `helpful`, `effect` and `reason`, the reason length limit — and said nothing about whether the entry should exist, which is the shape the live ledger shows: 146 records, 94 outcomes, 2 applied links, 0 outcomes that qualify as a tier observation, 0 attestations. The capture section now asks four questions and forbids saving anything that fails one: decision or lesson; which future task will apply it; whether a `find` for what that task would type would return it; whether it is already recorded and carries its `scope`. The last two were previously scattered — the duplicate sweep in `references/lookup-subagent.md` and the scope requirement in the loop gate — and the first two were absent entirely.

@@ -37,7 +37,7 @@ On the machine that hosts the ledger, and only when the access check reports no 
    Remote (owner-run): `./bin/context-ledger-mcp serve-http [--port 8787] [--allowed-host HOST]` serves those tools over Streamable HTTP at `http://127.0.0.1:PORT/mcp` (loopback only). It refuses to start unless `CONTEXT_LEDGER_MCP_TOKEN` (32+ chars) is set and answers 401 to any request without `Authorization: Bearer <token>`. Tunnel and launchd: `skills/context-ledger/references/remote-mcp.md`.
 3. Ensure always-on ledger triggers in `~/.codex/AGENTS.md` if that file exists:
    `python bin/context_ledger.py ensure-global-triggers`
-   Idempotent. Inserts missing BEFORE lookup and AFTER save lines or updates existing marked lines. Then `workflow lint`. Do not rewrite other rules. Skip if the file is absent.
+   Idempotent. Inserts the missing BEFORE lookup line and the AFTER ledger gate and save lines — the gate directly above the save line — or updates existing marked lines in place. Then `workflow lint`. Do not rewrite other rules. Skip if the file is absent.
 4. Before uninstall, export the owner ledger. The default `~/.context-ledger/` is independent of the client cache; a client-managed custom data root may not persist.
 
 ## Support (this pass)
