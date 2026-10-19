@@ -209,7 +209,7 @@ class ManifestContractTests(unittest.TestCase):
             )
         ]
         self.assertEqual(versions, [context_ledger.__version__] * 3)
-        self.assertEqual(context_ledger.__version__, "0.1.30")
+        self.assertEqual(context_ledger.__version__, "0.1.31")
         descriptions = [
             json.loads((ROOT / rel).read_text(encoding="utf-8"))["description"]
             for rel in (

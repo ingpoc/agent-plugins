@@ -172,7 +172,7 @@ class PackageTests(unittest.TestCase):
         self.assertIn("find", text)
         self.assertIn("append_event", text)
         self.assertIn("read/write-capable Context Ledger subagent", text)
-        self.assertIn("Answer these four before proposing anything", text)
+        self.assertIn("answer these four yourself before adding anything", text)
         for question in (
             "Is this a decision or a lesson?",
             "Which future task will apply it?",
@@ -368,8 +368,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.30")
-        self.assertIn('__version__ = "0.1.30"', init)
+        self.assertEqual(plugin["version"], "0.1.31")
+        self.assertIn('__version__ = "0.1.31"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Every new task, consult one retained Context Ledger helper", skill)
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -382,7 +382,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
-        self.assertIn('version:"0.1.30"', page)
+        self.assertIn('version:"0.1.31"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)
@@ -508,12 +508,17 @@ class EnsureGlobalTriggersTests(unittest.TestCase):
             one = json.loads(first.stderr.strip())
             self.assertTrue(one["data"]["added"])
             self.assertTrue(one["data"]["lookup"])
+            self.assertTrue(one["data"]["gate"])
             self.assertTrue(one["data"]["save"])
             text = agents.read_text(encoding="utf-8")
             self.assertIn("**Ledger lookup**", text)
-            self.assertIn("every new task: invoke `context-ledger` through one retained helper", text)
+            self.assertIn("before the first step of a new task, load `context-ledger`", text)
+            self.assertIn("**Ledger gate**", text)
+            self.assertIn("decide alone which entries to add", text)
             self.assertIn("**Ledger save**", text)
             self.assertLess(text.index("**Ledger lookup**"), text.index("## AFTER"))
+            self.assertLess(text.index("## AFTER"), text.index("**Ledger gate**"))
+            self.assertLess(text.index("**Ledger gate**"), text.index("**Ledger save**"))
             self.assertLess(text.index("**Ledger save**"), text.index("**Durable-learning"))
             second = _boot(data, "ensure-global-triggers", ["--agents-md", str(agents)])
             self.assertEqual(second.returncode, 0, second.stderr)
@@ -527,6 +532,7 @@ class EnsureGlobalTriggersTests(unittest.TestCase):
             "## BEFORE\n\n"
             "- **Ledger lookup** → `context-ledger` if history or precedent could change next decision; else skip\n\n"
             "## AFTER\n\n"
+            "- **Ledger gate** → stale gate wording; else skip\n"
             "- **Ledger save** → `context-ledger` if settled decision, useful failure, or material update; else skip\n"
             "- **Durable-learning closeout** — encode friction.\n"
         )
@@ -540,9 +546,12 @@ class EnsureGlobalTriggersTests(unittest.TestCase):
             one = json.loads(first.stderr.strip())
             self.assertTrue(one["data"]["added"])
             text = agents.read_text(encoding="utf-8")
-            self.assertIn("every new task: invoke `context-ledger` through one retained helper", text)
+            self.assertIn("before the first step of a new task, load `context-ledger`", text)
             self.assertIn("Do not store the problem", text)
+            self.assertIn("decide alone which entries to add", text)
+            self.assertLess(text.index("**Ledger gate**"), text.index("**Ledger save**"))
             self.assertNotIn("settled decision", text)
+            self.assertNotIn("stale gate wording", text)
             second = _boot(data, "ensure-global-triggers", ["--agents-md", str(agents)])
             self.assertEqual(second.returncode, 0, second.stderr)
             two = json.loads(second.stderr.strip())

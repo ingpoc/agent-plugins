@@ -123,13 +123,20 @@ def _help() -> int:
 LOOKUP_MARK = "**Ledger lookup**"
 SAVE_MARK = "**Ledger save**"
 LOOKUP_LINE = (
-    "- **Ledger lookup** → every new task: invoke `context-ledger` through "
-    "one retained helper; return up to three applicable instructions, or none"
+    "- **Ledger lookup** → before the first step of a new task, load `context-ledger` "
+    "and run one lookup through a retained helper: three applicable instructions at "
+    "most, or none. Do not pre-judge applicability; do not ask the user"
 )
 SAVE_LINE = (
     "- **Ledger save** → `context-ledger` after the work is resolved and a "
     "wrong next step burned tokens, store one `trigger → action` per distinct "
     "next step. Do not store the problem. Skip during the debug and on a routine task"
+)
+GATE_MARK = "**Ledger gate**"
+GATE_LINE = (
+    "- **Ledger gate** → after a long workflow, answer the four questions yourself "
+    "(decision or lesson; which task applies it; would it find it; already recorded) "
+    "and decide alone which entries to add — do not ask or report"
 )
 
 
@@ -209,6 +216,7 @@ def _cmd_ensure_global_triggers(args: list[str]) -> int:
         return _err("UNAVAILABLE")
     added_lookup = False
     added_save = False
+    added_gate = False
     if LOOKUP_MARK not in text:
         nxt = _insert_in_section(text, "## BEFORE", LOOKUP_LINE, after_first_bullet=True)
         if nxt is None:
@@ -230,16 +238,26 @@ def _cmd_ensure_global_triggers(args: list[str]) -> int:
         added_save = True
     else:
         text, added_save = _replace_marked_line(text, SAVE_MARK, SAVE_LINE)
-    if added_lookup or added_save:
+    if GATE_MARK not in text:
+        nxt = _insert_in_section(text, "## AFTER", GATE_LINE, before_mark=SAVE_MARK)
+        if nxt is None:
+            return _err("UNAVAILABLE")
+        text = nxt
+        added_gate = True
+    else:
+        text, added_gate = _replace_marked_line(text, GATE_MARK, GATE_LINE)
+    if added_lookup or added_save or added_gate:
         try:
             agents.write_text(text, encoding="utf-8")
         except OSError:
             return _err("UNAVAILABLE")
     sys.stderr.write(
         '{"ok":true,"data":{"added":'
-        + ("true" if added_lookup or added_save else "false")
+        + ("true" if added_lookup or added_gate or added_save else "false")
         + ',"lookup":'
         + ("true" if added_lookup else "false")
+        + ',"gate":'
+        + ("true" if added_gate else "false")
         + ',"save":'
         + ("true" if added_save else "false")
         + "}}\n"
