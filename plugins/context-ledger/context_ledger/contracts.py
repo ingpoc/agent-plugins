@@ -390,7 +390,7 @@ def _validate_caller_scope(value: Any) -> dict[str, Any]:
     project = obj.get("project", None)
     if project is not None:
         project = require_scope(project)
-    tools = obj.get("tools") or []
+    tools = obj.get("tools", [])
     if not isinstance(tools, list):
         raise LedgerError("INVALID_ARGUMENT", message="caller_scope.tools must be a list")
     return {"project": project, "tools": [require_scope(item) for item in tools]}

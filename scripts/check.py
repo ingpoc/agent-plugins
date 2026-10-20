@@ -70,6 +70,7 @@ PLUGIN_TESTS = {
         [sys.executable, "tests/test_viewer.py", "-q"],
         [sys.executable, "tests/test_isolation_eval.py", "-q"],
         [sys.executable, "tests/test_scope.py", "-q"],
+        [sys.executable, "tests/test_request_scope.py", "-q"],
         [sys.executable, "tests/test_http_server.py", "-q"],
         [sys.executable, "tests/test_server_logging.py", "-q"],
     ],

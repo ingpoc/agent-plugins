@@ -8,6 +8,11 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.35
+
+- Pass explicit task-owner project/tool context through helper find, semantic selection and feedback; explicit fleet-only context no longer inherits the deployment project. Omitted context retains legacy binding fallback.
+- Validate context-aware gap scope before feedback writes and restrict duplicate suppression to the intended scope or fleet. Scope remains caller-declared applicability, not access control; ranking and A/B behavior are unchanged.
+
 ## 0.1.34
 
 - Keep the parent-facing skill as a retained-helper router; move detailed retrieval, capture and closeout rules into its existing helper reference. The efficiency skill defers to that owner, including the optional loop gate.

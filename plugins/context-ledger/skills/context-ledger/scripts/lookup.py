@@ -59,6 +59,8 @@ from context_ledger.contracts import (  # noqa: E402
     ab_arm,
     allowed_scopes,
     caller_scope_from_binding,
+    _validate_caller_scope,
+    parse_applicability_scope,
     ist_today,
     now_ts,
 )
@@ -132,14 +134,15 @@ def _caller(store: Store) -> str:
     return store.binding["actor_id"]
 
 
-def _visible(store: Store) -> list[dict]:
+def _visible(store: Store, caller_scope: dict | None = None) -> list[dict]:
     """Candidates for semantic selection, on find's eligibility: a record scoped to another
     project, or expired, must not come back through this route when find hides it.
 
     This holds every eligible record, not the answer, so its reads are the helper's own plumbing
     and are recorded under `INTERNAL_ACTOR` -- the same rule as the loop's revision and re-reads."""
     store.open()
-    caller_scope = caller_scope_from_binding(store.binding)
+    if caller_scope is None:
+        caller_scope = caller_scope_from_binding(store.binding)
     allowed = allowed_scopes(caller_scope) if caller_scope else {"fleet"}
     now = now_ts()
     rows = store.conn.execute(
@@ -251,6 +254,7 @@ def _gap_rationale(items: list[tuple[str, bool, str, str | None]]) -> str:
 def _select(store: Store, body: dict) -> dict:
     if not isinstance(body, dict):
         raise ValueError("body")
+    caller_scope = _validate_caller_scope(body["caller_scope"]) if "caller_scope" in body else None
     task_id = _uuid_text(body["task_id"]) if "task_id" in body else None
     situation = _text(body.get("situation"), "situation", 320)
     need = _text(body.get("need"), "need", 160)
@@ -258,7 +262,7 @@ def _select(store: Store, body: dict) -> dict:
     if query is not None:
         query = _text(query, "query", 160)
     embedding = _sentence_embedding()
-    records = _visible(store)
+    records = _visible(store, caller_scope)
     chosen, distance = _best(embedding, situation, need, records)
     if chosen is None or distance is None:
         return {
@@ -307,7 +311,7 @@ def _uuid_text(value: object) -> str:
     return str(value)
 
 
-def _parse_feedback(body: dict) -> tuple[str, list[tuple[str, bool, str, str | None]], tuple[str, str] | None] | dict:
+def _parse_feedback(body: dict) -> tuple[str, list[tuple[str, bool, str, str | None]], tuple[str, str, str | None] | None] | dict:
     if not isinstance(body, dict):
         return {"written": [], "write": "unavailable"}
     try:
@@ -349,14 +353,15 @@ def _parse_feedback(body: dict) -> tuple[str, list[tuple[str, bool, str, str | N
     missing = body.get("would_have_helped", None)
     if missing is None:
         return task_id, items, None
-    if not isinstance(missing, dict) or set(missing) != {"situation", "need"}:
+    if (not isinstance(missing, dict) or not {"situation", "need"} <= set(missing)
+            or set(missing) - {"situation", "need", "scope"}):
         return {"written": [], "write": "unavailable"}
     try:
         situation = _text(missing.get("situation"), "situation", 320)
         need = _text(missing.get("need"), "need", 160)
     except ValueError:
         return {"written": [], "write": "unavailable"}
-    return task_id, items, (situation, need)
+    return task_id, items, (situation, need, missing.get("scope", None if "caller_scope" in body else "fleet"))
 
 
 def _feedback(store: Store, body: dict) -> dict:
@@ -365,8 +370,17 @@ def _feedback(store: Store, body: dict) -> dict:
         return parsed
     task_id, items, missing = parsed
     try:
+        caller_scope = _validate_caller_scope(body["caller_scope"]) if "caller_scope" in body else None
+        write_scope = None
+        if missing is not None:
+            situation, need, requested_scope = missing
+            write_scope = parse_applicability_scope(requested_scope)
+            if caller_scope is not None and write_scope not in allowed_scopes(caller_scope):
+                return {"written": [], "write": "unavailable"}
         for decision_id, _helped, _issue, _effect in items:
-            store.get({"decision_id": decision_id, "actor": INTERNAL_ACTOR}, mcp=True)
+            record = store.get({"decision_id": decision_id, "actor": INTERNAL_ACTOR}, mcp=True)["record"]
+            if caller_scope is not None and record["body"]["scope"] not in allowed_scopes(caller_scope):
+                return {"written": [], "write": "unavailable"}
     except Exception:
         return {"written": [], "write": "unavailable"}
     embedding = _sentence_embedding() if missing is not None else None
@@ -416,9 +430,11 @@ def _feedback(store: Store, body: dict) -> dict:
                 "similar": None,
                 "written": [],
             }
-        situation, need = missing
+        situation, need, _requested_scope = missing
         excluded = {decision_id for decision_id, helped, _issue, _effect in items if not helped}
-        chosen = _similar(embedding, situation, need, _visible(store), excluded)
+        candidates = [record for record in _visible(store, caller_scope)
+                      if record["body"]["scope"] in {write_scope, "fleet"}]
+        chosen = _similar(embedding, situation, need, candidates, excluded)
         if chosen is not None:
             return {
                 "task_id": task_id,
@@ -439,7 +455,7 @@ def _feedback(store: Store, body: dict) -> dict:
                     "constraints": [],
                     "applicability": situation,
                     "entities": [],
-                    "scope": "fleet",
+                    "scope": write_scope,
                     "evidence": [
                         {
                             "ref": f"task://{task_id}",
@@ -489,6 +505,7 @@ def main() -> int:
     find = sub.add_parser("find")
     find.add_argument("--query", required=True)
     find.add_argument("--task-id", type=_uuid_text)
+    find.add_argument("--caller-scope", help="Task-owner project and tools as JSON; {} means fleet-only")
     get = sub.add_parser("get")
     get.add_argument("--id", required=True)
     get.add_argument("--task-id", type=_uuid_text)
@@ -518,7 +535,9 @@ def main() -> int:
                         "offset": 0,
                         "actor": _caller(store),
                         "task_id": args.task_id,
-                        "caller_scope": caller_scope_from_binding(store.binding),
+                        "caller_scope": (_validate_caller_scope(_json_arg(args.caller_scope))
+                                         if args.caller_scope is not None
+                                         else caller_scope_from_binding(store.binding)),
                     },
                     mcp=True,
                 )
@@ -538,6 +557,9 @@ def main() -> int:
             elif args.cmd == "closeout":
                 payload = _closeout(store, _json_arg(args.json))
             elif args.cmd == "select":
+                body = _json_arg(args.json)
+                if "caller_scope" in body:
+                    _validate_caller_scope(body["caller_scope"])
                 # The A/B treatment is the lookup the agent runs, not one route into it. select
                 # reads candidates itself and is not gated in the store, so without this the
                 # "find off" days still return records and the trial has no control arm.
@@ -552,7 +574,7 @@ def main() -> int:
                         "arm": "off",
                     }
                 else:
-                    payload = _select(store, _json_arg(args.json))
+                    payload = _select(store, body)
             elif args.cmd == "feedback":
                 payload = _feedback(store, _json_arg(args.json))
             elif args.cmd == "append":
