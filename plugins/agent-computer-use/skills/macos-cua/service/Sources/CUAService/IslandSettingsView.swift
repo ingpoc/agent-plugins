@@ -15,15 +15,75 @@ enum SettingsStyle {
     static let size = CGSize(width: 620, height: 687)
     static let sidebarWidth: CGFloat = 213
     static let rowHeight: CGFloat = 42
+    static let tokenRowHeight: CGFloat = 58
+}
+
+/// Keyboard focus ring for a settings control (2 pt accent, 3 pt outside the control).
+struct SettingsFocusRing: ViewModifier {
+    let on: Bool
+    let radius: CGFloat
+    let key: String
+    /// Extra horizontal room for borderless controls (popup text) so the ring doesn't touch the glyphs.
+    var hOutset: CGFloat = 3
+    func body(content: Content) -> some View {
+        content.overlay {
+            if on {
+                RoundedRectangle(cornerRadius: radius + 3, style: .continuous)
+                    .strokeBorder(SettingsStyle.accent, lineWidth: 2)
+                    .padding(.horizontal, -hOutset).padding(.vertical, -3)
+                    .layoutProbe("focus:\(key)", .ring)
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+}
+
+/// Selected pane + keyboard focus (a row key). Shared with the window's key monitor.
+@MainActor
+final class SettingsNav: ObservableObject {
+    @Published var tab: SettingsTab { didSet { if tab != oldValue { focus = nil } } }
+    @Published var focus: String?
+    init(tab: SettingsTab = .general, focus: String? = nil) { self.tab = tab; self.focus = focus }
 }
 
 struct IslandSettingsRoot: View {
     @ObservedObject var store: IslandSettingsStore
-    @State var tab: SettingsTab = .general
+    @ObservedObject var nav: SettingsNav
     var rendering = false
     var hasBattery = IslandSettingsSchema.hasInternalBattery
+    /// Row source (tests inject worst-case labels).
+    var defs: (SettingsTab) -> [SettingDef] = IslandSettingsSchema.defs(for:)
     var onVoiceSettings: () -> Void = {}
     var onShowLog: () -> Void = {}
+
+    init(store: IslandSettingsStore, tab: SettingsTab = .general, nav: SettingsNav? = nil, rendering: Bool = false,
+         hasBattery: Bool = IslandSettingsSchema.hasInternalBattery,
+         defs: @escaping (SettingsTab) -> [SettingDef] = IslandSettingsSchema.defs(for:),
+         onVoiceSettings: @escaping () -> Void = {}, onShowLog: @escaping () -> Void = {}) {
+        self.store = store
+        self.nav = nav ?? SettingsNav(tab: tab)
+        self.rendering = rendering
+        self.hasBattery = hasBattery
+        self.defs = defs
+        self.onVoiceSettings = onVoiceSettings
+        self.onShowLog = onShowLog
+    }
+
+    private var tab: SettingsTab { nav.tab }
+
+    /// Rows shown for a pane (hidden `visibleWhen` rows dropped) — the view and the keyboard use the same list.
+    static func visibleDefs(_ tab: SettingsTab, store: IslandSettingsStore,
+                            defs: (SettingsTab) -> [SettingDef] = IslandSettingsSchema.defs(for:)) -> [SettingDef] {
+        defs(tab).filter { d in d.visibleWhen.map { store.bool($0) } ?? true }
+    }
+
+    /// Button-row actions (mouse and keyboard).
+    static func perform(_ key: String, onVoiceSettings: () -> Void, onShowLog: () -> Void) {
+        if key.hasSuffix("voiceSettings") { onVoiceSettings() }
+        else if key == IslandSettingsSchema.calendarAccess { IslandSettingsSchema.calendarAccessAction?() }
+        else if key == IslandSettingsSchema.focusAccess { IslandSettingsSchema.focusAccessAction?() }
+        else { onShowLog() }
+    }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -33,6 +93,7 @@ struct IslandSettingsRoot: View {
         }
         .frame(width: SettingsStyle.size.width, height: rendering ? nil : SettingsStyle.size.height, alignment: .topLeading)
         .frame(minHeight: SettingsStyle.size.height, alignment: .top)
+        .coordinateSpace(name: IslandLayoutRecorder.space)
         .background(SettingsStyle.windowBG)
         .environment(\.colorScheme, .dark)
         .tint(SettingsStyle.accent)
@@ -57,6 +118,7 @@ struct IslandSettingsRoot: View {
         }
         .frame(width: SettingsStyle.sidebarWidth, alignment: .topLeading)
         .frame(maxHeight: .infinity, alignment: .top)
+        .layoutContainer("sidebar")
         .background(SettingsStyle.sidebarBG)
     }
 
@@ -67,6 +129,7 @@ struct IslandSettingsRoot: View {
                     Text(title)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color.white.opacity(0.55))
+                        .layoutProbe("sidebar-header:\(title)")
                         .padding(.leading, 20).padding(.top, 10).padding(.bottom, 4)
                 }
                 ForEach(group.1) { t in sidebarRow(t) }
@@ -77,16 +140,18 @@ struct IslandSettingsRoot: View {
     private func sidebarRow(_ t: SettingsTab) -> some View {
         let selected = t == tab
         return HStack(spacing: 8) {
-            IconTile(symbol: t.symbol, color: Color(nsColor: t.tint), size: 20)
+            IconTile(symbol: t.symbol, color: Color(nsColor: t.tint), size: 20).layoutProbe("side-icon:\(t.rawValue)", .glyph)
             Text(t.title).font(.system(size: 13)).foregroundStyle(Color.white.opacity(t == .fileTray ? 0.45 : 0.92))
+                .layoutProbe("side-title:\(t.rawValue)")
             Spacer(minLength: 0)
-            if let b = t.badge { Badge(text: b) }
+            if let b = t.badge { Badge(text: b).layoutProbe("side-badge:\(t.rawValue)", .glyph) }
         }
         .padding(.horizontal, 8)
         .frame(width: 200, height: 36)
+        .layoutContainer("side|\(t.rawValue)")
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selected ? Color.white.opacity(0.10) : .clear))
         .contentShape(Rectangle())
-        .onTapGesture { tab = t }
+        .onTapGesture { nav.tab = t }
         .padding(.leading, 12)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
@@ -98,9 +163,9 @@ struct IslandSettingsRoot: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                IconTile(symbol: tab.symbol, color: Color(nsColor: tab.tint), size: 18)
-                Text(tab.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white)
-                if let b = tab.badge { Badge(text: b) }
+                IconTile(symbol: tab.symbol, color: Color(nsColor: tab.tint), size: 18).layoutProbe("pane-icon", .glyph)
+                Text(tab.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).layoutProbe("pane-title")
+                if let b = tab.badge { Badge(text: b).layoutProbe("pane-badge", .glyph) }
             }
             .padding(.leading, 12).padding(.top, rendering ? 14 : 14).frame(height: 50, alignment: .leading)
             if rendering {
@@ -110,27 +175,24 @@ struct IslandSettingsRoot: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .layoutContainer("content")
     }
 
     private var page: some View {
-        let defs = IslandSettingsSchema.defs(for: tab).filter { d in d.visibleWhen.map { store.bool($0) } ?? true }
-        let groups = Self.group(defs)
+        let groups = Self.group(Self.visibleDefs(tab, store: store, defs: defs))
         return VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(groups.enumerated()), id: \.offset) { _, g in
+            ForEach(Array(groups.enumerated()), id: \.offset) { gi, g in
                 VStack(alignment: .leading, spacing: 6) {
                     if let s = g.section {
-                        Text(s).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white.opacity(0.55)).padding(.leading, 4)
+                        Text(s).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white.opacity(0.55))
+                            .lineLimit(1).truncationMode(.tail).help(s)
+                            .layoutProbe("section:\(gi)", truncates: true).padding(.leading, 4)
                     }
                     SettingsCard {
                         ForEach(Array(g.rows.enumerated()), id: \.element.key) { i, d in
                             if i > 0 { Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10) }
-                            SettingRow(def: d, store: store, rendering: rendering,
-                                       onButton: { key in
-                                           if key.hasSuffix("voiceSettings") { onVoiceSettings() }
-                                           else if key == IslandSettingsSchema.calendarAccess { IslandSettingsSchema.calendarAccessAction?() }
-                                           else if key == IslandSettingsSchema.focusAccess { IslandSettingsSchema.focusAccessAction?() }
-                                           else { onShowLog() }
-                                       })
+                            SettingRow(def: d, store: store, rendering: rendering, card: "c\(gi)", focused: nav.focus == d.key,
+                                       onButton: { key in Self.perform(key, onVoiceSettings: onVoiceSettings, onShowLog: onShowLog) })
                         }
                     }
                 }
@@ -143,15 +205,19 @@ struct IslandSettingsRoot: View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
         return SettingsCard {
             HStack {
-                Text("Samantha Island").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                Text("Samantha Island").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).layoutProbe("about-name")
                 Spacer()
-                Text(v).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundStyle(Color.white.opacity(0.55))
+                Text(v).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundStyle(Color.white.opacity(0.55)).layoutProbe("about-version")
             }
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
+            .layoutContainer("about|version")
             Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10)
             Text("Alcove-style island for Samantha and your AI agents. Rows marked Soon are saved now and take effect when that feature ships.")
                 .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.7))
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutProbe("about-text", truncates: true)   // wraps by design; frame = drawn text
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                .layoutContainer("about|text")
         }
     }
 
@@ -202,51 +268,77 @@ struct SettingRow: View {
     let def: SettingDef
     @ObservedObject var store: IslandSettingsStore
     var rendering = false
+    var card = "c0"
+    var focused = false
     var onButton: (String) -> Void = { _ in }
 
+    static func kindTag(_ k: SettingKind) -> String {
+        switch k {
+        case .master: return "master"
+        case .toggle: return "toggle"
+        case .slider: return "slider"
+        case .tiles: return "tiles"
+        case .popup: return "popup"
+        case .token: return "token"
+        case .button: return "button"
+        }
+    }
+
+    private var key: String { def.key }
+
     var body: some View {
+        rowBody.layoutContainer("row|\(card)|\(Self.kindTag(def.kind))|\(def.key)")
+    }
+
+    @ViewBuilder
+    private var rowBody: some View {
         switch def.kind {
         case .master(let symbol):
             HStack(spacing: 8) {
                 Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color(nsColor: def.tab.tint).opacity(0.95))
+                    .layoutProbe("symbol:\(key)", .glyph)
                 label
                 Spacer(minLength: 0)
-                SettingsSwitch(isOn: boolBinding)
+                SettingsSwitch(isOn: boolBinding, probe: "control:\(key)").modifier(SettingsFocusRing(on: focused, radius: 10, key: key))
             }
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
         case .toggle:
             HStack(spacing: 6) {
                 label
-                if let i = def.info { InfoDot(text: i) }
+                if let i = def.info { InfoDot(text: i).fixedSize().layoutProbe("info:\(key)", .glyph) }
                 Spacer(minLength: 0)
-                SettingsSwitch(isOn: boolBinding)
+                SettingsSwitch(isOn: boolBinding, probe: "control:\(key)").modifier(SettingsFocusRing(on: focused, radius: 10, key: key))
             }
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
         case .slider(let lo, let hi, let step, let unit):
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     label
-                    if let i = def.info { InfoDot(text: i) }
+                    if let i = def.info { InfoDot(text: i).fixedSize().layoutProbe("info:\(key)", .glyph) }
                     Spacer()
-                    ValuePill(text: Self.format(store.double(def.key), step: step, unit: unit))
+                    ValuePill(text: Self.format(store.double(def.key), step: step, unit: unit)).fixedSize().layoutProbe("control:\(key)", .control)
                 }
                 ValueSlider(value: doubleBinding, range: lo...hi, step: step)
+                    .layoutProbe("slider:\(key)", .control)
+                    .modifier(SettingsFocusRing(on: focused, radius: 10, key: key))
             }
             .padding(.horizontal, 12).padding(.vertical, 10)
         case .tiles(let options):
             VStack(alignment: .leading, spacing: 6) {
                 if def.label != "" && !(def.tab == .general && def.key.hasSuffix("idleActivity")) {
-                    HStack { label; if let i = def.info { InfoDot(text: i) }; Spacer() }
+                    HStack { label; if let i = def.info { InfoDot(text: i).fixedSize().layoutProbe("info:\(key)", .glyph) }; Spacer() }
                 }
-                TilePicker(options: options, selection: stringBinding)
+                TilePicker(options: options, selection: stringBinding, key: key, focused: focused)
             }
-            .padding(10)
+            .padding(.horizontal, 12).padding(.vertical, 10)   // same 12 pt leading column as every row
         case .popup(let options):
             HStack(spacing: 6) {
                 label
-                if let i = def.info { InfoDot(text: i) }
+                if let i = def.info { InfoDot(text: i).fixedSize().layoutProbe("info:\(key)", .glyph) }
                 Spacer(minLength: 0)
-                SettingsPopup(options: options, selection: stringBinding, rendering: rendering)
+                SettingsPopup(options: options, selection: stringBinding, rendering: rendering, key: key)
+                    .layoutProbe("control:\(key)", .control)
+                    .modifier(SettingsFocusRing(on: focused, radius: 6, key: key, hOutset: 7))
             }
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
         case .token:
@@ -257,6 +349,9 @@ struct SettingRow: View {
                 Spacer()
                 Button(title) { onButton(def.key) }
                     .buttonStyle(PillButtonStyle())
+                    .fixedSize()
+                    .layoutProbe("control:\(key)", .control)
+                    .modifier(SettingsFocusRing(on: focused, radius: 11, key: key))
             }
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
         }
@@ -265,7 +360,9 @@ struct SettingRow: View {
     private var label: some View {
         HStack(spacing: 6) {
             Text(def.label).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.92))
-            if !def.wired { Badge(text: "Soon") }
+                .lineLimit(1).truncationMode(.tail).help(def.label)
+                .layoutProbe("label:\(key)", truncates: true)
+            if !def.wired { Badge(text: "Soon").fixedSize().layoutProbe("soon:\(key)", .glyph) }
         }
     }
 
@@ -304,14 +401,16 @@ struct ValuePill: View {
 
 struct SettingsSwitch: View {
     @Binding var isOn: Bool
+    var probe = "switch"
     var body: some View {
         ZStack(alignment: isOn ? .trailing : .leading) {
             Capsule().fill(isOn ? SettingsStyle.accent : Color.white.opacity(0.18)).frame(width: 38, height: 20)
+                .layoutProbe(probe, .control)   // the visible track, not the hit area
             Circle().fill(Color.white).frame(width: 16, height: 16).padding(.horizontal, 2)
                 .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
         }
-        .frame(width: 44, height: 20)
-        .contentShape(Rectangle())
+        .frame(width: 38, height: 20)   // the visible track: ends on the card's trailing column like every control
+        .contentShape(Rectangle().inset(by: -3))
         .onTapGesture { withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) { isOn.toggle() } }
         .accessibilityElement()
         .accessibilityAddTraits(.isButton)
@@ -357,6 +456,8 @@ struct ValueSlider: View {
 struct TilePicker: View {
     let options: [(value: String, label: String, symbol: String)]
     @Binding var selection: String
+    var key = ""
+    var focused = false
     var body: some View {
         HStack(spacing: 8) {
             ForEach(options, id: \.value) { o in
@@ -367,7 +468,11 @@ struct TilePicker: View {
                         .frame(height: 44)
                         .overlay(Image(systemName: o.symbol).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.white.opacity(on ? 1 : 0.6)))
                         .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on ? SettingsStyle.accent : .clear, lineWidth: 2))
+                        .layoutProbe("tile:\(key):\(o.value)", .control)
+                        .modifier(SettingsFocusRing(on: focused && on, radius: 8, key: key))
                     Text(o.label).font(.system(size: 11, weight: on ? .bold : .regular)).foregroundStyle(Color.white.opacity(on ? 0.95 : 0.55))
+                        .lineLimit(1).truncationMode(.tail).help(o.label)
+                        .layoutProbe("tile-label:\(key):\(o.value)", truncates: true)
                 }
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
@@ -380,17 +485,25 @@ struct TilePicker: View {
 }
 
 struct SettingsPopup: View {
+    static let maxTextWidth: CGFloat = 170
+    /// Hug the selected title (so the focus ring hugs it too); long titles truncate at `maxTextWidth`.
+    static func textWidth(_ s: String) -> CGFloat {
+        min(maxTextWidth, ceil((s as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 12)]).width) + 1)
+    }
     let options: [(value: String, label: String)]
     @Binding var selection: String
     var rendering = false
+    var key = ""
     var body: some View {
         let current = options.first { $0.value == selection }?.label ?? selection
         let lbl = HStack(spacing: 4) {
             Text(current).font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.85))
+                .lineLimit(1).truncationMode(.tail).frame(width: Self.textWidth(current))
+                .layoutProbe("popup-text:\(key)", truncates: true)
             Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.white.opacity(0.6))
         }
         if rendering {
-            lbl
+            lbl.fixedSize(horizontal: false, vertical: true)
         } else {
             Menu {
                 ForEach(options, id: \.value) { o in Button(o.label) { selection = o.value } }
@@ -419,18 +532,25 @@ struct TokenRow: View {
     private var source: AgentSource? { def.tab.agentSource }
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "key.fill").font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6))
-            VStack(alignment: .leading, spacing: 1) {
+        // Token + actions on one line; the usage / status line runs the full row width underneath
+        // (it used to share the line with Copy / Rotate, wrap to two lines and run under them).
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: "key.fill").font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6))
+                    .frame(width: 14).layoutProbe("symbol:\(def.key)", .glyph)
                 Text(source.map { store.maskedToken($0) } ?? "–")
                     .font(.system(size: 13, weight: .medium).monospaced()).foregroundStyle(.white)
-                Text(error ?? def.info ?? "").font(.system(size: 10)).foregroundStyle(Color.white.opacity(0.45))
+                    .lineLimit(1).layoutProbe("token:\(def.key)")
+                Spacer(minLength: 8)
+                Button("Copy") { copy() }.buttonStyle(PillButtonStyle()).disabled(rendering).fixedSize().layoutProbe("copy:\(def.key)", .control)
+                Button("Rotate") { rotate() }.buttonStyle(PillButtonStyle()).disabled(rendering).fixedSize().layoutProbe("control:\(def.key)", .control)
             }
-            Spacer()
-            Button("Copy") { copy() }.buttonStyle(PillButtonStyle()).disabled(rendering)
-            Button("Rotate") { rotate() }.buttonStyle(PillButtonStyle()).disabled(rendering)
+            Text(error ?? def.info ?? "").font(.system(size: 10)).foregroundStyle(Color.white.opacity(0.45))
+                .lineLimit(1).truncationMode(.middle).help(error ?? def.info ?? "")
+                .padding(.leading, 22)   // under the token text (14 pt key + 8 pt)
+                .layoutProbe("token-info:\(def.key)", truncates: true)
         }
-        .padding(.horizontal, 12).frame(height: 48)
+        .padding(.horizontal, 12).frame(height: SettingsStyle.tokenRowHeight)
     }
 
     private func rotate() {

@@ -1,0 +1,82 @@
+import AppKit
+
+/// Settings window keyboard model (no reliance on the system's Full Keyboard Access setting):
+/// Tab / ⇧Tab and ↓ / ↑ move focus through the pane's rows, Space or Return activates (toggle, next tile or
+/// popup option, run a button), ← / → step sliders, tiles and popups (or set a switch off / on),
+/// ⌃Tab / ⌃⇧Tab switch panes, Esc clears focus. Token rows are mouse-only (Copy / Rotate stay deliberate).
+enum SettingsKey: Equatable { case next, previous, activate, decrease, increase, escape, nextPane, previousPane }
+
+@MainActor
+enum SettingsKeyboard {
+    static func key(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> SettingsKey? {
+        if flags.contains(.command) || flags.contains(.option) { return nil }
+        let shift = flags.contains(.shift), ctrl = flags.contains(.control)
+        switch keyCode {
+        case 48: return ctrl ? (shift ? .previousPane : .nextPane) : (shift ? .previous : .next)
+        case 125: return .next
+        case 126: return .previous
+        case 49, 36, 76: return .activate
+        case 123: return .decrease
+        case 124: return .increase
+        case 53: return .escape
+        default: return nil
+        }
+    }
+
+    static func focusable(_ defs: [SettingDef]) -> [SettingDef] {
+        defs.filter { if case .token = $0.kind { return false }; return true }
+    }
+
+    /// Applies one key. `handled` = consume the event; `action` = button row key whose action should run.
+    @discardableResult
+    static func handle(_ k: SettingsKey, nav: SettingsNav, store: IslandSettingsStore, defs: [SettingDef],
+                       panes: [SettingsTab]) -> (handled: Bool, action: String?) {
+        let f = focusable(defs)
+        let i = nav.focus.flatMap { key in f.firstIndex { $0.key == key } }
+        switch k {
+        case .next, .previous:
+            guard !f.isEmpty else { return (false, nil) }
+            let n = f.count
+            let j = i.map { (k == .next ? $0 + 1 : $0 - 1 + n) % n } ?? (k == .next ? 0 : n - 1)
+            nav.focus = f[j].key
+            return (true, nil)
+        case .nextPane, .previousPane:
+            guard let p = panes.firstIndex(of: nav.tab) else { return (false, nil) }
+            nav.tab = panes[(p + (k == .nextPane ? 1 : panes.count - 1)) % panes.count]
+            return (true, nil)
+        case .escape:
+            guard nav.focus != nil else { return (false, nil) }
+            nav.focus = nil
+            return (true, nil)
+        case .activate, .decrease, .increase:
+            guard let i else { return (false, nil) }
+            let d = f[i]
+            switch d.kind {
+            case .master, .toggle:
+                store.set(k == .activate ? !store.bool(d.key) : k == .increase, for: d.key)
+            case .slider(let lo, let hi, let step, _):
+                guard k != .activate else { return (true, nil) }
+                let v = store.double(d.key) + (k == .increase ? step : -step)
+                store.set(min(hi, max(lo, (v / step).rounded() * step)), for: d.key)
+            case .tiles(let o):
+                store.set(cycle(o.map(\.value), store.string(d.key), k), for: d.key)
+            case .popup(let o):
+                store.set(cycle(o.map(\.value), store.string(d.key), k), for: d.key)
+            case .button:
+                return (true, k == .activate ? d.key : nil)
+            case .token:
+                return (false, nil)
+            }
+            return (true, nil)
+        }
+    }
+
+    static func cycle(_ values: [String], _ current: String, _ k: SettingsKey) -> String {
+        guard let i = values.firstIndex(of: current) else { return values.first ?? current }
+        switch k {
+        case .activate: return values[(i + 1) % values.count]
+        case .increase: return values[min(values.count - 1, i + 1)]
+        default: return values[max(0, i - 1)]
+        }
+    }
+}

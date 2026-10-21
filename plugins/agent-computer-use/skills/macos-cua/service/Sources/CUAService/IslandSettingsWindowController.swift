@@ -8,6 +8,8 @@ final class IslandSettingsWindowController: NSWindowController {
     static let shared = IslandSettingsWindowController()
 
     var onVoiceSettings: () -> Void = {}
+    let nav = SettingsNav()
+    private var keyMonitor: Any?
 
     private init() {
         let window = NSWindow(
@@ -26,10 +28,29 @@ final class IslandSettingsWindowController: NSWindowController {
         super.init(window: window)
         window.contentView = NSHostingView(rootView: IslandSettingsRoot(
             store: .shared,
+            nav: nav,
             onVoiceSettings: { [weak self] in self?.onVoiceSettings() },
             onShowLog: { IslandSettingsWindowController.revealLog() }
         ))
         window.setContentSize(SettingsStyle.size)
+        // Keyboard model for this window only (SettingsKeyboard); other windows' keys pass through.
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
+            let code = e.keyCode, flags = e.modifierFlags, windowNumber = e.windowNumber
+            let consume = MainActor.assumeIsolated { () -> Bool in
+                guard let self, let w = self.window, windowNumber == w.windowNumber,
+                      let k = SettingsKeyboard.key(keyCode: code, flags: flags) else { return false }
+                let store = IslandSettingsStore.shared
+                let r = SettingsKeyboard.handle(k, nav: self.nav, store: store,
+                                                defs: IslandSettingsRoot.visibleDefs(self.nav.tab, store: store),
+                                                panes: SettingsTab.sidebar(hasBattery: IslandSettingsSchema.hasInternalBattery).flatMap(\.1))
+                if let key = r.action {
+                    IslandSettingsRoot.perform(key, onVoiceSettings: { [weak self] in self?.onVoiceSettings() },
+                                               onShowLog: { IslandSettingsWindowController.revealLog() })
+                }
+                return r.handled
+            }
+            return consume ? nil : e
+        }
     }
 
     @available(*, unavailable)

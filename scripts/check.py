@@ -632,7 +632,7 @@ ISLAND_SERVICE = Path("skills/macos-cua/service")
 
 
 def run_island_layout_gate(plugin: Path) -> int:
-    """Samantha island layout gate (overlap / clipping / 8 pt inset over every island state).
+    """Island + Settings layout gates (overlap / clipping / 8 pt inset / form columns over every state).
 
     Needs SwiftUI, so macOS only; Linux CI prints a skip. AGENT_PLUGINS_SKIP_SWIFT_GATE=1 opts out locally.
     """
@@ -646,7 +646,7 @@ def run_island_layout_gate(plugin: Path) -> int:
         print("skip island layout gate: AGENT_PLUGINS_SKIP_SWIFT_GATE=1", flush=True)
         return 0
     print("test island layout gate", flush=True)
-    proc = subprocess.run(["swift", "test", "--filter", "IslandLayoutGateTests"], cwd=service,
+    proc = subprocess.run(["swift", "test", "--filter", "LayoutGateTests"], cwd=service,
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     if proc.returncode != 0:
         print(proc.stdout[-6000:], file=sys.stderr)

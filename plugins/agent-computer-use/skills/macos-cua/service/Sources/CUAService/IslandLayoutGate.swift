@@ -48,8 +48,31 @@ final class IslandLayoutRecorder: @unchecked Sendable {
     }
 }
 
+private struct IslandLayoutContainerKey: EnvironmentKey { static let defaultValue = "shape" }
+extension EnvironmentValues {
+    /// Container that probes without an explicit `in:` report into (set by `layoutContainer`).
+    var islandLayoutContainer: String {
+        get { self[IslandLayoutContainerKey.self] }
+        set { self[IslandLayoutContainerKey.self] = newValue }
+    }
+}
+
+private struct IslandLayoutContainerProbe: ViewModifier {
+    let name: String, inset: CGSize
+    func body(content: Content) -> some View {
+        content
+            .environment(\.islandLayoutContainer, name)
+            .background(GeometryReader { g in
+                let _ = IslandLayoutRecorder.shared.container(.init(name: name, rect: g.frame(in: .named(IslandLayoutRecorder.space)), inset: inset))
+                Color.clear
+            })
+    }
+}
+
 private struct IslandLayoutProbe: ViewModifier {
-    let id: String, kind: IslandLayoutKind, truncates: Bool, container: String
+    let id: String, kind: IslandLayoutKind, truncates: Bool, explicitContainer: String?
+    @Environment(\.islandLayoutContainer) private var envContainer
+    private var container: String { explicitContainer ?? envContainer }
     func body(content: Content) -> some View {
         content
             .background(alignment: .topLeading) {
@@ -82,9 +105,19 @@ extension IslandLayoutRecorder {
 extension View {
     /// Register this text / glyph / control with the layout gate (no-op outside tests).
     @ViewBuilder
-    func layoutProbe(_ id: String, _ kind: IslandLayoutKind = .text, truncates: Bool = false, in container: String = "shape") -> some View {
+    func layoutProbe(_ id: String, _ kind: IslandLayoutKind = .text, truncates: Bool = false, in container: String? = nil) -> some View {
         if IslandLayoutRecorder.enabled {
-            modifier(IslandLayoutProbe(id: id, kind: kind, truncates: truncates, container: container))
+            modifier(IslandLayoutProbe(id: id, kind: kind, truncates: truncates, explicitContainer: container))
+        } else {
+            self
+        }
+    }
+
+    /// Register this view's frame as a layout container (probes inside default to it).
+    @ViewBuilder
+    func layoutContainer(_ name: String, inset: CGSize = CGSize(width: IslandLayoutGate.minInset, height: IslandLayoutGate.minInset)) -> some View {
+        if IslandLayoutRecorder.enabled {
+            modifier(IslandLayoutContainerProbe(name: name, inset: inset))
         } else {
             self
         }
@@ -123,9 +156,60 @@ enum IslandLayoutGate {
         let solid = items.filter { $0.kind != .ring }
         for a in solid.indices {
             for b in solid.indices where b > a && solid[a].container == solid[b].container {
+                // A control's own label (popup text inside the popup) is nesting, not overlap.
+                let (x, y) = (solid[a], solid[b])
+                if (x.kind == .control && x.frame.insetBy(dx: -tolerance, dy: -tolerance).contains(y.drawn))
+                    || (y.kind == .control && y.frame.insetBy(dx: -tolerance, dy: -tolerance).contains(x.drawn)) { continue }
                 let r = solid[a].drawn.intersection(solid[b].drawn)
                 if !r.isNull, r.width > tolerance, r.height > tolerance {
                     out.append("\(state): \(solid[a].id) \(f(solid[a].drawn)) overlaps \(solid[b].id) \(f(solid[b].drawn))")
+                }
+            }
+        }
+        return out
+    }
+
+    /// Settings form rules. Row containers are named `row|<card>|<kind>|<key>`; inside, `label:<key>` /
+    /// `symbol:<key>` start the row and `control:<key>` ends it. Per card: every row starts on one leading
+    /// column and ends on one trailing column; single-line rows are `rowHeight` tall (token rows
+    /// `tokenRowHeight`) and their label and control share a vertical centre.
+    static func formIssues(state: String, items: [IslandLayoutItem], containers: [String: IslandLayoutContainer],
+                           rowHeight: CGFloat, tokenRowHeight: CGFloat) -> [String] {
+        var out: [String] = []
+        let singleLine: Set<String> = ["toggle", "popup", "button", "master"]
+        struct Row { var card: String; var kind: String; var key: String; var rect: CGRect }
+        let rows = containers.values.compactMap { c -> Row? in
+            let p = c.name.split(separator: "|", maxSplits: 3).map(String.init)
+            guard p.count == 4, p[0] == "row" else { return nil }
+            return Row(card: p[1], kind: p[2], key: p[3], rect: c.rect)
+        }.sorted { $0.rect.minY < $1.rect.minY }
+        func item(_ prefix: String, _ r: Row) -> IslandLayoutItem? {
+            items.first { $0.container == "row|\(r.card)|\(r.kind)|\(r.key)" && $0.id == prefix + ":" + r.key }
+        }
+        func n(_ v: CGFloat) -> String { String(format: "%.1f", v) }
+        for card in Set(rows.map(\.card)).sorted() {
+            let cr = rows.filter { $0.card == card }
+            let leads = cr.compactMap { r in (item("symbol", r) ?? item("label", r)).map { (r, $0.frame.minX) } }
+            if let ref = leads.first {
+                for (r, x) in leads.dropFirst() where abs(x - ref.1) > tolerance {
+                    out.append("\(state): \(r.key) starts at x \(n(x)), off the card's leading column \(n(ref.1)) (\(ref.0.key))")
+                }
+            }
+            let trails = cr.compactMap { r in item("control", r).map { (r, $0.frame.maxX) } }
+            if let ref = trails.first {
+                for (r, x) in trails.dropFirst() where abs(x - ref.1) > tolerance {
+                    out.append("\(state): \(r.key) control ends at x \(n(x)), off the card's trailing column \(n(ref.1)) (\(ref.0.key))")
+                }
+            }
+            for r in cr {
+                if singleLine.contains(r.kind), abs(r.rect.height - rowHeight) > tolerance {
+                    out.append("\(state): \(r.key) row is \(n(r.rect.height)) pt tall, form rows are \(n(rowHeight))")
+                }
+                if r.kind == "token", abs(r.rect.height - tokenRowHeight) > tolerance {
+                    out.append("\(state): \(r.key) token row is \(n(r.rect.height)) pt tall, expected \(n(tokenRowHeight))")
+                }
+                if singleLine.contains(r.kind), let l = item("label", r), let c = item("control", r), abs(l.frame.midY - c.frame.midY) > 1 {
+                    out.append("\(state): \(r.key) label centre y \(n(l.frame.midY)) vs control \(n(c.frame.midY))")
                 }
             }
         }
