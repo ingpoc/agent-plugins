@@ -248,6 +248,7 @@ class RealtimeSession:
         self._retry_not_before = 0.0  # monotonic; set by rate limits / retry-after
         self._retry_reason = ""
         self._reconnect_gave_up = False
+        self._access_refused = ""  # "HTTP 403 ..." when the handshake says this key can't use the model
         self._tool_groups: set[str] = set()  # lazy tool groups loaded this conversation
         self._response_started: dict[str, float] = {}  # response_id → monotonic at response.created
         self._config_error_published = False
@@ -278,9 +279,13 @@ class RealtimeSession:
         )
         # Keepalive: ping every 20s; a ping timeout closes the socket so the
         # reconnect loop takes over — it must never stop the session.
+        # suppress_origin: websocket-client otherwise sends "Origin: https://api.openai.com",
+        # marking this server-side socket as a browser. GPT-Live's edge refuses browser-origin
+        # sockets with a bare 403 "Forbidden" (Realtime tolerates it); the official SDKs send none.
         self.ws.run_forever(
             ping_interval=self.REALTIME_PING_INTERVAL,
             ping_timeout=self.REALTIME_PING_TIMEOUT,
+            suppress_origin=True,
         )
 
     @classmethod
@@ -316,6 +321,7 @@ class RealtimeSession:
         """Resilient top-level loop: connect, retry with backoff until stopped or out of attempts."""
         self._schedule_planned_reconnect()
         self._reconnect_gave_up = False
+        self._access_refused = ""
         self._reconnect_attempts = 0  # a fresh run() always gets the full budget
         self._retry_not_before = 0.0  # and never inherits a stale hold
         self._retry_reason = ""
@@ -326,6 +332,9 @@ class RealtimeSession:
             except Exception as exc:  # noqa: BLE001 — keep the loop alive
                 log_event("reconnect_attempt_failed", error=str(exc)[:120])
             if self._stop.is_set():
+                break
+            if self._access_refused and not self._connected_at:
+                self._refuse_access()
                 break
             if self._connected_at and time.monotonic() - self._connected_at >= self.RECONNECT_STABLE_SECONDS:
                 self._reconnect_attempts = 0  # that connection was stable — fresh budget
@@ -360,6 +369,19 @@ class RealtimeSession:
             return
         island_publish("idle", title="Idle", detail="Disconnected")
         print("Realtime closed", flush=True)
+
+    def _refuse_access(self) -> None:
+        """401/403 at the handshake: the key can't use this model — retrying can't fix it."""
+        self._reconnect_gave_up = True
+        self._cancel_planned_reconnect()
+        self._prepare_reconnect()
+        detail = f"{self.provider.name} {self.provider.model}: {self._access_refused}"[:160]
+        mark("realtime_access_refused", status="fail", detail=detail)
+        log_event("voice_access_refused", provider=self.provider.name, model=self.provider.model,
+                  status=self._access_refused)
+        island_publish("error", title="Couldn't connect: access denied", detail=self.provider.model)
+        print(f"Realtime: {detail} — this API key/project can't use the selected voice model; "
+              "pick another model in Settings", flush=True)
 
     def _give_up_reconnect(self) -> None:
         self._reconnect_gave_up = True
@@ -1101,7 +1123,11 @@ class RealtimeSession:
         status = getattr(error, "status_code", None)
         headers = getattr(error, "resp_headers", None)
         retry_after = retry_after_seconds(None, headers)
-        if status == 429 or _is_rate_limit({"message": msg}):
+        if status in (401, 403):
+            body = getattr(error, "resp_body", b"") or b""
+            text = body.decode("utf-8", "replace") if isinstance(body, bytes) else str(body)
+            self._access_refused = f"HTTP {status} {text.strip()[:80]}".strip()
+        elif status == 429 or _is_rate_limit({"message": msg}):
             self._note_retry_hint(
                 min_delay=max(self.RATE_LIMIT_MIN_DELAY, retry_after or 0.0),
                 reason=f"rate_limit:http_{status or 'ws'}",
@@ -1389,7 +1415,8 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         pass
     session.shutdown()
-    return 0
+    # Access refused: EX_CONFIG so CUAService doesn't restart into the same 403 three times.
+    return EXIT_NEEDS_API_KEY if getattr(session, "_access_refused", "") else 0
 
 
 if __name__ == "__main__":

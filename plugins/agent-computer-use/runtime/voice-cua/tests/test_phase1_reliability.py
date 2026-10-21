@@ -20,6 +20,9 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 # Keep test events out of the real ~/.cache/macos-cua activity log.
+# Never read the machine's ~/.config/voice-cua/settings.json: a user who picked GPT-Live
+# there switched every session in these tests to the Live provider.
+os.environ["VOICE_CUA_SETTINGS"] = str(Path(tempfile.mkdtemp(prefix="voice-cua-test-settings-")) / "settings.json")
 os.environ.setdefault(
     "VOICE_CUA_ACTIVITY_LOG",
     str(Path(tempfile.mkdtemp(prefix="voice-cua-test-")) / "activity.jsonl"),
@@ -319,6 +322,7 @@ class ReconnectTests(unittest.TestCase):
         app.run_forever.assert_called_once_with(
             ping_interval=RealtimeSession.REALTIME_PING_INTERVAL,
             ping_timeout=RealtimeSession.REALTIME_PING_TIMEOUT,
+            suppress_origin=True,
         )
 
     def test_backoff_bounds_and_sequence(self) -> None:

@@ -7,9 +7,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-SETTINGS_PATH = Path(
-    os.environ.get("VOICE_CUA_SETTINGS", "~/.config/voice-cua/settings.json")
-).expanduser()
+def settings_path() -> Path:
+    """Resolved per call so VOICE_CUA_SETTINGS (tests, dev) applies regardless of import order."""
+    return Path(os.environ.get("VOICE_CUA_SETTINGS", "~/.config/voice-cua/settings.json")).expanduser()
 
 MODELS: list[tuple[str, str]] = [
     ("gpt-realtime-2", "gpt-realtime-2"),
@@ -64,9 +64,10 @@ DEFAULTS: dict[str, str] = {
 
 def load_settings() -> dict[str, str]:
     data = dict(DEFAULTS)
-    if SETTINGS_PATH.is_file():
+    path = settings_path()
+    if path.is_file():
         try:
-            raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+            raw = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(raw, dict):
                 for key in DEFAULTS:
                     val = raw.get(key)
@@ -78,12 +79,13 @@ def load_settings() -> dict[str, str]:
 
 
 def save_settings(data: dict[str, str]) -> None:
-    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    path = settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     merged = dict(DEFAULTS)
     merged.update({k: v for k, v in data.items() if k in DEFAULTS and isinstance(v, str)})
-    SETTINGS_PATH.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
     try:
-        os.chmod(SETTINGS_PATH, 0o600)
+        os.chmod(path, 0o600)
     except OSError:
         pass
 
