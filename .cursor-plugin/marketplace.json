@@ -59,7 +59,8 @@
         "context-ledger",
         "context ledger"
       ],
-      "category": "productivity"
+      "category": "productivity",
+      "logo": "assets/logo.svg"
     },
     {
       "name": "irctc-train-booking",

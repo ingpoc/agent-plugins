@@ -13,5 +13,6 @@
     "context-ledger",
     "context ledger"
   ],
-  "mcpServers": "./.cursor-plugin/mcp.json"
+  "mcpServers": "./.cursor-plugin/mcp.json",
+  "logo": "assets/logo.svg"
 }
