@@ -10,7 +10,7 @@ Every shipped manifest starts `bin/context-ledger-mcp serve`. The launcher picks
 
 - Data dir is `--data DIR` when that precedes `serve`, otherwise `CONTEXT_LEDGER_DATA`, otherwise `~/.context-ledger`.
 - `DATA/binding.json` exists: local stdio.
-- No binding, and `CONTEXT_LEDGER_MCP_TOKEN` is non-empty: stdio bridge to `${CONTEXT_LEDGER_MCP_URL:-https://gurusharan-mac-codex.taild2e98e.ts.net/mcp}`.
+- No binding, and `CONTEXT_LEDGER_MCP_TOKEN` is non-empty: stdio bridge to `$CONTEXT_LEDGER_MCP_URL` (falls back to the owner host compiled into `bin/remote_bridge.py` `DEFAULT_URL`; set the variable to your own `https://<host>/mcp`).
 - No binding and no env token, and `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` is non-empty and does not start with `${`: that value is passed only to the bridge as `CONTEXT_LEDGER_MCP_TOKEN`. A leftover `${env:CONTEXT_LEDGER_MCP_TOKEN}` is ignored. The launcher unsets `CONTEXT_LEDGER_MCP_CLIENT_TOKEN` before local stdio or the bridge.
 - No binding and no env token, and `security find-generic-password -s context-ledger.mcp -a bearer_token -w` prints a token (`CONTEXT_LEDGER_SECURITY_BIN` overrides the tool): that value is passed only to the bridge process.
 - Otherwise: stderr JSON `LEDGER_UNBOUND` naming `bin/context_ledger.py init`, `CONTEXT_LEDGER_MCP_TOKEN`, the client token, and the keychain item, nonzero exit, and no data directory is created.
@@ -27,7 +27,7 @@ A missing token or an unreachable ledger fails loud. The bridge does not create 
 
 ## Enable a Cursor cloud agent or Project
 
-1. Secret: Cursor dashboard, Cloud Agents, My Secrets (`cursor.com/dashboard/cloud-agents?view=my-secrets`) lists `CONTEXT_LEDGER_MCP_TOKEN` (Runtime Secret, All Repositories). Guru's account already has it. If it is missing, the owner runs `security find-generic-password -s context-ledger.mcp -a bearer_token -w | tr -d '\n' | pbcopy`, pastes it into the form, then clears the clipboard with `printf '' | pbcopy`.
+1. Secret: Cursor dashboard, Cloud Agents, My Secrets (`cursor.com/dashboard/cloud-agents?view=my-secrets`) lists `CONTEXT_LEDGER_MCP_TOKEN` (Runtime Secret, All Repositories). The owner's account already has it. If it is missing, the owner runs `security find-generic-password -s context-ledger.mcp -a bearer_token -w | tr -d '\n' | pbcopy`, pastes it into the form, then clears the clipboard with `printf '' | pbcopy`.
 2. Plugin: the account-installed context-ledger plugin starts the one `context-ledger` server and bridges automatically. Nothing else to configure.
 3. Brief: the MCP is for the agent's ledger helper thread; the parent only exchanges JSON with it. Rule: "follow the context-ledger skill: look up at task start, capture and close out at the end; if the token is missing or the ledger is unreachable, fail loud and never fall back to a local copy". For a Project, put that rule in its shared context (`docs/project-context.md`).
 4. Verify: the helper's first run reports `initialize` succeeding and `tools/list` returning exactly `append_event`, `browse`, `find`, `get`, `record`. Treat an empty or missing result as a failure.
@@ -58,7 +58,7 @@ PUBLIC_URL=""             # command mode only
 TUNNEL_CMD=""             # command mode only, foreground
 ```
 
-1. LaunchAgents `com.gurusharan.context-ledger-mcp` (runs `serve-http.sh`) and `com.gurusharan.context-ledger-funnel` (runs `tunnel.sh`). Each has `RunAtLoad` and `KeepAlive`, runs `/bin/sh <script>`, and logs to `~/Library/Logs/context-ledger/{mcp-http,funnel}.log`. Load each job with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<label>.plist`.
+1. LaunchAgents `<label-prefix>.context-ledger-mcp` (runs `serve-http.sh`) and `<label-prefix>.context-ledger-funnel` (runs `tunnel.sh`), where `<label-prefix>` is your reverse-DNS prefix (for example `com.example`). Each has `RunAtLoad` and `KeepAlive`, runs `/bin/sh <script>`, and logs to `~/Library/Logs/context-ledger/{mcp-http,funnel}.log`. Load each job with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<label>.plist`.
 
 `serve-http.sh` reads the token from the keychain and runs `bin/context-ledger-mcp serve-http --port $PORT`, which listens on 127.0.0.1 only. `tunnel.sh` writes `remote-url` once a request through the tunnel gets a 401 from the server.
 
@@ -70,9 +70,9 @@ Current: Tailscale Funnel on 443, mounted at `/mcp`, through the codex-mac-bridg
 
 ```sh
 TUNNEL_MODE=command
-PUBLIC_URL="https://gurusharan-mac-codex.taild2e98e.ts.net"
+PUBLIC_URL="https://<host>.<tailnet>.ts.net"
 TUNNEL_CMD="/opt/homebrew/bin/tailscale --socket=$HOME/.local/share/codex-mac-bridge/tailscaled.sock funnel --yes --https=443 --set-path=/mcp http://127.0.0.1:8787/mcp"
-ALLOWED_HOSTS="gurusharan-mac-codex.taild2e98e.ts.net"
+ALLOWED_HOSTS="<host>.<tailnet>.ts.net"
 ```
 
 - The funnel runs in the foreground under launchd `KeepAlive`. It is re-applied after a reboot, a job restart, or a `tailscaled` restart. It adds a foreground serve entry and leaves the tailnet `tcp:80 → 127.0.0.1:8765` serve alone.
@@ -84,8 +84,8 @@ Other modes: a named Cloudflare tunnel uses `TUNNEL_CMD="cloudflared tunnel run 
 ## Restart and check
 
 ```sh
-launchctl kickstart -k gui/$(id -u)/com.gurusharan.context-ledger-mcp
-launchctl kickstart -k gui/$(id -u)/com.gurusharan.context-ledger-funnel
+launchctl kickstart -k gui/$(id -u)/<label-prefix>.context-ledger-mcp
+launchctl kickstart -k gui/$(id -u)/<label-prefix>.context-ledger-funnel
 cat ~/.context-ledger/remote-url
 curl -s -o /dev/null -w '%{http_code}\n' -X POST "$(cat ~/.context-ledger/remote-url)"   # 401
 ```

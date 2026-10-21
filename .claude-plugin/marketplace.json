@@ -7,7 +7,7 @@
     {
       "name": "context-ledger",
       "source": "./plugins/context-ledger",
-      "description": "Scoped, local decision traces with sparse capture and progressive retrieval."
+      "description": "Local-first decision memory for agents: save the decisions and lessons from critical or recurring tasks, then look them up later through a scoped MCP server over a local SQLite ledger."
     }
   ]
 }

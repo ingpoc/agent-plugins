@@ -5,7 +5,7 @@
   "env": "local",
   "label": "Open AI Realtime Key",
   "service": "com.voice-cua.openai.api",
-  "account": "gupta.rp.gurusharan@gmail.com",
+  "account": "voice-cua",
   "aliases": [
     "VoiceCUA OpenAI API Key",
     "OpenAI Realtime Key",

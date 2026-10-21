@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PY = ROOT / "python"
-CONFIG = ROOT / "config" / ".secret"
+CONFIG = ROOT / "config" / "secret-templates"
 BUILD_ROOT = Path(
     os.environ.get("VOICE_CUA_BUILD_DIR", "~/.cache/macos-cua/build/voice-cua")
 ).expanduser()
@@ -81,7 +81,7 @@ def build(*, clean: bool = True, onefile: bool = False) -> Path:
             "--paths",
             str(MACOS_CUA_SERVICE),
             "--add-data",
-            f"{CONFIG}:config/.secret",
+            f"{CONFIG}:config/secret-templates",
             "--hidden-import",
             "voice_cua.voice_stack",
             "--hidden-import",

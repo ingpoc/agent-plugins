@@ -170,7 +170,7 @@ def build_server(store: Store) -> MCPServer:
         description=(
             "Save one compact decision trace at decision time. Still true in another project? "
             "scope is required: fleet, project:<id>, or tool:<id>. "
-            "type user_decision (Guru accepted or overrode; approver guru) or agent_conclusion "
+            "type user_decision (the owner accepted or overrode; approver guru) or agent_conclusion "
             "(research/debug result; criticality 1-5). kind decision is a lasting rule; kind state is refused. "
             "decision <=15 words, why <=20 words, one line each; over-limit text is rejected, not trimmed. "
             "Versions, SHAs, PR or Project ids, and dates go only in evidence. "

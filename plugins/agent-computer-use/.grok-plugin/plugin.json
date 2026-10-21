@@ -1,0 +1,20 @@
+{
+  "name": "agent-computer-use",
+  "version": "0.2.22",
+  "description": "Operate native macOS apps from an agent through two Accessibility-first MCP tools (state and act), with an optional GPT Realtime voice runtime. macOS only.",
+  "author": {
+    "name": "ingpoc",
+    "url": "https://github.com/ingpoc"
+  },
+  "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/agent-computer-use",
+  "repository": "https://github.com/ingpoc/agent-plugins",
+  "license": "MIT",
+  "keywords": [
+    "agent-computer-use",
+    "agent computer use",
+    "cuaservice",
+    "macos-cua"
+  ],
+  "logo": "assets/logo.svg",
+  "mcpServers": "./.cursor-plugin/mcp.json"
+}

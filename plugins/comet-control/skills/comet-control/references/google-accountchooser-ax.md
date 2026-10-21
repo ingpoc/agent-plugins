@@ -21,7 +21,7 @@ Accessibility-trusted Python (pyobjc) on Mini:
 
 1. Confirm `AXIsProcessTrusted()` (CUAService / acting Python). If Comet AX is empty (`axTrusted=false`, `elementCount=0`), fix Accessibility first.
 2. Raise the Comet window whose title contains `Sign in - Google Accounts` (resize if Stage Manager thumb ~50×100).
-3. `AXUIElement` walk that window only; find `AXLink` whose title/value contains the target account (e.g. `Gurusharan Gupta HUF` + `gupta.huf.gurusharan@gmail.com`).
+3. `AXUIElement` walk that window only; find `AXLink` whose title/value contains the target account (e.g. the account display name `Jane Doe HUF` plus its email `jane.doe@example.com`).
 4. `AXUIElementPerformAction(link, "AXPress")` — chooser advances (`accounts.google.com/signin/…`). No password / App Password typing.
 5. Same-lease `page_context` on the product tab for auth proof; do not remint mid-flow.
 

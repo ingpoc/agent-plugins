@@ -2,12 +2,12 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agent-computer-use",
   "version": "0.2.22",
-  "description": "Native macOS computer use and GPT Realtime voice control through CUAService.",
+  "description": "Operate native macOS apps from an agent through two Accessibility-first MCP tools (state and act), with an optional GPT Realtime voice runtime. macOS only.",
   "author": {
     "name": "ingpoc",
     "url": "https://github.com/ingpoc"
   },
-  "homepage": "https://github.com/ingpoc/agent-plugins",
+  "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/agent-computer-use",
   "repository": "https://github.com/ingpoc/agent-plugins",
   "license": "MIT",
   "keywords": [

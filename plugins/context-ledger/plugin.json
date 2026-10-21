@@ -2,9 +2,17 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "context-ledger",
   "version": "0.1.36",
-  "description": "Scoped, local decision traces with sparse capture and progressive retrieval.",
-  "author": {"name": "ingpoc"},
+  "description": "Local-first decision memory for agents: save the decisions and lessons from critical or recurring tasks, then look them up later through a scoped MCP server over a local SQLite ledger.",
+  "author": {
+    "name": "ingpoc",
+    "url": "https://github.com/ingpoc"
+  },
+  "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/context-ledger",
   "repository": "https://github.com/ingpoc/agent-plugins",
   "license": "MIT",
-  "keywords": ["decisions", "context", "local-first"]
+  "keywords": [
+    "decisions",
+    "context",
+    "local-first"
+  ]
 }
