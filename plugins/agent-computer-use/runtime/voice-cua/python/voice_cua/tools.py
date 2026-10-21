@@ -348,7 +348,13 @@ def tool_definitions(
                             "type": "array",
                             "items": {
                                 "type": "object",
-                                "properties": {"type": {"type": "string", "enum": sorted(ALLOWED_ACTIONS)}},
+                                "properties": {
+                                    "type": {"type": "string", "enum": sorted(ALLOWED_ACTIONS)},
+                                    "url": {"type": "string", "description": "goto: absolute https URL"},
+                                    "text": {"type": "string", "description": "click_text: visible text"},
+                                    "selector": {"type": "string"},
+                                    "value": {"type": "string", "description": "fill_selector value"},
+                                },
                                 "required": ["type"],
                             },
                             "minItems": 1,
@@ -590,10 +596,38 @@ def _comet_begin(args: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+_GOTO_URL_ALIASES = ("href", "link", "target", "value", "text", "uri", "location")
+
+
+def _normalize_comet_action(action: dict[str, Any]) -> dict[str, Any]:
+    """Models sometimes put a goto's URL under another key; move it to ``url``."""
+    if action.get("type") == "navigate":
+        action = {**action, "type": "goto"}
+    if action.get("type") != "goto" or str(action.get("url") or "").startswith(("http://", "https://")):
+        return action
+    for key in ("url",) + _GOTO_URL_ALIASES:
+        value = str(action.get(key) or "").strip()
+        if value.startswith(("http://", "https://")):
+            return {**{k: v for k, v in action.items() if k != key}, "url": value}
+    for key in ("url",) + _GOTO_URL_ALIASES:
+        value = str(action.get(key) or "").strip().lstrip("/")
+        if value and "." in value.split("/")[0] and " " not in value:
+            return {**{k: v for k, v in action.items() if k != key}, "url": "https://" + value}
+    return action
+
+
 def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
     actions = args.get("actions")
     if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
         return {"ok": False, "error": "actions must be an array of objects"}
+    actions = [_normalize_comet_action(action) for action in actions]
+    bad_goto = next((a for a in actions if a.get("type") == "goto" and not str(a.get("url") or "").startswith(("http://", "https://"))), None)
+    if bad_goto is not None:
+        # A goto with no url ran 17 s and timed out as "goto undefined" (c17b); fail fast instead.
+        log_event("tool_error", tool="comet_act", ok=False, error="goto without an absolute url",
+                  error_type="bad_arguments", keys=sorted(k for k in bad_goto if k != "type")[:6])
+        return {"ok": False, "error": "goto needs {type: 'goto', url: 'https://...'} (absolute URL)",
+                "error_type": "bad_arguments", "retryable": True}
     log_event("comet_call", tool="comet_act", actions=redact_actions(actions))
     # Same per-step retry cap as cua_act: an identical failing action list runs at most twice
     # (matrix: one 'goto' miss was replayed 6x until the turn timed out).

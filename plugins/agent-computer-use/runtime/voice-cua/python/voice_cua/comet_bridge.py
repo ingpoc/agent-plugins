@@ -330,6 +330,13 @@ class CometLease:
         public = _public(result)
         response = public.get("response") if isinstance(public.get("response"), dict) else {}
         public["ok"] = bool(public.get("ok", response.get("success")))
+        if not public["ok"]:
+            # The exact browser error (e.g. "Host access is restricted by policy.") lives in
+            # response.error; lift it so tool_error rows and the model both see it.
+            if response.get("error") and not public.get("error"):
+                public["error"] = str(response.get("error"))[:300]
+            if response.get("error_code") and not public.get("error_code"):
+                public["error_code"] = str(response.get("error_code"))[:60]
         return public
 
     def _closeout_locked(self) -> dict[str, Any]:

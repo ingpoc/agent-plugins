@@ -283,3 +283,35 @@ class CompactActSchemaTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CometActArgumentTests(unittest.TestCase):
+    def test_goto_url_aliases_are_normalized(self) -> None:
+        from voice_cua.tools import _normalize_comet_action as norm
+        self.assertEqual(norm({"type": "goto", "href": "https://www.amazon.in/s?k=x"}),
+                         {"type": "goto", "url": "https://www.amazon.in/s?k=x"})
+        self.assertEqual(norm({"type": "navigate", "value": "https://a.example/"})["url"], "https://a.example/")
+        self.assertEqual(norm({"type": "goto", "url": "www.amazon.in/cart"})["url"], "https://www.amazon.in/cart")
+        self.assertEqual(norm({"type": "click_text", "text": "Add to cart"}), {"type": "click_text", "text": "Add to cart"})
+
+    def test_goto_without_url_fails_fast(self) -> None:
+        from unittest.mock import patch
+        from voice_cua import tools
+        with patch.object(tools, "comet_act") as act:
+            out = tools._comet_act({"actions": [{"type": "goto"}]})
+        act.assert_not_called()
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["error_type"], "bad_arguments")
+
+    def test_comet_error_is_lifted_to_top_level(self) -> None:
+        from unittest.mock import patch
+        from voice_cua import comet_bridge
+        lease = comet_bridge.CometLease()
+        lease._python, lease._controller, lease._workdir = "py", "ctl", "/tmp/x"
+        reply = {"event": "run", "response": {"success": False, "error": "Host access is restricted by policy.",
+                                              "error_code": "BROWSER_ACTION_FAILED"}}
+        with patch.object(comet_bridge, "_run_json", return_value=reply):
+            out = lease._send_locked([{"type": "click_text", "text": "Add to cart"}], 5)
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["error"], "Host access is restricted by policy.")
+        self.assertEqual(out["error_code"], "BROWSER_ACTION_FAILED")

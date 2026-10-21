@@ -1562,12 +1562,20 @@ async function ensureAttached(tabId) {
   }
 }
 
+// Chrome 155+ (Comet 155): a managed ExtensionSettings runtime_blocked_hosts makes
+// chrome.debugger.attach fail on EVERY tab with "Host access is restricted by policy."
+// (or "Screenshot capture is restricted by policy." under DisableScreenshots/DLP).
+// Policy is not bypassed: clicks fall back to the content-script (untrusted) click.
+function isDebuggerPolicyRestriction(error) {
+  return String(error?.message || error || "").includes("restricted by policy");
+}
+
 async function attachForClick(tabId) {
   try {
     await ensureAttached(tabId);
     return true;
   } catch (error) {
-    if (!isForeignExtensionRestriction(error)) throw error;
+    if (!isForeignExtensionRestriction(error) && !isDebuggerPolicyRestriction(error)) throw error;
     return false;
   }
 }
@@ -2782,11 +2790,22 @@ async function runBrowserAction(action, state) {
     let navigation;
     try {
       if (type === "back" || type === "forward") {
-        const history = await send(state.tabId, "Page.getNavigationHistory");
-        const offset = type === "back" ? -1 : 1;
-        const target = history?.entries?.[Number(history.currentIndex) + offset];
-        if (!target?.id) throw new Error(`Cannot find a ${type === "back" ? "previous" : "next"} page in history`);
-        await send(state.tabId, "Page.navigateToHistoryEntry", { entryId: target.id });
+        let history = null;
+        try {
+          history = await send(state.tabId, "Page.getNavigationHistory");
+        } catch (error) {
+          if (!isDebuggerPolicyRestriction(error)) throw error;
+        }
+        if (history) {
+          const offset = type === "back" ? -1 : 1;
+          const target = history?.entries?.[Number(history.currentIndex) + offset];
+          if (!target?.id) throw new Error(`Cannot find a ${type === "back" ? "previous" : "next"} page in history`);
+          await send(state.tabId, "Page.navigateToHistoryEntry", { entryId: target.id });
+        } else if (type === "back") {
+          await chrome.tabs.goBack(state.tabId);  // debugger blocked by policy: tabs API
+        } else {
+          await chrome.tabs.goForward(state.tabId);
+        }
       }
       if (type === "reload_page") {
         await chrome.tabs.reload(state.tabId, { bypassCache: Boolean(action.bypassCache) });
@@ -3261,6 +3280,8 @@ async function runBrowserAction(action, state) {
       ? await chrome.tabs.get(state.tabId).catch(() => null)
       : null;
     const debuggerAttached = await attachForClick(state.tabId);
+    // No debugger (policy / foreign frame): CDP mouse is unavailable, use the DOM click.
+    if (!debuggerAttached) clickOptions.trusted = false;
     const runDialogAware = async () => {
       const clickPromise = withTimeout(
         clickResolvedTarget(
@@ -3439,6 +3460,8 @@ async function runBrowserAction(action, state) {
       ? await chrome.tabs.get(state.tabId).catch(() => null)
       : null;
     const debuggerAttached = await attachForClick(state.tabId);
+    // No debugger (policy / foreign frame): CDP mouse is unavailable, use the DOM click.
+    if (!debuggerAttached) clickOptions.trusted = false;
     const clickPromise = withTimeout(
       clickResolvedTarget(
         state.tabId,
