@@ -2,7 +2,7 @@
 
 Status: **prep only**. Nothing has been submitted to cursor.com/marketplace/publish or to `xai-org/plugin-marketplace`.
 
-Plugins: `agent-computer-use`, `comet-control`, `context-ledger`. (`irctc-train-booking` stays in this repo and is not part of this submission.)
+Plugins: `agent-computer-use`, `comet-control`, `context-ledger`. These are the only distributed plugins.
 
 Sources checked: Cursor [Plugins reference → Submitting a plugin](https://cursor.com/docs/reference/plugins), xAI [CONTRIBUTING.md](https://github.com/xai-org/plugin-marketplace/blob/main/CONTRIBUTING.md) (including Security expectations), and the `review-plugin-submission` skill (create-plugin).
 

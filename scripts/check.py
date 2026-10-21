@@ -97,7 +97,6 @@ PLUGIN_TESTS = {
         "skills/macos-cua/tests/test_install_release.py",
         "-q",
     ],
-    "irctc-train-booking": [sys.executable, "tests/test_pay_gate.py", "-q"],
 }
 
 # Comet broker/isolation suites import these at module load; missing → soft-skip.
