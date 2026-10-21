@@ -39,6 +39,7 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
         PermissionCenter.shared.onChange.append { [weak self] _ in
             let missing = PermissionCenter.missingRequired()
             self?.islandController?.setPermissionWarning(missing.first)
+            GrantResume.shared.update(PermissionCenter.shared.states)
             // A required consent newly went missing (revoked / signature change): re-present onboarding once.
             if let prev = lastMissing, OnboardingModel.shouldReopen(previous: prev, now: Set(missing)) {
                 OnboardingWindowController.shared.model.step = .permissions
@@ -47,6 +48,7 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
             lastMissing = Set(missing)
         }
         OnboardingWindowController.showIfNeeded()
+        GrantResume.shared.restoreAtLaunch()   // relaunched mid-grant → same pane / onboarding rows
         PermissionCenter.shared.startPolling()
         installTerminationSignals()
         if SamanthaResume.consume(), let voice = voiceSupervisor {
@@ -111,6 +113,7 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        GrantResume.shared.terminating = true
         voiceSupervisor?.stop()
         islandController?.stopStreaming()
         islandController?.shutdown()

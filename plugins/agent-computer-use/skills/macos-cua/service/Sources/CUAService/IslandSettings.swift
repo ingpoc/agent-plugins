@@ -1,3 +1,4 @@
+import os
 import AppKit
 import Foundation
 import ApplicationServices
@@ -529,7 +530,7 @@ final class IslandSettingsStore: ObservableObject {
 
     /// Create the token only if missing (called from a user click, e.g. turning Samantha on).
     func ensureToken(_ s: AgentSource) {
-        guard tokens.read(source: s.rawValue) == nil else { return }
+        guard !tokens.exists(source: s.rawValue) else { return }
         try? rotateToken(s)
     }
 
@@ -538,7 +539,7 @@ final class IslandSettingsStore: ObservableObject {
     func tokenForVerification(_ s: AgentSource, now: Date = Date(), refresh: Bool = false) -> String? {
         if !refresh, let c = verifyCache[s], now.timeIntervalSince(c.at) < 30 { return c.token }
         if refresh, let c = verifyCache[s], now.timeIntervalSince(c.at) < 1 { return c.token }  // bound re-reads
-        let t = tokens.read(source: s.rawValue)
+        let t = refresh ? tokens.reload(source: s.rawValue) : tokens.read(source: s.rawValue)
         verifyCache[s] = (t, now)
         return t
     }
@@ -558,6 +559,8 @@ final class IslandSettingsStore: ObservableObject {
         return true
     }
     /// "••••" + last 4, or nil when there is no token (the row then offers Create token).
+    /// Metadata only: is there a token for this source (no Keychain data read).
+    func hasToken(_ s: AgentSource) -> Bool { tokens.exists(source: s.rawValue) }
     func maskedToken(_ s: AgentSource) -> String? {
         guard let t = tokens.read(source: s.rawValue), t.count >= 4 else { return nil }
         return "••••" + String(t.suffix(4))
@@ -573,8 +576,18 @@ final class IslandSettingsStore: ObservableObject {
 // MARK: - Tokens (Keychain service "samantha.island", account = source). Never logged or shown in full.
 
 protocol IslandTokenStore {
+    /// Token data. Keychain-backed: read once per process, then served from memory.
     func read(source: String) -> String?
     func write(_ token: String, source: String) throws
+    /// Metadata only (no secret, never a Keychain prompt).
+    func exists(source: String) -> Bool
+    /// Bypass the memory cache (bounded: a hub request failed verification).
+    func reload(source: String) -> String?
+}
+
+extension IslandTokenStore {
+    func exists(source: String) -> Bool { read(source: source) != nil }
+    func reload(source: String) -> String? { read(source: source) }
 }
 
 struct KeychainTokenStore: IslandTokenStore {
@@ -589,13 +602,35 @@ struct KeychainTokenStore: IslandTokenStore {
         guard SecAccessCreate(label as CFString, [me, cli] as CFArray, &access) == errSecSuccess else { return nil }
         return access
     }
+    /// Per-process token cache: the Keychain data is read once (lazily), so tab switches and
+    /// re-renders never raise "wants to use your confidential information".
+    private static let cache = OSAllocatedUnfairLock<[String: String?]>(initialState: [:])
+    /// Data reads that actually hit the Keychain (tests).
+    nonisolated(unsafe) static var dataReads = 0
+
     func read(source: String) -> String? {
-        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: Self.service,
+        if let hit = Self.cache.withLock({ $0[source] }) { return hit }
+        return reload(source: source)
+    }
+    func reload(source: String) -> String? {
+        let t = Self.readData(source: source)
+        Self.cache.withLock { $0[source] = .some(t) }
+        if t != nil { KeychainGrant.markRead(KeychainGrant.islandID(source)) }
+        return t
+    }
+    static func readData(source: String) -> String? {
+        dataReads += 1
+        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
                                 kSecAttrAccount as String: source, kSecReturnData as String: true, kSecMatchLimit as String: kSecMatchLimitOne]
         var out: CFTypeRef?
         guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data else { return nil }
         return String(data: d, encoding: .utf8)
     }
+    func exists(source: String) -> Bool {
+        if let hit = Self.cache.withLock({ $0[source] }) { return hit != nil }
+        return KeychainGrant.exists([kSecAttrService as String: Self.service, kSecAttrAccount as String: source])
+    }
+    static func forget() { cache.withLock { $0 = [:] } }
     func write(_ token: String, source: String) throws {
         let base: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: Self.service,
                                    kSecAttrAccount as String: source]
@@ -611,7 +646,12 @@ struct KeychainTokenStore: IslandTokenStore {
             if let access = Self.access(label: "Samantha island token") { add[kSecAttrAccess as String] = access }
             status = SecItemAdd(add as CFDictionary, nil)
         }
-        guard status == errSecSuccess else { throw NSError(domain: NSOSStatusErrorDomain, code: Int(status)) }
+        guard status == errSecSuccess else {
+            Self.cache.withLock { $0[source] = nil }
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        }
+        Self.cache.withLock { $0[source] = .some(token) }
+        KeychainGrant.markRead(KeychainGrant.islandID(source))   // we created it: our ACL, no prompt
     }
 }
 

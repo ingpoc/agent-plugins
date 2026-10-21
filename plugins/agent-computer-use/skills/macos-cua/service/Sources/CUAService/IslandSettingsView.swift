@@ -95,7 +95,7 @@ struct IslandSettingsRoot: View {
     static func perform(_ key: String, onShowLog: () -> Void) {
         if key == IslandSettingsSchema.calendarAccess { IslandSettingsSchema.calendarAccessAction?() }
         else if key == IslandSettingsSchema.focusAccess { IslandSettingsSchema.focusAccessAction?() }
-        else if let p = ACUPermission.from(key: key) { PermissionCenter.shared.request(p) }
+        else if let p = ACUPermission.from(key: key) { PermissionBroker.request(p, from: PermissionBroker.origin()) }
         else if key == IslandSettingsSchema.accessibilityDisplay || key == IslandSettingsSchema.accessibilitySound {
             // Opens the Accessibility list in System Settings (the user adds the app there).
             if let u = ACUPermission.accessibility.paneURL { NSWorkspace.shared.open(u) }

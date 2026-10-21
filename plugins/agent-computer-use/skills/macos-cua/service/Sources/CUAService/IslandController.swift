@@ -294,10 +294,10 @@ final class IslandController {
         model.onTrayChange = { [weak self] items in self?.saveTray(items) }
         calendar.onChange = { [weak self] events in self?.model.setCalendar(events) }
         IslandSettingsSchema.calendarAccessAction = { [weak self] in
-            self?.calendar.requestAccess { _ in IslandSettingsWindowController.shared.nav.objectWillChange.send() }
+            _ = self; PermissionBroker.requestCalendars()
         }
         IslandSettingsSchema.focusAccessAction = { [weak self] in
-            self?.focus.requestAccess { _ in IslandSettingsWindowController.shared.nav.objectWillChange.send() }
+            _ = self; PermissionBroker.requestFocus()
         }
         hotKey.onPress = { [weak self] in self?.model.hotKeyPressed() }
         model.onAnnounce = { text in
@@ -390,7 +390,8 @@ final class IslandController {
             NSPasteboard.general.setString([info.title, info.artist].filter { !$0.isEmpty }.joined(separator: " — "), forType: .string)
         case "favorite":
             guard info.bundleID == NowPlayingRules.musicBundle,
-                  !NSRunningApplication.runningApplications(withBundleIdentifier: NowPlayingRules.musicBundle).isEmpty else { return }
+                  !NSRunningApplication.runningApplications(withBundleIdentifier: NowPlayingRules.musicBundle).isEmpty,
+                  AutomationGate.allowed(NowPlayingRules.musicBundle) else { return }
             let src = "tell application \"Music\"\ntry\nset favorited of current track to not (favorited of current track)\non error\nset loved of current track to not (loved of current track)\nend try\nend tell"
             DispatchQueue.global(qos: .userInitiated).async {
                 var err: NSDictionary?
@@ -409,13 +410,14 @@ final class IslandController {
     }
 
     /// Island badge for a missing required consent; tap opens onboarding at the permission rows.
+    private var warningPermission: ACUPermission?
     func setPermissionWarning(_ p: ACUPermission?) {
-        let label = p?.label
+        warningPermission = p
+        let label = p.map { "Needs access: " + $0.label }
         if model.permissionWarning != label { model.permissionWarning = label }
         if model.onPermissionWarningTap == nil {
-            model.onPermissionWarningTap = {
-                OnboardingWindowController.shared.model.step = .permissions
-                OnboardingWindowController.shared.show()
+            model.onPermissionWarningTap = { [weak self] in
+                OnboardingWindowController.shared.show(row: self?.warningPermission)
             }
         }
     }

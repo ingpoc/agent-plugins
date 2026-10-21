@@ -12,7 +12,7 @@ import ServiceManagement
 enum ACUPermission: String, CaseIterable, Sendable {
     case accessibility, screenRecording, microphone
     case automationSystemEvents, automationFinder, automationMusic, automationSpotify, automationComet, automationTextEdit
-    case calendars, focus, loginItem
+    case calendars, focus, loginItem, keychain
 
     static let keyPrefix = "cua.permission."
     var key: String { Self.keyPrefix + rawValue }
@@ -51,6 +51,7 @@ enum ACUPermission: String, CaseIterable, Sendable {
         case .calendars: return "Calendars"
         case .focus: return "Focus"
         case .loginItem: return "Open at Login"
+        case .keychain: return "Keychain access"
         }
     }
 
@@ -68,6 +69,7 @@ enum ACUPermission: String, CaseIterable, Sendable {
         case .calendars: return "Upcoming events on the island."
         case .focus: return "Quiet peeks while a Focus is on."
         case .loginItem: return "Starts the island and agent service when you log in."
+        case .keychain: return "Reads the island tokens and API keys without asking again."
         }
     }
 
@@ -81,6 +83,7 @@ enum ACUPermission: String, CaseIterable, Sendable {
         case .calendars: return URL(string: base + "Calendars")
         case .focus: return URL(string: base + "Focus")
         case .loginItem: return URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")
+        case .keychain: return nil   // the Keychain's own "Always Allow" prompt is the grant
         default: return URL(string: base + "Automation")
         }
     }
@@ -108,7 +111,8 @@ enum PermissionProbe {
         case .calendars: return IslandCalendarController.authorized ? .granted : .missing
         case .focus: return INFocusStatusCenter.default.authorizationStatus == .authorized ? .granted : .missing
         case .loginItem: return SMAppService.mainApp.status == .enabled ? .granted : .missing
-        default: return automation(p.bundleID ?? "", ask: false)
+        case .keychain: return KeychainGrant.status()
+        default: return automation(p.bundleID ?? "")
         }
     }
 
@@ -116,13 +120,13 @@ enum PermissionProbe {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) != nil
     }
 
-    /// AEDeterminePermissionToAutomateTarget: ask=false is a pure status read; ask=true shows the
-    /// system's own Automation prompt (the only sanctioned pre-warm). Blocks: never call on main.
-    static func automation(_ bundleID: String, ask: Bool) -> PermissionState {
+    /// AEDeterminePermissionToAutomateTarget(askUserIfNeeded: false): a pure status read, never a
+    /// prompt (the asking variant lives only in PermissionBroker). Blocks briefly: avoid main.
+    static func automation(_ bundleID: String) -> PermissionState {
         guard installed(bundleID) else { return .notInstalled }
         let target = NSAppleEventDescriptor(bundleIdentifier: bundleID)
         guard let desc = target.aeDesc else { return .missing }
-        let s = AEDeterminePermissionToAutomateTarget(desc, typeWildCard, typeWildCard, ask)
+        let s = AEDeterminePermissionToAutomateTarget(desc, typeWildCard, typeWildCard, false)
         return classify(s)
     }
 
@@ -198,68 +202,20 @@ final class PermissionCenter: ObservableObject {
         case .notInstalled: return s
         }
     }
+}
 
-
-
-    /// The Grant button: ALWAYS the real request API first, from this (installed) process, so TCC
-    /// registers this exact app (bundle + designated requirement) and lists it in System Settings.
-    /// Only if the permission is still not granted afterwards does it deep-link to the pane.
-    func request(_ p: ACUPermission) {
-        let openPaneIfStillMissing: @MainActor () -> Void = {
-            if !PermissionProbe.status(p).satisfied, let u = p.paneURL { NSWorkspace.shared.open(u) }
-            PermissionCenter.shared.refresh()
-        }
-        // Give TCC a moment to register the request before the pane opens (it lists the app then).
-        let later = { DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { MainActor.assumeIsolated { openPaneIfStillMissing() } } }
-        switch p {
-        case .accessibility:
-            let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-            _ = AXIsProcessTrustedWithOptions([prompt: true] as CFDictionary)
-            if !CGPreflightPostEventAccess() { _ = CGRequestPostEventAccess() }
-            later()
-        case .screenRecording:
-            _ = CGRequestScreenCaptureAccess()
-            later()
-        case .microphone:
-            AVCaptureDevice.requestAccess(for: .audio) { _ in
-                Task { @MainActor in openPaneIfStillMissing() }
-            }
-        case .calendars:
-            let store = EKEventStore()
-            let done: (Bool, Error?) -> Void = { _, _ in Task { @MainActor in openPaneIfStillMissing() } }
-            if #available(macOS 14.0, *) { store.requestFullAccessToEvents(completion: done) }
-            else { store.requestAccess(to: .event, completion: done) }
-        case .focus:
-            INFocusStatusCenter.default.requestAuthorization { _ in Task { @MainActor in openPaneIfStillMissing() } }
-        case .loginItem:
-            do { try SMAppService.mainApp.register() } catch { SamanthaActivityLog.startup(phase: "login_item", status: "fail", detail: "\(error)") }
-            if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
-            refresh()
-        default:
-            guard let bid = p.bundleID else { return }
-            Task.detached(priority: .userInitiated) {
-                await Self.prewarmAutomation(bid)   // AEDeterminePermissionToAutomateTarget(ask: true)
-                await MainActor.run { openPaneIfStillMissing() }
-            }
-        }
+/// Runtime Apple Events (Now Playing, Music favourite) only go to targets already approved in
+/// onboarding: sending one to an undecided target would raise the Automation prompt mid-task.
+enum AutomationGate {
+    private static let cache = OSAllocatedUnfairLock<[String: (ok: Bool, at: Date)]>(initialState: [:])
+    nonisolated(unsafe) static var probe: (String) -> PermissionState = { PermissionProbe.automation($0) }
+    static func allowed(_ bundleID: String, now: Date = Date()) -> Bool {
+        if let c = cache.withLock({ $0[bundleID] }), now.timeIntervalSince(c.at) < 10 { return c.ok }
+        let ok = probe(bundleID) == .granted
+        cache.withLock { $0[bundleID] = (ok, now) }
+        return ok
     }
-
-    /// One harmless, consent-gated Apple Event per target: launch it hidden if needed, then
-    /// AEDeterminePermissionToAutomateTarget(ask: true) — macOS shows its own prompt once.
-    nonisolated static func prewarmAutomation(_ bundleID: String) async {
-        guard PermissionProbe.installed(bundleID) else { return }
-        if NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty,
-           let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-            let cfg = NSWorkspace.OpenConfiguration()
-            cfg.activates = false
-            cfg.hides = true
-            _ = try? await NSWorkspace.shared.openApplication(at: url, configuration: cfg)
-            for _ in 0..<30 where NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).isEmpty {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-            }
-        }
-        _ = PermissionProbe.automation(bundleID, ask: true)
-    }
+    static func reset() { cache.withLock { $0 = [:] } }
 }
 
 /// Agent API: methods that need a consent fail fast with PERMISSION_MISSING:<name> instead of hanging.

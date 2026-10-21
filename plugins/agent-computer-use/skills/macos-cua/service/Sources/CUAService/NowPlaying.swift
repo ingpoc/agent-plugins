@@ -354,7 +354,7 @@ final class AppleScriptNowPlayingSource: NowPlayingSource {
     }
 
     nonisolated private static func read() -> NowPlayingInfo? {
-        for (bundle, app) in apps where running(bundle) {
+        for (bundle, app) in apps where running(bundle) && AutomationGate.allowed(bundle) {
             let script = """
             tell application "\(app)"
               if player state is stopped then return ""
@@ -388,7 +388,7 @@ final class AppleScriptNowPlayingSource: NowPlayingSource {
         case .toggleShuffle, .toggleRepeat: return   // not scriptable uniformly; the adapter path handles these
         }
         queue.async {
-            guard let (_, app) = Self.apps.first(where: { Self.running($0.0) }) else { return }
+            guard let (_, app) = Self.apps.first(where: { Self.running($0.0) && AutomationGate.allowed($0.0) }) else { return }
             var err: NSDictionary?
             NSAppleScript(source: "tell application \"\(app)\" to \(verb)")?.executeAndReturnError(&err)
         }

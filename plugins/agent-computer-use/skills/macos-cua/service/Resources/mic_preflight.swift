@@ -1,28 +1,10 @@
-import AppKit
 import AVFoundation
 import Foundation
 
-/// Trigger macOS microphone TCC for voice-cua.app (PortAudio preflight alone may not prompt).
-let app = NSApplication.shared
-app.setActivationPolicy(.regular)
-app.activate(ignoringOtherApps: true)
-
-let sem = DispatchSemaphore(value: 0)
-var granted = false
-
+/// Microphone status for voice-cua.app — preflight only, never a prompt (Guru's rule: every
+/// approval happens once, in ACU onboarding). Exit 0 = authorized, 2 = not yet asked, 1 = denied.
 switch AVCaptureDevice.authorizationStatus(for: .audio) {
-case .authorized:
-    granted = true
-    sem.signal()
-case .notDetermined:
-    AVCaptureDevice.requestAccess(for: .audio) { ok in
-        granted = ok
-        sem.signal()
-    }
-default:
-    granted = false
-    sem.signal()
+case .authorized: exit(0)
+case .notDetermined: exit(2)
+default: exit(1)
 }
-
-_ = sem.wait(timeout: .now() + 120)
-exit(granted ? 0 : 1)

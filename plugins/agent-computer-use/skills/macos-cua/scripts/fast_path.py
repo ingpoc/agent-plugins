@@ -996,12 +996,13 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "Realtime sessions expire and crashes must recover without reviving intentional stops",
     )
     add(
-        "Samantha requests microphone permission before launching voice",
+        "Samantha checks microphone status (never prompts) before launching voice",
         "ensureMicrophoneAccess" in voice
-        and "AVCaptureDevice.requestAccess" in voice
+        and "AVCaptureDevice.authorizationStatus" in voice
+        and "AVCaptureDevice.requestAccess" not in voice
         and "NSMicrophoneUsageDescription" in plist
         and "com.apple.security.device.audio-input" in entitlements,
-        "the CUAService owner must request TCC so ON means microphone-ready",
+        "onboarding (PermissionBroker) owns the TCC request; ON with no access opens onboarding at Microphone",
     )
     add(
         "voice bundles are signed inside-out with audio input entitlement",

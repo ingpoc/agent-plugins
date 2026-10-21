@@ -61,7 +61,15 @@ class KeychainError(Exception):
 
 
 def keychain_token(account: str) -> str | None:
-    """HTTP mode only. None = no item; KeychainError = refused / timed out (ACL prompt)."""
+    """HTTP mode only. None = no item; KeychainError = refused / timed out (ACL prompt).
+    Reads only after ACU onboarding approved the item (no prompt outside onboarding)."""
+    if os.environ.get("ACU_KEYCHAIN_UNGATED") != "1":
+        try:
+            approved = json.load(open(os.path.expanduser("~/.cache/macos-cua/keychain-approved.json")))
+        except (OSError, ValueError):
+            approved = {}
+        if f"island.{account}" not in approved.get("ids", []):
+            raise KeychainError("not approved in ACU onboarding › Keychain access")
     try:
         out = subprocess.run(["/usr/bin/security", "find-generic-password", "-s", "samantha.island",
                               "-a", account, "-w"], capture_output=True, text=True, timeout=10, check=False)

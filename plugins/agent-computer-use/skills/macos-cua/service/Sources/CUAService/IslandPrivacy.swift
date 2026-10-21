@@ -41,9 +41,5 @@ final class IslandFocusStatus {
         default: return "Not requested"
         }
     }
-    func requestAccess(_ done: @escaping @MainActor (Bool) -> Void) {
-        INFocusStatusCenter.default.requestAuthorization { s in
-            Task { @MainActor in done(s == .authorized) }
-        }
-    }
+    // Asking for access lives in PermissionBroker (onboarding / Settings Grant only).
 }

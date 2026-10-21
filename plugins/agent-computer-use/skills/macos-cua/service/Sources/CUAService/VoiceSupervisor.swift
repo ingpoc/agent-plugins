@@ -157,13 +157,9 @@ final class VoiceSupervisor {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized:
             return true
-        case .notDetermined:
-            return await withCheckedContinuation { continuation in
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
-                    continuation.resume(returning: granted)
-                }
-            }
         default:
+            // Never prompt here: onboarding owns the Microphone request.
+            await MainActor.run { OnboardingWindowController.shared.show(row: .microphone) }
             return false
         }
     }
@@ -374,6 +370,10 @@ final class VoiceSupervisor {
         // 78 (EX_CONFIG) = the chosen voice model has no API key: restarting can't help.
         if unexpected, terminated.terminationStatus == 78 {
             logStartup(phase: "restart_skipped", status: "fail", detail: "voice model needs an API key")
+            // Key present but not yet approved: "Needs access" → onboarding at the Keychain row (no prompt here).
+            Task { @MainActor in
+                if KeychainGrant.status() != .granted { OnboardingWindowController.shared.show(row: .keychain) }
+            }
             return
         }
         if unexpected {

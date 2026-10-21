@@ -101,12 +101,19 @@ class HubForwarderTests(unittest.TestCase):
         finally:
             fwd.stop(); hub.close()
 
+    def test_read_token_unapproved_never_runs_security(self) -> None:
+        with patch("voice_cua.catalog.keychain_approved", return_value=False), \
+                patch("voice_cua.island_hub.subprocess.run") as run:
+            self.assertIsNone(read_token("samantha"))
+        run.assert_not_called()
+
     def test_read_token_uses_security_output_not_argv_secret(self) -> None:
         class R:
             returncode = 0
             stdout = "secret-value\n"
 
-        with patch("voice_cua.island_hub.subprocess.run", return_value=R()) as run:
+        with patch("voice_cua.catalog.keychain_approved", return_value=True), \
+                patch("voice_cua.island_hub.subprocess.run", return_value=R()) as run:
             self.assertEqual(read_token("samantha"), "secret-value")
         argv = run.call_args.args[0]
         self.assertEqual(argv[:2], ["/usr/bin/security", "find-generic-password"])

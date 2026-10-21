@@ -50,20 +50,7 @@ final class IslandCalendarController {
         timer = nil
     }
 
-    /// Settings → Calendar → "Grant access…" (user click only). Shows the system prompt once.
-    func requestAccess(_ done: @escaping (Bool) -> Void) {
-        let finish: (Bool, Error?) -> Void = { ok, _ in
-            Task { @MainActor [weak self] in
-                self?.reload()
-                done(ok)
-            }
-        }
-        if #available(macOS 14.0, *) {
-            store.requestFullAccessToEvents(completion: finish)
-        } else {
-            store.requestAccess(to: .event, completion: finish)
-        }
-    }
+    // Asking for access lives in PermissionBroker (onboarding / Settings Grant only).
 
     func calendars() -> [(id: String, title: String)] {
         guard Self.authorized else { return [] }

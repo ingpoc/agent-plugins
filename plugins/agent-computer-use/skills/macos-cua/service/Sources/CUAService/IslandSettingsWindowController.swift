@@ -15,7 +15,7 @@ final class IslandSettingsWindowController: NSWindowController {
 
     /// A token (even masked) is on screen: keep the window out of screen captures and shares.
     static func showsToken(tab: SettingsTab, store: IslandSettingsStore) -> Bool {
-        tab.agentSource.map { store.maskedToken($0) != nil } ?? false
+        tab.agentSource.map { store.hasToken($0) } ?? false
     }
 
     private init() {
@@ -30,6 +30,9 @@ final class IslandSettingsWindowController: NSWindowController {
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
+        // Grant moves focus to a TCC alert / System Settings: stay put (LSUIElement, no Dock icon).
+        window.hidesOnDeactivate = false
+        window.canHide = false
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = NSColor(red: 0.19, green: 0.19, blue: 0.19, alpha: 1)
         super.init(window: window)
@@ -52,6 +55,10 @@ final class IslandSettingsWindowController: NSWindowController {
         // Permission rows read the real state; re-read whenever the window comes forward.
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.nav.objectWillChange.send(); PermissionCenter.shared.refresh() }
+        }
+        // A real close (close box / ⌘W) ends the grant session; deactivation never closes it.
+        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
+            MainActor.assumeIsolated { GrantResume.shared.userClosed() }
         }
         // Keyboard model for this window only (SettingsKeyboard); other windows' keys pass through.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in

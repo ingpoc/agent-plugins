@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import Foundation
 
@@ -156,26 +157,13 @@ final class StatusBarController: NSObject {
                 self.suppressToggleAction = true
                 sender.state = .off
                 self.suppressToggleAction = false
-                self.showMicrophoneRequiredAlert()
+                // Never a prompt or a home-made dialog: onboarding's Microphone row does the asking.
+                if AVCaptureDevice.authorizationStatus(for: .audio) != .authorized {
+                    OnboardingWindowController.shared.show(row: .microphone)
+                }
             }
         } else {
             voiceSupervisor?.stop()
-        }
-    }
-
-    private func showMicrophoneRequiredAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Microphone access required"
-        alert.informativeText = (
-            "Turning Samantha on uses your microphone. Allow access when macOS prompts, "
-            + "or enable Voice CUA under System Settings → Privacy & Security → Microphone."
-        )
-        alert.addButton(withTitle: "Open Settings")
-        alert.addButton(withTitle: "OK")
-        if alert.runModal() == .alertFirstButtonReturn {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Microphone") {
-                NSWorkspace.shared.open(url)
-            }
         }
     }
 

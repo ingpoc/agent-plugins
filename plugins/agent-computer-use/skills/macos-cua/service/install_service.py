@@ -407,6 +407,10 @@ def main():
         "--sign-only", action="store_true", help="With --release: Developer ID sign, skip notarization",
     )
     parser.add_argument(
+        "--stage-only", metavar="DIR",
+        help="With --release: sign + notarize, copy the stapled app to DIR, do not install",
+    )
+    parser.add_argument(
         "--skip-voice-bundle",
         action="store_true",
         help="Do not bundle voice-cua helper",
@@ -445,6 +449,14 @@ def main():
     if args.release:
         print("Release signing (Developer ID, hardened runtime)...")
         run(["bash", str(SIGN_NOTARIZE)] + (["--sign-only"] if args.sign_only else []) + [str(target)])
+        if args.stage_only:
+            out = Path(args.stage_only).expanduser() / dest.name
+            if out.exists():
+                shutil.move(str(out), str(Path.home() / ".Trash" / f"{dest.name}.staged-{int(time.time())}"))
+            out.parent.mkdir(parents=True, exist_ok=True)
+            run(["ditto", str(target), str(out)])
+            print(f"\n✓ Staged (not installed): {out}")
+            return
         if dest.exists():
             shutil.move(str(dest), str(Path.home() / ".Trash" / f"{dest.name}.prev-{int(time.time())}"))
         dest.parent.mkdir(parents=True, exist_ok=True)

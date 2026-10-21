@@ -252,6 +252,37 @@ def keychain_exists(label: str) -> bool:
     return r.returncode == 0
 
 
+# Written by the app (KeychainGrant) after onboarding's Keychain row read an item successfully:
+# {"ids": [...], "labels": [...]} — names only, never values.
+KEYCHAIN_APPROVED = Path("~/.cache/macos-cua/keychain-approved.json").expanduser()
+
+
+class KeychainNotApproved(RuntimeError):
+    """Item not yet approved in ACU onboarding › Keychain access; reading would prompt."""
+
+
+def keychain_approved(*, label: str | None = None, item_id: str | None = None) -> bool:
+    if os.environ.get("ACU_KEYCHAIN_UNGATED", "") == "1":  # dev checkout / tests only
+        return True
+    try:
+        data = json.loads(KEYCHAIN_APPROVED.read_text())
+    except (OSError, ValueError):
+        return False
+    return (label is not None and label in data.get("labels", [])) or (
+        item_id is not None and item_id in data.get("ids", [])
+    )
+
+
+def keychain_get_approved(label: str, item_id: str) -> str:
+    """Runtime read (Samantha's API keys): only items onboarding already approved, so the
+    Keychain never prompts mid-session (attributed to /usr/bin/security)."""
+    if not keychain_approved(label=label, item_id=item_id):
+        raise KeychainNotApproved(
+            f"Keychain item {label!r} needs access: open ACU onboarding › Keychain access › Grant"
+        )
+    return keychain_get(label)
+
+
 def keychain_get(label: str) -> str:
     r = subprocess.run(
         [SECURITY, "find-generic-password", "-l", label, "-w"],

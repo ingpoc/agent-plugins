@@ -8,6 +8,8 @@ import SwiftUI
 final class OnboardingModel: ObservableObject {
     enum Step { case welcome, permissions }
     @Published var step: Step
+    /// "Needs access" button elsewhere: open the rows focused on this one.
+    @Published var focusRow: ACUPermission?
     init(step: Step = .welcome) { self.step = step }
 
     static let completedKey = "acu.onboarding.completed"
@@ -203,7 +205,7 @@ struct OnboardingView: View {
 
     private var page: some View {
         VStack(alignment: .leading, spacing: 14) {
-            PermissionRows(rows: rows, store: store, rendering: rendering, permissions: permissions)
+            PermissionRows(rows: rows, store: store, rendering: rendering, focus: model.focusRow?.key, permissions: permissions)
             Text("Change these later in ACU Settings › Computer Use.")
                 .font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45))
                 .fixedSize(horizontal: false, vertical: true)
@@ -251,6 +253,8 @@ final class OnboardingWindowController: NSWindowController {
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
+        window.hidesOnDeactivate = false
+        window.canHide = false
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = NSColor(red: 0.19, green: 0.19, blue: 0.19, alpha: 1)
         super.init(window: window)
@@ -263,8 +267,9 @@ final class OnboardingWindowController: NSWindowController {
         fitToStep()
         // Welcome hugs its content; the permission rows get the full 640 pt (they scroll).
         stepWatch = model.$step.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in self?.fitToStep() }
-        NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
-            MainActor.assumeIsolated { PermissionCenter.shared.refresh() }
+        // Back from System Settings / a TCC alert: GrantResume refreshes and brings this window forward.
+        NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { _ in
+            MainActor.assumeIsolated { GrantResume.shared.userClosed() }
         }
     }
 
@@ -290,6 +295,13 @@ final class OnboardingWindowController: NSWindowController {
             if UserDefaults.standard.bool(forKey: OnboardingModel.completedKey) { shared.model.step = .permissions }
             shared.show()
         }
+    }
+
+    /// Runtime found a consent missing: never prompt there — open onboarding at that row instead.
+    func show(row: ACUPermission?) {
+        model.step = .permissions
+        model.focusRow = row
+        show()
     }
 
     func show() {

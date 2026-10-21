@@ -26,6 +26,11 @@ MIN_INTERVAL_S = 0.1
 
 
 def read_token(source: str = "samantha") -> str | None:
+    from voice_cua.catalog import keychain_approved
+
+    if not keychain_approved(item_id=f"island.{source}"):
+        _log_once("island token not yet approved in ACU onboarding › Keychain access; use the island socket")
+        return None
     try:
         out = subprocess.run(
             ["/usr/bin/security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", source, "-w"],

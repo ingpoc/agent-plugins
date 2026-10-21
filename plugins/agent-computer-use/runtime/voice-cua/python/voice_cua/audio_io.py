@@ -60,29 +60,19 @@ def _voice_cua_app_bundle() -> Path | None:
     return exe.parent.parent.parent
 
 
-def _request_macos_mic_access() -> bool:
-    """AVFoundation TCC prompt — required before PortAudio; LSUIElement apps may not prompt otherwise."""
+def _mic_authorized() -> bool:
+    """Preflight only (AVCaptureDevice.authorizationStatus via the bundled mic-preflight tool).
+    Never prompts: ACU onboarding owns the Microphone request. Opening the mic while access is
+    undecided would raise the prompt mid-session, so callers stop when this is False."""
     mic_bin = Path(sys.executable).resolve().parent / "mic-preflight"
     if mic_bin.is_file():
         try:
-            proc = subprocess.run([str(mic_bin)], timeout=120, check=False)
+            proc = subprocess.run([str(mic_bin)], timeout=10, check=False)
             return proc.returncode == 0
         except (OSError, subprocess.TimeoutExpired):
             return False
-    if "--preflight-mic" in sys.argv:
-        return True
-    bundle = _voice_cua_app_bundle()
-    if bundle is None:
-        return True
-    try:
-        proc = subprocess.run(
-            ["/usr/bin/open", "-W", "-n", str(bundle), "--args", "--preflight-mic"],
-            timeout=120,
-            check=False,
-        )
-        return proc.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
+    # Dev checkout (no app bundle): nothing ACU-attributed to protect.
+    return _voice_cua_app_bundle() is None
 
 
 def audio_available() -> bool:
@@ -93,8 +83,8 @@ def mic_preflight() -> int:
     """Open/close mic once so macOS TCC runs when Samantha turns on, not mid-session."""
     if os.environ.get("VOICE_CUA_NO_AUDIO", "").strip().lower() in {"1", "true", "yes"}:
         return 0
-    if sys.platform == "darwin" and not _request_macos_mic_access():
-        print("mic preflight failed: microphone access not granted", file=sys.stderr, flush=True)
+    if sys.platform == "darwin" and not _mic_authorized():
+        print("mic preflight failed: microphone needs access (ACU onboarding › Microphone)", file=sys.stderr, flush=True)
         return 1
     if sd is None:
         print("mic preflight: sounddevice unavailable", file=sys.stderr, flush=True)

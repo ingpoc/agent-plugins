@@ -12,6 +12,8 @@ from voice_cua.catalog import (
     init_secrets_from_bundle,
     keychain_exists,
     keychain_get,
+    KeychainNotApproved,
+    keychain_get_approved,
     keychain_put,
     labels_for_row,
     load_catalog,
@@ -59,7 +61,10 @@ def resolve_openai_api_key() -> str:
             f"  2) secrets_cli mirror {row['id']}\n"
             "Or let the voice/CUA agent open Passwords and copy for you."
         )
-    return keychain_get(label)
+    try:
+        return keychain_get_approved(label, "openai")
+    except KeychainNotApproved as e:   # exit 78 (EX_CONFIG): no restart loop, no prompt
+        raise MissingApiKey(str(e)) from None
 
 
 def mirror_secret_from_clipboard(key_id: str | None = None) -> dict[str, Any]:
@@ -185,7 +190,10 @@ def resolve_xai_api_key() -> str:
         return env
     for label in _xai_labels():
         if keychain_exists(label):
-            return keychain_get(label)
+            try:
+                return keychain_get_approved(label, "xai")
+            except KeychainNotApproved as e:
+                raise MissingApiKey(str(e)) from None
     raise MissingApiKey(
         "Grok Voice needs an xAI API key: add it to the login Keychain as 'xai-api' "
         "(secrets_cli) or set XAI_API_KEY"

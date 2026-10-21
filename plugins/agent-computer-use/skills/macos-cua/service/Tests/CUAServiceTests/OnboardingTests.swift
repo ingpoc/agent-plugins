@@ -39,8 +39,12 @@ final class OnboardingTests: XCTestCase {
         XCTAssertEqual(Set(keys).count, keys.count)
         for p in ACUPermission.allCases {
             XCTAssertEqual(ACUPermission.from(key: p.key), p)
-            XCTAssertNotNil(p.paneURL, "\(p) deep link")
-            XCTAssertTrue(p.paneURL!.absoluteString.hasPrefix("x-apple.systempreferences:"))
+            if p == .keychain {   // the Keychain's own "Always Allow" prompt is the grant: no pane
+                XCTAssertNil(p.paneURL)
+            } else {
+                XCTAssertNotNil(p.paneURL, "\(p) deep link")
+                XCTAssertTrue(p.paneURL!.absoluteString.hasPrefix("x-apple.systempreferences:"))
+            }
             XCTAssertFalse(p.caption.isEmpty)
         }
         XCTAssertNil(ACUPermission.from(key: "island.calendar.access"))
