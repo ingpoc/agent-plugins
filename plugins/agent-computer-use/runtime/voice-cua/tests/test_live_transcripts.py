@@ -46,5 +46,29 @@ class LiveInboundTranscriptTests(unittest.TestCase):
         self.assertEqual(dict(events)["assistant_reply"]["text"], "Opening it now.")
 
 
+class LiveCloseTests(unittest.TestCase):
+    def test_finalize_sends_session_close_and_waits_for_closed(self):
+        live = providers.LiveProvider()
+        live.outbound({"type": "session.update", "session": {"tools": []}})  # session.start
+        sent = []
+
+        def send(event):
+            sent.append(event)
+            live.inbound({"type": "session.closed", "usage": {"seconds": 7}})
+            return True
+
+        with patch.object(providers, "log_event", lambda *a, **k: None):
+            live.finalize(send, timeout=1)
+        self.assertEqual(sent, [{"type": "session.close"}])
+        self.assertTrue(live.closed.is_set())
+        self.assertEqual(live.voice_seconds, 7)
+
+    def test_finalize_is_a_no_op_before_session_start(self):
+        sent = []
+        providers.LiveProvider().finalize(lambda e: sent.append(e) or True, timeout=0.1)
+        providers.RealtimeProvider("gpt-realtime-2.1").finalize(lambda e: sent.append(e) or True, timeout=0.1)
+        self.assertEqual(sent, [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -430,6 +430,9 @@ class RealtimeSession:
         ws = self.ws
         if ws is None:
             return
+        if reason.startswith("planned"):
+            # Off the socket thread (timer): safe to wait for session.closed.
+            self._finalize_provider(timeout=2.0)
         try:
             ws.close()
         except Exception as exc:  # noqa: BLE001 — close is best effort
@@ -1143,6 +1146,22 @@ class RealtimeSession:
         island_publish("reconnecting", title="Reconnecting", detail="")
         print("Realtime closed", flush=True)
 
+    def _finalize_provider(self, *, timeout: float) -> None:
+        """GPT-Live: session.close → session.closed before the socket goes (final usage)."""
+        ws = self.ws
+
+        def send(event: dict[str, Any]) -> bool:
+            try:
+                ws.send(json.dumps(event))
+                return True
+            except Exception:  # noqa: BLE001 — socket already gone
+                return False
+
+        try:
+            self.provider.finalize(send, timeout)
+        except Exception as exc:  # noqa: BLE001 — never block shutdown
+            log_event("provider_finalize_failed", error=str(exc)[:120])
+
     def shutdown(self) -> None:
         from voice_cua.session_hub import unregister
 
@@ -1158,6 +1177,7 @@ class RealtimeSession:
             self._finish_text_waiter(request_id, error="session closed")
         ws = self.ws
         if ws is not None:
+            self._finalize_provider(timeout=3.0)
             try:
                 ws.close()
             except Exception:  # noqa: BLE001 — close is best effort

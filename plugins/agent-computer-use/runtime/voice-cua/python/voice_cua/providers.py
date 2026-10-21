@@ -101,6 +101,9 @@ class VoiceProvider:
     def reset(self) -> None:
         """New connection: drop per-conversation state."""
 
+    def finalize(self, send: Callable[[dict[str, Any]], bool], timeout: float) -> None:
+        """Before closing the socket: end the provider session gracefully (no-op for Realtime)."""
+
 
 class RealtimeProvider(VoiceProvider):
     name = "openai-realtime"
@@ -204,6 +207,7 @@ class LiveProvider(VoiceProvider):
         self.intelligence = intelligence if intelligence in BACKEND_MODELS else DEFAULT_INTELLIGENCE
         self.voice = voice
         self._lock = threading.Lock()
+        self.closed = threading.Event()
         self.heard = TranscriptBurst(self._on_heard)
         self.said = TranscriptBurst(self._on_said)
         self.reset()
@@ -245,6 +249,17 @@ class LiveProvider(VoiceProvider):
 
     def url(self) -> str:
         return "wss://api.openai.com/v1/live/sessions"
+
+    def finalize(self, send: Callable[[dict[str, Any]], bool], timeout: float) -> None:
+        """Docs: send session.close and keep receiving until session.closed (final usage)."""
+        with self._lock:
+            started = self._started
+        if not started:
+            return
+        self.closed.clear()
+        if send({"type": "session.close"}):
+            if not self.closed.wait(timeout):
+                log_event("live_close_unconfirmed", live_model=self.model)
 
     def backend_model(self, tier: str | None = None) -> str:
         return self.intelligence if (tier or self.tier) == "intelligence" else self.bulk
@@ -426,6 +441,8 @@ class LiveProvider(VoiceProvider):
                 self.voice_seconds = int(seconds)
             log_event("live_usage", live_model=self.model, voice_seconds=self.voice_seconds,
                       final=et == "session.closed", reason=str(event.get("reason") or "") or None)
+            if et == "session.closed":
+                self.closed.set()
             return []
         if et == "session.delegation.created":
             delegation = str((event.get("delegation") or {}).get("id") or event.get("delegation_id") or "")
