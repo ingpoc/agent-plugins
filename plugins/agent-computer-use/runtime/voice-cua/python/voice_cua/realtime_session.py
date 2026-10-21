@@ -210,6 +210,9 @@ class RealtimeSession:
     PLANNED_RECONNECT_SECONDS = 3300.0
     # GPT-Live bills per second: close after this long with no speech, playback or work.
     LIVE_IDLE_CLOSE_SECONDS = float(os.environ.get("VOICE_CUA_LIVE_IDLE_CLOSE_S", "180"))
+    # session.closed reason=expired with nobody talking (e.g. no mic input): rest instead of
+    # forking a fresh session every ~30 s; speech or a typed turn wakes it.
+    LIVE_EXPIRED_REST_SECONDS = 20.0
     PLANNED_RECONNECT_RETRY_SECONDS = 60.0
     # Reconnect backoff: full jitter, delay ~ U(0, min(cap, base * factor**(n-1)))
     # for consecutive attempt n. The counter only resets once a connection has
@@ -254,6 +257,7 @@ class RealtimeSession:
         self._dormant = threading.Event()
         self._wake = threading.Event()
         self._last_activity = time.monotonic()
+        self._last_user_activity = time.monotonic()  # speech, typed turns, backend work
         self._restart_pending = False
         # Phase 1 reliability state.
         self._comet_active = False
@@ -520,6 +524,10 @@ class RealtimeSession:
                 self._wake.set()
         elif event.get("type") != "input_audio_buffer.append":
             self._last_activity = time.monotonic()
+            if event.get("type") in {"conversation.item.create", "response.create"}:
+                self._last_user_activity = self._last_activity
+        elif _has_sound(str(event.get("audio") or "")):
+            self._last_user_activity = time.monotonic()
         ok = True
         for wire in self.provider.outbound(event):
             ok = self._send_wire(wire) and ok
@@ -685,9 +693,13 @@ class RealtimeSession:
             return
         if event.get("type") not in {"session.usage.updated"}:
             self._last_activity = time.monotonic()
+        if event.get("type") in {"session.input_transcript.delta", "session.delegation.created", "response.event"}:
+            self._last_user_activity = time.monotonic()
         for loop_event in self.provider.inbound(event):
             self._dispatch_event(loop_event)
         restart = getattr(self.provider, "restart_requested", "")
+        if restart == "live_closed_expired" and self._rest_after_expiry():
+            return
         if restart and not getattr(self, "_restart_pending", False):
             self._restart_pending = True
             self._request_reconnect(reason=restart)
@@ -1203,6 +1215,26 @@ class RealtimeSession:
         # Phase 1: close no longer kills the session — run() reconnects.
         island_publish("reconnecting", title="Reconnecting", detail="")
         print("Realtime closed", flush=True)
+
+    def _rest_after_expiry(self) -> bool:
+        """Expired with nobody talking: go dormant (wake on speech/text) instead of reconnecting."""
+        idle = time.monotonic() - getattr(self, "_last_user_activity", 0.0)
+        with self._response_condition:
+            busy = bool(self._active_response_ids)
+        busy = busy or bool(self._pending_calls or self._inflight_tools)
+        if busy or idle < self.LIVE_EXPIRED_REST_SECONDS or self._dormant.is_set():
+            return False
+        self.provider.restart_requested = ""
+        log_event("live_expired_rest", idle_s=round(idle, 1))
+        self._dormant.set()
+        self._session_ready.clear()
+        ws = self.ws
+        try:
+            if ws is not None:
+                ws.close()
+        except Exception:  # noqa: BLE001 — close is best effort
+            pass
+        return True
 
     def _idle_watchdog(self) -> None:
         """Close a GPT-Live session after LIVE_IDLE_CLOSE_SECONDS without speech or work."""

@@ -196,3 +196,57 @@ class WakeDetectionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExpiryRestTests(unittest.TestCase):
+    def _session(self, idle_s: float):
+        import threading
+        import time as _t
+        from voice_cua.realtime_session import RealtimeSession
+
+        s = RealtimeSession.__new__(RealtimeSession)
+        s._response_condition = threading.Condition()
+        s._active_response_ids = set()
+        s._pending_calls = {}
+        s._inflight_tools = 0
+        s._dormant = threading.Event()
+        s._session_ready = threading.Event()
+        s._session_ready.set()
+        s._last_user_activity = _t.monotonic() - idle_s
+        s.provider = providers.LiveProvider()
+        s.provider.restart_requested = "live_closed_expired"
+        s.ws = None
+        return s
+
+    def test_expiry_with_nobody_talking_rests_instead_of_reconnecting(self):
+        s = self._session(idle_s=60)
+        self.assertTrue(s._rest_after_expiry())
+        self.assertTrue(s._dormant.is_set())
+        self.assertFalse(s._session_ready.is_set())
+        self.assertEqual(s.provider.restart_requested, "")
+
+    def test_expiry_mid_conversation_or_work_still_reconnects(self):
+        self.assertFalse(self._session(idle_s=2)._rest_after_expiry())
+        busy = self._session(idle_s=60)
+        busy._inflight_tools = 1
+        self.assertFalse(busy._rest_after_expiry())
+
+    def test_typed_turn_wakes_a_resting_session(self):
+        import threading
+        from voice_cua import session_hub
+
+        class Sess:
+            _stop = threading.Event()
+            _session_ready = threading.Event()
+            _dormant = threading.Event()
+            _wake = threading.Event()
+
+            def send_text_and_wait(self, text, timeout):
+                return {"ok": True, "reply": text}
+
+        sess = Sess()
+        sess._dormant.set()
+        threading.Timer(0.05, lambda: sess._wake.is_set() and sess._session_ready.set()).start()
+        with patch.object(session_hub, "_active", sess), patch.object(session_hub, "WAKE_WAIT_S", 1.0):
+            self.assertEqual(session_hub.send_text_and_wait("hi")["ok"], True)
+        self.assertTrue(sess._wake.is_set())
