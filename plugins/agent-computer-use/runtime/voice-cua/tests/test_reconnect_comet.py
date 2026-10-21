@@ -239,8 +239,10 @@ class DropRecoveryTests(unittest.TestCase):
         ws = self._drop_and_reopen(session)
         types = [e["type"] for e in ws.events]
         self.assertEqual(types, ["conversation.item.create", "response.create"])
-        self.assertIn("cua_act", ws.events[0]["item"]["content"][0]["text"])
-        self.assertEqual(ws.events[0]["item"]["role"], "system")
+        text = ws.events[0]["item"]["content"][0]["text"]
+        self.assertEqual(ws.events[0]["item"]["role"], "user")  # the backend sees the request again
+        self.assertIn("cua_act", text)
+        self.assertIn("add milk to reminders", text)
         # A second drop in the same turn does not recover again (no loops).
         session._deliver_tool_result("c2", "cua_act", {"ok": True}, epoch=session._conn_epoch)
         self.assertEqual(self._drop_and_reopen(session).events, [])
@@ -253,7 +255,9 @@ class DropRecoveryTests(unittest.TestCase):
         session._dispatch_event({"type": "response.created", "response": {"id": "r2"}})
         ws = self._drop_and_reopen(session)
         self.assertEqual([e["type"] for e in ws.events], ["conversation.item.create", "response.create"])
-        self.assertIn("Continue it from where it stopped", ws.events[0]["item"]["content"][0]["text"])
+        text = ws.events[0]["item"]["content"][0]["text"]
+        self.assertIn("Continue my request from where it stopped", text)
+        self.assertNotIn("cua_act", text, "acknowledged result is not redelivered")
 
     def test_turn_without_tools_is_replayed_once(self) -> None:
         session = self._session()
@@ -296,13 +300,65 @@ class DropRecoveryTests(unittest.TestCase):
         ):
             session._run_tool("call_long", "cua_act", "{}")
             self.assertTrue(_wait(lambda: session._inflight_tools == 1))
-            self.assertEqual(session._plan_drop_recovery()["mode"], "tool_pending")
+            with contextlib.redirect_stdout(io.StringIO()):
+                session._on_close(None, None, None)
+            self.assertEqual(session._drop_plan["mode"], "tool_pending")
             session._prepare_reconnect()
             session._conn_epoch += 1
             session.ws = FakeWS()
             session._session_ready.set()
+            recovery = threading.Thread(target=session._run_drop_recovery)
+            recovery.start()
             gate.set()
-            self.assertTrue(_wait(lambda: any(e["type"] == "response.create" for e in session.ws.events)))
+            recovery.join(3.0)
+        events = session.ws.events
+        self.assertEqual([e["type"] for e in events], ["conversation.item.create", "response.create"],
+                         "one recovery turn; the worker sends no extra continuation")
+        text = events[0]["item"]["content"][0]["text"]
+        self.assertIn("long task", text)
+        self.assertIn("cua_act", text)
+
+
+class NestedDropTests(unittest.TestCase):
+    def test_second_drop_while_recovery_waits_keeps_waiter_and_delivers_once(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        session._conn_epoch = 1
+        waiter = {"event": threading.Event(), "reply": "", "error": ""}
+        session._text_waiters["req5"] = waiter
+        session.send_text("long task", request_id="req5")
+        gate = threading.Event()
+
+        def dispatch(_name, _args):
+            gate.wait(3.0)
+            return {"ok": True}
+
+        def drop() -> None:
+            with contextlib.redirect_stdout(io.StringIO()):
+                session._on_close(None, None, None)
+            session._prepare_reconnect()
+            session._conn_epoch += 1
+            session.ws = FakeWS()
+            session._session_ready.set()
+
+        with patch("voice_cua.realtime_session.dispatch", side_effect=dispatch), patch(
+            "voice_cua.realtime_session.comet_is_active", return_value=False
+        ):
+            session._run_tool("call_x", "cua_act", "{}")
+            self.assertTrue(_wait(lambda: session._inflight_tools == 1))
+            drop()
+            recovery = threading.Thread(target=session._run_drop_recovery)
+            recovery.start()
+            self.assertTrue(_wait(lambda: session._recovery_active))
+            drop()  # second drop before the tool finished
+            self.assertEqual(session._drop_plan["mode"], "pending")
+            session._run_drop_recovery()  # the new session's hook: nothing extra
+            self.assertFalse(waiter["event"].is_set())
+            gate.set()
+            recovery.join(3.0)
+        creates = [e for e in session.ws.events if e["type"] == "response.create"]
+        self.assertEqual(len(creates), 1)
+        self.assertEqual(creates[0]["response"]["metadata"]["voice_cua_request_id"], "req5")
 
 
 class TranscriptionTests(unittest.TestCase):

@@ -299,7 +299,10 @@ class RealtimeSession:
         self._turn_recovered = False     # one recovery per turn
         self._unacked: dict[str, tuple[str, dict[str, Any], int]] = {}  # sent, no response yet
         self._drop_plan: dict[str, Any] | None = None
+        self._late_results: list[tuple[str, dict[str, Any]]] | None = None  # tools that outlived a drop
         self._reconnect_requested = False
+        self._recovery_request = ""      # text waiter a running recovery will answer
+        self._recovery_active = False
         comet_add_listener(self._on_comet_change)
         apply_env()
 
@@ -1103,7 +1106,9 @@ class RealtimeSession:
                 self._sync_tool_groups(name, result)
                 if name.startswith("comet_"):
                     self._on_comet_change(comet_is_active())
-                # A stale (pre-drop) result still continues the task once: drop recovery.
+                if stale == "recovery":
+                    return  # drop recovery continues the task with this result
+                # A stale (pre-drop) result still continues the task once.
                 request_id_local = request_id
                 if self._wait_for_responses_idle(timeout=10.0):
                     self._send_response_create(request_id=request_id_local)
@@ -1189,6 +1194,13 @@ class RealtimeSession:
             time.sleep(0.25)
         if self._stop.is_set():
             return True
+        if self._late_results is not None:
+            # Drop recovery is waiting for this result: it hands it over with the user's
+            # request in one continuation (_run_drop_recovery), so no response.create here.
+            self._late_results.append((name, result))
+            log_event("tool_result_stale_epoch", tool=name, started_epoch=epoch, epoch=self._conn_epoch,
+                      via="drop_recovery")
+            return "recovery"  # type: ignore[return-value]
         # New server session: it has no such call_id. Re-create the function_call
         # item (same call_id/name/args), then its output; the caller follows with
         # response.create. If the server still rejects the call id, the error
@@ -1551,6 +1563,17 @@ class RealtimeSession:
             return True
         return False
 
+    @classmethod
+    def recovery_message(cls, request: str, results: list[tuple[str, dict[str, Any]]]) -> str:
+        parts = ["(The voice connection dropped and was restored.)"]
+        if request:
+            parts.append(f"My request was: {request[:300]!r}.")
+        for name, result in results[:3]:
+            parts.append(cls.stale_result_note(name, result))
+        parts.append("Continue my request from where it stopped; do not repeat steps that already "
+                     "succeeded. If it is already done, just tell me the outcome.")
+        return " ".join(parts)
+
     def _note_user_turn(self, text: str) -> None:
         self._turn_open = True
         self._turn_text = text
@@ -1559,6 +1582,11 @@ class RealtimeSession:
 
     def _plan_drop_recovery(self) -> dict[str, Any] | None:
         """At an unrequested drop: what the next session must redeliver or replay (once)."""
+        if self._recovery_active:
+            # Dropped again while a recovery waits for its tool: that recovery still delivers
+            # (on whichever session is up then); just keep its text waiter alive.
+            log_event("live_drop_recovery", action="still_pending")
+            return {"mode": "pending", "request_id": self._recovery_request}
         unacked = list(self._unacked.items())
         self._unacked.clear()
         open_, text = self._turn_open, self._turn_text
@@ -1580,6 +1608,8 @@ class RealtimeSession:
         if self._turn_recovered:
             log_event("live_drop_recovery", mode=mode, action="skipped_already_recovered")
             return None
+        if mode == "tool_pending":
+            self._late_results = []
         plan = {"mode": mode, "text": text, "request_id": waiters[0] if waiters else "",
                 "results": [(cid, name, result) for cid, (name, result, _e) in unacked],
                 "tools_in_flight": self._inflight_tools, "epoch": self._conn_epoch}
@@ -1590,28 +1620,36 @@ class RealtimeSession:
 
     def _run_drop_recovery(self) -> None:
         plan, self._drop_plan = self._drop_plan, None
-        if not plan or self._stop.is_set():
+        if not plan or plan["mode"] == "pending" or self._stop.is_set():
             return
         self._turn_recovered = True
         mode, request_id = plan["mode"], plan["request_id"]
+        self._recovery_active, self._recovery_request = True, request_id
+        try:
+            self._deliver_drop_recovery(plan, mode, request_id)
+        finally:
+            self._recovery_active, self._recovery_request = False, ""
+
+    def _deliver_drop_recovery(self, plan: dict[str, Any], mode: str, request_id: str) -> None:
         forked = bool(getattr(self.provider, "forked", False))
-        if mode == "redeliver_result":
-            for _cid, name, result in plan["results"]:
-                self._send_system_note(self.stale_result_note(name, result))
-            if self._wait_for_responses_idle(timeout=10.0):
-                self._send_response_create(request_id=request_id)
-        elif mode == "continue_task":
-            self._send_system_note(
-                "The connection dropped while you were working on the user's request "
-                f"({plan['text'][:200]!r}). Continue it from where it stopped; do not repeat "
-                "steps that already succeeded.")
-            if self._wait_for_responses_idle(timeout=10.0):
-                self._send_response_create(request_id=request_id)
-        elif mode == "replay_turn":
+        results = [(name, result) for _cid, name, result in plan["results"]]
+        if mode == "tool_pending":
+            # Wait for the tool(s) that were running at the drop; their results land here.
+            while self._inflight_tools and not self._stop.is_set():
+                time.sleep(0.2)
+            results += self._late_results or []
+            self._late_results = None
+            while not self._stop.is_set() and not self._wait_session_ready(timeout=5.0):
+                pass  # a later drop: deliver on the session that replaces it
+        if mode == "replay_turn":
             self.send_text(plan["text"], request_id=request_id, replay=True)
-        # tool_pending: the tool worker delivers its result on this session and continues.
+        elif not self._stop.is_set():
+            # A user-role turn: the backend (Live delegation) sees it with the request text;
+            # a fork or seeded session may not carry the typed turn or the dead tool call.
+            self._wait_for_responses_idle(timeout=10.0)
+            self.send_text(self.recovery_message(plan["text"], results), request_id=request_id, replay=True)
         log_event("live_drop_recovery", mode=mode, action="delivered", forked=forked or None,
-                  epoch=self._conn_epoch, results=len(plan["results"]) or None,
+                  epoch=self._conn_epoch, results=len(results) or None,
                   text_request=bool(request_id) or None)
 
     def send_text(self, text: str, *, request_id: str = "", replay: bool = False) -> None:
