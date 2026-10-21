@@ -322,14 +322,14 @@ class ReconnectTests(unittest.TestCase):
         )
 
     def test_backoff_bounds_and_sequence(self) -> None:
-        for attempts, base in enumerate([0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0]):
-            delay = RealtimeSession._reconnect_delay(attempts, rng=random.Random(3))
-            self.assertGreater(delay, 0)
-            self.assertLessEqual(delay, RealtimeSession.RECONNECT_DELAY_MAX)
-            self.assertGreaterEqual(delay, base * 0.8)
-            self.assertLessEqual(delay, min(base * 1.2, 30.0))
+        # Full jitter: attempt n draws from U(0, min(30, 0.5 * 2**(n-1))).
+        for attempt, ceiling in enumerate([0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 30.0, 30.0], start=1):
+            for seed in range(20):
+                delay = RealtimeSession._reconnect_delay(attempt, rng=random.Random(seed))
+                self.assertGreaterEqual(delay, RealtimeSession.RECONNECT_DELAY_FLOOR)
+                self.assertLessEqual(delay, ceiling)
 
-    def test_session_updated_resets_backoff(self) -> None:
+    def test_session_updated_marks_connected_without_resetting_backoff(self) -> None:
         session = make_session()
         session._reconnect_attempts = 5
         with (
@@ -337,7 +337,9 @@ class ReconnectTests(unittest.TestCase):
             patch.object(RealtimeSession, "_schedule_planned_reconnect") as schedule,
         ):
             feed(session, {"type": "session.updated"})
-        self.assertEqual(session._reconnect_attempts, 0)
+        # A flapping socket must not reset the counter — only 30 s of stability does.
+        self.assertEqual(session._reconnect_attempts, 5)
+        self.assertGreater(session._connected_at, 0)
         schedule.assert_called_once_with()
 
     def test_close_triggers_reconnect_loop(self) -> None:
@@ -357,7 +359,7 @@ class ReconnectTests(unittest.TestCase):
             thread.join(timeout=2)
         self.assertFalse(thread.is_alive())
         self.assertGreaterEqual(len(connects), 3)
-        # Backoff grows across failed attempts until session.updated resets it.
+        # Backoff grows across failed attempts until a stable connection resets it.
         self.assertGreaterEqual(session._reconnect_attempts, 3)
 
     def test_backoff_grows_across_consecutive_failed_attempts(self) -> None:
@@ -377,7 +379,7 @@ class ReconnectTests(unittest.TestCase):
                 patch.object(session._stop, "wait", side_effect=fake_wait), \
                 patch.object(session, "_schedule_planned_reconnect"), \
                 patch("voice_cua.realtime_session.island_publish"), \
-                patch("voice_cua.realtime_session.random.uniform", return_value=1.0):
+                patch("voice_cua.realtime_session.random.uniform", side_effect=lambda _lo, hi: hi):
             session.run()
         self.assertEqual(delays, [0.5, 1.0, 2.0, 4.0, 8.0])
         self.assertEqual(session._reconnect_attempts, 5)

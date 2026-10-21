@@ -11,6 +11,7 @@ import base64
 import json
 import os
 import random
+import re
 import signal
 import sys
 import threading
@@ -20,7 +21,8 @@ from typing import TYPE_CHECKING, Any
 
 from voice_cua import SYSTEM_INSTRUCTIONS
 from voice_cua.auth import resolve_openai_api_key
-from voice_cua.activity_log import log_event
+from voice_cua.activity_log import log_event, log_usage, tool_context
+from voice_cua.activity_log import log_exception as _log_exception
 from voice_cua.cua_bridge import hide_agent_cursor
 from voice_cua.comet_bridge import comet_add_listener, comet_end, comet_is_active, comet_remove_listener
 from voice_cua.island_facade import describe_tool, island_publish, island_voice_meter, summarize_result
@@ -118,13 +120,94 @@ def build_session_update(*, text_only: bool = False, comet_active: bool = False)
     return {"type": "session.update", "session": session}
 
 
+_RATE_LIMIT_MARKERS = (
+    "rate_limit",
+    "rate limit",
+    "ratelimit",
+    "too many requests",
+    "tokens_per_min",
+    "tokens per min",
+    "token_limit",
+    "token limit",
+    "insufficient_quota",
+)
+_RETRY_IN_RE = re.compile(
+    r"(?:try again|retry)\s+(?:in|after)\s+(\d+(?:\.\d+)?)\s*(ms|milliseconds?|s|secs?|seconds?|m|mins?|minutes?)\b",
+    re.I,
+)
+
+
+def _is_rate_limit(err: dict[str, Any]) -> bool:
+    markers = " ".join(str(err.get(k) or "") for k in ("type", "code", "message")).lower()
+    return any(marker in markers for marker in _RATE_LIMIT_MARKERS)
+
+
+def _seconds(value: Any, *, scale: float = 1.0) -> float | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value) * scale
+    except (TypeError, ValueError):
+        return None
+    return number if number == number and number >= 0 else None
+
+
+def retry_after_seconds(err: dict[str, Any] | None = None, headers: Any = None) -> float | None:
+    """Server retry-after in seconds, from an error event and/or HTTP headers."""
+    err = err if isinstance(err, dict) else {}
+    for key, scale in (("retry_after_ms", 0.001), ("retry_after", 1.0), ("retry_after_seconds", 1.0)):
+        found = _seconds(err.get(key), scale=scale)
+        if found is not None:
+            return found
+    if headers:
+        try:
+            lowered = {str(k).lower(): v for k, v in dict(headers).items()}
+        except Exception:  # noqa: BLE001
+            lowered = {}
+        found = _seconds(lowered.get("retry-after-ms"), scale=0.001)
+        if found is None:
+            found = _seconds(lowered.get("retry-after"))
+        if found is None and lowered.get("retry-after"):
+            try:
+                from email.utils import parsedate_to_datetime
+
+                when = parsedate_to_datetime(str(lowered["retry-after"]))
+                found = max(0.0, when.timestamp() - time.time())
+            except Exception:  # noqa: BLE001 — unparseable date → ignore
+                found = None
+        if found is not None:
+            return found
+    match = _RETRY_IN_RE.search(str(err.get("message") or ""))
+    if match:
+        amount, unit = float(match.group(1)), match.group(2).lower()
+        if unit.startswith("ms") or unit.startswith("milli"):
+            return amount / 1000.0
+        if unit.startswith("m"):
+            return amount * 60.0
+        return amount
+    return None
+
+
 class RealtimeSession:
     REALTIME_PING_INTERVAL = 20
     REALTIME_PING_TIMEOUT = 15
     # Server enforces a 60-minute WS cap — plan a proactive reconnect at 55 min.
     PLANNED_RECONNECT_SECONDS = 3300.0
     PLANNED_RECONNECT_RETRY_SECONDS = 60.0
+    # Reconnect backoff: full jitter, delay ~ U(0, min(cap, base * factor**(n-1)))
+    # for consecutive attempt n. The counter only resets once a connection has
+    # stayed up RECONNECT_STABLE_SECONDS; after RECONNECT_MAX_ATTEMPTS straight
+    # failures we stop and say so (island + voice.log).
+    RECONNECT_DELAY_BASE = 0.5
+    RECONNECT_DELAY_FACTOR = 2.0
     RECONNECT_DELAY_MAX = 30.0
+    RECONNECT_DELAY_FLOOR = 0.1  # never hot-loop, even when jitter rolls ~0
+    RECONNECT_STABLE_SECONDS = 30.0
+    RECONNECT_MAX_ATTEMPTS = 8
+    # rate_limit / token-limit errors wait at least this long; a server
+    # retry-after (header or "try again in Xs") wins when longer (≤ max).
+    RATE_LIMIT_MIN_DELAY = 20.0
+    RETRY_AFTER_MAX = 300.0
 
     def __init__(self, api_key: str | None = None, *, enable_audio: bool = True) -> None:
         if websocket is None:
@@ -153,6 +236,11 @@ class RealtimeSession:
         self._current_response_id = ""
         self._last_user_text = ""
         self._reconnect_attempts = 0
+        self._connected_at = 0.0  # monotonic time of the last session.updated
+        self._retry_not_before = 0.0  # monotonic; set by rate limits / retry-after
+        self._retry_reason = ""
+        self._reconnect_gave_up = False
+        self._response_started: dict[str, float] = {}  # response_id → monotonic at response.created
         self._config_error_published = False
         self._rate_limit_warned = False
         self._planned_reconnect_timer: threading.Timer | None = None
@@ -186,32 +274,98 @@ class RealtimeSession:
         )
 
     @classmethod
-    def _reconnect_delay(cls, attempts: int, rng: Any = None) -> float:
-        """Jittered exponential backoff: 0.5, 1, 2, 4, 8, … capped at 30s."""
+    def _reconnect_delay(cls, attempt: int, rng: Any = None, *, min_delay: float = 0.0) -> float:
+        """Full-jitter backoff for consecutive attempt ``attempt`` (1-based).
+
+        U(0, min(cap, base * factor**(attempt-1))), floored at RECONNECT_DELAY_FLOOR,
+        then raised to ``min_delay`` (rate limit / server retry-after).
+        """
         rng = rng if rng is not None else random
-        base = min(0.5 * (2 ** min(attempts, 63)), cls.RECONNECT_DELAY_MAX)
-        return min(base * rng.uniform(0.8, 1.2), cls.RECONNECT_DELAY_MAX)
+        exp = max(0, min(int(attempt) - 1, 63))
+        ceiling = min(cls.RECONNECT_DELAY_BASE * (cls.RECONNECT_DELAY_FACTOR ** exp), cls.RECONNECT_DELAY_MAX)
+        delay = max(rng.uniform(0.0, ceiling), cls.RECONNECT_DELAY_FLOOR)
+        return max(delay, min(float(min_delay or 0.0), cls.RETRY_AFTER_MAX))
+
+    def _note_retry_hint(self, *, min_delay: float, reason: str) -> None:
+        """Hold the next reconnect back >= ``min_delay`` from now (rate limit / retry-after)."""
+        min_delay = min(max(0.0, float(min_delay)), self.RETRY_AFTER_MAX)
+        until = time.monotonic() + min_delay
+        if until > self._retry_not_before:
+            self._retry_not_before = until
+            self._retry_reason = reason
+            log_event("reconnect_hold", reason=reason, min_delay=round(min_delay, 3))
+
+    def _take_retry_hint(self) -> tuple[float, str]:
+        remaining = self._retry_not_before - time.monotonic()
+        reason = self._retry_reason
+        self._retry_not_before = 0.0
+        self._retry_reason = ""
+        return (remaining, reason) if remaining > 0 else (0.0, "")
 
     def run(self) -> None:
-        """Resilient top-level loop: connect, retry with backoff until stopped."""
+        """Resilient top-level loop: connect, retry with backoff until stopped or out of attempts."""
         self._schedule_planned_reconnect()
+        self._reconnect_gave_up = False
+        self._reconnect_attempts = 0  # a fresh run() always gets the full budget
+        self._retry_not_before = 0.0  # and never inherits a stale hold
+        self._retry_reason = ""
         while not self._stop.is_set():
+            self._connected_at = 0.0
             try:
                 self.connect()
             except Exception as exc:  # noqa: BLE001 — keep the loop alive
                 log_event("reconnect_attempt_failed", error=str(exc)[:120])
             if self._stop.is_set():
                 break
-            delay = self._reconnect_delay(self._reconnect_attempts)
+            if self._connected_at and time.monotonic() - self._connected_at >= self.RECONNECT_STABLE_SECONDS:
+                self._reconnect_attempts = 0  # that connection was stable — fresh budget
             self._reconnect_attempts += 1
+            attempt = self._reconnect_attempts
+            if attempt > self.RECONNECT_MAX_ATTEMPTS:
+                self._give_up_reconnect()
+                break
+            min_delay, reason = self._take_retry_hint()
+            delay = self._reconnect_delay(attempt, min_delay=min_delay)
             self._prepare_reconnect()
-            island_publish("reconnecting", title="Reconnecting", detail=f"attempt {self._reconnect_attempts}")
-            log_event("reconnecting", attempt=self._reconnect_attempts, delay=round(delay, 3))
-            print(f"Realtime closed — reconnecting in {delay:.1f}s", flush=True)
+            island_publish(
+                "reconnecting",
+                title="Reconnecting",
+                detail=f"attempt {attempt} of {self.RECONNECT_MAX_ATTEMPTS}",
+            )
+            log_event(
+                "reconnecting",
+                attempt=attempt,
+                max_attempts=self.RECONNECT_MAX_ATTEMPTS,
+                delay=round(delay, 3),
+                reason=reason or None,
+            )
+            why = f" ({reason})" if reason else ""
+            print(
+                f"Realtime closed — reconnect attempt {attempt}/{self.RECONNECT_MAX_ATTEMPTS} in {delay:.1f}s{why}",
+                flush=True,
+            )
             if self._stop.wait(timeout=delay):
                 break
+        if self._reconnect_gave_up:
+            return
         island_publish("idle", title="Idle", detail="Disconnected")
         print("Realtime closed", flush=True)
+
+    def _give_up_reconnect(self) -> None:
+        self._reconnect_gave_up = True
+        failures = self.RECONNECT_MAX_ATTEMPTS
+        self._take_retry_hint()  # drop any pending hold with the session
+        self._cancel_planned_reconnect()
+        self._prepare_reconnect()
+        mark("realtime_reconnect_gave_up", status="fail", detail=f"{failures} attempts")
+        log_event("reconnect_gave_up", attempts=failures)
+        # Island error copy must be a "Couldn't ..." line <= 32 chars (island_copy).
+        island_publish("error", title="Couldn't reconnect voice")
+        print(
+            f"Realtime: gave up after {failures} failed reconnect attempts — "
+            "voice is offline; turn Samantha off and on to retry",
+            flush=True,
+        )
 
     def _prepare_reconnect(self) -> None:
         """Reset per-connection bookkeeping; fail outstanding text waiters."""
@@ -219,6 +373,7 @@ class RealtimeSession:
             self._audio.clear_playback()
         with self._response_condition:
             self._active_response_ids.clear()
+            self._response_started.clear()
             self._speaking_response_ids.clear()
             self._cancelled_response_ids.clear()
             self._current_response_id = ""
@@ -292,6 +447,8 @@ class RealtimeSession:
         try:
             with self._send_lock:
                 ws.send(raw)
+            if event.get("type") == "session.update":
+                log_event("session_update", bytes=len(raw.encode("utf-8")))
             return True
         except Exception as exc:  # noqa: BLE001 — closed/reconnecting socket
             self._send_drops += 1
@@ -418,8 +575,9 @@ class RealtimeSession:
         et = event.get("type")
         if et == "session.updated":
             mark("realtime_session_updated")
-            # Successful (re)connect — reset backoff and the planned reconnect.
-            self._reconnect_attempts = 0
+            # Successful (re)connect — reset the planned reconnect. The backoff
+            # counter resets in run() only once this connection proved stable.
+            self._connected_at = time.monotonic()
             self._schedule_planned_reconnect()
             self._session_ready.set()
             from voice_cua.session_hub import register
@@ -474,6 +632,9 @@ class RealtimeSession:
             request_id = self._request_id(response)
             with self._response_condition:
                 if response_id:
+                    if len(self._response_started) > 256:  # never grow without bound
+                        self._response_started.clear()
+                    self._response_started[response_id] = time.monotonic()
                     self._active_response_ids.add(response_id)
                     self._current_response_id = response_id
                     if request_id:
@@ -495,6 +656,13 @@ class RealtimeSession:
         elif et in {"response.done", "response.output_audio.done"}:
             if et == "response.done":
                 response = event.get("response") or {}
+                with self._response_condition:
+                    started = self._response_started.pop(str(response.get("id") or ""), None)
+                latency_ms = int((time.monotonic() - started) * 1000) if started else None
+                try:
+                    log_usage(response, latency_ms=latency_ms)  # counts + ids only
+                except Exception:  # noqa: BLE001 — logging must never break a turn
+                    pass
                 self._note_response_done(response)
                 self._finish_response(str(response.get("id") or ""))
             self._publish_listening_when_idle()
@@ -602,7 +770,7 @@ class RealtimeSession:
 
     @staticmethod
     def _classify_error(err: dict[str, Any]) -> str:
-        """recoverable | session | config | client — see _handle_error_event."""
+        """recoverable | session | rate_limit | config | client — see _handle_error_event."""
         message = str(err.get("message") or "").lower()
         code = str(err.get("code") or "").lower()
         markers = code + " " + message
@@ -624,6 +792,8 @@ class RealtimeSession:
         )
         if any(marker in markers for marker in session_markers):
             return "session"
+        if _is_rate_limit(err):
+            return "rate_limit"
         if str(err.get("type") or "") == "invalid_request_error":
             return "config"
         return "client"
@@ -662,6 +832,15 @@ class RealtimeSession:
         if classification == "recoverable":
             # Expected bumps from barge-in/clear races — never alarm the user.
             return
+        retry_after = retry_after_seconds(err)
+        if classification == "rate_limit":
+            # Longer floor; a server retry-after wins when it is longer.
+            self._note_retry_hint(
+                min_delay=max(self.RATE_LIMIT_MIN_DELAY, retry_after or 0.0),
+                reason=f"rate_limit:{code or 'rate_limit'}",
+            )
+        elif retry_after is not None:
+            self._note_retry_hint(min_delay=retry_after, reason=f"retry_after:{code or 'server'}")
         if classification == "session":
             mark("realtime_error", status="fail", error=msg)
             self._request_reconnect(reason=f"error:{code or msg[:60]}")
@@ -685,6 +864,7 @@ class RealtimeSession:
             name,
             raw_args,
             request_id=self._request_for_response(str(event.get("response_id") or "")),
+            response_id=str(event.get("response_id") or ""),
         )
 
     def _handle_function_item(self, item: dict[str, Any], *, response_id: str = "") -> None:
@@ -698,6 +878,7 @@ class RealtimeSession:
             name,
             raw_args,
             request_id=self._request_for_response(response_id),
+            response_id=response_id,
         )
 
     def _run_tool(
@@ -707,6 +888,7 @@ class RealtimeSession:
         raw_args: str,
         *,
         request_id: str = "",
+        response_id: str = "",
     ) -> None:
         if not call_id or not name:
             return
@@ -727,11 +909,12 @@ class RealtimeSession:
             try:
                 kind, title, detail, app = describe_tool(name, arguments)
                 island_publish(kind, title=title, detail=detail, app=app, step=name)
-                try:
-                    result = dispatch(name, arguments)
-                except Exception as exc:  # noqa: BLE001 — always answer the tool call
-                    result = {"ok": False, "error": str(exc)[:200]}
-                    log_event("tool_error", name=name, error=str(exc)[:200])
+                with tool_context(call_id=call_id, response_id=response_id):
+                    try:
+                        result = dispatch(name, arguments)
+                    except Exception as exc:  # noqa: BLE001 — always answer the tool call
+                        result = {"ok": False, "error": str(exc)[:200]}
+                        _log_exception(name, exc)
                 if not isinstance(result, dict):
                     result = {"ok": False, "error": "non-dict tool result"}
                 for bad in ("value", "secret", "password", "api_key", "token"):
@@ -860,6 +1043,17 @@ class RealtimeSession:
             classification="transport",
         )
         print("ws error:", error, file=sys.stderr)
+        # Handshake refusals (e.g. HTTP 429) carry status + retry-after headers.
+        status = getattr(error, "status_code", None)
+        headers = getattr(error, "resp_headers", None)
+        retry_after = retry_after_seconds(None, headers)
+        if status == 429 or _is_rate_limit({"message": msg}):
+            self._note_retry_hint(
+                min_delay=max(self.RATE_LIMIT_MIN_DELAY, retry_after or 0.0),
+                reason=f"rate_limit:http_{status or 'ws'}",
+            )
+        elif retry_after is not None:
+            self._note_retry_hint(min_delay=retry_after, reason=f"retry_after:http_{status or 'ws'}")
 
     def _on_close(self, _ws: Any, *_args: Any) -> None:
         mark("realtime_ws_close")
