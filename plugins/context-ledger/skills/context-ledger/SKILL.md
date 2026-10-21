@@ -17,7 +17,7 @@ Use the ledger only for critical, recurring, research or debugging tasks, or to 
 
 Use bare canonical project/tool IDs; explicit `{"project":null,"tools":[]}` means fleet-only. Scope is task applicability, not authorization. Never infer it from the helper cwd or deployment binding. Send only that JSON. Describe the immediate situation, not merely the end goal. Keep task_id stable within a task. A new task starts with served: []; same-task continuations include only that task's served IDs. Do not repeat an unchanged lookup unless situation, need, owner or ledger changed. The helper returns at most three applicable instructions or none; the parent judges them against the current owner.
 
-A Mac parent retains a local helper. A Cursor cloud parent hands the JSON to one retained worker on the Mac. Codex cloud has no ledger. If the helper is unavailable, stop that ledger operation, continue other authorized work and state the limitation; keep the same helper rather than creating a replacement or using direct access.
+A Mac parent retains a local helper. A Cursor cloud parent hands the JSON to one retained worker on the Mac. Codex cloud has no ledger. If the helper or ledger is unavailable, that ledger operation stops; continue the task without it (fail open) and state the limitation; keep the same helper rather than creating a replacement or using direct access.
 
 ## Retrieval
 

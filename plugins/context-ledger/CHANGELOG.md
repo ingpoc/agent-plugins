@@ -3,7 +3,7 @@
 ## 0.1.36
 
 - Narrow the skill trigger: use the ledger only for critical, recurring, research or debugging tasks, or to save an owner override. Simple tasks skip lookup, capture and closeout; every ledger call has a short timeout and fails open. The optional loop gate and the skill gate are now the same gate.
-- Trim the helper protocol (`references/lookup-subagent.md`) from 2,139 to 681 words. The lookup envelope, retrieval commands, capture gate questions, closeout envelopes, error codes and helper ownership/attribution are unchanged.
+- Trim the helper protocol (`references/lookup-subagent.md`) from 2,139 to 816 words by removing repetition and prose. The lookup envelope, retrieval commands, capture gate questions, closeout envelopes, error codes and helper ownership/attribution are kept; explanatory detail now lives in the code and tests.
 
 ## 0.1.35
 
