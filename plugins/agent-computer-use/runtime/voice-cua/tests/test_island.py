@@ -450,3 +450,12 @@ def tearDownModule() -> None:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ConfirmTimeoutTests(unittest.TestCase):
+    def test_unanswered_confirm_card_is_taken_down(self):
+        from voice_cua.island_state import IslandBus
+        bus = IslandBus()
+        self.assertFalse(bus.request_confirm("c-timeout", "Delete it?", timeout=0.05))
+        self.assertNotEqual(bus.state.kind, "confirm")
+        self.assertEqual(bus.state.confirm_id, "")

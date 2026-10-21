@@ -186,6 +186,10 @@ class IslandBus:
         with self._lock:
             result = self._confirm_results.pop(confirm_id, False) if ok else False
             self._confirms.pop(confirm_id, None)
+            stale = not ok and getattr(self._state, "confirm_id", None) == confirm_id
+        if stale:
+            # Timed out unanswered: take the card down (default deny) instead of leaving Allow/Deny up.
+            self.publish("done", title="Not confirmed", detail="No answer, so nothing was done")
         return bool(result)
 
     def resolve_confirm(self, confirm_id: str, approved: bool) -> bool:
