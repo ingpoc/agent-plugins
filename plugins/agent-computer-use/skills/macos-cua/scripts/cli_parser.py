@@ -144,6 +144,14 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("status", help="CUAService health (+ legacy driver detail)")
+    p = sub.add_parser("settings", help="Open the Agent Computer Use settings window")
+    p.add_argument(
+        "pane",
+        nargs="?",
+        default="",
+        help="general, interaction, connectivity, display, sound, now-playing, calendar, file-tray, "
+        "samantha, grok-bot, cursor, codex, computer-use, about",
+    )
     sub.add_parser("reset", help="Clear the app-resolution cache")
     p = sub.add_parser("apps", help="List installed and running macOS apps")
     p.add_argument(
@@ -377,6 +385,14 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
     p.add_argument(
         "--idle-hide-ms", type=int, dest="idle_hide_ms",
         help="configure: hide the agent cursor after N ms with no action (crash-safety net; 0 = never; default 120000)",
+    )
+    p.add_argument(
+        "--motion-style", dest="motion_style", choices=["comet_swoop", "linear"],
+        help="configure: cursor.motion.style (default comet_swoop: 0.12 s arc + short trail)",
+    )
+    p.add_argument(
+        "--recording", dest="recording", choices=["true", "false"],
+        help="configure: cursor.motion.recording; true = Cua Fitts timing x1.15 + 0.18 s trail (slower, for videos)",
     )
     p.add_argument("--session", default=cua_session)
 

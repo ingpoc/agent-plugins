@@ -47,3 +47,15 @@ def send_text_and_wait(text: str, *, timeout: float = 90.0) -> dict[str, Any]:
     if not sess._session_ready.is_set():
         return {"ok": False, "error": "realtime session not ready yet"}
     return sess.send_text_and_wait(text, timeout=timeout)
+
+
+def island_control(action: str) -> bool:
+    """Run an island card control on the live session (False = no session / not supported)."""
+    with _lock:
+        sess = _active
+    if sess is None or sess._stop.is_set() or not sess._session_ready.is_set():
+        return False
+    try:
+        return bool(sess.island_control(action))
+    except Exception:  # noqa: BLE001 — a button must never crash the gateway
+        return False

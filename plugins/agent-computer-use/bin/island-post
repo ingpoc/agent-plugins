@@ -1,0 +1,303 @@
+#!/usr/bin/env python3
+"""island-post — post a status row, an approval, or a choice card to the Dynamic Island (CUAService hub).
+
+  island-post --source grok-bot --kind running --title "Booking table" --app Comet
+  island-post --source cursor --kind approval --id deploy-1 --title "Deploy to staging?" --wait 120
+  island-post --source grok-bot --kind choice --id q1 --prompt "Which one?" \\
+      --option "Looks great=great" --option "Needs work=needs_work" --allow-text --wait 300
+  island-post --source codex --kind clear --id deploy-1        # answered in chat: remove the card
+  island-post --source grok-bot --kind peek --title "Build finished" --app Terminal   # 3 s Quick Peek
+  island-post --source codex --kind running --id job1 --title "Migrating" --controls stop,retry --wait-control 600
+      # row with Stop/Retry buttons; prints {"action": "stop"} when Guru clicks (exit 0), timeout exit 2
+
+Transport: CUAService's local socket (~/Library/Application Support/CUAService/island.sock, 0600,
+peer uid checked). No Keychain read happens in this process, so there is never a Keychain prompt;
+CUAService authorizes the source by Settings (enabled + approval cap) and by the source being set up
+(ACU Settings → AI Agents → <source> → Rotate). `--http` uses 127.0.0.1:8777 with the Bearer token
+instead (other harnesses).
+
+--wait N (≤ 3600) blocks cheaply (server long-poll, no busy polling) and prints the answer as JSON:
+  {"ok": true, "id": "q1", "status": "answered", "values": ["great"], "text": "…"}
+Exit codes: 0 answered/approved · 1 denied/dismissed · 2 timeout/expired · 3 rejected/error.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import socket
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+SOURCES = {"grok-bot": "grok", "grok": "grok", "cursor": "cursor", "codex": "codex", "samantha": "samantha"}
+KINDS = ("running", "needs_you", "done", "error", "approval", "choice", "clear", "peek")
+CONTROLS = ("stop", "retry")
+MAX_WAIT = 3600
+CHOICE_TTL = 900.0   # 15 min unless --ttl
+POLL_CHUNK = 300  # one long-poll request parks up to this long
+
+
+def socket_path() -> str:
+    return os.path.join(os.path.expanduser("~"), "Library", "Application Support", "CUAService", "island.sock")
+
+
+def valid_socket(p: str) -> bool:
+    """A Unix socket owned by us (not a file/listener planted by something else)."""
+    import stat
+
+    try:
+        st = os.lstat(p)
+    except OSError:
+        return False
+    return stat.S_ISSOCK(st.st_mode) and st.st_uid == os.getuid()
+
+
+class KeychainError(Exception):
+    pass
+
+
+def keychain_token(account: str) -> str | None:
+    """HTTP mode only. None = no item; KeychainError = refused / timed out (ACL prompt).
+    Reads only after ACU onboarding approved the item (no prompt outside onboarding)."""
+    if os.environ.get("ACU_KEYCHAIN_UNGATED") != "1":
+        try:
+            approved = json.load(open(os.path.expanduser("~/.cache/macos-cua/keychain-approved.json")))
+        except (OSError, ValueError):
+            approved = {}
+        if f"island.{account}" not in approved.get("ids", []):
+            raise KeychainError("not approved in ACU onboarding › Keychain access")
+    try:
+        out = subprocess.run(["/usr/bin/security", "find-generic-password", "-s", "samantha.island",
+                              "-a", account, "-w"], capture_output=True, text=True, timeout=10, check=False)
+    except subprocess.TimeoutExpired as e:
+        raise KeychainError("timed out") from e
+    except OSError as e:
+        raise KeychainError(str(e)) from e
+    if out.returncode == 44:  # errSecItemNotFound
+        return None
+    if out.returncode != 0:
+        raise KeychainError(f"security exit {out.returncode}")
+    return out.stdout.strip() or None
+
+
+class Transport:
+    def call(self, method: str, path: str, query: dict | None = None, body: dict | None = None,
+             timeout: float = 5) -> tuple[int, dict]:
+        raise NotImplementedError
+
+
+class SocketTransport(Transport):
+    def __init__(self, path: str) -> None:
+        self.path = path
+
+    def call(self, method, path, query=None, body=None, timeout=5):
+        req = {"method": method, "path": path, "query": query or {}}
+        if body is not None:
+            req["body"] = body
+        try:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+                s.settimeout(timeout)
+                s.connect(self.path)
+                s.sendall(json.dumps(req).encode() + b"\n")
+                buf = b""
+                while not buf.endswith(b"\n"):
+                    chunk = s.recv(65536)
+                    if not chunk:
+                        break
+                    buf += chunk
+        except (OSError, socket.timeout) as e:
+            return 0, {"error": f"island socket not reachable ({e}); is Agent Computer Use running?"}
+        try:
+            resp = json.loads(buf or b"{}")
+        except ValueError:
+            return 0, {"error": "bad reply from island socket"}
+        return int(resp.get("status", 0)), resp.get("body", {}) or {}
+
+
+class HttpTransport(Transport):
+    def __init__(self, port: int, token: str | None) -> None:
+        self.base = f"http://127.0.0.1:{port}"
+        self.token = token
+
+    def call(self, method, path, query=None, body=None, timeout=5):
+        headers = {"Content-Type": "application/json"}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        url = self.base + path + ("?" + urllib.parse.urlencode(query) if query else "")
+        data = json.dumps(body).encode() if body is not None else None
+        req = urllib.request.Request(url, data=data, method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.status, json.loads(r.read() or b"{}")
+        except urllib.error.HTTPError as e:
+            try:
+                return e.code, json.loads(e.read() or b"{}")
+            except ValueError:
+                return e.code, {}
+        except (urllib.error.URLError, OSError) as e:
+            return 0, {"error": f"island hub not reachable ({e}); is Agent Computer Use running?"}
+
+
+def parse_option(s: str) -> dict:
+    label, sep, value = s.partition("=")
+    label = label.strip()
+    value = value.strip() if sep else label
+    if not label:
+        raise argparse.ArgumentTypeError("--option needs label=value")
+    return {"label": label, "value": value or label}
+
+
+EXIT = {"approved": 0, "answered": 0, "denied": 1, "dismissed": 1, "expired": 2}
+
+
+def wait_answer(t: Transport, source: str, rid: str, wait: float) -> int:
+    deadline = time.monotonic() + min(wait, MAX_WAIT)
+    while True:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            break
+        chunk = min(left, POLL_CHUNK)
+        code, resp = t.call("GET", "/api/agent/approval", {"source": source, "id": rid, "wait": f"{chunk:.0f}"},
+                            timeout=chunk + 10)
+        status = resp.get("status", "")
+        if status in EXIT:
+            out = {"ok": status in ("approved", "answered"), "id": rid, "status": status}
+            if "values" in resp:
+                out["values"] = resp["values"]
+            if resp.get("text"):
+                out["text"] = resp["text"]
+            print(json.dumps(out))
+            return EXIT[status]
+        if code == 0:  # CUAService restarting: pending cards persist, reconnect shortly
+            time.sleep(min(2.0, max(0.0, deadline - time.monotonic())))
+            continue
+        if code != 200 or status == "unknown":
+            print(f"island-post: card {rid} gone ({code} {status or resp.get('error', '')})", file=sys.stderr)
+            return 3
+    print(json.dumps({"ok": False, "id": rid, "status": "timeout"}))
+    return 2
+
+
+def wait_control(t: "Transport", source: str, rid: str, wait: float) -> int:
+    """Long-poll the island for a Stop/Retry click on this row (delivered once)."""
+    deadline = time.monotonic() + min(wait, MAX_WAIT)
+    while True:
+        left = deadline - time.monotonic()
+        if left <= 0:
+            break
+        chunk = min(left, POLL_CHUNK)
+        code, resp = t.call("GET", "/api/agent/control", {"source": source, "id": rid, "wait": f"{chunk:.0f}"},
+                            timeout=chunk + 10)
+        action = resp.get("action", "") if code == 200 else ""
+        if action:
+            print(json.dumps({"ok": True, "id": rid, "action": action}))
+            return 0
+        if code == 0:
+            time.sleep(min(2.0, max(0.0, deadline - time.monotonic())))
+            continue
+        if code != 200:
+            print(f"island-post: control poll failed ({code} {resp.get('error', '')})", file=sys.stderr)
+            return 3
+    print(json.dumps({"ok": False, "id": rid, "action": "", "status": "timeout"}))
+    return 2
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(prog="island-post", description=__doc__.split("\n\n")[0],
+                                formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
+    p.add_argument("--source", required=True, choices=sorted(SOURCES))
+    p.add_argument("--kind", default=None, choices=KINDS, help="default: choice if --prompt/--option, else running")
+    p.add_argument("--title", default="")
+    p.add_argument("--prompt", default=None, help="choice: the question (defaults to --title)")
+    p.add_argument("--detail", default="")
+    p.add_argument("--option", action="append", type=parse_option, default=[], metavar="LABEL=VALUE",
+                   help="choice option (repeat, max 6)")
+    p.add_argument("--multi", action="store_true", help="choice: allow several options")
+    p.add_argument("--allow-text", action="store_true", help="choice: free-text reply field")
+    p.add_argument("--primary", default="", help="choice: option value drawn as primary")
+    p.add_argument("--danger", default="", help="choice: option value drawn red")
+    p.add_argument("--app", default=None, help="app whose icon represents the row (default per source)")
+    p.add_argument("--id", default="default", help="stable id; re-post to update, --kind clear to remove")
+    p.add_argument("--destructive", action="store_true", help="approval: red Approve button")
+    p.add_argument("--ttl", type=float, default=None, help="row/card lifetime in s (rows 600; choice 900 = 15 min; approvals 900, or --wait+30)")
+    p.add_argument("--wait", type=float, default=0, help=f"approval/choice: wait up to N s (≤ {MAX_WAIT})")
+    p.add_argument("--symbol", default="", help="peek: SF Symbol when there is no app icon")
+    p.add_argument("--controls", default="", help="row: comma list of controls you honour (stop,retry)")
+    p.add_argument("--wait-control", type=float, default=0, help="row: after posting, wait up to N s for a Stop/Retry click")
+    p.add_argument("--http", action="store_true", help="use HTTP 127.0.0.1:<port> + Keychain Bearer token")
+    p.add_argument("--port", type=int, default=int(os.environ.get("ISLAND_HUB_PORT", "8777")))
+    p.add_argument("--unsigned", action="store_true", help="HTTP local-dev only: no token (hub flag must be on)")
+    a = p.parse_args()
+
+    kind = a.kind or ("choice" if (a.prompt or a.option) else "running")
+    if len(a.option) > 6:
+        print("island-post: at most 6 --option", file=sys.stderr)
+        return 3
+    if a.wait > MAX_WAIT:
+        print(f"island-post: --wait is capped at {MAX_WAIT} s", file=sys.stderr)
+        a.wait = MAX_WAIT
+    account = SOURCES[a.source]
+
+    sock = socket_path()
+    if not a.http and valid_socket(sock):
+        t: Transport = SocketTransport(sock)
+    else:
+        if not a.http:
+            print("island-post: local socket missing; falling back to HTTP + Keychain", file=sys.stderr)
+        tok = None
+        if not a.unsigned:
+            try:
+                tok = keychain_token(account)
+            except KeychainError as e:
+                print(f"island-post: Keychain access was refused or timed out ({e}). Use the local socket "
+                      "(default) — it needs no Keychain access.", file=sys.stderr)
+                return 3
+            if not tok:
+                print(f"island-post: no token for {a.source} in the Keychain. Open ACU Settings → AI Agents → "
+                      f"{a.source} → Rotate.", file=sys.stderr)
+                return 3
+        t = HttpTransport(a.port, tok)
+
+    body: dict = {"source": a.source, "id": a.id, "kind": kind, "title": a.title or (a.prompt or ""),
+                  "detail": a.detail}
+    if kind == "choice":
+        body.update({"prompt": a.prompt or a.title, "options": a.option, "multi": a.multi,
+                     "allow_text": a.allow_text, "primary": a.primary, "danger": a.danger})
+    if a.app is not None:
+        body["app"] = a.app
+    if a.destructive:
+        body["destructive"] = True
+    if a.symbol:
+        body["symbol"] = a.symbol
+    controls = [c.strip().lower() for c in a.controls.split(",") if c.strip()]
+    bad = [c for c in controls if c not in CONTROLS]
+    if bad:
+        print(f"island-post: unknown --controls {bad} (stop,retry)", file=sys.stderr)
+        return 3
+    if controls:
+        body["controls"] = controls
+    if a.ttl is not None:
+        body["ttl_s"] = a.ttl
+    elif kind == "choice":
+        # Choice timeout defaults to 15 min (hub default); a shorter --wait shortens it.
+        body["ttl_s"] = min(CHOICE_TTL, max(60.0, a.wait + 30)) if a.wait > 0 else CHOICE_TTL
+    elif kind == "approval" and a.wait > 0:
+        body["ttl_s"] = max(60.0, a.wait + 30)
+    code, resp = t.call("POST", "/api/island/publish", body=body)
+    if code != 200:
+        print(f"island-post: {'HTTP ' + str(code) if code else 'error'}: {resp.get('error', resp)}", file=sys.stderr)
+        return 3
+    if a.wait_control > 0 and kind in ("running", "error", "needs_you"):
+        return wait_control(t, a.source, a.id, a.wait_control)
+    if kind not in ("approval", "choice") or a.wait <= 0:
+        print(json.dumps({"ok": True, "id": a.id, **({"status": resp["status"]} if "status" in resp else {})}))
+        return 0
+    return wait_answer(t, a.source, a.id, a.wait)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

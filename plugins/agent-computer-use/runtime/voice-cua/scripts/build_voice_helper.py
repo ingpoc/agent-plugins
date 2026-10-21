@@ -24,6 +24,20 @@ MACOS_CUA_SCRIPTS = MACOS_CUA_ROOT / "scripts"
 MACOS_CUA_SERVICE = MACOS_CUA_ROOT / "service"
 
 
+def scripts_data_args() -> list[str]:
+    """--add-data pairs that put macos-cua scripts + cua_client at the _MEIPASS root.
+
+    Frozen cua_bridge looks for compact_mcp.py as a *file* under _MEIPASS; the
+    hidden-import alone only ships bytecode in the PYZ.
+    """
+    return [
+        "--add-data",
+        f"{MACOS_CUA_SCRIPTS}:.",
+        "--add-data",
+        f"{MACOS_CUA_SERVICE / 'cua_client.py'}:.",
+    ]
+
+
 def run(cmd: list[str], **kwargs) -> None:
     print("  →", " ".join(cmd))
     subprocess.run(cmd, check=True, **kwargs)
@@ -82,6 +96,7 @@ def build(*, clean: bool = True, onefile: bool = False) -> Path:
             str(MACOS_CUA_SERVICE),
             "--add-data",
             f"{CONFIG}:config/.secret",
+            *scripts_data_args(),
             "--hidden-import",
             "voice_cua.voice_stack",
             "--hidden-import",

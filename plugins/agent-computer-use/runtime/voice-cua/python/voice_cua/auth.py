@@ -12,6 +12,8 @@ from voice_cua.catalog import (
     init_secrets_from_bundle,
     keychain_exists,
     keychain_get,
+    KeychainNotApproved,
+    keychain_get_approved,
     keychain_put,
     labels_for_row,
     load_catalog,
@@ -59,7 +61,10 @@ def resolve_openai_api_key() -> str:
             f"  2) secrets_cli mirror {row['id']}\n"
             "Or let the voice/CUA agent open Passwords and copy for you."
         )
-    return keychain_get(label)
+    try:
+        return keychain_get_approved(label, "openai")
+    except KeychainNotApproved as e:   # exit 78 (EX_CONFIG): no restart loop, no prompt
+        raise MissingApiKey(str(e)) from None
 
 
 def mirror_secret_from_clipboard(key_id: str | None = None) -> dict[str, Any]:
@@ -145,3 +150,51 @@ def openai_status() -> dict[str, Any]:
             "for security CLI / agents"
         ),
     }
+
+
+# --- xAI (Grok Voice) -------------------------------------------------------
+XAI_RUNTIME_ROLE = "xai-runtime"
+XAI_KEY_ID = "xai-api"
+XAI_DEFAULT_LABEL = "xai-api"
+
+
+class MissingApiKey(RuntimeError):
+    """The selected voice provider has no API key (never includes the key)."""
+
+
+def _xai_labels() -> list[str]:
+    labels: list[str] = []
+    try:
+        cat = load_catalog()
+        row = find_by_role(cat, XAI_RUNTIME_ROLE) or find_key(cat, XAI_KEY_ID)
+        if row:
+            labels += labels_for_row(row)
+    except Exception:  # noqa: BLE001 — catalog optional for xAI
+        pass
+    if XAI_DEFAULT_LABEL not in labels:
+        labels.append(XAI_DEFAULT_LABEL)
+    return labels
+
+
+def xai_key_available() -> bool:
+    """Metadata-only check (no secret is read): env var or a Keychain item exists."""
+    if os.environ.get("XAI_API_KEY", "").strip():
+        return True
+    return any(keychain_exists(label) for label in _xai_labels())
+
+
+def resolve_xai_api_key() -> str:
+    """Env override first, else the login Keychain (label xai-api or catalog role xai-runtime)."""
+    env = os.environ.get("XAI_API_KEY", "").strip()
+    if env:
+        return env
+    for label in _xai_labels():
+        if keychain_exists(label):
+            try:
+                return keychain_get_approved(label, "xai")
+            except KeychainNotApproved as e:
+                raise MissingApiKey(str(e)) from None
+    raise MissingApiKey(
+        "Grok Voice needs an xAI API key: add it to the login Keychain as 'xai-api' "
+        "(secrets_cli) or set XAI_API_KEY"
+    )

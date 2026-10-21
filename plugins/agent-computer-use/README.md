@@ -10,6 +10,76 @@ Cursor MCP loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-com
 
 `runtime/voice-cua/` owns Samantha's Python runtime, metadata-only secret templates, unit test, and PyInstaller builder. `skills/macos-cua/service/install_service.py` builds that packaged source into the signed nested `voice-cua.app`; it does not search for a sibling repository or fall back to system Python.
 
+## Dynamic Island (island-post)
+
+CUAService (the Agent Computer Use menu bar app) hosts the island from launch, Samantha or not. Menu: **Show Dynamic Island** (default on), **ACU Settings…** (⌘,: the one ACU Settings window — island, Samantha voice, AI agents, Computer Use permissions; also `macos-cua settings [pane]`), Samantha on/off.
+
+**Transports.**
+- **Local socket (default for `island-post` and Samantha's helper):** `~/Library/Application Support/CUAService/island.sock`, directory 0700, socket 0600. CUAService checks each peer's uid with `getpeereid()`. The client reads nothing from the Keychain, so macOS never shows a Keychain dialog. CUAService accepts a source once it is set up (ACU Settings → AI Agents → source → **Rotate**; Samantha's is created when you turn her on), and the source's toggle and attention cap still apply.
+- **HTTP `127.0.0.1:8777` with `Authorization: Bearer <token>`:** for other harnesses (`island-post --http` too). The token sits in the Keychain (service `samantha.island`, account `samantha`/`grok`/`cursor`/`codex`). The item trusts only CUAService, so reading it with `/usr/bin/security` prompts. Use the socket where you can. Loopback only: `Origin` headers and non-loopback `Host` are rejected. Unsigned requests get 401 unless the local-dev flag `island.hub.allowUnsignedLocalDev` is on (off by default).
+
+A source switched off in AI Agents gets 403. Approval and choice cards also need "Can raise approval cards" and an attention cap of Attention or higher.
+
+```sh
+cp bin/island-post ~/.local/bin/   # once
+island-post --source grok-bot --kind running --title "Booking table" --app Comet
+island-post --source cursor --kind approval --id deploy-1 --title "Deploy to staging?" --detail "3 services" --wait 120
+island-post --source grok-bot --kind choice --id q1 --prompt "Which do you prefer?" \
+    --option "Looks great=great" --option "Needs work=needs_work" --allow-text --wait 300
+island-post --source codex --kind clear --id deploy-1
+```
+
+**Choice cards** (`--kind choice`, implied by `--prompt`/`--option`):
+- Options: up to 6 `--option label=value`, plus `--multi`, `--allow-text`, `--primary <value>` and `--danger <value>`.
+- Compact island: the source icon and one amber mark (a count badge instead when 2+ cards wait). Other sources get one circle each on the left (max 3 + "+N"). With music playing, a choice card shares the pill (Duo: artwork lead, source + mark trail); an approval takes the whole pill.
+- Arrival: a soft Tink (ACU Settings → General → Mute agent prompt sound; silent when the source app is frontmost) and a 4 s **Quick Peek** of the card (never key). It re-peeks at +2 min and at T-60 s, max 3, and holds off while the owner is typing in the source chat app. Hovering a peek pins it.
+- Opening: a click anywhere on the pill (including the strip above it) opens the card and makes it key: keys 1–6 pick options, Return sends, Shift-Return adds a line, Esc hands focus back. Approval cards still open on their own and jump the queue.
+- Card layout: up to 4 option capsules, two per row (more than 4 shows 3 + "More in chat"); multi-select uses checkboxes and a "Submit N" button; the `--danger` option stays neutral until selected and then needs a confirm. The card is 176 or 220 pt and never scrolls.
+- Text field (`--allow-text`): "Reply…", grows to 3 lines; an option and text are sent together.
+- Answering: the card clears right away; if the owner was in the card, the next one slides in (two ghost layers show more are queued).
+- Timeout: choice cards default to 15 min (`--ttl` to change). The last 60 s show an amber countdown ring; on expiry a 4 s "Timed out. Still open in chat" notice appears and the source circle keeps a hollow red ring until the owner opens the agent list or the agent sends `--kind clear`.
+- Persistence: pending cards, timed-out notices and recent answers survive a CUAService restart (`island-pending.json`, 0600).
+- Events: shown / hovered / clicked (x, y) / opened (via) / answered (via) / expired go to `~/.cache/macos-cua/island-events.jsonl` (ids and counts only — never titles, options or text).
+
+**`--wait N`** (up to 3600 s) long-polls the hub with no busy polling and reconnects across a CUAService restart. It prints one JSON line:
+
+```json
+{"ok": true, "id": "q1", "status": "answered", "values": ["great"], "text": "optional typed reply"}
+```
+
+Exit codes: 0 answered or approved, 1 denied or dismissed, 2 timeout or expired, 3 rejected or error. The CLI reports "Keychain access was refused or timed out" (HTTP mode) separately from "no token".
+
+**Chat agents: mirror every inline prompt.** When you ask the owner something in chat (question with options, approval, free-text ask), also put it on the island so the owner can answer from any app:
+
+```sh
+island-post --source grok-bot --kind choice --id "$ASK_ID" --prompt "…" --option "Yes=yes" --option "No=no" \
+    --allow-text --wait 3600 > answer.json &   # background; read answer.json when it exits
+# …if the owner answers in chat first:
+island-post --source grok-bot --kind clear --id "$ASK_ID"   # removes the card; the waiter exits 1 (dismissed)
+```
+
+**HTTP API.** Requests go to `POST /api/island/publish` (Bearer over HTTP, or `{"method","path","query","body"}` JSON lines over the socket):
+
+```json
+{
+  "source": "grok-bot | cursor | codex",
+  "id": "stable id (≤ 80 chars, default \"default\"); re-post to update",
+  "kind": "running | needs_you | done | error | approval | choice | clear",
+  "title": "required except for clear (≤ 120); choice prompt fallback",
+  "prompt": "choice: the question (≤ 160)",
+  "options": [{"label": "Looks great", "value": "great"}],
+  "multi": false, "allow_text": false, "primary": "", "danger": "",
+  "detail": "optional (≤ 200); card subtitle",
+  "app": "optional icon app (default Comet / Cursor / Codex)",
+  "destructive": false,
+  "ttl_s": 600
+}
+```
+
+- **Rows** expire after `ttl_s` (default 600 s; done/error 30 s). Cards default to 900 s (15 min).
+- **Answers:** `GET /api/agent/approval?source=<s>&id=<id>[&wait=N]` (N ≤ 600 per request) returns `{"status": "pending | approved | denied | answered | dismissed | expired | unknown", "values": [...], "text": "..."}`.
+- **Samantha:** `source=samantha` posts a full island snapshot (her voice helper does this over the socket).
+
 ## Benchmarks
 
 Five graded axes, each 0–10. Overall is their unweighted mean. Accuracy and visibility are trust gates, not averaged in.

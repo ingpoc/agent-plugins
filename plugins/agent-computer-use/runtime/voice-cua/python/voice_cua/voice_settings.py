@@ -12,8 +12,19 @@ SETTINGS_PATH = Path(
 ).expanduser()
 
 MODELS: list[tuple[str, str]] = [
-    ("gpt-realtime-2", "Intelligent (gpt-realtime-2)"),
-    ("gpt-realtime-2.1-mini", "Balanced (gpt-realtime-2.1-mini)"),
+    ("gpt-realtime-2", "gpt-realtime-2"),
+    ("gpt-realtime-2.1", "gpt-realtime-2.1"),
+    ("gpt-realtime-2.1-mini", "gpt-realtime-2.1 mini"),
+    ("grok-voice-latest", "Grok Voice 3.0"),
+    ("gpt-live-1", "GPT-Live-1"),
+]
+
+# GPT-Live-1 delegation backends (Responses models; ids per developers.openai.com).
+BACKEND_MODELS: list[tuple[str, str]] = [
+    ("gpt-6-luna", "GPT-6 Luna"),
+    ("gpt-6-sol", "GPT-6 Sol"),
+    ("gpt-6.1-sol", "GPT-6.1 Sol"),
+    ("gpt-6-astra", "GPT-6 Astra"),
 ]
 
 VOICES: list[tuple[str, str]] = [
@@ -46,6 +57,8 @@ DEFAULTS: dict[str, str] = {
     "realtime_voice": "alloy",
     "eagerness": "balanced",
     "mic_profile": "near_field",
+    "live_bulk_model": "gpt-6-luna",
+    "live_intelligence_model": "gpt-6.1-sol",
 }
 
 
@@ -82,6 +95,10 @@ def apply_env(settings: dict[str, str] | None = None) -> dict[str, str]:
     os.environ["VOICE_CUA_REALTIME_VOICE"] = cfg["realtime_voice"]
     os.environ["VOICE_CUA_EAGERNESS"] = cfg["eagerness"]
     os.environ["VOICE_CUA_MIC_PROFILE"] = cfg["mic_profile"]
+    os.environ["VOICE_CUA_LIVE_BULK_MODEL"] = cfg.get("live_bulk_model", DEFAULTS["live_bulk_model"])
+    os.environ["VOICE_CUA_LIVE_INTELLIGENCE_MODEL"] = cfg.get(
+        "live_intelligence_model", DEFAULTS["live_intelligence_model"]
+    )
     return cfg
 
 
