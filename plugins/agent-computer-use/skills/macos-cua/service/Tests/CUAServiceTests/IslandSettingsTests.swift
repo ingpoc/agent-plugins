@@ -25,13 +25,50 @@ final class IslandSettingsTests: XCTestCase {
         IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore())
     }
 
+    /// Voice settings moved from the old Samantha Settings window into Settings → Samantha:
+    /// same settings.json keys, so stored values survive and unknown keys are preserved.
+    func testVoiceRowsReadAndWriteTheSharedSettingsFile() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("voice-settings-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let saved = VoiceSettingsStore.path
+        defer { VoiceSettingsStore.path = saved }
+        VoiceSettingsStore.path = dir.appendingPathComponent("settings.json")
+        try JSONSerialization.data(withJSONObject: ["realtime_model": "gpt-realtime-2.1-mini", "eagerness": "eager", "extra": "kept"])
+            .write(to: VoiceSettingsStore.path)
+        let defaults = UserDefaults(suiteName: "voice-\(UUID().uuidString)")!
+        let s = IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore(), voiceInFile: true)
+        XCTAssertEqual(s.string(IslandSettingsSchema.voiceModel), "gpt-realtime-2.1-mini")
+        XCTAssertEqual(s.string(IslandSettingsSchema.voiceEagerness), "eager")
+        XCTAssertEqual(s.string(IslandSettingsSchema.voiceVoice), "alloy")  // default when missing
+        s.set("ash", for: IslandSettingsSchema.voiceVoice)
+        let obj = try JSONSerialization.jsonObject(with: Data(contentsOf: VoiceSettingsStore.path)) as? [String: Any]
+        XCTAssertEqual(obj?["realtime_voice"] as? String, "ash")
+        XCTAssertEqual(obj?["realtime_model"] as? String, "gpt-realtime-2.1-mini")
+        XCTAssertEqual(obj?["extra"] as? String, "kept")
+        XCTAssertNil(defaults.object(forKey: IslandSettingsSchema.voiceVoice), "voice rows never land in UserDefaults")
+        // Every stored value is one of the popup's options (no orphaned selection after the move).
+        for key in IslandSettingsSchema.voiceKeys {
+            guard case .popup(let o)? = IslandSettingsSchema.def(key)?.kind else { return XCTFail("\(key) is a popup") }
+            XCTAssertTrue(o.contains { $0.value == s.string(key) }, key)
+        }
+    }
+
+    func testComputerUsePaneIsReadOnlyPermissionRows() {
+        let rows = IslandSettingsSchema.defs(for: .computerUse)
+        XCTAssertEqual(rows.map(\.key), [IslandSettingsSchema.cuaAccessibility, IslandSettingsSchema.cuaScreenRecording])
+        XCTAssertTrue(rows.allSatisfy { if case .permission = $0.kind { return true }; return false })
+        XCTAssertTrue(SettingsTab.panes.contains(.computerUse))
+        XCTAssertNil(IslandSettingsSchema.def("island.agent.samantha.voiceSettings"), "old Voice Settings button is gone")
+    }
+
     func testSchemaCoversEveryTabWithUniqueKeys() {
         for tab in SettingsTab.allCases {
             XCTAssertFalse(IslandSettingsSchema.defs(for: tab).isEmpty || tab == .about && false, "\(tab) has rows")
         }
         let keys = IslandSettingsSchema.all.map(\.key)
         XCTAssertEqual(Set(keys).count, keys.count, "unique keys")
-        XCTAssertTrue(keys.allSatisfy { $0.hasPrefix("island.") })
+        XCTAssertTrue(keys.allSatisfy { $0.hasPrefix("island.") || $0.hasPrefix("voice.") || $0.hasPrefix("cua.") })
         // Agents section lists the four sources; About is pinned (no header), not a sidebar group.
         let agents = SettingsTab.sidebar.first { $0.0 == "AI Agents" }?.1
         XCTAssertEqual(agents, [.samantha, .grokBot, .cursor, .codex])

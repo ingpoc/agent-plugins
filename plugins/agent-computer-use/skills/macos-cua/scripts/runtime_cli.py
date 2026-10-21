@@ -173,6 +173,17 @@ def _main():
         if not visual.get("ok"):
             _emit_json({"ok": False, **visual}, require_ok=True)
 
+    if args.command == "settings":
+        client = _cuaservice_client()
+        try:
+            out = client.open_settings(str(args.pane or ""))
+        except Exception as exc:  # noqa: BLE001 — e.g. RPC -32602 unknown pane
+            print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
+            raise SystemExit(2) from None
+        finally:
+            client.close()
+        print(json.dumps(out, indent=2, default=str))
+        return
     if args.command == "status":
         status = driver_status()
         print(json.dumps(status, indent=2, default=str))

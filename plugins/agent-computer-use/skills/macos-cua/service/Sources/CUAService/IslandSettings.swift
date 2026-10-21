@@ -12,6 +12,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     case general, interaction, connectivity, display, sound
     case nowPlaying, calendar, fileTray
     case samantha, grokBot, cursor, codex
+    case computerUse
     case about
     var id: String { rawValue }
 
@@ -29,6 +30,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .grokBot: return "Grok Bot"
         case .cursor: return "Cursor"
         case .codex: return "Codex"
+        case .computerUse: return "Computer Use"
         case .about: return "About"
         }
     }
@@ -48,6 +50,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .grokBot: return "sparkles"
         case .cursor: return "cursorarrow.rays"
         case .codex: return "chevron.left.forwardslash.chevron.right"
+        case .computerUse: return "cursorarrow.click.2"
         case .about: return "info"
         }
     }
@@ -66,6 +69,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .grokBot: return NSColor(white: 0.15, alpha: 1)
         case .cursor: return NSColor(white: 0.22, alpha: 1)
         case .codex: return NSColor(red: 0.10, green: 0.55, blue: 0.45, alpha: 1)
+        case .computerUse: return NSColor(red: 0.98, green: 0.62, blue: 0.20, alpha: 1)
         }
     }
 
@@ -85,6 +89,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         ("Notifications", [.connectivity, .display, .sound]),
         ("Live Activities", [.nowPlaying, .calendar, .fileTray]),
         ("AI Agents", [.samantha, .grokBot, .cursor, .codex]),
+        ("System", [.computerUse]),
     ]
     static let pinned: SettingsTab = .about
     /// Every pane in sidebar order (⌃Tab order).
@@ -226,7 +231,28 @@ enum IslandSettingsSchema {
     static func t(_ v: String, _ l: String, _ s: String = "") -> (value: String, label: String, symbol: String) { (v, l, s) }
 
     static let all: [SettingDef] = general + interaction + connectivity + display + sound
-        + nowPlaying + calendar + fileTray + AgentSource.allCases.flatMap(agent) + about
+        + nowPlaying + calendar + fileTray + AgentSource.allCases.flatMap(agent) + computerUse + about
+
+    // Samantha voice settings: same keys as ~/.config/voice-cua/settings.json (read by voice_settings.py),
+    // so stored values survive the move from the old Samantha Settings window.
+    static let voicePrefix = "voice."
+    static let voiceModel = "voice.realtime_model"
+    static let voiceVoice = "voice.realtime_voice"
+    static let voiceEagerness = "voice.eagerness"
+    static let voiceMic = "voice.mic_profile"
+    static let voiceKeys = [voiceModel, voiceVoice, voiceEagerness, voiceMic]
+
+    // Computer Use (CUAService) — real-state permission rows, read-only.
+    static let cuaAccessibility = "cua.permission.accessibility"
+    static let cuaScreenRecording = "cua.permission.screenRecording"
+    static let computerUse: [SettingDef] = [
+        .init(tab: .computerUse, section: "Permissions", key: cuaAccessibility, label: "Accessibility",
+              kind: .permission("Open Settings…"), defaultValue: .none,
+              caption: "Lets the service read and drive app controls."),
+        .init(tab: .computerUse, section: "Permissions", key: cuaScreenRecording, label: "Screen Recording",
+              kind: .permission("Open Settings…"), defaultValue: .none,
+              caption: "Lets the service see windows when controls are unreadable."),
+    ]
 
     static let accessibilityDisplay = "island.display.accessibility"
     static let accessibilitySound = "island.sound.accessibility"
@@ -349,8 +375,19 @@ enum IslandSettingsSchema {
                   info: s == .samantha ? nil : "island-post --source \(s.cliName)"),
         ]
         if s == .samantha {
-            rows.append(.init(tab: tab, section: nil, key: "island.agent.samantha.voiceSettings", label: "Voice",
-                              kind: .button("Open Voice Settings…"), defaultValue: .none))
+            let d = VoiceSettingsStore.Settings.default
+            rows += [
+                .init(tab: tab, section: "Voice", key: voiceModel, label: "Model",
+                      kind: .popup(VoiceSettingsStore.models), defaultValue: .string(d.realtimeModel),
+                      caption: "Changes apply the next time Samantha starts."),
+                .init(tab: tab, section: "Voice", key: voiceVoice, label: "Voice",
+                      kind: .popup(VoiceSettingsStore.voices), defaultValue: .string(d.realtimeVoice)),
+                .init(tab: tab, section: "Voice", key: voiceEagerness, label: "Listening",
+                      kind: .popup(VoiceSettingsStore.eagernessLevels), defaultValue: .string(d.eagerness),
+                      info: "Polite ignores background noise; Eager lets you interrupt anytime"),
+                .init(tab: tab, section: "Voice", key: voiceMic, label: "Microphone",
+                      kind: .popup(VoiceSettingsStore.micProfiles), defaultValue: .string(d.micProfile)),
+            ]
         }
         return rows
     }
@@ -369,7 +406,7 @@ enum IslandSettingsSchema {
                     n + "badge", n + "liveWaveform",
                     c + "playSoundEvent", c + "hourlyChime", c + "disableDuringEvents", c + "weatherOnEmptyDay", c + "eventIndicators",
                     c + "monthView", c + "timeToLeave", c + "calendarsMode",
-                    "island.sound.output", "island.about.autoUpdate"]
+                    "island.sound.output", "island.about.autoUpdate", "island.agent.samantha.voiceSettings"]
         for h in ["island.display.", "island.sound."] { keys += [h + "style", h + "showPercentage", h + "hideLabel"] }
         for s in AgentSource.allCases { keys += [s.keyPrefix + "needsYouPeek", s.keyPrefix + "donePeek", s.keyPrefix + "errorPeek"] }
         return keys
@@ -381,7 +418,8 @@ enum IslandSettingsSchema {
         switch key {
         case calendarAccess: return IslandCalendarController.authorized
         case focusAccess: return INFocusStatusCenter.default.authorizationStatus == .authorized
-        case accessibilityDisplay, accessibilitySound: return AXIsProcessTrusted()
+        case accessibilityDisplay, accessibilitySound, cuaAccessibility: return AXIsProcessTrusted()
+        case cuaScreenRecording: return CGPreflightScreenCaptureAccess()  // preflight never prompts
         default: return false
         }
     }
@@ -402,10 +440,14 @@ final class IslandSettingsStore: ObservableObject {
     }()
     let defaults: UserDefaults
     private(set) var tokens: IslandTokenStore
+    /// `voice.*` rows live in ~/.config/voice-cua/settings.json (shared with the voice runtime).
+    /// Only the real store uses the file; test stores keep them in their own defaults suite.
+    let voiceInFile: Bool
 
-    init(defaults: UserDefaults, tokens: IslandTokenStore = KeychainTokenStore()) {
+    init(defaults: UserDefaults, tokens: IslandTokenStore = KeychainTokenStore(), voiceInFile: Bool? = nil) {
         self.defaults = defaults
         self.tokens = tokens
+        self.voiceInFile = voiceInFile ?? (defaults === UserDefaults.standard)
     }
 
     /// Removes values of retired rows (inert since they were Soon / per-agent) and maps the retired
@@ -429,13 +471,18 @@ final class IslandSettingsStore: ObservableObject {
         return 0
     }
     func string(_ key: String) -> String {
+        if voiceInFile, key.hasPrefix(IslandSettingsSchema.voicePrefix) { return VoiceSettingsStore.value(for: key) }
         if let s = defaults.string(forKey: key) { return s }
         if case .string(let s)? = IslandSettingsSchema.def(key)?.defaultValue { return s }
         return ""
     }
     func set(_ value: Any, for key: String) {
         objectWillChange.send()
-        defaults.set(value, forKey: key)
+        if voiceInFile, key.hasPrefix(IslandSettingsSchema.voicePrefix) {
+            VoiceSettingsStore.set(String(describing: value), for: key)  // settings.json, not UserDefaults
+        } else {
+            defaults.set(value, forKey: key)
+        }
         for o in observers { o(self) }
     }
     private var observers: [(IslandSettingsStore) -> Void] = []

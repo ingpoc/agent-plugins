@@ -12,10 +12,10 @@ Cursor MCP loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-com
 
 ## Dynamic Island (island-post)
 
-CUAService (the Agent Computer Use menu bar app) hosts the island from launch, Samantha or not. Menu: **Show Dynamic Island** (default on), **Island Settings…** (⌘,), **Voice Settings…**, Samantha on/off.
+CUAService (the Agent Computer Use menu bar app) hosts the island from launch, Samantha or not. Menu: **Show Dynamic Island** (default on), **ACU Settings…** (⌘,: the one ACU Settings window — island, Samantha voice, AI agents, Computer Use permissions; also `macos-cua settings [pane]`), Samantha on/off.
 
 **Transports.**
-- **Local socket (default for `island-post` and Samantha's helper):** `~/Library/Application Support/CUAService/island.sock`, directory 0700, socket 0600. CUAService checks each peer's uid with `getpeereid()`. The client reads nothing from the Keychain, so macOS never shows a Keychain dialog. CUAService accepts a source once it is set up (Island Settings → AI Agents → source → **Rotate**; Samantha's is created when you turn her on), and the source's toggle and attention cap still apply.
+- **Local socket (default for `island-post` and Samantha's helper):** `~/Library/Application Support/CUAService/island.sock`, directory 0700, socket 0600. CUAService checks each peer's uid with `getpeereid()`. The client reads nothing from the Keychain, so macOS never shows a Keychain dialog. CUAService accepts a source once it is set up (ACU Settings → AI Agents → source → **Rotate**; Samantha's is created when you turn her on), and the source's toggle and attention cap still apply.
 - **HTTP `127.0.0.1:8777` with `Authorization: Bearer <token>`:** for other harnesses (`island-post --http` too). The token sits in the Keychain (service `samantha.island`, account `samantha`/`grok`/`cursor`/`codex`). The item trusts only CUAService, so reading it with `/usr/bin/security` prompts. Use the socket where you can. Loopback only: `Origin` headers and non-loopback `Host` are rejected. Unsigned requests get 401 unless the local-dev flag `island.hub.allowUnsignedLocalDev` is on (off by default).
 
 A source switched off in AI Agents gets 403. Approval and choice cards also need "Can raise approval cards" and an attention cap of Attention or higher.
@@ -32,7 +32,7 @@ island-post --source codex --kind clear --id deploy-1
 **Choice cards** (`--kind choice`, implied by `--prompt`/`--option`):
 - Options: up to 6 `--option label=value`, plus `--multi`, `--allow-text`, `--primary <value>` and `--danger <value>`.
 - Compact island: the source icon and one amber mark (a count badge instead when 2+ cards wait). Other sources get one circle each on the left (max 3 + "+N"). With music playing, a choice card shares the pill (Duo: artwork lead, source + mark trail); an approval takes the whole pill.
-- Arrival: a soft Tink (Island Settings → General → Mute agent prompt sound; silent when the source app is frontmost) and a 4 s **Quick Peek** of the card (never key). It re-peeks at +2 min and at T-60 s, max 3, and holds off while Guru is typing in the source chat app. Hovering a peek pins it.
+- Arrival: a soft Tink (ACU Settings → General → Mute agent prompt sound; silent when the source app is frontmost) and a 4 s **Quick Peek** of the card (never key). It re-peeks at +2 min and at T-60 s, max 3, and holds off while Guru is typing in the source chat app. Hovering a peek pins it.
 - Opening: a click anywhere on the pill (including the strip above it) opens the card and makes it key: keys 1–6 pick options, Return sends, Shift-Return adds a line, Esc hands focus back. Approval cards still open on their own and jump the queue.
 - Card layout: up to 4 option capsules, two per row (more than 4 shows 3 + "More in chat"); multi-select uses checkboxes and a "Submit N" button; the `--danger` option stays neutral until selected and then needs a confirm. The card is 176 or 220 pt and never scrolls.
 - Text field (`--allow-text`): "Reply…", grows to 3 lines; an option and text are sent together.

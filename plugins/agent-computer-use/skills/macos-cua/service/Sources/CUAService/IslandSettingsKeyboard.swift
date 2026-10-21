@@ -75,7 +75,9 @@ enum SettingsKeyboard {
     }
 
     static func cycle(_ values: [String], _ current: String, _ k: SettingsKey) -> String {
-        guard let i = values.firstIndex(of: current) else { return values.first ?? current }
+        // A stored value the popup doesn't list (e.g. a model set by a newer runtime) is never
+        // overwritten from the keyboard; the mouse popup can still pick a listed value.
+        guard let i = values.firstIndex(of: current) else { return current }
         switch k {
         case .activate: return values[(i + 1) % values.count]
         case .increase: return values[min(values.count - 1, i + 1)]

@@ -142,6 +142,19 @@ final class MethodRouter: @unchecked Sendable {
             cursorOverlay.hide()
             return ["ok": true] as [String: Any]
 
+        case "open_settings":
+            // CLI entry (`macos-cua settings [pane]`): the one settings window, at the asked pane.
+            let raw: String = req.param("pane") ?? ""
+            guard let tab = SettingsTab.forPane(raw) else {
+                throw RPCMethodError(code: -32602, message: "unknown pane: \(raw)")
+            }
+            // Report the pane actually shown (no pane = the window's last pane).
+            let shown: String = await MainActor.run {
+                IslandSettingsWindowController.shared.showSettings(tab: tab)
+                return IslandSettingsWindowController.shared.nav.tab.rawValue
+            }
+            return ["ok": true, "pane": shown] as [String: Any]
+
         default:
             throw RPCMethodError(
                 code: -32601,

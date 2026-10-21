@@ -46,7 +46,6 @@ final class StatusBarController: NSObject {
     func wire(voice: VoiceSupervisor, island: IslandController) {
         voiceSupervisor = voice
         islandController = island
-        IslandSettingsWindowController.shared.onVoiceSettings = { [weak self] in self?.openSettings() }
         voice.onGatewayPortChanged = { [weak island] port in
             island?.updateGateway(port: port)
         }
@@ -70,6 +69,14 @@ final class StatusBarController: NSObject {
             button.toolTip = "Agent Computer Use"
             button.imagePosition = .imageOnly
         }
+        status.menu = makeMenu()
+        item = status
+        setActive(false)
+        setVoiceRunning(false)
+    }
+
+    /// The status-bar menu (kept separate from NSStatusBar so tests can inspect and render it).
+    func makeMenu() -> NSMenu {
         let menu = NSMenu(title: "Agent Computer Use")
         let header = NSMenuItem(
             title: "Agent Computer Use",
@@ -96,20 +103,13 @@ final class StatusBarController: NSObject {
             self?.showIslandItem?.state = s.bool(IslandSettingsSchema.showIsland) ? .on : .off
         }
 
-        let islandSettingsItem = NSMenuItem(
-            title: "Island Settings…",
-            action: #selector(openIslandSettings),
+        // ACU Settings (⌘,): one settings window for the whole plugin (island, Samantha voice, agents, Computer Use).
+        let settingsItem = NSMenuItem(
+            title: "ACU Settings…",
+            action: #selector(openSettings),
             keyEquivalent: ","
         )
-        islandSettingsItem.keyEquivalentModifierMask = [.command]
-        islandSettingsItem.target = self
-        menu.addItem(islandSettingsItem)
-
-        let settingsItem = NSMenuItem(
-            title: "Voice Settings…",
-            action: #selector(openSettings),
-            keyEquivalent: ""
-        )
+        settingsItem.keyEquivalentModifierMask = [.command]
         settingsItem.target = self
         menu.addItem(settingsItem)
 
@@ -123,11 +123,7 @@ final class StatusBarController: NSObject {
         quit.keyEquivalentModifierMask = [.command]
         quit.target = self
         menu.addItem(quit)
-
-        status.menu = menu
-        item = status
-        setActive(false)
-        setVoiceRunning(false)
+        return menu
     }
 
     func setActive(_ on: Bool) {
@@ -189,30 +185,8 @@ final class StatusBarController: NSObject {
         s.set(!s.bool(IslandSettingsSchema.showIsland), for: IslandSettingsSchema.showIsland)
     }
 
-    @objc private func openIslandSettings() {
-        IslandSettingsWindowController.shared.showSettings()
-    }
-
     @objc private func openSettings() {
-        SettingsWindowController.shared.onSaved = { [weak self] _ in
-            guard let self, self.voiceRunning else { return }
-            self.noteRestartIfVoiceOn()
-        }
-        SettingsWindowController.shared.showSettings()
-    }
-
-    private func noteRestartIfVoiceOn() {
-        let alert = NSAlert()
-        alert.messageText = "Restart Samantha?"
-        alert.informativeText = "Settings apply on the next voice session. Turn Samantha off and on now?"
-        alert.addButton(withTitle: "Restart Now")
-        alert.addButton(withTitle: "Later")
-        if alert.runModal() == .alertFirstButtonReturn {
-            voiceSupervisor?.stop()
-            Task { @MainActor in
-                _ = await self.voiceSupervisor?.start()
-            }
-        }
+        IslandSettingsWindowController.shared.showSettings()
     }
 
     @objc private func quitApplication(_ sender: Any?) {

@@ -462,7 +462,7 @@ final class IslandModel: ObservableObject {
     }
     var reduceMotion: Bool = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     var resolveConfirm: ((Bool) -> Void)?
-    /// Island context menu → Settings….
+    /// Island context menu → ACU Settings… (General pane).
     var onOpenSettings: (() -> Void)?
     var onAction: ((IslandCardAction) -> Void)?
     /// Called when the shape/circle geometry changes so the panel can update hit-testing.

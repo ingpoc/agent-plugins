@@ -2,13 +2,13 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// Island Settings (Alcove replica). Opened only from a user action (status menu ⌘, or the
-/// island's context menu) — the only time it activates the app.
+/// The plugin's one settings window ("Agent Computer Use"): island, Samantha voice, AI agents and
+/// Computer Use. Opened only from a user action (status menu ⌘, the island's context menu or
+/// `macos-cua settings [pane]`) — the only time it activates the app.
 @MainActor
 final class IslandSettingsWindowController: NSWindowController {
     static let shared = IslandSettingsWindowController()
 
-    var onVoiceSettings: () -> Void = {}
     let nav = SettingsNav()
     private var keyMonitor: Any?
     private var watchers: [AnyCancellable] = []
@@ -25,7 +25,7 @@ final class IslandSettingsWindowController: NSWindowController {
             backing: .buffered,
             defer: true
         )
-        window.title = "Island Settings"
+        window.title = "ACU Settings"
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isMovableByWindowBackground = true
@@ -36,7 +36,6 @@ final class IslandSettingsWindowController: NSWindowController {
         window.contentView = NSHostingView(rootView: IslandSettingsRoot(
             store: .shared,
             nav: nav,
-            onVoiceSettings: { [weak self] in self?.onVoiceSettings() },
             onShowLog: { IslandSettingsWindowController.revealLog() }
         ))
         window.setContentSize(SettingsStyle.size)
@@ -65,8 +64,7 @@ final class IslandSettingsWindowController: NSWindowController {
                                                 panes: SettingsTab.panes,
                                                 permissions: IslandSettingsSchema.permissionGranted)
                 if let key = r.action {
-                    IslandSettingsRoot.perform(key, onVoiceSettings: { [weak self] in self?.onVoiceSettings() },
-                                               onShowLog: { IslandSettingsWindowController.revealLog() })
+                    IslandSettingsRoot.perform(key, onShowLog: { IslandSettingsWindowController.revealLog() })
                 }
                 return r.handled
             }
@@ -77,8 +75,9 @@ final class IslandSettingsWindowController: NSWindowController {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    /// User-initiated only.
-    func showSettings() {
+    /// User-initiated only. `tab` deep-links a pane (CLI / island); nil keeps the last pane.
+    func showSettings(tab: SettingsTab? = nil) {
+        if let tab { nav.tab = tab }
         if window?.isVisible != true { window?.center() }
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
@@ -89,5 +88,19 @@ final class IslandSettingsWindowController: NSWindowController {
         let cache = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".cache/macos-cua", isDirectory: true)
         let log = cache.appendingPathComponent("samantha-activity.jsonl")
         NSWorkspace.shared.activateFileViewerSelecting([FileManager.default.fileExists(atPath: log.path) ? log : cache])
+    }
+}
+
+
+extension SettingsTab {
+    /// CLI/RPC pane name → tab. `.some(nil)` = no pane given (keep the window's last pane);
+    /// `nil` = unknown pane. Case, spaces, "-" and "_" are ignored ("computer-use", "grok_bot").
+    static func forPane(_ raw: String) -> SettingsTab?? {
+        let key = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            .replacingOccurrences(of: "-", with: "").replacingOccurrences(of: "_", with: "")
+            .replacingOccurrences(of: " ", with: "")
+        if key.isEmpty { return .some(nil) }
+        guard let tab = SettingsTab.allCases.first(where: { $0.rawValue.lowercased() == key }) else { return nil }
+        return .some(tab)
     }
 }

@@ -187,7 +187,7 @@ final class IslandHub {
             // Same-uid local peer: the source must be opted in (token created by the user's Rotate /
             // Samantha toggle). CUAService reads its own item — no Keychain prompt for anyone.
             guard optedIn(source) else {
-                return .err(401, "\(source.cliName) is not set up: Island Settings → AI Agents → \(source.title) → Rotate")
+                return .err(401, "\(source.cliName) is not set up: ACU Settings → AI Agents → \(source.title) → Rotate")
             }
         } else {
             guard authorized(r, source: source) else { return .err(401, "missing or invalid token for \(source.cliName)") }
@@ -200,7 +200,7 @@ final class IslandHub {
                 guard samanthaActive else { return .err(409, "Samantha's session is not active") }
                 return publishSamantha(r.body)
             }
-            guard store.sourceEnabled(source) else { return .err(403, "source disabled in Island Settings") }
+            guard store.sourceEnabled(source) else { return .err(403, "source disabled in ACU Settings") }
             return publishAgent(json, source: source, now: now)
         case ("GET", "/api/agent/approval"):
             let id = Self.key(source, r.query["id"] ?? "")
@@ -336,7 +336,7 @@ final class IslandHub {
             guard !title.isEmpty else { return .err(400, "title required") }
             let cap = store.cap(source)
             guard cap.rank >= AttentionCap.info.rank else { return .err(403, "peeks need attention cap info or higher for \(source.cliName)") }
-            guard store.bool(IslandSettingsSchema.agentPeeks) else { return .err(403, "agent peeks are off in Island settings") }
+            guard store.bool(IslandSettingsSchema.agentPeeks) else { return .err(403, "agent peeks are off in ACU Settings") }
             onPeek?(IslandPeekItem(id: id, source: source.title, app: app, symbol: String((j["symbol"] as? String ?? "").prefix(40)),
                                    title: title, body: detail, at: now))
             return .ok(["id": rawId])

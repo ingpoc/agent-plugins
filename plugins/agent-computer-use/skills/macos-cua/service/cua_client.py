@@ -312,6 +312,10 @@ class CUAClient:
     def hide_agent_cursor(self) -> dict:
         return self.call("hide_agent_cursor") or {"ok": True}
 
+    def open_settings(self, pane: str = "") -> dict:
+        """Open the plugin's one settings window (Agent Computer Use) at ``pane``."""
+        return self.call("open_settings", {"pane": pane} if pane else {}) or {"ok": True}
+
     def cursor_status(self, events: bool = False) -> dict:
         """Overlay visibility + idle-hide setting (bypasses the request lock)."""
         return self.call("cursor_status", {"events": True} if events else None)

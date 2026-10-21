@@ -584,7 +584,7 @@ struct SamanthaIslandBar: View {
         .contextMenu {
             if model.secondary != nil { Button("Swap activities") { model.swapActivities() } }
             if !model.tray.isEmpty { Button("Clear File Tray") { model.clearTray() } }
-            Button("Settings…") { model.onOpenSettings?() }
+            Button("ACU Settings…") { model.onOpenSettings?() }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(model.accessibilityText)

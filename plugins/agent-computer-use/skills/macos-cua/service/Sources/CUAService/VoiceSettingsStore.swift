@@ -1,9 +1,9 @@
 import Foundation
 
 /// Shared Samantha preferences — same file as Python `voice_settings.py`.
-@MainActor
+/// Edited in Settings → Samantha → Voice (the separate Samantha Settings window is gone).
 enum VoiceSettingsStore {
-    static let path: URL = {
+    nonisolated(unsafe) static var path: URL = {
         let home = FileManager.default.homeDirectoryForCurrentUser
         return home.appendingPathComponent(".config/voice-cua/settings.json")
     }()
@@ -22,12 +22,12 @@ enum VoiceSettingsStore {
         )
     }
 
-    static let models: [(id: String, label: String)] = [
-        ("gpt-realtime-2", "Intelligent — gpt-realtime-2"),
-        ("gpt-realtime-2.1-mini", "Balanced — gpt-realtime-2.1-mini"),
+    static let models: [(value: String, label: String)] = [
+        ("gpt-realtime-2", "gpt-realtime-2"),
+        ("gpt-realtime-2.1-mini", "gpt-realtime-2.1 mini"),
     ]
 
-    static let voices: [(id: String, label: String)] = [
+    static let voices: [(value: String, label: String)] = [
         ("alloy", "Alloy"),
         ("ash", "Ash"),
         ("ballad", "Ballad"),
@@ -38,16 +38,40 @@ enum VoiceSettingsStore {
         ("verse", "Verse"),
     ]
 
-    static let eagernessLevels: [(id: String, label: String)] = [
-        ("polite", "Polite — ignore background noise"),
-        ("balanced", "Balanced — clear speech only"),
-        ("eager", "Eager — barge in anytime"),
+    static let eagernessLevels: [(value: String, label: String)] = [
+        ("polite", "Polite"),
+        ("balanced", "Balanced"),
+        ("eager", "Eager"),
     ]
 
-    static let micProfiles: [(id: String, label: String)] = [
-        ("near_field", "Close mic — headset / AirPods"),
-        ("far_field", "Far mic — laptop / room"),
+    static let micProfiles: [(value: String, label: String)] = [
+        ("near_field", "Close (headset)"),
+        ("far_field", "Far (laptop, room)"),
     ]
+
+    /// Settings-window bridge: `voice.<json key>` ↔ settings.json (unknown keys keep their stored value).
+    static func value(for key: String) -> String {
+        let s = load()
+        switch key {
+        case "voice.realtime_model": return s.realtimeModel
+        case "voice.realtime_voice": return s.realtimeVoice
+        case "voice.eagerness": return s.eagerness
+        case "voice.mic_profile": return s.micProfile
+        default: return ""
+        }
+    }
+
+    static func set(_ value: String, for key: String) {
+        var s = load()
+        switch key {
+        case "voice.realtime_model": s.realtimeModel = value
+        case "voice.realtime_voice": s.realtimeVoice = value
+        case "voice.eagerness": s.eagerness = value
+        case "voice.mic_profile": s.micProfile = value
+        default: return
+        }
+        try? save(s)
+    }
 
     static func load() -> Settings {
         guard FileManager.default.fileExists(atPath: path.path),
@@ -67,12 +91,13 @@ enum VoiceSettingsStore {
     static func save(_ settings: Settings) throws {
         let dir = path.deletingLastPathComponent()
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let payload: [String: String] = [
-            "realtime_model": settings.realtimeModel,
-            "realtime_voice": settings.realtimeVoice,
-            "eagerness": settings.eagerness,
-            "mic_profile": settings.micProfile,
-        ]
+        // Merge: keys this app doesn't know (written by voice_settings.py) are kept.
+        var payload: [String: Any] = (try? Data(contentsOf: path))
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] } ?? [:]
+        payload["realtime_model"] = settings.realtimeModel
+        payload["realtime_voice"] = settings.realtimeVoice
+        payload["eagerness"] = settings.eagerness
+        payload["mic_profile"] = settings.micProfile
         let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
         try data.write(to: path, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: path.path)

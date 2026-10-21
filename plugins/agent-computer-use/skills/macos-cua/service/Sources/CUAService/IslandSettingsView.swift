@@ -56,19 +56,17 @@ struct IslandSettingsRoot: View {
     var permissions: (String) -> Bool = IslandSettingsSchema.permissionGranted
     /// Row source (tests inject worst-case labels).
     var defs: (SettingsTab) -> [SettingDef] = IslandSettingsSchema.defs(for:)
-    var onVoiceSettings: () -> Void = {}
     var onShowLog: () -> Void = {}
 
     init(store: IslandSettingsStore, tab: SettingsTab = .general, nav: SettingsNav? = nil, rendering: Bool = false,
          permissions: @escaping (String) -> Bool = IslandSettingsSchema.permissionGranted,
          defs: @escaping (SettingsTab) -> [SettingDef] = IslandSettingsSchema.defs(for:),
-         onVoiceSettings: @escaping () -> Void = {}, onShowLog: @escaping () -> Void = {}) {
+         onShowLog: @escaping () -> Void = {}) {
         self.store = store
         self.nav = nav ?? SettingsNav(tab: tab)
         self.rendering = rendering
         self.permissions = permissions
         self.defs = defs
-        self.onVoiceSettings = onVoiceSettings
         self.onShowLog = onShowLog
     }
 
@@ -81,11 +79,15 @@ struct IslandSettingsRoot: View {
     }
 
     /// Button-row actions (mouse and keyboard).
-    static func perform(_ key: String, onVoiceSettings: () -> Void, onShowLog: () -> Void) {
-        if key.hasSuffix("voiceSettings") { onVoiceSettings() }
-        else if key == IslandSettingsSchema.calendarAccess { IslandSettingsSchema.calendarAccessAction?() }
+    static func perform(_ key: String, onShowLog: () -> Void) {
+        if key == IslandSettingsSchema.calendarAccess { IslandSettingsSchema.calendarAccessAction?() }
         else if key == IslandSettingsSchema.focusAccess { IslandSettingsSchema.focusAccessAction?() }
-        else if key == IslandSettingsSchema.accessibilityDisplay || key == IslandSettingsSchema.accessibilitySound {
+        else if key == IslandSettingsSchema.cuaScreenRecording {
+            // Screen Recording list in System Settings; preflight-only elsewhere, never a prompt.
+            if let u = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") { NSWorkspace.shared.open(u) }
+        }
+        else if key == IslandSettingsSchema.accessibilityDisplay || key == IslandSettingsSchema.accessibilitySound
+                    || key == IslandSettingsSchema.cuaAccessibility {
             // Opens the Accessibility list in System Settings (the user adds CUAService there); no prompt API.
             if let u = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") { NSWorkspace.shared.open(u) }
         }
@@ -199,7 +201,7 @@ struct IslandSettingsRoot: View {
                             if i > 0 { Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10) }
                             SettingRow(def: d, store: store, rendering: rendering, card: "c\(gi)", focused: nav.focus == d.key,
                                        granted: { if case .permission = d.kind { return permissions(d.key) }; return false }(),
-                                       onButton: { key in Self.perform(key, onVoiceSettings: onVoiceSettings, onShowLog: onShowLog) })
+                                       onButton: { key in Self.perform(key, onShowLog: onShowLog) })
                         }
                     }
                 }

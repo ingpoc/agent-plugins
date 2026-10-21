@@ -90,7 +90,9 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
             ("slider", .general, IslandSettingsSchema.resultPeek),
             ("master", .sound, IslandSettingsSchema.soundEnabled),
             ("permission", .calendar, IslandSettingsSchema.calendarAccess),
-            ("button", .samantha, "island.agent.samantha.voiceSettings"),
+            ("button", .about, "island.about.openLog"),
+            ("voice-popup", .samantha, IslandSettingsSchema.voiceModel),
+            ("cua-permission", .computerUse, IslandSettingsSchema.cuaScreenRecording),
         ]
         for (n, t, k) in focus {
             out.append(State(name: "focus-\(n)", view: IslandSettingsRoot(store: store(), nav: SettingsNav(tab: t, focus: k), rendering: true,
@@ -138,7 +140,8 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
         guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_RENDER_DIR"] else { throw XCTSkip("set CUA_ISLAND_RENDER_DIR to render") }
         IslandLayoutRecorder.enabled = false
         let wanted: Set<String> = ["default-general", "default-interaction", "default-grokBot-notoken", "default-grokBot-token",
-                                   "calendar-granted", "calendar-missing", "default-fileTray", "worst-samantha"]
+                                   "calendar-granted", "calendar-missing", "default-fileTray", "worst-samantha",
+                                   "default-samantha", "default-computerUse", "toggled-computerUse", "focus-voice-popup"]
         func save(_ img: CGImage, _ name: String) throws {
             let url = URL(fileURLWithPath: dir).appendingPathComponent("settings-\(name)-dark.png")
             XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "never overwrite \(url.lastPathComponent)")

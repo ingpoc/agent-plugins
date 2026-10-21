@@ -13,7 +13,7 @@
 Transport: CUAService's local socket (~/Library/Application Support/CUAService/island.sock, 0600,
 peer uid checked). No Keychain read happens in this process, so there is never a Keychain prompt;
 CUAService authorizes the source by Settings (enabled + approval cap) and by the source being set up
-(Island Settings → AI Agents → <source> → Rotate). `--http` uses 127.0.0.1:8777 with the Bearer token
+(ACU Settings → AI Agents → <source> → Rotate). `--http` uses 127.0.0.1:8777 with the Bearer token
 instead (other harnesses).
 
 --wait N (≤ 3600) blocks cheaply (server long-poll, no busy polling) and prints the answer as JSON:
@@ -249,7 +249,7 @@ def main() -> int:
                       "(default) — it needs no Keychain access.", file=sys.stderr)
                 return 3
             if not tok:
-                print(f"island-post: no token for {a.source} in the Keychain. Open Island Settings → AI Agents → "
+                print(f"island-post: no token for {a.source} in the Keychain. Open ACU Settings → AI Agents → "
                       f"{a.source} → Rotate.", file=sys.stderr)
                 return 3
         t = HttpTransport(a.port, tok)
