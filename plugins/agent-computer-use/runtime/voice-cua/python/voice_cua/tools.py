@@ -477,7 +477,7 @@ FAIL_HINTS = {
     "observation_incomplete": ("No fresh view: cua_state once, then decide; don't replay blindly.", True),
     "action_failed": ("Step failed: try one other route (label, key or coordinates).", True),
     "verification_required": ("Add expect (or allow_unverified for dispatch-only) and retry.", True),
-    "expect_unverified": ("It ran but isn't confirmed: check with cua_state; don't repeat it.", False),
+    "expect_unverified": ("It ran but isn't confirmed: read the settled state in this result (no cua_state); don't repeat it.", False),
     "user_denied": ("User said no: don't retry.", False),
 }
 CAP_HINT = "Stopped after 2 tries: tell the user what blocked it, or take a different approach."
