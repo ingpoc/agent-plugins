@@ -369,7 +369,9 @@ enum IslandSettingsSchema {
         let p = s.keyPrefix
         let cap: AttentionCap = s == .samantha ? .critical : s == .codex ? .info : .attention
         var rows: [SettingDef] = [
-            .init(tab: tab, section: nil, key: p + "enabled", label: s.title, kind: .master(tab.symbol), defaultValue: .bool(s != .codex),
+            // Samantha's pane is all Samantha: the switch reads "Enabled" (plain toggle, no icon).
+            .init(tab: tab, section: nil, key: p + "enabled", label: s == .samantha ? "Enabled" : s.title,
+                  kind: s == .samantha ? .toggle : .master(tab.symbol), defaultValue: .bool(s != .codex),
                   caption: s == .samantha ? nil : "Off hides this source's activities and approvals."),
             .init(tab: tab, section: nil, key: p + "cap", label: "Attention cap",
                   kind: .tiles([t("ambient", "Ambient", "circle.dotted"), t("info", "Info", "info.circle"),
@@ -397,11 +399,11 @@ enum IslandSettingsSchema {
                       kind: .popup(VoiceSettingsStore.micProfiles), defaultValue: .string(d.micProfile),
                       visibleWhen: whenRealtime),
                 // GPT-Live-1 only: the backend models it delegates tool work to.
-                .init(tab: tab, section: "GPT-Live-1 Tasks", key: voiceLiveBulk, label: "Bulk tasks",
+                .init(tab: tab, section: "Task models", key: voiceLiveBulk, label: "Bulk tasks",
                       kind: .popup(VoiceSettingsStore.backendModels), defaultValue: .string(d.liveBulkModel),
                       info: "Simple tool work: open an app, click, type, one Comet step",
                       visibleWhen: whenLive),
-                .init(tab: tab, section: "GPT-Live-1 Tasks", key: voiceLiveIntelligence, label: "Intelligence",
+                .init(tab: tab, section: "Task models", key: voiceLiveIntelligence, label: "Intelligence",
                       kind: .popup(VoiceSettingsStore.backendModels), defaultValue: .string(d.liveIntelligenceModel),
                       visibleWhen: whenLive,
                       caption: "Multi-step plans, unclear requests, or a Bulk step that failed twice."),

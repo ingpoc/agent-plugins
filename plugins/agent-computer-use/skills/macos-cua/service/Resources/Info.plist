@@ -6,6 +6,8 @@
 	<string>Agent Computer Use</string>
 	<key>CFBundleExecutable</key>
 	<string>CUAService</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.ingpoc.cua-service</string>
 	<key>CFBundleName</key>

@@ -64,8 +64,7 @@ final class StatusBarController: NSObject {
         guard item == nil else { return }
         let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = status.button {
-            button.image = Self.loadIcon()
-            button.image?.isTemplate = false
+            button.image = Self.loadIcon()   // template: tinted like the other menu bar icons
             button.toolTip = "Agent Computer Use"
             button.imagePosition = .imageOnly
         }
@@ -195,40 +194,31 @@ final class StatusBarController: NSObject {
         NSApplication.shared.terminate(sender)
     }
 
-    private static func loadIcon() -> NSImage {
-        if let img = loadBundled() { return img }
-        let fallback = NSImage(
-            systemSymbolName: "display.and.arrow.down",
-            accessibilityDescription: "Agent Computer Use"
-        ) ?? NSImage(size: NSSize(width: 18, height: 18))
-        fallback.isTemplate = false
-        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
-        if let configured = fallback.withSymbolConfiguration(config) {
-            return configured
-        }
-        return fallback
+    /// "Island Cursor" template glyph: StatusIcon.pdf (18×18 pt vector) first, PNGs as fallback.
+    /// Template, so the menu bar tints it like every other status item (white on dark, black on light).
+    static func loadIcon(resources: URL? = Bundle.main.resourceURL) -> NSImage {
+        let img = loadBundled(resources: resources)
+            ?? NSImage(systemSymbolName: "cursorarrow", accessibilityDescription: "Agent Computer Use")
+            ?? NSImage(size: NSSize(width: 18, height: 18))
+        img.isTemplate = true
+        img.accessibilityDescription = "Agent Computer Use"
+        return img
     }
 
-    private static func loadBundled() -> NSImage? {
-        let names = ["MenubarIcon", "MenubarIcon@2x"]
-        if let url = Bundle.main.url(forResource: "MenubarIcon", withExtension: "png"),
-           let img = NSImage(contentsOf: url) {
-            img.isTemplate = false
-            img.size = NSSize(width: 18, height: 18)
-            return img
+    static func loadBundled(resources: URL?) -> NSImage? {
+        guard let res = resources else { return nil }
+        if let pdf = NSImage(contentsOf: res.appendingPathComponent("StatusIcon.pdf")) {
+            pdf.size = NSSize(width: 18, height: 18)
+            return pdf
         }
-        let res = Bundle.main.resourceURL
-            ?? Bundle.main.bundleURL
-                .appendingPathComponent("Contents/Resources", isDirectory: true)
-        for name in names {
-            let url = res.appendingPathComponent("\(name).png")
-            if let img = NSImage(contentsOf: url) {
-                img.isTemplate = false
-                img.size = NSSize(width: 18, height: 18)
-                return img
-            }
+        // PNG set: one NSImage carrying the 1x/2x/3x reps.
+        let reps = ["StatusIcon.png", "StatusIcon@2x.png", "StatusIcon@3x.png"].compactMap {
+            NSImageRep(contentsOf: res.appendingPathComponent($0))
         }
-        return nil
+        guard !reps.isEmpty else { return nil }
+        let img = NSImage(size: NSSize(width: 18, height: 18))
+        for r in reps { r.size = NSSize(width: 18, height: 18); img.addRepresentation(r) }
+        return img
     }
 
 }

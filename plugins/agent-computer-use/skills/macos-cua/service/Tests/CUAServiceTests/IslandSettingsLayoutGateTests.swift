@@ -14,7 +14,10 @@ import XCTest
 final class IslandSettingsLayoutGateTests: XCTestCase {
     private var suites: [String] = []
 
-    override func setUp() { IslandLayoutRecorder.enabled = true }
+    override func setUp() {
+        IslandLayoutRecorder.enabled = true
+        BrandTile.iconURL = BrandTests.brand.appendingPathComponent("AppIcon.icns")   // About shows the app icon
+    }
     override func tearDown() {
         IslandLayoutRecorder.enabled = false
         IslandLayoutRecorder.shared.reset()
@@ -87,6 +90,11 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
         let liveW = store(); liveW.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
         out.append(State(name: "worst-live-samantha", view: IslandSettingsRoot(store: liveW, tab: .samantha, rendering: true,
                                                                               permissions: Self.missing, defs: Self.worstDefs)))
+        // Computer Use: the onboarding rows + amber summary (mixed) / no summary (all granted).
+        out.append(State(name: "mixed-computerUse", view: IslandSettingsRoot(store: store(), tab: .computerUse, rendering: true,
+                                                                            permissions: OnboardingTests.mixed)))
+        out.append(State(name: "granted-computerUse", view: IslandSettingsRoot(store: store(), tab: .computerUse, rendering: true,
+                                                                              permissions: Self.granted)))
         out.append(State(name: "calendar-missing", view: IslandSettingsRoot(store: store(), tab: .calendar, rendering: true, permissions: Self.missing)))
         let focus: [(String, SettingsTab, String)] = [
             ("toggle", .general, IslandSettingsSchema.showIsland),
@@ -129,6 +137,8 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
                 checked.append("\(name): \(items.count) probes, \(rows) rows")
                 if rows == 0 && st.view.nav.tab != .about { issues.append("\(name): no rows recorded") }
                 if st.name.hasPrefix("focus-"), !items.contains(where: { $0.kind == .ring }) { issues.append("\(name): no focus ring drawn") }
+                if st.name == "mixed-computerUse", !items.contains(where: { $0.id == "summary" }) { issues.append("\(name): no Required summary") }
+                if st.name == "granted-computerUse", items.contains(where: { $0.id == "summary" }) { issues.append("\(name): summary shown with nothing missing") }
                 issues += IslandLayoutGate.issues(state: name, items: items, containers: containers)
                 issues += IslandLayoutGate.formIssues(state: name, items: items, containers: containers,
                                                       rowHeight: SettingsStyle.rowHeight, tokenRowHeight: SettingsStyle.tokenRowHeight)
@@ -150,7 +160,8 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
         let wanted: Set<String> = ["default-general", "default-interaction", "default-grokBot-notoken", "default-grokBot-token",
                                    "calendar-granted", "calendar-missing", "default-fileTray", "worst-samantha",
                                    "default-samantha", "default-computerUse", "toggled-computerUse", "focus-voice-popup",
-                                   "live-samantha", "focus-live-popup"]
+                                   "live-samantha", "focus-live-popup", "mixed-computerUse", "granted-computerUse",
+                                   "focus-tiles"]
         func save(_ img: CGImage, _ name: String) throws {
             let url = URL(fileURLWithPath: dir).appendingPathComponent("settings-\(name)-dark.png")
             XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "never overwrite \(url.lastPathComponent)")

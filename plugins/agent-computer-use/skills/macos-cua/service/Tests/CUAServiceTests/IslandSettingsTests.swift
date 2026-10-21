@@ -106,6 +106,15 @@ final class IslandSettingsTests: XCTestCase {
         XCTAssertEqual(env["VOICE_CUA_LIVE_INTELLIGENCE_MODEL"], "gpt-6-astra")
     }
 
+    func testSamanthaEnabledRowAndTaskModelsSection() {
+        let rows = IslandSettingsSchema.defs(for: .samantha)
+        XCTAssertEqual(rows.first?.label, "Enabled")
+        guard case .toggle = rows.first?.kind else { return XCTFail("Samantha's top row is a plain toggle (no icon)") }
+        XCTAssertEqual(rows.filter { $0.visibleWhen == IslandSettingsSchema.whenLive }.map(\.section), ["Task models", "Task models"])
+        XCTAssertFalse(IslandSettingsSchema.all.contains { $0.section == "GPT-Live-1 Tasks" })
+        XCTAssertEqual(IslandSettingsSchema.def(AgentSource.grokBot.keyPrefix + "enabled")?.label, AgentSource.grokBot.title, "other sources keep their master row")
+    }
+
     func testComputerUsePaneIsThePermissionRows() {
         let rows = IslandSettingsSchema.defs(for: .computerUse)
         XCTAssertEqual(rows.map(\.key), ACUPermission.allCases.map(\.key), "same rows as onboarding")

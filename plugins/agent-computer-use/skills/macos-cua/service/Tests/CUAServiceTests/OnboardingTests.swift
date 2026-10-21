@@ -9,6 +9,12 @@ import XCTest
 final class OnboardingTests: XCTestCase {
     private var suites: [String] = []
 
+    override func setUp() {
+        // No app bundle under xctest: point the brand tile at the repo's AppIcon.icns.
+        BrandTile.iconURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("assets/brand/AppIcon.icns")
+    }
+
     override func tearDown() {
         IslandLayoutRecorder.enabled = false
         IslandLayoutRecorder.shared.reset()
@@ -135,9 +141,9 @@ final class OnboardingTests: XCTestCase {
 
     struct State { var name: String; var view: OnboardingView }
 
-    private static let granted: (String) -> Bool = { _ in true }
-    private static let missing: (String) -> Bool = { _ in false }
-    private static let mixed: (String) -> Bool = { k in
+    static let granted: (String) -> Bool = { _ in true }
+    static let missing: (String) -> Bool = { _ in false }
+    static let mixed: (String) -> Bool = { k in
         [ACUPermission.accessibility, .microphone, .automationMusic, .automationFinder].map(\.key).contains(k)
     }
 
@@ -154,6 +160,39 @@ final class OnboardingTests: XCTestCase {
                                                                   rendering: true, permissions: Self.missing,
                                                                   defs: IslandSettingsLayoutGateTests.worstDefs)),
         ]
+    }
+
+    private func probes(_ v: OnboardingView) -> (ids: Set<String>, height: CGFloat) {
+        IslandLayoutRecorder.enabled = true
+        IslandLayoutRecorder.shared.reset()
+        let r = ImageRenderer(content: v.environment(\.colorScheme, .dark))
+        r.scale = 1
+        let h = CGFloat(r.cgImage?.height ?? 0)
+        return (Set(IslandLayoutRecorder.shared.snapshot().0.map(\.id)), h)
+    }
+
+    /// Fix 1: Required incomplete -> only a grey secondary "Later"; complete -> accent "Done" (Return).
+    func testFooterLaterIsNeverPrimary() {
+        for (perm, name) in [(Self.missing, "missing"), (Self.mixed, "mixed")] {
+            let ids = probes(OnboardingView(model: OnboardingModel(step: .permissions), store: store(), rendering: true, permissions: perm)).ids
+            XCTAssertTrue(ids.contains("footer-button:secondary:Later"), name)
+            XCTAssertFalse(ids.contains { $0.hasPrefix("footer-button:primary") }, "\(name): no primary while Required is missing")
+            XCTAssertTrue(ids.contains("summary"), "\(name): amber summary shown")
+        }
+        let done = probes(OnboardingView(model: OnboardingModel(step: .permissions), store: store(), rendering: true, permissions: Self.granted)).ids
+        XCTAssertTrue(done.contains("footer-button:primary:Done"))
+        XCTAssertFalse(done.contains { $0.hasPrefix("footer-button:secondary") })
+        XCTAssertFalse(done.contains("summary"), "summary hidden when nothing is missing")
+        XCTAssertEqual(RequiredSummary.count(IslandSettingsSchema.defs(for: .computerUse), permissions: Self.mixed), 1)
+    }
+
+    /// Fix 5: Welcome hugs its content (no dead space), at most ~560 pt.
+    func testWelcomeHugsContent() {
+        let h = probes(OnboardingView(model: OnboardingModel(step: .welcome), store: store(), rendering: true)).height
+        XCTAssertLessThanOrEqual(h, OnboardingStyle.welcomeMaxHeight)
+        XCTAssertGreaterThan(h, 300)
+        let p = probes(OnboardingView(model: OnboardingModel(step: .permissions), store: store(), rendering: true)).height
+        XCTAssertGreaterThanOrEqual(p, OnboardingStyle.size.height, "rows step keeps the full height")
     }
 
     func testOnboardingLayoutGate() throws {

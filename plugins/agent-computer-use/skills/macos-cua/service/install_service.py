@@ -223,12 +223,7 @@ def create_app_bundle(binary: Path, dest: Path) -> None:
     shutil.copy2(binary, macos / "CUAService")
     (macos / "CUAService").chmod(0o755)
 
-    # White menubar glyph (Agent Computer Use)
-    assets = SERVICE_DIR.parent / "assets"
-    for name in ("MenubarIcon.png", "MenubarIcon@2x.png", "MenubarIcon@3x.png"):
-        src = assets / name
-        if src.is_file():
-            shutil.copy2(src, resources / name)
+    copy_brand(resources)
 
     # Copy Info.plist
     plist_src = SERVICE_DIR / "Resources" / "Info.plist"
@@ -248,6 +243,18 @@ def create_app_bundle(binary: Path, dest: Path) -> None:
             "</dict></plist>"
         )
     print(f"  ✓ App bundle created at {dest}")
+
+
+BRAND_DIR = SERVICE_DIR.parent / "assets" / "brand"
+BRAND_FILES = ("AppIcon.icns", "StatusIcon.pdf", "StatusIcon.png", "StatusIcon@2x.png", "StatusIcon@3x.png", "mark.svg")
+
+
+def copy_brand(resources: Path) -> None:
+    """"Island Cursor" brand: AppIcon.icns (CFBundleIconFile) + template status glyph + mark."""
+    for name in BRAND_FILES:
+        src = BRAND_DIR / name
+        if src.is_file():
+            shutil.copy2(src, resources / name)
 
 
 MEDIAREMOTE_SRC = SERVICE_DIR / "Vendor" / "mediaremote-adapter"
@@ -372,11 +379,7 @@ def main():
         dest_bin.chmod(0o755)
         resources = dest / "Contents" / "Resources"
         resources.mkdir(parents=True, exist_ok=True)
-        assets = SERVICE_DIR.parent / "assets"
-        for name in ("MenubarIcon.png", "MenubarIcon@2x.png", "MenubarIcon@3x.png"):
-            src = assets / name
-            if src.is_file():
-                shutil.copy2(src, resources / name)
+        copy_brand(resources)
         print(f"  ✓ Replaced {dest_bin} (unsigned copy; existing bundle signature may be invalid until you re-grant TCC if macOS rejects it)")
         print(f"\n✓ CUAService binary updated at {dest}")
         print("  Do not codesign --force --sign - ; that drops Accessibility TCC.")

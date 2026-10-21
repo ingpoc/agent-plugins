@@ -181,8 +181,17 @@ struct IslandSettingsRoot: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                IconTile(symbol: tab.symbol, color: Color(nsColor: tab.tint), size: 18).layoutProbe("pane-icon", .glyph)
+                Group {
+                    if tab == .about { BrandTile(size: 18) }   // the app's own pane: its icon
+                    else { IconTile(symbol: tab.symbol, color: Color(nsColor: tab.tint), size: 18) }
+                }
+                .layoutProbe("pane-icon", .glyph)
                 Text(tab.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).layoutProbe("pane-title")
+                if tab == .computerUse {
+                    Spacer(minLength: 0)
+                    RequiredSummary(missing: RequiredSummary.count(Self.visibleDefs(tab, store: store, defs: defs), permissions: permissions))
+                        .padding(.trailing, 12)
+                }
             }
             .padding(.leading, 12).padding(.top, rendering ? 14 : 14).frame(height: 50, alignment: .leading)
             if rendering {
@@ -195,10 +204,26 @@ struct IslandSettingsRoot: View {
         .layoutContainer("content")
     }
 
+    /// Standard show/hide for rows whose `visibleWhen` flips (e.g. Task models): 0.25 s height + fade.
+    static let rowVisibility = Animation.easeInOut(duration: 0.25)
+
+    @ViewBuilder
     private var page: some View {
-        let groups = Self.group(Self.visibleDefs(tab, store: store, defs: defs))
+        if tab == .computerUse {
+            // The exact rows onboarding shows (shared component, same live status).
+            PermissionRows(rows: Self.visibleDefs(tab, store: store, defs: defs), store: store, rendering: rendering,
+                           focus: nav.focus, permissions: permissions,
+                           onButton: { key in Self.perform(key, onShowLog: onShowLog) })
+        } else {
+            genericPage
+        }
+    }
+
+    private var genericPage: some View {
+        let visible = Self.visibleDefs(tab, store: store, defs: defs)
+        let groups = Self.group(visible)
         return VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(groups.enumerated()), id: \.offset) { gi, g in
+            ForEach(Array(groups.enumerated()), id: \.element.rows.first?.key) { gi, g in
                 VStack(alignment: .leading, spacing: 6) {
                     if let s = g.section {
                         Text(s).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white.opacity(0.55))
@@ -211,19 +236,23 @@ struct IslandSettingsRoot: View {
                             SettingRow(def: d, store: store, rendering: rendering, card: "c\(gi)", focused: nav.focus == d.key,
                                        granted: { if case .permission = d.kind { return permissions(d.key) }; return false }(),
                                        onButton: { key in Self.perform(key, onShowLog: onShowLog) })
+                            .transition(.opacity)
                         }
                     }
                 }
+                .transition(.opacity)
             }
             if tab == .about { aboutFooter }
         }
+        .animation(rendering ? nil : Self.rowVisibility, value: visible.map(\.key))
     }
 
     private var aboutFooter: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
         return SettingsCard {
-            HStack {
-                Text("Samantha Island").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).layoutProbe("about-name")
+            HStack(spacing: 10) {
+                BrandTile(size: 24).layoutProbe("about-icon", .glyph)
+                Text("Agent Computer Use").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).layoutProbe("about-name")
                 Spacer()
                 Text(v).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundStyle(Color.white.opacity(0.55)).layoutProbe("about-version")
             }
@@ -509,14 +538,16 @@ struct TilePicker: View {
             ForEach(options, id: \.value) { o in
                 let on = o.value == selection
                 VStack(spacing: 5) {
+                    // Native segmented-tile selection: white 15 % fill, 1 pt accent ring, accent glyph.
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(on ? Color.black : Color.white.opacity(0.08))
+                        .fill(Color.white.opacity(on ? 0.15 : 0.08))
                         .frame(height: 44)
-                        .overlay(Image(systemName: o.symbol).font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.white.opacity(on ? 1 : 0.6)))
-                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on ? SettingsStyle.accent : .clear, lineWidth: 2))
+                        .overlay(Image(systemName: o.symbol).font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(on ? SettingsStyle.accent : Color.white.opacity(0.6)))
+                        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on ? SettingsStyle.accent : .clear, lineWidth: 1))
                         .layoutProbe("tile:\(key):\(o.value)", .control)
                         .modifier(SettingsFocusRing(on: focused && on, radius: 8, key: key))
-                    Text(o.label).font(.system(size: 11, weight: on ? .bold : .regular)).foregroundStyle(Color.white.opacity(on ? 0.95 : 0.55))
+                    Text(o.label).font(.system(size: 11, weight: on ? .semibold : .regular)).foregroundStyle(Color.white.opacity(on ? 0.95 : 0.55))
                         .lineLimit(2).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true).help(o.label)
                         .layoutProbe("tile-label:\(key):\(o.value)", truncates: true)
                 }

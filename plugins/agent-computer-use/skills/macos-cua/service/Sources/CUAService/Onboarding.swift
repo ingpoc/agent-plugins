@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// First-run / something-missing onboarding: Welcome, then one row per consent — the same rows as
@@ -24,12 +25,66 @@ final class OnboardingModel: ObservableObject {
 enum OnboardingStyle {
     /// Same card width as the settings pane (rowWidth) with the pane's 12 pt page padding.
     static let size = CGSize(width: SettingsStyle.rowWidth + 24, height: 640)
+    /// Welcome hugs its content (window resized per step); no dead space above the footer.
+    static let welcomeMaxHeight: CGFloat = 560
+}
+
+/// Amber "Required: N missing" beside a pane title; nothing at all when Required is complete.
+struct RequiredSummary: View {
+    let missing: Int
+    var body: some View {
+        if missing > 0 {
+            Text("Required: \(missing) missing")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color(nsColor: .systemOrange))
+                .lineLimit(1).fixedSize()
+                .layoutProbe("summary")
+        }
+    }
+
+    static func count(_ rows: [SettingDef], permissions: (String) -> Bool) -> Int {
+        rows.filter { d in ACUPermission.from(key: d.key)?.required == true && !permissions(d.key) }.count
+    }
+}
+
+/// The permission rows, shared verbatim by onboarding and ACU Settings › Computer Use: same cards,
+/// same SettingRow, same live status (observes PermissionCenter, so a refresh re-renders both).
+struct PermissionRows: View {
+    let rows: [SettingDef]
+    @ObservedObject var store: IslandSettingsStore
+    @ObservedObject var center: PermissionCenter = .shared
+    var rendering = false
+    var focus: String? = nil
+    var permissions: (String) -> Bool = IslandSettingsSchema.permissionGranted
+    var onButton: (String) -> Void = { key in IslandSettingsRoot.perform(key, onShowLog: {}) }
+
+    var body: some View {
+        let groups = IslandSettingsRoot.group(rows)
+        VStack(alignment: .leading, spacing: 14) {
+            ForEach(Array(groups.enumerated()), id: \.offset) { gi, g in
+                VStack(alignment: .leading, spacing: 6) {
+                    if let s = g.section {
+                        Text(s).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white.opacity(0.55))
+                            .lineLimit(1).truncationMode(.tail).help(s)
+                            .layoutProbe("section:\(gi)", truncates: true).padding(.leading, 4)
+                    }
+                    SettingsCard {
+                        ForEach(Array(g.rows.enumerated()), id: \.element.key) { i, d in
+                            if i > 0 { Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10) }
+                            SettingRow(def: d, store: store, rendering: rendering, card: "c\(gi)", focused: focus == d.key,
+                                       granted: permissions(d.key), onButton: onButton)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 struct OnboardingView: View {
     @ObservedObject var model: OnboardingModel
     @ObservedObject var store: IslandSettingsStore
-    /// Re-renders rows when a refresh lands (rows read PermissionCenter.state via `permissions`).
+    /// Re-renders the summary/footer when a refresh lands.
     @ObservedObject var center: PermissionCenter = .shared
     var rendering = false
     var permissions: (String) -> Bool = IslandSettingsSchema.permissionGranted
@@ -37,9 +92,7 @@ struct OnboardingView: View {
     var onDone: () -> Void = {}
 
     private var rows: [SettingDef] { IslandSettingsRoot.visibleDefs(.computerUse, store: store, defs: defs) }
-    private var missingRequired: Int {
-        rows.filter { d in ACUPermission.from(key: d.key)?.required == true && !permissions(d.key) }.count
-    }
+    private var missingRequired: Int { RequiredSummary.count(rows, permissions: permissions) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -57,8 +110,9 @@ struct OnboardingView: View {
             case .permissions: permissionsStep
             }
         }
-        .frame(width: OnboardingStyle.size.width, height: rendering ? nil : OnboardingStyle.size.height, alignment: .topLeading)
-        .frame(minHeight: OnboardingStyle.size.height, alignment: .top)
+        .frame(width: OnboardingStyle.size.width,
+               height: rendering || model.step == .welcome ? nil : OnboardingStyle.size.height, alignment: .topLeading)
+        .frame(minHeight: model.step == .welcome ? nil : OnboardingStyle.size.height, alignment: .top)
         .coordinateSpace(name: IslandLayoutRecorder.space)
         .background(SettingsStyle.windowBG)
         .environment(\.colorScheme, .dark)
@@ -68,17 +122,16 @@ struct OnboardingView: View {
     // MARK: Welcome
 
     private var welcome: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 8) {
             welcomeContent
-            Spacer(minLength: 0)
-            footer(primary: "Continue") { model.step = .permissions }.padding(.bottom, 8)
+            footer("Continue", primary: true) { model.step = .permissions }.padding(.bottom, 8)
         }
-        .frame(maxHeight: .infinity, alignment: .top)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var welcomeContent: some View {
         VStack(alignment: .leading, spacing: 14) {
-            IconTile(symbol: SettingsTab.computerUse.symbol, color: Color(nsColor: SettingsTab.computerUse.tint), size: 48)
+            BrandTile(size: 48)
                 .layoutProbe("welcome-icon", .glyph)
                 .padding(.leading, 4)
             Text("Welcome to Agent Computer Use")
@@ -127,47 +180,30 @@ struct OnboardingView: View {
     private var permissionsStep: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
-                IconTile(symbol: SettingsTab.computerUse.symbol, color: Color(nsColor: SettingsTab.computerUse.tint), size: 18)
+                BrandTile(size: 18)
                     .layoutProbe("pane-icon", .glyph)
                 Text("Permissions").font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).layoutProbe("pane-title")
                 Spacer(minLength: 0)
-                Text(missingRequired == 0 ? "Required: all allowed" : "Required: \(missingRequired) missing")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(missingRequired == 0 ? Color(nsColor: .systemGreen) : Color(nsColor: .systemOrange))
-                    .lineLimit(1).fixedSize()
-                    .layoutProbe("summary")
+                RequiredSummary(missing: missingRequired)
             }
             .padding(.horizontal, 12).frame(height: 50, alignment: .leading)
             .layoutContainer("onboarding|header")
             if rendering { page.padding(.horizontal, 12).padding(.bottom, 12) }
             else { ScrollView { page.padding(.horizontal, 12).padding(.bottom, 12) } }
-            footer(primary: missingRequired == 0 ? "Done" : "Later") { onDone() }
-                .padding(.bottom, 8)
+            // Required incomplete: only a grey secondary "Later". Complete: accent "Done" on Return.
+            Group {
+                if missingRequired == 0 { footer("Done", primary: true) { onDone() } }
+                else { footer("Later", primary: false) { onDone() } }
+            }
+            .padding(.bottom, 8)
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .layoutContainer("content")
     }
 
     private var page: some View {
-        let groups = IslandSettingsRoot.group(rows)
-        return VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(groups.enumerated()), id: \.offset) { gi, g in
-                VStack(alignment: .leading, spacing: 6) {
-                    if let s = g.section {
-                        Text(s).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white.opacity(0.55))
-                            .lineLimit(1).truncationMode(.tail)
-                            .layoutProbe("section:\(gi)", truncates: true).padding(.leading, 4)
-                    }
-                    SettingsCard {
-                        ForEach(Array(g.rows.enumerated()), id: \.element.key) { i, d in
-                            if i > 0 { Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10) }
-                            SettingRow(def: d, store: store, rendering: rendering, card: "c\(gi)",
-                                       granted: permissions(d.key),
-                                       onButton: { key in IslandSettingsRoot.perform(key, onShowLog: {}) })
-                        }
-                    }
-                }
-            }
+        VStack(alignment: .leading, spacing: 14) {
+            PermissionRows(rows: rows, store: store, rendering: rendering, permissions: permissions)
             Text("Change these later in ACU Settings › Computer Use.")
                 .font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45))
                 .fixedSize(horizontal: false, vertical: true)
@@ -175,14 +211,22 @@ struct OnboardingView: View {
         }
     }
 
-    private func footer(primary: String, action: @escaping () -> Void) -> some View {
+    /// Only a primary (accent) button is bound to Return; the secondary one is grey and unbound.
+    private func footer(_ title: String, primary: Bool, action: @escaping () -> Void) -> some View {
         HStack {
             Spacer(minLength: 0)
-            Button(primary, action: action)
-                .buttonStyle(PillButtonStyle(primary: true))
-                .frame(width: PillButtonStyle.width(primary))
-                .keyboardShortcut(.defaultAction)
-                .layoutProbe("footer-button", .control)
+            if primary {
+                Button(title, action: action)
+                    .buttonStyle(PillButtonStyle(primary: true))
+                    .frame(width: PillButtonStyle.width(title))
+                    .keyboardShortcut(.defaultAction)
+                    .layoutProbe("footer-button:primary:\(title)", .control)
+            } else {
+                Button(title, action: action)
+                    .buttonStyle(PillButtonStyle(primary: false))
+                    .frame(width: PillButtonStyle.width(title))
+                    .layoutProbe("footer-button:secondary:\(title)", .control)
+            }
         }
         .padding(.horizontal, 12)
         .frame(height: 44)
@@ -196,6 +240,8 @@ struct OnboardingView: View {
 final class OnboardingWindowController: NSWindowController {
     static let shared = OnboardingWindowController()
     let model = OnboardingModel()
+    private var hosting: NSHostingView<OnboardingView>?
+    private var stepWatch: AnyCancellable?
 
     private init() {
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: OnboardingStyle.size),
@@ -208,11 +254,15 @@ final class OnboardingWindowController: NSWindowController {
         window.appearance = NSAppearance(named: .darkAqua)
         window.backgroundColor = NSColor(red: 0.19, green: 0.19, blue: 0.19, alpha: 1)
         super.init(window: window)
-        window.contentView = NSHostingView(rootView: OnboardingView(model: model, store: .shared, onDone: {
+        let host = NSHostingView(rootView: OnboardingView(model: model, store: .shared, onDone: {
             UserDefaults.standard.set(true, forKey: OnboardingModel.completedKey)
             OnboardingWindowController.shared.close()
         }))
-        window.setContentSize(OnboardingStyle.size)
+        hosting = host
+        window.contentView = host
+        fitToStep()
+        // Welcome hugs its content; the permission rows get the full 640 pt (they scroll).
+        stepWatch = model.$step.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in self?.fitToStep() }
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { PermissionCenter.shared.refresh() }
         }
@@ -220,6 +270,17 @@ final class OnboardingWindowController: NSWindowController {
 
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    /// Content height for the current step, keeping the window's top edge where it is.
+    private func fitToStep() {
+        guard let window, let hosting else { return }
+        hosting.layoutSubtreeIfNeeded()
+        let h = model.step == .welcome ? min(hosting.fittingSize.height, OnboardingStyle.welcomeMaxHeight)
+                                       : OnboardingStyle.size.height
+        var f = window.frameRect(forContentRect: NSRect(origin: .zero, size: CGSize(width: OnboardingStyle.size.width, height: h)))
+        f.origin = CGPoint(x: window.frame.minX, y: window.frame.maxY - f.height)
+        window.setFrame(f, display: true, animate: window.isVisible)
+    }
 
     /// Launch check: refresh real status first, then show only if needed.
     static func showIfNeeded() {
