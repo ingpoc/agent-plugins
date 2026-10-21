@@ -206,7 +206,7 @@ class RunToolIslandTests(unittest.TestCase):
     @staticmethod
     def _make_session() -> RealtimeSession:
         settings = {
-            "realtime_model": "gpt-realtime-2",
+            "realtime_model": "gpt-live-1",
             "realtime_voice": "alloy",
             "eagerness": "balanced",
             "mic_profile": "near_field",
@@ -304,9 +304,6 @@ class SummarizeFallbackTests(unittest.TestCase):
             ("done", "Done", "Calculator opened"),
         )
 
-
-if __name__ == "__main__":
-    unittest.main()
 
 
 class IslandCopyContractTests(unittest.TestCase):
@@ -437,3 +434,19 @@ class AgentIslandTests(unittest.TestCase):
 
         snap = IslandBus().publish("acting", title="Opening netflix.com", app="Comet", step_index=2, step_total=5)
         self.assertEqual((snap.step_index, snap.step_total), (2, 5))
+
+
+def setUpModule() -> None:  # loop tests run on the provider-neutral pass-through
+    import loop_harness
+
+    loop_harness.install()
+
+
+def tearDownModule() -> None:
+    import loop_harness
+
+    loop_harness.uninstall()
+
+
+if __name__ == "__main__":
+    unittest.main()

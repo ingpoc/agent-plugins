@@ -243,11 +243,11 @@ enum IslandSettingsSchema {
     static let voiceMic = "voice.mic_profile"
     static let voiceLiveBulk = "voice.live_bulk_model"
     static let voiceLiveIntelligence = "voice.live_intelligence_model"
-    static let voiceKeys = [voiceModel, voiceVoice, voiceEagerness, voiceMic, voiceLiveBulk, voiceLiveIntelligence]
+    /// Listening / Microphone tuned the removed Realtime session; GPT-Live owns turn-taking, so
+    /// those keys stay in settings.json (local mic gate) but have no Settings row.
+    static let voiceKeys = [voiceModel, voiceVoice, voiceLiveBulk, voiceLiveIntelligence]
     /// `visibleWhen` for the GPT-Live-1 backend pickers ("key=value" form).
     static let whenLive = voiceModel + "=" + VoiceSettingsStore.liveModel
-    /// Voice / Listening / Microphone tune the OpenAI Realtime session only.
-    static let whenRealtime = voiceModel + "^=gpt-realtime"
 
     // Computer Use (CUAService) — the onboarding rows: real state, Grant = native request or deep link.
     static let cuaAccessibility = ACUPermission.accessibility.key
@@ -391,14 +391,7 @@ enum IslandSettingsSchema {
                       caption: "Changes apply the next time Samantha starts."),
                 .init(tab: tab, section: "Voice", key: voiceVoice, label: "Voice",
                       kind: .popup(VoiceSettingsStore.voices), defaultValue: .string(d.realtimeVoice),
-                      visibleWhen: whenRealtime),
-                .init(tab: tab, section: "Voice", key: voiceEagerness, label: "Listening",
-                      kind: .popup(VoiceSettingsStore.eagernessLevels), defaultValue: .string(d.eagerness),
-                      info: "Polite ignores background noise; Eager lets you interrupt anytime",
-                      visibleWhen: whenRealtime),
-                .init(tab: tab, section: "Voice", key: voiceMic, label: "Microphone",
-                      kind: .popup(VoiceSettingsStore.micProfiles), defaultValue: .string(d.micProfile),
-                      visibleWhen: whenRealtime),
+                      visibleWhen: whenLive),
                 // GPT-Live-1 only: the backend models it delegates tool work to.
                 .init(tab: tab, section: "Task models", key: voiceLiveBulk, label: "Bulk tasks",
                       kind: .popup(VoiceSettingsStore.backendModels), defaultValue: .string(d.liveBulkModel),

@@ -1,4 +1,4 @@
-"""Local HTTP gateway: Realtime client-secret, tools, island SSE, confirm."""
+"""Local HTTP gateway: tools, island SSE, confirm (voice runs on GPT-Live in the helper)."""
 
 from __future__ import annotations
 
@@ -6,8 +6,6 @@ import json
 import hmac
 import os
 import threading
-import urllib.error
-import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
@@ -15,7 +13,7 @@ from urllib.parse import parse_qs, urlparse
 from voice_cua import SYSTEM_INSTRUCTIONS, __version__
 from voice_cua.activity_log import log_path, tail_events
 from voice_cua.startup_trace import tail_startup
-from voice_cua.auth import openai_configured, openai_status, resolve_openai_api_key
+from voice_cua.auth import openai_status
 from voice_cua.inventory import build_inventory, find_by_label
 from voice_cua.island_state import ISLAND
 from voice_cua.activity_log import log_event
@@ -50,46 +48,6 @@ def request_shutdown() -> None:
         os._exit(0)
 
     threading.Thread(target=_exit_stack, name="voice-shutdown", daemon=True).start()
-
-
-def mint_client_secret() -> dict[str, Any]:
-    from voice_cua.providers import provider_for
-
-    if provider_for(realtime_model()) != "openai-realtime":
-        # Browser client secrets are a Realtime feature; GPT-Live / Grok Voice run in the helper.
-        raise RuntimeError(f"client secrets are Realtime-only; selected model is {realtime_model()}")
-    api_key = resolve_openai_api_key()
-    # GA mint body: full GA session config + short-lived token (10 min max).
-    # Local import — realtime_session must not import gateway at module load.
-    from voice_cua.realtime_session import build_session_update
-
-    body = json.dumps({
-        "expires_after": {"anchor": "created_at", "seconds": 600},
-        "session": {"model": realtime_model(), **build_session_update()["session"]},
-    }).encode("utf-8")
-    # OpenAI ephemeral client secrets for Realtime (GA path only).
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/realtime/client_secrets",
-        data=body,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        try:
-            err_body = exc.read().decode("utf-8", errors="replace")
-        except Exception:  # noqa: BLE001 — body unreadable; surface code alone
-            err_body = ""
-        # No Beta /v1/realtime/sessions fallback: it retired with the Beta API
-        # and double POSTing only widened the failure surface.
-        raise RuntimeError(
-            f"client_secret mint failed HTTP {exc.code}: {err_body[:400]}"
-        ) from exc
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -221,14 +179,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         path = urlparse(self.path).path
         if path == "/api/realtime/client-secret":
-            if not openai_configured():
-                self._json(503, {"ok": False, "error": "OPENAI_API_KEY not set"})
-                return
-            try:
-                data = mint_client_secret()
-                self._json(200, {"ok": True, "data": data, "model": realtime_model()})
-            except Exception as exc:  # noqa: BLE001
-                self._json(502, {"ok": False, "error": str(exc)})
+            # Realtime browser client secrets went with the Realtime backend (GPT-Live only).
+            self._json(410, {"ok": False, "error": "Realtime client secrets were removed; voice runs on GPT-Live"})
             return
         if path == "/api/tools/call":
             body = self._read_json()

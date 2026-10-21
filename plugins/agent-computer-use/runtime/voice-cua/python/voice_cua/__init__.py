@@ -23,6 +23,7 @@ Computer-use rules (same as Agent Computer Use MCP):
 - Prefer explicit op values for scroll, drag, select_text, focus, open, and
   reveal. Batch same-app operations in steps so CUAService executes one plan.
 - Launch/raise regular apps by name (Calculator, Music, TextEdit, Finder): cua_act op=open with app only (no path) launches it or shows its window — also when cua_state comes back empty. Never cua_act on System Events or other no-window processes.
+- Calculator has no text field: in one act, open it, then click its buttons by label (All Clear, digits, Add, Subtract, Multiply, Divide, Equals); never type_text there.
 - Writing in a document app (TextEdit, Notes, Pages): start a new document in one act
   (steps: key cmd+n, then type_text) unless the user names an existing document. Never
   replace or edit text already in an open document the user did not name.

@@ -34,17 +34,15 @@ final class IslandSettingsTests: XCTestCase {
         let saved = VoiceSettingsStore.path
         defer { VoiceSettingsStore.path = saved }
         VoiceSettingsStore.path = dir.appendingPathComponent("settings.json")
-        try JSONSerialization.data(withJSONObject: ["realtime_model": "gpt-realtime-2.1-mini", "eagerness": "eager", "extra": "kept"])
+        try JSONSerialization.data(withJSONObject: ["realtime_model": "gpt-realtime-2.1-mini", "realtime_voice": "nope", "extra": "kept"])
             .write(to: VoiceSettingsStore.path)
         let defaults = UserDefaults(suiteName: "voice-\(UUID().uuidString)")!
         let s = IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore(), voiceInFile: true)
-        XCTAssertEqual(s.string(IslandSettingsSchema.voiceModel), "gpt-realtime-2.1-mini")
-        XCTAssertEqual(s.string(IslandSettingsSchema.voiceEagerness), "eager")
-        XCTAssertEqual(s.string(IslandSettingsSchema.voiceVoice), "alloy")  // default when missing
+        XCTAssertEqual(s.string(IslandSettingsSchema.voiceModel), "gpt-live-1", "retired Realtime id maps to GPT-Live-1")
         s.set("ash", for: IslandSettingsSchema.voiceVoice)
         let obj = try JSONSerialization.jsonObject(with: Data(contentsOf: VoiceSettingsStore.path)) as? [String: Any]
         XCTAssertEqual(obj?["realtime_voice"] as? String, "ash")
-        XCTAssertEqual(obj?["realtime_model"] as? String, "gpt-realtime-2.1-mini")
+        XCTAssertEqual(obj?["realtime_model"] as? String, "gpt-live-1")
         XCTAssertEqual(obj?["extra"] as? String, "kept")
         XCTAssertNil(defaults.object(forKey: IslandSettingsSchema.voiceVoice), "voice rows never land in UserDefaults")
         // Every stored value is one of the popup's options (no orphaned selection after the move).
@@ -54,11 +52,13 @@ final class IslandSettingsTests: XCTestCase {
         }
     }
 
-    /// Model picker: Realtime 2 / 2.1 / 2.1 mini, Grok Voice 3.0, GPT-Live-1 (same ids as voice_settings.MODELS).
+    /// Model picker: GPT-Live-1 (default), Grok Voice 3.0 (same ids as voice_settings.MODELS). Realtime removed.
     /// The Bulk / Intelligence pickers show only while GPT-Live-1 is selected.
     func testModelPickerAndLiveBackendRows() {
         XCTAssertEqual(VoiceSettingsStore.models.map(\.value),
-                       ["gpt-realtime-2", "gpt-realtime-2.1", "gpt-realtime-2.1-mini", "grok-voice-latest", "gpt-live-1"])
+                       ["gpt-live-1", "grok-voice-latest"])
+        XCTAssertEqual(VoiceSettingsStore.Settings.default.realtimeModel, "gpt-live-1")
+        XCTAssertEqual(VoiceSettingsStore.normalizedModel("gpt-realtime-2.1"), "gpt-live-1")
         XCTAssertEqual(VoiceSettingsStore.backendModels.map(\.value), ["gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-6-astra"])
         let saved = VoiceSettingsStore.xaiKeyAvailable
         defer { VoiceSettingsStore.xaiKeyAvailable = saved }
@@ -72,19 +72,18 @@ final class IslandSettingsTests: XCTestCase {
             IslandSettingsRoot.visibleDefs(.samantha, store: s).map(\.key)
                 .filter { $0 == IslandSettingsSchema.voiceLiveBulk || $0 == IslandSettingsSchema.voiceLiveIntelligence }
         }
-        XCTAssertEqual(liveRows(), [], "hidden for Realtime models")
         s.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
         XCTAssertEqual(liveRows(), [IslandSettingsSchema.voiceLiveBulk, IslandSettingsSchema.voiceLiveIntelligence])
         XCTAssertEqual(s.string(IslandSettingsSchema.voiceLiveBulk), "gpt-6-luna")
         XCTAssertEqual(s.string(IslandSettingsSchema.voiceLiveIntelligence), "gpt-6.1-sol")
         s.set("grok-voice-latest", for: IslandSettingsSchema.voiceModel)
         XCTAssertEqual(liveRows(), [])
-        // Voice / Listening / Microphone tune Realtime only: hidden for Grok Voice and GPT-Live-1.
-        let realtimeOnly = [IslandSettingsSchema.voiceVoice, IslandSettingsSchema.voiceEagerness, IslandSettingsSchema.voiceMic]
+        // Voice picks the GPT-Live voice; Listening / Microphone rows are gone with Realtime.
         func shown() -> Set<String> { Set(IslandSettingsRoot.visibleDefs(.samantha, store: s).map(\.key)) }
-        XCTAssertTrue(shown().isDisjoint(with: realtimeOnly))
-        s.set("gpt-realtime-2.1", for: IslandSettingsSchema.voiceModel)
-        XCTAssertTrue(shown().isSuperset(of: realtimeOnly))
+        XCTAssertFalse(shown().contains(IslandSettingsSchema.voiceVoice))
+        XCTAssertTrue(shown().isDisjoint(with: [IslandSettingsSchema.voiceEagerness, IslandSettingsSchema.voiceMic]))
+        s.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
+        XCTAssertTrue(shown().contains(IslandSettingsSchema.voiceVoice))
     }
 
     func testLiveBackendKeysRoundTripTheSharedFile() throws {
@@ -110,7 +109,7 @@ final class IslandSettingsTests: XCTestCase {
         let rows = IslandSettingsSchema.defs(for: .samantha)
         XCTAssertEqual(rows.first?.label, "Enabled")
         guard case .toggle = rows.first?.kind else { return XCTFail("Samantha's top row is a plain toggle (no icon)") }
-        XCTAssertEqual(rows.filter { $0.visibleWhen == IslandSettingsSchema.whenLive }.map(\.section), ["Task models", "Task models"])
+        XCTAssertEqual(rows.filter { $0.visibleWhen == IslandSettingsSchema.whenLive }.map(\.section), ["Voice", "Task models", "Task models"])
         XCTAssertFalse(IslandSettingsSchema.all.contains { $0.section == "GPT-Live-1 Tasks" })
         XCTAssertEqual(IslandSettingsSchema.def(AgentSource.grokBot.keyPrefix + "enabled")?.label, AgentSource.grokBot.title, "other sources keep their master row")
     }

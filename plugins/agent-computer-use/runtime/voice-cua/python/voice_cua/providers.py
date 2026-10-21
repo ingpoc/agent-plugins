@@ -1,17 +1,16 @@
-"""Voice provider adapters: one session loop, three speech backends.
+"""Voice provider adapters: one session loop, two speech backends.
 
 The session loop (realtime_session.RealtimeSession) speaks the OpenAI Realtime
-event dialect. An adapter translates at the socket edge only:
+event dialect internally (the loop's own event schema; the OpenAI Realtime API itself is no
+longer a backend). An adapter translates at the socket edge only:
 
 - ``outbound(event)`` turns one loop event into zero or more wire events;
 - ``inbound(event)`` turns one wire event into zero or more loop events.
 
 So tools, the RiskGate (tools.dispatch), lazy tool groups, usage logging and
-reconnect backoff are shared by every provider. Realtime is an identity adapter,
-so gpt-realtime-2 / 2.1 behave exactly as before.
+reconnect backoff are shared by every provider.
 
 Providers:
-- ``openai-realtime``: gpt-realtime-2, gpt-realtime-2.1, gpt-realtime-2.1-mini.
 - ``xai``: Grok Voice 3.0 (``grok-voice-latest``), wss://api.x.ai/v1/realtime —
   a Realtime-compatible dialect with a flatter session (voice, turn_detection).
 - ``openai-live``: GPT-Live-1 (``gpt-live-1``), wss://api.openai.com/v1/live/sessions,
@@ -34,8 +33,7 @@ from typing import Any, Callable
 
 from voice_cua.activity_log import log_event
 
-REALTIME_MODELS = ("gpt-realtime-2", "gpt-realtime-2.1", "gpt-realtime-2.1-mini")
-LIVE_MODEL = "gpt-live-1"
+LIVE_MODEL = "gpt-live-1"  # the only OpenAI voice path (Realtime removed)
 XAI_MODEL = "grok-voice-latest"
 BACKEND_MODELS = ("gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-6-astra")
 DEFAULT_BULK = "gpt-6-luna"
@@ -76,17 +74,15 @@ ROUTING_INSTRUCTIONS = (
 
 def provider_for(model: str) -> str:
     m = (model or "").strip().lower()
-    if m == LIVE_MODEL:
-        return "openai-live"
     if m.startswith("grok-voice"):
         return "xai"
-    return "openai-realtime"
+    return "openai-live"  # gpt-live-1, and any retired gpt-realtime-* value
 
 
 class VoiceProvider:
-    """Identity adapter (OpenAI Realtime GA)."""
+    """Adapter base: identity translation; subclasses own the wire dialect."""
 
-    name = "openai-realtime"
+    name = "base"
 
     def __init__(self, model: str, *, send_raw: Callable[[dict[str, Any]], bool] | None = None) -> None:
         self.model = model
@@ -96,7 +92,7 @@ class VoiceProvider:
         self._send_raw = send_raw
 
     def url(self) -> str:
-        return f"wss://api.openai.com/v1/realtime?model={self.model}"
+        raise NotImplementedError
 
     def resolve_key(self) -> str:
         from voice_cua.auth import resolve_openai_api_key
@@ -116,11 +112,7 @@ class VoiceProvider:
         """New connection: drop per-conversation state."""
 
     def finalize(self, send: Callable[[dict[str, Any]], bool], timeout: float) -> None:
-        """Before closing the socket: end the provider session gracefully (no-op for Realtime)."""
-
-
-class RealtimeProvider(VoiceProvider):
-    name = "openai-realtime"
+        """Before closing the socket: end the provider session gracefully (no-op by default)."""
 
 
 class XAIProvider(VoiceProvider):
@@ -373,7 +365,10 @@ class LiveProvider(VoiceProvider):
         return out
 
     def _set_model_event(self, model: str) -> dict[str, Any]:
-        return {"type": "session.update", "session": {"delegation": {"responses": {"model": model}}}}
+        # The server requires delegation.type on every update (seen on forked sessions:
+        # missing_required_parameter session.delegation.type); it names the current mode.
+        return {"type": "session.update", "event_id": self.event_id("upd"),
+                "session": {"delegation": {"type": "responses", "responses": {"model": model}}}}
 
     def outbound(self, event: dict[str, Any]) -> list[dict[str, Any]]:
         wires = self._outbound(event)
@@ -396,8 +391,9 @@ class LiveProvider(VoiceProvider):
             if first:
                 return [self._start(session)]
             if "tools" in session:
-                return [{"type": "session.update", "session": {"delegation": {"responses": {
-                    "tools": self._backend_tools(list(session.get("tools") or []))}}}}]
+                return [{"type": "session.update", "event_id": self.event_id("upd"),
+                         "session": {"delegation": {"type": "responses", "responses": {
+                             "tools": self._backend_tools(list(session.get("tools") or []))}}}}]
             return []
         if et == "input_audio_buffer.append":
             wire = {"type": "session.input_audio.append", "audio": event.get("audio") or ""}
@@ -698,14 +694,14 @@ class LiveProvider(VoiceProvider):
 def make_provider(model: str, settings: dict[str, str] | None = None) -> VoiceProvider:
     settings = settings or {}
     kind = provider_for(model)
-    if kind == "openai-live":
-        return LiveProvider(
-            LIVE_MODEL,
-            bulk=os.environ.get("VOICE_CUA_LIVE_BULK_MODEL") or settings.get("live_bulk_model"),
-            intelligence=os.environ.get("VOICE_CUA_LIVE_INTELLIGENCE_MODEL") or settings.get("live_intelligence_model"),
-            voice=os.environ.get("VOICE_CUA_LIVE_VOICE", "marin"),
-            store=str(settings.get("live_store", "true")).lower() not in {"0", "false", "no", "off"},
-        )
     if kind == "xai":
         return XAIProvider(model)
-    return RealtimeProvider(model)
+    from voice_cua.voice_settings import live_voice
+
+    return LiveProvider(
+        LIVE_MODEL,
+        bulk=os.environ.get("VOICE_CUA_LIVE_BULK_MODEL") or settings.get("live_bulk_model"),
+        intelligence=os.environ.get("VOICE_CUA_LIVE_INTELLIGENCE_MODEL") or settings.get("live_intelligence_model"),
+        voice=os.environ.get("VOICE_CUA_LIVE_VOICE") or live_voice(settings.get("realtime_voice")),
+        store=str(settings.get("live_store", "true")).lower() not in {"0", "false", "no", "off"},
+    )

@@ -490,5 +490,18 @@ class TruncateAndLanguageTests(unittest.TestCase):
             self.assertNotIn("language", input_transcription_config())
 
 
+
+def setUpModule() -> None:  # loop tests run on the provider-neutral pass-through
+    import loop_harness
+
+    loop_harness.install()
+
+
+def tearDownModule() -> None:
+    import loop_harness
+
+    loop_harness.uninstall()
+
+
 if __name__ == "__main__":
     unittest.main()

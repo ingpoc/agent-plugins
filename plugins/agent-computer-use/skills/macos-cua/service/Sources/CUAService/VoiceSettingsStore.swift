@@ -18,8 +18,8 @@ enum VoiceSettingsStore {
         var liveIntelligenceModel: String = "gpt-6.1-sol"
 
         static let `default` = Settings(
-            realtimeModel: "gpt-realtime-2",
-            realtimeVoice: "alloy",
+            realtimeModel: "gpt-live-1",
+            realtimeVoice: "marin",
             eagerness: "balanced",
             micProfile: "near_field"
         )
@@ -29,14 +29,17 @@ enum VoiceSettingsStore {
     static let grokModel = "grok-voice-latest"
 
     /// Same ids as `voice_settings.MODELS`. Choosing one switches the backend (providers.py).
+    /// gpt-realtime-* was removed (being retired); a saved value loads as GPT-Live-1.
     static var models: [(value: String, label: String)] {
         [
-            ("gpt-realtime-2", "gpt-realtime-2"),
-            ("gpt-realtime-2.1", "gpt-realtime-2.1"),
-            ("gpt-realtime-2.1-mini", "gpt-realtime-2.1 mini"),
-            (grokModel, xaiKeyAvailable() ? "Grok Voice 3.0" : "Grok Voice 3.0 (needs API key)"),
             (liveModel, "GPT-Live-1"),
+            (grokModel, xaiKeyAvailable() ? "Grok Voice 3.0" : "Grok Voice 3.0 (needs API key)"),
         ]
+    }
+
+    /// Retired Realtime ids and unknown values map to GPT-Live-1 (same rule as voice_settings.load_settings).
+    static func normalizedModel(_ v: String) -> String {
+        models.contains { $0.value == v } ? v : liveModel
     }
 
     /// GPT-Live-1 delegation backends (Responses model ids, developers.openai.com).
@@ -60,7 +63,14 @@ enum VoiceSettingsStore {
         return SecItemCopyMatching(q as CFDictionary, nil) == errSecSuccess
     }
 
+    /// GPT-Live voices (Managing GPT-Live sessions > Voice options); same list as voice_settings.VOICES.
     static let voices: [(value: String, label: String)] = [
+        ("marin", "Marin"),
+        ("cedar", "Cedar"),
+        ("gleam", "Gleam"),
+        ("meridian", "Meridian"),
+        ("vesper", "Vesper"),
+        ("willow", "Willow"),
         ("alloy", "Alloy"),
         ("ash", "Ash"),
         ("ballad", "Ballad"),
@@ -118,7 +128,7 @@ enum VoiceSettingsStore {
             return .default
         }
         var s = Settings.default
-        if let v = obj["realtime_model"] as? String, !v.isEmpty { s.realtimeModel = v }
+        if let v = obj["realtime_model"] as? String, !v.isEmpty { s.realtimeModel = normalizedModel(v) }
         if let v = obj["realtime_voice"] as? String, !v.isEmpty { s.realtimeVoice = v }
         if let v = obj["eagerness"] as? String, !v.isEmpty { s.eagerness = v }
         if let v = obj["mic_profile"] as? String, !v.isEmpty { s.micProfile = v }

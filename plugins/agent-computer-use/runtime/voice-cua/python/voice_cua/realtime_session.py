@@ -39,8 +39,8 @@ except ImportError:  # pragma: no cover
     websocket = None  # type: ignore
 
 EXIT_NEEDS_API_KEY = 78  # EX_CONFIG: CUAService does not auto-restart on this exit
-REALTIME_MODEL = os.environ.get("VOICE_CUA_REALTIME_MODEL", "gpt-realtime-2")
-REALTIME_VOICE = os.environ.get("VOICE_CUA_REALTIME_VOICE", "alloy")
+REALTIME_MODEL = os.environ.get("VOICE_CUA_REALTIME_MODEL", "gpt-live-1")
+REALTIME_VOICE = os.environ.get("VOICE_CUA_REALTIME_VOICE", "marin")
 REALTIME_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
 
 
@@ -1190,8 +1190,14 @@ class RealtimeSession:
         elif retry_after is not None:
             self._note_retry_hint(min_delay=retry_after, reason=f"retry_after:http_{status or 'ws'}")
 
-    def _on_close(self, _ws: Any, *_args: Any) -> None:
+    def _on_close(self, _ws: Any, *args: Any) -> None:
         mark("realtime_ws_close")
+        # Diagnose drops: close frame code/reason (None, None = TCP lost without a close frame).
+        code = args[0] if args else None
+        reason = args[1] if len(args) > 1 else None
+        log_event("ws_closed", code=code, reason=str(reason or "")[:120] or None,
+                  connected_s=round(time.monotonic() - self._connected_at, 1) if self._connected_at else None,
+                  stopping=self._stop.is_set())
         if self._stop.is_set():
             return
         # Phase 1: close no longer kills the session — run() reconnects.

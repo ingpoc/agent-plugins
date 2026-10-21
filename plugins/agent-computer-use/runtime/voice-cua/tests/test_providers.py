@@ -1,4 +1,4 @@
-"""Provider adapter layer: Realtime (identity), Grok Voice (xAI), GPT-Live-1 (Responses delegation).
+"""Provider adapter layer: Grok Voice (xAI), GPT-Live-1 (Responses delegation).
 
 Offline only: fake sockets, no network, no API keys.
 """
@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from voice_cua import auth, providers, tools  # noqa: E402
 from voice_cua.providers import (  # noqa: E402
-    ESCALATE_TOOL, LiveProvider, RealtimeProvider, XAIProvider, make_provider, provider_for,
+    ESCALATE_TOOL, LiveProvider, XAIProvider, make_provider, provider_for,
 )
 from voice_cua.realtime_session import RealtimeSession, build_session_update  # noqa: E402
 from test_phase1_reliability import FakeWS, feed  # noqa: E402
@@ -54,21 +54,14 @@ class _Rows(unittest.TestCase):
 
 class SelectionTests(unittest.TestCase):
     def test_model_picks_provider(self) -> None:
-        self.assertEqual(provider_for("gpt-realtime-2"), "openai-realtime")
-        self.assertEqual(provider_for("gpt-realtime-2.1"), "openai-realtime")
+        self.assertEqual(provider_for("gpt-realtime-2"), "openai-live")  # retired -> Live
+        self.assertEqual(provider_for("gpt-realtime-2.1"), "openai-live")
         self.assertEqual(provider_for("gpt-live-1"), "openai-live")
         self.assertEqual(provider_for("grok-voice-latest"), "xai")
-        self.assertIsInstance(make_provider("gpt-realtime-2.1"), RealtimeProvider)
+        self.assertIsInstance(make_provider("gpt-realtime-2.1"), LiveProvider)
+        self.assertEqual(make_provider("gpt-realtime-2.1").model, "gpt-live-1")
         self.assertIsInstance(make_provider("grok-voice-latest"), XAIProvider)
         self.assertIsInstance(make_provider("gpt-live-1"), LiveProvider)
-
-    def test_realtime_is_identity(self) -> None:
-        p = make_provider("gpt-realtime-2")
-        self.assertEqual(p.url(), "wss://api.openai.com/v1/realtime?model=gpt-realtime-2")
-        self.assertEqual(p.outbound(UPDATE), [UPDATE])
-        ev = {"type": "response.done", "response": {"id": "r"}}
-        self.assertEqual(p.inbound(ev), [ev])
-        self.assertEqual(p.usage_labels(), {"provider": "openai-realtime", "model": "gpt-realtime-2"})
 
     def test_live_tier_defaults_and_bad_ids_fall_back(self) -> None:
         p = make_provider("gpt-live-1", {"live_bulk_model": "nope", "live_intelligence_model": "gpt-6-astra"})

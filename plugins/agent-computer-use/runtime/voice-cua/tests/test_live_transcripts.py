@@ -66,7 +66,6 @@ class LiveCloseTests(unittest.TestCase):
     def test_finalize_is_a_no_op_before_session_start(self):
         sent = []
         providers.LiveProvider().finalize(lambda e: sent.append(e) or True, timeout=0.1)
-        providers.RealtimeProvider("gpt-realtime-2.1").finalize(lambda e: sent.append(e) or True, timeout=0.1)
         self.assertEqual(sent, [])
 
 
@@ -106,6 +105,15 @@ class LiveSessionLifecycleTests(unittest.TestCase):
     def start(self):
         (start,) = self.live.outbound({"type": "session.update", "session": {"tools": []}})
         return start
+
+    def test_updates_name_the_delegation_type(self):
+        self.start()
+        self.live.inbound({"type": "session.started", "session": {"id": "sess_1"}})
+        (upd,) = self.live.outbound({"type": "session.update", "session": {"tools": []}})
+        self.assertEqual(upd["session"]["delegation"]["type"], "responses")
+        self.assertTrue(upd["event_id"])
+        model = self.live._set_model_event("gpt-6.1-sol")
+        self.assertEqual(model["session"]["delegation"], {"type": "responses", "responses": {"model": "gpt-6.1-sol"}})
 
     def test_start_has_event_id_store_and_nothing_else_until_started(self):
         start = self.start()

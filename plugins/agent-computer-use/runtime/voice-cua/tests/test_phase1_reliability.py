@@ -6,7 +6,6 @@ All tests use fake WS messages — no live sockets, no mic, no network.
 from __future__ import annotations
 
 import base64
-import io
 import json
 import os
 import random
@@ -15,7 +14,6 @@ import tempfile
 import threading
 import time
 import unittest
-import urllib.error
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -32,21 +30,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
 
 from voice_cua.activity_log import log_event, tail_events  # noqa: E402
-from voice_cua.gateway import mint_client_secret  # noqa: E402
 from voice_cua.realtime_session import RealtimeSession  # noqa: E402
+from loop_harness import passthrough  # noqa: E402
 
-CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets"
-
-
-class _FakeResp:
-    def __enter__(self) -> "_FakeResp":
-        return self
-
-    def __exit__(self, *args: object) -> bool:
-        return False
-
-    def read(self) -> bytes:
-        return json.dumps({"value": "reference"}).encode("utf-8")
 
 
 class FakeWS:
@@ -92,12 +78,13 @@ def make_session(eagerness: str = "balanced") -> RealtimeSession:
     # Patch voice_settings.load_settings (apply_env + turn_detection_config both
     # resolve it there) so the machine's settings.json can't leak into tests.
     settings = {
-        "realtime_model": "gpt-realtime-2",
+        "realtime_model": "gpt-live-1",
         "realtime_voice": "alloy",
         "eagerness": eagerness,
         "mic_profile": "near_field",
     }
-    with patch("voice_cua.voice_settings.load_settings", return_value=settings):
+    with patch("voice_cua.voice_settings.load_settings", return_value=settings), \
+            patch("voice_cua.realtime_session.make_provider", passthrough):
         session = RealtimeSession(api_key="test", enable_audio=False)
     session.ws = FakeWS()
     return session
@@ -111,52 +98,13 @@ def event_types(session: RealtimeSession) -> list[str]:
     return [e.get("type", "") for e in session.ws.events]
 
 
-class MintClientSecretTests(unittest.TestCase):
-    """P1-1: GA client_secrets mint only — Beta /v1/realtime/sessions is gone."""
+class RealtimeRemovedTests(unittest.TestCase):
+    """Realtime backend removed: no client-secret mint; GPT-Live is the OpenAI path."""
 
-    def test_mint_body_sends_expiry_and_full_session_config(self) -> None:
-        with (
-            patch("voice_cua.gateway.resolve_openai_api_key", return_value="test-key"),
-            patch("voice_cua.gateway.urllib.request.urlopen", return_value=_FakeResp()) as urlopen,
-            patch.dict(os.environ, {"VOICE_CUA_EAGERNESS": "balanced"}),
-        ):
-            mint_client_secret()
-        request = urlopen.call_args.args[0]
-        self.assertEqual(request.full_url, CLIENT_SECRETS_URL)
-        body = json.loads(request.data.decode("utf-8"))
-        self.assertEqual(body["expires_after"], {"anchor": "created_at", "seconds": 600})
-        self.assertEqual(body["session"]["type"], "realtime")
-        self.assertTrue(body["session"]["model"])
+    def test_gateway_has_no_client_secret_mint(self) -> None:
+        import voice_cua.gateway as gateway
 
-    def test_http_error_surfaces_status_and_body_without_fallback(self) -> None:
-        err = urllib.error.HTTPError(
-            CLIENT_SECRETS_URL, 401, "Unauthorized", {}, io.BytesIO(b'{"error":"bad key"}')
-        )
-        urlopen = Mock(side_effect=err)
-        with (
-            patch("voice_cua.gateway.resolve_openai_api_key", return_value="test-key"),
-            patch("voice_cua.gateway.urllib.request.urlopen", urlopen),
-        ):
-            with self.assertRaises(RuntimeError) as raised:
-                mint_client_secret()
-        message = str(raised.exception)
-        self.assertIn("HTTP 401", message)
-        self.assertIn("bad key", message)
-        # Exactly one outbound POST — no /v1/realtime/sessions fallback call.
-        self.assertEqual(urlopen.call_count, 1)
-        self.assertNotIn("sessions", urlopen.call_args.args[0].full_url)
-
-    def test_404_raises_instead_of_falling_back(self) -> None:
-        err = urllib.error.HTTPError(CLIENT_SECRETS_URL, 404, "Not Found", {}, io.BytesIO(b"nope"))
-        urlopen = Mock(side_effect=err)
-        with (
-            patch("voice_cua.gateway.resolve_openai_api_key", return_value="test-key"),
-            patch("voice_cua.gateway.urllib.request.urlopen", urlopen),
-        ):
-            with self.assertRaises(RuntimeError) as raised:
-                mint_client_secret()
-        self.assertEqual(urlopen.call_count, 1)
-        self.assertIn("HTTP 404", str(raised.exception))
+        self.assertFalse(hasattr(gateway, "mint_client_secret"))
 
 
 class GAEventTests(unittest.TestCase):
