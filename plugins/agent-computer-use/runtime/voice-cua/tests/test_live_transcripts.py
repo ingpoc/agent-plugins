@@ -354,10 +354,26 @@ class ContextBudgetTests(unittest.TestCase):
 class ShoppingRuleTests(unittest.TestCase):
     def test_shopping_allowed_but_payment_is_a_hard_stop(self):
         from voice_cua import SYSTEM_INSTRUCTIONS as rule
-        self.assertIn("add items to the cart", rule)
+        self.assertIn("Add to cart only when asked", rule)
+        self.assertIn("one\nsearch-results page", rule)
+        self.assertIn("never\nguess", rule)
+        self.assertIn("Never open many tabs or sites at once", rule)
         self.assertIn("Place order", rule)
         self.assertIn("Buy now", rule)
         self.assertIn("OTP", rule)
         self.assertIn("never confirm a checkout", rule)
         self.assertIn("ready for the user to pay", rule)
         self.assertNotIn("can't make purchases", rule)
+
+
+class ShowDetailsTests(unittest.TestCase):
+    def test_show_details_publishes_a_done_card(self):
+        from unittest import mock
+        from voice_cua import tools
+        with mock.patch.object(tools, "island_publish") as pub:
+            out = tools.dispatch("show_details", {"title": "₹1,299 boAt Airdopes", "detail": "x" * 900})
+        self.assertTrue(out["ok"])
+        kind = pub.call_args.args[0]
+        self.assertEqual(kind, "done")
+        self.assertLessEqual(len(pub.call_args.kwargs["detail"]), tools.SHOW_DETAILS_MAX)
+        self.assertIn("show_details", [t["name"] for t in tools.tool_definitions(comet_active=False)])

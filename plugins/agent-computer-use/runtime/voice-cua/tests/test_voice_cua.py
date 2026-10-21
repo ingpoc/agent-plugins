@@ -192,6 +192,7 @@ class ToolsTests(unittest.TestCase):
                 "cua_state",
                 "cua_act",
                 "more_tools",
+                "show_details",
                 "comet_begin",
             },
         )

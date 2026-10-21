@@ -46,7 +46,7 @@ class _Fresh(unittest.TestCase):
 
 class LazyGroupTests(unittest.TestCase):
     def test_base_surface_has_no_secrets_or_confirm(self) -> None:
-        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "comet_begin"})
+        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin"})
 
     def test_secrets_group_loads_secrets_and_confirm(self) -> None:
         loaded = names(groups={"secrets"})

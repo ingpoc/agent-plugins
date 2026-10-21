@@ -299,6 +299,16 @@ def tool_definitions(
                 "required": ["group"],
             },
         })
+    tools.append({
+        "type": "function",
+        "name": "show_details",
+        "description": "Show a result card on the Dynamic Island (e.g. a deal: price, seller, link).",
+        "parameters": {
+            "type": "object",
+            "properties": {"title": {"type": "string"}, "detail": {"type": "string"}},
+            "required": ["title"],
+        },
+    })
     tools.extend(t for t in _lazy_tools() if t["name"] in wanted)
     active = comet_is_active() if comet_active is None else comet_active
     # comet_begin is always offered: while the user's window is open it
@@ -380,6 +390,7 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         "secrets_inject": _secrets_inject,
         "secrets_provide": _secrets_provide,
         "more_tools": _more_tools,
+        "show_details": _show_details,
     }
     fn = handlers.get(name)
     if not fn:
@@ -532,6 +543,18 @@ def reset_session_state() -> None:
     with _STEP_LOCK:
         _STEP_FAILS.clear()
     GATE.reset()
+
+
+SHOW_DETAILS_MAX = 400
+
+
+def _show_details(args: dict[str, Any]) -> dict[str, Any]:
+    title = str(args.get("title") or "").strip()[:80]
+    detail = str(args.get("detail") or "").strip()[:SHOW_DETAILS_MAX]
+    if not title:
+        return {"ok": False, "error": "title required"}
+    island_publish("done", title=title, detail=detail)
+    return {"ok": True, "shown": True}
 
 
 def _more_tools(args: dict[str, Any]) -> dict[str, Any]:
