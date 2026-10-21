@@ -60,12 +60,18 @@ def configure_cursor_icon(
     }
 
 
-def _cursor_overlay_state(idle_hide_ms: int | None = None) -> dict:
-    """Live overlay visibility + idle-hide setting. Fail loud on RPC error."""
+def _cursor_overlay_state(
+    idle_hide_ms: int | None = None,
+    motion_style: str | None = None,
+    recording: bool | None = None,
+) -> dict:
+    """Live overlay visibility + idle-hide/motion settings. Fail loud on RPC error."""
     client = _cuaservice_client()
     try:
-        if idle_hide_ms is not None:
-            state = client.configure_cursor(idle_hide_ms)
+        motion = {k: v for k, v in (("motion_style", motion_style), ("recording", recording))
+                  if v is not None}
+        if idle_hide_ms is not None or motion:
+            state = client.configure_cursor(idle_hide_ms, **motion)
         else:
             state = client.cursor_status()
     finally:
@@ -79,18 +85,29 @@ def cursor(action, **kwargs):
     """`macos-cua cursor <action>` routed to CUAService (socket only)."""
     if action in {"status", "configure"}:
         idle = kwargs.get("idle_hide_ms")
+        style = kwargs.get("motion_style")
+        recording = kwargs.get("recording")
+        if isinstance(recording, str):
+            recording = recording.lower() in {"1", "true", "yes", "on"}
         if idle is not None and action != "configure":
             return {"ok": False, "error": "--idle-hide-ms is only valid with `cursor configure`",
+                    "engine": "CUAService"}
+        if (style is not None or recording is not None) and action != "configure":
+            return {"ok": False,
+                    "error": "--motion-style/--recording are only valid with `cursor configure`",
+                    "engine": "CUAService"}
+        if style is not None and style not in {"comet_swoop", "linear"}:
+            return {"ok": False, "error": f"--motion-style must be comet_swoop or linear, got {style}",
                     "engine": "CUAService"}
         if idle is not None and idle < 0:
             return {"ok": False, "error": f"--idle-hide-ms must be >= 0 (0 = never), got {idle}",
                     "engine": "CUAService"}
         out = configure_cursor_icon(icon_path=kwargs.get("icon"))
         try:
-            out["overlay"] = _cursor_overlay_state(idle)
+            out["overlay"] = _cursor_overlay_state(idle, style, recording)
         except Exception as exc:  # fail loud: status without live state is not ok
             return {**out, "ok": False, "error": f"CUAService cursor_status unavailable: {exc}"}
-        if idle is not None:
+        if idle is not None or style is not None or recording is not None:
             out["configured"] = True
         return out
     if action == "show":
@@ -238,6 +255,10 @@ def _main():
             kw["icon"] = args.icon
         if args.idle_hide_ms is not None:
             kw["idle_hide_ms"] = args.idle_hide_ms
+        if getattr(args, "motion_style", None) is not None:
+            kw["motion_style"] = args.motion_style
+        if getattr(args, "recording", None) is not None:
+            kw["recording"] = args.recording == "true"
         if args.action == "move":
             if args.x is None or args.y is None:
                 print(json.dumps({"error": "move requires --x and --y"}))

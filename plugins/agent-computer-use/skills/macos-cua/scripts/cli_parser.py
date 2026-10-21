@@ -378,6 +378,14 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
         "--idle-hide-ms", type=int, dest="idle_hide_ms",
         help="configure: hide the agent cursor after N ms with no action (crash-safety net; 0 = never; default 120000)",
     )
+    p.add_argument(
+        "--motion-style", dest="motion_style", choices=["comet_swoop", "linear"],
+        help="configure: cursor.motion.style (default comet_swoop: 0.12 s arc + short trail)",
+    )
+    p.add_argument(
+        "--recording", dest="recording", choices=["true", "false"],
+        help="configure: cursor.motion.recording; true = Cua Fitts timing x1.15 + 0.18 s trail (slower, for videos)",
+    )
     p.add_argument("--session", default=cua_session)
 
     p = sub.add_parser("operator", help="Native menu-bar and Picture-in-Picture UI")

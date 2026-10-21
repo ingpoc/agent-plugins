@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 import time
 import uuid
+from urllib.parse import urlsplit
 from typing import Any
 
 from voice_cua.catalog import (
@@ -13,7 +14,15 @@ from voice_cua.catalog import (
     upsert_key,
 )
 from voice_cua.cua_bridge import get_backend, get_tool_schemas, redact_for_model
-from voice_cua.comet_bridge import ALLOWED_ACTIONS, comet_act, comet_begin, comet_end, comet_is_active
+from voice_cua.comet_bridge import (
+    ALLOWED_ACTIONS,
+    comet_act,
+    comet_begin,
+    comet_end,
+    comet_is_active,
+    redact_actions,
+    redact_url,
+)
 from voice_cua.inject import clipboard_paste_secret, clear_clipboard, set_clipboard
 from voice_cua.labels_tracker import labels_tracker_path, refresh_labels_tracker
 from voice_cua.keychain_access import describe_ref, enrich_items, fetch_value, list_keychain, resolve_ref
@@ -56,22 +65,6 @@ def _schedule_listening_reset(delay: float = 2.0) -> None:
         _listening_reset_timer = threading.Timer(delay, _reset)
         _listening_reset_timer.daemon = True
         _listening_reset_timer.start()
-
-
-def _island_act_error(app: str, err: str) -> tuple[str, str]:
-    """Short pill copy — never dump RPC traces in the menubar island."""
-    low = (err or "").lower()
-    if "app not found" in low:
-        return "Can't open app", app[:40] or "App"
-    if "no window" in low:
-        return "No window", app[:40] or "App"
-    if "label not found" in low:
-        return "Control not found", app[:40] or "App"
-    if "user denied" in low:
-        return "Denied", app[:40] or "Action"
-    if "verification" in low or "unverified" in low:
-        return "Not verified", app[:40] or "Action"
-    return "Miss", app[:40] or "Action"
 
 
 def tool_definitions(*, comet_active: bool | None = None) -> list[dict[str, Any]]:
@@ -243,18 +236,27 @@ def tool_definitions(*, comet_active: bool | None = None) -> list[dict[str, Any]
         },
     ]
     active = comet_is_active() if comet_active is None else comet_active
-    if not active:
-        tools.append({
-            "type": "function",
-            "name": "comet_begin",
-            "description": "Start a new isolated visible Comet lease for one browser task. Use only for web-page work.",
-            "parameters": {
-                "type": "object",
-                "properties": {"url": {"type": "string", "description": "Initial http(s) URL"}},
-                "required": ["url"],
+    # comet_begin is always offered: while the user's window is open it
+    # re-attaches to that same window (goto) instead of opening another.
+    tools.append({
+        "type": "function",
+        "name": "comet_begin",
+        "description": (
+            "Open a website in Comet (isolated visible window), or — if the user's Comet window is "
+            "already open — load the URL in that same window. purpose=user_task (default) for "
+            "anything the user asked; that window is never closed afterwards. purpose=self_test "
+            "only for your own checks; that window closes on comet_end."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "http(s) URL, e.g. https://www.netflix.com"},
+                "purpose": {"type": "string", "enum": ["user_task", "self_test"]},
             },
-        })
-    else:
+            "required": ["url"],
+        },
+    })
+    if active:
         tools.extend([
             {
                 "type": "function",
@@ -285,8 +287,14 @@ def tool_definitions(*, comet_active: bool | None = None) -> list[dict[str, Any]
             {
                 "type": "function",
                 "name": "comet_end",
-                "description": "Close the active Comet lease after the browser task is complete or abandoned.",
-                "parameters": {"type": "object", "properties": {}},
+                "description": (
+                    "Finish the Comet task. A self_test window closes. The user's window stays open "
+                    "unless user_requested=true because the user explicitly asked to close it."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {"user_requested": {"type": "boolean"}},
+                },
             },
         ])
     return tools
@@ -371,7 +379,7 @@ def _cua_act(args: dict[str, Any]) -> dict[str, Any]:
         if not approved:
             island_publish("error", title="Denied", app=app, detail=step)
             return {"ok": False, "error": "user denied", "confirmed": False}
-    island_publish("driving", title="Driving", app=app, step=step, detail=f"{app} · {step}")
+    island_publish("driving", title=f"Using {app}" if app else "Working", app=app, step=step, detail=step)
     backend = get_backend()
     result = backend.act(app, args)
     out = redact_for_model(result if isinstance(result, dict) else {"ok": False})
@@ -379,16 +387,33 @@ def _cua_act(args: dict[str, Any]) -> dict[str, Any]:
         island_publish("done", title="Done", app=app, step=step, detail=f"{app} · {step}")
     else:
         err = str(out.get("error") or "")
-        title, detail = _island_act_error(app, err)
-        island_publish("error", title=title, app=app, step=step, detail=detail)
+        # Raw error goes in; IslandBus maps it to human copy and logs the raw text.
+        island_publish("error", title=err or "error", app=app, step=step)
         _schedule_listening_reset()
     return out
 
 
+def comet_begin_label(url: str, purpose: str, *, reuse: bool = False) -> tuple[str, str]:
+    """Island (title, detail) for comet_begin: the site, not lease internals."""
+    host = (urlsplit(str(url or "")).hostname or "").removeprefix("www.") or "website"
+    if purpose == "self_test":
+        return f"Self-check · {host}", "Comet"
+    return (f"Loading {host}" if reuse else f"Opening {host}"), "Comet"
+
+
 def _comet_begin(args: dict[str, Any]) -> dict[str, Any]:
-    island_publish("acting", title="Opening Comet", detail="Isolated browser task")
-    result = comet_begin(str(args.get("url") or ""))
-    island_publish("done" if result.get("ok") else "error", title="Comet ready" if result.get("ok") else "Comet unavailable", detail="Isolated lease")
+    purpose = str(args.get("purpose") or "user_task")
+    title, detail = comet_begin_label(
+        str(args.get("url") or ""), purpose, reuse=comet_is_active() and purpose == "user_task"
+    )
+    island_publish("acting", title=title, detail=detail, app="Comet")
+    log_event("comet_call", tool="comet_begin", url=redact_url(str(args.get("url") or "")), purpose=purpose)
+    result = comet_begin(str(args.get("url") or ""), purpose=purpose)
+    host = (urlsplit(str(args.get("url") or "")).hostname or "").removeprefix("www.")
+    if result.get("ok"):
+        island_publish("done", title=f"{host or 'Page'} open", detail="Comet", app="Comet")
+    else:
+        island_publish("error", title="Comet unavailable", detail=host, app="Comet")
     return result
 
 
@@ -396,6 +421,7 @@ def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
     actions = args.get("actions")
     if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
         return {"ok": False, "error": "actions must be an array of objects"}
+    log_event("comet_call", tool="comet_act", actions=redact_actions(actions))
     if _looks_risky(args):
         approved = island_confirm(str(uuid.uuid4()), "Allow this browser action in Comet?")
         if not approved:
@@ -406,9 +432,16 @@ def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _comet_end(_args: dict[str, Any]) -> dict[str, Any]:
-    result = comet_end()
-    island_publish("done" if result.get("ok") else "error", title="Comet closed" if result.get("ok") else "Closeout failed", detail="Isolated lease")
+def _comet_end(args: dict[str, Any]) -> dict[str, Any]:
+    user_requested = bool(args.get("user_requested"))
+    log_event("comet_call", tool="comet_end", user_requested=user_requested)
+    result = comet_end(user_requested=user_requested)
+    if not result.get("ok"):
+        island_publish("error", title="Couldn't close Comet", detail="")
+    elif result.get("kept_open"):
+        island_publish("done", title="Comet stays open", detail="Ready for follow-ups")
+    else:
+        island_publish("done", title="Comet window closed", detail="Comet")
     return result
 
 
@@ -472,19 +505,19 @@ def _secrets_label(args: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": "label required"}
     item, err = resolve_ref(label=label)
     if err or not item:
-        island_publish("error", title="Secret", detail=(err or "miss")[:40])
+        island_publish("error", title="Couldn't find secret", detail="")
         return {"ok": False, "error": err or f"Keychain miss for {label}"}
-    island_publish("secrets", title="Secret", detail=_display_name(item))
+    island_publish("secrets", title="Using Keychain", detail=_display_name(item))
     return describe_ref(item)
 
 
 def _secrets_get(args: dict[str, Any]) -> dict[str, Any]:
     item, err = _resolve_secret_args(args)
     if err or not item:
-        island_publish("error", title="Secret", detail=(err or "miss")[:120])
+        island_publish("error", title="Couldn't find secret", detail="")
         return {"ok": False, "error": err or "not found"}
     name = _display_name(item)
-    island_publish("secrets", title="Secret", detail=f"{name} ready")
+    island_publish("secrets", title="Using Keychain", detail=f"{name} ready")
     return describe_ref(item)
 
 
