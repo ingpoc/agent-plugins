@@ -525,6 +525,8 @@ class LiveProvider(VoiceProvider):
                     return [{"type": "session.instructions.append", "event_id": self.event_id("instructions"),
                              "content": text[:LIVE_APPEND_MAX_CHARS], "delegation_id": None}]
                 self._remember("user", text)  # typed turns seed restarts like spoken ones
+                with self._lock:
+                    self._user_item_queued = True  # the next response.create opens a turn
                 return [{"type": "response.item.create", "item": {
                     "type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}}]
             return []
@@ -537,7 +539,12 @@ class LiveProvider(VoiceProvider):
             request_id = str(meta.get("voice_cua_request_id") or "") if isinstance(meta, dict) else ""
             with self._lock:
                 outstanding = sum(len(c) for c in self._pending_calls.values())
-                if request_id:
+                new_turn = bool(request_id) and (
+                    request_id != self._turn_request or getattr(self, "_user_item_queued", False))
+                self._user_item_queued = False
+                if new_turn:
+                    # A typed request (or its drop-recovery replay); a tool continuation that
+                    # carries the same request id stays in its turn.
                     self._pending_request = request_id
                     self._turn_seq += 1
                     self._turn_request = request_id

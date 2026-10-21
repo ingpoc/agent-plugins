@@ -399,12 +399,31 @@ class LiveTurnIdTests(_Rows):
         self.assertEqual(_meta(own[0]), "ddg")
         self.assertEqual(_meta(own[2]), "ddg")
 
+    def test_tool_continuation_with_the_same_request_id_stays_in_its_turn(self) -> None:
+        p, _ = _live()
+        user = {"type": "conversation.item.create", "item": {
+            "type": "message", "role": "user", "content": [{"type": "input_text", "text": "go"}]}}
+        p.outbound(user)
+        p.outbound(_create("req"))
+        p.inbound(_dlg("d1"))
+        p.inbound(_ev("d1", {"type": "response.created", "response": {"id": "r1"}}))
+        p.inbound(_fc("d1", "c1"))
+        p.outbound({"type": "conversation.item.create", "item": {
+            "type": "function_call_output", "call_id": "c1", "output": "{}"}})
+        p.outbound(_create("req"))  # the loop's continuation keeps the request id
+        p.inbound(_ev("d1", {"type": "response.completed", "response": {"id": "r1", "status": "completed"}}))
+        out = [p.inbound(ev) for ev in _answer("d1", "r2", "Done.")]
+        self.assertEqual(_meta(out[2]), "req")
+        self.assertEqual(self.rows("live_stale_turn_output"), [])
+
     def test_delegation_created_before_the_recovery_message_is_stale(self) -> None:
         p, _ = _live()
         p.outbound(_create("req"))
         p.reset()  # drop -> fork
         p._ready = True
         p.inbound(_dlg("d_fork_spontaneous"))  # Live delegates on its own as the fork starts
+        p.outbound({"type": "conversation.item.create", "item": {  # the recovery message
+            "type": "message", "role": "user", "content": [{"type": "input_text", "text": "again"}]}})
         p.outbound(_create("req"))  # the recovery turn re-sends the same request id
         stale = [p.inbound(ev) for ev in _answer("d_fork_spontaneous", "r0", "Nothing to do.")]
         self.assertEqual(_meta(stale[2]), "")
