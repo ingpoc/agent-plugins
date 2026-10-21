@@ -1420,6 +1420,15 @@ class RealtimeSession:
                     self._cancelled_response_ids.add(active)
                     self._response_condition.notify_all()
                 self._send({"type": "response.cancel"})
+            if getattr(getattr(self, "provider", None), "manages_barge_in", False):
+                # GPT-Live drops response.cancel; an appended instruction interrupts speech
+                # (Delegation > Steer the live conversation). Backend work is not cancelled by it.
+                note = ("The user pressed Stop. Stop speaking now and wait quietly for them."
+                        if action == "stopSpeaking" else
+                        "The user pressed Stop on the current task. Stop speaking, start no further "
+                        "steps for it, and wait quietly for the next request.")
+                self._send({"type": "conversation.item.create", "item": {
+                    "type": "message", "role": "system", "content": [{"type": "input_text", "text": note}]}})
             log_event("island_control", action=action, cancelled=bool(response_active))
             island_publish("listening", title="Listening", detail="")
             return True

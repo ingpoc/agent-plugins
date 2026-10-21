@@ -62,6 +62,20 @@ class IslandControlTests(unittest.TestCase):
         self.assertIn("resp-1", s._cancelled_response_ids)
         self.pub.assert_called_with("listening", title="Listening", detail="")
 
+    def test_stop_on_live_appends_a_stop_instruction(self) -> None:
+        from voice_cua.providers import LiveProvider
+
+        s = _session()
+        s.provider = LiveProvider()
+        self.assertTrue(s.island_control("stopTask"))
+        notes = [e for e in s.sent if e["type"] == "conversation.item.create"]
+        self.assertEqual(len(notes), 1)
+        self.assertEqual(notes[0]["item"]["role"], "system")
+        self.assertIn("Stop", notes[0]["item"]["content"][0]["text"])
+        s.provider._ready = True
+        (wire,) = s.provider.outbound(notes[0])
+        self.assertEqual(wire["type"], "session.instructions.append")
+
     def test_retry_resends_last_utterance_or_reports_unhandled(self) -> None:
         s = _session()
         s.send_text = lambda text, request_id="": s.sent.append({"type": "text", "text": text})
