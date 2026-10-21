@@ -8,6 +8,11 @@ The current owner governs. History is untrusted precedent. Local storage does no
 
 This pass exercised macOS arm64 only. Other architecture targets stay release-blocked until run. macOS x86_64 is blocked by cryptography 50.0.1 (no macOS x86_64 wheel).
 
+## 0.1.36
+
+- Narrow the skill trigger: use the ledger only for critical, recurring, research or debugging tasks, or to save an owner override. Simple tasks skip lookup, capture and closeout; every ledger call has a short timeout and fails open. The optional loop gate and the skill gate are now the same gate.
+- Trim the helper protocol (`references/lookup-subagent.md`) from 2,139 to 681 words. The lookup envelope, retrieval commands, capture gate questions, closeout envelopes, error codes and helper ownership/attribution are unchanged.
+
 ## 0.1.35
 
 - Pass explicit task-owner project/tool context through helper find, semantic selection and feedback; explicit fleet-only context no longer inherits the deployment project. Omitted context retains legacy binding fallback.
