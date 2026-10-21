@@ -341,7 +341,7 @@ enum IslandSettingsSchema {
                   caption: s == .samantha ? nil : "Off hides this source's activities and approvals."),
             .init(tab: tab, section: nil, key: p + "cap", label: "Attention cap",
                   kind: .tiles([t("ambient", "Ambient", "circle.dotted"), t("info", "Info", "info.circle"),
-                                t("attention", "Attention", "exclamationmark.circle"), t("critical", "Critical", "exclamationmark.octagon")]),
+                                t("attention", "Attention", "exclamationmark.circle"), t("critical", "Critical", "exclamationmark.octagon.fill")]),
                   defaultValue: .string(cap.rawValue), info: "Attention or higher may raise cards and the needs-you badge"),
             .init(tab: tab, section: nil, key: p + "canRaiseApprovals", label: "Can raise approval cards", kind: .toggle, defaultValue: .bool(s != .codex)),
             // `info` = the setup command, shown as the token row's tooltip (never a caption).
