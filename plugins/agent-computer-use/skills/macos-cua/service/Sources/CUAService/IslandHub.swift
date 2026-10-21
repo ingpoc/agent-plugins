@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Network
 
@@ -73,6 +74,36 @@ final class IslandHub {
         self.store = store
     }
 
+    // MARK: Source-app gating (prompt already inline in the frontmost source app)
+
+    /// Bundle ids of each agent source's own app, read from the installed apps' Info.plist:
+    /// Codex = ChatGPT.app (com.openai.codex), Cursor = Cursor.app, Grok Bot = Grok Bot.app.
+    nonisolated static let sourceBundleIDs: [AgentSource: Set<String>] = [
+        .codex: ["com.openai.codex"],
+        .cursor: ["com.todesktop.230313mzl4w4u92"],
+        .grokBot: ["com.anysphere.sand"],
+    ]
+    /// Frontmost app's bundle id. Under XCTest it defaults to none (cards shown) so the machine's real
+    /// front app can't change test outcomes; gating tests inject one.
+    var frontmostBundleID: () -> String? = IslandEventLog.isTesting
+        ? { nil } : { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+
+    /// True while the card's source app is frontmost: the prompt is already inline there, so the
+    /// island holds it back (never answered or dismissed). Unknown source/front app → shown.
+    /// Samantha's own prompts are never gated.
+    func shownInline(_ p: Pending) -> Bool {
+        guard p.source != .samantha, let ids = Self.sourceBundleIDs[p.source],
+              let front = frontmostBundleID(), !front.isEmpty else { return false }
+        return ids.contains(front)
+    }
+
+    /// NSWorkspace.didActivateApplicationNotification: re-compose so a held card appears when the
+    /// user leaves its source app and hides again when they return.
+    func frontmostAppChanged() {
+        guard !approvals.isEmpty else { return }
+        changed()
+    }
+
     // MARK: Composition
 
     func compose(now: Date = Date()) -> IslandSnapshot {
@@ -86,7 +117,7 @@ final class IslandHub {
         }
         // Queued cards: approvals jump the queue (then arrival order); the first owns the pill,
         // all show as needs-you rows + count.
-        let queue = queued
+        let queue = queued.filter { !shownInline($0) }
         s.agents += queue.map {
             IslandAgent(id: "pending:" + $0.approval.id, name: $0.source.title, app: $0.approval.app,
                         title: $0.approval.title, status: "needs_you", needs_you: true,
