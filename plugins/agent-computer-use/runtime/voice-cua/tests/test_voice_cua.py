@@ -188,13 +188,7 @@ class ToolsTests(unittest.TestCase):
             {
                 "cua_state",
                 "cua_act",
-                "confirm_risky",
-                "secrets_list",
-                "secrets_label",
-                "secrets_get",
-                "secrets_put",
-                "secrets_inject",
-                "secrets_provide",
+                "more_tools",
                 "comet_begin",
             },
         )

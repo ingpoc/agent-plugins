@@ -27,7 +27,7 @@ from voice_cua.cua_bridge import hide_agent_cursor
 from voice_cua.comet_bridge import comet_add_listener, comet_end, comet_is_active, comet_remove_listener
 from voice_cua.island_facade import describe_tool, island_publish, island_voice_meter, summarize_result
 from voice_cua.startup_trace import mark
-from voice_cua.tools import dispatch, tool_definitions
+from voice_cua.tools import dispatch, reset_session_state, tool_definitions
 from voice_cua.voice_settings import apply_env, load_settings, noise_reduction_config, turn_detection_config
 
 if TYPE_CHECKING:
@@ -89,7 +89,9 @@ def _ws_url() -> str:
     return f"wss://api.openai.com/v1/realtime?model={model}"
 
 
-def build_session_update(*, text_only: bool = False, comet_active: bool = False) -> dict[str, Any]:
+def build_session_update(
+    *, text_only: bool = False, comet_active: bool = False, groups: frozenset[str] = frozenset()
+) -> dict[str, Any]:
     """GA Realtime session.update (beta header/shape retired 2026)."""
     _, voice = _model_and_voice()
     eagerness = os.environ.get("VOICE_CUA_EAGERNESS") or load_settings()["eagerness"]
@@ -97,7 +99,7 @@ def build_session_update(*, text_only: bool = False, comet_active: bool = False)
         "type": "realtime",
         "output_modalities": ["text"] if text_only else ["audio"],
         "instructions": SYSTEM_INSTRUCTIONS,
-        "tools": tool_definitions(comet_active=comet_active),
+        "tools": tool_definitions(comet_active=comet_active, groups=groups),
         "tool_choice": "auto",
         "parallel_tool_calls": False,
         "reasoning": {"effort": "low"},
@@ -240,6 +242,7 @@ class RealtimeSession:
         self._retry_not_before = 0.0  # monotonic; set by rate limits / retry-after
         self._retry_reason = ""
         self._reconnect_gave_up = False
+        self._tool_groups: set[str] = set()  # lazy tool groups loaded this conversation
         self._response_started: dict[str, float] = {}  # response_id → monotonic at response.created
         self._config_error_published = False
         self._rate_limit_warned = False
@@ -384,6 +387,10 @@ class RealtimeSession:
         self._pending_calls.clear()
         self._recreated_calls.clear()
         self._session_ready.clear()
+        # New conversation: lazy tools start unloaded and no approval or retry
+        # budget survives the reconnect (fail closed).
+        self._tool_groups.clear()
+        reset_session_state()
         for request_id in request_ids:
             self._finish_text_waiter(request_id, error="reconnected")
 
@@ -513,6 +520,7 @@ class RealtimeSession:
         self._send(build_session_update(
             text_only=self._text_only,
             comet_active=self._comet_active,
+            groups=frozenset(self._tool_groups),
         ))
         if reconnected:
             note = self.reconnect_note(comet_active=self._comet_active)
@@ -547,19 +555,39 @@ class RealtimeSession:
             },
         })
 
+    def _send_tools_update(self) -> None:
+        self._send({
+            "type": "session.update",
+            "session": {
+                "type": "realtime",
+                "tools": tool_definitions(comet_active=self._comet_active, groups=frozenset(self._tool_groups)),
+                "tool_choice": "auto",
+            },
+        })
+
+    def _sync_tool_groups(self, name: str, result: dict[str, Any]) -> None:
+        """Lazy tools: more_tools loads a group; a refused risky action loads confirm_risky.
+
+        Sent before the follow-up response.create so the next turn can call them.
+        """
+        add: set[str] = set()
+        if name == "more_tools" and result.get("ok") and result.get("group"):
+            add.add(str(result["group"]))
+        if result.get("needs_confirmation"):
+            add.add("confirm")
+        new = add - self._tool_groups
+        if not new:
+            return
+        self._tool_groups |= new
+        self._send_tools_update()
+        log_event("tools_loaded", groups=sorted(self._tool_groups))
+
     def _on_comet_change(self, active: bool) -> None:
         """Lease opened/closed (incl. idle auto-release): resync the tool list."""
         if active == self._comet_active:
             return
         self._comet_active = active
-        self._send({
-            "type": "session.update",
-            "session": {
-                "type": "realtime",
-                "tools": tool_definitions(comet_active=active),
-                "tool_choice": "auto",
-            },
-        })
+        self._send_tools_update()
         log_event("comet_tools_synced", comet_active=active)
         if not active and not self._inflight_tools:
             # Background close (self-test idle release): the tool result can't tell
@@ -924,6 +952,7 @@ class RealtimeSession:
                 stale = self._deliver_tool_result(
                     call_id, name, result, epoch=epoch, arguments=arguments
                 )
+                self._sync_tool_groups(name, result)
                 if name.startswith("comet_"):
                     self._on_comet_change(comet_is_active())
                 if stale:
@@ -1025,7 +1054,10 @@ class RealtimeSession:
                 "type": "function_call",
                 "call_id": call_id,
                 "name": name,
-                "arguments": json.dumps(arguments or {}),
+                "arguments": json.dumps({
+                    k: v for k, v in (arguments or {}).items()
+                    if k not in {"value", "secret", "password"}
+                }),
             },
         })
         self._send(output)

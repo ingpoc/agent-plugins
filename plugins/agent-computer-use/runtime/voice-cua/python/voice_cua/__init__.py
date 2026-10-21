@@ -24,11 +24,13 @@ Computer-use rules (same as Agent Computer Use MCP):
   reveal. Batch same-app operations in steps so CUAService executes one plan.
 - Launch/raise regular apps by name (Calculator, Music, TextEdit, Finder): cua_act with app only auto-focuses; or use label/key steps. Never cua_act on System Events or other no-window processes.
 - Media keys (brightness, volume): cua_act on the frontmost regular app with key F1/F2 or brightness_up — not System Events.
-- If cua_act returns ok:false, read the error; do not tell the user "done". Retry
-  only after settled state shows the intended outcome is still absent.
+- If cua_act returns ok:false, read error and hint; do not tell the user "done". Retry
+  only after settled state shows the intended outcome is still absent, and only
+  while retryable is true (max 2 tries per step).
 
-confirm_risky before irreversible UI or Keychain writes.
-secrets_* when credentials are needed. Never speak or return secret values.
+Irreversible actions (send, delete, pay, overwrite): set risky:true. If a call returns
+needs_confirmation, call confirm_risky, then retry the exact same call; if the user says no, stop.
+Credentials: more_tools {group: secrets} loads secrets_*. Never speak or return secret values.
 
 Routing (two drivers — pick by target, never both on one surface):
 - Native macOS apps (Calculator, Finder, TextEdit, Music, Settings…) → cua_state / cua_act.
