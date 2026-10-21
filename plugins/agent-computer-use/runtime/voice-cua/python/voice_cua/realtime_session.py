@@ -213,6 +213,7 @@ class RealtimeSession:
     # session.closed reason=expired with nobody talking (e.g. no mic input): rest instead of
     # forking a fresh session every ~30 s; speech or a typed turn wakes it.
     LIVE_EXPIRED_REST_SECONDS = 20.0
+    LIVE_ROTATE_QUIET_SECONDS = 6.0  # wait for the reply to finish playing before a context rotate
     # GPT-Live expires a session after ~30 s without input audio (measured: reason=expired,
     # usage 0 s). With no mic stream (no input device, text-only), feed silence while a turn
     # is in flight or was recent so a typed turn can't be cut off; idle sessions still expire.
@@ -1287,7 +1288,15 @@ class RealtimeSession:
                 busy = bool(self._active_response_ids)
             busy = busy or bool(self._pending_calls or self._inflight_tools)
             busy = busy or bool(self._audio and self._audio.has_playback())
-            if busy or time.monotonic() - self._last_activity < self.LIVE_IDLE_CLOSE_SECONDS:
+            quiet = time.monotonic() - self._last_activity
+            if (not busy and getattr(self.provider, "rotate_requested", False)
+                    and quiet >= self.LIVE_ROTATE_QUIET_SECONDS and not getattr(self, "_restart_pending", False)):
+                # Context budget: restart seeded with recent utterances only (no fork) while quiet.
+                log_event("live_context_rotate", quiet_s=round(quiet, 1))
+                self._restart_pending = True
+                self._request_reconnect(reason="planned_context_rotate")
+                continue
+            if busy or quiet < self.LIVE_IDLE_CLOSE_SECONDS:
                 continue
             log_event("live_idle_close", idle_s=round(time.monotonic() - self._last_activity, 1))
             self._dormant.set()

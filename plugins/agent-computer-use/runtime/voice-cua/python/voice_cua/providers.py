@@ -40,6 +40,11 @@ DEFAULT_BULK = "gpt-6-luna"
 DEFAULT_INTELLIGENCE = "gpt-6.1-sol"
 MAX_STEP_TRIES = 2
 ESCALATE_TOOL = "use_intelligence"
+# Context budget (live-conversations: seed sessions with only the history they need).
+# A delegation whose backend input passed this many tokens marks the conversation for a
+# seeded restart (recent utterances only) at the next quiet moment instead of a fork.
+LIVE_CONTEXT_ROTATE_TOKENS = int(os.environ.get("VOICE_CUA_LIVE_CONTEXT_ROTATE_TOKENS", "40000"))
+LIVE_TOOL_OUTPUT_MAX = 8000  # chars of one tool result kept in the Live/backend history
 HISTORY_MAX = 24          # seeded restart: recent utterances (docs cap: 128 msgs / 8,192 tokens)
 PENDING_AUDIO_MAX = 150   # ~3 s of 20 ms chunks buffered until session.started
 LIVE_APPEND_MAX_CHARS = 1800  # session.*.append content is capped at 500 tokens
@@ -248,8 +253,11 @@ class LiveProvider(VoiceProvider):
         with getattr(self, "_lock", threading.Lock()):
             self._started = False
             self._ready = False           # session.started seen on this connection
+            rotate = bool(getattr(self, "rotate_requested", False))
             self._forking = bool(self.store and getattr(self, "source_session_id", "")
-                                 and not getattr(self, "fork_failed", False))
+                                 and not getattr(self, "fork_failed", False) and not rotate)
+            self.rotate_requested = False
+            self.seeded_for_context = rotate
             self._pending_audio: list[str] = []
             self._pending_wire: list[dict[str, Any]] = []
             self.restart_requested = ""
@@ -422,6 +430,7 @@ class LiveProvider(VoiceProvider):
                         return []  # a fork keeps the conversation: no 'earlier turns are gone' note
                     return [{"type": "session.instructions.append", "event_id": self.event_id("instructions"),
                              "content": text[:LIVE_APPEND_MAX_CHARS], "delegation_id": None}]
+                self._remember("user", text)  # typed turns seed restarts like spoken ones
                 return [{"type": "response.item.create", "item": {
                     "type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}}]
             return []
@@ -465,8 +474,12 @@ class LiveProvider(VoiceProvider):
                 self._pending_calls[delegation].discard(call_id)
         if self.tier == "bulk" and self.bulk_failed(item.get("output")):
             out += self._escalate(delegation, reason="bulk_failed_twice")
+        output = str(item.get("output") or "")
+        if len(output) > LIVE_TOOL_OUTPUT_MAX:
+            # Every result stays in the conversation the backend re-reads on each delegation.
+            output = output[:LIVE_TOOL_OUTPUT_MAX] + "…[truncated]"
         out.append({"type": "response.item.create", "item": {
-            "type": "function_call_output", "call_id": call_id, "output": str(item.get("output") or "")}})
+            "type": "function_call_output", "call_id": call_id, "output": output}})
         return out
 
     @staticmethod
@@ -516,7 +529,9 @@ class LiveProvider(VoiceProvider):
                 self.fork_failed = False
             log_event("live_session_started", live_model=self.model, bulk=self.bulk, intelligence=self.intelligence,
                       forked=self._forking or None, store=bool(session.get("store")) or None,
-                      buffered_chunks=len(pending) or None)
+                      buffered_chunks=len(pending) or None,
+                      seeded_for_context=getattr(self, "seeded_for_context", False) or None,
+                      seeded_messages=(len(self.history[-HISTORY_MAX:]) if not self._forking else None) or None)
             for wire in held:
                 self._send_raw(wire)
             for chunk in pending:
@@ -680,8 +695,14 @@ class LiveProvider(VoiceProvider):
                 output.append({"type": "function_call"})
             elif text:
                 output.append({"type": "message", "content": [{"type": "output_text", "text": text}]})
+            usage = response.get("usage") or {}
+            if not had_calls and not outstanding and isinstance(usage, dict):
+                used = int(usage.get("input_tokens") or 0)
+                if used >= LIVE_CONTEXT_ROTATE_TOKENS and not self.rotate_requested:
+                    self.rotate_requested = True
+                    log_event("live_context_rotate_due", input_tokens=used)
             done: dict[str, Any] = {"id": rid, "status": response.get("status") or it.split(".")[-1],
-                                    "usage": response.get("usage") or {}, "output": output}
+                                    "usage": usage, "output": output}
             if request_id:
                 done["metadata"] = {"voice_cua_request_id": request_id}
             return [{"type": "response.done", "response": done}]

@@ -319,3 +319,33 @@ class CometRetryCapTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertEqual(out["error_type"], "retry_cap")
         tools.reset_session_state()
+
+
+class ContextBudgetTests(unittest.TestCase):
+    def test_large_backend_input_rotates_to_a_seeded_session(self):
+        live = providers.LiveProvider()
+        live.source_session_id = "sess_1"
+        live._remember("user", "open calculator")
+        live._remember("assistant", "Done, it shows 36.")
+        live.rotate_requested = True
+        live.reset()
+        self.assertFalse(live.forked, "context rotate starts fresh, not a fork")
+        self.assertFalse(live.rotate_requested)
+        start = live._start({"tools": []})
+        self.assertNotIn("/fork", live.url())
+        self.assertEqual(len(start["session"]["input"]), 2)
+
+    def test_tool_output_is_capped(self):
+        live = providers.LiveProvider()
+        live._ready = True
+        live._call_delegation["call_1"] = "d1"
+        (wire,) = live._tool_output({"call_id": "call_1", "output": "x" * 20000})
+        self.assertLessEqual(len(wire["item"]["output"]), providers.LIVE_TOOL_OUTPUT_MAX + 20)
+
+    def test_typed_turns_are_remembered_for_seeding(self):
+        live = providers.LiveProvider()
+        live._ready = True
+        live._started = True
+        live.outbound({"type": "conversation.item.create", "item": {
+            "type": "message", "role": "user", "content": [{"type": "input_text", "text": "hi there"}]}})
+        self.assertEqual(live.history[-1], ("user", "hi there"))

@@ -456,6 +456,9 @@ def _cua_act(args: dict[str, Any]) -> dict[str, Any]:
     if out.get("ok"):
         _STEP_FAILS.pop(step_fp, None)
         island_publish("done", title="Done", app=app, step=step, detail=f"{app} · {step}")
+    elif out.get("needs_confirmation") or str(out.get("error_type") or "").startswith("needs_confirm"):
+        # Not a failure: the confirm card follows (no "Missed that, retrying" on the island).
+        island_publish("acting", title="Needs your OK", app=app, detail=step)
     else:
         _note_failure(step_fp, out)
         err = str(out.get("error") or "")
@@ -606,7 +609,15 @@ def _comet_end(args: dict[str, Any]) -> dict[str, Any]:
 def _confirm_risky(args: dict[str, Any]) -> dict[str, Any]:
     # The island shows the server's description of the parked action, never the
     # model's prompt, so the user approves exactly what will run.
-    result = GATE.confirm(lambda cid, text: island_confirm(cid, text))
+    def _ask(cid: str, text: str) -> bool:
+        t0 = time.monotonic()
+        log_event("confirm_request", confirm_id=cid[:40], prompt_chars=len(text or ""))
+        approved = island_confirm(cid, text)
+        log_event("confirm_answer", confirm_id=cid[:40], approved=bool(approved),
+                  waited_s=round(time.monotonic() - t0, 1))
+        return approved
+
+    result = GATE.confirm(_ask)
     if result.get("error"):
         return result
     approved = bool(result.get("approved"))
