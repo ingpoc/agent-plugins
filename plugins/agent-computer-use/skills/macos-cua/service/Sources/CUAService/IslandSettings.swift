@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
-import IOKit.ps
+import ApplicationServices
+import Intents
 import Security
 
 // Island Settings (Alcove parity + AI Agents). Schema-driven: every row in the window is a
@@ -8,8 +9,8 @@ import Security
 // Alcove inventory: evidence/p6/alcove-settings/inventory.md.
 
 enum SettingsTab: String, CaseIterable, Identifiable {
-    case general, battery, connectivity, focus, display, sound
-    case nowPlaying, calendar, fileTray, lockScreen
+    case general, interaction, connectivity, display, sound
+    case nowPlaying, calendar, fileTray
     case samantha, grokBot, cursor, codex
     case about
     var id: String { rawValue }
@@ -17,15 +18,13 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .general: return "General"
-        case .battery: return "Battery"
+        case .interaction: return "Interaction"
         case .connectivity: return "Connectivity"
-        case .focus: return "Focus"
         case .display: return "Display"
         case .sound: return "Sound"
         case .nowPlaying: return "Now Playing"
         case .calendar: return "Calendar"
         case .fileTray: return "File Tray"
-        case .lockScreen: return "Lock Screen"
         case .samantha: return "Samantha"
         case .grokBot: return "Grok Bot"
         case .cursor: return "Cursor"
@@ -38,15 +37,13 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .general: return "gearshape.fill"
-        case .battery: return "bolt.fill"
+        case .interaction: return "hand.tap.fill"
         case .connectivity: return "headphones"
-        case .focus: return "moon.fill"
         case .display: return "sun.max.fill"
         case .sound: return "speaker.wave.2.fill"
         case .nowPlaying: return "play.fill"
         case .calendar: return "calendar"
         case .fileTray: return "tray.fill"
-        case .lockScreen: return "lock.fill"
         case .samantha: return "waveform"
         case .grokBot: return "sparkles"
         case .cursor: return "cursorarrow.rays"
@@ -58,28 +55,17 @@ enum SettingsTab: String, CaseIterable, Identifiable {
     var tint: NSColor {
         switch self {
         case .general, .about: return NSColor(white: 0.42, alpha: 1)
-        case .battery: return NSColor(red: 0.98, green: 0.55, blue: 0.35, alpha: 1)
+        case .interaction: return NSColor(red: 0.30, green: 0.55, blue: 0.98, alpha: 1)
         case .connectivity: return NSColor(red: 0.20, green: 0.80, blue: 0.62, alpha: 1)
-        case .focus: return NSColor(red: 0.42, green: 0.42, blue: 0.95, alpha: 1)
         case .display: return NSColor(red: 0.62, green: 0.45, blue: 0.95, alpha: 1)
         case .sound: return NSColor(red: 0.85, green: 0.40, blue: 0.85, alpha: 1)
         case .nowPlaying: return NSColor(red: 0.96, green: 0.30, blue: 0.40, alpha: 1)
         case .calendar: return NSColor(red: 0.95, green: 0.30, blue: 0.30, alpha: 1)
         case .fileTray: return NSColor(white: 0.55, alpha: 1)
-        case .lockScreen: return NSColor(white: 0.12, alpha: 1)
         case .samantha: return NSColor(red: 0.39, green: 0.82, blue: 1.0, alpha: 1)   // #64D2FF
         case .grokBot: return NSColor(white: 0.15, alpha: 1)
         case .cursor: return NSColor(white: 0.22, alpha: 1)
         case .codex: return NSColor(red: 0.10, green: 0.55, blue: 0.45, alpha: 1)
-        }
-    }
-
-    /// "Soon" = persisted but inert until the §12 phase lands.
-    var badge: String? {
-        switch self {
-        case .battery, .focus, .lockScreen: return "Soon"
-        case .nowPlaying where !NowPlayingKeys.live: return "Soon"
-        default: return nil
         }
     }
 
@@ -93,15 +79,16 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         }
     }
 
-    static func sidebar(hasBattery: Bool) -> [(String?, [SettingsTab])] {
-        [
-            (nil, [.general]),
-            ("Notifications", (hasBattery ? [.battery] : []) + [.connectivity, .focus, .display, .sound]),
-            ("Live Activities", [.nowPlaying, .calendar, .fileTray, .lockScreen]),
-            ("AI Agents", [.samantha, .grokBot, .cursor, .codex]),
-            ("Samantha", [.about]),
-        ]
-    }
+    /// Sidebar groups; About is pinned at the bottom with no header (`pinned`).
+    static let sidebar: [(String?, [SettingsTab])] = [
+        (nil, [.general, .interaction]),
+        ("Notifications", [.connectivity, .display, .sound]),
+        ("Live Activities", [.nowPlaying, .calendar, .fileTray]),
+        ("AI Agents", [.samantha, .grokBot, .cursor, .codex]),
+    ]
+    static let pinned: SettingsTab = .about
+    /// Every pane in sidebar order (⌃Tab order).
+    static var panes: [SettingsTab] { sidebar.flatMap(\.1) + [pinned] }
 }
 
 enum AgentSource: String, CaseIterable, Codable {
@@ -159,6 +146,7 @@ enum SettingKind: Equatable {
     case popup([(value: String, label: String)])
     case token                                            // AI source Keychain token row
     case button(String)                                   // action row
+    case permission(String)                               // macOS permission: "Allowed" when granted, else this button
 
     static func == (a: SettingKind, b: SettingKind) -> Bool {
         switch (a, b) {
@@ -168,7 +156,7 @@ enum SettingKind: Equatable {
             return a1 == a2 && b1 == b2 && c1 == c2 && d1 == d2
         case (.tiles(let x), .tiles(let y)): return x.map(\.value) == y.map(\.value)
         case (.popup(let x), .popup(let y)): return x.map(\.value) == y.map(\.value)
-        case (.button(let x), .button(let y)): return x == y
+        case (.button(let x), .button(let y)), (.permission(let x), .permission(let y)): return x == y
         default: return false
         }
     }
@@ -185,11 +173,12 @@ struct SettingDef: Identifiable {
     var label: String
     var kind: SettingKind
     var defaultValue: SettingDefault
-    /// true = drives real behaviour now; false = persisted but inert ("Soon").
-    var wired: Bool
+    /// Hover help ("i" glyph); at most one per card.
     var info: String? = nil
     /// Only shown when this bool key is on (e.g. Hover duration needs Expand on hover).
     var visibleWhen: String? = nil
+    /// 11 pt caption under the row (master rows explain the feature here instead of an "i").
+    var caption: String? = nil
     var id: String { key }
 }
 
@@ -198,7 +187,6 @@ enum IslandSettingsSchema {
     static let hideInFullscreen = "island.general.hideInFullscreen"
     static let hideInMissionControl = "island.general.hideInMissionControl"
     static let hideFromScreenCapture = "island.general.hideFromScreenCapture"
-    static let forceSimulatedNotch = "island.general.forceSimulatedNotch"
     static let displayOn = "island.general.displayOn"
     static let idleActivity = "island.general.idleActivity"
     static let contrastOutline = "island.general.contrastOutline"
@@ -237,277 +225,197 @@ enum IslandSettingsSchema {
 
     static func t(_ v: String, _ l: String, _ s: String = "") -> (value: String, label: String, symbol: String) { (v, l, s) }
 
-    static let all: [SettingDef] = general + battery + connectivity + focus + display + sound
-        + nowPlaying + calendar + fileTray + lockScreen + AgentSource.allCases.flatMap(agent) + about
+    static let all: [SettingDef] = general + interaction + connectivity + display + sound
+        + nowPlaying + calendar + fileTray + AgentSource.allCases.flatMap(agent) + about
+
+    static let accessibilityDisplay = "island.display.accessibility"
+    static let accessibilitySound = "island.sound.accessibility"
 
     static let general: [SettingDef] = [
-        .init(tab: .general, section: nil, key: showIsland, label: "Show Dynamic Island", kind: .toggle, defaultValue: .bool(true), wired: true,
-              info: "Also in the menu bar menu"),
-        .init(tab: .general, section: nil, key: "island.general.launchAtLogin", label: "Launch at login", kind: .toggle,
-              defaultValue: .bool(true), wired: false, info: "CUAService is started by launchd"),
-        .init(tab: .general, section: nil, key: hideInFullscreen, label: "Hide in fullscreen", kind: .toggle, defaultValue: .bool(true), wired: true),
-        .init(tab: .general, section: nil, key: hideInMissionControl, label: "Hide in mission control", kind: .toggle, defaultValue: .bool(true), wired: true),
-        .init(tab: .general, section: nil, key: "island.general.hideWhileGaming", label: "Hide while gaming", kind: .toggle, defaultValue: .bool(false), wired: false),
-        .init(tab: .general, section: nil, key: hideFromScreenCapture, label: "Hide from screen capture", kind: .toggle, defaultValue: .bool(false), wired: true),
-        .init(tab: .general, section: nil, key: hotKey, label: "Keyboard shortcut \(IslandHotKey.display)", kind: .toggle, defaultValue: .bool(true), wired: true,
+        .init(tab: .general, section: nil, key: showIsland, label: "Show Dynamic Island", kind: .toggle, defaultValue: .bool(true)),
+        .init(tab: .general, section: nil, key: hideInFullscreen, label: "Hide in fullscreen", kind: .toggle, defaultValue: .bool(true)),
+        .init(tab: .general, section: nil, key: hideInMissionControl, label: "Hide in mission control", kind: .toggle, defaultValue: .bool(true)),
+        .init(tab: .general, section: nil, key: hideFromScreenCapture, label: "Hide from screen capture", kind: .toggle, defaultValue: .bool(false)),
+        .init(tab: .general, section: nil, key: hotKey, label: "Keyboard shortcut \(IslandHotKey.display)", kind: .toggle, defaultValue: .bool(true),
               info: "Opens the island with keyboard focus: arrows or Tab move, Return activates, Esc closes. If another app owns the shortcut it stays off (see the log)"),
-        .init(tab: .general, section: nil, key: forceSimulatedNotch, label: "Force simulated notch", kind: .toggle, defaultValue: .bool(false), wired: false,
-              info: "Displays without a notch always use the simulated notch"),
         .init(tab: .general, section: nil, key: displayOn, label: "Display on",
-              kind: .popup([("main", "Main display"), ("all", "All displays"), ("builtIn", "Built-in display")]),
-              defaultValue: .string("main"), wired: true, info: "All displays: Soon (falls back to main)"),
-        .init(tab: .general, section: "Idle Activity", key: "island.general.mostRecent", label: "Most Recent", kind: .toggle, defaultValue: .bool(false), wired: false),
+              kind: .popup([("main", "Main display"), ("builtIn", "Built-in display")]), defaultValue: .string("main")),
         .init(tab: .general, section: "Idle Activity", key: idleActivity, label: "Idle activity",
               kind: .tiles([t("none", "None", "nosign"), t("samantha", "Samantha", "circle.circle.fill"),
                             t("agents", "Agents", "person.2.fill"), t("duo", "Duo", "rectangle.split.2x1.fill")]),
-              defaultValue: .string("duo"), wired: true),
-        .init(tab: .general, section: "Behaviour", key: contrastOutline, label: "Contrast outline", kind: .toggle, defaultValue: .bool(true), wired: true),
-        .init(tab: .general, section: "Behaviour", key: "island.general.progressiveBlur", label: "Progressive blur", kind: .toggle, defaultValue: .bool(true), wired: false),
-        .init(tab: .general, section: "Behaviour", key: haptics, label: "Haptic feedback", kind: .toggle, defaultValue: .bool(true), wired: true,
-              info: "Trackpad tick on swipe thresholds and drop targets"),
-        .init(tab: .general, section: "Behaviour", key: mutePromptSound, label: "Mute agent prompt sound", kind: .toggle, defaultValue: .bool(false), wired: true,
-              info: "Soft Tink when an agent asks you something (only when its app isn't frontmost)"),
-        .init(tab: .general, section: "Behaviour", key: expandOnHover, label: "Expand on hover", kind: .toggle, defaultValue: .bool(false), wired: true,
-              info: "Opens the card on hover instead of click"),
-        .init(tab: .general, section: "Behaviour", key: hoverDuration, label: "Hover duration", kind: .slider(min: 0, max: 0.6, step: 0.1, unit: "s"),
-              defaultValue: .double(0), wired: true, visibleWhen: expandOnHover),
+              defaultValue: .string("duo")),
         .init(tab: .general, section: "Durations", key: resultPeek, label: "Result peek", kind: .slider(min: 2, max: 8, step: 0.5, unit: "s"),
-              defaultValue: .double(4), wired: true, info: "Done card auto-peek when there is a result"),
-        .init(tab: .general, section: "Durations", key: errorPeek, label: "Error peek", kind: .slider(min: 3, max: 10, step: 0.5, unit: "s"),
-              defaultValue: .double(6), wired: true),
-        .init(tab: .general, section: "Durations", key: doneSettle, label: "Done settles after", kind: .slider(min: 2, max: 8, step: 0.5, unit: "s"),
-              defaultValue: .double(4), wired: true),
-        .init(tab: .general, section: "Gestures", key: naturalMovement, label: "Natural movement", kind: .toggle, defaultValue: .bool(false), wired: true),
-        .init(tab: .general, section: "Gestures", key: swipeToToggle, label: "Swipe to toggle open", kind: .toggle, defaultValue: .bool(true), wired: true,
-              info: "Swipe down over the island opens the card, up closes it"),
-        .init(tab: .general, section: "Gestures", key: swipeToCycle, label: "Swipe to switch activity", kind: .toggle, defaultValue: .bool(true), wired: true,
-              info: "Two-finger swipe sideways swaps the two live activities (Duo)"),
-        .init(tab: .general, section: "Gestures", key: "island.general.swipeToDismiss", label: "Swipe to dismiss activity", kind: .toggle, defaultValue: .bool(true), wired: false,
-              info: "Swipe vertically to toggle activity"),
-        .init(tab: .general, section: "Gestures", key: "island.general.swipeToSkip", label: "Swipe to skip media", kind: .toggle, defaultValue: .bool(true), wired: false),
+              defaultValue: .double(4), info: "Done card auto-peek when there is a result"),
+        .init(tab: .general, section: "Durations", key: errorPeek, label: "Error peek", kind: .slider(min: 3, max: 10, step: 0.5, unit: "s"), defaultValue: .double(6)),
+        .init(tab: .general, section: "Durations", key: doneSettle, label: "Done settles after", kind: .slider(min: 2, max: 8, step: 0.5, unit: "s"), defaultValue: .double(4)),
     ]
 
-    static func hud(_ tab: SettingsTab, _ name: String, styles: [(String, String, String)], extra: [SettingDef] = []) -> [SettingDef] {
+    /// Behaviour + Gestures (split out of General so General fits one screen). Keys keep their general prefix.
+    static let interaction: [SettingDef] = [
+        .init(tab: .interaction, section: "Behaviour", key: contrastOutline, label: "Contrast outline", kind: .toggle, defaultValue: .bool(true)),
+        .init(tab: .interaction, section: "Behaviour", key: haptics, label: "Haptic feedback", kind: .toggle, defaultValue: .bool(true)),
+        .init(tab: .interaction, section: "Behaviour", key: mutePromptSound, label: "Mute agent prompt sound", kind: .toggle, defaultValue: .bool(false),
+              info: "Soft Tink when an agent asks you something (only when its app isn't frontmost)"),
+        .init(tab: .interaction, section: "Behaviour", key: expandOnHover, label: "Expand on hover", kind: .toggle, defaultValue: .bool(false)),
+        .init(tab: .interaction, section: "Behaviour", key: hoverDuration, label: "Hover duration", kind: .slider(min: 0, max: 0.6, step: 0.1, unit: "s"),
+              defaultValue: .double(0), visibleWhen: expandOnHover),
+        .init(tab: .interaction, section: "Gestures", key: naturalMovement, label: "Natural movement", kind: .toggle, defaultValue: .bool(false)),
+        .init(tab: .interaction, section: "Gestures", key: swipeToToggle, label: "Swipe to toggle open", kind: .toggle, defaultValue: .bool(true)),
+        .init(tab: .interaction, section: "Gestures", key: swipeToCycle, label: "Swipe to switch activity", kind: .toggle, defaultValue: .bool(true),
+              info: "Swipe down opens the card, up closes it; a two-finger swipe sideways swaps the two live activities (Duo)"),
+    ]
+
+    static func hud(_ tab: SettingsTab, _ name: String, caption: String, accessibilityKey: String) -> [SettingDef] {
         let p = "island.\(tab.rawValue)."
         return [
-            .init(tab: tab, section: nil, key: p + "enabled", label: name, kind: .master(tab.symbol), defaultValue: .bool(true), wired: true,
-                  info: tab == .display ? "Built-in displays only; external display keys pass through" : "Replaces the system volume HUD (needs Accessibility)"),
-            .init(tab: tab, section: nil, key: p + "duration", label: "Duration", kind: .slider(min: 1, max: 2, step: 0.1, unit: "s"), defaultValue: .double(1.2), wired: true),
-            .init(tab: tab, section: nil, key: p + "style", label: "Progress style", kind: .tiles(styles.map { t($0.0, $0.1, $0.2) }), defaultValue: .string("white"), wired: false),
-            .init(tab: tab, section: nil, key: p + "showPercentage", label: "Show percentage", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: tab, section: nil, key: p + "hideLabel", label: "Hide label", kind: .toggle, defaultValue: .bool(false), wired: false),
+            .init(tab: tab, section: nil, key: p + "enabled", label: name, kind: .master(tab.symbol), defaultValue: .bool(true), caption: caption),
+            .init(tab: tab, section: nil, key: accessibilityKey, label: "Accessibility access", kind: .permission("Allow…"), defaultValue: .none),
+            .init(tab: tab, section: nil, key: p + "duration", label: "Duration", kind: .slider(min: 1, max: 2, step: 0.1, unit: "s"), defaultValue: .double(1.2)),
             .init(tab: tab, section: nil, key: p + "speed", label: "Speed",
                   kind: .tiles([t("smooth", "Smooth", "scribble"), t("fast", "Fast", "hare.fill"), t("instant", "Instant", "bolt.fill")]),
-                  defaultValue: .string("fast"), wired: true),
-        ] + extra
-    }
-
-    static let battery: [SettingDef] = {
-        let p = "island.battery."
-        return [
-            .init(tab: .battery, section: nil, key: p + "enabled", label: "Battery", kind: .master("bolt.fill"), defaultValue: .bool(true), wired: false),
-            .init(tab: .battery, section: nil, key: p + "hidePercentage", label: "Hide percentage", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .battery, section: nil, key: p + "hideLabel", label: "Hide label", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .battery, section: nil, key: p + "notifyLowPower", label: "Notify on low power mode", kind: .toggle, defaultValue: .bool(true), wired: false),
-            .init(tab: .battery, section: nil, key: p + "warnLow", label: "Warn on low battery", kind: .toggle, defaultValue: .bool(true), wired: false),
-            .init(tab: .battery, section: nil, key: p + "lowThreshold", label: "Low battery threshold", kind: .slider(min: 10, max: 30, step: 1, unit: "%"), defaultValue: .double(20), wired: false),
-            .init(tab: .battery, section: nil, key: p + "playSound", label: "Play sound on low battery", kind: .toggle, defaultValue: .bool(true), wired: false),
+                  defaultValue: .string("fast")),
         ]
-    }()
+    }
 
     static let connectivity: [SettingDef] = {
         let p = "island.connectivity."
         return [
-            .init(tab: .connectivity, section: nil, key: p + "enabled", label: "Connectivity", kind: .master("headphones"), defaultValue: .bool(true), wired: true,
-                  info: "Quick Peek when the audio output changes"),
-            .init(tab: .connectivity, section: nil, key: p + "agentPeeks", label: "Agent and app peeks", kind: .toggle, defaultValue: .bool(true), wired: true,
-                  info: "One-line peeks posted with island-post --kind peek"),
-            .init(tab: .connectivity, section: nil, key: p + "hideWhileSharing", label: "Hide peeks while screen sharing", kind: .toggle, defaultValue: .bool(true), wired: true,
+            .init(tab: .connectivity, section: nil, key: p + "enabled", label: "Connectivity", kind: .master("headphones"), defaultValue: .bool(true),
+                  caption: "Quick Peek when the audio output changes."),
+            .init(tab: .connectivity, section: nil, key: p + "agentPeeks", label: "Agent and app peeks", kind: .toggle, defaultValue: .bool(true)),
+            .init(tab: .connectivity, section: nil, key: p + "hideWhileSharing", label: "Hide peeks while screen sharing", kind: .toggle, defaultValue: .bool(true),
                   info: "Peeks are kept out of screen captures; during a macOS Screen Sharing session they are dropped. Other apps' screen sharing cannot be detected, so turn on Hide from screen capture for those"),
-            .init(tab: .connectivity, section: nil, key: p + "respectFocus", label: "Silence peeks during Focus", kind: .toggle, defaultValue: .bool(true), wired: true,
-                  info: "Needs Focus status access (below); approvals still show"),
-            .init(tab: .connectivity, section: nil, key: p + "focusAccess", label: "Focus status access", kind: .button("Allow Focus Status…"), defaultValue: .none, wired: true,
-                  info: "Asks macOS once; manage later in System Settings → Privacy → Focus"),
-            .init(tab: .connectivity, section: nil, key: p + "duration", label: "Peek duration", kind: .slider(min: 2.5, max: 6, step: 0.5, unit: "s"), defaultValue: .double(3), wired: true),
-            .init(tab: .connectivity, section: nil, key: p + "warnLow", label: "Warn on low battery", kind: .toggle, defaultValue: .bool(true), wired: false),
-            .init(tab: .connectivity, section: nil, key: p + "lowThreshold", label: "Low battery threshold", kind: .slider(min: 10, max: 30, step: 1, unit: "%"), defaultValue: .double(20), wired: false),
-            .init(tab: .connectivity, section: nil, key: p + "playSound", label: "Play sound on low battery", kind: .toggle, defaultValue: .bool(true), wired: false),
-            .init(tab: .connectivity, section: nil, key: p + "model", label: "Device glyph",
-                  kind: .tiles([t("threeDimensional", "3D models", "airpodspro"), t("symbol", "Symbols", "airpods")]),
-                  defaultValue: .string("threeDimensional"), wired: false),
+            .init(tab: .connectivity, section: nil, key: p + "respectFocus", label: "Silence peeks during Focus", kind: .toggle, defaultValue: .bool(true)),
+            .init(tab: .connectivity, section: nil, key: focusAccess, label: "Focus status access", kind: .permission("Allow…"), defaultValue: .none),
+            .init(tab: .connectivity, section: nil, key: p + "duration", label: "Peek duration", kind: .slider(min: 2.5, max: 6, step: 0.5, unit: "s"), defaultValue: .double(3)),
         ]
     }()
 
-    static let focus: [SettingDef] = {
-        let p = "island.focus."
-        return [
-            .init(tab: .focus, section: nil, key: p + "enabled", label: "Focus", kind: .master("moon.fill"), defaultValue: .bool(true), wired: false),
-            .init(tab: .focus, section: nil, key: p + "duration", label: "Duration", kind: .slider(min: 2.5, max: 6, step: 0.5, unit: "s"), defaultValue: .double(5), wired: false),
-            .init(tab: .focus, section: nil, key: p + "playSoundSleep", label: "Play sound on sleep focus", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .focus, section: nil, key: p + "replaceWaveform", label: "Replace waveform during focus", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .focus, section: nil, key: p + "replaceWhen", label: "When focus is", kind: .popup([("any", "Any")]), defaultValue: .string("any"),
-                  wired: false, visibleWhen: p + "replaceWaveform"),
-            .init(tab: .focus, section: nil, key: p + "hideLabel", label: "Hide label", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .focus, section: "Allowed Notifications", key: p + "allowBattery", label: "Battery", kind: .toggle, defaultValue: .bool(true), wired: false),
-            .init(tab: .focus, section: "Allowed Notifications", key: p + "allowConnectivity", label: "Connectivity", kind: .toggle, defaultValue: .bool(true), wired: false),
-            .init(tab: .focus, section: "Allowed Notifications", key: p + "allowDisplay", label: "Display", kind: .toggle, defaultValue: .bool(true), wired: false),
-            .init(tab: .focus, section: "Allowed Notifications", key: p + "allowSound", label: "Sound", kind: .toggle, defaultValue: .bool(true), wired: false),
-            .init(tab: .focus, section: "Allowed Notifications", key: p + "allowAgents", label: "AI agents", kind: .toggle, defaultValue: .bool(true), wired: false),
-        ]
-    }()
-
-    static let display = hud(.display, "Display", styles: [("white", "White", "minus"), ("accent", "Accent", "minus"), ("glow", "Glow", "sparkle")])
-    static let sound = hud(.sound, "Sound", styles: [("white", "White", "minus"), ("accent", "Accent", "minus"), ("decibel", "Decibel", "chart.bar.fill")],
-                           extra: [.init(tab: .sound, section: nil, key: "island.sound.output", label: "Output",
-                                         kind: .tiles([t("speaker", "Show symbol", "speaker.wave.2.fill"), t("device", "Show device", "airpodspro")]),
-                                         defaultValue: .string("device"), wired: false)])
+    static let display = hud(.display, "Display", caption: "Replaces the brightness HUD on built-in displays; external display keys pass through.",
+                             accessibilityKey: accessibilityDisplay)
+    static let sound = hud(.sound, "Sound", caption: "Replaces the system volume HUD.", accessibilityKey: accessibilitySound)
 
     static let nowPlaying: [SettingDef] = {
-        let p = "island.nowPlaying."
+        typealias K = NowPlayingKeys
         return [
-            .init(tab: .nowPlaying, section: nil, key: p + "enabled", label: "Now Playing", kind: .master("play.fill"), defaultValue: .bool(true), wired: NowPlayingKeys.live),
-            .init(tab: .nowPlaying, section: nil, key: p + "idleDuration", label: "Idle duration", kind: .slider(min: 0, max: 10, step: 1, unit: "s"), defaultValue: .double(3), wired: NowPlayingKeys.live),
-            .init(tab: .nowPlaying, section: nil, key: p + "badge", label: "Title badge",
-                  kind: .tiles([t("none", "None", "nosign"), t("explicit", "Explicit", "e.square.fill"), t("format", "Format", "hifispeaker.fill")]),
-                  defaultValue: .string("explicit"), wired: false,
-                  info: "Soon — the system now-playing feed has no explicit/format flag"),
-            .init(tab: .nowPlaying, section: nil, key: p + "color", label: "Progress colour",
+            .init(tab: .nowPlaying, section: nil, key: K.enabled, label: "Now Playing", kind: .master("play.fill"), defaultValue: .bool(true)),
+            .init(tab: .nowPlaying, section: nil, key: K.idleDuration, label: "Idle duration", kind: .slider(min: 0, max: 10, step: 1, unit: "s"), defaultValue: .double(3)),
+            .init(tab: .nowPlaying, section: nil, key: K.color, label: "Progress colour",
                   kind: .tiles([t("mono", "Monochrome", "minus"), t("color", "Colored", "minus"), t("gradient", "Gradient", "minus")]),
-                  defaultValue: .string("mono"), wired: NowPlayingKeys.live),
-            .init(tab: .nowPlaying, section: nil, key: p + "liveWaveform", label: "Use live waveform", kind: .toggle, defaultValue: .bool(false), wired: false,
-                  info: "Soon — needs audio capture permission; synthetic waveform for now"),
-            .init(tab: .nowPlaying, section: nil, key: p + "disableCompactWaveform", label: "Disable compact waveform", kind: .toggle, defaultValue: .bool(false), wired: NowPlayingKeys.live),
-            .init(tab: .nowPlaying, section: nil, key: p + "disableArtworkFlip", label: "Disable artwork flip", kind: .toggle, defaultValue: .bool(false), wired: NowPlayingKeys.live),
-            .init(tab: .nowPlaying, section: nil, key: p + "hideWhileSourceActive", label: "Hide while source app is active", kind: .toggle, defaultValue: .bool(false), wired: NowPlayingKeys.live),
-            .init(tab: .nowPlaying, section: nil, key: p + "hideTitleExtras", label: "Hide media title extras", kind: .toggle, defaultValue: .bool(false), wired: NowPlayingKeys.live),
-            .init(tab: .nowPlaying, section: nil, key: p + "action", label: "Action button",
+                  defaultValue: .string("mono")),
+            .init(tab: .nowPlaying, section: nil, key: K.disableCompactWaveform, label: "Disable compact waveform", kind: .toggle, defaultValue: .bool(false)),
+            .init(tab: .nowPlaying, section: nil, key: K.disableArtworkFlip, label: "Disable artwork flip", kind: .toggle, defaultValue: .bool(false)),
+            .init(tab: .nowPlaying, section: nil, key: K.hideWhileSourceActive, label: "Hide while source app is active", kind: .toggle, defaultValue: .bool(false)),
+            .init(tab: .nowPlaying, section: nil, key: K.hideTitleExtras, label: "Hide media title extras", kind: .toggle, defaultValue: .bool(false)),
+            .init(tab: .nowPlaying, section: nil, key: K.action, label: "Action button",
                   kind: .tiles([t("favorite", "Like", "star.fill"), t("repeat", "Repeat", "repeat"), t("copy", "Copy", "link")]),
-                  defaultValue: .string("favorite"), wired: NowPlayingKeys.live,
-                  info: "Like shows only when the source supports it (Music)"),
-            .init(tab: .nowPlaying, section: "Source", key: p + "automaticSource", label: "Automatic", kind: .toggle, defaultValue: .bool(true), wired: NowPlayingKeys.live),
-            .init(tab: .nowPlaying, section: "Source", key: p + "app", label: "App", kind: .popup([("system", "System"), ("music", "Music"), ("spotify", "Spotify")]),
-                  defaultValue: .string("music"), wired: NowPlayingKeys.live, info: "Used when Automatic is off"),
+                  defaultValue: .string("favorite"), info: "Like shows only when the source supports it (Music)"),
+            .init(tab: .nowPlaying, section: "Source", key: K.automaticSource, label: "Automatic", kind: .toggle, defaultValue: .bool(true)),
+            .init(tab: .nowPlaying, section: "Source", key: K.app, label: "App", kind: .popup([("system", "System"), ("music", "Music"), ("spotify", "Spotify")]),
+                  defaultValue: .string("music"), info: "Used when Automatic is off"),
         ]
     }()
 
     static let calendar: [SettingDef] = {
         let p = "island.calendar."
         return [
-            .init(tab: .calendar, section: nil, key: p + "enabled", label: "Calendar", kind: .master("calendar"), defaultValue: .bool(true), wired: true,
-                  info: "Read-only: the island never edits your calendars"),
-            .init(tab: .calendar, section: nil, key: calendarAccess, label: "Calendar access", kind: .button("Grant Access…"), defaultValue: .none, wired: true,
-                  info: "Asks macOS once; manage later in System Settings → Privacy → Calendars"),
-            .init(tab: .calendar, section: nil, key: p + "timeBefore", label: "Time before event", kind: .slider(min: 5, max: 30, step: 5, unit: "m"), defaultValue: .double(10), wired: true),
-            .init(tab: .calendar, section: nil, key: p + "playSoundEvent", label: "Play sound on calendar event", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .calendar, section: nil, key: p + "hourlyChime", label: "Play hourly chime", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .calendar, section: nil, key: p + "useCalendarColor", label: "Use calendar color", kind: .toggle, defaultValue: .bool(false), wired: true),
-            .init(tab: .calendar, section: nil, key: p + "disableDuringEvents", label: "Disable activity during events", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .calendar, section: nil, key: p + "weatherOnEmptyDay", label: "Show weather on empty day", kind: .toggle, defaultValue: .bool(false), wired: false,
-                  info: "Needs location"),
-            .init(tab: .calendar, section: nil, key: p + "eventIndicators", label: "Use event indicators", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .calendar, section: nil, key: p + "monthView", label: "Always show month view", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .calendar, section: nil, key: p + "timeToLeave", label: "Notify when time to leave", kind: .toggle, defaultValue: .bool(false), wired: false,
-                  info: "Needs location"),
-            .init(tab: .calendar, section: "Calendars", key: p + "calendarsMode", label: "All calendars",
-                  kind: .popup([("both", "Both"), ("activity", "Live activity"), ("expanded", "Expanded view")]),
-                  defaultValue: .string("both"), wired: false, info: "Per-calendar rows appear once Calendar access is granted"),
+            .init(tab: .calendar, section: nil, key: p + "enabled", label: "Calendar", kind: .master("calendar"), defaultValue: .bool(true),
+                  caption: "Read-only: the island never edits your calendars."),
+            .init(tab: .calendar, section: nil, key: calendarAccess, label: "Calendar access", kind: .permission("Allow…"), defaultValue: .none),
+            .init(tab: .calendar, section: nil, key: p + "timeBefore", label: "Time before event", kind: .slider(min: 5, max: 30, step: 5, unit: "m"), defaultValue: .double(10)),
+            .init(tab: .calendar, section: nil, key: p + "useCalendarColor", label: "Use calendar color", kind: .toggle, defaultValue: .bool(false)),
         ]
     }()
 
     static let fileTray: [SettingDef] = [
-        .init(tab: .fileTray, section: nil, key: fileTrayEnabled, label: "File Tray", kind: .master("tray.fill"), defaultValue: .bool(true), wired: true,
-              info: "Drag files to the island to park them (references, never copies)"),
+        .init(tab: .fileTray, section: nil, key: fileTrayEnabled, label: "File Tray", kind: .master("tray.fill"), defaultValue: .bool(true),
+              caption: "Drag files onto the island to hold them here."),
     ]
-
-    static let lockScreen: [SettingDef] = {
-        let p = "island.lockScreen."
-        func allow(_ k: String, _ l: String) -> SettingDef {
-            .init(tab: .lockScreen, section: "Allowed Notifications", key: p + "allowLocked." + k, label: l, kind: .toggle, defaultValue: .bool(true), wired: false)
-        }
-        func widget(_ k: String, _ l: String, _ d: Bool) -> SettingDef {
-            .init(tab: .lockScreen, section: "Widgets", key: p + "widget." + k, label: l, kind: .toggle, defaultValue: .bool(d), wired: false)
-        }
-        return [
-            .init(tab: .lockScreen, section: nil, key: p + "enabled", label: "Lock Screen", kind: .master("lock.fill"), defaultValue: .bool(true), wired: false),
-            .init(tab: .lockScreen, section: nil, key: p + "keepAwake", label: "Keep awake", kind: .slider(min: 0, max: 30, step: 1, unit: "m"), defaultValue: .double(0), wired: false),
-            .init(tab: .lockScreen, section: nil, key: p + "showOnScreenSaver", label: "Show on screen saver", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .lockScreen, section: nil, key: p + "soundLock", label: "Play sound on lock", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .lockScreen, section: nil, key: p + "soundUnlock", label: "Play sound on unlock", kind: .toggle, defaultValue: .bool(true), wired: false),
-            widget("battery", "Battery", true), widget("connectivity", "Connectivity", true), widget("focus", "Focus", true),
-            widget("calendar", "Calendar", false), widget("nowPlaying", "Now Playing", true), widget("agents", "AI agents", false),
-            .init(tab: .lockScreen, section: "Widgets", key: p + "nowPlayingStyle", label: "Now Playing style",
-                  kind: .tiles([t("glass", "Glass", "capsule.fill"), t("clear", "Clear", "capsule")]), defaultValue: .string("glass"), wired: false),
-            .init(tab: .lockScreen, section: "Widgets", key: p + "widgetIdle", label: "Idle duration", kind: .slider(min: 0, max: 15, step: 1, unit: "m"), defaultValue: .double(10), wired: false),
-            .init(tab: .lockScreen, section: "Widgets", key: p + "showVolumeControl", label: "Show volume control", kind: .toggle, defaultValue: .bool(false), wired: false),
-            .init(tab: .lockScreen, section: "Widgets", key: p + "offset", label: "Offset tuning", kind: .slider(min: -50, max: 50, step: 1, unit: "px"), defaultValue: .double(0), wired: false),
-            .init(tab: .lockScreen, section: "Widgets", key: p + "weather", label: "Weather", kind: .toggle, defaultValue: .bool(false), wired: false, info: "Needs location"),
-            allow("battery", "Battery"), allow("connectivity", "Connectivity"), allow("focus", "Focus"), allow("display", "Display"), allow("sound", "Sound"),
-        ]
-    }()
 
     static func agent(_ s: AgentSource) -> [SettingDef] {
         let tab: SettingsTab = s == .samantha ? .samantha : s == .grokBot ? .grokBot : s == .cursor ? .cursor : .codex
         let p = s.keyPrefix
-        let on = s != .codex
         let cap: AttentionCap = s == .samantha ? .critical : s == .codex ? .info : .attention
         var rows: [SettingDef] = [
-            .init(tab: tab, section: nil, key: p + "enabled", label: s.title, kind: .master(tab.symbol), defaultValue: .bool(on), wired: true,
-                  info: s == .samantha ? "Built-in" : "Off hides this source's activities and approvals"),
+            .init(tab: tab, section: nil, key: p + "enabled", label: s.title, kind: .master(tab.symbol), defaultValue: .bool(s != .codex),
+                  caption: s == .samantha ? nil : "Off hides this source's activities and approvals."),
             .init(tab: tab, section: nil, key: p + "cap", label: "Attention cap",
                   kind: .tiles([t("ambient", "Ambient", "circle.dotted"), t("info", "Info", "info.circle"),
                                 t("attention", "Attention", "exclamationmark.circle"), t("critical", "Critical", "exclamationmark.octagon")]),
-                  defaultValue: .string(cap.rawValue), wired: true, info: "Attention or higher may raise cards and the needs-you badge"),
-            .init(tab: tab, section: nil, key: p + "canRaiseApprovals", label: "Can raise approval cards", kind: .toggle,
-                  defaultValue: .bool(s != .codex), wired: true),
-        ]
-        rows.append(.init(tab: tab, section: "Access", key: p + "token", label: "Token", kind: .token, defaultValue: .none, wired: true,
-                          info: s == .samantha ? "Created when you turn Samantha on · samantha.island / samantha"
-                                               : "island-post --source \(s.cliName) · samantha.island / \(s.rawValue)"))
-        rows += [
-            .init(tab: tab, section: "Durations", key: p + "needsYouPeek", label: "Needs-you peek", kind: .slider(min: 2.5, max: 10, step: 0.5, unit: "s"),
-                  defaultValue: .double(5), wired: false),
-            .init(tab: tab, section: "Durations", key: p + "donePeek", label: "Result dwell", kind: .slider(min: 2, max: 8, step: 0.5, unit: "s"),
-                  defaultValue: .double(4), wired: false),
-            .init(tab: tab, section: "Durations", key: p + "errorPeek", label: "Error peek", kind: .slider(min: 3, max: 10, step: 0.5, unit: "s"),
-                  defaultValue: .double(6), wired: false),
+                  defaultValue: .string(cap.rawValue), info: "Attention or higher may raise cards and the needs-you badge"),
+            .init(tab: tab, section: nil, key: p + "canRaiseApprovals", label: "Can raise approval cards", kind: .toggle, defaultValue: .bool(s != .codex)),
+            // `info` = the setup command, shown as the token row's tooltip (never a caption).
+            .init(tab: tab, section: "Access", key: p + "token", label: "Token", kind: .token, defaultValue: .none,
+                  info: s == .samantha ? nil : "island-post --source \(s.cliName)"),
         ]
         if s == .samantha {
-            rows.append(.init(tab: tab, section: "Voice", key: "island.agent.samantha.voiceSettings", label: "Model, voice and mic",
-                              kind: .button("Voice Settings…"), defaultValue: .none, wired: true))
+            rows.append(.init(tab: tab, section: nil, key: "island.agent.samantha.voiceSettings", label: "Voice",
+                              kind: .button("Open Voice Settings…"), defaultValue: .none))
         }
         return rows
     }
 
     static let about: [SettingDef] = [
-        .init(tab: .about, section: nil, key: "island.about.autoUpdate", label: "Automatically check for updates", kind: .toggle, defaultValue: .bool(true), wired: false),
-        .init(tab: .about, section: nil, key: "island.about.openLog", label: "Activity log", kind: .button("Show in Finder"), defaultValue: .none, wired: true),
+        .init(tab: .about, section: nil, key: "island.about.openLog", label: "Activity log", kind: .button("Show in Finder"), defaultValue: .none),
     ]
+
+    /// Settings removed with their rows (Soon features, per-agent durations). Stored values are inert and are
+    /// dropped on launch; SETTINGS-PACKET.md lists them so they can come back with their features.
+    static let retiredKeys: [String] = {
+        let g = "island.general.", c = "island.calendar.", n = "island.nowPlaying.", k = "island.connectivity."
+        var keys = [g + "launchAtLogin", g + "hideWhileGaming", g + "forceSimulatedNotch", g + "mostRecent", g + "progressiveBlur",
+                    g + "swipeToDismiss", g + "swipeToSkip",
+                    k + "warnLow", k + "lowThreshold", k + "playSound", k + "model",
+                    n + "badge", n + "liveWaveform",
+                    c + "playSoundEvent", c + "hourlyChime", c + "disableDuringEvents", c + "weatherOnEmptyDay", c + "eventIndicators",
+                    c + "monthView", c + "timeToLeave", c + "calendarsMode",
+                    "island.sound.output", "island.about.autoUpdate"]
+        for h in ["island.display.", "island.sound."] { keys += [h + "style", h + "showPercentage", h + "hideLabel"] }
+        for s in AgentSource.allCases { keys += [s.keyPrefix + "needsYouPeek", s.keyPrefix + "donePeek", s.keyPrefix + "errorPeek"] }
+        return keys
+    }()
+    static let retiredPrefixes = ["island.battery.", "island.focus.", "island.lockScreen."]
+
+    /// Real permission state for `.permission` rows. Reads only; never prompts.
+    nonisolated static func permissionGranted(_ key: String) -> Bool {
+        switch key {
+        case calendarAccess: return IslandCalendarController.authorized
+        case focusAccess: return INFocusStatusCenter.default.authorizationStatus == .authorized
+        case accessibilityDisplay, accessibilitySound: return AXIsProcessTrusted()
+        default: return false
+        }
+    }
 
     static func defs(for tab: SettingsTab) -> [SettingDef] { all.filter { $0.tab == tab } }
     static func def(_ key: String) -> SettingDef? { all.first { $0.key == key } }
 
-    /// Battery tab only on Macs with an internal battery.
-    static var hasInternalBattery: Bool {
-        guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-              let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return false }
-        return list.contains { src in
-            guard let d = IOPSGetPowerSourceDescription(info, src)?.takeUnretainedValue() as? [String: Any] else { return false }
-            return (d[kIOPSTypeKey] as? String) == kIOPSInternalBatteryType
-        }
-    }
 }
 
 // MARK: - Store
 
 @MainActor
 final class IslandSettingsStore: ObservableObject {
-    static let shared = IslandSettingsStore(defaults: .standard)
+    static let shared: IslandSettingsStore = {
+        let s = IslandSettingsStore(defaults: .standard)
+        s.dropRetiredSettings()
+        return s
+    }()
     let defaults: UserDefaults
     private(set) var tokens: IslandTokenStore
 
     init(defaults: UserDefaults, tokens: IslandTokenStore = KeychainTokenStore()) {
         self.defaults = defaults
         self.tokens = tokens
+    }
+
+    /// Removes values of retired rows (inert since they were Soon / per-agent) and maps the retired
+    /// "All displays" choice to the main display (what it already fell back to). Idempotent.
+    func dropRetiredSettings() {
+        for k in IslandSettingsSchema.retiredKeys { defaults.removeObject(forKey: k) }
+        for k in defaults.dictionaryRepresentation().keys where IslandSettingsSchema.retiredPrefixes.contains(where: { k.hasPrefix($0) }) {
+            defaults.removeObject(forKey: k)
+        }
+        if defaults.string(forKey: IslandSettingsSchema.displayOn) == "all" { defaults.set("main", forKey: IslandSettingsSchema.displayOn) }
     }
 
     func bool(_ key: String) -> Bool {
@@ -583,9 +491,10 @@ final class IslandSettingsStore: ObservableObject {
         }
         return true
     }
-    func maskedToken(_ s: AgentSource) -> String {
-        guard let t = tokens.read(source: s.rawValue), t.count >= 3 else { return "Not set" }
-        return "••••" + String(t.suffix(3))
+    /// "••••" + last 4, or nil when there is no token (the row then offers Create token).
+    func maskedToken(_ s: AgentSource) -> String? {
+        guard let t = tokens.read(source: s.rawValue), t.count >= 4 else { return nil }
+        return "••••" + String(t.suffix(4))
     }
     nonisolated static func newToken() -> String {
         var bytes = [UInt8](repeating: 0, count: 32)

@@ -54,7 +54,8 @@ def window_cells(paths: list[Path]) -> list[tuple[str, Image.Image, bool]]:
         label = p.stem
         if p.name.endswith("-light.png") and same(p, p.with_name(p.name.replace("-light.png", "-dark.png"))):
             label = p.stem.removesuffix("-light") + "  (light = dark)"
-        crop = img if not cells else img.crop((SIDEBAR_PX, 0, img.width, img.height))
+        full = not cells or img.width <= SIDEBAR_PX * 2   # first window keeps its sidebar; sidebar-only renders stay whole
+        crop = img if full else img.crop((SIDEBAR_PX, 0, img.width, img.height))
         cells.append((label, crop, False))
     return cells
 

@@ -186,7 +186,7 @@ final class IslandReviewTests: XCTestCase {
         c.frontmostAppName = { "Comet" }
         _ = post(c.hub, choice("s3"))
         XCTAssertEqual(IslandSound.played, 1, "source app frontmost → silent")
-        XCTAssertNotNil(IslandSettingsSchema.all.first { $0.key == IslandSettingsSchema.mutePromptSound && $0.wired })
+        XCTAssertNotNil(IslandSettingsSchema.all.first { $0.key == IslandSettingsSchema.mutePromptSound })
     }
 
     func testChoiceDefaultTimeoutIs15Minutes() {

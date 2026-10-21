@@ -32,16 +32,45 @@ final class IslandSettingsTests: XCTestCase {
         let keys = IslandSettingsSchema.all.map(\.key)
         XCTAssertEqual(Set(keys).count, keys.count, "unique keys")
         XCTAssertTrue(keys.allSatisfy { $0.hasPrefix("island.") })
-        // Agents section lists the four sources; Battery only with an internal battery.
-        let agents = SettingsTab.sidebar(hasBattery: false).first { $0.0 == "AI Agents" }?.1
+        // Agents section lists the four sources; About is pinned (no header), not a sidebar group.
+        let agents = SettingsTab.sidebar.first { $0.0 == "AI Agents" }?.1
         XCTAssertEqual(agents, [.samantha, .grokBot, .cursor, .codex])
-        XCTAssertFalse(SettingsTab.sidebar(hasBattery: false).flatMap(\.1).contains(.battery))
-        XCTAssertTrue(SettingsTab.sidebar(hasBattery: true).flatMap(\.1).contains(.battery))
-        // Unwired features are visibly "Soon".
-        for t in [SettingsTab.lockScreen] {
-            XCTAssertTrue(IslandSettingsSchema.defs(for: t).allSatisfy { !$0.wired }, "\(t) is Soon")
+        XCTAssertFalse(SettingsTab.sidebar.contains { $0.0 == "Samantha" }, "no Samantha header")
+        XCTAssertFalse(SettingsTab.sidebar.flatMap(\.1).contains(.about))
+        XCTAssertEqual(SettingsTab.panes.last, .about)
+        XCTAssertEqual(Set(SettingsTab.panes), Set(SettingsTab.allCases), "every pane is reachable")
+    }
+
+    /// Unbuilt (Soon) rows and per-agent durations are gone from the UI and their keys are not in the schema.
+    func testRetiredRowsAreGoneAndTheirValuesDropped() {
+        let keys = Set(IslandSettingsSchema.all.map(\.key))
+        for k in IslandSettingsSchema.retiredKeys { XCTAssertFalse(keys.contains(k), k) }
+        for p in IslandSettingsSchema.retiredPrefixes { XCTAssertFalse(keys.contains { $0.hasPrefix(p) }, p) }
+        XCTAssertEqual(IslandSettingsSchema.all.filter { $0.section == "Durations" }.map(\.tab), [.general, .general, .general],
+                       "one global Durations card")
+        let s = store()
+        defaults.set(9, forKey: "island.agent.cursor.needsYouPeek")
+        defaults.set(true, forKey: "island.lockScreen.widget.weather")
+        defaults.set(false, forKey: "island.general.launchAtLogin")
+        defaults.set("all", forKey: IslandSettingsSchema.displayOn)
+        defaults.set(5, forKey: IslandSettingsSchema.resultPeek)
+        s.dropRetiredSettings()
+        XCTAssertNil(defaults.object(forKey: "island.agent.cursor.needsYouPeek"))
+        XCTAssertNil(defaults.object(forKey: "island.lockScreen.widget.weather"))
+        XCTAssertNil(defaults.object(forKey: "island.general.launchAtLogin"))
+        XCTAssertEqual(s.string(IslandSettingsSchema.displayOn), "main", "All displays (never built) → main")
+        XCTAssertEqual(s.double(IslandSettingsSchema.resultPeek), 5, "live settings untouched")
+    }
+
+    /// At most one "i" per card; captions replace the master rows' info.
+    func testAtMostOneInfoGlyphPerCard() {
+        for t in SettingsTab.allCases {
+            for g in IslandSettingsRoot.group(IslandSettingsSchema.defs(for: t)) {
+                let n = g.rows.filter { r in r.info != nil && { if case .token = r.kind { return false }; return true }() }.count
+                XCTAssertLessThanOrEqual(n, 1, "\(t) \(g.section ?? "-")")
+            }
         }
-        XCTAssertTrue(IslandSettingsSchema.defs(for: .general).filter(\.wired).count >= 10)
+        XCTAssertEqual(IslandSettingsSchema.def(IslandSettingsSchema.fileTrayEnabled)?.caption, "Drag files onto the island to hold them here.")
     }
 
     func testDefaultsAndPersistenceRoundTrip() {
@@ -85,12 +114,12 @@ final class IslandSettingsTests: XCTestCase {
     func testTokenRotateAndMaskNeverShowsFullToken() throws {
         let mem = MemoryTokenStore()
         let s = IslandSettingsStore(defaults: defaults, tokens: mem)
-        XCTAssertEqual(s.maskedToken(.cursor), "Not set")
+        XCTAssertNil(s.maskedToken(.cursor), "no token → Create token")
         try s.rotateToken(.cursor)
         let t1 = try XCTUnwrap(mem.tokens["cursor"])
         XCTAssertGreaterThanOrEqual(t1.count, 40)
-        XCTAssertEqual(s.maskedToken(.cursor), "••••" + t1.suffix(3))
-        XCTAssertFalse(s.maskedToken(.cursor).contains(t1.prefix(8)))
+        XCTAssertEqual(s.maskedToken(.cursor), "••••" + t1.suffix(4))
+        XCTAssertFalse(s.maskedToken(.cursor)?.contains(t1.prefix(8)) ?? true)
         try s.rotateToken(.cursor)
         let t2 = try XCTUnwrap(mem.tokens["cursor"])
         XCTAssertNotEqual(t1, t2, "rotate replaces the old token")
@@ -188,7 +217,7 @@ final class IslandSettingsTests: XCTestCase {
         try s.rotateToken(.cursor)
         let tabs = SettingsTab.allCases
         for (i, t) in tabs.enumerated() {
-            let view = IslandSettingsRoot(store: s, tab: t, rendering: true, hasBattery: t == .battery)
+            let view = IslandSettingsRoot(store: s, tab: t, rendering: true)
             let r = ImageRenderer(content: view)
             r.scale = 2
             guard let img = r.cgImage else { XCTFail("render \(t)"); continue }

@@ -197,10 +197,9 @@ final class NowPlayingTests: XCTestCase {
         XCTAssertEqual(store.string(NowPlayingKeys.color), "mono")
         XCTAssertEqual(store.string(NowPlayingKeys.action), "favorite", "shuffle was cut")
         XCTAssertTrue(store.bool(NowPlayingKeys.automaticSource))
-        XCTAssertNil(SettingsTab.nowPlaying.badge, "tab no longer Soon")
-        let defs = IslandSettingsSchema.defs(for: .nowPlaying)
-        XCTAssertEqual(Set(defs.filter { !$0.wired }.map(\.key)), [NowPlayingKeys.badge, NowPlayingKeys.liveWaveform],
-                       "only the badge and live waveform stay Soon")
+        let keys = Set(IslandSettingsSchema.defs(for: .nowPlaying).map(\.key))
+        XCTAssertFalse(keys.contains("island.nowPlaying.badge") || keys.contains("island.nowPlaying.liveWaveform"),
+                       "the unbuilt badge and live waveform rows are gone")
     }
 
     // MARK: Model precedence (Duo-ready)

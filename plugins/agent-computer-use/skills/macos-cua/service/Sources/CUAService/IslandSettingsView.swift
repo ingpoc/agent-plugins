@@ -15,7 +15,9 @@ enum SettingsStyle {
     static let size = CGSize(width: 620, height: 687)
     static let sidebarWidth: CGFloat = 213
     static let rowHeight: CGFloat = 42
-    static let tokenRowHeight: CGFloat = 58
+    static let tokenRowHeight: CGFloat = 42
+    /// Card row width: window − sidebar − divider − 2 × 12 pt page padding.
+    static let rowWidth: CGFloat = size.width - sidebarWidth - 1 - 24
 }
 
 /// Keyboard focus ring for a settings control (2 pt accent, 3 pt outside the control).
@@ -50,20 +52,21 @@ struct IslandSettingsRoot: View {
     @ObservedObject var store: IslandSettingsStore
     @ObservedObject var nav: SettingsNav
     var rendering = false
-    var hasBattery = IslandSettingsSchema.hasInternalBattery
+    /// Permission state for `.permission` rows (tests inject granted / missing).
+    var permissions: (String) -> Bool = IslandSettingsSchema.permissionGranted
     /// Row source (tests inject worst-case labels).
     var defs: (SettingsTab) -> [SettingDef] = IslandSettingsSchema.defs(for:)
     var onVoiceSettings: () -> Void = {}
     var onShowLog: () -> Void = {}
 
     init(store: IslandSettingsStore, tab: SettingsTab = .general, nav: SettingsNav? = nil, rendering: Bool = false,
-         hasBattery: Bool = IslandSettingsSchema.hasInternalBattery,
+         permissions: @escaping (String) -> Bool = IslandSettingsSchema.permissionGranted,
          defs: @escaping (SettingsTab) -> [SettingDef] = IslandSettingsSchema.defs(for:),
          onVoiceSettings: @escaping () -> Void = {}, onShowLog: @escaping () -> Void = {}) {
         self.store = store
         self.nav = nav ?? SettingsNav(tab: tab)
         self.rendering = rendering
-        self.hasBattery = hasBattery
+        self.permissions = permissions
         self.defs = defs
         self.onVoiceSettings = onVoiceSettings
         self.onShowLog = onShowLog
@@ -82,6 +85,10 @@ struct IslandSettingsRoot: View {
         if key.hasSuffix("voiceSettings") { onVoiceSettings() }
         else if key == IslandSettingsSchema.calendarAccess { IslandSettingsSchema.calendarAccessAction?() }
         else if key == IslandSettingsSchema.focusAccess { IslandSettingsSchema.focusAccessAction?() }
+        else if key == IslandSettingsSchema.accessibilityDisplay || key == IslandSettingsSchema.accessibilitySound {
+            // Opens the Accessibility list in System Settings (the user adds CUAService there); no prompt API.
+            if let u = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") { NSWorkspace.shared.open(u) }
+        }
         else { onShowLog() }
     }
 
@@ -115,6 +122,7 @@ struct IslandSettingsRoot: View {
             Spacer().frame(height: rendering ? 21 : 51)
             if rendering { sidebarRows } else { ScrollView(showsIndicators: false) { sidebarRows } }
             Spacer(minLength: 0)
+            sidebarRow(SettingsTab.pinned).padding(.bottom, 12)   // About: pinned, no header
         }
         .frame(width: SettingsStyle.sidebarWidth, alignment: .topLeading)
         .frame(maxHeight: .infinity, alignment: .top)
@@ -124,7 +132,7 @@ struct IslandSettingsRoot: View {
 
     private var sidebarRows: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(IslandSettingsSchema_sidebar(hasBattery: hasBattery).enumerated()), id: \.offset) { _, group in
+            ForEach(Array(SettingsTab.sidebar.enumerated()), id: \.offset) { _, group in
                 if let title = group.0 {
                     Text(title)
                         .font(.system(size: 11, weight: .semibold))
@@ -141,10 +149,9 @@ struct IslandSettingsRoot: View {
         let selected = t == tab
         return HStack(spacing: 8) {
             IconTile(symbol: t.symbol, color: Color(nsColor: t.tint), size: 20).layoutProbe("side-icon:\(t.rawValue)", .glyph)
-            Text(t.title).font(.system(size: 13)).foregroundStyle(Color.white.opacity(t == .fileTray ? 0.45 : 0.92))
+            Text(t.title).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.92))
                 .layoutProbe("side-title:\(t.rawValue)")
             Spacer(minLength: 0)
-            if let b = t.badge { Badge(text: b).layoutProbe("side-badge:\(t.rawValue)", .glyph) }
         }
         .padding(.horizontal, 8)
         .frame(width: 200, height: 36)
@@ -165,7 +172,6 @@ struct IslandSettingsRoot: View {
             HStack(spacing: 8) {
                 IconTile(symbol: tab.symbol, color: Color(nsColor: tab.tint), size: 18).layoutProbe("pane-icon", .glyph)
                 Text(tab.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(.white).layoutProbe("pane-title")
-                if let b = tab.badge { Badge(text: b).layoutProbe("pane-badge", .glyph) }
             }
             .padding(.leading, 12).padding(.top, rendering ? 14 : 14).frame(height: 50, alignment: .leading)
             if rendering {
@@ -192,6 +198,7 @@ struct IslandSettingsRoot: View {
                         ForEach(Array(g.rows.enumerated()), id: \.element.key) { i, d in
                             if i > 0 { Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10) }
                             SettingRow(def: d, store: store, rendering: rendering, card: "c\(gi)", focused: nav.focus == d.key,
+                                       granted: { if case .permission = d.kind { return permissions(d.key) }; return false }(),
                                        onButton: { key in Self.perform(key, onVoiceSettings: onVoiceSettings, onShowLog: onShowLog) })
                         }
                     }
@@ -212,7 +219,7 @@ struct IslandSettingsRoot: View {
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
             .layoutContainer("about|version")
             Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10)
-            Text("Alcove-style island for Samantha and your AI agents. Rows marked Soon are saved now and take effect when that feature ships.")
+            Text("Alcove-style island for Samantha and your AI agents.")
                 .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutProbe("about-text", truncates: true)   // wraps by design; frame = drawn text
@@ -230,8 +237,6 @@ struct IslandSettingsRoot: View {
     }
 }
 
-/// Sidebar groups (indirection keeps the schema type free of SwiftUI).
-func IslandSettingsSchema_sidebar(hasBattery: Bool) -> [(String?, [SettingsTab])] { SettingsTab.sidebar(hasBattery: hasBattery) }
 
 struct SettingsCard<Content: View>: View {
     @ViewBuilder var content: () -> Content
@@ -253,15 +258,6 @@ struct IconTile: View {
     }
 }
 
-struct Badge: View {
-    let text: String
-    var body: some View {
-        Text(text).font(.system(size: 10, weight: .medium)).foregroundStyle(Color.white.opacity(0.55))
-            .padding(.horizontal, 6).padding(.vertical, 1)
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.3), lineWidth: 1))
-    }
-}
-
 // MARK: - Rows
 
 struct SettingRow: View {
@@ -270,6 +266,8 @@ struct SettingRow: View {
     var rendering = false
     var card = "c0"
     var focused = false
+    /// `.permission` rows: the real (or injected) macOS permission state.
+    var granted = false
     var onButton: (String) -> Void = { _ in }
 
     static func kindTag(_ k: SettingKind) -> String {
@@ -281,14 +279,30 @@ struct SettingRow: View {
         case .popup: return "popup"
         case .token: return "token"
         case .button: return "button"
+        case .permission: return "permission"
         }
     }
 
     private var key: String { def.key }
 
     var body: some View {
-        rowBody.layoutContainer("row|\(card)|\(Self.kindTag(def.kind))|\(def.key)")
+        if let c = def.caption {
+            // Captioned rows: the explanation sits under the row (11 pt, 45 %) instead of an "i".
+            VStack(alignment: .leading, spacing: 0) {
+                rowBody
+                Text(c).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .layoutProbe("caption:\(key)", truncates: true)   // wraps by design
+                    .padding(.horizontal, 12).padding(.top, -4).padding(.bottom, 12)
+            }
+            .layoutContainer("row|\(card)|captioned|\(def.key)")
+        } else {
+            rowBody.layoutContainer("row|\(card)|\(Self.kindTag(def.kind))|\(def.key)")
+        }
     }
+
+    /// Action buttons never take more than half the row; the label keeps priority and truncates.
+    static let buttonCap: CGFloat = SettingsStyle.rowWidth / 2
 
     @ViewBuilder
     private var rowBody: some View {
@@ -344,14 +358,36 @@ struct SettingRow: View {
         case .token:
             TokenRow(def: def, store: store, rendering: rendering)
         case .button(let title):
-            HStack {
-                label
-                Spacer()
+            HStack(spacing: 8) {
+                label.layoutPriority(1)
+                Spacer(minLength: 0)
                 Button(title) { onButton(def.key) }
                     .buttonStyle(PillButtonStyle())
-                    .fixedSize()
+                    .frame(width: min(Self.buttonCap, PillButtonStyle.width(title)))
                     .layoutProbe("control:\(key)", .control)
                     .modifier(SettingsFocusRing(on: focused, radius: 11, key: key))
+            }
+            .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
+        case .permission(let allow):
+            HStack(spacing: 8) {
+                label.layoutPriority(1)
+                Spacer(minLength: 0)
+                if granted {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill").font(.system(size: 13)).foregroundStyle(Color(nsColor: .systemGreen))
+                        Text("Allowed").font(.system(size: 12, weight: .medium)).foregroundStyle(Color.white.opacity(0.85))
+                    }
+                    .fixedSize()
+                    .accessibilityElement(children: .combine)
+                    .layoutProbe("control:\(key)", .control)
+                    .modifier(SettingsFocusRing(on: focused, radius: 6, key: key, hOutset: 7))
+                } else {
+                    Button(allow) { onButton(def.key) }
+                        .buttonStyle(PillButtonStyle())
+                        .frame(width: min(Self.buttonCap, PillButtonStyle.width(allow)))
+                        .layoutProbe("control:\(key)", .control)
+                        .modifier(SettingsFocusRing(on: focused, radius: 11, key: key))
+                }
             }
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
         }
@@ -362,7 +398,6 @@ struct SettingRow: View {
             Text(def.label).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.92))
                 .lineLimit(1).truncationMode(.tail).help(def.label)
                 .layoutProbe("label:\(key)", truncates: true)
-            if !def.wired { Badge(text: "Soon").fixedSize().layoutProbe("soon:\(key)", .glyph) }
         }
     }
 
@@ -459,7 +494,7 @@ struct TilePicker: View {
     var key = ""
     var focused = false
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {   // tiles stay on one line when a label wraps to two
             ForEach(options, id: \.value) { o in
                 let on = o.value == selection
                 VStack(spacing: 5) {
@@ -471,7 +506,7 @@ struct TilePicker: View {
                         .layoutProbe("tile:\(key):\(o.value)", .control)
                         .modifier(SettingsFocusRing(on: focused && on, radius: 8, key: key))
                     Text(o.label).font(.system(size: 11, weight: on ? .bold : .regular)).foregroundStyle(Color.white.opacity(on ? 0.95 : 0.55))
-                        .lineLimit(1).truncationMode(.tail).help(o.label)
+                        .lineLimit(2).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true).help(o.label)
                         .layoutProbe("tile-label:\(key):\(o.value)", truncates: true)
                 }
                 .frame(maxWidth: .infinity)
@@ -515,42 +550,62 @@ struct SettingsPopup: View {
 }
 
 struct PillButtonStyle: ButtonStyle {
+    /// Primary = the one accent-filled action of a row (Create token).
+    var primary = false
+    static let font = NSFont.systemFont(ofSize: 12, weight: .medium)
+    /// Hugging width for a title (text + 2×10 pt padding); callers cap it.
+    static func width(_ title: String) -> CGFloat {
+        ceil((title as NSString).size(withAttributes: [.font: font]).width) + 21
+    }
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 12, weight: .medium)).foregroundStyle(.white)
+        configuration.label.font(.system(size: 12, weight: .medium)).foregroundStyle(primary ? Color.black : .white)
+            .lineLimit(1).truncationMode(.tail)
             .padding(.horizontal, 10).padding(.vertical, 4)
-            .background(Capsule().fill(Color.white.opacity(configuration.isPressed ? 0.2 : 0.1)))
+            .background(Capsule().fill(primary ? SettingsStyle.accent.opacity(configuration.isPressed ? 0.8 : 1)
+                                               : Color.white.opacity(configuration.isPressed ? 0.2 : 0.1)))
     }
 }
 
-/// Keychain token: only ever shows "••••" + last 3. Rotate replaces it at once; Copy puts it on the clipboard.
+/// Keychain token. No token: one primary Create token button. Token: "••••" + last 4 in SF Mono, Copy, Rotate.
+/// The setup command is the row's tooltip; nothing about the Keychain is shown as text.
 struct TokenRow: View {
     let def: SettingDef
     @ObservedObject var store: IslandSettingsStore
     var rendering = false
     @State private var error: String?
+    @State private var copied = false
 
     private var source: AgentSource? { def.tab.agentSource }
 
     var body: some View {
-        // Token + actions on one line; the usage / status line runs the full row width underneath
-        // (it used to share the line with Copy / Rotate, wrap to two lines and run under them).
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Image(systemName: "key.fill").font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6))
-                    .frame(width: 14).layoutProbe("symbol:\(def.key)", .glyph)
-                Text(source.map { store.maskedToken($0) } ?? "–")
-                    .font(.system(size: 13, weight: .medium).monospaced()).foregroundStyle(.white)
+        let masked = source.flatMap { store.maskedToken($0) }
+        HStack(spacing: 8) {
+            Image(systemName: "key.fill").font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6))
+                .frame(width: 14).layoutProbe("symbol:\(def.key)", .glyph)
+            if let error {
+                Text(error).font(.system(size: 12)).foregroundStyle(Color(nsColor: .systemRed))
+                    .lineLimit(1).layoutProbe("token:\(def.key)", truncates: true)
+            } else if let masked {
+                Text(masked).font(.system(size: 13, weight: .medium, design: .monospaced)).foregroundStyle(.white)
                     .lineLimit(1).layoutProbe("token:\(def.key)")
-                Spacer(minLength: 8)
-                Button("Copy") { copy() }.buttonStyle(PillButtonStyle()).disabled(rendering).fixedSize().layoutProbe("copy:\(def.key)", .control)
-                Button("Rotate") { rotate() }.buttonStyle(PillButtonStyle()).disabled(rendering).fixedSize().layoutProbe("control:\(def.key)", .control)
+            } else {
+                Text("No token").font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.6))
+                    .lineLimit(1).layoutProbe("token:\(def.key)")
             }
-            Text(error ?? def.info ?? "").font(.system(size: 10)).foregroundStyle(Color.white.opacity(0.45))
-                .lineLimit(1).truncationMode(.middle).help(error ?? def.info ?? "")
-                .padding(.leading, 22)   // under the token text (14 pt key + 8 pt)
-                .layoutProbe("token-info:\(def.key)", truncates: true)
+            Spacer(minLength: 8)
+            if masked != nil {
+                Button(copied ? "Copied" : "Copy") { copy() }.buttonStyle(PillButtonStyle()).disabled(rendering).fixedSize()
+                    .layoutProbe("copy:\(def.key)", .control)
+                Button("Rotate") { rotate() }.buttonStyle(PillButtonStyle()).disabled(rendering).fixedSize()
+                    .layoutProbe("control:\(def.key)", .control)
+            } else {
+                Button("Create token") { rotate() }.buttonStyle(PillButtonStyle(primary: true)).disabled(rendering).fixedSize()
+                    .layoutProbe("control:\(def.key)", .control)
+            }
         }
-        .padding(.horizontal, 12).frame(height: SettingsStyle.tokenRowHeight)
+        .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
+        .contentShape(Rectangle())
+        .help(def.info.map { "Setup: \($0)" } ?? "")
     }
 
     private func rotate() {
@@ -559,6 +614,12 @@ struct TokenRow: View {
     }
     private func copy() {
         guard let s = source else { return }
-        error = store.copyToken(s) ? "Copied — clears from the clipboard in 60 s" : "Not set — Rotate first"
+        if store.copyToken(s) {
+            error = nil
+            copied = true   // clears from the clipboard in 60 s
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+        } else {
+            error = "No token"
+        }
     }
 }

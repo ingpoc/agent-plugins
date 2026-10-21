@@ -3,8 +3,9 @@ import SwiftUI
 import XCTest
 @testable import CUAService
 
-/// Layout gate for the Island Settings window: every pane in default, toggled and worst-case (long labels,
-/// max slider values) states plus keyboard focus on each control kind, light and dark. Fails on overlap,
+/// Layout gate for the Island Settings window (dark-only): every pane in default (no tokens, permissions
+/// missing), toggled (tokens set, permissions granted) and worst-case (long copy, max slider values) states,
+/// token and permission states, and keyboard focus on each control kind. Fails on overlap,
 /// clipping, cut-off text, 8 pt insets, and form rules (one leading / trailing column per card, 42 pt rows,
 /// label and control sharing a centre line). Tokens live in MemoryTokenStore only.
 ///
@@ -29,7 +30,7 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
         return IslandSettingsStore(defaults: UserDefaults(suiteName: s)!, tokens: MemoryTokenStore())
     }
 
-    static let panes = SettingsTab.sidebar(hasBattery: true).flatMap(\.1)
+    static let panes = SettingsTab.panes
 
     /// Every bool flipped, last tile / popup option, sliders at max, tokens set.
     private func toggled(_ s: IslandSettingsStore) {
@@ -56,31 +57,44 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
             case .tiles(let o): d.kind = .tiles(o.map { ($0.value, $0.label + " Extended", $0.symbol) })
             case .popup(let o): d.kind = .popup(o.map { ($0.value, $0.label + " (long translated name)") })
             case .button(let b): d.kind = .button(b + " in System Settings")
+            case .permission(let b): d.kind = .permission(b + " in System Settings")
             default: break
             }
+            d.caption = d.caption.map { $0 + " A second translated sentence that keeps going so the caption has to wrap." }
             return d
         }
     }
 
+    static let granted: (String) -> Bool = { _ in true }
+    static let missing: (String) -> Bool = { _ in false }
+
     func states() -> [State] {
         var out: [State] = []
         for t in Self.panes {
-            out.append(State(name: "default-\(t.rawValue)", view: IslandSettingsRoot(store: store(), tab: t, rendering: true, hasBattery: true)))
+            out.append(State(name: "default-\(t.rawValue)", view: IslandSettingsRoot(store: store(), tab: t, rendering: true, permissions: Self.missing)))
             let s = store(); toggled(s)
-            out.append(State(name: "toggled-\(t.rawValue)", view: IslandSettingsRoot(store: s, tab: t, rendering: true, hasBattery: true)))
+            out.append(State(name: "toggled-\(t.rawValue)", view: IslandSettingsRoot(store: s, tab: t, rendering: true, permissions: Self.granted)))
             let w = store(); toggled(w)
-            out.append(State(name: "worst-\(t.rawValue)", view: IslandSettingsRoot(store: w, tab: t, rendering: true, hasBattery: true, defs: Self.worstDefs)))
+            out.append(State(name: "worst-\(t.rawValue)", view: IslandSettingsRoot(store: w, tab: t, rendering: true, permissions: Self.missing, defs: Self.worstDefs)))
         }
+        // Token and permission states the renders show by name.
+        out.append(State(name: "default-grokBot-notoken", view: IslandSettingsRoot(store: store(), tab: .grokBot, rendering: true)))
+        let tk = store(); try? tk.rotateToken(.grokBot)
+        out.append(State(name: "default-grokBot-token", view: IslandSettingsRoot(store: tk, tab: .grokBot, rendering: true)))
+        out.append(State(name: "calendar-granted", view: IslandSettingsRoot(store: store(), tab: .calendar, rendering: true, permissions: Self.granted)))
+        out.append(State(name: "calendar-missing", view: IslandSettingsRoot(store: store(), tab: .calendar, rendering: true, permissions: Self.missing)))
         let focus: [(String, SettingsTab, String)] = [
             ("toggle", .general, IslandSettingsSchema.showIsland),
             ("popup", .general, IslandSettingsSchema.displayOn),
             ("tiles", .general, IslandSettingsSchema.idleActivity),
             ("slider", .general, IslandSettingsSchema.resultPeek),
             ("master", .sound, IslandSettingsSchema.soundEnabled),
-            ("button", .calendar, IslandSettingsSchema.calendarAccess),
+            ("permission", .calendar, IslandSettingsSchema.calendarAccess),
+            ("button", .samantha, "island.agent.samantha.voiceSettings"),
         ]
         for (n, t, k) in focus {
-            out.append(State(name: "focus-\(n)", view: IslandSettingsRoot(store: store(), nav: SettingsNav(tab: t, focus: k), rendering: true, hasBattery: true)))
+            out.append(State(name: "focus-\(n)", view: IslandSettingsRoot(store: store(), nav: SettingsNav(tab: t, focus: k), rendering: true,
+                                                                         permissions: Self.missing)))
         }
         return out
     }
@@ -98,7 +112,7 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
         let states = states()
         var issues: [String] = [], checked: [String] = []
         for st in states {
-            for (tag, scheme) in [("light", ColorScheme.light), ("dark", ColorScheme.dark)] {
+            for (tag, scheme) in [("dark", ColorScheme.dark)] {   // the window is dark-only
                 let (items, containers, _) = measure(st.view, scheme: scheme)
                 let name = "settings-\(st.name)-\(tag)"
                 let rows = containers.keys.filter { $0.hasPrefix("row|") }.count
@@ -114,24 +128,60 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
             try (["# Settings layout gate", "states checked: \(checked.count)", ""] + checked + ["", "issues: \(issues.count)"] + issues)
                 .joined(separator: "\n").appending("\n").write(toFile: path, atomically: true, encoding: .utf8)
         }
-        XCTAssertEqual(checked.count, states.count * 2)
-        XCTAssertGreaterThanOrEqual(states.count, Self.panes.count * 3 + 6)
+        XCTAssertEqual(checked.count, states.count)
+        XCTAssertGreaterThanOrEqual(states.count, Self.panes.count * 3 + 11)
         XCTAssertTrue(issues.isEmpty, "settings layout gate (\(issues.count)):\n" + issues.prefix(60).joined(separator: "\n"))
     }
 
+    /// Dark-only review renders (the window is dark-only): the states the UX review asked for, plus the sidebar.
     func testRenderSettings() throws {
         guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_RENDER_DIR"] else { throw XCTSkip("set CUA_ISLAND_RENDER_DIR to render") }
         IslandLayoutRecorder.enabled = false
-        for st in states() {
-            for (tag, scheme) in [("light", ColorScheme.light), ("dark", ColorScheme.dark)] {
-                let r = ImageRenderer(content: st.view.environment(\.colorScheme, scheme))
-                r.scale = 2
-                guard let img = r.cgImage else { XCTFail("render \(st.name)"); continue }
-                let url = URL(fileURLWithPath: dir).appendingPathComponent("settings-\(st.name)-\(tag).png")
-                XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "never overwrite \(url.lastPathComponent)")
-                try NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: url)
+        let wanted: Set<String> = ["default-general", "default-interaction", "default-grokBot-notoken", "default-grokBot-token",
+                                   "calendar-granted", "calendar-missing", "default-fileTray", "worst-samantha"]
+        func save(_ img: CGImage, _ name: String) throws {
+            let url = URL(fileURLWithPath: dir).appendingPathComponent("settings-\(name)-dark.png")
+            XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "never overwrite \(url.lastPathComponent)")
+            try NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: url)
+        }
+        var rendered = Set<String>()
+        for st in states() where wanted.contains(st.name) {
+            let r = ImageRenderer(content: st.view.environment(\.colorScheme, .dark))
+            r.scale = 2
+            guard let img = r.cgImage else { XCTFail("render \(st.name)"); continue }
+            try save(img, st.name)
+            rendered.insert(st.name)
+            if st.name == "default-general", let side = img.cropping(to: CGRect(x: 0, y: 0, width: Int((SettingsStyle.sidebarWidth + 1) * 2), height: img.height)) {
+                try save(side, "sidebar")
             }
         }
+        XCTAssertEqual(rendered, wanted)
+    }
+
+    /// Item 9: General must fit one screen (~800 pt of content). Measures General with and without the
+    /// Behaviour + Gestures sections (now the Interaction pane).
+    func testGeneralFitsOneScreen() throws {
+        IslandLayoutRecorder.enabled = false
+        func height(_ defs: @escaping (SettingsTab) -> [SettingDef]) -> CGFloat {
+            let r = ImageRenderer(content: IslandSettingsRoot(store: store(), tab: .general, rendering: true, defs: defs))
+            r.scale = 1
+            r.proposedSize = ProposedViewSize(width: SettingsStyle.size.width, height: nil)
+            return CGFloat(r.cgImage?.height ?? 0)
+        }
+        func content(_ defs: @escaping (SettingsTab) -> [SettingDef]) -> CGFloat {
+            // Window height is max(content, 687); measure content alone by stretching the defs list.
+            height(defs)
+        }
+        let now = content(IslandSettingsSchema.defs(for:))
+        let merged = content { t in t == .general
+            ? IslandSettingsSchema.general + IslandSettingsSchema.interaction.map { var d = $0; d.tab = .general; return d }
+            : IslandSettingsSchema.defs(for: t) }
+        if let path = ProcessInfo.processInfo.environment["CUA_SETTINGS_GATE_REPORT"] {
+            try "General height: \(Int(merged)) pt with Behaviour + Gestures, \(Int(now)) pt after moving them to Interaction\n"
+                .write(toFile: path + ".general-height.txt", atomically: true, encoding: .utf8)
+        }
+        XCTAssertGreaterThan(merged, 800, "the split is warranted")
+        XCTAssertLessThanOrEqual(now, 800, "General fits one screen")
     }
 
     // MARK: Keyboard model
@@ -161,12 +211,15 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
         _ = press(.increase); XCTAssertEqual(s.string(IslandSettingsSchema.idleActivity), "duo")
         _ = press(.activate); XCTAssertEqual(s.string(IslandSettingsSchema.idleActivity), "none", "Space cycles")
         nav.focus = IslandSettingsSchema.displayOn
-        _ = press(.activate); XCTAssertEqual(s.string(IslandSettingsSchema.displayOn), "all")
+        _ = press(.activate); XCTAssertEqual(s.string(IslandSettingsSchema.displayOn), "builtIn")
         XCTAssertTrue(press(.escape).0); XCTAssertNil(nav.focus)
         XCTAssertFalse(press(.escape).0, "Esc passes through when nothing is focused")
-        _ = press(.nextPane); XCTAssertEqual(nav.tab, Self.panes[1]); XCTAssertNil(nav.focus)
+        _ = press(.nextPane); XCTAssertEqual(nav.tab, .interaction); XCTAssertNil(nav.focus)
         nav.tab = .calendar; nav.focus = IslandSettingsSchema.calendarAccess
-        XCTAssertEqual(press(.activate).1, IslandSettingsSchema.calendarAccess, "button rows run their action")
+        XCTAssertEqual(press(.activate).1, IslandSettingsSchema.calendarAccess, "missing permission: Allow… runs")
+        let granted = SettingsKeyboard.handle(.activate, nav: nav, store: s, defs: IslandSettingsRoot.visibleDefs(.calendar, store: s),
+                                              panes: Self.panes, permissions: { _ in true })
+        XCTAssertEqual(granted.handled, true); XCTAssertNil(granted.action, "allowed: nothing to request")
     }
 
     func testKeyboardSkipsTokenRowsAndMapsKeys() {

@@ -30,7 +30,7 @@ enum SettingsKeyboard {
     /// Applies one key. `handled` = consume the event; `action` = button row key whose action should run.
     @discardableResult
     static func handle(_ k: SettingsKey, nav: SettingsNav, store: IslandSettingsStore, defs: [SettingDef],
-                       panes: [SettingsTab]) -> (handled: Bool, action: String?) {
+                       panes: [SettingsTab], permissions: (String) -> Bool = { _ in false }) -> (handled: Bool, action: String?) {
         let f = focusable(defs)
         let i = nav.focus.flatMap { key in f.firstIndex { $0.key == key } }
         switch k {
@@ -64,6 +64,9 @@ enum SettingsKeyboard {
                 store.set(cycle(o.map(\.value), store.string(d.key), k), for: d.key)
             case .button:
                 return (true, k == .activate ? d.key : nil)
+            case .permission:
+                // Already allowed: nothing to ask for (the row shows "Allowed", not a button).
+                return (true, k == .activate && !permissions(d.key) ? d.key : nil)
             case .token:
                 return (false, nil)
             }

@@ -294,10 +294,10 @@ final class IslandController {
         model.onTrayChange = { [weak self] items in self?.saveTray(items) }
         calendar.onChange = { [weak self] events in self?.model.setCalendar(events) }
         IslandSettingsSchema.calendarAccessAction = { [weak self] in
-            self?.calendar.requestAccess { _ in }
+            self?.calendar.requestAccess { _ in IslandSettingsWindowController.shared.nav.objectWillChange.send() }
         }
         IslandSettingsSchema.focusAccessAction = { [weak self] in
-            self?.focus.requestAccess { _ in }
+            self?.focus.requestAccess { _ in IslandSettingsWindowController.shared.nav.objectWillChange.send() }
         }
         hotKey.onPress = { [weak self] in self?.model.hotKeyPressed() }
         model.onAnnounce = { text in

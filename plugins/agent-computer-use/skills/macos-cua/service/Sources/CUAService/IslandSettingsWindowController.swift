@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// Island Settings (Alcove replica). Opened only from a user action (status menu ⌘, or the
@@ -10,6 +11,12 @@ final class IslandSettingsWindowController: NSWindowController {
     var onVoiceSettings: () -> Void = {}
     let nav = SettingsNav()
     private var keyMonitor: Any?
+    private var watchers: [AnyCancellable] = []
+
+    /// A token (even masked) is on screen: keep the window out of screen captures and shares.
+    static func showsToken(tab: SettingsTab, store: IslandSettingsStore) -> Bool {
+        tab.agentSource.map { store.maskedToken($0) != nil } ?? false
+    }
 
     private init() {
         let window = NSWindow(
@@ -33,6 +40,19 @@ final class IslandSettingsWindowController: NSWindowController {
             onShowLog: { IslandSettingsWindowController.revealLog() }
         ))
         window.setContentSize(SettingsStyle.size)
+        // Capture privacy follows the visible pane / token (after the change lands, hence the async hop).
+        let update: () -> Void = { [weak self] in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.window?.sharingType = Self.showsToken(tab: self.nav.tab, store: .shared) ? .none : .readOnly
+            }
+        }
+        watchers = [nav.objectWillChange.sink { _ in update() }, IslandSettingsStore.shared.objectWillChange.sink { _ in update() }]
+        update()
+        // Permission rows read the real state; re-read whenever the window comes forward.
+        NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.nav.objectWillChange.send() }
+        }
         // Keyboard model for this window only (SettingsKeyboard); other windows' keys pass through.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
             let code = e.keyCode, flags = e.modifierFlags, windowNumber = e.windowNumber
@@ -42,7 +62,8 @@ final class IslandSettingsWindowController: NSWindowController {
                 let store = IslandSettingsStore.shared
                 let r = SettingsKeyboard.handle(k, nav: self.nav, store: store,
                                                 defs: IslandSettingsRoot.visibleDefs(self.nav.tab, store: store),
-                                                panes: SettingsTab.sidebar(hasBattery: IslandSettingsSchema.hasInternalBattery).flatMap(\.1))
+                                                panes: SettingsTab.panes,
+                                                permissions: IslandSettingsSchema.permissionGranted)
                 if let key = r.action {
                     IslandSettingsRoot.perform(key, onVoiceSettings: { [weak self] in self?.onVoiceSettings() },
                                                onShowLog: { IslandSettingsWindowController.revealLog() })
