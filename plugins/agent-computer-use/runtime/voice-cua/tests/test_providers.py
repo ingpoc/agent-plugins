@@ -112,6 +112,7 @@ def _live(**kw) -> tuple[LiveProvider, list[dict]]:
     sent: list[dict] = []
     p = LiveProvider(**kw)
     p.bind(lambda e: sent.append(e) or True)
+    p._ready = True  # past session.started (held-until-started is covered in test_live_transcripts)
     return p, sent
 
 
@@ -240,6 +241,7 @@ class LiveTests(_Rows):
         p, _ = _live()
         p.inbound(_fc("d8", "c8"))
         p.reset()  # reconnect: the new Live session has no such call
+        p._ready = True
         self.assertEqual(p.outbound({"type": "conversation.item.create", "item": {"type": "function_call", "call_id": "c8"}}), [])
         (note,) = p.outbound({"type": "conversation.item.create", "item": {
             "type": "function_call_output", "call_id": "c8", "output": json.dumps({"ok": True, "opened": "Notes"})}})
@@ -309,6 +311,7 @@ class LiveSessionLoopTests(_Rows):
     def test_risky_backend_call_is_gated_and_loads_confirm(self) -> None:
         s = live_session()
         s._send(build_session_update(text_only=True))
+        s.provider._ready = True
         done: list[int] = []
         risky = json.dumps({"app": "Mail", "op": "click", "label": "Send"})
         with patch("voice_cua.realtime_session.island_publish"), \

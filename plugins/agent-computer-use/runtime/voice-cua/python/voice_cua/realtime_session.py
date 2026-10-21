@@ -44,6 +44,18 @@ REALTIME_VOICE = os.environ.get("VOICE_CUA_REALTIME_VOICE", "alloy")
 REALTIME_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
 
 
+def _has_sound(b64: str, floor: int = 600) -> bool:
+    """True when a base64 PCM16 chunk is louder than the gate floor (wake from idle)."""
+    import array
+    import base64 as _b64
+
+    try:
+        samples = array.array("h", _b64.b64decode(b64))
+    except (ValueError, TypeError):
+        return False
+    return any(abs(x) >= floor for x in samples[::8])
+
+
 def _normalize_reply(text: str) -> str:
     """Collapse duplicated Realtime transcript chunks (e.g. 'pong pong' → 'pong')."""
     words = text.split()
@@ -196,6 +208,8 @@ class RealtimeSession:
     REALTIME_PING_TIMEOUT = 15
     # Server enforces a 60-minute WS cap — plan a proactive reconnect at 55 min.
     PLANNED_RECONNECT_SECONDS = 3300.0
+    # GPT-Live bills per second: close after this long with no speech, playback or work.
+    LIVE_IDLE_CLOSE_SECONDS = float(os.environ.get("VOICE_CUA_LIVE_IDLE_CLOSE_S", "180"))
     PLANNED_RECONNECT_RETRY_SECONDS = 60.0
     # Reconnect backoff: full jitter, delay ~ U(0, min(cap, base * factor**(n-1)))
     # for consecutive attempt n. The counter only resets once a connection has
@@ -237,6 +251,10 @@ class RealtimeSession:
         self._audio: RealtimeAudio | None = None
         self._stop = threading.Event()
         self._session_ready = threading.Event()
+        self._dormant = threading.Event()
+        self._wake = threading.Event()
+        self._last_activity = time.monotonic()
+        self._restart_pending = False
         # Phase 1 reliability state.
         self._comet_active = False
         self._speaking_response_ids: set[str] = set()
@@ -320,6 +338,9 @@ class RealtimeSession:
     def run(self) -> None:
         """Resilient top-level loop: connect, retry with backoff until stopped or out of attempts."""
         self._schedule_planned_reconnect()
+        if getattr(self.provider, "manages_barge_in", False) and not getattr(self, "_watchdog_started", False):
+            self._watchdog_started = True
+            threading.Thread(target=self._idle_watchdog, name="live-idle", daemon=True).start()
         self._reconnect_gave_up = False
         self._access_refused = ""
         self._reconnect_attempts = 0  # a fresh run() always gets the full budget
@@ -333,6 +354,19 @@ class RealtimeSession:
                 log_event("reconnect_attempt_failed", error=str(exc)[:120])
             if self._stop.is_set():
                 break
+            self._restart_pending = False
+            if self._dormant.is_set():
+                # Idle close (Managing sessions > Close idle sessions and resume): no billable
+                # session while nobody talks; speech or a typed turn wakes a fork/seeded session.
+                self._prepare_reconnect()
+                island_publish("idle", title="Resting", detail="Speak to resume")
+                while not self._stop.is_set() and not self._wake.wait(timeout=0.5):
+                    pass
+                self._wake.clear()
+                self._dormant.clear()
+                self._reconnect_attempts = 0
+                log_event("live_wake")
+                continue
             if self._access_refused and not self._connected_at:
                 self._refuse_access()
                 break
@@ -480,6 +514,12 @@ class RealtimeSession:
 
     def _send(self, event: dict[str, Any]) -> bool:
         """Send one loop (Realtime-dialect) event through the provider adapter."""
+        if self._dormant.is_set():
+            et = event.get("type")
+            if et != "input_audio_buffer.append" or _has_sound(str(event.get("audio") or "")):
+                self._wake.set()
+        elif event.get("type") != "input_audio_buffer.append":
+            self._last_activity = time.monotonic()
         ok = True
         for wire in self.provider.outbound(event):
             ok = self._send_wire(wire) and ok
@@ -537,6 +577,7 @@ class RealtimeSession:
         self._audio = RealtimeAudio(
             self._send,
             meter=lambda side, level, bars: island_voice_meter(side, level, bars),
+            continuous=bool(getattr(self.provider, "manages_barge_in", False)),
         )
         try:
             self._audio.start()
@@ -642,8 +683,14 @@ class RealtimeSession:
             return
         if not isinstance(event, dict):
             return
+        if event.get("type") not in {"session.usage.updated"}:
+            self._last_activity = time.monotonic()
         for loop_event in self.provider.inbound(event):
             self._dispatch_event(loop_event)
+        restart = getattr(self.provider, "restart_requested", "")
+        if restart and not getattr(self, "_restart_pending", False):
+            self._restart_pending = True
+            self._request_reconnect(reason=restart)
 
     def _dispatch_event(self, event: dict[str, Any]) -> None:
         et = event.get("type")
@@ -785,6 +832,11 @@ class RealtimeSession:
         if not audio.has_playback():
             return
         audio_end_ms, item_id = audio.interrupt()
+        if getattr(getattr(self, "provider", None), "manages_barge_in", False):
+            # GPT-Live: the server stops speaking on its own and backend work keeps running
+            # (Managing sessions / Delegation docs); only the local player is flushed.
+            log_event("barge_in_local", audio_end_ms=audio_end_ms, provider=self.provider.name)
+            return
         with self._response_lock:
             active = self._current_response_id
             response_active = active in self._active_response_ids
@@ -1146,6 +1198,40 @@ class RealtimeSession:
         island_publish("reconnecting", title="Reconnecting", detail="")
         print("Realtime closed", flush=True)
 
+    def _idle_watchdog(self) -> None:
+        """Close a GPT-Live session after LIVE_IDLE_CLOSE_SECONDS without speech or work."""
+        while not self._stop.wait(timeout=5.0):
+            if not getattr(self.provider, "manages_barge_in", False) or self.LIVE_IDLE_CLOSE_SECONDS <= 0:
+                continue
+            if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
+                continue
+            with self._response_condition:
+                busy = bool(self._active_response_ids)
+            busy = busy or bool(self._pending_calls or self._inflight_tools)
+            busy = busy or bool(self._audio and self._audio.has_playback())
+            if busy or time.monotonic() - self._last_activity < self.LIVE_IDLE_CLOSE_SECONDS:
+                continue
+            log_event("live_idle_close", idle_s=round(time.monotonic() - self._last_activity, 1))
+            self._dormant.set()
+            self._session_ready.clear()
+            self._finalize_provider(timeout=3.0)
+            ws = self.ws
+            try:
+                if ws is not None:
+                    ws.close()
+            except Exception:  # noqa: BLE001 — close is best effort
+                pass
+
+    def set_input_muted(self, muted: bool) -> bool:
+        """Mic mute: local capture pause plus, on GPT-Live, session.input_audio.mute/unmute."""
+        if self._audio is not None:
+            (self._audio.pause_input if muted else self._audio.resume_input)()
+        event = self.provider.mute_event(muted) if hasattr(self.provider, "mute_event") else None
+        if event:
+            self._send_wire(event)
+        log_event("input_muted" if muted else "input_unmuted", provider=self.provider.name)
+        return True
+
     def _finalize_provider(self, *, timeout: float) -> None:
         """GPT-Live: session.close → session.closed before the socket goes (final usage)."""
         ws = self.ws
@@ -1331,6 +1417,8 @@ class RealtimeSession:
             log_event("island_control", action=action, cancelled=bool(response_active))
             island_publish("listening", title="Listening", detail="")
             return True
+        if action in ("mute", "unmute"):
+            return self.set_input_muted(action == "mute")
         if action == "retry":
             last = getattr(self, "_last_user_text", "")
             if not last:

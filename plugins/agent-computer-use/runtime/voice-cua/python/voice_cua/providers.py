@@ -42,15 +42,29 @@ DEFAULT_BULK = "gpt-6-luna"
 DEFAULT_INTELLIGENCE = "gpt-6.1-sol"
 MAX_STEP_TRIES = 2
 ESCALATE_TOOL = "use_intelligence"
+HISTORY_MAX = 24          # seeded restart: recent utterances (docs cap: 128 msgs / 8,192 tokens)
+PENDING_AUDIO_MAX = 150   # ~3 s of 20 ms chunks buffered until session.started
 LIVE_APPEND_MAX_CHARS = 1800  # session.*.append content is capped at 500 tokens
 XAI_VOICES = ("eve", "ara", "leo", "rex", "sal")
 XAI_DEFAULT_VOICE = "eve"
 
+# Live prompt = conversation only (Migrate to GPT-Live: identity, speaking style, backchannel and
+# interruption policy, plus what the backend can do in plain language). Tool names, workflows and
+# safety rules stay in the backend prompt (SYSTEM_INSTRUCTIONS) with the tool definitions.
 LIVE_INSTRUCTIONS = (
-    "You are Samantha, a warm, concise voice assistant that operates this Mac. "
-    "Delegate every request that needs the computer, an app, the browser or a credential "
-    "to the backend; never claim an action happened until the backend reports it. "
-    "When the backend asks for confirmation of a risky action, ask the user plainly and wait."
+    "Identity: You are Samantha, a warm, concise voice assistant that operates this Mac for the user.\n"
+    "Style: Speak English unless the user clearly speaks a full sentence in another language. One or two "
+    "short sentences. Say what was done, not what could be done. Never end with offers like 'anything else?'.\n"
+    "Backchannel policy: Brief acknowledgments only ('On it.'). Greetings, small talk and 'can you hear me' "
+    "get a short spoken reply and no delegation.\n"
+    "Interruption policy: Stop speaking when interrupted and listen. If the user changes or cancels the "
+    "request, delegate the change; never say work was cancelled until the backend confirms it.\n"
+    "Backend: it can open and drive any Mac app (Calculator, Finder, TextEdit, Music, Calendar, Settings), "
+    "open and read websites in the Comet browser, and look up saved credentials without revealing them. "
+    "Delegate every request that needs the computer, an app, a website or a credential. Never claim an "
+    "action happened until the backend reports it. Unclear or partial speech: ask one short question "
+    "instead of delegating a guess. When the backend asks to confirm a risky action (send, buy, delete, "
+    "pay, overwrite), ask the user plainly and wait for a clear yes."
 )
 
 ROUTING_INSTRUCTIONS = (
@@ -199,30 +213,41 @@ class LiveProvider(VoiceProvider):
     """GPT-Live-1 with Responses delegation and a Bulk → Intelligence router."""
 
     name = "openai-live"
+    manages_barge_in = True  # no response.cancel / truncate: Live owns turn-taking
 
     def __init__(self, model: str = LIVE_MODEL, *, bulk: str | None = None, intelligence: str | None = None,
-                 voice: str = "marin", send_raw: Callable[[dict[str, Any]], bool] | None = None) -> None:
+                 voice: str = "marin", store: bool = True, send_raw: Callable[[dict[str, Any]], bool] | None = None) -> None:
         super().__init__(model, send_raw=send_raw)
         self.bulk = bulk if bulk in BACKEND_MODELS else DEFAULT_BULK
         self.intelligence = intelligence if intelligence in BACKEND_MODELS else DEFAULT_INTELLIGENCE
         self.voice = voice
         self._lock = threading.Lock()
         self.closed = threading.Event()
+        self.store = store
+        self.source_session_id = ""   # last session that reached session.started (fork source)
+        self.fork_failed = False      # a fork attempt failed at startup: next connect starts fresh
+        self.restart_requested = ""   # set when the loop should drop this socket and reconnect
+        self.history: list[tuple[str, str]] = []  # (role, text) utterances for seeded restarts
+        self._seq = 0
         self.heard = TranscriptBurst(self._on_heard)
         self.said = TranscriptBurst(self._on_said)
         self.reset()
 
-    @staticmethod
-    def _on_heard(text: str) -> None:
+    def _remember(self, role: str, text: str) -> None:
+        self.history.append((role, text[:600]))
+        del self.history[:-HISTORY_MAX]
+
+    def _on_heard(self, text: str) -> None:
         from voice_cua.island_facade import island_publish
 
+        self._remember("user", text)
         # Words go to voice.log only; the activity log keeps metadata (as on Realtime).
         log_event("user_transcript", chars=len(text), provider="openai-live")
         print(f"You: {text}", flush=True)
         island_publish("thinking", title=text[:120], detail="Thinking")
 
-    @staticmethod
-    def _on_said(text: str) -> None:
+    def _on_said(self, text: str) -> None:
+        self._remember("assistant", text)
         log_event("assistant_reply", text=text[:240], source="live_voice")
         print(f"Samantha: {text}", flush=True)
 
@@ -230,6 +255,12 @@ class LiveProvider(VoiceProvider):
     def reset(self) -> None:
         with getattr(self, "_lock", threading.Lock()):
             self._started = False
+            self._ready = False           # session.started seen on this connection
+            self._forking = bool(self.store and getattr(self, "source_session_id", "")
+                                 and not getattr(self, "fork_failed", False))
+            self._pending_audio: list[str] = []
+            self._pending_wire: list[dict[str, Any]] = []
+            self.restart_requested = ""
             self.tier = "bulk"
             self._escalated: set[str] = set()  # delegation ids already escalated
             self._call_delegation: dict[str, str] = {}
@@ -248,7 +279,24 @@ class LiveProvider(VoiceProvider):
             self._last_out = 0.0
 
     def url(self) -> str:
+        # Managing sessions > Store and fork: a WebSocket fork continues the stored conversation.
+        if self._forking:
+            return f"wss://api.openai.com/v1/live/sessions/{self.source_session_id}/fork"
         return "wss://api.openai.com/v1/live/sessions"
+
+    def event_id(self, kind: str) -> str:
+        with self._lock:
+            self._seq += 1
+            return f"voice_{kind}_{self._seq}"
+
+    @property
+    def forked(self) -> bool:
+        return self._forking
+
+    def mute_event(self, muted: bool) -> dict[str, Any]:
+        """Managing sessions > Control microphone input (acknowledged by muted/unmuted)."""
+        kind = "mute" if muted else "unmute"
+        return {"type": f"session.input_audio.{kind}", "event_id": self.event_id(kind)}
 
     def finalize(self, send: Callable[[dict[str, Any]], bool], timeout: float) -> None:
         """Docs: send session.close and keep receiving until session.closed (final usage)."""
@@ -291,7 +339,14 @@ class LiveProvider(VoiceProvider):
         from voice_cua import SYSTEM_INSTRUCTIONS
 
         rate = (((session.get("audio") or {}).get("input") or {}).get("format") or {}).get("rate", 24000)
-        return {"type": "session.start", "session": {
+        if self._forking:
+            # Fork startup accepts only store, Responses delegation settings and audio.format;
+            # model, voice, instructions and input are inherited from the source.
+            return {"type": "session.start", "event_id": self.event_id("start"), "session": {
+                "store": self.store,
+                "audio": {"format": {"type": "audio/pcm", "rate": rate}},
+            }}
+        start: dict[str, Any] = {"type": "session.start", "event_id": self.event_id("start"), "session": {
             "model": self.model,
             "instructions": LIVE_INSTRUCTIONS,
             "audio": {"format": {"type": "audio/pcm", "rate": rate}, "output": {"voice": self.voice}},
@@ -303,11 +358,35 @@ class LiveProvider(VoiceProvider):
                 "parallel_tool_calls": False,
             }},
         }}
+        start["session"]["store"] = self.store
+        seeded = self.seed_input()
+        if seeded:
+            start["session"]["input"] = seeded
+        return start
+
+    def seed_input(self) -> list[dict[str, Any]]:
+        """Managing sessions > Seed a session: prior text turns when no fork is possible."""
+        out = []
+        for role, text in self.history[-HISTORY_MAX:]:
+            part = "input_text" if role == "user" else "output_text"
+            out.append({"type": "message", "role": role, "content": [{"type": part, "text": text}]})
+        return out
 
     def _set_model_event(self, model: str) -> dict[str, Any]:
         return {"type": "session.update", "session": {"delegation": {"responses": {"model": model}}}}
 
     def outbound(self, event: dict[str, Any]) -> list[dict[str, Any]]:
+        wires = self._outbound(event)
+        with self._lock:
+            if self._ready:
+                return wires
+            # Connections: nothing but session.start before session.started; hold the rest.
+            now = [w for w in wires if w.get("type") == "session.start"]
+            self._pending_wire.extend(w for w in wires if w.get("type") != "session.start")
+            del self._pending_wire[:-64]
+        return now
+
+    def _outbound(self, event: dict[str, Any]) -> list[dict[str, Any]]:
         et = event.get("type")
         if et == "session.update":
             session = event.get("session") or {}
@@ -321,7 +400,15 @@ class LiveProvider(VoiceProvider):
                     "tools": self._backend_tools(list(session.get("tools") or []))}}}}]
             return []
         if et == "input_audio_buffer.append":
-            return [{"type": "session.input_audio.append", "audio": event.get("audio") or ""}]
+            wire = {"type": "session.input_audio.append", "audio": event.get("audio") or ""}
+            with self._lock:
+                if not self._ready:
+                    # Connections: wait for session.started before sending audio. Keep the
+                    # opening speech (wake from idle) and deliver it once the session is ready.
+                    self._pending_audio.append(wire["audio"])
+                    del self._pending_audio[:-PENDING_AUDIO_MAX]
+                    return []
+            return [wire]
         if et in {"input_audio_buffer.clear", "input_audio_buffer.commit", "response.cancel",
                   "conversation.item.truncate", "conversation.item.delete"}:
             return []  # GPT-Live manages turns, barge-in and truncation itself
@@ -335,8 +422,10 @@ class LiveProvider(VoiceProvider):
             if itype == "message":
                 text = " ".join(str(c.get("text") or "") for c in item.get("content") or [] if isinstance(c, dict))
                 if item.get("role") == "system":
-                    return [{"type": "session.instructions.append", "content": text[:LIVE_APPEND_MAX_CHARS],
-                             "delegation_id": None}]
+                    if self._forking and text.startswith("The realtime connection was re-established"):
+                        return []  # a fork keeps the conversation: no 'earlier turns are gone' note
+                    return [{"type": "session.instructions.append", "event_id": self.event_id("instructions"),
+                             "content": text[:LIVE_APPEND_MAX_CHARS], "delegation_id": None}]
                 return [{"type": "response.item.create", "item": {
                     "type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}}]
             return []
@@ -413,8 +502,28 @@ class LiveProvider(VoiceProvider):
     def inbound(self, event: dict[str, Any]) -> list[dict[str, Any]]:
         et = event.get("type")
         if et == "session.started":
-            log_event("live_session_started", live_model=self.model, bulk=self.bulk, intelligence=self.intelligence)
-            return [{"type": "session.updated", "session": event.get("session") or {}}]
+            session = event.get("session") or {}
+            with self._lock:
+                self._ready = True
+                pending, self._pending_audio = self._pending_audio, []
+                held, self._pending_wire = self._pending_wire, []
+                if session.get("id"):
+                    self.source_session_id = str(session["id"])
+                self.fork_failed = False
+            log_event("live_session_started", live_model=self.model, bulk=self.bulk, intelligence=self.intelligence,
+                      forked=self._forking or None, store=bool(session.get("store")) or None,
+                      buffered_chunks=len(pending) or None)
+            for wire in held:
+                self._send_raw(wire)
+            for chunk in pending:
+                self._send_raw({"type": "session.input_audio.append", "audio": chunk})
+            return [{"type": "session.updated", "session": session}]
+        if et in {"session.input_audio.muted", "session.input_audio.unmuted"}:
+            log_event("live_input_audio", state=et.rsplit(".", 1)[-1],
+                      client_event_id=str(event.get("client_event_id") or "") or None)
+            return []
+        if et in {"session.instructions.appended", "session.thinking.appended", "session.commentary.appended"}:
+            return []
         if et == "session.updated":
             return [{"type": "session.updated", "session": event.get("session") or {}}]
         if et == "session.output_audio.delta":
@@ -443,6 +552,10 @@ class LiveProvider(VoiceProvider):
                       final=et == "session.closed", reason=str(event.get("reason") or "") or None)
             if et == "session.closed":
                 self.closed.set()
+                reason = str(event.get("reason") or "")
+                if reason in {"expired", "content", "connection_lost", "remote_hangup"} and not self.restart_requested:
+                    with self._lock:
+                        self.restart_requested = f"live_closed_{reason}"
             return []
         if et == "session.delegation.created":
             delegation = str((event.get("delegation") or {}).get("id") or event.get("delegation_id") or "")
@@ -454,8 +567,39 @@ class LiveProvider(VoiceProvider):
         if et == "response.event":
             return self._backend_event(str(event.get("delegation_id") or ""), event.get("event") or {})
         if et == "error":
-            return [event]
+            return self._error(event)
         return []
+
+    def _error(self, event: dict[str, Any]) -> list[dict[str, Any]]:
+        """Managing sessions > Handle errors: startup vs running session, rejected commands, moderation."""
+        err = event.get("error") or {}
+        code = str(err.get("code") or "")
+        param = str(err.get("param") or "")
+        client_event_id = str(err.get("client_event_id") or "")
+        with self._lock:
+            started = self._ready
+            forking = self._forking
+        phase = "running" if started else "startup"
+        log_event("live_error", phase=phase, code=code or None, param=param or None,
+                  client_event_id=client_event_id or None, error_type=str(err.get("type") or "") or None,
+                  message=str(err.get("message") or "")[:160] or None, forked=forking or None)
+        if not started and forking:
+            # The stored source could not be forked (storage off, ZDR, not finalized): start a
+            # fresh session seeded with saved text history instead.
+            with self._lock:
+                self.fork_failed = True
+                self.restart_requested = "live_fork_failed"
+            return []
+        if not started and self.store and (param == "session.store" or "store" in str(err.get("message") or "").lower()):
+            # Docs: storage must be enabled for the project and is off under ZDR. Fall back to an
+            # unstored session (no fork on reconnect; seeded history instead).
+            with self._lock:
+                self.store = False
+                self.restart_requested = "live_store_unavailable"
+            return []
+        if started and client_event_id.startswith(("voice_instructions", "voice_mute", "voice_unmute")):
+            return []  # a rejected context/mic command is logged, not surfaced as a session failure
+        return [event]
 
     def _new_user_burst(self) -> bool:
         now = time.monotonic()
@@ -560,6 +704,7 @@ def make_provider(model: str, settings: dict[str, str] | None = None) -> VoicePr
             bulk=os.environ.get("VOICE_CUA_LIVE_BULK_MODEL") or settings.get("live_bulk_model"),
             intelligence=os.environ.get("VOICE_CUA_LIVE_INTELLIGENCE_MODEL") or settings.get("live_intelligence_model"),
             voice=os.environ.get("VOICE_CUA_LIVE_VOICE", "marin"),
+            store=str(settings.get("live_store", "true")).lower() not in {"0", "false", "no", "off"},
         )
     if kind == "xai":
         return XAIProvider(model)

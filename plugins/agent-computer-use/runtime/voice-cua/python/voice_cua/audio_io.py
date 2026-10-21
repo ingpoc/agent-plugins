@@ -158,7 +158,11 @@ class MicStreamer:
         blocksize: int = BLOCKSIZE,
         mute_while: Callable[[], bool] | None = None,
         meter: MeterFn | None = None,
+        continuous: bool = False,
     ) -> None:
+        # continuous: send silence instead of nothing while muted (GPT-Live expects a continuous,
+        # ordered input stream and keeps listening through silence).
+        self._continuous = continuous
         self._send = send
         self._meter = meter
         self._meter_last = 0.0
@@ -225,7 +229,11 @@ class MicStreamer:
         self._stream.start()
 
     def _input_callback(self, indata: Any, _frames: int, _time: Any, _status: Any) -> None:
-        if self._stop.is_set() or self._paused.is_set() or self._mute_while():
+        if self._stop.is_set():
+            return
+        if self._paused.is_set() or self._mute_while():
+            if self._continuous:
+                self._q.put(b"\x00" * len(bytes(indata)))
             return
         self._q.put(bytes(indata))
 
@@ -242,7 +250,9 @@ class MicStreamer:
                 continue
             if self._paused.is_set() or self._mute_while():
                 gate_open = False
-                continue
+                if not self._continuous:
+                    continue
+                chunk = b"\x00" * len(chunk)
 
             rms, bars = pcm_levels(chunk)
             if rms >= gate_open_rms:
@@ -366,7 +376,7 @@ class SpeakerPlayer:
 class RealtimeAudio:
     """Mic + speaker pair for a Realtime session."""
 
-    def __init__(self, send: SendFn, *, meter: MeterFn | None = None) -> None:
+    def __init__(self, send: SendFn, *, meter: MeterFn | None = None, continuous: bool = False) -> None:
         self._speaker = SpeakerPlayer()
         mode = _local_mute_mode()
         if mode == "none":
@@ -375,7 +385,7 @@ class RealtimeAudio:
             mute_fn = self._speaker.has_substantial_audio
         else:
             mute_fn = self._speaker.has_audio
-        self._mic = MicStreamer(send, mute_while=mute_fn, meter=meter)
+        self._mic = MicStreamer(send, mute_while=mute_fn, meter=meter, continuous=continuous)
         self._started = False
         self._current_item_id = ""
         self._item_lock = threading.Lock()
