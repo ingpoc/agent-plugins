@@ -583,6 +583,7 @@ def _comet_begin(args: dict[str, Any]) -> dict[str, Any]:
     host = (urlsplit(str(args.get("url") or "")).hostname or "").removeprefix("www.")
     if result.get("ok"):
         island_publish("done", title=f"{host or 'Page'} open", detail="Comet", app="Comet")
+        result.setdefault("next", "Loaded, not read yet: read it with comet_act [{type: text}] before answering.")
     else:
         reason = str(result.get("error") or "").removeprefix("Comet Control unavailable: ")
         island_publish("error", title="Comet unavailable", detail=(reason or host)[:120], app="Comet")

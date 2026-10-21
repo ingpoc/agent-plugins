@@ -377,3 +377,13 @@ class ShowDetailsTests(unittest.TestCase):
         self.assertEqual(kind, "done")
         self.assertLessEqual(len(pub.call_args.kwargs["detail"]), tools.SHOW_DETAILS_MAX)
         self.assertIn("show_details", [t["name"] for t in tools.tool_definitions(comet_active=False)])
+
+
+class CometBeginHintTests(unittest.TestCase):
+    def test_begin_result_says_read_the_page_next(self):
+        from unittest import mock
+        from voice_cua import tools
+        with mock.patch.object(tools, "comet_begin", return_value={"ok": True}), \
+                mock.patch.object(tools, "island_publish"), mock.patch.object(tools, "comet_is_active", return_value=False):
+            out = tools.dispatch("comet_begin", {"url": "https://www.amazon.in/s?k=earbuds"})
+        self.assertIn("comet_act", out.get("next", ""))
