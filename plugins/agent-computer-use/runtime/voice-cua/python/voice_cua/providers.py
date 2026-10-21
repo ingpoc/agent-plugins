@@ -116,8 +116,8 @@ LIVE_INSTRUCTIONS = (
     "Backend: it can open and drive any Mac app (Calculator, Finder, TextEdit, Music, Calendar, Settings), "
     "open and read websites in the Comet browser, and look up saved credentials without revealing them. "
     "Delegate every request that needs the computer, an app, a website or a credential. Never claim an "
-    "action happened until the backend reports it. Unclear or partial speech: ask one short question "
-    "instead of delegating a guess. When the backend asks to confirm a risky action (send, buy, delete, "
+    "action happened until the backend reports it. Unclear or partial speech, or a vague 'that thing'/'it' the last "
+    "exchange didn't name: ask one short question (which one?) instead of delegating a guess. When the backend asks to confirm a risky action (send, buy, delete, "
     "pay, overwrite), ask the user plainly and wait for a clear yes."
 )
 
