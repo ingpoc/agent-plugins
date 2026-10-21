@@ -408,6 +408,18 @@ final class IslandController {
         gateway = URL(string: "http://127.0.0.1:\(port)")!
     }
 
+    /// Island badge for a missing required consent; tap opens onboarding at the permission rows.
+    func setPermissionWarning(_ p: ACUPermission?) {
+        let label = p?.label
+        if model.permissionWarning != label { model.permissionWarning = label }
+        if model.onPermissionWarningTap == nil {
+            model.onPermissionWarningTap = {
+                OnboardingWindowController.shared.model.step = .permissions
+                OnboardingWindowController.shared.show()
+            }
+        }
+    }
+
     func setCursorOverlay(_ overlay: CursorOverlay) {
         cursorOverlay = overlay
     }

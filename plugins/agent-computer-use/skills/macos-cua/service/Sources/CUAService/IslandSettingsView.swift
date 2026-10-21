@@ -80,6 +80,10 @@ struct IslandSettingsRoot: View {
 
     /// `visibleWhen`: a bool key, "key=value" (the GPT-Live-1 pickers) or "key^=prefix" (Realtime-only rows).
     static func visible(_ cond: String, _ store: IslandSettingsStore) -> Bool {
+        if cond.hasPrefix(IslandSettingsSchema.installedPrefix) {
+            let p = ACUPermission.allCases.first { $0.bundleID == String(cond.dropFirst(IslandSettingsSchema.installedPrefix.count)) }
+            return p.map { PermissionCenter.state($0) != .notInstalled } ?? true
+        }
         if let r = cond.range(of: "^=") {
             return store.string(String(cond[..<r.lowerBound])).hasPrefix(String(cond[r.upperBound...]))
         }
@@ -91,14 +95,10 @@ struct IslandSettingsRoot: View {
     static func perform(_ key: String, onShowLog: () -> Void) {
         if key == IslandSettingsSchema.calendarAccess { IslandSettingsSchema.calendarAccessAction?() }
         else if key == IslandSettingsSchema.focusAccess { IslandSettingsSchema.focusAccessAction?() }
-        else if key == IslandSettingsSchema.cuaScreenRecording {
-            // Screen Recording list in System Settings; preflight-only elsewhere, never a prompt.
-            if let u = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") { NSWorkspace.shared.open(u) }
-        }
-        else if key == IslandSettingsSchema.accessibilityDisplay || key == IslandSettingsSchema.accessibilitySound
-                    || key == IslandSettingsSchema.cuaAccessibility {
-            // Opens the Accessibility list in System Settings (the user adds CUAService there); no prompt API.
-            if let u = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") { NSWorkspace.shared.open(u) }
+        else if let p = ACUPermission.from(key: key) { PermissionCenter.shared.request(p) }
+        else if key == IslandSettingsSchema.accessibilityDisplay || key == IslandSettingsSchema.accessibilitySound {
+            // Opens the Accessibility list in System Settings (the user adds the app there).
+            if let u = ACUPermission.accessibility.paneURL { NSWorkspace.shared.open(u) }
         }
         else { onShowLog() }
     }

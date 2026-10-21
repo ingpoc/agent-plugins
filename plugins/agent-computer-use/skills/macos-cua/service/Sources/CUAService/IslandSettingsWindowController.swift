@@ -46,11 +46,12 @@ final class IslandSettingsWindowController: NSWindowController {
                 self.window?.sharingType = Self.showsToken(tab: self.nav.tab, store: .shared) ? .none : .readOnly
             }
         }
-        watchers = [nav.objectWillChange.sink { _ in update() }, IslandSettingsStore.shared.objectWillChange.sink { _ in update() }]
+        watchers = [nav.objectWillChange.sink { _ in update() }, IslandSettingsStore.shared.objectWillChange.sink { _ in update() },
+                    PermissionCenter.shared.$states.dropFirst().sink { [weak self] _ in self?.nav.objectWillChange.send() }]
         update()
         // Permission rows read the real state; re-read whenever the window comes forward.
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.nav.objectWillChange.send() }
+            MainActor.assumeIsolated { self?.nav.objectWillChange.send(); PermissionCenter.shared.refresh() }
         }
         // Keyboard model for this window only (SettingsKeyboard); other windows' keys pass through.
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in

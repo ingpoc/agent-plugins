@@ -56,6 +56,11 @@ final class MethodRouter: @unchecked Sendable {
                 return .error(id: request.id, code: -32603, message: error.localizedDescription)
             }
         }
+        if let p = PermissionGate.missing(for: request.method) {
+            // Revoked/missing consent: fail fast instead of hanging on AX / HID calls.
+            await MainActor.run { PermissionCenter.shared.refresh() }
+            return .error(id: request.id, code: PermissionGate.errorCode, message: PermissionGate.message(p))
+        }
         // ponytail: desktop input is one shared resource; split lanes only if
         // independent displays become a measured concurrent use case.
         while requestRunning {

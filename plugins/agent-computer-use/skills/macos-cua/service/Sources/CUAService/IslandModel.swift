@@ -484,6 +484,9 @@ final class IslandModel: ObservableObject {
     private var hoveredIDs = Set<String>()
     private var openVia = "click"
     private var drafts: [String: (Set<String>, String)] = [:]
+    /// A required consent is missing (label, e.g. "Accessibility"): small amber badge on the pill.
+    @Published var permissionWarning: String?
+    var onPermissionWarningTap: (() -> Void)?
     // Timed-out notices
     @Published private(set) var expired: [IslandExpired] = []
     @Published private(set) var notice: IslandExpired?

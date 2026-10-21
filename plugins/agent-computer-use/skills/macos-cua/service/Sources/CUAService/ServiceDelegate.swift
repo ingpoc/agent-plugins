@@ -23,7 +23,6 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        promptTCC()
         cursorOverlay = CursorOverlay()
         islandController = IslandController(socketPath: IslandHubSocketServer.defaultPath(), startsNowPlaying: true)
         islandController?.start()  // island + hub live from launch, Samantha or not
@@ -34,6 +33,21 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
             statusBar?.wire(voice: voiceSupervisor, island: islandController)
         }
         statusBar?.install()
+        // Consents: no launch-time system prompts. Onboarding lists what is missing (first launch or a
+        // revoked grant); the island warns; the agent API fails fast with PERMISSION_MISSING:<name>.
+        var lastMissing: Set<ACUPermission>?   // nil until the launch check (showIfNeeded owns that one)
+        PermissionCenter.shared.onChange.append { [weak self] _ in
+            let missing = PermissionCenter.missingRequired()
+            self?.islandController?.setPermissionWarning(missing.first)
+            // A required consent newly went missing (revoked / signature change): re-present onboarding once.
+            if let prev = lastMissing, OnboardingModel.shouldReopen(previous: prev, now: Set(missing)) {
+                OnboardingWindowController.shared.model.step = .permissions
+                OnboardingWindowController.shared.show()
+            }
+            lastMissing = Set(missing)
+        }
+        OnboardingWindowController.showIfNeeded()
+        PermissionCenter.shared.startPolling()
         installTerminationSignals()
         if SamanthaResume.consume(), let voice = voiceSupervisor {
             // Samantha was on when the previous service instance was stopped.
@@ -70,18 +84,6 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
         }
         server?.start()
         logger.info("CUAService ready", metadata: ["socket": "\(socketPath)"])
-    }
-
-    /// Ad-hoc re-sign drops TCC. Prompt so Accessibility / Screen Recording
-    /// reappear instead of silently returning AXUnknown.
-    private func promptTCC() {
-        if !AXIsProcessTrusted() {
-            let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-            AXIsProcessTrustedWithOptions([prompt: true] as CFDictionary)
-        }
-        if !CGPreflightScreenCaptureAccess() {
-            _ = CGRequestScreenCaptureAccess()
-        }
     }
 
     /// AppKit exits on SIGTERM without `applicationWillTerminate`, which used to

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>macos-cua Service</string>
+	<string>Agent Computer Use</string>
 	<key>CFBundleExecutable</key>
 	<string>CUAService</string>
 	<key>CFBundleIdentifier</key>
@@ -21,7 +21,9 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAccessibilityUsageDescription</key>
-	<string>CUAService needs Accessibility access to read and interact with application UI elements.</string>
+	<string>Agent Computer Use reads and drives app controls for the tasks you ask for.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Agent Computer Use controls apps you ask it to use (Music, Spotify, Finder, Comet, System Events, TextEdit). Each app is asked once.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>The Dynamic Island shows your next event and a countdown. Read-only: it never changes your calendars.</string>
 	<key>NSCalendarsUsageDescription</key>
@@ -31,6 +33,6 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Samantha listens for spoken tasks when you turn her on.</string>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>CUAService captures the target app window so the agent can verify on-screen UI.</string>
+	<string>Agent Computer Use sees the target window when its controls are unreadable, so the agent can check its work.</string>
 </dict>
 </plist>

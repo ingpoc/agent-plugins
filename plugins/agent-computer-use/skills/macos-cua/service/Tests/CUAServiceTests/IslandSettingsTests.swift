@@ -106,9 +106,10 @@ final class IslandSettingsTests: XCTestCase {
         XCTAssertEqual(env["VOICE_CUA_LIVE_INTELLIGENCE_MODEL"], "gpt-6-astra")
     }
 
-    func testComputerUsePaneIsReadOnlyPermissionRows() {
+    func testComputerUsePaneIsThePermissionRows() {
         let rows = IslandSettingsSchema.defs(for: .computerUse)
-        XCTAssertEqual(rows.map(\.key), [IslandSettingsSchema.cuaAccessibility, IslandSettingsSchema.cuaScreenRecording])
+        XCTAssertEqual(rows.map(\.key), ACUPermission.allCases.map(\.key), "same rows as onboarding")
+        XCTAssertEqual(Array(rows.prefix(2)).map(\.key), [IslandSettingsSchema.cuaAccessibility, IslandSettingsSchema.cuaScreenRecording])
         XCTAssertTrue(rows.allSatisfy { if case .permission = $0.kind { return true }; return false })
         XCTAssertTrue(SettingsTab.panes.contains(.computerUse))
         XCTAssertNil(IslandSettingsSchema.def("island.agent.samantha.voiceSettings"), "old Voice Settings button is gone")

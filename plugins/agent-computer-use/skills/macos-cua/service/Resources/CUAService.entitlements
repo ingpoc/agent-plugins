@@ -2,8 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- NSAppleScript in-process: Music, Spotify, Finder, Comet (ai.perplexity.comet); also responsible process for osascript children -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
+	<!-- Samantha voice capture (AVFoundation/CoreAudio); responsible process for voice-cua -->
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
+	<!-- Dynamic Island next-event (EventKit requestFullAccessToEvents) -->
 	<key>com.apple.security.personal-information.calendars</key>
 	<true/>
 </dict>

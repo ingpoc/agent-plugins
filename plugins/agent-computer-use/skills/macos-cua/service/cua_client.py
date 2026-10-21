@@ -18,12 +18,15 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_SOCKET = Path("~/.cache/macos-cua/cua-service.sock").expanduser()
-SERVICE_APP = Path("~/.cache/macos-cua/CUAService.app").expanduser()
+APP_PATH = Path("/Applications/Agent Computer Use.app")
+# Pre-0.2.25 install path; the installer keeps it as a symlink to APP_PATH.
+LEGACY_APP_PATH = Path("~/.cache/macos-cua/CUAService.app").expanduser()
+SERVICE_APP = APP_PATH if APP_PATH.exists() else LEGACY_APP_PATH
 SERVICE_BIN = SERVICE_APP / "Contents" / "MacOS" / "CUAService"
 RELAUNCH_LOCK = DEFAULT_SOCKET.parent / "cua-service.relaunch.lock"
 RELAUNCH_STAMP = DEFAULT_SOCKET.parent / "cua-service.relaunch.stamp"
 RELAUNCH_COOLDOWN_S = 30.0
-RECOVERY_COMMAND = "pkill -x CUAService; open ~/.cache/macos-cua/CUAService.app"
+RECOVERY_COMMAND = f"pkill -x CUAService; open '{SERVICE_APP}'"
 
 
 class CUAServiceUnavailable(ConnectionError):

@@ -443,6 +443,22 @@ struct IslandPulseBorder: View {
 
 // MARK: - Island
 
+/// Small amber "!" on the pill's lower-right corner while a required consent is missing.
+struct IslandPermissionBadge: View {
+    static let size: CGFloat = 14
+    let label: String
+    var body: some View {
+        Circle().fill(Color(nsColor: .systemOrange))
+            .overlay(Image(systemName: "exclamationmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(.black))
+            .overlay(Circle().strokeBorder(Color.black, lineWidth: 1.5))
+            .frame(width: Self.size, height: Self.size)
+            .help("\(label) permission is off. Click to fix.")
+            .accessibilityElement()
+            .accessibilityLabel("\(label) permission is off")
+            .accessibilityAddTraits(.isButton)
+    }
+}
+
 struct SamanthaIslandBar: View {
     @ObservedObject var model: IslandModel
     var barHeight: CGFloat = IslandBarLayout.compactHeight
@@ -487,6 +503,12 @@ struct SamanthaIslandBar: View {
                     .offset(x: sr.minX, y: sr.minY)
                     .transition(IslandMotion.popTransition(reduce: reduceMotion, anchor: .leading))
                     .id("secondary-\(sec.rawValue)")
+            }
+            if let warn = model.permissionWarning, !model.cardOpen {
+                IslandPermissionBadge(label: warn)
+                    .onTapGesture { model.onPermissionWarningTap?() }
+                    .offset(x: rect.maxX - IslandPermissionBadge.size / 2 - 2, y: rect.maxY - IslandPermissionBadge.size / 2 - 2)
+                    .transition(.opacity)
             }
             let rects = IslandBarLayout.circleRects(shape: model.circleAnchor, count: model.circleCount)
             ForEach(Array(zip(model.circles, rects)), id: \.0.id) { item, r in

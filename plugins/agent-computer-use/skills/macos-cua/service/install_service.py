@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-"""Build, sign, and install CUAService.app.
+"""Build, sign, and install Agent Computer Use.app (bundle id com.ingpoc.cua-service, binary CUAService).
 
 Usage:
-    python3 install_service.py [--release] [--team TEAM_ID]
+    python3 install_service.py [--release [--sign-only]] [--team TEAM_ID] [--dest PATH]
+
+Installs to /Applications/Agent Computer Use.app and keeps ~/.cache/macos-cua/CUAService.app as a
+symlink to it, so existing callers (cua_client, operator_ui, `open ~/.cache/...`) keep working.
+--release builds a staged copy, runs release/sign-notarize.sh on it (Developer ID, hardened runtime,
+notarize + staple), then installs the signed copy. Signing prefers Developer ID over Apple Development:
+its designated requirement is team-based, so TCC grants survive certificate renewals.
 """
 from __future__ import annotations
 
@@ -12,6 +18,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 SERVICE_DIR = Path(__file__).resolve().parent
@@ -20,10 +27,15 @@ VOICE_RUNTIME_ROOT = PLUGIN_ROOT / "runtime" / "voice-cua"
 SWIFT_BUILD_ROOT = Path(
     os.environ.get("MACOS_CUA_BUILD_DIR", "~/.cache/macos-cua/build/cua-service")
 ).expanduser()
-INSTALL_DIR = Path("~/.cache/macos-cua/CUAService.app").expanduser()
+INSTALL_DIR = Path("/Applications/Agent Computer Use.app")
+LEGACY_DIR = Path("~/.cache/macos-cua/CUAService.app").expanduser()
+RELEASE_STAGE = Path("~/.cache/macos-cua/release-stage").expanduser()
+SIGN_NOTARIZE = SERVICE_DIR / "release" / "sign-notarize.sh"
 TEAM_ID = "9UPQL479Z5"
 VOICE_CUA_ID = "com.ingpoc.cua-service.voice-cua"
 ENTITLEMENTS = SERVICE_DIR / "Resources" / "CUAService.entitlements"
+VOICE_ENTITLEMENTS = SERVICE_DIR / "Resources" / "voice-cua.entitlements"
+MIC_ENTITLEMENTS = SERVICE_DIR / "Resources" / "mic-preflight.entitlements"
 MACHO_MAGICS = {b"\xca\xfe\xba\xbe", b"\xbe\xba\xfe\xca", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf"}
 
 
@@ -50,6 +62,7 @@ def resolve_codesign_identity(team: str) -> str:
         capture_output=True,
         text=True,
     ).stdout
+    candidates: list[tuple[str, str]] = []
     for pem in re.findall(
         r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
         certificates,
@@ -65,11 +78,41 @@ def resolve_codesign_identity(team: str) -> str:
         fingerprint = re.search(r"Fingerprint=([0-9A-F:]+)", details)
         sha1 = fingerprint.group(1).replace(":", "") if fingerprint else ""
         if sha1 in valid and re.search(rf"(?:^|,)OU={re.escape(team)}(?:,|$)", details):
-            return sha1
+            candidates.append((sha1, details))
+    picked = pick_identity(candidates)
+    if picked:
+        return picked
     raise RuntimeError(
         f'No valid code-signing identity for Apple Developer Team {team}. '
         "Install or refresh its Apple Development certificate in Xcode Settings > Accounts."
     )
+
+
+def pick_identity(candidates: list[tuple[str, str]]) -> str | None:
+    """Developer ID Application first (team-based designated requirement: TCC grants survive
+    renewals), else the first team identity (Apple Development: DR pins the leaf CN)."""
+    for sha1, subject in candidates:
+        if "CN=Developer ID Application" in subject:
+            return sha1
+    return candidates[0][0] if candidates else None
+
+
+def ensure_compat_link(dest: Path, legacy: Path = LEGACY_DIR, trash: Path | None = None) -> str:
+    """Keep the old install path working as a symlink to the new app.
+    A real bundle left at the old path is moved to the Trash (never deleted, never overwritten)."""
+    dest = dest.resolve() if dest.exists() else dest
+    if dest == legacy:
+        return "same-path"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    if legacy.is_symlink():
+        if Path(os.readlink(legacy)) == dest:
+            return "kept"
+        legacy.unlink()
+    elif legacy.exists():
+        bin_ = (trash or Path.home() / ".Trash") / f"CUAService.app.legacy-{int(time.time())}"
+        shutil.move(str(legacy), str(bin_))
+    legacy.symlink_to(dest)
+    return "linked"
 
 
 def build_mic_preflight_tool(helper_macos: Path) -> None:
@@ -139,7 +182,7 @@ def bundle_voice_helper(app_path: Path, *, team: str, skip_sign: bool) -> None:
     if skip_sign:
         return
     identity = resolve_codesign_identity(team)
-    codesign(helper_app, identity, team)
+    codesign(helper_app, identity, team, entitlements=VOICE_ENTITLEMENTS)
     print(f"  ✓ Signed voice helper for team {team}")
 
 
@@ -169,7 +212,10 @@ def create_app_bundle(binary: Path, dest: Path) -> None:
     resources = contents / "Resources"
 
     if dest.exists():
-        shutil.rmtree(dest)
+        if RELEASE_STAGE in dest.parents:
+            shutil.rmtree(dest)   # scratch staging copy
+        else:   # an installed app is superseded: Trash, never delete
+            shutil.move(str(dest), str(Path.home() / ".Trash" / f"{dest.name}.prev-{int(time.time())}"))
     macos.mkdir(parents=True)
     resources.mkdir(parents=True)
 
@@ -247,10 +293,12 @@ def bundle_mediaremote_adapter(app_path: Path) -> bool:
     return True
 
 
-def codesign(app_path: Path, identity: str, team: str) -> None:
+def codesign(app_path: Path, identity: str, team: str, entitlements: Path = ENTITLEMENTS) -> None:
+    """Inside-out: helper (voice-cua.entitlements), frameworks, test client, mic-preflight
+    (mic-preflight.entitlements), then the bundle with its own entitlements."""
     helper = app_path / "Contents" / "Helpers" / "voice-cua.app"
     if helper.is_dir():
-        codesign(helper, identity, team)
+        codesign(helper, identity, team, entitlements=VOICE_ENTITLEMENTS)
     frameworks = app_path / "Contents" / "Frameworks"
     if frameworks.is_dir():
         for nested in sorted(frameworks.rglob("*"), key=lambda path: len(path.parts), reverse=True):
@@ -265,12 +313,12 @@ def codesign(app_path: Path, identity: str, team: str) -> None:
     if mic_preflight.is_file():
         run([
             "codesign", "--force", "--sign", identity,
-            "--options", "runtime", "--entitlements", str(ENTITLEMENTS),
+            "--options", "runtime", "--entitlements", str(MIC_ENTITLEMENTS),
             str(mic_preflight),
         ])
     run([
         "codesign", "--force", "--sign", identity,
-        "--options", "runtime", "--entitlements", str(ENTITLEMENTS),
+        "--options", "runtime", "--entitlements", str(entitlements),
         str(app_path),
     ])
     print(f"  ✓ Signed for team {team}")
@@ -297,6 +345,13 @@ def main():
         help="Copy into existing signed bundle; do not resign (keeps Accessibility TCC)",
     )
     parser.add_argument(
+        "--release", action="store_true",
+        help="Stage, sign + notarize with release/sign-notarize.sh (Developer ID), then install",
+    )
+    parser.add_argument(
+        "--sign-only", action="store_true", help="With --release: Developer ID sign, skip notarization",
+    )
+    parser.add_argument(
         "--skip-voice-bundle",
         action="store_true",
         help="Do not bundle voice-cua helper",
@@ -304,7 +359,7 @@ def main():
     args = parser.parse_args()
 
     dest = Path(args.dest)
-    identity = "" if args.skip_sign or args.replace_binary else resolve_codesign_identity(args.team)
+    identity = "" if args.skip_sign or args.replace_binary or args.release else resolve_codesign_identity(args.team)
     print(f"Building CUAService ({'debug' if args.debug else 'release'})...")
     binary = build(release=not args.debug)
 
@@ -327,18 +382,29 @@ def main():
         print("  Do not codesign --force --sign - ; that drops Accessibility TCC.")
         return
 
+    # --release: assemble + sign a staged copy; the live app is only replaced once it is signed.
+    target = RELEASE_STAGE / dest.name if args.release else dest
     print("Creating app bundle...")
-    create_app_bundle(binary, dest)
+    create_app_bundle(binary, target)
 
     if not args.skip_voice_bundle:
-        bundle_voice_helper(dest, team=args.team, skip_sign=True)
-    bundle_mediaremote_adapter(dest)
+        bundle_voice_helper(target, team=args.team, skip_sign=True)
+    bundle_mediaremote_adapter(target)
 
-    if not args.skip_sign:
+    if args.release:
+        print("Release signing (Developer ID, hardened runtime)...")
+        run(["bash", str(SIGN_NOTARIZE)] + (["--sign-only"] if args.sign_only else []) + [str(target)])
+        if dest.exists():
+            shutil.move(str(dest), str(Path.home() / ".Trash" / f"{dest.name}.prev-{int(time.time())}"))
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        run(["ditto", str(target), str(dest)])
+    elif not args.skip_sign:
         print("Signing...")
         codesign(dest, identity, args.team)
 
-    print(f"\n✓ CUAService installed at {dest}")
+    if Path(args.dest) == INSTALL_DIR:
+        print(f"  ✓ Legacy path {LEGACY_DIR}: {ensure_compat_link(dest)}")
+    print(f"\n✓ Agent Computer Use installed at {dest}")
     print(f"  Socket: ~/.cache/macos-cua/cua-service.sock")
     print(f"  Voice: Samantha toggle in menu (logs ~/.cache/macos-cua/voice.log)")
     print(f"  Run: open {dest}")

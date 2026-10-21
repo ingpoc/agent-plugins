@@ -955,9 +955,10 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     package = (root / "service" / "Package.swift").read_text()
     entitlements = (root / "service" / "Resources" / "CUAService.entitlements").read_text()
     add(
-        "service reports and prompts TCC instead of silent AXUnknown",
+        "service reports missing TCC (onboarding + PERMISSION_MISSING) instead of silent AXUnknown",
         "axTrusted" in router
-        and "promptTCC" in delegate
+        and "PermissionGate" in router
+        and "OnboardingWindowController.showIfNeeded" in delegate
         and "NSScreenCaptureUsageDescription" in plist,
         "ad-hoc re-sign drops Accessibility; AXUnknown must be diagnosable",
     )

@@ -248,17 +248,17 @@ enum IslandSettingsSchema {
     /// Voice / Listening / Microphone tune the OpenAI Realtime session only.
     static let whenRealtime = voiceModel + "^=gpt-realtime"
 
-    // Computer Use (CUAService) — real-state permission rows, read-only.
-    static let cuaAccessibility = "cua.permission.accessibility"
-    static let cuaScreenRecording = "cua.permission.screenRecording"
-    static let computerUse: [SettingDef] = [
-        .init(tab: .computerUse, section: "Permissions", key: cuaAccessibility, label: "Accessibility",
-              kind: .permission("Open Settings…"), defaultValue: .none,
-              caption: "Lets the service read and drive app controls."),
-        .init(tab: .computerUse, section: "Permissions", key: cuaScreenRecording, label: "Screen Recording",
-              kind: .permission("Open Settings…"), defaultValue: .none,
-              caption: "Lets the service see windows when controls are unreadable."),
-    ]
+    // Computer Use (CUAService) — the onboarding rows: real state, Grant = native request or deep link.
+    static let cuaAccessibility = ACUPermission.accessibility.key
+    static let cuaScreenRecording = ACUPermission.screenRecording.key
+    static let computerUse: [SettingDef] = ACUPermission.allCases.map { p in
+        .init(tab: .computerUse, section: p.section, key: p.key, label: p.label,
+              kind: .permission("Grant…"), defaultValue: .none,
+              visibleWhen: p.bundleID.map { installedPrefix + $0 },
+              caption: p.caption)
+    }
+    /// `visibleWhen` for Automation rows: hidden when the target app isn't installed.
+    static let installedPrefix = "installed:"
 
     static let accessibilityDisplay = "island.display.accessibility"
     static let accessibilitySound = "island.sound.accessibility"
@@ -436,9 +436,8 @@ enum IslandSettingsSchema {
         switch key {
         case calendarAccess: return IslandCalendarController.authorized
         case focusAccess: return INFocusStatusCenter.default.authorizationStatus == .authorized
-        case accessibilityDisplay, accessibilitySound, cuaAccessibility: return AXIsProcessTrusted()
-        case cuaScreenRecording: return CGPreflightScreenCaptureAccess()  // preflight never prompts
-        default: return false
+        case accessibilityDisplay, accessibilitySound: return AXIsProcessTrusted()
+        default: return ACUPermission.from(key: key).map { PermissionCenter.state($0) == .granted } ?? false
         }
     }
 
