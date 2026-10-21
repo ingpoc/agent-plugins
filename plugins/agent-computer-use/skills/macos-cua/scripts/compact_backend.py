@@ -6,6 +6,7 @@ import json
 import os
 import re
 import socket
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -188,6 +189,17 @@ def apply_screenshot_policy(payload, *, before, after, arguments, fetch=None):
 
 
 
+NO_WINDOW_HINT = "App has no open window: cua_act op=open with just app shows it (no path), then act."
+
+
+def is_app_open_step(step: Any) -> bool:
+    """op=open naming only the app (no path/url): launch it or show its window."""
+    if not isinstance(step, dict):
+        return False
+    op = str(step.get("op") or step.get("action") or "").lower()
+    return op == "open" and step.get("path") is None and step.get("url") is None
+
+
 class CUABackend:
     """Lazy JSON-RPC client. Tests replace compact_mcp._BACKEND."""
 
@@ -243,7 +255,7 @@ class CUABackend:
         if query:
             lines = [ln for ln in text.splitlines() if str(query) in ln]
             text = "\n".join(lines) if lines else text
-        return {
+        out = {
             "ok": True,
             "app": result.get("app") or app,
             "text": text,
@@ -251,8 +263,70 @@ class CUABackend:
             "screenshot": result.get("screenshot") if want_shot else None,
             "pid": result.get("pid"),
         }
+        if result.get("elementCount") == 0:
+            # Running but windowless (closed/hidden): acting blind here only burns retries.
+            out["hint"] = NO_WINDOW_HINT
+        return out
+
+    def _show_app_window(self, app: str) -> dict[str, Any]:
+        """Launch the app, or send a running windowless app the reopen event, then observe it.
+
+        ``open -a`` is what Dock/Finder do: launches when needed and makes a running app with
+        no window show its main window (Calendar, Music, Notes...). Absolute path: the voice
+        helper runs under launchd's minimal PATH.
+        """
+        try:
+            proc = subprocess.run(
+                ["/usr/bin/open", "-a", app],
+                capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return {"ok": False, "error": f"could not open {app}: {exc}"[:240], "error_type": "app_not_found"}
+        if proc.returncode != 0:
+            reason = (proc.stderr or proc.stdout or "").strip().splitlines()
+            return {
+                "ok": False,
+                "error": (reason[-1] if reason else f"open -a {app} failed")[:240],
+                "error_type": "app_not_found",
+                "hint": f"{app} is not installed under that name; tell the user.",
+                "retryable": False,
+            }
+        state: dict[str, Any] = {}
+        deadline = time.monotonic() + 6.0
+        while True:
+            try:
+                state = self.state(app)
+            except Exception as exc:  # noqa: BLE001 - app still launching
+                state = {"ok": False, "error": str(exc)[:240]}
+            if state.get("ok") and state.get("elementCount"):
+                break
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.4)
+        shown = bool(state.get("ok") and state.get("elementCount"))
+        return {
+            "ok": shown,
+            "verified": shown,
+            "dispatched": True,
+            "completion": "verified" if shown else "unverified",
+            "method": "open-app",
+            "app": state.get("app") or app,
+            "text": state.get("text") or "",
+            "elementCount": state.get("elementCount"),
+            **({} if shown else {"error_type": "observation_incomplete", "hint": NO_WINDOW_HINT}),
+        }
 
     def act(self, app: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        steps_in = arguments.get("steps") if isinstance(arguments.get("steps"), list) and arguments.get("steps") else [arguments]
+        if any(is_app_open_step(step) for step in steps_in):
+            shown = self._show_app_window(app)
+            rest = [step for step in steps_in if not is_app_open_step(step)]
+            if not shown.get("ok") or not rest:
+                return shown
+            if arguments.get("steps"):
+                arguments = {**arguments, "steps": rest}
+            else:
+                arguments = {k: v for k, v in arguments.items() if k not in ("op", "action")}
         effectful = has_ui_effect(arguments)
         expect = arguments.get("expect")
         allow_unverified = arguments.get("allow_unverified") is True

@@ -211,6 +211,35 @@ def result_size(result: Any) -> dict[str, int]:
     return out
 
 
+_TYPED_KEYS = ("text", "value", "query", "url", "path", "prefix", "suffix")
+
+
+def plan_shape(arguments: dict[str, Any], *, tool: str = "cua_act") -> list[str]:
+    """Audit view of a cua_act/cua_state call: op + target per step, typed content as a length.
+
+    ``op:key cmd+n`` / ``op:type_text text=27ch`` / ``op:click label=Save``. UI labels and key
+    chords are kept (they are what an auditor needs to spot a wrong target); anything the
+    user could have dictated (text/value/query/url/path) is reduced to its length.
+    """
+    steps = arguments.get("steps") if isinstance(arguments.get("steps"), list) else [arguments]
+    out: list[str] = []
+    for step in steps[:12]:
+        if not isinstance(step, dict):
+            continue
+        bits = [f"op:{step.get('op') or ('state' if tool == 'cua_state' else '?')}"]
+        if step.get("key"):
+            bits.append(str(step["key"])[:24])
+        if step.get("label"):
+            bits.append(f"label={str(step['label'])[:40]}")
+        if step.get("element") is not None:
+            bits.append(f"el={step['element']}")
+        for key in _TYPED_KEYS:
+            if step.get(key):
+                bits.append(f"{key}={len(str(step[key]))}ch")
+        out.append(" ".join(bits))
+    return out
+
+
 def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
     app = str(arguments.get("app") or "")
     log_event(
@@ -220,6 +249,7 @@ def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
         step=str(arguments.get("step_label") or arguments.get("label") or "") or None,
         has_expect=bool(arguments.get("expect")) or None,
         allow_unverified=arguments.get("allow_unverified") is True or None,
+        plan=plan_shape(arguments, tool=name) if name in ("cua_act", "cua_state") else None,
     )
 
 
@@ -240,6 +270,8 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "") -> None
         completion=result.get("completion"),
         error=err[:240] if err else None,
         error_type=error_type or None,
+        hint=str(result.get("hint") or "")[:160] or None,
+        failed_step=(result.get("failure") or {}).get("failed_step") if isinstance(result.get("failure"), dict) else None,
         **result_size(result),
     )
 

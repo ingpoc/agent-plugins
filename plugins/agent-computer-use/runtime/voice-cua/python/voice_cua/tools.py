@@ -68,8 +68,8 @@ def _schedule_listening_reset(delay: float = 2.0) -> None:
 
 
 COMPACT_ACT_DESCRIPTION = (
-    "Drive one Mac app in one native plan (op, or steps for a batch). Known paths: op=open "
-    "with path. ok/verified only when expect matches. Failures return error_type, hint and "
+    "Drive one Mac app in one native plan (op, or steps for a batch). op=open with only app "
+    "launches it or shows its window (use when state is empty); with path opens that file. ok/verified only when expect matches. Failures return error_type, hint and "
     "retryable; max 2 tries per step."
 )
 # Fields the voice schema keeps out of the per-step list (top-level only).
