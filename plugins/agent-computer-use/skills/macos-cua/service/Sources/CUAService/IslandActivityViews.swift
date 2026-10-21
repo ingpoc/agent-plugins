@@ -54,12 +54,14 @@ struct IslandPeekCompact: View {
         // Ticks on the peek's own minute boundaries: the time appears exactly at 1 minute.
         TimelineView(.periodic(from: item.at, by: 60)) { ctx in
             HStack(spacing: 8) {
-                IslandPeekIcon(item: item, size: 20)
+                // 16 pt in the 8 pt lead slot, like every compact lead (gate: ≥ 8 pt inset).
+                IslandPeekIcon(item: item, size: 16).layoutProbe("peek-icon", .glyph)
                 Text(item.title)
                     .font(IslandType.bodyStrong)
                     .foregroundStyle(Color.white)
                     .lineLimit(1)
                     .truncationMode(.tail)
+                    .layoutProbe("peek-title", truncates: true)
                 Spacer(minLength: 4)
                 if item.count > 1 {
                     // 16 pt disc at white 15 %; 11 semibold monospaced numeral (capsule past one digit).
@@ -70,15 +72,17 @@ struct IslandPeekCompact: View {
                         .frame(minWidth: 16, minHeight: 16)
                         .background(Capsule().fill(Color.white.opacity(0.15)))
                         .contentTransition(.numericText())
+                        .layoutProbe("peek-badge", .glyph)
                 }
                 // No "now": the time appears only once the peek is at least a minute old.
                 if let age = IslandPeekRules.ageLabel(item.at, now: ctx.date) {
                     Text(age)
                         .font(IslandType.meta)
                         .foregroundStyle(Color.white.opacity(0.45))
+                        .layoutProbe("peek-age")
                 }
             }
-            .padding(.leading, 2)
+            .padding(.leading, IslandBarLayout.slotInset)
             .padding(.trailing, 10)
             .frame(height: IslandBarLayout.compactHeight)
         }
@@ -158,7 +162,7 @@ struct IslandCalendarDot: View {
     }
 }
 
-/// 340×176 card: start time (28 mono) + date | title, place, countdown | Join (meeting links only) + next rows.
+/// 340×176 card: start time (28 mono, fitted) + date | dot · title, place, countdown | Join (meeting links only) + next rows.
 struct CalendarCardBody: View {
     @ObservedObject var model: IslandModel
     var body: some View {
@@ -168,44 +172,57 @@ struct CalendarCardBody: View {
             let p = IslandBarLayout.cardPadding
             ZStack(alignment: .topLeading) {
                 if let e = agenda.first {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(Self.time.string(from: e.start))
-                            .font(IslandType.value)
-                            .foregroundStyle(Color.white)
-                            .contentTransition(.numericText())
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.6)
-                        Text(Self.day.string(from: e.start))
-                            .font(IslandType.meta)
-                            .foregroundStyle(Color.white.opacity(0.45))
-                    }
-                    .frame(width: 120, alignment: .leading)
-                    .offset(x: p, y: p - 4)
-                    VStack(alignment: .leading, spacing: 3) {
+                    // Time column sized to fit (never truncated); event column takes the rest, ≥ 12 pt away.
+                    HStack(alignment: .top, spacing: Self.columnGap) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Self.timeText(e.start)
+                                .foregroundStyle(Color.white)
+                                .contentTransition(.numericText())
+                                .lineLimit(1)
+                            Text(Self.day.string(from: e.start))
+                                .font(IslandType.meta)
+                                .foregroundStyle(Color.white.opacity(0.45))
+                        }
+                        .fixedSize()
+                        .layoutProbe("cal-time-column")
+                        // Dot inline before the title (6 pt); room and relative lines align to the title's text edge.
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            IslandCalendarDot(event: e, useCalendarColor: model.useCalendarColor).frame(width: 6, height: 6)
-                            Text(e.title.isEmpty ? "Event" : e.title)
-                                .font(IslandType.title).foregroundStyle(Color.white)
-                                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                            IslandCalendarDot(event: e, useCalendarColor: model.useCalendarColor)
+                                .frame(width: 6, height: 6)
+                                .layoutProbe("cal-dot", .glyph)
+                                .alignmentGuide(.firstTextBaseline) { _ in 7.5 }   // dot centred on the x-height
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(e.title.isEmpty ? "Event" : e.title)
+                                    .font(IslandType.bodyStrong).foregroundStyle(Color.white)
+                                    .lineLimit(2).truncationMode(.tail)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .layoutProbe("cal-title", truncates: true)
+                                if !e.location.isEmpty || !e.calendar.isEmpty {
+                                    Text(e.location.isEmpty ? e.calendar : e.location)
+                                        .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6)).lineLimit(1)
+                                        .layoutProbe("cal-room", truncates: true)
+                                }
+                                Text(CalendarLogic.countdown(e, now: now))
+                                    .font(.system(size: 11).monospacedDigit())
+                                    .foregroundStyle(CalendarLogic.isUrgent(e, now: now) ? IslandPalette.red : Color.white.opacity(0.45))
+                                    .contentTransition(.numericText())
+                                    .layoutProbe("cal-relative")
+                            }
                         }
-                        if !e.location.isEmpty || !e.calendar.isEmpty {
-                            Text(e.location.isEmpty ? e.calendar : e.location)
-                                .font(IslandType.body).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
-                        }
-                        Text(CalendarLogic.countdown(e, now: now))
-                            .font(IslandType.meta)
-                            .foregroundStyle(CalendarLogic.isUrgent(e, now: now) ? IslandPalette.red : Color.white.opacity(0.45))
-                            .contentTransition(.numericText())
+                        .padding(.top, 6)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
-                    .frame(width: IslandBarLayout.cardSize.width - 132 - p, alignment: .topLeading)
-                    .offset(x: 132, y: p)
+                    .frame(width: IslandBarLayout.cardSize.width - 2 * p, alignment: .topLeading)
+                    .offset(x: p, y: p - 4)
                     HStack(spacing: 8) {
                         let rest = Array(agenda.dropFirst())
                         if let n = rest.first {
                             Text("\(Self.time.string(from: n.start))  \(n.title)")
                                 .font(IslandType.meta).foregroundStyle(Color.white.opacity(0.45)).lineLimit(1)
+                                .layoutProbe("cal-next", truncates: true)
                             if rest.count > 1 {
                                 Text("+\(rest.count - 1)").font(IslandType.meta).foregroundStyle(Color.white.opacity(0.45))
+                                    .layoutProbe("cal-more")
                             }
                         }
                         Spacer(minLength: 0)
@@ -213,6 +230,7 @@ struct CalendarCardBody: View {
                             Button { model.onOpenEvent?(e, true); _ = url } label: {
                                 Text("Join").font(IslandType.bodyStrong).foregroundStyle(Color.black)
                                     .frame(width: 88, height: 32)
+                                    .layoutProbe("cal-join", .control)
                                     .background(Capsule().fill(Color.white))
                                     .frame(height: 44).contentShape(Rectangle())
                             }
@@ -234,6 +252,29 @@ struct CalendarCardBody: View {
             .contentShape(Rectangle())
             .onTapGesture { if let e = agenda.first { model.onOpenEvent?(e, false) } }
         }
+    }
+
+    static let columnGap: CGFloat = 12
+
+    /// "10:29" in 28 pt semibold + thin space + "AM" in 15 medium at 70 % (period first where the locale puts it first).
+    static func timeText(_ d: Date) -> Text {
+        let (t, period, leading) = timeParts(d)
+        let big = Text(t).font(IslandType.value)
+        guard let period else { return big }
+        let small = Text(period).font(.system(size: 15, weight: .medium)).foregroundColor(Color.white.opacity(0.7))
+        return leading ? small + Text("\u{2009}") + big : big + Text("\u{2009}").font(IslandType.value) + small
+    }
+
+    static func timeParts(_ d: Date) -> (String, String?, Bool) {
+        let s = time.string(from: d)
+        let trim = CharacterSet.whitespaces.union(CharacterSet(charactersIn: "\u{202F}\u{00A0}\u{2009}"))
+        for sym in [time.amSymbol, time.pmSymbol].compactMap({ $0 }) where !sym.isEmpty {
+            if let r = s.range(of: sym) {
+                let rest = s.replacingCharacters(in: r, with: "").trimmingCharacters(in: trim)
+                return (rest, sym, r.lowerBound == s.startIndex)
+            }
+        }
+        return (s, nil, false)
     }
 
     static let time: DateFormatter = {
@@ -316,6 +357,7 @@ struct TrayCardBody: View {
                 Image(systemName: "tray.full.fill").font(.system(size: 11, weight: .semibold))
                 Text("\(model.tray.count)").font(IslandType.meta).contentTransition(.numericText())
             }
+            .layoutProbe("tray-header")
             .foregroundStyle(Color.white.opacity(0.45))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("File tray, \(model.tray.count) items")
@@ -324,9 +366,11 @@ struct TrayCardBody: View {
             HStack(alignment: .top, spacing: 8) {
                 ForEach(vis.shown) { item in
                     VStack(spacing: 4) {
-                        IslandTrayThumb(item: item)
+                        IslandTrayThumb(item: item).layoutProbe("tray-thumb-\(item.id)", .glyph)
                         Text(item.name).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
-                            .lineLimit(1).truncationMode(.middle).frame(width: 56, height: IslandTrayRules.nameHeight)
+                            .lineLimit(1).truncationMode(.middle)
+                            .layoutProbe("tray-name-\(item.id)", truncates: true)
+                            .frame(width: 56, height: IslandTrayRules.nameHeight)
                     }
                     .frame(width: 56)
                     .contentShape(Rectangle())
@@ -348,6 +392,7 @@ struct TrayCardBody: View {
                     Text("+\(vis.extra)").font(IslandType.bodyStrong).foregroundStyle(Color.white.opacity(0.7))
                         .frame(width: 48, height: 48)
                         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.08)))
+                        .layoutProbe("tray-more", .glyph)
                         .frame(width: 56)
                 }
             }
@@ -356,11 +401,13 @@ struct TrayCardBody: View {
                 Spacer(minLength: 0)
                 Button { onShare?(model.tray.map(\.url)) } label: {
                     Image(systemName: "square.and.arrow.up").font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.white)
+                        .layoutProbe("tray-share", .glyph)
                         .frame(width: 44, height: 44).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).accessibilityLabel("Share all")
                 Button { model.clearTray() } label: {
                     Text("Clear").font(IslandType.bodyStrong).foregroundStyle(Color.white.opacity(0.7))
+                        .layoutProbe("tray-clear")
                         .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                 }
                 .buttonStyle(.plain).accessibilityLabel("Clear tray")
@@ -393,9 +440,9 @@ struct IslandSecondaryPill: View {
         ZStack {
             RoundedRectangle(cornerRadius: IslandBarLayout.compactRadius, style: .continuous).fill(Color.black)
             HStack(spacing: 0) {
-                lead.frame(width: 16, height: 16)
+                lead.frame(width: 16, height: 16).layoutProbe("duo-lead", .glyph, in: "secondary")
                 Spacer(minLength: 0)
-                trail.frame(width: 20, height: 16)
+                trail.layoutProbe("duo-trail", .glyph, in: "secondary").frame(width: 20, height: 16)
             }
             .padding(.horizontal, IslandBarLayout.slotInset)
         }
@@ -462,6 +509,7 @@ struct IslandAgentListBody: View {
             .frame(height: h - 2 * p - (extra > 0 ? 18 : 0), alignment: .top)
             if extra > 0 {
                 Text("+\(extra) in app").font(IslandType.meta).foregroundStyle(Color.white.opacity(0.45))
+                    .layoutProbe("agents-footer")
                     .frame(height: 18, alignment: .bottom)
             }
         }
@@ -483,12 +531,15 @@ struct IslandAgentListBody: View {
             SamanthaAppIcon(appName: a.app.isEmpty ? a.name : a.app, size: 20, radius: 5)
                 .frame(width: 28, height: 28)
                 .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(0.08)))
+                .layoutProbe("row-\(a.id)-icon", .glyph)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
                     Text(a.name.isEmpty ? a.app : a.name).font(IslandType.bodyStrong).foregroundStyle(Color.white).lineLimit(1)
+                        .layoutProbe("row-\(a.id)-name", truncates: true)
                         .layoutPriority(1)
                     if !a.title.isEmpty {
                         Text(a.title).font(IslandType.body).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
+                            .layoutProbe("row-\(a.id)-title", truncates: true)
                     }
                 }
                 let status = pending.map { Self.pendingText($0.action) } ?? IslandAgentRows.statusText(a, elapsedExtra: extra)
@@ -497,6 +548,7 @@ struct IslandAgentListBody: View {
                     .foregroundStyle(a.status == "error" ? IslandPalette.red.opacity(0.9) : Color.white.opacity(0.45))
                     .contentTransition(reduceMotion ? .identity : .numericText())
                     .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: status)
+                    .layoutProbe("row-\(a.id)-status")
             }
             Spacer(minLength: 4)
             control(a, pending: pending)
@@ -522,6 +574,7 @@ struct IslandAgentListBody: View {
                     .foregroundStyle(action == .approve ? Color.black : Color.white)
                     .frame(width: 28, height: 28)
                     .background(Circle().fill(armed ? IslandPalette.red : action == .approve ? Color.white : Color.white.opacity(0.12)))
+                    .layoutProbe("row-\(a.id)-control", .control)
                     .islandFocusRing(model.isNavFocused(.row(a.id)), shape: .capsule)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
@@ -530,7 +583,7 @@ struct IslandAgentListBody: View {
             .animation(.smooth(duration: 0.2), value: armed)
             .accessibilityLabel(Self.label(action, armed: armed, name: a.name))
         } else {
-            statusGlyph(a).frame(width: 28, height: 28)
+            statusGlyph(a).frame(width: 28, height: 28).layoutProbe("row-\(a.id)-glyph", .glyph)
         }
     }
 

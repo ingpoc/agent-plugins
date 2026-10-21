@@ -75,6 +75,9 @@ final class IslandP7RenderTests: XCTestCase {
         m = IslandModel()
         var urgent = ev; urgent.start = now.addingTimeInterval(120); urgent.meetingURL = nil
         m.setCalendar([urgent], now: now); try await save(m, "calendar-urgent")
+        m = IslandModel(); m.calendarLead = 2 * 86_400   // worst case: 12:59 PM + long title, shown as the next event
+        m.setCalendar(IslandLayoutGateTests.worstAgenda(now: now), now: now)
+        m.toggleCard(); try await save(m, "calendar-card-worst")
 
         // A5 Duo
         m = IslandModel()

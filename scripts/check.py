@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -624,7 +625,32 @@ def run_tests(plugin: Path) -> int:
         proc = subprocess.run(argv, cwd=plugin, env=env)
         if proc.returncode != 0:
             return proc.returncode
-    return 0
+    return run_island_layout_gate(plugin)
+
+
+ISLAND_SERVICE = Path("skills/macos-cua/service")
+
+
+def run_island_layout_gate(plugin: Path) -> int:
+    """Samantha island layout gate (overlap / clipping / 8 pt inset over every island state).
+
+    Needs SwiftUI, so macOS only; Linux CI prints a skip. AGENT_PLUGINS_SKIP_SWIFT_GATE=1 opts out locally.
+    """
+    service = plugin / ISLAND_SERVICE
+    if plugin.name != "agent-computer-use" or not (service / "Package.swift").is_file():
+        return 0
+    if sys.platform != "darwin" or shutil.which("swift") is None:
+        print("skip island layout gate: needs macOS + swift", flush=True)
+        return 0
+    if os.environ.get("AGENT_PLUGINS_SKIP_SWIFT_GATE") == "1":
+        print("skip island layout gate: AGENT_PLUGINS_SKIP_SWIFT_GATE=1", flush=True)
+        return 0
+    print("test island layout gate", flush=True)
+    proc = subprocess.run(["swift", "test", "--filter", "IslandLayoutGateTests"], cwd=service,
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    if proc.returncode != 0:
+        print(proc.stdout[-6000:], file=sys.stderr)
+    return proc.returncode
 
 
 def main() -> int:

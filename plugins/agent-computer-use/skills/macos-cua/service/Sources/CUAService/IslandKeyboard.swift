@@ -14,6 +14,7 @@ extension View {
             }
         }
         .padding(-IslandFocusShape.outset)
+        .modifier(RingProbe(on: on))
         .opacity(on ? 1 : 0)
         .allowsHitTesting(false))
     }
@@ -192,5 +193,12 @@ extension IslandModel {
         guard let t = navTarget else { return }
         let label = navLabel(t)
         if !label.isEmpty { onAnnounce?(label) }
+    }
+}
+
+private struct RingProbe: ViewModifier {
+    let on: Bool
+    func body(content: Content) -> some View {
+        if on { content.layoutProbe("focus-ring", .ring) } else { content }
     }
 }

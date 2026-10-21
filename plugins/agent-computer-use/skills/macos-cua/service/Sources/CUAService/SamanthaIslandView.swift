@@ -496,6 +496,8 @@ struct SamanthaIslandBar: View {
             }
         }
         .frame(width: IslandBarLayout.windowSize.width, height: IslandBarLayout.windowSize.height, alignment: .topLeading)
+        .coordinateSpace(name: IslandLayoutRecorder.space)
+        .background(layoutContainers(rect))
         .opacity(model.idleHidden ? 0 : 1)
         .animation(.easeInOut(duration: 0.2), value: model.idleHidden)
         .animation(openAnimation, value: model.cardOpen)
@@ -505,6 +507,19 @@ struct SamanthaIslandBar: View {
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.agentApproval?.id)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.secondary)
         .animation(IslandMotion.target(model.trayTargeted, reduce: reduceMotion), value: model.trayTargeted)
+    }
+
+    /// Layout gate (tests only): the pill / card and the Duo pill with their minimum insets.
+    private func layoutContainers(_ rect: CGRect) -> some View {
+        if IslandLayoutRecorder.enabled {
+            let expanded = model.cardOpen || model.trayTargeted
+            IslandLayoutRecorder.shared.container(.init(name: "shape", rect: rect,
+                inset: CGSize(width: IslandLayoutGate.minInset, height: expanded ? IslandLayoutGate.minInset : 4)))
+            if let s = model.secondaryRect {
+                IslandLayoutRecorder.shared.container(.init(name: "secondary", rect: s, inset: CGSize(width: IslandLayoutGate.minInset, height: 4)))
+            }
+        }
+        return Color.clear
     }
 
     /// Two-layer ghost stack under an open card when more cards are queued.
@@ -583,6 +598,7 @@ struct SamanthaIslandBar: View {
             if model.trayTargeted && !model.cardOpen {
                 IslandDropTarget()
                     .frame(width: IslandBarLayout.dropTargetSize.width, height: IslandBarLayout.dropTargetSize.height)
+                    .layoutRect("drop-glyph", .glyph, CGRect(x: rect.midX - 14, y: rect.midY - 12, width: 28, height: 24))
                     .transition(.opacity)
             }
             if model.presentation == .peek, !model.cardOpen, let item = model.peek {
@@ -607,6 +623,10 @@ struct SamanthaIslandBar: View {
             if !(model.cardOpen && model.cardMode == .agents) && !model.trayTargeted && model.presentation != .peek
                 && !(model.cardOpen && [.calendar, .tray].contains(model.presentation)) {
                 leadMorph
+                    // Lead is drawn through a scale effect: register its on-screen slot from the layout constants.
+                    .layoutRect(open ? "card-art" : "lead", .glyph,
+                                open ? CGRect(x: rect.minX + IslandBarLayout.cardPadding, y: rect.minY + IslandBarLayout.cardPadding, width: 56, height: 56)
+                                     : CGRect(x: rect.minX + IslandBarLayout.slotInset, y: rect.minY + (IslandBarLayout.compactHeight - 16) / 2, width: 16, height: 16))
                 if hasTrail { trailMorph }
             }
         }
@@ -638,8 +658,10 @@ struct SamanthaIslandBar: View {
         let compactW: CGFloat = model.presentation == .actingSteps ? 64 : model.presentation == .hud ? IslandBarLayout.hudBarWidth : 20
         return ZStack(alignment: .topTrailing) {
             compactTrail.id("trail-\(model.presentation.family)").transition(glyphSwap)
-                .frame(width: compactW, height: 16).opacity(open ? 0 : 1)
-            trail.frame(width: 20, height: 16).opacity(open ? 1 : 0)
+                .modifier(TrailProbe(on: !open, id: "trail"))
+                // Trailing-aligned: content wider than the slot (e.g. "8m •") grows inward, never past the 8 pt inset.
+                .frame(width: compactW, height: 16, alignment: .trailing).opacity(open ? 0 : 1)
+            trail.modifier(TrailProbe(on: open, id: "card-trail")).frame(width: 20, height: 16).opacity(open ? 1 : 0)
         }
         .frame(width: open ? 20 : compactW, height: 16, alignment: .topTrailing)
         .offset(x: open ? IslandBarLayout.cardTrailOrigin.x : rect.width - IslandBarLayout.slotInset - compactW,
@@ -814,6 +836,7 @@ struct SamanthaIslandBar: View {
                                           : .system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.white)
                     .lineLimit(model.isChoiceCard ? 2 : 1)
+                    .layoutProbe("card-title", truncates: true)
                     .frame(width: IslandBarLayout.cardTrailOrigin.x - IslandBarLayout.cardTextX - 8, alignment: .leading)
                 if !card.subtitle.isEmpty {
                     Text(card.subtitle)
@@ -821,6 +844,7 @@ struct SamanthaIslandBar: View {
                         .foregroundStyle(Color.white.opacity(0.7))
                         .lineLimit(model.isChoiceCard ? 1 : 2)
                         .truncationMode(.tail)
+                        .layoutProbe("card-subtitle", truncates: true)
                         .frame(width: IslandBarLayout.cardSize.width - IslandBarLayout.cardTextX - p, alignment: .topLeading)
                 }
             }
@@ -939,9 +963,11 @@ struct SamanthaIslandBar: View {
             HStack(spacing: IslandBarLayout.decisionGap) {
                 Button(secondary.0) { perform(secondary.1) }
                     .buttonStyle(SamanthaDecisionStyle(role: .secondary))
+                    .layoutProbe("decision-secondary", .control)
                     .islandFocusRing(model.isNavFocused(.action(secondary.1)), shape: .capsule)
                 Button(primary.0) { perform(primary.1) }
                     .buttonStyle(SamanthaDecisionStyle(role: destructive ? .destructive : .primary))
+                    .layoutProbe("decision-primary", .control)
                     .islandFocusRing(model.isNavFocused(.action(primary.1)), shape: .capsule)
             }
         }
@@ -1411,5 +1437,13 @@ struct NowPlayingCardBody: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+    }
+}
+
+/// Probes the visible trail only (the hidden twin of the morph keeps opacity 0).
+private struct TrailProbe: ViewModifier {
+    let on: Bool, id: String
+    func body(content: Content) -> some View {
+        if on { content.layoutProbe(id, .glyph) } else { content }
     }
 }
