@@ -361,6 +361,41 @@ class NestedDropTests(unittest.TestCase):
         self.assertEqual(creates[0]["response"]["metadata"]["voice_cua_request_id"], "req5")
 
 
+class DeliveredThenDropTests(unittest.TestCase):
+    def test_drop_after_output_before_continuation_yields_one_recovery_turn(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        session._conn_epoch = 1
+        session.send_text("open example.com and read the heading")
+        release = threading.Event()
+        real_idle = session._wait_for_responses_idle
+
+        def idle(*, timeout: float) -> bool:
+            if threading.current_thread().name != "drop-recovery":
+                release.wait(3.0)  # the tool worker is parked before its response.create
+            return real_idle(timeout=0.1)
+
+        with patch.object(session, "_wait_for_responses_idle", side_effect=idle), patch(
+            "voice_cua.realtime_session.dispatch", return_value={"ok": True, "text": "Example Domain"}
+        ), patch("voice_cua.realtime_session.comet_is_active", return_value=False):
+            session._run_tool("call_c", "comet_act", "{}")
+            self.assertTrue(_wait(lambda: "call_c" in session._unacked))
+            with contextlib.redirect_stdout(io.StringIO()):
+                session._on_close(None, None, None)
+            session._prepare_reconnect()
+            session._conn_epoch += 1
+            session.ws = FakeWS()
+            session._session_ready.set()
+            recovery = threading.Thread(target=session._run_drop_recovery, name="drop-recovery")
+            recovery.start()
+            release.set()
+            recovery.join(3.0)
+            time.sleep(0.2)
+        types = [e["type"] for e in session.ws.events]
+        self.assertEqual(types, ["conversation.item.create", "response.create"])
+        self.assertIn("open example.com", session.ws.events[0]["item"]["content"][0]["text"])
+
+
 class StaleLeaseTests(unittest.TestCase):
     def _lease(self) -> CometLease:
         lease = CometLease()

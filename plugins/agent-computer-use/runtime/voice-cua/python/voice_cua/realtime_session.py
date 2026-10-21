@@ -1106,11 +1106,14 @@ class RealtimeSession:
                 self._sync_tool_groups(name, result)
                 if name.startswith("comet_"):
                     self._on_comet_change(comet_is_active())
-                if stale == "recovery":
+                if stale == "recovery" or (epoch != self._conn_epoch
+                                           and call_id in getattr(self, "_recovered_calls", ())):
                     return  # drop recovery continues the task with this result
                 # A stale (pre-drop) result still continues the task once.
                 request_id_local = request_id
                 if self._wait_for_responses_idle(timeout=10.0):
+                    if epoch != self._conn_epoch and call_id in getattr(self, "_recovered_calls", ()):
+                        return  # dropped meanwhile: the recovery turn carries this result
                     self._send_response_create(request_id=request_id_local)
                 else:
                     log_event(
@@ -1608,8 +1611,10 @@ class RealtimeSession:
         if self._turn_recovered:
             log_event("live_drop_recovery", mode=mode, action="skipped_already_recovered")
             return None
-        if mode == "tool_pending":
+        if self._inflight_tools:
+            # Tools still running hand their results to the recovery turn (one continuation).
             self._late_results = []
+        self._recovered_calls = {cid for cid, _v in unacked}
         plan = {"mode": mode, "text": text, "request_id": waiters[0] if waiters else "",
                 "results": [(cid, name, result) for cid, (name, result, _e) in unacked],
                 "tools_in_flight": self._inflight_tools, "epoch": self._conn_epoch}
@@ -1633,7 +1638,7 @@ class RealtimeSession:
     def _deliver_drop_recovery(self, plan: dict[str, Any], mode: str, request_id: str) -> None:
         forked = bool(getattr(self.provider, "forked", False))
         results = [(name, result) for _cid, name, result in plan["results"]]
-        if mode == "tool_pending":
+        if plan.get("tools_in_flight"):
             # Wait for the tool(s) that were running at the drop; their results land here.
             while self._inflight_tools and not self._stop.is_set():
                 time.sleep(0.2)
