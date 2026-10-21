@@ -204,6 +204,49 @@ def create_app_bundle(binary: Path, dest: Path) -> None:
     print(f"  ✓ App bundle created at {dest}")
 
 
+MEDIAREMOTE_SRC = SERVICE_DIR / "Vendor" / "mediaremote-adapter"
+
+
+def bundle_mediaremote_adapter(app_path: Path) -> bool:
+    """Now Playing: vendored mediaremote-adapter (BSD-3). Framework → Contents/Frameworks, test client →
+    Contents/Helpers, perl script → Contents/Resources. Skips (island falls back to AppleScript) if cmake
+    is missing or the build fails."""
+    cmake = shutil.which("cmake")
+    if not MEDIAREMOTE_SRC.is_dir() or not cmake:
+        print("  ! mediaremote-adapter skipped (no vendored source or cmake); Now Playing uses AppleScript fallback")
+        return False
+    build_dir = Path.home() / ".cache" / "macos-cua" / "build" / "mediaremote-adapter"
+    build_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        run([cmake, "-S", str(MEDIAREMOTE_SRC), "-B", str(build_dir), "-DCMAKE_BUILD_TYPE=Release"],
+            stdout=subprocess.DEVNULL)
+        run([cmake, "--build", str(build_dir), "--config", "Release"], stdout=subprocess.DEVNULL)
+    except subprocess.CalledProcessError as exc:
+        print(f"  ! mediaremote-adapter build failed ({exc}); Now Playing uses AppleScript fallback")
+        return False
+    fw_src = build_dir / "MediaRemoteAdapter.framework"
+    client_src = build_dir / "MediaRemoteAdapterTestClient"
+    script_src = MEDIAREMOTE_SRC / "bin" / "mediaremote-adapter.pl"
+    if not (fw_src.is_dir() and client_src.is_file() and script_src.is_file()):
+        print("  ! mediaremote-adapter artefacts missing; Now Playing uses AppleScript fallback")
+        return False
+    contents = app_path / "Contents"
+    fw_dst = contents / "Frameworks" / "MediaRemoteAdapter.framework"
+    if fw_dst.exists():
+        shutil.rmtree(fw_dst)
+    fw_dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(fw_src, fw_dst, symlinks=True)
+    helpers = contents / "Helpers"
+    helpers.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(client_src, helpers / "MediaRemoteAdapterTestClient")
+    (helpers / "MediaRemoteAdapterTestClient").chmod(0o755)
+    (contents / "Resources").mkdir(parents=True, exist_ok=True)
+    shutil.copy2(script_src, contents / "Resources" / "mediaremote-adapter.pl")
+    shutil.copy2(MEDIAREMOTE_SRC / "LICENSE", contents / "Resources" / "mediaremote-adapter-LICENSE.txt")
+    print("  ✓ mediaremote-adapter bundled (Now Playing)")
+    return True
+
+
 def codesign(app_path: Path, identity: str, team: str) -> None:
     helper = app_path / "Contents" / "Helpers" / "voice-cua.app"
     if helper.is_dir():
@@ -211,8 +254,13 @@ def codesign(app_path: Path, identity: str, team: str) -> None:
     frameworks = app_path / "Contents" / "Frameworks"
     if frameworks.is_dir():
         for nested in sorted(frameworks.rglob("*"), key=lambda path: len(path.parts), reverse=True):
-            if nested.is_file() and is_macho(nested):
+            if nested.is_file() and not nested.is_symlink() and is_macho(nested):
                 run(["codesign", "--force", "--sign", identity, "--options", "runtime", str(nested)])
+        for fw in sorted(frameworks.glob("*.framework")):
+            run(["codesign", "--force", "--sign", identity, "--options", "runtime", str(fw)])
+    test_client = app_path / "Contents" / "Helpers" / "MediaRemoteAdapterTestClient"
+    if test_client.is_file():
+        run(["codesign", "--force", "--sign", identity, "--options", "runtime", str(test_client)])
     mic_preflight = app_path / "Contents" / "MacOS" / "mic-preflight"
     if mic_preflight.is_file():
         run([
@@ -284,6 +332,7 @@ def main():
 
     if not args.skip_voice_bundle:
         bundle_voice_helper(dest, team=args.team, skip_sign=True)
+    bundle_mediaremote_adapter(dest)
 
     if not args.skip_sign:
         print("Signing...")

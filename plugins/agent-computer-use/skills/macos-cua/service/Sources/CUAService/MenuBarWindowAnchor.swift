@@ -26,36 +26,35 @@ enum MenuBarWindowAnchor {
     }
 
     /// Screen that currently hosts the system menubar window.
+    ///
+    /// Pinned to the **primary** display (`NSScreen.screens[0]`, the one that owns
+    /// the global menu bar origin). `NSScreen.main` follows keyboard focus, so on a
+    /// multi-display Mac the pill used to hop to whichever display the user last
+    /// clicked — invisible on the display they were watching / capturing.
     static func menuBarScreen() -> NSScreen {
-        if let main = NSScreen.main,
-           quartzMenubar(on: main) != nil {
-            return main
-        }
-        for screen in NSScreen.screens {
-            if quartzMenubar(on: screen) != nil {
-                return screen
-            }
-        }
-        return NSScreen.main ?? NSScreen.screens[0]
+        let screens = NSScreen.screens
+        guard !screens.isEmpty else { return NSScreen.main ?? NSScreen() }
+        let mainIndex = NSScreen.main.flatMap { main in screens.firstIndex(where: { $0 == main }) }
+        let index = pickScreenIndex(
+            count: screens.count,
+            mainIndex: mainIndex,
+            hasMenubar: { quartzMenubar(on: screens[$0]) != nil }
+        )
+        return screens[index]
     }
 
-    static func islandFrame(contentSize: NSSize, contentHeight: CGFloat, on screen: NSScreen) -> NSRect {
-        let width = min(max(contentSize.width, 80), 320)
-        if let strip = strip(on: screen) {
-            let bar = strip.appKit
-            let h = min(contentHeight, bar.height)
-            let x = bar.midX - width / 2
-            // Fill the Window Server Menubar strip vertically.
-            let y = bar.origin.y + max(0, bar.height - h)
-            return NSRect(x: x, y: y, width: width, height: h)
-        }
-        let top = screen.frame.maxY
-        let bottom = screen.visibleFrame.maxY
-        let stripH = max(top - bottom, NSStatusBar.system.thickness)
-        let h = min(contentHeight, stripH)
-        let y = bottom + max(0, stripH - h)
-        return NSRect(x: screen.frame.midX - width / 2, y: y, width: width, height: h)
+    /// Pure choice: primary (0) when it has a menubar, else the focused display
+    /// when it has one, else the first display with a menubar, else primary.
+    static func pickScreenIndex(count: Int, mainIndex: Int?, hasMenubar: (Int) -> Bool) -> Int {
+        guard count > 0 else { return 0 }
+        if hasMenubar(0) { return 0 }
+        if let mainIndex, mainIndex < count, hasMenubar(mainIndex) { return mainIndex }
+        for index in 0..<count where hasMenubar(index) { return index }
+        return 0
     }
+
+    /// Island window: centred on the menubar strip, clamped inside the screen,
+    /// `gap` below the top edge (Alcove-style on non-notch displays).
 
     // MARK: - Window Server Menubar lookup
 
@@ -105,7 +104,7 @@ enum MenuBarWindowAnchor {
     }
 }
 
-private extension NSScreen {
+extension NSScreen {
     var displayID: CGDirectDisplayID? {
         let key = NSDeviceDescriptionKey("NSScreenNumber")
         guard let num = deviceDescription[key] as? NSNumber else { return nil }

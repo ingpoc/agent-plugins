@@ -316,9 +316,23 @@ class CUAClient:
         """Overlay visibility + idle-hide setting (bypasses the request lock)."""
         return self.call("cursor_status", {"events": True} if events else None)
 
-    def configure_cursor(self, idle_hide_ms: int) -> dict:
-        """Idle auto-hide delay in ms (0 = never auto-hide); persisted."""
-        return self.call("configure_cursor", {"idle_hide_ms": int(idle_hide_ms)})
+    def configure_cursor(
+        self,
+        idle_hide_ms: int | None = None,
+        *,
+        motion_style: str | None = None,
+        recording: bool | None = None,
+    ) -> dict:
+        """Idle auto-hide ms (0 = never), motion style (comet_swoop|linear) and
+        recording mode (Cua Fitts timing); each persisted when given."""
+        params: dict = {}
+        if idle_hide_ms is not None:
+            params["idle_hide_ms"] = int(idle_hide_ms)
+        if motion_style is not None:
+            params["motion_style"] = str(motion_style)
+        if recording is not None:
+            params["recording"] = bool(recording)
+        return self.call("configure_cursor", params)
 
 
 def owner_pids() -> list[int]:

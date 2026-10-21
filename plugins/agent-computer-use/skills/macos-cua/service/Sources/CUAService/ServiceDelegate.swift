@@ -14,6 +14,7 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController?
     private var voiceSupervisor: VoiceSupervisor?
     private var islandController: IslandController?
+    private var signalSources: [DispatchSourceSignal] = []
 
     init(socketPath: String, logger: Logger) {
         self.socketPath = socketPath
@@ -24,14 +25,21 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         promptTCC()
         cursorOverlay = CursorOverlay()
-        islandController = IslandController()
-        islandController?.prepareNotch()
+        islandController = IslandController(socketPath: IslandHubSocketServer.defaultPath(), startsNowPlaying: true)
+        islandController?.start()  // island + hub live from launch, Samantha or not
         voiceSupervisor = VoiceSupervisor()
         statusBar = StatusBarController()
         if let voiceSupervisor, let islandController {
+            islandController.controlToken = { [weak voiceSupervisor] in voiceSupervisor?.currentControlToken ?? "" }
             statusBar?.wire(voice: voiceSupervisor, island: islandController)
         }
         statusBar?.install()
+        installTerminationSignals()
+        if SamanthaResume.consume(), let voice = voiceSupervisor {
+            // Samantha was on when the previous service instance was stopped.
+            SamanthaActivityLog.startup(phase: "samantha_resume", status: "ok", detail: "after service restart")
+            Task { @MainActor in _ = await voice.start() }
+        }
 
         let appResolver = AppResolver(logger: logger)
         let axTree = AXTreeWalker(logger: logger)
@@ -76,9 +84,34 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// AppKit exits on SIGTERM without `applicationWillTerminate`, which used to
+    /// orphan the voice helper (old code, mic open, no island). Route SIGTERM /
+    /// SIGINT / SIGHUP through a normal terminate so the helper is stopped, and
+    /// leave a resume marker when Samantha was on.
+    private func installTerminationSignals() {
+        for sig in [SIGTERM, SIGINT, SIGHUP] {
+            signal(sig, SIG_IGN)
+            let src = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+            src.setEventHandler { [weak self] in
+                MainActor.assumeIsolated { self?.terminateFromSignal(sig) }
+            }
+            src.resume()
+            signalSources.append(src)
+        }
+    }
+
+    private func terminateFromSignal(_ sig: Int32) {
+        if voiceSupervisor?.running == true {
+            SamanthaResume.write()
+        }
+        logger.info("CUAService signal \(sig) → terminate")
+        NSApp.terminate(nil)
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         voiceSupervisor?.stop()
         islandController?.stopStreaming()
+        islandController?.shutdown()
         cursorOverlay?.hide()
         server?.stop()
         try? FileManager.default.removeItem(atPath: socketPath)

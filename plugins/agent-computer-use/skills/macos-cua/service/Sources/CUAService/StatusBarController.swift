@@ -41,13 +41,19 @@ final class StatusBarController: NSObject {
     private weak var islandController: IslandController?
 
     private var samanthaRow: MenuSwitchRowView?
+    private var showIslandItem: NSMenuItem?
 
     func wire(voice: VoiceSupervisor, island: IslandController) {
         voiceSupervisor = voice
         islandController = island
+        IslandSettingsWindowController.shared.onVoiceSettings = { [weak self] in self?.openSettings() }
+        voice.onGatewayPortChanged = { [weak island] port in
+            island?.updateGateway(port: port)
+        }
         voice.onRunningChanged = { [weak self] running in
             self?.setVoiceRunning(running)
             if running {
+                island.updateGateway(port: voice.gatewayPort)
                 island.startStreaming()
             } else {
                 island.stopStreaming()
@@ -81,12 +87,29 @@ final class StatusBarController: NSObject {
         menu.addItem(samanthaItem)
         samanthaRow = row
 
-        let settingsItem = NSMenuItem(
-            title: "Samantha Settings…",
-            action: #selector(openSettings),
+        let showIsland = NSMenuItem(title: "Show Dynamic Island", action: #selector(toggleShowIsland(_:)), keyEquivalent: "")
+        showIsland.target = self
+        showIsland.state = IslandSettingsStore.shared.bool(IslandSettingsSchema.showIsland) ? .on : .off
+        menu.addItem(showIsland)
+        showIslandItem = showIsland
+        IslandSettingsStore.shared.addObserver { [weak self] s in
+            self?.showIslandItem?.state = s.bool(IslandSettingsSchema.showIsland) ? .on : .off
+        }
+
+        let islandSettingsItem = NSMenuItem(
+            title: "Island Settings…",
+            action: #selector(openIslandSettings),
             keyEquivalent: ","
         )
-        settingsItem.keyEquivalentModifierMask = [.command]
+        islandSettingsItem.keyEquivalentModifierMask = [.command]
+        islandSettingsItem.target = self
+        menu.addItem(islandSettingsItem)
+
+        let settingsItem = NSMenuItem(
+            title: "Voice Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ""
+        )
         settingsItem.target = self
         menu.addItem(settingsItem)
 
@@ -130,6 +153,8 @@ final class StatusBarController: NSObject {
     @objc private func samanthaToggled(_ sender: NSSwitch) {
         guard !suppressToggleAction else { return }
         if sender.state == .on {
+            // User click: provision Samantha's island token if it doesn't exist yet.
+            IslandSettingsStore.shared.ensureToken(.samantha)
             Task { @MainActor in
                 let started = await self.voiceSupervisor?.start() ?? false
                 guard !started else { return }
@@ -157,6 +182,15 @@ final class StatusBarController: NSObject {
                 NSWorkspace.shared.open(url)
             }
         }
+    }
+
+    @objc private func toggleShowIsland(_ sender: NSMenuItem) {
+        let s = IslandSettingsStore.shared
+        s.set(!s.bool(IslandSettingsSchema.showIsland), for: IslandSettingsSchema.showIsland)
+    }
+
+    @objc private func openIslandSettings() {
+        IslandSettingsWindowController.shared.showSettings()
     }
 
     @objc private func openSettings() {
