@@ -47,20 +47,45 @@ ESCALATE_TOOL = "use_intelligence"
 # A delegation whose backend input passed this many tokens marks the conversation for a
 # seeded restart (recent utterances only) at the next quiet moment instead of a fork.
 LIVE_CONTEXT_ROTATE_TOKENS = int(os.environ.get("VOICE_CUA_LIVE_CONTEXT_ROTATE_TOKENS", "40000"))
-# Chars of one tool result sent to Live. Large accessibility dumps (~5.4k chars / ~1.9k tokens)
-# intermittently made the server drop the socket (TCP closed, no close frame, no error) ~10 ms
-# after the response.item.create; outputs <= ~3k chars never dropped in the replays.
-LIVE_TOOL_OUTPUT_MAX = int(os.environ.get("VOICE_CUA_LIVE_TOOL_OUTPUT_MAX", "3000"))
+# Chars of one tool result sent to Live (was a blind 8000-char prefix cut). The server drops the
+# socket intermittently (TCP FIN, no close frame or error) with or without large outputs, so
+# drops are handled by reconnect + redelivery; a smaller, structure-keeping result lowers the
+# backend's re-read cost and kept AX dumps under the size seen in most drops.
+LIVE_TOOL_OUTPUT_MAX = int(os.environ.get("VOICE_CUA_LIVE_TOOL_OUTPUT_MAX", "6000"))
 HISTORY_MAX = 24          # seeded restart: recent utterances (docs cap: 128 msgs / 8,192 tokens)
 PENDING_AUDIO_MAX = 150   # ~3 s of 20 ms chunks buffered until session.started
 LIVE_APPEND_MAX_CHARS = 1200  # session.*.append content is capped at 500 tokens (URLs tokenize densely)
 _INDENT = re.compile(r"(?m)^( +)")
 
 
-def compact_tool_output(output: str, cap: int = LIVE_TOOL_OUTPUT_MAX) -> str:
-    """Fit a tool result under ``cap`` chars: halve tree indentation, then cut the ``text`` field.
+def _string_leaves(node: Any, path: tuple = ()) -> list[tuple[int, tuple]]:
+    out: list[tuple[int, tuple]] = []
+    if isinstance(node, str):
+        out.append((len(node), path))
+    elif isinstance(node, dict):
+        for key, value in node.items():
+            out += _string_leaves(value, path + (key,))
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            out += _string_leaves(value, path + (index,))
+    return out
 
-    Keeps the result valid JSON (ok/verified/... stay intact) so the backend still reads it.
+
+def _cut_text(text: str, room: int) -> str:
+    if len(text) <= room:
+        return text
+    cut = text.rfind("\n", 0, room)
+    cut = cut if cut > room // 2 else room
+    hidden = text.count("\n", cut) + 1
+    return text[:cut] + f"\n…[{hidden} more lines cut; ask for a narrower view if needed]"
+
+
+def compact_tool_output(output: str, cap: int = LIVE_TOOL_OUTPUT_MAX) -> str:
+    """Fit a tool result under ``cap`` chars and keep it valid JSON.
+
+    Accessibility trees get their indentation halved; then the longest text fields (AX dump,
+    page text — wherever they nest, e.g. Comet's response.results[].text) are cut, so the
+    ok/error/url fields always survive instead of a blind prefix cut.
     """
     if len(output) <= cap:
         return output
@@ -68,26 +93,33 @@ def compact_tool_output(output: str, cap: int = LIVE_TOOL_OUTPUT_MAX) -> str:
         data = json.loads(output)
     except (TypeError, ValueError):
         data = None
-    if not isinstance(data, dict) or not isinstance(data.get("text"), str):
+    if not isinstance(data, (dict, list)):
         return output[:cap] + "…[truncated]"
-    text = _INDENT.sub(lambda m: " " * (len(m.group(1)) // 2), data["text"])
-    data["text"] = ""
-    room = cap - len(json.dumps(data)) - 80
-    if room < 200:
-        return output[:cap] + "…[truncated]"
-    full = text
-    for _ in range(8):  # JSON escaping (newlines, quotes) grows the text: shrink until it fits
-        if len(text) > room:
-            cut = full.rfind("\n", 0, room)
-            cut = cut if cut > room // 2 else room
-            hidden = full.count("\n", cut) + 1
-            text = full[:cut] + f"\n…[{hidden} more lines cut; ask for a narrower view if needed]"
-        data["text"] = text
+
+    def get(path: tuple) -> Any:
+        node = data
+        for key in path:
+            node = node[key]
+        return node
+
+    def put(path: tuple, value: str) -> None:
+        get(path[:-1])[path[-1]] = value
+
+    for size, path in _string_leaves(data):
+        if size > 400 and path:
+            put(path, _INDENT.sub(lambda m: " " * (len(m.group(1)) // 2), get(path)))
+    for _ in range(12):
         out = json.dumps(data)
-        if len(out) <= cap:
+        over = len(out) - cap
+        if over <= 0:
             return out
-        room -= len(out) - cap + 16
-        text = full
+        leaves = sorted((leaf for leaf in _string_leaves(data) if leaf[1]), reverse=True)
+        if not leaves or leaves[0][0] < 120:
+            break
+        size, path = leaves[0]
+        # Escaping (newlines, quotes) makes the JSON longer than the raw text: overshoot a bit.
+        escaped = len(json.dumps(get(path)))
+        put(path, _cut_text(get(path), max(80, int(size * (escaped - over - 80) / escaped))))
     return output[:cap] + "…[truncated]"
 
 
