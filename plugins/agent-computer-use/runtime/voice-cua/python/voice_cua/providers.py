@@ -159,6 +159,39 @@ class XAIProvider(VoiceProvider):
         return [event]
 
 
+class TranscriptBurst:
+    """Groups GPT-Live transcript deltas into utterances (the docs: deltas carry no item id or
+    turn-end event, so the app groups them). Flushes after a quiet gap on a timer."""
+
+    def __init__(self, on_flush: Callable[[str], None], gap_s: float = 1.2) -> None:
+        self._on_flush = on_flush
+        self._gap_s = gap_s
+        self._parts: list[str] = []
+        self._lock = threading.Lock()
+        self._timer: threading.Timer | None = None
+
+    def add(self, delta: str) -> bool:
+        """Append a fragment exactly as received; True when it opens a new utterance."""
+        with self._lock:
+            fresh = not self._parts
+            self._parts.append(delta)
+            if self._timer:
+                self._timer.cancel()
+            self._timer = threading.Timer(self._gap_s, self.flush)
+            self._timer.daemon = True
+            self._timer.start()
+        return fresh
+
+    def flush(self) -> None:
+        with self._lock:
+            text, self._parts = "".join(self._parts).strip(), []
+            if self._timer:
+                self._timer.cancel()
+                self._timer = None
+        if text:
+            self._on_flush(text)
+
+
 class LiveProvider(VoiceProvider):
     """GPT-Live-1 with Responses delegation and a Bulk → Intelligence router."""
 
@@ -171,7 +204,23 @@ class LiveProvider(VoiceProvider):
         self.intelligence = intelligence if intelligence in BACKEND_MODELS else DEFAULT_INTELLIGENCE
         self.voice = voice
         self._lock = threading.Lock()
+        self.heard = TranscriptBurst(self._on_heard)
+        self.said = TranscriptBurst(self._on_said)
         self.reset()
+
+    @staticmethod
+    def _on_heard(text: str) -> None:
+        from voice_cua.island_facade import island_publish
+
+        # Words go to voice.log only; the activity log keeps metadata (as on Realtime).
+        log_event("user_transcript", chars=len(text), provider="openai-live")
+        print(f"You: {text}", flush=True)
+        island_publish("thinking", title=text[:120], detail="Thinking")
+
+    @staticmethod
+    def _on_said(text: str) -> None:
+        log_event("assistant_reply", text=text[:240], source="live_voice")
+        print(f"Samantha: {text}", flush=True)
 
     # -- state ---------------------------------------------------------------
     def reset(self) -> None:
@@ -363,7 +412,13 @@ class LiveProvider(VoiceProvider):
             return [{"type": "response.output_audio.delta", "response_id": rid, "item_id": rid,
                      "delta": event.get("delta") or ""}]
         if et == "session.input_transcript.delta":
-            return [{"type": "input_audio_buffer.speech_started"}] if self._new_user_burst() else []
+            self.said.flush()
+            fresh = self.heard.add(str(event.get("delta") or ""))
+            return [{"type": "input_audio_buffer.speech_started"}] if fresh or self._new_user_burst() else []
+        if et == "session.output_transcript.delta":
+            self.heard.flush()
+            self.said.add(str(event.get("delta") or ""))
+            return []
         if et in {"session.usage.updated", "session.closed"}:
             usage = event.get("usage") or {}
             seconds = usage.get("seconds") if isinstance(usage, dict) else None
