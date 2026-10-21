@@ -42,6 +42,10 @@ EXIT_NEEDS_API_KEY = 78  # EX_CONFIG: CUAService does not auto-restart on this e
 REALTIME_MODEL = os.environ.get("VOICE_CUA_REALTIME_MODEL", "gpt-live-1")
 REALTIME_VOICE = os.environ.get("VOICE_CUA_REALTIME_VOICE", "marin")
 REALTIME_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
+# After a drop recovery, GPT-Live sometimes answers the recovery turn from stale context and
+# then starts a second delegation for the same request within a fraction of a second. The
+# first recovery answer waits this long; a newer response for the same turn supersedes it.
+RECOVERY_SETTLE_S = 2.0
 
 
 def _has_sound(b64: str, floor: int = 600) -> bool:
@@ -297,6 +301,8 @@ class RealtimeSession:
         self._turn_text = ""
         self._turn_tools = 0             # tools started since that turn (replay would redo them)
         self._turn_recovered = False     # one recovery per turn
+        self._settle_request = ""        # recovery request whose first answer may be superseded
+        self._settle_timer: threading.Timer | None = None
         self._unacked: dict[str, tuple[str, dict[str, Any], int]] = {}  # sent, no response yet
         self._drop_plan: dict[str, Any] | None = None
         self._late_results: list[tuple[str, dict[str, Any]]] | None = None  # tools that outlived a drop
@@ -809,6 +815,7 @@ class RealtimeSession:
                     self._current_response_id = response_id
                     if request_id:
                         self._response_request_ids[response_id] = request_id
+                        self._cancel_settle(request_id)
                     self._cancelled_response_ids.discard(response_id)
                 self._response_condition.notify_all()
             # The server answered after our tool output: it arrived; nothing to redeliver.
@@ -1506,7 +1513,23 @@ class RealtimeSession:
         request_id = self._request_id(response) or self._request_for_response(response_id)
         if request_id:
             error = "" if status == "completed" else f"response {status or 'failed'}"
+            if request_id == self._settle_request and not error:
+                self._settle_request = ""
+                timer = threading.Timer(RECOVERY_SETTLE_S, self._finish_text_waiter,
+                                        args=(request_id,), kwargs={"reply": reply})
+                timer.daemon = True
+                self._settle_timer = timer
+                timer.start()
+                return
             self._finish_text_waiter(request_id, reply=reply, error=error)
+
+    def _cancel_settle(self, request_id: str) -> None:
+        """A newer response for the recovery turn supersedes its first answer."""
+        timer = self._settle_timer
+        if timer is not None and timer.args and timer.args[0] == request_id:
+            timer.cancel()
+            self._settle_timer = None
+            log_event("live_recovery_answer_superseded")
 
     def _publish_listening_when_idle(self) -> None:
         """After response completes: hide agent cursor, then return pill to Listening."""
@@ -1629,6 +1652,7 @@ class RealtimeSession:
             return
         self._turn_recovered = True
         mode, request_id = plan["mode"], plan["request_id"]
+        self._settle_request = request_id
         self._recovery_active, self._recovery_request = True, request_id
         try:
             self._deliver_drop_recovery(plan, mode, request_id)
