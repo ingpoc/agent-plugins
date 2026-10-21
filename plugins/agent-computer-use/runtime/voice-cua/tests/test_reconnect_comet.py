@@ -361,6 +361,37 @@ class NestedDropTests(unittest.TestCase):
         self.assertEqual(creates[0]["response"]["metadata"]["voice_cua_request_id"], "req5")
 
 
+class StaleLeaseTests(unittest.TestCase):
+    def _lease(self) -> CometLease:
+        lease = CometLease()
+        lease._session_id, lease._purpose = "samantha-dead", "user_task"
+        lease._python, lease._controller, lease._workdir = "py", Path("ctl"), Path(tempfile.mkdtemp())
+        return lease
+
+    def test_lease_closed_elsewhere_is_dropped_and_restarted(self) -> None:
+        lease = self._lease()
+        with patch.object(lease, "_adopt_locked"), \
+                patch.object(lease, "_send_locked", return_value={"ok": False}), \
+                patch.object(lease, "_closeout_locked", return_value={"ok": False}), \
+                patch.object(comet_bridge, "broker_has_session", return_value=False), \
+                patch.object(lease, "_start_locked", return_value={"ok": True, "session_id": "new"}) as start:
+            out = lease.begin("https://example.com", purpose="user_task")
+        self.assertTrue(out["ok"])
+        start.assert_called_once()
+        self.assertEqual(lease._session_id, "")
+
+    def test_live_but_unresponsive_lease_still_refuses(self) -> None:
+        lease = self._lease()
+        with patch.object(lease, "_adopt_locked"), \
+                patch.object(lease, "_send_locked", return_value={"ok": False}), \
+                patch.object(lease, "_closeout_locked", return_value={"ok": False}), \
+                patch.object(comet_bridge, "broker_has_session", return_value=True), \
+                patch.object(lease, "_start_locked") as start:
+            out = lease.begin("https://example.com", purpose="user_task")
+        self.assertFalse(out["ok"])
+        start.assert_not_called()
+
+
 class TranscriptionTests(unittest.TestCase):
     def test_completed_transcript_prints_you_line(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=False)

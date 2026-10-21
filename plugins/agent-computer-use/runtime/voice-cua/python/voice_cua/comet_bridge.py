@@ -6,6 +6,7 @@ import atexit
 import json
 import os
 import shutil
+import socket
 import subprocess
 import tempfile
 import threading
@@ -86,6 +87,33 @@ def _runtime_root() -> Path:
     if not (root / "plugin.json").is_file() or not controller.is_file():
         raise RuntimeError("Comet Control is not installed at ~/.agents/plugins/comet-control")
     return root
+
+
+def broker_has_session(session_id: str) -> bool | None:
+    """Is this lease still in the broker's inventory? None when the broker can't say."""
+    try:
+        sock_path = _runtime_root() / "run/comet-control.sock"
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client.settimeout(8)
+        try:
+            client.connect(str(sock_path))
+            client.sendall(json.dumps({"type": "sessions", "timeoutSeconds": 5}).encode())
+            client.shutdown(socket.SHUT_WR)
+            chunks = []
+            while True:
+                chunk = client.recv(65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        finally:
+            client.close()
+        payload = json.loads(b"".join(chunks))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if payload.get("success") is not True or not isinstance(payload.get("sessions"), list):
+        return None
+    return any(str(item.get("session_id") or "") == session_id
+               for item in payload["sessions"] if isinstance(item, dict))
 
 
 BROKER_PLIST = Path.home() / "Library/LaunchAgents/local.comet-control.broker.plist"
@@ -369,6 +397,17 @@ class CometLease:
             self._purpose = DEFAULT_PURPOSE
         return public
 
+    def _drop_stale_locked(self) -> None:
+        if self._workdir is not None:
+            shutil.rmtree(self._workdir, ignore_errors=True)
+        self._clear_state()
+        self._session_id = ""
+        self._workdir = None
+        self._python = ""
+        self._controller = None
+        self._url = ""
+        self._purpose = DEFAULT_PURPOSE
+
     # -- public API ---------------------------------------------------------
     def active(self) -> bool:
         with self._lock:
@@ -407,7 +446,13 @@ class CometLease:
                     }
                 # Window gone (user closed it?) — clean up the dead lease, start fresh.
                 if not self._closeout_locked().get("ok"):
-                    return {"ok": False, "error": "existing Comet window is unresponsive and could not be released"}
+                    if broker_has_session(self._session_id) is not False:
+                        return {"ok": False, "error": "existing Comet window is unresponsive and could not be released"}
+                    # Already closed elsewhere (another process ended it): only our pointer is stale.
+                    from voice_cua.activity_log import log_event
+
+                    log_event("comet_lease_stale_dropped", session_id=self._session_id[:48])
+                    self._drop_stale_locked()
                 notify = False
             elif self._session_id:
                 if purpose == "self_test":
