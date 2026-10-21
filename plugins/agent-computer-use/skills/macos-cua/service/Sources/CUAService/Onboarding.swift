@@ -17,6 +17,52 @@ final class OnboardingModel: ObservableObject {
     static func shouldReopen(previous: Set<ACUPermission>, now: Set<ACUPermission>) -> Bool {
         !now.subtracting(previous).isEmpty
     }
+    static let buildKey = "acu.onboarding.build"
+    static let skippedKey = "acu.onboarding.skipped"
+
+    /// This app's version+build ("0.2.26 (266)"); a new build re-runs the launch check.
+    nonisolated static var currentBuild: String {
+        let i = Bundle.main.infoDictionary ?? [:]
+        return "\(i["CFBundleShortVersionString"] as? String ?? "dev") (\(i["CFBundleVersion"] as? String ?? "0"))"
+    }
+
+    /// Rows in the order onboarding shows them: Required, Automation, then Optional (incl. Keychain).
+    static var rowOrder: [ACUPermission] {
+        ["Required", "Automation", "Optional"].flatMap { s in ACUPermission.allCases.filter { $0.section == s } }
+    }
+
+    /// A row still to do: not granted (notInstalled counts as done) and not explicitly skipped.
+    static func pending(_ states: [ACUPermission: PermissionState], skipped: Set<String>) -> [ACUPermission] {
+        rowOrder.filter { !(states[$0] ?? .missing).satisfied && !skipped.contains($0.rawValue) }
+    }
+
+    struct LaunchDecision: Equatable {
+        let step: Step
+        let row: ACUPermission?
+    }
+
+    /// Launch: open on first run, on a build that hasn't been onboarded, or while ANY row
+    /// (Required, Automation, Keychain, Optional) is neither granted nor skipped — at the first such row.
+    static func launchDecision(states: [ACUPermission: PermissionState], build: String = currentBuild,
+                               defaults: UserDefaults = .standard) -> LaunchDecision? {
+        let skipped = Set(defaults.stringArray(forKey: skippedKey) ?? [])
+        let todo = pending(states, skipped: skipped)
+        if !defaults.bool(forKey: completedKey) { return LaunchDecision(step: .welcome, row: todo.first) }
+        if defaults.string(forKey: buildKey) != build || !todo.isEmpty {
+            return LaunchDecision(step: .permissions, row: todo.first)
+        }
+        return nil
+    }
+
+    /// Done / Later: this build is onboarded; rows still missing are the user's explicit skips
+    /// (Later never hides a newly revoked row — revocation clears the grant, not the skip list).
+    static func finish(states: [ACUPermission: PermissionState], build: String = currentBuild,
+                       defaults: UserDefaults = .standard) {
+        defaults.set(true, forKey: completedKey)
+        defaults.set(build, forKey: buildKey)
+        defaults.set(pending(states, skipped: []).map(\.rawValue), forKey: skippedKey)
+    }
+
     /// First launch, or a required consent is missing now.
     static func shouldShow(defaults: UserDefaults = .standard,
                            missing: [ACUPermission] = PermissionCenter.missingRequired()) -> Bool {
@@ -259,7 +305,7 @@ final class OnboardingWindowController: NSWindowController {
         window.backgroundColor = NSColor(red: 0.19, green: 0.19, blue: 0.19, alpha: 1)
         super.init(window: window)
         let host = NSHostingView(rootView: OnboardingView(model: model, store: .shared, onDone: {
-            UserDefaults.standard.set(true, forKey: OnboardingModel.completedKey)
+            OnboardingModel.finish(states: PermissionCenter.shared.states)
             OnboardingWindowController.shared.close()
         }))
         hosting = host
@@ -290,9 +336,12 @@ final class OnboardingWindowController: NSWindowController {
     /// Launch check: refresh real status first, then show only if needed.
     static func showIfNeeded() {
         PermissionCenter.shared.refresh {
-            guard OnboardingModel.shouldShow() else { return }
-            // Returning user with something missing goes straight to the rows.
-            if UserDefaults.standard.bool(forKey: OnboardingModel.completedKey) { shared.model.step = .permissions }
+            // Required always reopens (agents stop without it), even if it was skipped earlier.
+            let d = OnboardingModel.launchDecision(states: PermissionCenter.shared.states)
+                ?? (OnboardingModel.shouldShow() ? .init(step: .permissions, row: PermissionCenter.missingRequired().first) : nil)
+            guard let d else { return }
+            shared.model.step = d.step
+            shared.model.focusRow = d.row
             shared.show()
         }
     }

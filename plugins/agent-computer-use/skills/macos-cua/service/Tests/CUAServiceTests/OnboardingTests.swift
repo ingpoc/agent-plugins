@@ -244,4 +244,37 @@ final class OnboardingTests: XCTestCase {
             }
         }
     }
+
+    // MARK: Launch decision (first run / new build / any row pending)
+
+    private func states(_ missing: Set<ACUPermission>) -> [ACUPermission: PermissionState] {
+        Dictionary(uniqueKeysWithValues: ACUPermission.allCases.map { ($0, missing.contains($0) ? .missing : .granted) })
+    }
+
+    func testLaunchOpensAtFirstPendingRowOfAnySection() {
+        let d = UserDefaults(suiteName: "launch-\(UUID().uuidString)")!
+        // First run: Welcome, remembering the first missing row.
+        XCTAssertEqual(OnboardingModel.launchDecision(states: states([.keychain]), build: "b1", defaults: d),
+                       .init(step: .welcome, row: .keychain))
+        OnboardingModel.finish(states: states([]), build: "b1", defaults: d)
+        XCTAssertNil(OnboardingModel.launchDecision(states: states([]), build: "b1", defaults: d))
+        // Optional rows count too (Keychain, Automation), in display order: Automation before Optional.
+        XCTAssertEqual(OnboardingModel.launchDecision(states: states([.keychain, .automationFinder]), build: "b1", defaults: d),
+                       .init(step: .permissions, row: .automationFinder))
+        XCTAssertEqual(OnboardingModel.launchDecision(states: states([.keychain]), build: "b1", defaults: d)?.row, .keychain)
+        // New build: opens even when everything is granted.
+        XCTAssertEqual(OnboardingModel.launchDecision(states: states([]), build: "b2", defaults: d),
+                       .init(step: .permissions, row: nil))
+    }
+
+    func testLaterSkipsExactlyTheRowsLeftOpen() {
+        let d = UserDefaults(suiteName: "skip-\(UUID().uuidString)")!
+        OnboardingModel.finish(states: states([.automationSpotify, .focus]), build: "b1", defaults: d)
+        XCTAssertNil(OnboardingModel.launchDecision(states: states([.automationSpotify, .focus]), build: "b1", defaults: d),
+                     "explicitly skipped rows don't reopen it")
+        XCTAssertEqual(OnboardingModel.launchDecision(states: states([.focus, .calendars]), build: "b1", defaults: d)?.row,
+                       .calendars, "a row that wasn't skipped does")
+        var s = states([]); s[.automationComet] = .notInstalled
+        XCTAssertNil(OnboardingModel.launchDecision(states: s, build: "b1", defaults: d), "not installed = nothing to do")
+    }
 }
