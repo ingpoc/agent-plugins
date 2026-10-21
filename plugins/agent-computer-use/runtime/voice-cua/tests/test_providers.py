@@ -146,7 +146,7 @@ class LiveTests(_Rows):
         note = p.outbound({"type": "conversation.item.create", "item": {
             "type": "message", "role": "system", "content": [{"type": "input_text", "text": "x" * 5000}]}})
         self.assertEqual(note[0]["type"], "session.instructions.append")
-        self.assertLessEqual(len(note[0]["content"]), 1800)
+        self.assertLessEqual(len(note[0]["content"]), providers.LIVE_APPEND_MAX_CHARS)
         self.assertIsNone(note[0]["delegation_id"])
 
     def test_backend_function_call_reaches_loop_and_result_returns(self) -> None:

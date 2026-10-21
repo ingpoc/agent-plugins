@@ -47,7 +47,7 @@ LIVE_CONTEXT_ROTATE_TOKENS = int(os.environ.get("VOICE_CUA_LIVE_CONTEXT_ROTATE_T
 LIVE_TOOL_OUTPUT_MAX = 8000  # chars of one tool result kept in the Live/backend history
 HISTORY_MAX = 24          # seeded restart: recent utterances (docs cap: 128 msgs / 8,192 tokens)
 PENDING_AUDIO_MAX = 150   # ~3 s of 20 ms chunks buffered until session.started
-LIVE_APPEND_MAX_CHARS = 1800  # session.*.append content is capped at 500 tokens
+LIVE_APPEND_MAX_CHARS = 1200  # session.*.append content is capped at 500 tokens (URLs tokenize densely)
 XAI_VOICES = ("eve", "ara", "leo", "rex", "sal")
 XAI_DEFAULT_VOICE = "eve"
 
