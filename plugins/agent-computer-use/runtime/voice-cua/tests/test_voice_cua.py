@@ -333,7 +333,7 @@ class AudioIOTests(unittest.TestCase):
     def test_realtime_model_choices(self) -> None:
         self.assertEqual(
             [model for model, _ in MODELS],
-            ["gpt-realtime-2", "gpt-realtime-2.1-mini"],
+            ["gpt-realtime-2", "gpt-realtime-2.1", "gpt-realtime-2.1-mini", "grok-voice-latest", "gpt-live-1"],
         )
 
     def test_text_wait_ignores_unrelated_response(self) -> None:

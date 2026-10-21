@@ -53,6 +53,11 @@ def request_shutdown() -> None:
 
 
 def mint_client_secret() -> dict[str, Any]:
+    from voice_cua.providers import provider_for
+
+    if provider_for(realtime_model()) != "openai-realtime":
+        # Browser client secrets are a Realtime feature; GPT-Live / Grok Voice run in the helper.
+        raise RuntimeError(f"client secrets are Realtime-only; selected model is {realtime_model()}")
     api_key = resolve_openai_api_key()
     # GA mint body: full GA session config + short-lived token (10 min max).
     # Local import — realtime_session must not import gateway at module load.

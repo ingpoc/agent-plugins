@@ -20,7 +20,6 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from voice_cua import SYSTEM_INSTRUCTIONS
-from voice_cua.auth import resolve_openai_api_key
 from voice_cua.activity_log import log_event, log_usage, tool_context
 from voice_cua.activity_log import log_exception as _log_exception
 from voice_cua.cua_bridge import hide_agent_cursor
@@ -28,6 +27,7 @@ from voice_cua.comet_bridge import comet_add_listener, comet_end, comet_is_activ
 from voice_cua.island_facade import describe_tool, island_publish, island_voice_meter, summarize_result
 from voice_cua.startup_trace import mark
 from voice_cua.tools import dispatch, reset_session_state, tool_definitions
+from voice_cua.providers import VoiceProvider, make_provider
 from voice_cua.voice_settings import apply_env, load_settings, noise_reduction_config, turn_detection_config
 
 if TYPE_CHECKING:
@@ -38,6 +38,7 @@ try:
 except ImportError:  # pragma: no cover
     websocket = None  # type: ignore
 
+EXIT_NEEDS_API_KEY = 78  # EX_CONFIG: CUAService does not auto-restart on this exit
 REALTIME_MODEL = os.environ.get("VOICE_CUA_REALTIME_MODEL", "gpt-realtime-2")
 REALTIME_VOICE = os.environ.get("VOICE_CUA_REALTIME_VOICE", "alloy")
 REALTIME_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
@@ -86,7 +87,7 @@ def _ws_url() -> str:
     if explicit:
         return explicit
     model, _ = _model_and_voice()
-    return f"wss://api.openai.com/v1/realtime?model={model}"
+    return make_provider(model).url()
 
 
 def build_session_update(
@@ -214,7 +215,12 @@ class RealtimeSession:
     def __init__(self, api_key: str | None = None, *, enable_audio: bool = True) -> None:
         if websocket is None:
             raise RuntimeError("pip install websocket-client")
-        self.api_key = (api_key or resolve_openai_api_key()).strip()
+        apply_env()
+        model, _ = _model_and_voice()
+        # Provider adapter (Realtime / GPT-Live / Grok Voice): translates at the socket edge only.
+        self.provider: VoiceProvider = make_provider(model, load_settings())
+        self.provider.bind(self._send_wire)
+        self.api_key = (api_key or self.provider.resolve_key()).strip()
         self.ws: Any = None
         self._pending_calls: dict[str, dict[str, Any]] = {}
         self._inflight_tools = 0
@@ -261,8 +267,9 @@ class RealtimeSession:
     def connect(self) -> None:
         """One blocking WS attempt (returns when the socket closes)."""
         headers = [f"Authorization: Bearer {self.api_key}"]
+        explicit = os.environ.get("VOICE_CUA_REALTIME_URL", "").strip()
         self.ws = websocket.WebSocketApp(
-            _ws_url(),
+            explicit or self.provider.url(),
             header=headers,
             on_open=self._on_open,
             on_message=self._on_message,
@@ -391,6 +398,7 @@ class RealtimeSession:
         # budget survives the reconnect (fail closed).
         self._tool_groups.clear()
         reset_session_state()
+        self.provider.reset()
         for request_id in request_ids:
             self._finish_text_waiter(request_id, error="reconnected")
 
@@ -446,7 +454,14 @@ class RealtimeSession:
         self._request_reconnect(reason="planned_reconnect_55m")
 
     def _send(self, event: dict[str, Any]) -> bool:
-        """Send one event; drop it (never raise) while the socket is closed."""
+        """Send one loop (Realtime-dialect) event through the provider adapter."""
+        ok = True
+        for wire in self.provider.outbound(event):
+            ok = self._send_wire(wire) and ok
+        return ok
+
+    def _send_wire(self, event: dict[str, Any]) -> bool:
+        """Send one wire event; drop it (never raise) while the socket is closed."""
         ws = self.ws
         if ws is None or self._stop.is_set():
             return False  # socket closed (shutdown or mid-reconnect) — drop safely
@@ -454,8 +469,8 @@ class RealtimeSession:
         try:
             with self._send_lock:
                 ws.send(raw)
-            if event.get("type") == "session.update":
-                log_event("session_update", bytes=len(raw.encode("utf-8")))
+            if event.get("type") in {"session.update", "session.start"}:
+                log_event("session_update", bytes=len(raw.encode("utf-8")), provider=self.provider.name)
             return True
         except Exception as exc:  # noqa: BLE001 — closed/reconnecting socket
             self._send_drops += 1
@@ -600,6 +615,12 @@ class RealtimeSession:
             event = json.loads(message)
         except json.JSONDecodeError:
             return
+        if not isinstance(event, dict):
+            return
+        for loop_event in self.provider.inbound(event):
+            self._dispatch_event(loop_event)
+
+    def _dispatch_event(self, event: dict[str, Any]) -> None:
         et = event.get("type")
         if et == "session.updated":
             mark("realtime_session_updated")
@@ -688,7 +709,8 @@ class RealtimeSession:
                     started = self._response_started.pop(str(response.get("id") or ""), None)
                 latency_ms = int((time.monotonic() - started) * 1000) if started else None
                 try:
-                    log_usage(response, latency_ms=latency_ms)  # counts + ids only
+                    log_usage(response, latency_ms=latency_ms,
+                              labels=self.provider.usage_labels(response))  # counts + ids only
                 except Exception:  # noqa: BLE001 — logging must never break a turn
                     pass
                 self._note_response_done(response)
@@ -1299,7 +1321,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     no_audio = args.no_audio or os.environ.get("VOICE_CUA_NO_AUDIO", "").strip() in {"1", "true", "yes"}
-    session = RealtimeSession(enable_audio=not no_audio and not args.text)
+    from voice_cua.auth import MissingApiKey
+
+    try:
+        session = RealtimeSession(enable_audio=not no_audio and not args.text)
+    except MissingApiKey as exc:
+        # Selected provider (Grok Voice) has no key: say so instead of a silent crash.
+        island_publish("error", title="Needs API key", detail="Grok Voice: add xai-api to Keychain")
+        log_event("provider_missing_key", provider="xai")
+        print(str(exc), file=sys.stderr, flush=True)
+        return EXIT_NEEDS_API_KEY
 
     if args.text:
         threading.Thread(target=session.run, daemon=True).start()

@@ -54,6 +54,58 @@ final class IslandSettingsTests: XCTestCase {
         }
     }
 
+    /// Model picker: Realtime 2 / 2.1 / 2.1 mini, Grok Voice 3.0, GPT-Live-1 (same ids as voice_settings.MODELS).
+    /// The Bulk / Intelligence pickers show only while GPT-Live-1 is selected.
+    func testModelPickerAndLiveBackendRows() {
+        XCTAssertEqual(VoiceSettingsStore.models.map(\.value),
+                       ["gpt-realtime-2", "gpt-realtime-2.1", "gpt-realtime-2.1-mini", "grok-voice-latest", "gpt-live-1"])
+        XCTAssertEqual(VoiceSettingsStore.backendModels.map(\.value), ["gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-6-astra"])
+        let saved = VoiceSettingsStore.xaiKeyAvailable
+        defer { VoiceSettingsStore.xaiKeyAvailable = saved }
+        VoiceSettingsStore.xaiKeyAvailable = { false }
+        XCTAssertEqual(VoiceSettingsStore.models.first { $0.value == "grok-voice-latest" }?.label, "Grok Voice 3.0 (needs API key)")
+        VoiceSettingsStore.xaiKeyAvailable = { true }
+        XCTAssertEqual(VoiceSettingsStore.models.first { $0.value == "grok-voice-latest" }?.label, "Grok Voice 3.0")
+
+        let s = store()
+        func liveRows() -> [String] {
+            IslandSettingsRoot.visibleDefs(.samantha, store: s).map(\.key)
+                .filter { $0 == IslandSettingsSchema.voiceLiveBulk || $0 == IslandSettingsSchema.voiceLiveIntelligence }
+        }
+        XCTAssertEqual(liveRows(), [], "hidden for Realtime models")
+        s.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
+        XCTAssertEqual(liveRows(), [IslandSettingsSchema.voiceLiveBulk, IslandSettingsSchema.voiceLiveIntelligence])
+        XCTAssertEqual(s.string(IslandSettingsSchema.voiceLiveBulk), "gpt-6-luna")
+        XCTAssertEqual(s.string(IslandSettingsSchema.voiceLiveIntelligence), "gpt-6.1-sol")
+        s.set("grok-voice-latest", for: IslandSettingsSchema.voiceModel)
+        XCTAssertEqual(liveRows(), [])
+        // Voice / Listening / Microphone tune Realtime only: hidden for Grok Voice and GPT-Live-1.
+        let realtimeOnly = [IslandSettingsSchema.voiceVoice, IslandSettingsSchema.voiceEagerness, IslandSettingsSchema.voiceMic]
+        func shown() -> Set<String> { Set(IslandSettingsRoot.visibleDefs(.samantha, store: s).map(\.key)) }
+        XCTAssertTrue(shown().isDisjoint(with: realtimeOnly))
+        s.set("gpt-realtime-2.1", for: IslandSettingsSchema.voiceModel)
+        XCTAssertTrue(shown().isSuperset(of: realtimeOnly))
+    }
+
+    func testLiveBackendKeysRoundTripTheSharedFile() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("voice-live-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let saved = VoiceSettingsStore.path
+        defer { VoiceSettingsStore.path = saved }
+        VoiceSettingsStore.path = dir.appendingPathComponent("settings.json")
+        let s = IslandSettingsStore(defaults: UserDefaults(suiteName: "voice-\(UUID().uuidString)")!,
+                                    tokens: MemoryTokenStore(), voiceInFile: true)
+        s.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
+        s.set("gpt-6-astra", for: IslandSettingsSchema.voiceLiveIntelligence)
+        let obj = try JSONSerialization.jsonObject(with: Data(contentsOf: VoiceSettingsStore.path)) as? [String: Any]
+        XCTAssertEqual(obj?["realtime_model"] as? String, "gpt-live-1")
+        XCTAssertEqual(obj?["live_intelligence_model"] as? String, "gpt-6-astra")
+        XCTAssertEqual(obj?["live_bulk_model"] as? String, "gpt-6-luna")
+        let env = VoiceSettingsStore.applyToEnvironment(VoiceSettingsStore.load())
+        XCTAssertEqual(env["VOICE_CUA_LIVE_INTELLIGENCE_MODEL"], "gpt-6-astra")
+    }
+
     func testComputerUsePaneIsReadOnlyPermissionRows() {
         let rows = IslandSettingsSchema.defs(for: .computerUse)
         XCTAssertEqual(rows.map(\.key), [IslandSettingsSchema.cuaAccessibility, IslandSettingsSchema.cuaScreenRecording])

@@ -70,6 +70,9 @@ _USAGE_FIELDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("output_text_tokens", ("output_token_details", "text_tokens")),
     ("output_audio_tokens", ("output_token_details", "audio_tokens")),
     ("total_tokens", ("total_tokens",)),
+    # Responses API (GPT-Live backend) spelling.
+    ("cached_tokens", ("input_tokens_details", "cached_tokens")),
+    ("reasoning_tokens", ("output_tokens_details", "reasoning_tokens")),
 )
 
 
@@ -96,8 +99,21 @@ def _call_ids(response: dict[str, Any]) -> list[str]:
     return out
 
 
-def usage_row(response: dict[str, Any] | None, *, latency_ms: int | None = None) -> dict[str, Any]:
-    """Build the ``usage`` row for one Realtime ``response.done`` (numbers and ids only)."""
+_LABEL_KEYS = ("provider", "model", "live_model", "tier", "delegation_id")
+
+
+def usage_row(
+    response: dict[str, Any] | None,
+    *,
+    latency_ms: int | None = None,
+    labels: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the ``usage`` row for one ``response.done`` (numbers, ids and model labels only).
+
+    ``labels``: provider / model / live_model / tier / delegation_id (short strings only).
+    GPT-Live backend rows carry the backend model + tier; live voice minutes are logged
+    separately as ``live_usage`` rows (voice_seconds).
+    """
     response = response if isinstance(response, dict) else {}
     usage = response.get("usage")
     row: dict[str, Any] = {
@@ -105,6 +121,10 @@ def usage_row(response: dict[str, Any] | None, *, latency_ms: int | None = None)
         "ts": datetime.now().astimezone().isoformat(timespec="milliseconds"),
         "session_id": current_session_id(),
     }
+    for key in _LABEL_KEYS:
+        value = (labels or {}).get(key)
+        if isinstance(value, str) and value:
+            row[key] = value[:64]
     response_id = response.get("id")
     if isinstance(response_id, str) and response_id:
         row["response_id"] = response_id[:64]
@@ -117,14 +137,19 @@ def usage_row(response: dict[str, Any] | None, *, latency_ms: int | None = None)
         row["latency_ms"] = latency_ms
     for field, path in _USAGE_FIELDS:
         value = _usage_int(usage, path)
-        if value is not None:
+        if value is not None and field not in row:
             row[field] = value
     return row
 
 
-def log_usage(response: dict[str, Any] | None, *, latency_ms: int | None = None) -> None:
+def log_usage(
+    response: dict[str, Any] | None,
+    *,
+    latency_ms: int | None = None,
+    labels: dict[str, Any] | None = None,
+) -> None:
     """Append one ``usage`` row (token counts + ids only — never text or transcripts)."""
-    _append_row(usage_row(response, latency_ms=latency_ms))
+    _append_row(usage_row(response, latency_ms=latency_ms, labels=labels))
 
 
 # Per-thread tool-call context: realtime_session runs each tool in its own

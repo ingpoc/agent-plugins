@@ -145,3 +145,48 @@ def openai_status() -> dict[str, Any]:
             "for security CLI / agents"
         ),
     }
+
+
+# --- xAI (Grok Voice) -------------------------------------------------------
+XAI_RUNTIME_ROLE = "xai-runtime"
+XAI_KEY_ID = "xai-api"
+XAI_DEFAULT_LABEL = "xai-api"
+
+
+class MissingApiKey(RuntimeError):
+    """The selected voice provider has no API key (never includes the key)."""
+
+
+def _xai_labels() -> list[str]:
+    labels: list[str] = []
+    try:
+        cat = load_catalog()
+        row = find_by_role(cat, XAI_RUNTIME_ROLE) or find_key(cat, XAI_KEY_ID)
+        if row:
+            labels += labels_for_row(row)
+    except Exception:  # noqa: BLE001 — catalog optional for xAI
+        pass
+    if XAI_DEFAULT_LABEL not in labels:
+        labels.append(XAI_DEFAULT_LABEL)
+    return labels
+
+
+def xai_key_available() -> bool:
+    """Metadata-only check (no secret is read): env var or a Keychain item exists."""
+    if os.environ.get("XAI_API_KEY", "").strip():
+        return True
+    return any(keychain_exists(label) for label in _xai_labels())
+
+
+def resolve_xai_api_key() -> str:
+    """Env override first, else the login Keychain (label xai-api or catalog role xai-runtime)."""
+    env = os.environ.get("XAI_API_KEY", "").strip()
+    if env:
+        return env
+    for label in _xai_labels():
+        if keychain_exists(label):
+            return keychain_get(label)
+    raise MissingApiKey(
+        "Grok Voice needs an xAI API key: add it to the login Keychain as 'xai-api' "
+        "(secrets_cli) or set XAI_API_KEY"
+    )

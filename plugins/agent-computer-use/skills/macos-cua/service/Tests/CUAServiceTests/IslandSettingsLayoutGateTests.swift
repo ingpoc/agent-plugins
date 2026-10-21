@@ -82,6 +82,11 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
         let tk = store(); try? tk.rotateToken(.grokBot)
         out.append(State(name: "default-grokBot-token", view: IslandSettingsRoot(store: tk, tab: .grokBot, rendering: true)))
         out.append(State(name: "calendar-granted", view: IslandSettingsRoot(store: store(), tab: .calendar, rendering: true, permissions: Self.granted)))
+        let live = store(); live.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
+        out.append(State(name: "live-samantha", view: IslandSettingsRoot(store: live, tab: .samantha, rendering: true)))
+        let liveW = store(); liveW.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
+        out.append(State(name: "worst-live-samantha", view: IslandSettingsRoot(store: liveW, tab: .samantha, rendering: true,
+                                                                              permissions: Self.missing, defs: Self.worstDefs)))
         out.append(State(name: "calendar-missing", view: IslandSettingsRoot(store: store(), tab: .calendar, rendering: true, permissions: Self.missing)))
         let focus: [(String, SettingsTab, String)] = [
             ("toggle", .general, IslandSettingsSchema.showIsland),
@@ -92,10 +97,13 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
             ("permission", .calendar, IslandSettingsSchema.calendarAccess),
             ("button", .about, "island.about.openLog"),
             ("voice-popup", .samantha, IslandSettingsSchema.voiceModel),
+            ("live-popup", .samantha, IslandSettingsSchema.voiceLiveIntelligence),
             ("cua-permission", .computerUse, IslandSettingsSchema.cuaScreenRecording),
         ]
         for (n, t, k) in focus {
-            out.append(State(name: "focus-\(n)", view: IslandSettingsRoot(store: store(), nav: SettingsNav(tab: t, focus: k), rendering: true,
+            let fs = store()
+            if n == "live-popup" { fs.set("gpt-live-1", for: IslandSettingsSchema.voiceModel) }  // rows show only for GPT-Live-1
+            out.append(State(name: "focus-\(n)", view: IslandSettingsRoot(store: fs, nav: SettingsNav(tab: t, focus: k), rendering: true,
                                                                          permissions: Self.missing)))
         }
         return out
@@ -141,7 +149,8 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
         IslandLayoutRecorder.enabled = false
         let wanted: Set<String> = ["default-general", "default-interaction", "default-grokBot-notoken", "default-grokBot-token",
                                    "calendar-granted", "calendar-missing", "default-fileTray", "worst-samantha",
-                                   "default-samantha", "default-computerUse", "toggled-computerUse", "focus-voice-popup"]
+                                   "default-samantha", "default-computerUse", "toggled-computerUse", "focus-voice-popup",
+                                   "live-samantha", "focus-live-popup"]
         func save(_ img: CGImage, _ name: String) throws {
             let url = URL(fileURLWithPath: dir).appendingPathComponent("settings-\(name)-dark.png")
             XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "never overwrite \(url.lastPathComponent)")

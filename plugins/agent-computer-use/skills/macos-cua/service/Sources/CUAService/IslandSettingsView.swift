@@ -75,7 +75,16 @@ struct IslandSettingsRoot: View {
     /// Rows shown for a pane (hidden `visibleWhen` rows dropped) — the view and the keyboard use the same list.
     static func visibleDefs(_ tab: SettingsTab, store: IslandSettingsStore,
                             defs: (SettingsTab) -> [SettingDef] = IslandSettingsSchema.defs(for:)) -> [SettingDef] {
-        defs(tab).filter { d in d.visibleWhen.map { store.bool($0) } ?? true }
+        defs(tab).filter { d in d.visibleWhen.map { visible($0, store) } ?? true }
+    }
+
+    /// `visibleWhen`: a bool key, "key=value" (the GPT-Live-1 pickers) or "key^=prefix" (Realtime-only rows).
+    static func visible(_ cond: String, _ store: IslandSettingsStore) -> Bool {
+        if let r = cond.range(of: "^=") {
+            return store.string(String(cond[..<r.lowerBound])).hasPrefix(String(cond[r.upperBound...]))
+        }
+        guard let eq = cond.firstIndex(of: "=") else { return store.bool(cond) }
+        return store.string(String(cond[..<eq])) == String(cond[cond.index(after: eq)...])
     }
 
     /// Button-row actions (mouse and keyboard).

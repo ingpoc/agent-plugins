@@ -371,6 +371,11 @@ final class VoiceSupervisor {
         )
         setRunning(false)
         appendLog(unexpected ? "voice process exited\n" : "voice process stopped\n")
+        // 78 (EX_CONFIG) = the chosen voice model has no API key: restarting can't help.
+        if unexpected, terminated.terminationStatus == 78 {
+            logStartup(phase: "restart_skipped", status: "fail", detail: "voice model needs an API key")
+            return
+        }
         if unexpected {
             scheduleRestart()
         }

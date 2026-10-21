@@ -240,7 +240,13 @@ enum IslandSettingsSchema {
     static let voiceVoice = "voice.realtime_voice"
     static let voiceEagerness = "voice.eagerness"
     static let voiceMic = "voice.mic_profile"
-    static let voiceKeys = [voiceModel, voiceVoice, voiceEagerness, voiceMic]
+    static let voiceLiveBulk = "voice.live_bulk_model"
+    static let voiceLiveIntelligence = "voice.live_intelligence_model"
+    static let voiceKeys = [voiceModel, voiceVoice, voiceEagerness, voiceMic, voiceLiveBulk, voiceLiveIntelligence]
+    /// `visibleWhen` for the GPT-Live-1 backend pickers ("key=value" form).
+    static let whenLive = voiceModel + "=" + VoiceSettingsStore.liveModel
+    /// Voice / Listening / Microphone tune the OpenAI Realtime session only.
+    static let whenRealtime = voiceModel + "^=gpt-realtime"
 
     // Computer Use (CUAService) — real-state permission rows, read-only.
     static let cuaAccessibility = "cua.permission.accessibility"
@@ -381,12 +387,24 @@ enum IslandSettingsSchema {
                       kind: .popup(VoiceSettingsStore.models), defaultValue: .string(d.realtimeModel),
                       caption: "Changes apply the next time Samantha starts."),
                 .init(tab: tab, section: "Voice", key: voiceVoice, label: "Voice",
-                      kind: .popup(VoiceSettingsStore.voices), defaultValue: .string(d.realtimeVoice)),
+                      kind: .popup(VoiceSettingsStore.voices), defaultValue: .string(d.realtimeVoice),
+                      visibleWhen: whenRealtime),
                 .init(tab: tab, section: "Voice", key: voiceEagerness, label: "Listening",
                       kind: .popup(VoiceSettingsStore.eagernessLevels), defaultValue: .string(d.eagerness),
-                      info: "Polite ignores background noise; Eager lets you interrupt anytime"),
+                      info: "Polite ignores background noise; Eager lets you interrupt anytime",
+                      visibleWhen: whenRealtime),
                 .init(tab: tab, section: "Voice", key: voiceMic, label: "Microphone",
-                      kind: .popup(VoiceSettingsStore.micProfiles), defaultValue: .string(d.micProfile)),
+                      kind: .popup(VoiceSettingsStore.micProfiles), defaultValue: .string(d.micProfile),
+                      visibleWhen: whenRealtime),
+                // GPT-Live-1 only: the backend models it delegates tool work to.
+                .init(tab: tab, section: "GPT-Live-1 Tasks", key: voiceLiveBulk, label: "Bulk tasks",
+                      kind: .popup(VoiceSettingsStore.backendModels), defaultValue: .string(d.liveBulkModel),
+                      info: "Simple tool work: open an app, click, type, one Comet step",
+                      visibleWhen: whenLive),
+                .init(tab: tab, section: "GPT-Live-1 Tasks", key: voiceLiveIntelligence, label: "Intelligence",
+                      kind: .popup(VoiceSettingsStore.backendModels), defaultValue: .string(d.liveIntelligenceModel),
+                      visibleWhen: whenLive,
+                      caption: "Multi-step plans, unclear requests, or a Bulk step that failed twice."),
             ]
         }
         return rows
