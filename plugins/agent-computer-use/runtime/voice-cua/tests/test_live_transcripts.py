@@ -250,3 +250,40 @@ class ExpiryRestTests(unittest.TestCase):
         with patch.object(session_hub, "_active", sess), patch.object(session_hub, "WAKE_WAIT_S", 1.0):
             self.assertEqual(session_hub.send_text_and_wait("hi")["ok"], True)
         self.assertTrue(sess._wake.is_set())
+
+
+class KeepaliveTests(unittest.TestCase):
+    def _session(self):
+        import threading
+        import time as _t
+        from voice_cua.realtime_session import RealtimeSession
+
+        s = RealtimeSession.__new__(RealtimeSession)
+        s._response_condition = threading.Condition()
+        s._active_response_ids = set()
+        s._pending_calls = {}
+        s._inflight_tools = 0
+        s._text_waiters = {}
+        s._dormant = threading.Event()
+        s._session_ready = threading.Event()
+        s._session_ready.set()
+        s.ws = object()
+        s._last_mic_audio = 0.0
+        s._last_user_activity = _t.monotonic() - 60
+        return s
+
+    def test_silence_only_without_mic_and_while_a_turn_is_live(self):
+        import time as _t
+        s = self._session()
+        now = _t.monotonic()
+        self.assertFalse(s._keepalive_due(now), "idle: let it expire (not billed)")
+        s._text_waiters = {"r": {}}
+        self.assertTrue(s._keepalive_due(now), "typed turn in flight, no mic: keep alive")
+        s._last_mic_audio = now
+        self.assertFalse(s._keepalive_due(now), "mic streaming: nothing extra")
+        s._last_mic_audio = 0.0
+        s._text_waiters = {}
+        s._last_user_activity = now - 5
+        self.assertTrue(s._keepalive_due(now), "recent turn: keep alive for a follow-up")
+        s._dormant.set()
+        self.assertFalse(s._keepalive_due(now))

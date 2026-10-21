@@ -213,6 +213,11 @@ class RealtimeSession:
     # session.closed reason=expired with nobody talking (e.g. no mic input): rest instead of
     # forking a fresh session every ~30 s; speech or a typed turn wakes it.
     LIVE_EXPIRED_REST_SECONDS = 20.0
+    # GPT-Live expires a session after ~30 s without input audio (measured: reason=expired,
+    # usage 0 s). With no mic stream (no input device, text-only), feed silence while a turn
+    # is in flight or was recent so a typed turn can't be cut off; idle sessions still expire.
+    LIVE_KEEPALIVE_SECONDS = 20.0
+    LIVE_KEEPALIVE_CHUNK_S = 0.1
     PLANNED_RECONNECT_RETRY_SECONDS = 60.0
     # Reconnect backoff: full jitter, delay ~ U(0, min(cap, base * factor**(n-1)))
     # for consecutive attempt n. The counter only resets once a connection has
@@ -258,6 +263,7 @@ class RealtimeSession:
         self._wake = threading.Event()
         self._last_activity = time.monotonic()
         self._last_user_activity = time.monotonic()  # speech, typed turns, backend work
+        self._last_mic_audio = 0.0  # monotonic time of the last mic chunk sent
         self._restart_pending = False
         # Phase 1 reliability state.
         self._comet_active = False
@@ -345,6 +351,7 @@ class RealtimeSession:
         if getattr(self.provider, "manages_barge_in", False) and not getattr(self, "_watchdog_started", False):
             self._watchdog_started = True
             threading.Thread(target=self._idle_watchdog, name="live-idle", daemon=True).start()
+            threading.Thread(target=self._silence_keepalive, name="live-keepalive", daemon=True).start()
         self._reconnect_gave_up = False
         self._access_refused = ""
         self._reconnect_attempts = 0  # a fresh run() always gets the full budget
@@ -526,8 +533,10 @@ class RealtimeSession:
             self._last_activity = time.monotonic()
             if event.get("type") in {"conversation.item.create", "response.create"}:
                 self._last_user_activity = self._last_activity
-        elif _has_sound(str(event.get("audio") or "")):
-            self._last_user_activity = time.monotonic()
+        else:
+            self._last_mic_audio = time.monotonic()
+            if _has_sound(str(event.get("audio") or "")):
+                self._last_user_activity = self._last_mic_audio
         ok = True
         for wire in self.provider.outbound(event):
             ok = self._send_wire(wire) and ok
@@ -577,8 +586,15 @@ class RealtimeSession:
         pre = wait_mic_preflight(timeout=30.0)
         if pre != 0:
             self._audio_enabled = False
-            mark("mic_preflight", status="fail", error="mic open failed")
-            island_publish("error", title="Mic unavailable", detail="Allow microphone")
+            detail = "Allow microphone"
+            try:  # no default input device (headset unplugged) is not a permission problem
+                import sounddevice as _sd
+
+                _sd.query_devices(kind="input")
+            except Exception:  # noqa: BLE001 — PortAudio raises when there is no input device
+                detail = "No input device · type instead"
+            mark("mic_preflight", status="fail", error="mic open failed", detail=detail)
+            island_publish("error", title="Mic unavailable", detail=detail)
             print("voice-cua stack: mic preflight failed", file=sys.stderr, flush=True)
             return
         mark("mic_preflight", status="ok")
@@ -1235,6 +1251,30 @@ class RealtimeSession:
         except Exception:  # noqa: BLE001 — close is best effort
             pass
         return True
+
+    def _keepalive_due(self, now: float) -> bool:
+        if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
+            return False
+        if now - self._last_mic_audio < 0.5:
+            return False  # the mic is streaming (audio or muted zeros)
+        with self._response_condition:
+            busy = bool(self._active_response_ids)
+        busy = busy or bool(self._pending_calls or self._inflight_tools or self._text_waiters)
+        return busy or now - self._last_user_activity < self.LIVE_KEEPALIVE_SECONDS
+
+    def _silence_keepalive(self) -> None:
+        rate = REALTIME_SAMPLE_RATE
+        chunk = base64.b64encode(b"\x00\x00" * int(rate * self.LIVE_KEEPALIVE_CHUNK_S)).decode()
+        logged = False
+        while not self._stop.wait(timeout=self.LIVE_KEEPALIVE_CHUNK_S):
+            if not self._keepalive_due(time.monotonic()):
+                logged = False
+                continue
+            if not logged:
+                log_event("live_keepalive", reason="no_mic_audio")
+                logged = True
+            for wire in self.provider.outbound({"type": "input_audio_buffer.append", "audio": chunk}):
+                self._send_wire(wire)
 
     def _idle_watchdog(self) -> None:
         """Close a GPT-Live session after LIVE_IDLE_CLOSE_SECONDS without speech or work."""
