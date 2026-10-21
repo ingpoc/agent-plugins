@@ -435,6 +435,14 @@ class LiveProvider(VoiceProvider):
             if request_id:
                 with self._lock:
                     self._pending_request = request_id
+            with self._lock:
+                outstanding = sum(len(c) for c in self._pending_calls.values())
+            if outstanding:
+                # Live rejects response.create while function results are owed
+                # (function_call_outputs_required). The queued message rides on the
+                # continuation the loop sends after the last output.
+                log_event("live_create_deferred", outstanding_calls=outstanding)
+                return []
             return [{"type": "response.create"}]
         return [event]
 

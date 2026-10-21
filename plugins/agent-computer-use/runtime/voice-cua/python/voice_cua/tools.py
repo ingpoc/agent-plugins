@@ -568,6 +568,12 @@ def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
         return {"ok": False, "error": "actions must be an array of objects"}
     log_event("comet_call", tool="comet_act", actions=redact_actions(actions))
+    # Same per-step retry cap as cua_act: an identical failing action list runs at most twice
+    # (matrix: one 'goto' miss was replayed 6x until the turn timed out).
+    step_fp = fingerprint("comet_act", {"actions": actions}, ignore=frozenset({"timeout"}))
+    capped = _retry_capped(step_fp)
+    if capped is not None:
+        return capped
     if _looks_risky(args):
         refused = GATE.check("comet_act", args, f"Allow in Comet: {', '.join(redact_actions(actions))[:90]}?")
         if refused is not None:
@@ -576,6 +582,11 @@ def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
     island_publish("driving", title="Driving Comet", detail="Browser task")
     result = comet_act(actions, timeout=max(1.0, min(90.0, float(args.get("timeout") or 45))))
     island_publish("done" if result.get("ok") else "error", title="Comet done" if result.get("ok") else "Comet miss", detail="Browser task")
+    if isinstance(result, dict):
+        if result.get("ok"):
+            _STEP_FAILS.pop(step_fp, None)
+        else:
+            _note_failure(step_fp, result)
     return result
 
 

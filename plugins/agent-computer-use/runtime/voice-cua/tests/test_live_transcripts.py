@@ -287,3 +287,35 @@ class KeepaliveTests(unittest.TestCase):
         self.assertTrue(s._keepalive_due(now), "recent turn: keep alive for a follow-up")
         s._dormant.set()
         self.assertFalse(s._keepalive_due(now))
+
+
+class DeferredCreateTests(unittest.TestCase):
+    def test_create_waits_while_function_results_are_owed(self):
+        live = providers.LiveProvider()
+        live._ready = True
+        live._started = True
+        live._pending_calls = {"d1": {"call_1"}}
+        self.assertEqual(live.outbound({"type": "response.create"}), [])
+        live._pending_calls = {"d1": set()}
+        self.assertEqual(live.outbound({"type": "response.create"}), [{"type": "response.create"}])
+
+
+class CometRetryCapTests(unittest.TestCase):
+    def test_identical_failing_comet_act_runs_at_most_twice(self):
+        from voice_cua import tools
+
+        tools.reset_session_state()
+        calls = []
+
+        def fake(actions, timeout):
+            calls.append(actions)
+            return {"ok": False, "error_type": "act_miss"}
+
+        args = {"actions": [{"type": "goto", "url": "https://example.com/x"}]}
+        with patch.object(tools, "comet_act", fake), patch.object(tools, "island_publish"), \
+                patch.object(tools, "_looks_risky", return_value=False):
+            for _ in range(4):
+                out = tools._comet_act(dict(args))
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(out["error_type"], "retry_cap")
+        tools.reset_session_state()
