@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""10-run live comparison: gpt-realtime-2.1 vs GPT-Live-1 (Bulk/Intelligence) [vs Grok Voice 3.0].
+"""10-run live comparison of GPT-Live-1 task tiers (Bulk/Intelligence) [vs Grok Voice 3.0].
+
+The Realtime arm was removed with the Realtime backend (GPT-Live-1 is the only OpenAI voice path).
 
 PAID: every run opens a real voice session and makes billed model calls. It refuses
 to run without --i-have-approval. Default (no flag) prints the plan and exits.
@@ -14,7 +16,7 @@ text mode (no mic), sending the same harmless, read-only tasks N times. Per arm:
 Usage:
   python3 scripts/compare_voice_models.py                      # plan only, no calls
   python3 scripts/compare_voice_models.py --i-have-approval    # 10 runs per arm
-  python3 scripts/compare_voice_models.py --i-have-approval --arms gpt-realtime-2.1,gpt-live-1 --runs 10
+  python3 scripts/compare_voice_models.py --i-have-approval --arms gpt-live-1 --runs 10
 Prices (USD per 1M tokens / per minute) are from developers.openai.com and x.ai (Oct 2026);
 override with --prices prices.json. Keys come from the Keychain inside the worker; never pass them as args.
 """
@@ -42,7 +44,6 @@ TASKS = [  # read-only; expected tool in brackets
 
 PRICES = {
     "tokens": {  # USD per 1M: input, cached input, output (audio rates for realtime when audio tokens present)
-        "gpt-realtime-2.1": {"input": 4.0, "cached": 0.4, "output": 24.0, "audio_input": 32.0, "audio_output": 64.0},
         "gpt-6-luna": {"input": 0.1, "cached": 0.01, "output": 0.5},
         "gpt-6-sol": {"input": 2.0, "cached": 0.2, "output": 10.0},
         "gpt-6.1-sol": {"input": 2.0, "cached": 0.1, "output": 10.0},
@@ -52,7 +53,6 @@ PRICES = {
 }
 
 ARMS = {
-    "gpt-realtime-2.1": {"realtime_model": "gpt-realtime-2.1"},
     "gpt-live-1": {"realtime_model": "gpt-live-1", "live_bulk_model": "gpt-6-luna",
                    "live_intelligence_model": "gpt-6.1-sol"},
     "grok-voice-latest": {"realtime_model": "grok-voice-latest"},
@@ -113,7 +113,7 @@ def _cost(rows: list[dict], arm: str, session_secs: float, prices: dict) -> dict
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--i-have-approval", action="store_true", help="run PAID live calls (Guru approved)")
-    ap.add_argument("--arms", default="gpt-realtime-2.1,gpt-live-1")
+    ap.add_argument("--arms", default="gpt-live-1")
     ap.add_argument("--runs", type=int, default=10)
     ap.add_argument("--prices", type=Path)
     ap.add_argument("--worker", help=argparse.SUPPRESS)

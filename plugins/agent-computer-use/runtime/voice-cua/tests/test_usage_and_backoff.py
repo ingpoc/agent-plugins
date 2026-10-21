@@ -177,7 +177,7 @@ class UsageRowTests(_LogCase):
         self.assertEqual(rows[0]["bytes"], len(json.dumps(event).encode()))
         self.assertEqual(rows[0]["session_id"], "abcd1234")
         self.assertEqual(set(rows[0]), {"ts", "kind", "session_id", "bytes", "provider"})
-        self.assertEqual(rows[0]["provider"], "openai-realtime")
+        self.assertEqual(rows[0]["provider"], "test-loop")
 
     def test_every_row_carries_session_id(self) -> None:
         log_event("tool_start", tool="click")

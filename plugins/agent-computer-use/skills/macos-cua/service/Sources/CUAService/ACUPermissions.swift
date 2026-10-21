@@ -108,12 +108,52 @@ enum PermissionProbe {
             return AXIsProcessTrusted() && CGPreflightPostEventAccess() ? .granted : .missing
         case .screenRecording: return CGPreflightScreenCaptureAccess() ? .granted : .missing
         case .microphone: return AVCaptureDevice.authorizationStatus(for: .audio) == .authorized ? .granted : .missing
-        case .calendars: return IslandCalendarController.authorized ? .granted : .missing
-        case .focus: return INFocusStatusCenter.default.authorizationStatus == .authorized ? .granted : .missing
+        case .calendars: return calendarState(IslandCalendarController.status)
+        case .focus: return focusState(INFocusStatusCenter.default.authorizationStatus)
         case .loginItem: return SMAppService.mainApp.status == .enabled ? .granted : .missing
         case .keychain: return KeychainGrant.status()
         default: return automation(p.bundleID ?? "")
         }
+    }
+
+    /// EventKit status (IslandCalendarController.status) -> row state. macOS 14+: fullAccess is
+    /// Allowed; writeOnly ("Add Events Only") is not enough to read events and needs Full Access.
+    static func calendarState(_ status: String) -> PermissionState {
+        status == "granted" ? .granted : .missing
+    }
+
+    static func focusState(_ s: INFocusStatusAuthorizationStatus) -> PermissionState {
+        s == .authorized ? .granted : .missing
+    }
+
+    /// The raw OS answer, for diagnostics and for deciding whether a request can still prompt.
+    static func rawStatus(_ p: ACUPermission) -> String {
+        switch p {
+        case .calendars: return IslandCalendarController.status
+        case .focus:
+            switch INFocusStatusCenter.default.authorizationStatus {
+            case .authorized: return "granted"
+            case .denied: return "denied"
+            case .restricted: return "restricted"
+            case .notDetermined: return "not-determined"
+            @unknown default: return "unknown"
+            }
+        case .microphone:
+            switch AVCaptureDevice.authorizationStatus(for: .audio) {
+            case .authorized: return "granted"
+            case .denied: return "denied"
+            case .restricted: return "restricted"
+            case .notDetermined: return "not-determined"
+            @unknown default: return "unknown"
+            }
+        default: return status(p) == .granted ? "granted" : "missing"
+        }
+    }
+
+    /// A request API can only show a prompt while the OS has not decided yet. Once decided
+    /// (denied / write-only / restricted), asking returns at once: open the pane instead.
+    static func canPrompt(rawStatus: String) -> Bool {
+        rawStatus == "not-determined" || rawStatus == "missing" || rawStatus == "unknown"
     }
 
     static func installed(_ bundleID: String) -> Bool {

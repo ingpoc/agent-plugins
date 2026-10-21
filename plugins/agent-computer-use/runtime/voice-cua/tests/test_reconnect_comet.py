@@ -18,6 +18,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+# Never read the machine's ~/.config/voice-cua/settings.json: a user who picked GPT-Live
+# there switched every session in these tests to the Live provider.
+os.environ["VOICE_CUA_SETTINGS"] = str(Path(tempfile.mkdtemp(prefix="voice-cua-test-settings-")) / "settings.json")
 os.environ.setdefault(
     "VOICE_CUA_ACTIVITY_LOG",
     str(Path(tempfile.mkdtemp(prefix="voice-cua-test-")) / "activity.jsonl"),
@@ -208,6 +211,220 @@ class ReconnectDuringToolTests(unittest.TestCase):
         updates = [e for e in session.ws.events if e["type"] == "session.update"]
         names = {t["name"] for t in updates[-1]["session"]["tools"]}
         self.assertIn("comet_act", names)
+
+
+class DropRecoveryTests(unittest.TestCase):
+    """Unrequested socket drop mid-turn: reconnect, then redeliver or replay exactly once."""
+
+    def _session(self) -> RealtimeSession:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        session._conn_epoch = 1
+        return session
+
+    def _drop_and_reopen(self, session: RealtimeSession) -> FakeWS:
+        with contextlib.redirect_stdout(io.StringIO()):
+            session._on_close(None, None, None)  # TCP lost: no close code
+        session._prepare_reconnect()
+        session._conn_epoch += 1
+        session.ws = FakeWS()
+        session._run_drop_recovery()
+        return session.ws
+
+    def test_result_sent_just_before_drop_is_redelivered_with_one_continuation(self) -> None:
+        session = self._session()
+        session.send_text("add milk to reminders")
+        session._turn_tools = 1
+        self.assertFalse(session._deliver_tool_result("c1", "cua_act", {"ok": True, "verified": True}, epoch=1))
+        ws = self._drop_and_reopen(session)
+        types = [e["type"] for e in ws.events]
+        self.assertEqual(types, ["conversation.item.create", "response.create"])
+        text = ws.events[0]["item"]["content"][0]["text"]
+        self.assertEqual(ws.events[0]["item"]["role"], "user")  # the backend sees the request again
+        self.assertIn("cua_act", text)
+        self.assertIn("add milk to reminders", text)
+        # A second drop in the same turn does not recover again (no loops).
+        session._deliver_tool_result("c2", "cua_act", {"ok": True}, epoch=session._conn_epoch)
+        self.assertEqual(self._drop_and_reopen(session).events, [])
+
+    def test_acknowledged_result_is_not_redelivered(self) -> None:
+        session = self._session()
+        session.send_text("add milk")
+        session._turn_tools = 1
+        session._deliver_tool_result("c1", "cua_act", {"ok": True}, epoch=1)
+        session._dispatch_event({"type": "response.created", "response": {"id": "r2"}})
+        ws = self._drop_and_reopen(session)
+        self.assertEqual([e["type"] for e in ws.events], ["conversation.item.create", "response.create"])
+        text = ws.events[0]["item"]["content"][0]["text"]
+        self.assertIn("Continue my request from where it stopped", text)
+        self.assertNotIn("cua_act", text, "acknowledged result is not redelivered")
+
+    def test_turn_without_tools_is_replayed_once(self) -> None:
+        session = self._session()
+        session.send_text("what time is it in Tokyo")
+        ws = self._drop_and_reopen(session)
+        self.assertEqual([e["type"] for e in ws.events], ["conversation.item.create", "response.create"])
+        self.assertEqual(ws.events[0]["item"]["role"], "user")
+        self.assertEqual(ws.events[0]["item"]["content"][0]["text"], "what time is it in Tokyo")
+
+    def test_finished_turn_and_requested_reconnect_do_nothing(self) -> None:
+        session = self._session()
+        session.send_text("hi")
+        session._note_response_done({"id": "r1", "status": "completed", "output": []})
+        self.assertEqual(self._drop_and_reopen(session).events, [])
+        session.send_text("again")
+        session._reconnect_requested = True  # planned rotation / error-driven reconnect
+        self.assertEqual(self._drop_and_reopen(session).events, [])
+
+    def test_text_waiter_survives_drop_and_gets_replayed_request_id(self) -> None:
+        session = self._session()
+        waiter = {"event": threading.Event(), "reply": "", "error": ""}
+        session._text_waiters["req9"] = waiter
+        session.send_text("open notes", request_id="req9")
+        ws = self._drop_and_reopen(session)
+        self.assertFalse(waiter["event"].is_set(), "recovery answers it; not failed as 'reconnected'")
+        create = [e for e in ws.events if e["type"] == "response.create"][0]
+        self.assertEqual(create["response"]["metadata"]["voice_cua_request_id"], "req9")
+
+    def test_tool_running_at_drop_delivers_on_new_session_and_continues(self) -> None:
+        session = self._session()
+        session.send_text("long task")
+        gate = threading.Event()
+
+        def dispatch(_name, _args):
+            gate.wait(2.0)
+            return {"ok": True, "done": True}
+
+        with patch("voice_cua.realtime_session.dispatch", side_effect=dispatch), patch(
+            "voice_cua.realtime_session.comet_is_active", return_value=False
+        ):
+            session._run_tool("call_long", "cua_act", "{}")
+            self.assertTrue(_wait(lambda: session._inflight_tools == 1))
+            with contextlib.redirect_stdout(io.StringIO()):
+                session._on_close(None, None, None)
+            self.assertEqual(session._drop_plan["mode"], "tool_pending")
+            session._prepare_reconnect()
+            session._conn_epoch += 1
+            session.ws = FakeWS()
+            session._session_ready.set()
+            recovery = threading.Thread(target=session._run_drop_recovery)
+            recovery.start()
+            gate.set()
+            recovery.join(3.0)
+        events = session.ws.events
+        self.assertEqual([e["type"] for e in events], ["conversation.item.create", "response.create"],
+                         "one recovery turn; the worker sends no extra continuation")
+        text = events[0]["item"]["content"][0]["text"]
+        self.assertIn("long task", text)
+        self.assertIn("cua_act", text)
+
+
+class NestedDropTests(unittest.TestCase):
+    def test_second_drop_while_recovery_waits_keeps_waiter_and_delivers_once(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        session._conn_epoch = 1
+        waiter = {"event": threading.Event(), "reply": "", "error": ""}
+        session._text_waiters["req5"] = waiter
+        session.send_text("long task", request_id="req5")
+        gate = threading.Event()
+
+        def dispatch(_name, _args):
+            gate.wait(3.0)
+            return {"ok": True}
+
+        def drop() -> None:
+            with contextlib.redirect_stdout(io.StringIO()):
+                session._on_close(None, None, None)
+            session._prepare_reconnect()
+            session._conn_epoch += 1
+            session.ws = FakeWS()
+            session._session_ready.set()
+
+        with patch("voice_cua.realtime_session.dispatch", side_effect=dispatch), patch(
+            "voice_cua.realtime_session.comet_is_active", return_value=False
+        ):
+            session._run_tool("call_x", "cua_act", "{}")
+            self.assertTrue(_wait(lambda: session._inflight_tools == 1))
+            drop()
+            recovery = threading.Thread(target=session._run_drop_recovery)
+            recovery.start()
+            self.assertTrue(_wait(lambda: session._recovery_active))
+            drop()  # second drop before the tool finished
+            self.assertEqual(session._drop_plan["mode"], "pending")
+            session._run_drop_recovery()  # the new session's hook: nothing extra
+            self.assertFalse(waiter["event"].is_set())
+            gate.set()
+            recovery.join(3.0)
+        creates = [e for e in session.ws.events if e["type"] == "response.create"]
+        self.assertEqual(len(creates), 1)
+        self.assertEqual(creates[0]["response"]["metadata"]["voice_cua_request_id"], "req5")
+
+
+class DeliveredThenDropTests(unittest.TestCase):
+    def test_drop_after_output_before_continuation_yields_one_recovery_turn(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        session._conn_epoch = 1
+        session.send_text("open example.com and read the heading")
+        release = threading.Event()
+        real_idle = session._wait_for_responses_idle
+
+        def idle(*, timeout: float) -> bool:
+            if threading.current_thread().name != "drop-recovery":
+                release.wait(3.0)  # the tool worker is parked before its response.create
+            return real_idle(timeout=0.1)
+
+        with patch.object(session, "_wait_for_responses_idle", side_effect=idle), patch(
+            "voice_cua.realtime_session.dispatch", return_value={"ok": True, "text": "Example Domain"}
+        ), patch("voice_cua.realtime_session.comet_is_active", return_value=False):
+            session._run_tool("call_c", "comet_act", "{}")
+            self.assertTrue(_wait(lambda: "call_c" in session._unacked))
+            with contextlib.redirect_stdout(io.StringIO()):
+                session._on_close(None, None, None)
+            session._prepare_reconnect()
+            session._conn_epoch += 1
+            session.ws = FakeWS()
+            session._session_ready.set()
+            recovery = threading.Thread(target=session._run_drop_recovery, name="drop-recovery")
+            recovery.start()
+            release.set()
+            recovery.join(3.0)
+            time.sleep(0.2)
+        types = [e["type"] for e in session.ws.events]
+        self.assertEqual(types, ["conversation.item.create", "response.create"])
+        self.assertIn("open example.com", session.ws.events[0]["item"]["content"][0]["text"])
+
+
+class StaleLeaseTests(unittest.TestCase):
+    def _lease(self) -> CometLease:
+        lease = CometLease()
+        lease._session_id, lease._purpose = "samantha-dead", "user_task"
+        lease._python, lease._controller, lease._workdir = "py", Path("ctl"), Path(tempfile.mkdtemp())
+        return lease
+
+    def test_lease_closed_elsewhere_is_dropped_and_restarted(self) -> None:
+        lease = self._lease()
+        with patch.object(lease, "_adopt_locked"), \
+                patch.object(lease, "_send_locked", return_value={"ok": False}), \
+                patch.object(lease, "_closeout_locked", return_value={"ok": False}), \
+                patch.object(comet_bridge, "broker_has_session", return_value=False), \
+                patch.object(lease, "_start_locked", return_value={"ok": True, "session_id": "new"}) as start:
+            out = lease.begin("https://example.com", purpose="user_task")
+        self.assertTrue(out["ok"])
+        start.assert_called_once()
+        self.assertEqual(lease._session_id, "")
+
+    def test_live_but_unresponsive_lease_still_refuses(self) -> None:
+        lease = self._lease()
+        with patch.object(lease, "_adopt_locked"), \
+                patch.object(lease, "_send_locked", return_value={"ok": False}), \
+                patch.object(lease, "_closeout_locked", return_value={"ok": False}), \
+                patch.object(comet_bridge, "broker_has_session", return_value=True), \
+                patch.object(lease, "_start_locked") as start:
+            out = lease.begin("https://example.com", purpose="user_task")
+        self.assertFalse(out["ok"])
+        start.assert_not_called()
 
 
 class TranscriptionTests(unittest.TestCase):
@@ -485,6 +702,19 @@ class TruncateAndLanguageTests(unittest.TestCase):
             self.assertEqual(input_transcription_config()["language"], "en")
         with patch.dict(os.environ, {"VOICE_CUA_TRANSCRIBE_LANGUAGE": "auto"}):
             self.assertNotIn("language", input_transcription_config())
+
+
+
+def setUpModule() -> None:  # loop tests run on the provider-neutral pass-through
+    import loop_harness
+
+    loop_harness.install()
+
+
+def tearDownModule() -> None:
+    import loop_harness
+
+    loop_harness.uninstall()
 
 
 if __name__ == "__main__":

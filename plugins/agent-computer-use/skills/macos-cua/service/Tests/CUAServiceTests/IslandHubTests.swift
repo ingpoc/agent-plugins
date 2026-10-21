@@ -102,6 +102,43 @@ final class IslandHubTests: XCTestCase {
         XCTAssertEqual(hub.handle(poll, port: 8777).body["status"], "approved")
     }
 
+    /// Agent prompts stay off the island while their source app is frontmost (already inline there);
+    /// switching away shows them, switching back hides them again — never answered or dismissed.
+    func testPromptsHiddenWhileSourceAppIsFrontmost() throws {
+        let hub = IslandHub(store: store)
+        var front: String? = "com.todesktop.230313mzl4w4u92"   // Cursor.app
+        hub.frontmostBundleID = { front }
+        var snaps = 0
+        hub.onSnapshot = { _ in snaps += 1 }
+        let cursor = try token(.cursor)
+        let body: [String: Any] = ["source": "cursor", "id": "g1", "kind": "approval", "title": "Run migration?"]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: cursor, json: body), port: 8777).status, 200)
+        XCTAssertNil(hub.compose().agent_approval, "inline in Cursor: not on the island")
+        XCTAssertEqual(hub.compose().pending_count, 0)
+        let poll = req("GET", "/api/agent/approval", token: cursor, query: ["source": "cursor", "id": "g1"])
+        XCTAssertEqual(hub.handle(poll, port: 8777).body["status"], "pending")
+
+        front = "com.apple.finder"; snaps = 0
+        hub.frontmostAppChanged()
+        XCTAssertEqual(snaps, 1)
+        XCTAssertEqual(hub.compose().agent_approval?.id, "cursor:g1", "switched away: shown")
+
+        front = "com.todesktop.230313mzl4w4u92"
+        hub.frontmostAppChanged()
+        XCTAssertNil(hub.compose().agent_approval, "back in Cursor: hidden again")
+        XCTAssertEqual(hub.handle(poll, port: 8777).body["status"], "pending", "hiding never answers the prompt")
+
+        // Another source's card is unaffected by Cursor being frontmost.
+        store.set("attention", for: AgentSource.grokBot.keyPrefix + "cap")
+        let grok = try token(.grokBot)
+        let g: [String: Any] = ["source": "grok", "id": "g2", "kind": "approval", "title": "Open the page?"]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: grok, json: g), port: 8777).status, 200)
+        XCTAssertEqual(hub.compose().agent_approval?.id, "grok:g2")
+        // Unknown front app → shown.
+        front = nil
+        XCTAssertEqual(hub.compose().pending_count, 2)
+    }
+
     func testRowsExpireAndClear() throws {
         let hub = IslandHub(store: store)
         let t = try token(.grokBot)

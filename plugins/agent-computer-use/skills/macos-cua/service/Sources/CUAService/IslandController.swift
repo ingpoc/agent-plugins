@@ -34,6 +34,7 @@ final class IslandController {
     private let startsNowPlaying: Bool
     private var nowPlayingStarted = false
     private var activationObserver: NSObjectProtocol?
+    private var promptGateObserver: NSObjectProtocol?
     /// A2 HUD (media-key tap + CoreAudio), A4 calendar, A9 tray store — production only (`startsSystem`).
     private(set) lazy var hud = IslandHUDController(model: model)
     let calendar = IslandCalendarController()
@@ -118,6 +119,10 @@ final class IslandController {
                 forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
             ) { [weak self] _ in Task { @MainActor in self?.nowPlaying.recompute() } }  // hide while source active
         }
+        // Agent prompts: held off the island while their source app is frontmost (inline there).
+        promptGateObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+        ) { [weak self] _ in Task { @MainActor in self?.hub.frontmostAppChanged() } }
         ingest(hub.compose())
         updatePanelVisibility()
     }
@@ -136,6 +141,7 @@ final class IslandController {
         }
         if let o = reduceMotionObserver { NSWorkspace.shared.notificationCenter.removeObserver(o); reduceMotionObserver = nil }
         if let o = activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(o); activationObserver = nil }
+        if let o = promptGateObserver { NSWorkspace.shared.notificationCenter.removeObserver(o); promptGateObserver = nil }
         stopClock()
         menuBarPanel.hide()
     }

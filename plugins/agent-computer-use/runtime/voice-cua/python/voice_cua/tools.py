@@ -68,8 +68,8 @@ def _schedule_listening_reset(delay: float = 2.0) -> None:
 
 
 COMPACT_ACT_DESCRIPTION = (
-    "Drive one Mac app in one native plan (op, or steps for a batch). Known paths: op=open "
-    "with path. ok/verified only when expect matches. Failures return error_type, hint and "
+    "Drive one Mac app in one native plan (op, or steps for a batch). op=open with only app "
+    "launches it or shows its window (use when state is empty); with path opens that file. ok/verified only when expect matches. Failures return error_type, hint and "
     "retryable; max 2 tries per step."
 )
 # Fields the voice schema keeps out of the per-step list (top-level only).
@@ -299,6 +299,16 @@ def tool_definitions(
                 "required": ["group"],
             },
         })
+    tools.append({
+        "type": "function",
+        "name": "show_details",
+        "description": "Show a result card on the Dynamic Island (e.g. a deal: price, seller, link).",
+        "parameters": {
+            "type": "object",
+            "properties": {"title": {"type": "string"}, "detail": {"type": "string"}},
+            "required": ["title"],
+        },
+    })
     tools.extend(t for t in _lazy_tools() if t["name"] in wanted)
     active = comet_is_active() if comet_active is None else comet_active
     # comet_begin is always offered: while the user's window is open it
@@ -338,7 +348,13 @@ def tool_definitions(
                             "type": "array",
                             "items": {
                                 "type": "object",
-                                "properties": {"type": {"type": "string", "enum": sorted(ALLOWED_ACTIONS)}},
+                                "properties": {
+                                    "type": {"type": "string", "enum": sorted(ALLOWED_ACTIONS)},
+                                    "url": {"type": "string", "description": "goto: absolute https URL"},
+                                    "text": {"type": "string", "description": "click_text: visible text"},
+                                    "selector": {"type": "string"},
+                                    "value": {"type": "string", "description": "fill_selector value"},
+                                },
                                 "required": ["type"],
                             },
                             "minItems": 1,
@@ -380,6 +396,7 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         "secrets_inject": _secrets_inject,
         "secrets_provide": _secrets_provide,
         "more_tools": _more_tools,
+        "show_details": _show_details,
     }
     fn = handlers.get(name)
     if not fn:
@@ -456,6 +473,9 @@ def _cua_act(args: dict[str, Any]) -> dict[str, Any]:
     if out.get("ok"):
         _STEP_FAILS.pop(step_fp, None)
         island_publish("done", title="Done", app=app, step=step, detail=f"{app} · {step}")
+    elif out.get("needs_confirmation") or str(out.get("error_type") or "").startswith("needs_confirm"):
+        # Not a failure: the confirm card follows (no "Missed that, retrying" on the island).
+        island_publish("acting", title="Needs your OK", app=app, detail=step)
     else:
         _note_failure(step_fp, out)
         err = str(out.get("error") or "")
@@ -477,7 +497,7 @@ FAIL_HINTS = {
     "observation_incomplete": ("No fresh view: cua_state once, then decide; don't replay blindly.", True),
     "action_failed": ("Step failed: try one other route (label, key or coordinates).", True),
     "verification_required": ("Add expect (or allow_unverified for dispatch-only) and retry.", True),
-    "expect_unverified": ("It ran but isn't confirmed: check with cua_state; don't repeat it.", False),
+    "expect_unverified": ("It ran but isn't confirmed: read the settled state in this result (no cua_state); don't repeat it.", False),
     "user_denied": ("User said no: don't retry.", False),
 }
 CAP_HINT = "Stopped after 2 tries: tell the user what blocked it, or take a different approach."
@@ -531,6 +551,18 @@ def reset_session_state() -> None:
     GATE.reset()
 
 
+SHOW_DETAILS_MAX = 400
+
+
+def _show_details(args: dict[str, Any]) -> dict[str, Any]:
+    title = str(args.get("title") or "").strip()[:80]
+    detail = str(args.get("detail") or "").strip()[:SHOW_DETAILS_MAX]
+    if not title:
+        return {"ok": False, "error": "title required"}
+    island_publish("done", title=title, detail=detail)
+    return {"ok": True, "shown": True}
+
+
 def _more_tools(args: dict[str, Any]) -> dict[str, Any]:
     group = str(args.get("group") or "").strip().lower()
     if group not in TOOL_GROUPS or group == "confirm":
@@ -557,16 +589,52 @@ def _comet_begin(args: dict[str, Any]) -> dict[str, Any]:
     host = (urlsplit(str(args.get("url") or "")).hostname or "").removeprefix("www.")
     if result.get("ok"):
         island_publish("done", title=f"{host or 'Page'} open", detail="Comet", app="Comet")
+        result.setdefault("next", "Loaded, not read yet: read it with comet_act [{type: text}] before answering.")
     else:
-        island_publish("error", title="Comet unavailable", detail=host, app="Comet")
+        reason = str(result.get("error") or "").removeprefix("Comet Control unavailable: ")
+        island_publish("error", title="Comet unavailable", detail=(reason or host)[:120], app="Comet")
     return result
+
+
+_GOTO_URL_ALIASES = ("href", "link", "target", "value", "text", "uri", "location")
+
+
+def _normalize_comet_action(action: dict[str, Any]) -> dict[str, Any]:
+    """Models sometimes put a goto's URL under another key; move it to ``url``."""
+    if action.get("type") == "navigate":
+        action = {**action, "type": "goto"}
+    if action.get("type") != "goto" or str(action.get("url") or "").startswith(("http://", "https://")):
+        return action
+    for key in ("url",) + _GOTO_URL_ALIASES:
+        value = str(action.get(key) or "").strip()
+        if value.startswith(("http://", "https://")):
+            return {**{k: v for k, v in action.items() if k != key}, "url": value}
+    for key in ("url",) + _GOTO_URL_ALIASES:
+        value = str(action.get(key) or "").strip().lstrip("/")
+        if value and "." in value.split("/")[0] and " " not in value:
+            return {**{k: v for k, v in action.items() if k != key}, "url": "https://" + value}
+    return action
 
 
 def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
     actions = args.get("actions")
     if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
         return {"ok": False, "error": "actions must be an array of objects"}
+    actions = [_normalize_comet_action(action) for action in actions]
+    bad_goto = next((a for a in actions if a.get("type") == "goto" and not str(a.get("url") or "").startswith(("http://", "https://"))), None)
+    if bad_goto is not None:
+        # A goto with no url ran 17 s and timed out as "goto undefined" (c17b); fail fast instead.
+        log_event("tool_error", tool="comet_act", ok=False, error="goto without an absolute url",
+                  error_type="bad_arguments", keys=sorted(k for k in bad_goto if k != "type")[:6])
+        return {"ok": False, "error": "goto needs {type: 'goto', url: 'https://...'} (absolute URL)",
+                "error_type": "bad_arguments", "retryable": True}
     log_event("comet_call", tool="comet_act", actions=redact_actions(actions))
+    # Same per-step retry cap as cua_act: an identical failing action list runs at most twice
+    # (matrix: one 'goto' miss was replayed 6x until the turn timed out).
+    step_fp = fingerprint("comet_act", {"actions": actions}, ignore=frozenset({"timeout"}))
+    capped = _retry_capped(step_fp)
+    if capped is not None:
+        return capped
     if _looks_risky(args):
         refused = GATE.check("comet_act", args, f"Allow in Comet: {', '.join(redact_actions(actions))[:90]}?")
         if refused is not None:
@@ -575,6 +643,11 @@ def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
     island_publish("driving", title="Driving Comet", detail="Browser task")
     result = comet_act(actions, timeout=max(1.0, min(90.0, float(args.get("timeout") or 45))))
     island_publish("done" if result.get("ok") else "error", title="Comet done" if result.get("ok") else "Comet miss", detail="Browser task")
+    if isinstance(result, dict):
+        if result.get("ok"):
+            _STEP_FAILS.pop(step_fp, None)
+        else:
+            _note_failure(step_fp, result)
     return result
 
 
@@ -594,7 +667,15 @@ def _comet_end(args: dict[str, Any]) -> dict[str, Any]:
 def _confirm_risky(args: dict[str, Any]) -> dict[str, Any]:
     # The island shows the server's description of the parked action, never the
     # model's prompt, so the user approves exactly what will run.
-    result = GATE.confirm(lambda cid, text: island_confirm(cid, text))
+    def _ask(cid: str, text: str) -> bool:
+        t0 = time.monotonic()
+        log_event("confirm_request", confirm_id=cid[:40], prompt_chars=len(text or ""))
+        approved = island_confirm(cid, text)
+        log_event("confirm_answer", confirm_id=cid[:40], approved=bool(approved),
+                  waited_s=round(time.monotonic() - t0, 1))
+        return approved
+
+    result = GATE.confirm(_ask)
     if result.get("error"):
         return result
     approved = bool(result.get("approved"))

@@ -6,6 +6,7 @@ import atexit
 import json
 import os
 import shutil
+import socket
 import subprocess
 import tempfile
 import threading
@@ -88,14 +89,97 @@ def _runtime_root() -> Path:
     return root
 
 
+def broker_has_session(session_id: str) -> bool | None:
+    """Is this lease still in the broker's inventory? None when the broker can't say."""
+    try:
+        sock_path = _runtime_root() / "run/comet-control.sock"
+        client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        client.settimeout(8)
+        try:
+            client.connect(str(sock_path))
+            client.sendall(json.dumps({"type": "sessions", "timeoutSeconds": 5}).encode())
+            client.shutdown(socket.SHUT_WR)
+            chunks = []
+            while True:
+                chunk = client.recv(65536)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+        finally:
+            client.close()
+        payload = json.loads(b"".join(chunks))
+    except (OSError, ValueError, RuntimeError):
+        return None
+    if payload.get("success") is not True or not isinstance(payload.get("sessions"), list):
+        return None
+    return any(str(item.get("session_id") or "") == session_id
+               for item in payload["sessions"] if isinstance(item, dict))
+
+
+BROKER_PLIST = Path.home() / "Library/LaunchAgents/local.comet-control.broker.plist"
+_BASE_PATH = ("/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin")
+
+
+def _usable(path: str) -> bool:
+    return bool(path) and Path(path).is_absolute() and os.access(path, os.X_OK)
+
+
+def _comet_python() -> str:
+    """The interpreter Comet Control's broker was installed with.
+
+    The app is launched by launchd/Finder with PATH=/usr/bin:/bin:..., where
+    ``python3`` is the system interpreter without the pinned websockets, so
+    ensure-broker.sh's own ``python3`` lookup fails. Resolve deterministically:
+    COMET_CONTROL_PYTHON, else the broker LaunchAgent's ProgramArguments[0].
+    """
+    configured = os.environ.get("COMET_CONTROL_PYTHON", "").strip()
+    if _usable(configured):
+        return configured
+    try:
+        import plistlib
+
+        with BROKER_PLIST.open("rb") as handle:
+            args = plistlib.load(handle).get("ProgramArguments") or []
+        candidate = str(args[0]) if args else ""
+    except Exception:  # noqa: BLE001 - missing/bad plist → fall back
+        candidate = ""
+    return candidate if _usable(candidate) else ""
+
+
+def _subprocess_env() -> dict[str, str]:
+    """Env for plugin scripts that works under launchd's minimal environment."""
+    env = dict(os.environ)
+    for key in [k for k in env if k.startswith(("_MEI", "_PYI")) or k in ("PYTHONHOME", "PYTHONPATH")]:
+        env.pop(key, None)  # PyInstaller bootloader leftovers must not leak into child pythons
+    env.setdefault("HOME", str(Path.home()))
+    python = _comet_python()
+    dirs: list[str] = []
+    if python:
+        env["COMET_CONTROL_PYTHON"] = python
+        dirs.append(str(Path(python).parent))
+    dirs += [str(Path.home() / ".pyenv/shims")]
+    dirs += [d for d in env.get("PATH", "").split(os.pathsep) if d]
+    dirs += list(_BASE_PATH)
+    seen: set[str] = set()
+    env["PATH"] = os.pathsep.join(d for d in dirs if not (d in seen or seen.add(d)))
+    return env
+
+
+def _tail(text: str, limit: int = 240) -> str:
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    return (lines[-1] if lines else "")[:limit]
+
+
 def _run_json(command: list[str], *, timeout: float) -> dict[str, Any]:
     try:
-        proc = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
+        proc = subprocess.run(
+            command, capture_output=True, text=True, timeout=timeout, check=False, env=_subprocess_env()
+        )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc)[:300]}
     raw = proc.stdout.strip()
     if not raw:
-        return {"ok": False, "error": (proc.stderr.strip() or f"command exited {proc.returncode}")[:300]}
+        return {"ok": False, "error": (_tail(proc.stderr) or f"command exited {proc.returncode}")[:300]}
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError:
@@ -109,6 +193,17 @@ def _run_json(command: list[str], *, timeout: float) -> dict[str, Any]:
     if proc.returncode and "ok" not in payload:
         payload["ok"] = False
     return payload
+
+
+def _probe_failure(probe: dict[str, Any], broker: dict[str, Any]) -> str:
+    """Specific, secret-free reason the Comet Control probe did not pass."""
+    if probe.get("success") and not broker.get("runtime_verified"):
+        reason = "broker runtime not verified"
+    elif probe.get("success") and not broker.get("extension_connected"):
+        reason = "Comet extension not connected (open Comet)"
+    else:
+        reason = str(probe.get("error") or probe.get("error_code") or probe.get("message") or "probe failed")
+    return f"Comet Control unavailable: {_tail(reason, 200)}"
 
 
 def _public(value: Any) -> Any:
@@ -263,6 +358,13 @@ class CometLease:
         public = _public(result)
         response = public.get("response") if isinstance(public.get("response"), dict) else {}
         public["ok"] = bool(public.get("ok", response.get("success")))
+        if not public["ok"]:
+            # The exact browser error (e.g. "Host access is restricted by policy.") lives in
+            # response.error; lift it so tool_error rows and the model both see it.
+            if response.get("error") and not public.get("error"):
+                public["error"] = str(response.get("error"))[:300]
+            if response.get("error_code") and not public.get("error_code"):
+                public["error_code"] = str(response.get("error_code"))[:60]
         return public
 
     def _closeout_locked(self) -> dict[str, Any]:
@@ -294,6 +396,17 @@ class CometLease:
             self._url = ""
             self._purpose = DEFAULT_PURPOSE
         return public
+
+    def _drop_stale_locked(self) -> None:
+        if self._workdir is not None:
+            shutil.rmtree(self._workdir, ignore_errors=True)
+        self._clear_state()
+        self._session_id = ""
+        self._workdir = None
+        self._python = ""
+        self._controller = None
+        self._url = ""
+        self._purpose = DEFAULT_PURPOSE
 
     # -- public API ---------------------------------------------------------
     def active(self) -> bool:
@@ -333,7 +446,13 @@ class CometLease:
                     }
                 # Window gone (user closed it?) — clean up the dead lease, start fresh.
                 if not self._closeout_locked().get("ok"):
-                    return {"ok": False, "error": "existing Comet window is unresponsive and could not be released"}
+                    if broker_has_session(self._session_id) is not False:
+                        return {"ok": False, "error": "existing Comet window is unresponsive and could not be released"}
+                    # Already closed elsewhere (another process ended it): only our pointer is stale.
+                    from voice_cua.activity_log import log_event
+
+                    log_event("comet_lease_stale_dropped", session_id=self._session_id[:48])
+                    self._drop_stale_locked()
                 notify = False
             elif self._session_id:
                 if purpose == "self_test":
@@ -358,7 +477,7 @@ class CometLease:
             and broker.get("runtime_verified")
             and broker.get("extension_connected")
         ):
-            return {"ok": False, "error": "Comet Control runtime or extension is unavailable"}
+            return {"ok": False, "error": _probe_failure(probe, broker)}
         python = Path(str(broker.get("python_executable") or ""))
         if not python.is_absolute() or not os.access(python, os.X_OK):
             return {"ok": False, "error": "Comet Control did not report a usable Python runtime"}

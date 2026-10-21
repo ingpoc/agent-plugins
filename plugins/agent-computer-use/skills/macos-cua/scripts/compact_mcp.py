@@ -182,7 +182,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         },
         {
             "name": "act",
-            "description": "Drive one Mac app in one native plan. Exact paths use op=open with path, not Finder search. Verified success returns a compact AX delta (~hundreds of chars; long text as range+excerpt); omitted IDs are stale — use labels or one state. Failures return error_type + nearby context (not a full AX dump). ok/verified only when expect matches. Screenshots attach only when pixels are the evidence (empty AX, Stage Manager thumb, or screenshot:true).",
+            "description": "Drive one Mac app in one native plan. Exact paths use op=open with path, not Finder search; op=open with only app launches it or shows a windowless running app. Verified success returns a compact AX delta (~hundreds of chars; long text as range+excerpt); omitted IDs are stale — use labels or one state. Failures return error_type + nearby context (not a full AX dump). ok/verified only when expect matches. Screenshots attach only when pixels are the evidence (empty AX, Stage Manager thumb, or screenshot:true).",
             "inputSchema": _schema(
                 {
                     "app": {"type": "string"},

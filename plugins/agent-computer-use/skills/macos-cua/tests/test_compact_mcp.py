@@ -97,10 +97,12 @@ class CompactMcpDispatchTests(unittest.TestCase):
         failed = Backend().act("Fixture", {"label": "Button 1", "expect": "missing"})
         self.assertFalse(failed["ok"])
         self.assertEqual(failed["error_type"], "expect_unverified")
-        self.assertLess(len(failed["text"]), len(after) // 2)
         self.assertIn("reason: expect_unverified", failed["text"])
-        self.assertNotIn('AXButton "Button 20"', failed["text"])
-        self.assertTrue(failed.get("full_text_omitted"))
+        # The action ran: the settled state rides along (live runs always followed this
+        # failure with a cua_state that returned the same tree plus a model round trip).
+        self.assertIn("settled state:", failed["text"])
+        self.assertIn('[30] AXStaticText value="finished"', failed["text"])
+        self.assertFalse(failed.get("full_text_omitted"))
 
     def test_allow_unverified_without_expect_stays_compact(self):
         before = 'Window: "W"\n  [1] AXButton "A" {0,0 10x10}'

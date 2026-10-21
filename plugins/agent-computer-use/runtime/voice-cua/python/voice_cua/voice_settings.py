@@ -1,4 +1,4 @@
-"""Samantha / Realtime preferences — ~/.config/voice-cua/settings.json (metadata only)."""
+"""Samantha voice preferences — ~/.config/voice-cua/settings.json (metadata only)."""
 
 from __future__ import annotations
 
@@ -7,17 +7,18 @@ import os
 from pathlib import Path
 from typing import Any
 
-SETTINGS_PATH = Path(
-    os.environ.get("VOICE_CUA_SETTINGS", "~/.config/voice-cua/settings.json")
-).expanduser()
+def settings_path() -> Path:
+    """Resolved per call so VOICE_CUA_SETTINGS (tests, dev) applies regardless of import order."""
+    return Path(os.environ.get("VOICE_CUA_SETTINGS", "~/.config/voice-cua/settings.json")).expanduser()
 
+# GPT-Live-1 is the OpenAI voice path. gpt-realtime-* was removed (being retired); a saved
+# value maps to gpt-live-1 on load.
 MODELS: list[tuple[str, str]] = [
-    ("gpt-realtime-2", "gpt-realtime-2"),
-    ("gpt-realtime-2.1", "gpt-realtime-2.1"),
-    ("gpt-realtime-2.1-mini", "gpt-realtime-2.1 mini"),
-    ("grok-voice-latest", "Grok Voice 3.0"),
     ("gpt-live-1", "GPT-Live-1"),
+    ("grok-voice-latest", "Grok Voice 3.0"),
 ]
+DEFAULT_MODEL = "gpt-live-1"
+RETIRED_MODEL_PREFIX = "gpt-realtime"
 
 # GPT-Live-1 delegation backends (Responses models; ids per developers.openai.com).
 BACKEND_MODELS: list[tuple[str, str]] = [
@@ -27,7 +28,14 @@ BACKEND_MODELS: list[tuple[str, str]] = [
     ("gpt-6-astra", "GPT-6 Astra"),
 ]
 
+# GPT-Live voices (Managing GPT-Live sessions > Voice options): marin is the default.
 VOICES: list[tuple[str, str]] = [
+    ("marin", "Marin"),
+    ("cedar", "Cedar"),
+    ("gleam", "Gleam"),
+    ("meridian", "Meridian"),
+    ("vesper", "Vesper"),
+    ("willow", "Willow"),
     ("alloy", "Alloy"),
     ("ash", "Ash"),
     ("ballad", "Ballad"),
@@ -53,8 +61,8 @@ MIC_PROFILES: list[tuple[str, str]] = [
 ]
 
 DEFAULTS: dict[str, str] = {
-    "realtime_model": "gpt-realtime-2",
-    "realtime_voice": "alloy",
+    "realtime_model": DEFAULT_MODEL,
+    "realtime_voice": "marin",
     "eagerness": "balanced",
     "mic_profile": "near_field",
     "live_bulk_model": "gpt-6-luna",
@@ -64,9 +72,10 @@ DEFAULTS: dict[str, str] = {
 
 def load_settings() -> dict[str, str]:
     data = dict(DEFAULTS)
-    if SETTINGS_PATH.is_file():
+    path = settings_path()
+    if path.is_file():
         try:
-            raw = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+            raw = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(raw, dict):
                 for key in DEFAULTS:
                     val = raw.get(key)
@@ -74,16 +83,26 @@ def load_settings() -> dict[str, str]:
                         data[key] = val.strip()
         except (json.JSONDecodeError, OSError):
             pass
+    if data["realtime_model"].lower().startswith(RETIRED_MODEL_PREFIX) or \
+            data["realtime_model"] not in {m for m, _ in MODELS}:
+        data["realtime_model"] = DEFAULT_MODEL
     return data
 
 
+def live_voice(voice: str | None) -> str:
+    """Saved voice if GPT-Live offers it, else marin."""
+    v = (voice or "").strip().lower()
+    return v if v in {k for k, _ in VOICES} else "marin"
+
+
 def save_settings(data: dict[str, str]) -> None:
-    SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    path = settings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
     merged = dict(DEFAULTS)
     merged.update({k: v for k, v in data.items() if k in DEFAULTS and isinstance(v, str)})
-    SETTINGS_PATH.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
     try:
-        os.chmod(SETTINGS_PATH, 0o600)
+        os.chmod(path, 0o600)
     except OSError:
         pass
 

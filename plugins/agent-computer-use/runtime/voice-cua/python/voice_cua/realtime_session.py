@@ -39,9 +39,25 @@ except ImportError:  # pragma: no cover
     websocket = None  # type: ignore
 
 EXIT_NEEDS_API_KEY = 78  # EX_CONFIG: CUAService does not auto-restart on this exit
-REALTIME_MODEL = os.environ.get("VOICE_CUA_REALTIME_MODEL", "gpt-realtime-2")
-REALTIME_VOICE = os.environ.get("VOICE_CUA_REALTIME_VOICE", "alloy")
+REALTIME_MODEL = os.environ.get("VOICE_CUA_REALTIME_MODEL", "gpt-live-1")
+REALTIME_VOICE = os.environ.get("VOICE_CUA_REALTIME_VOICE", "marin")
 REALTIME_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
+# After a drop recovery, GPT-Live sometimes answers the recovery turn from stale context and
+# then starts a second delegation for the same request within a fraction of a second. The
+# first recovery answer waits this long; a newer response for the same turn supersedes it.
+RECOVERY_SETTLE_S = 2.0
+
+
+def _has_sound(b64: str, floor: int = 600) -> bool:
+    """True when a base64 PCM16 chunk is louder than the gate floor (wake from idle)."""
+    import array
+    import base64 as _b64
+
+    try:
+        samples = array.array("h", _b64.b64decode(b64))
+    except (ValueError, TypeError):
+        return False
+    return any(abs(x) >= floor for x in samples[::8])
 
 
 def _normalize_reply(text: str) -> str:
@@ -196,6 +212,17 @@ class RealtimeSession:
     REALTIME_PING_TIMEOUT = 15
     # Server enforces a 60-minute WS cap — plan a proactive reconnect at 55 min.
     PLANNED_RECONNECT_SECONDS = 3300.0
+    # GPT-Live bills per second: close after this long with no speech, playback or work.
+    LIVE_IDLE_CLOSE_SECONDS = float(os.environ.get("VOICE_CUA_LIVE_IDLE_CLOSE_S", "180"))
+    # session.closed reason=expired with nobody talking (e.g. no mic input): rest instead of
+    # forking a fresh session every ~30 s; speech or a typed turn wakes it.
+    LIVE_EXPIRED_REST_SECONDS = 20.0
+    LIVE_ROTATE_QUIET_SECONDS = 6.0  # wait for the reply to finish playing before a context rotate
+    # GPT-Live expires a session after ~30 s without input audio (measured: reason=expired,
+    # usage 0 s). With no mic stream (no input device, text-only), feed silence while a turn
+    # is in flight or was recent so a typed turn can't be cut off; idle sessions still expire.
+    LIVE_KEEPALIVE_SECONDS = 20.0
+    LIVE_KEEPALIVE_CHUNK_S = 0.1
     PLANNED_RECONNECT_RETRY_SECONDS = 60.0
     # Reconnect backoff: full jitter, delay ~ U(0, min(cap, base * factor**(n-1)))
     # for consecutive attempt n. The counter only resets once a connection has
@@ -237,6 +264,12 @@ class RealtimeSession:
         self._audio: RealtimeAudio | None = None
         self._stop = threading.Event()
         self._session_ready = threading.Event()
+        self._dormant = threading.Event()
+        self._wake = threading.Event()
+        self._last_activity = time.monotonic()
+        self._last_user_activity = time.monotonic()  # speech, typed turns, backend work
+        self._last_mic_audio = 0.0  # monotonic time of the last mic chunk sent
+        self._restart_pending = False
         # Phase 1 reliability state.
         self._comet_active = False
         self._speaking_response_ids: set[str] = set()
@@ -248,6 +281,7 @@ class RealtimeSession:
         self._retry_not_before = 0.0  # monotonic; set by rate limits / retry-after
         self._retry_reason = ""
         self._reconnect_gave_up = False
+        self._access_refused = ""  # "HTTP 403 ..." when the handshake says this key can't use the model
         self._tool_groups: set[str] = set()  # lazy tool groups loaded this conversation
         self._response_started: dict[str, float] = {}  # response_id → monotonic at response.created
         self._config_error_published = False
@@ -261,6 +295,20 @@ class RealtimeSession:
         self._send_drops = 0
         # call_id -> summary note, for results re-created after a reconnect.
         self._recreated_calls: dict[str, str] = {}
+        # Drop recovery: an unrequested socket drop while a turn or tool is in flight
+        # reconnects (fork / seeded) and then redelivers or replays once (_run_drop_recovery).
+        self._turn_open = False          # a user turn awaits its final reply
+        self._turn_text = ""
+        self._turn_tools = 0             # tools started since that turn (replay would redo them)
+        self._turn_recovered = False     # one recovery per turn
+        self._settle_request = ""        # recovery request whose first answer may be superseded
+        self._settle_timer: threading.Timer | None = None
+        self._unacked: dict[str, tuple[str, dict[str, Any], int]] = {}  # sent, no response yet
+        self._drop_plan: dict[str, Any] | None = None
+        self._late_results: list[tuple[str, dict[str, Any]]] | None = None  # tools that outlived a drop
+        self._reconnect_requested = False
+        self._recovery_request = ""      # text waiter a running recovery will answer
+        self._recovery_active = False
         comet_add_listener(self._on_comet_change)
         apply_env()
 
@@ -278,9 +326,13 @@ class RealtimeSession:
         )
         # Keepalive: ping every 20s; a ping timeout closes the socket so the
         # reconnect loop takes over — it must never stop the session.
+        # suppress_origin: websocket-client otherwise sends "Origin: https://api.openai.com",
+        # marking this server-side socket as a browser. GPT-Live's edge refuses browser-origin
+        # sockets with a bare 403 "Forbidden" (Realtime tolerates it); the official SDKs send none.
         self.ws.run_forever(
             ping_interval=self.REALTIME_PING_INTERVAL,
             ping_timeout=self.REALTIME_PING_TIMEOUT,
+            suppress_origin=True,
         )
 
     @classmethod
@@ -315,7 +367,12 @@ class RealtimeSession:
     def run(self) -> None:
         """Resilient top-level loop: connect, retry with backoff until stopped or out of attempts."""
         self._schedule_planned_reconnect()
+        if getattr(self.provider, "manages_barge_in", False) and not getattr(self, "_watchdog_started", False):
+            self._watchdog_started = True
+            threading.Thread(target=self._idle_watchdog, name="live-idle", daemon=True).start()
+            threading.Thread(target=self._silence_keepalive, name="live-keepalive", daemon=True).start()
         self._reconnect_gave_up = False
+        self._access_refused = ""
         self._reconnect_attempts = 0  # a fresh run() always gets the full budget
         self._retry_not_before = 0.0  # and never inherits a stale hold
         self._retry_reason = ""
@@ -326,6 +383,22 @@ class RealtimeSession:
             except Exception as exc:  # noqa: BLE001 — keep the loop alive
                 log_event("reconnect_attempt_failed", error=str(exc)[:120])
             if self._stop.is_set():
+                break
+            self._restart_pending = False
+            if self._dormant.is_set():
+                # Idle close (Managing sessions > Close idle sessions and resume): no billable
+                # session while nobody talks; speech or a typed turn wakes a fork/seeded session.
+                self._prepare_reconnect()
+                island_publish("idle", title="Resting", detail="Speak to resume")
+                while not self._stop.is_set() and not self._wake.wait(timeout=0.5):
+                    pass
+                self._wake.clear()
+                self._dormant.clear()
+                self._reconnect_attempts = 0
+                log_event("live_wake")
+                continue
+            if self._access_refused and not self._connected_at:
+                self._refuse_access()
                 break
             if self._connected_at and time.monotonic() - self._connected_at >= self.RECONNECT_STABLE_SECONDS:
                 self._reconnect_attempts = 0  # that connection was stable — fresh budget
@@ -360,6 +433,19 @@ class RealtimeSession:
             return
         island_publish("idle", title="Idle", detail="Disconnected")
         print("Realtime closed", flush=True)
+
+    def _refuse_access(self) -> None:
+        """401/403 at the handshake: the key can't use this model — retrying can't fix it."""
+        self._reconnect_gave_up = True
+        self._cancel_planned_reconnect()
+        self._prepare_reconnect()
+        detail = f"{self.provider.name} {self.provider.model}: {self._access_refused}"[:160]
+        mark("realtime_access_refused", status="fail", detail=detail)
+        log_event("voice_access_refused", provider=self.provider.name, model=self.provider.model,
+                  status=self._access_refused)
+        island_publish("error", title="Couldn't connect: access denied", detail=self.provider.model)
+        print(f"Realtime: {detail} — this API key/project can't use the selected voice model; "
+              "pick another model in Settings", flush=True)
 
     def _give_up_reconnect(self) -> None:
         self._reconnect_gave_up = True
@@ -399,15 +485,22 @@ class RealtimeSession:
         self._tool_groups.clear()
         reset_session_state()
         self.provider.reset()
+        keep = (self._drop_plan or {}).get("request_id") or ""
         for request_id in request_ids:
+            if request_id == keep:
+                continue  # drop recovery answers it on the new session
             self._finish_text_waiter(request_id, error="reconnected")
 
     def _request_reconnect(self, *, reason: str) -> None:
         """Trigger the reconnect loop by closing the current socket."""
         log_event("reconnect_requested", reason=reason)
+        self._reconnect_requested = True
         ws = self.ws
         if ws is None:
             return
+        if reason.startswith("planned"):
+            # Off the socket thread (timer): safe to wait for session.closed.
+            self._finalize_provider(timeout=2.0)
         try:
             ws.close()
         except Exception as exc:  # noqa: BLE001 — close is best effort
@@ -455,6 +548,18 @@ class RealtimeSession:
 
     def _send(self, event: dict[str, Any]) -> bool:
         """Send one loop (Realtime-dialect) event through the provider adapter."""
+        if self._dormant.is_set():
+            et = event.get("type")
+            if et != "input_audio_buffer.append" or _has_sound(str(event.get("audio") or "")):
+                self._wake.set()
+        elif event.get("type") != "input_audio_buffer.append":
+            self._last_activity = time.monotonic()
+            if event.get("type") in {"conversation.item.create", "response.create"}:
+                self._last_user_activity = self._last_activity
+        else:
+            self._last_mic_audio = time.monotonic()
+            if _has_sound(str(event.get("audio") or "")):
+                self._last_user_activity = self._last_mic_audio
         ok = True
         for wire in self.provider.outbound(event):
             ok = self._send_wire(wire) and ok
@@ -504,14 +609,22 @@ class RealtimeSession:
         pre = wait_mic_preflight(timeout=30.0)
         if pre != 0:
             self._audio_enabled = False
-            mark("mic_preflight", status="fail", error="mic open failed")
-            island_publish("error", title="Mic unavailable", detail="Allow microphone")
+            detail = "Allow microphone"
+            try:  # no default input device (headset unplugged) is not a permission problem
+                import sounddevice as _sd
+
+                _sd.query_devices(kind="input")
+            except Exception:  # noqa: BLE001 — PortAudio raises when there is no input device
+                detail = "No input device · type instead"
+            mark("mic_preflight", status="fail", error="mic open failed", detail=detail)
+            island_publish("error", title="Mic unavailable", detail=detail)
             print("voice-cua stack: mic preflight failed", file=sys.stderr, flush=True)
             return
         mark("mic_preflight", status="ok")
         self._audio = RealtimeAudio(
             self._send,
             meter=lambda side, level, bars: island_voice_meter(side, level, bars),
+            continuous=bool(getattr(self.provider, "manages_barge_in", False)),
         )
         try:
             self._audio.start()
@@ -528,6 +641,7 @@ class RealtimeSession:
     def _on_open(self, _ws: Any) -> None:
         mark("realtime_ws_open")
         self._conn_epoch += 1
+        self._reconnect_requested = False
         reconnected = self._conn_epoch > 1
         self._comet_active = comet_is_active()
         # Sent on every open (also after reconnect), preserving the active
@@ -617,8 +731,18 @@ class RealtimeSession:
             return
         if not isinstance(event, dict):
             return
+        if event.get("type") not in {"session.usage.updated"}:
+            self._last_activity = time.monotonic()
+        if event.get("type") in {"session.input_transcript.delta", "session.delegation.created", "response.event"}:
+            self._last_user_activity = time.monotonic()
         for loop_event in self.provider.inbound(event):
             self._dispatch_event(loop_event)
+        restart = getattr(self.provider, "restart_requested", "")
+        if restart == "live_closed_expired" and self._rest_after_expiry():
+            return
+        if restart and not getattr(self, "_restart_pending", False):
+            self._restart_pending = True
+            self._request_reconnect(reason=restart)
 
     def _dispatch_event(self, event: dict[str, Any]) -> None:
         et = event.get("type")
@@ -632,6 +756,8 @@ class RealtimeSession:
             from voice_cua.session_hub import register
 
             register(self)
+            if self._drop_plan is not None:
+                threading.Thread(target=self._run_drop_recovery, name="drop-recovery", daemon=True).start()
             if self._text_only:
                 mark("realtime_ready", status="ok")
                 island_publish("listening", title="Listening", detail="")
@@ -656,6 +782,7 @@ class RealtimeSession:
                 # Words go to voice.log only; the activity log keeps metadata.
                 log_event("user_transcript", chars=len(heard), item_id=str(event.get("item_id") or ""))
                 self._last_user_text = heard
+                self._note_user_turn(heard)
                 print(f"You: {heard}", flush=True)
                 # Card title = the final utterance (compact view never shows text).
                 if not (self._audio and self._audio.has_playback()):
@@ -688,8 +815,11 @@ class RealtimeSession:
                     self._current_response_id = response_id
                     if request_id:
                         self._response_request_ids[response_id] = request_id
+                        self._cancel_settle(request_id)
                     self._cancelled_response_ids.discard(response_id)
                 self._response_condition.notify_all()
+            # The server answered after our tool output: it arrived; nothing to redeliver.
+            self._unacked = {k: v for k, v in self._unacked.items() if v[2] != self._conn_epoch}
             island_publish("thinking", title="Thinking", detail="")
         elif et == "response.output_audio_transcript.done":
             chunk = str(event.get("transcript") or "").strip()
@@ -760,6 +890,11 @@ class RealtimeSession:
         if not audio.has_playback():
             return
         audio_end_ms, item_id = audio.interrupt()
+        if getattr(getattr(self, "provider", None), "manages_barge_in", False):
+            # GPT-Live: the server stops speaking on its own and backend work keeps running
+            # (Managing sessions / Delegation docs); only the local player is flushed.
+            log_event("barge_in_local", audio_end_ms=audio_end_ms, provider=self.provider.name)
+            return
         with self._response_lock:
             active = self._current_response_id
             response_active = active in self._active_response_ids
@@ -953,6 +1088,7 @@ class RealtimeSession:
             arguments = {}
 
         self._inflight_tools += 1
+        self._turn_tools += 1
         epoch = self._conn_epoch
 
         def work() -> None:
@@ -977,11 +1113,14 @@ class RealtimeSession:
                 self._sync_tool_groups(name, result)
                 if name.startswith("comet_"):
                     self._on_comet_change(comet_is_active())
-                if stale:
-                    request_id_local = ""
-                else:
-                    request_id_local = request_id
+                if stale == "recovery" or (epoch != self._conn_epoch
+                                           and call_id in getattr(self, "_recovered_calls", ())):
+                    return  # drop recovery continues the task with this result
+                # A stale (pre-drop) result still continues the task once.
+                request_id_local = request_id
                 if self._wait_for_responses_idle(timeout=10.0):
+                    if epoch != self._conn_epoch and call_id in getattr(self, "_recovered_calls", ()):
+                        return  # dropped meanwhile: the recovery turn carries this result
                     self._send_response_create(request_id=request_id_local)
                 else:
                     log_event(
@@ -1050,6 +1189,7 @@ class RealtimeSession:
             },
         }
         if epoch == self._conn_epoch and self._send(output):
+            self._unacked[call_id] = (name, result, epoch)
             return False
         # Socket dropped while the tool ran. Wait for the (re)opened session.
         while not self._stop.is_set():
@@ -1064,6 +1204,13 @@ class RealtimeSession:
             time.sleep(0.25)
         if self._stop.is_set():
             return True
+        if self._late_results is not None:
+            # Drop recovery is waiting for this result: it hands it over with the user's
+            # request in one continuation (_run_drop_recovery), so no response.create here.
+            self._late_results.append((name, result))
+            log_event("tool_result_stale_epoch", tool=name, started_epoch=epoch, epoch=self._conn_epoch,
+                      via="drop_recovery")
+            return "recovery"  # type: ignore[return-value]
         # New server session: it has no such call_id. Re-create the function_call
         # item (same call_id/name/args), then its output; the caller follows with
         # response.create. If the server still rejects the call id, the error
@@ -1101,7 +1248,11 @@ class RealtimeSession:
         status = getattr(error, "status_code", None)
         headers = getattr(error, "resp_headers", None)
         retry_after = retry_after_seconds(None, headers)
-        if status == 429 or _is_rate_limit({"message": msg}):
+        if status in (401, 403):
+            body = getattr(error, "resp_body", b"") or b""
+            text = body.decode("utf-8", "replace") if isinstance(body, bytes) else str(body)
+            self._access_refused = f"HTTP {status} {text.strip()[:80]}".strip()
+        elif status == 429 or _is_rate_limit({"message": msg}):
             self._note_retry_hint(
                 min_delay=max(self.RATE_LIMIT_MIN_DELAY, retry_after or 0.0),
                 reason=f"rate_limit:http_{status or 'ws'}",
@@ -1109,13 +1260,123 @@ class RealtimeSession:
         elif retry_after is not None:
             self._note_retry_hint(min_delay=retry_after, reason=f"retry_after:http_{status or 'ws'}")
 
-    def _on_close(self, _ws: Any, *_args: Any) -> None:
+    def _on_close(self, _ws: Any, *args: Any) -> None:
         mark("realtime_ws_close")
+        # Diagnose drops: close frame code/reason (None, None = TCP lost without a close frame).
+        code = args[0] if args else None
+        reason = args[1] if len(args) > 1 else None
+        log_event("ws_closed", code=code, reason=str(reason or "")[:120] or None,
+                  connected_s=round(time.monotonic() - self._connected_at, 1) if self._connected_at else None,
+                  stopping=self._stop.is_set())
         if self._stop.is_set():
             return
+        if not self._reconnect_requested and code is None:
+            self._drop_plan = self._plan_drop_recovery()
         # Phase 1: close no longer kills the session — run() reconnects.
         island_publish("reconnecting", title="Reconnecting", detail="")
         print("Realtime closed", flush=True)
+
+    def _rest_after_expiry(self) -> bool:
+        """Expired with nobody talking: go dormant (wake on speech/text) instead of reconnecting."""
+        idle = time.monotonic() - getattr(self, "_last_user_activity", 0.0)
+        with self._response_condition:
+            busy = bool(self._active_response_ids)
+        busy = busy or bool(self._pending_calls or self._inflight_tools)
+        if busy or idle < self.LIVE_EXPIRED_REST_SECONDS or self._dormant.is_set():
+            return False
+        self.provider.restart_requested = ""
+        log_event("live_expired_rest", idle_s=round(idle, 1))
+        self._dormant.set()
+        self._session_ready.clear()
+        ws = self.ws
+        try:
+            if ws is not None:
+                ws.close()
+        except Exception:  # noqa: BLE001 — close is best effort
+            pass
+        return True
+
+    def _keepalive_due(self, now: float) -> bool:
+        if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
+            return False
+        if now - self._last_mic_audio < 0.5:
+            return False  # the mic is streaming (audio or muted zeros)
+        with self._response_condition:
+            busy = bool(self._active_response_ids)
+        busy = busy or bool(self._pending_calls or self._inflight_tools or self._text_waiters)
+        return busy or now - self._last_user_activity < self.LIVE_KEEPALIVE_SECONDS
+
+    def _silence_keepalive(self) -> None:
+        rate = REALTIME_SAMPLE_RATE
+        chunk = base64.b64encode(b"\x00\x00" * int(rate * self.LIVE_KEEPALIVE_CHUNK_S)).decode()
+        logged = False
+        while not self._stop.wait(timeout=self.LIVE_KEEPALIVE_CHUNK_S):
+            if not self._keepalive_due(time.monotonic()):
+                logged = False
+                continue
+            if not logged:
+                log_event("live_keepalive", reason="no_mic_audio")
+                logged = True
+            for wire in self.provider.outbound({"type": "input_audio_buffer.append", "audio": chunk}):
+                self._send_wire(wire)
+
+    def _idle_watchdog(self) -> None:
+        """Close a GPT-Live session after LIVE_IDLE_CLOSE_SECONDS without speech or work."""
+        while not self._stop.wait(timeout=5.0):
+            if not getattr(self.provider, "manages_barge_in", False) or self.LIVE_IDLE_CLOSE_SECONDS <= 0:
+                continue
+            if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
+                continue
+            with self._response_condition:
+                busy = bool(self._active_response_ids)
+            busy = busy or bool(self._pending_calls or self._inflight_tools)
+            busy = busy or bool(self._audio and self._audio.has_playback())
+            quiet = time.monotonic() - self._last_activity
+            if (not busy and getattr(self.provider, "rotate_requested", False)
+                    and quiet >= self.LIVE_ROTATE_QUIET_SECONDS and not getattr(self, "_restart_pending", False)):
+                # Context budget: restart seeded with recent utterances only (no fork) while quiet.
+                log_event("live_context_rotate", quiet_s=round(quiet, 1))
+                self._restart_pending = True
+                self._request_reconnect(reason="planned_context_rotate")
+                continue
+            if busy or quiet < self.LIVE_IDLE_CLOSE_SECONDS:
+                continue
+            log_event("live_idle_close", idle_s=round(time.monotonic() - self._last_activity, 1))
+            self._dormant.set()
+            self._session_ready.clear()
+            self._finalize_provider(timeout=3.0)
+            ws = self.ws
+            try:
+                if ws is not None:
+                    ws.close()
+            except Exception:  # noqa: BLE001 — close is best effort
+                pass
+
+    def set_input_muted(self, muted: bool) -> bool:
+        """Mic mute: local capture pause plus, on GPT-Live, session.input_audio.mute/unmute."""
+        if self._audio is not None:
+            (self._audio.pause_input if muted else self._audio.resume_input)()
+        event = self.provider.mute_event(muted) if hasattr(self.provider, "mute_event") else None
+        if event:
+            self._send_wire(event)
+        log_event("input_muted" if muted else "input_unmuted", provider=self.provider.name)
+        return True
+
+    def _finalize_provider(self, *, timeout: float) -> None:
+        """GPT-Live: session.close → session.closed before the socket goes (final usage)."""
+        ws = self.ws
+
+        def send(event: dict[str, Any]) -> bool:
+            try:
+                ws.send(json.dumps(event))
+                return True
+            except Exception:  # noqa: BLE001 — socket already gone
+                return False
+
+        try:
+            self.provider.finalize(send, timeout)
+        except Exception as exc:  # noqa: BLE001 — never block shutdown
+            log_event("provider_finalize_failed", error=str(exc)[:120])
 
     def shutdown(self) -> None:
         from voice_cua.session_hub import unregister
@@ -1132,6 +1393,7 @@ class RealtimeSession:
             self._finish_text_waiter(request_id, error="session closed")
         ws = self.ws
         if ws is not None:
+            self._finalize_provider(timeout=3.0)
             try:
                 ws.close()
             except Exception:  # noqa: BLE001 — close is best effort
@@ -1220,6 +1482,8 @@ class RealtimeSession:
             for item in response.get("output") or []
         ):
             return
+        self._turn_open = False
+        self._turn_closed_at = len(getattr(self.provider, "history", None) or [])
         text_bits: list[str] = []
         for item in response.get("output") or []:
             if not isinstance(item, dict) or item.get("type") != "message":
@@ -1249,7 +1513,23 @@ class RealtimeSession:
         request_id = self._request_id(response) or self._request_for_response(response_id)
         if request_id:
             error = "" if status == "completed" else f"response {status or 'failed'}"
+            if request_id == self._settle_request and not error:
+                self._settle_request = ""
+                timer = threading.Timer(RECOVERY_SETTLE_S, self._finish_text_waiter,
+                                        args=(request_id,), kwargs={"reply": reply})
+                timer.daemon = True
+                self._settle_timer = timer
+                timer.start()
+                return
             self._finish_text_waiter(request_id, reply=reply, error=error)
+
+    def _cancel_settle(self, request_id: str) -> None:
+        """A newer response for the recovery turn supersedes its first answer."""
+        timer = self._settle_timer
+        if timer is not None and timer.args and timer.args[0] == request_id:
+            timer.cancel()
+            self._settle_timer = None
+            log_event("live_recovery_answer_superseded")
 
     def _publish_listening_when_idle(self) -> None:
         """After response completes: hide agent cursor, then return pill to Listening."""
@@ -1282,9 +1562,20 @@ class RealtimeSession:
                     self._cancelled_response_ids.add(active)
                     self._response_condition.notify_all()
                 self._send({"type": "response.cancel"})
+            if getattr(getattr(self, "provider", None), "manages_barge_in", False):
+                # GPT-Live drops response.cancel; an appended instruction interrupts speech
+                # (Delegation > Steer the live conversation). Backend work is not cancelled by it.
+                note = ("The user pressed Stop. Stop speaking now and wait quietly for them."
+                        if action == "stopSpeaking" else
+                        "The user pressed Stop on the current task. Stop speaking, start no further "
+                        "steps for it, and wait quietly for the next request.")
+                self._send({"type": "conversation.item.create", "item": {
+                    "type": "message", "role": "system", "content": [{"type": "input_text", "text": note}]}})
             log_event("island_control", action=action, cancelled=bool(response_active))
             island_publish("listening", title="Listening", detail="")
             return True
+        if action in ("mute", "unmute"):
+            return self.set_input_muted(action == "mute")
         if action == "retry":
             last = getattr(self, "_last_user_text", "")
             if not last:
@@ -1298,7 +1589,101 @@ class RealtimeSession:
             return True
         return False
 
-    def send_text(self, text: str, *, request_id: str = "") -> None:
+    @classmethod
+    def recovery_message(cls, request: str, results: list[tuple[str, dict[str, Any]]]) -> str:
+        parts = ["(The voice connection dropped and was restored.)"]
+        if request:
+            parts.append(f"My request was: {request[:300]!r}.")
+        for name, result in results[:3]:
+            parts.append(cls.stale_result_note(name, result))
+        parts.append("Continue my request from where it stopped; do not repeat steps that already "
+                     "succeeded. If it is already done, just tell me the outcome.")
+        return " ".join(parts)
+
+    def _note_user_turn(self, text: str) -> None:
+        self._turn_open = True
+        self._turn_text = text
+        self._turn_tools = 0
+        self._turn_recovered = False
+
+    def _plan_drop_recovery(self) -> dict[str, Any] | None:
+        """At an unrequested drop: what the next session must redeliver or replay (once)."""
+        if self._recovery_active:
+            # Dropped again while a recovery waits for its tool: that recovery still delivers
+            # (on whichever session is up then); just keep its text waiter alive.
+            log_event("live_drop_recovery", action="still_pending")
+            return {"mode": "pending", "request_id": self._recovery_request}
+        unacked = list(self._unacked.items())
+        self._unacked.clear()
+        open_, text = self._turn_open, self._turn_text
+        history = getattr(self.provider, "history", None)
+        if (history and history[-1][0] == "user"  # GPT-Live: spoken turns live in the provider
+                and len(history) > getattr(self, "_turn_closed_at", 0)):
+            open_, text = True, str(history[-1][1])
+        with self._response_lock:
+            waiters = list(self._text_waiters)
+        mode = ""
+        if unacked:
+            mode = "redeliver_result"
+        elif self._inflight_tools:
+            mode = "tool_pending"
+        elif open_ or waiters:
+            mode = "replay_turn" if self._turn_tools == 0 and text else "continue_task"
+        if not mode:
+            return None
+        if self._turn_recovered:
+            log_event("live_drop_recovery", mode=mode, action="skipped_already_recovered")
+            return None
+        if self._inflight_tools:
+            # Tools still running hand their results to the recovery turn (one continuation).
+            self._late_results = []
+        self._recovered_calls = {cid for cid, _v in unacked}
+        plan = {"mode": mode, "text": text, "request_id": waiters[0] if waiters else "",
+                "results": [(cid, name, result) for cid, (name, result, _e) in unacked],
+                "tools_in_flight": self._inflight_tools, "epoch": self._conn_epoch}
+        log_event("live_drop_detected", mode=mode, epoch=self._conn_epoch,
+                  results=len(unacked) or None, tools_in_flight=self._inflight_tools or None,
+                  turn_tools=self._turn_tools or None, text_request=bool(waiters) or None)
+        return plan
+
+    def _run_drop_recovery(self) -> None:
+        plan, self._drop_plan = self._drop_plan, None
+        if not plan or plan["mode"] == "pending" or self._stop.is_set():
+            return
+        self._turn_recovered = True
+        mode, request_id = plan["mode"], plan["request_id"]
+        self._settle_request = request_id
+        self._recovery_active, self._recovery_request = True, request_id
+        try:
+            self._deliver_drop_recovery(plan, mode, request_id)
+        finally:
+            self._recovery_active, self._recovery_request = False, ""
+
+    def _deliver_drop_recovery(self, plan: dict[str, Any], mode: str, request_id: str) -> None:
+        forked = bool(getattr(self.provider, "forked", False))
+        results = [(name, result) for _cid, name, result in plan["results"]]
+        if plan.get("tools_in_flight"):
+            # Wait for the tool(s) that were running at the drop; their results land here.
+            while self._inflight_tools and not self._stop.is_set():
+                time.sleep(0.2)
+            results += self._late_results or []
+            self._late_results = None
+            while not self._stop.is_set() and not self._wait_session_ready(timeout=5.0):
+                pass  # a later drop: deliver on the session that replaces it
+        if mode == "replay_turn":
+            self.send_text(plan["text"], request_id=request_id, replay=True)
+        elif not self._stop.is_set():
+            # A user-role turn: the backend (Live delegation) sees it with the request text;
+            # a fork or seeded session may not carry the typed turn or the dead tool call.
+            self._wait_for_responses_idle(timeout=10.0)
+            self.send_text(self.recovery_message(plan["text"], results), request_id=request_id, replay=True)
+        log_event("live_drop_recovery", mode=mode, action="delivered", forked=forked or None,
+                  epoch=self._conn_epoch, results=len(results) or None,
+                  text_request=bool(request_id) or None)
+
+    def send_text(self, text: str, *, request_id: str = "", replay: bool = False) -> None:
+        if not replay:
+            self._note_user_turn(text)
         self._send({
             "type": "conversation.item.create",
             "item": {
@@ -1389,7 +1774,8 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         pass
     session.shutdown()
-    return 0
+    # Access refused: EX_CONFIG so CUAService doesn't restart into the same 403 three times.
+    return EXIT_NEEDS_API_KEY if getattr(session, "_access_refused", "") else 0
 
 
 if __name__ == "__main__":

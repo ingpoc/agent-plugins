@@ -261,11 +261,13 @@ def stamp_version(info_plist: Path) -> None:
     with info_plist.open("rb") as f:
         info = plistlib.load(f)
     info["CFBundleShortVersionString"] = plugin_version()
-    try:
-        build = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=SERVICE_DIR,
-                               capture_output=True, text=True, check=True).stdout.strip()
-    except (OSError, subprocess.CalledProcessError):
-        build = ""
+    build = os.environ.get("ACU_BUILD_NUMBER", "").strip()  # release pin; must only ever increase
+    if not build.isdigit():
+        try:
+            build = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=SERVICE_DIR,
+                                   capture_output=True, text=True, check=True).stdout.strip()
+        except (OSError, subprocess.CalledProcessError):
+            build = ""
     info["CFBundleVersion"] = build or plugin_version()
     with info_plist.open("wb") as f:
         plistlib.dump(info, f)

@@ -1059,8 +1059,14 @@ async function check(actions, expected) {
             "async function send", 1
         )[0]
         self.assertIn("await ensureAttached(tabId)", attach)
-        self.assertIn("if (!isForeignExtensionRestriction(error)) throw error", attach)
+        self.assertIn(
+            "if (!isForeignExtensionRestriction(error) && !isDebuggerPolicyRestriction(error)) throw error",
+            attach,
+        )
         self.assertIn("return false", attach)
+        # Chrome 155 debugger policy: no CDP mouse, so both click paths drop to the DOM click.
+        self.assertEqual(source.count("if (!debuggerAttached) clickOptions.trusted = false;"), 2)
+        self.assertIn('includes("restricted by policy")', source)
 
         frame_search = source.split("async function controllableFrameIds", 1)[1].split(
             "async function moveCursorToPoint", 1

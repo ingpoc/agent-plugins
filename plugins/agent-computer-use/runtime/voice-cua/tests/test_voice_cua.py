@@ -16,6 +16,9 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 # Keep test events out of the real ~/.cache/macos-cua activity log.
+# Never read the machine's ~/.config/voice-cua/settings.json: a user who picked GPT-Live
+# there switched every session in these tests to the Live provider.
+os.environ["VOICE_CUA_SETTINGS"] = str(Path(tempfile.mkdtemp(prefix="voice-cua-test-settings-")) / "settings.json")
 os.environ.setdefault(
     "VOICE_CUA_ACTIVITY_LOG",
     str(Path(tempfile.mkdtemp(prefix="voice-cua-test-")) / "activity.jsonl"),
@@ -189,6 +192,7 @@ class ToolsTests(unittest.TestCase):
                 "cua_state",
                 "cua_act",
                 "more_tools",
+                "show_details",
                 "comet_begin",
             },
         )
@@ -333,8 +337,21 @@ class AudioIOTests(unittest.TestCase):
     def test_realtime_model_choices(self) -> None:
         self.assertEqual(
             [model for model, _ in MODELS],
-            ["gpt-realtime-2", "gpt-realtime-2.1", "gpt-realtime-2.1-mini", "grok-voice-latest", "gpt-live-1"],
+            ["gpt-live-1", "grok-voice-latest"],
         )
+
+    def test_retired_realtime_setting_maps_to_live(self) -> None:
+        import tempfile
+        from voice_cua.voice_settings import load_settings, live_voice
+
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "settings.json"
+            path.write_text(json.dumps({"realtime_model": "gpt-realtime-2.1", "realtime_voice": "shimmer"}))
+            with patch.dict(os.environ, {"VOICE_CUA_SETTINGS": str(path)}):
+                cfg = load_settings()
+        self.assertEqual(cfg["realtime_model"], "gpt-live-1")
+        self.assertEqual(live_voice(cfg["realtime_voice"]), "shimmer")
+        self.assertEqual(live_voice("nonsense"), "marin")
 
     def test_text_wait_ignores_unrelated_response(self) -> None:
         class FakeWS:
@@ -498,6 +515,19 @@ class GatewayTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+
+
+
+def setUpModule() -> None:  # loop tests run on the provider-neutral pass-through
+    import loop_harness
+
+    loop_harness.install()
+
+
+def tearDownModule() -> None:
+    import loop_harness
+
+    loop_harness.uninstall()
 
 
 if __name__ == "__main__":

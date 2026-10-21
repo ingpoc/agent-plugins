@@ -71,6 +71,23 @@ final class OnboardingTests: XCTestCase {
         XCTAssertEqual(PermissionProbe.classify(-1744), .missing)   // errAEEventWouldRequireUserConsent
     }
 
+    func testCalendarAndFocusStatusMapping() {
+        XCTAssertEqual(PermissionProbe.calendarState("granted"), .granted)        // fullAccess / authorized
+        XCTAssertEqual(PermissionProbe.calendarState("write-only"), .missing)     // needs Full Access
+        XCTAssertEqual(PermissionProbe.calendarState("denied"), .missing)
+        XCTAssertEqual(PermissionProbe.calendarState("not-determined"), .missing)
+        XCTAssertEqual(PermissionProbe.focusState(.authorized), .granted)
+        XCTAssertEqual(PermissionProbe.focusState(.denied), .missing)
+        XCTAssertEqual(PermissionProbe.focusState(.notDetermined), .missing)
+    }
+
+    func testDecidedStatusesGoStraightToThePane() {
+        XCTAssertTrue(PermissionProbe.canPrompt(rawStatus: "not-determined"))
+        for decided in ["denied", "write-only", "restricted", "granted"] {
+            XCTAssertFalse(PermissionProbe.canPrompt(rawStatus: decided), decided)
+        }
+    }
+
     func testNotRunningTargetKeepsLastAnswer() {
         let d = defaults()
         XCTAssertEqual(PermissionCenter.remembered(.automationMusic, .notRunning, defaults: d), .notRunning)

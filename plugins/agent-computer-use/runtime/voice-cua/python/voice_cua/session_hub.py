@@ -39,13 +39,22 @@ def status() -> dict[str, Any]:
     }
 
 
+WAKE_WAIT_S = 12.0
+
+
 def send_text_and_wait(text: str, *, timeout: float = 90.0) -> dict[str, Any]:
     with _lock:
         sess = _active
     if sess is None or sess._stop.is_set():
         return {"ok": False, "error": "no active realtime session — turn Samantha on in menu bar"}
     if not sess._session_ready.is_set():
-        return {"ok": False, "error": "realtime session not ready yet"}
+        # A resting GPT-Live session (idle close / expiry) wakes for a typed turn; a reconnect
+        # in flight gets a short grace instead of an immediate "not ready".
+        dormant = getattr(sess, "_dormant", None)
+        if dormant is not None and dormant.is_set():
+            sess._wake.set()
+        if not sess._session_ready.wait(timeout=WAKE_WAIT_S):
+            return {"ok": False, "error": "realtime session not ready yet"}
     return sess.send_text_and_wait(text, timeout=timeout)
 
 
