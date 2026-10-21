@@ -32,12 +32,12 @@ island-post --source codex --kind clear --id deploy-1
 **Choice cards** (`--kind choice`, implied by `--prompt`/`--option`):
 - Options: up to 6 `--option label=value`, plus `--multi`, `--allow-text`, `--primary <value>` and `--danger <value>`.
 - Compact island: the source icon and one amber mark (a count badge instead when 2+ cards wait). Other sources get one circle each on the left (max 3 + "+N"). With music playing, a choice card shares the pill (Duo: artwork lead, source + mark trail); an approval takes the whole pill.
-- Arrival: a soft Tink (ACU Settings → General → Mute agent prompt sound; silent when the source app is frontmost) and a 4 s **Quick Peek** of the card (never key). It re-peeks at +2 min and at T-60 s, max 3, and holds off while Guru is typing in the source chat app. Hovering a peek pins it.
+- Arrival: a soft Tink (ACU Settings → General → Mute agent prompt sound; silent when the source app is frontmost) and a 4 s **Quick Peek** of the card (never key). It re-peeks at +2 min and at T-60 s, max 3, and holds off while the owner is typing in the source chat app. Hovering a peek pins it.
 - Opening: a click anywhere on the pill (including the strip above it) opens the card and makes it key: keys 1–6 pick options, Return sends, Shift-Return adds a line, Esc hands focus back. Approval cards still open on their own and jump the queue.
 - Card layout: up to 4 option capsules, two per row (more than 4 shows 3 + "More in chat"); multi-select uses checkboxes and a "Submit N" button; the `--danger` option stays neutral until selected and then needs a confirm. The card is 176 or 220 pt and never scrolls.
 - Text field (`--allow-text`): "Reply…", grows to 3 lines; an option and text are sent together.
-- Answering: the card clears right away; if Guru was in the card, the next one slides in (two ghost layers show more are queued).
-- Timeout: choice cards default to 15 min (`--ttl` to change). The last 60 s show an amber countdown ring; on expiry a 4 s "Timed out. Still open in chat" notice appears and the source circle keeps a hollow red ring until Guru opens the agent list or the agent sends `--kind clear`.
+- Answering: the card clears right away; if the owner was in the card, the next one slides in (two ghost layers show more are queued).
+- Timeout: choice cards default to 15 min (`--ttl` to change). The last 60 s show an amber countdown ring; on expiry a 4 s "Timed out. Still open in chat" notice appears and the source circle keeps a hollow red ring until the owner opens the agent list or the agent sends `--kind clear`.
 - Persistence: pending cards, timed-out notices and recent answers survive a CUAService restart (`island-pending.json`, 0600).
 - Events: shown / hovered / clicked (x, y) / opened (via) / answered (via) / expired go to `~/.cache/macos-cua/island-events.jsonl` (ids and counts only — never titles, options or text).
 
@@ -49,12 +49,12 @@ island-post --source codex --kind clear --id deploy-1
 
 Exit codes: 0 answered or approved, 1 denied or dismissed, 2 timeout or expired, 3 rejected or error. The CLI reports "Keychain access was refused or timed out" (HTTP mode) separately from "no token".
 
-**Chat agents: mirror every inline prompt.** When you ask Guru something in chat (question with options, approval, free-text ask), also put it on the island so he can answer from any app:
+**Chat agents: mirror every inline prompt.** When you ask the owner something in chat (question with options, approval, free-text ask), also put it on the island so the owner can answer from any app:
 
 ```sh
 island-post --source grok-bot --kind choice --id "$ASK_ID" --prompt "…" --option "Yes=yes" --option "No=no" \
     --allow-text --wait 3600 > answer.json &   # background; read answer.json when it exits
-# …if he answers in chat first:
+# …if the owner answers in chat first:
 island-post --source grok-bot --kind clear --id "$ASK_ID"   # removes the card; the waiter exits 1 (dismissed)
 ```
 
