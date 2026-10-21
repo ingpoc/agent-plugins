@@ -92,7 +92,16 @@ final class GrantResume {
 
     private func becameActive() {
         PermissionCenter.shared.refresh()
-        if pending != nil || GrantSurface.load(defaults) != nil { bringFront(activate: false) }
+        guard pending != nil || GrantSurface.load(defaults) != nil else { return }
+        // Already on screen (e.g. the request returned without leaving the app): don't re-order
+        // or re-show it — that read as a 'bounce'. Only resurface a window that went behind.
+        if Self.surfaceIsKey() { return }
+        bringFront(activate: false)
+    }
+
+    static func surfaceIsKey() -> Bool {
+        OnboardingWindowController.shared.window?.isKeyWindow == true
+            || IslandSettingsWindowController.shared.window?.isKeyWindow == true
     }
 
     /// Re-show the recorded surface (same pane / onboarding rows) without resetting it.

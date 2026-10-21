@@ -57,6 +57,22 @@ enum PermissionBroker {
     /// registers this exact app (bundle + designated requirement) and lists it in System Settings.
     /// Only if the permission is still not granted afterwards does it deep-link to the pane.
     private static func fire(_ p: ACUPermission) {
+        // Re-check first: an already-granted row just turns Allowed (no request, no pane, no
+        // window re-ordering). A decided-but-not-granted status cannot prompt again, so the
+        // request would return at once; go straight to the pane instead.
+        let raw = PermissionProbe.rawStatus(p)
+        SamanthaActivityLog.startup(phase: "permission_grant", status: raw == "granted" ? "ok" : "pending",
+                                    detail: "\(p.rawValue): \(raw)")
+        if PermissionProbe.status(p).satisfied {
+            PermissionCenter.shared.refresh()
+            return
+        }
+        if [.calendars, .focus, .microphone].contains(p), !PermissionProbe.canPrompt(rawStatus: raw) {
+            GrantResume.shared.begin(p)
+            if let u = p.paneURL { NSWorkspace.shared.open(u) }
+            PermissionCenter.shared.refresh()
+            return
+        }
         GrantResume.shared.begin(p)
         let openPaneIfStillMissing: @MainActor () -> Void = {
             if !PermissionProbe.status(p).satisfied, let u = p.paneURL { NSWorkspace.shared.open(u) }
