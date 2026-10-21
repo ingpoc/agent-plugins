@@ -241,8 +241,24 @@ class LiveTests(_Rows):
         self.assertEqual(note["type"], "session.thinking.append")
         self.assertIsNone(note["delegation_id"])
         self.assertIn("Notes", note["content"])
-        self.assertEqual(p.outbound({"type": "response.create"}), [], "no continuation for a dead delegation")
+        # Drop recovery: the pre-drop result continues the task once on the new session.
         self.assertEqual(p.outbound({"type": "response.create"}), [{"type": "response.create"}])
+
+    def test_large_ax_dump_is_compacted_under_cap(self) -> None:
+        from voice_cua import providers
+        p, _ = _live()
+        p.inbound(_fc("d9", "c9"))
+        lines = "\n".join(f"{'  ' * (i % 6)}[{i}] AXButton \"Item {i}\" [pressable] {{10,{i} 80x20}}" for i in range(200))
+        raw = json.dumps({"ok": True, "verified": True, "app": "Reminders", "text": lines})
+        (wire,) = p.outbound({"type": "conversation.item.create", "item": {
+            "type": "function_call_output", "call_id": "c9", "output": raw}})
+        out = wire["item"]["output"]
+        self.assertLessEqual(len(out), providers.LIVE_TOOL_OUTPUT_MAX)
+        data = json.loads(out)
+        self.assertTrue(data["ok"] and data["verified"])
+        self.assertIn("[0] AXButton", data["text"])
+        self.assertIn("more lines cut", data["text"])
+        self.assertEqual(providers.compact_tool_output('{"ok": true}'), '{"ok": true}')
 
     def test_missing_delegation_id_still_escalates_once(self) -> None:
         p, sent = _live()

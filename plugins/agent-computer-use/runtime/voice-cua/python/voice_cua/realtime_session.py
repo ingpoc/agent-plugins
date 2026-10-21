@@ -291,6 +291,15 @@ class RealtimeSession:
         self._send_drops = 0
         # call_id -> summary note, for results re-created after a reconnect.
         self._recreated_calls: dict[str, str] = {}
+        # Drop recovery: an unrequested socket drop while a turn or tool is in flight
+        # reconnects (fork / seeded) and then redelivers or replays once (_run_drop_recovery).
+        self._turn_open = False          # a user turn awaits its final reply
+        self._turn_text = ""
+        self._turn_tools = 0             # tools started since that turn (replay would redo them)
+        self._turn_recovered = False     # one recovery per turn
+        self._unacked: dict[str, tuple[str, dict[str, Any], int]] = {}  # sent, no response yet
+        self._drop_plan: dict[str, Any] | None = None
+        self._reconnect_requested = False
         comet_add_listener(self._on_comet_change)
         apply_env()
 
@@ -467,12 +476,16 @@ class RealtimeSession:
         self._tool_groups.clear()
         reset_session_state()
         self.provider.reset()
+        keep = (self._drop_plan or {}).get("request_id") or ""
         for request_id in request_ids:
+            if request_id == keep:
+                continue  # drop recovery answers it on the new session
             self._finish_text_waiter(request_id, error="reconnected")
 
     def _request_reconnect(self, *, reason: str) -> None:
         """Trigger the reconnect loop by closing the current socket."""
         log_event("reconnect_requested", reason=reason)
+        self._reconnect_requested = True
         ws = self.ws
         if ws is None:
             return
@@ -619,6 +632,7 @@ class RealtimeSession:
     def _on_open(self, _ws: Any) -> None:
         mark("realtime_ws_open")
         self._conn_epoch += 1
+        self._reconnect_requested = False
         reconnected = self._conn_epoch > 1
         self._comet_active = comet_is_active()
         # Sent on every open (also after reconnect), preserving the active
@@ -733,6 +747,8 @@ class RealtimeSession:
             from voice_cua.session_hub import register
 
             register(self)
+            if self._drop_plan is not None:
+                threading.Thread(target=self._run_drop_recovery, name="drop-recovery", daemon=True).start()
             if self._text_only:
                 mark("realtime_ready", status="ok")
                 island_publish("listening", title="Listening", detail="")
@@ -757,6 +773,7 @@ class RealtimeSession:
                 # Words go to voice.log only; the activity log keeps metadata.
                 log_event("user_transcript", chars=len(heard), item_id=str(event.get("item_id") or ""))
                 self._last_user_text = heard
+                self._note_user_turn(heard)
                 print(f"You: {heard}", flush=True)
                 # Card title = the final utterance (compact view never shows text).
                 if not (self._audio and self._audio.has_playback()):
@@ -791,6 +808,8 @@ class RealtimeSession:
                         self._response_request_ids[response_id] = request_id
                     self._cancelled_response_ids.discard(response_id)
                 self._response_condition.notify_all()
+            # The server answered after our tool output: it arrived; nothing to redeliver.
+            self._unacked = {k: v for k, v in self._unacked.items() if v[2] != self._conn_epoch}
             island_publish("thinking", title="Thinking", detail="")
         elif et == "response.output_audio_transcript.done":
             chunk = str(event.get("transcript") or "").strip()
@@ -1059,6 +1078,7 @@ class RealtimeSession:
             arguments = {}
 
         self._inflight_tools += 1
+        self._turn_tools += 1
         epoch = self._conn_epoch
 
         def work() -> None:
@@ -1083,10 +1103,8 @@ class RealtimeSession:
                 self._sync_tool_groups(name, result)
                 if name.startswith("comet_"):
                     self._on_comet_change(comet_is_active())
-                if stale:
-                    request_id_local = ""
-                else:
-                    request_id_local = request_id
+                # A stale (pre-drop) result still continues the task once: drop recovery.
+                request_id_local = request_id
                 if self._wait_for_responses_idle(timeout=10.0):
                     self._send_response_create(request_id=request_id_local)
                 else:
@@ -1156,6 +1174,7 @@ class RealtimeSession:
             },
         }
         if epoch == self._conn_epoch and self._send(output):
+            self._unacked[call_id] = (name, result, epoch)
             return False
         # Socket dropped while the tool ran. Wait for the (re)opened session.
         while not self._stop.is_set():
@@ -1229,6 +1248,8 @@ class RealtimeSession:
                   stopping=self._stop.is_set())
         if self._stop.is_set():
             return
+        if not self._reconnect_requested and code is None:
+            self._drop_plan = self._plan_drop_recovery()
         # Phase 1: close no longer kills the session — run() reconnects.
         island_publish("reconnecting", title="Reconnecting", detail="")
         print("Realtime closed", flush=True)
@@ -1439,6 +1460,8 @@ class RealtimeSession:
             for item in response.get("output") or []
         ):
             return
+        self._turn_open = False
+        self._turn_closed_at = len(getattr(self.provider, "history", None) or [])
         text_bits: list[str] = []
         for item in response.get("output") or []:
             if not isinstance(item, dict) or item.get("type") != "message":
@@ -1528,7 +1551,72 @@ class RealtimeSession:
             return True
         return False
 
-    def send_text(self, text: str, *, request_id: str = "") -> None:
+    def _note_user_turn(self, text: str) -> None:
+        self._turn_open = True
+        self._turn_text = text
+        self._turn_tools = 0
+        self._turn_recovered = False
+
+    def _plan_drop_recovery(self) -> dict[str, Any] | None:
+        """At an unrequested drop: what the next session must redeliver or replay (once)."""
+        unacked = list(self._unacked.items())
+        self._unacked.clear()
+        open_, text = self._turn_open, self._turn_text
+        history = getattr(self.provider, "history", None)
+        if (history and history[-1][0] == "user"  # GPT-Live: spoken turns live in the provider
+                and len(history) > getattr(self, "_turn_closed_at", 0)):
+            open_, text = True, str(history[-1][1])
+        with self._response_lock:
+            waiters = list(self._text_waiters)
+        mode = ""
+        if unacked:
+            mode = "redeliver_result"
+        elif self._inflight_tools:
+            mode = "tool_pending"
+        elif open_ or waiters:
+            mode = "replay_turn" if self._turn_tools == 0 and text else "continue_task"
+        if not mode:
+            return None
+        if self._turn_recovered:
+            log_event("live_drop_recovery", mode=mode, action="skipped_already_recovered")
+            return None
+        plan = {"mode": mode, "text": text, "request_id": waiters[0] if waiters else "",
+                "results": [(cid, name, result) for cid, (name, result, _e) in unacked],
+                "tools_in_flight": self._inflight_tools, "epoch": self._conn_epoch}
+        log_event("live_drop_detected", mode=mode, epoch=self._conn_epoch,
+                  results=len(unacked) or None, tools_in_flight=self._inflight_tools or None,
+                  turn_tools=self._turn_tools or None, text_request=bool(waiters) or None)
+        return plan
+
+    def _run_drop_recovery(self) -> None:
+        plan, self._drop_plan = self._drop_plan, None
+        if not plan or self._stop.is_set():
+            return
+        self._turn_recovered = True
+        mode, request_id = plan["mode"], plan["request_id"]
+        forked = bool(getattr(self.provider, "forked", False))
+        if mode == "redeliver_result":
+            for _cid, name, result in plan["results"]:
+                self._send_system_note(self.stale_result_note(name, result))
+            if self._wait_for_responses_idle(timeout=10.0):
+                self._send_response_create(request_id=request_id)
+        elif mode == "continue_task":
+            self._send_system_note(
+                "The connection dropped while you were working on the user's request "
+                f"({plan['text'][:200]!r}). Continue it from where it stopped; do not repeat "
+                "steps that already succeeded.")
+            if self._wait_for_responses_idle(timeout=10.0):
+                self._send_response_create(request_id=request_id)
+        elif mode == "replay_turn":
+            self.send_text(plan["text"], request_id=request_id, replay=True)
+        # tool_pending: the tool worker delivers its result on this session and continues.
+        log_event("live_drop_recovery", mode=mode, action="delivered", forked=forked or None,
+                  epoch=self._conn_epoch, results=len(plan["results"]) or None,
+                  text_request=bool(request_id) or None)
+
+    def send_text(self, text: str, *, request_id: str = "", replay: bool = False) -> None:
+        if not replay:
+            self._note_user_turn(text)
         self._send({
             "type": "conversation.item.create",
             "item": {

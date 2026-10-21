@@ -213,6 +213,98 @@ class ReconnectDuringToolTests(unittest.TestCase):
         self.assertIn("comet_act", names)
 
 
+class DropRecoveryTests(unittest.TestCase):
+    """Unrequested socket drop mid-turn: reconnect, then redeliver or replay exactly once."""
+
+    def _session(self) -> RealtimeSession:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        session._conn_epoch = 1
+        return session
+
+    def _drop_and_reopen(self, session: RealtimeSession) -> FakeWS:
+        with contextlib.redirect_stdout(io.StringIO()):
+            session._on_close(None, None, None)  # TCP lost: no close code
+        session._prepare_reconnect()
+        session._conn_epoch += 1
+        session.ws = FakeWS()
+        session._run_drop_recovery()
+        return session.ws
+
+    def test_result_sent_just_before_drop_is_redelivered_with_one_continuation(self) -> None:
+        session = self._session()
+        session.send_text("add milk to reminders")
+        session._turn_tools = 1
+        self.assertFalse(session._deliver_tool_result("c1", "cua_act", {"ok": True, "verified": True}, epoch=1))
+        ws = self._drop_and_reopen(session)
+        types = [e["type"] for e in ws.events]
+        self.assertEqual(types, ["conversation.item.create", "response.create"])
+        self.assertIn("cua_act", ws.events[0]["item"]["content"][0]["text"])
+        self.assertEqual(ws.events[0]["item"]["role"], "system")
+        # A second drop in the same turn does not recover again (no loops).
+        session._deliver_tool_result("c2", "cua_act", {"ok": True}, epoch=session._conn_epoch)
+        self.assertEqual(self._drop_and_reopen(session).events, [])
+
+    def test_acknowledged_result_is_not_redelivered(self) -> None:
+        session = self._session()
+        session.send_text("add milk")
+        session._turn_tools = 1
+        session._deliver_tool_result("c1", "cua_act", {"ok": True}, epoch=1)
+        session._dispatch_event({"type": "response.created", "response": {"id": "r2"}})
+        ws = self._drop_and_reopen(session)
+        self.assertEqual([e["type"] for e in ws.events], ["conversation.item.create", "response.create"])
+        self.assertIn("Continue it from where it stopped", ws.events[0]["item"]["content"][0]["text"])
+
+    def test_turn_without_tools_is_replayed_once(self) -> None:
+        session = self._session()
+        session.send_text("what time is it in Tokyo")
+        ws = self._drop_and_reopen(session)
+        self.assertEqual([e["type"] for e in ws.events], ["conversation.item.create", "response.create"])
+        self.assertEqual(ws.events[0]["item"]["role"], "user")
+        self.assertEqual(ws.events[0]["item"]["content"][0]["text"], "what time is it in Tokyo")
+
+    def test_finished_turn_and_requested_reconnect_do_nothing(self) -> None:
+        session = self._session()
+        session.send_text("hi")
+        session._note_response_done({"id": "r1", "status": "completed", "output": []})
+        self.assertEqual(self._drop_and_reopen(session).events, [])
+        session.send_text("again")
+        session._reconnect_requested = True  # planned rotation / error-driven reconnect
+        self.assertEqual(self._drop_and_reopen(session).events, [])
+
+    def test_text_waiter_survives_drop_and_gets_replayed_request_id(self) -> None:
+        session = self._session()
+        waiter = {"event": threading.Event(), "reply": "", "error": ""}
+        session._text_waiters["req9"] = waiter
+        session.send_text("open notes", request_id="req9")
+        ws = self._drop_and_reopen(session)
+        self.assertFalse(waiter["event"].is_set(), "recovery answers it; not failed as 'reconnected'")
+        create = [e for e in ws.events if e["type"] == "response.create"][0]
+        self.assertEqual(create["response"]["metadata"]["voice_cua_request_id"], "req9")
+
+    def test_tool_running_at_drop_delivers_on_new_session_and_continues(self) -> None:
+        session = self._session()
+        session.send_text("long task")
+        gate = threading.Event()
+
+        def dispatch(_name, _args):
+            gate.wait(2.0)
+            return {"ok": True, "done": True}
+
+        with patch("voice_cua.realtime_session.dispatch", side_effect=dispatch), patch(
+            "voice_cua.realtime_session.comet_is_active", return_value=False
+        ):
+            session._run_tool("call_long", "cua_act", "{}")
+            self.assertTrue(_wait(lambda: session._inflight_tools == 1))
+            self.assertEqual(session._plan_drop_recovery()["mode"], "tool_pending")
+            session._prepare_reconnect()
+            session._conn_epoch += 1
+            session.ws = FakeWS()
+            session._session_ready.set()
+            gate.set()
+            self.assertTrue(_wait(lambda: any(e["type"] == "response.create" for e in session.ws.events)))
+
+
 class TranscriptionTests(unittest.TestCase):
     def test_completed_transcript_prints_you_line(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=False)

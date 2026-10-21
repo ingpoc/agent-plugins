@@ -121,6 +121,8 @@ class LiveSessionLifecycleTests(unittest.TestCase):
         self.assertTrue(start["event_id"].startswith("voice_start_"))
         self.assertIs(start["session"]["store"], True)
         self.assertEqual(start["session"]["delegation"]["type"], "responses")
+        self.assertEqual(self.live.outbound({"type": "input_audio_buffer.append", "audio": "AQID"}), [])
+        # Keepalive silence is never held for replay (a burst trips the 1.2x real-time limit).
         self.assertEqual(self.live.outbound({"type": "input_audio_buffer.append", "audio": "AAAA"}), [])
         self.assertEqual(self.live.outbound({"type": "conversation.item.create", "item": {
             "type": "message", "role": "system", "content": [{"type": "input_text", "text": "note"}]}}), [])

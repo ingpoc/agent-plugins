@@ -25,8 +25,11 @@ Providers:
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import os
+import re
 import threading
 import time
 from typing import Any, Callable
@@ -44,10 +47,58 @@ ESCALATE_TOOL = "use_intelligence"
 # A delegation whose backend input passed this many tokens marks the conversation for a
 # seeded restart (recent utterances only) at the next quiet moment instead of a fork.
 LIVE_CONTEXT_ROTATE_TOKENS = int(os.environ.get("VOICE_CUA_LIVE_CONTEXT_ROTATE_TOKENS", "40000"))
-LIVE_TOOL_OUTPUT_MAX = 8000  # chars of one tool result kept in the Live/backend history
+# Chars of one tool result sent to Live. Large accessibility dumps (~5.4k chars / ~1.9k tokens)
+# intermittently made the server drop the socket (TCP closed, no close frame, no error) ~10 ms
+# after the response.item.create; outputs <= ~3k chars never dropped in the replays.
+LIVE_TOOL_OUTPUT_MAX = int(os.environ.get("VOICE_CUA_LIVE_TOOL_OUTPUT_MAX", "3000"))
 HISTORY_MAX = 24          # seeded restart: recent utterances (docs cap: 128 msgs / 8,192 tokens)
 PENDING_AUDIO_MAX = 150   # ~3 s of 20 ms chunks buffered until session.started
 LIVE_APPEND_MAX_CHARS = 1200  # session.*.append content is capped at 500 tokens (URLs tokenize densely)
+_INDENT = re.compile(r"(?m)^( +)")
+
+
+def compact_tool_output(output: str, cap: int = LIVE_TOOL_OUTPUT_MAX) -> str:
+    """Fit a tool result under ``cap`` chars: halve tree indentation, then cut the ``text`` field.
+
+    Keeps the result valid JSON (ok/verified/... stay intact) so the backend still reads it.
+    """
+    if len(output) <= cap:
+        return output
+    try:
+        data = json.loads(output)
+    except (TypeError, ValueError):
+        data = None
+    if not isinstance(data, dict) or not isinstance(data.get("text"), str):
+        return output[:cap] + "…[truncated]"
+    text = _INDENT.sub(lambda m: " " * (len(m.group(1)) // 2), data["text"])
+    data["text"] = ""
+    room = cap - len(json.dumps(data)) - 80
+    if room < 200:
+        return output[:cap] + "…[truncated]"
+    full = text
+    for _ in range(8):  # JSON escaping (newlines, quotes) grows the text: shrink until it fits
+        if len(text) > room:
+            cut = full.rfind("\n", 0, room)
+            cut = cut if cut > room // 2 else room
+            hidden = full.count("\n", cut) + 1
+            text = full[:cut] + f"\n…[{hidden} more lines cut; ask for a narrower view if needed]"
+        data["text"] = text
+        out = json.dumps(data)
+        if len(out) <= cap:
+            return out
+        room -= len(out) - cap + 16
+        text = full
+    return output[:cap] + "…[truncated]"
+
+
+def _is_silence(b64: str) -> bool:
+    try:
+        raw = base64.b64decode(b64, validate=False)
+    except (binascii.Error, ValueError):
+        return False
+    return not raw.strip(b"\x00")
+
+
 XAI_VOICES = ("eve", "ara", "leo", "rex", "sal")
 XAI_DEFAULT_VOICE = "eve"
 
@@ -409,6 +460,10 @@ class LiveProvider(VoiceProvider):
                 if not self._ready:
                     # Connections: wait for session.started before sending audio. Keep the
                     # opening speech (wake from idle) and deliver it once the session is ready.
+                    # Keepalive silence is not kept: replaying it in a burst after a reconnect
+                    # tripped "Input audio is arriving too quickly" (max 1.2x real time).
+                    if _is_silence(wire["audio"]):
+                        return []
                     self._pending_audio.append(wire["audio"])
                     del self._pending_audio[:-PENDING_AUDIO_MAX]
                     return []
@@ -460,11 +515,10 @@ class LiveProvider(VoiceProvider):
         out: list[dict[str, Any]] = []
         with self._lock:
             known = call_id in self._call_delegation
-            if not known:
-                # The call belongs to a session that reconnected away (a new Live session has no
-                # such delegation): hand the result over as quiet context and skip the continuation.
-                self._skip_next_create = True
         if not known:
+            # The call belongs to a session that reconnected away (a new Live session has no
+            # such delegation): hand the result over as context; the caller's response.create
+            # then continues the task once (drop recovery).
             note = f"Result of a task started before the reconnect: {str(item.get('output') or '')}"
             log_event("live_stale_result", call_id=call_id[:64] or None)
             return [{"type": "session.thinking.append", "content": note[:LIVE_APPEND_MAX_CHARS], "delegation_id": None}]
@@ -474,10 +528,12 @@ class LiveProvider(VoiceProvider):
                 self._pending_calls[delegation].discard(call_id)
         if self.tier == "bulk" and self.bulk_failed(item.get("output")):
             out += self._escalate(delegation, reason="bulk_failed_twice")
-        output = str(item.get("output") or "")
-        if len(output) > LIVE_TOOL_OUTPUT_MAX:
-            # Every result stays in the conversation the backend re-reads on each delegation.
-            output = output[:LIVE_TOOL_OUTPUT_MAX] + "…[truncated]"
+        raw = str(item.get("output") or "")
+        # Every result stays in the conversation the backend re-reads on each delegation, and
+        # large ones risk a server-side socket drop (see LIVE_TOOL_OUTPUT_MAX).
+        output = compact_tool_output(raw)
+        if len(output) != len(raw):
+            log_event("live_tool_output_compacted", chars=len(raw), sent_chars=len(output))
         out.append({"type": "response.item.create", "item": {
             "type": "function_call_output", "call_id": call_id, "output": output}})
         return out
