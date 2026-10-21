@@ -354,6 +354,13 @@ class LiveProvider(VoiceProvider):
             self._pending_request = ""  # voice_cua_request_id of the last typed request
             self._skip_next_create = False
             self._delegation_request: dict[str, str] = {}
+            # Turn ids: every typed request (response.create carrying voice_cua_request_id,
+            # including a drop-recovery replay) opens a new turn. A delegation belongs to the
+            # turn that was current when it was created; output of an older turn's delegation
+            # never answers the current request. The counter survives reconnects.
+            self._turn_seq = getattr(self, "_turn_seq", 0)
+            self._turn_request = getattr(self, "_turn_request", "")
+            self._delegation_turn: dict[str, int] = {}
             self._delegation_response: dict[str, str] = {}
             self._response_text: dict[str, str] = {}
             self._response_calls: set[str] = set()
@@ -528,11 +535,19 @@ class LiveProvider(VoiceProvider):
                 return []
             meta = (event.get("response") or {}).get("metadata") or {}
             request_id = str(meta.get("voice_cua_request_id") or "") if isinstance(meta, dict) else ""
-            if request_id:
-                with self._lock:
-                    self._pending_request = request_id
             with self._lock:
                 outstanding = sum(len(c) for c in self._pending_calls.values())
+                if request_id:
+                    self._pending_request = request_id
+                    self._turn_seq += 1
+                    self._turn_request = request_id
+                    if outstanding:
+                        # The queued message rides on the waiting delegation's continuation:
+                        # that delegation now answers this turn.
+                        for d, calls in self._pending_calls.items():
+                            if calls:
+                                self._delegation_turn[d] = self._turn_seq
+                                self._delegation_request[d] = request_id
             if outstanding:
                 # Live rejects response.create while function results are owed
                 # (function_call_outputs_required). The queued message rides on the
@@ -668,6 +683,8 @@ class LiveProvider(VoiceProvider):
             delegation = str((event.get("delegation") or {}).get("id") or event.get("delegation_id") or "")
             with self._lock:
                 self._last_delegation = delegation or self._last_delegation
+                if delegation:
+                    self._claim_delegation(delegation)
             log_event("live_delegation", delegation_id=delegation[:64] or None,
                       target=str((event.get("delegation") or {}).get("target") or event.get("target") or ""))
             return []
@@ -728,10 +745,9 @@ class LiveProvider(VoiceProvider):
         if it == "response.created":
             with self._lock:
                 self._last_delegation = delegation or self._last_delegation
-                if self._pending_request and delegation not in self._delegation_request:
-                    self._delegation_request[delegation] = self._pending_request
-                    self._pending_request = ""
-                request_id = self._delegation_request.get(delegation, "")
+                if delegation not in self._delegation_turn:
+                    self._claim_delegation(delegation)  # no delegation.created seen
+                request_id = self._current_request(delegation)
                 if rid:
                     self._response_delegation[rid] = delegation
                     self._response_tier[rid] = (self.tier, self.backend_model())
@@ -771,9 +787,12 @@ class LiveProvider(VoiceProvider):
                 had_calls = rid in self._response_calls
                 self._response_calls.discard(rid)
                 text = self._response_text.pop(rid, "")
-                request_id = self._delegation_request.get(delegation, "")
-                if not had_calls and not outstanding:
-                    self._delegation_request.pop(delegation, None)
+                request_id = self._current_request(delegation)
+                stale = bool(text) and not had_calls and not request_id and bool(
+                    self._delegation_request.get(delegation))
+            if stale:
+                log_event("live_stale_turn_output", delegation_id=delegation[:64] or None,
+                          chars=len(text))
             if not had_calls and not outstanding:
                 # Delegation finished: the next task starts on Bulk again.
                 self._deescalate()
@@ -795,6 +814,25 @@ class LiveProvider(VoiceProvider):
                 done["metadata"] = {"voice_cua_request_id": request_id}
             return [{"type": "response.done", "response": done}]
         return []
+
+    def _claim_delegation(self, delegation: str) -> None:
+        """Bind a new delegation to the turn current at its creation (caller holds the lock)."""
+        if delegation in self._delegation_turn:
+            return
+        self._delegation_turn[delegation] = self._turn_seq
+        if self._turn_request:
+            self._delegation_request[delegation] = self._turn_request
+            self._pending_request = ""
+        if len(self._delegation_turn) > 256:
+            old = next(iter(self._delegation_turn))
+            self._delegation_turn.pop(old, None)
+            self._delegation_request.pop(old, None)
+
+    def _current_request(self, delegation: str) -> str:
+        """The request id this delegation answers, or "" when it belongs to an older turn."""
+        if self._delegation_turn.get(delegation) != self._turn_seq:
+            return ""
+        return self._delegation_request.get(delegation, "")
 
     def _answer_escalation(self, delegation: str, call_id: str) -> None:
         events = self._escalate(delegation, reason="backend_requested")
