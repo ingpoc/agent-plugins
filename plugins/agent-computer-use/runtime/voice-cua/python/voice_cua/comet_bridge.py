@@ -88,14 +88,70 @@ def _runtime_root() -> Path:
     return root
 
 
+BROKER_PLIST = Path.home() / "Library/LaunchAgents/local.comet-control.broker.plist"
+_BASE_PATH = ("/usr/local/bin", "/opt/homebrew/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin")
+
+
+def _usable(path: str) -> bool:
+    return bool(path) and Path(path).is_absolute() and os.access(path, os.X_OK)
+
+
+def _comet_python() -> str:
+    """The interpreter Comet Control's broker was installed with.
+
+    The app is launched by launchd/Finder with PATH=/usr/bin:/bin:..., where
+    ``python3`` is the system interpreter without the pinned websockets, so
+    ensure-broker.sh's own ``python3`` lookup fails. Resolve deterministically:
+    COMET_CONTROL_PYTHON, else the broker LaunchAgent's ProgramArguments[0].
+    """
+    configured = os.environ.get("COMET_CONTROL_PYTHON", "").strip()
+    if _usable(configured):
+        return configured
+    try:
+        import plistlib
+
+        with BROKER_PLIST.open("rb") as handle:
+            args = plistlib.load(handle).get("ProgramArguments") or []
+        candidate = str(args[0]) if args else ""
+    except Exception:  # noqa: BLE001 - missing/bad plist → fall back
+        candidate = ""
+    return candidate if _usable(candidate) else ""
+
+
+def _subprocess_env() -> dict[str, str]:
+    """Env for plugin scripts that works under launchd's minimal environment."""
+    env = dict(os.environ)
+    for key in [k for k in env if k.startswith(("_MEI", "_PYI")) or k in ("PYTHONHOME", "PYTHONPATH")]:
+        env.pop(key, None)  # PyInstaller bootloader leftovers must not leak into child pythons
+    env.setdefault("HOME", str(Path.home()))
+    python = _comet_python()
+    dirs: list[str] = []
+    if python:
+        env["COMET_CONTROL_PYTHON"] = python
+        dirs.append(str(Path(python).parent))
+    dirs += [str(Path.home() / ".pyenv/shims")]
+    dirs += [d for d in env.get("PATH", "").split(os.pathsep) if d]
+    dirs += list(_BASE_PATH)
+    seen: set[str] = set()
+    env["PATH"] = os.pathsep.join(d for d in dirs if not (d in seen or seen.add(d)))
+    return env
+
+
+def _tail(text: str, limit: int = 240) -> str:
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    return (lines[-1] if lines else "")[:limit]
+
+
 def _run_json(command: list[str], *, timeout: float) -> dict[str, Any]:
     try:
-        proc = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
+        proc = subprocess.run(
+            command, capture_output=True, text=True, timeout=timeout, check=False, env=_subprocess_env()
+        )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return {"ok": False, "error": str(exc)}
+        return {"ok": False, "error": str(exc)[:300]}
     raw = proc.stdout.strip()
     if not raw:
-        return {"ok": False, "error": (proc.stderr.strip() or f"command exited {proc.returncode}")[:300]}
+        return {"ok": False, "error": (_tail(proc.stderr) or f"command exited {proc.returncode}")[:300]}
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError:
@@ -109,6 +165,17 @@ def _run_json(command: list[str], *, timeout: float) -> dict[str, Any]:
     if proc.returncode and "ok" not in payload:
         payload["ok"] = False
     return payload
+
+
+def _probe_failure(probe: dict[str, Any], broker: dict[str, Any]) -> str:
+    """Specific, secret-free reason the Comet Control probe did not pass."""
+    if probe.get("success") and not broker.get("runtime_verified"):
+        reason = "broker runtime not verified"
+    elif probe.get("success") and not broker.get("extension_connected"):
+        reason = "Comet extension not connected (open Comet)"
+    else:
+        reason = str(probe.get("error") or probe.get("error_code") or probe.get("message") or "probe failed")
+    return f"Comet Control unavailable: {_tail(reason, 200)}"
 
 
 def _public(value: Any) -> Any:
@@ -358,7 +425,7 @@ class CometLease:
             and broker.get("runtime_verified")
             and broker.get("extension_connected")
         ):
-            return {"ok": False, "error": "Comet Control runtime or extension is unavailable"}
+            return {"ok": False, "error": _probe_failure(probe, broker)}
         python = Path(str(broker.get("python_executable") or ""))
         if not python.is_absolute() or not os.access(python, os.X_OK):
             return {"ok": False, "error": "Comet Control did not report a usable Python runtime"}

@@ -558,7 +558,8 @@ def _comet_begin(args: dict[str, Any]) -> dict[str, Any]:
     if result.get("ok"):
         island_publish("done", title=f"{host or 'Page'} open", detail="Comet", app="Comet")
     else:
-        island_publish("error", title="Comet unavailable", detail=host, app="Comet")
+        reason = str(result.get("error") or "").removeprefix("Comet Control unavailable: ")
+        island_publish("error", title="Comet unavailable", detail=(reason or host)[:120], app="Comet")
     return result
 
 
