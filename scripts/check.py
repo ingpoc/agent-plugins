@@ -91,6 +91,8 @@ PLUGIN_TESTS = {
         "skills/macos-cua/tests/test_plugin_package.py",
         "skills/macos-cua/tests/test_jev_act.py",
         "skills/macos-cua/tests/test_cua_service_health.py",
+        "skills/macos-cua/tests/test_prompt_lint.py",
+        "skills/macos-cua/tests/test_install_release.py",
         "-q",
     ],
     "irctc-train-booking": [sys.executable, "tests/test_pay_gate.py", "-q"],
