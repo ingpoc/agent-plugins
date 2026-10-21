@@ -349,3 +349,15 @@ class ContextBudgetTests(unittest.TestCase):
         live.outbound({"type": "conversation.item.create", "item": {
             "type": "message", "role": "user", "content": [{"type": "input_text", "text": "hi there"}]}})
         self.assertEqual(live.history[-1], ("user", "hi there"))
+
+
+class ShoppingRuleTests(unittest.TestCase):
+    def test_shopping_allowed_but_payment_is_a_hard_stop(self):
+        from voice_cua import SYSTEM_INSTRUCTIONS as rule
+        self.assertIn("add items to the cart", rule)
+        self.assertIn("Place order", rule)
+        self.assertIn("Buy now", rule)
+        self.assertIn("OTP", rule)
+        self.assertIn("never confirm a checkout", rule)
+        self.assertIn("ready for the user to pay", rule)
+        self.assertNotIn("can't make purchases", rule)
