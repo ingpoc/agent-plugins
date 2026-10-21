@@ -52,6 +52,15 @@ def main(argv: list[str] | None = None) -> int:
 
     begin()
     apply_env()
+    if os.environ.get("VOICE_CUA_PARENT_PID"):
+        from voice_cua.parent_watch import start_parent_watch
+
+        start_parent_watch()
+    if os.environ.get("VOICE_CUA_ISLAND_HUB") or os.environ.get("VOICE_CUA_ISLAND_SOCKET"):
+        # CUAService hosts the island; we publish to it as source=samantha.
+        from voice_cua.island_hub import start_forwarder
+
+        start_forwarder()
     host = os.environ.get("VOICE_CUA_HOST", DEFAULT_HOST)
     port = int(os.environ.get("VOICE_CUA_PORT", str(DEFAULT_PORT)))
     # Co-located with gateway — island_publish uses in-process ISLAND bus.

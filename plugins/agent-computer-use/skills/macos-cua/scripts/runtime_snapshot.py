@@ -14,6 +14,12 @@ import tempfile
 import time
 from pathlib import Path
 
+
+def cursor_proof_pointer_size(width: float, height: float) -> float:
+    """Composited pointer: 9% of the short side, 18..26 px (21 pt overlay)."""
+    return max(18.0, min(26.0, min(width, height) * 0.09))
+
+
 def snapshot(
     pid,
     window_id,
@@ -271,7 +277,7 @@ def annotate_cursor_screenshot(
         image.drawInRect_(NSMakeRect(0, 0, size.width, size.height))
 
         # Normalized coordinates use screenshot top-left; AppKit draws bottom-left.
-        pointer_size = max(24.0, min(34.0, min(size.width, size.height) * 0.12))
+        pointer_size = cursor_proof_pointer_size(size.width, size.height)
         target_x = x * size.width
         target_y = (1.0 - y) * size.height
         destination = NSMakeRect(

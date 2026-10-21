@@ -14,9 +14,14 @@ itself; PiP reuses the proof image already captured through `cua-driver`.
   Hide/Refresh/End controls.
 - Desktop cursor: a separate click-through panel owned by the signed operator.
   It orders **above the controlled window only** (not global `.screenSaver`), hides
-  when another window occludes the cursor point, renders Hermes Chrome's 28 px
-  arrow, 12 px cyan glow, 4 px dark depth shadow, 1.7 s float, 0.12 s cubic ease-out glide (`CursorOverlay.swift`
-  `animDuration`; `runtime_pointer.py` publishes `cursor_duration_ms` 120), and
+  when another window occludes the cursor point, renders Hermes Chrome's 21 pt
+  arrow (hotspot unchanged), 9 px cyan glow, 3 px dark depth shadow, 1.7 s float, and a 0.12 s
+  `comet_swoop` glide by default: Cua's wide arc (InOutCubic) plus a short fading 0.08 s trail
+  (`CometMotion.swift`; adapted from trycua/cua, MIT). `cursor configure --motion-style linear`
+  (or `MACOS_CUA_CURSOR_MOTION=linear`) restores the straight 0.12 s cubic ease-out;
+  `--recording true` (or `MACOS_CUA_CURSOR_RECORDING=1`) uses Cua's exact Fitts timing
+  (150 + 120·log2(D/W+1) ms, 300–1000, ×1.15) and 0.18 s trail for videos — slower clicks.
+  `runtime_pointer.py` publishes `cursor_duration_ms` 120 (fast mode), and
   a harness badge (`macos-cua · Cursor`, `macos-cua · Codex`, etc.) without activating
   the app or moving the hardware pointer. The glide uses an explicit main-run-loop
   timer because implicit `NSPanel.animator()` movement was ignored after the first

@@ -44,6 +44,10 @@ BLOCKSIZE = int(os.environ.get("VOICE_CUA_AUDIO_BLOCK", "480"))
 FRAME_BYTES = BLOCKSIZE * 2  # int16 mono
 
 SendFn = Callable[[dict[str, Any]], None]
+MeterFn = Callable[[str, float, list[float]], None]
+# Island mic meter: at most 10 updates/s, and only while the user is audible
+# (plus one "idle" on release) — never a continuous waveform flood.
+METER_INTERVAL_S = 0.1
 
 
 def _voice_cua_app_bundle() -> Path | None:
@@ -56,29 +60,19 @@ def _voice_cua_app_bundle() -> Path | None:
     return exe.parent.parent.parent
 
 
-def _request_macos_mic_access() -> bool:
-    """AVFoundation TCC prompt — required before PortAudio; LSUIElement apps may not prompt otherwise."""
+def _mic_authorized() -> bool:
+    """Preflight only (AVCaptureDevice.authorizationStatus via the bundled mic-preflight tool).
+    Never prompts: ACU onboarding owns the Microphone request. Opening the mic while access is
+    undecided would raise the prompt mid-session, so callers stop when this is False."""
     mic_bin = Path(sys.executable).resolve().parent / "mic-preflight"
     if mic_bin.is_file():
         try:
-            proc = subprocess.run([str(mic_bin)], timeout=120, check=False)
+            proc = subprocess.run([str(mic_bin)], timeout=10, check=False)
             return proc.returncode == 0
         except (OSError, subprocess.TimeoutExpired):
             return False
-    if "--preflight-mic" in sys.argv:
-        return True
-    bundle = _voice_cua_app_bundle()
-    if bundle is None:
-        return True
-    try:
-        proc = subprocess.run(
-            ["/usr/bin/open", "-W", "-n", str(bundle), "--args", "--preflight-mic"],
-            timeout=120,
-            check=False,
-        )
-        return proc.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
+    # Dev checkout (no app bundle): nothing ACU-attributed to protect.
+    return _voice_cua_app_bundle() is None
 
 
 def audio_available() -> bool:
@@ -89,8 +83,8 @@ def mic_preflight() -> int:
     """Open/close mic once so macOS TCC runs when Samantha turns on, not mid-session."""
     if os.environ.get("VOICE_CUA_NO_AUDIO", "").strip().lower() in {"1", "true", "yes"}:
         return 0
-    if sys.platform == "darwin" and not _request_macos_mic_access():
-        print("mic preflight failed: microphone access not granted", file=sys.stderr, flush=True)
+    if sys.platform == "darwin" and not _mic_authorized():
+        print("mic preflight failed: microphone needs access (ACU onboarding › Microphone)", file=sys.stderr, flush=True)
         return 1
     if sd is None:
         print("mic preflight: sounddevice unavailable", file=sys.stderr, flush=True)
@@ -163,8 +157,14 @@ class MicStreamer:
         sample_rate: int = SAMPLE_RATE,
         blocksize: int = BLOCKSIZE,
         mute_while: Callable[[], bool] | None = None,
+        meter: MeterFn | None = None,
     ) -> None:
         self._send = send
+        self._meter = meter
+        self._meter_last = 0.0
+        self._meter_side = "idle"
+        self._sender_lock = threading.Lock()
+        self.send_errors = 0
         self._sample_rate = sample_rate
         self._blocksize = blocksize
         self._mute_while = mute_while or (lambda: False)
@@ -174,11 +174,47 @@ class MicStreamer:
         self._stream: Any = None
         self._sender: threading.Thread | None = None
 
+    def sender_alive(self) -> bool:
+        return self._sender is not None and self._sender.is_alive()
+
+    def ensure_sender(self) -> bool:
+        """Restart a dead sender thread (returns True when a restart happened)."""
+        with self._sender_lock:
+            if self._stop.is_set() or self.sender_alive():
+                return False
+            self._spawn_sender()
+            return True
+
+    def _start_sender(self) -> None:
+        with self._sender_lock:
+            if not self.sender_alive():
+                self._spawn_sender()
+
+    def _spawn_sender(self) -> None:
+        self._sender = threading.Thread(target=self._sender_loop, name="mic-sender", daemon=True)
+        self._sender.start()
+
+    def _emit_meter(self, side: str, level: float, bars: list[float]) -> None:
+        if self._meter is None:
+            return
+        import time as _time
+
+        now = _time.monotonic()
+        if side == self._meter_side and now - self._meter_last < METER_INTERVAL_S:
+            return
+        if side == "idle" and self._meter_side == "idle":
+            return  # silence → already idle; nothing to push
+        self._meter_last = now
+        self._meter_side = side
+        try:
+            self._meter(side, level, bars)
+        except Exception:  # noqa: BLE001 — meter is cosmetic
+            pass
+
     def start(self) -> None:
         if sd is None:
             raise RuntimeError("pip install sounddevice numpy")
-        self._sender = threading.Thread(target=self._sender_loop, name="mic-sender", daemon=True)
-        self._sender.start()
+        self._start_sender()
         self._stream = sd.InputStream(
             samplerate=self._sample_rate,
             channels=1,
@@ -208,17 +244,24 @@ class MicStreamer:
                 gate_open = False
                 continue
 
-            rms, _bars = pcm_levels(chunk)
+            rms, bars = pcm_levels(chunk)
             if rms >= gate_open_rms:
                 gate_open = True
             elif rms < gate_close_rms:
                 gate_open = False
+            if gate_open:
+                self._emit_meter("user", rms, list(bars))
+            else:
+                self._emit_meter("idle", 0.0, [0.0] * 8)
 
             payload = chunk if gate_open else b"\x00" * len(chunk)
-            self._send({
-                "type": "input_audio_buffer.append",
-                "audio": base64.b64encode(payload).decode("ascii"),
-            })
+            try:
+                self._send({
+                    "type": "input_audio_buffer.append",
+                    "audio": base64.b64encode(payload).decode("ascii"),
+                })
+            except Exception:  # noqa: BLE001 — socket closed mid-reconnect: drop frame, keep streaming
+                self.send_errors += 1
 
     def pause(self) -> None:
         self._paused.set()
@@ -244,6 +287,13 @@ class SpeakerPlayer:
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._stream: Any = None
+        # Frames actually consumed by the output callback since last clear —
+        # the basis for conversation.item.truncate audio_end_ms on barge-in.
+        self._played_samples = 0
+        # Played-sample position where the current reply item's audio begins.
+        # truncate needs ms *within that item*; a running total across replies
+        # overshoots ("Audio content of 1850ms is already shorter than 8640ms").
+        self._item_start_samples = 0
 
     def has_audio(self) -> bool:
         with self._lock:
@@ -272,11 +322,25 @@ class SpeakerPlayer:
             if len(self._buffer) >= need:
                 chunk = self._buffer[:need]
                 del self._buffer[:need]
+                self._played_samples += frames
             else:
                 chunk = bytes(self._buffer)
                 self._buffer.clear()
+                # Count only real samples; zero-padding is silence, not playback.
+                self._played_samples += len(chunk) // 2
                 chunk += b"\x00" * (need - len(chunk))
         outdata[:] = np.frombuffer(chunk, dtype=np.int16).reshape(-1, 1)
+
+    def played_ms(self) -> int:
+        """Milliseconds of the current item's PCM actually played (24 kHz → /24)."""
+        with self._lock:
+            played = max(0, self._played_samples - self._item_start_samples)
+            return played * 1000 // self._sample_rate
+
+    def mark_item_start(self) -> None:
+        """A new reply item begins after everything already queued plays out."""
+        with self._lock:
+            self._item_start_samples = self._played_samples + len(self._buffer) // 2
 
     def push_b64(self, audio_b64: str) -> None:
         if not audio_b64:
@@ -287,6 +351,8 @@ class SpeakerPlayer:
     def clear(self) -> None:
         with self._lock:
             self._buffer.clear()
+            self._played_samples = 0
+            self._item_start_samples = 0
 
     def stop(self) -> None:
         self._stop.set()
@@ -300,7 +366,7 @@ class SpeakerPlayer:
 class RealtimeAudio:
     """Mic + speaker pair for a Realtime session."""
 
-    def __init__(self, send: SendFn) -> None:
+    def __init__(self, send: SendFn, *, meter: MeterFn | None = None) -> None:
         self._speaker = SpeakerPlayer()
         mode = _local_mute_mode()
         if mode == "none":
@@ -309,8 +375,10 @@ class RealtimeAudio:
             mute_fn = self._speaker.has_substantial_audio
         else:
             mute_fn = self._speaker.has_audio
-        self._mic = MicStreamer(send, mute_while=mute_fn)
+        self._mic = MicStreamer(send, mute_while=mute_fn, meter=meter)
         self._started = False
+        self._current_item_id = ""
+        self._item_lock = threading.Lock()
 
     def start(self) -> None:
         if self._started:
@@ -319,11 +387,38 @@ class RealtimeAudio:
         self._mic.start()
         self._started = True
 
-    def on_output_delta(self, audio_b64: str) -> None:
+    def on_output_delta(self, audio_b64: str, *, item_id: str = "") -> None:
+        if item_id:
+            with self._item_lock:
+                if item_id != self._current_item_id:
+                    # Reset the played-audio counter per reply item (truncate is per item).
+                    self._speaker.mark_item_start()
+                self._current_item_id = item_id
         self._speaker.push_b64(audio_b64)
 
-    def interrupt(self) -> None:
+    @property
+    def current_item_id(self) -> str:
+        with self._item_lock:
+            return self._current_item_id
+
+    def interrupt(self) -> tuple[int, str]:
+        """Stop playback; return (played_ms, current_item_id) for truncate."""
+        audio_end_ms = self._speaker.played_ms()
         self._speaker.clear()
+        return audio_end_ms, self.current_item_id
+
+    def clear_playback(self) -> None:
+        """Drop buffered output and reset played tracking (reconnect path)."""
+        self._speaker.clear()
+
+    def mic_alive(self) -> bool:
+        return self._started and self._mic.sender_alive()
+
+    def ensure_mic(self) -> bool:
+        """Restart the mic sender thread if it died; True when restarted."""
+        if not self._started:
+            return False
+        return self._mic.ensure_sender()
 
     def pause_input(self) -> None:
         self._mic.pause()

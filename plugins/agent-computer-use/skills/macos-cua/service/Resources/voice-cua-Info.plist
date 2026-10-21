@@ -18,6 +18,8 @@
     <string>APPL</string>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Voice CUA runs small scripts (System Events, TextEdit, app launch) for the tasks you speak.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Voice CUA listens so you can speak tasks for the agent to run on your Mac.</string>
 </dict>

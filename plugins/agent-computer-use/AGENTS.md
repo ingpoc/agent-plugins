@@ -5,8 +5,8 @@ This directory is the portable [Agent Plugin](https://agent-plugins.org/specific
 ## After the client has loaded this package
 
 1. Cursor loads `.cursor-plugin/mcp.json`: `command` `${CURSOR_PLUGIN_ROOT}/bin/agent-computer-use-mcp`, `cwd` `${CURSOR_PLUGIN_ROOT}`. Portable root `mcp.json` stays `./bin/agent-computer-use-mcp`. `python3 skills/macos-cua/scripts/install_harness.py cursor-plugin` only repairs pre-override cache copies (absolute dest launcher, `cwd` `./`). Optional override: `AGENT_COMPUTER_USE_PYTHON`.
-2. `python3 skills/macos-cua/service/install_service.py` builds the packaged `runtime/voice-cua/` helper, nests and signs it inside CUAService, then installs the app. No sibling Voice CUA checkout is required.
-3. Grant **Accessibility** and **Screen Recording** to **macos-cua Service** / **CUAService**. Relaunch the service after Screen Recording.
+2. `python3 skills/macos-cua/service/install_service.py` builds the packaged `runtime/voice-cua/` helper, nests and signs it inside the app, then installs `/Applications/Agent Computer Use.app` (`~/.cache/macos-cua/CUAService.app` stays as a compat symlink). Release builds: `--release` (Developer ID via `service/release/sign-notarize.sh`, notarized). No sibling Voice CUA checkout is required.
+3. Grant consents in the **onboarding window** (opens on first launch and whenever a required one is missing; also ACU Settings › Computer Use): Accessibility, Screen Recording, Microphone, then Automation per app. Agent RPCs return `PERMISSION_MISSING:<name>` while one is off. Relaunch the service after Screen Recording.
 4. Client lists `agent-computer-use` tools **`state`** and **`act`** only.
    Verified `act` returns a compact AX delta (+ failure `error_type`); see
    `skills/macos-cua/references/observe-feedback.md`. Do not dump full AX trees.

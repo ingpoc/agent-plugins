@@ -18,12 +18,15 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_SOCKET = Path("~/.cache/macos-cua/cua-service.sock").expanduser()
-SERVICE_APP = Path("~/.cache/macos-cua/CUAService.app").expanduser()
+APP_PATH = Path("/Applications/Agent Computer Use.app")
+# Pre-0.2.25 install path; the installer keeps it as a symlink to APP_PATH.
+LEGACY_APP_PATH = Path("~/.cache/macos-cua/CUAService.app").expanduser()
+SERVICE_APP = APP_PATH if APP_PATH.exists() else LEGACY_APP_PATH
 SERVICE_BIN = SERVICE_APP / "Contents" / "MacOS" / "CUAService"
 RELAUNCH_LOCK = DEFAULT_SOCKET.parent / "cua-service.relaunch.lock"
 RELAUNCH_STAMP = DEFAULT_SOCKET.parent / "cua-service.relaunch.stamp"
 RELAUNCH_COOLDOWN_S = 30.0
-RECOVERY_COMMAND = "pkill -x CUAService; open ~/.cache/macos-cua/CUAService.app"
+RECOVERY_COMMAND = f"pkill -x CUAService; open '{SERVICE_APP}'"
 
 
 class CUAServiceUnavailable(ConnectionError):
@@ -312,13 +315,31 @@ class CUAClient:
     def hide_agent_cursor(self) -> dict:
         return self.call("hide_agent_cursor") or {"ok": True}
 
+    def open_settings(self, pane: str = "") -> dict:
+        """Open the plugin's one settings window (Agent Computer Use) at ``pane``."""
+        return self.call("open_settings", {"pane": pane} if pane else {}) or {"ok": True}
+
     def cursor_status(self, events: bool = False) -> dict:
         """Overlay visibility + idle-hide setting (bypasses the request lock)."""
         return self.call("cursor_status", {"events": True} if events else None)
 
-    def configure_cursor(self, idle_hide_ms: int) -> dict:
-        """Idle auto-hide delay in ms (0 = never auto-hide); persisted."""
-        return self.call("configure_cursor", {"idle_hide_ms": int(idle_hide_ms)})
+    def configure_cursor(
+        self,
+        idle_hide_ms: int | None = None,
+        *,
+        motion_style: str | None = None,
+        recording: bool | None = None,
+    ) -> dict:
+        """Idle auto-hide ms (0 = never), motion style (comet_swoop|linear) and
+        recording mode (Cua Fitts timing); each persisted when given."""
+        params: dict = {}
+        if idle_hide_ms is not None:
+            params["idle_hide_ms"] = int(idle_hide_ms)
+        if motion_style is not None:
+            params["motion_style"] = str(motion_style)
+        if recording is not None:
+            params["recording"] = bool(recording)
+        return self.call("configure_cursor", params)
 
 
 def owner_pids() -> list[int]:

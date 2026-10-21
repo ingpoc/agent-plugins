@@ -955,9 +955,10 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     package = (root / "service" / "Package.swift").read_text()
     entitlements = (root / "service" / "Resources" / "CUAService.entitlements").read_text()
     add(
-        "service reports and prompts TCC instead of silent AXUnknown",
+        "service reports missing TCC (onboarding + PERMISSION_MISSING) instead of silent AXUnknown",
         "axTrusted" in router
-        and "promptTCC" in delegate
+        and "PermissionGate" in router
+        and "OnboardingWindowController.showIfNeeded" in delegate
         and "NSScreenCaptureUsageDescription" in plist,
         "ad-hoc re-sign drops Accessibility; AXUnknown must be diagnosable",
     )
@@ -995,12 +996,13 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "Realtime sessions expire and crashes must recover without reviving intentional stops",
     )
     add(
-        "Samantha requests microphone permission before launching voice",
+        "Samantha checks microphone status (never prompts) before launching voice",
         "ensureMicrophoneAccess" in voice
-        and "AVCaptureDevice.requestAccess" in voice
+        and "AVCaptureDevice.authorizationStatus" in voice
+        and "AVCaptureDevice.requestAccess" not in voice
         and "NSMicrophoneUsageDescription" in plist
         and "com.apple.security.device.audio-input" in entitlements,
-        "the CUAService owner must request TCC so ON means microphone-ready",
+        "onboarding (PermissionBroker) owns the TCC request; ON with no access opens onboarding at Microphone",
     )
     add(
         "voice bundles are signed inside-out with audio input entitlement",

@@ -95,7 +95,7 @@ P = pass, F = fail or blocker, N = note.
 | Paths relative, no `..` or absolute paths | P | P | P |
 | Skills frontmatter (`name`, `description`) | P | P | P |
 | Marketplace entries (`.cursor-plugin`, `.grok-plugin`, `.agents`; `.claude-plugin` for ledger) | P | P | P |
-| 1:1 logo with background plate, committed, relative path | P (Island Cursor, `assets/logo.svg` 1024², plus `logo.png`) | P (existing `assets/logo.svg` 128²) | **F: no logo** |
+| 1:1 logo with background plate, committed, relative path | P (Island Cursor, `assets/logo.svg` 1024², plus `logo.png`) | P (Island Cursor family, `assets/logo.svg` 1024²) | P (Island Cursor family, `assets/logo.svg` 1024²) |
 | Homepage | P | P | P |
 | Brand-scoped keywords | P | P | P |
 | Security: no curl-to-shell or remote eval | P | P | **N:** the MCP launcher fallback downloads the tagged source tarball and executes it (pinned to tag `context-ledger-v<version>`, verifies the version only, no hash) |
@@ -108,8 +108,8 @@ P = pass, F = fail or blocker, N = note.
 
 ## Still needed before submitting
 
-1. **context-ledger logo**: a 1:1 SVG or PNG with a background plate at `plugins/context-ledger/assets/logo.svg`, then add `"logo": "assets/logo.svg"` to its `.grok-plugin/plugin.json` and `.cursor-plugin/marketplace.json` entry. `scripts/check.py` verifies that the path exists.
-2. **agent-computer-use notarized release**: this branch is based on `main` (0.2.22), which installs only by building from source. The notarized build and onboarding live on `acu/samantha-reliability` (0.2.26). Merge that branch, publish the notarized DMG as a GitHub release asset, and put its URL in step 1 above.
+1. **context-ledger logo**: done. `plugins/context-ledger/assets/logo.svg` (Island Cursor family, 1:1 with a background plate) is set as `logo` in its `.grok-plugin/plugin.json` and `.cursor-plugin/marketplace.json` entry. comet-control's logo was replaced with the same family.
+2. **agent-computer-use notarized release**: `acu/samantha-reliability` (0.2.26, notarized build and onboarding) is merged into `main` (PR #20) and into this branch. Still to do: publish the notarized DMG as a GitHub release asset and put its URL in step 1 above.
 3. **context-ledger remote default**: `bin/remote_bridge.py` still defaults `CONTEXT_LEDGER_MCP_URL` to the owner's Tailscale Funnel host. The docs are generalized. The code was left alone because cloud agents rely on that default. To remove it, set `CONTEXT_LEDGER_MCP_URL` as a runtime secret, make the default empty, and fail with a named error when it is unset.
 4. **context-ledger bootstrap**: for review, either pin the download to a commit SHA and verify a sha256, or drop the download fallback in the marketplace build.
 5. **Versions**: descriptions and manifests changed without a version bump. Bump through each plugin's release flow (`plugins/context-ledger/scripts/bump-version.sh` also pushes a tag).

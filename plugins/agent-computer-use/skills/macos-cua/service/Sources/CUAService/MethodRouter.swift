@@ -56,6 +56,11 @@ final class MethodRouter: @unchecked Sendable {
                 return .error(id: request.id, code: -32603, message: error.localizedDescription)
             }
         }
+        if let p = PermissionGate.missing(for: request.method) {
+            // Revoked/missing consent: fail fast instead of hanging on AX / HID calls.
+            await MainActor.run { PermissionCenter.shared.refresh() }
+            return .error(id: request.id, code: PermissionGate.errorCode, message: PermissionGate.message(p))
+        }
         // ponytail: desktop input is one shared resource; split lanes only if
         // independent displays become a measured concurrent use case.
         while requestRunning {
@@ -142,6 +147,19 @@ final class MethodRouter: @unchecked Sendable {
             cursorOverlay.hide()
             return ["ok": true] as [String: Any]
 
+        case "open_settings":
+            // CLI entry (`macos-cua settings [pane]`): the one settings window, at the asked pane.
+            let raw: String = req.param("pane") ?? ""
+            guard let tab = SettingsTab.forPane(raw) else {
+                throw RPCMethodError(code: -32602, message: "unknown pane: \(raw)")
+            }
+            // Report the pane actually shown (no pane = the window's last pane).
+            let shown: String = await MainActor.run {
+                IslandSettingsWindowController.shared.showSettings(tab: tab)
+                return IslandSettingsWindowController.shared.nav.tab.rawValue
+            }
+            return ["ok": true, "pane": shown] as [String: Any]
+
         default:
             throw RPCMethodError(
                 code: -32601,
@@ -153,10 +171,19 @@ final class MethodRouter: @unchecked Sendable {
     @MainActor
     private func handleCursorControl(_ req: JSONRPCRequest) throws -> Any {
         if req.method == "configure_cursor" {
-            guard let ms = req.paramInt("idle_hide_ms") else {
-                throw RPCMethodError(code: -32602, message: "configure_cursor needs integer idle_hide_ms")
+            let ms = req.paramInt("idle_hide_ms")
+            let style: String? = req.param("motion_style")
+            let recording: Bool? = req.param("recording")
+            guard ms != nil || style != nil || recording != nil else {
+                throw RPCMethodError(
+                    code: -32602,
+                    message: "configure_cursor needs idle_hide_ms, motion_style or recording"
+                )
             }
-            try cursorOverlay.configure(idleHideMs: ms)
+            if let ms { try cursorOverlay.configure(idleHideMs: ms) }
+            if style != nil || recording != nil {
+                try cursorOverlay.configure(motionStyle: style, recording: recording)
+            }
         }
         var d = cursorOverlay.status(includeEvents: (req.param("events") as Bool?) == true)
         d["ok"] = true
@@ -495,6 +522,7 @@ final class MethodRouter: @unchecked Sendable {
         _ point: CGPoint,
         windowID: CGWindowID,
         axBounds: CGRect?,
+        targetSize: CGSize? = nil,
         gate: Bool = true
     ) async throws -> CGPoint {
         // Tip lands (confirmed: final frame + measured origin + drawn frame)
@@ -503,7 +531,8 @@ final class MethodRouter: @unchecked Sendable {
         let landing = await cursorOverlay.glideAndLand(
             screenPoint: point,
             windowID: windowID,
-            axBounds: axBounds
+            axBounds: axBounds,
+            targetSize: targetSize
         )
         lastLanding = landing
         if gate { try requireLanded(landing) }
@@ -544,7 +573,8 @@ final class MethodRouter: @unchecked Sendable {
         _ = try await syncCursorToPoint(
             CGPoint(x: element.frame.midX, y: element.frame.midY),
             windowID: resolved.windowID,
-            axBounds: snapshot.windowFrame
+            axBounds: snapshot.windowFrame,
+            targetSize: element.frame.size
         )
     }
 
@@ -571,6 +601,7 @@ final class MethodRouter: @unchecked Sendable {
             CGPoint(x: frame.midX, y: frame.midY),
             windowID: resolved.windowID,
             axBounds: frame,
+            targetSize: frame.size,
             gate: gate
         )
     }
@@ -590,7 +621,8 @@ final class MethodRouter: @unchecked Sendable {
             _ = try await syncCursorToPoint(
                 CGPoint(x: frame.midX, y: frame.midY),
                 windowID: resolved.windowID,
-                axBounds: snapshot.windowFrame
+                axBounds: snapshot.windowFrame,
+                targetSize: frame.size
             )
             return
         }
@@ -681,7 +713,8 @@ final class MethodRouter: @unchecked Sendable {
         let aimPoint = try await syncCursorToPoint(
             clickPoint,
             windowID: resolved.windowID,
-            axBounds: snapshot.windowFrame
+            axBounds: snapshot.windowFrame,
+            targetSize: target?.frame.size
         )
 
         let clickCount = max(1, min(req.paramInt("click_count") ?? 1, 3))

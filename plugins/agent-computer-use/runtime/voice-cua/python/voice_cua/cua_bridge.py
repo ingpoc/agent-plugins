@@ -11,9 +11,17 @@ _PACKAGED_PLUGIN_SCRIPTS = (
     Path(__file__).resolve().parents[4] / "skills" / "macos-cua" / "scripts"
 )
 
+# Last-resort fallback: the installed plugin copy. Used when the frozen helper
+# (PyInstaller) lacks bundled scripts — parents[4] of a frozen module points
+# inside the .app, not at a plugin root.
+INSTALLED_PLUGIN_SCRIPTS = Path(
+    "~/.agents/plugins/agent-computer-use/skills/macos-cua/scripts"
+)
+_PATHS_LOGGED: set[str] = set()
 
-def _plugin_scripts_dir() -> Path:
-    """Locate macos-cua/scripts (compact_mcp.py) for dev and PyInstaller bundles."""
+
+def _scripts_candidates() -> list[Path]:
+    """Ordered search: env > _MEIPASS (frozen) > repo layout (dev) > installed plugin."""
     candidates: list[Path] = []
     env = os.environ.get("VOICE_CUA_MACOS_CUA_SCRIPTS", "").strip()
     if env:
@@ -22,10 +30,15 @@ def _plugin_scripts_dir() -> Path:
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
             candidates.append(Path(meipass))
-    candidates.append(_PACKAGED_PLUGIN_SCRIPTS)
-    for root in candidates:
-        if not root:
-            continue
+    else:
+        candidates.append(_PACKAGED_PLUGIN_SCRIPTS)
+    candidates.append(INSTALLED_PLUGIN_SCRIPTS.expanduser())
+    return candidates
+
+
+def _plugin_scripts_dir() -> Path:
+    """Locate macos-cua/scripts (compact_mcp.py) for dev and PyInstaller bundles."""
+    for root in _scripts_candidates():
         if (root / "compact_mcp.py").is_file():
             return root
     raise ModuleNotFoundError(
@@ -43,6 +56,23 @@ def _ensure_paths() -> None:
         ss = str(service)
         if ss not in sys.path:
             sys.path.insert(0, ss)
+    if s in _PATHS_LOGGED:
+        return
+    _PATHS_LOGGED.add(s)
+    # Once per process: prove where compact_mcp resolved (safe fields only).
+    try:
+        from voice_cua.activity_log import log_event
+
+        log_event(
+            "startup",
+            phase="cua_scripts_dir",
+            status="ok",
+            scripts_dir=s,
+            frozen=bool(getattr(sys, "frozen", False)),
+        )
+    except Exception:
+        pass
+    print(f"[cua_bridge] compact_mcp scripts dir: {s}", file=sys.stderr, flush=True)
 
 
 def get_backend():

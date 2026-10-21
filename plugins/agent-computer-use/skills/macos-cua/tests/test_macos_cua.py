@@ -2338,6 +2338,33 @@ class CursorProofTests(unittest.TestCase):
         self.assertIs(res["overlay"]["auto_hide"], False)
         client.configure_cursor.assert_called_once_with(0)
 
+    def test_cursor_configure_motion_routes_to_cuaservice(self):
+        client = mock.Mock()
+        client.configure_cursor.return_value = {"ok": True, "visible": False,
+                                                "motion_style": "linear", "motion_recording": True}
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+            res = macos_cua.cursor("configure", motion_style="linear", recording=True)
+        self.assertTrue(res["ok"])
+        self.assertTrue(res["configured"])
+        self.assertEqual(res["overlay"]["motion_style"], "linear")
+        client.configure_cursor.assert_called_once_with(None, motion_style="linear", recording=True)
+
+    def test_cursor_motion_flags_validate(self):
+        client = mock.Mock()
+        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+            bad = macos_cua.cursor("configure", motion_style="wobble")
+            wrong = macos_cua.cursor("status", recording=True)
+        self.assertFalse(bad["ok"])
+        self.assertIn("comet_swoop", bad["error"])
+        self.assertFalse(wrong["ok"])
+        client.configure_cursor.assert_not_called()
+
+    def test_cursor_proof_pointer_size_is_9pct_clamped(self):
+        from runtime_snapshot import cursor_proof_pointer_size as size
+        self.assertEqual(size(100, 100), 18.0)
+        self.assertAlmostEqual(size(240, 400), 21.6)
+        self.assertEqual(size(2000, 1200), 26.0)
+
     def test_cursor_idle_hide_ms_fails_loud(self):
         client = mock.Mock()
         client.cursor_status.side_effect = ConnectionError("no socket")

@@ -45,5 +45,5 @@ title, stop — do not mutate another document.
 - `~/.agents/plugins/agent-computer-use`
 - Codex: `~/.codex/plugins/cache/personal/agent-computer-use/local`
 
-Engine: `~/.cache/macos-cua/CUAService.app` (rebuild via
-`python3 service/install_service.py` after Swift changes).
+Engine: `/Applications/Agent Computer Use.app` (`~/.cache/macos-cua/CUAService.app` is a
+compat symlink; rebuild via `python3 service/install_service.py`, release builds add `--release`).

@@ -2,29 +2,39 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleIdentifier</key>
-    <string>com.ingpoc.cua-service</string>
-    <key>CFBundleName</key>
-    <string>CUAService</string>
-    <key>CFBundleDisplayName</key>
-    <string>macos-cua Service</string>
-    <key>CFBundleExecutable</key>
-    <string>CUAService</string>
-    <key>CFBundleVersion</key>
-    <string>1.0.0</string>
-    <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
-    <key>LSUIElement</key>
-    <true/>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>13.0</string>
-    <key>NSAccessibilityUsageDescription</key>
-    <string>CUAService needs Accessibility access to read and interact with application UI elements.</string>
-    <key>NSScreenCaptureUsageDescription</key>
-    <string>CUAService captures the target app window so the agent can verify on-screen UI.</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>Samantha listens for spoken tasks when you turn her on.</string>
+	<key>CFBundleDisplayName</key>
+	<string>Agent Computer Use</string>
+	<key>CFBundleExecutable</key>
+	<string>CUAService</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.ingpoc.cua-service</string>
+	<key>CFBundleName</key>
+	<string>Agent Computer Use</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.2.26</string>
+	<key>CFBundleVersion</key>
+	<string>0.2.26</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAccessibilityUsageDescription</key>
+	<string>Agent Computer Use reads and drives app controls for the tasks you ask for.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>Agent Computer Use controls apps you ask it to use (Music, Spotify, Finder, Comet, System Events, TextEdit). Each app is asked once.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>The Dynamic Island shows your next event and a countdown. Read-only: it never changes your calendars.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>The Dynamic Island shows your next event and a countdown. Read-only: it never changes your calendars.</string>
+	<key>NSFocusStatusUsageDescription</key>
+	<string>The island can silence its one-line peeks while a Focus is on. It only reads whether a Focus is active.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Samantha listens for spoken tasks when you turn her on.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Agent Computer Use sees the target window when its controls are unreadable, so the agent can check its work.</string>
 </dict>
 </plist>

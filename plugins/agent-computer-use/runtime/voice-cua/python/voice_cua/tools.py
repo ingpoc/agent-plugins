@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import threading
 import time
-import uuid
+from urllib.parse import urlsplit
 from typing import Any
 
 from voice_cua.catalog import (
@@ -13,12 +13,21 @@ from voice_cua.catalog import (
     upsert_key,
 )
 from voice_cua.cua_bridge import get_backend, get_tool_schemas, redact_for_model
-from voice_cua.comet_bridge import ALLOWED_ACTIONS, comet_act, comet_begin, comet_end, comet_is_active
+from voice_cua.comet_bridge import (
+    ALLOWED_ACTIONS,
+    comet_act,
+    comet_begin,
+    comet_end,
+    comet_is_active,
+    redact_actions,
+    redact_url,
+)
 from voice_cua.inject import clipboard_paste_secret, clear_clipboard, set_clipboard
 from voice_cua.labels_tracker import labels_tracker_path, refresh_labels_tracker
 from voice_cua.keychain_access import describe_ref, enrich_items, fetch_value, list_keychain, resolve_ref
 from voice_cua.activity_log import log_event, log_exception, log_tool_result, log_tool_start
 from voice_cua.island_facade import island_confirm, island_publish
+from voice_cua.risk_gate import GATE, fingerprint
 
 RISKY_HINTS = (
     "delete",
@@ -58,64 +67,75 @@ def _schedule_listening_reset(delay: float = 2.0) -> None:
         _listening_reset_timer.start()
 
 
-def _island_act_error(app: str, err: str) -> tuple[str, str]:
-    """Short pill copy — never dump RPC traces in the menubar island."""
-    low = (err or "").lower()
-    if "app not found" in low:
-        return "Can't open app", app[:40] or "App"
-    if "no window" in low:
-        return "No window", app[:40] or "App"
-    if "label not found" in low:
-        return "Control not found", app[:40] or "App"
-    if "user denied" in low:
-        return "Denied", app[:40] or "Action"
-    if "verification" in low or "unverified" in low:
-        return "Not verified", app[:40] or "Action"
-    return "Miss", app[:40] or "Action"
+COMPACT_ACT_DESCRIPTION = (
+    "Drive one Mac app in one native plan (op, or steps for a batch). Known paths: op=open "
+    "with path. ok/verified only when expect matches. Failures return error_type, hint and "
+    "retryable; max 2 tries per step."
+)
+# Fields the voice schema keeps out of the per-step list (top-level only).
+_ACT_TOP_ONLY = ("app", "steps", "expect", "allow_unverified", "screenshot")
 
 
-def tool_definitions(*, comet_active: bool | None = None) -> list[dict[str, Any]]:
-    cua = get_tool_schemas()
-    act_parameters = {
-        **cua["act"]["inputSchema"],
-        "properties": {
-            **cua["act"]["inputSchema"]["properties"],
-            "step_label": {
-                "type": "string",
-                "description": "Short human step for island UI",
-            },
-            "risky": {
-                "type": "boolean",
-                "description": "Force confirm_risky before acting",
-            },
-        },
+def _slim(prop: dict[str, Any]) -> dict[str, Any]:
+    """Keep only type + enum (the backend validates ranges and nesting)."""
+    return {k: v for k, v in prop.items() if k in {"type", "enum"}}
+
+
+def compact_act_parameters(backend: dict[str, Any]) -> dict[str, Any]:
+    """Voice cua_act schema derived from the compact backend schema (same names/ops).
+
+    Halves the tokens: per-step fields appear once (steps items are "same fields
+    as top level"), ranges/descriptions are dropped and expect is a short union.
+    """
+    props = backend["properties"]
+    out: dict[str, Any] = {"app": _slim(props["app"])}
+    for key, prop in props.items():
+        if key in _ACT_TOP_ONLY:
+            continue
+        out[key] = _slim(prop)
+    out["steps"] = {
+        "type": "array",
+        "items": {"type": "object"},
+        "description": "Batch: each item is one op using the fields above",
     }
-    tools = [
-        {
-            "type": "function",
-            "name": "cua_state",
-            "description": (
-                "Compact AX state for any Mac app (name or bundle id). "
-                "Discovery or after act miss only — not before every act."
-            ),
-            "parameters": cua["state"]["inputSchema"],
-        },
-        {
-            "type": "function",
-            "name": "cua_act",
-            "description": cua["act"]["description"],
-            "parameters": act_parameters,
-        },
+    out["expect"] = {
+        "oneOf": [
+            {"type": "string"},
+            {"type": "object"},
+            {"type": "array", "items": {"oneOf": [{"type": "string"}, {"type": "object"}]}},
+        ],
+        "description": "Postcondition: text, {text|not_text|path|value:{label,equals}}, or a list",
+    }
+    out["allow_unverified"] = {"type": "boolean", "description": "Dispatch-only; never report done"}
+    out["screenshot"] = {"type": "boolean"}
+    out["step_label"] = {"type": "string"}
+    out["risky"] = {"type": "boolean", "description": "Irreversible: needs the user's OK"}
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": out,
+        "required": list(backend.get("required") or ["app"]),
+    }
+
+
+TOOL_GROUPS = {
+    # Lazy-loaded: never used in normal turns, ~850 tokens on every response.
+    "secrets": ("secrets_list", "secrets_label", "secrets_get", "secrets_put", "secrets_inject",
+                "secrets_provide", "confirm_risky"),
+    # Loaded by the risk gate the moment a risky action is refused.
+    "confirm": ("confirm_risky",),
+}
+
+
+def _lazy_tools() -> list[dict[str, Any]]:
+    return [
         {
             "type": "function",
             "name": "confirm_risky",
-            "description": "Ask user to confirm irreversible UI or Keychain write.",
+            "description": "Ask the user to OK the risky action that was just refused; then retry that exact call.",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "prompt": {"type": "string"},
-                },
-                "required": ["prompt"],
+                "properties": {"prompt": {"type": "string"}},
             },
         },
         {
@@ -242,19 +262,66 @@ def tool_definitions(*, comet_active: bool | None = None) -> list[dict[str, Any]
             },
         },
     ]
-    active = comet_is_active() if comet_active is None else comet_active
-    if not active:
+
+
+def tool_definitions(
+    *,
+    comet_active: bool | None = None,
+    groups: frozenset[str] | set[str] | tuple[str, ...] = (),
+) -> list[dict[str, Any]]:
+    cua = get_tool_schemas()
+    wanted = {name for group in groups for name in TOOL_GROUPS.get(group, ())}
+    tools = [
+        {
+            "type": "function",
+            "name": "cua_state",
+            "description": (
+                "Compact AX state for any Mac app (name or bundle id). "
+                "Discovery or after act miss only — not before every act."
+            ),
+            "parameters": cua["state"]["inputSchema"],
+        },
+        {
+            "type": "function",
+            "name": "cua_act",
+            "description": COMPACT_ACT_DESCRIPTION,
+            "parameters": compact_act_parameters(cua["act"]["inputSchema"]),
+        },
+    ]
+    if wanted != set(TOOL_GROUPS["secrets"]):
         tools.append({
             "type": "function",
-            "name": "comet_begin",
-            "description": "Start a new isolated visible Comet lease for one browser task. Use only for web-page work.",
+            "name": "more_tools",
+            "description": "Load extra tools. secrets: Keychain passwords/API keys (list, fill into an app, copy, store).",
             "parameters": {
                 "type": "object",
-                "properties": {"url": {"type": "string", "description": "Initial http(s) URL"}},
-                "required": ["url"],
+                "properties": {"group": {"type": "string", "enum": ["secrets"]}},
+                "required": ["group"],
             },
         })
-    else:
+    tools.extend(t for t in _lazy_tools() if t["name"] in wanted)
+    active = comet_is_active() if comet_active is None else comet_active
+    # comet_begin is always offered: while the user's window is open it
+    # re-attaches to that same window (goto) instead of opening another.
+    tools.append({
+        "type": "function",
+        "name": "comet_begin",
+        "description": (
+            "Open a website in Comet (isolated visible window), or — if the user's Comet window is "
+            "already open — load the URL in that same window. purpose=user_task (default) for "
+            "anything the user asked; that window is never closed afterwards. purpose=self_test "
+            "only for your own checks; that window closes on comet_end."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "http(s) URL, e.g. https://www.netflix.com"},
+                "purpose": {"type": "string", "enum": ["user_task", "self_test"]},
+            },
+            "required": ["url"],
+        },
+    })
+    if active:
         tools.extend([
             {
                 "type": "function",
@@ -285,8 +352,14 @@ def tool_definitions(*, comet_active: bool | None = None) -> list[dict[str, Any]
             {
                 "type": "function",
                 "name": "comet_end",
-                "description": "Close the active Comet lease after the browser task is complete or abandoned.",
-                "parameters": {"type": "object", "properties": {}},
+                "description": (
+                    "Finish the Comet task. A self_test window closes. The user's window stays open "
+                    "unless user_requested=true because the user explicitly asked to close it."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {"user_requested": {"type": "boolean"}},
+                },
             },
         ])
     return tools
@@ -306,6 +379,7 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         "secrets_put": _secrets_put,
         "secrets_inject": _secrets_inject,
         "secrets_provide": _secrets_provide,
+        "more_tools": _more_tools,
     }
     fn = handlers.get(name)
     if not fn:
@@ -365,30 +439,126 @@ def _cua_act(args: dict[str, Any]) -> dict[str, Any]:
             "error": f"{app} has no window — use a regular app (Calculator, Music, Finder, TextEdit).",
         }
     step = str(args.get("step_label") or args.get("label") or args.get("key") or "act")
+    # Retry identity = the action, not how it is verified (a new expect is still the same step).
+    step_fp = fingerprint("cua_act", args, ignore=_STEP_IGNORE)
+    capped = _retry_capped(step_fp)
+    if capped is not None:
+        return capped
     if _looks_risky(args):
-        cid = str(uuid.uuid4())
-        approved = island_confirm(cid, f"Allow action in {app}: {step}?")
-        if not approved:
-            island_publish("error", title="Denied", app=app, detail=step)
-            return {"ok": False, "error": "user denied", "confirmed": False}
-    island_publish("driving", title="Driving", app=app, step=step, detail=f"{app} · {step}")
+        refused = GATE.check("cua_act", args, f"Allow in {app}: {_describe_steps(args, step)}?")
+        if refused is not None:
+            island_publish("acting", title="Needs your OK", app=app, detail=step)
+            return refused
+    island_publish("driving", title=f"Using {app}" if app else "Working", app=app, step=step, detail=step)
     backend = get_backend()
     result = backend.act(app, args)
     out = redact_for_model(result if isinstance(result, dict) else {"ok": False})
     if out.get("ok"):
+        _STEP_FAILS.pop(step_fp, None)
         island_publish("done", title="Done", app=app, step=step, detail=f"{app} · {step}")
     else:
+        _note_failure(step_fp, out)
         err = str(out.get("error") or "")
-        title, detail = _island_act_error(app, err)
-        island_publish("error", title=title, app=app, step=step, detail=detail)
+        # Raw error goes in; IslandBus maps it to human copy and logs the raw text.
+        island_publish("error", title=err or "error", app=app, step=step)
         _schedule_listening_reset()
     return out
 
 
+# -- cua_act failure hints + per-step retry cap -------------------------------
+MAX_STEP_TRIES = 2
+_STEP_IGNORE = frozenset({"expect", "allow_unverified", "wait"})
+STEP_FAIL_TTL = 600.0
+_STEP_FAILS: dict[str, tuple[int, float]] = {}
+_STEP_LOCK = threading.Lock()
+FAIL_HINTS = {
+    "target_missing": ("Control not found: cua_state with a query, then retry by label.", True),
+    "stale_id": ("Ids changed: retry by label, not element id.", True),
+    "observation_incomplete": ("No fresh view: cua_state once, then decide; don't replay blindly.", True),
+    "action_failed": ("Step failed: try one other route (label, key or coordinates).", True),
+    "verification_required": ("Add expect (or allow_unverified for dispatch-only) and retry.", True),
+    "expect_unverified": ("It ran but isn't confirmed: check with cua_state; don't repeat it.", False),
+    "user_denied": ("User said no: don't retry.", False),
+}
+CAP_HINT = "Stopped after 2 tries: tell the user what blocked it, or take a different approach."
+
+
+def _describe_steps(args: dict[str, Any], step: str) -> str:
+    ops = [str(s.get("op") or s.get("key") or s.get("label") or "") for s in args.get("steps") or [] if isinstance(s, dict)]
+    text = step if not ops else ", ".join(o for o in ops if o)[:80] or step
+    return text[:100]
+
+
+def _nav_note(navigate: Any) -> str:
+    """Confirm copy must name the navigation that runs before a paste/fill."""
+    if not isinstance(navigate, list) or not navigate:
+        return ""
+    return f" First: {_describe_steps({'steps': navigate}, 'navigate')}."
+
+
+def _retry_capped(step_fp: str) -> dict[str, Any] | None:
+    now = time.monotonic()
+    with _STEP_LOCK:
+        for key in [k for k, (_, ts) in _STEP_FAILS.items() if now - ts > STEP_FAIL_TTL]:
+            _STEP_FAILS.pop(key, None)
+        count = _STEP_FAILS.get(step_fp, (0, now))[0]
+    if count < MAX_STEP_TRIES:
+        return None
+    log_event("cua_act_retry_capped", tries=count)
+    return {"ok": False, "error": "retry cap reached for this step", "error_type": "retry_cap",
+            "retryable": False, "hint": CAP_HINT}
+
+
+def _note_failure(step_fp: str, out: dict[str, Any]) -> None:
+    error_type = str(out.get("error_type") or "")
+    if not error_type and str(out.get("error") or "") == "user denied":
+        error_type = "user_denied"
+    with _STEP_LOCK:
+        count = _STEP_FAILS.get(step_fp, (0, 0.0))[0] + 1
+        _STEP_FAILS[step_fp] = (count, time.monotonic())
+    hint, retryable = FAIL_HINTS.get(error_type, ("Try one different approach, then tell the user.", True))
+    if count >= MAX_STEP_TRIES:
+        hint, retryable = CAP_HINT, False
+    out["hint"] = hint
+    out["retryable"] = bool(retryable)
+    out["tries"] = count
+
+
+def reset_session_state() -> None:
+    """New Realtime conversation: fresh retry budget, no carried-over approvals."""
+    with _STEP_LOCK:
+        _STEP_FAILS.clear()
+    GATE.reset()
+
+
+def _more_tools(args: dict[str, Any]) -> dict[str, Any]:
+    group = str(args.get("group") or "").strip().lower()
+    if group not in TOOL_GROUPS or group == "confirm":
+        return {"ok": False, "error": "unknown group", "hint": "group: secrets"}
+    return {"ok": True, "group": group, "loaded": list(TOOL_GROUPS[group])}
+
+
+def comet_begin_label(url: str, purpose: str, *, reuse: bool = False) -> tuple[str, str]:
+    """Island (title, detail) for comet_begin: the site, not lease internals."""
+    host = (urlsplit(str(url or "")).hostname or "").removeprefix("www.") or "website"
+    if purpose == "self_test":
+        return f"Self-check · {host}", "Comet"
+    return (f"Loading {host}" if reuse else f"Opening {host}"), "Comet"
+
+
 def _comet_begin(args: dict[str, Any]) -> dict[str, Any]:
-    island_publish("acting", title="Opening Comet", detail="Isolated browser task")
-    result = comet_begin(str(args.get("url") or ""))
-    island_publish("done" if result.get("ok") else "error", title="Comet ready" if result.get("ok") else "Comet unavailable", detail="Isolated lease")
+    purpose = str(args.get("purpose") or "user_task")
+    title, detail = comet_begin_label(
+        str(args.get("url") or ""), purpose, reuse=comet_is_active() and purpose == "user_task"
+    )
+    island_publish("acting", title=title, detail=detail, app="Comet")
+    log_event("comet_call", tool="comet_begin", url=redact_url(str(args.get("url") or "")), purpose=purpose)
+    result = comet_begin(str(args.get("url") or ""), purpose=purpose)
+    host = (urlsplit(str(args.get("url") or "")).hostname or "").removeprefix("www.")
+    if result.get("ok"):
+        island_publish("done", title=f"{host or 'Page'} open", detail="Comet", app="Comet")
+    else:
+        island_publish("error", title="Comet unavailable", detail=host, app="Comet")
     return result
 
 
@@ -396,32 +566,44 @@ def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
     actions = args.get("actions")
     if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
         return {"ok": False, "error": "actions must be an array of objects"}
+    log_event("comet_call", tool="comet_act", actions=redact_actions(actions))
     if _looks_risky(args):
-        approved = island_confirm(str(uuid.uuid4()), "Allow this browser action in Comet?")
-        if not approved:
-            return {"ok": False, "error": "user denied", "confirmed": False}
+        refused = GATE.check("comet_act", args, f"Allow in Comet: {', '.join(redact_actions(actions))[:90]}?")
+        if refused is not None:
+            island_publish("acting", title="Needs your OK", app="Comet", detail="Browser action")
+            return refused
     island_publish("driving", title="Driving Comet", detail="Browser task")
     result = comet_act(actions, timeout=max(1.0, min(90.0, float(args.get("timeout") or 45))))
     island_publish("done" if result.get("ok") else "error", title="Comet done" if result.get("ok") else "Comet miss", detail="Browser task")
     return result
 
 
-def _comet_end(_args: dict[str, Any]) -> dict[str, Any]:
-    result = comet_end()
-    island_publish("done" if result.get("ok") else "error", title="Comet closed" if result.get("ok") else "Closeout failed", detail="Isolated lease")
+def _comet_end(args: dict[str, Any]) -> dict[str, Any]:
+    user_requested = bool(args.get("user_requested"))
+    log_event("comet_call", tool="comet_end", user_requested=user_requested)
+    result = comet_end(user_requested=user_requested)
+    if not result.get("ok"):
+        island_publish("error", title="Couldn't close Comet", detail="")
+    elif result.get("kept_open"):
+        island_publish("done", title="Comet stays open", detail="Ready for follow-ups")
+    else:
+        island_publish("done", title="Comet window closed", detail="Comet")
     return result
 
 
 def _confirm_risky(args: dict[str, Any]) -> dict[str, Any]:
-    prompt = str(args.get("prompt") or "Confirm?")
-    cid = str(uuid.uuid4())
-    approved = island_confirm(cid, prompt)
+    # The island shows the server's description of the parked action, never the
+    # model's prompt, so the user approves exactly what will run.
+    result = GATE.confirm(lambda cid, text: island_confirm(cid, text))
+    if result.get("error"):
+        return result
+    approved = bool(result.get("approved"))
     island_publish(
         "done" if approved else "error",
         title="Confirmed" if approved else "Denied",
-        detail=prompt[:120],
+        detail="",
     )
-    return {"ok": True, "approved": approved}
+    return result
 
 
 def _resolve_secret_args(args: dict[str, Any]) -> tuple[dict[str, str] | None, str | None]:
@@ -472,19 +654,19 @@ def _secrets_label(args: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": "label required"}
     item, err = resolve_ref(label=label)
     if err or not item:
-        island_publish("error", title="Secret", detail=(err or "miss")[:40])
+        island_publish("error", title="Couldn't find secret", detail="")
         return {"ok": False, "error": err or f"Keychain miss for {label}"}
-    island_publish("secrets", title="Secret", detail=_display_name(item))
+    island_publish("secrets", title="Using Keychain", detail=_display_name(item))
     return describe_ref(item)
 
 
 def _secrets_get(args: dict[str, Any]) -> dict[str, Any]:
     item, err = _resolve_secret_args(args)
     if err or not item:
-        island_publish("error", title="Secret", detail=(err or "miss")[:120])
+        island_publish("error", title="Couldn't find secret", detail="")
         return {"ok": False, "error": err or "not found"}
     name = _display_name(item)
-    island_publish("secrets", title="Secret", detail=f"{name} ready")
+    island_publish("secrets", title="Using Keychain", detail=f"{name} ready")
     return describe_ref(item)
 
 
@@ -515,9 +697,9 @@ def _secrets_inject(args: dict[str, Any]) -> dict[str, Any]:
     if err or not item:
         return {"ok": False, "error": err or "not found"}
     name = _display_name(item)
-    cid = str(uuid.uuid4())
-    if not island_confirm(cid, f"Inject {name} into {app} via clipboard paste?"):
-        return {"ok": False, "error": "user denied", "confirmed": False}
+    refused = GATE.check("secrets_inject", args, f"Paste {name} into {app}?{_nav_note(args.get('navigate_steps'))}")
+    if refused is not None:
+        return refused
     island_publish("secrets", title="Injecting", app=app, detail=f"{name} → {app}", step="paste")
     out = _run_inject(item, app, args.get("navigate_steps"))
     if out.get("ok"):
@@ -535,11 +717,11 @@ def _secrets_provide(args: dict[str, Any]) -> dict[str, Any]:
     if err or not item:
         return {"ok": False, "error": err or "not found"}
     name = _display_name(item)
-    cid = str(uuid.uuid4())
     if action == "clipboard":
         seconds = float(args.get("seconds") or 30.0)
-        if not island_confirm(cid, f"Copy {name} to clipboard for {seconds:.0f}s?"):
-            return {"ok": False, "error": "user denied", "confirmed": False}
+        refused = GATE.check("secrets_provide", args, f"Copy {name} to the clipboard for {seconds:.0f}s?")
+        if refused is not None:
+            return refused
         secret = fetch_value(item)
         try:
             set_clipboard(secret)
@@ -553,18 +735,18 @@ def _secrets_provide(args: dict[str, Any]) -> dict[str, Any]:
     app = str(args.get("app") or "").strip()
     if not app:
         return {"ok": False, "error": "app required for inject"}
-    if not island_confirm(cid, f"Provide {name} to {app}?"):
-        return {"ok": False, "error": "user denied", "confirmed": False}
+    refused = GATE.check("secrets_provide", args, f"Fill {name} into {app}?{_nav_note(args.get('navigate_steps'))}")
+    if refused is not None:
+        return refused
     out = _run_inject(item, app, args.get("navigate_steps"))
     out["action"] = "inject"
     return out
 
 
 def _secrets_put(args: dict[str, Any]) -> dict[str, Any]:
-    cid = str(uuid.uuid4())
-    prompt = f"Store Keychain secret id={args.get('id')} label={args.get('label')}?"
-    if not island_confirm(cid, prompt):
-        return {"ok": False, "error": "user denied", "confirmed": False}
+    refused = GATE.check("secrets_put", args, f"Store Keychain secret {args.get('label') or args.get('id')}?")
+    if refused is not None:
+        return refused
     cat = load_catalog()
     row = upsert_key(cat, args)
     value = args.get("value")

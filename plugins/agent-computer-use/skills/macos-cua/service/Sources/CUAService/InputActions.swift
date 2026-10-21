@@ -28,7 +28,6 @@ final class InputActions: @unchecked Sendable {
         return src
     }()
 
-    private static var postEventPrompted = false
 
     init(logger: Logger) { self.logger = logger }
 
@@ -725,14 +724,9 @@ final class InputActions: @unchecked Sendable {
         return true
     }
 
-    /// Accessibility ≠ PostEvent. Prompt at most once; then fail closed.
+    /// Accessibility ≠ PostEvent. Preflight only (never prompts at runtime; onboarding asks).
     private func ensurePostEventAccess() -> Bool {
         if CGPreflightPostEventAccess() { return true }
-        if !Self.postEventPrompted {
-            Self.postEventPrompted = true
-            _ = CGRequestPostEventAccess()
-            if CGPreflightPostEventAccess() { return true }
-        }
         logger.warning("PostEvent TCC denied — HID refused")
         return false
     }

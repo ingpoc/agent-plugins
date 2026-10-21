@@ -34,7 +34,7 @@ class CliParserTests(unittest.TestCase):
                 "double-click", "perform-action", "drag", "type-text",
                 "key", "hold-key", "scroll", "right-click", "set-value",
                 "select-text", "find", "click-label", "click-label-pointer",
-                "type-label", "list-buttons", "run", "cursor", "operator",
+                "type-label", "list-buttons", "run", "cursor", "operator", "settings",
             },
         )
 

@@ -413,7 +413,9 @@ def uninstall_service() -> dict:
     }
 
 
-CUA_SERVICE_APP = Path.home() / ".cache/macos-cua/CUAService.app"
+CUA_SERVICE_APP = next((p for p in (Path("/Applications/Agent Computer Use.app"),
+                        Path.home() / ".cache/macos-cua/CUAService.app") if p.exists()),
+                       Path.home() / ".cache/macos-cua/CUAService.app")
 
 
 def ensure() -> dict:
