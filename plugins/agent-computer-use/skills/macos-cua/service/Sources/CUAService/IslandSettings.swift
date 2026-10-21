@@ -69,7 +69,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .grokBot: return NSColor(white: 0.15, alpha: 1)
         case .cursor: return NSColor(white: 0.22, alpha: 1)
         case .codex: return NSColor(red: 0.10, green: 0.55, blue: 0.45, alpha: 1)
-        case .computerUse: return NSColor(red: 0.98, green: 0.62, blue: 0.20, alpha: 1)
+        case .computerUse: return NSColor(red: 0.39, green: 0.82, blue: 1.0, alpha: 1)   // accent; tiles draw the brand mark
         }
     }
 

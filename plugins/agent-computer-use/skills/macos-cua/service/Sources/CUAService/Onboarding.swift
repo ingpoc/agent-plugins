@@ -147,7 +147,7 @@ struct OnboardingView: View {
                     if i > 0 { Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10) }
                     HStack(spacing: 10) {
                         Image(systemName: p.0).font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color(nsColor: SettingsTab.computerUse.tint)).frame(width: 18)
+                            .foregroundStyle(SettingsStyle.accent).frame(width: 18)
                             .layoutProbe("welcome-symbol:\(i)", .glyph)
                         Text(p.1).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.92))
                             .lineLimit(1).truncationMode(.tail)

@@ -159,7 +159,11 @@ struct IslandSettingsRoot: View {
     private func sidebarRow(_ t: SettingsTab) -> some View {
         let selected = t == tab
         return HStack(spacing: 8) {
-            IconTile(symbol: t.symbol, color: Color(nsColor: t.tint), size: 20).layoutProbe("side-icon:\(t.rawValue)", .glyph)
+            Group {
+                if t == .computerUse { BrandTile(size: 20) }   // Island Cursor mark, not an SF Symbol
+                else { IconTile(symbol: t.symbol, color: Color(nsColor: t.tint), size: 20) }
+            }
+            .layoutProbe("side-icon:\(t.rawValue)", .glyph)
             Text(t.title).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.92))
                 .layoutProbe("side-title:\(t.rawValue)")
             Spacer(minLength: 0)
@@ -182,7 +186,7 @@ struct IslandSettingsRoot: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Group {
-                    if tab == .about { BrandTile(size: 18) }   // the app's own pane: its icon
+                    if tab == .about || tab == .computerUse { BrandTile(size: 18) }   // the app's own panes: its mark
                     else { IconTile(symbol: tab.symbol, color: Color(nsColor: tab.tint), size: 18) }
                 }
                 .layoutProbe("pane-icon", .glyph)
@@ -248,18 +252,21 @@ struct IslandSettingsRoot: View {
     }
 
     private var aboutFooter: some View {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev"
+        let v = AppVersion.short
         return SettingsCard {
             HStack(spacing: 10) {
                 BrandTile(size: 24).layoutProbe("about-icon", .glyph)
                 Text("Agent Computer Use").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).layoutProbe("about-name")
                 Spacer()
                 Text(v).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundStyle(Color.white.opacity(0.55)).layoutProbe("about-version")
+                if let b = AppVersion.build {
+                    Text(b).font(.system(size: 11, design: .monospaced)).foregroundStyle(Color.white.opacity(0.45)).layoutProbe("about-build")
+                }
             }
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
             .layoutContainer("about|version")
             Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10)
-            Text("Alcove-style island for Samantha and your AI agents.")
+            Text("A Dynamic Island for Samantha and your AI agents.")
                 .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutProbe("about-text", truncates: true)   // wraps by design; frame = drawn text

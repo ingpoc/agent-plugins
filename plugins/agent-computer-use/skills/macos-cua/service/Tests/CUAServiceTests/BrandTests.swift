@@ -10,7 +10,34 @@ final class BrandTests: XCTestCase {
     static let brand = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("assets/brand")
 
-    override func setUp() { BrandTile.iconURL = Self.brand.appendingPathComponent("AppIcon.icns") }
+    static let appInfo = NSDictionary(contentsOf: brand.deletingLastPathComponent().deletingLastPathComponent()
+        .appendingPathComponent("service/Resources/Info.plist")) as? [String: Any]
+
+    /// Renders and gates show the app's own Info.plist version, never the xctest runner's.
+    static func injectApp() {
+        BrandTile.iconURL = brand.appendingPathComponent("AppIcon.icns")
+        AppVersion.info = appInfo
+    }
+
+    override func setUp() { Self.injectApp() }
+
+    func testAboutShowsAppVersionNeverTheRunner() throws {
+        let plugin = try JSONSerialization.jsonObject(with: Data(contentsOf: Self.brand.deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("plugin.json"))) as? [String: Any]
+        XCTAssertEqual(AppVersion.short, plugin?["version"] as? String, "About = plugin.json version")
+        AppVersion.info = Bundle.main.infoDictionary   // xctest runner
+        XCTAssertEqual(AppVersion.short, "dev")
+        XCTAssertNil(AppVersion.build)
+        AppVersion.info = ["CFBundleIdentifier": AppVersion.bundleID, "CFBundleShortVersionString": "0.2.26", "CFBundleVersion": "412"]
+        XCTAssertEqual(AppVersion.build, "(412)")
+        Self.injectApp()
+    }
+
+    func testNoOrangeBrandLeftovers() {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        SettingsTab.computerUse.tint.usingColorSpace(.sRGB)?.getRed(&r, green: &g, blue: &b, alpha: &a)
+        XCTAssertFalse(r > 0.8 && g > 0.4 && g < 0.75 && b < 0.4, "Computer Use tint is no longer orange")
+    }
 
     func testStatusIconIsTemplatePDF() {
         let img = StatusBarController.loadIcon(resources: Self.brand)

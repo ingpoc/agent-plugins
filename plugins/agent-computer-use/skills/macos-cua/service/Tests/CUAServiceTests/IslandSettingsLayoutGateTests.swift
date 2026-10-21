@@ -16,7 +16,7 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
 
     override func setUp() {
         IslandLayoutRecorder.enabled = true
-        BrandTile.iconURL = BrandTests.brand.appendingPathComponent("AppIcon.icns")   // About shows the app icon
+        BrandTests.injectApp()   // About: app icon + the app's Info.plist version
     }
     override func tearDown() {
         IslandLayoutRecorder.enabled = false

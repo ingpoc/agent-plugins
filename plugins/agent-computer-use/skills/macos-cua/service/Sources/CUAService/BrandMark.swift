@@ -80,3 +80,21 @@ struct BrandTile: View {
         }
     }
 }
+
+/// The app's version for About: only ever this app's Info.plist (bundle id com.ingpoc.cua-service),
+/// never a host's (the xctest runner). Renders inject Resources/Info.plist via `info`.
+enum AppVersion {
+    static let bundleID = "com.ingpoc.cua-service"
+    nonisolated(unsafe) static var info: [String: Any]? = Bundle.main.infoDictionary
+
+    private static var ours: [String: Any]? {
+        guard let i = info, i["CFBundleIdentifier"] as? String == bundleID else { return nil }
+        return i
+    }
+    static var short: String { ours?["CFBundleShortVersionString"] as? String ?? "dev" }
+    /// Build number (installer stamps the commit count); nil when it just repeats the version.
+    static var build: String? {
+        guard let b = ours?["CFBundleVersion"] as? String, !b.isEmpty, b != short else { return nil }
+        return "(\(b))"
+    }
+}

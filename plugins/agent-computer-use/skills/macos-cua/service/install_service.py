@@ -13,7 +13,9 @@ its designated requirement is team-based, so TCC grants survive certificate rene
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import plistlib
 import re
 import shutil
 import subprocess
@@ -242,7 +244,31 @@ def create_app_bundle(binary: Path, dest: Path) -> None:
             "<key>LSUIElement</key><true/>"
             "</dict></plist>"
         )
+    stamp_version(contents / "Info.plist")
     print(f"  ✓ App bundle created at {dest}")
+
+
+PLUGIN_JSON = PLUGIN_ROOT / "plugin.json"
+
+
+def plugin_version() -> str:
+    """The single source of truth for the app version (About, Finder, notarization)."""
+    return json.loads(PLUGIN_JSON.read_text())["version"]
+
+
+def stamp_version(info_plist: Path) -> None:
+    """CFBundleShortVersionString = plugin.json version; CFBundleVersion = commit count (build)."""
+    with info_plist.open("rb") as f:
+        info = plistlib.load(f)
+    info["CFBundleShortVersionString"] = plugin_version()
+    try:
+        build = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=SERVICE_DIR,
+                               capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        build = ""
+    info["CFBundleVersion"] = build or plugin_version()
+    with info_plist.open("wb") as f:
+        plistlib.dump(info, f)
 
 
 BRAND_DIR = SERVICE_DIR.parent / "assets" / "brand"

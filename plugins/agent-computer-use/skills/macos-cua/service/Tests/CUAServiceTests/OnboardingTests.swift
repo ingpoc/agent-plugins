@@ -11,8 +11,7 @@ final class OnboardingTests: XCTestCase {
 
     override func setUp() {
         // No app bundle under xctest: point the brand tile at the repo's AppIcon.icns.
-        BrandTile.iconURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("assets/brand/AppIcon.icns")
+        BrandTests.injectApp()
     }
 
     override func tearDown() {

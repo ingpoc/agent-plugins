@@ -70,6 +70,17 @@ class InstallReleaseTests(unittest.TestCase):
         self.assertEqual(app["CFBundleIdentifier"], "com.ingpoc.cua-service", "bundle id unchanged: TCC rows stay keyed")
         self.assertEqual(app["CFBundleExecutable"], "CUAService", "pgrep -x CUAService keeps working")
 
+    def test_version_single_source(self):
+        version = inst.plugin_version()
+        app = plistlib.loads((SERVICE / "Resources" / "Info.plist").read_bytes())
+        self.assertEqual(app["CFBundleShortVersionString"], version, "Info.plist drifted from plugin.json")
+        stamped = self.tmp / "Info.plist"
+        stamped.write_bytes(plistlib.dumps({**app, "CFBundleShortVersionString": "0.0.1"}))
+        inst.stamp_version(stamped)
+        out = plistlib.loads(stamped.read_bytes())
+        self.assertEqual(out["CFBundleShortVersionString"], version, "installer stamps plugin.json's version")
+        self.assertTrue(out["CFBundleVersion"])
+
     def test_release_script_defaults_and_guards(self):
         sh = inst.SIGN_NOTARIZE.read_text()
         self.assertIn('Developer ID Application: Gurusharan Gupta (9UPQL479Z5)', sh)
