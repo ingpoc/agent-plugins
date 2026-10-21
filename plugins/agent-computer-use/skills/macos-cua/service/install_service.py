@@ -275,12 +275,34 @@ BRAND_DIR = SERVICE_DIR.parent / "assets" / "brand"
 BRAND_FILES = ("AppIcon.icns", "StatusIcon.pdf", "StatusIcon.png", "StatusIcon@2x.png", "StatusIcon@3x.png", "mark.svg")
 
 
+def build_icns(dest: Path, iconset: Path | None = None) -> bool:
+    """AppIcon.icns from AppIcon.iconset with Apple's iconutil (never icnsutil: its 16/32 px
+    icp4/icp5 entries render as noise in System Settings). False if iconutil/iconset missing."""
+    iconset = iconset or BRAND_DIR / "AppIcon.iconset"
+    iconutil = shutil.which("iconutil")
+    if not iconset.is_dir() or not iconutil:
+        return False
+    run([iconutil, "-c", "icns", str(iconset), "-o", str(dest)])
+    return dest.is_file()
+
+
 def copy_brand(resources: Path) -> None:
-    """"Island Cursor" brand: AppIcon.icns (CFBundleIconFile) + template status glyph + mark."""
+    """"Island Cursor" brand: AppIcon.icns (CFBundleIconFile, built by iconutil) + template status glyph + mark."""
     for name in BRAND_FILES:
+        if name == "AppIcon.icns" and build_icns(resources / name):
+            continue
         src = BRAND_DIR / name
         if src.is_file():
             shutil.copy2(src, resources / name)
+
+
+LSREGISTER = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+
+
+def refresh_icon_cache(app: Path) -> None:
+    """New icon visible in Finder / System Settings without a logout."""
+    subprocess.run(["touch", str(app)], check=False)
+    subprocess.run([LSREGISTER, "-f", str(app)], check=False)
 
 
 MEDIAREMOTE_SRC = SERVICE_DIR / "Vendor" / "mediaremote-adapter"
@@ -431,6 +453,7 @@ def main():
         print("Signing...")
         codesign(dest, identity, args.team)
 
+    refresh_icon_cache(dest)
     if Path(args.dest) == INSTALL_DIR:
         print(f"  ✓ Legacy path {LEGACY_DIR}: {ensure_compat_link(dest)}")
     print(f"\n✓ Agent Computer Use installed at {dest}")

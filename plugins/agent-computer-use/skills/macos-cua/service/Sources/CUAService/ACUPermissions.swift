@@ -199,51 +199,49 @@ final class PermissionCenter: ObservableObject {
         }
     }
 
-    private static var askedPostEvent: Bool { UserDefaults.standard.bool(forKey: "acu.permission.asked.postEvent") }
 
-    private static func asked(_ p: ACUPermission) -> Bool { UserDefaults.standard.bool(forKey: "acu.permission.asked." + p.rawValue) }
-    private static func markAsked(_ p: ACUPermission) { UserDefaults.standard.set(true, forKey: "acu.permission.asked." + p.rawValue) }
 
-    /// The Grant button: the native request when macOS still allows one, otherwise the pane's deep link.
+    /// The Grant button: ALWAYS the real request API first, from this (installed) process, so TCC
+    /// registers this exact app (bundle + designated requirement) and lists it in System Settings.
+    /// Only if the permission is still not granted afterwards does it deep-link to the pane.
     func request(_ p: ACUPermission) {
-        let openPane = { if let u = p.paneURL { NSWorkspace.shared.open(u) } }
+        let openPaneIfStillMissing: @MainActor () -> Void = {
+            if !PermissionProbe.status(p).satisfied, let u = p.paneURL { NSWorkspace.shared.open(u) }
+            PermissionCenter.shared.refresh()
+        }
+        // Give TCC a moment to register the request before the pane opens (it lists the app then).
+        let later = { DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { MainActor.assumeIsolated { openPaneIfStillMissing() } } }
         switch p {
         case .accessibility:
-            if !AXIsProcessTrusted() && !Self.asked(p) {
-                Self.markAsked(p)
-                let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
-                _ = AXIsProcessTrustedWithOptions([prompt: true] as CFDictionary)
-            } else if AXIsProcessTrusted() && !CGPreflightPostEventAccess() && !Self.askedPostEvent {
-                // Separate one-shot: the AX prompt must not use up the PostEvent request.
-                UserDefaults.standard.set(true, forKey: "acu.permission.asked.postEvent")
-                _ = CGRequestPostEventAccess()
-            } else { openPane() }
+            let prompt = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+            _ = AXIsProcessTrustedWithOptions([prompt: true] as CFDictionary)
+            if !CGPreflightPostEventAccess() { _ = CGRequestPostEventAccess() }
+            later()
         case .screenRecording:
-            if !Self.asked(p) { Self.markAsked(p); _ = CGRequestScreenCaptureAccess() } else { openPane() }
+            _ = CGRequestScreenCaptureAccess()
+            later()
         case .microphone:
-            if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
-                AVCaptureDevice.requestAccess(for: .audio) { _ in Task { @MainActor in PermissionCenter.shared.refresh() } }
-            } else { openPane() }
+            AVCaptureDevice.requestAccess(for: .audio) { _ in
+                Task { @MainActor in openPaneIfStillMissing() }
+            }
         case .calendars:
-            if IslandCalendarController.status == "not-determined", let ask = IslandSettingsSchema.calendarAccessAction { ask() } else { openPane() }
+            let store = EKEventStore()
+            let done: (Bool, Error?) -> Void = { _, _ in Task { @MainActor in openPaneIfStillMissing() } }
+            if #available(macOS 14.0, *) { store.requestFullAccessToEvents(completion: done) }
+            else { store.requestAccess(to: .event, completion: done) }
         case .focus:
-            if INFocusStatusCenter.default.authorizationStatus == .notDetermined, let ask = IslandSettingsSchema.focusAccessAction { ask() } else { openPane() }
+            INFocusStatusCenter.default.requestAuthorization { _ in Task { @MainActor in openPaneIfStillMissing() } }
         case .loginItem:
             do { try SMAppService.mainApp.register() } catch { SamanthaActivityLog.startup(phase: "login_item", status: "fail", detail: "\(error)") }
             if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
+            refresh()
         default:
             guard let bid = p.bundleID else { return }
             Task.detached(priority: .userInitiated) {
-                await Self.prewarmAutomation(bid)
-                let after = PermissionProbe.automation(bid, ask: false)
-                await MainActor.run {
-                    if after == .missing { openPane() }   // denied earlier: only System Settings can change it
-                    PermissionCenter.shared.refresh()
-                }
+                await Self.prewarmAutomation(bid)   // AEDeterminePermissionToAutomateTarget(ask: true)
+                await MainActor.run { openPaneIfStillMissing() }
             }
-            return
         }
-        refresh()
     }
 
     /// One harmless, consent-gated Apple Event per target: launch it hidden if needed, then

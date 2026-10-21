@@ -55,6 +55,50 @@ final class BrandTests: XCTestCase {
         XCTAssertEqual(plist["CFBundleIconFile"] as? String, "AppIcon")
     }
 
+    /// Draws the icon's 16/32 px representation as Finder / System Settings would.
+    static func pixels(_ img: NSImage, size: Int) -> [Double]? {
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8,
+                                         samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                         bytesPerRow: size * 4, bitsPerPixel: 32) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        img.draw(in: NSRect(x: 0, y: 0, width: size, height: size), from: .zero, operation: .copy, fraction: 1)
+        NSGraphicsContext.restoreGraphicsState()
+        guard let data = rep.bitmapData else { return nil }
+        return (0..<(size * size * 4)).map { Double(data[$0]) / 255 }
+    }
+
+    /// Mean |difference| between the icns's own `size` px entry (icp4 / icp5, what System Settings
+    /// shows at 16 / 32) and the 1024 px master downscaled to `size`. Entries extracted with iconutil.
+    static func iconNoise(_ icns: URL, size: Int) throws -> Double {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("cua-icns-\(UUID().uuidString).iconset")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
+        p.arguments = ["-c", "iconset", icns.path, "-o", dir.path]
+        try p.run(); p.waitUntilExit()
+        guard p.terminationStatus == 0,
+              let entry = NSImage(contentsOf: dir.appendingPathComponent("icon_\(size)x\(size).png")) else { return 1 }
+        let master = try XCTUnwrap(NSImage(contentsOf: brand.appendingPathComponent("AppIcon.iconset/icon_512x512@2x.png")))
+        let a = try XCTUnwrap(pixels(entry, size: size)), b = try XCTUnwrap(pixels(master, size: size))
+        return zip(a, b).map { abs($0 - $1) }.reduce(0, +) / Double(a.count)
+    }
+
+    /// The 16 and 32 px entries must look like the master, not noise (icnsutil wrote broken icp4/icp5).
+    func testSmallIconSizesAreNotNoisy() throws {
+        let icns = Self.brand.appendingPathComponent("AppIcon.icns")
+        for size in [16, 32] {
+            let noise = try Self.iconNoise(icns, size: size)
+            XCTAssertLessThan(noise, 0.2, "AppIcon.icns \(size) px differs from the master by \(noise): garbled small icon")
+        }
+        // Optional negative control: the known-bad icnsutil build must fail the same check.
+        if let bad = ProcessInfo.processInfo.environment["CUA_BAD_ICNS"] {
+            let noise = try Self.iconNoise(URL(fileURLWithPath: bad), size: 32)
+            XCTAssertGreaterThan(noise, 0.2, "negative control should be noisy")
+        }
+    }
+
     func testMarkPathsMatchSVG() throws {
         let svg = try String(contentsOf: Self.brand.appendingPathComponent("mark.svg"), encoding: .utf8)
         let ds = try NSRegularExpression(pattern: #"<path[^>]*\sd="([^"]*)""#)

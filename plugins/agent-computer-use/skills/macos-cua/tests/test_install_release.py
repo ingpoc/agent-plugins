@@ -69,6 +69,17 @@ class InstallReleaseTests(unittest.TestCase):
             self.assertTrue(helper.get(k), k)
         self.assertEqual(app["CFBundleIdentifier"], "com.ingpoc.cua-service", "bundle id unchanged: TCC rows stay keyed")
         self.assertEqual(app["CFBundleExecutable"], "CUAService", "pgrep -x CUAService keeps working")
+        # TCC / System Settings label = LaunchServices "name" = CFBundleName (not the display name).
+        self.assertEqual(app["CFBundleName"], "Agent Computer Use")
+        self.assertEqual(app["CFBundleDisplayName"], "Agent Computer Use")
+
+    @unittest.skipUnless(shutil.which("iconutil"), "macOS iconutil")
+    def test_icns_built_by_iconutil(self):
+        out = self.tmp / "AppIcon.icns"
+        self.assertTrue(inst.build_icns(out))
+        self.assertGreater(out.stat().st_size, 100_000)
+        src = (SERVICE / "install_service.py").read_text()
+        self.assertNotIn('"icnsutil"', src)
 
     def test_version_single_source(self):
         version = inst.plugin_version()
