@@ -189,6 +189,22 @@ def apply_screenshot_policy(payload, *, before, after, arguments, fetch=None):
 
 
 
+NEW_DOCUMENT_KEYS = {"cmd+n", "command+n", "cmd+t", "command+t"}
+NEW_DOCUMENT_SETTLE_S = 0.6
+
+
+def new_document_split(arguments: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+    """(steps through the first cmd+n/cmd+t, remaining steps) when something follows it."""
+    steps = arguments.get("steps")
+    if not isinstance(steps, list):
+        return None
+    for index, step in enumerate(steps):
+        key = str(step.get("key") or "").lower().replace(" ", "") if isinstance(step, dict) else ""
+        if key in NEW_DOCUMENT_KEYS and index + 1 < len(steps):
+            return steps[: index + 1], steps[index + 1:]
+    return None
+
+
 NO_WINDOW_HINT = "App has no open window: cua_act op=open with just app shows it (no path), then act."
 
 
@@ -327,6 +343,21 @@ class CUABackend:
                 arguments = {**arguments, "steps": rest}
             else:
                 arguments = {k: v for k, v in arguments.items() if k not in ("op", "action")}
+        split = new_document_split(arguments)
+        if split is not None:
+            # cmd+n then typing in ONE plan pins every step to the window observed before the
+            # plan (the old document), so CUAService rightly refuses the type as
+            # type_refused_stale_document. Open the new window first, then plan the rest
+            # against it, keeping the after-new-document guard on the first step.
+            head, rest = split
+            opened = self.act(app, {"steps": head, "allow_unverified": True})
+            if not opened.get("dispatched"):
+                return opened
+            time.sleep(NEW_DOCUMENT_SETTLE_S)
+            follow = {k: v for k, v in arguments.items() if k != "steps"}
+            follow["steps"] = rest
+            follow["_after_new_document"] = True
+            return self.act(app, follow)
         effectful = has_ui_effect(arguments)
         expect = arguments.get("expect")
         allow_unverified = arguments.get("allow_unverified") is True
@@ -350,7 +381,7 @@ class CUABackend:
             # pre-plan snapshot — sequential _one re-resolves each fill (r9 #3).
             use_execute_plan = hasattr(client, "execute_plan") and not plan_must_be_sequential(steps)
             native_steps: list[dict[str, Any]] = []
-            after_new = False
+            after_new = arguments.get("_after_new_document") is True
             elements_state: dict[str, Any] | None = None
             plan_window = None
             for step in steps:
@@ -416,7 +447,7 @@ class CUABackend:
                     client, app, disableDiff=True, includeScreenshot=False, includeElements=True
                 )
                 results = []
-                after_new = False
+                after_new = arguments.get("_after_new_document") is True
                 for step in steps:
                     if not isinstance(step, dict):
                         results.append({"ok": False, "error": "step must be an object"})

@@ -90,5 +90,32 @@ class OpenAppTests(unittest.TestCase):
         self.assertIn("Unable to find application", out["error"])
 
 
+class NewDocumentSplitTests(unittest.TestCase):
+    def test_split_only_when_steps_follow_the_new_document_key(self):
+        steps = [{"op": "key", "key": "cmd+n"}, {"op": "type_text", "text": "hi"}]
+        self.assertEqual(compact_backend.new_document_split({"steps": steps}), (steps[:1], steps[1:]))
+        self.assertIsNone(compact_backend.new_document_split({"steps": steps[:1]}))
+        self.assertIsNone(compact_backend.new_document_split({"steps": steps[1:]}))
+        self.assertIsNone(compact_backend.new_document_split({"op": "key", "key": "cmd+n"}))
+
+    def test_type_after_cmd_n_runs_as_a_second_plan_with_the_new_document_guard(self):
+        backend = FakeBackend([(WINDOW, 2)])
+        seen = []
+        real_native = compact_backend.CUABackend._native_step
+
+        def spy(self, step, *, after_new_document=False, elements_state=None):
+            seen.append((step.get("op"), after_new_document))
+            return real_native(self, step, after_new_document=after_new_document, elements_state=elements_state)
+
+        with patch.object(compact_backend, "NEW_DOCUMENT_SETTLE_S", 0), \
+                patch.object(compact_backend.CUABackend, "_native_step", spy):
+            out = backend.act("TextEdit", {
+                "steps": [{"op": "key", "key": "cmd+n"}, {"op": "type_text", "text": "Samantha test"}],
+                "expect": "done",
+            })
+        self.assertEqual(len(backend.plans), 2, out)  # cmd+n plan, then the typing plan
+        self.assertEqual(seen, [("key", False), ("type_text", True)])
+
+
 if __name__ == "__main__":
     unittest.main()

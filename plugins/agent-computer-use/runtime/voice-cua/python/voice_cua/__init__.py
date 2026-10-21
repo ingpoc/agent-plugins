@@ -22,7 +22,10 @@ Computer-use rules (same as Agent Computer Use MCP):
   in TextEdit uses app=TextEdit directly, never a preliminary Finder open.
 - Prefer explicit op values for scroll, drag, select_text, focus, open, and
   reveal. Batch same-app operations in steps so CUAService executes one plan.
-- Launch/raise regular apps by name (Calculator, Music, TextEdit, Finder): cua_act with app only auto-focuses; or use label/key steps. Never cua_act on System Events or other no-window processes.
+- Launch/raise regular apps by name (Calculator, Music, TextEdit, Finder): cua_act op=open with app only (no path) launches it or shows its window — also when cua_state comes back empty. Never cua_act on System Events or other no-window processes.
+- Writing in a document app (TextEdit, Notes, Pages): start a new document in one act
+  (steps: key cmd+n, then type_text) unless the user names an existing document. Never
+  replace or edit text already in an open document the user did not name.
 - Media keys (brightness, volume): cua_act on the frontmost regular app with key F1/F2 or brightness_up — not System Events.
 - If cua_act returns ok:false, read error and hint; do not tell the user "done". Retry
   only after settled state shows the intended outcome is still absent, and only
