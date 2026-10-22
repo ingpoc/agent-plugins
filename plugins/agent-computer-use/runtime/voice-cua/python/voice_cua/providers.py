@@ -318,8 +318,12 @@ class LiveProvider(VoiceProvider):
         del self.history[:-HISTORY_MAX]
 
     def _on_heard(self, text: str) -> None:
+        if getattr(self, "_credential_capture", False):
+            return
         from voice_cua.island_facade import island_publish
+        from voice_cua.workflow_store import begin_engagement
 
+        begin_engagement()
         self._remember("user", text)
         # 'You:' line in voice.log plus the text (capped) in the local activity log.
         log_event("user_transcript", chars=len(text), text=text[:240], provider="openai-live")
@@ -426,7 +430,7 @@ class LiveProvider(VoiceProvider):
         return out + [self.escalate_tool()]
 
     def _start(self, session: dict[str, Any]) -> dict[str, Any]:
-        from voice_cua import SYSTEM_INSTRUCTIONS
+        from voice_cua import SYSTEM_INSTRUCTIONS, session_instructions
 
         rate = (((session.get("audio") or {}).get("input") or {}).get("format") or {}).get("rate", 24000)
         if self._forking:
@@ -442,7 +446,7 @@ class LiveProvider(VoiceProvider):
             "audio": {"format": {"type": "audio/pcm", "rate": rate}, "output": {"voice": self.voice}},
             "delegation": {"type": "responses", "responses": {
                 "model": self.bulk,
-                "instructions": SYSTEM_INSTRUCTIONS + ROUTING_INSTRUCTIONS,
+                "instructions": str(session.get("instructions") or session_instructions()) + ROUTING_INSTRUCTIONS,
                 "tools": self._backend_tools(list(session.get("tools") or [])),
                 "tool_choice": "auto",
                 "parallel_tool_calls": False,

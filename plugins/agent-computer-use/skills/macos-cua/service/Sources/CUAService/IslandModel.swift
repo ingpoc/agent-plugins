@@ -813,7 +813,18 @@ final class IslandModel: ObservableObject {
 
     /// Approval cards and Samantha's confirm hold the card open; choice cards show a compact
     /// needs-you signal and open on click (they stay open while Guru is typing).
-    var isSticky: Bool { (agentApproval.map { !$0.isChoice } ?? false) || kind == "confirm" }
+    @Published private(set) var credentialRequest: CredentialRequest?
+
+    func setCredentialRequest(_ request: CredentialRequest?) {
+        credentialRequest = request
+        cardMode = .samantha
+        userOpened = request != nil
+        forceCompact = false
+        if request == nil { endTextEntry() }
+        refresh(now: Date())
+    }
+
+    var isSticky: Bool { credentialRequest != nil || (agentApproval.map { !$0.isChoice } ?? false) || kind == "confirm" }
 
     /// Choice text field in use (the panel is key only while this is true — set by a click).
     @Published private(set) var textEntryActive = false
@@ -826,7 +837,7 @@ final class IslandModel: ObservableObject {
     /// The panel becomes key ONLY from a click: into the reply field, or the click that opens a
     /// choice card (keys 1–6 / Return / Esc then work). Peeks and hover never make it key.
     func beginTextEntry(focusField: Bool = true) {
-        guard cardOpen, isChoiceCard else { return }
+        guard cardOpen, isChoiceCard || credentialRequest != nil else { return }
         if focusField, agentApproval?.allow_text == true { fieldFocusRequested = true }
         guard !textEntryActive else { return }
         textEntryActive = true
@@ -851,6 +862,7 @@ final class IslandModel: ObservableObject {
 
     /// 176 normally; a choice card grows to 220 (and a little more for a 2–3 line reply).
     var cardHeight: CGFloat {
+        if credentialRequest != nil { return 292 }
         if cardMode == .agents {
             return IslandAgentRows.cardHeight(rows: listRows.count, footer: listRows.count > IslandAgentRows.maxRows)
         }
@@ -919,6 +931,10 @@ final class IslandModel: ObservableObject {
 
     /// Key handling while the panel is key (choice card only). Returns true when consumed.
     func handleKey(keyCode: UInt16, characters: String, shift: Bool, command: Bool = false) -> Bool {
+        if credentialRequest != nil {
+            if keyCode == 53 { CredentialEntryController.shared.cancelActive(); return true }
+            return false
+        }
         if keyboardActive && !textEntryActive && !command { return handleNavKey(keyCode: keyCode, shift: shift) }
         guard isChoiceCard, cardOpen, textEntryActive, !command else { return false }
         switch keyCode {
@@ -945,7 +961,7 @@ final class IslandModel: ObservableObject {
         if let n = noticeUntil, now >= n { noticeUntil = nil; notice = nil }
         let noticeActive = notice != nil && agentApproval == nil
         let live = liveActivities(now: now)
-        let next = Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
+        let next = credentialRequest != nil ? .needsYou : Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
                                      notice: noticeActive, hud: hud != nil, peek: peek != nil, live: live)
         let resting = Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
                                         notice: noticeActive, live: live)
@@ -975,7 +991,7 @@ final class IslandModel: ObservableObject {
         let choicePeek = agentApproval?.isChoice == true && (choicePeekUntil.map { now < $0 } ?? false)
         let wasOpen = cardOpen
         let idleSamantha = (next == .idle || next == .doneSettled) && cardMode == .samantha
-        let open = !forceCompact && !(idleSamantha && !isSticky)
+        let open = next != .hud && next != .peek && !forceCompact && !(idleSamantha && !isSticky)
             && (userOpened || isSticky || (peekUntil.map { now < $0 } ?? false) || choicePeek
                 || (next == .expired && noticeUntil != nil))
         if !open && idleSamantha { userOpened = false }
@@ -1200,6 +1216,13 @@ final class IslandModel: ObservableObject {
                               title: titled("Needs you", skip: ["Confirm"]), subtitle: c.detail,
                               controls: .decision(secondary: ("Deny", .deny), primary: ("Allow", .allow), destructive: false))
         case .error:
+            if c.title == "Action not confirmed" {
+                let controls: IslandCardControl = c.app.isEmpty
+                    ? .icons([("xmark", "Dismiss", .dismiss)])
+                    : .decision(secondary: ("Dismiss", .dismiss), primary: ("Check app", .show(c.app)), destructive: false)
+                return IslandCard(art: .tile(symbol: "questionmark", tint: "amber"), title: c.title,
+                                  subtitle: "The action may have happened. Check the app before trying again.", controls: controls)
+            }
             return IslandCard(art: .tile(symbol: "xmark", tint: "red"), title: titled(IslandCopy.fallbackError),
                               subtitle: c.detail.isEmpty ? "Tap Retry or ask me again." : c.detail,
                               controls: .decision(secondary: ("Dismiss", .dismiss), primary: ("Retry", .retry), destructive: false))

@@ -169,7 +169,7 @@ final class IslandTests: XCTestCase {
         XCTAssertNil(IslandCopy.humanError("Audio content of 3200ms is already shorter than 4000ms"))
         XCTAssertEqual(IslandCopy.humanError("label not found: Sign In", target: "Calculator"), "Couldn't click Calculator")
         XCTAssertEqual(IslandCopy.humanError("websocket connection closed"), "Connection dropped, reconnecting")
-        XCTAssertEqual(IslandCopy.humanError("Traceback (most recent call last): KeyError 'x'"), "Missed that, retrying")
+        XCTAssertEqual(IslandCopy.humanError("Traceback (most recent call last): KeyError 'x'"), "Something went wrong")
         XCTAssertEqual(IslandCopy.humanError("Couldn't close Comet"), "Couldn't close Comet")
         let m = IslandModel()
         m.apply(IslandSnapshot(kind: "listening", title: "Listening"))
@@ -177,7 +177,7 @@ final class IslandTests: XCTestCase {
                                               detail: "Audio content of 10ms is already shorter than 20ms")))
         XCTAssertEqual(m.kind, "listening", "benign error never shows")
         m.apply(IslandSnapshot(kind: "error", title: "Failed", detail: "RPC -32000 something raw"))
-        XCTAssertEqual(m.title, "Missed that, retrying")
+        XCTAssertEqual(m.title, "Something went wrong")
         XCTAssertEqual(m.detail, "", "raw text is logged, not shown")
     }
 

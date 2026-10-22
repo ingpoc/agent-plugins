@@ -8,9 +8,7 @@ from urllib.parse import urlsplit
 from typing import Any
 
 from voice_cua.catalog import (
-    keychain_put,
     load_catalog,
-    upsert_key,
 )
 from voice_cua.cua_bridge import get_backend, get_tool_schemas, redact_for_model
 from voice_cua.comet_bridge import (
@@ -28,6 +26,8 @@ from voice_cua.keychain_access import describe_ref, enrich_items, fetch_value, l
 from voice_cua.activity_log import log_event, log_exception, log_tool_result, log_tool_start
 from voice_cua.island_facade import island_confirm, island_publish
 from voice_cua.risk_gate import GATE, fingerprint
+from voice_cua.credential_capture import capture_credential
+from voice_cua import workflow_store
 
 RISKY_HINTS = (
     "delete",
@@ -122,6 +122,7 @@ TOOL_GROUPS = {
     # Lazy-loaded: never used in normal turns, ~850 tokens on every response.
     "secrets": ("secrets_list", "secrets_label", "secrets_get", "secrets_put", "secrets_inject",
                 "secrets_provide", "confirm_risky"),
+    "workflows": ("workflow_read", "workflow_save"),
     # Loaded by the risk gate the moment a risky action is refused.
     "confirm": ("confirm_risky",),
 }
@@ -186,8 +187,8 @@ def _lazy_tools() -> list[dict[str, Any]]:
             "type": "function",
             "name": "secrets_put",
             "description": (
-                "Store/update Keychain item + catalog row. Requires confirm. "
-                "Pass value only when user just dictated it; prefer interactive CLI otherwise."
+                "Open the Dynamic Island secure entry form to save a password or API key in login Keychain. "
+                "Pass metadata only; the user enters the value in the native form and approves Save."
             ),
             "parameters": {
                 "type": "object",
@@ -198,9 +199,9 @@ def _lazy_tools() -> list[dict[str, Any]]:
                     "label": {"type": "string"},
                     "service": {"type": "string"},
                     "account": {"type": "string"},
-                    "value": {"type": "string"},
                 },
-                "required": ["id", "label", "service", "account"],
+                "additionalProperties": False,
+                "required": ["id", "label", "service"],
             },
         },
         {
@@ -288,14 +289,18 @@ def tool_definitions(
             "parameters": compact_act_parameters(cua["act"]["inputSchema"]),
         },
     ]
-    if wanted != set(TOOL_GROUPS["secrets"]):
+    tools.append({"type": "function", "name": "system_volume",
+        "description": "Read or adjust the Mac output volume one step, with actual system-level readback. Use instead of Settings sliders or guessed function keys. Only claim a change when verified; at_limit means already at the limit.",
+        "parameters": {"type": "object", "properties": {"direction": {"type": "string", "enum": ["read", "up", "down"]}},
+                       "required": ["direction"], "additionalProperties": False}})
+    if not all(set(TOOL_GROUPS[group]).issubset(wanted) for group in ("secrets", "workflows")):
         tools.append({
             "type": "function",
             "name": "more_tools",
-            "description": "Load extra tools. secrets: Keychain passwords/API keys (list, fill into an app, copy, store).",
+            "description": "Load extra tools. secrets: secure Island entry/Keychain. workflows: read or create/repair task procedures.",
             "parameters": {
                 "type": "object",
-                "properties": {"group": {"type": "string", "enum": ["secrets"]}},
+                "properties": {"group": {"type": "string", "enum": ["secrets", "workflows"]}},
                 "required": ["group"],
             },
         })
@@ -309,7 +314,7 @@ def tool_definitions(
             "required": ["title"],
         },
     })
-    tools.extend(t for t in _lazy_tools() if t["name"] in wanted)
+    tools.extend(t for t in _lazy_tools() + _workflow_tools() if t["name"] in wanted)
     active = comet_is_active() if comet_active is None else comet_active
     # comet_begin is always offered: while the user's window is open it
     # re-attaches to that same window (goto) instead of opening another.
@@ -397,6 +402,9 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         "secrets_provide": _secrets_provide,
         "more_tools": _more_tools,
         "show_details": _show_details,
+        "workflow_read": workflow_store.read_workflow,
+        "workflow_save": workflow_store.save_workflow,
+        "system_volume": _system_volume,
     }
     fn = handlers.get(name)
     if not fn:
@@ -405,8 +413,13 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     args = arguments or {}
     app = str(args.get("app") or "")
     log_tool_start(name, args)
+    blocked = workflow_store.mutation_guard(name, args)
+    if blocked is not None:
+        return blocked
     try:
         result = fn(args)
+        if name != "system_volume" or args.get("direction", "read") != "read":
+            workflow_store.note_failure(name, result if isinstance(result, dict) else {"ok": False})
         log_tool_result(name, result if isinstance(result, dict) else {"ok": False}, app=app)
         return result
     except Exception as exc:  # noqa: BLE001 — surface to model
@@ -478,7 +491,7 @@ def _cua_act(args: dict[str, Any]) -> dict[str, Any]:
         island_publish("acting", title="Needs your OK", app=app, detail=step)
     else:
         _note_failure(step_fp, out)
-        err = str(out.get("error") or "")
+        err = str(out.get("error") or out.get("error_type") or "")
         # Raw error goes in; IslandBus maps it to human copy and logs the raw text.
         island_publish("error", title=err or "error", app=app, step=step)
         _schedule_listening_reset()
@@ -549,6 +562,7 @@ def reset_session_state() -> None:
     with _STEP_LOCK:
         _STEP_FAILS.clear()
     GATE.reset()
+    workflow_store.reset_session()
 
 
 SHOW_DETAILS_MAX = 400
@@ -566,7 +580,7 @@ def _show_details(args: dict[str, Any]) -> dict[str, Any]:
 def _more_tools(args: dict[str, Any]) -> dict[str, Any]:
     group = str(args.get("group") or "").strip().lower()
     if group not in TOOL_GROUPS or group == "confirm":
-        return {"ok": False, "error": "unknown group", "hint": "group: secrets"}
+        return {"ok": False, "error": "unknown group", "hint": "group: secrets or workflows"}
     return {"ok": True, "group": group, "loaded": list(TOOL_GROUPS[group])}
 
 
@@ -753,21 +767,24 @@ def _secrets_get(args: dict[str, Any]) -> dict[str, Any]:
 
 def _run_inject(item: dict[str, str], app: str, navigate: Any) -> dict[str, Any]:
     name = _display_name(item)
-    secret = fetch_value(item)
     backend = get_backend()
     if isinstance(navigate, list) and navigate:
         nav = backend.act(app, {"app": app, "steps": navigate})
         if not isinstance(nav, dict) or nav.get("ok") is not True:
             clear_clipboard()
             return {"ok": False, "error": "navigate failed", "display": name}
+    secret = fetch_value(item)
     try:
-        clipboard_paste_secret(app, secret, backend=backend)
+        result = clipboard_paste_secret(app, secret, backend=backend)
     finally:
         secret = ""
         clear_clipboard()
         time.sleep(0.05)
         clear_clipboard()
-    return {"ok": True, "display": name, "app": app, "injected": True}
+    verified = isinstance(result, dict) and result.get("ok") is True and result.get("verified") is True
+    return {"ok": verified, "display": name, "app": app, "injected": verified,
+            "dispatched": bool(isinstance(result, dict) and result.get("dispatched")), "verified": verified,
+            **({} if verified else {"error": "Credential paste was not confirmed.", "error_type": "injection_unverified"})}
 
 
 def _secrets_inject(args: dict[str, Any]) -> dict[str, Any]:
@@ -825,19 +842,28 @@ def _secrets_provide(args: dict[str, Any]) -> dict[str, Any]:
 
 
 def _secrets_put(args: dict[str, Any]) -> dict[str, Any]:
-    refused = GATE.check("secrets_put", args, f"Store Keychain secret {args.get('label') or args.get('id')}?")
-    if refused is not None:
-        return refused
-    cat = load_catalog()
-    row = upsert_key(cat, args)
-    value = args.get("value")
-    if value is not None and str(value) == "":
-        value = None
-    keychain_put(
-        service=row["service"],
-        account=row["account"],
-        label=row["label"],
-        value=str(value) if value is not None else None,
-    )
-    island_publish("secrets", title="Stored", detail=f"label={row['label']}")
-    return {"ok": True, "id": row["id"], "label": row["label"], "stored": True}
+    return capture_credential(args)
+
+
+def _workflow_tools() -> list[dict[str, Any]]:
+    return [
+        {"type": "function", "name": "workflow_read",
+         "description": "Read Samantha workflow trigger index (no slug), authoring procedure (slug authoring), or one matched workflow reference. Read before use or repair.",
+         "parameters": {"type": "object", "properties": {"slug": {"type": "string"}}, "additionalProperties": False}},
+        {"type": "function", "name": "workflow_save",
+         "description": "Create/update one workflow reference and its trigger. Repair the faulty owner step immediately before retry; expected_revision comes from workflow_read, empty for create. No credentials in content.",
+         "parameters": {"type": "object", "properties": {key: {"type": "string"} for key in
+             ("slug", "title", "trigger", "content", "expected_revision")},
+             "required": ["slug", "title", "trigger", "content", "expected_revision"], "additionalProperties": False}},
+    ]
+
+
+def _system_volume(args: dict[str, Any]) -> dict[str, Any]:
+    direction = args.get("direction")
+    if direction not in {"up", "down", "read"}:
+        return {"ok": False, "error": "Use up, down or read."}
+    result = get_backend().volume(direction)
+    if direction != "read":
+        island_publish("done" if result.get("ok") else "error",
+                       title="Volume confirmed" if result.get("ok") else str(result.get("error_type") or "volume_unverified"))
+    return result

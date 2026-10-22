@@ -268,6 +268,7 @@ final class IslandHUDController {
         unbindDevice()
         guard let dev = SystemAudio.defaultOutput() else { return }
         device = dev
+        if let v = SystemAudio.volume(dev) { lastShown = (v, SystemAudio.muted(dev)) }
         let block: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
             Task { @MainActor in self?.deviceLevelChanged() }
         }
@@ -292,6 +293,10 @@ final class IslandHUDController {
     private func deviceLevelChanged() {
         guard volumeEnabled, Date() > suppressObserverUntil, let dev = device, let v = SystemAudio.volume(dev) else { return }
         let m = SystemAudio.muted(dev)
+        if model?.kind == "reconnecting" || model?.title == "Connecting" || model?.credentialRequest != nil {
+            lastShown = (v, m)
+            return
+        }
         if let l = lastShown, abs(l.0 - v) < 0.004, l.1 == m { return }
         show(.init(kind: .volume, value: v, muted: m))
     }

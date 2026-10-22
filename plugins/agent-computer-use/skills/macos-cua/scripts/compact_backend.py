@@ -28,6 +28,7 @@ from compact_form_fills import (
     fill_value_from_step,
     has_ui_effect,
     is_app_open_step,
+    new_document_split,
     is_label_fill_step,
     observed_window_id,
     plan_must_be_sequential,
@@ -45,20 +46,7 @@ META_CLIENT_CAPS = "io.modelcontextprotocol/clientCapabilities"
 META_SERVER_INFO = "io.modelcontextprotocol/serverInfo"
 TOOL_NAMES = ("state", "act")
 INSTRUCTIONS = (SCRIPT_DIR / "compact_instructions.txt").read_text()
-NEW_DOCUMENT_KEYS = {"cmd+n", "command+n", "cmd+t", "command+t"}
 NEW_DOCUMENT_SETTLE_S = 0.6
-
-
-def new_document_split(arguments: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
-    """(steps through the first cmd+n/cmd+t, remaining steps) when something follows it."""
-    steps = arguments.get("steps")
-    if not isinstance(steps, list):
-        return None
-    for index, step in enumerate(steps):
-        key = str(step.get("key") or "").lower().replace(" ", "") if isinstance(step, dict) else ""
-        if key in NEW_DOCUMENT_KEYS and index + 1 < len(steps):
-            return steps[: index + 1], steps[index + 1:]
-    return None
 
 
 NO_WINDOW_HINT = "App has no open window: cua_act op=open with just app shows it (no path), then act."
@@ -94,6 +82,12 @@ class CUABackend:
             if not retry:
                 raise
             return fn(self._cua())
+
+    def volume(self, direction: str) -> dict[str, Any]:
+        return self._rpc(lambda client: client.call("system_volume", {"direction": direction}, retry=False), retry=False)
+
+    def credential(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        return self._rpc(lambda client: client.call("credential_" + operation, arguments, retry=False), retry=False)
 
     def state(self, app: str, **kwargs: Any) -> dict[str, Any]:
         max_elements = int(kwargs.get("max_elements") or DEFAULT_MAX)

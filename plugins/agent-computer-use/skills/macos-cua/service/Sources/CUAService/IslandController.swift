@@ -10,6 +10,7 @@ final class IslandController {
     private var gateway: URL
     /// Voice helper control token (set by ServiceDelegate; empty = helper not launched by us).
     var controlToken: () -> String = { "" }
+    var onStopListening: (() -> Void)?
     private var last: IslandSnapshot?
     private let model = IslandModel()
     private let menuBarPanel = SamanthaMenuBarIslandPanel()
@@ -76,6 +77,11 @@ final class IslandController {
             Task { await self?.handle(action) }
         }
         menuBarPanel.attach(model: model)
+        SystemVolume.onChange = { [weak self] state in self?.model.showHUD(state) }
+        CredentialEntryController.shared.onChange = { [weak self] request in
+            self?.model.setCredentialRequest(request)
+            self?.menuBarPanel.updateCapturePrivacy()
+        }
         model.onOpenSettings = { IslandSettingsWindowController.shared.showSettings() }
         hub.onSnapshot = { [weak self] snap in self?.ingest(snap) }
         nowPlaying.onChange = { [weak self] in self?.pushNowPlaying() }
@@ -128,6 +134,7 @@ final class IslandController {
     }
 
     func shutdown() {
+        CredentialEntryController.shared.cancelActive()
         hubServer.stop()
         socketServer.stop()
         IslandHub.boundSocketPath = nil
@@ -247,7 +254,9 @@ final class IslandController {
             hub.answerChoice(id: id, values: values, text: text, via: "island-" + via)
         case .choiceDismiss(let id):
             hub.dismissChoice(id: id)
-        case .stopListening, .cancel, .stopSpeaking, .replay, .stopTask, .retry:
+        case .stopListening:
+            onStopListening?()
+        case .cancel, .stopSpeaking, .replay, .stopTask, .retry:
             // Samantha's own card controls: the voice gateway runs them on her live session.
             let ok = await postAction(String(describing: action))
             if !ok { NSSound.beep() }
@@ -447,6 +456,7 @@ final class IslandController {
 
     /// Samantha stopped: drop her state; the island stays up for other sources.
     func stopStreaming() {
+        CredentialEntryController.shared.cancelActive()
         voiceSessionActive = false
         hub.samanthaActive = false
         loggedListeningReady = false

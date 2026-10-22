@@ -33,14 +33,15 @@ ERROR_COPY: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"no window", re.I), "No {target} window"),
     (re.compile(r"user denied|denied", re.I), "Stopped — you said no"),
     (re.compile(r"comet.*(unavailable|busy)|extension", re.I), "Comet isn't available"),
-    (re.compile(r"verif|unverified|expect", re.I), "Missed that, retrying"),
+    (re.compile(r"verif|unverified|expect", re.I), "Action not confirmed"),
+    (re.compile(r"retry cap", re.I), "Action stopped after failures"),
     (re.compile(r"timeout|timed out", re.I), "That took too long"),
     (re.compile(r"config|invalid_request|invalid_value|realtime", re.I), "Voice hiccup, still here"),
 )
-FALLBACK_ERROR = "Missed that, retrying"
+FALLBACK_ERROR = "Something went wrong"
 
 HUMAN_COPY = frozenset(
-    {FALLBACK_ERROR, "Can't hear you, check mic", "Connection dropped, reconnecting", "Stopped — you said no", "Comet isn't available",
+    {FALLBACK_ERROR, "Action not confirmed", "Action stopped after failures", "Can't hear you, check mic", "Connection dropped, reconnecting", "Stopped — you said no", "Comet isn't available",
      "That took too long", "Voice hiccup, still here"}
 )
 

@@ -323,7 +323,7 @@ class IslandCopyContractTests(unittest.TestCase):
         self.assertIsNone(human_error("Audio content of 3200ms is already shorter than 4000ms"))
         self.assertEqual(human_error("label not found", target="Calculator"), "Couldn't click Calculator")
         self.assertEqual(human_error("websocket connection closed"), "Connection dropped, reconnecting")
-        self.assertEqual(human_error("KeyError: 'x' at line 3"), "Missed that, retrying")
+        self.assertEqual(human_error("KeyError: 'x' at line 3"), "Something went wrong")
 
     def test_bus_maps_errors_and_drops_benign(self):
         from voice_cua.island_state import IslandBus
@@ -334,7 +334,7 @@ class IslandCopyContractTests(unittest.TestCase):
                                       detail="Audio content of 5ms is already shorter than 9ms"))
         self.assertEqual(bus.state.kind, "listening")
         bus.publish("error", title="Failed", detail="RPC -32000 raw trace")
-        self.assertEqual(bus.state.title, "Missed that, retrying")
+        self.assertEqual(bus.state.title, "Something went wrong")
         self.assertEqual(bus.state.detail, "")
         snap = bus.publish("acting", title="Searching for the best pizza places near me", expanded=True)
         self.assertEqual(snap.title, "Searching for the best pizza")

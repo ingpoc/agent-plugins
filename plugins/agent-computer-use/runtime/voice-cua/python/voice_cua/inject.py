@@ -19,4 +19,4 @@ def clipboard_paste_secret(app: str, secret: str, backend: Any) -> dict[str, Any
     """Put secret on clipboard, Cmd+V into app, caller must clear clipboard."""
     set_clipboard(secret)
     time.sleep(0.05)
-    return backend.act(app, {"app": app, "key": "cmd+v"})
+    return backend.act(app, {"app": app, "key": "cmd+v", "allow_unverified": True})

@@ -19,7 +19,7 @@ import time
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from voice_cua import SYSTEM_INSTRUCTIONS
+from voice_cua import SYSTEM_INSTRUCTIONS, session_instructions
 from voice_cua.activity_log import log_event, log_usage, tool_context
 from voice_cua.activity_log import log_exception as _log_exception
 from voice_cua.cua_bridge import hide_agent_cursor
@@ -115,7 +115,7 @@ def build_session_update(
     session: dict[str, Any] = {
         "type": "realtime",
         "output_modalities": ["text"] if text_only else ["audio"],
-        "instructions": SYSTEM_INSTRUCTIONS,
+        "instructions": session_instructions(),
         "tools": tool_definitions(comet_active=comet_active, groups=groups),
         "tool_choice": "auto",
         "parallel_tool_calls": False,
@@ -548,6 +548,8 @@ class RealtimeSession:
 
     def _send(self, event: dict[str, Any]) -> bool:
         """Send one loop (Realtime-dialect) event through the provider adapter."""
+        if getattr(self, "_credential_capture", False) and event.get("type") == "input_audio_buffer.append":
+            return False
         if self._dormant.is_set():
             et = event.get("type")
             if et != "input_audio_buffer.append" or _has_sound(str(event.get("audio") or "")):
@@ -812,6 +814,8 @@ class RealtimeSession:
                 self._handle_speech_started()
                 island_publish("listening", title="Listening", detail="")
         elif et == "conversation.item.input_audio_transcription.completed":
+            if getattr(self, "_credential_capture", False):
+                return
             heard = str(event.get("transcript") or "").strip()
             if heard:
                 # 'You:' line in voice.log plus the text (capped) in the local activity log.
@@ -1391,6 +1395,7 @@ class RealtimeSession:
 
     def set_input_muted(self, muted: bool) -> bool:
         """Mic mute: local capture pause plus, on GPT-Live, session.input_audio.mute/unmute."""
+        self._input_muted = muted
         if self._audio is not None:
             (self._audio.pause_input if muted else self._audio.resume_input)()
         event = self.provider.mute_event(muted) if hasattr(self.provider, "mute_event") else None
@@ -1642,6 +1647,8 @@ class RealtimeSession:
         return " ".join(parts)
 
     def _note_user_turn(self, text: str) -> None:
+        from voice_cua.workflow_store import begin_engagement
+        begin_engagement()
         self._turn_open = True
         self._turn_text = text
         self._turn_tools = 0

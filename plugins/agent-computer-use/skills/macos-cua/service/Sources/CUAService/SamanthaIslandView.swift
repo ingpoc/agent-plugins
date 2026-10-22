@@ -642,7 +642,7 @@ struct SamanthaIslandBar: View {
             }
             // Lead and trail are persistent views: they travel (and scale) between the compact
             // slots and the card grid on the same open/close spring — never a cross-fade between two copies.
-            if !(model.cardOpen && model.cardMode == .agents) && !model.trayTargeted && model.presentation != .peek
+            if model.credentialRequest == nil && !(model.cardOpen && model.cardMode == .agents) && !model.trayTargeted && model.presentation != .peek
                 && !(model.cardOpen && [.calendar, .tray].contains(model.presentation)) {
                 leadMorph
                     // Lead is drawn through a scale effect: register its on-screen slot from the layout constants.
@@ -677,7 +677,7 @@ struct SamanthaIslandBar: View {
 
     private var trailMorph: some View {
         let rect = model.shapeRect
-        let compactW: CGFloat = model.presentation == .actingSteps ? 64 : model.presentation == .hud ? IslandBarLayout.hudBarWidth : 20
+        let compactW: CGFloat = model.presentation == .actingSteps ? 64 : model.presentation == .hud ? IslandBarLayout.hudTrailWidth(shapeWidth: rect.width) : 20
         return ZStack(alignment: .topTrailing) {
             compactTrail.id("trail-\(model.presentation.family)").transition(glyphSwap)
                 .modifier(TrailProbe(on: !open, id: "trail"))
@@ -740,7 +740,7 @@ struct SamanthaIslandBar: View {
         if model.presentation == .actingSteps {
             SamanthaProgressBar(fraction: stepFraction).frame(height: 16)
         } else if model.presentation == .hud {
-            IslandHUDBar(fraction: model.hud?.fraction ?? 0, animation: reduceMotion ? nil : model.hudBarAnimation).frame(height: 16)
+            IslandHUDBar(fraction: model.hud?.fraction ?? 0, width: IslandBarLayout.hudTrailWidth(shapeWidth: model.shapeRect.width), animation: reduceMotion ? nil : model.hudBarAnimation).frame(height: 16)
         } else {
             trail
         }
@@ -829,7 +829,9 @@ struct SamanthaIslandBar: View {
 
     @ViewBuilder
     private var cardContent: some View {
-        if model.presentation == .nowPlaying {
+        if let request = model.credentialRequest {
+            CredentialEntryView(request: request, model: model).id(request.id)
+        } else if model.presentation == .nowPlaying {
             NowPlayingCardBody(model: model)
         } else if model.presentation == .calendar {
             CalendarCardBody(model: model)

@@ -37,7 +37,7 @@ final class MethodRouter: @unchecked Sendable {
     static let cursorControlMethods: Set<String> = ["cursor_status", "configure_cursor"]
     /// Methods that never move the tip: no action bracket, so observers
     /// polling them neither show the tip nor extend its idle countdown.
-    static let nonActionMethods: Set<String> = ["list_apps", "hide_agent_cursor", "wait"]
+    static let nonActionMethods: Set<String> = ["list_apps", "hide_agent_cursor", "wait", "credential_request", "credential_status", "credential_cancel", "system_volume"]
 
     static func movesTip(_ req: JSONRPCRequest) -> Bool {
         if nonActionMethods.contains(req.method) { return false }
@@ -101,6 +101,14 @@ final class MethodRouter: @unchecked Sendable {
     @MainActor
     private func route(_ req: JSONRPCRequest) async throws -> Any {
         switch req.method {
+        case "system_volume":
+            return await SystemVolume.adjust(req.param("direction") ?? "read")
+        case "credential_request":
+            return CredentialEntryController.shared.request(req.params?.mapValues { $0.value } ?? [:])
+        case "credential_status":
+            return CredentialEntryController.shared.status(req.param("request_id") ?? "")
+        case "credential_cancel":
+            return CredentialEntryController.shared.cancel(req.param("request_id") ?? "")
         case "list_apps":
             return appResolver.listApps()
 

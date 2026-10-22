@@ -46,12 +46,13 @@ class _Fresh(unittest.TestCase):
 
 class LazyGroupTests(unittest.TestCase):
     def test_base_surface_has_no_secrets_or_confirm(self) -> None:
-        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin"})
+        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "system_volume"})
 
     def test_secrets_group_loads_secrets_and_confirm(self) -> None:
         loaded = names(groups={"secrets"})
         self.assertTrue(set(tools.TOOL_GROUPS["secrets"]) <= loaded)
-        self.assertNotIn("more_tools", loaded)  # nothing left to load
+        self.assertIn("more_tools", loaded)  # workflows remain available
+        self.assertNotIn("more_tools", names(groups={"secrets", "workflows"}))
 
     def test_confirm_group_exposes_confirm_risky_only(self) -> None:
         self.assertEqual(names(groups={"confirm"}) - names(), {"confirm_risky"})
@@ -162,20 +163,17 @@ class RiskGateTests(_Fresh):
         item = {"label": "gh", "service": "s", "account": "a"}
         with patch("voice_cua.tools._resolve_secret_args", return_value=(item, None)), \
                 patch("voice_cua.tools.fetch_value") as fetch, \
-                patch("voice_cua.tools.keychain_put") as put, \
                 patch("voice_cua.tools.comet_act") as cact, \
                 patch("voice_cua.tools.island_confirm") as ask:
             for name, args in (
                 ("secrets_inject", {"app": "Safari", "label": "gh"}),
                 ("secrets_provide", {"action": "clipboard", "label": "gh"}),
                 ("secrets_provide", {"action": "inject", "app": "Safari", "label": "gh"}),
-                ("secrets_put", {"id": "gh", "label": "gh", "value": "v"}),
                 ("comet_act", {"actions": [{"type": "click_text", "text": "Delete account"}]}),
             ):
                 out = tools.dispatch(name, args)
                 self.assertTrue(out.get("needs_confirmation"), name)
         fetch.assert_not_called()
-        put.assert_not_called()
         cact.assert_not_called()
         ask.assert_not_called()
 

@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from voice_cua import SYSTEM_INSTRUCTIONS, __version__
+from voice_cua import SYSTEM_INSTRUCTIONS, __version__, session_instructions
 from voice_cua.activity_log import log_path, tail_events
 from voice_cua.startup_trace import tail_startup
 from voice_cua.auth import openai_status
@@ -118,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/session/instructions":
             self._json(200, {
-                "instructions": SYSTEM_INSTRUCTIONS,
+                "instructions": session_instructions(),
                 "tools": tool_definitions(),
                 "model": realtime_model(),
             })

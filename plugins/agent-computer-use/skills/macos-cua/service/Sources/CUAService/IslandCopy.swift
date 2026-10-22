@@ -10,7 +10,7 @@ enum IslandCopy {
     static let maxTitle = 28
     static let maxError = 32
 
-    static let fallbackError = "Missed that, retrying"
+    static let fallbackError = "Something went wrong"
 
     private static let benign: [String] = [
         "already shorter than", "cancel_not_active", "no active response",
@@ -27,13 +27,14 @@ enum IslandCopy {
         (["no window"], "No {target} window"),
         (["denied"], "Stopped — you said no"),
         (["comet unavailable", "comet busy", "extension"], "Comet isn't available"),
-        (["verif", "expect"], fallbackError),
+        (["verif", "expect"], "Action not confirmed"),
+        (["retry cap"], "Action stopped after failures"),
         (["timeout", "timed out"], "That took too long"),
         (["config", "invalid_request", "invalid_value", "realtime"], "Voice hiccup, still here"),
     ]
 
     private static let humanCopy: Set<String> = [
-        fallbackError, "Can't hear you, check mic", "Connection dropped, reconnecting",
+        fallbackError, "Action not confirmed", "Action stopped after failures", "Can't hear you, check mic", "Connection dropped, reconnecting",
         "Stopped — you said no", "Comet isn't available", "That took too long", "Voice hiccup, still here",
     ]
 

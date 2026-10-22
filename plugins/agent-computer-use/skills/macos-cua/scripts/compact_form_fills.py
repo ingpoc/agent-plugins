@@ -335,3 +335,20 @@ def is_app_open_step(step: Any) -> bool:
         return False
     op = str(step.get("op") or step.get("action") or "").lower()
     return op == "open" and step.get("path") is None and step.get("url") is None
+
+
+NEW_DOCUMENT_KEYS = {"cmd+n", "command+n", "cmd+t", "command+t"}
+
+
+def new_document_split(arguments: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+    """(steps through the first cmd+n/cmd+t, remaining steps) when something follows it."""
+    steps = arguments.get("steps")
+    if not isinstance(steps, list):
+        return None
+    for index, step in enumerate(steps):
+        key = str(step.get("key") or "").lower().replace(" ", "") if isinstance(step, dict) else ""
+        if key in NEW_DOCUMENT_KEYS and index + 1 < len(steps):
+            return steps[: index + 1], steps[index + 1:]
+    return None
+
+

@@ -30,6 +30,7 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
         statusBar = StatusBarController()
         if let voiceSupervisor, let islandController {
             islandController.controlToken = { [weak voiceSupervisor] in voiceSupervisor?.currentControlToken ?? "" }
+            islandController.onStopListening = { [weak voiceSupervisor] in voiceSupervisor?.stop() }
             statusBar?.wire(voice: voiceSupervisor, island: islandController)
         }
         statusBar?.install()

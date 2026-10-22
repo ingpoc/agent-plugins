@@ -25,6 +25,9 @@ enum IslandBarLayout {
     static let duoGap: CGFloat = 3
     /// HUD trailing bar (polish bar §1: 80×4).
     static let hudBarWidth: CGFloat = 80
+    static func hudTrailWidth(shapeWidth: CGFloat) -> CGFloat {
+        min(hudBarWidth, max(0, shapeWidth - 2 * slotInset - leadingSlot.width - 8))
+    }
     /// File-tray drop target (340×96, 1 pt accent stroke).
     static let dropTargetSize = CGSize(width: 340, height: 96)
     static let slotInset: CGFloat = 8

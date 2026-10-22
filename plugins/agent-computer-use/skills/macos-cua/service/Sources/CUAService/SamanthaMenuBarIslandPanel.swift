@@ -148,6 +148,7 @@ final class SamanthaMenuBarIslandPanel {
     var isShown: Bool { wantsVisible }
 
     func hide() {
+        CredentialEntryController.shared.cancelActive()
         model?.endTextEntry()
         model?.endKeyboard(close: false)
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
@@ -174,8 +175,10 @@ final class SamanthaMenuBarIslandPanel {
         }
     }
 
+    func updateCapturePrivacy() { applyCaptureSharing() }
+
     private func applyCaptureSharing() {
-        panel?.sharingType = hideFromCapture || peekPrivate ? .none : .readOnly
+        panel?.sharingType = hideFromCapture || peekPrivate || model?.credentialRequest != nil ? .none : .readOnly
     }
 
     private func startEnvTimer() {

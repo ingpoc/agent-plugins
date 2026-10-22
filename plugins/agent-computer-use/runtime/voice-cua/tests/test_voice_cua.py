@@ -194,6 +194,7 @@ class ToolsTests(unittest.TestCase):
                 "more_tools",
                 "show_details",
                 "comet_begin",
+                "system_volume",
             },
         )
         for n in names:

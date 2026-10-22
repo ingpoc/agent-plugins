@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -10,6 +11,7 @@ if TYPE_CHECKING:
 
 _lock = threading.Lock()
 _active: RealtimeSession | None = None
+_credential_lock = threading.Lock()
 
 
 def register(session: RealtimeSession) -> None:
@@ -68,3 +70,29 @@ def island_control(action: str) -> bool:
         return bool(sess.island_control(action))
     except Exception:  # noqa: BLE001 — a button must never crash the gateway
         return False
+
+
+@contextmanager
+def credential_privacy():
+    """One secure-entry owner mutes capture until that transaction alone finishes."""
+    if not _credential_lock.acquire(blocking=False):
+        raise RuntimeError("credential_entry_busy")
+    try:
+        with _lock:
+            session = _active
+        if session is None:
+            yield
+            return
+        previously_muted = getattr(session, "_input_muted", False)
+        session._credential_capture = True
+        session.provider._credential_capture = True
+        try:
+            session.set_input_muted(True)
+            yield
+        finally:
+            session._credential_capture = False
+            session.provider._credential_capture = False
+            if not session._stop.is_set():
+                session.set_input_muted(previously_muted)
+    finally:
+        _credential_lock.release()
