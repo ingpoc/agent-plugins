@@ -13,6 +13,7 @@ its designated requirement is team-based, so TCC grants survive certificate rene
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import plistlib
@@ -317,26 +318,25 @@ MEDIAREMOTE_SRC = SERVICE_DIR / "Vendor" / "mediaremote-adapter"
 def bundle_mediaremote_adapter(app_path: Path) -> bool:
     """Now Playing: vendored mediaremote-adapter (BSD-3). Framework → Contents/Frameworks, test client →
     Contents/Helpers, perl script → Contents/Resources. Skips (island falls back to AppleScript) if cmake
-    is missing or the build fails."""
+    is missing; a failed configured build stops installation."""
     cmake = shutil.which("cmake")
     if not MEDIAREMOTE_SRC.is_dir() or not cmake:
         print("  ! mediaremote-adapter skipped (no vendored source or cmake); Now Playing uses AppleScript fallback")
         return False
-    build_dir = Path.home() / ".cache" / "macos-cua" / "build" / "mediaremote-adapter"
+    source_id = hashlib.sha256(str(MEDIAREMOTE_SRC.resolve()).encode()).hexdigest()[:12]
+    build_dir = Path.home() / ".cache" / "macos-cua" / "build" / "mediaremote-adapter" / source_id
     build_dir.mkdir(parents=True, exist_ok=True)
     try:
         run([cmake, "-S", str(MEDIAREMOTE_SRC), "-B", str(build_dir), "-DCMAKE_BUILD_TYPE=Release"],
             stdout=subprocess.DEVNULL)
         run([cmake, "--build", str(build_dir), "--config", "Release"], stdout=subprocess.DEVNULL)
     except subprocess.CalledProcessError as exc:
-        print(f"  ! mediaremote-adapter build failed ({exc}); Now Playing uses AppleScript fallback")
-        return False
+        raise RuntimeError("mediaremote-adapter build failed; refusing partial installation") from exc
     fw_src = build_dir / "MediaRemoteAdapter.framework"
     client_src = build_dir / "MediaRemoteAdapterTestClient"
     script_src = MEDIAREMOTE_SRC / "bin" / "mediaremote-adapter.pl"
     if not (fw_src.is_dir() and client_src.is_file() and script_src.is_file()):
-        print("  ! mediaremote-adapter artefacts missing; Now Playing uses AppleScript fallback")
-        return False
+        raise RuntimeError("mediaremote-adapter artefacts missing; refusing partial installation")
     contents = app_path / "Contents"
     fw_dst = contents / "Frameworks" / "MediaRemoteAdapter.framework"
     if fw_dst.exists():

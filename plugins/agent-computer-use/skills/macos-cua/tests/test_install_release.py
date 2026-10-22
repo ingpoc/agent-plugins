@@ -41,6 +41,26 @@ class InstallReleaseTests(unittest.TestCase):
         self.assertTrue(legacy.is_symlink())
         self.assertEqual(len(list(trash.iterdir())), 1, "old bundle moved to Trash, not deleted")
 
+    def test_media_build_cache_is_scoped_to_source_and_failure_stops_install(self):
+        import subprocess
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            calls = []
+            def fail(command, **kwargs):
+                calls.append(command)
+                raise subprocess.CalledProcessError(1, command)
+            for name in ("first", "second"):
+                source = root / name
+                source.mkdir()
+                with patch.object(inst, "MEDIAREMOTE_SRC", source), \
+                     patch.object(inst.shutil, "which", return_value="cmake"), \
+                     patch.object(inst.Path, "home", return_value=root), \
+                     patch.object(inst, "run", side_effect=fail):
+                    with self.assertRaisesRegex(RuntimeError, "refusing partial installation"):
+                        inst.bundle_mediaremote_adapter(root / "app")
+            self.assertNotEqual(calls[0][4], calls[1][4])
+
     def test_developer_id_preferred(self):
         dev = ("A" * 40, "subject=CN=Apple Development: Gurusharan Gupta (9X7F7TPT2K),OU=9UPQL479Z5")
         did = ("B" * 40, "subject=UID=9UPQL479Z5,CN=Developer ID Application: Gurusharan Gupta (9UPQL479Z5),OU=9UPQL479Z5")
