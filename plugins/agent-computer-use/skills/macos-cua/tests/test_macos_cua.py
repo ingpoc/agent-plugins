@@ -901,7 +901,13 @@ class WindowResolutionTests(unittest.TestCase):
         self.assertFalse(result["driver"]["ok"])
 
     def test_foreground_readiness_requires_positive_window_ack(self):
+        now = [1.0]
+        def advance(seconds):
+            now[0] += seconds
         with (
+            mock.patch.object(macos_cua.time, "monotonic", side_effect=lambda: now[0]),
+            mock.patch.object(macos_cua.time, "sleep", side_effect=advance),
+            mock.patch.object(macos_cua, "_system_events_process_frontmost", return_value=False),
             mock.patch.object(macos_cua, "_frontmost_pid", return_value=899),
             mock.patch.object(macos_cua, "list_windows", return_value={"windows": []}),
             mock.patch.object(macos_cua, "_ax_window_candidates", return_value=[]),

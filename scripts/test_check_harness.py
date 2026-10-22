@@ -393,5 +393,26 @@ class tempfile_cm:
         self._dir.cleanup()
 
 
+class HookEnvironmentTests(unittest.TestCase):
+    def test_child_tests_preserve_home_but_drop_hook_repository_overrides(self):
+        env = dict(os.environ, GIT_DIR="parent", GIT_INDEX_FILE="parent-index",
+                   GIT_WORK_TREE="parent-tree", FIXTURE_SETTING="keep")
+        result = check.test_environment(env)
+        for key in ("GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"):
+            self.assertNotIn(key, result)
+        self.assertEqual(result["HOME"], os.environ["HOME"])
+        self.assertEqual(result["FIXTURE_SETTING"], "keep")
+
+    def test_swift_dependency_commands_receive_isolated_environment(self):
+        package = ROOT/"plugins/agent-computer-use/skills/macos-cua/service"
+        with mock.patch.object(check.sys, "platform", "darwin"), \
+             mock.patch.object(check.check_inventory, "swift_packages", return_value=[package]), \
+             mock.patch.dict(os.environ, {"GIT_DIR":"parent", "GIT_INDEX_FILE":"parent-index"}), \
+             mock.patch.object(check.subprocess, "run", return_value=mock.Mock(returncode=0)) as run:
+            self.assertEqual(check.run_swift([ROOT/"plugins/agent-computer-use"]),0)
+        self.assertNotIn("GIT_DIR", run.call_args.kwargs["env"])
+        self.assertNotIn("GIT_INDEX_FILE", run.call_args.kwargs["env"])
+
+
 if __name__ == "__main__":
     unittest.main()

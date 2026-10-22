@@ -28,6 +28,7 @@ interpreter cannot import mcp.server.mcpserver.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import re
@@ -605,7 +606,20 @@ def _python_for(plugin: Path, env: dict[str, str]) -> str:
     return sys.executable
 
 
+@functools.lru_cache(maxsize=1)
+def _git_local_env_names():
+    return frozenset(subprocess.check_output(
+        ["git", "rev-parse", "--local-env-vars"], cwd=ROOT, text=True).splitlines())
+
+
+def test_environment(env=None):
+    # Hook repository variables must not retarget fixture or SwiftPM Git commands.
+    return {key: value for key, value in (os.environ if env is None else env).items()
+            if key not in _git_local_env_names()}
+
+
 def _exec_python(run: check_inventory.PythonRun, env: dict[str, str], python: str | None = None) -> int:
+    env = test_environment(env)
     rel = run.path.relative_to(ROOT).as_posix()
     rule = check_inventory.load_allowlist(check_inventory.DEFAULT_ALLOWLIST).match(
         "harness",
@@ -685,7 +699,8 @@ def run_swift(plugins: list[Path]) -> int:
             print(f"swift package {rel} did not run and is not allow-listed", file=sys.stderr)
             return 1
         print(f"test swift {rel}", flush=True)
-        proc = subprocess.run(["swift", "test", "--package-path", str(package), "-q"], cwd=ROOT)
+        proc = subprocess.run(["swift", "test", "--package-path", str(package), "-q"],
+                              cwd=ROOT, env=test_environment())
         if proc.returncode != 0:
             return proc.returncode
     return 0
