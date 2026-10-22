@@ -25,6 +25,11 @@ final class PermissionBrokerTests: XCTestCase {
         XCTAssertEqual(PermissionBroker.fired.map { $0.0 }, [.microphone])
     }
 
+    func testMicrophonePaneUsesCurrentPrivacyExtension() {
+        XCTAssertEqual(ACUPermission.microphone.paneURL?.absoluteString,
+                       "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Microphone")
+    }
+
     func testEveryConsentHasAGrantRow() {
         // Keychain is a row like the TCC ones; no runtime path asks.
         XCTAssertTrue(ACUPermission.allCases.contains(.keychain))

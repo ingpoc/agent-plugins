@@ -327,3 +327,11 @@ def has_ui_effect(arguments: dict[str, Any]) -> bool:
         not in {"focus", "raise", "activate"}
         for step in candidates
     )
+
+
+def is_app_open_step(step: Any) -> bool:
+    """op=open naming only the app (no path/url): launch it or show its window."""
+    if not isinstance(step, dict):
+        return False
+    op = str(step.get("op") or step.get("action") or "").lower()
+    return op == "open" and step.get("path") is None and step.get("url") is None

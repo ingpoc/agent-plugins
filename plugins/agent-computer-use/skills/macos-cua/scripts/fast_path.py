@@ -536,6 +536,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         for name in (
             "compact_mcp.py",
             "compact_backend.py",
+            "compact_verification.py",
             "compact_form_fills.py",
             "compact_instructions.txt",
         )
@@ -1015,7 +1016,9 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     )
     add(
         "microphone alert opens the current macOS privacy extension",
-        "com.apple.settings.PrivacySecurity.extension?Privacy_Microphone" in status,
+        "OnboardingWindowController.shared.show(row: .microphone)" in status
+        and "com.apple.settings.PrivacySecurity.extension?Privacy_Microphone"
+        in (root / "service" / "Sources" / "CUAService" / "ACUPermissions.swift").read_text(),
         "the legacy preference-pane URL opened Screen & System Audio Recording on macOS 26",
     )
     add(
