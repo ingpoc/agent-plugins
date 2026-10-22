@@ -855,12 +855,100 @@ export async function evaluateReadOnly(tabId, expression, send) {
   return result?.result?.value;
 }
 
+// Chrome 155+ (Comet 155): a managed ExtensionSettings runtime_blocked_hosts makes
+// chrome.debugger.attach fail on EVERY tab with "Host access is restricted by policy.".
+// The policy is not bypassed: the leased tab's Browser Use surface answers what it can
+// through chrome.scripting / chrome.tabs, which the policy still allows on hosts it does
+// not block (a blocked host refuses scripting too, and that error is returned as is).
+// Methods that need the debugger (trusted Input.*, DOM.*, screenshots) fail fast instead
+// of timing out the Browser Use client.
+const DEBUGGER_POLICY_RECHECK_MS = 60_000;
+const debuggerPolicyBlockedUntil = new Map();
+
+function isDebuggerPolicyBlock(error) {
+  return /restricted by policy/.test(String(error?.message || error || ""));
+}
+
+function debuggerPolicyBlocked(tabId) {
+  const until = debuggerPolicyBlockedUntil.get(tabId) || 0;
+  if (until > Date.now()) return true;
+  debuggerPolicyBlockedUntil.delete(tabId);
+  return false;
+}
+
+// Reads Browser Use issues itself, answered without eval when the page CSP forbids eval.
+const POLICY_KNOWN_READS = [
+  [/^location\.href$/, () => location.href],
+  [/^document\.title$/, () => document.title],
+  [/^document\.readyState$/, () => document.readyState],
+  [/^navigator\.userAgent$/, () => navigator.userAgent],
+  [/^JSON\.stringify\(\{url:location\.href,title:document\.title,w:innerWidth,h:innerHeight,sx:scrollX,sy:scrollY,pw:document\.documentElement\.scrollWidth,ph:document\.documentElement\.scrollHeight\}\)$/,
+    () => JSON.stringify({ url: location.href, title: document.title, w: innerWidth, h: innerHeight, sx: scrollX, sy: scrollY, pw: document.documentElement.scrollWidth, ph: document.documentElement.scrollHeight })],
+];
+
+async function policyEvaluate(tabId, params, hooks) {
+  const expression = String(params.expression || "");
+  const run = async (func, args) => {
+    if (typeof hooks.executeScriptOnTab !== "function") throw new Error("policy fallback requires executeScriptOnTab");
+    const frames = await hooks.executeScriptOnTab(
+      tabId, { target: { tabId }, world: "MAIN", func, args }, 5000, "Runtime.evaluate (debugger blocked by policy)",
+    );
+    return frames?.[0]?.result;
+  };
+  const out = await run((src, awaitPromise) => {
+    const pack = (value) => {
+      if (value === undefined) return { ok: true, type: "undefined" };
+      try { return { ok: true, type: typeof value, value: JSON.parse(JSON.stringify(value)) }; }
+      catch { return { ok: true, type: typeof value, value: String(value) }; }
+    };
+    const fail = (e) => ({ ok: false, name: String((e && e.name) || "Error"), message: String((e && e.message) || e) });
+    try {
+      const value = (0, eval)(src);
+      if (awaitPromise && value && typeof value.then === "function") return value.then(pack, fail);
+      return pack(value);
+    } catch (e) {
+      return fail(e);
+    }
+  }, [expression, params.awaitPromise !== false]);
+  if (out?.ok === false && /EvalError|unsafe-eval|Content Security Policy/i.test(`${out.name} ${out.message}`)) {
+    const known = POLICY_KNOWN_READS.find(([pattern]) => pattern.test(expression.trim()));
+    if (known) {
+      const value = await run(known[1], []);
+      return { result: { type: typeof value, value } };
+    }
+  }
+  if (!out || out.ok === false) {
+    const text = out ? `${out.name}: ${out.message}` : "evaluate returned no result";
+    return { result: { type: "undefined" }, exceptionDetails: { text, exception: { type: "object", description: text } } };
+  }
+  return { result: out.type === "undefined" ? { type: "undefined" } : { type: out.type, value: out.value } };
+}
+
+async function policyFallbackCdp(tabId, method, params, hooks) {
+  if (/\.(enable|disable)$/.test(method)) return {};
+  if (method === "Runtime.evaluate") return policyEvaluate(tabId, params, hooks);
+  if (method === "Page.navigate") {
+    const url = String(params.url || "");
+    if (!/^(https?:|about:blank)/.test(url)) throw new Error(`Page.navigate fallback accepts http(s) or about:blank only: ${url}`);
+    await chrome.tabs.update(tabId, { url });
+    return { frameId: String(tabId), loaderId: "" };
+  }
+  if (method === "Page.reload") {
+    await chrome.tabs.reload(tabId);
+    return {};
+  }
+  throw new Error(`${method} needs chrome.debugger, which browser policy blocks on this Comet ("Host access is restricted by policy."); use js() / DOM actions instead`);
+}
+
 async function cdpAction(action, state, hooks) {
   if (action.type === "browser_use_cdp") {
     const method = String(action.method || "");
     const params = action.params || {};
     if (!permittedBrowserUseCdpMethod(method)) {
       throw new Error(`CDP method is outside the leased-tab Browser Use surface: ${method}`);
+    }
+    if (debuggerPolicyBlocked(state.tabId)) {
+      return { type: action.type, method, result: await policyFallbackCdp(state.tabId, method, params, hooks), fallback: "policy" };
     }
     if (method === "Input.dispatchMouseEvent") {
       const x = Number(params.x);
@@ -872,7 +960,14 @@ async function cdpAction(action, state, hooks) {
         if (!moved?.success) throw new Error(moved?.error || "Browser Use cursor movement failed");
       }
     }
-    const result = await hooks.send(state.tabId, method, params);
+    let result;
+    try {
+      result = await hooks.send(state.tabId, method, params);
+    } catch (error) {
+      if (!isDebuggerPolicyBlock(error)) throw error;
+      debuggerPolicyBlockedUntil.set(state.tabId, Date.now() + DEBUGGER_POLICY_RECHECK_MS);
+      return { type: action.type, method, result: await policyFallbackCdp(state.tabId, method, params, hooks), fallback: "policy" };
+    }
     if (method === "Input.dispatchMouseEvent" && params.type === "mousePressed") {
       await hooks.sendToContentScript(state.tabId, "pulseClick", [], 0).catch(() => {});
     }

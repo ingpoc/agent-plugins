@@ -1753,7 +1753,18 @@ function element(seq) {
         )[0]
         self.assertIn("Prefer the matched control's own center", point)
 
+class DebuggerPolicyFallbackTests(unittest.TestCase):
+    """Chrome 155 policy blocks chrome.debugger: Browser Use evaluate/navigate fall back (node)."""
 
+    def test_browser_use_cdp_policy_fallback(self) -> None:
+        import shutil
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node not installed")
+        script = Path(__file__).resolve().parent / "policy_fallback.test.mjs"
+        done = subprocess.run([node, str(script), str(PARITY_CAPABILITIES)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr[-2000:])
+        self.assertIn("policy fallback OK", done.stdout)
 
 
 if __name__ == "__main__":
