@@ -36,7 +36,7 @@ class RuntimeContractTests(unittest.TestCase):
             client.call.return_value = contract.package_identity(root)
             with patch.object(cua_client, 'CUAClient', return_value=client):
                 self.assertTrue(contract.check(root, app)['ok'])
-            client.call.assert_called_once_with('runtime_contract')
+            client.call.assert_called_once_with('runtime_contract', retry=False)
             client.close.assert_called_once()
             client.connect.assert_not_called()
 
@@ -56,6 +56,16 @@ class RuntimeContractTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'running service build mismatch'):
                     contract.check(root, app)
             client.close.assert_called_once()
+
+    def test_disconnected_probe_never_recovers_or_relaunches(self):
+        with tempfile.TemporaryDirectory() as td:
+            root, app = self.fixture(td)
+            with patch.object(cua_client.CUAClient, '_probe', return_value=Mock()), \
+                 patch.object(cua_client.CUAClient, '_call_once', side_effect=ConnectionResetError), \
+                 patch.object(cua_client.CUAClient, 'connect') as recover:
+                with self.assertRaises(ConnectionResetError):
+                    contract.check(root, app)
+                recover.assert_not_called()
 
     def test_missing_manifest_blocks_launcher_without_mcp_stdout(self):
         with tempfile.TemporaryDirectory() as td:

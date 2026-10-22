@@ -43,7 +43,7 @@ def check(root: Path, app: Path, *, live: bool = True) -> dict:
         # Probe only: verification must not relaunch or replace a service.
         client._sock = client._probe()
         try:
-            active = client.call('runtime_contract')
+            active = client.call('runtime_contract', retry=False)
         finally:
             client.close()
         if active != expected:
