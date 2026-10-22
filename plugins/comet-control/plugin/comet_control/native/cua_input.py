@@ -363,6 +363,7 @@ class NativeInput:
             handler = {
                 "probe": self.op_probe, "raise": self.op_raise, "steps": self.op_steps,
                 "release": self.op_release, "capture": self.op_capture, "log_path": self.op_log_path,
+                "prepare_raise": self.op_prepare_raise,
             }.get(op)
             if handler is None:
                 raise NativeInputError("UNKNOWN_OP", f"unknown native op {op!r}")
