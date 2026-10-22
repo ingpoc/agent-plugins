@@ -22,7 +22,8 @@
       "fast_path linters reject click_point desktop paths, unpaired start_session, repeated observe, unbatched acts, unrecovered session_ended, and container AXPress without a descendant",
       "MCP lifecycle/state/act dispatch in one held Python process with cli_invocations=0",
       "live interleaved Calculator A/B resets its fixture, omits separately graded pointer capture, is fully successful, and is at least 10% faster than the retired per-call CLI path",
-      "run_gate.py final-1 then final-2 --require-empty on the new source hash"
+      "run_gate.py final-1 then final-2 --require-empty on the new source hash",
+      "doctor passes before the first live step; gate cleanup re-runs doctor and keeps every evidence path that existed before it"
     ],
     "safety": "no WhatsApp send without (You); no chat dumps or personal identifiers in files",
     "stale_greens": "ledger hash b5105878 is stale after source changes; do not claim empty-iteration without a new frozen pair"
@@ -50,6 +51,13 @@
       "timeout_seconds": 120,
       "budget_seconds": 20,
       "fail_patterns": ["Traceback", "DeprecationWarning", "CoreSVG has logged an error"]
+    },
+    {
+      "name": "doctor",
+      "command": ["python3", "scripts/macos-cua.py", "doctor"],
+      "timeout_seconds": 30,
+      "budget_seconds": 15,
+      "fail_patterns": ["Traceback", "DeprecationWarning"]
     },
     {
       "name": "mcp-runtime",
@@ -102,8 +110,13 @@
     }
   ],
   "cleanup": {
-    "command": ["python3", "scripts/macos-cua.py", "operator", "stop"],
-    "timeout_seconds": 30
+    "command": ["python3", "scripts/gate_cleanup.py"],
+    "timeout_seconds": 60
   },
+  "evidence_paths": [
+    "~/.cache/macos-cua/live-pointer-isolation.json",
+    "~/.cache/macos-cua/live-pointer-overlay.png",
+    "~/.cache/macos-cua/screenshots"
+  ],
   "ledger_path": "~/.cache/elon-algorithm/macos-cua/ledger.json"
 }

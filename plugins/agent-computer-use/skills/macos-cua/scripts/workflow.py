@@ -258,7 +258,10 @@ def cmd_closeout(*, verbose: bool = False) -> int:
             os.environ.get("MACOS_CUA_PROOF_MAX_AGE_SECONDS", str(30 * 24 * 60 * 60))
         ),
     )
-    out["daemon_ready"] = wr.daemon_running()
+    # cua-driver is retired. Readiness is the backend that served the session.
+    service = cua.cuaservice_health()
+    out["cuaservice"] = service
+    out["daemon_ready"] = wr.daemon_running() or service.get("ok") is True
     if verbose or not (out["success"] and out["daemon_ready"]):
         _print_result(out, verbose=True)
     else:

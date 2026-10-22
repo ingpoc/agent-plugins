@@ -55,8 +55,13 @@ def click_label_pointer(
     """
     snap = snapshot_data
     foreign_index_space = isinstance(snap, dict) and snap.get("engine") != "CUAService"
+    # A native walk and a CUAService walk are different index spaces. Refresh
+    # into CUAService at the depth that already contained the label.
+    depth = max(int(max_elements), 50)
+    if isinstance(snap, dict):
+        depth = max(depth, int(snap.get("element_count") or len(snap.get("elements") or [])))
     if not (isinstance(snap, dict) and snap.get("engine") == "CUAService"):
-        snap = cua_snapshot(pid, window_id, max(int(max_elements), 50))
+        snap = cua_snapshot(pid, window_id, depth)
     if snap.get("error"):
         return {"ok": False, "error": snap["error"], "label": label,
                 "error_code": snap.get("error_code") or "observation_failed"}
@@ -91,7 +96,79 @@ def click_label_pointer(
         payload["error"] = err or "CUAService click not accepted"
         if isinstance(res, dict) and res.get("error_code"):
             payload["error_code"] = res["error_code"]
+        return payload
+    opened = _open_outline_label(snapshot_data, snap, idx, label, pid, window_id)
+    if opened is not None:
+        payload["outline"] = opened
+        if not opened.get("ok"):
+            payload["ok"] = False
+            payload["error"] = opened.get("error") or "outline row did not open"
     return payload
+
+
+def _open_outline_label(native_snapshot, service_snapshot, element_index, label, pid, window_id):
+    """Finder sidebar rows advertise AXOpen on the cell, not AXPress.
+
+    The CUAService click lands the cursor. AXOpen is what actually selects the row.
+    Finder returns -25205 for that action even when the window title changes, so the
+    readback is AXSelected or the window title, not the action status.
+    """
+    elements = (service_snapshot or {}).get("elements") or []
+    target = next((item for item in elements if item.get("element_index") == element_index), None)
+    if not target or target.get("role") != "AXStaticText":
+        return None
+    by_index = {item.get("element_index"): item for item in elements}
+    parent = by_index.get(target.get("parent_index"))
+    if not parent or parent.get("role") != "AXOutline":
+        return None
+    if not isinstance(native_snapshot, dict) or native_snapshot.get("source") != "native_ax":
+        # Plan/MCP callers hold a CUAService walk; fetch the native walk ourselves.
+        native_snapshot = _native_ax_snapshot(
+            pid, max_elements=max(200, len(elements)), window_id=window_id
+        )
+    if not isinstance(native_snapshot, dict) or native_snapshot.get("source") != "native_ax":
+        return {"ok": False, "error": "outline row needs the native cell that advertises AXOpen"}
+    row_index = find_clickable_index(native_snapshot, label)
+    native_elements = native_snapshot.get("elements") or []
+    row = next((item for item in native_elements if item.get("element_index") == row_index), None)
+    cell = next(
+        (
+            item
+            for item in native_elements
+            if item.get("parent_index") == row_index and item.get("role") == "AXCell"
+        ),
+        None,
+    )
+    if not row or row.get("_native_element") is None or not cell or cell.get("_native_element") is None:
+        return {"ok": False, "error": "outline cell is not in the native walk"}
+    services = row["_native_services"]
+    copied = services.AXUIElementCopyActionNames(cell["_native_element"], None)
+    names = copied
+    if isinstance(copied, tuple):
+        copy_error, names = (copied + (None,))[:2]
+        if copy_error:
+            return {"ok": False, "error": f"AXUIElementCopyActionNames failed with {copy_error}"}
+    if "AXOpen" not in {str(name) for name in (names or [])}:
+        return {"ok": False, "error": "outline cell does not advertise AXOpen"}
+    services.AXUIElementPerformAction(cell["_native_element"], "AXOpen")
+    selected = bool(_ax_value(row["_native_element"], "AXSelected", services))
+    fresh = _native_ax_snapshot(pid, max_elements=20, window_id=window_id)
+    title = next(
+        (
+            str(item.get("label") or "")
+            for item in (fresh.get("elements") or [])
+            if item.get("role") == "AXWindow"
+        ),
+        "",
+    )
+    opened = selected or title.strip().casefold() == label.strip().casefold()
+    return {
+        "ok": opened,
+        "action": "AXOpen",
+        "selected": selected,
+        "title": title,
+        "error": None if opened else "AXOpen did not select the outline row",
+    }
 
 def click_with_retry(pid, window_id, element_index, max_elements=120, *, app_name=None):
     res = click(pid, window_id, element_index, app_name=app_name)

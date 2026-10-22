@@ -144,6 +144,7 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("status", help="CUAService health (+ legacy driver detail)")
+    sub.add_parser("doctor", help="Read-only health: CUAService, TCC grants, operator signing")
     sub.add_parser("reset", help="Clear the app-resolution cache")
     p = sub.add_parser("apps", help="List installed and running macOS apps")
     p.add_argument(

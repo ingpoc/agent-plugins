@@ -197,31 +197,6 @@ def hold_key(pid, key, duration, *, window_id=None, foreground=False):
     )
 
 
-def scroll(
-    pid,
-    window_id,
-    direction="down",
-    amount=3,
-    *,
-    by="line",
-    element_index=None,
-    x=None,
-    y=None,
-    delivery_mode="background",
-):
-    if x is not None or y is not None:
-        return {"ok": False, "error": "CUAService scroll targets an element or the window; use --element N",
-                "engine": "CUAService"}
-    bound = max(80, int(element_index) + 1) if element_index is not None else 80
-    refused = require_cuaservice_window(pid, window_id, bound)
-    if refused:
-        return refused
-    return cua_scroll(
-        pid, direction, amount, by=by, element_index=element_index, x=x, y=y,
-        window_id=window_id,
-    )
-
-
 def set_value(pid, window_id, element_index, value):
     refused = require_cuaservice_window(pid, window_id, max(80, int(element_index) + 1))
     if refused:

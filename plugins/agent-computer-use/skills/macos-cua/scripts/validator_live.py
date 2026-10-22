@@ -12,6 +12,15 @@ import sys
 import tempfile
 import time
 
+
+def doctor_ready(cua):
+    """Gate on the shared read-only doctor (CUAService, TCC, operator)."""
+    report = cua.doctor()
+    if report.get("ok") is not True:
+        raise AssertionError(f"doctor failed: {report}")
+    return {"doctor": "ok"}
+
+
 def live_checks(*, progress=False):
     cua = load_main()
     checks = []
@@ -45,13 +54,7 @@ def live_checks(*, progress=False):
                 print(f"FAIL {name}: {error}", file=sys.stderr, flush=True)
 
     def permissions():
-        status = cua.driver_status()
-        perms = status.get("permissions", {})
-        if not status.get("daemon", {}).get("running"):
-            raise AssertionError("daemon not running")
-        if not perms.get("accessibility") or not perms.get("screen_recording"):
-            raise AssertionError(f"permissions incomplete: {perms}")
-        return {"daemon": True, "accessibility": True, "screen_recording": True}
+        return doctor_ready(cua)
 
     def finder_state():
         cua.launch_or_activate("Finder")
@@ -282,6 +285,22 @@ def live_checks(*, progress=False):
     def operator_visibility():
         controller = cua._operator_ui()
         running = controller.status()
+        service_app = Path.home() / ".cache/macos-cua/CUAService.app"
+        if service_app.is_dir():
+            if running.get("running"):
+                raise AssertionError(running)
+            signing = running.get("signing") or {}
+            if signing.get("mode") != "identity":
+                raise AssertionError(f"operator is not identity-signed: {signing}")
+            cursor = Path((running.get("state") or {}).get("cursor_image_path") or "")
+            if cursor.name != "hermes-pointer.png":
+                raise AssertionError(f"pointer raster missing: {running.get('state')}")
+            return {
+                "running": False,
+                "owner": "CUAService",
+                "signing": signing.get("mode"),
+                "cursor": cursor.name,
+            }
         if not running.get("service", {}).get("installed"):
             installed = controller.install_service()
             if not installed.get("ok"):

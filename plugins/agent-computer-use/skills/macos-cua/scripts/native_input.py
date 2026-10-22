@@ -10,7 +10,7 @@ _LAST_MOUSE_CLICK_AT = 0.0
 
 
 def accessible_slider_drag(
-    *, resolve, ax_value, pid, observation, source, destination
+    *, resolve, ax_value, pid, observation, source, destination, slider=False
 ):
     """Apply a drag semantically to the accessible slider under its source."""
     candidates = []
@@ -27,12 +27,19 @@ def accessible_slider_drag(
             item.get("role") == "AXSlider"
             and x <= source["x"] <= x + width
             and y <= source["y"] <= y + height
+            and (
+                slider
+                or (
+                    x - 4 <= float(destination["x"]) <= x + width + 4
+                    and y - 4 <= float(destination["y"]) <= y + height + 4
+                )
+            )
         ):
             candidates.append((item, x, width))
     if not candidates:
         return {
             "ok": False,
-            "error": "drag target has no accessible slider; raw-HID fallback is disabled",
+            "error": "drag target has no accessible slider under both start and target; raw-HID fallback is disabled",
         }
     item, x, width = min(candidates, key=lambda row: row[2])
     resolved, error = resolve(pid, observation, item["element_index"])

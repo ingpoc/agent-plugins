@@ -10,6 +10,7 @@ different index space or to cua-driver; failures are returned, never hidden.
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import struct
@@ -159,6 +160,7 @@ def cua_snapshot(pid, window_id=None, max_elements=80, *, include_screenshot=Fal
         "elements": elements,
         "element_count": int(last.get("elementCount") or 0),
         "ax_trusted": last.get("axTrusted"),
+        "screen_capture": last.get("screenCapture"),
         "screenshot_file_path": shot,
         "screenshot_width": width,
         "screenshot_height": height,
@@ -169,10 +171,129 @@ def cua_snapshot(pid, window_id=None, max_elements=80, *, include_screenshot=Fal
     return _enrich_elements(snap)
 
 
+def _normalize_cursor_xy(cursor_xy, window_frame, width, height):
+    """Normalized top-left cursor, or None.
+
+    ``{"global": (x, y)}`` is an AX point in the same space as ``window_frame``.
+    ``{"local": (x, y)}`` is window-local screenshot pixels.
+    Anything else is already normalized 0-1 (``(x, y)`` or ``{"x", "y"}``).
+    """
+    if cursor_xy is None:
+        return None
+    if isinstance(cursor_xy, dict) and "local" in cursor_xy:
+        point = cursor_xy["local"]
+        try:
+            lx, ly = float(point[0]), float(point[1])
+            fw, fh = float(width), float(height)
+        except (TypeError, ValueError, IndexError):
+            return None
+        if fw <= 0 or fh <= 0:
+            return None
+        return lx / fw, ly / fh
+    if isinstance(cursor_xy, dict) and "global" in cursor_xy:
+        point = cursor_xy["global"]
+        frame = window_frame or {}
+        try:
+            gx, gy = float(point[0]), float(point[1])
+            fx, fy = float(frame["x"]), float(frame["y"])
+            fw, fh = float(frame["w"]), float(frame["h"])
+        except (KeyError, TypeError, ValueError, IndexError):
+            return None
+        if fw <= 0 or fh <= 0:
+            return None
+        return (gx - fx) / fw, (gy - fy) / fh
+    try:
+        if isinstance(cursor_xy, dict):
+            return float(cursor_xy["x"]), float(cursor_xy["y"])
+        return float(cursor_xy[0]), float(cursor_xy[1])
+    except (KeyError, TypeError, ValueError, IndexError):
+        return None
+
+
+def _operator_cursor_xy(app_name, pid, window_id):
+    """Visible operator cursor for this exact window, normalized 0-1."""
+    path = Path.home() / ".cache/macos-cua/operator-state.json"
+    try:
+        state = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(state, dict) or state.get("cursor_visible") is not True:
+        return None
+    if app_name and state.get("app") != app_name:
+        return None
+    try:
+        if pid is None or int(state.get("pid")) != int(pid):
+            return None
+        if window_id is None or int(state.get("window_id")) != int(window_id):
+            return None
+    except (TypeError, ValueError):
+        return None
+    x = state.get("cursor_rendered_x")
+    y = state.get("cursor_rendered_y")
+    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+        x, y = state.get("cursor_x"), state.get("cursor_y")
+    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+        return None
+    return float(x), float(y)
+
+
+def _annotate_cursor_screenshot(path, x, y):
+    annotate = globals().get("annotate_cursor_screenshot")
+    if annotate is None:
+        from runtime_snapshot import annotate_cursor_screenshot as annotate
+    return annotate(path, x, y)
+
+
+def proof_cursor_xy(results):
+    """Cursor for a plan proof: normalized point, or a global AX point."""
+    for row in reversed(results or []):
+        result = row.get("result") if isinstance(row, dict) else None
+        if not isinstance(result, dict) or result.get("ok") is False:
+            continue
+        norm = result.get("cursor_normalized")
+        if isinstance(norm, dict):
+            try:
+                return {"x": float(norm["x"]), "y": float(norm["y"])}
+            except (KeyError, TypeError, ValueError):
+                pass
+        coords = result.get("coords")
+        if isinstance(coords, dict):
+            try:
+                return {"global": (float(coords["x"]), float(coords["y"]))}
+            except (KeyError, TypeError, ValueError):
+                pass
+    return None
+
+
+def _stamp_cursor_proof(screenshot, captured, cursor_xy, window_frame, app_name, pid, window_id):
+    point = _normalize_cursor_xy(
+        cursor_xy, window_frame, screenshot.get("width"), screenshot.get("height")
+    )
+    if point is None:
+        point = _operator_cursor_xy(app_name, pid, window_id)
+    if point is None:
+        return screenshot
+    annotated = _annotate_cursor_screenshot(captured, point[0], point[1])
+    if not isinstance(annotated, dict) or annotated.get("ok") is not True:
+        return screenshot
+    screenshot["path"] = annotated.get("path") or captured
+    screenshot["cursor_included"] = True
+    if annotated.get("cursor") is not None:
+        screenshot["cursor"] = annotated["cursor"]
+    return screenshot
+
+
 def cua_app_state(app_name, pid, window_id, *, max_elements=120, query=None,
                   include_screenshot=True, screenshot_out_file=None,
-                  prepare_foreground=False):
-    """`state`: CUAService AX text + elements (+ window screenshot) as one object."""
+                  prepare_foreground=False, cursor_xy=None):
+    """`state`: CUAService AX text + elements (+ window screenshot) as one object.
+
+    A screenshot is stamped with the Hermes pointer when ``cursor_xy`` is set
+    or the operator cursor is visible on this window. ``cursor_xy`` is a
+    normalized pair, ``{"x", "y"}``, ``{"local": (px, py)}`` screenshot pixels,
+    or ``{"global": (x, y)}`` in window-frame space. The proof image is
+    ``-cursor.png`` and ``cursor_included`` is set.
+    """
     shot_path = None
     if include_screenshot:
         shot_path = (_absolute_output_path(screenshot_out_file) if screenshot_out_file
@@ -187,6 +308,19 @@ def cua_app_state(app_name, pid, window_id, *, max_elements=120, query=None,
     non_menu = {e.get("role") for e in elements
                 if e.get("role") and not str(e.get("role")).startswith("AXMenu")}
     captured = raw.get("screenshot_file_path")
+    screenshot = None
+    if captured:
+        screenshot = {
+            "path": captured,
+            "raw_path": captured,
+            "width": raw.get("screenshot_width"),
+            "height": raw.get("screenshot_height"),
+            "mime_type": "image/png",
+        }
+        screenshot = _stamp_cursor_proof(
+            screenshot, captured, cursor_xy, raw.get("window_frame"),
+            app_name, pid, window_id,
+        )
     return {
         "ok": bool(raw.get("tree_markdown")) and (not include_screenshot or bool(captured)),
         "engine": "CUAService",
@@ -199,13 +333,7 @@ def cua_app_state(app_name, pid, window_id, *, max_elements=120, query=None,
         "element_count": len(elements),
         "hidden_element_count": max(0, len(raw_elements) - len(elements)),
         "window_frame": raw.get("window_frame"),
-        "screenshot": {
-            "path": captured,
-            "raw_path": captured,
-            "width": raw.get("screenshot_width"),
-            "height": raw.get("screenshot_height"),
-            "mime_type": "image/png",
-        } if captured else None,
+        "screenshot": screenshot,
         "signals": {
             "ax_available": bool(elements),
             "app_content_available": bool(non_menu),

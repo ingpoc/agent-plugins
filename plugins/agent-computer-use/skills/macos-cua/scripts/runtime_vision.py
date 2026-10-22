@@ -190,10 +190,30 @@ def _match_label(elements, text, roles, *, allow_ambiguous: bool = False):
     return pick(tied)
 
 
+def _outline_static_text(elements):
+    """Sidebar labels Finder exposes as AXStaticText under AXOutline.
+
+    Empty AXRows are not emitted, so the outline's text is the row.
+    """
+    by_index = {element.get("element_index"): element for element in elements}
+    return [
+        element
+        for element in elements
+        if element.get("role") == "AXStaticText"
+        and (by_index.get(element.get("parent_index")) or {}).get("role") == "AXOutline"
+    ]
+
+
 def find_clickable_index(snapshot_data, text):
-    idx = _match_label(snapshot_data.get("elements", []), text, CLICK_ROLES)
+    elements = snapshot_data.get("elements", [])
+    idx = _match_label(elements, text, CLICK_ROLES)
     if idx is not None:
         return idx
+    outlined = _outline_static_text(elements)
+    if outlined:
+        idx = _match_label(outlined, text, {"AXStaticText"})
+        if idx is not None:
+            return idx
     # Older driver trees can carry the searchable label only in Markdown. Keep
     # that compatibility path role-scoped: an app/window title containing the
     # requested text is not a clickable target (for example an app window

@@ -299,6 +299,7 @@ def app_state(
     screenshot_out_file=None,
     prepare_foreground=True,
     foreground_prepared=False,
+    cursor_xy=None,
 ):
     """One Computer Use-style state object from CUAService: AX text + elements + image.
 
@@ -314,6 +315,7 @@ def app_state(
         include_screenshot=include_screenshot,
         screenshot_out_file=screenshot_out_file,
         prepare_foreground=bool(prepare_foreground and not foreground_prepared),
+        cursor_xy=cursor_xy,
     )
 
 

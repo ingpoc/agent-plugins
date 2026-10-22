@@ -386,9 +386,8 @@ def probe_whatsapp(cua, row: dict[str, Any]) -> dict[str, Any]:
             "seed_snapshot": closed_snap,
             "actions": [
                 {
-                    "action": "perform_action",
+                    "action": "click",
                     "label": "New Chat",
-                    "name": "press",
                     "expect": {"text": "New chat", "role": "AXHeading"},
                 }
             ],

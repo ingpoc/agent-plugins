@@ -457,7 +457,8 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "macos-cua key must use CUAService press_key, never the retired cua-driver",
     )
     routed = {
-        "runtime_accessibility.py": ("scroll", "set_value", "type_text"),
+        "runtime_accessibility.py": ("set_value", "type_text"),
+        "runtime_scroll.py": ("scroll",),
         "runtime_labels.py": ("click",),
         "runtime_pointer.py": ("right_click",),
         "runtime_pointer_actions.py": ("drag",),
