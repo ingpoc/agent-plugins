@@ -154,15 +154,12 @@ def build_server(store: Store) -> MCPServer:
         ),
         structured_output=False,
     )
-    def get(decision_id: str, expected_revision: int | None = None, actor: str | None = None,
-            task_id: str | None = None) -> CallToolResult:
+    def get(decision_id: str, expected_revision: int | None = None, actor: str | None = None) -> CallToolResult:
         args: dict[str, Any] = {"decision_id": decision_id}
         if expected_revision is not None:
             args["expected_revision"] = expected_revision
         if actor:
             args["actor"] = actor
-        if task_id is not None:
-            args["task_id"] = task_id
         return _call(lambda a: store.get(a, mcp=True), args, structured=False)
 
     @server.tool(

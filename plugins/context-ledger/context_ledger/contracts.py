@@ -390,7 +390,7 @@ def _validate_caller_scope(value: Any) -> dict[str, Any]:
     project = obj.get("project", None)
     if project is not None:
         project = require_scope(project)
-    tools = obj.get("tools", [])
+    tools = obj.get("tools") or []
     if not isinstance(tools, list):
         raise LedgerError("INVALID_ARGUMENT", message="caller_scope.tools must be a list")
     return {"project": project, "tools": [require_scope(item) for item in tools]}
@@ -821,11 +821,8 @@ def validate_find_input(value: Any) -> dict[str, Any]:
 
 
 def validate_get_input(value: Any) -> dict[str, Any]:
-    obj = require_keys(value, {"decision_id"}, {"expected_revision", "actor", "task_id"})
-    out: dict[str, Any] = {
-        "decision_id": require_uuid(obj["decision_id"]), "actor": require_actor(obj.get("actor")),
-        "task_id": require_uuid(obj["task_id"]) if obj.get("task_id") is not None else None,
-    }
+    obj = require_keys(value, {"decision_id"}, {"expected_revision", "actor"})
+    out: dict[str, Any] = {"decision_id": require_uuid(obj["decision_id"]), "actor": require_actor(obj.get("actor"))}
     if "expected_revision" in obj:
         out["expected_revision"] = require_int(obj["expected_revision"], min_v=1)
     return out

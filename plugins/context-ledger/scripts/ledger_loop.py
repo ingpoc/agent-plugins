@@ -659,25 +659,13 @@ def cmd_find(o: argparse.Namespace, data: Path) -> str:
     if not o.query.strip():
         raise Fail(f"FAIL {task_id}: empty query; fix: name the problem happening now")
     bot = _bot(o, task_id)
-    explicit_scope = getattr(o, "caller_scope", None)
-    caller_scope = None
-    if explicit_scope is not None:
-        root = plugin_root()
-        if str(root) not in sys.path:
-            sys.path.insert(0, str(root))
-        from context_ledger.contracts import _validate_caller_scope
-        try:
-            caller_scope = _validate_caller_scope(json.loads(explicit_scope))
-        except Exception as exc:
-            raise Fail(f"FAIL {task_id}: invalid caller_scope; fix: supply a project/tools JSON object") from exc
     arm = ab_arm(ab_today())
     if arm == "off":
         _log_row(data, {"task_id": task_id, "ev": "start", "bot": bot, "query": o.query, "lookup": "arm_off", "arm": arm, "ms": 0})
         return json.dumps({"matches": [], "arm": "off", "note": "A/B OFF day: no lookup; saves and outcomes stay on"})
     started = time.monotonic()
     find_args: dict = {"query": o.query, "actor": bot, "task_id": task_id}
-    if explicit_scope is None:
-        caller_scope = _binding_caller_scope(data)
+    caller_scope = _binding_caller_scope(data)
     if caller_scope is not None:
         find_args["caller_scope"] = caller_scope
     try:
@@ -901,7 +889,6 @@ def main(argv: list[str] | None = None) -> int:
     x.add_argument("task_id")
     x.add_argument("--bot", required=True)
     x.add_argument("--query", required=True)
-    x.add_argument("--caller-scope", help="Task-owner project and tools as JSON; {} means fleet-only")
     x.add_argument("--audit", action="store_true")
     x = sub.add_parser("save", help="capture one compact trace, 2 s deadline, fail-open")
     x.add_argument("task_id")
