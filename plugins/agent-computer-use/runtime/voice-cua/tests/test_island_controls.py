@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import threading
 import unittest
@@ -13,6 +14,9 @@ os.environ.setdefault(
     "VOICE_CUA_ACTIVITY_LOG",
     str(Path(tempfile.mkdtemp(prefix="voice-cua-test-")) / "activity.jsonl"),
 )
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "python"))
 
 from voice_cua import session_hub
 from voice_cua.realtime_session import RealtimeSession

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import threading
 import time
@@ -17,6 +18,9 @@ os.environ.setdefault(
     "VOICE_CUA_ACTIVITY_LOG",
     str(Path(tempfile.mkdtemp(prefix="voice-cua-test-")) / "activity.jsonl"),
 )
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "python"))
 
 from voice_cua.island_hub import HubForwarder, read_token
 from voice_cua.island_state import IslandBus

@@ -2338,7 +2338,8 @@ class CursorProofTests(unittest.TestCase):
         client.configure_cursor.return_value = {"ok": True, "visible": False,
                                                 "motion_style": "linear", "motion_recording": True}
         with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
-            res = macos_cua.cursor("configure", motion_style="linear", recording=True)
+            with mock.patch.object(macos_cua, "cursor_raster_path", return_value="/tmp/cursor.png"):
+                res = macos_cua.cursor("configure", motion_style="linear", recording=True)
         self.assertTrue(res["ok"])
         self.assertTrue(res["configured"])
         self.assertEqual(res["overlay"]["motion_style"], "linear")
@@ -2355,7 +2356,7 @@ class CursorProofTests(unittest.TestCase):
         client.configure_cursor.assert_not_called()
 
     def test_cursor_proof_pointer_size_is_9pct_clamped(self):
-        from runtime_snapshot import cursor_proof_pointer_size as size
+        size = macos_cua.cursor_proof_pointer_size
         self.assertEqual(size(100, 100), 18.0)
         self.assertAlmostEqual(size(240, 400), 21.6)
         self.assertEqual(size(2000, 1200), 26.0)
