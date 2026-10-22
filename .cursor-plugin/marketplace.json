@@ -3,27 +3,64 @@
   "owner": {
     "name": "ingpoc"
   },
+  "metadata": {
+    "description": "Portable Agent Plugins from ingpoc: macOS computer use, Comet browser control, and a local decision ledger."
+  },
   "plugins": [
     {
       "name": "agent-computer-use",
       "source": "./plugins/agent-computer-use",
-      "description": "Native macOS computer use and GPT Realtime voice control through CUAService."
+      "description": "Operate native macOS apps from an agent through two Accessibility-first MCP tools (state and act), with an optional GPT Realtime voice runtime. macOS only.",
+      "author": {
+        "name": "ingpoc"
+      },
+      "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/agent-computer-use",
+      "repository": "https://github.com/ingpoc/agent-plugins",
+      "license": "MIT",
+      "keywords": [
+        "agent-computer-use",
+        "agent computer use",
+        "cuaservice",
+        "macos-cua"
+      ],
+      "category": "productivity",
+      "logo": "assets/logo.svg"
     },
     {
       "name": "comet-control",
       "source": "./plugins/comet-control",
-      "description": "Control and verify web apps in a leased visible Comet window."
+      "description": "Drive and verify web apps in one leased, visible Perplexity Comet window per agent, through a local broker and an unpacked Comet extension. Never touches Google Chrome or its profiles. macOS only.",
+      "author": {
+        "name": "ingpoc"
+      },
+      "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/comet-control",
+      "repository": "https://github.com/ingpoc/agent-plugins",
+      "license": "MIT",
+      "keywords": [
+        "comet-control",
+        "comet control",
+        "perplexity comet",
+        "comet browser"
+      ],
+      "category": "productivity",
+      "logo": "assets/logo.svg"
     },
     {
       "name": "context-ledger",
       "source": "./plugins/context-ledger",
-      "description": "Scoped, local decision traces with sparse capture and progressive retrieval."
-    },
-    {
-      "name": "irctc-train-booking",
-      "source": "./plugins/irctc-train-booking",
-      "description": "Book an IRCTC ticket through the comet-control lease controller. Login reads the macOS Keychain service irctc at runtime. Aadhaar OTP uses macOS iPhone Mirroring OCR (ocr.swift). Stops before payment."
+      "description": "Local-first decision memory for agents: save the decisions and lessons from critical or recurring tasks, then look them up later through a scoped MCP server over a local SQLite ledger.",
+      "author": {
+        "name": "ingpoc"
+      },
+      "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/context-ledger",
+      "repository": "https://github.com/ingpoc/agent-plugins",
+      "license": "MIT",
+      "keywords": [
+        "context-ledger",
+        "context ledger"
+      ],
+      "category": "productivity",
+      "logo": "assets/logo.svg"
     }
-
   ]
 }

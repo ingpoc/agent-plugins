@@ -1046,7 +1046,7 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     add(
         "Samantha runtime is self-contained in the portable plugin",
         (voice_runtime / "python" / "voice_cua" / "voice_stack.py").is_file()
-        and (voice_runtime / "config" / ".secret" / "openai-api.json").is_file()
+        and (voice_runtime / "config" / "secret-templates" / "openai-api.json").is_file()
         and 'VOICE_RUNTIME_ROOT = PLUGIN_ROOT / "runtime" / "voice-cua"' in installer
         and "VOICE_CUA_AGENT_ROOT" not in installer
         and "voice-cua-agent repo" not in installer

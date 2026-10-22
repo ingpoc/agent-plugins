@@ -25,7 +25,7 @@ OLD=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$PLUGIN
 [ -n "$OLD" ] || { echo "bump: cannot read the current version from plugin.json" >&2; exit 2; }
 [ "$OLD" != "$NEW" ] || { echo "bump: plugin.json is already $NEW" >&2; exit 2; }
 
-FILES="plugin.json .cursor-plugin/plugin.json .claude-plugin/plugin.json
+FILES="plugin.json .cursor-plugin/plugin.json .claude-plugin/plugin.json .grok-plugin/plugin.json
 context_ledger/__init__.py mcp.json .cursor-plugin/mcp.json
 ui-src/app.js ui/ledger-v2.html tests/test_contract.py tests/test_manifests.py"
 

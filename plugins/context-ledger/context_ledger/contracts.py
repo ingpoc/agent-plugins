@@ -838,7 +838,7 @@ def validate_get_input(value: Any) -> dict[str, Any]:
 TRACE_TYPES = ("user_decision", "agent_conclusion")
 TRACE_OUTCOMES = ("success", "failed", "partial", "pending")
 FIX_KINDS = ("supersedes",)
-# A/B (Guru 2026-10-17): inside the window find is ON on odd IST calendar days, OFF on even days.
+# A/B (owner decision 2026-10-17): inside the window find is ON on odd IST calendar days, OFF on even days.
 # Saves and outcomes stay on. scripts/ledger_loop.py carries the same rule for its own log.
 IST = timezone(timedelta(hours=5, minutes=30))
 AB_START, AB_END = date(2026, 10, 18), date(2026, 10, 31)

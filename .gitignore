@@ -19,3 +19,8 @@ plugins/agent-computer-use/skills/macos-cua/service/.pytest_cache/
 plugins/agent-computer-use/runtime/voice-cua/build/
 plugins/agent-computer-use/runtime/voice-cua/dist/
 plugins/agent-computer-use/runtime/voice-cua/*.spec
+# Local secret metadata and env files never ship. Templates live in config/secret-templates/.
+.secret/
+**/.secret/
+.env
+.env.*

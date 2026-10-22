@@ -35,7 +35,7 @@ B = 0.6
 # number of distinct query terms (1 for a one- or two-term query, else 2).
 MIN_COVERAGE = 0.40
 NOT_HELPED_FACTOR = 0.5  # an old decision's text score in a context where it did not help
-# Trust tier (Guru 2026-10-17), tune here: trusted = >= TRUST_MIN_HELPED helped observations from
+# Trust tier (owner decision 2026-10-17), tune here: trusted = >= TRUST_MIN_HELPED helped observations from
 # distinct tasks and (not_helped + misled) / observations <= TRUST_MAX_FAIL, and no fix supersedes
 # the decision in this query's context. An observation is the latest final, evidenced outcome of a
 # task that names the applied event it judges. This tier is self-reported usefulness (what applying
