@@ -17,6 +17,7 @@ IslandKind = Literal[
     "confirm",
     "secrets",
     "done",
+    "reconnecting",
     "error",
 ]
 
@@ -30,7 +31,12 @@ class IslandState:
     step: str = ""
     confirm_id: str = ""
     confirm_prompt: str = ""
-    active_apps: list[str] = field(default_factory=list)
+    active_apps: list[str] = field(default_factory=list)  # oldest → newest
+    expanded: bool = False
+    step_index: int = 0
+    step_total: int = 0
+    agents: list[dict] = field(default_factory=list)  # other agents (multi-agent circle)
+    agent_approval: dict | None = None  # takes over the pill until answered
     voice_side: str = "idle"  # idle | user | assistant
     voice_level: float = 0.0
     voice_levels: list[float] = field(default_factory=lambda: [0.0] * 8)
@@ -49,6 +55,7 @@ class IslandBus:
         self._listeners: list[Callable[[IslandState], None]] = []
         self._confirms: dict[str, threading.Event] = {}
         self._confirm_results: dict[str, bool] = {}
+        self._agent_decisions: dict[str, bool] = {}
 
     @property
     def state(self) -> IslandState:
@@ -58,6 +65,15 @@ class IslandBus:
     def subscribe(self, fn: Callable[[IslandState], None]) -> None:
         with self._lock:
             self._listeners.append(fn)
+
+    def unsubscribe(self, fn: Callable[[IslandState], None]) -> None:
+        with self._lock:
+            if fn in self._listeners:
+                self._listeners.remove(fn)
+
+    def listener_count(self) -> int:
+        with self._lock:
+            return len(self._listeners)
 
     def publish(
         self,
@@ -70,7 +86,30 @@ class IslandBus:
         confirm_id: str = "",
         confirm_prompt: str = "",
         active_apps: list[str] | None = None,
-    ) -> IslandState:
+        expanded: bool = False,
+        step_index: int = 0,
+        step_total: int = 0,
+        agents: list[dict] | None = None,
+        agent_approval: dict | None = None,
+    ) -> IslandState | None:
+        # Copy contract (see island_copy): compact title ≤ 28, overflow → detail,
+        # errors → human copy with the raw text logged only; benign errors dropped.
+        from voice_cua.island_copy import compact, human_error
+
+        if kind == "error":
+            raw = " · ".join(x for x in (title, detail) if x)
+            copy = human_error(raw, target=app)
+            try:
+                from voice_cua.activity_log import log_event
+
+                log_event("island_error_raw", raw=raw[:300], shown=copy or "")
+            except Exception:  # noqa: BLE001
+                pass
+            if copy is None:
+                return None
+            title, detail = copy, ""
+        else:
+            title, detail = compact(title, detail)
         with self._lock:
             prev_apps = list(self._state.active_apps)
             apps = list(active_apps) if active_apps is not None else prev_apps
@@ -85,6 +124,11 @@ class IslandBus:
                 confirm_id=confirm_id,
                 confirm_prompt=confirm_prompt,
                 active_apps=apps,
+                expanded=bool(expanded),
+                step_index=int(step_index or 0),
+                step_total=int(step_total or 0),
+                agents=list(agents) if agents is not None else list(self._state.agents),
+                agent_approval=(agent_approval or None) if agent_approval is not None else self._state.agent_approval,
                 voice_side=self._state.voice_side,
                 voice_level=self._state.voice_level,
                 voice_levels=list(self._state.voice_levels),
@@ -142,6 +186,10 @@ class IslandBus:
         with self._lock:
             result = self._confirm_results.pop(confirm_id, False) if ok else False
             self._confirms.pop(confirm_id, None)
+            stale = not ok and getattr(self._state, "confirm_id", None) == confirm_id
+        if stale:
+            # Timed out unanswered: take the card down (default deny) instead of leaving Allow/Deny up.
+            self.publish("done", title="Not confirmed", detail="No answer, so nothing was done")
         return bool(result)
 
     def resolve_confirm(self, confirm_id: str, approved: bool) -> bool:
@@ -154,4 +202,18 @@ class IslandBus:
         return False
 
 
+    def resolve_agent_approval(self, approval_id: str, approved: bool) -> bool:
+        """Stub resolver for agent approvals (no agent API yet): clear + record."""
+        with self._lock:
+            current = self._state.agent_approval or {}
+            if not current or (approval_id and str(current.get("id") or "") != approval_id):
+                return False
+            self._state.agent_approval = None
+            self._agent_decisions[str(current.get("id") or "")] = bool(approved)
+        self.publish(self._state.kind, title=self._state.title, detail=self._state.detail,
+                     app=self._state.app, active_apps=list(self._state.active_apps))
+        return True
+
+
 ISLAND = IslandBus()
+

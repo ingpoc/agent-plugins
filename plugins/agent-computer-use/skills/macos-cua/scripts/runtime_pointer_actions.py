@@ -36,13 +36,37 @@ def click_point(
         point, error = _window_global_point(pid, x, y, window_id=window_id)
         if error:
             return {"ok": False, **error}
+    text_snap = snapshot(pid, window_id, max_elements=160)
     result = _cuaservice_rpc(pid, "click", _pin_window({"x": point["x"], "y": point["y"]}, window_id))
     err = result.get("error")
     out = {**result, "ok": not err and result.get("ok") is not False, "path": "cuaservice-point",
            "screen_point": point}
     if debug_image_out:
         out["debug_image_omitted"] = True
+    text = _accessible_text_at_point(pid, window_id, point, 1, observation=text_snap) if out.get("ok") else None
+    if isinstance(text, dict) and text.get("ok"):
+        out = {**out, "path": text["path"], "verified": text.get("verified"),
+               "effect": text.get("effect"), "range": text.get("range")}
     return out
+
+
+def _accessible_text_at_point(pid, window_id, point, click_count, observation=None):
+    """Map a screen point through Apple's AXRangeForPosition and set that selection."""
+    snap = observation
+    if snap is None:
+        snap = snapshot(pid, window_id, max_elements=160)
+    if not isinstance(snap, dict) or snap.get("error"):
+        return None
+    if window_id is not None and not snap.get("window_id"):
+        snap = {**snap, "window_id": window_id}
+    return _native_text_pointer().accessible_text_click(
+        resolve=_resolve_native_ax_element,
+        ax_value=_ax_value,
+        pid=pid,
+        observation=snap,
+        point=point,
+        click_count=click_count,
+    )
 
 
 def _native_double_click_point(pid, screen_point, window_id=None):
@@ -210,6 +234,14 @@ def double_click(
         selection = selected_range()
     if selection and selection["length"] > 0:
         return {**point_result, "verified": True, "selection": selection}
+    if selection and selection["length"] <= 0 and verified_screen_point:
+        text = _accessible_text_at_point(
+            pid, window_id, verified_screen_point, 2, observation=fresh
+        )
+        chosen = (text or {}).get("range") or {}
+        if isinstance(text, dict) and text.get("ok") and chosen.get("length", 0) > 0:
+            return {**point_result, "ok": True, "verified": True, "selection": chosen,
+                    "path": text["path"]}
     return {
         **point_result,
         "ok": False,
@@ -231,12 +263,38 @@ def drag(
     duration_ms=500,
     steps=20,
     app_name=None,
+    slider=False,
 ):
-    """CUAService drag between window-local screenshot coordinates."""
+    """Drag between window-local points. Sliders are set through AX; the cursor still lands."""
     refused = require_cuaservice_window(pid, window_id, 1)
     if refused:
         return refused
-    return cua_drag(pid, from_x, from_y, to_x, to_y, window_id=window_id)
+    snap = snapshot(pid, window_id, max_elements=80)
+    gestured = cua_drag(pid, from_x, from_y, to_x, to_y, window_id=window_id)
+    frame = (snap or {}).get("window_frame") or {}
+    try:
+        origin_x, origin_y = float(frame["x"]), float(frame["y"])
+        source = {"x": origin_x + float(from_x), "y": origin_y + float(from_y)}
+        dest = {"x": origin_x + float(to_x), "y": origin_y + float(to_y)}
+    except (KeyError, TypeError, ValueError):
+        return gestured
+    ax = _native_input().accessible_slider_drag(
+        resolve=_resolve_native_ax_element,
+        ax_value=_ax_value,
+        pid=pid,
+        observation=snap,
+        source=source,
+        destination=dest,
+        slider=bool(slider),
+    )
+    if not ax.get("ok"):
+        return gestured
+    return {
+        **ax,
+        "cursor_landing": gestured.get("cursor_landing"),
+        "system_cursor_used": False,
+        "engine": "CUAService",
+    }
 
 
 def _system_pointer_position():

@@ -13,7 +13,28 @@ final class CursorOverlay: @unchecked Sendable {
     private var animStart = NSPoint.zero
     private var animTarget = NSPoint.zero
     private var animStartTime: TimeInterval = 0
-    private let animDuration: TimeInterval = 0.12
+    /// Current glide duration: 0.12 s by default; Fitts x1.15 in recording mode.
+    private var animDuration: TimeInterval = CometMotion.fastDuration
+    private var animControls = (CGPoint.zero, CGPoint.zero)
+    private var animStyle: CursorMotionStyle = .default
+    private var trailSecs: TimeInterval = CometMotion.fastTrailSecs
+    private var trailView: CometTrailView!
+    /// Transparent margin around the cursor art so the trail is not clipped.
+    nonisolated static let trailMargin: CGFloat = 160
+    /// Arrow tip inside the 210x90 cursor art (unchanged by the 21 pt resize).
+    nonisolated static let artHotspot = CGPoint(x: 15, y: 76)
+    /// Tip offset from the panel origin.
+    nonisolated static var hotspot: CGPoint {
+        CGPoint(x: artHotspot.x + trailMargin, y: artHotspot.y + trailMargin)
+    }
+
+    // MARK: Motion settings (`cursor configure --motion-style/--recording`)
+    static let motionStyleDefaultsKey = "cursorMotionStyle"
+    static let motionRecordingDefaultsKey = "cursorMotionRecording"
+    nonisolated static let motionStyleEnv = "MACOS_CUA_CURSOR_MOTION"
+    nonisolated static let motionRecordingEnv = "MACOS_CUA_CURSOR_RECORDING"
+    private(set) var motionStyle: CursorMotionStyle = .default
+    private(set) var motionRecording = false
     /// Max |panel origin - target| (pt) that counts as "tip landed".
     private let landTolerance: CGFloat = 0.5
     /// Extra time past animDuration before an unacknowledged glide is a miss.
@@ -26,6 +47,8 @@ final class CursorOverlay: @unchecked Sendable {
     /// Resumed by tick() when the final frame is set (true) or by timeout /
     /// supersede / hide (false). Keyed so each waiter resolves exactly once.
     private var landWaiters: [UUID: (Bool) -> Void] = [:]
+    /// Final frame of the current glide has been set.
+    private var landAcked = true
 
     // MARK: Idle auto-hide state
     /// UserDefaults key persisting `cursor configure --idle-hide-ms`.
@@ -99,12 +122,22 @@ final class CursorOverlay: @unchecked Sendable {
     init() {
         let stored = UserDefaults.standard.object(forKey: Self.idleHideDefaultsKey) as? Int
         idleHideMs = min(max(stored ?? Self.defaultIdleHideMs, 0), Self.maxIdleHideMs)
+        let motion = Self.resolveMotionSettings(
+            env: ProcessInfo.processInfo.environment,
+            storedStyle: UserDefaults.standard.string(forKey: Self.motionStyleDefaultsKey),
+            storedRecording: UserDefaults.standard.object(forKey: Self.motionRecordingDefaultsKey) as? Bool
+        )
+        motionStyle = motion.style
+        motionRecording = motion.recording
         setupPanel()  // created ordered-out: hidden until the first action glides
     }
 
     private func setupPanel() {
         panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 210, height: 90),
+            contentRect: NSRect(
+                x: 0, y: 0,
+                width: 210 + 2 * Self.trailMargin, height: 90 + 2 * Self.trailMargin
+            ),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -120,11 +153,16 @@ final class CursorOverlay: @unchecked Sendable {
             .canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle
         ]
 
+        let root = NSView(frame: panel.contentView?.bounds ?? .zero)
+        root.wantsLayer = true
+        trailView = CometTrailView(frame: root.bounds)
+        trailView.autoresizingMask = [.width, .height]
+        root.addSubview(trailView)
         overlayView = CUACursorView(
-            frame: panel.contentView?.bounds ?? .zero
+            frame: NSRect(x: Self.trailMargin, y: Self.trailMargin, width: 210, height: 90)
         )
-        overlayView.autoresizingMask = [.width, .height]
-        panel.contentView = overlayView
+        root.addSubview(overlayView)
+        panel.contentView = root
     }
 
     /// Glide the agent tip to the click point. Returns the Quartz point the
@@ -134,7 +172,8 @@ final class CursorOverlay: @unchecked Sendable {
     func glideTo(
         screenPoint: CGPoint,
         windowID: CGWindowID?,
-        axBounds: CGRect? = nil
+        axBounds: CGRect? = nil,
+        targetSize: CGSize? = nil
     ) -> (point: CGPoint, wait: TimeInterval) {
         let cgBounds = windowID.flatMap { Self.quartzBounds(of: $0) }
         // AX window frame is the live app surface. CGWindowList is often a
@@ -146,12 +185,14 @@ final class CursorOverlay: @unchecked Sendable {
         }
         let appKitPt = appKitPoint(fromQuartz: quartz, windowBounds: windowBounds)
         // Integral points: WindowServer bounds are compared exactly below.
-        let origin = NSPoint(x: (appKitPt.x - 15).rounded(), y: (appKitPt.y - 76).rounded())
+        let hs = Self.hotspot
+        let origin = NSPoint(x: (appKitPt.x - hs.x).rounded(), y: (appKitPt.y - hs.y).rounded())
 
         cancelPendingHide()  // any new move cancels a pending idle hide
         animationTimer?.invalidate()
         animationTimer = nil
         resolveLandWaiters(false)  // a new glide supersedes any pending landing
+        trailView.segments = []
         animTarget = origin
         lastWindowID = windowID
         if !panel.isVisible {
@@ -169,7 +210,20 @@ final class CursorOverlay: @unchecked Sendable {
 
         animStart = current
         animTarget = origin
+        animStyle = motionStyle
+        let distance = hypot(origin.x - current.x, origin.y - current.y)
+        let width = targetSize.map { min($0.width, $0.height) }.flatMap { $0 > 0 ? $0 : nil }
+        animDuration = CometMotion.duration(
+            style: animStyle, recording: motionRecording,
+            distance: distance, targetWidth: width
+        )
+        trailSecs = CometMotion.trailSeconds(recording: motionRecording)
+        // Control points in panel-origin space; screen clamp shifted likewise.
+        let screenRect = (NSScreen.screens.first { $0.frame.contains(appKitPt) } ?? panel.screen)
+            .map { $0.frame.offsetBy(dx: -hs.x, dy: -hs.y) }
+        animControls = CometMotion.controlPoints(from: current, to: origin, screen: screenRect)
         animStartTime = ProcessInfo.processInfo.systemUptime
+        landAcked = false
         orderPanel(above: windowID)
 
         // Block timer on main runloop: no Timer(target:self) retain pair.
@@ -192,6 +246,7 @@ final class CursorOverlay: @unchecked Sendable {
         animationTimer?.invalidate()
         animationTimer = nil
         resolveLandWaiters(false)
+        trailView.segments = []
         let wasVisible = panel.isVisible
         panel.orderOut(nil)
         if wasVisible { record("hide", ["reason": reason]) }
@@ -256,6 +311,45 @@ final class CursorOverlay: @unchecked Sendable {
         if activeActions == 0 { scheduleIdleHide() }
     }
 
+    /// Env (`MACOS_CUA_CURSOR_MOTION`, `MACOS_CUA_CURSOR_RECORDING`) wins
+    /// over the persisted setting; unknown values fall back to the default.
+    nonisolated static func resolveMotionSettings(
+        env: [String: String], storedStyle: String?, storedRecording: Bool?
+    ) -> (style: CursorMotionStyle, recording: Bool) {
+        let style = env[motionStyleEnv].flatMap(CursorMotionStyle.init(rawValue:))
+            ?? storedStyle.flatMap(CursorMotionStyle.init(rawValue:))
+            ?? .default
+        let recording = env[motionRecordingEnv].flatMap(parseBool) ?? storedRecording ?? false
+        return (style, recording)
+    }
+
+    nonisolated static func parseBool(_ v: String) -> Bool? {
+        switch v.lowercased() {
+        case "1", "true", "yes", "on": return true
+        case "0", "false", "no", "off": return false
+        default: return nil
+        }
+    }
+
+    /// `cursor configure --motion-style S --recording B`. Persisted.
+    func configure(motionStyle style: String?, recording: Bool?) throws {
+        if let style {
+            guard let parsed = CursorMotionStyle(rawValue: style) else {
+                let names = CursorMotionStyle.allCases.map(\.rawValue).joined(separator: ", ")
+                throw RPCMethodError(
+                    code: -32602, message: "motion_style must be one of \(names), got \(style)"
+                )
+            }
+            motionStyle = parsed
+            UserDefaults.standard.set(parsed.rawValue, forKey: Self.motionStyleDefaultsKey)
+        }
+        if let recording {
+            motionRecording = recording
+            UserDefaults.standard.set(recording, forKey: Self.motionRecordingDefaultsKey)
+        }
+        record("configure", ["motion_style": motionStyle.rawValue, "recording": motionRecording])
+    }
+
     /// Visibility + idle-hide settings for `cursor status`.
     func status(includeEvents: Bool) -> [String: Any] {
         let now = ProcessInfo.processInfo.systemUptime
@@ -264,6 +358,8 @@ final class CursorOverlay: @unchecked Sendable {
             "visible": panel.isVisible,
             "ws_onscreen": ws.onscreen,
             "idle_hide_ms": idleHideMs,
+            "motion_style": motionStyle.rawValue,
+            "motion_recording": motionRecording,
             "auto_hide": idleHideMs > 0,
             "effective_hide_ms": effectiveHideMs as Any,
             "active_actions": activeActions,
@@ -297,10 +393,14 @@ final class CursorOverlay: @unchecked Sendable {
     func glideAndLand(
         screenPoint: CGPoint,
         windowID: CGWindowID?,
-        axBounds: CGRect? = nil
+        axBounds: CGRect? = nil,
+        targetSize: CGSize? = nil
     ) async -> Landing {
         let started = ProcessInfo.processInfo.systemUptime
-        let tip = glideTo(screenPoint: screenPoint, windowID: windowID, axBounds: axBounds)
+        let tip = glideTo(
+            screenPoint: screenPoint, windowID: windowID,
+            axBounds: axBounds, targetSize: targetSize
+        )
         var method = tip.wait > 0 ? "glide" : "snap"
         var finished = true
         if tip.wait > 0 {
@@ -446,7 +546,7 @@ final class CursorOverlay: @unchecked Sendable {
     }
 
     private func waitForLanding(timeout: TimeInterval) async -> Bool {
-        if animationTimer == nil { return true }
+        if animationTimer == nil || landAcked { return true }
         let id = UUID()
         return await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
             landWaiters[id] = { ok in cont.resume(returning: ok) }
@@ -473,18 +573,34 @@ final class CursorOverlay: @unchecked Sendable {
 
     private func tick() {
         let elapsed = ProcessInfo.processInfo.systemUptime - animStartTime
-        let progress = min(1, max(0, elapsed / animDuration))
-        let eased = 1 - pow(1 - progress, 3)
-        let origin = NSPoint(
-            x: animStart.x + (animTarget.x - animStart.x) * eased,
-            y: animStart.y + (animTarget.y - animStart.y) * eased
-        )
+        let (a, b, c, d, style) = (animStart, animTarget, animControls, animDuration, animStyle)
+        let sample: (TimeInterval) -> CGPoint = {
+            CometMotion.position(style: style, from: a, to: b, controls: c, elapsed: $0, duration: d)
+        }
+        let landed = elapsed >= animDuration
+        // Last frame snaps exactly onto the target.
+        let origin = landed ? animTarget : sample(elapsed)
         panel.setFrameOrigin(origin)
-        if progress >= 1 {
+        if style == .cometSwoop {
+            // Trail in panel-local space: screen origin -> local tip.
+            let hs = Self.hotspot
+            trailView.segments = CometMotion.trail(at: elapsed, secs: trailSecs, sample: sample).map {
+                TrailSegment(
+                    a: CGPoint(x: $0.a.x - origin.x + hs.x, y: $0.a.y - origin.y + hs.y),
+                    b: CGPoint(x: $0.b.x - origin.x + hs.x, y: $0.b.y - origin.y + hs.y),
+                    width: $0.width, alpha: $0.alpha
+                )
+            }
+        }
+        if landed && !landAcked {
+            landAcked = true
+            resolveLandWaiters(true)  // final frame set: landing acknowledged
+        }
+        // Keep ticking only to let the trail drain behind the landed tip.
+        if landed && (style != .cometSwoop || elapsed >= animDuration + trailSecs) {
             animationTimer?.invalidate()
             animationTimer = nil
-            panel.setFrameOrigin(animTarget)
-            resolveLandWaiters(true)  // final frame set: landing acknowledged
+            trailView.segments = []
         }
     }
 
@@ -656,6 +772,9 @@ final class HermesPointerView: NSView {
         return p
     }()
 
+    static let pointerSize: CGFloat = 21
+    static let drawRect = NSRect(x: 18, y: 46 - pointerSize, width: pointerSize, height: pointerSize)
+
     override init(frame: NSRect) {
         super.init(frame: frame)
     }
@@ -665,7 +784,8 @@ final class HermesPointerView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        let drawRect = NSRect(x: 18, y: 18, width: 28, height: 28)
+        // 21 pt (was 28): minX and maxY fixed so the tip/hotspot is unchanged.
+        let drawRect = Self.drawRect
 
         // Scale 512x512 viewBox to drawRect, flip Y for AppKit
         ctx.saveGState()
@@ -674,7 +794,7 @@ final class HermesPointerView: NSView {
 
         // Cyan glow pass
         ctx.setShadow(
-            offset: .zero, blur: 12,
+            offset: .zero, blur: 9,
             color: NSColor(calibratedRed: 73/255, green: 182/255, blue: 1, alpha: 0.9).cgColor
         )
         ctx.addPath(Self.pointerPath)
@@ -683,7 +803,7 @@ final class HermesPointerView: NSView {
 
         // Depth shadow pass
         ctx.setShadow(
-            offset: CGSize(width: 0, height: 8), blur: 4,
+            offset: CGSize(width: 0, height: 6), blur: 3,
             color: NSColor.black.withAlphaComponent(0.45).cgColor
         )
         ctx.addPath(Self.pointerPath)
@@ -695,5 +815,25 @@ final class HermesPointerView: NSView {
         ctx.fillPath()
 
         ctx.restoreGState()
+    }
+}
+
+
+/// Comet trail (round-capped cyan segments) under the pointer.
+final class CometTrailView: NSView {
+    var segments: [TrailSegment] = [] {
+        didSet { if segments != oldValue { needsDisplay = true } }
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard !segments.isEmpty, let ctx = NSGraphicsContext.current?.cgContext else { return }
+        ctx.setLineCap(.round)
+        for seg in segments {
+            ctx.setStrokeColor(NSColor(calibratedRed: 73/255, green: 182/255, blue: 1, alpha: seg.alpha).cgColor)
+            ctx.setLineWidth(seg.width)
+            ctx.move(to: seg.a)
+            ctx.addLine(to: seg.b)
+            ctx.strokePath()
+        }
     }
 }

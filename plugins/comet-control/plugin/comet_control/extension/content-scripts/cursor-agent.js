@@ -1003,6 +1003,13 @@
       samples.push(_sampleRect(el));
     }
     if (lastThreeMatch()) return samples[samples.length - 1].rect;
+    // Background/occluded lease windows throttle rAF and timers to ~1 s, so the time budget
+    // can end after 2 samples. An identical rect across a throttled frame (>= maxMs apart)
+    // is stable; without CDP attached (Chrome 155 debugger policy) nothing unthrottles it.
+    const span = samples[samples.length - 1].at - samples[0].at;
+    if (samples.length >= 2 && span >= maxMs && samples.every((item, index) => (
+      index === 0 || _sameRect(samples[index - 1].rect, item.rect)
+    ))) return samples[samples.length - 1].rect;
     const viewportChanged = samples.some((item, index) => (
       index > 0
       && (
@@ -1467,7 +1474,7 @@
       try {
         const el = document.querySelector(String(selector));
         return el
-          ? { found: true, value: String(el.value ?? el.textContent ?? '').slice(0, inputValueCap) }
+          ? { found: true, value: String(el.value ?? el.textContent ?? '') }
           : { found: false };
       } catch (error) {
         return { found: false, error: String(error?.message || error).slice(0, 120) };

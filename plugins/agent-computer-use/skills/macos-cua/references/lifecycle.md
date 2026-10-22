@@ -19,19 +19,13 @@ native resolve (cold launch uses `open -n`; PID-live is not proof).
 ## Setup (once)
 
 ```bash
-ls ~/.local/bin/cua-driver
-~/.local/bin/cua-driver --version  # must be >= 0.8.3
+python3 $SKILL_DIR/scripts/macos-cua.py doctor   # read-only: CUAService, TCC, operator
 python3 $SKILL_DIR/scripts/workflow.py preflight
 ```
 
-Daemon wedge: `launchctl kickstart -k gui/$UID/com.trycua.driver` → re-run preflight.
-
-Preflight only stabilizes infrastructure: it requires the daemon's
-Accessibility and Screen Recording grants, but never launches or exercises a
-test app. Older drivers may also report a direct capture probe; an explicit
-`false` fails closed, while an absent probe is left to the live validation
-commands below. With operator confirmation, run `cua-driver permissions grant`,
-then rerun preflight.
+`doctor` never launches or exercises an app; a `false` grant fails closed.
+Grant Accessibility + Screen Recording to CUAService (with operator
+confirmation), relaunch it, then rerun doctor.
 
 Preflight packages, identity-signs, verifies, and starts the native operator as
 a per-user launchd service. The first build requires the system `swiftc`; later

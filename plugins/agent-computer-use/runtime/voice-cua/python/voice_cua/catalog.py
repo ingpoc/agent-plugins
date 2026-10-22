@@ -10,7 +10,6 @@ import os
 import re
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -253,6 +252,37 @@ def keychain_exists(label: str) -> bool:
     return r.returncode == 0
 
 
+# Written by the app (KeychainGrant) after onboarding's Keychain row read an item successfully:
+# {"ids": [...], "labels": [...]} — names only, never values.
+KEYCHAIN_APPROVED = Path("~/.cache/macos-cua/keychain-approved.json").expanduser()
+
+
+class KeychainNotApproved(RuntimeError):
+    """Item not yet approved in ACU onboarding › Keychain access; reading would prompt."""
+
+
+def keychain_approved(*, label: str | None = None, item_id: str | None = None) -> bool:
+    if os.environ.get("ACU_KEYCHAIN_UNGATED", "") == "1":  # dev checkout / tests only
+        return True
+    try:
+        data = json.loads(KEYCHAIN_APPROVED.read_text())
+    except (OSError, ValueError):
+        return False
+    return (label is not None and label in data.get("labels", [])) or (
+        item_id is not None and item_id in data.get("ids", [])
+    )
+
+
+def keychain_get_approved(label: str, item_id: str) -> str:
+    """Runtime read (Samantha's API keys): only items onboarding already approved, so the
+    Keychain never prompts mid-session (attributed to /usr/bin/security)."""
+    if not keychain_approved(label=label, item_id=item_id):
+        raise KeychainNotApproved(
+            f"Keychain item {label!r} needs access: open ACU onboarding › Keychain access › Grant"
+        )
+    return keychain_get(label)
+
+
 def keychain_get(label: str) -> str:
     r = subprocess.run(
         [SECURITY, "find-generic-password", "-l", label, "-w"],
@@ -264,6 +294,17 @@ def keychain_get(label: str) -> str:
     return r.stdout.rstrip("\n")
 
 
+_SECURITY_UNSAFE = ('"', "\\", "\n", "\r")
+
+
+def _security_arg(name: str, text: str) -> str:
+    """Double-quoted token for a `security -i` command line. Quotes, backslashes and newlines are
+    rejected (not escaped): they could end the token or the command."""
+    if any(c in text for c in _SECURITY_UNSAFE):
+        raise ValueError(f"{name} must not contain a double quote, backslash or newline")
+    return f'"{text}"'
+
+
 def keychain_put(
     *,
     service: str,
@@ -271,32 +312,33 @@ def keychain_put(
     label: str,
     value: str | None = None,
 ) -> None:
-    """Store/update. If value is None, security prompts interactively (-w)."""
-    cmd = [
-        SECURITY,
-        "add-generic-password",
-        "-U",
-        "-s", service,
-        "-a", account,
-        "-l", label,
-        "-w",
-    ]
+    """Store/update. If value is None, security prompts interactively (-w).
+
+    A given value never appears in argv: the whole add-generic-password line goes to
+    `/usr/bin/security -i` on stdin."""
     if value is None:
-        subprocess.run(cmd, check=True)
+        subprocess.run(
+            [SECURITY, "add-generic-password", "-U", "-s", service, "-a", account, "-l", label, "-w"],
+            check=True,
+        )
         return
-    with tempfile.NamedTemporaryFile("w", delete=False) as tf:
-        tf.write(value)
-        tf.flush()
-        path = tf.name
-    try:
-        os.chmod(path, 0o600)
-        secret = Path(path).read_text(encoding="utf-8")
-        subprocess.run(cmd + [secret], check=True, capture_output=True)
-    finally:
-        try:
-            os.remove(path)
-        except OSError:
-            pass
+    line = " ".join([
+        "add-generic-password", "-U",
+        "-s", _security_arg("service", service),
+        "-a", _security_arg("account", account),
+        "-l", _security_arg("label", label),
+        "-w", _security_arg("value", value),
+    ])
+    proc = subprocess.run(
+        [SECURITY, "-i"],
+        input=line + "\n",
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    # `security -i` exits 0 even when a command fails; it reports the failure on stderr.
+    if proc.returncode != 0 or proc.stderr.strip():
+        raise subprocess.CalledProcessError(proc.returncode or 1, [SECURITY, "-i", "add-generic-password"])
 
 
 def keychain_delete(label: str) -> None:

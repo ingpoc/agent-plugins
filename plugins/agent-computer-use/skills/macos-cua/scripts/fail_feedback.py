@@ -12,6 +12,7 @@ STALE_ID = "stale_id"
 OBSERVATION_INCOMPLETE = "observation_incomplete"
 ACTION_FAILED = "action_failed"
 EXPECT_UNVERIFIED = "expect_unverified"
+SETTLED_STATE_MAX = 6000  # chars of settled AX text returned with expect_unverified
 VERIFICATION_REQUIRED = "verification_required"
 
 _REASON_HINTS = {
@@ -19,7 +20,7 @@ _REASON_HINTS = {
     STALE_ID: "Element index/id is stale; discard ids and resolve by label via state.",
     OBSERVATION_INCOMPLETE: "No current observation; discard old IDs and get state before deciding. Do not replay uncertain actions.",
     ACTION_FAILED: "Native step failed; change approach (AX → coord) or raise the app.",
-    EXPECT_UNVERIFIED: "Dispatch ran but expect was not new in the settled observation; do not claim done.",
+    EXPECT_UNVERIFIED: "Dispatch ran but expect was not new in the settled observation; read the settled state below (no cua_state needed); do not claim done unless it shows the result.",
     VERIFICATION_REQUIRED: "Mutating act needs expect (or allow_unverified for dispatch-only).",
 }
 
@@ -244,6 +245,15 @@ def apply_failure_feedback(
     # Text owns recovery details; retain only nonduplicated step metadata.
     for key in ("error", "results", "expect"):
         payload.pop(key, None)
+    if reason == EXPECT_UNVERIFIED and after_text.strip():
+        # The action ran: hand back the settled observation so the model reads the outcome
+        # here instead of spending a round trip on cua_state (the usual next call).
+        settled = after_text.strip()
+        if len(settled) > SETTLED_STATE_MAX:
+            settled = settled[:SETTLED_STATE_MAX] + "…"
+        payload["text"] += "\nsettled state:\n" + settled
+        payload["full_text_omitted"] = len(after_text.strip()) > SETTLED_STATE_MAX
+        return payload
     # Keep full tree off the model path; callers that need proof can re-state.
     payload["full_text_omitted"] = True
     return payload

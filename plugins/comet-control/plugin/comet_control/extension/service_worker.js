@@ -10,6 +10,20 @@ import {
   recordParityCdpEvent,
   runParityAction,
 } from "./parity_capabilities.js";
+import {
+  evaluateWithoutDebugger,
+  forgetLeaseCapabilities,
+  handleNativeResponse,
+  leaseCapabilities,
+  logPath,
+  nativeCapture,
+  nativeClickFlow,
+  nativeKeyFlow,
+  nativeTypeFlow,
+  pickPath,
+  setNativeTransport,
+  wantsRealMouse,
+} from "./native_input.js";
 
 const BROKER_URL = "ws://127.0.0.1:38927";
 const PROTOCOL_VERSION = 1;
@@ -25,7 +39,9 @@ const EXTENSION_CAPABILITIES = Object.freeze([
   "page-context-sections",
   "action-expect",
   "raw-cdp",
+  "real-input-fallback",
   "screenshots",
+  "user-scripts-js",
   "visible-agent-cursor",
 ]);
 const PAUSE_ALLOWED_HOST_TYPES = new Set([
@@ -567,6 +583,10 @@ function connectHost() {
         connecting = false;
         return;
       }
+      if (message?.type === "native_response") {
+        handleNativeResponse(message);
+        return;
+      }
       if (message?.type === "broker_ping") {
         post({ id: message.id, type: "broker_pong", success: true });
         return;
@@ -603,6 +623,33 @@ function connectHost() {
     console.warn("Comet Control broker connection failed:", error);
     scheduleHostReconnect(2000);
   }
+}
+
+setNativeTransport((message) => {
+  if (port?.readyState !== WebSocket.OPEN || !brokerReady) return false;
+  port.send(JSON.stringify(message));
+  return true;
+});
+
+// Chrome 155 policy probe for the per-lease capability table (native_input.js).
+async function probeDebugger(tabId) {
+  try {
+    await ensureAttached(tabId);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, reason: isDebuggerPolicyRestriction(error) ? "policy" : String(error?.message || error) };
+  }
+}
+
+const nativeHooks = { executeScriptOnTab: (...args) => executeScriptOnTab(...args), probeDebugger };
+
+// Opt-in (real_mouse / trusted:"real") OS mouse for isTrusted-gated targets; default DOM click.
+function noteClickPath(state, actionType, realMouse) {
+  logPath(state, "click", pickPath({ debugger: false }, "click", { real_mouse: realMouse }), { action: actionType });
+}
+
+async function stateCapabilities(state) {
+  return leaseCapabilities(state, nativeHooks);
 }
 
 function post(message) {
@@ -1421,6 +1468,7 @@ async function closeSession(sessionId, { reason = "closeout" } = {}) {
   tabConsoleCdp.delete(record.tabId);
   tabNetworkCdp.delete(record.tabId);
   cleanupParityTab(record.tabId);
+  forgetLeaseCapabilities(record.sessionId);
 
   let tabsClosed = 0;
   let windowsClosed = 0;
@@ -1562,12 +1610,20 @@ async function ensureAttached(tabId) {
   }
 }
 
+// Chrome 155+ (Comet 155): a managed ExtensionSettings runtime_blocked_hosts makes
+// chrome.debugger.attach fail on EVERY tab with "Host access is restricted by policy."
+// (or "Screenshot capture is restricted by policy." under DisableScreenshots/DLP).
+// Policy is not bypassed: clicks fall back to the content-script (untrusted) click.
+function isDebuggerPolicyRestriction(error) {
+  return String(error?.message || error || "").includes("restricted by policy");
+}
+
 async function attachForClick(tabId) {
   try {
     await ensureAttached(tabId);
     return true;
   } catch (error) {
-    if (!isForeignExtensionRestriction(error)) throw error;
+    if (!isForeignExtensionRestriction(error) && !isDebuggerPolicyRestriction(error)) throw error;
     return false;
   }
 }
@@ -1854,6 +1910,14 @@ async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
       }
     } else {
       await parkContentScriptIdle(tabId, point.frame_id || 0);
+    }
+    if (options.realMouse) {
+      const lease = leaseForTab(tabId);
+      const real = await nativeClickFlow({ tabId, leaseRecord: lease }, nativeHooks, {
+        point: { x: Number(point.x), y: Number(point.y) }, frameId: point.frame_id || 0, label: "click",
+      });
+      return { ...real, x: point.x, y: point.y, frame_id: point.frame_id || 0, click_ring: ringShown, pulse: ringShown,
+        cursor_visible_during_click: visual, visual_synced: visual && cursorArrival?.confirmed !== false, cursor_arrival: cursorArrival };
     }
     if (trusted) {
       // Top-frame CDP mouse is the Chrome-parity navigation path. For OOPIF
@@ -2782,11 +2846,22 @@ async function runBrowserAction(action, state) {
     let navigation;
     try {
       if (type === "back" || type === "forward") {
-        const history = await send(state.tabId, "Page.getNavigationHistory");
-        const offset = type === "back" ? -1 : 1;
-        const target = history?.entries?.[Number(history.currentIndex) + offset];
-        if (!target?.id) throw new Error(`Cannot find a ${type === "back" ? "previous" : "next"} page in history`);
-        await send(state.tabId, "Page.navigateToHistoryEntry", { entryId: target.id });
+        let history = null;
+        try {
+          history = await send(state.tabId, "Page.getNavigationHistory");
+        } catch (error) {
+          if (!isDebuggerPolicyRestriction(error)) throw error;
+        }
+        if (history) {
+          const offset = type === "back" ? -1 : 1;
+          const target = history?.entries?.[Number(history.currentIndex) + offset];
+          if (!target?.id) throw new Error(`Cannot find a ${type === "back" ? "previous" : "next"} page in history`);
+          await send(state.tabId, "Page.navigateToHistoryEntry", { entryId: target.id });
+        } else if (type === "back") {
+          await chrome.tabs.goBack(state.tabId);  // debugger blocked by policy: tabs API
+        } else {
+          await chrome.tabs.goForward(state.tabId);
+        }
       }
       if (type === "reload_page") {
         await chrome.tabs.reload(state.tabId, { bypassCache: Boolean(action.bypassCache) });
@@ -2991,6 +3066,12 @@ async function runBrowserAction(action, state) {
     // attachment failures caused by extension-owned frames. Explicitly activate
     // the leased tab first: a user or another extension may have opened a second
     // tab in this window, and captureVisibleTab otherwise captures that foreign tab.
+    if (action.source === "cua_window") {
+      // Explicit OS window capture of the leased window (includes browser chrome).
+      const shot = await nativeCapture(state, nativeHooks);
+      logPath(state, "screenshot", "cua_window_capture");
+      return { type, format: shot.format, screenshot_path: shot.screenshot_path, source: "cua.window_capture", includes_browser_chrome: true };
+    }
     if (!action.full) {
       return enqueueViewportCapture(async () => {
         const leasedTab = await chrome.tabs.get(state.tabId);
@@ -3063,6 +3144,20 @@ async function runBrowserAction(action, state) {
             if (state.leaseRecord) state.leaseRecord.lastVisibleTabCaptureFingerprint = fingerprint;
           }
         }
+        if (!dataUrl && !useAttachedCapture && !(await stateCapabilities(state)).debugger) {
+          // No debugger and captureVisibleTab failed: CUAService capture of the leased window.
+          const shot = await nativeCapture(state, nativeHooks);
+          logPath(state, "screenshot", "cua_window_capture");
+          return {
+            type,
+            format: shot.format,
+            screenshot_path: shot.screenshot_path,
+            source: "cua.window_capture",
+            includes_browser_chrome: true,
+            capture_attempts: captureAttempts,
+            stale_capture_skipped: staleCaptureSkipped,
+          };
+        }
         if (!dataUrl) {
           await sendToContentScript(state.tabId, "captureScreenshot");
           await ensureAttached(state.tabId);
@@ -3086,6 +3181,7 @@ async function runBrowserAction(action, state) {
             stale_capture_skipped: staleCaptureSkipped,
           };
         }
+        if (!useAttachedCapture) logPath(state, "screenshot", source);
         return {
           type,
           format,
@@ -3167,6 +3263,13 @@ async function runBrowserAction(action, state) {
 
   if (type === "cursor_type") {
     const { text, append } = action;
+    const caps = await stateCapabilities(state);
+    if (pickPath(caps, "type", action) === "cua_keyboard" && action.synthetic !== true) {
+      const status = (await sendToContentScript(state.tabId, "getStatus", [], 0))?.result || {};
+      const point = Number.isFinite(Number(status.x)) && Number.isFinite(Number(status.y)) ? { x: Number(status.x), y: Number(status.y) } : null;
+      const real = await nativeTypeFlow(state, nativeHooks, { point, text: String(text ?? ""), clear: !append, label: type });
+      return { type, length: String(text ?? "").length, ...real };
+    }
     await sendToContentScript(state.tabId, "focusAndType", [text, { append: !!append }]);
     return { type, text };
   }
@@ -3174,8 +3277,53 @@ async function runBrowserAction(action, state) {
   if (type === "cursor_key") {
     const { key, modifiers } = action;
     await sendToContentScript(state.tabId, "showKey", [key]);
+    const caps = await stateCapabilities(state);
+    if (pickPath(caps, "key", action) === "cua_keyboard") {
+      return { type, key, ...(await nativeKeyFlow(state, nativeHooks, { key, modifiers: modifiers || [], label: type })) };
+    }
     await pressKey(send, state.tabId, key, modifiers || []);
-    return { type, key };
+    return { type, key, input_path: "cdp" };
+  }
+
+  // type / press (alias key): focused-element keyboard input. CDP when the debugger
+  // is allowed; the real macOS keyboard (CUAService) on the leased window when not.
+  if (type === "type") {
+    const text = String(action.text ?? action.value ?? "");
+    const caps = await stateCapabilities(state);
+    if (pickPath(caps, "type", action) === "cua_keyboard") {
+      const real = await nativeTypeFlow(state, nativeHooks, {
+        selector: action.selector || null, text, clear: Boolean(action.clear), submit: Boolean(action.submit),
+        mode: action.mode || "auto", label: type,
+      });
+      return { type, selector: action.selector || null, length: text.length, ...real };
+    }
+    if (action.selector) {
+      await executeScriptOnTab(state.tabId, {
+        target: { tabId: state.tabId },
+        func: (selector, clear) => {
+          const el = document.querySelector(selector);
+          if (!el) throw new Error(`no element for ${selector}`);
+          el.focus();
+          if (clear && typeof el.select === "function") el.select();
+          else if (clear && el.isContentEditable) { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+        },
+        args: [String(action.selector), Boolean(action.clear)],
+      }, 5000, "typeFocus");
+    }
+    await send(state.tabId, "Input.insertText", { text });
+    if (action.submit) await pressKey(send, state.tabId, "Enter", []);
+    return { type, selector: action.selector || null, length: text.length, input_path: "cdp" };
+  }
+
+  if (type === "press" || type === "key") {
+    const caps = await stateCapabilities(state);
+    if (pickPath(caps, "key", action) === "cua_keyboard") {
+      return { type, key: action.key, ...(await nativeKeyFlow(state, nativeHooks, {
+        selector: action.selector || null, key: action.key, modifiers: action.modifiers || [], label: type,
+      })) };
+    }
+    await pressKey(send, state.tabId, action.key, action.modifiers || []);
+    return { type, key: action.key, input_path: "cdp" };
   }
 
   if (type === "cursor_drag") {
@@ -3224,6 +3372,12 @@ async function runBrowserAction(action, state) {
       await sendToContentScript(state.tabId, "moveToAndWait", [x, y, 900], 0).catch(() => {});
       await sendToContentScript(state.tabId, "pulseClick", [], 0).catch(() => {});
     }
+    const caps = await stateCapabilities(state);
+    if (!caps.debugger) {
+      // Policy blocks CDP mouse: the real OS mouse at the same viewport point.
+      const real = await nativeClickFlow(state, nativeHooks, { point: { x, y }, label: type });
+      return { type: "click_at_xy", x, y, trusted_click: true, visual_synced: visual, ...real };
+    }
     const click = await trustedBrowserClickAtPoint(state.tabId, { x, y, frame_id: 0 }, {
       keepVisible: visual,
       keepClickRing: visual,
@@ -3261,6 +3415,12 @@ async function runBrowserAction(action, state) {
       ? await chrome.tabs.get(state.tabId).catch(() => null)
       : null;
     const debuggerAttached = await attachForClick(state.tabId);
+    // No debugger (policy / foreign frame): DOM click, or the real OS mouse when asked (isTrusted-gated).
+    if (!debuggerAttached) {
+      clickOptions.trusted = false;
+      clickOptions.realMouse = wantsRealMouse(action);
+      noteClickPath(state, type, clickOptions.realMouse);
+    }
     const runDialogAware = async () => {
       const clickPromise = withTimeout(
         clickResolvedTarget(
@@ -3439,6 +3599,12 @@ async function runBrowserAction(action, state) {
       ? await chrome.tabs.get(state.tabId).catch(() => null)
       : null;
     const debuggerAttached = await attachForClick(state.tabId);
+    // No debugger (policy / foreign frame): DOM click, or the real OS mouse when asked (isTrusted-gated).
+    if (!debuggerAttached) {
+      clickOptions.trusted = false;
+      clickOptions.realMouse = wantsRealMouse(action);
+      noteClickPath(state, type, clickOptions.realMouse);
+    }
     const clickPromise = withTimeout(
       clickResolvedTarget(
         state.tabId,
@@ -3501,12 +3667,30 @@ async function runBrowserAction(action, state) {
     moveCursorToPoint,
     executeScriptOnTab,
     sendToContentScript,
+    probeDebugger,
+    leaseCapabilities: () => stateCapabilities(state),
+    nativeHooks,
   });
   if (parity.handled) return parity.result;
 
-  if (type === "evaluate") {
-    const result = await evaluateReadOnly(state.tabId, action.expression, send);
-    return { type, result };
+  if (type === "evaluate" || type === "js") {
+    const caps = await stateCapabilities(state);
+    if (caps.debugger && type === "evaluate") {
+      const result = await evaluateReadOnly(state.tabId, action.expression, send);
+      return { type, result, js_path: "cdp" };
+    }
+    if (caps.debugger) {
+      const out = await send(state.tabId, "Runtime.evaluate", { expression: String(action.expression || ""), awaitPromise: true, returnByValue: true });
+      if (out?.exceptionDetails) throw new Error(out.exceptionDetails.exception?.description || out.exceptionDetails.text || "js failed");
+      return { type, result: out?.result?.value, js_path: "cdp" };
+    }
+    // No debugger: userScripts (USER_SCRIPT world, CSP-exempt) when allowed, else MAIN-world eval.
+    // The CDP throwOnSideEffect guard is unavailable here; evaluate stays read-only by contract.
+    const out = await evaluateWithoutDebugger(state, nativeHooks, action.expression, caps, { world: action.world });
+    if (out.exceptionDetails) {
+      throw codedError(out.error_code || "JS_FAILED", out.exceptionDetails.text, { js_path: out.path });
+    }
+    return { type, result: out.result?.value, js_path: out.path, side_effect_guard: false };
   }
 
   throw new Error(`Unsupported action type: ${type}`);

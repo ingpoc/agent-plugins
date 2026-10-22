@@ -15,8 +15,22 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+# Keep test events out of the real ~/.cache/macos-cua activity log.
+# Never read the machine's ~/.config/voice-cua/settings.json: a user who picked GPT-Live
+# there switched every session in these tests to the Live provider.
+os.environ["VOICE_CUA_SETTINGS"] = str(Path(tempfile.mkdtemp(prefix="voice-cua-test-settings-")) / "settings.json")
+os.environ.setdefault(
+    "VOICE_CUA_ACTIVITY_LOG",
+    str(Path(tempfile.mkdtemp(prefix="voice-cua-test-")) / "activity.jsonl"),
+)
+
+# Kept-open Comet lease pointer goes to a self-removing temp dir, never ~/.cache.
+_STATE_DIR = tempfile.TemporaryDirectory(prefix="voice-cua-test-state-")
+os.environ.setdefault("VOICE_CUA_COMET_STATE", str(Path(_STATE_DIR.name) / "lease.json"))
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from voice_cua.catalog import (  # noqa: E402
     find_by_role,
@@ -73,7 +87,15 @@ class CatalogTests(unittest.TestCase):
 
 class InventoryTests(unittest.TestCase):
     def test_label_inventory(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
+        # The keychain is a macOS boundary: every lookup here is faked, and any
+        # real /usr/bin/security call from the catalog fails the test.
+        with (
+            tempfile.TemporaryDirectory() as td,
+            patch(
+                "voice_cua.catalog.subprocess.run",
+                side_effect=AssertionError("unit test must not call /usr/bin/security"),
+            ),
+        ):
             td_path = Path(td)
             with patch("voice_cua.catalog.secrets_dir", return_value=td_path):
                 save_key(
@@ -95,8 +117,14 @@ class InventoryTests(unittest.TestCase):
                         "platform": "render",
                     }
                 )
-                inv = build_inventory()
+                with patch("voice_cua.inventory.keychain_exists", return_value=False) as none_exist:
+                    inv = build_inventory()
                 self.assertEqual(inv["total"], 2)
+                self.assertEqual(inv["missing_count"], 2)
+                self.assertEqual(
+                    sorted(call.args[0] for call in none_exist.call_args_list),
+                    ["Open AI Realtime Key", "Render API"],
+                )
                 self.assertEqual(find_by_role(load_catalog(), "openai-runtime")["id"], "openai-api")
 
                 with patch("voice_cua.inventory.keychain_exists") as mock_exists:
@@ -178,14 +206,10 @@ class ToolsTests(unittest.TestCase):
             {
                 "cua_state",
                 "cua_act",
-                "confirm_risky",
-                "secrets_list",
-                "secrets_label",
-                "secrets_get",
-                "secrets_put",
-                "secrets_inject",
-                "secrets_provide",
+                "more_tools",
+                "show_details",
                 "comet_begin",
+                "system_volume",
             },
         )
         for n in names:
@@ -197,7 +221,7 @@ class ToolsTests(unittest.TestCase):
         active = {tool["name"] for tool in tool_definitions(comet_active=True)}
         self.assertIn("comet_begin", idle)
         self.assertNotIn("comet_act", idle)
-        self.assertNotIn("comet_begin", active)
+        self.assertIn("comet_begin", active)  # follow-ups re-attach to the open window
         self.assertTrue({"comet_act", "comet_end"}.issubset(active))
 
     def test_comet_browser_tasks_use_fresh_isolated_leases(self) -> None:
@@ -230,10 +254,10 @@ class ToolsTests(unittest.TestCase):
             patch("voice_cua.comet_bridge._runtime_root", return_value=Path("/plugin")),
             patch("voice_cua.comet_bridge._run_json", side_effect=responses),
         ):
-            first = bridge.begin("https://example.com/one")
+            first = bridge.begin("https://example.com/one", purpose="self_test")
             self.assertTrue(first["ok"])
             self.assertTrue(bridge.end()["ok"])
-            second = bridge.begin("https://example.com/two")
+            second = bridge.begin("https://example.com/two", purpose="self_test")
             self.assertTrue(second["ok"])
             self.assertNotEqual(first["session_id"], second["session_id"])
             self.assertTrue(bridge.end()["ok"])
@@ -268,7 +292,7 @@ class ToolsTests(unittest.TestCase):
         self.assertIn("op", props)
         self.assertIn("open", props["op"]["enum"])
         self.assertEqual(props["path"]["type"], "string")
-        self.assertIn("ok only when expect verifies", act["description"])
+        self.assertIn("ok/verified only when expect matches", act["description"])
         self.assertIn("never search Finder for a known path", SYSTEM_INSTRUCTIONS)
         self.assertIn("never a preliminary Finder open", SYSTEM_INSTRUCTIONS)
         self.assertIn("never say done", SYSTEM_INSTRUCTIONS)
@@ -314,7 +338,12 @@ class AudioIOTests(unittest.TestCase):
         self.assertEqual(upd["session"]["reasoning"], {"effort": "low"})
         self.assertFalse(upd["session"]["parallel_tool_calls"])
         self.assertIn("audio", upd["session"])
-        self.assertNotIn("transcription", upd["session"]["audio"]["input"])
+        self.assertEqual(
+            upd["session"]["audio"]["input"]["transcription"],
+            {"model": "gpt-transcribe", "language": "en"},
+        )
+        with patch.dict(os.environ, {"VOICE_CUA_TRANSCRIBE_MODEL": "off"}):
+            self.assertNotIn("transcription", build_session_update()["session"]["audio"]["input"])
         td = upd["session"]["audio"]["input"]["turn_detection"]
         self.assertEqual(td["type"], "semantic_vad")
         self.assertEqual(td["eagerness"], "low")
@@ -324,8 +353,21 @@ class AudioIOTests(unittest.TestCase):
     def test_realtime_model_choices(self) -> None:
         self.assertEqual(
             [model for model, _ in MODELS],
-            ["gpt-realtime-2", "gpt-realtime-2.1-mini"],
+            ["gpt-live-1", "grok-voice-latest"],
         )
+
+    def test_retired_realtime_setting_maps_to_live(self) -> None:
+        import tempfile
+        from voice_cua.voice_settings import load_settings, live_voice
+
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "settings.json"
+            path.write_text(json.dumps({"realtime_model": "gpt-realtime-2.1", "realtime_voice": "shimmer"}))
+            with patch.dict(os.environ, {"VOICE_CUA_SETTINGS": str(path)}):
+                cfg = load_settings()
+        self.assertEqual(cfg["realtime_model"], "gpt-live-1")
+        self.assertEqual(live_voice(cfg["realtime_voice"]), "shimmer")
+        self.assertEqual(live_voice("nonsense"), "marin")
 
     def test_text_wait_ignores_unrelated_response(self) -> None:
         class FakeWS:
@@ -337,6 +379,17 @@ class AudioIOTests(unittest.TestCase):
 
         session = RealtimeSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
+        # response.done runs the idle hook: hide the agent cursor through
+        # CUAService and publish to the island. Both are host boundaries; the
+        # real hide call blocks in CUAClient.connect() (5s deadline, extended by
+        # recovery; measured ~16s on Debian) when no service socket exists,
+        # outliving the 2s text wait.
+        hide_patch = patch("voice_cua.realtime_session.hide_agent_cursor")
+        hide = hide_patch.start()
+        self.addCleanup(hide_patch.stop)
+        island_patch = patch("voice_cua.realtime_session.island_publish")
+        island_patch.start()
+        self.addCleanup(island_patch.stop)
         result = {}
         thread = threading.Thread(
             target=lambda: result.update(session.send_text_and_wait("ping", timeout=2)),
@@ -369,6 +422,7 @@ class AudioIOTests(unittest.TestCase):
         }))
         thread.join(timeout=1)
         self.assertEqual(result, {"ok": True, "reply": "RIGHT"})
+        self.assertEqual(hide.call_count, 2)
 
     def test_failed_mic_preflight_disables_audio_status(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=True)
@@ -422,7 +476,9 @@ class AudioIOTests(unittest.TestCase):
         session.ws = FakeWS()
         with session._response_condition:
             session._active_response_ids.add("resp_active")
-        with patch("voice_cua.realtime_session.dispatch", return_value={"ok": True}):
+        with patch("voice_cua.realtime_session.dispatch", return_value={"ok": True}), patch(
+            "voice_cua.realtime_session.comet_is_active", return_value=True
+        ):
             session._run_tool("call_comet", "comet_begin", '{"url":"https://example.com"}')
             deadline = time.monotonic() + 1
             while time.monotonic() < deadline and len(session.ws.events) < 2:
@@ -432,7 +488,7 @@ class AudioIOTests(unittest.TestCase):
                 ["conversation.item.create", "session.update"],
             )
             names = {tool["name"] for tool in session.ws.events[-1]["session"]["tools"]}
-            self.assertNotIn("comet_begin", names)
+            self.assertIn("comet_begin", names)  # stays offered: follow-ups reuse the window
             self.assertTrue({"comet_act", "comet_end"}.issubset(names))
             session._finish_response("resp_active")
             deadline = time.monotonic() + 1
@@ -487,6 +543,19 @@ class GatewayTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
+
+
+
+def setUpModule() -> None:  # loop tests run on the provider-neutral pass-through
+    import loop_harness
+
+    loop_harness.install()
+
+
+def tearDownModule() -> None:
+    import loop_harness
+
+    loop_harness.uninstall()
 
 
 if __name__ == "__main__":

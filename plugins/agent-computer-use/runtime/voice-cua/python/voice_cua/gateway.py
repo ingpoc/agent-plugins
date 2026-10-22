@@ -1,4 +1,4 @@
-"""Local HTTP gateway: Realtime client-secret, tools, island SSE, confirm."""
+"""Local HTTP gateway: tools, island SSE, confirm (voice runs on GPT-Live in the helper)."""
 
 from __future__ import annotations
 
@@ -6,23 +6,24 @@ import json
 import hmac
 import os
 import threading
-import urllib.error
-import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-from voice_cua import SYSTEM_INSTRUCTIONS, __version__
+from voice_cua import SYSTEM_INSTRUCTIONS, __version__, session_instructions
 from voice_cua.activity_log import log_path, tail_events
 from voice_cua.startup_trace import tail_startup
-from voice_cua.auth import openai_configured, openai_status, resolve_openai_api_key
+from voice_cua.auth import openai_status
 from voice_cua.inventory import build_inventory, find_by_label
 from voice_cua.island_state import ISLAND
+from voice_cua.activity_log import log_event
+from voice_cua.island_facade import describe_tool, summarize_result
 from voice_cua.tools import dispatch, tool_definitions
 from voice_cua.voice_settings import load_settings
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = int(os.environ.get("VOICE_CUA_PORT", "8765"))
+SSE_HEARTBEAT_S = 10.0
 _HTTPD: ThreadingHTTPServer | None = None
 
 
@@ -47,55 +48,6 @@ def request_shutdown() -> None:
         os._exit(0)
 
     threading.Thread(target=_exit_stack, name="voice-shutdown", daemon=True).start()
-
-
-def mint_client_secret() -> dict[str, Any]:
-    api_key = resolve_openai_api_key()
-    model = realtime_model()
-    body = json.dumps({
-        "session": {
-            "type": "realtime",
-            "model": model,
-        }
-    }).encode("utf-8")
-    # OpenAI ephemeral client secrets for Realtime (GA path).
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/realtime/client_secrets",
-        data=body,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        # Fallback: sessions endpoint used by some SDK versions
-        err_body = exc.read().decode("utf-8", errors="replace")
-        if exc.code in {404, 405}:
-            return _mint_session_fallback(api_key)
-        raise RuntimeError(f"client_secret mint failed HTTP {exc.code}: {err_body[:400]}") from exc
-
-
-def _mint_session_fallback(api_key: str) -> dict[str, Any]:
-    model = realtime_model()
-    body = json.dumps({
-        "model": model,
-        "voice": "alloy",
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        "https://api.openai.com/v1/realtime/sessions",
-        data=body,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.loads(resp.read().decode("utf-8"))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -166,7 +118,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/session/instructions":
             self._json(200, {
-                "instructions": SYSTEM_INSTRUCTIONS,
+                "instructions": session_instructions(),
                 "tools": tool_definitions(),
                 "model": realtime_model(),
             })
@@ -227,14 +179,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         path = urlparse(self.path).path
         if path == "/api/realtime/client-secret":
-            if not openai_configured():
-                self._json(503, {"ok": False, "error": "OPENAI_API_KEY not set"})
-                return
-            try:
-                data = mint_client_secret()
-                self._json(200, {"ok": True, "data": data, "model": realtime_model()})
-            except Exception as exc:  # noqa: BLE001
-                self._json(502, {"ok": False, "error": str(exc)})
+            # Realtime browser client secrets went with the Realtime backend (GPT-Live only).
+            self._json(410, {"ok": False, "error": "Realtime client secrets were removed; voice runs on GPT-Live"})
             return
         if path == "/api/tools/call":
             body = self._read_json()
@@ -247,8 +193,11 @@ class Handler(BaseHTTPRequestHandler):
                     arguments = {}
             if not isinstance(arguments, dict):
                 arguments = {}
-            ISLAND.publish("thinking", title="Tool", detail=name)
+            kind, title, detail, app = describe_tool(name, arguments)
+            ISLAND.publish(kind, title=title, detail=detail, app=app, step=name)
             result = dispatch(name, arguments)
+            rkind, rtitle, rdetail = summarize_result(name, result, fallback=detail)
+            ISLAND.publish(rkind, title=rtitle, detail=rdetail, app=app)
             self._json(200, {"ok": True, "name": name, "result": result})
             return
         if path == "/api/island/publish":
@@ -263,8 +212,32 @@ class Handler(BaseHTTPRequestHandler):
                 confirm_id=str(body.get("confirm_id") or ""),
                 confirm_prompt=str(body.get("confirm_prompt") or ""),
                 active_apps=list(body.get("active_apps") or []),
+                expanded=bool(body.get("expanded")),
+                step_index=int(body.get("step_index") or 0),
+                step_total=int(body.get("step_total") or 0),
+                agents=list(body["agents"]) if isinstance(body.get("agents"), list) else None,
+                agent_approval=(body["agent_approval"] if isinstance(body.get("agent_approval"), dict) else ({} if "agent_approval" in body else None)),  # explicit null clears
             )
             self._json(200, {"ok": True, "state": ISLAND.state.to_dict()})
+            return
+        if path == "/api/agent/approval":
+            # Stub until agents can raise approvals: clears the card, records the answer.
+            body = self._read_json()
+            ok = ISLAND.resolve_agent_approval(str(body.get("id") or ""), bool(body.get("approved")))
+            log_event("agent_approval_answer", id=str(body.get("id") or "")[:80], approved=bool(body.get("approved")), ok=ok)
+            self._json(200, {"ok": ok})
+            return
+        if path == "/api/island/action":
+            # Card controls (stop speaking / cancel / stop task / replay / retry) run on the live session.
+            from voice_cua import session_hub
+
+            if not self._authorize_shutdown():   # same per-launch X-Voice-CUA-Control token as shutdown
+                return
+            body = self._read_json()
+            action = str(body.get("action") or "")[:40]
+            handled = session_hub.island_control(action)
+            log_event("island_action", action=action, handled=handled)
+            self._json(200, {"ok": True, "handled": handled})
             return
         if path == "/api/island/voice":
             body = self._read_json()
@@ -322,38 +295,40 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Voice-CUA", "island")
         self.end_headers()
-        q: list = []
+        pending: dict = {"state": None}
         lock = threading.Lock()
+        ready = threading.Event()
 
         def on_state(state) -> None:
             with lock:
-                q.append(state.to_dict())
+                pending["state"] = state.to_dict()
+            ready.set()
 
         ISLAND.subscribe(on_state)
-        # Initial
-        payload = json.dumps(ISLAND.state.to_dict())
-        self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
-        self.wfile.flush()
         try:
+            # Initial snapshot immediately.
+            payload = json.dumps(ISLAND.state.to_dict())
+            self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+            self.wfile.flush()
+            timeout = SSE_HEARTBEAT_S  # read at call time — tests patch the module global
             while True:
-                item = None
-                with lock:
-                    if q:
-                        item = q.pop(0)
-                if item is None:
-                    import time
-
-                    time.sleep(0.2)
-                    # heartbeat
-                    self.wfile.write(b": ping\n\n")
-                    self.wfile.flush()
-                    continue
-                raw = json.dumps(item)
-                self.wfile.write(f"data: {raw}\n\n".encode("utf-8"))
+                if ready.wait(timeout=timeout):
+                    with lock:
+                        item = pending["state"]
+                        pending["state"] = None
+                        ready.clear()
+                    if item is not None:
+                        self.wfile.write(f"data: {json.dumps(item)}\n\n".encode("utf-8"))
+                        self.wfile.flush()
+                        continue
+                self.wfile.write(b": ping\n\n")
                 self.wfile.flush()
-        except (BrokenPipeError, ConnectionResetError):
+        except (BrokenPipeError, ConnectionResetError, OSError):
             return
+        finally:
+            ISLAND.unsubscribe(on_state)
 
 
 def serve(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:

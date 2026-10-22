@@ -13,15 +13,20 @@ final class VoiceSupervisor {
     private var stopping = false
     private(set) var running = false
     var onRunningChanged: ((Bool) -> Void)?
+    var onGatewayPortChanged: ((Int) -> Void)?
 
-    private let gatewayPort: Int
+    private(set) var gatewayPort: Int
+    private let preferredPort: Int
     private let logURL: URL
     private var startupSessionId = ""
     private var startupStartedAt: Date?
     private var controlToken = ""
+    /// Per-launch token the helper's gateway checks on control endpoints (island card actions).
+    var currentControlToken: String { controlToken }
 
     init(gatewayPort: Int = 8765) {
         self.gatewayPort = gatewayPort
+        preferredPort = gatewayPort
         let cache = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".cache/macos-cua", isDirectory: true)
         try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
@@ -48,6 +53,20 @@ final class VoiceSupervisor {
         }
         logStartup(phase: "microphone_permission", status: "ok")
         clearStaleVoiceStack(reason: "pre-start", signal: SIGTERM)
+        // Only the voice stack is ours to kill; if an unrelated process holds
+        // the preferred port, move the gateway instead of touching it.
+        let chosen = Self.choosePort(
+            preferred: preferredPort,
+            isForeignBusy: { !Self.foreignListeners(on: $0).isEmpty },
+            isListening: { Self.isPortListening($0) }
+        )
+        if chosen != gatewayPort {
+            gatewayPort = chosen
+            onGatewayPortChanged?(chosen)
+        }
+        if chosen != preferredPort {
+            logStartup(phase: "gateway_port", detail: "port=\(chosen) (\(preferredPort) held by non-voice pid)")
+        }
         if Self.isPortListening(gatewayPort) {
             logStartup(phase: "stale_gateway_shutdown")
             requestGatewayShutdown()
@@ -70,6 +89,18 @@ final class VoiceSupervisor {
         env["VOICE_CUA_GATEWAY"] = gatewayURL.absoluteString
         controlToken = UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
         env["VOICE_CUA_CONTROL_TOKEN"] = controlToken
+        // The helper exits if this service goes away (no orphaned mic/session).
+        env["VOICE_CUA_PARENT_PID"] = String(getpid())
+        // Samantha publishes to the island hub over the 0600 local socket (peer uid checked). The helper
+        // never reads the Keychain (its ACL trusts only this app → a read would prompt), so there is no
+        // HTTP fallback: no socket = Samantha island updates off (logged).
+        env.removeValue(forKey: "VOICE_CUA_ISLAND_HUB")
+        if let sock = IslandHub.boundSocketPath {
+            env["VOICE_CUA_ISLAND_SOCKET"] = sock
+        } else {
+            env.removeValue(forKey: "VOICE_CUA_ISLAND_SOCKET")
+            logStartup(phase: "island_hub", status: "fail", detail: "island socket not bound; Samantha island updates off")
+        }
         env.removeValue(forKey: "VOICE_CUA_REMOTE_ISLAND")
         for (key, value) in VoiceSettingsStore.applyToEnvironment(VoiceSettingsStore.load()) {
             env[key] = value
@@ -126,13 +157,9 @@ final class VoiceSupervisor {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .authorized:
             return true
-        case .notDetermined:
-            return await withCheckedContinuation { continuation in
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
-                    continuation.resume(returning: granted)
-                }
-            }
         default:
+            // Never prompt here: onboarding owns the Microphone request.
+            await MainActor.run { OnboardingWindowController.shared.show(row: .microphone) }
             return false
         }
     }
@@ -234,15 +261,42 @@ final class VoiceSupervisor {
         !pidsListening(on: port).isEmpty
     }
 
+    /// Pids of our own voice stack only — lsof listeners may be an unrelated
+    /// process (e.g. another app's server) that must never be signalled.
     private static func voiceStackPIDs(on port: Int) -> [pid_t] {
-        let script = """
-        /usr/sbin/lsof -tiTCP:\(port) -sTCP:LISTEN 2>/dev/null || true
-        /usr/bin/pgrep -f voice-cua.app/Contents/MacOS/voice-cua 2>/dev/null || true
-        /usr/bin/pgrep -f voice_cua.voice_stack 2>/dev/null || true
-        """
-        return runLines(executable: "/bin/bash", arguments: ["-c", script])
-            .compactMap { Int32($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
-            .filter { $0 > 1 }
+        var out: [pid_t] = []
+        for pattern in [
+            "voice-cua.app/Contents/MacOS/voice-cua",
+            "voice_cua.voice_stack",
+            "python3 -m voice_cua.gateway",
+        ] {
+            out.append(contentsOf: runLines(
+                executable: "/usr/bin/pgrep",
+                arguments: ["-f", pattern]
+            ).compactMap { Int32($0.trimmingCharacters(in: .whitespacesAndNewlines)) })
+        }
+        return out.filter { $0 > 1 }
+    }
+
+    /// Listeners on the port that are not part of our voice stack.
+    private static func foreignListeners(on port: Int) -> [pid_t] {
+        let mine = Set(voiceStackPIDs(on: port))
+        return pidsListening(on: port).filter { !mine.contains($0) }
+    }
+
+    /// Pure port picker: keep the preferred port when no foreign process holds
+    /// it; otherwise take the first free port in (preferred, preferred+span].
+    static func choosePort(
+        preferred: Int,
+        isForeignBusy: (Int) -> Bool,
+        isListening: (Int) -> Bool,
+        span: Int = 20
+    ) -> Int {
+        if !isForeignBusy(preferred) { return preferred }
+        for candidate in (preferred + 1)...(preferred + span) {
+            if !isListening(candidate) { return candidate }
+        }
+        return preferred
     }
 
     private static func pidsListening(on port: Int) -> [pid_t] {
@@ -250,25 +304,6 @@ final class VoiceSupervisor {
             executable: "/usr/sbin/lsof",
             arguments: ["-tiTCP:\(port)", "-sTCP:LISTEN"]
         ).compactMap { Int32($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
-    }
-
-    private static func pidsForVoiceHelper() -> [pid_t] {
-        runLines(
-            executable: "/usr/bin/pgrep",
-            arguments: ["-f", "voice-cua.app/Contents/MacOS/voice-cua"]
-        ).compactMap { Int32($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
-    }
-
-    private static func pidsForDevVoiceStack() -> [pid_t] {
-        let patterns = ["voice_cua.voice_stack", "python3 -m voice_cua.gateway"]
-        var out: [pid_t] = []
-        for pattern in patterns {
-            out.append(contentsOf: runLines(
-                executable: "/usr/bin/pgrep",
-                arguments: ["-f", pattern]
-            ).compactMap { Int32($0.trimmingCharacters(in: .whitespacesAndNewlines)) })
-        }
-        return out
     }
 
     private static func runLines(executable: String, arguments: [String]) -> [String] {
@@ -332,6 +367,15 @@ final class VoiceSupervisor {
         )
         setRunning(false)
         appendLog(unexpected ? "voice process exited\n" : "voice process stopped\n")
+        // 78 (EX_CONFIG) = the chosen voice model has no API key: restarting can't help.
+        if unexpected, terminated.terminationStatus == 78 {
+            logStartup(phase: "restart_skipped", status: "fail", detail: "voice model needs an API key")
+            // Key present but not yet approved: "Needs access" → onboarding at the Keychain row (no prompt here).
+            Task { @MainActor in
+                if KeychainGrant.status() != .granted { OnboardingWindowController.shared.show(row: .keychain) }
+            }
+            return
+        }
         if unexpected {
             scheduleRestart()
         }

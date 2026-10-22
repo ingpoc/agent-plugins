@@ -54,6 +54,8 @@ final class ScreenshotCapture: @unchecked Sendable {
     }
 
     func capture(windowID: CGWindowID, axBounds: CGRect? = nil) async -> (path: String?, cached: Bool) {
+        // Preflight only: SCShareableContent would raise the Screen Recording prompt at runtime.
+        guard CGPreflightScreenCaptureAccess() else { return (nil, false) }
         _ = axBounds
         let hit: String? = cache.withLock { state in
             guard let path = state.cachedPath,

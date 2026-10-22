@@ -253,6 +253,7 @@ def compact_step(row: dict[str, Any]) -> dict[str, Any]:
             "range",
             "verified_range",
             "seconds",
+            "cursor_landing",
         ):
             if result.get(key) is not None:
                 compact[key] = result[key]

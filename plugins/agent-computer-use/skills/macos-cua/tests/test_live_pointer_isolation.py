@@ -1,23 +1,34 @@
 #!/usr/bin/env python3
-"""Live proof that macos-cua uses the Hermes agent cursor, not the user pointer."""
+"""Live proof that macos-cua uses the CUAService agent cursor overlay, not the
+user pointer.
 
+Uses CUAService directly (cua_client) for the service PID and click results,
+since the retired cua-driver is gone. The service refuses a press unless the
+overlay tip landed, so a live click result carrying cursor_landing is proof
+the agent cursor tracked the target.
+"""
 from __future__ import annotations
 
 import importlib.util
 import json
-from pathlib import Path
 import subprocess
+import sys
 import time
+from pathlib import Path
 
 from PIL import Image
 from Quartz import (
+    CGDisplayBounds,
     CGEventCreate,
     CGEventGetLocation,
+    CGMainDisplayID,
     CGWindowListCopyWindowInfo,
     kCGNullWindowID,
     kCGWindowListOptionOnScreenOnly,
 )
 
+sys.path.insert(0, str(Path(__file__).parents[1] / "service"))
+from cua_client import health, owner_pids  # noqa: E402
 
 ROOT = Path(__file__).parents[1]
 CLI = ROOT / "scripts" / "macos-cua.py"
@@ -53,15 +64,28 @@ def hardware_pointer() -> tuple[float, float]:
     return float(point.x), float(point.y)
 
 
+def screen_size() -> tuple[float, float]:
+    bounds = CGDisplayBounds(CGMainDisplayID())
+    return float(bounds.size.width), float(bounds.size.height)
+
+
+def cursor_normalized(coords: dict, sw: float, sh: float) -> dict:
+    """Derive normalized (0-1, top-left origin) cursor coords from absolute
+    element-center coords reported by CUAService."""
+    return {
+        "x": max(0.0, min(1.0, float(coords["x"]) / sw)),
+        "y": max(0.0, min(1.0, float(coords["y"]) / sh)),
+    }
+
+
 def check(condition: bool, label: str, detail=None) -> None:
     if not condition:
         raise AssertionError(f"{label}: {detail}")
     print(f"PASS: {label}")
 
 
-def visible_cursor_overlay(
-    operator_pid: int, expected: dict, timeout: float = 8.0
-) -> dict:
+def visible_cursor_overlay(service_pid: int, expected: dict, timeout: float = 8.0) -> dict:
+    """Wait for the CUAService cursor overlay window to converge on expected."""
     deadline = time.monotonic() + timeout
     last = None
     while time.monotonic() < deadline:
@@ -69,9 +93,9 @@ def visible_cursor_overlay(
             kCGWindowListOptionOnScreenOnly, kCGNullWindowID
         )
         for window in windows:
-            if window.get("kCGWindowOwnerName") != "macos-cua Operator":
+            if window.get("kCGWindowOwnerName") != "macos-cua Service":
                 continue
-            if int(window.get("kCGWindowOwnerPID", 0)) != operator_pid:
+            if int(window.get("kCGWindowOwnerPID", 0)) != service_pid:
                 continue
             bounds = dict(window.get("kCGWindowBounds") or {})
             width = round(float(bounds.get("Width", 0)))
@@ -92,11 +116,23 @@ def visible_cursor_overlay(
                     return candidate
         time.sleep(0.1)
     raise AssertionError(
-        f"signed operator cursor overlay did not converge: expected={expected}, last={last}"
+        f"CUAService cursor overlay did not converge: expected={expected}, last={last}"
     )
 
 
 def main() -> None:
+    sw, sh = screen_size()
+    h = health(timeout=5)
+    check(h["ok"], "CUAService is healthy", h)
+    service_pids = h["pids"]
+    check(len(service_pids) > 0, "CUAService has a live owner pid", h)
+    service_pid = service_pids[0]
+    check(
+        service_pid in owner_pids(),
+        "service pid matches cua_client.owner_pids()",
+        {"service_pid": service_pid, "owner_pids": owner_pids()},
+    )
+
     preflight = subprocess.run(
         ["python3", str(WORKFLOW), "preflight"],
         cwd=ROOT,
@@ -112,11 +148,6 @@ def main() -> None:
     )
     check(Path(MACOS_CUA.CURSOR_ICON).resolve() == CURSOR_ASSET.resolve(),
           "macos-cua resolves its portable cursor asset")
-    operator = MACOS_CUA._operator_ui().status()
-    operator_pid = int(
-        (operator.get("service") or {}).get("pid") or operator.get("pid") or 0
-    )
-    check(operator_pid > 0, "signed operator service PID resolves", operator)
 
     before = hardware_pointer()
     activation = MACOS_CUA.launch_or_activate("Calculator")
@@ -131,9 +162,9 @@ def main() -> None:
     for choices in (("All Clear", "Clear"), ("Equals",)):
         label = None
         for _ in range(3):
-            snapshot = MACOS_CUA._native_ax_snapshot(
-                pid, max_elements=80, window_id=window_id
-            )
+            # The service walk is the index space every input (incl. clicks)
+            # uses; a native pyobjc walk numbers elements differently.
+            snapshot = MACOS_CUA.snapshot(pid, max_elements=80, window_id=window_id)
             labels = {element.get("label") for element in snapshot.get("elements", [])}
             label = next((candidate for candidate in choices if candidate in labels), None)
             if label is not None:
@@ -149,13 +180,18 @@ def main() -> None:
             app_name=app_name,
         )
         check(click.get("ok") is True, f"cursor-synchronized click reaches {label}", click)
-        check((click.get("move") or {}).get("sync", {}).get("ok") is True,
-              f"signed overlay acknowledges {label}", click.get("move"))
+        landing = click.get("cursor_landing")
+        check(
+            isinstance(landing, dict) and landing.get("landed") is True
+            and not landing.get("error"),
+            f"signed overlay acknowledges {label}",
+            landing,
+        )
         expected = {
             "x": click["coords"]["x"] - 15,
             "y": click["coords"]["y"] - 14,
         }
-        overlay = visible_cursor_overlay(operator_pid, expected)
+        overlay = visible_cursor_overlay(service_pid, expected)
         error = {
             "x": overlay["bounds"]["X"] - expected["x"],
             "y": overlay["bounds"]["Y"] - expected["y"],
@@ -166,14 +202,15 @@ def main() -> None:
         captured = MACOS_CUA._capture_native_window_region(
             snapshot, pid, window_id, raw_path
         )
+        cn = cursor_normalized(click["coords"], sw, sh)
         annotated = MACOS_CUA.annotate_cursor_screenshot(
             raw_path,
-            click["cursor_normalized"]["x"],
-            click["cursor_normalized"]["y"],
+            cn["x"],
+            cn["y"],
         )
         proof = {
             "cursor_included": bool(annotated and annotated.get("ok")),
-            "cursor": click["cursor_normalized"],
+            "cursor": cn,
             "path": (annotated or {}).get("path"),
             "width": (captured or {}).get("screenshot_width"),
             "height": (captured or {}).get("screenshot_height"),
@@ -185,10 +222,8 @@ def main() -> None:
         )
         proof_cursor = proof.get("cursor") or {}
         proof_error = {
-            "x": (float(proof_cursor.get("x", -1)) - click["cursor_normalized"]["x"])
-            * float(proof.get("width") or 0),
-            "y": (float(proof_cursor.get("y", -1)) - click["cursor_normalized"]["y"])
-            * float(proof.get("height") or 0),
+            "x": (float(proof_cursor.get("x", -1)) - cn["x"]) * float(proof.get("width") or 0),
+            "y": (float(proof_cursor.get("y", -1)) - cn["y"]) * float(proof.get("height") or 0),
         }
         check(
             max(abs(proof_error["x"]), abs(proof_error["y"])) <= 1,
@@ -198,8 +233,8 @@ def main() -> None:
         proof_path = Path(proof["path"])
         check(proof_path.is_file(), f"cursor screenshot for {label} is materialized")
         with Image.open(proof_path).convert("RGB") as proof_image:
-            target_x = round(click["cursor_normalized"]["x"] * proof_image.width)
-            target_y = round(click["cursor_normalized"]["y"] * proof_image.height)
+            target_x = round(cn["x"] * proof_image.width)
+            target_y = round(cn["y"] * proof_image.height)
             cyan = 0
             for px in range(max(0, target_x - 6), min(proof_image.width, target_x + 7)):
                 for py in range(max(0, target_y - 6), min(proof_image.height, target_y + 7)):
@@ -215,7 +250,7 @@ def main() -> None:
                 "y": overlay["bounds"]["Y"],
             },
             "error": error,
-            "sync": click["move"]["sync"],
+            "cursor_landing": landing,
             "proof_png": str(proof_path),
             "proof_error": proof_error,
         })
@@ -231,12 +266,12 @@ def main() -> None:
     )
     after = hardware_pointer()
 
-    check(first.get("method") == "agent-cursor-glide+native-axpress-fallback",
-          "click uses the native Accessibility path", first)
-    check((first.get("result") or {}).get("path") == "native_ax",
-          "click dispatch is native Accessibility", first)
+    check(first.get("method") == "cuaservice-click",
+          "click goes through CUAService", first)
+    check((first.get("result") or {}).get("ok") is True,
+          "CUAService click was accepted", first)
     check(proof.get("cursor_included") is True,
-          "proof PNG contains the Hermes cursor", proof)
+          "proof PNG contains the agent cursor", proof)
     check(Path(proof["path"]).is_file(), "proof PNG is materialized", proof)
     check(captured.returncode == 0 and OVERLAY_CAPTURE.is_file(),
           "visible operator cursor window is captured", captured.stderr)
@@ -265,7 +300,7 @@ def main() -> None:
         "ok": True,
         "cursor_asset": str(CURSOR_ASSET),
         "click_method": first["method"],
-        "click_path": first["result"]["path"],
+        "click_ok": first["result"].get("ok"),
         "proof_png": proof["path"],
         "overlay": overlay,
         "overlay_capture": str(OVERLAY_CAPTURE),

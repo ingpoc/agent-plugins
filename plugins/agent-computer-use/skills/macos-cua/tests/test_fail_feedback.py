@@ -107,7 +107,10 @@ class FailFeedbackTests(unittest.TestCase):
         )
         self.assertEqual(out["error_type"], ff.EXPECT_UNVERIFIED)
         self.assertNotIn("reason", out["failure"])
-        self.assertTrue(out["full_text_omitted"])
+        # The settled state rides along so no follow-up cua_state is needed.
+        self.assertFalse(out["full_text_omitted"])
+        self.assertIn("settled state:", out["text"])
+        self.assertIn(after.strip()[:40], out["text"])
         self.assertIn("reason: expect_unverified", out["text"])
         self.assertIn("Save", out["text"])
 

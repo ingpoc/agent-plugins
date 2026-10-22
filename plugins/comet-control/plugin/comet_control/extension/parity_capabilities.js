@@ -1,3 +1,14 @@
+import {
+  USER_SCRIPTS_HINT,
+  evaluateWithoutDebugger,
+  logPath,
+  nativeCapture,
+  nativeClickFlow,
+  nativeKeyFlow,
+  nativeTypeFlow,
+  pickPath,
+} from "./native_input.js";
+
 const CDP_EVENT_RING_MAX = 1000;
 const ASSET_INVENTORY_MAX = 20;
 const ASSET_LIMIT_MAX = 500;
@@ -648,6 +659,48 @@ async function locatorAction(action, state, hooks) {
     || Math.abs(refreshedMatch.point.y - match.point.y) > 1;
   match = refreshedMatch;
   if (targetMoved) await hooks.moveCursorToPoint(state.tabId, match.point);
+  const caps = typeof hooks.leaseCapabilities === "function" ? await hooks.leaseCapabilities() : null;
+  const noDebugger = Boolean(caps && !caps.debugger);
+  const nativeHooks = hooks.nativeHooks || hooks;
+  if (noDebugger && ["click", "dblclick", "double_click", "type", "press"].includes(operation)) {
+    const count = operation === "click" ? 1 : 2;
+    if (operation === "type") {
+      const real = await nativeTypeFlow(state, nativeHooks, {
+        selector: match.selector, frameId: match.frame_id, text: String(action.value ?? action.text ?? ""),
+        clear: Boolean(action.clear), submit: Boolean(action.submit), mode: action.mode || "auto", label: "locator.type",
+      });
+      return { type: "locator", operation, match, ...real };
+    }
+    if (operation === "press") {
+      const real = await nativeKeyFlow(state, nativeHooks, {
+        selector: match.selector, frameId: match.frame_id, key: action.key || action.value,
+        modifiers: action.modifiers || [], label: "locator.press",
+      });
+      return { type: "locator", operation, match, ...real };
+    }
+    if (pickPath(caps, "click", action) === "cua_mouse") {
+      const real = await nativeClickFlow(state, nativeHooks, {
+        selector: match.frame_id ? null : match.selector, point: match.point, frameId: match.frame_id, count, label: "locator.click",
+      });
+      return { type: "locator", operation, match, ...real };
+    }
+    // DOM click (untrusted): the debugger policy blocks CDP mouse.
+    await chrome.scripting.executeScript({
+      target: { tabId: state.tabId, frameIds: [match.frame_id] },
+      func: (selector, clicks) => {
+        const el = document.querySelector(selector);
+        if (!el) throw new Error("Locator click target disappeared");
+        if (clicks === 1) el.click();
+        else {
+          el.click(); el.click();
+          el.dispatchEvent(new MouseEvent("dblclick", { bubbles: true, cancelable: true, detail: 2 }));
+        }
+      },
+      args: [match.selector, count],
+    });
+    logPath(state, "click", "dom", { action: "locator.click" });
+    return { type: "locator", operation, match, input_path: "dom", trusted: false };
+  }
   if (operation === "click" || operation === "dblclick" || operation === "double_click") {
     const outcome = await clickOrDialog(hooks.send, state.tabId, match.point, operation === "click" ? 1 : 2);
     if (outcome.dialog) return { type: "locator", operation, match, dialog_opened: outcome.dialog };
@@ -855,12 +908,173 @@ export async function evaluateReadOnly(tabId, expression, send) {
   return result?.result?.value;
 }
 
+// Chrome 155+ (Comet 155): a managed ExtensionSettings runtime_blocked_hosts makes
+// chrome.debugger.attach fail on EVERY tab with "Host access is restricted by policy.".
+// The policy is not bypassed: the leased tab's Browser Use surface answers what it can
+// through chrome.scripting / chrome.tabs, which the policy still allows on hosts it does
+// not block (a blocked host refuses scripting too, and that error is returned as is).
+// Methods that need the debugger (trusted Input.*, DOM.*, screenshots) fail fast instead
+// of timing out the Browser Use client.
+const DEBUGGER_POLICY_RECHECK_MS = 60_000;
+const debuggerPolicyBlockedUntil = new Map();
+
+function isDebuggerPolicyBlock(error) {
+  return /restricted by policy/.test(String(error?.message || error || ""));
+}
+
+function debuggerPolicyBlocked(tabId) {
+  const until = debuggerPolicyBlockedUntil.get(tabId) || 0;
+  if (until > Date.now()) return true;
+  debuggerPolicyBlockedUntil.delete(tabId);
+  return false;
+}
+
+// Reads Browser Use issues itself, answered without eval when the page CSP forbids eval.
+const POLICY_KNOWN_READS = [
+  [/^location\.href$/, () => location.href],
+  [/^document\.title$/, () => document.title],
+  [/^document\.readyState$/, () => document.readyState],
+  [/^navigator\.userAgent$/, () => navigator.userAgent],
+  [/^JSON\.stringify\(\{url:location\.href,title:document\.title,w:innerWidth,h:innerHeight,sx:scrollX,sy:scrollY,pw:document\.documentElement\.scrollWidth,ph:document\.documentElement\.scrollHeight\}\)$/,
+    () => JSON.stringify({ url: location.href, title: document.title, w: innerWidth, h: innerHeight, sx: scrollX, sy: scrollY, pw: document.documentElement.scrollWidth, ph: document.documentElement.scrollHeight })],
+];
+
+async function policyEvaluate(tabId, params, hooks) {
+  const expression = String(params.expression || "");
+  const run = async (func, args) => {
+    if (typeof hooks.executeScriptOnTab !== "function") throw new Error("policy fallback requires executeScriptOnTab");
+    const frames = await hooks.executeScriptOnTab(
+      tabId, { target: { tabId }, world: "MAIN", func, args }, 5000, "Runtime.evaluate (debugger blocked by policy)",
+    );
+    return frames?.[0]?.result;
+  };
+  const out = await run((src, awaitPromise) => {
+    const pack = (value) => {
+      if (value === undefined) return { ok: true, type: "undefined" };
+      try { return { ok: true, type: typeof value, value: JSON.parse(JSON.stringify(value)) }; }
+      catch { return { ok: true, type: typeof value, value: String(value) }; }
+    };
+    const fail = (e) => ({ ok: false, name: String((e && e.name) || "Error"), message: String((e && e.message) || e) });
+    try {
+      const value = (0, eval)(src);
+      if (awaitPromise && value && typeof value.then === "function") return value.then(pack, fail);
+      return pack(value);
+    } catch (e) {
+      return fail(e);
+    }
+  }, [expression, params.awaitPromise !== false]);
+  if (out?.ok === false && /EvalError|unsafe-eval|Content Security Policy/i.test(`${out.name} ${out.message}`)) {
+    const known = POLICY_KNOWN_READS.find(([pattern]) => pattern.test(expression.trim()));
+    if (known) {
+      const value = await run(known[1], []);
+      return { result: { type: typeof value, value } };
+    }
+  }
+  if (!out || out.ok === false) {
+    const text = out ? `${out.name}: ${out.message}` : "evaluate returned no result";
+    return { result: { type: "undefined" }, exceptionDetails: { text, exception: { type: "object", description: text } } };
+  }
+  return { result: out.type === "undefined" ? { type: "undefined" } : { type: out.type, value: out.value } };
+}
+
+const CDP_MODIFIER_NAMES = [[1, "Alt"], [2, "Control"], [4, "Meta"], [8, "Shift"]];
+const pressedMouse = new Map();
+
+async function policyFallbackCdp(tabId, method, params, hooks, state = { tabId }) {
+  if (/\.(enable|disable)$/.test(method)) return {};
+  const caps = typeof hooks.leaseCapabilities === "function" ? await hooks.leaseCapabilities() : null;
+  const nativeHooks = hooks.nativeHooks || hooks;
+  if (method === "Runtime.evaluate") {
+    if (caps?.user_scripts) {
+      const out = await evaluateWithoutDebugger(state, nativeHooks, params.expression, caps, { awaitPromise: params.awaitPromise !== false });
+      return { result: out.result, ...(out.exceptionDetails ? { exceptionDetails: out.exceptionDetails } : {}) };
+    }
+    const out = await policyEvaluate(tabId, params, hooks);
+    if (out.exceptionDetails && /unsafe-eval|EvalError|Content Security Policy/i.test(out.exceptionDetails.text)) {
+      const reason = caps?.user_scripts_reason || "USER_SCRIPTS_DISABLED";
+      const text = `${reason}: ${out.exceptionDetails.text}. ${USER_SCRIPTS_HINT}`;
+      return { ...out, exceptionDetails: { text, exception: { type: "object", description: text } } };
+    }
+    return out;
+  }
+  if (caps && state.leaseRecord) {
+    if (method === "Input.insertText") {
+      const real = await nativeTypeFlow(state, nativeHooks, { text: String(params.text ?? ""), label: "bu.insertText" });
+      return { input_path: real.input_path, text_mode: real.text_mode, verified: real.verified };
+    }
+    if (method === "Input.dispatchKeyEvent") {
+      if (!["keyDown", "rawKeyDown"].includes(params.type)) return {};
+      const bits = Number(params.modifiers || 0);
+      const modifiers = CDP_MODIFIER_NAMES.filter(([bit]) => bits & bit).map(([, name]) => name);
+      const key = String(params.key || params.text || "");
+      if (!key) return {};
+      const real = await nativeKeyFlow(state, nativeHooks, { key, modifiers, label: "bu.key" });
+      return { input_path: real.input_path };
+    }
+    if (method === "Input.dispatchMouseEvent") {
+      const x = Number(params.x);
+      const y = Number(params.y);
+      if (params.type === "mousePressed") {
+        pressedMouse.set(tabId, { x, y });
+        return {};
+      }
+      if (params.type === "mouseReleased") {
+        const down = pressedMouse.get(tabId);
+        pressedMouse.delete(tabId);
+        if (!down || Math.abs(down.x - x) > 4 || Math.abs(down.y - y) > 4) return {};
+        const real = await nativeClickFlow(state, nativeHooks, { point: { x, y }, count: Number(params.clickCount || 1), label: "bu.click" });
+        return { input_path: real.input_path };
+      }
+      if (params.type === "mouseWheel") {
+        await hooks.executeScriptOnTab(tabId, {
+          target: { tabId }, func: (dx, dy, px, py) => {
+            const el = document.elementFromPoint(px, py);
+            let node = el;
+            while (node && node !== document.body && !(node.scrollHeight > node.clientHeight && /(auto|scroll)/.test(getComputedStyle(node).overflowY))) node = node.parentElement;
+            (node && node !== document.body ? node : window).scrollBy(dx, dy);
+          }, args: [Number(params.deltaX || 0), Number(params.deltaY || 0), x || 0, y || 0],
+        }, 5000, "mouseWheel (no debugger)");
+        return {};
+      }
+      return {};
+    }
+    if (method === "Page.captureScreenshot") {
+      const tab = await chrome.tabs.get(tabId);
+      try {
+        const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: params.format === "jpeg" ? "jpeg" : "png", ...(params.format === "jpeg" ? { quality: Number(params.quality ?? 75) } : {}) });
+        logPath(state, "screenshot", "tabs.captureVisibleTab", { action: "bu.screenshot" });
+        return { data: dataUrl.slice(dataUrl.indexOf(",") + 1) };
+      } catch {
+        const shot = await nativeCapture(state, nativeHooks, { inline: true });
+        logPath(state, "screenshot", "cua_window_capture", { action: "bu.screenshot" });
+        if (!shot.base64) throw new Error("window capture returned no inline image");
+        return { data: shot.base64, includes_browser_chrome: true };
+      }
+    }
+  }
+  if (method === "Page.navigate") {
+    const url = String(params.url || "");
+    if (!/^(https?:|about:blank)/.test(url)) throw new Error(`Page.navigate fallback accepts http(s) or about:blank only: ${url}`);
+    await chrome.tabs.update(tabId, { url });
+    return { frameId: String(tabId), loaderId: "" };
+  }
+  if (method === "Page.reload") {
+    await chrome.tabs.reload(tabId);
+    return {};
+  }
+  throw new Error(`${method} needs chrome.debugger, which browser policy blocks on this Comet ("Host access is restricted by policy."); use js() / DOM actions instead (Input.*, Page.captureScreenshot and Runtime.evaluate have real-input / userScripts fallbacks; DOM.* has none)`);
+}
+
 async function cdpAction(action, state, hooks) {
   if (action.type === "browser_use_cdp") {
     const method = String(action.method || "");
     const params = action.params || {};
     if (!permittedBrowserUseCdpMethod(method)) {
       throw new Error(`CDP method is outside the leased-tab Browser Use surface: ${method}`);
+    }
+    const leaseCaps = typeof hooks.leaseCapabilities === "function" ? await hooks.leaseCapabilities() : null;
+    if (debuggerPolicyBlocked(state.tabId) || (leaseCaps && !leaseCaps.debugger)) {
+      return { type: action.type, method, result: await policyFallbackCdp(state.tabId, method, params, hooks, state), fallback: "policy" };
     }
     if (method === "Input.dispatchMouseEvent") {
       const x = Number(params.x);
@@ -872,7 +1086,14 @@ async function cdpAction(action, state, hooks) {
         if (!moved?.success) throw new Error(moved?.error || "Browser Use cursor movement failed");
       }
     }
-    const result = await hooks.send(state.tabId, method, params);
+    let result;
+    try {
+      result = await hooks.send(state.tabId, method, params);
+    } catch (error) {
+      if (!isDebuggerPolicyBlock(error)) throw error;
+      debuggerPolicyBlockedUntil.set(state.tabId, Date.now() + DEBUGGER_POLICY_RECHECK_MS);
+      return { type: action.type, method, result: await policyFallbackCdp(state.tabId, method, params, hooks, state), fallback: "policy" };
+    }
     if (method === "Input.dispatchMouseEvent" && params.type === "mousePressed") {
       await hooks.sendToContentScript(state.tabId, "pulseClick", [], 0).catch(() => {});
     }

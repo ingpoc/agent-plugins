@@ -4,24 +4,31 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import socket
+import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any
 
 from state_delta import action_state_text
+from compact_verification import (
+    apply_screenshot_policy,
+    expect_is_new,
+    expect_verified,
+    expectation_is_new,
+    expectation_is_supported,
+)
 from fail_feedback import apply_failure_feedback, VERIFICATION_REQUIRED
 from compact_form_fills import (
     compile_error_payload,
     compile_set_value_step,
     dispatch_labeled_set_value,
     dispatch_set_checked,
-    expectation_supports_value,
-    expectation_value_field_matches,
     fill_value_from_step,
     has_ui_effect,
+    is_app_open_step,
+    new_document_split,
     is_label_fill_step,
     observed_window_id,
     plan_must_be_sequential,
@@ -39,153 +46,10 @@ META_CLIENT_CAPS = "io.modelcontextprotocol/clientCapabilities"
 META_SERVER_INFO = "io.modelcontextprotocol/serverInfo"
 TOOL_NAMES = ("state", "act")
 INSTRUCTIONS = (SCRIPT_DIR / "compact_instructions.txt").read_text()
-_BIDI = dict.fromkeys(
-    map(
-        ord,
-        "\u200b\u200c\u200d\u200e\u200f\u202a\u202b\u202c\u202d\u202e"
-        "\u2066\u2067\u2068\u2069\ufeff",
-    )
-)
+NEW_DOCUMENT_SETTLE_S = 0.6
 
 
-_DASH = str.maketrans({
-    0x2010: "-", 0x2011: "-", 0x2012: "-", 0x2013: "-",
-    0x2014: "-", 0x2015: "-", 0x2212: "-", 0xFE63: "-", 0xFF0D: "-",
-})
-
-
-def _norm_text(s: str) -> str:
-    return (s or "").translate(_BIDI).translate(_DASH).strip().lower()
-
-
-def expect_verified(expect: str, tree_text: str) -> bool:
-    """Match expect against AXStaticText, AXTextArea, AXTextField, AXCell values — never button titles."""
-    needle = _norm_text(expect)
-    if not needle:
-        return True
-    values = [
-        _norm_text(v)
-        for v in re.findall(
-            r'AX(?:StaticText|TextArea|TextField|Cell)[^\n]*value="([^"]*)"',
-            tree_text,
-        )
-    ]
-    values.extend(
-        _norm_text(v) for v in re.findall(r'AXCell "([^"]*)"', tree_text)
-    )
-    for v in values:
-        if not v:
-            continue
-        if needle == v:
-            return True
-        if len(needle) >= 2 and needle in v:
-            return True
-    return False
-
-
-def expect_is_new(expect: str, before_tree: str, after_tree: str) -> bool:
-    """True when expect is a new value. Empty expect skips the check."""
-    if not _norm_text(expect):
-        return True
-    return expect_verified(expect, after_tree) and not expect_verified(
-        expect, before_tree
-    )
-
-
-def expectation_is_supported(expect: Any) -> bool:
-    if isinstance(expect, str):
-        return bool(_norm_text(expect))
-    if isinstance(expect, list):
-        return bool(expect) and all(expectation_is_supported(item) for item in expect)
-    if not isinstance(expect, dict) or not expect:
-        return False
-    if expectation_supports_value(expect):
-        return True
-    return any(
-        bool(_norm_text(str(expect.get(key) or "")))
-        for key in ("text", "not_text", "path")
-    )
-
-
-def expectation_is_new(
-    expect: Any,
-    before_tree: str,
-    after_tree: str,
-    results: list[dict[str, Any]] | None = None,
-    after_state: Any = None,
-) -> bool:
-    """Verify compact positive/negative postconditions against settled AX values."""
-    if isinstance(expect, str):
-        return expect_is_new(expect, before_tree, after_tree)
-    if isinstance(expect, list):
-        return bool(expect) and all(
-            expectation_is_new(item, before_tree, after_tree, results, after_state)
-            for item in expect
-        )
-    if not isinstance(expect, dict):
-        return False
-    checks: list[bool] = []
-    if expect.get("text"):
-        checks.append(expect_is_new(str(expect["text"]), before_tree, after_tree))
-    if expect.get("not_text"):
-        needle = str(expect["not_text"])
-        checks.append(
-            expect_verified(needle, before_tree)
-            and not expect_verified(needle, after_tree)
-        )
-    if expect.get("path"):
-        wanted = os.path.normpath(str(expect["path"]))
-        checks.append(any(
-            os.path.normpath(str(item.get("path"))) == wanted
-            for item in (results or [])
-            if item.get("path")
-        ))
-    if expectation_supports_value(expect):
-        checks.append(expectation_value_field_matches(
-            expect, after_state if isinstance(after_state, dict) else {}
-        ))
-    return bool(checks) and all(checks)
-
-
-def _ax_has_text_values(tree_text: str) -> bool:
-    return bool(re.search(
-        r'AX(?:StaticText|TextArea|TextField|Cell)[^\n]*value="[^"]+"|AXCell "[^"]+"',
-        tree_text or "",
-    ))
-
-
-def _window_is_thumb(state: Any) -> bool:
-    try:
-        area = float(state.get("windowWidth") or 0) * float(state.get("windowHeight") or 0)
-    except (TypeError, ValueError, AttributeError):
-        return False
-    return 0 < area < 80 * 80
-
-
-def screenshot_needed(payload: dict[str, Any], before: Any, after: Any, arguments: dict[str, Any]) -> bool:
-    if arguments.get("screenshot") is True or _window_is_thumb(before) or _window_is_thumb(after):
-        return True
-    if payload.get("ok") and payload.get("verified"):
-        return False
-    after_text = str(after.get("text") or "") if isinstance(after, dict) else ""
-    before_text = str(before.get("text") or "") if isinstance(before, dict) else ""
-    return not after_text.strip() or (
-        not _ax_has_text_values(after_text) and not _ax_has_text_values(before_text)
-    )
-
-
-def apply_screenshot_policy(payload, *, before, after, arguments, fetch=None):
-    if not screenshot_needed(payload, before, after, arguments):
-        payload.update(screenshot_before=None, screenshot_after=None, screenshot=None)
-        return payload
-    before_shot = before.get("screenshot") if isinstance(before, dict) else None
-    after_shot = after.get("screenshot") if isinstance(after, dict) else None
-    if after_shot is None and before_shot is None and fetch is not None:
-        extra = fetch()
-        after_shot = extra.get("screenshot") if isinstance(extra, dict) else None
-    payload.update(screenshot_before=before_shot, screenshot_after=after_shot, screenshot=after_shot or before_shot)
-    return payload
-
+NO_WINDOW_HINT = "App has no open window: cua_act op=open with just app shows it (no path), then act."
 
 
 class CUABackend:
@@ -219,6 +83,12 @@ class CUABackend:
                 raise
             return fn(self._cua())
 
+    def volume(self, direction: str) -> dict[str, Any]:
+        return self._rpc(lambda client: client.call("system_volume", {"direction": direction}, retry=False), retry=False)
+
+    def credential(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        return self._rpc(lambda client: client.call("credential_" + operation, arguments, retry=False), retry=False)
+
     def state(self, app: str, **kwargs: Any) -> dict[str, Any]:
         max_elements = int(kwargs.get("max_elements") or DEFAULT_MAX)
         disable_diff = not bool(kwargs.get("diff"))
@@ -243,7 +113,7 @@ class CUABackend:
         if query:
             lines = [ln for ln in text.splitlines() if str(query) in ln]
             text = "\n".join(lines) if lines else text
-        return {
+        out = {
             "ok": True,
             "app": result.get("app") or app,
             "text": text,
@@ -251,8 +121,85 @@ class CUABackend:
             "screenshot": result.get("screenshot") if want_shot else None,
             "pid": result.get("pid"),
         }
+        if result.get("elementCount") == 0:
+            # Running but windowless (closed/hidden): acting blind here only burns retries.
+            out["hint"] = NO_WINDOW_HINT
+        return out
+
+    def _show_app_window(self, app: str) -> dict[str, Any]:
+        """Launch the app, or send a running windowless app the reopen event, then observe it.
+
+        ``open -a`` is what Dock/Finder do: launches when needed and makes a running app with
+        no window show its main window (Calendar, Music, Notes...). Absolute path: the voice
+        helper runs under launchd's minimal PATH.
+        """
+        try:
+            proc = subprocess.run(
+                ["/usr/bin/open", "-a", app],
+                capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL, check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return {"ok": False, "error": f"could not open {app}: {exc}"[:240], "error_type": "app_not_found"}
+        if proc.returncode != 0:
+            reason = (proc.stderr or proc.stdout or "").strip().splitlines()
+            return {
+                "ok": False,
+                "error": (reason[-1] if reason else f"open -a {app} failed")[:240],
+                "error_type": "app_not_found",
+                "hint": f"{app} is not installed under that name; tell the user.",
+                "retryable": False,
+            }
+        state: dict[str, Any] = {}
+        deadline = time.monotonic() + 6.0
+        while True:
+            try:
+                state = self.state(app)
+            except Exception as exc:  # noqa: BLE001 - app still launching
+                state = {"ok": False, "error": str(exc)[:240]}
+            if state.get("ok") and state.get("elementCount"):
+                break
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.4)
+        shown = bool(state.get("ok") and state.get("elementCount"))
+        return {
+            "ok": shown,
+            "verified": shown,
+            "dispatched": True,
+            "completion": "verified" if shown else "unverified",
+            "method": "open-app",
+            "app": state.get("app") or app,
+            "text": state.get("text") or "",
+            "elementCount": state.get("elementCount"),
+            **({} if shown else {"error_type": "observation_incomplete", "hint": NO_WINDOW_HINT}),
+        }
 
     def act(self, app: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        steps_in = arguments.get("steps") if isinstance(arguments.get("steps"), list) and arguments.get("steps") else [arguments]
+        if any(is_app_open_step(step) for step in steps_in):
+            shown = self._show_app_window(app)
+            rest = [step for step in steps_in if not is_app_open_step(step)]
+            if not shown.get("ok") or not rest:
+                return shown
+            if arguments.get("steps"):
+                arguments = {**arguments, "steps": rest}
+            else:
+                arguments = {k: v for k, v in arguments.items() if k not in ("op", "action")}
+        split = new_document_split(arguments)
+        if split is not None:
+            # cmd+n then typing in ONE plan pins every step to the window observed before the
+            # plan (the old document), so CUAService rightly refuses the type as
+            # type_refused_stale_document. Open the new window first, then plan the rest
+            # against it, keeping the after-new-document guard on the first step.
+            head, rest = split
+            opened = self.act(app, {"steps": head, "allow_unverified": True})
+            if not opened.get("dispatched"):
+                return opened
+            time.sleep(NEW_DOCUMENT_SETTLE_S)
+            follow = {k: v for k, v in arguments.items() if k != "steps"}
+            follow["steps"] = rest
+            follow["_after_new_document"] = True
+            return self.act(app, follow)
         effectful = has_ui_effect(arguments)
         expect = arguments.get("expect")
         allow_unverified = arguments.get("allow_unverified") is True
@@ -276,7 +223,7 @@ class CUABackend:
             # pre-plan snapshot — sequential _one re-resolves each fill (r9 #3).
             use_execute_plan = hasattr(client, "execute_plan") and not plan_must_be_sequential(steps)
             native_steps: list[dict[str, Any]] = []
-            after_new = False
+            after_new = arguments.get("_after_new_document") is True
             elements_state: dict[str, Any] | None = None
             plan_window = None
             for step in steps:
@@ -342,7 +289,7 @@ class CUABackend:
                     client, app, disableDiff=True, includeScreenshot=False, includeElements=True
                 )
                 results = []
-                after_new = False
+                after_new = arguments.get("_after_new_document") is True
                 for step in steps:
                     if not isinstance(step, dict):
                         results.append({"ok": False, "error": "step must be an object"})

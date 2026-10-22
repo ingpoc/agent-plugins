@@ -94,7 +94,7 @@ there is no silent vision-label-to-pixel escalation.
 | Setting | Why |
 | --- | --- |
 | Shared Hermes SVG | Visual source; rasterized to the signed operator's cache |
-| Signed operator overlay | Sole visible owner: 28 px pointer, CSS-equivalent glow, label, and glide |
+| Signed operator overlay | Sole visible owner: 21 pt pointer, CSS-equivalent glow, label, and comet_swoop glide (0.12 s; `linear` / recording mode via `cursor configure`) |
 | Render acknowledgement | Blocks AX click until the visible panel reaches the target |
 
 The normal path materializes `~/.cache/macos-cua/hermes-pointer.png` from the

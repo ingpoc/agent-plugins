@@ -89,6 +89,8 @@ async function check(attached, override, expectedSource) {
   const captureVisibleTabBounded = async () => {tabsCalls++; return 'data:image/png;base64,tabs-image';};
   const sendToContentScript = async () => {}, ensureAttached = async () => {};
   const withTimeout = async promise => promise, VIEWPORT_CAPTURE_MS = 8000;
+  const logPath = () => {}, nativeHooks = {};
+  const stateCapabilities = async () => ({debugger: true});
   const run = async () => { BODY;
   const result = await run();
   assert.equal(result.source, expectedSource);
@@ -99,6 +101,37 @@ async function check(attached, override, expectedSource) {
   await check(true, false, 'cdp.Page.captureScreenshot');
   await check(false, false, 'tabs.captureVisibleTab');
   await check(false, true, 'cdp.Page.captureScreenshot');
+})().catch(e => {console.error(e); process.exit(1);});
+'''.replace('BODY', branch)
+        result = subprocess.run(['node', '-e', harness], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_policy_blocked_viewport_capture_falls_back_to_cua_window(self):
+        source = SERVICE_WORKER.read_text()
+        branch = source.split('  if (type === "screenshot") {', 1)[1].split('  if (type === "zoom") {', 1)[0]
+        harness = r'''
+const assert = require('node:assert/strict');
+(async () => {
+  const state = {tabId: 7, leaseRecord: {sessionId: 's'}};
+  const action = {format:'png'}, type = 'screenshot';
+  const attachedTabs = new Set();
+  const chrome = {tabs: {get: async () => ({windowId:3}), update: async () => {}, query: async () => [{id:7}]},
+    debugger: {sendCommand: async () => { throw new Error('Host access is restricted by policy.'); }},
+    scripting: {executeScript: async () => []}};
+  const enqueueViewportCapture = fn => fn();
+  const waitForViewportCaptureSlot = async () => {};
+  const captureVisibleTabBounded = async () => { throw new Error('capture failed'); };
+  const sendToContentScript = async () => {}, ensureAttached = async () => { throw new Error('Host access is restricted by policy.'); };
+  const withTimeout = async promise => promise, VIEWPORT_CAPTURE_MS = 8000;
+  const logged = [];
+  const logPath = (_s, kind, path) => logged.push(`${kind}:${path}`), nativeHooks = {};
+  const stateCapabilities = async () => ({debugger: false});
+  const nativeCapture = async () => ({screenshot_path: '/tmp/x.png', format: 'png'});
+  const run = async () => { BODY;
+  const result = await run();
+  assert.equal(result.source, 'cua.window_capture');
+  assert.equal(result.screenshot_path, '/tmp/x.png');
+  assert.deepEqual(logged, ['screenshot:cua_window_capture']);
 })().catch(e => {console.error(e); process.exit(1);});
 '''.replace('BODY', branch)
         result = subprocess.run(['node', '-e', harness], capture_output=True, text=True)
@@ -1059,8 +1092,15 @@ async function check(actions, expected) {
             "async function send", 1
         )[0]
         self.assertIn("await ensureAttached(tabId)", attach)
-        self.assertIn("if (!isForeignExtensionRestriction(error)) throw error", attach)
+        self.assertIn(
+            "if (!isForeignExtensionRestriction(error) && !isDebuggerPolicyRestriction(error)) throw error",
+            attach,
+        )
         self.assertIn("return false", attach)
+        # Chrome 155 debugger policy: no CDP mouse, so both click paths drop to the DOM click.
+        # Real OS mouse only when the action opts in (isTrusted-gated targets).
+        self.assertEqual(source.count("clickOptions.trusted = false;\n      clickOptions.realMouse = wantsRealMouse(action);"), 2)
+        self.assertIn('includes("restricted by policy")', source)
 
         frame_search = source.split("async function controllableFrameIds", 1)[1].split(
             "async function moveCursorToPoint", 1
@@ -1715,7 +1755,7 @@ function element(seq) {
         cursor = CURSOR_AGENT.read_text()
         worker = SERVICE_WORKER.read_text()
         assert_packaged_version(self)
-        self.assertEqual(json.loads(PLUGIN_JSON.read_text())["version"], "0.1.17")
+        self.assertEqual(json.loads(PLUGIN_JSON.read_text())["version"], "0.1.20")
 
         miss = worker.split("function isLocatorMissError(error) {", 1)[1].split(
             "function isContentScriptTimeoutError", 1
@@ -1747,7 +1787,32 @@ function element(seq) {
         )[0]
         self.assertIn("Prefer the matched control's own center", point)
 
+class DebuggerPolicyFallbackTests(unittest.TestCase):
+    """Chrome 155 policy blocks chrome.debugger: Browser Use evaluate/navigate fall back (node)."""
 
+    def test_browser_use_cdp_policy_fallback(self) -> None:
+        import shutil
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node not installed")
+        script = Path(__file__).resolve().parent / "policy_fallback.test.mjs"
+        done = subprocess.run([node, str(script), str(PARITY_CAPABILITIES)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr[-2000:])
+        self.assertIn("policy fallback OK", done.stdout)
+
+    def test_real_input_and_user_scripts_routing(self) -> None:
+        import shutil
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node not installed")
+        script = Path(__file__).resolve().parent / "native_input.test.mjs"
+        done = subprocess.run([node, str(script), str(PARITY_CAPABILITIES.parent)], capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr[-2000:])
+        self.assertIn("native input OK", done.stdout)
+
+    def test_manifest_requests_user_scripts(self) -> None:
+        manifest = json.loads((PARITY_CAPABILITIES.parent / "manifest.json").read_text())
+        self.assertIn("userScripts", manifest["permissions"])
 
 
 if __name__ == "__main__":

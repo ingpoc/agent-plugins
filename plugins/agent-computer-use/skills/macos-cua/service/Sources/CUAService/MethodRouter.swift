@@ -5,6 +5,13 @@ import Foundation
 import Logging
 
 final class MethodRouter: @unchecked Sendable {
+    private let runtimeContract: [String: Any] = {
+        guard let url = Bundle.main.url(forResource: "runtime-contract", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [:] }
+        return value
+    }()
     private let appResolver: AppResolver
     private let axTree: AXTreeWalker
     private let screenshotCapture: ScreenshotCapture
@@ -37,7 +44,7 @@ final class MethodRouter: @unchecked Sendable {
     static let cursorControlMethods: Set<String> = ["cursor_status", "configure_cursor"]
     /// Methods that never move the tip: no action bracket, so observers
     /// polling them neither show the tip nor extend its idle countdown.
-    static let nonActionMethods: Set<String> = ["list_apps", "hide_agent_cursor", "wait"]
+    static let nonActionMethods: Set<String> = ["runtime_contract", "list_apps", "hide_agent_cursor", "wait", "credential_request", "credential_status", "credential_cancel", "system_volume"]
 
     static func movesTip(_ req: JSONRPCRequest) -> Bool {
         if nonActionMethods.contains(req.method) { return false }
@@ -45,8 +52,21 @@ final class MethodRouter: @unchecked Sendable {
         return true
     }
 
+    static func contractMatches(_ supplied: [String: String]?, expected: [String: Any]) -> Bool {
+        guard let fingerprint = expected["sha256"] as? String,
+              let version = expected["version"] as? String else { return false }
+        return supplied?["sha256"] == fingerprint && supplied?["version"] == version
+    }
+
     @MainActor
     func handle(_ request: JSONRPCRequest) async -> JSONRPCResponse {
+        if request.method != "runtime_contract" {
+            let supplied: [String: String]? = request.param("runtimeContract")
+            guard Self.contractMatches(supplied, expected: runtimeContract) else {
+                return .error(id: request.id, code: -32010,
+                              message: "RUNTIME_CONTRACT_FAILED: stale client or unverified service; rebuild, sync and reconnect")
+            }
+        }
         if Self.cursorControlMethods.contains(request.method) {
             do {
                 return .success(id: request.id, try handleCursorControl(request))
@@ -55,6 +75,11 @@ final class MethodRouter: @unchecked Sendable {
             } catch {
                 return .error(id: request.id, code: -32603, message: error.localizedDescription)
             }
+        }
+        if request.method != "runtime_contract", let p = PermissionGate.missing(for: request.method) {
+            // Revoked/missing consent: fail fast instead of hanging on AX / HID calls.
+            await MainActor.run { PermissionCenter.shared.refresh() }
+            return .error(id: request.id, code: PermissionGate.errorCode, message: PermissionGate.message(p))
         }
         // ponytail: desktop input is one shared resource; split lanes only if
         // independent displays become a measured concurrent use case.
@@ -96,6 +121,16 @@ final class MethodRouter: @unchecked Sendable {
     @MainActor
     private func route(_ req: JSONRPCRequest) async throws -> Any {
         switch req.method {
+        case "runtime_contract":
+            return runtimeContract
+        case "system_volume":
+            return await SystemVolume.adjust(req.param("direction") ?? "read")
+        case "credential_request":
+            return CredentialEntryController.shared.request(req.params?.mapValues { $0.value } ?? [:])
+        case "credential_status":
+            return CredentialEntryController.shared.status(req.param("request_id") ?? "")
+        case "credential_cancel":
+            return CredentialEntryController.shared.cancel(req.param("request_id") ?? "")
         case "list_apps":
             return appResolver.listApps()
 
@@ -142,6 +177,19 @@ final class MethodRouter: @unchecked Sendable {
             cursorOverlay.hide()
             return ["ok": true] as [String: Any]
 
+        case "open_settings":
+            // CLI entry (`macos-cua settings [pane]`): the one settings window, at the asked pane.
+            let raw: String = req.param("pane") ?? ""
+            guard let tab = SettingsTab.forPane(raw) else {
+                throw RPCMethodError(code: -32602, message: "unknown pane: \(raw)")
+            }
+            // Report the pane actually shown (no pane = the window's last pane).
+            let shown: String = await MainActor.run {
+                IslandSettingsWindowController.shared.showSettings(tab: tab)
+                return IslandSettingsWindowController.shared.nav.tab.rawValue
+            }
+            return ["ok": true, "pane": shown] as [String: Any]
+
         default:
             throw RPCMethodError(
                 code: -32601,
@@ -153,10 +201,19 @@ final class MethodRouter: @unchecked Sendable {
     @MainActor
     private func handleCursorControl(_ req: JSONRPCRequest) throws -> Any {
         if req.method == "configure_cursor" {
-            guard let ms = req.paramInt("idle_hide_ms") else {
-                throw RPCMethodError(code: -32602, message: "configure_cursor needs integer idle_hide_ms")
+            let ms = req.paramInt("idle_hide_ms")
+            let style: String? = req.param("motion_style")
+            let recording: Bool? = req.param("recording")
+            guard ms != nil || style != nil || recording != nil else {
+                throw RPCMethodError(
+                    code: -32602,
+                    message: "configure_cursor needs idle_hide_ms, motion_style or recording"
+                )
             }
-            try cursorOverlay.configure(idleHideMs: ms)
+            if let ms { try cursorOverlay.configure(idleHideMs: ms) }
+            if style != nil || recording != nil {
+                try cursorOverlay.configure(motionStyle: style, recording: recording)
+            }
         }
         var d = cursorOverlay.status(includeEvents: (req.param("events") as Bool?) == true)
         d["ok"] = true
@@ -495,6 +552,7 @@ final class MethodRouter: @unchecked Sendable {
         _ point: CGPoint,
         windowID: CGWindowID,
         axBounds: CGRect?,
+        targetSize: CGSize? = nil,
         gate: Bool = true
     ) async throws -> CGPoint {
         // Tip lands (confirmed: final frame + measured origin + drawn frame)
@@ -503,7 +561,8 @@ final class MethodRouter: @unchecked Sendable {
         let landing = await cursorOverlay.glideAndLand(
             screenPoint: point,
             windowID: windowID,
-            axBounds: axBounds
+            axBounds: axBounds,
+            targetSize: targetSize
         )
         lastLanding = landing
         if gate { try requireLanded(landing) }
@@ -544,7 +603,8 @@ final class MethodRouter: @unchecked Sendable {
         _ = try await syncCursorToPoint(
             CGPoint(x: element.frame.midX, y: element.frame.midY),
             windowID: resolved.windowID,
-            axBounds: snapshot.windowFrame
+            axBounds: snapshot.windowFrame,
+            targetSize: element.frame.size
         )
     }
 
@@ -571,6 +631,7 @@ final class MethodRouter: @unchecked Sendable {
             CGPoint(x: frame.midX, y: frame.midY),
             windowID: resolved.windowID,
             axBounds: frame,
+            targetSize: frame.size,
             gate: gate
         )
     }
@@ -590,7 +651,8 @@ final class MethodRouter: @unchecked Sendable {
             _ = try await syncCursorToPoint(
                 CGPoint(x: frame.midX, y: frame.midY),
                 windowID: resolved.windowID,
-                axBounds: snapshot.windowFrame
+                axBounds: snapshot.windowFrame,
+                targetSize: frame.size
             )
             return
         }
@@ -681,7 +743,8 @@ final class MethodRouter: @unchecked Sendable {
         let aimPoint = try await syncCursorToPoint(
             clickPoint,
             windowID: resolved.windowID,
-            axBounds: snapshot.windowFrame
+            axBounds: snapshot.windowFrame,
+            targetSize: target?.frame.size
         )
 
         let clickCount = max(1, min(req.paramInt("click_count") ?? 1, 3))
@@ -946,9 +1009,13 @@ final class MethodRouter: @unchecked Sendable {
             throw RPCMethodError(code: -32602, message: "Element not found at index \(idx)")
         }
         try await syncCursorToElement(element, resolved: resolved, snapshot: snapshot)
-        return inputActions.performSecondaryAction(
+        // Same landing proof clicks carry: without it a caller cannot tell
+        // that the tip was drawn for this press.
+        var result = inputActions.performSecondaryAction(
             resolved: resolved, element: element, action: action
         )
+        result["cursor_landing"] = lastLanding?.dict as Any
+        return result
     }
 
     @MainActor

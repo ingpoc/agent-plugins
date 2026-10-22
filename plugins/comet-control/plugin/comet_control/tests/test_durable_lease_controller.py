@@ -29,6 +29,29 @@ def _load_controller():
 
 
 class DurableLeaseControllerSequencingTests(unittest.TestCase):
+    def test_send_exit_status_matches_command_result(self):
+        import io
+        from contextlib import redirect_stdout
+        from types import SimpleNamespace
+
+        ctrl = _load_controller()
+        for result, expected in [
+            ({"event": "run", "response": {"success": True}}, ctrl.EXIT_OK),
+            ({"event": "run", "response": {"success": False}}, ctrl.EXIT_FAIL),
+            ({"ok": False, "error": "stdin_write_failed"}, ctrl.EXIT_FAIL),
+            ({}, ctrl.EXIT_FAIL),
+        ]:
+            with self.subTest(result=result), tempfile.TemporaryDirectory() as tmp:
+                paths = ctrl._paths(Path(tmp))
+                paths["alive"].touch()
+                paths["response"].write_text(json.dumps({"seq": 1, "result": result}))
+                args = SimpleNamespace(workdir=tmp, payload='{"actions":[{"type":"page_context"}]}', payload_file=None, timeout=1)
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    status = ctrl.cmd_send(args)
+                self.assertEqual(status, expected)
+                self.assertEqual(json.loads(output.getvalue()), result)
+
     def test_restore_status_stamps_observed_gap(self):
         ctrl = _load_controller()
         import os

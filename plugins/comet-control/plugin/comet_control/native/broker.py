@@ -93,6 +93,10 @@ _VISUAL_LOCK_MODULE = None
 visual_module_lock = threading.Lock()
 _cua_claim_public: dict[str, Any] | None = None
 cua_claim_lock = threading.Lock()
+# Extension -> broker real-input requests (debugger blocked by Chrome 155 policy).
+native_replies: queue.Queue[tuple[int, dict[str, Any]]] = queue.Queue()
+_NATIVE_INPUT = None
+native_input_lock = threading.Lock()
 
 
 def _expected_user_data_dir() -> Path | None:
@@ -477,8 +481,16 @@ def extension_connection(websocket: ServerConnection) -> None:
                 with extension_send_lock:
                     if not _extension_is_current(websocket, generation):
                         return
+                    while True:
+                        try:
+                            reply_generation, reply = native_replies.get_nowait()
+                        except queue.Empty:
+                            break
+                        if reply_generation == generation:
+                            websocket.send(json.dumps(reply, ensure_ascii=False))
+                            last_sent_at = time.monotonic()
                     try:
-                        item = outbound.get(timeout=0.25)
+                        item = outbound.get(timeout=0.05)
                     except queue.Empty:
                         pass
                     if item is not None:
@@ -522,6 +534,11 @@ def extension_connection(websocket: ServerConnection) -> None:
                     websocket.close(code=1007, reason="invalid extension response")
                     return
                 _mark_extension_seen()
+                if message.get("type") == "native_request":
+                    threading.Thread(
+                        target=_serve_native_request, args=(message, generation), daemon=True
+                    ).start()
+                    continue
                 with pending_lock:
                     response_q = pending.get(str(message["id"]))
                     response_generation = pending_generation.get(str(message["id"]))
@@ -537,6 +554,33 @@ def extension_connection(websocket: ServerConnection) -> None:
         return
     finally:
         _unregister_extension(websocket, generation)
+
+
+def _native_input():
+    """Lazy CUAService real-input adapter (native/cua_input.py), loaded by path."""
+    global _NATIVE_INPUT
+    with native_input_lock:
+        if _NATIVE_INPUT is None:
+            path = Path(__file__).resolve().with_name("cua_input.py")
+            spec = importlib.util.spec_from_file_location("comet_control_cua_input", path)
+            if spec is None or spec.loader is None:
+                raise RuntimeError(f"cannot load {path}")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            _NATIVE_INPUT = module.NativeInput(
+                browser_pid=lambda: _attest_comet_runtime().get("browser_pid"),
+                screenshot_dir=_screenshot_dir,
+                log_path=lambda: _screenshot_dir().parent / "flight-recorder" / "input-paths.jsonl",
+            )
+        return _NATIVE_INPUT
+
+
+def _serve_native_request(message: dict[str, Any], generation: int) -> None:
+    try:
+        response = _native_input().handle(message)
+    except Exception as exc:  # adapter load failure must still answer
+        response = {"success": False, "error_code": "NATIVE_INPUT_UNAVAILABLE", "error": str(exc)}
+    native_replies.put((generation, {**response, "type": "native_response", "id": str(message.get("id") or "")}))
 
 
 def extension_server() -> None:

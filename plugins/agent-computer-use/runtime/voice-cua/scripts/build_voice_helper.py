@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -24,6 +25,22 @@ MACOS_CUA_SCRIPTS = MACOS_CUA_ROOT / "scripts"
 MACOS_CUA_SERVICE = MACOS_CUA_ROOT / "service"
 
 
+def scripts_data_args() -> list[str]:
+    """--add-data pairs that put macos-cua scripts + cua_client at the _MEIPASS root.
+
+    Frozen cua_bridge looks for compact_mcp.py as a *file* under _MEIPASS; the
+    hidden-import alone only ships bytecode in the PYZ.
+    """
+    return [
+        "--add-data",
+        f"{MACOS_CUA_SCRIPTS}:.",
+        "--add-data",
+        f"{MACOS_CUA_SERVICE / 'cua_client.py'}:.",
+        "--add-data",
+        f"{BUILD_ROOT / 'runtime-contract.json'}:.",
+    ]
+
+
 def run(cmd: list[str], **kwargs) -> None:
     print("  →", " ".join(cmd))
     subprocess.run(cmd, check=True, **kwargs)
@@ -42,6 +59,9 @@ def build(*, clean: bool = True, onefile: bool = False) -> Path:
             if d.exists():
                 shutil.rmtree(d)
     BUILD_ROOT.mkdir(parents=True, exist_ok=True)
+    sys.path.insert(0, str(MACOS_CUA_SCRIPTS))
+    from runtime_contract import package_identity
+    (BUILD_ROOT / "runtime-contract.json").write_text(json.dumps(package_identity(PLUGIN_ROOT)))
     ensure_pyinstaller()
     if not (MACOS_CUA_SCRIPTS / "compact_mcp.py").is_file():
         print(f"ERROR: missing {MACOS_CUA_SCRIPTS / 'compact_mcp.py'}", file=sys.stderr)
@@ -82,6 +102,9 @@ def build(*, clean: bool = True, onefile: bool = False) -> Path:
             str(MACOS_CUA_SERVICE),
             "--add-data",
             f"{CONFIG}:config/.secret",
+            "--add-data",
+            f"{PLUGIN_ROOT / 'plugin.json'}:.",
+            *scripts_data_args(),
             "--hidden-import",
             "voice_cua.voice_stack",
             "--hidden-import",
@@ -92,6 +115,8 @@ def build(*, clean: bool = True, onefile: bool = False) -> Path:
             "voice_cua.tools",
             "--hidden-import",
             "voice_cua.audio_io",
+            "--hidden-import",
+            "voice_cua.audio_dsp",
             "--hidden-import",
             "voice_cua.voice_settings",
             "--hidden-import",

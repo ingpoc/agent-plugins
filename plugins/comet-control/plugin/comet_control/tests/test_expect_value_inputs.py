@@ -25,10 +25,13 @@ const dflt=getPageContext(['inputs'],{compact:true});
 const wide=getPageContext(['inputs'],{compact:true,input_cap:100,input_value_chars:200,field:'#f12'});
 const missing=getPageContext(['inputs'],{compact:true,field:'#nope'});
 const bad=getPageContext(['inputs'],{compact:true,field:'[[bad'});
+INPUTS[11].value='x'.repeat(9001);
+const long=getPageContext(['inputs'],{compact:true,field:'#f12'});
 INPUTS=mk(300);
 const capped=getPageContext(['inputs'],{compact:true,input_cap:99999});
 console.log(JSON.stringify({dflt:dflt.inputs.length,dfltField:'field' in dflt,dfltValLen:dflt.inputs[0].value.length,
-  wide:wide.inputs.length,wideVal:wide.inputs[11].value,field:wide.field,missing:missing.field,bad:bad.field,capped:capped.inputs.length}));
+  wide:wide.inputs.length,wideVal:wide.inputs[11].value,field:wide.field,missing:missing.field,bad:bad.field,capped:capped.inputs.length,
+  longFieldLength:long.field.value.length,longListLength:long.inputs[0].value.length}));
 """
 
 SW_HARNESS = r"""
@@ -97,6 +100,8 @@ class ExpectValueInputs(unittest.TestCase):
         self.assertEqual(r["missing"], {"found": False})
         self.assertIn("bad selector", r["bad"]["error"])
         self.assertEqual(r["capped"], 200)
+        self.assertEqual(r["longFieldLength"], 9001)
+        self.assertEqual(r["longListLength"], 40)  # normal agent context stays compact
 
     def test_expect_value_past_eighth_input_passes(self):
         r = self._node(SW_HARNESS % _sw_fns())

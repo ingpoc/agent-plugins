@@ -25,6 +25,8 @@ using this on an older installed runtime; otherwise use the normal overview.
 
 Verified success is the action result + `expect` (or compact `page_context`) in the
 **same** `actions[]` batch — not a follow-up observe turn and not a screenshot.
+Check `response.success` and attached `expect_ok` values. The durable controller
+exits nonzero for failed commands while preserving their JSON error details.
 
 Put `expect` on the mutation or on `page_context`. Kinds: `text`, `not_text`,
 `heading`, `url`, `url_contains`, `value` (optional `selector`). String form is

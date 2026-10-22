@@ -1,3 +1,4 @@
+import AVFoundation
 import AppKit
 import Foundation
 
@@ -41,13 +42,18 @@ final class StatusBarController: NSObject {
     private weak var islandController: IslandController?
 
     private var samanthaRow: MenuSwitchRowView?
+    private var showIslandItem: NSMenuItem?
 
     func wire(voice: VoiceSupervisor, island: IslandController) {
         voiceSupervisor = voice
         islandController = island
+        voice.onGatewayPortChanged = { [weak island] port in
+            island?.updateGateway(port: port)
+        }
         voice.onRunningChanged = { [weak self] running in
             self?.setVoiceRunning(running)
             if running {
+                island.updateGateway(port: voice.gatewayPort)
                 island.startStreaming()
             } else {
                 island.stopStreaming()
@@ -59,11 +65,18 @@ final class StatusBarController: NSObject {
         guard item == nil else { return }
         let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = status.button {
-            button.image = Self.loadIcon()
-            button.image?.isTemplate = false
+            button.image = Self.loadIcon()   // template: tinted like the other menu bar icons
             button.toolTip = "Agent Computer Use"
             button.imagePosition = .imageOnly
         }
+        status.menu = makeMenu()
+        item = status
+        setActive(false)
+        setVoiceRunning(false)
+    }
+
+    /// The status-bar menu (kept separate from NSStatusBar so tests can inspect and render it).
+    func makeMenu() -> NSMenu {
         let menu = NSMenu(title: "Agent Computer Use")
         let header = NSMenuItem(
             title: "Agent Computer Use",
@@ -81,8 +94,18 @@ final class StatusBarController: NSObject {
         menu.addItem(samanthaItem)
         samanthaRow = row
 
+        let showIsland = NSMenuItem(title: "Show Dynamic Island", action: #selector(toggleShowIsland(_:)), keyEquivalent: "")
+        showIsland.target = self
+        showIsland.state = IslandSettingsStore.shared.bool(IslandSettingsSchema.showIsland) ? .on : .off
+        menu.addItem(showIsland)
+        showIslandItem = showIsland
+        IslandSettingsStore.shared.addObserver { [weak self] s in
+            self?.showIslandItem?.state = s.bool(IslandSettingsSchema.showIsland) ? .on : .off
+        }
+
+        // ACU Settings (⌘,): one settings window for the whole plugin (island, Samantha voice, agents, Computer Use).
         let settingsItem = NSMenuItem(
-            title: "Samantha Settings…",
+            title: "ACU Settings…",
             action: #selector(openSettings),
             keyEquivalent: ","
         )
@@ -100,11 +123,7 @@ final class StatusBarController: NSObject {
         quit.keyEquivalentModifierMask = [.command]
         quit.target = self
         menu.addItem(quit)
-
-        status.menu = menu
-        item = status
-        setActive(false)
-        setVoiceRunning(false)
+        return menu
     }
 
     func setActive(_ on: Bool) {
@@ -130,55 +149,31 @@ final class StatusBarController: NSObject {
     @objc private func samanthaToggled(_ sender: NSSwitch) {
         guard !suppressToggleAction else { return }
         if sender.state == .on {
+            // User click: provision Samantha's island token if it doesn't exist yet.
+            IslandSettingsStore.shared.ensureToken(.samantha)
             Task { @MainActor in
                 let started = await self.voiceSupervisor?.start() ?? false
                 guard !started else { return }
                 self.suppressToggleAction = true
                 sender.state = .off
                 self.suppressToggleAction = false
-                self.showMicrophoneRequiredAlert()
+                // Never a prompt or a home-made dialog: onboarding's Microphone row does the asking.
+                if AVCaptureDevice.authorizationStatus(for: .audio) != .authorized {
+                    OnboardingWindowController.shared.show(row: .microphone)
+                }
             }
         } else {
             voiceSupervisor?.stop()
         }
     }
 
-    private func showMicrophoneRequiredAlert() {
-        let alert = NSAlert()
-        alert.messageText = "Microphone access required"
-        alert.informativeText = (
-            "Turning Samantha on uses your microphone. Allow access when macOS prompts, "
-            + "or enable Voice CUA under System Settings → Privacy & Security → Microphone."
-        )
-        alert.addButton(withTitle: "Open Settings")
-        alert.addButton(withTitle: "OK")
-        if alert.runModal() == .alertFirstButtonReturn {
-            if let url = URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Microphone") {
-                NSWorkspace.shared.open(url)
-            }
-        }
+    @objc private func toggleShowIsland(_ sender: NSMenuItem) {
+        let s = IslandSettingsStore.shared
+        s.set(!s.bool(IslandSettingsSchema.showIsland), for: IslandSettingsSchema.showIsland)
     }
 
     @objc private func openSettings() {
-        SettingsWindowController.shared.onSaved = { [weak self] _ in
-            guard let self, self.voiceRunning else { return }
-            self.noteRestartIfVoiceOn()
-        }
-        SettingsWindowController.shared.showSettings()
-    }
-
-    private func noteRestartIfVoiceOn() {
-        let alert = NSAlert()
-        alert.messageText = "Restart Samantha?"
-        alert.informativeText = "Settings apply on the next voice session. Turn Samantha off and on now?"
-        alert.addButton(withTitle: "Restart Now")
-        alert.addButton(withTitle: "Later")
-        if alert.runModal() == .alertFirstButtonReturn {
-            voiceSupervisor?.stop()
-            Task { @MainActor in
-                _ = await self.voiceSupervisor?.start()
-            }
-        }
+        IslandSettingsWindowController.shared.showSettings()
     }
 
     @objc private func quitApplication(_ sender: Any?) {
@@ -187,40 +182,31 @@ final class StatusBarController: NSObject {
         NSApplication.shared.terminate(sender)
     }
 
-    private static func loadIcon() -> NSImage {
-        if let img = loadBundled() { return img }
-        let fallback = NSImage(
-            systemSymbolName: "display.and.arrow.down",
-            accessibilityDescription: "Agent Computer Use"
-        ) ?? NSImage(size: NSSize(width: 18, height: 18))
-        fallback.isTemplate = false
-        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
-        if let configured = fallback.withSymbolConfiguration(config) {
-            return configured
-        }
-        return fallback
+    /// "Island Cursor" template glyph: StatusIcon.pdf (18×18 pt vector) first, PNGs as fallback.
+    /// Template, so the menu bar tints it like every other status item (white on dark, black on light).
+    static func loadIcon(resources: URL? = Bundle.main.resourceURL) -> NSImage {
+        let img = loadBundled(resources: resources)
+            ?? NSImage(systemSymbolName: "cursorarrow", accessibilityDescription: "Agent Computer Use")
+            ?? NSImage(size: NSSize(width: 18, height: 18))
+        img.isTemplate = true
+        img.accessibilityDescription = "Agent Computer Use"
+        return img
     }
 
-    private static func loadBundled() -> NSImage? {
-        let names = ["MenubarIcon", "MenubarIcon@2x"]
-        if let url = Bundle.main.url(forResource: "MenubarIcon", withExtension: "png"),
-           let img = NSImage(contentsOf: url) {
-            img.isTemplate = false
-            img.size = NSSize(width: 18, height: 18)
-            return img
+    static func loadBundled(resources: URL?) -> NSImage? {
+        guard let res = resources else { return nil }
+        if let pdf = NSImage(contentsOf: res.appendingPathComponent("StatusIcon.pdf")) {
+            pdf.size = NSSize(width: 18, height: 18)
+            return pdf
         }
-        let res = Bundle.main.resourceURL
-            ?? Bundle.main.bundleURL
-                .appendingPathComponent("Contents/Resources", isDirectory: true)
-        for name in names {
-            let url = res.appendingPathComponent("\(name).png")
-            if let img = NSImage(contentsOf: url) {
-                img.isTemplate = false
-                img.size = NSSize(width: 18, height: 18)
-                return img
-            }
+        // PNG set: one NSImage carrying the 1x/2x/3x reps.
+        let reps = ["StatusIcon.png", "StatusIcon@2x.png", "StatusIcon@3x.png"].compactMap {
+            NSImageRep(contentsOf: res.appendingPathComponent($0))
         }
-        return nil
+        guard !reps.isEmpty else { return nil }
+        let img = NSImage(size: NSSize(width: 18, height: 18))
+        for r in reps { r.size = NSSize(width: 18, height: 18); img.addRepresentation(r) }
+        return img
     }
 
 }
