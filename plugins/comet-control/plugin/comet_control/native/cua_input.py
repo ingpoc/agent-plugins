@@ -420,14 +420,24 @@ class NativeInput:
             raise NativeInputError("WINDOW_NOT_RAISED", "raise the leased window first (window_id mismatch)")
         return wid
 
-    def op_raise(self, session: str, params: dict[str, Any]) -> dict[str, Any]:
-        wid, title = self._resolve_window(session, params)
+    def op_prepare_raise(self, session: str, params: dict[str, Any]) -> dict[str, Any]:
+        """Record the user's front app before the browser window comes forward.
+
+        The leased Comet window must be made visible and focused before its
+        physical bounds can be matched, so the prior app is captured here
+        rather than after the raise.
+        """
         if self.restore_timer is not None:
             self.restore_timer.cancel()
             self.restore_timer = None
         front = self.desktop.frontmost()
         if self.saved_front is None and front and front.get("bundle_id") != COMET_BUNDLE_ID:
             self.saved_front = front
+        return {}
+
+    def op_raise(self, session: str, params: dict[str, Any]) -> dict[str, Any]:
+        self.op_prepare_raise(session, params)
+        wid, title = self._resolve_window(session, params)
         state = self.rpc.call("get_app_state", {
             "app": COMET_BUNDLE_ID, "windowId": wid, "raiseForInput": True, "includeScreenshot": False, "maxElements": 1,
         }, timeout=10)

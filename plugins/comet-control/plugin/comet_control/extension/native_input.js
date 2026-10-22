@@ -266,9 +266,18 @@ async function raiseLease(state, hooks, label) {
   const sessionId = sessionOf(state);
   if (!sessionId) throw codedError("LEASE_REQUIRED", "real input is lease-scoped");
   const api = hooks.chrome || globalThis.chrome;
-  const { tab, bounds } = await leaseWindow(state, api);
-  const raised = await nativeRequest("raise", sessionId, { window: bounds, title: tab.title || "", action: label });
-  return { sessionId, windowId: raised.window_id, bounds, tab };
+  try {
+    // Capture the user's front app before the leased window comes forward.
+    await nativeRequest("prepare_raise", sessionId);
+    const { tab } = await leaseWindow(state, api);
+    const win = await api.windows.update(tab.windowId, { state: "normal", focused: true });
+    const bounds = { left: win.left, top: win.top, width: win.width, height: win.height };
+    const raised = await nativeRequest("raise", sessionId, { window: bounds, title: tab.title || "", action: label });
+    return { sessionId, windowId: raised.window_id, bounds, tab };
+  } catch (error) {
+    await release(sessionId);
+    throw error;
+  }
 }
 
 async function release(sessionId) {

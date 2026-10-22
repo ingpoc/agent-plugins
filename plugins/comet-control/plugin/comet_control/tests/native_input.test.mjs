@@ -15,7 +15,10 @@ const chromeFake = {
     getZoom: async () => 1,
     captureVisibleTab: async () => { throw new Error("capture failed"); },
   },
-  windows: { get: async () => ({ left: 2560, top: 317, width: 1920, height: 1050 }) },
+  windows: {
+    get: async () => ({ left: 2560, top: 317, width: 1920, height: 1050 }),
+    update: async (_id, props) => ({ left: 2560, top: 317, width: 1920, height: 1050, ...props }),
+  },
   userScripts: undefined,
   scripting: { executeScript: async () => [{ result: null }] },
 };
@@ -64,6 +67,7 @@ assert.equal((await ni.userScriptsStatus(old)).reason, "USER_SCRIPTS_EXECUTE_UNS
 // ── fake broker + page
 const log = [];
 let page;
+let failPrepareRaise = false;
 function resetPage(kind = "input", value = "") {
   page = { kind, value, focused: false, pageFocus: false, raised: false };
 }
@@ -72,7 +76,9 @@ ni.setNativeTransport((msg) => {
   assert.equal(msg.sessionId, "lease-1");
   queueMicrotask(() => {
     let reply = { id: msg.id, success: true };
-    if (msg.op === "raise") {
+    if (msg.op === "prepare_raise" && failPrepareRaise) {
+      reply = { id: msg.id, success: false, error_code: "PREPARE_FAILED", error: "prepare failed" };
+    } else if (msg.op === "raise") {
       assert.deepEqual(msg.params.window, { left: 2560, top: 317, width: 1920, height: 1050 });
       assert.equal(msg.params.title, "ACU input matrix");
       page.raised = true;
@@ -121,16 +127,22 @@ ni.forgetLeaseCapabilities("lease-1");
 await ni.leaseCapabilities(state, countingHooks);
 assert.equal(probes, 2);
 
-// ── 5) type flow order: focus -> raise -> focus check -> steps -> verify -> cleanup -> release
+// ── 5) type flow order: focus -> prepare_raise -> raise -> focus check -> steps -> verify -> cleanup -> release
 resetPage("input", "old");
 log.length = 0;
 let r = await ni.nativeTypeFlow(state, hooks, { selector: "#name", text: "Héllo 😀", clear: true, submit: true });
 assert.equal(r.verified, true);
 assert.equal(r.input_path, "cua_keyboard");
 assert.deepEqual(log.filter((l) => !l.startsWith("log_path")), [
-  "page:nativeFocus", "raise", "page:nativeFocusCheck", "steps:Meta+a,Backspace,text(Héllo 😀)",
+  "page:nativeFocus", "prepare_raise", "raise", "page:nativeFocusCheck", "steps:Meta+a,Backspace,text(Héllo 😀)",
   "page:nativeVerify", "steps:Enter", "page:nativeCleanup", "release",
 ]);
+
+failPrepareRaise = true;
+log.length = 0;
+await assert.rejects(ni.nativeKeyFlow(state, hooks, { key: "Tab" }), (e) => e.code === "PREPARE_FAILED");
+failPrepareRaise = false;
+assert.deepEqual(log.filter((l) => !l.startsWith("log_path")), ["prepare_raise", "release"]);
 
 // ── 6) page lost keyboard focus after raise (omnibox) -> nothing typed, still released
 resetPage("input", "");
@@ -200,7 +212,7 @@ assert.ok(log.includes("steps:Meta+a,Backspace,text(comet browser)"));
 resetPage();
 log.length = 0;
 r = await ni.nativeKeyFlow(state, hooks, { key: "Tab" });
-assert.deepEqual(log.filter((l) => !l.startsWith("log_path")), ["raise", "page:nativeFocusCheck", "steps:Tab", "page:nativeKeyAfter", "release"]);
+assert.deepEqual(log.filter((l) => !l.startsWith("log_path")), ["prepare_raise", "raise", "page:nativeFocusCheck", "steps:Tab", "page:nativeKeyAfter", "release"]);
 log.length = 0;
 r = await ni.nativeClickFlow(state, hooks, { selector: "#trusted" });
 assert.ok(log.includes("steps:click@2660,454"));
