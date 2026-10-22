@@ -86,7 +86,15 @@ class CatalogTests(unittest.TestCase):
 
 class InventoryTests(unittest.TestCase):
     def test_label_inventory(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
+        # The keychain is a macOS boundary: every lookup here is faked, and any
+        # real /usr/bin/security call from the catalog fails the test.
+        with (
+            tempfile.TemporaryDirectory() as td,
+            patch(
+                "voice_cua.catalog.subprocess.run",
+                side_effect=AssertionError("unit test must not call /usr/bin/security"),
+            ),
+        ):
             td_path = Path(td)
             with patch("voice_cua.catalog.secrets_dir", return_value=td_path):
                 save_key(
@@ -108,8 +116,14 @@ class InventoryTests(unittest.TestCase):
                         "platform": "render",
                     }
                 )
-                inv = build_inventory()
+                with patch("voice_cua.inventory.keychain_exists", return_value=False) as none_exist:
+                    inv = build_inventory()
                 self.assertEqual(inv["total"], 2)
+                self.assertEqual(inv["missing_count"], 2)
+                self.assertEqual(
+                    sorted(call.args[0] for call in none_exist.call_args_list),
+                    ["Open AI Realtime Key", "Render API"],
+                )
                 self.assertEqual(find_by_role(load_catalog(), "openai-runtime")["id"], "openai-api")
 
                 with patch("voice_cua.inventory.keychain_exists") as mock_exists:
@@ -364,6 +378,17 @@ class AudioIOTests(unittest.TestCase):
 
         session = RealtimeSession(api_key="test", enable_audio=False)
         session.ws = FakeWS()
+        # response.done runs the idle hook: hide the agent cursor through
+        # CUAService and publish to the island. Both are host boundaries; the
+        # real hide call blocks in CUAClient.connect() (5s deadline, extended by
+        # recovery; measured ~16s on Debian) when no service socket exists,
+        # outliving the 2s text wait.
+        hide_patch = patch("voice_cua.realtime_session.hide_agent_cursor")
+        hide = hide_patch.start()
+        self.addCleanup(hide_patch.stop)
+        island_patch = patch("voice_cua.realtime_session.island_publish")
+        island_patch.start()
+        self.addCleanup(island_patch.stop)
         result = {}
         thread = threading.Thread(
             target=lambda: result.update(session.send_text_and_wait("ping", timeout=2)),
@@ -396,6 +421,7 @@ class AudioIOTests(unittest.TestCase):
         }))
         thread.join(timeout=1)
         self.assertEqual(result, {"ok": True, "reply": "RIGHT"})
+        self.assertEqual(hide.call_count, 2)
 
     def test_failed_mic_preflight_disables_audio_status(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=True)

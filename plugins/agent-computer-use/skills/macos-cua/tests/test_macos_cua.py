@@ -3,6 +3,7 @@ import io
 import json
 import os
 from pathlib import Path
+import socket
 import plistlib
 import sys
 from types import SimpleNamespace
@@ -40,6 +41,9 @@ def _assert_no_tool_call_spawn(run_mock):
         if "call" in argv:
             raise AssertionError(f"tool call spawned subprocess: {argv}")
 
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import cursor_png_fixtures  # noqa: E402
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "macos-cua.py"
 SPEC = importlib.util.spec_from_file_location("macos_cua", SCRIPT)
@@ -729,7 +733,10 @@ class WindowResolutionTests(unittest.TestCase):
 
     def test_foreground_window_uses_short_bounded_driver_call(self):
         readiness = {"ok": True, "pid": 899, "window_id": 99, "duration_ms": 84}
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
         with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
             mock.patch.object(
                 macos_cua,
                 "call_driver",
@@ -753,7 +760,15 @@ class WindowResolutionTests(unittest.TestCase):
 
     def test_foreground_window_fails_closed_without_readiness(self):
         readiness = {"ok": False, "error": "foreground acknowledgement timed out"}
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
         with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(
+                macos_cua,
+                "_raise_resolved_ax_window",
+                return_value={"error": "resolved AX window is unavailable"},
+            ),
             mock.patch.object(
                 macos_cua, "call_driver", return_value={"ok": True}
             ) as call_driver,
@@ -777,7 +792,15 @@ class WindowResolutionTests(unittest.TestCase):
     def test_foreground_window_recovers_once_via_authoritative_pid(self):
         missed = {"ok": False, "error": "foreground acknowledgement timed out"}
         ready = {"ok": True, "pid": 899, "window_id": 99, "duration_ms": 82}
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
         with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(
+                macos_cua,
+                "_raise_resolved_ax_window",
+                return_value={"error": "resolved AX window is unavailable"},
+            ),
             mock.patch.object(macos_cua, "call_driver", return_value={"ok": True}),
             mock.patch.object(
                 macos_cua,
@@ -800,10 +823,15 @@ class WindowResolutionTests(unittest.TestCase):
         self.assertEqual(wait_ready.call_count, 2)
 
     def test_foreground_window_surfaces_driver_timeout(self):
-        with mock.patch.object(
-            macos_cua,
-            "call_driver",
-            return_value={"error": "timed out"},
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
+        with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(
+                macos_cua,
+                "call_driver",
+                return_value={"error": "timed out"},
+            ),
         ):
             result = macos_cua.bring_resolved_window_to_front(899, 99)
 
@@ -833,7 +861,10 @@ class WindowResolutionTests(unittest.TestCase):
     def test_foreground_window_raises_exact_ax_window_before_process_recovery(self):
         missed = {"ok": False, "error": "foreground window is not AX-ready"}
         ready = {"ok": True, "window_id": 99}
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
         with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
             mock.patch.object(macos_cua, "call_driver", return_value={"ok": True}),
             mock.patch.object(
                 macos_cua,
@@ -854,10 +885,15 @@ class WindowResolutionTests(unittest.TestCase):
         activate.assert_not_called()
 
     def test_foreground_window_surfaces_driver_rejection(self):
-        with mock.patch.object(
-            macos_cua,
-            "call_driver",
-            return_value={"ok": False, "reason": "window unavailable"},
+        # Pin the cua-driver path: pid 899 can be a live host process, which
+        # would otherwise enter the native activation fast path.
+        with (
+            mock.patch.object(macos_cua, "_pid_alive", return_value=False),
+            mock.patch.object(
+                macos_cua,
+                "call_driver",
+                return_value={"ok": False, "reason": "window unavailable"},
+            ),
         ):
             result = macos_cua.bring_resolved_window_to_front(899, 99)
 
@@ -1369,6 +1405,9 @@ class DisplayAlignmentTests(unittest.TestCase):
                 displays.subprocess, "run", return_value=completed
             ) as run,
             mock.patch.object(displays, "window_on_display", return_value=after),
+            # No logical AX frame: keep this on the Quartz verification path
+            # instead of the host AX/pyobjc fallback.
+            mock.patch.object(displays, "logical_window_on_display", return_value=None),
         ):
             result = displays.move_process_window(
                 "TestApp", "DELL", width=1880, height=1000, margin=20
@@ -1376,6 +1415,7 @@ class DisplayAlignmentTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertTrue(result["frame_matches"])
+        self.assertEqual(result["verification"], "quartz-onscreen")
         apple_script = next(
             call.args[0][-1]
             for call in run.call_args_list
@@ -1415,6 +1455,9 @@ class DisplayAlignmentTests(unittest.TestCase):
                 side_effect=[transient, settled],
             ),
             mock.patch.object(displays.time, "sleep") as sleep,
+            # No logical AX frame: keep this on the Quartz verification path
+            # instead of the host AX/pyobjc fallback.
+            mock.patch.object(displays, "logical_window_on_display", return_value=None),
         ):
             result = displays.move_process_window(
                 "TestApp", "DELL", width=1880, height=1000, margin=20
@@ -1422,6 +1465,7 @@ class DisplayAlignmentTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["window_after"], settled)
+        self.assertEqual(result["verification"], "quartz-onscreen")
         sleep.assert_called_once_with(0.1)
 
     def test_move_process_window_uses_logical_frame_for_stage_manager(self):
@@ -1638,40 +1682,24 @@ class DisplayAlignmentTests(unittest.TestCase):
 
 
 class CursorProofTests(unittest.TestCase):
+    """Cursor raster/proof logic. AppKit is faked at the import boundary.
+
+    Real AppKit and /usr/bin/sips cases live in
+    integration_macos_cua_cursor.py (INTEGRATION_REQUIRES macOS).
+    """
+
+    def setUp(self):
+        appkit = mock.patch.dict(sys.modules, {"AppKit": cursor_png_fixtures.fake_appkit()})
+        appkit.start()
+        self.addCleanup(appkit.stop)
+
     @staticmethod
     def _png_header(width=96, height=96):
-        return (
-            b"\x89PNG\r\n\x1a\n"
-            + (13).to_bytes(4, "big")
-            + b"IHDR"
-            + int(width).to_bytes(4, "big")
-            + int(height).to_bytes(4, "big")
-        )
+        return cursor_png_fixtures.png_header(width, height)
 
-    @classmethod
-    def _png_bytes(cls, width=96, height=96, alpha=255):
-        def chunk(name, payload):
-            checksum = zlib.crc32(name + payload) & 0xFFFFFFFF
-            return (
-                len(payload).to_bytes(4, "big")
-                + name
-                + payload
-                + checksum.to_bytes(4, "big")
-            )
-
-        ihdr = (
-            int(width).to_bytes(4, "big")
-            + int(height).to_bytes(4, "big")
-            + bytes((8, 6, 0, 0, 0))
-        )
-        pixel = bytes((16, 32, 48, int(alpha)))
-        scanlines = (b"\x00" + pixel * int(width)) * int(height)
-        return (
-            cls._png_header(width, height)[:8]
-            + chunk(b"IHDR", ihdr)
-            + chunk(b"IDAT", zlib.compress(scanlines))
-            + chunk(b"IEND", b"")
-        )
+    @staticmethod
+    def _png_bytes(width=96, height=96, alpha=255):
+        return cursor_png_fixtures.png_bytes(width, height, alpha)
 
     def test_cursor_ack_requires_matching_update_and_target_identity(self):
         original_cache = macos_cua.CACHE_DIR
@@ -1935,75 +1963,6 @@ class CursorProofTests(unittest.TestCase):
         )
         self.assertEqual(run.call_args.kwargs["timeout"], 15)
 
-    def test_cursor_proof_uses_the_hermes_extension_asset(self):
-        from AppKit import (
-            NSBitmapImageFileTypePNG,
-            NSBitmapImageRep,
-            NSColor,
-            NSImage,
-            NSMakeRect,
-            NSRectFill,
-        )
-
-        self.assertTrue(Path(macos_cua.CURSOR_ICON).is_file())
-        self.assertEqual(Path(macos_cua.CURSOR_ICON).name, "pointer-shape-animated.svg")
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source = root / "source.png"
-            image = NSImage.alloc().initWithSize_((120, 120))
-            image.lockFocus()
-            NSColor.windowBackgroundColor().setFill()
-            NSRectFill(NSMakeRect(0, 0, 120, 120))
-            representation = NSBitmapImageRep.alloc().initWithFocusedViewRect_(
-                NSMakeRect(0, 0, 120, 120)
-            )
-            image.unlockFocus()
-            data = representation.representationUsingType_properties_(
-                NSBitmapImageFileTypePNG, {}
-            )
-            data.writeToFile_atomically_(str(source), True)
-
-            result = macos_cua.annotate_cursor_screenshot(source, 0.5, 0.5)
-
-            self.assertTrue(result["ok"], result)
-            self.assertEqual(result["cursor_asset"], macos_cua.CURSOR_ICON)
-            self.assertGreater(
-                Path(result["path"]).stat().st_size, source.stat().st_size
-            )
-
-    def test_native_cursor_raster_uses_the_same_hermes_asset(self):
-        with tempfile.TemporaryDirectory() as directory:
-            output = Path(directory) / "pointer.png"
-            result = macos_cua.cursor_raster_path(
-                macos_cua.CURSOR_ICON, output, size=96
-            )
-
-            self.assertEqual(Path(result), output)
-            self.assertTrue(output.is_file())
-            self.assertGreater(output.stat().st_size, 100)
-            self.assertEqual(macos_cua._validate_cursor_raster(output, 96), (96, 96))
-
-    def test_real_cursor_svg_uses_appkit_when_sips_exits_13(self):
-        failure = SimpleNamespace(
-            returncode=13,
-            stderr="Cannot extract image from file / Error 13 unknown",
-        )
-        with (
-            tempfile.TemporaryDirectory() as directory,
-            mock.patch.object(macos_cua.subprocess, "run", return_value=failure) as run,
-            mock.patch.object(macos_cua.time, "sleep") as sleep,
-        ):
-            output = Path(directory) / "pointer.png"
-            result = macos_cua.cursor_raster_path(
-                macos_cua.CURSOR_ICON, output, size=96
-            )
-
-            self.assertEqual(Path(result), output)
-            self.assertGreater(output.stat().st_size, 100)
-            self.assertEqual(macos_cua._validate_cursor_raster(output, 96), (96, 96))
-            self.assertEqual(run.call_count, 2)
-            sleep.assert_called_once_with(0.05)
-
     def test_cursor_raster_retries_once_after_sips_failure_then_succeeds(self):
         calls = []
 
@@ -2180,6 +2139,30 @@ class CursorProofTests(unittest.TestCase):
                 self.assertTrue(all(not path.exists() for path in calls))
                 self.assertFalse(output.exists())
 
+    def test_cursor_raster_validation_reads_alpha_in_either_sample_order(self):
+        cases = {
+            ("alpha-last", "visible"): (False, 255, None),
+            ("alpha-last", "transparent"): (False, 0, "cursor raster has no visible pixels"),
+            ("alpha-first", "visible"): (True, 255, None),
+            ("alpha-first", "transparent"): (True, 0, "cursor raster has no visible pixels"),
+        }
+        for (order, label), (alpha_first, alpha, expected_error) in cases.items():
+            with (
+                self.subTest(order=order, label=label),
+                tempfile.TemporaryDirectory() as directory,
+                mock.patch.dict(
+                    sys.modules,
+                    {"AppKit": cursor_png_fixtures.fake_appkit(alpha_first=alpha_first)},
+                ),
+            ):
+                path = Path(directory) / "cursor.png"
+                path.write_bytes(self._png_bytes(alpha=alpha))
+                if expected_error is None:
+                    self.assertEqual(macos_cua._validate_cursor_raster(path, 96), (96, 96))
+                else:
+                    with self.assertRaisesRegex(ValueError, expected_error):
+                        macos_cua._validate_cursor_raster(path, 96)
+
     def test_cursor_raster_regenerates_corrupt_or_wrong_size_fresh_cache(self):
         cache_cases = {
             "corrupt": b"not a png",
@@ -2318,8 +2301,15 @@ class CursorProofTests(unittest.TestCase):
             "ok": True, "visible": False, "idle_hide_ms": 120000, "auto_hide": True,
             "effective_hide_ms": 120000, "hide_pending": False,
         }
-        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+        with (
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(
+                macos_cua, "cursor_raster_path", return_value="/fixture/hermes-pointer.png"
+            ) as raster,
+        ):
             status = macos_cua.cursor("status")
+        raster.assert_called_once_with(macos_cua.CURSOR_ICON)
+        self.assertEqual(status["icon"], "/fixture/hermes-pointer.png")
         self.assertTrue(status["ok"])
         self.assertEqual(status["overlay"]["idle_hide_ms"], 120000)
         self.assertIs(status["overlay"]["visible"], False)
@@ -2331,7 +2321,12 @@ class CursorProofTests(unittest.TestCase):
         client = mock.Mock()
         client.configure_cursor.return_value = {"ok": True, "visible": False, "idle_hide_ms": 0,
                                                 "auto_hide": False}
-        with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
+        with (
+            mock.patch.object(macos_cua, "_cuaservice_client", return_value=client),
+            mock.patch.object(
+                macos_cua, "cursor_raster_path", return_value="/fixture/hermes-pointer.png"
+            ),
+        ):
             res = macos_cua.cursor("configure", idle_hide_ms=0)
         self.assertTrue(res["ok"])
         self.assertTrue(res["configured"])
@@ -2368,6 +2363,11 @@ class CursorProofTests(unittest.TestCase):
     def test_cursor_idle_hide_ms_fails_loud(self):
         client = mock.Mock()
         client.cursor_status.side_effect = ConnectionError("no socket")
+        raster = mock.patch.object(
+            macos_cua, "cursor_raster_path", return_value="/fixture/hermes-pointer.png"
+        )
+        raster.start()
+        self.addCleanup(raster.stop)
         with mock.patch.object(macos_cua, "_cuaservice_client", return_value=client) as make:
             down = macos_cua.cursor("status")
             neg = macos_cua.cursor("configure", idle_hide_ms=-5)
@@ -4730,22 +4730,91 @@ class DriverSocketTransportTests(unittest.TestCase):
         self.assertEqual(result, {"error": "Missing required integer field: pid"})
 
     def test_live_daemon_parses_our_argument_envelope(self):
-        """The daemon reads args under one specific key; fakes cannot prove which."""
-        sock_path = os.path.expanduser(
-            "~/Library/Caches/cua-driver/cua-driver.sock"
-        )
-        if not os.path.exists(sock_path):
-            self.skipTest("cua-driver daemon socket not present")
-        macos_cua.reset_driver_socket()
-        with mock.patch.dict(os.environ, {"MACOS_CUA_DRIVER_SOCKET": sock_path}):
-            result = macos_cua.call_driver(
-                "get_window_state", {"pid": os.getpid(), "window_id": 0}, timeout=20
-            )
-        macos_cua.reset_driver_socket()
-        error = str(result.get("error") or "")
+        """pid is sent under args. A local socket proves the key with no skip.
+
+        When the real cua-driver socket is present, the same call also has to
+        be accepted by that daemon.
+        """
+        received: dict[str, str] = {}
+        failed: list[str] = []
+        path = f"/tmp/cua-envelope-{os.getpid()}.sock"
+
+        def serve(ready: threading.Event) -> None:
+            server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            try:
+                if os.path.exists(path):
+                    os.unlink(path)
+                server.bind(path)
+                server.listen(1)
+                server.settimeout(5)
+            except OSError as exc:
+                failed.append(f"listen failed: {exc}")
+                ready.set()
+                server.close()
+                return
+            ready.set()
+            try:
+                conn, _addr = server.accept()
+            except OSError as exc:
+                failed.append(f"accept failed: {exc}")
+                server.close()
+                return
+            try:
+                conn.settimeout(5)
+                data = b""
+                while b"\n" not in data:
+                    chunk = conn.recv(4096)
+                    if not chunk:
+                        break
+                    data += chunk
+                received["line"] = data.split(b"\n", 1)[0].decode()
+                conn.sendall(_envelope_line({"ok": True}))
+            finally:
+                conn.close()
+                server.close()
+
+        ready = threading.Event()
+        thread = threading.Thread(target=serve, args=(ready,), daemon=True)
+        thread.start()
+        self.assertTrue(ready.wait(2), "local driver socket did not listen")
+        self.assertEqual(failed, [])
+        try:
+            macos_cua.reset_driver_socket()
+            with mock.patch.dict(os.environ, {"MACOS_CUA_DRIVER_SOCKET": path}):
+                result = macos_cua.call_driver(
+                    "get_window_state",
+                    {"pid": os.getpid(), "window_id": 0},
+                    timeout=5,
+                )
+            macos_cua.reset_driver_socket()
+        finally:
+            thread.join(timeout=2)
+            if os.path.exists(path):
+                os.unlink(path)
+        payload = json.loads(received["line"])
+        self.assertEqual(payload["method"], "call")
+        self.assertEqual(payload["name"], "get_window_state")
+        self.assertEqual(payload["args"]["pid"], os.getpid())
+        self.assertNotIn("arguments", payload)
         self.assertNotIn(
             "Missing required integer field: pid",
-            error,
+            str(result.get("error") or ""),
+        )
+
+        live = os.path.expanduser("~/Library/Caches/cua-driver/cua-driver.sock")
+        if not os.path.exists(live):
+            return
+        macos_cua.reset_driver_socket()
+        with mock.patch.dict(os.environ, {"MACOS_CUA_DRIVER_SOCKET": live}):
+            live_result = macos_cua.call_driver(
+                "get_window_state",
+                {"pid": os.getpid(), "window_id": 0},
+                timeout=20,
+            )
+        macos_cua.reset_driver_socket()
+        self.assertNotIn(
+            "Missing required integer field: pid",
+            str(live_result.get("error") or ""),
             "daemon did not read pid from our envelope: arguments are not reaching it",
         )
 

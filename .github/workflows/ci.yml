@@ -23,7 +23,21 @@ jobs:
         with:
           python-version: "3.12"
       - name: Comet optional test deps
-        run: python3 -m pip install --quiet 'websockets==16.0' Pillow
+        run: python3 -m pip install --quiet 'websockets==16.0' Pillow 'mcp==2.2.0'
+      - name: Audit test inventory
+        run: |
+          python3 scripts/check.py --audit-tests | python3 -c '
+          import json, sys
+          data = json.load(sys.stdin)
+          swift = data["swift"]
+          assert swift["found"] == 1, swift
+          assert swift["run"] == 0, swift
+          assert swift["skipped_allowed"] == 1, swift
+          assert swift["skipped_unallowed"] == 0, swift
+          python = data["python"]
+          assert python["skipped_unallowed"] == 0, python
+          assert python["found"] == python["run"] + python["skipped_allowed"] + python["skipped_unallowed"], python
+          '
       - name: Repo checks
         run: python3 scripts/check.py
         env:
