@@ -797,7 +797,8 @@ def cmd_send(args: argparse.Namespace) -> int:
                     _append_calls(workdir, seq, result)
                     text = json.dumps(result, ensure_ascii=False)
                     print(text if text.endswith("\n") else text + "\n", end="")
-                    return 0
+                    response = result.get("response", result)
+                    return EXIT_OK if response.get("success", response.get("ok")) is True else EXIT_FAIL
                 if not p["alive"].exists():
                     return emit({"ok": False, "error": "controller_died"}, EXIT_FAIL)
                 time.sleep(0.02)

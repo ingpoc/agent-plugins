@@ -20,7 +20,7 @@ Never dual-drive Browser Use CLI and `send` (optional bridge: [browser-use.md](r
 
 1. `./scripts/ensure-broker.sh probe --json` → `success` + `runtime_verified` + `extension_connected`.
 2. One durable `start` for the campaign. Same session id. No remint / second controller.
-3. **Act-first.** Batch mutations + `expect` (or compact `page_context`). Screenshots only for visual claims. Act within 2 observes. ≤1 observe/30s while waiting OS/CUA. Watchable clicks keep the labeled cursor visible through CDP (`cursor_visible_during_click`); no park between chained acts — park only silent/closeout.
+3. **Act-first.** Batch mutations + `expect`; request only the relevant `page_context.sections`. Reuse verified results instead of observing after every action. Check `response.success` and each `expect_ok`; a failed `send` also exits nonzero. Screenshots only for visual claims. Act within 2 observes. ≤1 observe/30s while waiting OS/CUA. Watchable clicks keep the labeled cursor visible through CDP (`cursor_visible_during_click`); no park between chained acts — park only silent/closeout.
 4. Closeout once; require `verified_absent: true`.
 
 ## Boundaries

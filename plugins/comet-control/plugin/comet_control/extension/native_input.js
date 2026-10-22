@@ -181,7 +181,8 @@ function pageFocus(selector, point, requireEditable, caretEnd) {
   const r = target.getBoundingClientRect();
   return {
     ok: true, focused, kind, tag: target.tagName.toLowerCase(), page_focus: document.hasFocus(),
-    before: String(value || "").slice(0, 4000), before_len: String(value || "").length,
+    before: String(value || ""), before_len: String(value || "").length,
+    selectionStart: target.selectionStart, selectionEnd: target.selectionEnd,
     rect: { x: r.left, y: r.top, w: r.width, h: r.height }, vw: innerWidth, vh: innerHeight,
   };
 }
@@ -193,7 +194,7 @@ function pageReadTarget(cleanup) {
   const out = { page_focus: document.hasFocus(), found: Boolean(el) };
   if (el) {
     const kind = el instanceof HTMLInputElement ? "input" : el instanceof HTMLTextAreaElement ? "textarea" : el.isContentEditable ? "contenteditable" : "other";
-    out.value = String(kind === "input" || kind === "textarea" ? el.value : kind === "contenteditable" ? el.innerText : "").slice(0, 8000);
+    out.value = String(kind === "input" || kind === "textarea" ? el.value : kind === "contenteditable" ? el.innerText : "");
     out.focused = a === el || Boolean(el.contains(a));
     if (cleanup) el.removeAttribute("data-comet-native-target");
   }
@@ -224,15 +225,17 @@ export function normalizeText(value) {
   return String(value ?? "").normalize("NFC").replace(/\u00a0/g, " ").replace(/\r\n?/g, "\n").replace(/\u200b/g, "");
 }
 
-export function typedValueMatches({ before = "", after = "", text = "", clear = false, kind = "input" }) {
+export function typedValueMatches({ before = "", after = "", text = "", clear = false, kind = "input", selectionStart = before.length, selectionEnd = selectionStart }) {
   const a = normalizeText(after);
   const t = normalizeText(text);
   if (kind === "contenteditable") {
     const flat = (s) => s.replace(/\s+/g, " ").trim();
-    return clear ? flat(a) === flat(t) : flat(a).includes(flat(t));
+    return clear ? flat(a) === flat(t) : (!t || flat(a) !== flat(normalizeText(before))) && flat(a).includes(flat(t));
   }
   if (clear) return a === t;
-  return a === normalizeText(before) + t || a.includes(t);
+  const start = selectionStart ?? before.length;
+  const end = selectionEnd ?? start;
+  return a === normalizeText(before.slice(0, start) + text + before.slice(end));
 }
 
 // Screen point (macOS global points) for a client point in the leased tab's top frame.
@@ -305,11 +308,11 @@ export async function nativeTypeFlow(state, hooks, opts) {
     timings.steps = Date.now() - t0;
     const textStep = (typed.steps || []).find((s) => s.kind === "text");
     let after = await inTab(hooks, state.tabId, frameId, pageReadTarget, [false], "nativeVerify");
-    let verified = typedValueMatches({ before: focus.before, after: after?.value, text, clear, kind: focus.kind });
+    let verified = typedValueMatches({ ...focus, after: after?.value, text, clear });
     if (!verified) {
       await new Promise((r) => setTimeout(r, 150));
       after = await inTab(hooks, state.tabId, frameId, pageReadTarget, [false], "nativeVerify");
-      verified = typedValueMatches({ before: focus.before, after: after?.value, text, clear, kind: focus.kind });
+      verified = typedValueMatches({ ...focus, after: after?.value, text, clear });
     }
     let recovered = "";
     if (!verified && textStep?.mode === "keystrokes" && (clear || !focus.before_len)) {

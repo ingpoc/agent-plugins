@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
+import vm from "node:vm";
 
 const ext = path.resolve(process.argv[2]);
 const tabs = { 7: { id: 7, windowId: 70, active: true, title: "ACU input matrix", url: "http://127.0.0.1/form.html" } };
@@ -41,6 +42,10 @@ assert.equal(ni.pickPath(open, "js"), "cdp");
 // ── 2) value verification + screen geometry
 assert.ok(ni.typedValueMatches({ before: "", after: "Héllo 😀", text: "He\u0301llo 😀", clear: true }));
 assert.ok(ni.typedValueMatches({ before: "ab", after: "abcd", text: "cd" }));
+assert.ok(!ni.typedValueMatches({ before: "hello", after: "hello", text: "hello" }));
+assert.ok(!ni.typedValueMatches({ before: "hello", after: "hello", text: "hello", kind: "contenteditable" }));
+assert.ok(!ni.typedValueMatches({ before: "hello", after: "hellox", text: "hello" }));
+assert.ok(ni.typedValueMatches({ before: "hello world", after: "hello there", text: "there", selectionStart: 6, selectionEnd: 11 }));
 assert.ok(!ni.typedValueMatches({ before: "old", after: "oldnew", text: "new", clear: true }));
 assert.ok(ni.typedValueMatches({ kind: "contenteditable", after: "hi\u00a0there\n", text: "hi there", clear: true }));
 assert.deepEqual(ni.screenPointFor({ left: 2560, top: 317, width: 1920, height: 1050 }, { x: 100, y: 50 }, { vw: 1920, vh: 963 }, 1), { x: 2660, y: 454 });
@@ -141,6 +146,46 @@ page.dropText = true;
 log.length = 0;
 await assert.rejects(ni.nativeTypeFlow(state, hooks, { selector: "#name", text: "abc", submit: true }), (e) => e.code === "TYPE_NOT_VERIFIED" && e.details.expected_len === 3);
 assert.ok(!log.includes("steps:Enter"));
+
+resetPage("input", "hello");
+page.dropText = true;
+log.length = 0;
+await assert.rejects(ni.nativeTypeFlow(state, hooks, { selector: "#name", text: "hello", submit: true }), (e) => e.code === "TYPE_NOT_VERIFIED");
+assert.ok(!log.includes("steps:Enter"));
+
+// Exercise the actual page helpers: their old 4k/8k truncation escaped the mocked flow.
+class LongInput {
+  constructor() { this.tagName = "INPUT"; this.type = "text"; this.marked = false; }
+  get value() { return page.value; }
+  contains(el) { return el === this; }
+  focus() {}
+  getBoundingClientRect() { return { top: 10, bottom: 30, left: 10, right: 110, x: 10, y: 10, width: 100, height: 20 }; }
+  hasAttribute() { return this.marked; }
+  setAttribute() { this.marked = true; }
+  removeAttribute() { this.marked = false; }
+  setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; }
+}
+const longInput = new LongInput();
+const pageSandbox = {
+  HTMLInputElement: LongInput, HTMLTextAreaElement: class {}, innerWidth: 1920, innerHeight: 963,
+  document: {
+    activeElement: longInput, body: {}, hasFocus: () => page.pageFocus,
+    querySelector: (selector) => selector === "#name" || longInput.marked ? longInput : null,
+    querySelectorAll: () => longInput.marked ? [longInput] : [],
+  },
+};
+const realPageHooks = { ...hooks, executeScriptOnTab: async (_tabId, options) => [{ result:
+  vm.runInNewContext(`(${options.func.toString()})(...args)`, { ...pageSandbox, args: options.args }),
+}] };
+resetPage("input", "");
+r = await ni.nativeTypeFlow(state, realPageHooks, { selector: "#name", text: "x".repeat(9001), clear: true, mode: "paste" });
+assert.equal(r.verified, true);
+assert.equal(r.value_length, 9001);
+resetPage("input", "x".repeat(5000));
+longInput.setSelectionRange(5000, 5000);
+r = await ni.nativeTypeFlow(state, realPageHooks, { selector: "#name", text: "END", mode: "paste" });
+assert.equal(r.verified, true);
+assert.equal(r.value_length, 5003);
 
 // ── 7b) keystrokes that drop characters are retyped once via paste (clear / empty field only)
 resetPage("input", "");

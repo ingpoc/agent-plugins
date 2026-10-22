@@ -1474,7 +1474,7 @@
       try {
         const el = document.querySelector(String(selector));
         return el
-          ? { found: true, value: String(el.value ?? el.textContent ?? '').slice(0, inputValueCap) }
+          ? { found: true, value: String(el.value ?? el.textContent ?? '') }
           : { found: false };
       } catch (error) {
         return { found: false, error: String(error?.message || error).slice(0, 120) };
