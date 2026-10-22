@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 
 # Add service dir to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+import cua_client
 from cua_client import CUAClient, RPCError
 
 
@@ -175,7 +176,7 @@ class TestCUAClientWire(unittest.TestCase):
         request = self.service.requests[-1]
         self.assertEqual(request["jsonrpc"], "2.0")
         self.assertEqual(request["method"], "list_apps")
-        self.assertEqual(request["params"], {})
+        self.assertEqual(request["params"]["runtimeContract"], cua_client._CLIENT_CONTRACT)
         self.assertIsInstance(request["id"], int)
 
     def test_unknown_method(self):

@@ -32,6 +32,9 @@ SWIFT_BUILD_ROOT = Path(
 INSTALL_DIR = Path("/Applications/Agent Computer Use.app")
 LEGACY_DIR = Path("~/.cache/macos-cua/CUAService.app").expanduser()
 RELEASE_STAGE = Path("~/.cache/macos-cua/release-stage").expanduser()
+sys.path.insert(0, str(SERVICE_DIR.parent / "scripts"))
+from runtime_contract import package_identity, RECORD
+
 SIGN_NOTARIZE = SERVICE_DIR / "release" / "sign-notarize.sh"
 TEAM_ID = "9UPQL479Z5"
 VOICE_CUA_ID = "com.ingpoc.cua-service.voice-cua"
@@ -181,6 +184,7 @@ def bundle_voice_helper(app_path: Path, *, team: str, skip_sign: bool) -> None:
             encoding="utf-8",
         )
 
+    stamp_version(helper_app / "Contents" / "Info.plist")
     if skip_sign:
         return
     identity = resolve_codesign_identity(team)
@@ -421,6 +425,7 @@ def main():
 
     dest = Path(args.dest)
     identity = "" if args.skip_sign or args.replace_binary or args.release else resolve_codesign_identity(args.team)
+    candidate_identity = package_identity(PLUGIN_ROOT)
     print(f"Building CUAService ({'debug' if args.debug else 'release'})...")
     binary = build(release=not args.debug)
 
@@ -447,6 +452,9 @@ def main():
     if not args.skip_voice_bundle:
         bundle_voice_helper(target, team=args.team, skip_sign=True)
     bundle_mediaremote_adapter(target)
+    if package_identity(PLUGIN_ROOT) != candidate_identity:
+        raise RuntimeError("Source changed during build; refusing to sign/install")
+    (target / RECORD).write_text(json.dumps(candidate_identity, sort_keys=True) + "\n")
 
     if args.release:
         print("Release signing (Developer ID, hardened runtime)...")

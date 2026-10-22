@@ -1213,9 +1213,9 @@ class CompactMcpProtocolTests(unittest.TestCase):
         self.assertEqual([tool["name"] for tool in listed["result"]["tools"]], FIVE)
         self.assertEqual(ping["result"], {})
 
-    def test_launcher_reads_content_length_writes_ndjson(self):
+    def test_script_reads_content_length_writes_ndjson(self):
         self.assertTrue(os.access(LAUNCHER, os.X_OK))
-        proc = _spawn([str(LAUNCHER)])
+        proc = _spawn([sys.executable, str(SCRIPT)])
         try:
             _send(
                 proc,
@@ -1243,8 +1243,8 @@ class CompactMcpProtocolTests(unittest.TestCase):
         self.assertEqual(init["result"]["protocolVersion"], "2025-11-25")
         self.assertEqual([tool["name"] for tool in listed["result"]["tools"]], FIVE)
 
-    def test_launcher_modern_discover_lists_two_tools(self):
-        proc = _spawn([str(LAUNCHER)])
+    def test_script_modern_discover_lists_two_tools(self):
+        proc = _spawn([sys.executable, str(SCRIPT)])
         try:
             _send(
                 proc,

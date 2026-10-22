@@ -1,6 +1,12 @@
 """Voice CUA Agent — local tool host for GPT Realtime 2 + CUAService."""
 
-__version__ = "0.1.0"
+import json
+from pathlib import Path
+import sys
+
+_manifest = (Path(sys._MEIPASS) / "plugin.json" if getattr(sys, "frozen", False)
+             else Path(__file__).resolve().parents[4] / "plugin.json")
+__version__ = json.loads(_manifest.read_text())["version"]
 
 SYSTEM_INSTRUCTIONS = """
 You are a Mac voice computer-use agent. Drive ANY regular macOS app via tools.

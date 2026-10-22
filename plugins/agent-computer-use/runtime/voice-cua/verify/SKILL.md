@@ -14,12 +14,18 @@ Read [`features/README.md`](features/README.md) first; each feature file is the 
 
 ## Doctor (read-only, run first and after any failed drive)
 ```zsh
-C=~/.cache/macos-cua; ACT=$C/samantha-activity.jsonl
-PORT=$(lsof -nP -a -p "$(pgrep -x voice-cua | paste -sd, -)" -iTCP -sTCP:LISTEN | awk 'NR>1{sub(/.*:/,"",$9);print $9;exit}')
-curl -s -m3 127.0.0.1:$PORT/health; curl -s -m3 127.0.0.1:$PORT/api/session/status
-grep -E 'gateway_port|island_stream_error|scripts not found' $ACT | tail -3
-codesign --verify --deep --strict $C/CUAService.app && echo app_sig=0
+python3 skills/macos-cua/scripts/runtime_contract.py
 ```
+The launcher runs this same gate before exposing MCP. A missing build record,
+changed package, or stale running service blocks startup; rebuild, sync and
+restart from one candidate. The signed app records the package fingerprint;
+the running service returns the fingerprint captured at launch. Operator status
+is optional and does not decide native service health.
+
+Discover the voice gateway from the active helper listener and confirm its
+`/health` reports `service=voice-cua` before using `/api/session/status`.
+Do not use a port merely because it accepts connections. Source tests and
+activity-log history are not current voice evidence.
 Never hardcode 8765 — see [`features/port-clash.md`](features/port-clash.md).
 
 ## Drive

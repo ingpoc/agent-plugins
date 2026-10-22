@@ -39,7 +39,7 @@ def doctor():
     checks = {}
     health = cuaservice_health() or {}
     checks["cuaservice"] = {"ok": health.get("ok") is True, **{
-        key: health[key] for key in ("error", "recovery") if key in health
+        key: health[key] for key in ("socket", "error", "recovery") if key in health
     }}
     for name, probe in (("permissions", _doctor_permissions), ("operator", _doctor_operator)):
         if not checks["cuaservice"]["ok"] and name == "permissions":
@@ -49,5 +49,7 @@ def doctor():
             checks[name] = probe()
         except Exception as exc:  # doctor reports, never raises
             checks[name] = {"ok": False, "error": str(exc)}
-    failed = [name for name, check in checks.items() if not check["ok"]]
+    checks["operator"]["required"] = False
+    failed = [name for name, check in checks.items()
+              if check.get("required", True) and not check["ok"]]
     return {"ok": not failed, "failed": failed, "checks": checks}

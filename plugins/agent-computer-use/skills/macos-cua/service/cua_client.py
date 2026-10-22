@@ -13,9 +13,18 @@ import signal
 import socket
 import struct
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
+
+# Pin identity at module load: an already-running client cannot adopt new files.
+if getattr(sys, "frozen", False):
+    _CLIENT_CONTRACT = json.loads((Path(sys._MEIPASS) / "runtime-contract.json").read_text())
+else:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    from runtime_contract import package_identity
+    _CLIENT_CONTRACT = package_identity(Path(__file__).resolve().parents[3])
 
 DEFAULT_SOCKET = Path("~/.cache/macos-cua/cua-service.sock").expanduser()
 APP_PATH = Path("/Applications/Agent Computer Use.app")
@@ -183,7 +192,7 @@ class CUAClient:
         request = {
             "jsonrpc": "2.0",
             "method": method,
-            "params": params or {},
+            "params": {**(params or {}), "runtimeContract": _CLIENT_CONTRACT},
             "id": req_id,
         }
         body = json.dumps(request).encode("utf-8")

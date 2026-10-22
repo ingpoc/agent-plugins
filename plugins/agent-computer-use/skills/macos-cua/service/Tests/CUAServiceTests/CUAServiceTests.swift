@@ -317,3 +317,14 @@ final class LabelAliasTests: XCTestCase {
         XCTAssertNil(walker.findElementByLabel(tree, label: "Tangent"))
     }
 }
+
+final class RuntimeContractTests: XCTestCase {
+    func testRejectsStaleMissingAndChangedClientIdentity() {
+        let expected: [String: Any] = ["version": "1.2.3", "sha256": "candidate"]
+        XCTAssertTrue(MethodRouter.contractMatches(["version": "1.2.3", "sha256": "candidate"], expected: expected))
+        XCTAssertFalse(MethodRouter.contractMatches(nil, expected: expected))
+        XCTAssertFalse(MethodRouter.contractMatches(["version": "1.2.2", "sha256": "candidate"], expected: expected))
+        XCTAssertFalse(MethodRouter.contractMatches(["version": "1.2.3", "sha256": "old"], expected: expected))
+        XCTAssertFalse(MethodRouter.contractMatches([:], expected: [:]))
+    }
+}

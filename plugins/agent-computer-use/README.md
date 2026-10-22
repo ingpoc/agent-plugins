@@ -163,3 +163,17 @@ Series order: Floor (s), p50 duration (s).
 ### Efficiency
 
 Suite 8.2. Calculator at floor (`ax_snapshots` 2).
+
+### Runtime contract
+
+The MCP launcher rejects package/app fingerprint mismatches and stale running
+services. Every native RPC also carries the client build identity, so an already
+running stale client is rejected after an app update. Build and sync the same candidate, then restart the signed app before
+reconnecting the client. `python3 skills/macos-cua/scripts/runtime_contract.py`
+checks this without starting or repairing anything. The app version alone is
+insufficient: changed contents at the same version also fail.
+
+Run source tests from this plugin with
+`python3 -m unittest runtime/voice-cua/tests/test_voice_cua.py`.
+Collection validation (`python3 scripts/check.py` from the repo root) uses the
+strict runner and rejects zero collected tests and unlisted skips.

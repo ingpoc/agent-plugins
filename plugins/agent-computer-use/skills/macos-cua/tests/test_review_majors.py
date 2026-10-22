@@ -162,9 +162,11 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(report["failed"], ["cuaservice", "permissions"])
         self.assertEqual(calls, [])
 
-    def test_unsigned_operator_fails(self):
+    def test_optional_operator_does_not_mask_healthy_service(self):
         report, _ = self._run(probe={"ax_trusted": True, "screen_capture": True}, signing="adhoc")
-        self.assertEqual(report["failed"], ["operator"])
+        self.assertTrue(report["ok"], report)
+        self.assertFalse(report["checks"]["operator"]["ok"])
+        self.assertFalse(report["checks"]["operator"]["required"])
 
     def test_validator_gates_on_doctor(self):
         cua = SimpleNamespace(doctor=lambda: {"ok": False, "failed": ["operator"]})

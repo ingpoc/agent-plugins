@@ -30,6 +30,7 @@ os.environ.setdefault("VOICE_CUA_COMET_STATE", str(Path(_STATE_DIR.name) / "leas
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "python"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from voice_cua.catalog import (  # noqa: E402
     find_by_role,

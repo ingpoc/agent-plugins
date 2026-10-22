@@ -24,4 +24,5 @@ if [ -z "$PY" ]; then
   exit 127
 fi
 
+"$PY" "$ROOT/skills/macos-cua/scripts/runtime_contract.py" >/dev/null
 exec "$PY" -u "$SCRIPT"

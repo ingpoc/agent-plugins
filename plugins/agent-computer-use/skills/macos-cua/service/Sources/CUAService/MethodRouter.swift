@@ -5,6 +5,13 @@ import Foundation
 import Logging
 
 final class MethodRouter: @unchecked Sendable {
+    private let runtimeContract: [String: Any] = {
+        guard let url = Bundle.main.url(forResource: "runtime-contract", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return [:] }
+        return value
+    }()
     private let appResolver: AppResolver
     private let axTree: AXTreeWalker
     private let screenshotCapture: ScreenshotCapture
@@ -37,7 +44,7 @@ final class MethodRouter: @unchecked Sendable {
     static let cursorControlMethods: Set<String> = ["cursor_status", "configure_cursor"]
     /// Methods that never move the tip: no action bracket, so observers
     /// polling them neither show the tip nor extend its idle countdown.
-    static let nonActionMethods: Set<String> = ["list_apps", "hide_agent_cursor", "wait", "credential_request", "credential_status", "credential_cancel", "system_volume"]
+    static let nonActionMethods: Set<String> = ["runtime_contract", "list_apps", "hide_agent_cursor", "wait", "credential_request", "credential_status", "credential_cancel", "system_volume"]
 
     static func movesTip(_ req: JSONRPCRequest) -> Bool {
         if nonActionMethods.contains(req.method) { return false }
@@ -45,8 +52,21 @@ final class MethodRouter: @unchecked Sendable {
         return true
     }
 
+    static func contractMatches(_ supplied: [String: String]?, expected: [String: Any]) -> Bool {
+        guard let fingerprint = expected["sha256"] as? String,
+              let version = expected["version"] as? String else { return false }
+        return supplied?["sha256"] == fingerprint && supplied?["version"] == version
+    }
+
     @MainActor
     func handle(_ request: JSONRPCRequest) async -> JSONRPCResponse {
+        if request.method != "runtime_contract" {
+            let supplied: [String: String]? = request.param("runtimeContract")
+            guard Self.contractMatches(supplied, expected: runtimeContract) else {
+                return .error(id: request.id, code: -32010,
+                              message: "RUNTIME_CONTRACT_FAILED: stale client or unverified service; rebuild, sync and reconnect")
+            }
+        }
         if Self.cursorControlMethods.contains(request.method) {
             do {
                 return .success(id: request.id, try handleCursorControl(request))
@@ -56,7 +76,7 @@ final class MethodRouter: @unchecked Sendable {
                 return .error(id: request.id, code: -32603, message: error.localizedDescription)
             }
         }
-        if let p = PermissionGate.missing(for: request.method) {
+        if request.method != "runtime_contract", let p = PermissionGate.missing(for: request.method) {
             // Revoked/missing consent: fail fast instead of hanging on AX / HID calls.
             await MainActor.run { PermissionCenter.shared.refresh() }
             return .error(id: request.id, code: PermissionGate.errorCode, message: PermissionGate.message(p))
@@ -101,6 +121,8 @@ final class MethodRouter: @unchecked Sendable {
     @MainActor
     private func route(_ req: JSONRPCRequest) async throws -> Any {
         switch req.method {
+        case "runtime_contract":
+            return runtimeContract
         case "system_volume":
             return await SystemVolume.adjust(req.param("direction") ?? "read")
         case "credential_request":
