@@ -12,3 +12,7 @@ It posts one comment review with an inline comment per finding that has a file a
 GitHub <https://github.com/ingpoc/agent-plugins> is an outbound mirror. A merge to Origin `main` is pushed to GitHub `main` by the Mini mirror job. Do not merge to GitHub `main` by hand.
 
 Install still uses the GitHub URL. Marketplace registration is unchanged. Plugin versions stay put unless installed package contents change.
+
+ACU release and installed/live proof: [`release-agent-computer-use.md`](release-agent-computer-use.md).
+The source policy is part of the existing required `scripts/check.py` check.
+Use its single release command; a source-only green check is not release proof.

@@ -40,6 +40,7 @@ _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 import check_inventory
+import release_agent_computer_use
 
 PLUGIN_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
@@ -751,6 +752,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report))
         return 0
     errors = check_catalogs()
+    try:
+        release_agent_computer_use.policy(ROOT)
+    except (RuntimeError, ValueError, OSError, subprocess.SubprocessError) as exc:
+        errors.append(f"ACU release policy: {exc}")
     for plugin in plugins:
         print(f"validate {plugin.relative_to(ROOT)}", flush=True)
         errors.extend(validate_plugin(plugin))
