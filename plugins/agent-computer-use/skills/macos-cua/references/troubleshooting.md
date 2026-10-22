@@ -42,6 +42,8 @@ operator (see `operator-ui.md`), not a session tool.
 | Screenshot black / occluded | Need visual proof → foreground once; otherwise AX-only compact state |
 | Custom-drawn field eats shortcuts, not text | Stop. Use the app’s native API/automation or report the gap |
 | Hold needed (time-based key) | `hold-key` with duration; not repeated taps |
+| AX `type_text` refused in a Chromium web input | `execute_plan` of `press_key` per char, or Cmd+V paste (restore clipboard) |
+| x/y click to a browser pid ignored by web content | `click` with `element_index` of the AXPress element under the point |
 
 Maintainer bench/revert rules: plugin `README.md` + `entry-contract.json` /
 `hardening-contract.json` — not this file.

@@ -42,6 +42,7 @@ Never dual-drive Browser Use CLI and `send` (optional bridge: [browser-use.md](r
 | Actions / screenshots | [operate.md](references/operate.md) |
 | Locators / misses | [locator-misses.md](references/locator-misses.md) |
 | Dialogs / CDP / click_at_xy | [advanced-capabilities.md](references/advanced-capabilities.md) |
+| Debugger blocked by policy (real input, userScripts) | [debugger-blocked.md](references/debugger-blocked.md) |
 | CUA / OAuth | [native-coexistence.md](references/native-coexistence.md) · [multi-agent.md](references/multi-agent.md) |
 | Google Accounts window | [google-accountchooser-ax.md](references/google-accountchooser-ax.md) |
 | Razorpay Bank popup (Success/Failure) | [razorpay-bank-popup.md](references/razorpay-bank-popup.md) |
