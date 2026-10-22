@@ -26,7 +26,7 @@ def output(command, *, root=ROOT):
     return subprocess.check_output(command, cwd=root, text=True).strip()
 
 
-def policy(root=ROOT):
+def policy(root=ROOT, *, base=None):
     """Shared by CI, pre-commit, and release; no GUI or installed-state access."""
     package = root / PACKAGE
     version = json.loads((package / 'plugin.json').read_text())['version']
@@ -34,7 +34,7 @@ def policy(root=ROOT):
     app = plistlib.loads((package / 'skills/macos-cua/service/Resources/Info.plist').read_bytes())
     if cursor != version or app['CFBundleShortVersionString'] != version:
         raise RuntimeError('release metadata versions disagree with plugin.json')
-    baseline = os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or (
+    baseline = base or os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or (
         'refs/remotes/origin/main' if os.environ.get('CI') else 'HEAD')
     base = output(['git','rev-parse','--verify',baseline+'^{commit}'],root=root)
     changed = output(['git','diff','--name-only',base,'--',PACKAGE],root=root).splitlines()
@@ -221,7 +221,7 @@ def release(args, root=ROOT):
         report['dirty_paths'] = output(['git','status','--porcelain','--untracked-files=all'],root=root).splitlines()
         frozen(root,head)
         report.update({'commit':head,'branch':output(['git','branch','--show-current'],root=root),
-                       'worktrees':output(['git','worktree','list','--porcelain'],root=root), **policy(root)})
+                       'worktrees':output(['git','worktree','list','--porcelain'],root=root), **policy(root,base=os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or 'refs/remotes/origin/main')})
         module = contract_module(root)
         identity = module.package_identity(root/PACKAGE)
         report['identity'] = identity

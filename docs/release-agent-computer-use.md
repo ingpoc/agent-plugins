@@ -19,7 +19,9 @@ The canonical collection runner rejects empty suites and unlisted skips.
 
 `python3 scripts/release_agent_computer_use.py`
 
-Requires a clean committed worktree. One machine-wide lock rejects concurrent releases. Runs source checks, builds and installs the
+Requires a clean committed worktree. The full release always compares package
+changes against `origin/main` (or the explicit release base), including changes
+already committed locally. One machine-wide lock rejects concurrent releases. Runs source checks, builds and installs the
 notarized app, syncs the installed source through its owner, refreshes Codex,
 checks source/app/service identity and signature, runs the three live integration
 suites, and proves a fresh MCP handshake and independent Calculator readback.

@@ -53,6 +53,14 @@ class PolicyTests(unittest.TestCase):
         self.version('1.2.4')
         self.assertEqual(release.policy(self.root)['version'],'1.2.4')
 
+    def test_committing_without_a_bump_cannot_evade_release_base(self):
+        base = release.output(['git','rev-parse','HEAD'],root=self.root)
+        self.tracked('bin/runtime')
+        subprocess.run(['git','-c','user.name=Fixture','-c','user.email=fixture@example.invalid',
+                        'commit','-qm','unversioned runtime'],cwd=self.root,check=True)
+        with self.assertRaisesRegex(RuntimeError,'version increase'):
+            release.policy(self.root,base=base)
+
     def test_test_only_changes_need_no_bump(self):
         self.tracked('tests/test_regression.py')
         self.assertEqual(release.policy(self.root)['version'],'1.2.3')
