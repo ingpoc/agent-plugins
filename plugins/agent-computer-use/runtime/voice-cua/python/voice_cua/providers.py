@@ -321,8 +321,8 @@ class LiveProvider(VoiceProvider):
         from voice_cua.island_facade import island_publish
 
         self._remember("user", text)
-        # Words go to voice.log only; the activity log keeps metadata (as on Realtime).
-        log_event("user_transcript", chars=len(text), provider="openai-live")
+        # 'You:' line in voice.log plus the text (capped) in the local activity log.
+        log_event("user_transcript", chars=len(text), text=text[:240], provider="openai-live")
         print(f"You: {text}", flush=True)
         island_publish("thinking", title=text[:120], detail="Thinking")
 

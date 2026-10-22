@@ -621,14 +621,23 @@ class RealtimeSession:
             print("voice-cua stack: mic preflight failed", file=sys.stderr, flush=True)
             return
         mark("mic_preflight", status="ok")
+        live = bool(getattr(self.provider, "manages_barge_in", False))
         self._audio = RealtimeAudio(
             self._send,
             meter=lambda side, level, bars: island_voice_meter(side, level, bars),
-            continuous=bool(getattr(self.provider, "manages_barge_in", False)),
+            continuous=live,
+            on_barge_in=self._on_local_barge_in if live else None,
         )
         try:
             self._audio.start()
-            mark("audio_ready", status="ok")
+            devices = self._audio_devices()
+            log_event("audio_devices", provider=self.provider.name, **devices)
+            mark("audio_ready", status="ok",
+                 detail=f"{devices.get('input') or 'default input'} @ {devices.get('stream_rate')} Hz"
+                        f" -> {devices.get('wire_rate')} Hz")
+            print(f"Mic: {devices.get('input') or 'default input'} native {devices.get('input_rate')} Hz,"
+                  f" capture {devices.get('stream_rate')} Hz, sent {devices.get('wire_rate')} Hz"
+                  f"{' (resampled)' if devices.get('resampled') else ''}", flush=True)
             island_publish("listening", title="Listening", detail="")
             print("Audio I/O active — speak now.", flush=True)
         except Exception as exc:  # pragma: no cover
@@ -637,6 +646,24 @@ class RealtimeSession:
             mark("audio_ready", status="fail", error=str(exc)[:120])
             island_publish("error", title="Mic unavailable", detail=str(exc)[:80])
             print(f"Audio unavailable ({exc}); text-only.", file=sys.stderr, flush=True)
+
+    def _audio_devices(self) -> dict[str, Any]:
+        try:
+            info = self._audio.device_summary() if self._audio is not None else {}
+        except Exception:  # noqa: BLE001 — diagnostics must never stop audio
+            info = {}
+        return {k: v for k, v in info.items() if v is not None}
+
+    def _on_local_barge_in(self, info: dict[str, Any]) -> None:
+        """GPT-Live local barge-in: the user spoke (sustained, over the floor and over her echo)
+        while Samantha was audible. Flush only the local player; the server owns turn-taking."""
+        audio = self._audio
+        if audio is None or not audio.has_playback():
+            return
+        audio_end_ms, _item = audio.interrupt()
+        log_event("barge_in_local", audio_end_ms=audio_end_ms, provider=self.provider.name,
+                  source="local_vad", **info)
+        island_publish("listening", title="Listening", detail="")
 
     def _on_open(self, _ws: Any) -> None:
         mark("realtime_ws_open")
@@ -774,13 +801,22 @@ class RealtimeSession:
         elif et == "response.content_part.added":
             self._handle_content_part_added(event)
         elif et == "input_audio_buffer.speech_started":
-            self._handle_speech_started()
-            island_publish("listening", title="Listening", detail="")
+            if getattr(getattr(self, "provider", None), "manages_barge_in", False):
+                # GPT-Live: the first user transcript delta is not a barge-in. Server transcripts
+                # include backchannels and 2-char fragments, and the player always holds the
+                # continuous output stream, so flushing here cut Samantha mid-sentence. Local
+                # barge-in comes from the mic detector (_on_local_barge_in).
+                if not (self._audio and self._audio.has_playback()):
+                    island_publish("listening", title="Listening", detail="")
+            else:
+                self._handle_speech_started()
+                island_publish("listening", title="Listening", detail="")
         elif et == "conversation.item.input_audio_transcription.completed":
             heard = str(event.get("transcript") or "").strip()
             if heard:
-                # Words go to voice.log only; the activity log keeps metadata.
-                log_event("user_transcript", chars=len(heard), item_id=str(event.get("item_id") or ""))
+                # 'You:' line in voice.log plus the text (capped) in the local activity log.
+                log_event("user_transcript", chars=len(heard), text=heard[:240],
+                          item_id=str(event.get("item_id") or ""))
                 self._last_user_text = heard
                 self._note_user_turn(heard)
                 print(f"You: {heard}", flush=True)
@@ -893,7 +929,8 @@ class RealtimeSession:
         if getattr(getattr(self, "provider", None), "manages_barge_in", False):
             # GPT-Live: the server stops speaking on its own and backend work keeps running
             # (Managing sessions / Delegation docs); only the local player is flushed.
-            log_event("barge_in_local", audio_end_ms=audio_end_ms, provider=self.provider.name)
+            log_event("barge_in_local", audio_end_ms=audio_end_ms, provider=self.provider.name,
+                      source="island")
             return
         with self._response_lock:
             active = self._current_response_id
@@ -1400,6 +1437,10 @@ class RealtimeSession:
                 pass
         self.ws = None
         if self._audio:
+            try:
+                log_event("mic_stats", **self._audio.mic_stats())
+            except Exception:  # noqa: BLE001
+                pass
             self._audio.stop()
             self._audio = None
 

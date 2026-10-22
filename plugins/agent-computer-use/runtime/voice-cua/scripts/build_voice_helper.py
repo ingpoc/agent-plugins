@@ -108,6 +108,8 @@ def build(*, clean: bool = True, onefile: bool = False) -> Path:
             "--hidden-import",
             "voice_cua.audio_io",
             "--hidden-import",
+            "voice_cua.audio_dsp",
+            "--hidden-import",
             "voice_cua.voice_settings",
             "--hidden-import",
             "voice_cua.activity_log",
