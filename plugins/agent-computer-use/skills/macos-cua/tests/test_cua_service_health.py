@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import fcntl
 import os
+import shutil
 import signal
 import socket
 import sys
@@ -46,6 +47,7 @@ class CUAServiceHealthTests(unittest.TestCase):
             p.stop()
         if self.listener is not None:
             self.listener.close()
+        shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _listen(self):
         """Simulate the relaunched service binding a fresh listening socket."""

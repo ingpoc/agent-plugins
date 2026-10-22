@@ -152,6 +152,7 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
         help="general, interaction, connectivity, display, sound, now-playing, calendar, file-tray, "
         "samantha, grok-bot, cursor, codex, computer-use, about",
     )
+    sub.add_parser("doctor", help="Read-only health: CUAService, TCC grants, operator signing")
     sub.add_parser("reset", help="Clear the app-resolution cache")
     p = sub.add_parser("apps", help="List installed and running macOS apps")
     p.add_argument(

@@ -152,12 +152,10 @@ def _cuaservice_press_key(pid, combo, window_id=None):
 
 def _pids_for_app(app):
     """Sorted pids of running apps whose bundle id equals ``app``."""
-    from AppKit import NSWorkspace
-
     return sorted(
-        int(a.processIdentifier())
-        for a in NSWorkspace.sharedWorkspace().runningApplications()
-        if str(a.bundleIdentifier() or "") == app
+        instance["pid"]
+        for instance in _live_instances()
+        if instance["bundle_id"] == app
     )
 
 
@@ -196,31 +194,6 @@ def hold_key(pid, key, duration, *, window_id=None, foreground=False):
         pid,
         "hold_key",
         _pin_window({"key": normalized, "seconds": float(duration)}, window_id),
-    )
-
-
-def scroll(
-    pid,
-    window_id,
-    direction="down",
-    amount=3,
-    *,
-    by="line",
-    element_index=None,
-    x=None,
-    y=None,
-    delivery_mode="background",
-):
-    if x is not None or y is not None:
-        return {"ok": False, "error": "CUAService scroll targets an element or the window; use --element N",
-                "engine": "CUAService"}
-    bound = max(80, int(element_index) + 1) if element_index is not None else 80
-    refused = require_cuaservice_window(pid, window_id, bound)
-    if refused:
-        return refused
-    return cua_scroll(
-        pid, direction, amount, by=by, element_index=element_index, x=x, y=y,
-        window_id=window_id,
     )
 
 

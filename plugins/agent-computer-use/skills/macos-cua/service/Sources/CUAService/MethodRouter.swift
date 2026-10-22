@@ -987,9 +987,13 @@ final class MethodRouter: @unchecked Sendable {
             throw RPCMethodError(code: -32602, message: "Element not found at index \(idx)")
         }
         try await syncCursorToElement(element, resolved: resolved, snapshot: snapshot)
-        return inputActions.performSecondaryAction(
+        // Same landing proof clicks carry: without it a caller cannot tell
+        // that the tip was drawn for this press.
+        var result = inputActions.performSecondaryAction(
             resolved: resolved, element: element, action: action
         )
+        result["cursor_landing"] = lastLanding?.dict as Any
+        return result
     }
 
     @MainActor

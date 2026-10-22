@@ -14,6 +14,7 @@ operator (see `operator-ui.md`), not a session tool.
 
 | Symptom | Fix |
 | --- | --- |
+| Anything looks off (service, TCC, operator) | `python3 scripts/macos-cua.py doctor` first — read-only; `failed` names the check, `cuaservice.recovery` gives the fix |
 | Tree is Apple-menu items | Do not use menu bar as snapshot root. Open sheet/popover/dialog, else app menu, else one window |
 | Label miss after prior click | Current-tree first (in-place retitles, `Clear`=`All Clear`). One fresh `state` only if that tree still has no match. Never seed a postcondition `expect` from a pre-mutation tree |
 | `perform_action` hangs until MCP timeout | AX messaging timeout is 1.5s; fail closed with `ax_timeout`. Do not retry until the MCP budget |

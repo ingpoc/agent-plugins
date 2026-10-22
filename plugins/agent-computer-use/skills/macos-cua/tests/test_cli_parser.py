@@ -29,7 +29,7 @@ class CliParserTests(unittest.TestCase):
         self.assertEqual(
             set(subparsers.choices),
             {
-                "status", "reset", "apps", "displays", "ensure-display",
+                "status", "doctor", "reset", "apps", "displays", "ensure-display",
                 "focus", "snap", "state", "click", "click-point", "click-desktop",
                 "double-click", "perform-action", "drag", "type-text",
                 "key", "hold-key", "scroll", "right-click", "set-value",

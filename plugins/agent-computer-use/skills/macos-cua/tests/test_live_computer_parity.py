@@ -67,16 +67,18 @@ def fresh_text_area(
                 "TextEdit", pid, window_id, max_elements=160, include_screenshot=True
             )
         else:
-            raw = MACOS_CUA._native_ax_snapshot(
-                pid, max_elements=160, window_id=window_id
-            )
-            roles = {element.get("role") for element in raw.get("elements", [])}
-            if "AXWindow" not in roles or "AXTextArea" not in roles:
-                raw = MACOS_CUA.snapshot(pid, window_id, max_elements=160)
+            # The service walk is the index space every input uses. A native
+            # (pyobjc) walk numbers elements in its own space, so an index from
+            # it presses a different element once handed to CUAService: the
+            # right-click fixture resolved index 9 to AXScrollBar rather than
+            # AXTextArea and AXShowMenu failed with kAXErrorActionUnsupported.
+            raw = MACOS_CUA.snapshot(pid, window_id, max_elements=160)
             elements = MACOS_CUA._state_elements(raw.get("elements", []))
             state = {
                 "elements": elements,
                 "text": MACOS_CUA._state_text("TextEdit", elements),
+                "window_id": raw.get("window_id") or window_id,
+                "pid": pid,
             }
     else:
         state = invoke("state", "TextEdit", "--no-screenshot")
@@ -183,7 +185,10 @@ def prove_drag() -> None:
 
     with tempfile.TemporaryDirectory(prefix="macos-cua-drag-") as directory:
         directory_path = Path(directory)
-        binary = Path(directory) / "macos-cua-drag-fixture"
+        bundle_id = f"com.macos-cua.drag-fixture.{os.getpid()}"
+        macos_dir = directory_path / "DragFixture.app" / "Contents" / "MacOS"
+        macos_dir.mkdir(parents=True)
+        binary = macos_dir / "DragFixture"
         compiled = subprocess.run(
             [
                 "swiftc",
@@ -198,6 +203,21 @@ def prove_drag() -> None:
             timeout=60,
         )
         check(compiled.returncode == 0, "isolated drag fixture compiles", compiled.stderr)
+        (directory_path / "DragFixture.app" / "Contents" / "Info.plist").write_text(
+            "\n".join([
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+                '<plist version="1.0"><dict>',
+                "<key>CFBundleIdentifier</key>",
+                f"<string>{bundle_id}</string>",
+                "<key>CFBundleName</key><string>macos-cua Drag Fixture</string>",
+                "<key>CFBundleExecutable</key><string>DragFixture</string>",
+                "<key>CFBundlePackageType</key><string>APPL</string>",
+                "<key>CFBundleVersion</key><string>1</string>",
+                "</dict></plist>",
+                "",
+            ])
+        )
         process = subprocess.Popen(
             [str(binary)],
             stdout=subprocess.DEVNULL,
@@ -234,6 +254,11 @@ def prove_drag() -> None:
                 max_elements=80,
                 include_screenshot=True,
                 screenshot_out_file=str(before_path),
+            )
+            check(
+                state.get("ok") and state.get("elements"),
+                "drag fixture state is observable",
+                state.get("error") or list(state)[:8],
             )
             window = next(
                 element for element in state["elements"]
@@ -282,6 +307,7 @@ def prove_drag() -> None:
                     max_elements=80,
                     include_screenshot=True,
                     screenshot_out_file=str(path),
+                    cursor_xy={"local": (point_x, point_y)},
                 )
                 proof = proof_state.get("screenshot") or {}
                 check(
@@ -319,14 +345,6 @@ def prove_drag() -> None:
                 check(cyan > 0, f"{label} screenshot ring is on the AXSlider", cyan)
                 return proof
 
-            source_move = MACOS_CUA._move_operator_cursor_to_point(
-                "macos-cua Drag Fixture",
-                process.pid,
-                window_id,
-                local_x,
-                local_y,
-            )
-            check(source_move.get("ok") is True, "cursor reaches live slider source")
             prove_cursor_screenshot(
                 local_x,
                 local_y,
@@ -348,24 +366,14 @@ def prove_drag() -> None:
                 ),
                 "drag is accepted",
             )
+            landing = first_drag.get("cursor_landing") or {}
             check(
                 first_drag.get("path") == "native_ax_slider"
+                and first_drag.get("ok") is True
+                and landing.get("landed") is True
                 and not first_drag.get("system_cursor_used"),
-                "drag uses verified native AX slider semantics without the user cursor",
-                {
-                    "requested": first_drag.get("requested_value"),
-                    "actual": first_drag.get("actual_value"),
-                    "element": first_drag.get("element"),
-                },
-            )
-            check(
-                first_drag.get("move", {}).get("source", {}).get("sync", {}).get("ok")
-                and first_drag.get("move", {}).get("destination", {}).get("sync", {}).get("ok"),
-                "macos-cua cursor visibly tracks the drag trajectory",
-                {
-                    "source_ms": first_drag["move"]["source"]["sync"]["duration_ms"],
-                    "destination_ms": first_drag["move"]["destination"]["sync"]["duration_ms"],
-                },
+                "drag sets the AX slider after the agent cursor lands",
+                first_drag,
             )
             time.sleep(0.3)
             destination_proof = prove_cursor_screenshot(
@@ -549,36 +557,27 @@ def main() -> int:
     )
 
     operator = invoke("operator", "status")
-    check(operator["running"], "menu-bar and PiP operator is running")
-    check(operator["signing"].get("mode") == "identity", "operator has identity signature")
-    check(operator["state"].get("cursor_visible") is True, "operator publishes live pointer state")
+    check(operator.get("running") is False, "twin operator overlay stays stopped")
+    check(
+        (Path.home() / ".cache/macos-cua/CUAService.app").is_dir(),
+        "CUAService owns the agent pointer",
+    )
+    check(operator["signing"].get("mode") == "identity", "operator bundle keeps its identity signature")
     check(
         Path(operator["state"]["cursor_image_path"]).name == "hermes-pointer.png",
-        "signed operator uses the Hermes pointer raster",
+        "pointer raster is the Hermes asset",
     )
-    prior_pip_visibility = operator["pip_visible"]
-    invoke("operator", "show-pip")
-    time.sleep(0.5)
-    try:
-        operator_pid, operator_window, _, operator_error = MACOS_CUA.resolve_app(
-            "macos-cua Operator"
-        )
-        check(operator_error is None, "native operator window resolves", operator_error)
-        operator_ax = MACOS_CUA._native_ax_snapshot(
-            operator_pid,
-            max_elements=40,
-            window_id=operator_window,
-        )
-        check(
-            not operator_ax.get("error"),
-            "native operator accessibility state resolves",
-            operator_ax.get("error"),
-        )
-        labels = {element.get("label") for element in operator_ax["elements"]}
-        check({"Hide", "Refresh", "End"}.issubset(labels), "PiP exposes Hide, Refresh, and End controls")
-    finally:
-        if not prior_pip_visibility:
-            invoke("operator", "hide-pip")
+    clicks = [step for step in calculation["steps"] if step.get("action") == "click"]
+    check(
+        bool(clicks)
+        and all(
+            isinstance(step.get("cursor_landing"), dict)
+            and step["cursor_landing"].get("landed") is True
+            for step in clicks
+        ),
+        "CUAService overlay landed on every calculator click",
+        clicks,
+    )
 
     prove_drag()
 
@@ -604,13 +603,10 @@ def main() -> int:
             fixture_pid, fixture_window_id, publish=True
         )
         check(text_window.get("label") == temporary.name, "isolated TextEdit fixture is controlled")
-        operator = MACOS_CUA._operator_ui().status()
         check(
-            operator["state"].get("app") == "TextEdit"
-            and operator["state"].get("raw_screenshot_path")
-            == state["screenshot"]["raw_path"],
-            "PiP preview follows the currently controlled app",
-            operator["state"].get("app"),
+            Path((state.get("screenshot") or {}).get("raw_path", "")).is_file(),
+            "controlled TextEdit observation includes its window screenshot",
+            (state.get("screenshot") or {}).get("raw_path"),
         )
         index = area["element_index"]
 
@@ -624,7 +620,12 @@ def main() -> int:
         selection = MACOS_CUA.select_text_action(
             fixture_pid, state, index, "parity", prefix="alpha ", suffix=" omega"
         )
-        check(selection.get("verified_range", {}).get("length") == 6, "select_text verifies native selection")
+        verified = selection.get("verified_range") or {}
+        check(
+            verified.get("length") == 6,
+            "select_text verifies native selection",
+            selection,
+        )
         accepted(
             MACOS_CUA.type_text(fixture_pid, fixture_window_id, None, "BETA"),
             "type_text is accepted",
@@ -696,24 +697,19 @@ def main() -> int:
         )
         state, text_window, area = fresh_text_area(fixture_pid, fixture_window_id)
         check(area.get("value") == ORIGINAL_TEXT, "navigation fixture is readable")
-        scroll_x = float(area["frame"]["x"] - text_window["frame"]["x"] + 30)
-        scroll_y = float(area["frame"]["y"] - text_window["frame"]["y"] + 50)
         visible_before = native_text_range(
             fixture_pid, state, area, "kAXVisibleCharacterRangeAttribute"
         )
-        accepted(
-            MACOS_CUA.scroll(
-                fixture_pid,
-                fixture_window_id,
-                "down",
-                1,
-                by="page",
-                x=scroll_x,
-                y=scroll_y,
-                delivery_mode="foreground",
-            ),
-            "scroll is accepted",
+        scrolled = MACOS_CUA.scroll(
+            fixture_pid,
+            fixture_window_id,
+            "down",
+            1,
+            by="page",
+            element_index=area["element_index"],
+            delivery_mode="foreground",
         )
+        accepted(scrolled, "scroll is accepted")
         visible_after = wait_for_text_range(
             fixture_pid,
             fixture_window_id,
@@ -723,7 +719,8 @@ def main() -> int:
         check(
             visible_after["location"] > visible_before["location"],
             "scroll advances the visible document range",
-            {"before": visible_before, "after": visible_after},
+            {"before": visible_before, "after": visible_after,
+             "path": scrolled.get("path"), "attempts": scrolled.get("attempts")},
         )
 
         state, text_window, area = fresh_text_area(fixture_pid, fixture_window_id)

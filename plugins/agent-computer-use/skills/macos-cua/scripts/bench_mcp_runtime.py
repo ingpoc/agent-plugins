@@ -15,19 +15,34 @@ import tempfile
 import time
 from typing import Any, Callable
 
+SCRIPTS = str(Path(__file__).resolve().parent)
+if SCRIPTS not in sys.path:
+    sys.path.insert(0, SCRIPTS)
+
+from runtime_telemetry import telemetry_read, telemetry_reset
+
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPACT_MCP = ROOT / "scripts" / "compact_mcp.py"
 MACOS_CUA = ROOT / "scripts" / "macos-cua.py"
 SESSION = "acu-mcp-runtime-benchmark"
-PLAN = {
-    "app": "Calculator",
-    "steps": [
-        {"label": "All Clear"},
-        {"label": "7"},
-    ],
-    "expect": "7",
-}
+def plan_for(index: int) -> dict[str, Any]:
+    """Calculator plan whose postcondition is new on every repeat.
+
+    `expect` must be absent from the settled pre-state, and the display carries
+    the previous result forward, so a single fixed operand can only verify on
+    the first run. Alternating operands keeps the pre-state different from the
+    expectation on every measurement.
+    """
+    digit = "7" if index % 2 == 0 else "8"
+    return {
+        "app": "Calculator",
+        "steps": [
+            {"label": "All Clear"},
+            {"label": digit},
+        ],
+        "expect": digit,
+    }
 
 
 def load_compact_mcp():
@@ -71,12 +86,12 @@ def subprocess_payload(command: list[str], *, timeout: float, env: dict[str, str
     return payload, elapsed
 
 
-def direct_once(mcp) -> dict[str, Any]:
+def direct_once(mcp, plan: dict[str, Any]) -> dict[str, Any]:
     started = time.monotonic()
     state = mcp._state_payload({"app": "Calculator", "max": 80})
     state_seconds = time.monotonic() - started
     started = time.monotonic()
-    act = mcp.handle_act(PLAN)
+    act = mcp.handle_act(plan)
     act_seconds = time.monotonic() - started
     return {
         "state_s": state_seconds,
@@ -86,7 +101,21 @@ def direct_once(mcp) -> dict[str, Any]:
     }
 
 
-def subprocess_once(env: dict[str, str]) -> dict[str, Any]:
+def cli_form(plan: dict[str, Any]) -> dict[str, Any]:
+    """Translate an MCP act plan into the harness/CLI plan schema.
+
+    The per-call CLI validates against plan_contract, which requires an
+    `actions` array where every entry names its `action`; the MCP act surface
+    infers the action from the step's fields.
+    """
+    return {
+        "app": plan["app"],
+        "actions": [{"action": "click", **step} for step in plan.get("steps", [])],
+        "expect": plan["expect"],
+    }
+
+
+def subprocess_once(env: dict[str, str], plan: dict[str, Any]) -> dict[str, Any]:
     state, state_seconds = subprocess_payload(
         [
             sys.executable,
@@ -102,7 +131,7 @@ def subprocess_once(env: dict[str, str]) -> dict[str, Any]:
         env=env,
     )
     with tempfile.NamedTemporaryFile("w", suffix=".json") as handle:
-        json.dump(PLAN, handle)
+        json.dump(cli_form(plan), handle)
         handle.flush()
         act, act_seconds = subprocess_payload(
             [
@@ -140,12 +169,20 @@ def reset_app_fixture(app_name: str) -> None:
         raise ValueError("app_name is required")
     cua = load_macos_cua()
 
-    def live_identity():
-        current = cua._running_app_identity(app) or {}
-        pid = current.get("pid")
-        return current if pid and cua._pid_alive(pid) else None
+    def live_pids() -> list[int]:
+        """Every live instance: a duplicate must be reaped, never inherited."""
+        return [
+            int(instance["pid"])
+            for instance in cua._live_app_instances(app)
+            if cua._pid_alive(int(instance["pid"]))
+        ]
 
-    if live_identity():
+    def survivors(pids: list[int]) -> list[int]:
+        """Cheap liveness poll: a process check costs no service round trip."""
+        return [pid for pid in pids if cua._pid_alive(pid)]
+
+    pids = live_pids()
+    if pids:
         try:
             subprocess.run(
                 ["osascript", "-e", f"tell application {json.dumps(app)} to quit"],
@@ -156,23 +193,33 @@ def reset_app_fixture(app_name: str) -> None:
         except subprocess.TimeoutExpired:
             pass
         deadline = time.monotonic() + 5
-        while live_identity() and time.monotonic() < deadline:
+        while survivors(pids) and time.monotonic() < deadline:
             time.sleep(0.05)
-        leftover = live_identity()
-        if leftover:
+        for pid in survivors(pids):
             try:
-                os.kill(int(leftover["pid"]), signal.SIGKILL)
+                os.kill(pid, signal.SIGKILL)
             except (OSError, ProcessLookupError, TypeError, ValueError):
                 pass
-            deadline = time.monotonic() + 3
-            while live_identity() and time.monotonic() < deadline:
-                time.sleep(0.05)
-        if live_identity():
-            raise RuntimeError(f"{app} fixture did not terminate")
+        deadline = time.monotonic() + 3
+        while survivors(pids) and time.monotonic() < deadline:
+            time.sleep(0.05)
+        # One enumeration at the end catches a copy that started in the interim.
+        leftover = survivors(pids) or [pid for pid in live_pids() if pid not in pids]
+        if leftover:
+            raise RuntimeError(f"{app} fixture did not terminate: {leftover}")
     cua.clear_resolution_cache()
-    _, _, _, err = cua.resolve_app(app)
+    pid, _, _, err = cua.resolve_app(app)
     if err:
         raise RuntimeError(err)
+    # The next click resolves this fixture by pid, and a pid the registry has not
+    # published yet is rejected as "no running app with pid", so wait for the app
+    # to show up. Poll the process (free) between slower registry checks, and
+    # treat the wait as best effort: a live pid already proves the fixture ran.
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and cua._pid_alive(pid) and not live_pids():
+        time.sleep(0.2)
+    if not cua._pid_alive(pid):
+        raise RuntimeError(f"{app} fixture exited right after launch (pid {pid})")
 
 
 def main() -> int:
@@ -190,37 +237,35 @@ def main() -> int:
         "MACOS_CUA_SESSION": SESSION,
     }
     rows: dict[str, list[dict[str, Any]]] = {"direct": [], "subprocess": []}
-    start = mcp.handle_start_session({"session": SESSION})
-    try:
-        direct_once(mcp)
-        subprocess_once(env)
-        runners: dict[str, Callable[[], dict[str, Any]]] = {
-            "direct": lambda: direct_once(mcp),
-            "subprocess": lambda: subprocess_once(env),
-        }
-        for index in range(args.repeat):
-            order = (
-                ("direct", "subprocess")
-                if index % 2 == 0
-                else ("subprocess", "direct")
-            )
-            for name in order:
-                rows[name].append(runners[name]())
-    finally:
-        end = mcp.handle_end_session({"session": SESSION})
+    runners: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
+        "direct": lambda plan: direct_once(mcp, plan),
+        "subprocess": lambda plan: subprocess_once(env, plan),
+    }
+    telemetry_reset()
+    step = 0
+    for name in ("direct", "subprocess"):
+        runners[name](plan_for(step))  # warmup, not measured
+        step += 1
+    for index in range(args.repeat):
+        order = (
+            ("direct", "subprocess")
+            if index % 2 == 0
+            else ("subprocess", "direct")
+        )
+        for name in order:
+            rows[name].append(runners[name](plan_for(step)))
+            step += 1
 
     summary = {name: summarize(values) for name, values in rows.items()}
     baseline = summary["subprocess"]["p50_total_s"]
     current = summary["direct"]["p50_total_s"]
     improvement = round((baseline - current) / baseline * 100, 1)
-    telemetry = mcp.telemetry_read()
+    telemetry = telemetry_read()
     all_succeeded = all(
         values["successes"] == values["runs"] for values in summary.values()
     )
     passed = all(
         (
-            start.get("ok") is True,
-            end.get("ok") is True,
             all_succeeded,
             telemetry.get("cli_invocations") == 0,
             improvement >= args.min_improvement,
@@ -235,8 +280,6 @@ def main() -> int:
                 "improvement_percent": improvement,
                 "summary": summary,
                 "runtime_telemetry": telemetry,
-                "start_ok": start.get("ok"),
-                "end_ok": end.get("ok"),
             },
             indent=2,
         )

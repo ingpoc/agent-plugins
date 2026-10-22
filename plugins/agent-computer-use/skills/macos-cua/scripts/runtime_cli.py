@@ -187,6 +187,9 @@ def _main():
         if (status.get("cuaservice") or {}).get("ok") is not True:
             sys.exit(1)
         return
+    if args.command == "doctor":
+        _emit_json(doctor(), require_ok=True)
+        return
     if args.command == "reset":
         removed = clear_resolution_cache()
         print(json.dumps({"ok": True, "cleared": removed}))

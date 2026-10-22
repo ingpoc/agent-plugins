@@ -110,6 +110,7 @@ class CUAServiceRuntimeTests(unittest.TestCase):
             self.assertTrue(state["ok"], state)
             self.assertTrue(out.is_file())
             self.assertEqual((state["screenshot"]["path"], state["screenshot"]["width"]), (str(out), 1200))
+            self.assertNotIn("cursor_included", state["screenshot"])
         self.assertIn("[2] AXButton \"Close\"", state["text"])
         clicked, client = self._run({"get_app_state": _state(), "click": {"ok": True, "method": "ax-press",
                                                "cursor_landing": {"landed": True}}}, macos_cua.click, 4242, 77, 2)
@@ -117,6 +118,46 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         self.assertEqual(client.calls[-1], ("click", {"app": BUNDLE, "element_index": 2, "windowId": 77}))
         self.assertTrue(macos_cua._accepted(clicked))
         self.assertEqual(clicked["cursor_landing"], {"landed": True})
+
+    def test_plan_proof_stamps_cursor_from_the_last_accepted_click(self):
+        cursor = macos_cua.proof_cursor_xy([
+            {"result": {"ok": True, "coords": {"x": 400.0, "y": 250.0}}},
+            {"result": {"ok": False, "error": "miss"}},
+        ])
+        self.assertEqual(cursor, {"global": (400.0, 250.0)})
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp, "cua.png")
+            src.write_bytes(
+                b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\rIHDR"
+                + (1200).to_bytes(4, "big") + (800).to_bytes(4, "big")
+            )
+            out = Path(tmp, "out.png")
+            proof = Path(tmp, "out-cursor.png")
+            seen = {}
+
+            def fake_annotate(path, x, y, output_path=None, cursor_path=None):
+                seen["xy"] = (x, y)
+                proof.write_bytes(b"png")
+                return {"ok": True, "path": str(proof), "cursor": {"x": x, "y": y}}
+
+            with mock.patch.object(macos_cua, "annotate_cursor_screenshot", fake_annotate):
+                state, _ = self._run(
+                    {"get_app_state": _state(shot=src)},
+                    macos_cua.app_state,
+                    "TextEdit",
+                    4242,
+                    77,
+                    screenshot_out_file=str(out),
+                    prepare_foreground=False,
+                    cursor_xy=cursor,
+                )
+        self.assertTrue(state["ok"], state)
+        shot = state["screenshot"]
+        self.assertTrue(shot["cursor_included"])
+        self.assertEqual(shot["path"], str(proof))
+        self.assertEqual(shot["raw_path"], str(out))
+        self.assertEqual(shot["cursor"], {"x": 0.5, "y": 0.5})
+        self.assertEqual(seen["xy"], (0.5, 0.5))
 
     def test_refused_unlanded_press_is_not_accepted_and_names_the_code(self):
         err = Exception("RPC error -32010")

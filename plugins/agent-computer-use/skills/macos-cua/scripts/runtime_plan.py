@@ -539,13 +539,13 @@ def _run_actions(
         and not (allow_unverified and accepted_plan and assertions_passed)
     )
     if capture_attempted:
+        proof_cursor = proof_cursor_xy(results)
         final_state = app_state(
-            app_name,
-            pid,
-            window_id,
+            app_name, pid, window_id,
             max_elements=max_elements,
             include_screenshot=True,
             foreground_prepared=foreground_prepared,
+            **({} if proof_cursor is None else {"cursor_xy": proof_cursor}),
         )
         screenshot = final_state.get("screenshot")
         capture_geometry = final_state.get("capture_geometry")

@@ -32,6 +32,12 @@ final class SocketServer: @unchecked Sendable {
         let handler = self.handler
         let logger = self.logger
 
+        // No allowRemoteHalfClosure: with it set, a peer that closes its
+        // write side leaves the child channel open forever (nothing consumes
+        // ChannelEvent.inputClosed), leaking one fd per client. At the 256 fd
+        // soft limit the process still accepts connections and then drops
+        // them, so every RPC fails while the service looks alive. Clients
+        // here send one framed request and close the whole socket.
         let bootstrap = ServerBootstrap(group: group)
             .serverChannelOption(ChannelOptions.backlog, value: 16)
             .childChannelInitializer { channel in
@@ -39,7 +45,6 @@ final class SocketServer: @unchecked Sendable {
                     RPCChannelHandler(handler: handler, logger: logger)
                 )
             }
-            .childChannelOption(ChannelOptions.allowRemoteHalfClosure, value: true)
 
         Task.detached {
             do {
