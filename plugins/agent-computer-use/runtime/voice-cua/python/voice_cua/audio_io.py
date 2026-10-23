@@ -17,6 +17,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -209,6 +210,7 @@ class MicStreamer:
         self._on_barge_in = on_barge_in
         self._playback_level = playback_level or (lambda: 0.0)
         self.barge = BargeInDetector()
+        self.last_speech_at: float | None = None
         self.device_name = ""
         self.device_rate = 0
         self.stream_rate = sample_rate
@@ -360,6 +362,8 @@ class MicStreamer:
             # detection. Locally, sustained speech over Samantha's audible playback flushes the player.
             raw = pcm_rms(frame)
             playback = float(self._playback_level() or 0.0)
+            if self.barge.is_speech(raw, playback):
+                self.last_speech_at = time.monotonic()
             hit = self.barge.feed(raw, playback)
             if hit is not None and playback > 0 and self._on_barge_in is not None:
                 try:
@@ -435,6 +439,8 @@ class SpeakerPlayer:
         # ends. Audible audio is still ahead while _played_samples < _audible_end.
         self._pushed_samples = 0
         self._audible_end = 0
+        self._timing_marks: list[tuple[int, float, float, str]] = []
+        self.timings: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
         self._recent_levels: list[float] = []  # RMS of the last few played blocks (echo reference)
 
     def has_audio(self) -> bool:
@@ -468,6 +474,15 @@ class SpeakerPlayer:
     def _output_callback(self, outdata: Any, frames: int, _time: Any, _status: Any) -> None:
         need = frames * 2
         with self._lock:
+            consumed = min(frames, len(self._buffer) // 2)
+            while self._timing_marks and self._timing_marks[0][0] < self._played_samples + consumed:
+                sample, speech_at, received_at, item_id = self._timing_marks.pop(0)
+                dac_delay = max(0.0, float(getattr(_time, "outputBufferDacTime", 0)) - float(getattr(_time, "currentTime", 0)))
+                played_at = time.monotonic() + dac_delay + (sample - self._played_samples) / self._sample_rate
+                self.timings.put({"item_id": item_id, "speech_to_received_ms": round((received_at - speech_at) * 1000),
+                                  "received_to_playback_ms": round((played_at - received_at) * 1000),
+                                  "speech_to_playback_ms": round((played_at - speech_at) * 1000),
+                                  "speech_end_source": "local_threshold", "playback_source": "scheduled_dac"})
             if len(self._buffer) >= need:
                 chunk = self._buffer[:need]
                 del self._buffer[:need]
@@ -493,16 +508,21 @@ class SpeakerPlayer:
         with self._lock:
             self._item_start_samples = self._played_samples + len(self._buffer) // 2
 
-    def push_b64(self, audio_b64: str) -> None:
+    def push_b64(self, audio_b64: str, *, speech_at: float | None = None, item_id: str = "") -> bool:
         if not audio_b64:
-            return
+            return False
+        received_at = time.monotonic()
         pcm = base64.b64decode(audio_b64)
         audible = pcm_rms(pcm[: len(pcm) // 2 * 2]) >= AUDIBLE_RMS
         with self._lock:
+            if audible and speech_at is not None:
+                self._timing_marks.append((self._pushed_samples, speech_at, received_at, item_id))
             self._buffer.extend(pcm)
             self._pushed_samples += len(pcm) // 2
             if audible:
                 self._audible_end = self._pushed_samples
+
+        return audible
 
     def clear(self) -> None:
         with self._lock:
@@ -512,6 +532,7 @@ class SpeakerPlayer:
             self._pushed_samples = 0
             self._audible_end = 0
             self._recent_levels.clear()
+            self._timing_marks.clear()
 
     def stop(self) -> None:
         self._stop.set()
@@ -534,6 +555,7 @@ class RealtimeAudio:
         on_barge_in: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self._speaker = SpeakerPlayer()
+        self._timed_speech_at: float | None = None
         mode = _local_mute_mode()
         if continuous and mode != "full":
             # GPT-Live is full duplex: muting the mic while she talks dropped the user's words
@@ -572,7 +594,18 @@ class RealtimeAudio:
                     # Reset the played-audio counter per reply item (truncate is per item).
                     self._speaker.mark_item_start()
                 self._current_item_id = item_id
-        self._speaker.push_b64(audio_b64)
+        speech_at = self._mic.last_speech_at
+        pending = speech_at if speech_at != self._timed_speech_at else None
+        if self._speaker.push_b64(audio_b64, speech_at=pending, item_id=item_id) and pending is not None:
+            self._timed_speech_at = pending
+
+    def flush_timings(self) -> None:
+        while True:
+            try:
+                row = self._speaker.timings.get_nowait()
+            except queue.Empty:
+                return
+            _log_event("voice_latency", **row)
 
     def device_summary(self) -> dict[str, Any]:
         out = dict(self._mic.device_summary())
