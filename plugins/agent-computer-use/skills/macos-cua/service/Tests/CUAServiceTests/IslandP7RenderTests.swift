@@ -37,6 +37,30 @@ final class IslandP7RenderTests: XCTestCase {
         }
     }
 
+    func testRenderVoiceStates() async throws {
+        guard let d = ProcessInfo.processInfo.environment["CUA_ISLAND_RENDER_DIR"] else { throw XCTSkip("set CUA_ISLAND_RENDER_DIR") }
+        dir = d
+        let samples: [(String, String, String)] = [
+            ("listening", "Listening", "What's on my calendar?"),
+            ("thinking", "What's on my calendar?", "Thinking"),
+            ("speaking", "Your next meeting", "Design review in eight minutes."),
+            ("acting", "Opening Calendar", "Calendar"),
+            ("confirm", "Allow saved sign-in?", "Use the Example password for demo@example.test to sign in at example.test."),
+            ("error", "Action not confirmed", "Check the app before trying again."),
+            ("done", "84", "12 × 7"),
+            ("reconnecting", "Reconnecting", "Connection lost. Restoring your conversation.")]
+        for (kind, title, detail) in samples {
+            let m = IslandModel()
+            m.forceCompact = true
+            m.apply(IslandSnapshot(kind: kind, title: title, detail: detail, app: kind == "confirm" ? "Comet" : kind == "done" ? "Calculator" : "Calendar",
+                voice_side: kind == "speaking" ? "assistant" : "user", voice_level: 0.6, voice_levels: [0.2, 0.5, 0.7, 0.3, 0.6]))
+            try await save(m, "voice-\(kind)-compact")
+            m.forceCompact = false
+            if !m.cardOpen { m.toggleCard() }
+            try await save(m, "voice-\(kind)-card")
+        }
+    }
+
     func testRenderP7States() async throws {
         guard let d = ProcessInfo.processInfo.environment["CUA_ISLAND_RENDER_DIR"] else { throw XCTSkip("set CUA_ISLAND_RENDER_DIR to render") }
         dir = d
@@ -119,7 +143,7 @@ final class IslandP7RenderTests: XCTestCase {
         m.apply(IslandSnapshot(kind: "idle", agents: rows))
         m.hotKeyPressed(); try await save(m, "focus-agent-row")
         m = IslandModel()
-        m.apply(IslandSnapshot(kind: "idle", agent_approval: IslandAgentApproval(id: "grok:x", agent: "Grok Bot", app: "Comet", title: "Deploy to staging?")))
+        m.apply(IslandSnapshot(kind: "idle", agent_approval: IslandAgentApproval(id: "grok:x", agent: "Grok Bot", app: "Comet", title: "Deploy to staging?", subtitle: "Website · release v1.4")))
         m.hotKeyPressed(); try await save(m, "focus-decision")
     }
 

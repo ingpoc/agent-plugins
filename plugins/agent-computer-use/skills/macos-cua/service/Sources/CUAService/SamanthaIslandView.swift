@@ -699,9 +699,15 @@ struct SamanthaIslandBar: View {
     @ViewBuilder
     private func lead(size: CGFloat) -> some View {
         switch model.presentation {
-        case .idle, .doneSettled, .reconnecting:
+        case .idle, .doneSettled:
             SamanthaOrb(size: size, dim: true)
-        case .listening, .thinking, .speaking:
+        case .reconnecting:
+            SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)
+        case .listening:
+            SamanthaSymbol(name: "mic.fill", size: size)
+        case .speaking:
+            SamanthaSymbol(name: "speaker.wave.2.fill", color: IslandPalette.accent, size: size)
+        case .thinking:
             SamanthaOrb(size: size)
         case .acting, .actingSteps:
             let a = model.drivingApp.isEmpty ? model.app : model.drivingApp
@@ -709,7 +715,8 @@ struct SamanthaIslandBar: View {
         case .needsYou:
             SamanthaSymbol(name: "hand.raised.fill", color: IslandPalette.amber, size: size)
         case .error:
-            SamanthaSymbol(name: "xmark.circle.fill", color: IslandPalette.red, size: size)
+            SamanthaSymbol(name: model.title == "Action not confirmed" ? "questionmark.circle.fill" : "xmark.circle.fill",
+                            color: model.title == "Action not confirmed" ? IslandPalette.amber : IslandPalette.red, size: size)
         case .done:
             SamanthaSymbol(name: "checkmark.circle.fill", color: IslandPalette.green, size: size)
         case .nowPlaying:
@@ -773,7 +780,7 @@ struct SamanthaIslandBar: View {
         case .actingSteps: SamanthaProgressRing(fraction: stepFraction)
         case .needsYou:
             SamanthaSignalDot(color: IslandPalette.amber, pulse: true, reduceMotion: reduceMotion).frame(width: 20, height: 16)
-        case .error: SamanthaSymbol(name: "arrow.clockwise", color: Color.white.opacity(0.7)).frame(width: 20, height: 16)
+        case .error: SamanthaSymbol(name: model.title == "Action not confirmed" ? "eye" : "arrow.clockwise", color: Color.white.opacity(0.7)).frame(width: 20, height: 16)
         case .done:
             let a = model.app.isEmpty ? (model.circleApps.first ?? "") : model.app
             Group {
@@ -859,17 +866,18 @@ struct SamanthaIslandBar: View {
                     .font(card.valueTitle ? .system(size: 28, weight: .semibold).monospacedDigit()
                                           : .system(size: 15, weight: .semibold))
                     .foregroundStyle(Color.white)
-                    .lineLimit(model.isChoiceCard ? 2 : 1)
+                    .lineLimit(model.isChoiceCard || [.agentApproval, .expired].contains(model.presentation) ? 2 : 1)
                     .layoutProbe("card-title", truncates: true)
                     .frame(width: IslandBarLayout.cardTrailOrigin.x - IslandBarLayout.cardTextX - 8, alignment: .leading)
                 if !card.subtitle.isEmpty {
                     Text(card.subtitle)
                         .font(.system(size: 13))
                         .foregroundStyle(Color.white.opacity(0.7))
-                        .lineLimit(model.isChoiceCard ? 1 : 2)
+                        .lineLimit(model.presentation == .needsYou ? nil : (model.isChoiceCard ? 1 : 2))
                         .truncationMode(.tail)
-                        .layoutProbe("card-subtitle", truncates: true)
-                        .frame(width: IslandBarLayout.cardSize.width - IslandBarLayout.cardTextX - p, alignment: .topLeading)
+                        .frame(width: IslandBarLayout.cardTrailOrigin.x - IslandBarLayout.cardTextX - 8, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .layoutProbe("card-subtitle", truncates: model.presentation != .needsYou)
                 }
             }
             .offset(x: IslandBarLayout.cardTextX, y: p)
@@ -888,7 +896,7 @@ struct SamanthaIslandBar: View {
                     .offset(x: p, y: IslandBarLayout.cardMetaY)
                 controls(card.controls, width: inner)
                     .frame(width: inner, height: IslandBarLayout.cardControlsHeight)
-                    .offset(x: p, y: IslandBarLayout.cardControlsY)
+                    .offset(x: p, y: model.cardControlsY)
             }
         }
         .frame(width: IslandBarLayout.cardSize.width, height: model.cardHeight, alignment: .topLeading)
@@ -1062,7 +1070,7 @@ private struct SamanthaDecisionStyle: ButtonStyle {
         switch role {
         case .primary: return .white
         case .secondary: return Color.white.opacity(0.12)
-        case .destructive: return IslandPalette.red
+        case .destructive: return IslandPalette.destructiveFill
         }
     }
 }
@@ -1200,7 +1208,7 @@ struct IslandChoiceBody: View {
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(can ? Color.black : Color.white.opacity(0.35))
                 .frame(width: IslandChoiceLayout.sendSize, height: IslandChoiceLayout.sendSize)
-                .background(Circle().fill(can ? (red ? IslandPalette.red : IslandPalette.accent) : Color.white.opacity(0.12)))
+                .background(Circle().fill(can ? (red ? IslandPalette.destructiveFill : IslandPalette.accent) : Color.white.opacity(0.12)))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -1252,7 +1260,7 @@ struct IslandChoiceCapsule: ButtonStyle {
         switch role {
         case .primary: return .white
         case .secondary: return selected ? IslandPalette.accent.opacity(0.25) : Color.white.opacity(0.12)
-        case .danger: return IslandPalette.red
+        case .danger: return IslandPalette.destructiveFill
         case .ghost: return .clear
         }
     }

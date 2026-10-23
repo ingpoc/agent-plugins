@@ -534,15 +534,7 @@ class RealtimeSession:
         """Survive the server's 60-min cap: refresh the socket while idle."""
         if self._stop.is_set():
             return
-        with self._response_condition:
-            idle = (
-                not self._active_response_ids
-            )
-        if self._pending_calls or self._inflight_tools:
-            idle = False
-        if self._audio is not None and self._audio.has_playback():
-            idle = False
-        if not idle:
+        if self._conversation_busy(time.monotonic()):
             self._schedule_planned_reconnect(delay=self.PLANNED_RECONNECT_RETRY_SECONDS)
             return
         self._request_reconnect(reason="planned_reconnect_55m")
@@ -563,6 +555,7 @@ class RealtimeSession:
             self._last_mic_audio = time.monotonic()
             if _has_sound(str(event.get("audio") or "")):
                 self._last_user_activity = self._last_mic_audio
+                self._last_activity = self._last_mic_audio
         ok = True
         for wire in self.provider.outbound(event):
             ok = self._send_wire(wire) and ok
@@ -1323,13 +1316,19 @@ class RealtimeSession:
         island_publish("reconnecting", title="Reconnecting", detail="")
         print("Realtime closed", flush=True)
 
+    def _conversation_busy(self, now: float) -> bool:
+        """Maintenance must not interrupt input speech, playback, or unfinished work."""
+        with self._response_condition:
+            busy = bool(self._active_response_ids)
+        audio = getattr(self, "_audio", None)
+        return (busy or bool(self._pending_calls or self._inflight_tools or getattr(self, "_text_waiters", {}))
+                or bool(audio and audio.has_playback())
+                or now - self._last_user_activity < self.LIVE_ROTATE_QUIET_SECONDS)
+
     def _rest_after_expiry(self) -> bool:
         """Expired with nobody talking: go dormant (wake on speech/text) instead of reconnecting."""
         idle = time.monotonic() - getattr(self, "_last_user_activity", 0.0)
-        with self._response_condition:
-            busy = bool(self._active_response_ids)
-        busy = busy or bool(self._pending_calls or self._inflight_tools)
-        if busy or idle < self.LIVE_EXPIRED_REST_SECONDS or self._dormant.is_set():
+        if self._conversation_busy(time.monotonic()) or idle < self.LIVE_EXPIRED_REST_SECONDS or self._dormant.is_set():
             return False
         self.provider.restart_requested = ""
         log_event("live_expired_rest", idle_s=round(idle, 1))
@@ -1348,10 +1347,7 @@ class RealtimeSession:
             return False
         if now - self._last_mic_audio < 0.5:
             return False  # the mic is streaming (audio or muted zeros)
-        with self._response_condition:
-            busy = bool(self._active_response_ids)
-        busy = busy or bool(self._pending_calls or self._inflight_tools or self._text_waiters)
-        return busy or now - self._last_user_activity < self.LIVE_KEEPALIVE_SECONDS
+        return self._conversation_busy(now) or now - self._last_user_activity < self.LIVE_KEEPALIVE_SECONDS
 
     def _silence_keepalive(self) -> None:
         rate = REALTIME_SAMPLE_RATE
@@ -1376,11 +1372,8 @@ class RealtimeSession:
                 continue
             if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
                 continue
-            with self._response_condition:
-                busy = bool(self._active_response_ids)
-            busy = busy or bool(self._pending_calls or self._inflight_tools)
-            busy = busy or bool(self._audio and self._audio.has_playback())
-            quiet = time.monotonic() - self._last_activity
+            busy = self._conversation_busy(time.monotonic())
+            quiet = time.monotonic() - max(self._last_activity, self._last_user_activity)
             if (not busy and getattr(self.provider, "rotate_requested", False)
                     and quiet >= self.LIVE_ROTATE_QUIET_SECONDS and not getattr(self, "_restart_pending", False)):
                 # Context budget: restart seeded with recent utterances only (no fork) while quiet.

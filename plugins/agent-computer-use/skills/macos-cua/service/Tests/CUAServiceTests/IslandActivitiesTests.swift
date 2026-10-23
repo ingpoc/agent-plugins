@@ -45,7 +45,7 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(p("idle", approval: IslandAgentApproval(id: "a", title: "Ok?")), .agentApproval)
         XCTAssertEqual(p("idle", hud: false, peek: true), .peek)
         XCTAssertEqual(p("idle", hud: true, peek: true), .hud, "HUD beats peek")
-        XCTAssertEqual(IslandPresentation.hud.compactWidth, 200)
+        XCTAssertEqual(IslandPresentation.hud.compactWidth, 120)
         IslandModel.hudDwell = 0.1
         defer { IslandModel.hudDwell = 1.2 }
         let m = IslandModel()
@@ -87,6 +87,24 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(IslandPresentation.peek.compactWidth, 244)
         m.toggleCard()
         XCTAssertEqual(opened, ["Build done"]); XCTAssertNil(m.peek)
+    }
+
+    func testCompactActivitiesUseTheirContentWidth() {
+        let now = Date()
+        var peek = IslandPeekItem(id: "p", source: "Codex", title: "Build finished", at: now)
+        let shortWidth = IslandPeekRules.compactWidth(peek, now: now)
+        XCTAssertLessThan(shortWidth, 160, "short status must not leave a long blank tail")
+        peek.count = 12
+        XCTAssertGreaterThan(IslandPeekRules.compactWidth(peek, now: now), shortWidth)
+        peek.title = String(repeating: "A long build result ", count: 8)
+        XCTAssertEqual(IslandPeekRules.compactWidth(peek, now: now), IslandBarLayout.peekWidth)
+        for state in [IslandPresentation.nowPlaying, .calendar, .tray] {
+            XCTAssertEqual(state.compactWidth, 74)
+        }
+        let m = IslandModel()
+        m.reduceMotion = true
+        m.showPeek(IslandPeekItem(id: "short", source: "Codex", title: "Build finished", at: now), now: now)
+        XCTAssertEqual(m.shapeRect.width, shortWidth)
     }
 
     func testHubPeekNeedsInfoCap() throws {
@@ -137,6 +155,7 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(m.presentation, .nowPlaying)
         XCTAssertEqual(m.secondary, .calendar)
         XCTAssertNotNil(m.secondaryRect)
+        XCTAssertEqual(m.secondaryRect?.width, 44)
         XCTAssertTrue(m.hitRects.contains { $0.contains(m.secondaryRect!) })
         m.tapSecondary()
         XCTAssertEqual(m.presentation, .calendar)
