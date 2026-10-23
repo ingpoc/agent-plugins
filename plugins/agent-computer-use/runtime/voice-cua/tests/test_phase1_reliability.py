@@ -390,10 +390,38 @@ class ReconnectTests(unittest.TestCase):
 
     def test_planned_reconnect_idle_requests_reconnect(self) -> None:
         session = make_session()
+        session._last_user_activity = time.monotonic() - 60
         with patch.object(session, "_request_reconnect") as request:
             session._planned_reconnect()
         request.assert_called_once()
         self.assertNotIn("__closed__", event_types(session))
+
+    def test_planned_reconnect_waits_for_input_even_before_backend_response(self) -> None:
+        session = make_session()
+        session._last_user_activity = time.monotonic()
+        with patch.object(session, "_request_reconnect") as request, patch.object(session, "_schedule_planned_reconnect") as schedule:
+            session._planned_reconnect()
+        request.assert_not_called()
+        schedule.assert_called_once_with(delay=session.PLANNED_RECONNECT_RETRY_SECONDS)
+
+    def test_input_speech_refreshes_idle_clock(self) -> None:
+        import base64
+        session = make_session()
+        session._last_activity = 0.0
+        with patch("voice_cua.realtime_session.time.monotonic", return_value=100.0):
+            session._send({"type": "input_audio_buffer.append", "audio": base64.b64encode(b"\xff\x7f" * 480).decode()})
+        self.assertEqual(session._last_activity, 100.0)
+        self.assertTrue(session._conversation_busy(101.0))
+        self.assertFalse(session._conversation_busy(107.0))
+
+    def test_playback_and_waiting_text_prevent_maintenance(self) -> None:
+        session = make_session()
+        session._last_user_activity = 0.0
+        session._audio = FakeAudio()
+        self.assertTrue(session._conversation_busy(100.0))
+        session._audio = None
+        session._text_waiters["pending"] = object()
+        self.assertTrue(session._conversation_busy(100.0))
 
 
 class BargeInTests(unittest.TestCase):

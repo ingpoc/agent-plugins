@@ -17,6 +17,15 @@ Preconditions: baseline; activity log shows `island_stream_begin` and `island_li
 - Pixel proof: `screencapture -x -R0,0,$W,40 evidence/p2/07-island-<kind>.png` per kind (phase2-live-plan step 7).
 - Stream check: `curl -s -D - -o /dev/null --max-time 2 127.0.0.1:$PORT/api/island/stream` → event-stream content type.
 
+## Offline design checks
+- `swift test --filter Island` from the service package covers state priority, content-sized cards, named recovery controls, and layout bounds.
+- `CUA_ISLAND_RENDER_DIR=<absolute-directory> swift test --filter 'IslandP7RenderTests|IslandFixtureRenderTests'` renders sample voice and activity states without microphone or API calls.
+- Listening uses a microphone cue; speaking uses a speaker cue. Reconnecting stays ahead of music, calendar, file-tray, HUD, and peek activity; approvals retain priority.
+- Volume/brightness use a 120 pt pill with an 8 pt icon-to-bar gap. Quick Peek fits its title, count, and age up to 244 pt. Music/calendar/tray compact pills use 74 pt; the icon-only calendar secondary uses 44 pt.
+- Consent cards grow to show the full approval description; uncertain actions use a question mark and inspection cue, without suggesting retry. Reconnecting offers a labeled Turn off control.
+- The expired card exposes Dismiss and Open in chat; dismissal keeps the source reminder. Armed agent stops read Confirm stop.
+- Live voice and network reliability remain a separate check; offline preview success does not establish either.
+
 ## Gotchas
 - The island only shows after the menu-bar Samantha toggle (StatusBarController starts streaming on ON); publishing before that changes state but renders nothing.
 - `island_stream_error ... not the voice gateway` means the island points at a foreign port (see port-clash).

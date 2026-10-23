@@ -106,6 +106,19 @@ enum IslandPeekRules {
         now.timeIntervalSince(at) < 60 ? nil : age(at, now: now)
     }
 
+    static func compactWidth(_ item: IslandPeekItem, now: Date) -> CGFloat {
+        let title = (item.title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 13, weight: .semibold)]).width
+        var width = IslandBarLayout.slotInset + 16 + 8 + ceil(title) + 10
+        if item.count > 1 {
+            let count = (String(item.count) as NSString).size(withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)]).width
+            width += 8 + max(16, ceil(count) + (item.count > 9 ? 8 : 0))
+        }
+        if let age = ageLabel(item.at, now: now) {
+            width += 8 + ceil((age as NSString).size(withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)]).width)
+        }
+        return min(IslandBarLayout.peekWidth, max(IslandBarLayout.idleWidth, width))
+    }
+
     /// Success glyphs draw in system green (#30D158).
     static func isSuccess(_ symbol: String) -> Bool { symbol.hasPrefix("checkmark") }
 }

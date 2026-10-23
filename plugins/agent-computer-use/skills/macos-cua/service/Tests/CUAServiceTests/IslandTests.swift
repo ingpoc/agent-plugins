@@ -197,6 +197,84 @@ final class IslandTests: XCTestCase {
                        "agent approval takes the pill")
     }
 
+    func testReconnectingStaysVisibleAboveActivitiesAndPeeks() {
+        let now = Date()
+        for activity in [IslandLiveActivity.media, .calendar, .tray] {
+            XCTAssertEqual(IslandModel.presentation(kind: "reconnecting", stepTotal: 0, approval: nil,
+                since: now, now: now, hud: true, peek: true, live: [activity]), .reconnecting)
+        }
+        let approval = IslandAgentApproval(id: "a", title: "Approve?")
+        XCTAssertEqual(IslandModel.presentation(kind: "reconnecting", stepTotal: 0, approval: approval,
+            since: now, now: now), .agentApproval, "approval must retain its controls")
+    }
+
+    func testSparseCardsFitContentAndExpiredHasNamedRecovery() {
+        let m = IslandModel()
+        m.apply(IslandSnapshot(kind: "thinking", title: "Check the calendar"))
+        XCTAssertEqual(m.cardHeight, 136)
+        XCTAssertEqual(m.cardControlsY + IslandBarLayout.cardControlsHeight + IslandBarLayout.cardPadding, m.cardHeight)
+        m.apply(IslandSnapshot(kind: "speaking", title: "Here is your agenda"))
+        XCTAssertEqual(m.cardHeight, 176, "meter retains its space")
+        let c = IslandModel.card(for: .init(presentation: .expired, title: "", detail: "", app: "Codex", stepIndex: 0, stepTotal: 0,
+            approval: nil, notice: IslandExpired(id: "x", app: "Codex")))
+        guard case .decision(_, let primary, _) = c.controls else { return XCTFail("named recovery action required") }
+        XCTAssertEqual(primary.0, "Open in chat")
+        XCTAssertEqual(primary.1, .open("Codex"))
+    }
+
+    func testDismissExpiredNoticeKeepsItsSourceReminder() {
+        let m = IslandModel()
+        let expired = IslandExpired(id: "x", agent: "Codex", app: "Codex", title: "Review changes", at: Date().timeIntervalSince1970)
+        var snap = IslandSnapshot(kind: "idle")
+        snap.expired = [expired]
+        m.apply(snap)
+        XCTAssertEqual(m.presentation, .expired)
+        m.dismissCard()
+        XCTAssertNil(m.notice)
+        XCTAssertEqual(m.expired, [expired], "dismiss the card, keep the source reminder")
+    }
+
+    func testApprovalRetainsSourceAndProvidedScope() {
+        let m = IslandModel()
+        m.apply(IslandSnapshot(kind: "idle", agent_approval: IslandAgentApproval(id: "a", agent: "Codex", app: "Codex",
+            title: "Deploy to staging?", subtitle: "Website · release v1.4")))
+        XCTAssertEqual(m.card.subtitle, "Codex · Website · release v1.4")
+        XCTAssertEqual(m.cardHeight, 152)
+    }
+
+    func testUncertainActionWithDetailNeverOffersRetry() {
+        let m = IslandModel()
+        m.apply(IslandSnapshot(kind: "error", title: "Action not confirmed", detail: "The action may have happened. Check the app before trying again.", app: "Calendar"))
+        XCTAssertEqual(m.card.title, "Action not confirmed")
+        guard case .decision(_, let primary, _) = m.card.controls else { return XCTFail("check the app before retrying") }
+        XCTAssertEqual(primary.0, "Check app")
+        XCTAssertEqual(primary.1, .show("Calendar"))
+    }
+
+    func testConsentGrowsForFullScopeAndReconnectHasNamedExit() {
+        let m = IslandModel()
+        m.apply(IslandSnapshot(kind: "confirm", title: "Allow saved sign-in?", detail: String(repeating: "W", count: 160), app: "Comet"))
+        XCTAssertGreaterThan(m.cardHeight, 176)
+        XCTAssertLessThan(m.cardHeight, IslandBarLayout.windowSize.height)
+        m.apply(IslandSnapshot(kind: "reconnecting"))
+        guard case .decision(let secondary, _, _) = m.card.controls else { return XCTFail("named exit required") }
+        XCTAssertEqual(secondary.0, "Turn off")
+        XCTAssertEqual(secondary.1, .stopListening)
+    }
+
+    func testDestructiveControlsHaveReadableContrast() {
+        let color = NSColor(IslandPalette.destructiveFill).usingColorSpace(.sRGB)!
+        func luminance(_ values: [CGFloat]) -> Double {
+            let linear = values.map { Double($0) }.map { $0 <= 0.04045 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
+            return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+        }
+        for opacity in [CGFloat(1), 0.75] {
+            let bg = luminance([color.redComponent * opacity, color.greenComponent * opacity, color.blueComponent * opacity])
+            let fg = luminance([opacity, opacity, opacity])
+            XCTAssertGreaterThanOrEqual((fg + 0.05) / (bg + 0.05), 4.5)
+        }
+    }
+
     func testAutoPeekRules() {
         let m = IslandModel()
         let t0 = Date()

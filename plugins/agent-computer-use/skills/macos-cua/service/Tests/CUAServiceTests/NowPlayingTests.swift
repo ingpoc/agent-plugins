@@ -219,7 +219,7 @@ final class NowPlayingTests: XCTestCase {
         XCTAssertEqual(p("error"), .error)
         XCTAssertEqual(p("idle", approval: IslandAgentApproval(id: "a", title: "Ok?")), .agentApproval, "agent approval beats music")
         XCTAssertEqual(p("idle", media: false), .idle)
-        XCTAssertEqual(IslandPresentation.nowPlaying.compactWidth, 136)
+        XCTAssertEqual(IslandPresentation.nowPlaying.compactWidth, 74, "music uses the compact activity width")
     }
 
     func testModelMusicReturnsAfterApprovalAndCardOpens() async throws {

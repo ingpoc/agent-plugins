@@ -206,6 +206,7 @@ enum IslandPalette {
     static let accent = Color(red: 0x64 / 255, green: 0xD2 / 255, blue: 0xFF / 255)  // #64D2FF
     static let amber = Color(red: 0xFF / 255, green: 0xB3 / 255, blue: 0x40 / 255)   // #FFB340
     static let red = Color(red: 0xFF / 255, green: 0x45 / 255, blue: 0x3A / 255)     // #FF453A
+    static let destructiveFill = Color(red: 0xB4 / 255, green: 0x22 / 255, blue: 0x1B / 255)
     static let green = Color(red: 0x30 / 255, green: 0xD1 / 255, blue: 0x58 / 255)   // #30D158
     static let keyLine = Color.white.opacity(0.10)
     static let track = Color.white.opacity(0.15)
@@ -221,20 +222,21 @@ enum IslandPresentation: Equatable {
     case nowPlaying
     /// A choice/approval just timed out: 4 s "Timed out. Still open in chat" notice.
     case expired
-    /// A2 volume / brightness HUD (200 wide, value animates the bar only).
+    /// Volume / brightness HUD fits the icon, gap, and value bar.
     case hud
-    /// A3 Quick Peek (244 wide: icon · sender · time).
+    /// Quick Peek fits its text and badges, capped at 244 pt.
     case peek
     /// A4 upcoming event countdown (ring on the calendar glyph).
     case calendar
     /// A9 file tray holding items (tray glyph + count).
     case tray
 
-    /// Compact widths: idle 74 · standard 136 · wide 200 · peek 244. Nothing else.
+    /// Base widths; Quick Peek measures content up to its cap.
     var compactWidth: CGFloat {
         switch self {
-        case .idle, .doneSettled: return IslandBarLayout.idleWidth
-        case .actingSteps, .hud: return IslandBarLayout.wideWidth
+        case .idle, .doneSettled, .nowPlaying, .calendar, .tray: return IslandBarLayout.idleWidth
+        case .actingSteps: return IslandBarLayout.wideWidth
+        case .hud: return IslandBarLayout.hudWidth
         case .peek: return IslandBarLayout.peekWidth
         default: return IslandBarLayout.standardWidth
         }
@@ -570,7 +572,8 @@ final class IslandModel: ObservableObject {
     var shapeRadius: CGFloat { cardOpen || trayTargeted ? IslandBarLayout.cardRadius : IslandBarLayout.compactRadius }
 
     /// Duo secondary pill rect (nil when there is none).
-    var secondaryRect: CGRect? { secondary == nil || cardOpen ? nil : IslandBarLayout.secondaryRect(shape: shapeRect) }
+    var secondaryWidth: CGFloat { secondary == .calendar ? 44 : IslandBarLayout.secondaryWidth }
+    var secondaryRect: CGRect? { secondary == nil || cardOpen ? nil : IslandBarLayout.secondaryRect(shape: shapeRect, width: secondaryWidth) }
 
     /// App circles hang off the right-most pill.
     var circleAnchor: CGRect { secondaryRect ?? shapeRect }
@@ -592,7 +595,7 @@ final class IslandModel: ObservableObject {
         var t = snap.title
         var d = snap.kind == "confirm" && !snap.confirm_prompt.isEmpty ? snap.confirm_prompt : snap.detail
         if snap.kind == "error" {
-            let raw = [t, d].filter { !$0.isEmpty }.joined(separator: " · ")
+            let raw = t == "Action not confirmed" ? t : [t, d].filter { !$0.isEmpty }.joined(separator: " · ")
             guard let copy = IslandCopy.humanError(raw, target: snap.app) else { return false }
             if copy != raw { NSLog("[island] error raw=%@ shown=%@", String(raw.prefix(300)), copy) }
             t = copy
@@ -860,16 +863,30 @@ final class IslandModel: ObservableObject {
     /// Reply field lines (1…3) — the field grows, Shift-Return inserts a newline.
     var choiceTextLines: Int { IslandChoiceLayout.textLines(choiceText) }
 
-    /// 176 normally; a choice card grows to 220 (and a little more for a 2–3 line reply).
+    /// Simple cards fit their content; meters keep 176 pt and choices grow with their rows.
     var cardHeight: CGFloat {
         if credentialRequest != nil { return 292 }
         if cardMode == .agents {
             return IslandAgentRows.cardHeight(rows: listRows.count, footer: listRows.count > IslandAgentRows.maxRows)
         }
         if presentation == .tray { return IslandTrayRules.cardHeight }
-        guard isChoiceCard, let a = agentApproval else { return IslandBarLayout.cardSize.height }
-        return IslandChoiceLayout.cardHeight(a, textLines: choiceTextLines)
+        if presentation == .needsYou {
+            let width = IslandBarLayout.cardTrailOrigin.x - IslandBarLayout.cardTextX - 8
+            let text = (detail as NSString).boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: NSFont.systemFont(ofSize: 13)])
+            return max(176, ceil(text.height) + 102)
+        }
+        if isChoiceCard, let a = agentApproval {
+            return IslandChoiceLayout.cardHeight(a, textLines: choiceTextLines)
+        }
+        switch presentation {
+        case .idle, .doneSettled, .reconnecting, .thinking, .acting, .error, .done, .expired: return 136
+        case .agentApproval: return 152
+        default: return IslandBarLayout.cardSize.height
+        }
     }
+
+    var cardControlsY: CGFloat { cardHeight - IslandBarLayout.cardPadding - IslandBarLayout.cardControlsHeight }
 
     // MARK: Choice actions (click, keys)
 
@@ -957,6 +974,11 @@ final class IslandModel: ObservableObject {
         }
     }
 
+    private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
+        if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
+        return state.compactWidth
+    }
+
     private func refresh(now: Date) {
         if let n = noticeUntil, now >= n { noticeUntil = nil; notice = nil }
         let noticeActive = notice != nil && agentApproval == nil
@@ -1009,14 +1031,14 @@ final class IslandModel: ObservableObject {
                     try? await Task.sleep(nanoseconds: 160_000_000)
                     guard let self, !Task.isCancelled else { return }
                     self.pinching = false
-                    self.drawnWidth = self.presentation.compactWidth
+                    self.drawnWidth = self.compactWidth(for: self.presentation, now: Date())
                     self.onGeometryChange?()
                 }
             } else if !pinching {
-                drawnWidth = next.compactWidth
+                drawnWidth = compactWidth(for: next, now: now)
             }
         } else if !pinching {
-            drawnWidth = next.compactWidth
+            drawnWidth = compactWidth(for: next, now: now)
         }
         if open != wasOpen {
             cardOpen = open
@@ -1037,10 +1059,8 @@ final class IslandModel: ObservableObject {
         onGeometryChange?()
     }
 
-    /// Precedence: agent approval/choice → Samantha's active states (thinking/speaking/acting/
-    /// needs-you/error/done) → now playing → Samantha idle/listening/reconnecting.
-    /// Full order: approval → timed-out notice → needs-you → HUD → Quick Peek → Samantha's active states →
-    /// first live activity (media / calendar / tray, Duo order) → Samantha idle/listening/reconnecting.
+    /// Priority: approval → expiry notice → needs-you/reconnecting → HUD → peek → other active states
+    /// → live activities (media/calendar/tray) → Samantha idle/listening.
     nonisolated static func presentation(kind: String, stepTotal: Int, approval: IslandAgentApproval?,
                                          since: Date, now: Date, media: Bool = false,
                                          notice: Bool = false, hud: Bool = false, peek: Bool = false,
@@ -1048,11 +1068,11 @@ final class IslandModel: ObservableObject {
         if approval != nil { return .agentApproval }
         if notice { return .expired }
         let base = samanthaPresentation(kind: kind, stepTotal: stepTotal, since: since, now: now)
-        if base == .needsYou { return base }
+        if [.needsYou, .reconnecting].contains(base) { return base }
         if hud { return .hud }
         if peek { return .peek }
         let acts = live ?? (media ? [.media] : [])
-        if let first = acts.first, [.idle, .doneSettled, .listening, .reconnecting].contains(base) {
+        if let first = acts.first, [.idle, .doneSettled, .listening].contains(base) {
             return first.presentation
         }
         return base
@@ -1152,6 +1172,7 @@ final class IslandModel: ObservableObject {
         endTextEntry()
         userOpened = false
         peekUntil = nil
+        if presentation == .expired { notice = nil; noticeUntil = nil }
         if kind == "error" || kind == "done" { kind = "listening"; kindSince = Date() }
         refresh(now: Date())
     }
@@ -1181,9 +1202,11 @@ final class IslandModel: ObservableObject {
             c.title.isEmpty || skip.contains(c.title) ? fallback : c.title
         }
         switch c.presentation {
-        case .idle, .doneSettled, .reconnecting:
-            return IslandCard(art: .orb, title: c.presentation == .reconnecting ? "Reconnecting" : "Samantha",
-                              subtitle: c.detail.isEmpty ? "Say something to start" : c.detail,
+        case .reconnecting:
+            return IslandCard(art: .orb, title: "Reconnecting", subtitle: "Restoring your conversation. Please wait.",
+                              controls: .decision(secondary: ("Turn off", .stopListening), primary: ("Dismiss", .dismiss), destructive: false))
+        case .idle, .doneSettled:
+            return IslandCard(art: .orb, title: "Samantha", subtitle: c.detail.isEmpty ? "Say something to start" : c.detail,
                               controls: .icons([("mic.slash.fill", "Stop listening", .stopListening)]))
         case .listening:
             return IslandCard(art: .orb, title: "Listening", subtitle: c.detail, meta: .micMeter,
@@ -1242,7 +1265,7 @@ final class IslandModel: ObservableObject {
             let n = c.notice ?? IslandExpired()
             return IslandCard(art: .expiredRing, title: n.title.isEmpty ? "Request" : n.title,
                               subtitle: "Timed out. Still open in chat",
-                              controls: .icons([("arrow.up.right", "Open chat", .open(n.app))]))
+                              controls: .decision(secondary: ("Dismiss", .dismiss), primary: ("Open in chat", .open(n.app)), destructive: false))
         case .agentApproval where c.approval?.isChoice == true:
             let a = c.approval ?? IslandAgentApproval()
             return IslandCard(art: .agent(a.app), title: a.title.isEmpty ? "Choose" : a.title,
@@ -1250,7 +1273,7 @@ final class IslandModel: ObservableObject {
         case .agentApproval:
             let a = c.approval ?? IslandAgentApproval()
             return IslandCard(art: .agent(a.app), title: IslandCopy.compact(title: a.title.isEmpty ? "Approve?" : a.title, detail: "").title,
-                              subtitle: a.subtitle.isEmpty ? a.agent : a.subtitle,
+                              subtitle: a.subtitle.isEmpty ? a.agent : "\(a.agent) · \(a.subtitle)",
                               controls: .decision(secondary: ("Deny", .agentDeny(a.id)), primary: ("Approve", .agentApprove(a.id)),
                                                   destructive: a.destructive))
         }

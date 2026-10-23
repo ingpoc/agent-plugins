@@ -4,7 +4,7 @@ import AppKit
 ///
 /// The panel is a FIXED 640×320 transparent, non-activating window pinned to
 /// the top centre of the menu-bar display; only the black shape morphs inside
-/// it (compact 74/136/200×24 r12 ↔ card 340×176 r36), so nothing is ever
+/// it (content-sized compact ×24 r12 ↔ card 340×136…176 r36), so nothing is ever
 /// clipped by a resizing window. All rects here are in window coordinates
 /// with a top-left origin (SwiftUI), so views and hit-testing share one source.
 enum IslandBarLayout {
@@ -25,6 +25,7 @@ enum IslandBarLayout {
     static let duoGap: CGFloat = 3
     /// HUD trailing bar (polish bar §1: 80×4).
     static let hudBarWidth: CGFloat = 80
+    static var hudWidth: CGFloat { 2 * slotInset + leadingSlot.width + 8 + hudBarWidth }
     static func hudTrailWidth(shapeWidth: CGFloat) -> CGFloat {
         min(hudBarWidth, max(0, shapeWidth - 2 * slotInset - leadingSlot.width - 8))
     }
@@ -82,8 +83,8 @@ enum IslandBarLayout {
     static func overflowCount(count: Int) -> Int { max(0, count - maxCircles) }
 
     /// Duo secondary pill, detached right of the primary shape (compact only).
-    static func secondaryRect(shape: CGRect) -> CGRect {
-        CGRect(x: shape.maxX + duoGap, y: shape.minY, width: secondaryWidth, height: compactHeight)
+    static func secondaryRect(shape: CGRect, width: CGFloat = secondaryWidth) -> CGRect {
+        CGRect(x: shape.maxX + duoGap, y: shape.minY, width: width, height: compactHeight)
     }
 
     /// App circles right of the shape, top-aligned with it (y = gap) in both states.

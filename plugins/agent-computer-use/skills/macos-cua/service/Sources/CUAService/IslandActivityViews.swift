@@ -46,7 +46,7 @@ struct IslandHUDBar: View {
     }
 }
 
-// MARK: - A3 Quick Peek (compact 244: icon · sender · time)
+// MARK: - A3 Quick Peek (content width, capped at 244 pt)
 
 struct IslandPeekCompact: View {
     let item: IslandPeekItem
@@ -62,7 +62,6 @@ struct IslandPeekCompact: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .layoutProbe("peek-title", truncates: true)
-                Spacer(minLength: 4)
                 if item.count > 1 {
                     // 16 pt disc at white 15 %; 11 semibold monospaced numeral (capsule past one digit).
                     Text("\(item.count)")
@@ -194,12 +193,12 @@ struct CalendarCardBody: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(e.title.isEmpty ? "Event" : e.title)
                                     .font(IslandType.bodyStrong).foregroundStyle(Color.white)
-                                    .lineLimit(2).truncationMode(.tail)
+                                    .lineLimit(3).truncationMode(.tail)
                                     .fixedSize(horizontal: false, vertical: true)
                                     .layoutProbe("cal-title", truncates: true)
                                 if !e.location.isEmpty || !e.calendar.isEmpty {
                                     Text(e.location.isEmpty ? e.calendar : e.location)
-                                        .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6)).lineLimit(1)
+                                        .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6)).lineLimit(2)
                                         .layoutProbe("cal-room", truncates: true)
                                 }
                                 Text(CalendarLogic.countdown(e, now: now))
@@ -215,16 +214,12 @@ struct CalendarCardBody: View {
                     .frame(width: IslandBarLayout.cardSize.width - 2 * p, alignment: .topLeading)
                     .offset(x: p, y: p - 4)
                     HStack(spacing: 8) {
-                        let rest = Array(agenda.dropFirst())
-                        if let n = rest.first {
-                            Text("\(Self.time.string(from: n.start))  \(n.title)")
-                                .font(IslandType.meta).foregroundStyle(Color.white.opacity(0.45)).lineLimit(1)
-                                .layoutProbe("cal-next", truncates: true)
-                            if rest.count > 1 {
-                                Text("+\(rest.count - 1)").font(IslandType.meta).foregroundStyle(Color.white.opacity(0.45))
-                                    .layoutProbe("cal-more")
-                            }
-                        }
+                        Button("View event") { model.onOpenEvent?(e, false) }
+                            .font(IslandType.bodyStrong).foregroundStyle(Color.white)
+                            .buttonStyle(.plain)
+                            .frame(height: 44).contentShape(Rectangle())
+                            .layoutProbe("cal-details", .control)
+                            .accessibilityLabel("View event: \(e.title)")
                         Spacer(minLength: 0)
                         if let url = e.meetingURL {
                             Button { model.onOpenEvent?(e, true); _ = url } label: {
@@ -441,12 +436,14 @@ struct IslandSecondaryPill: View {
             RoundedRectangle(cornerRadius: IslandBarLayout.compactRadius, style: .continuous).fill(Color.black)
             HStack(spacing: 0) {
                 lead.frame(width: 16, height: 16).layoutProbe("duo-lead", .glyph, in: "secondary")
-                Spacer(minLength: 0)
-                trail.layoutProbe("duo-trail", .glyph, in: "secondary").frame(width: 20, height: 16)
+                if activity != .calendar {
+                    Spacer(minLength: 0)
+                    trail.layoutProbe("duo-trail", .glyph, in: "secondary").frame(width: 20, height: 16)
+                }
             }
             .padding(.horizontal, IslandBarLayout.slotInset)
         }
-        .frame(width: IslandBarLayout.secondaryWidth, height: IslandBarLayout.compactHeight)
+        .frame(width: model.secondaryWidth, height: IslandBarLayout.compactHeight)
         .contentShape(RoundedRectangle(cornerRadius: IslandBarLayout.compactRadius, style: .continuous))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
@@ -569,18 +566,20 @@ struct IslandAgentListBody: View {
         } else if let action = IslandAgentRows.control(for: a) {
             let armed = action == .stop && model.isStopArmed(a.id)
             Button { model.tapRowControl(a) } label: {
-                Image(systemName: Self.symbol(action, armed: armed))
+                Group {
+                    if armed { Text("Confirm stop") } else { Image(systemName: Self.symbol(action, armed: false)) }
+                }
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(action == .approve ? Color.black : Color.white)
-                    .frame(width: 28, height: 28)
-                    .background(Circle().fill(armed ? IslandPalette.red : action == .approve ? Color.white : Color.white.opacity(0.12)))
+                    .frame(width: armed ? 92 : 28, height: 28)
+                    .background(Capsule().fill(armed ? IslandPalette.destructiveFill : action == .approve ? Color.white : Color.white.opacity(0.12)))
                     .layoutProbe("row-\(a.id)-control", .control)
                     .islandFocusRing(model.isNavFocused(.row(a.id)), shape: .capsule)
-                    .frame(width: 44, height: 44)
+                    .frame(width: armed ? 100 : 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .animation(.smooth(duration: 0.2), value: armed)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: armed)
             .accessibilityLabel(Self.label(action, armed: armed, name: a.name))
         } else {
             statusGlyph(a).frame(width: 28, height: 28).layoutProbe("row-\(a.id)-glyph", .glyph)
@@ -604,7 +603,7 @@ struct IslandAgentListBody: View {
 
     static func symbol(_ a: IslandRowControl.Action, armed: Bool) -> String {
         switch a {
-        case .stop: return armed ? "checkmark" : "stop.fill"
+        case .stop: return "stop.fill"
         case .retry: return "arrow.clockwise"
         case .approve: return "checkmark"
         }
