@@ -277,6 +277,7 @@ class RealtimeSession:
         self._current_response_id = ""
         self._last_user_text = ""
         self._reconnect_attempts = 0
+        self._last_server_event_at = 0.0
         self._connected_at = 0.0  # monotonic time of the last session.updated
         self._retry_not_before = 0.0  # monotonic; set by rate limits / retry-after
         self._retry_reason = ""
@@ -754,6 +755,7 @@ class RealtimeSession:
             self._send_system_note("The Comet window is now closed. Do not say it is open.")
 
     def _on_message(self, _ws: Any, message: str) -> None:
+        self._last_server_event_at = time.monotonic()
         try:
             event = json.loads(message)
         except json.JSONDecodeError:
@@ -1283,6 +1285,8 @@ class RealtimeSession:
             error=msg,
             error_type="websocket",
             classification="transport",
+            exception_type=type(error).__name__,
+            epoch=self._conn_epoch,
         )
         print("ws error:", error, file=sys.stderr)
         # Handshake refusals (e.g. HTTP 429) carry status + retry-after headers.
@@ -1308,7 +1312,9 @@ class RealtimeSession:
         reason = args[1] if len(args) > 1 else None
         log_event("ws_closed", code=code, reason=str(reason or "")[:120] or None,
                   connected_s=round(time.monotonic() - self._connected_at, 1) if self._connected_at else None,
-                  stopping=self._stop.is_set())
+                  stopping=self._stop.is_set(), epoch=self._conn_epoch,
+                  reconnect_requested=self._reconnect_requested,
+                  last_server_event_s=round(time.monotonic() - self._last_server_event_at, 3) if self._last_server_event_at else None)
         if self._stop.is_set():
             return
         if not self._reconnect_requested and code is None:
@@ -1364,6 +1370,8 @@ class RealtimeSession:
     def _idle_watchdog(self) -> None:
         """Close a GPT-Live session after LIVE_IDLE_CLOSE_SECONDS without speech or work."""
         while not self._stop.wait(timeout=5.0):
+            if self._audio:
+                self._audio.flush_timings()
             if not getattr(self.provider, "manages_barge_in", False) or self.LIVE_IDLE_CLOSE_SECONDS <= 0:
                 continue
             if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():

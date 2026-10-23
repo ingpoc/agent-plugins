@@ -369,5 +369,37 @@ class DeviceInfoTests(unittest.TestCase):
         self.assertFalse(mic.device_summary()["resampled"])
 
 
+
+
+class VoiceLatencyTests(unittest.TestCase):
+    def test_silence_does_not_start_timing_and_queued_audio_delays_playback(self):
+        from types import SimpleNamespace
+        player = audio_io.SpeakerPlayer()
+        silence = base64.b64encode(bytes(960)).decode()
+        speech = base64.b64encode(frame_at(0.2)).decode()
+        with patch.object(audio_io.time, "monotonic", return_value=10.0):
+            self.assertFalse(player.push_b64(silence, speech_at=9.0))
+            self.assertTrue(player.push_b64(speech, speech_at=9.0, item_id="reply"))
+        out = np.empty((480, 1), dtype=np.int16)
+        clock = SimpleNamespace(outputBufferDacTime=2.03, currentTime=2.0)
+        with patch.object(audio_io.time, "monotonic", return_value=10.02):
+            player._output_callback(out, 480, clock, None)
+            self.assertTrue(player.timings.empty())
+            player._output_callback(out, 480, clock, None)
+        row = player.timings.get_nowait()
+        self.assertEqual(row["speech_to_received_ms"], 1000)
+        self.assertEqual(row["received_to_playback_ms"], 50)
+        self.assertEqual(row["speech_to_playback_ms"], 1050)
+        self.assertEqual(row["item_id"], "reply")
+        self.assertTrue(player.timings.empty())
+
+    def test_interruption_discards_unplayed_timing(self):
+        player = audio_io.SpeakerPlayer()
+        player.push_b64(base64.b64encode(frame_at(0.2)).decode(), speech_at=1.0)
+        player.clear()
+        player._output_callback(np.empty((480, 1), dtype=np.int16), 480, None, None)
+        self.assertTrue(player.timings.empty())
+
+
 if __name__ == "__main__":
     unittest.main()
