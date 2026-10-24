@@ -35,7 +35,14 @@
         "path": "./plugins/irctc-train-booking"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "developer-observability",
+      "source": {
+        "source": "local",
+        "path": "./plugins/developer-observability"
+      },
+      "category": "Productivity"
     }
-
   ]
 }

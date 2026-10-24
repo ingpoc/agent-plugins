@@ -1,0 +1,6 @@
+{
+  "name": "developer-observability",
+  "version": "0.1.1",
+  "mcpServers": "./.cursor-plugin/mcp.json",
+  "description": "Project-scoped observability, evidence-backed recommendations and local typed decisions with an MCP Apps dashboard."
+}

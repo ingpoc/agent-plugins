@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "developer-observability": {
+      "type": "stdio",
+      "command": "./bin/developer-observability",
+      "cwd": "./"
+    }
+  }
+}

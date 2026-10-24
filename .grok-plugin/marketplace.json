@@ -64,7 +64,15 @@
         "comet",
         "booking"
       ]
+    },
+    {
+      "name": "developer-observability",
+      "source": {
+        "source": "local",
+        "path": "./plugins/developer-observability"
+      },
+      "category": "Productivity",
+      "description": "Project observability, redacted evidence and typed local decisions with an MCP Apps dashboard."
     }
-
   ]
 }

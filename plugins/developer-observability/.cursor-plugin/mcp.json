@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "developer-observability": {
+      "type": "stdio",
+      "command": "${CURSOR_PLUGIN_ROOT}/bin/developer-observability",
+      "cwd": "${CURSOR_PLUGIN_ROOT}"
+    }
+  }
+}

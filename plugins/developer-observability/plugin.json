@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "developer-observability",
+  "version": "0.1.1",
+  "author": {
+    "name": "ingpoc",
+    "url": "https://github.com/ingpoc"
+  },
+  "homepage": "https://github.com/ingpoc/agent-plugins",
+  "repository": "https://github.com/ingpoc/agent-plugins",
+  "license": "MIT",
+  "description": "Project-scoped observability, evidence-backed recommendations and local typed decisions with an MCP Apps dashboard."
+}

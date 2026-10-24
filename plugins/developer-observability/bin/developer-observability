@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+PY="${OBSERVABILITY_PYTHON:-$HOME/.local/share/developer-observability/runtime/bin/python3}"
+if [ ! -x "$PY" ]; then
+  echo "developer-observability: run runtime/install.py to install the pinned local MCP runtime" >&2
+  exit 127
+fi
+exec "$PY" "$ROOT/runtime/server.py"
