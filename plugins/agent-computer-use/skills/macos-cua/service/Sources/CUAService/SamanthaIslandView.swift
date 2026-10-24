@@ -662,7 +662,7 @@ struct SamanthaIslandBar: View {
 
     private var leadMorph: some View {
         let art = model.card.art
-        let lead56 = lead(size: 56).id("lead-\(model.presentation.family)").transition(glyphSwap)
+        let lead56 = lead(size: 56).id("lead-\(model.presentation.motionFamily)").transition(glyphSwap)
         return ZStack {
             lead56.opacity(open ? 0 : 1)
             self.art(art).opacity(open ? 1 : 0)
@@ -679,7 +679,7 @@ struct SamanthaIslandBar: View {
         let rect = model.shapeRect
         let compactW: CGFloat = model.presentation == .actingSteps ? 64 : model.presentation == .hud ? IslandBarLayout.hudTrailWidth(shapeWidth: rect.width) : 20
         return ZStack(alignment: .topTrailing) {
-            compactTrail.id("trail-\(model.presentation.family)").transition(glyphSwap)
+            compactTrail.id("trail-\(model.presentation.motionFamily)").transition(glyphSwap)
                 .modifier(TrailProbe(on: !open, id: "trail"))
                 // Trailing-aligned: content wider than the slot (e.g. "8m •") grows inward, never past the 8 pt inset.
                 .frame(width: compactW, height: 16, alignment: .trailing).opacity(open ? 0 : 1)

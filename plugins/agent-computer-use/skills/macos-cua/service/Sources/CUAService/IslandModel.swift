@@ -252,6 +252,15 @@ enum IslandPresentation: Equatable {
         }
     }
 
+    var isConversation: Bool {
+        switch self {
+        case .listening, .thinking, .speaking, .acting, .actingSteps, .done, .doneSettled: return true
+        default: return false
+        }
+    }
+
+    var motionFamily: String { isConversation ? "conversation" : family }
+
     var spokenName: String {
         switch self {
         case .idle, .doneSettled: return "ready"
@@ -473,6 +482,8 @@ final class IslandModel: ObservableObject {
     private var apps: [String] = []
     private var lastActive: [String: Date] = [:]
     private var kindSince = Date()
+    private var conversationUntil = Date.distantPast
+    nonisolated static let conversationQuiet: TimeInterval = 3
     private var userOpened = false
     private var peekUntil: Date?
     private var lastMeter = Date.distantPast
@@ -606,6 +617,11 @@ final class IslandModel: ObservableObject {
         let shownKind = samanthaEnabled || ["confirm", "needs_you", "idle"].contains(snap.kind) ? snap.kind : "idle"
         if shownKind != kind { kindSince = now }
         kind = shownKind
+        if !samanthaEnabled || shownKind == "idle" {
+            conversationUntil = .distantPast
+        } else if ["thinking", "speaking", "acting", "done"].contains(shownKind) {
+            conversationUntil = now.addingTimeInterval(Self.conversationQuiet)
+        }
         title = t
         detail = d
         app = snap.app
@@ -647,10 +663,10 @@ final class IslandModel: ObservableObject {
         drivingApp = ["acting", "driving"].contains(shownKind) ? snap.app : ""
         if !snap.app.isEmpty { lastActive[snap.app] = now }
         applyMeter(snap, now: now, force: true)
-        // Auto-peek (§4): error 6 s; done 4 s only with a result value.
+        // Routine voice feedback stays compact; errors and decisions still demand attention.
         switch shownKind {
         case "error": peekUntil = now.addingTimeInterval(Self.peekError)
-        case "done": peekUntil = Self.hasResultValue(snap) ? now.addingTimeInterval(Self.peekDone) : nil
+        case "listening", "thinking", "speaking", "acting", "done": peekUntil = nil
         default:
             if snap.expanded && (samanthaEnabled || shownKind != "idle") { peekUntil = now.addingTimeInterval(Self.peekDone) } else if !isSticky { peekUntil = nil }
         }
@@ -722,6 +738,11 @@ final class IslandModel: ObservableObject {
         guard force || now.timeIntervalSince(lastMeter) >= 0.1 else { return }
         lastMeter = now
         let level = max(0, min(1, snap.voice_level))
+        if samanthaEnabled, level > 0, ["user", "assistant"].contains(snap.voice_side) {
+            let wasQuiet = now >= conversationUntil
+            conversationUntil = now.addingTimeInterval(Self.conversationQuiet)
+            if wasQuiet { refresh(now: now) }
+        }
         bars5 = Self.resample(snap.voice_levels, to: 5, fallback: level)
         meter24 = Array((meter24 + [level]).suffix(24))
     }
@@ -975,6 +996,7 @@ final class IslandModel: ObservableObject {
     }
 
     private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
+        if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
         if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
         return state.compactWidth
     }
@@ -983,10 +1005,11 @@ final class IslandModel: ObservableObject {
         if let n = noticeUntil, now >= n { noticeUntil = nil; notice = nil }
         let noticeActive = notice != nil && agentApproval == nil
         let live = liveActivities(now: now)
+        let conversation = samanthaEnabled && now < conversationUntil
         let next = credentialRequest != nil ? .needsYou : Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
-                                     notice: noticeActive, hud: hud != nil, peek: peek != nil, live: live)
+                                     notice: noticeActive, hud: hud != nil, peek: peek != nil, live: live, conversation: conversation)
         let resting = Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
-                                        notice: noticeActive, live: live)
+                                        notice: noticeActive, live: live, conversation: conversation)
         let idleNow = next == .idle || next == .doneSettled
         let nextCircles = idleNow && idleActivity == "samantha" ? []
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
@@ -1020,7 +1043,7 @@ final class IslandModel: ObservableObject {
         if cardMode == .agents && agents.isEmpty && expired.isEmpty && userOpened { userOpened = false; cardMode = .samantha }
         if !open { cardMode = .samantha }
         if next != presentation {
-            let familyChanged = next.family != presentation.family
+            let familyChanged = next.motionFamily != presentation.motionFamily
             presentation = next
             if familyChanged, !(reduceMotion || systemReduceMotion), !open {
                 // Alcove content swap: pinch to 74, then grow to the new width.
@@ -1064,13 +1087,14 @@ final class IslandModel: ObservableObject {
     nonisolated static func presentation(kind: String, stepTotal: Int, approval: IslandAgentApproval?,
                                          since: Date, now: Date, media: Bool = false,
                                          notice: Bool = false, hud: Bool = false, peek: Bool = false,
-                                         live: [IslandLiveActivity]? = nil) -> IslandPresentation {
+                                         live: [IslandLiveActivity]? = nil, conversation: Bool = false) -> IslandPresentation {
         if approval != nil { return .agentApproval }
         if notice { return .expired }
         let base = samanthaPresentation(kind: kind, stepTotal: stepTotal, since: since, now: now)
         if [.needsYou, .reconnecting].contains(base) { return base }
         if hud { return .hud }
         if peek { return .peek }
+        if conversation, [.listening, .doneSettled].contains(base) { return .listening }
         let acts = live ?? (media ? [.media] : [])
         if let first = acts.first, [.idle, .doneSettled, .listening].contains(base) {
             return first.presentation

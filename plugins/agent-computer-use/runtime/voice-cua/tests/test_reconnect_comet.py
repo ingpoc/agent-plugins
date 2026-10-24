@@ -539,6 +539,33 @@ class CometLeaseTests(unittest.TestCase):
         self.assertFalse(lease.active())
         self.assertEqual(run.call_args[0][0][2], "closeout")
 
+    def test_missing_browser_lease_clears_pointer_without_replaying(self) -> None:
+        lease = self._active_lease("user_task")
+        lease._url = "https://example.com"
+        with lease._lock:
+            lease._save_state_locked()
+        seen: list[bool] = []
+        lease.add_listener(lambda active: seen.append(active or lease.active()))
+        response = {"ok": False, "response": {"error": "No active browser lease for samantha-test; run preflight first"}}
+        with patch.object(comet_bridge, "_run_json", return_value=response) as run:
+            out = lease.act([{"type": "cursor_click", "x": 3, "y": 4}])
+        self.assertFalse(out["ok"])
+        self.assertIn("call comet_begin", out["error"])
+        self.assertEqual(run.call_count, 1)
+        self.assertFalse(lease.active())
+        self.assertFalse(self._state.exists())
+        self.assertEqual(seen, [False])
+
+    def test_generic_act_failure_retains_user_lease(self) -> None:
+        lease = self._active_lease("user_task")
+        with lease._lock:
+            lease._save_state_locked()
+        with patch.object(comet_bridge, "_run_json", return_value={"ok": False, "error": "controller timed out"}):
+            out = lease.act([{"type": "cursor_click", "x": 3, "y": 4}])
+        self.assertFalse(out["ok"])
+        self.assertTrue(lease.active())
+        self.assertTrue(self._state.exists())
+
     def test_exit_hook_closes_self_test_only(self) -> None:
         for purpose, closes in (("self_test", True), ("user_task", False)):
             lease = self._active_lease(purpose)

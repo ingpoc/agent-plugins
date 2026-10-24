@@ -380,6 +380,10 @@ final class SamanthaMenuBarIslandPanel {
             backing: .buffered,
             defer: false
         )
+        panel.onMouseDown = { [weak model] in
+            guard let model, model.credentialRequest != nil else { return }
+            model.beginTextEntry(focusField: false)
+        }
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
@@ -399,7 +403,12 @@ final class SamanthaMenuBarIslandPanel {
 final class IslandPanel: NSPanel {
     /// Set by `SamanthaMenuBarIslandPanel.beginTextEntry` (a click into the field) and cleared on
     /// submit / Escape / card change. Nothing else may set it.
-    fileprivate(set) var allowKey = false
+    var allowKey = false
+    var onMouseDown: (() -> Void)?
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .leftMouseDown { onMouseDown?() }
+        super.sendEvent(event)
+    }
     override var canBecomeKey: Bool { allowKey }
     override var canBecomeMain: Bool { false }
 }

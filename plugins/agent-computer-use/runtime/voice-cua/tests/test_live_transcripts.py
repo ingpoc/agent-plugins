@@ -1,7 +1,10 @@
 """GPT-Live transcript deltas become utterances in voice.log / activity log (docs: no turn-end event)."""
 import sys
+import threading
+import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -62,6 +65,49 @@ class LiveCloseTests(unittest.TestCase):
         self.assertEqual(sent, [{"type": "session.close"}])
         self.assertTrue(live.closed.is_set())
         self.assertEqual(live.voice_seconds, 7)
+
+    def test_socket_close_marks_latest_usage_unconfirmed_once(self):
+        from voice_cua.realtime_session import RealtimeSession
+
+        live = providers.LiveProvider()
+        live._ready = True
+        live.voice_seconds = 9
+        session = RealtimeSession.__new__(RealtimeSession)
+        session.provider = live
+        session._stop = threading.Event()
+        session._stop.set()
+        session._ping_ages_at_error = (None, None)
+        ws = SimpleNamespace(last_ping_tm=time.time() - 8, last_pong_tm=time.time() - 3)
+        with patch("voice_cua.realtime_session.mark"), \
+                patch("voice_cua.realtime_session.log_event") as session_log, \
+                patch.object(providers, "log_event") as log:
+            session._on_close(ws, None, None)
+            session._on_close(ws, None, None)
+        self.assertEqual(log.call_count, 1)
+        log.assert_called_once_with("live_close_unconfirmed", live_model=live.model, voice_seconds=9, final=False)
+        close = next(call for call in session_log.call_args_list if call.args[0] == "ws_closed")
+        self.assertEqual(close.kwargs["ping_timing_sample"], "close_callback")
+        self.assertIsNotNone(close.kwargs["last_ping_s"])
+        self.assertIsNotNone(close.kwargs["last_pong_s"])
+
+    def test_confirmed_close_does_not_mark_usage_unconfirmed(self):
+        live = providers.LiveProvider()
+        live._ready = True
+        live.inbound({"type": "session.closed", "usage": {"seconds": 9}})
+        with patch.object(providers, "log_event") as log:
+            live.mark_usage_unconfirmed()
+        log.assert_not_called()
+
+    def test_finalize_preserves_already_confirmed_close(self):
+        live = providers.LiveProvider()
+        live._started = True
+        sent = []
+        with patch.object(providers, "log_event") as log:
+            live.inbound({"type": "session.closed", "usage": {"seconds": 9}})
+            live.finalize(lambda event: sent.append(event) or True, timeout=0.01)
+        self.assertEqual(sent, [])
+        self.assertTrue(live.closed.is_set())
+        log.assert_called_once_with("live_usage", live_model=live.model, voice_seconds=9, final=True, reason=None)
 
     def test_finalize_is_a_no_op_before_session_start(self):
         sent = []
@@ -135,6 +181,7 @@ class LiveSessionLifecycleTests(unittest.TestCase):
     def test_reconnect_forks_the_stored_session_with_only_allowed_overrides(self):
         self.start()
         _started(self.live, "live_src1")
+        self.live.inbound({"type": "session.closed", "reason": "close_requested"})
         self.live.reset()
         self.assertEqual(self.live.url(), "wss://api.openai.com/v1/live/sessions/live_src1/fork")
         start = self.start()
@@ -143,11 +190,29 @@ class LiveSessionLifecycleTests(unittest.TestCase):
             {"type": "input_text", "text": "The realtime connection was re-established; earlier turns are not in this conversation."}]}}
         self.assertEqual(self.live.outbound(note), [])
 
+    def test_transport_loss_uses_history_until_recording_is_finalized(self):
+        self.start()
+        _started(self.live, "unfinished")
+        self.live._remember("user", "Open Calculator")
+        self.live._remember("assistant", "Calculator is open.")
+        self.live.reset()
+        self.assertEqual(self.live.url(), "wss://api.openai.com/v1/live/sessions")
+        start = self.start()
+        self.assertEqual([item["role"] for item in start["session"]["input"]], ["user", "assistant"])
+        _started(self.live, "replacement")
+        self.live.inbound({"type": "session.closed", "reason": "close_requested"})
+        self.live.reset()
+        self.assertTrue(self.live.forked)
+        _started(self.live, "forked_replacement")
+        self.live.reset()
+        self.assertFalse(self.live.forked, "previous close acknowledgment cannot finalize a newer session")
+
     def test_failed_fork_falls_back_to_a_seeded_fresh_session(self):
         self.start()
         _started(self.live, "live_src2")
         self.live._remember("user", "Open Calculator")
         self.live._remember("assistant", "Calculator is open.")
+        self.live.inbound({"type": "session.closed", "reason": "close_requested"})
         self.live.reset()
         self.start()
         with patch.object(providers, "log_event", lambda *a, **k: None):
@@ -315,6 +380,7 @@ class CometRetryCapTests(unittest.TestCase):
 
         args = {"actions": [{"type": "goto", "url": "https://example.com/x"}]}
         with patch.object(tools, "comet_act", fake), patch.object(tools, "island_publish"), \
+                patch.object(tools, "comet_is_active", return_value=True), \
                 patch.object(tools, "_looks_risky", return_value=False):
             for _ in range(4):
                 out = tools._comet_act(dict(args))

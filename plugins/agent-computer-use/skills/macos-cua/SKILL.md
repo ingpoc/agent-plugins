@@ -60,6 +60,7 @@ Comet **other-window** popups (Google chooser, Razorpay Bank) bind by window tit
 
 | When | File |
 | --- | --- |
+| Samantha prompt/voice/browser/credential testing and Kindle findings | [verify-samantha](../../runtime/voice-cua/verify/SKILL.md) |
 | Act-first loop / input delivery / Mini local-exec | [`references/fast-workflow.md`](references/fast-workflow.md) |
 | MCP / CUAService architecture | [`references/architecture.md`](references/architecture.md) |
 | Act deltas / failure taxonomy / focused window | [`references/observe-feedback.md`](references/observe-feedback.md) |

@@ -1,44 +1,19 @@
 ---
 name: verify-samantha
-description: Verify Samantha (voice-cua) end to end on the Mac Mini — gateway, island pill, voice/text turns that drive macOS apps. Use before handing off any voice-cua or island change, or when Samantha "looks off".
+description: Verify Samantha end to end through installed GPT-Live text or voice prompts, local tools, Dynamic Island and Kindle findings. Use when testing Samantha, investigating a reported failure, or validating a voice/browser/credential/Island change.
 ---
 
 # verify-samantha
 
-Read [`features/README.md`](features/README.md) first; each feature file is the recipe. Full staged run: `evidence/phase2-live-plan.md` (worktree root).
+Use [the test-run workflow](references/test-run.md) for preflight, prompts, proof and cleanup. The [feature map](features/README.md) routes deeper checks. Keep one driver per live surface.
 
-## Launch
-- Mini must be free (no other worker on screen) and `~/.cache/macos-cua/visual-focus.lock` absent or ours.
-- CUAService running (`pgrep -x CUAService`). Guru turns Samantha ON from the menu bar; agents never click it.
-- Ready = `curl -s 127.0.0.1:$PORT/api/session/status` has `"ready": true` **and** the activity log shows `island_listening`.
+## Invariants
 
-## Doctor (read-only, run first and after any failed drive)
-```zsh
-python3 skills/macos-cua/scripts/runtime_contract.py
-```
-The launcher runs this same gate before exposing MCP. A missing build record,
-changed package, or stale running service blocks startup; rebuild, sync and
-restart from one candidate. The signed app records the package fingerprint;
-the running service returns the fingerprint captured at launch. Operator status
-is optional and does not decide native service health.
-
-Discover the voice gateway from the active helper listener and confirm its
-`/health` reports `service=voice-cua` before using `/api/session/status`.
-Do not use a port merely because it accepts connections. Source tests and
-activity-log history are not current voice evidence.
-Never hardcode 8765 — see [`features/port-clash.md`](features/port-clash.md).
-
-## Drive
-- Text turn (no mic): `POST /api/session/text {"text": "...", "timeout": 60}`.
-- Frozen-helper one-shot (no GUI): `VOICE_CUA_NO_AUDIO=1 VOICE_CUA_PORT=8799 "$H" --text "..."`.
-- Island: `POST /api/island/publish {"kind","title","detail","app"}`; read back `GET /api/island/state`.
-- Tool call: `POST /api/tools/call {"name":"cua_state","arguments":{"app":"Finder"}}`.
-
-## Evidence
-Write to `evidence/p2/` (timestamped). Proof = action + resulting state: activity-log delta from a recorded byte offset (`tail -c +$((ABASE+1)) $ACT`), `/api/island/state` readback, menu-bar strip PNG, and the target app's own readback (e.g. Calculator display), never the tool's `ok`.
-
-## Cleanup
-Kill only what you started (by PID). Guru turns Samantha OFF. Never delete `evidence/p2/`; confirm it still exists after cleanup.
-
-## Unit tests
-`python3 -m unittest discover -s tests` from `runtime/voice-cua`, always with a temp `VOICE_CUA_ACTIVITY_LOG`.
+- Test the installed candidate: source, signed app and running service must share a runtime identity. Run `python3 plugins/agent-computer-use/skills/macos-cua/scripts/runtime_contract.py` from the collection root before a live run and after any mismatch.
+- Compare project findings before and after through the developer-observability MCP when configured. Use the Kindle project's owner doctor or skill for source details when available. Recommendations and old counts do not prove a current cause or fix; if no baseline source is available, say so.
+- Live API tests require operator authorization. An explicit request to prompt Samantha authorizes a bounded prompt test; it does not authorize unrelated logins, messages, purchases or credential changes.
+- Text prompts, direct tool calls, audio injection and real microphone/speaker tests prove different paths. Label the path actually exercised.
+- HTTP success, a spoken claim and tool dispatch are insufficient: require the requested app/site outcome and cleanup. Inspect uncertain dispatched actions before retrying.
+- Credentials use native secure Island entry and Keychain. Never put values in prompts, transcripts, tool arguments, screenshots or logs. Use dummy data for automated form checks; stop if the user intervenes, indices change or a secret could be present.
+- Keep unit-test activity in temporary logs. Real end-to-end probe failures remain identifiable by session ID and prompt; do not inject fabricated failures into the live feed.
+- Report unresolved failures and untested paths explicitly. Never mark sustained voice reliability fixed from a short clean test.

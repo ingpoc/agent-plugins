@@ -287,7 +287,7 @@ final class IslandTests: XCTestCase {
         m.apply(IslandSnapshot(kind: "done", title: "Done", detail: "cua act ok"), now: t0.addingTimeInterval(7))
         XCTAssertFalse(m.cardOpen, "done without a result value doesn't peek")
         m.apply(IslandSnapshot(kind: "done", title: "84", detail: "12 × 7", app: "Calculator"), now: t0.addingTimeInterval(8))
-        XCTAssertTrue(m.cardOpen)
+        XCTAssertFalse(m.cardOpen, "routine success stays compact; details remain available by click")
         m.tick(now: t0.addingTimeInterval(12.1))
         XCTAssertFalse(m.cardOpen, "done peek 4 s")
         m.apply(IslandSnapshot(kind: "confirm", title: "Confirm", confirm_id: "c1", confirm_prompt: "Allow Keychain access?"),

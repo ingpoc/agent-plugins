@@ -5,6 +5,8 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import struct
+from unittest.mock import Mock, patch
 from pathlib import Path
 
 PATH = Path(__file__).resolve().parents[1] / "native" / "cua_input.py"
@@ -252,6 +254,43 @@ class NativeInputTests(unittest.TestCase):
         entry = json.loads(self.log.read_text().splitlines()[-1])
         self.assertEqual(entry["op"], "capture")
 
+
+
+class RuntimeContractTests(unittest.TestCase):
+    def test_request_uses_installed_package_identity_and_caches_it(self):
+        identity = {"version": "test", "sha256": "abc"}
+        rpc = ci.CuaRpc()
+        sock = Mock()
+        params = {"app": "Comet", "runtimeContract": {"sha256": "untrusted"}}
+        with patch.object(ci.runpy, "run_path", return_value={"package_identity": Mock(return_value=identity)}) as owner, patch.object(ci.socket, "socket", return_value=sock):
+            for req_id in (1, 2):
+                response = json.dumps({"id": req_id, "result": {"ok": True}}).encode()
+                sock.recv.side_effect = [struct.pack("<I", len(response)), response]
+                self.assertTrue(rpc.call("get_app_state", params)["ok"])
+                wire = sock.sendall.call_args.args[0]
+                sent = json.loads(wire[4:])
+                self.assertEqual(sent["params"]["runtimeContract"], identity)
+            owner.assert_called_once()
+        self.assertEqual(params["runtimeContract"], {"sha256": "untrusted"})
+
+    def test_missing_identity_fails_before_connecting(self):
+        with patch.object(ci.runpy, "run_path", side_effect=FileNotFoundError), patch.object(ci.socket, "socket") as sock:
+            with self.assertRaises(ci.NativeInputError) as caught:
+                ci.CuaRpc().call("get_app_state", {})
+            self.assertEqual(caught.exception.code, "CUA_CONTRACT")
+            sock.assert_not_called()
+
+    def test_service_rejection_is_not_bypassed(self):
+        rpc = ci.CuaRpc()
+        rpc._contract = {"version": "stale", "sha256": "stale"}
+        response = json.dumps({"id": 1, "error": {"code": -32010, "message": "RUNTIME_CONTRACT_FAILED"}}).encode()
+        sock = Mock()
+        sock.recv.side_effect = [struct.pack("<I", len(response)), response]
+        with patch.object(ci.socket, "socket", return_value=sock):
+            with self.assertRaises(ci.NativeInputError) as caught:
+                rpc.call("get_app_state", {})
+            self.assertIn("RUNTIME_CONTRACT_FAILED", str(caught.exception))
+            self.assertEqual(sock.sendall.call_count, 1)
 
 if __name__ == "__main__":
     unittest.main()

@@ -126,7 +126,7 @@ final class MethodRouter: @unchecked Sendable {
         case "system_volume":
             return await SystemVolume.adjust(req.param("direction") ?? "read")
         case "credential_request":
-            return CredentialEntryController.shared.request(req.params?.mapValues { $0.value } ?? [:])
+            return CredentialEntryController.shared.request(req.params?.filter { $0.key != "runtimeContract" }.mapValues { $0.value } ?? [:])
         case "credential_status":
             return CredentialEntryController.shared.status(req.param("request_id") ?? "")
         case "credential_cancel":

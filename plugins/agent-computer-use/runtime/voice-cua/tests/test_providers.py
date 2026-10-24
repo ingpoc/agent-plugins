@@ -123,6 +123,8 @@ class LiveTests(_Rows):
         self.assertEqual(start["type"], "session.start")
         s = start["session"]
         self.assertEqual(s["model"], "gpt-live-1")
+        self.assertIn("Generate <|SpawnThinking|> when", s["instructions"])
+        self.assertIn("Do not generate <|SpawnThinking|>", s["instructions"])
         d = s["delegation"]
         self.assertEqual(d["type"], "responses")
         self.assertEqual(d["responses"]["model"], "gpt-6-luna")
@@ -133,6 +135,73 @@ class LiveTests(_Rows):
         self.assertEqual(upd["type"], "session.update")
         self.assertIn("tools", upd["session"]["delegation"]["responses"])
         self.assertNotIn("model", upd["session"]["delegation"]["responses"])
+
+    def test_silent_output_does_not_merge_audible_replies(self) -> None:
+        p, _ = _live()
+        def audio(delta):
+            return p.inbound({"type": "session.output_audio.delta", "delta": delta})[0]["item_id"]
+        with patch.object(providers.time, "monotonic", return_value=10.0):
+            first = audio("QQ==")
+        for now in (10.5, 11.0, 11.5, 12.0):
+            with patch.object(providers.time, "monotonic", return_value=now):
+                self.assertEqual(audio("AAA="), first)
+        with patch.object(providers.time, "monotonic", return_value=12.1):
+            second = audio("QQ==")
+        self.assertNotEqual(first, second)
+        p.reset()
+        with patch.object(providers.time, "monotonic", return_value=14.0):
+            self.assertNotEqual(audio("QQ=="), second)
+
+    def test_spoken_update_reaches_busy_backend_without_starting_another_response(self) -> None:
+        p, sent = _live()
+        p.inbound({"type": "session.started", "session": {"id": "s"}})
+        p.inbound({"type": "response.event", "delegation_id": "d", "event": {
+            "type": "response.created", "response": {"id": "r"}}})
+        with patch("voice_cua.island_facade.island_publish"), patch.object(providers, "log_event"):
+            p.inbound({"type": "session.input_transcript.delta", "delta": "Dil Chahta Hai"})
+            p.heard.flush()
+        self.assertFalse(sent, "speech must not write backend input during generation")
+        self.assertEqual(p.outbound({"type": "response.create"}), [{"type": "response.create"}])
+        self.assertFalse(any(e.get("type") == "response.create" for e in sent))
+        p.inbound({"type": "response.event", "delegation_id": "d", "event": {
+            "type": "response.output_item.done", "response_id": "r", "item": {
+                "type": "function_call", "name": "probe", "call_id": "call", "arguments": "{}"}}})
+        p.inbound({"type": "response.event", "delegation_id": "d", "event": {
+            "type": "response.completed", "response": {"id": "r", "status": "completed"}}})
+        p.outbound({"type": "conversation.item.create", "item": {
+            "type": "function_call_output", "call_id": "call", "output": "{}"}})
+        update, continuation = p.outbound({"type": "response.create"})
+        self.assertEqual(update["type"], "response.item.create")
+        self.assertIn("Dil Chahta Hai", update["item"]["content"][0]["text"])
+        self.assertEqual(continuation, {"type": "response.create"})
+        self.assertEqual(p.outbound({"type": "response.create"}), [{"type": "response.create"}])
+        before = len(sent)
+        with patch("voice_cua.island_facade.island_publish"), patch.object(providers, "log_event"):
+            p._on_heard("Hello")
+        self.assertEqual(len(sent), before, "idle conversation must not start backend work")
+
+    def test_new_typed_request_supersedes_queued_speech(self) -> None:
+        p, _ = _live()
+        p.inbound({"type": "session.started", "session": {"id": "s"}})
+        p._pending_spoken_update = "old request"
+        p.outbound({"type": "conversation.item.create", "item": {
+            "type": "message", "role": "user", "content": [{"type": "input_text", "text": "new request"}]}})
+        self.assertEqual(p.outbound({"type": "response.create"}), [{"type": "response.create"}])
+
+    def test_final_answer_does_not_leak_queued_speech_into_later_task(self) -> None:
+        p, _ = _live()
+        p.inbound({"type": "session.started", "session": {"id": "s"}})
+        p.inbound({"type": "response.event", "delegation_id": "old", "event": {
+            "type": "response.created", "response": {"id": "r"}}})
+        with patch("voice_cua.island_facade.island_publish"), patch.object(providers, "log_event"):
+            p._on_heard("old correction")
+        p.inbound({"type": "response.event", "delegation_id": "old", "event": {
+            "type": "response.completed", "response": {"id": "r", "status": "completed"}}})
+        self.assertEqual(p._pending_spoken_update, "")
+        p._pending_spoken_update = "another old correction"
+        p.inbound(_dlg("new"))
+        self.assertEqual(p._pending_spoken_update, "")
+        self.assertEqual(p.outbound({"type": "response.create"}), [{"type": "response.create"}])
 
     def test_audio_and_turn_events_translate(self) -> None:
         p, _ = _live()

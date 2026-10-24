@@ -1,4 +1,4 @@
-"""Voice CUA Agent — local tool host for GPT Realtime 2 + CUAService."""
+"""Voice CUA Agent — local tool host for GPT-Live 1 + CUAService."""
 
 import json
 from pathlib import Path

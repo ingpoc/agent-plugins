@@ -55,3 +55,5 @@ unmeasured. No official duration floors.
 ### Efficiency
 
 Evidence: one durable `durable_lease_controller` per campaign; short-lived shells that drop the lease token are rejected as an antipattern in `SKILL.md`.
+
+Native input requires the installed Agent Computer Use package identity. After updating native-input code, restart the broker when its lease inventory is empty; its loaded adapter is cached for the process lifetime. A missing or mismatched identity fails before desktop input.

@@ -63,6 +63,29 @@ final class CredentialEntryTests: XCTestCase {
         XCTAssertNotNil(c.save(id, account: "test", value: "fixture-only"))
     }
 
+    func testCredentialMouseDownEnablesKeyBeforeFieldReceivesClick() throws {
+        let model = IslandModel()
+        let panel = IslandPanel(contentRect: NSRect(x: 0, y: 0, width: 200, height: 100),
+                                styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: false)
+        defer { panel.orderOut(nil) }
+        model.onBeginTextEntry = { panel.allowKey = true }
+        panel.onMouseDown = { [weak model] in
+            if model?.credentialRequest != nil { model?.beginTextEntry(focusField: false) }
+        }
+        let event = try XCTUnwrap(NSEvent.mouseEvent(with: .leftMouseDown, location: NSPoint(x: 20, y: 20),
+                                                    modifierFlags: [], timestamp: 0, windowNumber: panel.windowNumber,
+                                                    context: nil, eventNumber: 1, clickCount: 1, pressure: 1))
+        panel.sendEvent(event)
+        XCTAssertFalse(model.textEntryActive, "ordinary island clicks must not enable text entry")
+        model.setCredentialRequest(CredentialRequest(id: "focus", catalogID: "sample", label: "Sample", service: "samantha.test", account: ""))
+        panel.sendEvent(event)
+        XCTAssertTrue(model.textEntryActive)
+        XCTAssertTrue(panel.canBecomeKey, "panel permits focus during mouse-down, before the field processes mouse-up")
+        model.endTextEntry()
+        panel.sendEvent(event)
+        XCTAssertTrue(model.textEntryActive, "clicking back into the form restores text entry")
+    }
+
     func testCredentialCardSurvivesHUDAndTextEntry() {
         let m = IslandModel()
         let request = CredentialRequest(id: "test", catalogID: "sample", label: "Sample", service: "samantha.test", account: "")

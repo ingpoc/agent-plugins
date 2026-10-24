@@ -209,6 +209,8 @@ class ToolsTests(unittest.TestCase):
                 "more_tools",
                 "show_details",
                 "comet_begin",
+                "comet_act",
+                "comet_end",
                 "system_volume",
             },
         )
@@ -216,13 +218,12 @@ class ToolsTests(unittest.TestCase):
             self.assertNotIn("cursor", n.lower())
             self.assertNotIn("grok", n.lower())
 
-    def test_comet_tools_are_loaded_only_for_an_active_lease(self) -> None:
+    def test_comet_tools_are_offered_before_and_during_a_lease(self) -> None:
         idle = {tool["name"] for tool in tool_definitions(comet_active=False)}
         active = {tool["name"] for tool in tool_definitions(comet_active=True)}
-        self.assertIn("comet_begin", idle)
-        self.assertNotIn("comet_act", idle)
-        self.assertIn("comet_begin", active)  # follow-ups re-attach to the open window
-        self.assertTrue({"comet_act", "comet_end"}.issubset(active))
+        browser_tools = {"comet_begin", "comet_act", "comet_end"}
+        self.assertTrue(browser_tools.issubset(idle))
+        self.assertTrue(browser_tools.issubset(active))
 
     def test_comet_browser_tasks_use_fresh_isolated_leases(self) -> None:
         bridge = CometLease()
