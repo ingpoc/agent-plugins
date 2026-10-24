@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import shutil
 import socket
 import struct
@@ -181,11 +182,21 @@ class CuaRpc:
         self.socket_path = Path(socket_path)
         self._seq = 0
         self._lock = threading.Lock()
+        self._contract: dict[str, str] | None = None
 
     def call(self, method: str, params: dict[str, Any], timeout: float = 15.0) -> dict[str, Any]:
         with self._lock:
             self._seq += 1
             req_id = self._seq
+        if method != "runtime_contract":
+            if self._contract is None:
+                root = Path.home() / ".agents/plugins/agent-computer-use"
+                try:
+                    owner = runpy.run_path(str(root / "skills/macos-cua/scripts/runtime_contract.py"))
+                    self._contract = owner["package_identity"](root)
+                except (OSError, ValueError, KeyError) as exc:
+                    raise NativeInputError("CUA_CONTRACT", "Installed Agent Computer Use identity unavailable; sync the plugin") from exc
+            params = {**params, "runtimeContract": self._contract}
         body = json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": req_id}).encode()
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(timeout)

@@ -20,6 +20,8 @@ plugins. Collection scripts/ tests still run.
 --audit-tests prints one JSON line of found/run/skip counts and exits 0
 without running tests.
 
+Each Python test process writes Samantha activity to a temporary log, never the live dashboard feed.
+
 comet-control tests need `pip install 'websockets==16.0' Pillow`.
 context-ledger HTTP tests need `pip install 'mcp==2.2.0'` when this
 interpreter cannot import mcp.server.mcpserver.
@@ -34,6 +36,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -584,9 +587,10 @@ def _missing_comet_deps() -> list[str]:
 
 
 def _python_for(plugin: Path, env: dict[str, str]) -> str:
-    """Use the locked context-ledger runtime when this interpreter has no mcp."""
+    """Prefer installed plugin runtimes; otherwise use the collection interpreter."""
     if plugin.name == "developer-observability":
-        return str(Path.home() / ".local/share/developer-observability/runtime/bin/python3")
+        runtime = Path.home() / ".local/share/developer-observability/runtime/bin/python3"
+        return str(runtime) if runtime.is_file() else sys.executable
     if plugin.name != "context-ledger":
         return sys.executable
     probe = subprocess.run(
@@ -648,7 +652,9 @@ def _exec_python(run: check_inventory.PythonRun, env: dict[str, str], python: st
     else:
         cmd.extend(["module", str(run.path.relative_to(run.cwd))])
     print(f"test {rel}", flush=True)
-    proc = subprocess.run(cmd, cwd=run.cwd, env=env)
+    with tempfile.TemporaryDirectory(prefix="samantha-test-log-") as log_dir:
+        env["VOICE_CUA_ACTIVITY_LOG"] = str(Path(log_dir) / "activity.jsonl")
+        proc = subprocess.run(cmd, cwd=run.cwd, env=env)
     return proc.returncode
 
 

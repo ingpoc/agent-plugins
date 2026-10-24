@@ -35,6 +35,9 @@ def capture_credential(arguments: dict, *, timeout: float = 125.0) -> dict:
             while result.get("status") == "pending" and time.monotonic() < deadline:
                 time.sleep(0.15)
                 result = backend.credential("status", {"request_id": request_id})
+            if result.get("status") == "cancelled":
+                return {"ok": False, "cancelled": True, "error_type": "user_cancelled",
+                        "error": "Credential entry cancelled."}
             if result.get("status") != "saved" or not result.get("stored"):
                 return {"ok": False, "error": str(result.get("error") or "Credential entry timed out.")}
             row = {**arguments, **{key: result[key] for key in ("id", "label", "service", "account")}}

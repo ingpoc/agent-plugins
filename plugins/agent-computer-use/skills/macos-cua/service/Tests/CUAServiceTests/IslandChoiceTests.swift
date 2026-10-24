@@ -283,7 +283,7 @@ final class IslandChoiceTests: XCTestCase {
         XCTAssertNil(m.agentApproval)
     }
 
-    func testBeginTextEntryRequiresOpenTextCard() throws {
+    func testBeginTextEntryRequiresOpenTextCard() async throws {
         try store.rotateToken(.grokBot)
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start()
@@ -292,6 +292,10 @@ final class IslandChoiceTests: XCTestCase {
         c.debugModel.beginTextEntry()
         XCTAssertFalse(c.debugPanel.debugCanBecomeKey, "no card → no key")
         _ = c.hub.handle(local("POST", "/api/island/publish", json: choiceBody(extra: ["allow_text": false])), port: 0)
+        for _ in 0..<100 where c.debugModel.agentApproval == nil {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertNotNil(c.debugModel.agentApproval, "published card arrived before interaction")
         c.debugModel.hoverOpen()
         XCTAssertFalse(c.debugPanel.debugCanBecomeKey, "hover-open never takes key")
         c.debugModel.beginTextEntry()

@@ -394,6 +394,24 @@ class tempfile_cm:
 
 
 class HookEnvironmentTests(unittest.TestCase):
+    def test_each_child_has_private_activity_log_even_with_production_override(self):
+        from types import SimpleNamespace
+        run = SimpleNamespace(path=ROOT / "scripts/test_check_harness.py", cwd=ROOT,
+                              mode="module", start=None)
+        seen = []
+        def child(_cmd, *, cwd, env):
+            path = Path(env["VOICE_CUA_ACTIVITY_LOG"])
+            self.assertNotEqual(str(path), "/production/activity.jsonl")
+            self.assertTrue(path.parent.is_dir())
+            path.write_text("fixture")
+            seen.append(path)
+            return SimpleNamespace(returncode=0)
+        with mock.patch.object(check.subprocess, "run", side_effect=child):
+            for _ in range(2):
+                self.assertEqual(check._exec_python(run, {"VOICE_CUA_ACTIVITY_LOG": "/production/activity.jsonl"}), 0)
+        self.assertNotEqual(seen[0], seen[1])
+        self.assertTrue(all(not path.exists() for path in seen))
+
     def test_child_tests_preserve_home_but_drop_hook_repository_overrides(self):
         env = dict(os.environ, GIT_DIR="parent", GIT_INDEX_FILE="parent-index",
                    GIT_WORK_TREE="parent-tree", FIXTURE_SETTING="keep")
@@ -412,6 +430,19 @@ class HookEnvironmentTests(unittest.TestCase):
             self.assertEqual(check.run_swift([ROOT/"plugins/agent-computer-use"]),0)
         self.assertNotIn("GIT_DIR", run.call_args.kwargs["env"])
         self.assertNotIn("GIT_INDEX_FILE", run.call_args.kwargs["env"])
+
+
+class PythonSelectionTests(unittest.TestCase):
+    def test_developer_observability_uses_installed_runtime_or_collection_python(self):
+        with tempfile_cm() as home:
+            runtime = home / ".local/share/developer-observability/runtime/bin/python3"
+            runtime.parent.mkdir(parents=True)
+            runtime.touch()
+            with mock.patch.object(check.Path, "home", return_value=home):
+                self.assertEqual(check._python_for(ROOT / "plugins/developer-observability", {}), str(runtime))
+            runtime.unlink()
+            with mock.patch.object(check.Path, "home", return_value=home):
+                self.assertEqual(check._python_for(ROOT / "plugins/developer-observability", {}), check.sys.executable)
 
 
 if __name__ == "__main__":

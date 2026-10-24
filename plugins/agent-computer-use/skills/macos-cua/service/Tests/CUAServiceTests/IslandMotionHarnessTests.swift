@@ -120,6 +120,16 @@ final class IslandMotionHarnessTests: XCTestCase {
         func run(_ n: String) -> Bool { only == nil || only!.contains(n) }
         for reduce in [false, true] {
             let sfx = reduce ? "-reduce" : ""
+            if run("conversation") {
+                out.append(try await scenario("conversation\(sfx)", reduce: reduce, setup: { m in
+                    m.setNowPlaying(NowPlayingTests.track(), visible: true)
+                }) { m in
+                    for kind in ["thinking", "speaking", "listening", "acting", "done", "listening"] {
+                        m.apply(IslandSnapshot(kind: kind, title: kind == "done" ? "Calculator is open" : kind))
+                        await self.sleep(0.45)
+                    }
+                })
+            }
             if run("hud") {
             out.append(try await scenario("hud\(sfx)", reduce: reduce, setup: { _ in }) { m in
                 m.showHUD(.init(kind: .volume, value: 0.6875)); await self.sleep(0.4)

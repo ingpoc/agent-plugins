@@ -210,7 +210,7 @@ class MicStreamer:
         self._on_barge_in = on_barge_in
         self._playback_level = playback_level or (lambda: 0.0)
         self.barge = BargeInDetector()
-        self.last_speech_at: float | None = None
+        self.speech_snapshot: tuple[int, float | None] = (0, None)
         self.device_name = ""
         self.device_rate = 0
         self.stream_rate = sample_rate
@@ -345,6 +345,10 @@ class MicStreamer:
                     _log_event("mic_overflow", overflows=self.overflows)
                     self._overflows_logged = self.overflows
 
+    @property
+    def last_speech_at(self) -> float | None:
+        return self.speech_snapshot[1]
+
     def _process_frame(self, frame: bytes, pcm_levels: Callable[[bytes], tuple[float, list[float]]]) -> None:
         """One 20 ms wire frame: mute, local barge-in, meter, send."""
         muted = self._paused.is_set() or self._mute_while()
@@ -363,7 +367,11 @@ class MicStreamer:
             raw = pcm_rms(frame)
             playback = float(self._playback_level() or 0.0)
             if self.barge.is_speech(raw, playback):
-                self.last_speech_at = time.monotonic()
+                now = time.monotonic()
+                turn_id, previous_at = self.speech_snapshot
+                if previous_at is None or now - previous_at >= self.barge.config.release_ms / 1000:
+                    turn_id += 1
+                self.speech_snapshot = (turn_id, now)
             hit = self.barge.feed(raw, playback)
             if hit is not None and playback > 0 and self._on_barge_in is not None:
                 try:
@@ -439,7 +447,7 @@ class SpeakerPlayer:
         # ends. Audible audio is still ahead while _played_samples < _audible_end.
         self._pushed_samples = 0
         self._audible_end = 0
-        self._timing_marks: list[tuple[int, float, float, str]] = []
+        self._timing_marks: list[tuple[int, float, float, str, int]] = []
         self.timings: queue.SimpleQueue[dict[str, Any]] = queue.SimpleQueue()
         self._recent_levels: list[float] = []  # RMS of the last few played blocks (echo reference)
 
@@ -476,10 +484,10 @@ class SpeakerPlayer:
         with self._lock:
             consumed = min(frames, len(self._buffer) // 2)
             while self._timing_marks and self._timing_marks[0][0] < self._played_samples + consumed:
-                sample, speech_at, received_at, item_id = self._timing_marks.pop(0)
+                sample, speech_at, received_at, item_id, turn_id = self._timing_marks.pop(0)
                 dac_delay = max(0.0, float(getattr(_time, "outputBufferDacTime", 0)) - float(getattr(_time, "currentTime", 0)))
                 played_at = time.monotonic() + dac_delay + (sample - self._played_samples) / self._sample_rate
-                self.timings.put({"item_id": item_id, "speech_to_received_ms": round((received_at - speech_at) * 1000),
+                self.timings.put({"item_id": item_id, "turn_id": turn_id, "speech_to_received_ms": round((received_at - speech_at) * 1000),
                                   "received_to_playback_ms": round((played_at - received_at) * 1000),
                                   "speech_to_playback_ms": round((played_at - speech_at) * 1000),
                                   "speech_end_source": "local_threshold", "playback_source": "scheduled_dac"})
@@ -508,7 +516,7 @@ class SpeakerPlayer:
         with self._lock:
             self._item_start_samples = self._played_samples + len(self._buffer) // 2
 
-    def push_b64(self, audio_b64: str, *, speech_at: float | None = None, item_id: str = "") -> bool:
+    def push_b64(self, audio_b64: str, *, speech_at: float | None = None, item_id: str = "", turn_id: int = 0) -> bool:
         if not audio_b64:
             return False
         received_at = time.monotonic()
@@ -516,7 +524,7 @@ class SpeakerPlayer:
         audible = pcm_rms(pcm[: len(pcm) // 2 * 2]) >= AUDIBLE_RMS
         with self._lock:
             if audible and speech_at is not None:
-                self._timing_marks.append((self._pushed_samples, speech_at, received_at, item_id))
+                self._timing_marks.append((self._pushed_samples, speech_at, received_at, item_id, turn_id))
             self._buffer.extend(pcm)
             self._pushed_samples += len(pcm) // 2
             if audible:
@@ -555,7 +563,7 @@ class RealtimeAudio:
         on_barge_in: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self._speaker = SpeakerPlayer()
-        self._timed_speech_at: float | None = None
+        self._timed_turn_id = 0
         mode = _local_mute_mode()
         if continuous and mode != "full":
             # GPT-Live is full duplex: muting the mic while she talks dropped the user's words
@@ -594,10 +602,12 @@ class RealtimeAudio:
                     # Reset the played-audio counter per reply item (truncate is per item).
                     self._speaker.mark_item_start()
                 self._current_item_id = item_id
-        speech_at = self._mic.last_speech_at
-        pending = speech_at if speech_at != self._timed_speech_at else None
-        if self._speaker.push_b64(audio_b64, speech_at=pending, item_id=item_id) and pending is not None:
-            self._timed_speech_at = pending
+        turn_id, speech_at = self._mic.speech_snapshot
+        quiet = speech_at is not None and time.monotonic() - speech_at >= self._mic.barge.config.release_ms / 1000
+        pending = speech_at if quiet and turn_id != self._timed_turn_id else None
+        if self._speaker.push_b64(audio_b64, speech_at=pending, item_id=item_id, turn_id=turn_id):
+            # Output overlapping speech cannot measure the first audio after that utterance.
+            self._timed_turn_id = turn_id
 
     def flush_timings(self) -> None:
         while True:

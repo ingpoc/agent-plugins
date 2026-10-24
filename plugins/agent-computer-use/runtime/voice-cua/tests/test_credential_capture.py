@@ -1,5 +1,7 @@
 from contextlib import nullcontext
 import sys
+import os
+import tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 import json
@@ -7,6 +9,9 @@ import threading
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+
+_LOG_DIR = tempfile.TemporaryDirectory(prefix="credential-capture-test-")
+os.environ["VOICE_CUA_ACTIVITY_LOG"] = str(Path(_LOG_DIR.name) / "activity.jsonl")
 
 from voice_cua import credential_capture as capture, session_hub, tools
 from voice_cua.realtime_session import RealtimeSession
@@ -105,6 +110,49 @@ class PrivacyAndInjectionTests(unittest.TestCase):
         self.assertTrue(out["dispatched"])
         self.assertNotIn("fixture-only", json.dumps(out))
         self.assertGreaterEqual(clear.call_count, 1)
+
+    def test_cancel_is_not_logged_as_failure(self):
+        from voice_cua import activity_log
+        backend = Mock()
+        backend.credential.side_effect = [{"ok": True, "request_id": "r1", "status": "pending"},
+                                          {"ok": False, "status": "cancelled"}]
+        with patch.object(capture, "get_backend", return_value=backend), patch.object(capture, "island_publish"), \
+                patch.object(capture.session_hub, "credential_privacy", side_effect=nullcontext):
+            result = capture.capture_credential({"id": "test-login", "label": "Test", "service": "samantha.test"})
+        self.assertTrue(result["cancelled"])
+        with patch.object(activity_log, "log_event") as logged:
+            activity_log.log_tool_result("secrets_put", result)
+        self.assertEqual(logged.call_args.args[0], "tool_cancelled")
+        self.assertNotIn("error", logged.call_args.kwargs)
+
+    def test_cancellation_does_not_latch_workflow_repair(self):
+        cancelled = {"ok": False, "cancelled": True, "error_type": "user_cancelled"}
+        with patch.object(tools, "capture_credential", return_value=cancelled), \
+                patch.object(tools.workflow_store, "mutation_guard", return_value=None), \
+                patch.object(tools.workflow_store, "note_failure") as note, \
+                patch.object(tools, "log_tool_start"), patch.object(tools, "log_tool_result"):
+            result = tools.dispatch("secrets_put", {})
+        self.assertTrue(result["cancelled"])
+        note.assert_not_called()
+
+    def test_task_outcomes_validate_metadata_and_keep_values_out(self):
+        from voice_cua import activity_log
+        with patch.object(activity_log, "log_event") as logged:
+            activity_log.log_task_outcome(check_id="browser_first_request", outcome="verified_incomplete",
+                                          evidence_class="browser_inventory", run_id="a1234567")
+            self.assertEqual(logged.call_args.args[0], "task_outcome")
+            with self.assertRaises(ValueError):
+                activity_log.log_task_outcome(check_id="free form user data", outcome="failed",
+                                              evidence_class="transcript", run_id="a1234567")
+            self.assertEqual(logged.call_count, 1)
+
+    def test_platform_secret_listing_uses_inventory_without_reading_values(self):
+        with patch("voice_cua.inventory.load_catalog", return_value={"keys": []}), \
+                patch.object(tools, "island_publish"):
+            result = tools.dispatch("secrets_list", {"platform": "synthetic-test"})
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["source"], "catalog")
+        self.assertEqual(result["keys"], [])
 
     def test_workflows_are_lazy_and_failed_volume_result_is_preserved(self):
         base = {t["name"] for t in tools.tool_definitions()}

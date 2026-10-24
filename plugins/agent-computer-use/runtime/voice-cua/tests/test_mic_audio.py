@@ -393,6 +393,81 @@ class VoiceLatencyTests(unittest.TestCase):
         self.assertEqual(row["item_id"], "reply")
         self.assertTrue(player.timings.empty())
 
+    def test_finished_utterances_once_with_same_output_item(self):
+        audio = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+        speech = base64.b64encode(frame_at(0.2)).decode()
+        for turn_id, ended_at in ((1, 10.0), (2, 20.0)):
+            audio._mic.speech_snapshot = (turn_id, ended_at)
+            with patch.object(audio_io.time, "monotonic", return_value=ended_at + 0.7):
+                audio.on_output_delta(speech, item_id="same-item")
+                audio.on_output_delta(speech, item_id="same-item")
+                audio._speaker._output_callback(np.empty((960, 1), dtype=np.int16), 960, None, None)
+            row = audio._speaker.timings.get_nowait()
+            self.assertEqual(row["turn_id"], turn_id)
+            self.assertEqual(row["speech_to_received_ms"], 700)
+            self.assertTrue(audio._speaker.timings.empty())
+
+    def test_overlap_does_not_create_late_first_audio_sample(self):
+        audio = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+        audio._mic.speech_snapshot = (1, 10.0)
+        speech = base64.b64encode(frame_at(0.2)).decode()
+        for now in (10.1, 10.7):
+            with patch.object(audio_io.time, "monotonic", return_value=now):
+                audio.on_output_delta(speech, item_id="reply")
+        audio._speaker._output_callback(np.empty((960, 1), dtype=np.int16), 960, None, None)
+        self.assertTrue(audio._speaker.timings.empty())
+
+    def test_speech_sequence_changes_only_after_quiet_boundary(self):
+        mic = audio_io.MicStreamer(lambda _e: None, continuous=True)
+        with patch.object(audio_io.time, "monotonic", return_value=10.0):
+            mic._process_frame(frame_at(0.2), lambda _f: (0.2, [0.2] * 8))
+        with patch.object(audio_io.time, "monotonic", return_value=10.02):
+            mic._process_frame(frame_at(0.2), lambda _f: (0.2, [0.2] * 8))
+        self.assertEqual(mic.speech_snapshot[0], 1)
+        with patch.object(audio_io.time, "monotonic", return_value=11.0):
+            mic._process_frame(frame_at(0.2), lambda _f: (0.2, [0.2] * 8))
+        self.assertEqual(mic.speech_snapshot[0], 2)
+
+    def test_speech_update_during_output_read_cannot_mix_turn_and_timestamp(self):
+        audio = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+        from types import SimpleNamespace
+
+        class InterleavedMic:
+            barge = SimpleNamespace(config=SimpleNamespace(release_ms=600))
+            last_speech_at = 10.0
+            speech_turn_id = 1
+            snapshot_reads = 0
+
+            @property
+            def speech_snapshot(self):
+                snapshot = (self.speech_turn_id, self.last_speech_at)
+                self.speech_turn_id, self.last_speech_at = 2, 20.0
+                self.snapshot_reads += 1
+                return snapshot
+
+        mic = InterleavedMic()
+        audio._mic = mic
+        audio._timed_turn_id = 1
+        with patch.object(audio_io.time, "monotonic", return_value=20.1):
+            audio.on_output_delta(base64.b64encode(frame_at(0.2)).decode(), item_id="reply")
+            audio._speaker._output_callback(np.empty((480, 1), dtype=np.int16), 480, None, None)
+        self.assertEqual(mic.snapshot_reads, 1)
+        self.assertTrue(audio._speaker.timings.empty())
+
+    def test_interrupt_drops_old_mark_and_allows_next_utterance(self):
+        audio = audio_io.RealtimeAudio(lambda _e: None, continuous=True)
+        speech = base64.b64encode(frame_at(0.2)).decode()
+        for turn_id, ended_at in ((1, 10.0), (2, 12.0)):
+            audio._mic.speech_snapshot = (turn_id, ended_at)
+            with patch.object(audio_io.time, "monotonic", return_value=ended_at + 0.7):
+                audio.on_output_delta(speech, item_id="same-item")
+                if turn_id == 1:
+                    audio.interrupt()
+                else:
+                    audio._speaker._output_callback(np.empty((480, 1), dtype=np.int16), 480, None, None)
+        self.assertEqual(audio._speaker.timings.get_nowait()["turn_id"], 2)
+        self.assertTrue(audio._speaker.timings.empty())
+
     def test_interruption_discards_unplayed_timing(self):
         player = audio_io.SpeakerPlayer()
         player.push_b64(base64.b64encode(frame_at(0.2)).decode(), speech_at=1.0)

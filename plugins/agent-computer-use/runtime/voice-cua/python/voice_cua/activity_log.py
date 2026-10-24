@@ -254,6 +254,9 @@ def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
 
 
 def log_tool_result(name: str, result: dict[str, Any], *, app: str = "") -> None:
+    if result.get("cancelled") is True and result.get("error_type") == "user_cancelled":
+        log_event("tool_cancelled", **_current_tool_ids(), tool=name, classification="user_cancelled")
+        return
     ok = bool(result.get("ok"))
     err = str(result.get("error") or "")
     error_type = str(result.get("error_type") or "")
@@ -301,3 +304,15 @@ def tail_events(*, limit: int = 80) -> list[dict[str, Any]]:
         except json.JSONDecodeError:
             continue
     return out
+
+
+def log_task_outcome(*, check_id: str, outcome: str, evidence_class: str, run_id: str) -> None:
+    """Emit only externally verified check outcomes, never inferred model completion."""
+    import re
+    if (len(check_id) > 48 or not re.fullmatch(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*", check_id)
+            or outcome not in {"verified_success", "verified_incomplete", "unverified", "cancelled"}
+            or evidence_class not in {"app_readback", "browser_inventory", "local_login", "combined"}
+            or not re.fullmatch(r"[0-9a-f]{8,64}", run_id)):
+        raise ValueError("invalid task outcome metadata")
+    log_event("task_outcome", check_id=check_id, outcome=outcome,
+              evidence_class=evidence_class, run_id=run_id)

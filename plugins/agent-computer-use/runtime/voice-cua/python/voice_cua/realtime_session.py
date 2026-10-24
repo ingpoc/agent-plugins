@@ -269,6 +269,10 @@ class RealtimeSession:
         self._last_activity = time.monotonic()
         self._last_user_activity = time.monotonic()  # speech, typed turns, backend work
         self._last_mic_audio = 0.0  # monotonic time of the last mic chunk sent
+        self._last_client_wire_type = ""
+        self._last_client_wire_at = 0.0
+        self._last_mic_append_at = 0.0
+        self._ping_ages_at_error: tuple[float | None, float | None] | None = None
         self._restart_pending = False
         # Phase 1 reliability state.
         self._comet_active = False
@@ -445,7 +449,7 @@ class RealtimeSession:
         log_event("voice_access_refused", provider=self.provider.name, model=self.provider.model,
                   status=self._access_refused)
         island_publish("error", title="Couldn't connect: access denied", detail=self.provider.model)
-        print(f"Realtime: {detail} — this API key/project can't use the selected voice model; "
+        print(f"GPT-Live: {detail} — this API key/project can't use the selected voice model; "
               "pick another model in Settings", flush=True)
 
     def _give_up_reconnect(self) -> None:
@@ -459,7 +463,7 @@ class RealtimeSession:
         # Island error copy must be a "Couldn't ..." line <= 32 chars (island_copy).
         island_publish("error", title="Couldn't reconnect voice")
         print(
-            f"Realtime: gave up after {failures} failed reconnect attempts — "
+            f"GPT-Live: gave up after {failures} failed reconnect attempts — "
             "voice is offline; turn Samantha off and on to retry",
             flush=True,
         )
@@ -568,8 +572,14 @@ class RealtimeSession:
             return False  # socket closed (shutdown or mid-reconnect) — drop safely
         raw = json.dumps(event)
         try:
+            event_type = str(event.get("type") or "")[:100]
             with self._send_lock:
                 ws.send(raw)
+                sent_at = time.monotonic()
+                self._last_client_wire_type = event_type
+                self._last_client_wire_at = sent_at
+                if event_type in {"input_audio_buffer.append", "session.input_audio.append"}:
+                    self._last_mic_append_at = sent_at
             if event.get("type") in {"session.update", "session.start"}:
                 log_event("session_update", bytes=len(raw.encode("utf-8")), provider=self.provider.name)
             return True
@@ -663,6 +673,15 @@ class RealtimeSession:
 
     def _on_open(self, _ws: Any) -> None:
         mark("realtime_ws_open")
+        headers = getattr(getattr(getattr(_ws, "sock", None), "handshake_response", None), "headers", {})
+        headers = headers if isinstance(headers, dict) else {}
+        self._transport_request_id = str(headers.get("x-request-id") or "")[:160]
+        self._transport_edge_id = str(headers.get("cf-ray") or "")[:160]
+        self._last_server_event_type = ""
+        self._last_client_wire_type = ""
+        self._last_client_wire_at = 0.0
+        self._last_mic_append_at = 0.0
+        self._ping_ages_at_error = None
         self._conn_epoch += 1
         self._reconnect_requested = False
         reconnected = self._conn_epoch > 1
@@ -755,6 +774,7 @@ class RealtimeSession:
             return
         if not isinstance(event, dict):
             return
+        self._last_server_event_type = str(event.get("type") or "")[:100]
         if event.get("type") not in {"session.usage.updated"}:
             self._last_activity = time.monotonic()
         if event.get("type") in {"session.input_transcript.delta", "session.delegation.created", "response.event"}:
@@ -1269,6 +1289,13 @@ class RealtimeSession:
         return True
 
     def _on_error(self, _ws: Any, error: Any) -> None:
+        now = time.time()
+        ping_at = getattr(_ws, "last_ping_tm", None)
+        pong_at = getattr(_ws, "last_pong_tm", None)
+        self._ping_ages_at_error = (
+            round(now - ping_at, 3) if isinstance(ping_at, (int, float)) and ping_at else None,
+            round(now - pong_at, 3) if isinstance(pong_at, (int, float)) and pong_at else None,
+        )
         # Transport-level (e.g. ping timeout): reconnectable, never fatal here.
         # Island feedback stays on "reconnecting" (published at close/retry).
         msg = str(error)[:120]
@@ -1303,14 +1330,33 @@ class RealtimeSession:
         # Diagnose drops: close frame code/reason (None, None = TCP lost without a close frame).
         code = args[0] if args else None
         reason = args[1] if len(args) > 1 else None
+        now = time.time()
+        ping_at = getattr(_ws, "last_ping_tm", None)
+        pong_at = getattr(_ws, "last_pong_tm", None)
+        ping_ages = getattr(self, "_ping_ages_at_error", None)
+        ping_age = ping_ages[0] if ping_ages and ping_ages[0] is not None else None
+        pong_age = ping_ages[1] if ping_ages and ping_ages[1] is not None else None
         log_event("ws_closed", code=code, reason=str(reason or "")[:120] or None,
-                  connected_s=round(time.monotonic() - self._connected_at, 1) if self._connected_at else None,
-                  stopping=self._stop.is_set(), epoch=self._conn_epoch,
-                  reconnect_requested=self._reconnect_requested,
-                  last_server_event_s=round(time.monotonic() - self._last_server_event_at, 3) if self._last_server_event_at else None)
-        if self._stop.is_set():
+                  connected_s=round(time.monotonic() - getattr(self, "_connected_at", 0.0), 1) if getattr(self, "_connected_at", 0.0) else None,
+                  stopping=getattr(self, "_stop", threading.Event()).is_set(), epoch=getattr(self, "_conn_epoch", 0),
+                  reconnect_requested=getattr(self, "_reconnect_requested", False),
+                  close_frame_received=code is not None,
+                  last_server_event_type=getattr(self, "_last_server_event_type", "") or None,
+                  request_id=getattr(self, "_transport_request_id", "") or None,
+                  edge_id=getattr(self, "_transport_edge_id", "") or None,
+                  last_server_event_s=round(time.monotonic() - getattr(self, "_last_server_event_at", 0.0), 3) if getattr(self, "_last_server_event_at", 0.0) else None,
+                  last_client_wire_type=getattr(self, "_last_client_wire_type", "") or None,
+                  last_client_wire_s=round(time.monotonic() - getattr(self, "_last_client_wire_at", 0.0), 3) if getattr(self, "_last_client_wire_at", 0.0) else None,
+                  last_mic_append_s=round(time.monotonic() - getattr(self, "_last_mic_append_at", 0.0), 3) if getattr(self, "_last_mic_append_at", 0.0) else None,
+                  ping_timing_sample="transport_error" if ping_age is not None or pong_age is not None else "close_callback",
+                  last_ping_s=ping_age if ping_age is not None else round(now - ping_at, 3) if isinstance(ping_at, (int, float)) and ping_at else None,
+                  last_pong_s=pong_age if pong_age is not None else round(now - pong_at, 3) if isinstance(pong_at, (int, float)) and pong_at else None)
+        mark_usage_unconfirmed = getattr(getattr(self, "provider", None), "mark_usage_unconfirmed", None)
+        if mark_usage_unconfirmed:
+            mark_usage_unconfirmed()
+        if getattr(self, "_stop", threading.Event()).is_set():
             return
-        if not self._reconnect_requested and code is None:
+        if not getattr(self, "_reconnect_requested", False) and code is None:
             self._drop_plan = self._plan_drop_recovery()
         # Phase 1: close no longer kills the session — run() reconnects.
         island_publish("reconnecting", title="Reconnecting", detail="")
@@ -1554,7 +1600,7 @@ class RealtimeSession:
             transcript = self._response_transcripts.get(response_id, "")
         reply = _normalize_reply(" ".join(text_bits).strip() or transcript.strip())
         if reply:
-            log_event("assistant_reply", text=reply[:240])
+            log_event("assistant_reply", text=reply[:240], source="backend", response_id=response_id or None)
             print(f"Samantha: {reply}", flush=True)
         mark("response_done", status="ok" if reply else "empty")
         request_id = self._request_id(response) or self._request_for_response(response_id)

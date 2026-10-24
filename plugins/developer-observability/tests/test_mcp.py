@@ -58,6 +58,7 @@ class MCPTests(unittest.TestCase):
                     html = resource.contents[0]
                     self.assertEqual(html.mime_type, 'text/html;profile=mcp-app')
                     self.assertIn('See what needs attention', html.text)
+                    self.assertIn('Occurrence timeline', html.text)
                     self.assertNotIn('cdn.', html.text)
                     self.assertIn('connectDomains', json.dumps(html.meta))
 
