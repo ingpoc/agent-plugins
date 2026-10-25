@@ -341,23 +341,59 @@ struct IslandRowControl: Equatable {
     var since: Date
 }
 
+struct IslandAgentRow: Equatable, Identifiable {
+    var agent: IslandAgent
+    var depth: Int
+    var id: String { agent.id }
+}
+
 enum IslandAgentRows {
     static let maxRows = 4
     static let rowHeight: CGFloat = 44
     static let confirmWindow: TimeInterval = 3
     static let ackTimeout: TimeInterval = 5
 
-    /// Card hugs its rows: 16 pt padding + 44 pt rows (+ 18 pt "+N in app"), min 96; 4 rows + footer = 226.
+    /// Card hugs its rows: 16 pt padding + 44 pt rows (+ 18 pt footer), min 96; four rows stay visible.
     static func cardHeight(rows: Int, footer: Bool) -> CGFloat {
         let n = CGFloat(min(max(rows, 1), maxRows))
         return max(96, 2 * IslandBarLayout.cardPadding + n * rowHeight + (footer ? 18 : 0))
+    }
+
+    /// Keep children beneath their parent; missing parents and malformed cycles remain visible as roots.
+    static func hierarchical(_ agents: [IslandAgent]) -> [IslandAgentRow] {
+        var children: [String: [IslandAgent]] = [:]
+        var roots: [IslandAgent] = []
+        let ids = Set(agents.map(\.id))
+        for agent in agents {
+            if let parent = agent.parent_id, parent != agent.id, ids.contains(parent) {
+                children[parent, default: []].append(agent)
+            } else {
+                roots.append(agent)
+            }
+        }
+
+        var rows: [IslandAgentRow] = []
+        var visited = Set<String>()
+        func append(_ seeds: [(IslandAgent, Int)]) {
+            var stack = Array(seeds.reversed())
+            while let (agent, depth) = stack.popLast() {
+                guard visited.insert(agent.id).inserted else { continue }
+                rows.append(IslandAgentRow(agent: agent, depth: depth))
+                for child in (children[agent.id] ?? []).reversed() { stack.append((child, depth + 1)) }
+            }
+        }
+        append(roots.map { ($0, 0) })
+        for agent in agents where !visited.contains(agent.id) { append([(agent, 0)]) }
+        return rows
     }
 
     /// Which control a row offers: Approve only when pending, Retry only failed (and retry-capable), Stop only running (and stop-capable).
     static func control(for a: IslandAgent) -> IslandRowControl.Action? {
         if a.id.hasPrefix("pending:") { return .approve }
         if a.status == "error", a.controls.contains("retry") { return .retry }
-        if a.status == "running" { return .stop }   // every running row can be stopped
+        if a.status == "running" {
+            return !a.id.hasPrefix("agent:") || a.controls.contains("stop") ? .stop : nil
+        }
         return nil
     }
 
@@ -368,6 +404,7 @@ enum IslandAgentRows {
         case "needs_you": return "waiting"
         case "done": return "done"
         case "expired": return "timed out"
+        case "harness": return "harness detected"
         default:
             let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))
             let t = n < 60 ? "\(n)s" : n < 3600 ? "\(n / 60)m" : "\(n / 3600)h"

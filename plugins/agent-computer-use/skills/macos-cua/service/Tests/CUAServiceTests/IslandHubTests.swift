@@ -81,6 +81,35 @@ final class IslandHubTests: XCTestCase {
         XCTAssertTrue(hub.compose().agents.isEmpty)
     }
 
+    func testAgentRosterRegistrationLinksChildrenAndRejectsSelfParent() throws {
+        let hub = IslandHub(store: store)
+        let t = try token(.agentRoster)
+        let parent: [String: Any] = ["source": "agent", "id": "parent-1", "name": "Codex",
+                                     "kind": "running", "title": "Implement roster"]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: t, json: parent), port: 8777).status, 200)
+        let child: [String: Any] = ["source": "agent", "id": "child-1", "name": "Claude Code",
+                                   "parent_id": "parent-1", "kind": "running", "title": "Review UI"]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: t, json: child), port: 8777).status, 200)
+
+        let rows = IslandAgentRows.hierarchical(hub.compose().agents)
+        XCTAssertEqual(rows.map(\.id), ["agent:parent-1", "agent:child-1"])
+        XCTAssertEqual(rows.map(\.depth), [0, 1])
+        XCTAssertEqual(rows.map { $0.agent.name }, ["Codex", "Claude Code"])
+        XCTAssertEqual(hub.entries["agent:parent-1"]?.ttl, 3600)
+
+        let selfParent: [String: Any] = ["source": "agent", "id": "loop", "kind": "running",
+                                        "title": "Invalid", "parent_id": "loop"]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: t, json: selfParent), port: 8777).status, 400)
+    }
+
+    func testLocalHarnessRowsMergeIntoRoster() {
+        let hub = IslandHub(store: store)
+        let detected = IslandAgent(id: "local:codex:42", name: "Codex", app: "Codex", title: "PID 42", status: "harness")
+        hub.updateLocalHarnesses([detected])
+        XCTAssertEqual(hub.compose().agents, [detected])
+        XCTAssertEqual(IslandAgentRows.statusText(detected), "harness detected")
+    }
+
     func testApprovalFlowAndGating() throws {
         let hub = IslandHub(store: store)
         let codex = try token(.codex)

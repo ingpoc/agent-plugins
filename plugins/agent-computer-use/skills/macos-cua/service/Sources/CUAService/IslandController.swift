@@ -199,7 +199,9 @@ final class IslandController {
         let enabled = Dictionary(uniqueKeysWithValues: AgentSource.allCases.map { ($0, s.sourceEnabled($0)) })
         let mayRaise = Dictionary(uniqueKeysWithValues: AgentSource.allCases.map { ($0, s.mayRaiseApproval($0)) })
         model.agentAllowed = { a in
-            guard let src = AgentSource.match(a.name) ?? AgentSource.match(a.app) else { return true }
+            let source: AgentSource? = a.id.hasPrefix("agent:") || a.id.hasPrefix("local:")
+                ? .agentRoster : AgentSource.match(a.name) ?? AgentSource.match(a.app)
+            guard let src = source else { return true }
             return enabled[src] ?? true
         }
         model.approvalAllowed = { a in
@@ -549,6 +551,7 @@ final class IslandController {
                 guard let self else { return }
                 self.model.tick()
                 self.hub.expire()
+                if self.startsSystem { self.hub.refreshLocalHarnesses() }
                 self.nowPlaying.recompute()   // idle-duration collapse after a pause
             }
         }

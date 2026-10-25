@@ -1,10 +1,51 @@
 # Shared Dynamic Island
 
-Load this reference for status, approval, or choice from the supported sources
-(Codex, Cursor, Grok, Samantha), or credential capture from a shell-capable
-harness with the plugin installed. Samantha is one client of shared CUAService.
-Credential capture requires the `agent-computer-use` plugin, installed
-CUAService, and shell access to the package.
+Load this reference when any installed harness should report task/subagent
+lifecycle or status to the shared Dynamic Island, request an approval or choice,
+or save a credential through its secure form. Samantha is one client of shared
+CUAService. CLI workflows require the plugin, installed service, and shell
+access to the package.
+
+## Agent roster
+
+Agent Computer Use scans exact process names for common local harnesses and
+shows those rows as **harness detected**. That proves only the harness process
+is open; it does not prove a task is active. The scan reads process names and
+PIDs only, never arguments or environment. Task rows come from explicit
+registration and can include parent/child links. A remote child appears when
+its parent or the child registers it; process scanning cannot discover remote
+workers.
+
+Once, open Agent Computer Use Settings → **AI Agents → Agent Roster**, enable it,
+and choose **Rotate** for its token. Every harness uses the shared `agent`
+source after this setup.
+
+Load this workflow when starting a task that should appear in the roster, when
+launching a child agent, and when each task ends. Use a unique ID per task run;
+repost `running` with the same ID to update it. Child IDs point to the parent's
+raw ID. A parent can post a remote child's status on its behalf.
+
+```sh
+TASK_ID="$(uuidgen)"
+python3 "$SKILL_DIR/../../bin/island-post" \
+  --source agent --name Codex --id "$TASK_ID" \
+  --kind running --title "Implementing the feature"
+
+CHILD_ID="$(uuidgen)"
+python3 "$SKILL_DIR/../../bin/island-post" \
+  --source agent --name Codex --id "$CHILD_ID" --parent-id "$TASK_ID" \
+  --kind running --title "Reviewing the implementation"
+
+python3 "$SKILL_DIR/../../bin/island-post" \
+  --source agent --name Codex --id "$CHILD_ID" --parent-id "$TASK_ID" \
+  --kind done --title "Review complete"
+python3 "$SKILL_DIR/../../bin/island-post" \
+  --source agent --name Codex --id "$TASK_ID" --kind done --title "Feature complete"
+```
+
+Use `error` when a task fails. Completed and failed rows remain briefly, then
+disappear; an unclosed registration expires after one hour. The parent ID is
+optional for top-level tasks. Keep secrets and private user data out of titles.
 
 ## Status, approvals, and choices
 
