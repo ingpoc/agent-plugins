@@ -10,6 +10,10 @@ This directory is the portable [Agent Plugin](https://agent-plugins.org/specific
 4. Client lists `agent-computer-use` tools **`state`** and **`act`** only.
    Verified `act` returns a compact AX delta (+ failure `error_type`); see
    `skills/macos-cua/references/observe-feedback.md`. Do not dump full AX trees.
+   Shared Dynamic Island helpers for shell-capable harnesses are
+   `bin/island-post` (status/approval/choice) and `bin/island-credential`
+   (metadata-only secure Keychain capture); follow
+   `skills/macos-cua/references/dynamic-island.md`.
 
 Published scores: this plugin's `README.md`. Refresh only from a warm `python3 skills/macos-cua/scripts/run_benchmarks.py --repeat 5 --rate`.
 
