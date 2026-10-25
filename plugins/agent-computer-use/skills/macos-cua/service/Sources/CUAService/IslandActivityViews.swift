@@ -486,14 +486,13 @@ struct IslandAgentListBody: View {
     var body: some View {
         let p = IslandBarLayout.cardPadding
         let all = model.listRows
-        let rows = Array(all.prefix(IslandAgentRows.maxRows))
-        let extra = all.count - rows.count
+        let rows = IslandAgentRows.hierarchical(all)
+        let extra = max(0, all.count - IslandAgentRows.maxRows)
         let h = model.cardHeight
         VStack(alignment: .leading, spacing: 0) {
-            // ≤ 4 fixed-height rows always fit: no scroll view (crisper, renders offscreen).
-            // One 1 s timeline for the whole list, only while it is on screen AND a row is running.
+            // One 1 s timeline for the roster, only while it is on screen AND a row is running.
             Group {
-                let running = rows.filter { $0.status == "running" }.map(\.elapsed_s)
+                let running = rows.filter { $0.agent.status == "running" }.map { $0.agent.elapsed_s }
                 if !running.isEmpty {
                     // Per second for the first minute, then per minute ("running 4m").
                     TimelineView(IslandAgentTicker(start: model.agentsAt, bases: running)) { ctx in
@@ -505,7 +504,7 @@ struct IslandAgentListBody: View {
             }
             .frame(height: h - 2 * p - (extra > 0 ? 18 : 0), alignment: .top)
             if extra > 0 {
-                Text("+\(extra) in app").font(IslandType.meta).foregroundStyle(Color.white.opacity(0.45))
+                Text("+\(extra) more · scroll").font(IslandType.meta).foregroundStyle(Color.white.opacity(0.45))
                     .layoutProbe("agents-footer")
                     .frame(height: 18, alignment: .bottom)
             }
@@ -514,13 +513,16 @@ struct IslandAgentListBody: View {
         .frame(width: IslandBarLayout.cardSize.width, height: h, alignment: .topLeading)
     }
 
-    private func rowStack(_ rows: [IslandAgent], extra: TimeInterval) -> some View {
-        VStack(spacing: 0) {
-            ForEach(rows, id: \.id) { a in row(a, extra: extra) }
+    private func rowStack(_ rows: [IslandAgentRow], extra: TimeInterval) -> some View {
+        ScrollView(.vertical) {
+            LazyVStack(spacing: 0) {
+                ForEach(rows) { item in row(item.agent, depth: item.depth, extra: extra) }
+            }
         }
+        .accessibilityLabel("Agent roster")
     }
 
-    private func row(_ a: IslandAgent, extra: TimeInterval) -> some View {
+    private func row(_ a: IslandAgent, depth: Int, extra: TimeInterval) -> some View {
         let pending = model.rowControls[a.id]
         let flashing = model.rowFlash.contains(a.id)
         return HStack(spacing: 10) {
@@ -552,6 +554,7 @@ struct IslandAgentListBody: View {
         }
         .frame(height: IslandAgentRows.rowHeight)
         .padding(.horizontal, 6)
+        .padding(.leading, CGFloat(min(depth, 4)) * 14)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(flashing ? IslandPalette.red.opacity(0.25) : Color.clear))
         .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: flashing)

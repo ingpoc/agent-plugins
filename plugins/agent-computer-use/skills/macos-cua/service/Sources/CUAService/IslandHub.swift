@@ -52,6 +52,9 @@ final class IslandHub {
     let store: IslandSettingsStore
     private(set) var samantha: IslandSnapshot?
     private(set) var entries: [String: Entry] = [:]   // key = source:id
+    private(set) var localHarnesses: [IslandAgent] = []
+    private var localHarnessScanAt = Date.distantPast
+    private var localHarnessScanInFlight = false
     private(set) var approvals: [Pending] = []
     /// Timed-out cards waiting to be acknowledged (hollow red ring on the source circle).
     private(set) var expiredNotices: [IslandExpired] = []
@@ -115,6 +118,7 @@ final class IslandHub {
             if a.status == "running", e.started != .distantPast { a.elapsed_s = max(0, now.timeIntervalSince(e.started)) }
             return a
         }
+        s.agents += localHarnesses
         // Queued cards: approvals jump the queue (then arrival order); the first owns the pill,
         // all show as needs-you rows + count.
         let queue = queued.filter { !shownInline($0) }
@@ -160,6 +164,27 @@ final class IslandHub {
         approvals.removeAll { $0.expires <= now }
         if !dead.isEmpty { persist() }
         if entries.count != before || !dead.isEmpty { changed() }
+    }
+
+    /// Best-effort local host scan; only exact allowlisted process names and PIDs are read.
+    func refreshLocalHarnesses(now: Date = Date()) {
+        guard !localHarnessScanInFlight, now.timeIntervalSince(localHarnessScanAt) >= 5 else { return }
+        localHarnessScanAt = now
+        localHarnessScanInFlight = true
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let rows = IslandLocalHarnessScanner.scan()
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.localHarnessScanInFlight = false
+                self.updateLocalHarnesses(self.store.sourceEnabled(.agentRoster) ? rows : [])
+            }
+        }
+    }
+
+    func updateLocalHarnesses(_ rows: [IslandAgent]) {
+        guard rows != localHarnesses else { return }
+        localHarnesses = rows
+        changed()
     }
 
     func clearSamantha() {
@@ -213,7 +238,7 @@ final class IslandHub {
         }
         let json = (try? JSONSerialization.jsonObject(with: r.body)) as? [String: Any] ?? [:]
         let rawSource = (json["source"] as? String) ?? r.query["source"] ?? r.headers["x-island-source"] ?? ""
-        guard let source = AgentSource.parse(rawSource) else { return .err(400, "unknown source (samantha|grok-bot|cursor|codex)") }
+        guard let source = AgentSource.parse(rawSource) else { return .err(400, "unknown source (samantha|grok-bot|cursor|codex|agent)") }
         if r.peerVerified {
             // Same-uid local peer: the source must be opted in (token created by the user's Rotate /
             // Samantha toggle). CUAService reads its own item — no Keychain prompt for anyone.
@@ -300,8 +325,8 @@ final class IslandHub {
         changed()
     }
 
-    /// Agent schema: {source, id, kind: running|needs_you|done|error|approval|clear, title, detail, app,
-    /// destructive, ttl_s}.
+    /// Agent schema: {source, id, name, parent_id, kind: running|needs_you|done|error|approval|clear,
+    /// title, detail, app, destructive, ttl_s}.
     private func publishAgent(_ j: [String: Any], source: AgentSource, now: Date) -> Response {
         let rawId = (j["id"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "default"
         guard rawId.count <= 80 else { return .err(400, "id too long") }
@@ -373,16 +398,27 @@ final class IslandHub {
             return .ok(["id": rawId])
         case "running", "needs_you", "done", "error":
             guard !title.isEmpty else { return .err(400, "title required") }
+            let rawParent = (j["parent_id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let rawParent {
+                guard !rawParent.isEmpty, rawParent.count <= 80 else { return .err(400, "parent_id must be 1-80 characters") }
+                guard rawParent != rawId else { return .err(400, "agent cannot be its own parent") }
+            }
+            let parentID = rawParent.map { Self.key(source, $0) } ?? entries[id]?.agent.parent_id
+            let rawName = (j["name"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayName = String((source == .agentRoster
+                                      ? (rawName.isEmpty ? (entries[id]?.agent.name ?? source.title) : rawName)
+                                      : source.title).prefix(48))
             let cap = store.cap(source)
             let needs = kind == "needs_you" && cap.rank >= AttentionCap.attention.rank
-            let defaultTTL: TimeInterval = (kind == "done" || kind == "error") ? 30 : 600
+            let defaultTTL: TimeInterval = (kind == "done" || kind == "error") ? 30
+                : source == .agentRoster ? 3600 : 600
             let ttl = min(3600, max(5, (j["ttl_s"] as? NSNumber)?.doubleValue ?? defaultTTL))
             let controls = ((j["controls"] as? [Any]) ?? []).compactMap { ($0 as? String)?.lowercased() }
                 .filter { Self.allowedControls.contains($0) }
             let started = entries[id].map { $0.agent.status == "running" && kind == "running" ? $0.started : now } ?? now
-            let agent = IslandAgent(id: id, name: source.title, app: app, title: title,
+            let agent = IslandAgent(id: id, name: displayName, app: app, title: title,
                                     status: kind == "needs_you" ? "needs_you" : kind, needs_you: needs,
-                                    controls: Array(Set(controls)).sorted())
+                                    parent_id: parentID, controls: Array(Set(controls)).sorted())
             entries[id] = Entry(source: source, agent: agent, updated: now, ttl: ttl, started: started)
             changed()
             return .ok(["id": rawId])
@@ -599,6 +635,8 @@ final class IslandHub {
     func applyGating() {
         let before = (entries.count, approvals.count)
         entries = entries.filter { store.sourceEnabled($0.value.source) }
+        let oldLocalHarnesses = localHarnesses
+        if !store.sourceEnabled(.agentRoster) { localHarnesses = [] }
         let gone = approvals.filter { !store.mayRaiseApproval($0.source) }
         for g in gone {
             record(g.approval.id, Answer(status: .dismissed))
@@ -606,7 +644,7 @@ final class IslandHub {
         }
         approvals.removeAll { !store.mayRaiseApproval($0.source) }
         if !gone.isEmpty { persist() }
-        if before != (entries.count, approvals.count) { changed() }
+        if before != (entries.count, approvals.count) || oldLocalHarnesses != localHarnesses { changed() }
     }
 }
 

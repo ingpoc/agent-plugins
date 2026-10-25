@@ -3,11 +3,11 @@ name: macos-cua
 description: >-
   Operate native macOS apps through CUAService. Use when an agent must operate
   or validate native Mac apps, or use shared Dynamic Island across installed
-  harnesses to show status, request approval or a choice, or save API keys,
-  passwords, and tokens to login Keychain. Act-first: one batched act per app;
+  harnesses to report task/subagent lifecycle, show status, request approval or
+  a choice, or save API keys, passwords, and tokens to login Keychain. Act-first: one batched act per app;
   compact state only for discovery or after an act miss.
   Current-tree labels (Clear=All Clear). Overlay cursor; AX press first.
-  Browser DOM and terminal-only tasks do not trigger this skill. Every session friction must
+  Browser DOM and unrelated terminal-only tasks do not trigger CUA actions. Every session friction must
   become an app-agnostic fast_path linter/grader so later agents do not
   repeat it.
 allowed-tools: Bash, Read
@@ -62,7 +62,7 @@ Comet **other-window** popups (Google chooser, Razorpay Bank) bind by window tit
 
 | When | File |
 | --- | --- |
-| Shared Dynamic Island status, approval/choice, or secure credential save from any installed agent harness | [`references/dynamic-island.md`](references/dynamic-island.md) |
+| Shared Dynamic Island task/subagent roster, status, approval/choice, or secure credential save from any installed harness | [`references/dynamic-island.md`](references/dynamic-island.md) |
 | Samantha voice/browser runtime verification and Kindle findings | [verify-samantha](../../runtime/voice-cua/verify/SKILL.md) |
 | Act-first loop / input delivery / Mini local-exec | [`references/fast-workflow.md`](references/fast-workflow.md) |
 | MCP / CUAService architecture | [`references/architecture.md`](references/architecture.md) |

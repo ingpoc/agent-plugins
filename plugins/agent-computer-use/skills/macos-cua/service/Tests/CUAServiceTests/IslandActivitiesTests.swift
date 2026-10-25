@@ -211,12 +211,31 @@ final class IslandActivitiesTests: XCTestCase {
     }
 
     // MARK: 7 Agent rows
+    func testAgentRosterHierarchyKeepsChildrenOrphansAndCyclesVisible() {
+        let child = IslandAgent(id: "agent:child", name: "Claude", status: "running", parent_id: "agent:parent")
+        let parent = IslandAgent(id: "agent:parent", name: "Codex", status: "running")
+        let orphan = IslandAgent(id: "agent:orphan", name: "Cursor", status: "running", parent_id: "missing")
+        let cycleA = IslandAgent(id: "agent:cycle-a", name: "A", status: "running", parent_id: "agent:cycle-b")
+        let cycleB = IslandAgent(id: "agent:cycle-b", name: "B", status: "running", parent_id: "agent:cycle-a")
+
+        let rows = IslandAgentRows.hierarchical([child, parent, orphan, cycleA, cycleB])
+        XCTAssertEqual(rows.map(\.id), ["agent:parent", "agent:child", "agent:orphan", "agent:cycle-a", "agent:cycle-b"])
+        XCTAssertEqual(rows.map(\.depth), [0, 1, 0, 0, 1])
+    }
+
+    func testLegacyAgentWireFormatNeedsNoParentField() throws {
+        let agent = try JSONDecoder().decode(IslandAgent.self, from: Data("{}".utf8))
+        XCTAssertNil(agent.parent_id)
+    }
+
     func testRowControlRulesAndFlow() async throws {
         let run = IslandAgent(id: "codex:j1", name: "Codex", title: "Migrating", status: "running", controls: ["stop"])
         let err = IslandAgent(id: "codex:j2", name: "Codex", title: "Build", status: "error", controls: ["retry"])
         XCTAssertEqual(IslandAgentRows.control(for: run), .stop)
         XCTAssertEqual(IslandAgentRows.control(for: err), .retry)
         XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "x", status: "running")), .stop, "every running row shows Stop")
+        XCTAssertNil(IslandAgentRows.control(for: IslandAgent(id: "agent:task", status: "running")), "shared roster rows need an explicit Stop handler")
+        XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "agent:task", status: "running", controls: ["stop"])), .stop)
         XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "pending:a", status: "needs_you")), .approve)
         XCTAssertEqual(IslandAgentRows.cardHeight(rows: 1, footer: false), 96)
         XCTAssertEqual(IslandAgentRows.cardHeight(rows: 2, footer: false), 120)

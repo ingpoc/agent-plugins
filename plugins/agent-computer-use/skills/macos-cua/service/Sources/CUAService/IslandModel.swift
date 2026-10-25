@@ -8,16 +8,19 @@ struct IslandAgent: Codable, Equatable, Identifiable {
     var name: String = ""      // "Codex"
     var app: String = ""       // app whose icon represents the agent ("Cursor", "Codex")
     var title: String = ""     // what it's doing
-    var status: String = ""    // running | done | error | needs_you
+    var status: String = ""    // running | done | error | needs_you | harness
     var needs_you: Bool = false
     var elapsed_s: Double = 0
+    /// Fully qualified source:id of the registered parent task, when this is a subagent.
+    var parent_id: String? = nil
     /// Controls the posting agent honours ("stop", "retry"); the island only offers these.
     var controls: [String] = []
 
     init(id: String = "", name: String = "", app: String = "", title: String = "", status: String = "",
-         needs_you: Bool = false, elapsed_s: Double = 0, controls: [String] = []) {
+         needs_you: Bool = false, elapsed_s: Double = 0, parent_id: String? = nil, controls: [String] = []) {
         self.id = id; self.name = name; self.app = app; self.title = title
-        self.status = status; self.needs_you = needs_you; self.elapsed_s = elapsed_s; self.controls = controls
+        self.status = status; self.needs_you = needs_you; self.elapsed_s = elapsed_s
+        self.parent_id = parent_id; self.controls = controls
     }
 
     init(from decoder: Decoder) throws {
@@ -29,6 +32,7 @@ struct IslandAgent: Codable, Equatable, Identifiable {
         status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
         needs_you = try c.decodeIfPresent(Bool.self, forKey: .needs_you) ?? false
         elapsed_s = try c.decodeIfPresent(Double.self, forKey: .elapsed_s) ?? 0
+        parent_id = try c.decodeIfPresent(String.self, forKey: .parent_id)
         controls = try c.decodeIfPresent([String].self, forKey: .controls) ?? []
     }
 }
