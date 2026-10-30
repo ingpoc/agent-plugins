@@ -2,6 +2,12 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.51 (2026-10-30)
+
+- Grok Build now loads the `agent-computer-use` MCP server. Grok reads the root `plugin.json` before `.grok-plugin/plugin.json`, so the Grok pointer was never read and Grok found no `.mcp.json`; the old pointer also used `${CURSOR_PLUGIN_ROOT}`, which Grok does not expand. The package ships a root `.mcp.json` with `${GROK_PLUGIN_ROOT}/bin/agent-computer-use-mcp`. A repo test fails when any harness manifest's MCP config uses another harness's variables or a cwd-relative command.
+- Dynamic Island "Detected local processes": each Codex row shows the thread title, model, reasoning effort, working/idle and last update, read-only from the Codex state DB (`state_5.sqlite`, `mode=ro`) and the rollout's latest `turn_context`. A PID maps to a thread only when it holds that rollout open; app-server PIDs say "no open thread" and recent threads are listed without a PID. Cursor rows say "model unknown".
+- Retired `bin/cua-driver-mcp` (raw cua-driver wrapper, diagnostic only).
+
 ## 0.2.50 (2026-10-30)
 
 - Dynamic Island stays visible while the Dock is showing. The Mission Control check counted the Dock's own window (display-sized, Dock level 20, on screen whenever the Dock is shown), so with "Hide in Mission Control" on the island was ordered out whenever the Dock appeared, and permanently with Dock auto-hide off. Mission Control is now detected from Window Server's `ExposeShieldWindow` (layer 19). Island hide/show transitions are logged with their reason (`island_env_hidden` / `island_env_shown`).
