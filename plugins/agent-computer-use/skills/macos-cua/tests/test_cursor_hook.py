@@ -27,12 +27,12 @@ class CursorHookTests(unittest.TestCase):
         posts = [json.loads(l) for l in log.read_text().splitlines()] if log.exists() else []
         return json.loads(out.stdout), posts
 
-    def state_db(self, home, conv, name):
+    def state_db(self, home, conv, name, model_config=None):
         db = Path(home) / "Library/Application Support/Cursor/User/globalStorage/state.vscdb"
         db.parent.mkdir(parents=True)
         con = sqlite3.connect(db)
         con.execute("CREATE TABLE cursorDiskKV (key TEXT PRIMARY KEY, value BLOB)")
-        con.execute("INSERT INTO cursorDiskKV VALUES (?, ?)", (f"composerData:{conv}", json.dumps({"name": name})))
+        con.execute("INSERT INTO cursorDiskKV VALUES (?, ?)", (f"composerData:{conv}", json.dumps({"name": name, **({"modelConfig": model_config} if model_config else {})})))
         con.commit(); con.close()
 
     def test_prompt_posts_working_row_with_chat_name_and_model_meta(self):
@@ -49,6 +49,27 @@ class CursorHookTests(unittest.TestCase):
             self.assertEqual(args[args.index("--title") + 1], "General chat")
             self.assertEqual(args[args.index("--meta") + 1], "Grok 4.7 · high")
             self.assertEqual(args[args.index("--source") + 1], "cursor")
+
+    def test_fast_from_payload_or_chat_config_and_done_keeps_meta(self):
+        config = {"modelName": "grok-4.7", "selectedModels": [{"modelId": "grok-4.7", "parameters": [
+            {"id": "context", "value": "256k"}, {"id": "reasoning_effort", "value": "high"}, {"id": "fast", "value": "true"}]}]}
+        with tempfile.TemporaryDirectory() as home:
+            self.state_db(home, "c4", "General chat", config)
+            _, posts = self.run_hook({"hook_event_name": "beforeSubmitPrompt", "conversation_id": "c4", "prompt": "hi",
+                                      "model_id": "grok-4.7", "model_params": [{"id": "reasoning_effort", "value": "high"}]}, home)
+            self.assertEqual(posts[0][posts[0].index("--meta") + 1], "Grok 4.7 · high · fast")
+            _, posts = self.run_hook({"hook_event_name": "stop", "conversation_id": "c4", "status": "completed"}, home)
+            self.assertEqual(posts[-1][posts[-1].index("--kind") + 1], "done")
+            self.assertEqual(posts[-1][posts[-1].index("--meta") + 1], "Grok 4.7 · high · fast")
+        with tempfile.TemporaryDirectory() as home:
+            self.state_db(home, "c5", "Other", config)
+            _, posts = self.run_hook({"hook_event_name": "beforeSubmitPrompt", "conversation_id": "c5", "prompt": "x"}, home)
+            self.assertEqual(posts[0][posts[0].index("--meta") + 1], "Grok 4.7 · high · fast", "no payload model: chat config")
+        with tempfile.TemporaryDirectory() as home:
+            self.state_db(home, "c6", "Other", config)
+            _, posts = self.run_hook({"hook_event_name": "beforeSubmitPrompt", "conversation_id": "c6", "prompt": "x",
+                                      "model_id": "claude-4.5-sonnet"}, home)
+            self.assertEqual(posts[0][posts[0].index("--meta") + 1], "Sonnet 4.5", "another model never borrows params")
 
     def test_unnamed_chat_uses_trimmed_prompt_and_stop_marks_done(self):
         with tempfile.TemporaryDirectory() as home:

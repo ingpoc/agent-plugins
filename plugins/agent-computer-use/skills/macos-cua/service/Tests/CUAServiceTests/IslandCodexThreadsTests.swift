@@ -95,6 +95,20 @@ final class IslandCodexThreadsTests: XCTestCase {
         sqlite3_exec(writer, "ROLLBACK", nil, nil, nil)
     }
 
+    func testDesktopThreadUsesTheAppsEffortLabels() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        var hi = IslandCodexThreads.ThreadRecord(id: "hi", rolloutPath: "/hi", title: "hi", firstUserMessage: nil,
+                                                 model: "gpt-6.1-sol", effort: "low", updatedAt: now.addingTimeInterval(-120))
+        hi.rollout.state = "done"; hi.rollout.since = now.addingTimeInterval(-120); hi.originator = "codex_work_desktop"
+        var cli = hi
+        cli.id = "cli"; cli.originator = "codex_exec"
+        let rows = IslandCodexThreads.rows(records: [hi, cli], hosts: [], now: now)
+        XCTAssertEqual(rows.first { $0.id.hasSuffix(":hi") }?.local_detail, "Sol · light · done 2m")
+        XCTAssertEqual(rows.first { $0.id.hasSuffix(":cli") }?.local_detail, "Sol · low · done 2m")
+        XCTAssertEqual(IslandCodexThreads.effortLabel("xhigh", desktop: true), "extra high")
+        XCTAssertNil(IslandCodexThreads.effortLabel(nil, desktop: true))
+    }
+
     func testRosterSpecRows() {
         let now = Date(timeIntervalSince1970: 10_000)
         var done = IslandCodexThreads.ThreadRecord(id: "d", rolloutPath: "/d", title: "Ship notes", firstUserMessage: nil,
@@ -113,7 +127,7 @@ final class IslandCodexThreadsTests: XCTestCase {
         let live = IslandCodexThreads.Host(pid: 42, executable: "/opt/homebrew/bin/codex", rollouts: ["/d"])
         let rows = IslandCodexThreads.rows(records: [done, failed, helper, working, probe], hosts: [live], now: now)
         XCTAssertEqual(rows.map(\.id), ["local:codex-thread:d", "local:codex-thread:e", "local:codex-thread:w"], "helpers fold, probes hide")
-        XCTAssertEqual(rows[0].local_detail, "done 2m")
+        XCTAssertEqual(rows[0].local_detail, "Terra · medium · done 2m", "a done row keeps its model meta")
         XCTAssertEqual(rows[1].local_detail, "Connection lost", "human words on the row")
         XCTAssertTrue(rows[1].tooltip?.hasPrefix("stream disconnected") == true, "technical detail in the tooltip")
         XCTAssertEqual(rows[2].local_detail, "medium · +1 helpers · 4m", "unknown model omitted, never 'unknown'")

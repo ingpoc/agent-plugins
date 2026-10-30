@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.60 (2026-10-30)
+
+- Model meta on every Codex and Cursor row, done rows included ("Sol · light · done 2m", "Grok 4.7 · high · fast · done 1m"). Codex app threads use the app's own effort labels (low → Light, xhigh → Extra High, per the Codex docs); terminal threads keep the CLI's values. Cursor rows add Fast from the hook's model params, or from the chat's own modelConfig (read-only) for ids the payload leaves out; the stop hook resends the meta. Claude slugs like `claude-4.5-sonnet` now read "Sonnet 4.5".
+
 ## 0.2.59 (2026-10-30)
 
 - Grok Bot status: read the app's ARIA status region (AXApplicationStatus, aria-live polite) wherever it sits in the top six levels of the page; 0.2.58 looked only two levels down and missed it. 0.2.58 was built but not tagged.
