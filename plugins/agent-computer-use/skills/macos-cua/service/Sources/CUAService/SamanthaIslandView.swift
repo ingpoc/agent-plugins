@@ -349,8 +349,7 @@ struct SamanthaAppCircle: View {
     }
 }
 
-/// One circle per source (max 3 + "+N"): source icon; amber dot (or count at ≥ 2) when it needs you;
-/// hollow red ring when one of its cards timed out unanswered.
+/// One circle per source (max 3 + "+N"): urgent groups sort first and retain state markers.
 struct SamanthaSourceCircle: View {
     let group: IslandSourceGroup
     var body: some View {
@@ -360,6 +359,8 @@ struct SamanthaSourceCircle: View {
                 Text("+\(group.overflow)")
                     .font(.system(size: 11, weight: .semibold)).monospacedDigit()
                     .foregroundStyle(Color.white.opacity(0.7))
+            } else if group.processCount > 0 {
+                Image(systemName: "cpu").font(.system(size: 14, weight: .medium)).foregroundStyle(Color.white.opacity(0.75))
             } else {
                 SamanthaAppIcon(appName: group.app.isEmpty ? group.id : group.app)
             }
@@ -367,7 +368,14 @@ struct SamanthaSourceCircle: View {
         }
         .frame(width: IslandBarLayout.circleDiameter, height: IslandBarLayout.circleDiameter)
         .overlay(alignment: .topTrailing) {
-            if group.needsYou >= 2 {
+            if group.processCount > 0 {
+                Text("\(group.processCount)")
+                    .font(.system(size: 8, weight: .bold)).monospacedDigit()
+                    .foregroundStyle(Color.white)
+                    .frame(minWidth: 12, minHeight: 12)
+                    .background(Capsule().fill(Color.gray.opacity(0.8)))
+                    .offset(x: 3, y: -3)
+            } else if group.needsYou >= 2 {
                 Text("\(group.needsYou)")
                     .font(.system(size: 9, weight: .bold)).monospacedDigit()
                     .foregroundStyle(Color.black)
@@ -375,19 +383,36 @@ struct SamanthaSourceCircle: View {
                     .background(Capsule().fill(IslandPalette.amber))
                     .offset(x: 3, y: -3)
             } else if group.needsYou == 1 {
-                SamanthaSignalDot(color: IslandPalette.amber).offset(x: 1, y: -1)
+                Text("1")
+                    .font(.system(size: 8, weight: .heavy).monospacedDigit())
+                    .foregroundStyle(Color.black)
+                    .frame(width: 12, height: 12)
+                    .background(Circle().fill(IslandPalette.amber))
+                    .offset(x: 2, y: -2)
             }
         }
         .overlay(alignment: group.needsYou > 0 ? .bottomTrailing : .topTrailing) {
             if group.expired { IslandHollowRing().offset(x: 1, y: group.needsYou > 0 ? 1 : -1) }
+        }
+        .overlay(alignment: .topLeading) {
+            if group.failed {
+                Text("!")
+                    .font(.system(size: 8, weight: .heavy))
+                    .foregroundStyle(Color.white)
+                    .frame(width: 12, height: 12)
+                    .background(Circle().fill(IslandPalette.red))
+                    .offset(x: -2, y: -2)
+            }
         }
         .contentShape(Circle())
         .accessibilityLabel(accessibility)
     }
 
     private var accessibility: String {
+        if group.processCount > 0 { return "\(group.processCount) local processes detected, task activity unknown" }
         var s = group.overflow > 0 ? "\(group.overflow) more agents" : group.id
         if group.needsYou > 0 { s += ", needs you" }
+        if group.failed { s += ", an agent failed or stopped updating" }
         if group.expired { s += ", a request timed out" }
         return s
     }
@@ -487,6 +512,28 @@ struct SamanthaIslandBar: View {
             ghostStack(rect)
             // Fixed window-size container: only the path (and offsets) animate, never a frame.
             shape.modifier(IslandMotionProbe(size: rect.size))
+            if !model.cardOpen, [.idle, .doneSettled].contains(model.presentation),
+               let attention = model.compactAgentAttention {
+                let agent = attention.agent
+                let status = agent.status == "needs_you" || agent.needs_you ? "Needs you"
+                    : agent.status == "stale" ? "Updates stopped" : "Failed"
+                let symbol = agent.status == "needs_you" || agent.needs_you ? "hand.raised.fill"
+                    : agent.status == "stale" ? "clock.badge.exclamationmark" : "exclamationmark.triangle.fill"
+                HStack(spacing: 5) {
+                    Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).frame(width: 14)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(agent.name.isEmpty ? agent.app : agent.name)
+                            .font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                        Text(status).font(.system(size: 10, weight: .medium)).lineLimit(1)
+                    }
+                    .foregroundStyle(Color.white)
+                }
+                .frame(width: rect.width - 16, height: IslandBarLayout.compactHeight, alignment: .leading)
+                .padding(.horizontal, 8)
+                .offset(x: rect.minX, y: rect.minY)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(agent.name.isEmpty ? agent.app : agent.name), \(status)\(attention.parentName.map { ", child of \($0)" } ?? "")")
+            }
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
@@ -873,7 +920,8 @@ struct SamanthaIslandBar: View {
                     Text(card.subtitle)
                         .font(.system(size: 13))
                         .foregroundStyle(Color.white.opacity(0.7))
-                        .lineLimit(model.presentation == .needsYou ? nil : (model.isChoiceCard ? 1 : 2))
+                        .lineLimit(model.presentation == .needsYou || model.agentApproval?.destructive == true
+                            ? nil : (model.isChoiceCard ? 1 : 2))
                         .truncationMode(.tail)
                         .frame(width: IslandBarLayout.cardTrailOrigin.x - IslandBarLayout.cardTextX - 8, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
@@ -992,6 +1040,12 @@ struct SamanthaIslandBar: View {
         case .choice:
             EmptyView()   // drawn by IslandChoiceBody in cardContent
         case .decision(let secondary, let primary, let destructive):
+            let missingScope = {
+                if case .agentApprove(let id) = primary.1 {
+                    return model.agentApproval?.id == id && model.destructiveApprovalMissingScope
+                }
+                return false
+            }()
             HStack(spacing: IslandBarLayout.decisionGap) {
                 Button(secondary.0) { perform(secondary.1) }
                     .buttonStyle(SamanthaDecisionStyle(role: .secondary))
@@ -1001,6 +1055,8 @@ struct SamanthaIslandBar: View {
                     .buttonStyle(SamanthaDecisionStyle(role: destructive ? .destructive : .primary))
                     .layoutProbe("decision-primary", .control)
                     .islandFocusRing(model.isNavFocused(.action(primary.1)), shape: .capsule)
+                    .disabled(missingScope)
+                    .opacity(missingScope ? 0.55 : 1)
             }
         }
     }

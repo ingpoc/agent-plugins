@@ -8,13 +8,14 @@ access to the package.
 
 ## Agent roster
 
-Agent Computer Use scans exact process names for common local harnesses and
-shows those rows as **harness detected**. That proves only the harness process
-is open; it does not prove a task is active. The scan reads process names and
-PIDs only, never arguments or environment. Task rows come from explicit
-registration and can include parent/child links. A remote child appears when
-its parent or the child registers it; process scanning cannot discover remote
-workers.
+The roster separates reported agent tasks from best-effort local process
+observations. Registered task rows carry their reported status and parent/child
+links. Local matches appear under **Detected local processes** with **Activity
+unknown** and a PID; they do not count as active agent tasks. Process presence
+does not prove that work is active. The scanner reads process names and PIDs
+only, never arguments or environment, and labels Comet as Comet without
+inferring a Grok agent. A remote child appears when its parent or the child
+registers it; local process scanning cannot discover remote workers.
 
 Once, open Agent Computer Use Settings → **AI Agents → Agent Roster**, enable it,
 and choose **Rotate** for its token. Every harness uses the shared `agent`
@@ -44,8 +45,28 @@ python3 "$SKILL_DIR/../../bin/island-post" \
 ```
 
 Use `error` when a task fails. Completed and failed rows remain briefly, then
-disappear; an unclosed registration expires after one hour. The parent ID is
-optional for top-level tasks. Keep secrets and private user data out of titles.
+disappear. When a running or `needs_you` row stops updating past its TTL, it
+stays visible as **updates stopped** with its last-seen age; its remote controls
+are disabled. Dismiss the stale row locally, or repost the same ID to restore
+live status. The parent ID is optional for top-level tasks. Keep secrets and
+private user data out of titles.
+
+The compact pill names the highest-attention agent and state. The expanded
+roster sorts attention-needed branches ahead of healthy work, labels each
+child's parent, and keeps children beside that parent. Pending approval and
+choice rows open the full request; activating a roster row never answers it.
+Stopping shows the full agent/task target plus **Confirm stop** and **Keep
+running**. Failed Stop and Retry requests remain marked **Not sent · Try
+again** until that agent publishes a later update.
+
+For a destructive approval, --detail must name the exact affected targets.
+The hub rejects new destructive requests without that scope, and the card shows
+the full detail before **Confirm approve** can be activated. A restored legacy
+request without scope remains denyable, but its approval button stays disabled.
+
+Use **⌃⌘I** to navigate the open island with arrow keys or Tab. Navigation
+covers every actionable roster row in display order and scrolls focused rows
+into view. VoiceOver labels include the task, state, and parent relationship.
 
 ## Status, approvals, and choices
 

@@ -11,7 +11,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 from voice_cua import workflow_store as store
 
-INDEX = "---\nname: samantha-workflow\ndescription: Samantha task workflows.\n---\n\n- Create or repair a Samantha workflow → [Workflow authoring](references/authoring.md)\n"
+INDEX = "---\nname: samantha-workflow\ndescription: Samantha task workflows.\n---\n\n- Create, update, retire, or repair a Samantha workflow → [Workflow authoring](references/authoring.md)\n"
 
 
 class WorkflowStoreTests(unittest.TestCase):
@@ -53,6 +53,24 @@ class WorkflowStoreTests(unittest.TestCase):
         self.assertEqual(self.save(expected_revision=first["revision"])["error_type"], "workflow_revision_conflict")
         self.assertEqual(self.save()["error_type"], "workflow_revision_conflict")
         self.assertIn("Corrected", store.read_workflow("open-music")["content"])
+
+    def test_delete_removes_reference_and_trigger_with_current_revision(self):
+        first = self.save()
+        result = store.delete_workflow({"slug": "open-music", "expected_revision": first["revision"]})
+        self.assertTrue(result["ok"])
+        self.assertFalse((self.root / "references/open-music.md").exists())
+        self.assertNotIn("open-music.md", store.index_context())
+        self.assertFalse(store.read_workflow("open-music")["ok"])
+
+    def test_delete_rejects_stale_revision_and_owner_reference(self):
+        first = self.save()
+        self.save(expected_revision=first["revision"], content="# Updated\nVerify playback.\n")
+        stale = store.delete_workflow({"slug": "open-music", "expected_revision": first["revision"]})
+        protected = store.delete_workflow({"slug": "authoring", "expected_revision": "current"})
+        self.assertEqual(stale["error_type"], "workflow_revision_conflict")
+        self.assertFalse(protected["ok"])
+        self.assertTrue((self.root / "references/open-music.md").exists())
+        self.assertIn("open-music.md", store.index_context())
 
     def test_no_traversal_owner_overwrite_or_multiline_trigger(self):
         for slug in ("../escape", "/tmp/escape", "a/b", "UPPER", "a" * 65, "authoring"):
@@ -116,6 +134,27 @@ class WorkflowStoreTests(unittest.TestCase):
 
         with patch.object(store, "_write", write):
             result = self.save(expected_revision=first["revision"], content="# Changed\n")
+        self.assertFalse(result["ok"])
+        self.assertEqual((self.root / "references/open-music.md").read_text(), old_doc)
+        self.assertEqual((self.root / "SKILL.md").read_text(), old_index)
+        self.assertFalse((self.root / ".transaction.json").exists())
+
+    def test_failed_delete_index_write_restores_document_and_index(self):
+        first = self.save()
+        old_doc = (self.root / "references/open-music.md").read_text()
+        old_index = (self.root / "SKILL.md").read_text()
+        original = store._write
+        failed = False
+
+        def write(name, text):
+            nonlocal failed
+            if name == "SKILL.md" and not failed:
+                failed = True
+                raise OSError("disk failure")
+            return original(name, text)
+
+        with patch.object(store, "_write", write):
+            result = store.delete_workflow({"slug": "open-music", "expected_revision": first["revision"]})
         self.assertFalse(result["ok"])
         self.assertEqual((self.root / "references/open-music.md").read_text(), old_doc)
         self.assertEqual((self.root / "SKILL.md").read_text(), old_index)

@@ -102,12 +102,33 @@ final class IslandHubTests: XCTestCase {
         XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: t, json: selfParent), port: 8777).status, 400)
     }
 
-    func testLocalHarnessRowsMergeIntoRoster() {
+    func testLocalHarnessRowsMergeIntoRoster() throws {
         let hub = IslandHub(store: store)
-        let detected = IslandAgent(id: "local:codex:42", name: "Codex", app: "Codex", title: "PID 42", status: "harness")
-        hub.updateLocalHarnesses([detected])
-        XCTAssertEqual(hub.compose().agents, [detected])
-        XCTAssertEqual(IslandAgentRows.statusText(detected), "harness detected")
+        let detected = (42...45).map {
+            IslandAgent(id: "local:codex:\($0)", name: "Codex", app: "Codex", title: "PID \($0)", status: "process")
+        }
+        hub.updateLocalHarnesses(detected)
+        let snapshot = hub.compose()
+        XCTAssertEqual(snapshot.agents, detected)
+
+        let model = IslandModel()
+        model.idleActivity = "agents"
+        _ = model.apply(snapshot)
+        XCTAssertTrue(model.listRows.isEmpty)
+        XCTAssertEqual(model.localProcessRows, detected)
+        XCTAssertNil(model.compactAgentAttention)
+        XCTAssertEqual(model.sourceGroups.map(\.id), ["local-processes"])
+        XCTAssertEqual(model.sourceGroups.first?.processCount, 4)
+        XCTAssertEqual(IslandAgentRows.statusText(detected[0]), "activity unknown")
+        XCTAssertNil(IslandAgentRows.control(for: detected[0]))
+        model.openAgentList()
+        XCTAssertEqual(model.cardHeight, 296, "empty task state plus process section and four rows")
+        XCTAssertTrue(model.accessibilityText.contains("4 local processes detected; task activity unknown"))
+
+        let state = hub.handle(req("GET", "/api/island/state", token: try token(.codex), query: ["source": "codex"]), port: 8777)
+        XCTAssertEqual(state.status, 200)
+        XCTAssertEqual(state.body["agents"], "0")
+        XCTAssertEqual(state.body["local_processes"], "4")
     }
 
     func testApprovalFlowAndGating() throws {
@@ -129,6 +150,17 @@ final class IslandHubTests: XCTestCase {
         hub.resolveApproval(id: card.id, approved: true)
         XCTAssertNil(hub.compose().agent_approval)
         XCTAssertEqual(hub.handle(poll, port: 8777).body["status"], "approved")
+    }
+
+    func testDestructiveApprovalsRequireTargetScope() throws {
+        let hub = IslandHub(store: store)
+        let cursor = try token(.cursor)
+        var body: [String: Any] = ["source": "cursor", "id": "delete-1", "kind": "approval",
+                                   "title": "Delete stale branches?", "destructive": true]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: cursor, json: body), port: 8777).status, 400)
+        body["detail"] = "Targets: feature/cache, stale/logging, migration/legacy"
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: cursor, json: body), port: 8777).status, 200)
+        XCTAssertEqual(hub.compose().agent_approval?.subtitle, "Targets: feature/cache, stale/logging, migration/legacy")
     }
 
     /// Agent prompts stay off the island while their source app is frontmost (already inline there);
@@ -179,6 +211,54 @@ final class IslandHubTests: XCTestCase {
         XCTAssertEqual(hub.compose(now: t0.addingTimeInterval(31)).agents.map(\.title), ["Research"], "done rows expire after 30 s")
         _ = hub.handle(req("POST", "/api/island/publish", token: t, json: ["source": "grok", "id": "b", "kind": "clear"]), port: 8777)
         XCTAssertTrue(hub.compose().agents.isEmpty)
+    }
+
+    func testSilentRunningAgentBecomesStaleAndCanBeDismissed() throws {
+        let hub = IslandHub(store: store)
+        let grok = try token(.grokBot)
+        let t0 = Date(timeIntervalSince1970: 10_000)
+        let body: [String: Any] = ["source": "grok", "id": "quiet", "kind": "running", "title": "Research",
+                                   "ttl_s": 5, "controls": ["stop"]]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: grok, json: body), port: 8777, now: t0).status, 200)
+
+        hub.expire(now: t0.addingTimeInterval(6))
+        let stale = try XCTUnwrap(hub.compose(now: t0.addingTimeInterval(6)).agents.first)
+        XCTAssertEqual(stale.status, "stale")
+        XCTAssertEqual(stale.last_seen_at, t0.timeIntervalSince1970)
+        XCTAssertEqual(stale.elapsed_s, 6)
+        XCTAssertTrue(stale.controls.isEmpty)
+        XCTAssertEqual(IslandAgentRows.control(for: stale), .dismiss)
+        XCTAssertFalse(hub.requestControl(id: IslandHub.key(.grokBot, "quiet"), action: "stop"))
+
+        XCTAssertTrue(hub.dismissStale(id: stale.id, now: t0.addingTimeInterval(6)))
+        XCTAssertTrue(hub.compose(now: t0.addingTimeInterval(6)).agents.isEmpty)
+    }
+
+    func testRosterReviewSelectsChoiceDetailWithoutAnsweringIt() throws {
+        store.set("attention", for: AgentSource.grokBot.keyPrefix + "cap")
+        let grok = try token(.grokBot)
+        let hub = IslandHub(store: store)
+        let body: [String: Any] = ["source": "grok-bot", "id": "pick", "kind": "choice",
+                                   "prompt": "Choose an option", "options": [["label": "Keep", "value": "keep"],
+                                                                                 ["label": "Delete", "value": "delete"]]]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: grok, json: body), port: 8777).status, 200)
+        let id = IslandHub.key(.grokBot, "pick")
+        let row = try XCTUnwrap(hub.compose().agents.first { $0.id == "pending:" + id })
+        XCTAssertEqual(IslandAgentRows.control(for: row), .review)
+
+        let model = IslandModel()
+        model.apply(hub.compose())
+        model.onRowControl = { selected, action in
+            guard action == .review, hub.selectApproval(id: String(selected.id.dropFirst("pending:".count))) else { return }
+            model.apply(hub.compose())
+            model.openApprovalFromRoster()
+        }
+        model.tapRowControl(row)
+        XCTAssertTrue(model.cardOpen)
+        XCTAssertEqual(model.agentApproval?.id, id)
+        guard case .choice(let selected) = model.card.controls else { return XCTFail("choice detail should be shown") }
+        XCTAssertEqual(selected.options.map(\.value), ["keep", "delete"])
+        XCTAssertEqual(hub.decision(id), .pending, "opening the detail must not answer the request")
     }
 
     func testSamanthaSnapshotCannotImpersonateOthers() throws {
