@@ -108,8 +108,9 @@ enum IslandCodexThreads {
         return db
     }
 
-    /// Read-only. While Codex holds its lock on state_5.sqlite a plain `mode=ro` open fails with
-    /// SQLITE_CANTOPEN; then read once with `immutable=1` (no locks taken, still never writes).
+    /// Read-only. state_5.sqlite is a WAL database: when no Codex process has it open its -wal/-shm
+    /// files are gone and a `mode=ro` open cannot create them (SQLITE_CANTOPEN). Nothing is writing
+    /// then, so read once with `immutable=1` (no locks, no side files, never writes).
     static func readDatabase(_ path: String) -> [ThreadRecord] {
         if let records = readDatabase(path, immutable: false) { return records }
         return readDatabase(path, immutable: true) ?? []
