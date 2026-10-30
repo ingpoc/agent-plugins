@@ -224,6 +224,18 @@ class TraceLimitTests(V2Base):
 
 
 class LinksAndSignalsTests(V2Base):
+    def test_internal_access_is_persisted_without_stderr(self) -> None:
+        did = self.save(decision="Keep internal reads quiet", why="Preserve audit without prompt noise")
+        self.log.seek(0)
+        self.log.truncate(0)
+        self.store.get({"decision_id": did, "actor": "ledger-internal"}, mcp=True)
+        self.assertEqual(self.log.getvalue(), "")
+        row = self.store.open().execute("select tool, caller, ids from access_log").fetchone()
+        self.assertEqual((row["tool"], row["caller"]), ("get", "ledger-internal"))
+        self.assertEqual(json.loads(row["ids"]), [did])
+        self.store.get({"decision_id": did, "actor": "public-helper"}, mcp=True)
+        self.assertIn('"caller":"public-helper"', self.log.getvalue())
+
     def test_find_surfaces_linked_precedent_once(self) -> None:
         base = self.save(decision="Mini Codex login rejects the pinned model",
                          why="The account cannot use that pinned model, so keep a fallback reviewer",

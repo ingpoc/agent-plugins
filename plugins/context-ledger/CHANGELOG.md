@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.36
+
+- Narrow the skill trigger: use the ledger only for critical, recurring, research or debugging tasks, or to save an owner override. Simple tasks skip lookup, capture and closeout; every ledger call has a short timeout and fails open. The optional loop gate and the skill gate are now the same gate.
+- Trim the helper protocol (`references/lookup-subagent.md`) from 2,139 to 816 words by removing repetition and prose. The lookup envelope, retrieval commands, capture gate questions, closeout envelopes, error codes and helper ownership/attribution are kept; explanatory detail now lives in the code and tests.
+
+## 0.1.35
+
+- Pass explicit task-owner project/tool context through helper find, semantic selection and feedback; explicit fleet-only context no longer inherits the deployment project. Omitted context retains legacy binding fallback.
+- Validate context-aware gap scope before feedback writes and restrict duplicate suppression to the intended scope or fleet. Scope remains caller-declared applicability, not access control; ranking and A/B behavior are unchanged.
+
+## 0.1.34
+
+- Keep the parent-facing skill as a retained-helper router; move detailed retrieval, capture and closeout rules into its existing helper reference. The efficiency skill defers to that owner, including the optional loop gate.
+- Preserve internal access rows in the audit store without emitting their normal stderr telemetry. Public access logs and errors remain visible.
+- Forward optional validated task IDs through helper find/get/select and the public get tool, so selected-record access can be attributed to its task. Retrieval, scope, expiry, grounding and A/B rules are unchanged.
+
 ## 0.1.33
 
 - Two shipped test files never ran. `tests/test_http_server.py` (8 tests) and `tests/test_server_logging.py` were absent from `PLUGIN_TESTS` in `scripts/check.py`, so `check.py` ran 8 of the 10 files it shipped. Both are wired in now.
