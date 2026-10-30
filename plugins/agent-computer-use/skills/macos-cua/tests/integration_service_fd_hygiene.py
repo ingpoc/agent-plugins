@@ -61,7 +61,15 @@ class LiveServiceFdHygieneTests(unittest.TestCase):
             finally:
                 client.close()
         time.sleep(0.5)  # let NIO reap closed child channels
+        # Background work (the island's 5 s local-process scan briefly holds pipe and
+        # file fds) can overlap one sample; a leak never shrinks, so take the lowest
+        # of a few samples.
         after = _fd_count(self.pid)
+        for _ in range(6):
+            if after <= before + FD_SLACK:
+                break
+            time.sleep(0.5)
+            after = min(after, _fd_count(self.pid))
         self.assertLessEqual(
             after, before + FD_SLACK,
             f"{CYCLES} disconnects grew the service from {before} to {after} "
