@@ -224,6 +224,7 @@ enum IslandSettingsSchema {
     static let respectFocus = "island.connectivity.respectFocus"
     static let focusAccess = "island.connectivity.focusAccess"
     static let hotKey = "island.general.hotKey"
+    static let shortcut = "island.general.shortcut"
     nonisolated(unsafe) static var focusAccessAction: (() -> Void)?
     static let calendarEnabled = "island.calendar.enabled"
     static let calendarLead = "island.calendar.timeBefore"
@@ -277,7 +278,7 @@ enum IslandSettingsSchema {
         .init(tab: .general, section: nil, key: hideInFullscreen, label: "Hide in fullscreen", kind: .toggle, defaultValue: .bool(true)),
         .init(tab: .general, section: nil, key: hideInMissionControl, label: "Hide in mission control", kind: .toggle, defaultValue: .bool(true)),
         .init(tab: .general, section: nil, key: hideFromScreenCapture, label: "Hide from screen capture", kind: .toggle, defaultValue: .bool(false)),
-        .init(tab: .general, section: nil, key: hotKey, label: "Keyboard shortcut \(IslandHotKey.display)", kind: .toggle, defaultValue: .bool(true),
+        .init(tab: .general, section: nil, key: hotKey, label: "Enable keyboard shortcut", kind: .toggle, defaultValue: .bool(true),
               info: "Opens the island with keyboard focus: arrows or Tab move, Return activates, Esc closes. If another app owns the shortcut it stays off (see the log)"),
         .init(tab: .general, section: nil, key: displayOn, label: "Display on",
               kind: .popup([("main", "Main display"), ("builtIn", "Built-in display")]), defaultValue: .string("main")),

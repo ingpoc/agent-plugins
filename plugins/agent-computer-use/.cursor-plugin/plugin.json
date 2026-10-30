@@ -1,6 +1,6 @@
 {
   "name": "agent-computer-use",
-  "version": "0.2.48",
+  "version": "0.2.49",
   "description": "Native macOS computer use and GPT-Live 1 voice control through CUAService.",
   "mcpServers": "./.cursor-plugin/mcp.json"
 }

@@ -5,7 +5,7 @@ import SwiftUI
 /// the menu-bar display (spec §1). Only the black shape morphs inside it.
 ///
 /// The panel ignores the mouse except while the pointer is over a real hit
-/// rect (shape, app circles, agent circle), polled at 15 Hz — so the large
+/// rect (shape, app circles, agent circle) — so the large
 /// transparent window never swallows menu-bar or desktop clicks, and it can
 /// never become key or main (clicks never take focus).
 @MainActor
@@ -13,7 +13,8 @@ final class SamanthaMenuBarIslandPanel {
     private var panel: IslandPanel?
     private weak var model: IslandModel?
     private var screenObserver: NSObjectProtocol?
-    private var pointerTimer: Timer?
+    private var trackingWindows: [IslandTrackingPanel] = []
+    private var trackedRects: [CGRect] = []
     private var insideShape = false
     private var leaveTask: Task<Void, Never>?
     private var hoverTask: Task<Void, Never>?
@@ -51,6 +52,7 @@ final class SamanthaMenuBarIslandPanel {
             guard let self, self.model?.textEntryActive != true else { return }
             self.endTextEntry()
         }
+        model.onGeometryChange = { [weak self] in self?.updateTrackingGeometry() }
         model.onPeekVisible = { [weak self] on in self?.peekPrivate = on; self?.applyCaptureSharing() }
         resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self] n in
             MainActor.assumeIsolated {
@@ -74,7 +76,6 @@ final class SamanthaMenuBarIslandPanel {
     }
 
     deinit {
-        pointerTimer?.invalidate()
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
     }
 
@@ -112,7 +113,7 @@ final class SamanthaMenuBarIslandPanel {
                     guard let self, let model = self.model, let panel = self.panel, panel.isKeyWindow,
                           win == ObjectIdentifier(panel) else { return false }
                     return model.handleKey(keyCode: code, characters: chars, shift: f.contains(.shift),
-                                           command: f.contains(.command) || f.contains(.control))
+                                           command: f.contains(.command), control: f.contains(.control))
                 }
                 return used ? nil : e
             }
@@ -220,7 +221,7 @@ final class SamanthaMenuBarIslandPanel {
         let bar = MenuBarWindowAnchor.strip(on: target)?.appKit
             ?? CGRect(x: target.frame.minX, y: target.frame.maxY - 30, width: target.frame.width, height: 30)
         let frame = IslandBarLayout.windowFrame(bar: bar, screen: target.frame)
-        if panel.frame != frame { panel.setFrame(frame, display: true) }
+        if panel.frame != frame { panel.setFrame(frame, display: true); updateTrackingGeometry(force: true) }
         panel.level = Self.menuBarPanelLevel
     }
 
@@ -241,17 +242,13 @@ final class SamanthaMenuBarIslandPanel {
     // MARK: Pointer
 
     private func startPointerTracking() {
-        guard pointerTimer == nil else { return }
-        let timer = Timer(timeInterval: 1.0 / 15.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.pollPointer() }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        pointerTimer = timer
+        updateTrackingGeometry(force: true)
     }
 
     private func stopPointerTracking() {
-        pointerTimer?.invalidate()
-        pointerTimer = nil
+        for child in trackingWindows { panel?.removeChildWindow(child); child.orderOut(nil) }
+        trackingWindows.removeAll()
+        trackedRects = []
         hoverTask?.cancel()
         hoverTask = nil
         leaveTask?.cancel()
@@ -259,6 +256,65 @@ final class SamanthaMenuBarIslandPanel {
         panel?.ignoresMouseEvents = true
         model?.hovering = false
         insideShape = false
+    }
+
+    private func updateTrackingGeometry(force: Bool = false) {
+        guard let panel, let model, panel.isVisible else { return }
+        let rects = model.hitRects
+        guard force || rects != trackedRects else { return }
+        trackedRects = rects
+        for child in trackingWindows { panel.removeChildWindow(child); child.orderOut(nil) }
+        trackingWindows.removeAll()
+        if let host = panel.contentView as? IslandHostingView<SamanthaIslandBar> {
+            host.islandTrackingRects = rects
+            host.onPointerChange = { [weak self] in self?.pointerChanged() }
+            host.updateTrackingAreas()
+        }
+        for rect in rects where !rect.isEmpty {
+            let frame = CGRect(x: panel.frame.minX + rect.minX, y: panel.frame.maxY - rect.maxY,
+                               width: rect.width, height: rect.height)
+            let child = IslandTrackingPanel(contentRect: frame, styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: false)
+            child.isOpaque = false; child.backgroundColor = .clear; child.hasShadow = false
+            child.level = panel.level
+            child.hidesOnDeactivate = false
+            child.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
+            let view = IslandTrackingView(frame: CGRect(origin: .zero, size: frame.size))
+            view.onPointerChange = { [weak self] in self?.pointerChanged() }
+            view.registerForDraggedTypes([.fileURL])
+            view.onDragEnter = { [weak self, weak model] in
+                guard let self, let model, model.trayEnabled else { return false }
+                self.holdTask?.cancel()
+                self.holdTask = Task { @MainActor [weak model] in
+                    try? await Task.sleep(nanoseconds: UInt64(Self.dropHold * 1_000_000_000))
+                    guard !Task.isCancelled else { return }
+                    model?.setTrayTargeted(true)
+                }
+                return true
+            }
+            view.onDragExit = { [weak self, weak model] in
+                self?.holdTask?.cancel()
+                self?.holdTask = nil
+                model?.setTrayTargeted(false)
+            }
+            view.onDrop = { [weak self, weak model] urls in
+                self?.holdTask?.cancel()
+                guard let model, model.trayEnabled else { return false }
+                model.addToTray(urls)
+                model.setTrayTargeted(false)
+                return true
+            }
+            view.onMouseEvent = { [weak panel] event in
+                guard let panel, let forwarded = NSEvent.mouseEvent(with: event.type,
+                    location: panel.convertPoint(fromScreen: NSEvent.mouseLocation), modifierFlags: event.modifierFlags,
+                    timestamp: event.timestamp, windowNumber: panel.windowNumber, context: nil,
+                    eventNumber: event.eventNumber, clickCount: event.clickCount, pressure: event.pressure) else { return }
+                panel.sendEvent(forwarded)
+            }
+            child.contentView = view
+            panel.addChildWindow(child, ordered: .below)
+            child.order(.below, relativeTo: panel.windowNumber)
+            trackingWindows.append(child)
+        }
     }
 
     /// Screen point → window coords (top-left origin), the space IslandBarLayout uses.
@@ -310,11 +366,11 @@ final class SamanthaMenuBarIslandPanel {
         if !on, !fileDragActive { model.setTrayTargeted(false) }
     }
 
-    private func pollPointer() {
+    private func pointerChanged() {
         guard let panel, let model, panel.isVisible else { return }
         let p = Self.windowPoint(screen: NSEvent.mouseLocation, frame: panel.frame)
         let dragNear = trackFileDrag(p, model: model)
-        let overAny = dragNear || model.hitRects.contains { $0.insetBy(dx: -2, dy: -2).contains(p) }
+        let overAny = dragNear || model.hitRects.contains { $0.contains(p) }
         if panel.ignoresMouseEvents == overAny { panel.ignoresMouseEvents = !overAny }
         // Hover follows the same whole-pill target as clicks (incl. the band above it).
         let overShape = !model.idleHidden && IslandBarLayout.pillTarget(shape: model.shapeRect).contains(p)
@@ -398,6 +454,46 @@ final class SamanthaMenuBarIslandPanel {
     }
 }
 
+/// Small tracking windows receive the first enter while the main panel is click-through.
+final class IslandTrackingPanel: NSPanel {
+    override var canBecomeKey: Bool { false }
+    override var canBecomeMain: Bool { false }
+}
+
+final class IslandTrackingView: NSView {
+    var onPointerChange: (() -> Void)?
+    var onMouseEvent: ((NSEvent) -> Void)?
+    var onDragEnter: (() -> Bool)?
+    var onDragExit: (() -> Void)?
+    var onDrop: (([URL]) -> Bool)?
+    private var area: NSTrackingArea?
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let area { removeTrackingArea(area) }
+        // https://developer.apple.com/documentation/appkit/nstrackingarea
+        let next = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self)
+        addTrackingArea(next)
+        area = next
+    }
+    override func mouseEntered(with event: NSEvent) { onPointerChange?() }
+    override func mouseExited(with event: NSEvent) { onPointerChange?() }
+    override func mouseDown(with event: NSEvent) { onPointerChange?(); onMouseEvent?(event) }
+    override func mouseUp(with event: NSEvent) { onMouseEvent?(event) }
+    override func mouseDragged(with event: NSEvent) { onMouseEvent?(event) }
+    override func rightMouseDown(with event: NSEvent) { onPointerChange?(); onMouseEvent?(event) }
+    override func rightMouseUp(with event: NSEvent) { onMouseEvent?(event) }
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard !IslandHostingView<SamanthaIslandBar>.fileURLs(sender.draggingPasteboard).isEmpty,
+              onDragEnter?() == true else { return [] }
+        return .link
+    }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { .link }
+    override func draggingExited(_ sender: NSDraggingInfo?) { onDragExit?() }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        onDrop?(IslandHostingView<SamanthaIslandBar>.fileURLs(sender.draggingPasteboard)) ?? false
+    }
+}
+
 /// Never main, and key ONLY while Guru is typing into a choice card's text field (after his click);
 /// clicking an app circle activates that app, not us.
 final class IslandPanel: NSPanel {
@@ -419,6 +515,22 @@ final class IslandPanel: NSPanel {
 /// and the two-finger swipe source (A6) — the panel only takes the mouse over the island, so both
 /// only ever fire there.
 final class IslandHostingView<Content: View>: NSHostingView<Content> {
+    var islandTrackingRects: [CGRect] = []
+    var onPointerChange: (() -> Void)?
+    private var islandTrackingAreas: [NSTrackingArea] = []
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        islandTrackingAreas.forEach { removeTrackingArea($0) }
+        // https://developer.apple.com/documentation/appkit/nsview/updatetrackingareas()
+        islandTrackingAreas = islandTrackingRects.map { rect in
+            let r = CGRect(x: rect.minX, y: bounds.height - rect.maxY, width: rect.width, height: rect.height)
+            let area = NSTrackingArea(rect: r, options: [.mouseEnteredAndExited, .activeAlways], owner: self)
+            addTrackingArea(area)
+            return area
+        }
+    }
+    override func mouseEntered(with event: NSEvent) { onPointerChange?() }
+    override func mouseExited(with event: NSEvent) { onPointerChange?() }
     var onScroll: ((NSEvent) -> Void)?
     var onDragState: ((Bool) -> Void)?
     var onDrop: (([URL]) -> Bool)?

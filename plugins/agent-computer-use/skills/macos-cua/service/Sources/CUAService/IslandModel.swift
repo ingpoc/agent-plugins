@@ -512,6 +512,8 @@ final class IslandModel: ObservableObject {
     nonisolated static let conversationQuiet: TimeInterval = 3
     private var userOpened = false
     private var peekUntil: Date?
+    private var dismissedPeekKind: String?
+    var voiceOverEnabled: () -> Bool = { NSWorkspace.shared.isVoiceOverEnabled }
     private var lastMeter = Date.distantPast
     private var pinchTask: Task<Void, Never>?
     private var pinching = false
@@ -560,11 +562,13 @@ final class IslandModel: ObservableObject {
     @Published var idleActivity = "duo" { didSet { if idleActivity != oldValue { refresh(now: Date()) } } }
     /// Settings → Contrast outline (the 1 pt key line on the shape).
     @Published var contrastOutline = true
+    @Published var systemIncreaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+    @Published var systemDifferentiate = NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor
     /// Settings → AI Agents: per-source filters applied to every snapshot.
     var agentAllowed: (IslandAgent) -> Bool = { _ in true }
     var approvalAllowed: (IslandAgentApproval) -> Bool = { _ in true }
 
-    var showAgentCircle: Bool { !sourceGroups.isEmpty && !(idleActivity == "samantha" && isIdlePresentation) }
+    var showAgentCircle: Bool { IslandAgentBadge.showsCircle(rowCount: sourceGroups.count) && !(idleActivity == "samantha" && isIdlePresentation) }
 
     var compactAgentAttention: IslandAgentRow? {
         let candidate = agents.enumerated().filter {
@@ -638,7 +642,7 @@ final class IslandModel: ObservableObject {
         var r = IslandBarLayout.hitRects(shape: shapeRect, circleCount: 0,
                                          agentCount: showAgentCircle ? sourceGroups.count : 0)
         if let s = secondaryRect { r.append(s.insetBy(dx: -2, dy: -3)) }
-        r += IslandBarLayout.circleRects(shape: circleAnchor, count: circleCount)
+        r += IslandBarLayout.circleRects(shape: circleAnchor, count: circleCount).map { $0.insetBy(dx: -2, dy: -2) }
         return r
     }
 
@@ -647,6 +651,9 @@ final class IslandModel: ObservableObject {
     /// Returns false when the snapshot was dropped (benign error).
     @discardableResult
     func apply(_ snap: IslandSnapshot, now: Date = Date()) -> Bool {
+        let previousKind = kind
+        let previousTitle = title
+        let previousNeedsYou = Set(agents.filter { $0.needs_you || $0.status == "needs_you" }.map(\.id))
         var t = snap.title
         var d = snap.kind == "confirm" && !snap.confirm_prompt.isEmpty ? snap.confirm_prompt : snap.detail
         if snap.kind == "error" {
@@ -659,8 +666,9 @@ final class IslandModel: ObservableObject {
             (t, d) = IslandCopy.compact(title: t, detail: d)  // copy contract: card title only
         }
         let shownKind = samanthaEnabled || ["confirm", "needs_you", "idle"].contains(snap.kind) ? snap.kind : "idle"
-        if shownKind != kind { kindSince = now }
+        if shownKind != kind { kindSince = now; dismissedPeekKind = nil }
         kind = shownKind
+        if shownKind != previousKind && forceCompact { forceCompact = false }
         if !samanthaEnabled || shownKind == "idle" {
             conversationUntil = .distantPast
         } else if ["thinking", "speaking", "acting", "done"].contains(shownKind) {
@@ -695,7 +703,18 @@ final class IslandModel: ObservableObject {
         } else if prevID == nil, let a = agentApproval {
             restoreDraft(a.id)
         }
-        if let a = agentApproval, a.id != prevID { arrive(a, now: now) }
+        if let a = agentApproval, a.id != prevID {
+            arrive(a, now: now)
+            announce("\(a.agent) needs \(a.isChoice ? "a choice" : "approval"): \(a.title)", trigger: a.isChoice ? .choice : .approval)
+        } else if let a = agents.first(where: { ($0.needs_you || $0.status == "needs_you") && !previousNeedsYou.contains($0.id) }) {
+            announce("\(a.name.isEmpty ? a.app : a.name) needs you: \(a.title)", trigger: .needsYou)
+        } else if shownKind != previousKind && ["needs_you", "confirm"].contains(shownKind) {
+            announce(t, trigger: .needsYou)
+        } else if shownKind == "error" && (shownKind != previousKind || t != previousTitle) {
+            announce(t, trigger: .error)
+        } else if shownKind == "done" && (shownKind != previousKind || t != previousTitle) && !t.isEmpty {
+            announce(t, trigger: .done)
+        }
         applyExpired(snap.expired, now: now)
         expandedFlag = snap.expanded
         if shownKind == "idle" {
@@ -713,8 +732,14 @@ final class IslandModel: ObservableObject {
         applyMeter(snap, now: now, force: true)
         // Routine voice feedback stays compact; errors and decisions still demand attention.
         switch shownKind {
-        case "error": peekUntil = now.addingTimeInterval(Self.peekError)
-        case "listening", "thinking", "speaking", "acting", "done": peekUntil = nil
+        case "error":
+            if dismissedPeekKind != shownKind {
+                peekUntil = voiceOverEnabled() ? .distantFuture : now.addingTimeInterval(Self.peekError)
+            }
+        case "done":
+            if voiceOverEnabled(), dismissedPeekKind != shownKind, !t.isEmpty { peekUntil = .distantFuture }
+            else if !voiceOverEnabled() { peekUntil = nil }
+        case "listening", "thinking", "speaking", "acting": peekUntil = nil
         default:
             if snap.expanded && (samanthaEnabled || shownKind != "idle") { peekUntil = now.addingTimeInterval(Self.peekDone) } else if !isSticky { peekUntil = nil }
         }
@@ -725,6 +750,7 @@ final class IslandModel: ObservableObject {
     private func arrive(_ a: IslandAgentApproval, now: Date) {
         let first = !seenCards.contains(a.id)
         if first {
+            forceCompact = false
             seenCards.append(a.id)
             if seenCards.count > 200 { seenCards.removeFirst(seenCards.count - 200) }
             IslandEventLog.log("shown", id: a.id, source: a.agent, kind: a.kind,
@@ -834,7 +860,14 @@ final class IslandModel: ObservableObject {
     /// Returns false when the panel could not take key (hidden): keyboard mode is rolled back.
     var onBeginKeyboard: (() -> Bool)?
     var onEndKeyboard: (() -> Void)?
+    var shortcutSpoken = IslandShortcut.default.spoken
     var onAnnounce: ((String) -> Void)?
+    private(set) var announcementPriority: IslandAnnouncementPriority = .medium
+    private func announce(_ text: String, trigger: IslandAnnouncementTrigger) {
+        announcementPriority = trigger.priority
+        onAnnounce?(text)
+        announcementPriority = .medium
+    }
     var calendarEnabled = true
     @Published var useCalendarColor = false
     /// Compact countdown starts this long before an event (Settings → Calendar → Time before event).
@@ -1030,16 +1063,26 @@ final class IslandModel: ObservableObject {
     }
 
     /// Key handling while the panel is key (choice card only). Returns true when consumed.
-    func handleKey(keyCode: UInt16, characters: String, shift: Bool, command: Bool = false) -> Bool {
+    func handleKey(keyCode: UInt16, characters: String, shift: Bool, command: Bool = false, control: Bool = false) -> Bool {
         if credentialRequest != nil {
             if keyCode == 53 { CredentialEntryController.shared.cancelActive(); return true }
             return false
         }
-        if keyboardActive && !textEntryActive && !command { return handleNavKey(keyCode: keyCode, shift: shift) }
-        guard isChoiceCard, cardOpen, textEntryActive, !command else { return false }
+        if keyboardActive && command && !control && (keyCode == 36 || keyCode == 76),
+           case .decision(_, let primary, _) = card.controls {
+            switch primary.1 {
+            case .allow, .agentApprove:
+                performCardAction(primary.1)
+                return true
+            default: break
+            }
+        }
+        if keyboardActive && !textEntryActive && !command && !control { return handleNavKey(keyCode: keyCode, shift: shift) }
+        guard isChoiceCard, cardOpen, textEntryActive, !command, !control else { return false }
         switch keyCode {
-        case 53:   // Esc → give focus back to the previous app (card stays)
+        case 53:
             endTextEntry()
+            if keyboardActive { endKeyboard(close: true) } else { forceCompact = true }
             return true
         case 36, 76:   // Return / Enter
             if shift {
@@ -1068,11 +1111,15 @@ final class IslandModel: ObservableObject {
 
     private func refresh(now: Date) {
         if let n = noticeUntil, now >= n { noticeUntil = nil; notice = nil }
+        if voiceOverEnabled(), ["error", "done"].contains(kind), peekUntil != nil, dismissedPeekKind != kind {
+            peekUntil = .distantFuture
+        }
         let noticeActive = notice != nil && agentApproval == nil
         let live = liveActivities(now: now)
         let conversation = samanthaEnabled && now < conversationUntil
-        let next = credentialRequest != nil ? .needsYou : Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
+        var next = credentialRequest != nil ? .needsYou : Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
                                      notice: noticeActive, hud: hud != nil, peek: peek != nil, live: live, conversation: conversation)
+        if next == .doneSettled, voiceOverEnabled(), peekUntil == .distantFuture { next = .done }
         let resting = Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
                                         notice: noticeActive, live: live, conversation: conversation)
         let idleNow = next == .idle || next == .doneSettled
@@ -1086,6 +1133,9 @@ final class IslandModel: ObservableObject {
         if let e = agentApproval?.expiresDate {
             let r = e.timeIntervalSince(now)
             if r > 0 && r <= IslandPeekScheduler.finalLead { remaining = Int(r.rounded(.up)) }
+        }
+        if cardRemaining == nil, let remaining, let a = agentApproval {
+            announce("\(a.agent): \(remaining) seconds remaining", trigger: .expiry)
         }
         if remaining != cardRemaining { cardRemaining = remaining }
         // Choice Quick Peek (non-key, 4 s; hover pins).
@@ -1195,6 +1245,13 @@ final class IslandModel: ObservableObject {
     }
 
     func toggleCard(byClick: Bool = true) {
+        if forceCompact && !cardOpen {
+            forceCompact = false
+            if cardOpen {
+                if byClick && isChoiceCard { beginTextEntry(focusField: agentApproval?.allow_text == true) }
+                return
+            }
+        }
         if !cardOpen && presentation == .hud { return }   // a HUD never opens a card
         if !cardOpen && presentation == .peek, let p = peek {
             onPeekOpen?(p)
@@ -1209,6 +1266,7 @@ final class IslandModel: ObservableObject {
         if cardOpen && !isSticky && !peeking && !(presentation == .expired) {
             userOpened = false
             peekUntil = nil
+            dismissedPeekKind = kind
         } else if cardOpen && presentation == .expired {
             noticeUntil = nil
             notice = nil
@@ -1414,12 +1472,18 @@ final class IslandModel: ObservableObject {
 
     /// Full words for VoiceOver (compact view has no text).
     var accessibilityText: String {
-        var parts = ["Samantha, \(presentation.spokenName)"]
+        var parts: [String] = []
+        if agentApproval == nil, !agents.isEmpty, ![.needsYou, .error].contains(presentation) {
+            parts.append(IslandAgentAccessibility.label(running: agents.count,
+                needsYou: agents.filter { $0.needs_you || $0.status == "needs_you" }.count))
+        }
         if let a = agentApproval {
+            parts.append("\(a.agent) needs \(a.isChoice ? "a choice" : "approval"): \(a.title). \(shortcutSpoken) to review")
             if a.destructive { parts.append("Destructive request") }
             parts.append("\(a.agent): \(a.title)")
             if !a.subtitle.isEmpty { parts.append(a.subtitle) }
         }
+        parts.append("Samantha, \(presentation.spokenName)")
         if !title.isEmpty { parts.append(title) }
         if !detail.isEmpty { parts.append(detail) }
         if !circleApps.isEmpty { parts.append("Apps: " + circleApps.joined(separator: ", ")) }

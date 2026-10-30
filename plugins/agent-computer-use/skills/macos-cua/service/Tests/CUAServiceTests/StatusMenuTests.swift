@@ -19,6 +19,16 @@ final class StatusMenuTests: XCTestCase {
         XCTAssertEqual(IslandSettingsWindowController.shared.window?.title, "ACU Settings")
     }
 
+    func testIslandMenuItemUsesCurrentShortcut() {
+        let menu = StatusBarController().makeMenu()
+        let shortcut = IslandShortcut.read(IslandSettingsStore.shared)
+        let item = menu.items.first { $0.title == "Show Dynamic Island" }
+        XCTAssertNotNil(item?.action)
+        XCTAssertEqual(item?.keyEquivalent, shortcut.character.lowercased())
+        XCTAssertEqual(item?.keyEquivalentModifierMask, shortcut.menuModifiers)
+        XCTAssertNotNil(menu.items.first { $0.title == "Show Island in Menu Bar" })
+    }
+
     func testOpenSettingsPaneNames() {
         XCTAssertEqual(SettingsTab.forPane("computer-use"), .some(.computerUse))
         XCTAssertEqual(SettingsTab.forPane(" Computer_Use "), .some(.computerUse))

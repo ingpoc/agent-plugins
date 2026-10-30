@@ -143,7 +143,7 @@ struct SamanthaOrb: View {
     var body: some View {
         let dot = dotSize ?? size * 6 / 16
         ZStack {
-            Circle().fill(Color.white.opacity(0.9))
+            Circle().fill(Color.white)
             Circle().fill(IslandPalette.accent).frame(width: dot, height: dot)
         }
         .frame(width: size, height: size)
@@ -166,7 +166,7 @@ struct SamanthaBars: View {
                 let y = mirrored ? (size.height - h) / 2 : (size.height - 1 - h)
                 let rect = CGRect(x: x, y: max(0, y), width: 2, height: h)
                 ctx.fill(Path(roundedRect: rect, cornerRadius: 1),
-                         with: .color(mirrored ? IslandPalette.accent : Color.white.opacity(0.9)))
+                         with: .color(mirrored ? IslandPalette.accent : Color.white))
                 x += 4
             }
         }
@@ -240,9 +240,15 @@ struct SamanthaSignalDot: View {
     let color: Color
     var pulse = false
     var reduceMotion = false
+    var differentiate = false
     @State private var up = false
     var body: some View {
         Circle().fill(color)
+            .overlay {
+                if differentiate && pulse {
+                    Text("!").font(.system(size: 6, weight: .black)).foregroundStyle(Color.black)
+                }
+            }
             .frame(width: 6, height: 6)
             .scaleEffect(up ? 1.3 : 1.0)
             .onAppear {
@@ -283,7 +289,7 @@ struct SamanthaAppIcon: View {
         case .symbol(let name):
             Image(systemName: name)
                 .font(.system(size: size * 0.7, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.5))
+                .foregroundStyle(IslandInk.metaColor)
                 .frame(width: size, height: size)
         }
     }
@@ -323,7 +329,7 @@ struct SamanthaAppCircle: View {
                 Text("+\(n)")
                     .font(.system(size: 11, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundStyle(Color.white.opacity(0.7))
+                    .foregroundStyle(IslandInk.secondaryColor)
                 Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
             }
         }
@@ -352,15 +358,16 @@ struct SamanthaAppCircle: View {
 /// One circle per source (max 3 + "+N"): urgent groups sort first and retain state markers.
 struct SamanthaSourceCircle: View {
     let group: IslandSourceGroup
+    var differentiate = false
     var body: some View {
         ZStack {
             Circle().fill(Color.black)
             if group.overflow > 0 {
                 Text("+\(group.overflow)")
                     .font(.system(size: 11, weight: .semibold)).monospacedDigit()
-                    .foregroundStyle(Color.white.opacity(0.7))
+                    .foregroundStyle(IslandInk.secondaryColor)
             } else if group.processCount > 0 {
-                Image(systemName: "cpu").font(.system(size: 14, weight: .medium)).foregroundStyle(Color.white.opacity(0.75))
+                Image(systemName: "cpu").font(.system(size: 14, weight: .medium)).foregroundStyle(IslandInk.secondaryColor)
             } else {
                 SamanthaAppIcon(appName: group.app.isEmpty ? group.id : group.app)
             }
@@ -368,14 +375,14 @@ struct SamanthaSourceCircle: View {
         }
         .frame(width: IslandBarLayout.circleDiameter, height: IslandBarLayout.circleDiameter)
         .overlay(alignment: .topTrailing) {
-            if group.needsYou >= 2 {
-                Text("\(group.needsYou)")
+            if let count = IslandAgentBadge.count(needsYou: group.needsYou), count >= 2 {
+                Text("\(count)")
                     .font(.system(size: 9, weight: .bold)).monospacedDigit()
                     .foregroundStyle(Color.black)
                     .frame(minWidth: 12, minHeight: 12)
                     .background(Capsule().fill(IslandPalette.amber))
                     .offset(x: 3, y: -3)
-            } else if group.needsYou == 1 {
+            } else if IslandAgentBadge.count(needsYou: group.needsYou) == 1 {
                 Text("1")
                     .font(.system(size: 8, weight: .heavy).monospacedDigit())
                     .foregroundStyle(Color.black)
@@ -385,11 +392,21 @@ struct SamanthaSourceCircle: View {
             }
         }
         .overlay(alignment: group.needsYou > 0 ? .bottomTrailing : .topTrailing) {
-            if group.expired { IslandHollowRing().offset(x: 1, y: group.needsYou > 0 ? 1 : -1) }
+            if group.expired {
+                IslandHollowRing().overlay {
+                    if differentiate { Text("×").font(.system(size: 7, weight: .bold)).foregroundStyle(IslandPalette.red) }
+                }.offset(x: 1, y: group.needsYou > 0 ? 1 : -1)
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if differentiate && group.needsYou > 0 {
+                Text("!").font(.system(size: 7, weight: .black)).foregroundStyle(Color.black)
+                    .frame(width: 9, height: 9).background(Circle().fill(IslandPalette.amber))
+            }
         }
         .overlay(alignment: .topLeading) {
             if group.failed {
-                Text("!")
+                Text(differentiate ? "×" : "!")
                     .font(.system(size: 8, weight: .heavy))
                     .foregroundStyle(Color.white)
                     .frame(width: 12, height: 12)
@@ -530,7 +547,13 @@ struct SamanthaIslandBar: View {
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
-                    SamanthaSourceCircle(group: g)
+                    SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate)
+                        // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(IslandAgentAccessibility.label(running: model.agents.count, needsYou: model.agents.filter { $0.needs_you || $0.status == "needs_you" }.count))
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { model.openAgentList() }
+                        .accessibilityHidden(g.id != model.sourceGroups.first?.id)
                         .onTapGesture { model.openAgentList() }
                         .offset(x: r.minX, y: r.minY)
                         .transition(circleTransition)
@@ -628,7 +651,7 @@ struct SamanthaIslandBar: View {
                 // Polish bar: shadow only when expanded (0/8/24, black 35 %); none with Reduce Transparency.
                 .shadow(color: .black.opacity(expanded && !reduceTransparency ? 0.35 : 0), radius: 12, x: 0, y: 8)
             path.strokeBorder(model.trayTargeted ? IslandPalette.accent
-                              : (expanded && model.contrastOutline ? IslandPalette.keyLine : .clear),
+                              : (expanded && (model.contrastOutline || model.systemIncreaseContrast) ? Color.white.opacity(IslandInk.increasedOutline) : .clear),
                               lineWidth: model.trayTargeted ? 1 : 0.5)
             // Content keeps pinned frames (its target size) in a fixed container; the spring moves it with
             // an offset and reveals it through the animated path — no relayout or text reflow mid-spring.
@@ -648,10 +671,14 @@ struct SamanthaIslandBar: View {
             if !model.tray.isEmpty { Button("Clear File Tray") { model.clearTray() } }
             Button("ACU Settings…") { model.onOpenSettings?() }
         }
-        .accessibilityElement(children: .contain)
+        // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
+        .accessibilityElement(children: model.cardOpen ? .contain : .combine)
+        // https://developer.apple.com/documentation/swiftui/view/accessibilitylabel(_:)-1d7jv
         .accessibilityLabel(model.accessibilityText)
-        // A button only while compact (tap to open); an open card exposes its own controls.
+        .accessibilityValue(model.cardOpen ? "Expanded" : "Collapsed")
         .accessibilityAddTraits(model.cardOpen ? [] : .isButton)
+        // https://developer.apple.com/documentation/swiftui/view/accessibilityaction(_:_:)
+        .accessibilityAction { model.toggleCard(byClick: false) }
     }
 
     @ViewBuilder
@@ -804,7 +831,7 @@ struct SamanthaIslandBar: View {
         case .idle, .doneSettled: Color.clear.frame(width: 20, height: 16)
         case .nowPlaying:
             if open {
-                SamanthaSymbol(name: model.mediaDevice.symbol, color: Color.white.opacity(0.7)).frame(width: 20, height: 16)
+                SamanthaSymbol(name: model.mediaDevice.symbol, color: IslandInk.secondaryColor).frame(width: 20, height: 16)
                     .accessibilityLabel(model.mediaDevice.name)
             } else if model.mediaStyle.compactWaveform {
                 NowPlayingWaveform(playing: model.nowPlaying?.playing ?? false, color: NowPlayingTint.wave(model),
@@ -819,12 +846,12 @@ struct SamanthaIslandBar: View {
         case .acting: SamanthaProgressRing(fraction: nil, reduceMotion: reduceMotion)
         case .actingSteps: SamanthaProgressRing(fraction: stepFraction)
         case .needsYou:
-            SamanthaSignalDot(color: IslandPalette.amber, pulse: true, reduceMotion: reduceMotion).frame(width: 20, height: 16)
-        case .error: SamanthaSymbol(name: model.title == "Action not confirmed" ? "eye" : "arrow.clockwise", color: Color.white.opacity(0.7)).frame(width: 20, height: 16)
+            SamanthaSignalDot(color: IslandPalette.amber, pulse: true, reduceMotion: reduceMotion, differentiate: model.systemDifferentiate).frame(width: 20, height: 16)
+        case .error: SamanthaSymbol(name: model.title == "Action not confirmed" ? "eye" : "arrow.clockwise", color: IslandInk.secondaryColor).frame(width: 20, height: 16)
         case .done:
             let a = model.app.isEmpty ? (model.circleApps.first ?? "") : model.app
             Group {
-                if a.isEmpty { SamanthaSymbol(name: "checkmark", color: Color.white.opacity(0.7)) }
+                if a.isEmpty { SamanthaSymbol(name: "checkmark", color: IslandInk.secondaryColor) }
                 else { SamanthaAppIcon(appName: a, size: 16, radius: 4) }
             }
             .frame(width: 20, height: 16)
@@ -838,11 +865,11 @@ struct SamanthaIslandBar: View {
                               showDot: model.secondary == nil && model.calendarNext?.meetingURL != nil)
         case .tray:
             Text("\(model.tray.count)").font(.system(size: 11, weight: .semibold).monospacedDigit())
-                .foregroundStyle(Color.white.opacity(0.7)).frame(width: 20, height: 16)
+                .foregroundStyle(IslandInk.secondaryColor).frame(width: 20, height: 16)
                 .contentTransition(.numericText())
         case .agentApproval:
             if open && model.isChoiceCard {
-                SamanthaSymbol(name: "xmark", color: Color.white.opacity(0.6)).frame(width: 20, height: 16)
+                SamanthaSymbol(name: "xmark", color: IslandInk.metaColor).frame(width: 20, height: 16)
             } else if model.duoWithMedia {
                 SamanthaAppIcon(appName: model.agentApproval?.app ?? "", size: 14, radius: 3.5)
                     .overlay(alignment: .topTrailing) {
@@ -853,7 +880,7 @@ struct SamanthaIslandBar: View {
                         } else if let r = model.cardRemaining {
                             IslandCountdownRing(remaining: r, size: 8, reduceMotion: reduceMotion).offset(x: 3, y: -3)
                         } else {
-                            SamanthaSignalDot(color: IslandPalette.amber, pulse: true, reduceMotion: reduceMotion).offset(x: 3, y: -3)
+                            SamanthaSignalDot(color: IslandPalette.amber, pulse: true, reduceMotion: reduceMotion, differentiate: model.systemDifferentiate).offset(x: 3, y: -3)
                         }
                     }
                     .frame(width: 20, height: 16)
@@ -867,7 +894,7 @@ struct SamanthaIslandBar: View {
                     .background(Capsule().fill(IslandPalette.amber))
                     .frame(width: 20, height: 16)
             } else {
-                SamanthaSignalDot(color: IslandPalette.amber, pulse: true, reduceMotion: reduceMotion).frame(width: 20, height: 16)
+                SamanthaSignalDot(color: IslandPalette.amber, pulse: true, reduceMotion: reduceMotion, differentiate: model.systemDifferentiate).frame(width: 20, height: 16)
             }
         }
     }
@@ -912,7 +939,7 @@ struct SamanthaIslandBar: View {
                 if !card.subtitle.isEmpty {
                     Text(card.subtitle)
                         .font(.system(size: 13))
-                        .foregroundStyle(Color.white.opacity(0.7))
+                        .foregroundStyle(IslandInk.secondaryColor)
                         .lineLimit(model.presentation == .needsYou || model.agentApproval?.destructive == true
                             ? nil : (model.isChoiceCard ? 1 : 2))
                         .truncationMode(.tail)
@@ -922,6 +949,11 @@ struct SamanthaIslandBar: View {
                 }
             }
             .offset(x: IslandBarLayout.cardTextX, y: p)
+            if model.cardOpen && (model.keyboardActive || model.agentApproval != nil) {
+                Text("esc").font(.system(size: 11)).foregroundStyle(IslandInk.metaColor)
+                    .offset(x: IslandBarLayout.cardTrailOrigin.x - 8, y: 18)
+                    .accessibilityHidden(true)
+            }
             if case .choice(let a) = card.controls {
                 IslandChoiceBody(model: model, approval: a, width: inner)
                     .frame(width: inner, height: IslandChoiceLayout.rowsViewport(a, textLines: model.choiceTextLines), alignment: .topLeading)
@@ -947,7 +979,7 @@ struct SamanthaIslandBar: View {
     private func art(_ art: IslandCardArt) -> some View {
         switch art {
         case .orb:
-            SamanthaArtTile(fill: Color.white.opacity(0.08)) {
+            SamanthaArtTile(fill: Color.white.opacity(IslandInk.fill)) {
                 SamanthaOrb(size: IslandBarLayout.artGlyph, dotSize: 10)
             }
         case .app(let name):
@@ -998,11 +1030,11 @@ struct SamanthaIslandBar: View {
                 Text(label)
                     .font(.system(size: 11, weight: .medium))
                     .monospacedDigit()
-                    .foregroundStyle(Color.white.opacity(IslandInk.meta))
+                    .foregroundStyle(IslandInk.metaColor)
             }
             .frame(width: width, alignment: .trailing)
         case .micMeter:
-            SamanthaMeter(levels: model.meter24, color: Color.white.opacity(0.9)).frame(width: width, height: 16)
+            SamanthaMeter(levels: model.meter24, color: Color.white).frame(width: width, height: 16)
         case .voiceMeter:
             SamanthaMeter(levels: model.meter24, color: IslandPalette.accent).frame(width: width, height: 16)
         }
@@ -1040,12 +1072,25 @@ struct SamanthaIslandBar: View {
                 return false
             }()
             HStack(spacing: IslandBarLayout.decisionGap) {
-                Button(secondary.0) { perform(secondary.1) }
+                Button { perform(secondary.1) } label: {
+                    HStack(spacing: 5) {
+                        Text(secondary.0)
+                        if destructive { Text("↩").font(.system(size: 11)).foregroundStyle(IslandInk.metaColor) }
+                    }
+                }
                     .buttonStyle(SamanthaDecisionStyle(role: .secondary))
+                    .frame(height: 44).contentShape(Rectangle())
                     .layoutProbe("decision-secondary", .control)
                     .islandFocusRing(model.isNavFocused(.action(secondary.1)), shape: .capsule)
-                Button(primary.0) { perform(primary.1) }
+                Button { perform(primary.1) } label: {
+                    HStack(spacing: 5) {
+                        Text(primary.0)
+                        Text(destructive ? "⌘↩" : "↩").font(.system(size: 11))
+                            .foregroundStyle(destructive ? IslandInk.metaColor : Color.black.opacity(IslandInk.onWhiteSecondary))
+                    }
+                }
                     .buttonStyle(SamanthaDecisionStyle(role: destructive ? .destructive : .primary))
+                    .frame(height: 44).contentShape(Rectangle())
                     .layoutProbe("decision-primary", .control)
                     .islandFocusRing(model.isNavFocused(.action(primary.1)), shape: .capsule)
                     .disabled(missingScope)
@@ -1118,7 +1163,7 @@ private struct SamanthaDecisionStyle: ButtonStyle {
     private var fill: Color {
         switch role {
         case .primary: return .white
-        case .secondary: return Color.white.opacity(0.12)
+        case .secondary: return Color.white.opacity(IslandInk.fill)
         case .destructive: return IslandPalette.destructiveFill
         }
     }
@@ -1188,10 +1233,10 @@ struct IslandChoiceBody: View {
                 if approval.multi {
                     Image(systemName: isSel ? "checkmark.square.fill" : "square")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(isSel ? (isDanger ? Color.white : IslandPalette.accent) : Color.white.opacity(0.6))
+                        .foregroundStyle(isSel ? (isDanger ? Color.white : IslandPalette.accent) : IslandInk.metaColor)
                 } else if model.textEntryActive && model.choiceText.isEmpty {
                     Text("\(number)").font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(role == .primary ? Color.black.opacity(IslandInk.onWhiteSecondary) : Color.white.opacity(IslandInk.meta))
+                        .foregroundStyle(role == .primary ? Color.black.opacity(IslandInk.onWhiteSecondary) : IslandInk.metaColor)
                 }
                 Text(confirming ? "Confirm \(o.label)" : o.label).lineLimit(1).truncationMode(.tail)
             }
@@ -1229,18 +1274,18 @@ struct IslandChoiceBody: View {
                 .onSubmit { model.submitChoice(via: "key") }
                 .padding(.horizontal, 12)
                 .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .leading)
-                .background(shape.fill(Color.white.opacity(0.12)))
+                .background(shape.fill(Color.white.opacity(IslandInk.fill)))
                 .overlay(shape.strokeBorder(fieldFocused ? IslandPalette.accent.opacity(0.6) : .clear, lineWidth: 1))
         } else {
             // A click here (or the click that opened the card) is the ONLY way the panel becomes key.
             Button { model.beginTextEntry() } label: {
                 Text(model.choiceText.isEmpty ? "Reply…" : model.choiceText)
                     .font(.system(size: 13))
-                    .foregroundStyle(Color.white.opacity(model.choiceText.isEmpty ? 0.45 : 0.9))
+                    .foregroundStyle(model.choiceText.isEmpty ? IslandInk.metaColor : Color.white)
                     .lineLimit(3)
                     .padding(.horizontal, 12)
                     .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .leading)
-                    .background(shape.fill(Color.white.opacity(0.12)))
+                    .background(shape.fill(Color.white.opacity(IslandInk.fill)))
                     .contentShape(shape)
             }
             .buttonStyle(.plain)
@@ -1255,12 +1300,13 @@ struct IslandChoiceBody: View {
         return Button { model.submitChoice() } label: {
             Image(systemName: "arrow.up")
                 .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(can ? Color.black : Color.white.opacity(0.35))
+                .foregroundStyle(can ? Color.black : IslandInk.metaColor)
                 .frame(width: IslandChoiceLayout.sendSize, height: IslandChoiceLayout.sendSize)
-                .background(Circle().fill(can ? (red ? IslandPalette.destructiveFill : IslandPalette.accent) : Color.white.opacity(0.12)))
+                .background(Circle().fill(can ? (red ? IslandPalette.destructiveFill : IslandPalette.accent) : Color.white.opacity(IslandInk.fill)))
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .frame(width: 44, height: 44).contentShape(Rectangle())
         .disabled(!can)
         .accessibilityLabel("Send")
     }
@@ -1292,12 +1338,13 @@ struct IslandChoiceCapsule: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(role == .primary ? Color.black : role == .ghost ? Color.white.opacity(0.6) : Color.white)
-            .frame(width: width, height: IslandChoiceLayout.rowHeight)
+            .foregroundStyle(role == .primary ? Color.black : role == .ghost ? IslandInk.metaColor : Color.white)
+            .frame(width: width, height: IslandChoiceLayout.visualRowHeight)
             .background(Capsule(style: .continuous).fill(fill))
             .overlay(Capsule(style: .continuous).strokeBorder(stroke, lineWidth: selected ? 1.5 : 1))
             .opacity(!enabled ? 0.4 : configuration.isPressed ? 0.75 : 1)
-            .contentShape(Capsule())
+            .frame(width: width, height: IslandChoiceLayout.rowHeight)
+            .contentShape(Rectangle())
     }
 
     private var stroke: Color {
@@ -1308,7 +1355,7 @@ struct IslandChoiceCapsule: ButtonStyle {
     private var fill: Color {
         switch role {
         case .primary: return .white
-        case .secondary: return selected ? IslandPalette.accent.opacity(0.25) : Color.white.opacity(0.12)
+        case .secondary: return selected ? IslandPalette.accent.opacity(0.25) : Color.white.opacity(IslandInk.fill)
         case .danger: return IslandPalette.destructiveFill
         case .ghost: return .clear
         }
@@ -1356,9 +1403,9 @@ struct NowPlayingArtwork: View {
                 Image(nsImage: img).resizable().aspectRatio(contentMode: .fill)
             } else {
                 ZStack {
-                    Color.white.opacity(0.08)
+                    Color.white.opacity(IslandInk.fill)
                     Image(systemName: "music.note").font(.system(size: size * 0.5, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.7))
+                        .foregroundStyle(IslandInk.secondaryColor)
                 }
             }
         }
@@ -1418,7 +1465,7 @@ struct NowPlayingCardBody: View {
                     .font(.system(size: 15, weight: .semibold)).foregroundStyle(Color.white).lineLimit(1)
                     .frame(width: IslandBarLayout.cardTrailOrigin.x - IslandBarLayout.cardTextX - 8, alignment: .leading)
                 Text(info.artist.isEmpty ? info.album : info.artist)
-                    .font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
+                    .font(.system(size: 13)).foregroundStyle(IslandInk.secondaryColor).lineLimit(1)
                     .frame(width: IslandBarLayout.cardSize.width - IslandBarLayout.cardTextX - p, alignment: .leading)
             }
             .offset(x: IslandBarLayout.cardTextX, y: p)
@@ -1467,7 +1514,7 @@ struct NowPlayingCardBody: View {
                     Text(dur > 0 ? "-" + NowPlayingRules.clock(max(0, dur - shown)) : "")
                 }
                 .font(.system(size: 11, weight: .regular, design: .monospaced))
-                .foregroundStyle(Color.white.opacity(IslandInk.meta))
+                .foregroundStyle(IslandInk.metaColor)
                 .frame(width: width)
             }
         }
