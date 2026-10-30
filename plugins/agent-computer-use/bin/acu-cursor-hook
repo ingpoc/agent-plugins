@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""Cursor agent hook -> island row (https://cursor.com/docs/agent/hooks).
+
+beforeSubmitPrompt: working row "Cursor · <chat name>" with "<model> · <effort>" meta.
+stop: done (completed), error (error) or cleared (aborted). sessionEnd: cleared.
+Event-driven, read-only on Cursor's side; always fails open and never blocks the prompt.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import sqlite3
+import subprocess
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+CACHE = Path.home() / ".cache/macos-cua/cursor-hook"
+STATE_DB = Path.home() / "Library/Application Support/Cursor/User/globalStorage/state.vscdb"
+
+
+def chat_name(conversation_id: str) -> str | None:
+    """The chat's own name from Cursor's state DB, opened read-only."""
+    if not conversation_id or not STATE_DB.exists():
+        return None
+    try:
+        con = sqlite3.connect(f"file:{STATE_DB}?mode=ro", uri=True, timeout=0.5)
+        try:
+            row = con.execute("SELECT value FROM cursorDiskKV WHERE key = ?",
+                              (f"composerData:{conversation_id}",)).fetchone()
+        finally:
+            con.close()
+        name = (json.loads(row[0]) or {}).get("name") if row and row[0] else None
+        return name.strip() if isinstance(name, str) and name.strip() else None
+    except (sqlite3.Error, ValueError, TypeError):
+        return None
+
+
+def short(text: str, limit: int = 48) -> str:
+    text = " ".join(text.split())
+    m = re.search(r"[.!?:](\s|$)", text)
+    if m and m.start() >= 3:
+        text = text[: m.start() + (1 if text[m.start()] in "?!" else 0)]
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0]
+    return (cut or text[:limit]).rstrip(" ,;-") + "…"
+
+
+def model_name(payload: dict) -> str | None:
+    slug = (payload.get("model_id") or payload.get("model") or "").strip()
+    if not slug or slug.lower() in {"default", "auto"}:
+        return None
+    parts = slug.split("-")
+    family = parts[0].lower()
+    names = {"grok": "Grok", "claude": "Claude", "gpt": "GPT", "gemini": "Gemini", "composer": "Composer",
+             "opus": "Opus", "sonnet": "Sonnet", "haiku": "Haiku", "o3": "o3", "kimi": "Kimi"}
+    if family == "claude" and len(parts) > 1:
+        rest = [p for p in parts[1:] if re.fullmatch(r"\d+(\.\d+)?", p)]
+        return " ".join([names.get(parts[1].lower(), parts[1].title()), ".".join(rest)]).strip()
+    version = next((p for p in parts[1:] if re.fullmatch(r"\d+(\.\d+)*", p)), None)
+    if family == "gpt" and version:
+        return f"GPT-{version}"
+    base = names.get(family, parts[0].title())
+    return f"{base} {version}" if version else base
+
+
+def effort(payload: dict) -> str | None:
+    for p in payload.get("model_params") or []:
+        if isinstance(p, dict) and str(p.get("id", "")).lower() in {"effort", "reasoning", "reasoning_effort"}:
+            v = str(p.get("value", "")).strip().lower()
+            if v and v not in {"none", "default"}:
+                return v
+    return None
+
+
+def post(*args: str) -> None:
+    try:
+        subprocess.run([str(HERE / "island-post"), "--source", "cursor", *args],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=3, check=False)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+    except ValueError:
+        payload = {}
+    event = payload.get("hook_event_name", "")
+    conv = str(payload.get("conversation_id") or payload.get("session_id") or "")
+    reply = {"continue": True} if event == "beforeSubmitPrompt" else {}
+    if conv and not payload.get("is_background_agent"):
+        row_id = "chat-" + re.sub(r"[^A-Za-z0-9_.-]", "", conv)[:60]
+        cache = CACHE / f"{row_id}.json"
+        if event == "beforeSubmitPrompt":
+            title = chat_name(conv) or short(str(payload.get("prompt") or "")) or "Cursor chat"
+            meta = " · ".join(x for x in (model_name(payload), effort(payload)) if x)
+            CACHE.mkdir(parents=True, exist_ok=True)
+            cache.write_text(json.dumps({"title": title, "meta": meta}))
+            args = ["--kind", "running", "--id", row_id, "--app", "Cursor", "--title", title, "--ttl", "1800"]
+            post(*(args + (["--meta", meta] if meta else [])))
+        elif event == "stop":
+            saved = json.loads(cache.read_text()) if cache.exists() else {}
+            title = chat_name(conv) or saved.get("title") or "Cursor chat"
+            status = payload.get("status")
+            if status == "completed":
+                post("--kind", "done", "--id", row_id, "--app", "Cursor", "--title", title)
+            elif status == "error":
+                post("--kind", "error", "--id", row_id, "--app", "Cursor", "--title", title, "--detail", "Turn failed")
+            else:
+                post("--kind", "clear", "--id", row_id)
+        elif event == "sessionEnd":
+            post("--kind", "clear", "--id", row_id)
+            cache.unlink(missing_ok=True)
+    sys.stdout.write(json.dumps(reply) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception:  # fail open: a hook must never block Cursor
+        sys.stdout.write("{}\n")
+        raise SystemExit(0)
