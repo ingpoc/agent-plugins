@@ -40,6 +40,7 @@ final class IslandController {
     private(set) lazy var hud = IslandHUDController(model: model)
     let calendar = IslandCalendarController()
     let hotKey = IslandHotKey()
+    private var announcementThrottle = IslandAnnouncementThrottle()
     private(set) lazy var focus = IslandFocusStatus()
     private var reduceMotionObserver: Any?
     private var motionFlush: Timer?
@@ -177,10 +178,16 @@ final class IslandController {
     /// Push Settings → General / AI Agents into the model and panel. Re-run on every change.
     func applySettings(_ s: IslandSettingsStore) {
         typealias K = IslandSettingsSchema
+        let shortcut = IslandShortcut.read(s)
+        model.shortcutSpoken = shortcut.spoken
+        if hotKey.shortcut != shortcut {
+            hotKey.unregister()
+            hotKey.shortcut = shortcut
+        }
         if startsSystem {
             if s.bool(K.hotKey) {
                 if !hotKey.register() {
-                    SamanthaActivityLog.startup(phase: "island_hotkey", status: "fail", detail: "\(IslandHotKey.display) is taken by another app; island keyboard shortcut off")
+                    SamanthaActivityLog.startup(phase: "island_hotkey", status: "fail", detail: "\(shortcut.display) is taken by another app; island keyboard shortcut off")
                 }
             } else { hotKey.unregister() }
             applyMotionProbe()
@@ -189,6 +196,7 @@ final class IslandController {
         IslandModel.peekError = s.double(K.errorPeek)
         IslandModel.doneSettle = s.double(K.doneSettle)
         model.contrastOutline = s.bool(K.contrastOutline)
+        updateAccessibilityDisplay()
         typealias N = NowPlayingKeys
         let style = NowPlayingStyle(color: s.string(N.color), compactWaveform: !s.bool(N.disableCompactWaveform),
                                     artworkFlip: !s.bool(N.disableArtworkFlip),
@@ -323,9 +331,12 @@ final class IslandController {
             _ = self; PermissionBroker.requestFocus()
         }
         hotKey.onPress = { [weak self] in self?.model.hotKeyPressed() }
-        model.onAnnounce = { text in
+        model.onAnnounce = { [weak self] text in
+            guard let self, self.announcementThrottle.allows() else { return }
+            let priority: NSAccessibilityPriorityLevel = self.model.announcementPriority == .high ? .high : .medium
+            // https://developer.apple.com/documentation/appkit/nsaccessibility-swift.struct/notification/announcementrequested
             NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
-                                 userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+                                 userInfo: [.announcement: text, .priority: priority.rawValue])
         }
         model.peekGate = { [weak self] in
             guard let self else { return true }
@@ -337,8 +348,20 @@ final class IslandController {
         }
         reduceMotionObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.model.systemReduceMotion = IslandMotion.systemReduceMotion }
+            MainActor.assumeIsolated {
+                self?.model.systemReduceMotion = IslandMotion.systemReduceMotion
+                self?.updateAccessibilityDisplay()
+            }
         }
+    }
+
+    private func updateAccessibilityDisplay() {
+        // https://developer.apple.com/documentation/appkit/nsworkspace/accessibilitydisplayshouldincreasecontrast
+        // https://developer.apple.com/documentation/appkit/nsworkspace/accessibilitydisplayoptionsdidchangenotification
+        let workspace = NSWorkspace.shared
+        model.systemIncreaseContrast = workspace.accessibilityDisplayShouldIncreaseContrast
+        model.systemDifferentiate = workspace.accessibilityDisplayShouldDifferentiateWithoutColor
+        IslandInk.increased = model.contrastOutline || model.systemIncreaseContrast
     }
 
     private func startSystemActivities() {
@@ -425,6 +448,7 @@ final class IslandController {
     }
 
     /// Capture harness / test hooks.
+    func openKeyboard() { model.hotKeyPressed() }
     var debugModel: IslandModel { model }
     var debugPanel: SamanthaMenuBarIslandPanel { menuBarPanel }
 

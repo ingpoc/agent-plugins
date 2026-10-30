@@ -145,7 +145,8 @@ enum IslandBarLayout {
 enum IslandChoiceLayout {
     static let tallHeight: CGFloat = 220
     static let rowsY: CGFloat = 80
-    static let rowHeight: CGFloat = 32
+    static let rowHeight: CGFloat = 44
+    static let visualRowHeight: CGFloat = 32
     static let rowGap: CGFloat = 8
     static let optionWidth: CGFloat = 150
     static let bottomPadding: CGFloat = IslandBarLayout.cardPadding

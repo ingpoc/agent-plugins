@@ -166,6 +166,34 @@ final class IslandPolishTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(model.drawnWidth, IslandBarLayout.agentAttentionWidth)
     }
 
+    func testDestructiveKeyboardStartsOnDenyAndCommandReturnConfirms() {
+        let model = IslandModel()
+        let approval = IslandAgentApproval(id: "cursor:x", agent: "Cursor", app: "Cursor", title: "Delete branch?", subtitle: "Target: branch", destructive: true)
+        var actions: [IslandCardAction] = []
+        model.onAction = { actions.append($0) }
+        model.apply(IslandSnapshot(kind: "idle", agent_approval: approval))
+        model.hotKeyPressed()
+        XCTAssertEqual(model.navLabel(model.navTarget!), "Deny")
+        XCTAssertTrue(model.handleKey(keyCode: 36, characters: "\r", shift: false, command: true))
+        XCTAssertTrue(actions.isEmpty)
+        XCTAssertTrue(model.handleKey(keyCode: 36, characters: "\r", shift: false, command: true))
+        XCTAssertEqual(actions, [.agentApprove(approval.id)])
+    }
+
+    func testVoiceOverHoldsErrorAndDonePeeks() {
+        let now = Date()
+        for kind in ["error", "done"] {
+            let model = IslandModel()
+            model.voiceOverEnabled = { true }
+            model.apply(IslandSnapshot(kind: kind, title: "Result"), now: now)
+            XCTAssertTrue(model.cardOpen, kind)
+            _ = model.tick(now: now.addingTimeInterval(30))
+            XCTAssertTrue(model.cardOpen, kind)
+            model.toggleCard(byClick: false)
+            XCTAssertFalse(model.cardOpen, kind)
+        }
+    }
+
     func testKeyboardDecisionStartsOnPrimary() {
         let m = IslandModel()
         var acts: [IslandCardAction] = []

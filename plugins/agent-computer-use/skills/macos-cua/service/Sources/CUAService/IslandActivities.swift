@@ -359,7 +359,7 @@ enum IslandAgentRows {
                            maxVisibleRows: Int = maxRows) -> CGFloat {
         let n = CGFloat(min(max(rows, 1), max(1, maxVisibleRows)))
         return max(96, 2 * IslandBarLayout.cardPadding + n * rowHeight
-            + (stopConfirmation ? 20 : 0) + (footer ? 18 : 0))
+            + (stopConfirmation ? 40 : 0) + (footer ? 18 : 0))
     }
 
     static func isProcessObservation(_ agent: IslandAgent) -> Bool {

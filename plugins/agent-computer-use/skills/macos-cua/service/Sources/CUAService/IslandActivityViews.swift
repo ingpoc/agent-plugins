@@ -69,7 +69,7 @@ struct IslandPeekCompact: View {
                         .foregroundStyle(Color.white)
                         .padding(.horizontal, item.count > 9 ? 4 : 0)
                         .frame(minWidth: 16, minHeight: 16)
-                        .background(Capsule().fill(Color.white.opacity(0.15)))
+                        .background(Capsule().fill(Color.white.opacity(IslandInk.hairline)))
                         .contentTransition(.numericText())
                         .layoutProbe("peek-badge", .glyph)
                 }
@@ -77,7 +77,7 @@ struct IslandPeekCompact: View {
                 if let age = IslandPeekRules.ageLabel(item.at, now: ctx.date) {
                     Text(age)
                         .font(IslandType.meta)
-                        .foregroundStyle(Color.white.opacity(IslandInk.meta))
+                        .foregroundStyle(IslandInk.metaColor)
                         .layoutProbe("peek-age")
                 }
             }
@@ -101,7 +101,7 @@ struct IslandPeekIcon: View {
                 .font(.system(size: size * 0.62, weight: .semibold))
                 .foregroundStyle(IslandPeekRules.isSuccess(item.symbol) ? IslandPalette.green : Color.white)
                 .frame(width: size, height: size)
-                .background(Circle().fill(Color.white.opacity(0.15)))
+                .background(Circle().fill(Color.white.opacity(IslandInk.hairline)))
         }
     }
 }
@@ -149,7 +149,7 @@ struct IslandCalendarDot: View {
                 TimelineView(.periodic(from: .now, by: 15)) { ctx in
                     Text(CalendarLogic.shortCountdown(e, now: ctx.date))
                         .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                        .foregroundStyle(Color.white.opacity(0.7))
+                        .foregroundStyle(IslandInk.secondaryColor)
                         .contentTransition(.numericText())
                 }
             }
@@ -180,7 +180,7 @@ struct CalendarCardBody: View {
                                 .lineLimit(1)
                             Text(Self.day.string(from: e.start))
                                 .font(IslandType.meta)
-                                .foregroundStyle(Color.white.opacity(IslandInk.meta))
+                                .foregroundStyle(IslandInk.metaColor)
                         }
                         .fixedSize()
                         .layoutProbe("cal-time-column")
@@ -198,12 +198,12 @@ struct CalendarCardBody: View {
                                     .layoutProbe("cal-title", truncates: true)
                                 if !e.location.isEmpty || !e.calendar.isEmpty {
                                     Text(e.location.isEmpty ? e.calendar : e.location)
-                                        .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6)).lineLimit(2)
+                                        .font(.system(size: 12)).foregroundStyle(IslandInk.metaColor).lineLimit(2)
                                         .layoutProbe("cal-room", truncates: true)
                                 }
                                 Text(CalendarLogic.countdown(e, now: now))
                                     .font(.system(size: 11).monospacedDigit())
-                                    .foregroundStyle(CalendarLogic.isUrgent(e, now: now) ? IslandPalette.red : Color.white.opacity(IslandInk.meta))
+                                    .foregroundStyle(CalendarLogic.isUrgent(e, now: now) ? IslandPalette.red : IslandInk.metaColor)
                                     .contentTransition(.numericText())
                                     .layoutProbe("cal-relative")
                             }
@@ -238,7 +238,7 @@ struct CalendarCardBody: View {
                 } else {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("No more events today").font(IslandType.title).foregroundStyle(Color.white)
-                        Text(Self.day.string(from: now)).font(IslandType.body).foregroundStyle(Color.white.opacity(0.7))
+                        Text(Self.day.string(from: now)).font(IslandType.body).foregroundStyle(IslandInk.secondaryColor)
                     }
                     .offset(x: p, y: p)
                 }
@@ -256,7 +256,7 @@ struct CalendarCardBody: View {
         let (t, period, leading) = timeParts(d)
         let big = Text(t).font(IslandType.value)
         guard let period else { return big }
-        let small = Text(period).font(.system(size: 15, weight: .medium)).foregroundColor(Color.white.opacity(0.7))
+        let small = Text(period).font(.system(size: 15, weight: .medium)).foregroundColor(IslandInk.secondaryColor)
         return leading ? small + Text("\u{2009}") + big : big + Text("\u{2009}").font(IslandType.value) + small
     }
 
@@ -330,7 +330,7 @@ struct IslandTrayThumb: View {
         // 48 pt white 8 % tile (radius 10, no border); the thumbnail or icon aspect-fits inside 4 pt padding.
         // While QuickLook is generating, the tile shows alone.
         ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.08))
+            RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(IslandInk.fill))
             if let img = cache.image(for: item, side: side) {
                 Image(nsImage: img).resizable().interpolation(.high).aspectRatio(contentMode: .fit)
                     .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
@@ -353,7 +353,7 @@ struct TrayCardBody: View {
                 Text("\(model.tray.count)").font(IslandType.meta).contentTransition(.numericText())
             }
             .layoutProbe("tray-header")
-            .foregroundStyle(Color.white.opacity(IslandInk.meta))
+            .foregroundStyle(IslandInk.metaColor)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("File tray, \(model.tray.count) items")
             .offset(x: p, y: p)
@@ -362,7 +362,7 @@ struct TrayCardBody: View {
                 ForEach(vis.shown) { item in
                     VStack(spacing: 4) {
                         IslandTrayThumb(item: item).layoutProbe("tray-thumb-\(item.id)", .glyph)
-                        Text(item.name).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.7))
+                        Text(item.name).font(.system(size: 11)).foregroundStyle(IslandInk.secondaryColor)
                             .lineLimit(1).truncationMode(.middle)
                             .layoutProbe("tray-name-\(item.id)", truncates: true)
                             .frame(width: 56, height: IslandTrayRules.nameHeight)
@@ -384,9 +384,9 @@ struct TrayCardBody: View {
                     .accessibilityAddTraits(.isButton)
                 }
                 if vis.extra > 0 {
-                    Text("+\(vis.extra)").font(IslandType.bodyStrong).foregroundStyle(Color.white.opacity(0.7))
+                    Text("+\(vis.extra)").font(IslandType.bodyStrong).foregroundStyle(IslandInk.secondaryColor)
                         .frame(width: 48, height: 48)
-                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.08)))
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(IslandInk.fill)))
                         .layoutProbe("tray-more", .glyph)
                         .frame(width: 56)
                 }
@@ -401,7 +401,7 @@ struct TrayCardBody: View {
                 }
                 .buttonStyle(.plain).accessibilityLabel("Share all")
                 Button { model.clearTray() } label: {
-                    Text("Clear").font(IslandType.bodyStrong).foregroundStyle(Color.white.opacity(0.7))
+                    Text("Clear").font(IslandType.bodyStrong).foregroundStyle(IslandInk.secondaryColor)
                         .layoutProbe("tray-clear")
                         .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                 }
@@ -465,7 +465,7 @@ struct IslandSecondaryPill: View {
             NowPlayingWaveform(playing: model.nowPlaying?.playing ?? false, color: NowPlayingTint.wave(model), reduceMotion: reduceMotion)
         case .calendar: Color.clear   // Duo: the ring glyph carries the countdown; no trailing dot
         case .tray:
-            Text("\(model.tray.count)").font(.system(size: 11, weight: .semibold).monospacedDigit()).foregroundStyle(Color.white.opacity(0.7))
+            Text("\(model.tray.count)").font(.system(size: 11, weight: .semibold).monospacedDigit()).foregroundStyle(IslandInk.secondaryColor)
         }
     }
 
@@ -505,7 +505,7 @@ struct IslandAgentListBody: View {
             }
             .frame(height: h - 2 * p - (extra > 0 ? 18 : 0), alignment: .top)
             if extra > 0 {
-                Text("+\(extra) more · scroll").font(IslandType.meta).foregroundStyle(Color.white.opacity(IslandInk.meta))
+                Text("+\(extra) more · scroll").font(IslandType.meta).foregroundStyle(IslandInk.metaColor)
                     .layoutProbe("agents-footer")
                     .frame(height: 18, alignment: .bottom)
             }
@@ -520,7 +520,7 @@ struct IslandAgentListBody: View {
                 LazyVStack(spacing: 0) {
                     if rows.isEmpty && processes.isEmpty {
                         HStack(spacing: 8) {
-                            Text("No agents running").font(IslandType.bodyStrong).foregroundStyle(Color.white.opacity(IslandInk.meta))
+                            Text("No agents running").font(IslandType.bodyStrong).foregroundStyle(IslandInk.metaColor)
                         }
                         .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .leading)
                         .padding(.horizontal, 8)
@@ -536,7 +536,7 @@ struct IslandAgentListBody: View {
                             Spacer(minLength: 8)
                             Text("\(processes.count)").font(IslandType.meta).monospacedDigit()
                         }
-                        .foregroundStyle(Color.white.opacity(0.72))
+                        .foregroundStyle(IslandInk.secondaryColor)
                         .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .leading)
                         .padding(.horizontal, 8)
                         .accessibilityElement(children: .ignore)
@@ -568,7 +568,7 @@ struct IslandAgentListBody: View {
             // 20 pt icon on a 28 pt tile (radius 7, white 8 %) on every row.
             SamanthaAppIcon(appName: a.app.isEmpty ? a.name : a.app, size: 20, radius: 5)
                 .frame(width: 28, height: 28)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(0.08)))
+                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(IslandInk.fill)))
                 .layoutProbe("row-\(a.id)-icon", .glyph)
             VStack(alignment: .leading, spacing: 2) {
                 if armed {
@@ -576,8 +576,8 @@ struct IslandAgentListBody: View {
                         .font(IslandType.bodyStrong).foregroundStyle(Color.white).lineLimit(2)
                         .layoutProbe("row-\(a.id)-stop-target", truncates: true)
                     Button("Keep running") { model.cancelStop(a.id) }
-                        .font(IslandType.meta).foregroundStyle(Color.white.opacity(0.85))
-                        .frame(minHeight: 24, alignment: .leading)
+                        .font(IslandType.meta).foregroundStyle(IslandInk.secondaryColor)
+                        .frame(minHeight: 44, alignment: .leading)
                         .contentShape(Rectangle())
                         .buttonStyle(.plain)
                         .islandFocusRing(model.isNavFocused(.cancelStop(a.id)), shape: .capsule)
@@ -588,18 +588,18 @@ struct IslandAgentListBody: View {
                             .layoutProbe("row-\(a.id)-name", truncates: true)
                             .layoutPriority(1)
                         if !a.title.isEmpty {
-                            Text(a.title).font(IslandType.body).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
+                            Text(a.title).font(IslandType.body).foregroundStyle(IslandInk.secondaryColor).lineLimit(1)
                                 .layoutProbe("row-\(a.id)-title", truncates: true)
                         }
                     }
                     HStack(spacing: 4) {
                         if let parentName {
-                            Text("↳ \(parentName)").foregroundStyle(Color.white.opacity(0.72)).lineLimit(1)
+                            Text("↳ \(parentName)").foregroundStyle(IslandInk.secondaryColor).lineLimit(1)
                         }
                         Text(status)
                             .foregroundStyle(model.rowFailures[a.id] != nil || a.status == "error" ? IslandPalette.red.opacity(0.95)
                                 : a.status == "needs_you" ? IslandPalette.amber : a.status == "stale" ? IslandPalette.amber.opacity(0.9)
-                                : Color.white.opacity(0.65))
+                                : IslandInk.metaColor)
                             .layoutPriority(1)
                     }
                     .font(IslandType.meta)
@@ -611,7 +611,7 @@ struct IslandAgentListBody: View {
             Spacer(minLength: 4)
             control(a, pending: pending)
         }
-        .frame(height: armed ? IslandAgentRows.rowHeight + 20 : IslandAgentRows.rowHeight)
+        .frame(height: armed ? IslandAgentRows.rowHeight + 40 : IslandAgentRows.rowHeight)
         .padding(.horizontal, 6)
         .padding(.leading, CGFloat(min(depth, 4)) * 14)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -636,7 +636,7 @@ struct IslandAgentListBody: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(action == .review ? Color.black : Color.white)
                     .frame(width: armed ? 92 : 28, height: 28)
-                    .background(Capsule().fill(armed ? IslandPalette.destructiveFill : action == .review ? IslandPalette.amber : Color.white.opacity(0.12)))
+                    .background(Capsule().fill(armed ? IslandPalette.destructiveFill : action == .review ? IslandPalette.amber : Color.white.opacity(IslandInk.fill)))
                     .layoutProbe("row-\(a.id)-control", .control)
                     .islandFocusRing(model.isNavFocused(.row(a.id)), shape: .capsule)
                     .frame(width: armed ? 100 : 44, height: 44)
@@ -657,7 +657,7 @@ struct IslandAgentListBody: View {
         if a.status == "expired" {
             IslandHollowRing(size: 12)
         } else if IslandAgentRows.isProcessObservation(a) {
-            SamanthaSymbol(name: "cpu", color: Color.white.opacity(0.55))
+            SamanthaSymbol(name: "cpu", color: IslandInk.metaColor)
         } else if a.status == "error" {
             SamanthaSymbol(name: "xmark.circle.fill", color: IslandPalette.red)
         } else if a.status == "done" {

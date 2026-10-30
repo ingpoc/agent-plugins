@@ -10,8 +10,8 @@ enum SettingsStyle {
     static let accent = Color(red: 0x64 / 255, green: 0xD2 / 255, blue: 0xFF / 255)
     static let windowBG = Color(red: 0.19, green: 0.19, blue: 0.19)
     static let sidebarBG = Color(red: 0.24, green: 0.24, blue: 0.24)
-    static let card = Color.white.opacity(0.06)
-    static let divider = Color.white.opacity(0.08)
+    static let card = Color.white.opacity(IslandInk.fill)
+    static let divider = Color.white.opacity(IslandInk.fill)
     static let size = CGSize(width: 620, height: 687)
     static let sidebarWidth: CGFloat = 213
     static let rowHeight: CGFloat = 42
@@ -147,7 +147,7 @@ struct IslandSettingsRoot: View {
                 if let title = group.0 {
                     Text(title)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.55))
+                        .foregroundStyle(IslandInk.metaColor)
                         .layoutProbe("sidebar-header:\(title)")
                         .padding(.leading, 20).padding(.top, 10).padding(.bottom, 4)
                 }
@@ -164,14 +164,14 @@ struct IslandSettingsRoot: View {
                 else { IconTile(symbol: t.symbol, color: Color(nsColor: t.tint), size: 20) }
             }
             .layoutProbe("side-icon:\(t.rawValue)", .glyph)
-            Text(t.title).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.92))
+            Text(t.title).font(.system(size: 13)).foregroundStyle(Color.white)
                 .layoutProbe("side-title:\(t.rawValue)")
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8)
         .frame(width: 200, height: 36)
         .layoutContainer("side|\(t.rawValue)")
-        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selected ? Color.white.opacity(0.10) : .clear))
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(selected ? Color.white.opacity(IslandInk.fill) : .clear))
         .contentShape(Rectangle())
         .onTapGesture { nav.tab = t }
         .padding(.leading, 12)
@@ -230,7 +230,7 @@ struct IslandSettingsRoot: View {
             ForEach(Array(groups.enumerated()), id: \.element.rows.first?.key) { gi, g in
                 VStack(alignment: .leading, spacing: 6) {
                     if let s = g.section {
-                        Text(s).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white.opacity(0.55))
+                        Text(s).font(.system(size: 12, weight: .semibold)).foregroundStyle(IslandInk.metaColor)
                             .lineLimit(1).truncationMode(.tail).help(s)
                             .layoutProbe("section:\(gi)", truncates: true).padding(.leading, 4)
                     }
@@ -246,6 +246,18 @@ struct IslandSettingsRoot: View {
                 }
                 .transition(.opacity)
             }
+            if tab == .interaction {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Keyboard").font(.system(size: 12, weight: .semibold)).foregroundStyle(IslandInk.metaColor)
+                    SettingsCard {
+                        HStack {
+                            Text("Show Dynamic Island shortcut")
+                            Spacer()
+                            IslandShortcutRecorder(store: store).frame(width: 120, height: 28)
+                        }.padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
+                    }
+                }
+            }
             if tab == .about { aboutFooter }
         }
         .animation(rendering ? nil : Self.rowVisibility, value: visible.map(\.key))
@@ -258,16 +270,16 @@ struct IslandSettingsRoot: View {
                 BrandTile(size: 24).layoutProbe("about-icon", .glyph)
                 Text("Agent Computer Use").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white).layoutProbe("about-name")
                 Spacer()
-                Text(v).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundStyle(Color.white.opacity(0.55)).layoutProbe("about-version")
+                Text(v).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundStyle(IslandInk.metaColor).layoutProbe("about-version")
                 if let b = AppVersion.build {
-                    Text(b).font(.system(size: 11, design: .monospaced)).foregroundStyle(Color.white.opacity(IslandInk.meta)).layoutProbe("about-build")
+                    Text(b).font(.system(size: 11, design: .monospaced)).foregroundStyle(IslandInk.metaColor).layoutProbe("about-build")
                 }
             }
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
             .layoutContainer("about|version")
             Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10)
             Text("A Dynamic Island for Samantha and your AI agents.")
-                .font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.7))
+                .font(.system(size: 12)).foregroundStyle(IslandInk.secondaryColor)
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutProbe("about-text", truncates: true)   // wraps by design; frame = drawn text
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
@@ -290,7 +302,7 @@ struct SettingsCard<Content: View>: View {
     var body: some View {
         VStack(spacing: 0, content: content)
             .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(SettingsStyle.card))
-            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.white.opacity(0.05), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.white.opacity(IslandInk.hairline), lineWidth: 1))
     }
 }
 
@@ -337,7 +349,7 @@ struct SettingRow: View {
             // Captioned rows: the explanation sits under the row (11 pt, 45 %) instead of an "i".
             VStack(alignment: .leading, spacing: 0) {
                 rowBody
-                Text(c).font(.system(size: 11)).foregroundStyle(Color.white.opacity(IslandInk.meta))
+                Text(c).font(.system(size: 11)).foregroundStyle(IslandInk.metaColor)
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutProbe("caption:\(key)", truncates: true)   // wraps by design
                     .padding(.horizontal, 12).padding(.top, -4).padding(.bottom, 12)
@@ -422,7 +434,7 @@ struct SettingRow: View {
                 if granted {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill").font(.system(size: 13)).foregroundStyle(Color(nsColor: .systemGreen))
-                        Text("Allowed").font(.system(size: 12, weight: .medium)).foregroundStyle(Color.white.opacity(0.85))
+                        Text("Allowed").font(.system(size: 12, weight: .medium)).foregroundStyle(IslandInk.secondaryColor)
                     }
                     .fixedSize()
                     .accessibilityElement(children: .combine)
@@ -442,7 +454,7 @@ struct SettingRow: View {
 
     private var label: some View {
         HStack(spacing: 6) {
-            Text(def.label).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.92))
+            Text(def.label).font(.system(size: 13)).foregroundStyle(Color.white)
                 .lineLimit(1).truncationMode(.tail).help(def.label)
                 .layoutProbe("label:\(key)", truncates: true)
         }
@@ -467,7 +479,7 @@ struct SettingRow: View {
 struct InfoDot: View {
     let text: String
     var body: some View {
-        Image(systemName: "info.circle.fill").font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.4)).help(text)
+        Image(systemName: "info.circle.fill").font(.system(size: 11)).foregroundStyle(IslandInk.metaColor).help(text)
             .accessibilityLabel(text)
     }
 }
@@ -475,9 +487,9 @@ struct InfoDot: View {
 struct ValuePill: View {
     let text: String
     var body: some View {
-        Text(text).font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(Color.white.opacity(0.85))
+        Text(text).font(.system(size: 11, weight: .medium).monospacedDigit()).foregroundStyle(IslandInk.secondaryColor)
             .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(Capsule().fill(Color.white.opacity(0.08)))
+            .background(Capsule().fill(Color.white.opacity(IslandInk.fill)))
     }
 }
 
@@ -486,7 +498,7 @@ struct SettingsSwitch: View {
     var probe = "switch"
     var body: some View {
         ZStack(alignment: isOn ? .trailing : .leading) {
-            Capsule().fill(isOn ? SettingsStyle.accent : Color.white.opacity(0.18)).frame(width: 38, height: 20)
+            Capsule().fill(isOn ? SettingsStyle.accent : Color.white.opacity(IslandInk.hairline)).frame(width: 38, height: 20)
                 .layoutProbe(probe, .control)   // the visible track, not the hit area
             Circle().fill(Color.white).frame(width: 16, height: 16).padding(.horizontal, 2)
                 .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
@@ -510,10 +522,10 @@ struct ValueSlider: View {
             let f = (value - range.lowerBound) / max(0.0001, range.upperBound - range.lowerBound)
             let ticks = min(12, Int(((range.upperBound - range.lowerBound) / step).rounded()))
             ZStack(alignment: .leading) {
-                Capsule().fill(Color.white.opacity(0.14)).frame(height: 4)
+                Capsule().fill(Color.white.opacity(IslandInk.hairline)).frame(height: 4)
                 Capsule().fill(SettingsStyle.accent).frame(width: max(4, w * f), height: 4)
                 ForEach(0...max(1, ticks), id: \.self) { i in
-                    Rectangle().fill(Color.white.opacity(0.25)).frame(width: 1, height: 4)
+                    Rectangle().fill(Color.white.opacity(IslandInk.hairline)).frame(width: 1, height: 4)
                         .offset(x: w * CGFloat(i) / CGFloat(max(1, ticks)) - 0.5, y: 7)
                 }
                 Circle().fill(Color.white).frame(width: 16, height: 16).shadow(color: .black.opacity(0.3), radius: 1)
@@ -550,7 +562,7 @@ struct TilePicker: View {
                         .fill(Color.white.opacity(on ? 0.15 : 0.08))
                         .frame(height: 44)
                         .overlay(Image(systemName: o.symbol).font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(on ? SettingsStyle.accent : Color.white.opacity(0.6)))
+                            .foregroundStyle(on ? SettingsStyle.accent : IslandInk.metaColor))
                         .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(on ? SettingsStyle.accent : .clear, lineWidth: 1))
                         .layoutProbe("tile:\(key):\(o.value)", .control)
                         .modifier(SettingsFocusRing(on: focused && on, radius: 8, key: key))
@@ -581,10 +593,10 @@ struct SettingsPopup: View {
     var body: some View {
         let current = options.first { $0.value == selection }?.label ?? selection
         let lbl = HStack(spacing: 4) {
-            Text(current).font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.85))
+            Text(current).font(.system(size: 12)).foregroundStyle(IslandInk.secondaryColor)
                 .lineLimit(1).truncationMode(.tail).frame(width: Self.textWidth(current))
                 .layoutProbe("popup-text:\(key)", truncates: true)
-            Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Color.white.opacity(0.6))
+            Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(IslandInk.metaColor)
         }
         if rendering {
             lbl.fixedSize(horizontal: false, vertical: true)
@@ -629,7 +641,7 @@ struct TokenRow: View {
     var body: some View {
         let masked = source.flatMap { store.maskedToken($0) }
         HStack(spacing: 8) {
-            Image(systemName: "key.fill").font(.system(size: 12)).foregroundStyle(Color.white.opacity(0.6))
+            Image(systemName: "key.fill").font(.system(size: 12)).foregroundStyle(IslandInk.metaColor)
                 .frame(width: 14).layoutProbe("symbol:\(def.key)", .glyph)
             if let error {
                 Text(error).font(.system(size: 12)).foregroundStyle(Color(nsColor: .systemRed))
@@ -638,7 +650,7 @@ struct TokenRow: View {
                 Text(masked).font(.system(size: 13, weight: .medium, design: .monospaced)).foregroundStyle(.white)
                     .lineLimit(1).layoutProbe("token:\(def.key)")
             } else {
-                Text("No token").font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.6))
+                Text("No token").font(.system(size: 13)).foregroundStyle(IslandInk.metaColor)
                     .lineLimit(1).layoutProbe("token:\(def.key)")
             }
             Spacer(minLength: 8)

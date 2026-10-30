@@ -28,12 +28,49 @@ enum IslandFocusShape: Equatable {
     static let tile = IslandFocusShape.rounded(7)
 }
 
+struct IslandShortcut: Equatable {
+    let keyCode: UInt32
+    let modifiers: UInt32
+    let character: String
+    static let `default` = IslandShortcut(keyCode: UInt32(kVK_ANSI_I), modifiers: UInt32(controlKey | cmdKey), character: "i")
+    @MainActor static func read(_ store: IslandSettingsStore) -> IslandShortcut {
+        guard let d = store.defaults.dictionary(forKey: IslandSettingsSchema.shortcut),
+              let key = d["keyCode"] as? Int, let mods = d["modifiers"] as? Int,
+              let character = d["character"] as? String, character.count == 1,
+              key >= 0, key < 128, mods > 0, mods <= Int(UInt32.max),
+              UInt32(mods) & UInt32(controlKey | optionKey | shiftKey | cmdKey) != 0 else { return .default }
+        return IslandShortcut(keyCode: UInt32(key), modifiers: UInt32(mods), character: character)
+    }
+    var display: String {
+        (modifiers & UInt32(controlKey) != 0 ? "⌃" : "") + (modifiers & UInt32(optionKey) != 0 ? "⌥" : "")
+        + (modifiers & UInt32(shiftKey) != 0 ? "⇧" : "") + (modifiers & UInt32(cmdKey) != 0 ? "⌘" : "") + character.uppercased()
+    }
+    var spoken: String {
+        ([modifiers & UInt32(controlKey) != 0 ? "Control" : nil,
+          modifiers & UInt32(optionKey) != 0 ? "Option" : nil,
+          modifiers & UInt32(shiftKey) != 0 ? "Shift" : nil,
+          modifiers & UInt32(cmdKey) != 0 ? "Command" : nil, character.uppercased()].compactMap { $0 }).joined(separator: "-")
+    }
+    var menuModifiers: NSEvent.ModifierFlags {
+        var f: NSEvent.ModifierFlags = []
+        if modifiers & UInt32(controlKey) != 0 { f.insert(.control) }
+        if modifiers & UInt32(optionKey) != 0 { f.insert(.option) }
+        if modifiers & UInt32(shiftKey) != 0 { f.insert(.shift) }
+        if modifiers & UInt32(cmdKey) != 0 { f.insert(.command) }
+        return f
+    }
+    @MainActor func save(_ store: IslandSettingsStore) {
+        store.set(["keyCode": Int(keyCode), "modifiers": Int(modifiers), "character": character], for: IslandSettingsSchema.shortcut)
+    }
+}
+
 // MARK: - Global hotkey (⌃⌘I) — public Carbon API, no Accessibility needed
 
 final class IslandHotKey {
     static let keyCode = UInt32(kVK_ANSI_I)
     static let modifiers = UInt32(controlKey | cmdKey)
     static let display = "⌃⌘I"
+    var shortcut = IslandShortcut.default
     private var ref: EventHotKeyRef?
     private var handler: EventHandlerRef?
     var onPress: (() -> Void)?
@@ -51,7 +88,7 @@ final class IslandHotKey {
         }, 1, &spec, me, &handler)
         guard hs == noErr else { unregister(); return false }
         let id = EventHotKeyID(signature: OSType(0x4953_4C44), id: 1)   // 'ISLD'
-        let st = RegisterEventHotKey(Self.keyCode, Self.modifiers, id, GetApplicationEventTarget(), 0, &ref)
+        let st = RegisterEventHotKey(shortcut.keyCode, shortcut.modifiers, id, GetApplicationEventTarget(), 0, &ref)
         if st != noErr { unregister() }
         return st == noErr
     }
@@ -138,7 +175,10 @@ extension IslandModel {
     /// ⌃⌘I: open the island with keyboard focus; pressed again (or Esc) closes and hands focus back.
     func hotKeyPressed() {
         if keyboardActive { endKeyboard(close: true); return }
-        if !cardOpen { toggleCard(byClick: false) }
+        if !cardOpen {
+            forceCompact = false
+            if !cardOpen { toggleCard(byClick: false) }
+        }
         keyboardActive = true
         let t = navTargets
         // Irreversible requests start on the safer secondary action.
@@ -154,7 +194,13 @@ extension IslandModel {
     func endKeyboard(close: Bool) {
         guard keyboardActive else { return }
         keyboardActive = false
-        if close, cardOpen, !isSticky { toggleCard(byClick: false) }
+        if close, cardOpen {
+            if isSticky || isChoiceCard {
+                forceCompact = true
+            } else {
+                toggleCard(byClick: false)
+            }
+        }
         onEndKeyboard?()
     }
 
