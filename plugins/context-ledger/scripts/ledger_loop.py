@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Context Ledger loop: gated, never-blocking find/save plus the closeout check (Guru 2026-10-17).
+"""Context Ledger loop: gated, never-blocking find/save plus the closeout check (owner decision 2026-10-17).
 
 Gate first. Use the ledger only for critical, recurring, research or debugging tasks, or to
-record a Guru override. Simple or one-shot tasks skip it: `close <task_id> --gated-out <word>`.
+record an owner override. Simple or one-shot tasks skip it: `close <task_id> --gated-out <word>`.
 
   ledger_loop.py [--data DIR] find  <task_id> --bot NAME --query "<problem now>" [--audit]
   ledger_loop.py [--data DIR] save  <task_id> --bot NAME --type user_decision|agent_conclusion
@@ -14,7 +14,7 @@ record a Guru override. Simple or one-shot tasks skip it: `close <task_id> --gat
                  [--applied id ... | --applied-none "<why none>"] [--repeat-of "<id or topic>: <reason>"]
                  [--guru-correction "<reason>"] [--audit]
 
-A/B (Guru 2026-10-17): from AB_START to AB_END (IST), find is ON on odd calendar days and OFF on
+A/B (owner decision 2026-10-17): from AB_START to AB_END (IST), find is ON on odd calendar days and OFF on
 even days; saves and outcomes stay on. The MCP server applies the same rule, so connector finds
 follow it too. LEDGER_AB_DATE=YYYY-MM-DD overrides today for dry runs. Every close appends one
 task row to DATA/ledger-loop/tasks.jsonl (LEDGER_TASK_LOG); scripts/ledger_stats.py reads it.
@@ -927,7 +927,7 @@ def main(argv: list[str] | None = None) -> int:
     x.add_argument("--gated-out", dest="gated_out", help="one word: why this task skipped the ledger")
     x.add_argument("--bot", help="actor id when no find/save row names it (OFF days)")
     x.add_argument("--repeat-of", dest="repeat_of", help="<=20 words: the earlier task/decision this re-diagnosed, and why")
-    x.add_argument("--guru-correction", dest="guru_correction", help="<=20 words: what Guru had to re-prompt or correct")
+    x.add_argument("--guru-correction", dest="guru_correction", help="<=20 words: what the owner had to re-prompt or correct")
     x.add_argument("--audit", action="store_true")
     o = p.parse_args(argv)
     cmds = {"find": cmd_find, "save": cmd_save, "start": cmd_start, "close": cmd_close}

@@ -440,6 +440,82 @@ def claude_package_errors(root: Path, manifest: dict) -> list[str]:
     return errors
 
 
+GROK_PLUGIN_KEYS = {
+    "name",
+    "version",
+    "description",
+    "author",
+    "homepage",
+    "repository",
+    "license",
+    "keywords",
+    "logo",
+    "mcpServers",
+}
+LOGO_SUFFIXES = (".svg", ".png")
+
+
+def _relative_asset_errors(root: Path, where: str, rel: object) -> list[str]:
+    if not isinstance(rel, str) or not rel:
+        return [f"{root}: {where} logo must be a non-empty relative path."]
+    if rel.startswith("/") or "://" in rel or ".." in Path(rel).parts:
+        return [f"{root}: {where} logo {rel!r} must be relative to the plugin (no /, .., or URL)."]
+    if not rel.endswith(LOGO_SUFFIXES):
+        return [f"{root}: {where} logo {rel!r} must be .svg or .png."]
+    if not (root / rel).is_file():
+        return [f"{root}: {where} logo {rel!r} does not exist."]
+    return []
+
+
+def grok_package_errors(root: Path, manifest: dict) -> list[str]:
+    """Optional Grok manifest: catalog metadata twin of plugin.json.
+
+    Grok reads .grok-plugin/plugin.json before .cursor-plugin/plugin.json, so it must
+    keep the same MCP config the Cursor manifest points at.
+    """
+    path = root / ".grok-plugin" / "plugin.json"
+    if not (root / ".grok-plugin").exists():
+        return []
+    if not path.is_file():
+        return [f"{root}: .grok-plugin/ must contain plugin.json."]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return [f"{root}: .grok-plugin/plugin.json is not valid JSON: {error.msg}"]
+    if not isinstance(data, dict):
+        return [f"{root}: .grok-plugin/plugin.json must be an object."]
+    errors: list[str] = []
+    extra = set(data) - GROK_PLUGIN_KEYS
+    if extra:
+        errors.append(f"{root}: .grok-plugin/plugin.json unknown keys: " + ", ".join(sorted(extra)))
+    for key in ("name", "version", "description", "license"):
+        if data.get(key) != manifest.get(key):
+            errors.append(f"{root}: .grok-plugin/plugin.json {key} must match plugin.json.")
+    if "logo" in data:
+        errors.extend(_relative_asset_errors(root, ".grok-plugin/plugin.json", data["logo"]))
+    cursor_manifest = root / ".cursor-plugin" / "plugin.json"
+    expected_mcp = CURSOR_MCP_REL if cursor_manifest.is_file() else None
+    if data.get("mcpServers") != expected_mcp:
+        errors.append(
+            f"{root}: .grok-plugin/plugin.json mcpServers must be "
+            f"{expected_mcp or 'absent'} (same MCP config as the Cursor manifest)."
+        )
+    return errors
+
+
+def check_catalog_logos() -> list[str]:
+    errors: list[str] = []
+    data = json.loads((ROOT / ".cursor-plugin/marketplace.json").read_text(encoding="utf-8"))
+    for entry in data.get("plugins", []):
+        if not isinstance(entry, dict) or "logo" not in entry:
+            continue
+        source = str(entry.get("source") or "")
+        errors.extend(
+            _relative_asset_errors(ROOT / source, ".cursor-plugin/marketplace.json", entry["logo"])
+        )
+    return errors
+
+
 def validate_plugin(root: Path) -> list[str]:
     errors: list[str] = []
     manifest = root / "plugin.json"
@@ -485,6 +561,7 @@ def validate_plugin(root: Path) -> list[str]:
         errors.append(f"{root}: .codex-plugin/ is not part of an Agent Plugin package.")
     errors.extend(cursor_package_errors(root, data))
     errors.extend(claude_package_errors(root, data))
+    errors.extend(grok_package_errors(root, data))
     return errors
 
 
@@ -516,6 +593,7 @@ def check_catalogs() -> list[str]:
                 f"{entry.get('name')} must not carry {', '.join(shadow)} (shadows the package)."
             )
     errors.extend(check_claude_catalog())
+    errors.extend(check_catalog_logos())
     return errors
 
 

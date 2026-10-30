@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LAUNCHER = ROOT / "bin" / "context-ledger-mcp"
-DESCRIPTION = "Scoped, local decision traces with sparse capture and progressive retrieval."
+DESCRIPTION = "Local-first decision memory for agents: save the decisions and lessons from critical or recurring tasks, then look them up later through a scoped MCP server over a local SQLite ledger."
 PORTABLE_TAIL = [
     "context-ledger-mcp",
     "${PLUGIN_ROOT}",
