@@ -125,6 +125,10 @@ final class IslandHub {
             if a.status == "running", let meta = a.local_detail, !meta.isEmpty {
                 a.local_detail = meta + " · " + IslandCodexThreads.duration(Int(a.elapsed_s))
             }
+            // A done row keeps its model meta: "Grok 4.7 · high · fast · done 1m".
+            if a.status == "done", let meta = a.local_detail, !meta.isEmpty {
+                a.local_detail = meta + " · done " + IslandCodexThreads.duration(max(0, Int(now.timeIntervalSince(e.updated))))
+            }
             a.last_seen_at = e.updated.timeIntervalSince1970
             return a
         }
@@ -517,7 +521,7 @@ final class IslandHub {
             var shown = agent
             if kind == "error", let line = (j["detail"] as? String)?.components(separatedBy: .newlines).first?
                 .trimmingCharacters(in: .whitespaces), !line.isEmpty { shown.local_detail = String(line.prefix(60)) }
-            if kind == "running", let meta = (j["meta"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+            if kind == "running" || kind == "done", let meta = (j["meta"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !meta.isEmpty { shown.local_detail = String(meta.prefix(60)) }
             if kind == "error", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !tech.isEmpty { shown.tooltip = String(tech.prefix(200)) }

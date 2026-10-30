@@ -57,8 +57,9 @@ def model_name(payload: dict) -> str | None:
     names = {"grok": "Grok", "claude": "Claude", "gpt": "GPT", "gemini": "Gemini", "composer": "Composer",
              "opus": "Opus", "sonnet": "Sonnet", "haiku": "Haiku", "o3": "o3", "kimi": "Kimi"}
     if family == "claude" and len(parts) > 1:
+        kind = next((p for p in parts[1:] if p.lower() in {"opus", "sonnet", "haiku"}), None)
         rest = [p for p in parts[1:] if re.fullmatch(r"\d+(\.\d+)?", p)]
-        return " ".join([names.get(parts[1].lower(), parts[1].title()), ".".join(rest)]).strip()
+        return " ".join(x for x in [names[kind.lower()] if kind else "Claude", ".".join(rest)] if x)
     version = next((p for p in parts[1:] if re.fullmatch(r"\d+(\.\d+)*", p)), None)
     if family == "gpt" and version:
         return f"GPT-{version}"
@@ -73,6 +74,51 @@ def effort(payload: dict) -> str | None:
             if v and v not in {"none", "default"}:
                 return v
     return None
+
+
+def fast(payload: dict) -> str | None:
+    """Cursor's Fast toggle is a model param {"id": "fast", "value": "true"}."""
+    for p in payload.get("model_params") or []:
+        if isinstance(p, dict) and str(p.get("id", "")).lower() == "fast" \
+                and str(p.get("value", "")).strip().lower() in {"true", "1", "yes"}:
+            return "fast"
+    return None
+
+
+def model_source(payload: dict, conversation_id: str) -> dict:
+    """The hook payload's model fields; if it has none, the chat's own modelConfig (read-only DB)."""
+    chat = chat_model(conversation_id)
+    if not (payload.get("model_id") or payload.get("model")):
+        return chat or payload
+    # Payload first; the chat's own params fill ids the payload leaves out (e.g. the Fast toggle).
+    params = [p for p in payload.get("model_params") or [] if isinstance(p, dict)]
+    have = {str(p.get("id", "")).lower() for p in params}
+    if chat and (chat.get("model_id") or "").split("-")[:2] == (payload.get("model_id") or payload.get("model") or "").split("-")[:2]:
+        params += [p for p in chat.get("model_params") or [] if isinstance(p, dict) and str(p.get("id", "")).lower() not in have]
+    return {**payload, "model_params": params}
+
+
+def chat_model(conversation_id: str) -> dict | None:
+    if not conversation_id or not STATE_DB.exists():
+        return None
+    try:
+        con = sqlite3.connect(f"file:{STATE_DB}?mode=ro", uri=True, timeout=0.5)
+        try:
+            row = con.execute("select value from cursorDiskKV where key = ?",
+                              (f"composerData:{conversation_id}",)).fetchone()
+        finally:
+            con.close()
+        selected = (json.loads(row[0]).get("modelConfig") or {}).get("selectedModels") or [] if row else []
+        if selected and isinstance(selected[0], dict):
+            return {"model_id": selected[0].get("modelId"), "model_params": selected[0].get("parameters")}
+    except (sqlite3.Error, ValueError, TypeError, AttributeError):
+        pass
+    return None
+
+
+def meta_line(payload: dict, conversation_id: str) -> str:
+    src = model_source(payload, conversation_id)
+    return " · ".join(x for x in (model_name(src), effort(src), fast(src)) if x)
 
 
 def post(*args: str) -> None:
@@ -96,7 +142,7 @@ def main() -> int:
         cache = CACHE / f"{row_id}.json"
         if event == "beforeSubmitPrompt":
             title = chat_name(conv) or short(str(payload.get("prompt") or "")) or "Cursor chat"
-            meta = " · ".join(x for x in (model_name(payload), effort(payload)) if x)
+            meta = meta_line(payload, conv)
             CACHE.mkdir(parents=True, exist_ok=True)
             cache.write_text(json.dumps({"title": title, "meta": meta}))
             args = ["--kind", "running", "--id", row_id, "--app", "Cursor", "--title", title, "--ttl", "1800"]
@@ -105,8 +151,10 @@ def main() -> int:
             saved = json.loads(cache.read_text()) if cache.exists() else {}
             title = chat_name(conv) or saved.get("title") or "Cursor chat"
             status = payload.get("status")
+            meta = saved.get("meta") or meta_line(payload, conv)
             if status == "completed":
-                post("--kind", "done", "--id", row_id, "--app", "Cursor", "--title", title)
+                post("--kind", "done", "--id", row_id, "--app", "Cursor", "--title", title,
+                     *(["--meta", meta] if meta else []))
             elif status == "error":
                 post("--kind", "error", "--id", row_id, "--app", "Cursor", "--title", title, "--detail", "Turn failed")
             else:

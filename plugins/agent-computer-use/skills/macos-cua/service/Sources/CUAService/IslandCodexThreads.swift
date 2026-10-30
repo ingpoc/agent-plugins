@@ -229,12 +229,13 @@ enum IslandCodexThreads {
             var row = IslandAgent(id: "local:codex-thread:\(record.id)", name: "Codex", app: "Codex",
                                   title: displayTitle(record), status: state == "working" ? "running" : state,
                                   elapsed_s: Double(age), last_seen_at: record.updatedAt.timeIntervalSince1970)
+            let desktop = ["Codex Desktop", "codex_work_desktop"].contains(record.originator ?? "")
             var parts = [productModelName(record.rollout.model ?? record.model),
-                         (record.rollout.effort ?? record.effort)?.lowercased()].compactMap { $0 }
+                         effortLabel(record.rollout.effort ?? record.effort, desktop: desktop)].compactMap { $0 }
             if let count = helpers[record.id]?.count, count > 0 { parts.append("+\(count) helpers") }
             switch state {
             case "error": row.local_detail = stopped ? "Stopped" : humanError(record.rollout.error)
-            case "done": row.local_detail = "done \(duration(age))"
+            case "done": row.local_detail = (parts + ["done \(duration(age))"]).joined(separator: " · ")
             default: row.local_detail = (parts + [duration(age)]).joined(separator: " · ")
             }
             // https://developers.openai.com/codex/app/commands#deep-links: codex://threads/<id> opens a local thread.
@@ -244,6 +245,14 @@ enum IslandCodexThreads {
             if row.tooltip?.isEmpty == true { row.tooltip = nil }
             return row
         }
+    }
+
+    /// Effort as the thread's own surface names it. The Codex app and IDE label `low` "Light" and
+    /// `xhigh` "Extra High" (developers.openai.com/codex: reasoning effort); the CLI shows the raw value.
+    static func effortLabel(_ effort: String?, desktop: Bool) -> String? {
+        guard let e = effort?.trimmingCharacters(in: .whitespaces).lowercased(), !e.isEmpty else { return nil }
+        guard desktop else { return e }
+        return ["low": "light", "xhigh": "extra high"][e] ?? e
     }
 
     static func hostLabel(_ originator: String?) -> String {
