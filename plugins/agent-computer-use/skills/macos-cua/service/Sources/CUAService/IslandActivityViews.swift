@@ -77,7 +77,7 @@ struct IslandPeekCompact: View {
                 if let age = IslandPeekRules.ageLabel(item.at, now: ctx.date) {
                     Text(age)
                         .font(IslandType.meta)
-                        .foregroundStyle(Color.white.opacity(0.45))
+                        .foregroundStyle(Color.white.opacity(IslandInk.meta))
                         .layoutProbe("peek-age")
                 }
             }
@@ -180,7 +180,7 @@ struct CalendarCardBody: View {
                                 .lineLimit(1)
                             Text(Self.day.string(from: e.start))
                                 .font(IslandType.meta)
-                                .foregroundStyle(Color.white.opacity(0.45))
+                                .foregroundStyle(Color.white.opacity(IslandInk.meta))
                         }
                         .fixedSize()
                         .layoutProbe("cal-time-column")
@@ -203,7 +203,7 @@ struct CalendarCardBody: View {
                                 }
                                 Text(CalendarLogic.countdown(e, now: now))
                                     .font(.system(size: 11).monospacedDigit())
-                                    .foregroundStyle(CalendarLogic.isUrgent(e, now: now) ? IslandPalette.red : Color.white.opacity(0.45))
+                                    .foregroundStyle(CalendarLogic.isUrgent(e, now: now) ? IslandPalette.red : Color.white.opacity(IslandInk.meta))
                                     .contentTransition(.numericText())
                                     .layoutProbe("cal-relative")
                             }
@@ -353,7 +353,7 @@ struct TrayCardBody: View {
                 Text("\(model.tray.count)").font(IslandType.meta).contentTransition(.numericText())
             }
             .layoutProbe("tray-header")
-            .foregroundStyle(Color.white.opacity(0.45))
+            .foregroundStyle(Color.white.opacity(IslandInk.meta))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("File tray, \(model.tray.count) items")
             .offset(x: p, y: p)
@@ -505,7 +505,7 @@ struct IslandAgentListBody: View {
             }
             .frame(height: h - 2 * p - (extra > 0 ? 18 : 0), alignment: .top)
             if extra > 0 {
-                Text("+\(extra) more · scroll").font(IslandType.meta).foregroundStyle(Color.white.opacity(0.45))
+                Text("+\(extra) more · scroll").font(IslandType.meta).foregroundStyle(Color.white.opacity(IslandInk.meta))
                     .layoutProbe("agents-footer")
                     .frame(height: 18, alignment: .bottom)
             }
@@ -518,10 +518,9 @@ struct IslandAgentListBody: View {
         ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0) {
-                    if rows.isEmpty {
+                    if rows.isEmpty && processes.isEmpty {
                         HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle.fill").foregroundStyle(IslandPalette.green)
-                            Text("No agent tasks reported").font(IslandType.bodyStrong).foregroundStyle(Color.white)
+                            Text("No agents running").font(IslandType.bodyStrong).foregroundStyle(Color.white.opacity(IslandInk.meta))
                         }
                         .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .leading)
                         .padding(.horizontal, 8)
@@ -648,7 +647,7 @@ struct IslandAgentListBody: View {
             .accessibilityLabel(Self.label(action, armed: armed,
                                            name: [a.name.isEmpty ? a.app : a.name, a.title].filter { !$0.isEmpty }.joined(separator: ": "),
                                            requestKind: a.request_kind))
-        } else {
+        } else if !IslandAgentRows.isProcessObservation(a) {
             statusGlyph(a).frame(width: 28, height: 28).layoutProbe("row-\(a.id)-glyph", .glyph)
         }
     }

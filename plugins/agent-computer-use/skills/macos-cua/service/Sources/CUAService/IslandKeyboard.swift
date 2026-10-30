@@ -141,8 +141,12 @@ extension IslandModel {
         if !cardOpen { toggleCard(byClick: false) }
         keyboardActive = true
         let t = navTargets
-        // Decision cards start on the primary (Return = the default action, like an alert).
-        navIndex = t.count == 2 && cardOpen && { if case .decision = card.controls { return true }; return false }() ? 1 : 0
+        // Irreversible requests start on the safer secondary action.
+        if t.count == 2, cardOpen, case .decision(_, _, let destructive) = card.controls {
+            navIndex = destructive ? 0 : 1
+        } else {
+            navIndex = 0
+        }
         if let begin = onBeginKeyboard, !begin() { keyboardActive = false; return }
         announceFocus()
     }

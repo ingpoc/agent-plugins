@@ -368,14 +368,7 @@ struct SamanthaSourceCircle: View {
         }
         .frame(width: IslandBarLayout.circleDiameter, height: IslandBarLayout.circleDiameter)
         .overlay(alignment: .topTrailing) {
-            if group.processCount > 0 {
-                Text("\(group.processCount)")
-                    .font(.system(size: 8, weight: .bold)).monospacedDigit()
-                    .foregroundStyle(Color.white)
-                    .frame(minWidth: 12, minHeight: 12)
-                    .background(Capsule().fill(Color.gray.opacity(0.8)))
-                    .offset(x: 3, y: -3)
-            } else if group.needsYou >= 2 {
+            if group.needsYou >= 2 {
                 Text("\(group.needsYou)")
                     .font(.system(size: 9, weight: .bold)).monospacedDigit()
                     .foregroundStyle(Color.black)
@@ -1005,7 +998,7 @@ struct SamanthaIslandBar: View {
                 Text(label)
                     .font(.system(size: 11, weight: .medium))
                     .monospacedDigit()
-                    .foregroundStyle(Color.white.opacity(0.45))
+                    .foregroundStyle(Color.white.opacity(IslandInk.meta))
             }
             .frame(width: width, alignment: .trailing)
         case .micMeter:
@@ -1198,7 +1191,7 @@ struct IslandChoiceBody: View {
                         .foregroundStyle(isSel ? (isDanger ? Color.white : IslandPalette.accent) : Color.white.opacity(0.6))
                 } else if model.textEntryActive && model.choiceText.isEmpty {
                     Text("\(number)").font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(role == .primary ? Color.black.opacity(0.45) : Color.white.opacity(0.45))
+                        .foregroundStyle(role == .primary ? Color.black.opacity(IslandInk.onWhiteSecondary) : Color.white.opacity(IslandInk.meta))
                 }
                 Text(confirming ? "Confirm \(o.label)" : o.label).lineLimit(1).truncationMode(.tail)
             }
@@ -1474,7 +1467,7 @@ struct NowPlayingCardBody: View {
                     Text(dur > 0 ? "-" + NowPlayingRules.clock(max(0, dur - shown)) : "")
                 }
                 .font(.system(size: 11, weight: .regular, design: .monospaced))
-                .foregroundStyle(Color.white.opacity(0.45))
+                .foregroundStyle(Color.white.opacity(IslandInk.meta))
                 .frame(width: width)
             }
         }

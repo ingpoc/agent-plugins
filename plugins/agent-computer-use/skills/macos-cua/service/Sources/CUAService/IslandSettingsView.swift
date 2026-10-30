@@ -260,7 +260,7 @@ struct IslandSettingsRoot: View {
                 Spacer()
                 Text(v).font(.system(size: 12, weight: .medium).monospacedDigit()).foregroundStyle(Color.white.opacity(0.55)).layoutProbe("about-version")
                 if let b = AppVersion.build {
-                    Text(b).font(.system(size: 11, design: .monospaced)).foregroundStyle(Color.white.opacity(0.45)).layoutProbe("about-build")
+                    Text(b).font(.system(size: 11, design: .monospaced)).foregroundStyle(Color.white.opacity(IslandInk.meta)).layoutProbe("about-build")
                 }
             }
             .padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
@@ -337,7 +337,7 @@ struct SettingRow: View {
             // Captioned rows: the explanation sits under the row (11 pt, 45 %) instead of an "i".
             VStack(alignment: .leading, spacing: 0) {
                 rowBody
-                Text(c).font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45))
+                Text(c).font(.system(size: 11)).foregroundStyle(Color.white.opacity(IslandInk.meta))
                     .fixedSize(horizontal: false, vertical: true)
                     .layoutProbe("caption:\(key)", truncates: true)   // wraps by design
                     .padding(.horizontal, 12).padding(.top, -4).padding(.bottom, 12)

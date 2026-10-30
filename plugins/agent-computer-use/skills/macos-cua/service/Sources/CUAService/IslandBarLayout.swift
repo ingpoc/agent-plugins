@@ -122,7 +122,7 @@ enum IslandBarLayout {
     }
 
     static func hitRects(shape: CGRect, circleCount: Int, agentCount: Int) -> [CGRect] {
-        [pillTarget(shape: shape)] + circleRects(shape: shape, count: circleCount) + agentRects(shape: shape, count: agentCount)
+        [pillTarget(shape: shape)] + (circleRects(shape: shape, count: circleCount) + agentRects(shape: shape, count: agentCount)).map { $0.insetBy(dx: -2, dy: -2) }
     }
 
     // MARK: Window
