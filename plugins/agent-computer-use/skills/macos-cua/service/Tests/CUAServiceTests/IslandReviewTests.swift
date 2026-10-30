@@ -254,6 +254,8 @@ final class IslandReviewTests: XCTestCase {
     // MARK: P2 — keys
 
     func testClickOpenTakesKeyAndKeysWork() async throws {
+        store.set(false, for: IslandSettingsSchema.hideInFullscreen)
+        store.set(false, for: IslandSettingsSchema.hideInMissionControl)
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start(); defer { c.shutdown() }
         c.debugPanel.debugEnsurePanel()
@@ -301,6 +303,28 @@ final class IslandReviewTests: XCTestCase {
         let g = IslandSourceGroups.groups(agents: ["A", "B", "C", "D", "E"].map { IslandAgent(id: $0, name: $0, app: $0, status: "running") },
                                           expired: [], hidePending: nil)
         XCTAssertEqual(g.count, 4); XCTAssertEqual(g.last?.overflow, 2, "max 3 + \"+N\"")
+    }
+
+    func testSourceCirclesPrioritizeNeedsYouThenFailedGroups() {
+        let groups = IslandSourceGroups.groups(agents: [
+            IslandAgent(id: "cursor:healthy", name: "Cursor", app: "Cursor", status: "running"),
+            IslandAgent(id: "grok:failed", name: "Grok Bot", app: "Comet", status: "error"),
+            IslandAgent(id: "codex:waiting", name: "Codex", app: "Codex", status: "needs_you", needs_you: true),
+        ], expired: [], hidePending: nil)
+        XCTAssertEqual(groups.map(\.id), ["Codex", "Grok Bot", "Cursor"])
+        XCTAssertTrue(groups[1].failed)
+    }
+
+    func testProcessCircleIsSeparateAndReservesOverflowSlot() {
+        let tasks = ["A", "B", "C", "D", "E"].map {
+            IslandAgent(id: "agent:\($0)", name: $0, app: $0, status: "running")
+        }
+        let process = IslandAgent(id: "local:codex:42", name: "Codex", app: "Codex", status: "process")
+        let groups = IslandSourceGroups.groups(agents: tasks + [process], expired: [], hidePending: nil)
+
+        XCTAssertEqual(groups.map(\.id), ["A", "B", "overflow", "local-processes"])
+        XCTAssertEqual(groups[2].overflow, 3)
+        XCTAssertEqual(groups.last?.processCount, 1)
     }
 
     func testDraftSurvivesPreemptionByApproval() {

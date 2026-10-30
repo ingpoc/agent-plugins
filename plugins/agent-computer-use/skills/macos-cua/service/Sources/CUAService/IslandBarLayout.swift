@@ -59,6 +59,7 @@ enum IslandBarLayout {
     static let circleGap: CGFloat = 6
     static let circleSpacing: CGFloat = 4
     static let maxCircles = 3
+    static let agentAttentionWidth: CGFloat = 156
 
     static func gap(hasNotch: Bool) -> CGFloat { hasNotch ? 0 : topInset }
 

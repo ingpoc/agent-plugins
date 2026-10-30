@@ -23,7 +23,7 @@ A source switched off in AI Agents gets 403. Approval and choice cards also need
 ```sh
 cp bin/island-post ~/.local/bin/   # once
 island-post --source grok-bot --kind running --title "Booking table" --app Comet
-island-post --source cursor --kind approval --id deploy-1 --title "Deploy to staging?" --detail "3 services" --wait 120
+island-post --source cursor --kind approval --id deploy-1 --title "Deploy to staging?" --detail "Targets: api, worker, scheduler" --wait 120
 island-post --source grok-bot --kind choice --id q1 --prompt "Which do you prefer?" \
     --option "Looks great=great" --option "Needs work=needs_work" --allow-text --wait 300
 island-post --source codex --kind clear --id deploy-1
@@ -40,6 +40,8 @@ island-post --source codex --kind clear --id deploy-1
 - Timeout: choice cards default to 15 min (`--ttl` to change). The last 60 s show an amber countdown ring; on expiry a 4 s "Timed out. Still open in chat" notice appears and the source circle keeps a hollow red ring until the owner opens the agent list or the agent sends `--kind clear`.
 - Persistence: pending cards, timed-out notices and recent answers survive a CUAService restart (`island-pending.json`, 0600).
 - Events: shown / hovered / clicked (x, y) / opened (via) / answered (via) / expired go to `~/.cache/macos-cua/island-events.jsonl` (ids and counts only — never titles, options or text).
+
+**Agent roster:** the compact pill names the highest-attention agent; expanded rows name each child's parent. Attention-needed tasks sort before healthy work while child rows stay with their parent. Pending approval and choice rows open their details; the roster never answers them. Stop exposes its full target and a **Keep running** exit. Destructive approvals require exact target scope in --detail and a second confirmation. Keyboard navigation covers every actionable row and scrolls focus into view. When a running task stops updating past its TTL, its row reports the last-seen age, disables remote controls, and can be dismissed locally. A failed Stop or Retry remains marked **Not sent · Try again** until the agent publishes another update.
 
 **`--wait N`** (up to 3600 s) long-polls the hub with no busy polling and reconnects across a CUAService restart. It prints one JSON line:
 
@@ -69,7 +71,7 @@ island-post --source grok-bot --kind clear --id "$ASK_ID"   # removes the card; 
   "prompt": "choice: the question (≤ 160)",
   "options": [{"label": "Looks great", "value": "great"}],
   "multi": false, "allow_text": false, "primary": "", "danger": "",
-  "detail": "optional (≤ 200); card subtitle",
+  "detail": "optional (≤ 200); for destructive approvals, required exact target scope",
   "app": "optional icon app (default Comet / Cursor / Codex)",
   "destructive": false,
   "ttl_s": 600

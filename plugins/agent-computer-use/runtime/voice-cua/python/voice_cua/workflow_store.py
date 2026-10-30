@@ -185,6 +185,47 @@ def save_workflow(arguments: dict[str, Any]) -> dict[str, Any]:
         return _error(exc)
 
 
+def delete_workflow(arguments: dict[str, Any]) -> dict[str, Any]:
+    global _active, _repair
+    try:
+        if not isinstance(arguments, dict):
+            raise WorkflowError("workflow arguments must be an object")
+        slug = _slug(arguments.get("slug"))
+        if slug == "authoring":
+            raise WorkflowError("authoring reference is managed by the skill owner")
+        expected_revision = arguments.get("expected_revision")
+        if not isinstance(expected_revision, str) or not expected_revision:
+            raise WorkflowError("current workflow revision is required")
+        with _locked():
+            old_index = _read("SKILL.md", INDEX_MAX)
+            path = _path(f"references/{slug}.md")
+            if not path.is_file():
+                return {"ok": False, "error": "workflow not found", "error_type": "workflow_not_found"}
+            previous = _read(f"references/{slug}.md", DOCUMENT_MAX)
+            if expected_revision != _revision(previous):
+                return {"ok": False, "error": "workflow changed; read and reconcile before deleting", "error_type": "workflow_revision_conflict"}
+            lines = [line for line in old_index.splitlines() if not ((match := _ROUTE.fullmatch(line)) and match[3] == slug)]
+            if len(lines) == len(old_index.splitlines()):
+                raise WorkflowError("workflow trigger route is missing; repair the index before deleting")
+            new_index = "\n".join(lines).rstrip() + "\n"
+            journal = {"slug": slug, "document": previous, "index": old_index}
+            _write(".transaction.json", json.dumps(journal, ensure_ascii=False))
+            try:
+                path.unlink()
+                _write("SKILL.md", new_index)
+                _path(".transaction.json").unlink()
+            except OSError:
+                _recover()
+                raise
+            if _active == slug:
+                _active = None
+            if _repair == slug:
+                _repair = None
+            return {"ok": True, "slug": slug, "deleted": True}
+    except (OSError, ValueError, KeyError) as exc:
+        return _error(exc)
+
+
 def reset_session() -> None:
     global _active, _repair
     with _STATE_LOCK:

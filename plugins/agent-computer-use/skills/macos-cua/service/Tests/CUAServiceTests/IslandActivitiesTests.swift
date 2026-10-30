@@ -221,6 +221,31 @@ final class IslandActivitiesTests: XCTestCase {
         let rows = IslandAgentRows.hierarchical([child, parent, orphan, cycleA, cycleB])
         XCTAssertEqual(rows.map(\.id), ["agent:parent", "agent:child", "agent:orphan", "agent:cycle-a", "agent:cycle-b"])
         XCTAssertEqual(rows.map(\.depth), [0, 1, 0, 0, 1])
+        XCTAssertEqual(rows[1].parentName, "Codex")
+    }
+
+    func testUrgentDescendantMovesItsWholeBranchAheadOfHealthyRows() {
+        let healthy = IslandAgent(id: "agent:healthy", name: "Grok", status: "running")
+        let parent = IslandAgent(id: "agent:parent", name: "Codex", title: "Coordinate", status: "running")
+        let child = IslandAgent(id: "agent:child", name: "Claude", title: "Blocked", status: "needs_you",
+                                needs_you: true, parent_id: parent.id)
+        let failed = IslandAgent(id: "agent:failed", name: "Cursor", status: "error")
+
+        let rows = IslandAgentRows.hierarchical([healthy, parent, child, failed])
+        XCTAssertEqual(rows.map(\.id), [parent.id, child.id, failed.id, healthy.id])
+        XCTAssertEqual(rows.map(\.depth), [0, 1, 0, 0], "the urgent child stays adjacent to its parent")
+        XCTAssertEqual(rows[1].parentName, "Codex")
+    }
+
+    func testDetectedProcessesStayOutsideTaskRowsAndHaveUnknownActivity() {
+        let task = IslandAgent(id: "agent:task", name: "Codex", title: "Review", status: "running")
+        let process = IslandAgent(id: "local:codex:42", name: "Codex", title: "PID 42", status: "process")
+
+        XCTAssertEqual(IslandAgentRows.taskAgents([task, process]).map(\.id), [task.id])
+        XCTAssertEqual(IslandAgentRows.processObservations([task, process]).map(\.id), [process.id])
+        XCTAssertEqual(IslandAgentRows.statusText(process), "activity unknown")
+        XCTAssertNil(IslandAgentRows.control(for: process))
+        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 6, footer: false, maxVisibleRows: 6), 296)
     }
 
     func testLegacyAgentWireFormatNeedsNoParentField() throws {
@@ -236,7 +261,8 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "x", status: "running")), .stop, "every running row shows Stop")
         XCTAssertNil(IslandAgentRows.control(for: IslandAgent(id: "agent:task", status: "running")), "shared roster rows need an explicit Stop handler")
         XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "agent:task", status: "running", controls: ["stop"])), .stop)
-        XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "pending:a", status: "needs_you")), .approve)
+        XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "pending:a", status: "needs_you")), .review)
+        XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "agent:stale", status: "stale")), .dismiss)
         XCTAssertEqual(IslandAgentRows.cardHeight(rows: 1, footer: false), 96)
         XCTAssertEqual(IslandAgentRows.cardHeight(rows: 2, footer: false), 120)
         XCTAssertEqual(IslandAgentRows.cardHeight(rows: 3, footer: false), 164)
@@ -244,6 +270,8 @@ final class IslandActivitiesTests: XCTestCase {
         let m = IslandModel()
         m.apply(IslandSnapshot(kind: "idle", agents: [run, err]))
         var sent: [String] = []
+        var announcement = ""
+        m.onAnnounce = { announcement = $0 }
         m.onRowControl = { a, act in sent.append("\(a.id)=\(act.rawValue)") }
         let t0 = Date()
         m.tapRowControl(run, now: t0)
@@ -260,6 +288,11 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(sent.last, "codex:j2=retry")
         m.failRowControl(err.id)
         XCTAssertNil(m.rowControls[err.id]); XCTAssertTrue(m.rowFlash.contains(err.id))
+        XCTAssertEqual(m.rowFailures[err.id], "Not sent · Try again")
+        XCTAssertTrue(announcement.contains("Could not send retry for Codex"))
+        var acknowledgedErr = err; acknowledgedErr.last_seen_at = 10
+        m.apply(IslandSnapshot(kind: "idle", agents: [stopped, acknowledgedErr]))
+        XCTAssertNil(m.rowFailures[err.id], "a later publisher update clears the failure")
     }
 
     func testHubControlQueueAndDeliverOnce() async throws {

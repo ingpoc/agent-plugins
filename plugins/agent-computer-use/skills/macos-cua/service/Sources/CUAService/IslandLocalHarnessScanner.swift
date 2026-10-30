@@ -14,7 +14,7 @@ enum IslandLocalHarnessScanner {
         Harness(processName: "Claude", displayName: "Claude"),
         Harness(processName: "opencode", displayName: "OpenCode"),
         Harness(processName: "gemini", displayName: "Gemini CLI"),
-        Harness(processName: "Comet", displayName: "Grok / Comet"),
+        Harness(processName: "Comet", displayName: "Comet"),
         Harness(processName: "Samantha", displayName: "Samantha"),
         Harness(processName: "aider", displayName: "Aider"),
     ]
@@ -27,7 +27,7 @@ enum IslandLocalHarnessScanner {
             let processName = URL(fileURLWithPath: String(fields[1])).lastPathComponent
             guard let displayName = names[processName] else { return nil }
             return IslandAgent(id: "local:\(processName):\(pid)", name: displayName,
-                               app: displayName, title: "PID \(pid)", status: "harness")
+                               app: displayName, title: "PID \(pid)", status: "process")
         }
     }
 

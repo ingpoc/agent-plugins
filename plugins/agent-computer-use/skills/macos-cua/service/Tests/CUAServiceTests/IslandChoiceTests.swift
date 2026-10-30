@@ -190,6 +190,30 @@ final class IslandChoiceTests: XCTestCase {
         XCTAssertEqual(hub.decision(IslandHub.key(.grokBot, "a1")), .denied)
     }
 
+    func testPendingChoiceRowOpensItsOptionsWithoutAnswering() throws {
+        try store.rotateToken(.grokBot)
+        let hub = IslandHub(store: store)
+        XCTAssertEqual(hub.handle(local("POST", "/api/island/publish", json: choiceBody("roster-choice")), port: 0).status, 200)
+        let id = IslandHub.key(.grokBot, "roster-choice")
+        let row = try XCTUnwrap(hub.compose().agents.first { $0.id == "pending:" + id })
+        XCTAssertEqual(row.request_kind, "choice")
+        XCTAssertEqual(IslandAgentRows.control(for: row), .review)
+
+        let model = IslandModel()
+        model.apply(hub.compose())
+        model.onRowControl = { selected, action in
+            guard action == .review, hub.selectApproval(id: String(selected.id.dropFirst("pending:".count))) else { return }
+            model.apply(hub.compose())
+            model.openApprovalFromRoster()
+        }
+        model.tapRowControl(row)
+
+        XCTAssertTrue(model.cardOpen)
+        guard case .choice(let details) = model.card.controls else { return XCTFail("choice details should open") }
+        XCTAssertEqual(details.options.map(\.value), ["great", "needs_work"])
+        XCTAssertEqual(hub.decision(id), .pending)
+    }
+
     func testQueueOrderCountAndExpiry() throws {
         try store.rotateToken(.grokBot)
         let hub = IslandHub(store: store)
@@ -254,6 +278,8 @@ final class IslandChoiceTests: XCTestCase {
     }
 
     func testPanelNeverBecomesKeyWithoutAClick() async throws {
+        store.set(false, for: IslandSettingsSchema.hideInFullscreen)
+        store.set(false, for: IslandSettingsSchema.hideInMissionControl)
         try store.rotateToken(.grokBot)
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start()
@@ -284,6 +310,8 @@ final class IslandChoiceTests: XCTestCase {
     }
 
     func testBeginTextEntryRequiresOpenTextCard() async throws {
+        store.set(false, for: IslandSettingsSchema.hideInFullscreen)
+        store.set(false, for: IslandSettingsSchema.hideInMissionControl)
         try store.rotateToken(.grokBot)
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start()

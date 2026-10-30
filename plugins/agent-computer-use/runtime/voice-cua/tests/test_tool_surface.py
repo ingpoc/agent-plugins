@@ -68,6 +68,15 @@ class LazyGroupTests(unittest.TestCase):
         self.assertIn("more_tools", loaded)  # workflows remain available
         self.assertNotIn("more_tools", names(groups={"secrets", "workflows"}))
 
+    def test_workflow_group_exposes_create_update_and_delete(self) -> None:
+        loaded = names(groups={"workflows"})
+        self.assertTrue(set(tools.TOOL_GROUPS["workflows"]) <= loaded)
+
+    def test_workflow_delete_dispatches_to_confined_store(self) -> None:
+        with patch("voice_cua.tools.workflow_store.delete_workflow", return_value={"ok": True}) as delete:
+            self.assertTrue(tools.dispatch("workflow_delete", {"slug": "stale", "expected_revision": "rev"})["ok"])
+        delete.assert_called_once_with({"slug": "stale", "expected_revision": "rev"})
+
     def test_confirm_group_exposes_confirm_risky_only(self) -> None:
         self.assertEqual(names(groups={"confirm"}) - names(), {"confirm_risky"})
 

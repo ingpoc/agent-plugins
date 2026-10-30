@@ -293,9 +293,15 @@ final class IslandController {
         model.onRowControl = { [weak self] a, action in
             guard let self else { return }
             switch action {
-            case .approve:
+            case .review:
                 let id = String(a.id.dropFirst("pending:".count))
-                self.hub.resolveApproval(id: id, approved: true)
+                guard self.hub.selectApproval(id: id) else {
+                    self.model.onAnnounce?("That request is no longer available to review.")
+                    return
+                }
+                self.model.openApprovalFromRoster()
+            case .dismiss:
+                if !self.hub.dismissStale(id: a.id) { self.model.failRowControl(a.id) }
             case .stop, .retry:
                 if !self.hub.requestControl(id: a.id, action: action.rawValue) { self.model.failRowControl(a.id) }
             }

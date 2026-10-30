@@ -123,7 +123,7 @@ TOOL_GROUPS = {
     # Lazy-loaded: never used in normal turns, ~850 tokens on every response.
     "secrets": ("secrets_list", "secrets_label", "secrets_get", "secrets_put", "secrets_inject",
                 "secrets_provide", "confirm_risky"),
-    "workflows": ("workflow_read", "workflow_save"),
+    "workflows": ("workflow_read", "workflow_save", "workflow_delete"),
     # Loaded by the risk gate the moment a risky action is refused.
     "confirm": ("confirm_risky",),
 }
@@ -402,6 +402,7 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         "show_details": _show_details,
         "workflow_read": workflow_store.read_workflow,
         "workflow_save": workflow_store.save_workflow,
+        "workflow_delete": workflow_store.delete_workflow,
         "system_volume": _system_volume,
     }
     fn = handlers.get(name)
@@ -855,6 +856,11 @@ def _workflow_tools() -> list[dict[str, Any]]:
          "parameters": {"type": "object", "properties": {key: {"type": "string"} for key in
              ("slug", "title", "trigger", "content", "expected_revision")},
              "required": ["slug", "title", "trigger", "content", "expected_revision"], "additionalProperties": False}},
+        {"type": "function", "name": "workflow_delete",
+         "description": "Delete one stale or user-requested workflow and its trigger. Read it first; use its current revision. Delete only when requested or after a verified replacement, never based on age alone.",
+         "parameters": {"type": "object", "properties": {key: {"type": "string"} for key in
+             ("slug", "expected_revision")},
+             "required": ["slug", "expected_revision"], "additionalProperties": False}},
     ]
 
 

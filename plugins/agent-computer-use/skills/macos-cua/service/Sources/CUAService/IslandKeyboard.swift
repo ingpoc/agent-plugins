@@ -71,6 +71,7 @@ enum IslandNavTarget: Equatable {
     case open                 // compact: Return opens the card
     case secondary            // compact Duo: swap
     case row(String)          // agent list row control
+    case cancelStop(String)   // keep the agent running after arming Stop
     case action(IslandCardAction)
 }
 
@@ -78,7 +79,10 @@ extension IslandModel {
     var navTargets: [IslandNavTarget] {
         if !cardOpen { return secondary == nil ? [.open] : [.open, .secondary] }
         if cardMode == .agents {
-            return listRows.prefix(IslandAgentRows.maxRows).filter { IslandAgentRows.control(for: $0) != nil }.map { .row($0.id) }
+            return IslandAgentRows.hierarchical(listRows).flatMap { item -> [IslandNavTarget] in
+                guard IslandAgentRows.control(for: item.agent) != nil else { return [] }
+                return isStopArmed(item.id) ? [.row(item.id), .cancelStop(item.id)] : [.row(item.id)]
+            }
         }
         switch card.controls {
         case .decision(let s, let p, _): return [.action(s.1), .action(p.1)]
@@ -101,13 +105,26 @@ extension IslandModel {
         case .open: return "Open \(presentation.spokenName)"
         case .secondary: return "Swap to \(secondary?.rawValue ?? "other activity")"
         case .row(let id):
-            guard let a = listRows.first(where: { $0.id == id }), let c = IslandAgentRows.control(for: a) else { return "" }
+            guard let item = IslandAgentRows.hierarchical(listRows).first(where: { $0.id == id }),
+                  let c = IslandAgentRows.control(for: item.agent) else { return "" }
+            let a = item.agent
             let who = a.name.isEmpty ? a.app : a.name
+            let parent = item.parentName.map { ", child of \($0)" } ?? ""
+            let state = IslandAgentRows.statusText(a)
+            let failure = rowFailures[id].map { ", \($0)" } ?? ""
             switch c {
-            case .stop: return isStopArmed(id) ? "Confirm stop \(who)" : "Stop \(who): \(a.title)"
-            case .retry: return "Retry \(who): \(a.title)"
-            case .approve: return "Approve \(who): \(a.title)"
+            case .stop: return "\(isStopArmed(id) ? "Confirm stop" : "Stop") \(who): \(a.title), \(state)\(parent)\(failure)"
+            case .retry: return "Retry \(who): \(a.title), \(state)\(parent)\(failure)"
+            case .review:
+                let kind = a.request_kind == "choice" ? "choice" : "approval"
+                let destructive = a.destructive ? ", destructive request" : ""
+                return "Review \(kind) from \(who): \(a.title), \(state)\(destructive)\(parent)"
+            case .dismiss: return "Dismiss stale agent \(who): \(state)\(parent)"
             }
+        case .cancelStop(let id):
+            let item = IslandAgentRows.hierarchical(listRows).first { $0.id == id }
+            let who = item.map { $0.agent.name.isEmpty ? $0.agent.app : $0.agent.name } ?? "agent"
+            return "Keep \(who) running"
         case .action(let a):
             if case .decision(let s, let p, _) = card.controls {
                 if a == s.1 { return s.0 }
@@ -173,6 +190,8 @@ extension IslandModel {
             tapSecondary()
         case .row(let id):
             if let a = listRows.first(where: { $0.id == id }) { tapRowControl(a) }
+        case .cancelStop(let id):
+            cancelStop(id)
         case .action(let a):
             performCardAction(a)
         }
@@ -181,6 +200,7 @@ extension IslandModel {
 
     /// Card buttons (click and Return share this path).
     func performCardAction(_ action: IslandCardAction) {
+        guard prepareCardAction(action) else { return }
         switch action {
         case .allow: resolveConfirm?(true)
         case .deny: resolveConfirm?(false)

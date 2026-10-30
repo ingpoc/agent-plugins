@@ -12,6 +12,12 @@ final class IslandMotionHarnessTests: XCTestCase {
     private var window: NSWindow!
     private var host: NSHostingView<AnyView>!
     private var dir = ""
+    private let rosterRows = [IslandAgent(id: "codex:j1", name: "Codex", app: "Codex", title: "Coordinate release", status: "running", elapsed_s: 245, controls: ["stop"]),
+                             IslandAgent(id: "cursor:b2", name: "Cursor", app: "Cursor", title: "Needs your decision", status: "needs_you", needs_you: true, parent_id: "codex:j1"),
+                             IslandAgent(id: "grok:r3", name: "Grok Bot", app: "Comet", title: "Build failed", status: "error", parent_id: "codex:j1", controls: ["retry"]),
+                             IslandAgent(id: "codex:c4", name: "Claude Code", app: "Codex", title: "Run integration tests", status: "running", elapsed_s: 30, parent_id: "codex:j1", controls: ["stop"]),
+                             IslandAgent(id: "cursor:p5", name: "Cursor", app: "Cursor", title: "Review API docs", status: "running", elapsed_s: 80, controls: ["stop"]),
+                             IslandAgent(id: "cursor:c6", name: "Cursor", app: "Cursor", title: "Check migration edge cases", status: "running", elapsed_s: 15, parent_id: "cursor:p5", controls: ["stop"])]
 
     private func mount(_ m: IslandModel, reduce: Bool = false) {
         m.systemReduceMotion = reduce
@@ -112,8 +118,11 @@ final class IslandMotionHarnessTests: XCTestCase {
         let files = try ["Report.pdf", "notes.txt", "mock.png"].map { n -> URL in
             let u = tmp.appendingPathComponent(n); try "x".write(to: u, atomically: true, encoding: .utf8); return u
         }
-        let rows = [IslandAgent(id: "codex:j1", name: "Codex", app: "Codex", title: "Migrating database", status: "running", elapsed_s: 245, controls: ["stop"]),
-                    IslandAgent(id: "cursor:b2", name: "Cursor", app: "Cursor", title: "Build failed", status: "error", controls: ["retry"])]
+        let rows = rosterRows
+        let approval = IslandAgentApproval(id: "cursor:branches", agent: "Cursor", app: "Cursor",
+                                           title: "Delete 3 stale branches?",
+                                           subtitle: "Targets: feature/cache, stale/logging, migration/legacy",
+                                           destructive: true)
         var out: [String] = [occl]
         // CUA_ISLAND_MOTION_ONLY=peek,agents runs just those scenarios (both motion modes).
         let only = ProcessInfo.processInfo.environment["CUA_ISLAND_MOTION_ONLY"].map { Set($0.split(separator: ",").map(String.init)) }
@@ -159,12 +168,23 @@ final class IslandMotionHarnessTests: XCTestCase {
             }
             if run("agents") {
             out.append(try await scenario("agents\(sfx)", reduce: reduce, setup: { m in m.idleActivity = "agents"; m.apply(IslandSnapshot(kind: "idle", agents: rows)) }) { m in
+                await self.sleep(0.4)  // capture the stable compact attention summary before opening the roster
                 m.toggleCard(); await self.sleep(0.9)
                 m.tapRowControl(rows[0]); await self.sleep(0.4)
                 m.toggleCard(); await self.sleep(0.9)
             })
             }
+            if run("approval") {
+            out.append(try await scenario("approval\(sfx)", reduce: reduce, setup: { m in
+                m.apply(IslandSnapshot(kind: "idle", agent_approval: approval))
+                m.openApprovalFromRoster()
+            }) { m in
+                m.performCardAction(.agentApprove(approval.id))
+                await self.sleep(0.4)
+            })
+            }
         }
         try out.joined(separator: "\n").appending("\n").write(toFile: "\(dir)/summary\(only == nil ? "" : "-partial").txt", atomically: true, encoding: .utf8)
     }
+
 }

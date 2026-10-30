@@ -8,19 +8,25 @@ struct IslandAgent: Codable, Equatable, Identifiable {
     var name: String = ""      // "Codex"
     var app: String = ""       // app whose icon represents the agent ("Cursor", "Codex")
     var title: String = ""     // what it's doing
-    var status: String = ""    // running | done | error | needs_you | harness
+    var status: String = ""    // running | done | error | needs_you | process (local PID; task activity unknown)
     var needs_you: Bool = false
     var elapsed_s: Double = 0
     /// Fully qualified source:id of the registered parent task, when this is a subagent.
     var parent_id: String? = nil
     /// Controls the posting agent honours ("stop", "retry"); the island only offers these.
     var controls: [String] = []
+    /// Hub-owned metadata used by request rows and control-failure recovery.
+    var request_kind: String? = nil
+    var destructive = false
+    var last_seen_at: Double = 0
 
     init(id: String = "", name: String = "", app: String = "", title: String = "", status: String = "",
-         needs_you: Bool = false, elapsed_s: Double = 0, parent_id: String? = nil, controls: [String] = []) {
+         needs_you: Bool = false, elapsed_s: Double = 0, parent_id: String? = nil, controls: [String] = [],
+         request_kind: String? = nil, destructive: Bool = false, last_seen_at: Double = 0) {
         self.id = id; self.name = name; self.app = app; self.title = title
         self.status = status; self.needs_you = needs_you; self.elapsed_s = elapsed_s
         self.parent_id = parent_id; self.controls = controls
+        self.request_kind = request_kind; self.destructive = destructive; self.last_seen_at = last_seen_at
     }
 
     init(from decoder: Decoder) throws {
@@ -34,6 +40,9 @@ struct IslandAgent: Codable, Equatable, Identifiable {
         elapsed_s = try c.decodeIfPresent(Double.self, forKey: .elapsed_s) ?? 0
         parent_id = try c.decodeIfPresent(String.self, forKey: .parent_id)
         controls = try c.decodeIfPresent([String].self, forKey: .controls) ?? []
+        request_kind = try c.decodeIfPresent(String.self, forKey: .request_kind)
+        destructive = try c.decodeIfPresent(Bool.self, forKey: .destructive) ?? false
+        last_seen_at = try c.decodeIfPresent(Double.self, forKey: .last_seen_at) ?? 0
     }
 }
 
@@ -331,8 +340,10 @@ struct IslandSourceGroup: Equatable, Identifiable {
     var id: String            // source/agent name ("Grok Bot"), or "overflow"
     var app: String = ""
     var needsYou = 0
+    var failed = false
     var expired = false
     var overflow = 0
+    var processCount = 0
 }
 
 enum IslandSourceGroups {
@@ -340,18 +351,20 @@ enum IslandSourceGroups {
 
     /// `hidePending`: the card the pill itself shows — its row adds no circle/badge (one amber mark).
     static func groups(agents: [IslandAgent], expired: [IslandExpired], hidePending: String?) -> [IslandSourceGroup] {
+        let processCount = IslandAgentRows.processObservations(agents).count
         var order: [String] = []
         var map: [String: IslandSourceGroup] = [:]
         func touch(_ name: String, _ app: String) {
             if map[name] == nil { order.append(name); map[name] = IslandSourceGroup(id: name, app: app) }
             if map[name]!.app.isEmpty { map[name]!.app = app }
         }
-        for a in agents {
+        for a in IslandAgentRows.taskAgents(agents) {
             if let h = hidePending, a.id == "pending:" + h { continue }
             let name = a.name.isEmpty ? a.app : a.name
             guard !name.isEmpty else { continue }
             touch(name, a.app)
             if a.needs_you || a.status == "needs_you" { map[name]!.needsYou += 1 }
+            if a.status == "error" || a.status == "stale" { map[name]!.failed = true }
         }
         for e in expired {
             let name = e.agent.isEmpty ? e.app : e.agent
@@ -359,12 +372,20 @@ enum IslandSourceGroups {
             touch(name, e.app)
             map[name]!.expired = true
         }
-        var out = order.prefix(maxCircles).compactMap { map[$0] }
-        if order.count > maxCircles {
-            let rest = order.dropFirst(maxCircles).compactMap { map[$0] }
+        let ranked = order.enumerated().compactMap { index, name in map[name].map { (index, $0) } }
+            .sorted {
+                func rank(_ g: IslandSourceGroup) -> Int { g.needsYou > 0 ? 0 : (g.failed || g.expired ? 1 : 2) }
+                let l = rank($0.1), r = rank($1.1)
+                return l == r ? $0.0 < $1.0 : l < r
+            }.map(\.1)
+        let taskCircleLimit = maxCircles - (processCount > 0 ? 1 : 0)
+        var out = Array(ranked.prefix(taskCircleLimit))
+        if ranked.count > taskCircleLimit {
+            let rest = Array(ranked.dropFirst(taskCircleLimit))
             out.append(IslandSourceGroup(id: "overflow", needsYou: rest.reduce(0) { $0 + $1.needsYou },
-                                         expired: rest.contains { $0.expired }, overflow: rest.count))
+                                         failed: rest.contains { $0.failed }, expired: rest.contains { $0.expired }, overflow: rest.count))
         }
+        if processCount > 0 { out.append(IslandSourceGroup(id: "local-processes", processCount: processCount)) }
         return out
     }
 }
@@ -439,6 +460,7 @@ final class IslandModel: ObservableObject {
     @Published private(set) var stepTotal = 0
     @Published private(set) var agents: [IslandAgent] = []
     @Published private(set) var agentApproval: IslandAgentApproval?
+    @Published private(set) var destructiveApprovalArmedID: String?
     @Published private(set) var circles: [IslandCircleItem] = []
     @Published private(set) var presentation: IslandPresentation = .idle
     /// Compact width actually drawn (74 during the pinch of a kind change).
@@ -543,6 +565,24 @@ final class IslandModel: ObservableObject {
     var approvalAllowed: (IslandAgentApproval) -> Bool = { _ in true }
 
     var showAgentCircle: Bool { !sourceGroups.isEmpty && !(idleActivity == "samantha" && isIdlePresentation) }
+
+    var compactAgentAttention: IslandAgentRow? {
+        let candidate = agents.enumerated().filter {
+            !IslandAgentRows.isProcessObservation($0.element)
+                && (["needs_you", "error", "stale"].contains($0.element.status) || $0.element.needs_you)
+        }.min {
+            let a = IslandAgentRows.priority($0.element), b = IslandAgentRows.priority($1.element)
+            return a == b ? $0.offset < $1.offset : a < b
+        }
+        guard let agent = candidate?.element else { return nil }
+        let parentName = agent.parent_id.flatMap { id in agents.first { $0.id == id }?.name }
+        return IslandAgentRow(agent: agent, depth: 0, parentName: parentName)
+    }
+
+    var destructiveApprovalMissingScope: Bool {
+        guard let approval = agentApproval, approval.destructive else { return false }
+        return approval.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
     /// Settings → AI Agents → Samantha off: her non-blocking voice states stay compact-idle on the island
     /// (confirm / needs-you still surface — they block her).
     var samanthaEnabled = true
@@ -636,8 +676,12 @@ final class IslandModel: ObservableObject {
         let nextAgents = snap.agents.filter(agentAllowed)
         if nextAgents != agents { agentsAt = now }
         agents = nextAgents
+        reconcileRowFailures(with: nextAgents)
         let prevID = agentApproval?.id
         agentApproval = snap.agent_approval.flatMap { approvalAllowed($0) ? $0 : nil }
+        if destructiveApprovalArmedID != nil && destructiveApprovalArmedID != agentApproval?.id {
+            disarmDestructiveApproval()
+        }
         if snap.pending_count != pendingCount { pendingCount = snap.pending_count }
         if let prevID, agentApproval?.id != prevID {
             // Answered / cleared / preempted: give key back; keep a draft; the next card slides in
@@ -774,6 +818,8 @@ final class IslandModel: ObservableObject {
     @Published private(set) var stopArmed: [String: Date] = [:]
     /// Rows flashing red after a failed / unacknowledged control.
     @Published private(set) var rowFlash: Set<String> = []
+    /// Textual control failure remains until the row updates or disappears.
+    @Published private(set) var rowFailures: [String: String] = [:]
     var trayEnabled = true
     /// AppKit's live Reduce Motion (controller observes the workspace notification); OR'd with SwiftUI's.
     @Published var systemReduceMotion = IslandMotion.systemReduceMotion { didSet { reduceMotion = systemReduceMotion } }
@@ -811,6 +857,9 @@ final class IslandModel: ObservableObject {
     fileprivate var peekPinned = false
     fileprivate var swipe = IslandSwipeTracker()
     fileprivate var rowStatusAtSend: [String: String] = [:]
+    private var rowFailureStatus: [String: String] = [:]
+    private var rowFailureLastSeen: [String: Double] = [:]
+    private var destructiveApprovalArmedAt: Date?
     fileprivate var hudScrollAccum: CGFloat = 0
 
     // MARK: Now Playing
@@ -892,7 +941,8 @@ final class IslandModel: ObservableObject {
     var cardHeight: CGFloat {
         if credentialRequest != nil { return 292 }
         if cardMode == .agents {
-            return IslandAgentRows.cardHeight(rows: listRows.count, footer: listRows.count > IslandAgentRows.maxRows)
+            return IslandAgentRows.cardHeight(rows: rosterItemCount, footer: rosterHasMore,
+                                              stopConfirmation: !stopArmed.isEmpty, maxVisibleRows: rosterVisibleRows)
         }
         if presentation == .tray { return IslandTrayRules.cardHeight }
         if presentation == .needsYou {
@@ -903,6 +953,14 @@ final class IslandModel: ObservableObject {
         }
         if isChoiceCard, let a = agentApproval {
             return IslandChoiceLayout.cardHeight(a, textLines: choiceTextLines)
+        }
+        if presentation == .agentApproval, let a = agentApproval, a.destructive {
+            let text = "Destructive action · \(a.agent) · \(a.subtitle)"
+            let width = IslandBarLayout.cardTrailOrigin.x - IslandBarLayout.cardTextX - 8
+            let measured = (text as NSString).boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: NSFont.systemFont(ofSize: 13)])
+            return min(IslandBarLayout.windowSize.height - IslandBarLayout.topInset,
+                       max(152, ceil(measured.height) + 120))
         }
         switch presentation {
         case .idle, .doneSettled, .reconnecting, .thinking, .acting, .error, .done, .expired: return 136
@@ -1002,6 +1060,9 @@ final class IslandModel: ObservableObject {
     private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
         if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
         if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
+        if [.idle, .doneSettled].contains(state), compactAgentAttention != nil {
+            return max(state.compactWidth, IslandBarLayout.agentAttentionWidth)
+        }
         return state.compactWidth
     }
 
@@ -1179,12 +1240,34 @@ final class IslandModel: ObservableObject {
         refresh(now: Date())
     }
 
+    func openApprovalFromRoster() {
+        guard agentApproval != nil else { return }
+        userOpened = true
+        forceCompact = false
+        peekUntil = nil
+        choicePeekUntil = nil
+        cardMode = .samantha
+        openVia = "roster"
+        refresh(now: Date())
+        if isChoiceCard, cardOpen { beginTextEntry(focusField: agentApproval?.allow_text == true) }
+    }
+
     /// Agent list rows: live agents, then timed-out cards (hollow red ring).
     var listRows: [IslandAgent] {
-        agents + expired.reversed().map {
+        IslandAgentRows.taskAgents(agents) + expired.reversed().map {
             IslandAgent(id: "expired:" + $0.id, name: $0.agent, app: $0.app, title: $0.title, status: "expired")
         }
     }
+
+    var localProcessRows: [IslandAgent] { IslandAgentRows.processObservations(agents) }
+    var rosterItemCount: Int {
+        max(1, listRows.count + (listRows.isEmpty ? 1 : 0)
+            + (localProcessRows.isEmpty ? 0 : localProcessRows.count + 1))
+    }
+    var rosterVisibleRows: Int {
+        min(listRows.isEmpty ? IslandAgentRows.maxRows + 2 : IslandAgentRows.maxRows, rosterItemCount)
+    }
+    var rosterHasMore: Bool { rosterItemCount > rosterVisibleRows }
 
     /// Pointer left the shape: close (unless sticky) — the panel adds the 120 ms delay.
     func pointerLeft() {
@@ -1207,7 +1290,15 @@ final class IslandModel: ObservableObject {
 
     // MARK: Card content
 
-    var card: IslandCard { Self.card(for: self.snapshotForCard) }
+    var card: IslandCard {
+        var card = Self.card(for: snapshotForCard)
+        if let a = agentApproval, a.destructive, case .decision(let secondary, let primary, let destructive) = card.controls {
+            let label = destructiveApprovalMissingScope ? "Scope required"
+                : isDestructiveApprovalArmed(a.id) ? "Confirm approve" : "Approve"
+            card.controls = .decision(secondary: secondary, primary: (label, primary.1), destructive: destructive)
+        }
+        return card
+    }
 
     struct CardInput: Equatable {
         var presentation: IslandPresentation
@@ -1300,9 +1391,14 @@ final class IslandModel: ObservableObject {
                               subtitle: a.subtitle.isEmpty ? a.agent : "\(a.agent) · \(a.subtitle)", controls: .choice(a))
         case .agentApproval:
             let a = c.approval ?? IslandAgentApproval()
+            let missingScope = a.destructive && a.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let subtitle = missingScope
+                ? "\(a.agent) · Target scope missing. Ask the agent to restate the affected items."
+                : a.subtitle.isEmpty ? a.agent : "\(a.agent) · \(a.subtitle)"
+            let approveLabel = missingScope ? "Scope required" : "Approve"
             return IslandCard(art: .agent(a.app), title: IslandCopy.compact(title: a.title.isEmpty ? "Approve?" : a.title, detail: "").title,
-                              subtitle: a.subtitle.isEmpty ? a.agent : "\(a.agent) · \(a.subtitle)",
-                              controls: .decision(secondary: ("Deny", .agentDeny(a.id)), primary: ("Approve", .agentApprove(a.id)),
+                              subtitle: a.destructive ? "Destructive action · \(subtitle)" : subtitle,
+                              controls: .decision(secondary: ("Deny", .agentDeny(a.id)), primary: (approveLabel, .agentApprove(a.id)),
                                                   destructive: a.destructive))
         }
     }
@@ -1319,11 +1415,18 @@ final class IslandModel: ObservableObject {
     /// Full words for VoiceOver (compact view has no text).
     var accessibilityText: String {
         var parts = ["Samantha, \(presentation.spokenName)"]
-        if let a = agentApproval { parts.append("\(a.agent): \(a.title)") }
+        if let a = agentApproval {
+            if a.destructive { parts.append("Destructive request") }
+            parts.append("\(a.agent): \(a.title)")
+            if !a.subtitle.isEmpty { parts.append(a.subtitle) }
+        }
         if !title.isEmpty { parts.append(title) }
         if !detail.isEmpty { parts.append(detail) }
         if !circleApps.isEmpty { parts.append("Apps: " + circleApps.joined(separator: ", ")) }
-        if !agents.isEmpty { parts.append("\(agents.count) other agents") }
+        let taskCount = IslandAgentRows.taskAgents(agents).count
+        let processCount = IslandAgentRows.processObservations(agents).count
+        if taskCount > 0 { parts.append("\(taskCount) other agents") }
+        if processCount > 0 { parts.append("\(processCount) local processes detected; task activity unknown") }
         if let r = cardRemaining { parts.append("\(r) seconds left") }
         if let n = notice { parts.append("\(n.agent) request timed out. Still open in chat") }
         return parts.joined(separator: ". ")
@@ -1529,9 +1632,54 @@ extension IslandModel {
         stopArmed[id].map { now.timeIntervalSince($0) < IslandAgentRows.confirmWindow } ?? false
     }
 
-    /// Row button. Stop: first click arms (red + check), second within 3 s sends. Retry / Approve send at once.
+    func cancelStop(_ id: String) {
+        stopArmed[id] = nil
+    }
+
+    func isDestructiveApprovalArmed(_ id: String, now: Date = Date()) -> Bool {
+        destructiveApprovalArmedID == id && destructiveApprovalArmedAt.map { now.timeIntervalSince($0) < IslandAgentRows.confirmWindow } == true
+    }
+
+    /// Returns false after the first deliberate activation of a destructive approval.
+    func prepareCardAction(_ action: IslandCardAction, now: Date = Date()) -> Bool {
+        guard case .agentApprove(let id) = action, let approval = agentApproval,
+              approval.id == id, approval.destructive else { return true }
+        guard !destructiveApprovalMissingScope else {
+            onAnnounce?("Approval disabled. The agent did not provide the affected targets.")
+            return false
+        }
+        guard isDestructiveApprovalArmed(id, now: now) else {
+            destructiveApprovalArmedID = id
+            destructiveApprovalArmedAt = now
+            onAnnounce?("Destructive request: \(approval.title). Activate Confirm approve to submit this approval.")
+            refresh(now: now)
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(IslandAgentRows.confirmWindow * 1_000_000_000))
+                guard let self, self.destructiveApprovalArmedID == id,
+                      let armedAt = self.destructiveApprovalArmedAt,
+                      Date().timeIntervalSince(armedAt) >= IslandAgentRows.confirmWindow - 0.05 else { return }
+                self.disarmDestructiveApproval()
+                self.refresh(now: Date())
+            }
+            return false
+        }
+        disarmDestructiveApproval()
+        return true
+    }
+
+    private func disarmDestructiveApproval() {
+        destructiveApprovalArmedID = nil
+        destructiveApprovalArmedAt = nil
+    }
+
+    /// Row buttons: Stop arms; request review opens detail; dismiss removes a stale row locally.
     func tapRowControl(_ a: IslandAgent, now: Date = Date()) {
         guard let action = IslandAgentRows.control(for: a), rowControls[a.id] == nil else { return }
+        if action == .review {
+            IslandEventLog.log("row-control", id: a.id, source: a.name, kind: action.rawValue)
+            onRowControl?(a, action)
+            return
+        }
         if action == .stop && !isStopArmed(a.id, now: now) {
             stopArmed[a.id] = now
             Task { @MainActor [weak self] in
@@ -1556,11 +1704,34 @@ extension IslandModel {
         }
     }
 
-    /// Control failed (transport error) — red flash, revert.
+    private func reconcileRowFailures(with rows: [IslandAgent]) {
+        for id in Array(rowFailures.keys) {
+            guard let row = rows.first(where: { $0.id == id }) else {
+                rowFailures[id] = nil; rowFailureStatus[id] = nil; rowFailureLastSeen[id] = nil
+                continue
+            }
+            let statusChanged = row.status != rowFailureStatus[id] && row.status != "stale"
+            let updated = row.last_seen_at > (rowFailureLastSeen[id] ?? 0)
+            if statusChanged || updated {
+                rowFailures[id] = nil; rowFailureStatus[id] = nil; rowFailureLastSeen[id] = nil
+            }
+        }
+    }
+
+    /// Keep a textual error until a later publisher update acknowledges the row.
     func failRowControl(_ id: String) {
+        let action = rowControls[id]?.action
+        let row = listRows.first { $0.id == id }
         rowControls[id] = nil
         rowStatusAtSend[id] = nil
+        rowFailures[id] = "Not sent · Try again"
+        rowFailureStatus[id] = row?.status
+        rowFailureLastSeen[id] = row?.last_seen_at ?? 0
         flash(id)
+        if let row {
+            let verb = action?.rawValue ?? "control"
+            onAnnounce?("Could not send \(verb) for \(row.name.isEmpty ? row.app : row.name). Not sent. Try again.")
+        }
     }
 
     fileprivate func expireRowControls(now: Date) {

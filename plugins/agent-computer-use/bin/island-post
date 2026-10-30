@@ -215,7 +215,7 @@ def main() -> int:
     p.add_argument("--kind", default=None, choices=KINDS, help="default: choice if --prompt/--option, else running")
     p.add_argument("--title", default="")
     p.add_argument("--prompt", default=None, help="choice: the question (defaults to --title)")
-    p.add_argument("--detail", default="")
+    p.add_argument("--detail", default="", help="approval: subtitle; required target scope for --destructive")
     p.add_argument("--option", action="append", type=parse_option, default=[], metavar="LABEL=VALUE",
                    help="choice option (repeat, max 6)")
     p.add_argument("--multi", action="store_true", help="choice: allow several options")

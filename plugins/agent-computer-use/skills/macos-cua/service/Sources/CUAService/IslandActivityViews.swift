@@ -487,19 +487,20 @@ struct IslandAgentListBody: View {
         let p = IslandBarLayout.cardPadding
         let all = model.listRows
         let rows = IslandAgentRows.hierarchical(all)
-        let extra = max(0, all.count - IslandAgentRows.maxRows)
+        let processes = model.localProcessRows
+        let extra = max(0, model.rosterItemCount - model.rosterVisibleRows)
         let h = model.cardHeight
         VStack(alignment: .leading, spacing: 0) {
-            // One 1 s timeline for the roster, only while it is on screen AND a row is running.
+            // One timeline for running duration and stale last-seen age, only while visible.
             Group {
-                let running = rows.filter { $0.agent.status == "running" }.map { $0.agent.elapsed_s }
-                if !running.isEmpty {
-                    // Per second for the first minute, then per minute ("running 4m").
-                    TimelineView(IslandAgentTicker(start: model.agentsAt, bases: running)) { ctx in
-                        rowStack(rows, extra: ctx.date.timeIntervalSince(model.agentsAt))
+                let timed = rows.filter { ["running", "stale"].contains($0.agent.status) }.map { $0.agent.elapsed_s }
+                if !timed.isEmpty {
+                    // Running time and stale last-seen age share one schedule.
+                    TimelineView(IslandAgentTicker(start: model.agentsAt, bases: timed)) { ctx in
+                        rowStack(rows, processes: processes, extra: ctx.date.timeIntervalSince(model.agentsAt))
                     }
                 } else {
-                    rowStack(rows, extra: 0)
+                    rowStack(rows, processes: processes, extra: 0)
                 }
             }
             .frame(height: h - 2 * p - (extra > 0 ? 18 : 0), alignment: .top)
@@ -513,18 +514,57 @@ struct IslandAgentListBody: View {
         .frame(width: IslandBarLayout.cardSize.width, height: h, alignment: .topLeading)
     }
 
-    private func rowStack(_ rows: [IslandAgentRow], extra: TimeInterval) -> some View {
-        ScrollView(.vertical) {
-            LazyVStack(spacing: 0) {
-                ForEach(rows) { item in row(item.agent, depth: item.depth, extra: extra) }
+    private func rowStack(_ rows: [IslandAgentRow], processes: [IslandAgent], extra: TimeInterval) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical) {
+                LazyVStack(spacing: 0) {
+                    if rows.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(IslandPalette.green)
+                            Text("No agent tasks reported").font(IslandType.bodyStrong).foregroundStyle(Color.white)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .leading)
+                        .padding(.horizontal, 8)
+                        .accessibilityElement(children: .combine)
+                    }
+                    ForEach(rows) { item in
+                        row(item.agent, depth: item.depth, parentName: item.parentName, extra: extra)
+                            .id(item.id)
+                    }
+                    if !processes.isEmpty {
+                        HStack {
+                            Text("Detected local processes").font(IslandType.bodyStrong)
+                            Spacer(minLength: 8)
+                            Text("\(processes.count)").font(IslandType.meta).monospacedDigit()
+                        }
+                        .foregroundStyle(Color.white.opacity(0.72))
+                        .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .leading)
+                        .padding(.horizontal, 8)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(processes.count) local processes detected; task activity unknown")
+                        ForEach(processes) { process in
+                            row(process, depth: 0, parentName: nil, extra: 0).id(process.id)
+                        }
+                    }
+                }
             }
+            .onChange(of: model.navTarget) { target in
+                if case .row(let id) = target { proxy.scrollTo(id) }
+            }
+            .accessibilityLabel("Agent roster")
         }
-        .accessibilityLabel("Agent roster")
     }
 
-    private func row(_ a: IslandAgent, depth: Int, extra: TimeInterval) -> some View {
+    private func row(_ a: IslandAgent, depth: Int, parentName: String?, extra: TimeInterval) -> some View {
         let pending = model.rowControls[a.id]
         let flashing = model.rowFlash.contains(a.id)
+        let state = IslandAgentRows.statusText(a, elapsedExtra: extra)
+        let status = [model.rowFailures[a.id], pending.map { Self.pendingText($0.action) }, state]
+            .compactMap { $0 }.joined(separator: " · ")
+        let who = a.name.isEmpty ? a.app : a.name
+        let armed = model.isStopArmed(a.id)
+        let parent = parentName.map { "child of \($0)" }
+        let accessibility = [who, a.title, parent, status].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
         return HStack(spacing: 10) {
             // 20 pt icon on a 28 pt tile (radius 7, white 8 %) on every row.
             SamanthaAppIcon(appName: a.app.isEmpty ? a.name : a.app, size: 20, radius: 5)
@@ -532,33 +572,55 @@ struct IslandAgentListBody: View {
                 .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(0.08)))
                 .layoutProbe("row-\(a.id)-icon", .glyph)
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    Text(a.name.isEmpty ? a.app : a.name).font(IslandType.bodyStrong).foregroundStyle(Color.white).lineLimit(1)
-                        .layoutProbe("row-\(a.id)-name", truncates: true)
-                        .layoutPriority(1)
-                    if !a.title.isEmpty {
-                        Text(a.title).font(IslandType.body).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
-                            .layoutProbe("row-\(a.id)-title", truncates: true)
+                if armed {
+                    Text([parentName.map { "Child of \($0)" }, who, a.title].compactMap { $0 }.joined(separator: " · "))
+                        .font(IslandType.bodyStrong).foregroundStyle(Color.white).lineLimit(2)
+                        .layoutProbe("row-\(a.id)-stop-target", truncates: true)
+                    Button("Keep running") { model.cancelStop(a.id) }
+                        .font(IslandType.meta).foregroundStyle(Color.white.opacity(0.85))
+                        .frame(minHeight: 24, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+                        .islandFocusRing(model.isNavFocused(.cancelStop(a.id)), shape: .capsule)
+                        .accessibilityLabel("Keep \(who) running")
+                } else {
+                    HStack(spacing: 4) {
+                        Text(who).font(IslandType.bodyStrong).foregroundStyle(Color.white).lineLimit(1)
+                            .layoutProbe("row-\(a.id)-name", truncates: true)
+                            .layoutPriority(1)
+                        if !a.title.isEmpty {
+                            Text(a.title).font(IslandType.body).foregroundStyle(Color.white.opacity(0.7)).lineLimit(1)
+                                .layoutProbe("row-\(a.id)-title", truncates: true)
+                        }
                     }
-                }
-                let status = pending.map { Self.pendingText($0.action) } ?? IslandAgentRows.statusText(a, elapsedExtra: extra)
-                Text(status)
+                    HStack(spacing: 4) {
+                        if let parentName {
+                            Text("↳ \(parentName)").foregroundStyle(Color.white.opacity(0.72)).lineLimit(1)
+                        }
+                        Text(status)
+                            .foregroundStyle(model.rowFailures[a.id] != nil || a.status == "error" ? IslandPalette.red.opacity(0.95)
+                                : a.status == "needs_you" ? IslandPalette.amber : a.status == "stale" ? IslandPalette.amber.opacity(0.9)
+                                : Color.white.opacity(0.65))
+                            .layoutPriority(1)
+                    }
                     .font(IslandType.meta)
-                    .foregroundStyle(a.status == "error" ? IslandPalette.red.opacity(0.9) : Color.white.opacity(0.45))
                     .contentTransition(reduceMotion ? .identity : .numericText())
                     .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: status)
                     .layoutProbe("row-\(a.id)-status")
+                }
             }
             Spacer(minLength: 4)
             control(a, pending: pending)
         }
-        .frame(height: IslandAgentRows.rowHeight)
+        .frame(height: armed ? IslandAgentRows.rowHeight + 20 : IslandAgentRows.rowHeight)
         .padding(.horizontal, 6)
         .padding(.leading, CGFloat(min(depth, 4)) * 14)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(flashing ? IslandPalette.red.opacity(0.25) : Color.clear))
         .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: flashing)
         .accessibilityElement(children: .contain)
+        .accessibilityLabel(accessibility)
+        .accessibilityHint(a.status == "stale" ? "Dismiss this stale entry. New updates restore it." : "")
     }
 
     @ViewBuilder
@@ -573,9 +635,9 @@ struct IslandAgentListBody: View {
                     if armed { Text("Confirm stop") } else { Image(systemName: Self.symbol(action, armed: false)) }
                 }
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(action == .approve ? Color.black : Color.white)
+                    .foregroundStyle(action == .review ? Color.black : Color.white)
                     .frame(width: armed ? 92 : 28, height: 28)
-                    .background(Capsule().fill(armed ? IslandPalette.destructiveFill : action == .approve ? Color.white : Color.white.opacity(0.12)))
+                    .background(Capsule().fill(armed ? IslandPalette.destructiveFill : action == .review ? IslandPalette.amber : Color.white.opacity(0.12)))
                     .layoutProbe("row-\(a.id)-control", .control)
                     .islandFocusRing(model.isNavFocused(.row(a.id)), shape: .capsule)
                     .frame(width: armed ? 100 : 44, height: 44)
@@ -583,7 +645,9 @@ struct IslandAgentListBody: View {
             }
             .buttonStyle(.plain)
             .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: armed)
-            .accessibilityLabel(Self.label(action, armed: armed, name: a.name))
+            .accessibilityLabel(Self.label(action, armed: armed,
+                                           name: [a.name.isEmpty ? a.app : a.name, a.title].filter { !$0.isEmpty }.joined(separator: ": "),
+                                           requestKind: a.request_kind))
         } else {
             statusGlyph(a).frame(width: 28, height: 28).layoutProbe("row-\(a.id)-glyph", .glyph)
         }
@@ -593,6 +657,8 @@ struct IslandAgentListBody: View {
     private func statusGlyph(_ a: IslandAgent) -> some View {
         if a.status == "expired" {
             IslandHollowRing(size: 12)
+        } else if IslandAgentRows.isProcessObservation(a) {
+            SamanthaSymbol(name: "cpu", color: Color.white.opacity(0.55))
         } else if a.status == "error" {
             SamanthaSymbol(name: "xmark.circle.fill", color: IslandPalette.red)
         } else if a.status == "done" {
@@ -608,15 +674,17 @@ struct IslandAgentListBody: View {
         switch a {
         case .stop: return "stop.fill"
         case .retry: return "arrow.clockwise"
-        case .approve: return "checkmark"
+        case .review: return "doc.text.magnifyingglass"
+        case .dismiss: return "xmark"
         }
     }
 
-    static func label(_ a: IslandRowControl.Action, armed: Bool, name: String) -> String {
+    static func label(_ a: IslandRowControl.Action, armed: Bool, name: String, requestKind: String? = nil) -> String {
         switch a {
         case .stop: return armed ? "Confirm stop \(name)" : "Stop \(name)"
         case .retry: return "Retry \(name)"
-        case .approve: return "Approve \(name)"
+        case .review: return "Review \(requestKind == "choice" ? "choice" : "approval") from \(name)"
+        case .dismiss: return "Dismiss stale \(name)"
         }
     }
 
@@ -624,7 +692,8 @@ struct IslandAgentListBody: View {
         switch a {
         case .stop: return "stopping…"
         case .retry: return "retrying…"
-        case .approve: return "approving…"
+        case .review: return "opening request…"
+        case .dismiss: return "dismissing…"
         }
     }
 }
