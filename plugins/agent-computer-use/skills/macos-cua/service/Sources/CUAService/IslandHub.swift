@@ -54,6 +54,9 @@ final class IslandHub {
     private(set) var samantha: IslandSnapshot?
     private(set) var entries: [String: Entry] = [:]   // key = source:id
     private(set) var localHarnesses: [IslandAgent] = []
+    /// Grok Bot Bots whose sidebar row says Working, with when the island first saw each one.
+    private(set) var grokBotWorking: [(name: String, since: Date)] = []
+    private var grokBotAges: [String] = []
     private var localHarnessScanAt = Date.distantPast
     private var localHarnessScanInFlight = false
     private(set) var approvals: [Pending] = []
@@ -118,6 +121,10 @@ final class IslandHub {
         s.agents += live.map { e in
             var a = e.agent
             if a.status == "running", e.started != .distantPast { a.elapsed_s = max(0, now.timeIntervalSince(e.started)) }
+            // Posted `meta` ("Grok 4.7 · high") gets the live age: "Grok 4.7 · high · 1m".
+            if a.status == "running", let meta = a.local_detail, !meta.isEmpty {
+                a.local_detail = meta + " · " + IslandCodexThreads.duration(Int(a.elapsed_s))
+            }
             a.last_seen_at = e.updated.timeIntervalSince1970
             return a
         }
@@ -133,6 +140,7 @@ final class IslandHub {
             return a
         }
         s.agents += localHarnesses
+        if store.sourceEnabled(.agentRoster) { s.agents += IslandGrokBotActivity.rows(grokBotWorking, now: now) }
         // Queued cards: approvals jump the queue (then arrival order); the first owns the pill,
         // all show as needs-you rows + count.
         let queue = queued.filter { !shownInline($0) }
@@ -224,6 +232,11 @@ final class IslandHub {
 
     /// Best-effort local host scan; only exact allowlisted process names and PIDs are read.
     func refreshLocalHarnesses(now: Date = Date()) {
+        // Rides the existing island clock: "Grok Bot · 3m" moves on when the minute changes.
+        if !grokBotWorking.isEmpty {
+            let ages = IslandGrokBotActivity.rows(grokBotWorking, now: now).compactMap(\.local_detail)
+            if ages != grokBotAges { grokBotAges = ages; changed() }
+        }
         guard !localHarnessScanInFlight, now.timeIntervalSince(localHarnessScanAt) >= 5 else { return }
         localHarnessScanAt = now
         localHarnessScanInFlight = true
@@ -235,6 +248,15 @@ final class IslandHub {
                 self.updateLocalHarnesses(self.store.sourceEnabled(.agentRoster) ? rows : [])
             }
         }
+    }
+
+    /// A Bot keeps its start time while it stays Working; a Bot that stops drops its row at once.
+    func updateGrokBotWorking(_ names: [String], now: Date = Date()) {
+        let since = Dictionary(grokBotWorking.map { ($0.name, $0.since) }, uniquingKeysWith: { a, _ in a })
+        let next = names.map { (name: $0, since: since[$0] ?? now) }
+        guard next.map(\.name) != grokBotWorking.map(\.name) else { return }
+        grokBotWorking = next
+        changed()
     }
 
     func updateLocalHarnesses(_ rows: [IslandAgent]) {
@@ -495,6 +517,8 @@ final class IslandHub {
             var shown = agent
             if kind == "error", let line = (j["detail"] as? String)?.components(separatedBy: .newlines).first?
                 .trimmingCharacters(in: .whitespaces), !line.isEmpty { shown.local_detail = String(line.prefix(60)) }
+            if kind == "running", let meta = (j["meta"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !meta.isEmpty { shown.local_detail = String(meta.prefix(60)) }
             if kind == "error", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !tech.isEmpty { shown.tooltip = String(tech.prefix(200)) }
             entries[id] = Entry(source: source, agent: shown, updated: now, ttl: ttl, started: started)

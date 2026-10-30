@@ -221,6 +221,19 @@ final class IslandHubTests: XCTestCase {
         XCTAssertTrue(hub.compose().agents.isEmpty)
     }
 
+    func testCursorRunningRowShowsMetaWithLiveAgeAndCursorIcon() throws {
+        let hub = IslandHub(store: store)
+        let cursor = try token(.cursor)
+        let t0 = Date(timeIntervalSince1970: 20_000)
+        let body: [String: Any] = ["source": "cursor", "id": "chat-1", "kind": "running", "title": "General chat",
+                                   "app": "Cursor", "meta": "Grok 4.7 · high"]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: cursor, json: body), port: 8777, now: t0).status, 200)
+        let row = try XCTUnwrap(hub.compose(now: t0.addingTimeInterval(75)).agents.first)
+        XCTAssertEqual(row.app, "Cursor")
+        XCTAssertEqual(row.title, "General chat")
+        XCTAssertEqual(IslandAgentRows.statusText(row), "Grok 4.7 · high · 1m")
+    }
+
     func testSilentRunningAgentBecomesStaleAndCanBeDismissed() throws {
         let hub = IslandHub(store: store)
         let grok = try token(.grokBot)

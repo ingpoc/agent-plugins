@@ -115,3 +115,10 @@ returns `ok: true` and `stored: true` with locator metadata only. If it returns
 `stored: true` with an error, the Keychain write succeeded but the locator was
 not recorded; do not retry the save. If the user cancels or the request fails,
 stop without moving the secret to another channel.
+
+## Agent rows that need nothing from the agent
+
+- **Grok Bot**: the island reads the Grok Bot app's documented sidebar status ("Working or typing status", https://docs.x.ai/grok-bot/settings-and-notifications). A busy Bot's sidebar button is labelled `<name>, Working`; one AXObserver on the app (title/created/destroyed/live-region notifications, coalesced 0.5 s) re-reads only the `Bot list` group. Row: title = Bot name, meta `Grok Bot · 3m`, gone when the label drops `Working`. No timers; needs the Grok Bot window open (its AX tree), and Accessibility for ACU.
+- **Cursor (IDE and CLI)**: documented agent hooks (https://cursor.com/docs/agent/hooks). The plugin's `hooks/hooks.json` runs `bin/acu-cursor-hook` on `beforeSubmitPrompt` (working row: Cursor icon, chat name read-only from Cursor's `state.vscdb`, else the trimmed prompt; meta `Grok 4.7 · high · 1m` from `model_id`/`model_params`), `stop` (done / failed / cleared when aborted) and `sessionEnd` (cleared). The Cursor CLI does not load plugin hooks; register the same script once in `~/.cursor/hooks.json` (`"command": "<home>/.agents/plugins/agent-computer-use/bin/acu-cursor-hook"`) for `beforeSubmitPrompt`, `stop` and `sessionEnd`. Posts are idempotent per conversation, so the IDE running both copies is harmless.
+- **Codex**: thread rows from Codex's own rollout files (see `sessions`).
+- Anything else posts with `island-post`; `--meta "Model · effort"` gives running rows a meta line with the live age.

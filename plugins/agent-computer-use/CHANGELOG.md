@@ -2,6 +2,12 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.57 (2026-10-30)
+
+- Grok Bot agents show on the island while they work: a row per Bot titled with its name ("Agent Computer Use"), meta "Grok Bot · 3m", dropped as soon as the Bot stops. Source: Grok Bot's documented sidebar "Working" status, read from the app's accessibility tree through one AXObserver (event-driven, no timers, no clicks). Bots need to post nothing.
+- Cursor agents show on the island: the plugin ships Cursor hooks (`hooks/hooks.json` → `bin/acu-cursor-hook`). `beforeSubmitPrompt` posts a working row with the Cursor icon, the chat's name (read-only from Cursor's state DB, else the trimmed prompt) and "Grok 4.7 · high · 1m" meta; `stop` marks it done, failed or clears it; `sessionEnd` clears it.
+- `island-post --meta` sets a running row's meta line; the island appends the live age.
+
 ## 0.2.56 (2026-10-30)
 
 - Cursor IDE marketplace installs work: Cursor's plugin cache writes `.cache-complete` into the plugin root, which the runtime contract hashed as package content, so the MCP launcher failed with `RUNTIME_CONTRACT_FAILED: package/app build mismatch` and Cursor showed "Connection closed". Harness marker files at the plugin root are no longer part of the build identity.

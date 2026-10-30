@@ -224,6 +224,7 @@ def main() -> int:
     p.add_argument("--allow-text", action="store_true", help="choice: free-text reply field")
     p.add_argument("--primary", default="", help="choice: option value drawn as primary")
     p.add_argument("--danger", default="", help="choice: option value drawn red")
+    p.add_argument("--meta", default="", help="running: model/effort meta line; the island appends the age (\"Grok 4.7 · high · 1m\")")
     p.add_argument("--app", default=None, help="app whose icon represents the row (default per source)")
     p.add_argument("--id", default="default", help="stable id; re-post to update, --kind clear to remove")
     p.add_argument("--name", default="", help="agent roster: harness/agent label (for example Codex or Claude Code)")
@@ -272,6 +273,8 @@ def main() -> int:
                   "detail": a.detail}
     if a.error:
         body["error"] = a.error
+    if a.meta:
+        body["meta"] = a.meta
     if kind == "choice":
         body.update({"prompt": a.prompt or a.title, "options": a.option, "multi": a.multi,
                      "allow_text": a.allow_text, "primary": a.primary, "danger": a.danger})
