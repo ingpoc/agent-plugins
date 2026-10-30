@@ -33,6 +33,7 @@ BOUNDS_TOLERANCE = 2.0
 # window is 1900x1030. Same origin + slightly smaller size still identifies the window
 # (title + attested pid are checked after).
 SIZE_SLACK = 48.0
+RAISE_SETTLE_S = 1.5
 RESTORE_DELAY_S = 0.6
 PASTE_SETTLE_S = 0.12
 KEYSTROKE_MAX_CHARS = 40
@@ -448,10 +449,15 @@ class NativeInput:
 
     def _resolve_window(self, session: str, params: dict[str, Any]) -> tuple[int, str]:
         pid = self._comet_pid()
-        windows = self.desktop.windows(pid)
-        candidates = match_windows(windows, params.get("window") or {})
-        if not candidates:
-            candidates = match_windows_loose(windows, params.get("window") or {})
+        bounds = params.get("window") or {}
+        # Stage Manager / Dock animations: right after chrome.windows.update(focused) the
+        # CG window can still be a small stage thumbnail. Poll briefly for it to settle.
+        for attempt in range(int(RAISE_SETTLE_S / 0.1) + 1):
+            windows = self.desktop.windows(pid)
+            candidates = match_windows(windows, bounds) or match_windows_loose(windows, bounds)
+            if candidates:
+                break
+            self.sleep(0.1)
         if not candidates:
             raise NativeInputError("WINDOW_NOT_FOUND", "no Comet window matches the leased window bounds")
         tab_title = str(params.get("title") or "")

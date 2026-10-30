@@ -180,6 +180,18 @@ class NativeInputTests(unittest.TestCase):
         self.assertEqual([p["windowId"] for p in raised], [18599])
         self.assertEqual(out["saved_front"], "com.anysphere.sand")
 
+    def test_raise_waits_for_stage_manager_thumbnail_to_settle(self):
+        n = self.make([win(18599, x=-288, y=739, w=217, h=177)], {18599: "ACU input matrix - Comet"})
+        calls = {"n": 0}
+        real = self.desk.windows
+        def settling(pid):
+            calls["n"] += 1
+            return real(pid) if calls["n"] < 4 else [win(18599)]
+        self.desk.windows = settling
+        out = self.raise_(n)
+        self.assertTrue(out["success"], out)
+        self.assertEqual(calls["n"], 4)
+
     def test_ambiguous_or_mismatched_title_refuses(self):
         n = self.make([win(1), win(2)], {1: "Same - Comet", 2: "Same - Comet"})
         out = self.raise_(n, "Same")
