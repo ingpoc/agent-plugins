@@ -285,6 +285,28 @@ async function release(sessionId) {
 }
 
 // ── flows ─────────────────────────────────────────────────────────────────
+export async function nativeBringToFront(state, hooks, { holdMs = 1500, label = "bring_to_front" } = {}) {
+  const lease = await raiseLease(state, hooks, label);
+  try {
+    const api = hooks.chrome || globalThis.chrome;
+    await api.tabs.update(state.tabId, { active: true }).catch(() => {});
+    const start = Date.now();
+    let visible = false;
+    do {
+      visible = await inTab(hooks, state.tabId, 0, () => document.visibilityState, [], "visibilityState") === "visible";
+      if (visible || Date.now() - start >= 3000) break;
+      await new Promise((resolve) => setTimeout(resolve, Math.min(100, 3000 - (Date.now() - start))));
+    } while (Date.now() - start < 3000);
+    const visibility_wait_ms = Date.now() - start;
+    const hold_ms = Number.isFinite(Number(holdMs)) ? Math.max(0, Math.min(10000, Number(holdMs))) : 0;
+    await new Promise((resolve) => setTimeout(resolve, hold_ms));
+    logPath(state, "window", "cua_raise", { action: label });
+    return { input_path: "cua_raise", visible, visibility_wait_ms, hold_ms };
+  } finally {
+    await release(lease.sessionId);
+  }
+}
+
 // Focus via scripting -> raise the exact leased window -> confirm page focus ->
 // CUAService keys/text -> verify through a scripting read -> optional Enter.
 export async function nativeTypeFlow(state, hooks, opts) {
