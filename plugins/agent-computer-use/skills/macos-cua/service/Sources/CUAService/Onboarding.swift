@@ -207,7 +207,7 @@ struct OnboardingView: View {
                 }
             }
             Text("Every prompt is macOS's own. Nothing is granted for you.")
-                .font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45))
+                .font(.system(size: 11)).foregroundStyle(Color.white.opacity(IslandInk.meta))
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutProbe("welcome-note", truncates: true).padding(.leading, 4)
         }
@@ -253,7 +253,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 14) {
             PermissionRows(rows: rows, store: store, rendering: rendering, focus: model.focusRow?.key, permissions: permissions)
             Text("Change these later in ACU Settings › Computer Use.")
-                .font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45))
+                .font(.system(size: 11)).foregroundStyle(Color.white.opacity(IslandInk.meta))
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutProbe("permissions-note", truncates: true).padding(.leading, 4)
         }

@@ -108,6 +108,8 @@ final class IslandChoiceTests: XCTestCase {
         try store.rotateToken(.grokBot)
         let path = dir.appendingPathComponent("i.sock").path
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil, socketPath: path)
+        c.hub.frontmostBundleID = { nil }
+        c.frontmostAppName = { nil }
         c.start()
         defer { c.shutdown() }
         let attrs = try FileManager.default.attributesOfItem(atPath: path)

@@ -411,6 +411,8 @@ final class IslandPanel: NSPanel {
     }
     override var canBecomeKey: Bool { allowKey }
     override var canBecomeMain: Bool { false }
+    // https://developer.apple.com/documentation/appkit/nsaccessibility-swift.struct/subrole/floatingwindow
+    override func accessibilitySubrole() -> NSAccessibility.Subrole? { .floatingWindow }
 }
 
 /// First click lands even though the panel is never key. Also the File Tray drop destination (A9)

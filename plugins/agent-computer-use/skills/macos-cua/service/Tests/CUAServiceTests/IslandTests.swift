@@ -51,6 +51,24 @@ final class IslandTests: XCTestCase {
         XCTAssertEqual(IslandBarLayout.agentRect(shape: shape).maxX, shape.minX - 6)
     }
 
+    func testCompactCircleHitTargetsAreAtLeast28Points() {
+        let shape = IslandBarLayout.shapeRect(compactWidth: 136, card: false)
+        let targets = IslandBarLayout.hitRects(shape: shape, circleCount: 2, agentCount: 2).dropFirst()
+        XCTAssertEqual(targets.count, 4)
+        for target in targets {
+            XCTAssertGreaterThanOrEqual(target.width, 28)
+            XCTAssertGreaterThanOrEqual(target.height, 28)
+        }
+    }
+
+    func testInkLadder() {
+        XCTAssertEqual([IslandInk.primary, IslandInk.secondary, IslandInk.meta, IslandInk.hairline, IslandInk.fill],
+                       [1.0, 0.70, 0.60, 0.15, 0.08])
+        XCTAssertEqual(IslandInk.increasedSecondary, 0.85)
+        XCTAssertEqual(IslandInk.increasedOutline, 0.35)
+        XCTAssertEqual(IslandInk.onWhiteSecondary, 0.70)
+    }
+
     func testWindowFrameTopCentredAndInsideScreen() {
         let screen = CGRect(x: 0, y: 0, width: 2560, height: 1440)
         let bar = CGRect(x: 0, y: 1410, width: 2560, height: 30)
