@@ -2,6 +2,11 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.55 (2026-10-30)
+
+- Approval cards are sticky, so in 0.2.54 a click on the pill while an approval showed only pinned the ask card. A click now opens the roster with the needs-you row on top (choice cards being typed into keep their clicks); ⌃⌘I still opens the ask card.
+- Roster rows have an accessibility action, so VoiceOver can open a row (thread link, ask card, or clear an error row) like a click.
+
 ## 0.2.54 (2026-10-30)
 
 UI & UX review fixes on the accepted 0.2.53 roster:

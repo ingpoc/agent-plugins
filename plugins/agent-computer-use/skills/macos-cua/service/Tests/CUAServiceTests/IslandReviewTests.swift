@@ -311,6 +311,11 @@ final class IslandReviewTests: XCTestCase {
         XCTAssertEqual(s.agents.first { $0.name == "Grok Bot" }?.app, "Grok Bot")
         m.toggleCard(byClick: false)
         XCTAssertTrue(m.cardOpen && m.agentApproval != nil, "⌃⌘I opens the ask card")
+        m.click(at: CGPoint(x: 40, y: 10))
+        XCTAssertTrue(m.cardOpen)
+        XCTAssertEqual(IslandAgentRows.hierarchical(m.listRows).first?.agent.needs_you, true,
+                       "a click on the showing (sticky) ask card opens the roster, needs-you on top")
+        XCTAssertGreaterThan(m.listRows.count, 1)
         let g = IslandSourceGroups.groups(agents: ["A", "B", "C", "D", "E"].map { IslandAgent(id: $0, name: $0, app: $0, status: "running") },
                                           expired: [], hidePending: nil)
         XCTAssertEqual(g.count, 4); XCTAssertEqual(g.last?.overflow, 2, "max 3 + \"+N\"")

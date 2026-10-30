@@ -1306,7 +1306,10 @@ final class IslandModel: ObservableObject {
         }
         // With an ask pending, a click opens the roster (needs-you row on top); the keyboard
         // shortcut (byClick false) still goes straight to the ask card.
-        if byClick && !cardOpen && agentApproval != nil && !isPeeking && presentation != .expired {
+        // Approval cards are sticky, so this also applies while the ask card is showing; a choice
+        // card being typed into keeps its clicks.
+        if byClick && agentApproval != nil && cardMode != .agents && !textEntryActive && presentation != .expired
+            && (!cardOpen || !isChoiceCard) {
             openAgentList()
             return
         }

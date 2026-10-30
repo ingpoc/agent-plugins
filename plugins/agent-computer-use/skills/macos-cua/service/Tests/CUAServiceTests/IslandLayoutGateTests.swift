@@ -89,9 +89,9 @@ final class IslandLayoutGateTests: XCTestCase {
         add("agents-stop-armed") { m in m.idleActivity = "agents"; m.apply(IslandSnapshot(kind: "idle", agents: rows)); m.toggleCard(); m.tapRowControl(rows[0]) }
         add("focus-agent-row") { m in m.idleActivity = "agents"; m.apply(IslandSnapshot(kind: "idle", agents: rows)); m.hotKeyPressed() }
         // Decision card + focus
-        add("decision") { $0.apply(IslandSnapshot(kind: "idle", agent_approval: IslandAgentApproval(id: "g:x", agent: "Grok Bot", app: "Comet", title: "Deploy to staging?"))); $0.toggleCard() }
+        add("decision") { $0.apply(IslandSnapshot(kind: "idle", agent_approval: IslandAgentApproval(id: "g:x", agent: "Grok Bot", app: "Comet", title: "Deploy to staging?"))); $0.toggleCard(byClick: false) }
         add("decision-worst") { $0.apply(IslandSnapshot(kind: "idle", agent_approval: IslandAgentApproval(id: "g:y", agent: "Grok Bot", app: "Comet",
-            title: "Deploy the payments service to production in all twelve regions now?", subtitle: "This restarts every worker and drains 4,812 open connections across the fleet"))); $0.toggleCard() }
+            title: "Deploy the payments service to production in all twelve regions now?", subtitle: "This restarts every worker and drains 4,812 open connections across the fleet"))); $0.toggleCard(byClick: false) }
         add("focus-decision") { $0.apply(IslandSnapshot(kind: "idle", agent_approval: IslandAgentApproval(id: "g:z", agent: "Grok Bot", app: "Comet", title: "Deploy to staging?"))); $0.hotKeyPressed() }
         return out
     }
