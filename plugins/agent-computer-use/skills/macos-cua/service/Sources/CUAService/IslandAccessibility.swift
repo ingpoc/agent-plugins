@@ -30,7 +30,10 @@ enum IslandAgentAccessibility {
 }
 
 
-enum IslandAnnouncementPriority { case medium, high }
+enum IslandAnnouncementPriority: Int, Comparable {
+    case medium, high
+    static func < (a: Self, b: Self) -> Bool { a.rawValue < b.rawValue }
+}
 enum IslandAnnouncementTrigger {
     case approval, choice, needsYou, error, done, expiry
     var priority: IslandAnnouncementPriority {
@@ -41,13 +44,39 @@ enum IslandAnnouncementTrigger {
     }
 }
 
+/// At most one announcement per `interval`. Extras are coalesced, never dropped outright:
+/// the most important pending one (latest wins at equal priority) is delivered when the window opens,
+/// so a routine message can never swallow a later approval.
 struct IslandAnnouncementThrottle {
+    typealias Item = (text: String, priority: IslandAnnouncementPriority)
     var clock: () -> Date = Date.init
+    var interval: TimeInterval = 3
     private var last: Date?
-    mutating func allows() -> Bool {
+    private(set) var pending: Item?
+
+    /// Returns the item to post now, or nil when it was queued (see `nextDue`).
+    mutating func offer(_ text: String, priority: IslandAnnouncementPriority) -> Item? {
         let now = clock()
-        if let last, now.timeIntervalSince(last) < 3 { return false }
+        if let last, now.timeIntervalSince(last) < interval {
+            if pending == nil || priority >= pending!.priority { pending = (text, priority) }
+            return nil
+        }
         last = now
-        return true
+        pending = nil
+        return (text, priority)
+    }
+
+    /// When the queued item may be posted.
+    var nextDue: Date? {
+        guard pending != nil, let last else { return nil }
+        return last.addingTimeInterval(interval)
+    }
+
+    /// The queued item once the window has opened.
+    mutating func drain() -> Item? {
+        guard let item = pending, let due = nextDue, clock() >= due else { return nil }
+        pending = nil
+        last = clock()
+        return item
     }
 }

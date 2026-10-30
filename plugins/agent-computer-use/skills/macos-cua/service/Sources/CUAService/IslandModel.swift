@@ -568,7 +568,7 @@ final class IslandModel: ObservableObject {
     var agentAllowed: (IslandAgent) -> Bool = { _ in true }
     var approvalAllowed: (IslandAgentApproval) -> Bool = { _ in true }
 
-    var showAgentCircle: Bool { IslandAgentBadge.showsCircle(rowCount: sourceGroups.count) && !(idleActivity == "samantha" && isIdlePresentation) }
+    var showAgentCircle: Bool { IslandAgentBadge.showsCircle(rowCount: agents.count + expired.count) && !(idleActivity == "samantha" && isIdlePresentation) }
 
     var compactAgentAttention: IslandAgentRow? {
         let candidate = agents.enumerated().filter {
@@ -1155,7 +1155,6 @@ final class IslandModel: ObservableObject {
             && (userOpened || isSticky || (peekUntil.map { now < $0 } ?? false) || choicePeek
                 || (next == .expired && noticeUntil != nil))
         if !open && idleSamantha { userOpened = false }
-        if cardMode == .agents && agents.isEmpty && expired.isEmpty && userOpened { userOpened = false; cardMode = .samantha }
         if !open { cardMode = .samantha }
         if next != presentation {
             let familyChanged = next.motionFamily != presentation.motionFamily
@@ -1259,7 +1258,8 @@ final class IslandModel: ObservableObject {
             return
         }
         if !cardOpen && isIdlePresentation && !isSticky {
-            openAgentList()
+            // No idle card: an idle click opens the roster only when there is something in it.
+            if !agents.isEmpty || !expired.isEmpty { openAgentList() }
             return
         }
         let peeking = isPeeking
@@ -1290,7 +1290,6 @@ final class IslandModel: ObservableObject {
     }
 
     func openAgentList() {
-        guard !agents.isEmpty || !expired.isEmpty else { return }
         IslandEventLog.log("clicked", kind: "agents", ["state": "circles"])
         ackOnClose = expired.map(\.id)
         userOpened = true
@@ -1332,9 +1331,15 @@ final class IslandModel: ObservableObject {
         // An opened choice card stays until answered, dismissed (X) or clicked closed — hover-away
         // would drop in-progress selections/text.
         guard cardOpen, !isSticky, !textEntryActive, !isChoiceCard, presentation != .expired else { return }
+        // VoiceOver hold: an error/done peek stays until it is explicitly dismissed.
+        if voiceOverHold { return }
         userOpened = false
         peekUntil = nil
         refresh(now: Date())
+    }
+
+    var voiceOverHold: Bool {
+        voiceOverEnabled() && ["error", "done"].contains(kind) && peekUntil == .distantFuture && !userOpened
     }
 
     func dismissCard() {

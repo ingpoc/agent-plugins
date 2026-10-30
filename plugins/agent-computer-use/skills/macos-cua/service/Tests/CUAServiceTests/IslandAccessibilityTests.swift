@@ -5,11 +5,32 @@ final class IslandAccessibilityTests: XCTestCase {
     func testAnnouncementThrottleUsesInjectedClock() {
         var now = Date(timeIntervalSince1970: 100)
         var throttle = IslandAnnouncementThrottle(clock: { now })
-        XCTAssertTrue(throttle.allows())
+        XCTAssertEqual(throttle.offer("one", priority: .medium)?.text, "one")
         now.addTimeInterval(2.99)
-        XCTAssertFalse(throttle.allows())
+        XCTAssertNil(throttle.offer("two", priority: .medium))
+        XCTAssertNil(throttle.drain())
         now.addTimeInterval(0.01)
-        XCTAssertTrue(throttle.allows())
+        XCTAssertEqual(throttle.drain()?.text, "two")
+        XCTAssertNil(throttle.nextDue)
+    }
+
+    func testAnnouncementThrottleNeverLetsRoutineSwallowApproval() {
+        var now = Date(timeIntervalSince1970: 100)
+        var throttle = IslandAnnouncementThrottle(clock: { now })
+        XCTAssertNotNil(throttle.offer("focus", priority: .medium))
+        now.addTimeInterval(0.5)
+        XCTAssertNil(throttle.offer("Codex needs approval", priority: .high))
+        now.addTimeInterval(0.5)
+        XCTAssertNil(throttle.offer("done", priority: .medium))
+        XCTAssertEqual(throttle.nextDue, Date(timeIntervalSince1970: 103))
+        now = Date(timeIntervalSince1970: 103)
+        let delivered = throttle.drain()
+        XCTAssertEqual(delivered?.text, "Codex needs approval")
+        XCTAssertEqual(delivered?.priority, .high)
+        // Still at most one per 3 s after the drain.
+        now.addTimeInterval(1)
+        XCTAssertNil(throttle.offer("later", priority: .high))
+        XCTAssertEqual(throttle.nextDue, Date(timeIntervalSince1970: 106))
     }
 
     func testAnnouncementPriorities() {
@@ -91,5 +112,45 @@ final class IslandAccessibilityModelTests: XCTestCase {
         model.apply(IslandSnapshot(kind: "idle", agents: [IslandAgent(id: "a", name: "Other", status: "running")], agent_approval: approval))
         XCTAssertTrue(model.accessibilityText.hasPrefix("Agent needs approval: Delete branch"))
         XCTAssertTrue(model.accessibilityText.contains("Option-Command-B to review"))
+    }
+
+    func testVoiceOverPeekSurvivesPointerExit() {
+        let model = IslandModel()
+        model.voiceOverEnabled = { true }
+        model.apply(IslandSnapshot(kind: "error", title: "Could not open Notes"))
+        XCTAssertTrue(model.cardOpen)
+        model.pointerLeft()
+        XCTAssertTrue(model.cardOpen, "VoiceOver hold must last until an explicit dismissal")
+        model.dismissCard()
+        XCTAssertFalse(model.cardOpen)
+    }
+
+    func testEmptyRosterOpensAndSurvivesLastAgentLeaving() {
+        let model = IslandModel()
+        model.openAgentList()
+        XCTAssertTrue(model.cardOpen)
+        XCTAssertEqual(model.cardMode, .agents)
+        XCTAssertTrue(model.listRows.isEmpty)
+        let other = IslandModel()
+        other.apply(IslandSnapshot(kind: "ready", title: "Samantha", agents: [IslandAgent(id: "a", name: "Codex", title: "Build", status: "running")]))
+        other.openAgentList()
+        other.apply(IslandSnapshot(kind: "ready", title: "Samantha", agents: []))
+        XCTAssertTrue(other.cardOpen)
+        XCTAssertEqual(other.cardMode, .agents)
+    }
+
+    func testAgentCircleCountsAgentsAndUnseenTimeoutsOnly() {
+        let model = IslandModel()
+        model.apply(IslandSnapshot(kind: "idle"))
+        XCTAssertFalse(model.showAgentCircle)
+        // A timed-out request keeps its hollow ring until the roster is opened (never dropped silently).
+        var timedOut = IslandSnapshot(kind: "idle")
+        timedOut.expired = [IslandExpired(id: "old", agent: "Codex", app: "Codex", title: "Old request")]
+        model.apply(timedOut)
+        XCTAssertTrue(model.showAgentCircle)
+        model.apply(IslandSnapshot(kind: "idle"))
+        XCTAssertFalse(model.showAgentCircle)
+        model.apply(IslandSnapshot(kind: "idle", agents: [IslandAgent(id: "a", name: "Codex", title: "Build", status: "running")]))
+        XCTAssertTrue(model.showAgentCircle)
     }
 }

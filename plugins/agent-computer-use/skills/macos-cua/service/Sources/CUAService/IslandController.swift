@@ -41,6 +41,7 @@ final class IslandController {
     let calendar = IslandCalendarController()
     let hotKey = IslandHotKey()
     private var announcementThrottle = IslandAnnouncementThrottle()
+    private var announcementDrainScheduled = false
     private(set) lazy var focus = IslandFocusStatus()
     private var reduceMotionObserver: Any?
     private var motionFlush: Timer?
@@ -332,11 +333,12 @@ final class IslandController {
         }
         hotKey.onPress = { [weak self] in self?.model.hotKeyPressed() }
         model.onAnnounce = { [weak self] text in
-            guard let self, self.announcementThrottle.allows() else { return }
-            let priority: NSAccessibilityPriorityLevel = self.model.announcementPriority == .high ? .high : .medium
-            // https://developer.apple.com/documentation/appkit/nsaccessibility-swift.struct/notification/announcementrequested
-            NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
-                                 userInfo: [.announcement: text, .priority: priority.rawValue])
+            guard let self else { return }
+            if let item = self.announcementThrottle.offer(text, priority: self.model.announcementPriority) {
+                Self.postAnnouncement(item)
+            } else {
+                self.scheduleAnnouncementDrain()
+            }
         }
         model.peekGate = { [weak self] in
             guard let self else { return true }
@@ -351,6 +353,26 @@ final class IslandController {
             MainActor.assumeIsolated {
                 self?.model.systemReduceMotion = IslandMotion.systemReduceMotion
                 self?.updateAccessibilityDisplay()
+            }
+        }
+    }
+
+    private static func postAnnouncement(_ item: IslandAnnouncementThrottle.Item) {
+        let priority: NSAccessibilityPriorityLevel = item.priority == .high ? .high : .medium
+        // https://developer.apple.com/documentation/appkit/nsaccessibility-swift.struct/notification/announcementrequested
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: item.text, .priority: priority.rawValue])
+    }
+
+    private func scheduleAnnouncementDrain() {
+        guard !announcementDrainScheduled, let due = announcementThrottle.nextDue else { return }
+        announcementDrainScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, due.timeIntervalSinceNow) + 0.01) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.announcementDrainScheduled = false
+                if let item = self.announcementThrottle.drain() { Self.postAnnouncement(item) }
+                self.scheduleAnnouncementDrain()
             }
         }
     }

@@ -315,6 +315,9 @@ final class SamanthaMenuBarIslandPanel {
             child.order(.below, relativeTo: panel.windowNumber)
             trackingWindows.append(child)
         }
+        // Tracking areas only fire on crossings: a card that closes under a stationary pointer must
+        // still drop click capture and hover, so reconcile against the pointer now.
+        pointerChanged()
     }
 
     /// Screen point → window coords (top-left origin), the space IslandBarLayout uses.
