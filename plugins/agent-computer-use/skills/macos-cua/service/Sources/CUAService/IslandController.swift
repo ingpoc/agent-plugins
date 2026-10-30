@@ -89,7 +89,7 @@ final class IslandController {
         nowPlaying.onChange = { [weak self] in self?.pushNowPlaying() }
         model.onMedia = { [weak self] cmd in self?.nowPlaying.perform(cmd) }
         model.onMediaAction = { [weak self] a in self?.mediaAction(a) }
-        // Quick Peek waits while Guru is typing in the card's source chat app.
+        // Quick Peek waits while the user is typing in the card's source chat app.
         model.peekSuppressed = { [weak self] a in
             IslandInput.isSourceApp(self?.frontmostAppName(), approval: a)
                 && IslandInput.secondsSinceKeyDown() < IslandInput.typingWindow

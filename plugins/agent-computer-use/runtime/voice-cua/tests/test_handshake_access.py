@@ -1,6 +1,6 @@
 """GPT-Live 403 at the handshake: no Origin header, no retry storm, a clear error.
 
-Regression (Guru, 2026-10-21): selecting GPT-Live-1 meant Samantha never listened —
+Regression (2026-10-21): selecting GPT-Live-1 meant Samantha never listened —
 every handshake to wss://api.openai.com/v1/live/sessions got a bare 403 "Forbidden",
 the helper retried 8x, exited 0, and CUAService restarted it into the same 403.
 """

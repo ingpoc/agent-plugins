@@ -344,7 +344,7 @@ final class IslandReviewTests: XCTestCase {
         XCTAssertEqual(m.choiceText, "half typed")
     }
 
-    func testNextCardSlidesInWhenGuruWasInTheCard() async throws {
+    func testNextCardSlidesInWhenUserWasInTheCard() async throws {
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start(); defer { c.shutdown() }
         let m = c.debugModel

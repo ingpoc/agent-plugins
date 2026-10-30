@@ -304,12 +304,12 @@ class SessionBargeInTests(unittest.TestCase):
 
         class Audio:
             def device_summary(self):
-                return {"input": "Guru’s AirPods Pro", "input_rate": 24000, "stream_rate": 24000,
+                return {"input": "My AirPods Pro", "input_rate": 24000, "stream_rate": 24000,
                         "wire_rate": 24000, "resampled": False, "output": None}
 
         session._audio = Audio()
         info = session._audio_devices()
-        self.assertEqual(info["input"], "Guru’s AirPods Pro")
+        self.assertEqual(info["input"], "My AirPods Pro")
         self.assertNotIn("output", info)
 
 

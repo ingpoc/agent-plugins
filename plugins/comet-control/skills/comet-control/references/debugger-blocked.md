@@ -29,4 +29,7 @@ Failed → fixed:
 One-time user step for `js` on CSP sites: comet://extensions → Comet Control → Details →
 turn on "Allow User Scripts". Adding the `userScripts` permission (0.1.18) did not
 disable the unpacked extension or require re-approval.
-Unsupported without debugger: `DOM.*` CDP, real mouse inside iframes, forward-Delete.
+Debugger-free since 0.1.22: bring the leased window to front via Chrome window focus, `upload_file`
+via a userScripts DataTransfer, and real-mouse clicks mapped through the raised window's real frame
+(Stage Manager-safe, restores the previous front app on release).
+Unsupported without debugger (0.1.22): `DOM.*` CDP, real mouse inside iframes, forward-Delete.

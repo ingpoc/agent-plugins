@@ -497,7 +497,7 @@ final class IslandTrackingView: NSView {
     }
 }
 
-/// Never main, and key ONLY while Guru is typing into a choice card's text field (after his click);
+/// Never main, and key ONLY while the user is typing into a choice card's text field (after their click);
 /// clicking an app circle activates that app, not us.
 final class IslandPanel: NSPanel {
     /// Set by `SamanthaMenuBarIslandPanel.beginTextEntry` (a click into the field) and cleared on

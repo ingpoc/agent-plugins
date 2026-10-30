@@ -101,7 +101,7 @@ struct IslandAgentApproval: Codable, Equatable {
 }
 
 /// A card that timed out without an answer: 4 s notice, then a hollow red ring on its source's circle
-/// until Guru opens the agent list or the agent clears it (never dropped silently).
+/// until the user opens the agent list or the agent clears it (never dropped silently).
 struct IslandExpired: Codable, Equatable {
     var id: String = ""
     var agent: String = ""
@@ -534,7 +534,7 @@ final class IslandModel: ObservableObject {
     private var noticeUntil: Date?
     private var lastNoticeAt: Double = 0
     private var ackOnClose: [String] = []
-    /// Source chat app frontmost and Guru typing (< 3 s since a key press) → hold the peek.
+    /// Source chat app frontmost and the user typing (< 3 s since a key press) → hold the peek.
     var peekSuppressed: (IslandAgentApproval) -> Bool = { _ in false }
     /// First time a card is seen (controller plays the soft Tink unless muted / source app frontmost).
     var onArrival: ((IslandAgentApproval) -> Void)?
@@ -693,7 +693,7 @@ final class IslandModel: ObservableObject {
         if snap.pending_count != pendingCount { pendingCount = snap.pending_count }
         if let prevID, agentApproval?.id != prevID {
             // Answered / cleared / preempted: give key back; keep a draft; the next card slides in
-            // only if Guru was already in the card.
+            // only if the user was already in the card.
             saveDraft(prevID)
             endTextEntry()
             let keep = cardOpen && userOpened && agentApproval != nil
@@ -922,7 +922,7 @@ final class IslandModel: ObservableObject {
     }
 
     /// Approval cards and Samantha's confirm hold the card open; choice cards show a compact
-    /// needs-you signal and open on click (they stay open while Guru is typing).
+    /// needs-you signal and open on click (they stay open while the user is typing).
     @Published private(set) var credentialRequest: CredentialRequest?
 
     func setCredentialRequest(_ request: CredentialRequest?) {

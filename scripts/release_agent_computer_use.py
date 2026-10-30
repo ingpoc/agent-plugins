@@ -32,7 +32,9 @@ def policy(root=ROOT, *, base=None):
     version = json.loads((package / 'plugin.json').read_text())['version']
     cursor = json.loads((package / '.cursor-plugin/plugin.json').read_text())['version']
     app = plistlib.loads((package / 'skills/macos-cua/service/Resources/Info.plist').read_bytes())
-    if cursor != version or app['CFBundleShortVersionString'] != version:
+    grok_path = package / '.grok-plugin/plugin.json'
+    grok = json.loads(grok_path.read_text())['version'] if grok_path.is_file() else version
+    if cursor != version or grok != version or app['CFBundleShortVersionString'] != version:
         raise RuntimeError('release metadata versions disagree with plugin.json')
     baseline = base or os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or (
         'refs/remotes/origin/main' if os.environ.get('CI') else 'HEAD')

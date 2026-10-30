@@ -1,7 +1,7 @@
 {
   "name": "agent-computer-use",
-  "version": "0.2.32",
-  "description": "Operate native macOS apps from an agent through two Accessibility-first MCP tools (state and act), with an optional GPT Realtime voice runtime. macOS only.",
+  "version": "0.2.49",
+  "description": "Operate native macOS apps from an agent through two Accessibility-first MCP tools (state and act), with an optional voice runtime, Samantha (GPT-Live-1 or Grok Voice 3.0). macOS only.",
   "author": {
     "name": "ingpoc",
     "url": "https://github.com/ingpoc"

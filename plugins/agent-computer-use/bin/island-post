@@ -8,7 +8,7 @@
   island-post --source codex --kind clear --id deploy-1        # answered in chat: remove the card
   island-post --source grok-bot --kind peek --title "Build finished" --app Terminal   # 3 s Quick Peek
   island-post --source codex --kind running --id job1 --title "Migrating" --controls stop,retry --wait-control 600
-      # row with Stop/Retry buttons; prints {"action": "stop"} when Guru clicks (exit 0), timeout exit 2
+      # row with Stop/Retry buttons; prints {"action": "stop"} when the user clicks (exit 0), timeout exit 2
   island-post --source agent --name Codex --id task-123 --kind running --title "Implementing roster"
   island-post --source agent --name Codex --id child-1 --parent-id task-123 --kind running --title "Reviewing UI"
 

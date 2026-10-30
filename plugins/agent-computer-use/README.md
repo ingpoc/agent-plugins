@@ -6,20 +6,20 @@ Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGE
 
 ## Overview
 
-**Purpose.** Lets an agent see and operate native macOS apps. The `agent-computer-use` MCP server exposes two tools: `state` (a compact Accessibility snapshot of one app) and `act` (a batch of actions that presses Accessibility elements first and falls back to pointer and keyboard input, then returns a verified delta). The `macos-cua` skill tells the agent how to use them. Optional: Samantha, a GPT Realtime voice runtime (`runtime/voice-cua/`) that drives the same tools by voice.
+**Purpose.** Lets an agent see and operate native macOS apps. The `agent-computer-use` MCP server exposes two tools: `state` (a compact Accessibility snapshot of one app) and `act` (a batch of actions that presses Accessibility elements first and falls back to pointer and keyboard input, then returns a verified delta). The `macos-cua` skill tells the agent how to use them. Optional: Samantha, ACU's own voice runtime (`runtime/voice-cua/`, GPT-Live-1 by default or Grok Voice 3.0) that drives the same tools by voice.
 
-**Requirements.** macOS 13 or later (tested on Apple silicon), `python3` on `PATH`, and the CUAService helper app (**Agent Computer Use.app**) installed with **Accessibility** and **Screen Recording** granted. Not supported on Linux or Windows.
+**Requirements.** macOS 13 or later (tested on Apple silicon), `python3` on `PATH`, and the CUAService helper app (**Agent Computer Use.app**) installed. It asks for its macOS permissions once, in its onboarding window. Not supported on Linux or Windows.
 
 **Install.**
 
-1. Install the `agent-computer-use` plugin from this repository's marketplace (`.cursor-plugin/marketplace.json` or `.grok-plugin/marketplace.json`).
+1. Install the `agent-computer-use` plugin from this repository's marketplace. Per-client commands (Codex, Cursor, Grok Build, Agent Plugins Installer): repository root [`README.md`](../../README.md#install).
 2. Install CUAService. Testers use the notarized build from the repository's GitHub release (download the DMG, drag **Agent Computer Use** to Applications, open it). Maintainers can build from source with `python3 skills/macos-cua/service/install_service.py --team <YOUR_TEAM_ID>`. That needs Xcode Command Line Tools and a code-signing identity for that Apple Developer team.
-3. Grant Accessibility and Screen Recording to Agent Computer Use (System Settings → Privacy & Security), then relaunch it.
+3. Grant permissions in the onboarding window (it opens on first launch; also ACU Settings › Computer Use). Required: **Accessibility** and **Screen Recording** (quit and reopen Agent Computer Use after granting Screen Recording; macOS applies it only on relaunch). **Automation**, per app, the first time an agent drives that app (for example Music, Finder, Comet, System Events). Optional: **Microphone** (Samantha voice only), **Calendars** and **Focus** (island extras). Every prompt is macOS's own.
 4. Restart the client. The plugin should list exactly two tools, `state` and `act`.
 
-**Configuration.** Nothing is required. `AGENT_COMPUTER_USE_PYTHON` picks the Python interpreter. For voice only, store an OpenAI API key in the macOS login Keychain with the `runtime/voice-cua` secrets CLI. `runtime/voice-cua/config/secret-templates/` holds metadata only (label, Keychain service, account) and never a value.
+**Configuration.** Nothing is required. `AGENT_COMPUTER_USE_PYTHON` picks the Python interpreter. For voice only, store an OpenAI API key (GPT-Live-1) or an xAI API key (Grok Voice 3.0) in the macOS login Keychain with the `runtime/voice-cua` secrets CLI. `runtime/voice-cua/config/secret-templates/` holds metadata only (label, Keychain service, account) and never a value.
 
-**Network endpoints and credentials.** `state` and `act` stay on the machine. They talk to the local CUAService process, and nothing is uploaded. The voice runtime, when you turn it on, calls `https://api.openai.com/v1/realtime` (session and WebSocket) with the Keychain OpenAI key. The developer-only benchmark `skills/macos-cua/scripts/bench_jev_act.py` calls `https://ai-gateway.vercel.sh` with your own gateway key. Runtime counters and logs stay local under `~/.cache/macos-cua/`. There is no remote telemetry.
+**Network endpoints and credentials.** `state` and `act` stay on the machine. They talk to the local CUAService process, and nothing is uploaded. The voice runtime, when you turn it on, calls OpenAI GPT-Live at `wss://api.openai.com/v1/live/sessions` with the Keychain OpenAI key (or, if you pick Grok Voice, `wss://api.x.ai/v1/realtime` with a Keychain xAI key). The developer-only benchmark `skills/macos-cua/scripts/bench_jev_act.py` calls `https://ai-gateway.vercel.sh` with your own gateway key. Runtime counters and logs stay local under `~/.cache/macos-cua/`. There is no remote telemetry.
 
 **Testing.** From this directory: `python3 -m unittest skills/macos-cua/tests/test_plugin_package.py skills/macos-cua/tests/test_jev_act.py skills/macos-cua/tests/test_cua_service_health.py`. Live check: ask the agent to "open Calculator and compute 12 × 3 with agent-computer-use". It should call `state` and then `act`, and the display should read 36.
 
@@ -105,98 +105,26 @@ island-post --source grok-bot --kind clear --id "$ASK_ID"   # removes the card; 
 
 ## Benchmarks
 
-Five graded axes, each 0–10. Overall is their unweighted mean. Accuracy and visibility are trust gates, not averaged in.
+Measured numbers live outside the package so a benchmark run never changes the shipped plugin: [`docs/benchmarks/agent-computer-use.md`](../../docs/benchmarks/agent-computer-use.md). Reproduce with `python3 skills/macos-cua/scripts/run_benchmarks.py --repeat 5 --rate` (warm discard first). Model: `skills/macos-cua/references/entry-contract.json` `rating_model`. Do not loosen floors to force a pass.
 
-Measured this session: warm discard then `python3 scripts/run_benchmarks.py --repeat 5 --rate`. File `~/.cache/macos-cua/benchmarks-latest.json` written `2026-08-17T03:42:52Z`. Kept: `seed_snapshot` into asserted plans + Calculator/WhatsApp probes reuse the button/closed tree (floor AX); dropped redundant Calculator post-`app_state`. Rejected: seeding postcondition expects from a pre-mutation tree (false pass on stale display). Model: `skills/macos-cua/references/entry-contract.json` `rating_model`. Do not loosen floors to force a pass.
-
-| | |
-| --- | --- |
-| Suite overall /10 | **8.0** |
-| Rows passing | **4 / 4** |
-| Trust-gate zeros | **0** |
-| Target overall | **9.5** |
-
-Suite-level graded means: speed 4.8, reliability 9.5, robustness 10.0, efficiency 8.2, context efficiency (`token_efficiency`) 7.5.
-
-### Overall by row (five graded axes)
-
-```mermaid
-xychart-beta
-    title Overall by row /10
-    x-axis [Calculator, Folder, TextEdit, WhatsApp]
-    y-axis "Overall /10" 0 --> 10
-    bar [9.4, 9.5, 6.5, 6.5]
-    line [9.5, 9.5, 9.5, 9.5]
-```
-
-### Graded axes /10
-
-```mermaid
-xychart-beta
-    title Graded axes /10
-    x-axis [Calculator, Folder, TextEdit, WhatsApp]
-    y-axis "Score /10" 0 --> 10
-    bar [7.2, 9.5, 1.7, 1.0]
-    bar [10, 8.0, 10, 10]
-    bar [10, 10, 10, 10]
-    bar [10, 10, 6.0, 6.7]
-    bar [10, 10, 5.0, 5.0]
-```
-
-Series order: Speed, Reliability, Robustness, Efficiency, Token efficiency.
-
-### Rating table
-
-Accuracy and visibility are gates. Folder visibility is n/a (observe-only). Folder reliability 8.0 is the p95/p50 spread penalty; all five repeats still passed.
-
-| Row | Overall | Speed | Reliability | Robustness | Efficiency | Token | Accuracy | Visibility |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Calculator | 9.4 | 7.2 | 10 | 10 | 10 | 10 | 10 | 10 |
-| Folder | 9.5 | 9.5 | 8.0 | 10 | 10 | 10 | 10 | n/a |
-| TextEdit | 6.5 | 1.7 | 10 | 10 | 6.0 | 5.0 | 10 | 10 |
-| WhatsApp | 6.5 | 1.0 | 10 | 10 | 6.7 | 5.0 | 10 | 10 |
+Five graded axes, each 0–10; overall is their unweighted mean. Accuracy and visibility are trust gates, not averaged in. Scores for each release are in the linked file.
 
 ### Reliability
 
-`10 * pass_rate`; subtract 2.0 when p95/p50 duration > 1.5. Suite 9.5.
+Every repeat passes its asserted postcondition; the p95/p50 spread is penalised.
 
 ### Robustness
 
-`10 *` fraction of repeats with `measured.robust`. Suite 10.0.
+Plans recover from stale trees, focus changes and refused AX actions without false passes.
 
 ### Context efficiency
 
-Rating key `token_efficiency`. Suite 7.5.
+Compact AX snapshots and verified deltas stay within the row's token floor.
 
 ### Speed
 
-Suite 4.8. Binding constraint on TextEdit and WhatsApp.
-
-```mermaid
-xychart-beta
-    title Speed floor versus p50 seconds
-    x-axis [Calculator, Folder, TextEdit, WhatsApp]
-    y-axis "Seconds" 0 --> 10
-    bar [1.582, 0.358, 1.284, 0.125]
-    bar [1.581, 0.377, 6.301, 1.316]
-```
-
-Series order: Floor (s), p50 duration (s).
+Wall-clock p50 and p95 per row against the row's floor.
 
 ### Efficiency
 
-Suite 8.2. Calculator at floor (`ax_snapshots` 2).
-
-### Runtime contract
-
-The MCP launcher rejects package/app fingerprint mismatches and stale running
-services. Every native RPC also carries the client build identity, so an already
-running stale client is rejected after an app update. Build and sync the same candidate, then restart the signed app before
-reconnecting the client. `python3 skills/macos-cua/scripts/runtime_contract.py`
-checks this without starting or repairing anything. The app version alone is
-insufficient: changed contents at the same version also fail.
-
-Run source tests from this plugin with
-`python3 -m unittest runtime/voice-cua/tests/test_voice_cua.py`.
-Collection validation (`python3 scripts/check.py` from the repo root) uses the
-strict runner and rejects zero collected tests and unlisted skips.
+Tool calls and fallbacks per verified action.

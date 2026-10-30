@@ -171,7 +171,7 @@ class NativeInputTests(unittest.TestCase):
         return n.handle({"op": "raise", "sessionId": "lease-1", "params": {"window": BOUNDS, "title": title}})
 
     def test_same_bounds_as_humans_window_resolves_by_title_only(self):
-        # Guru's Kite window shares the full-display bounds with a single-lease window.
+        # A full-screen app window shares the full-display bounds with a single-lease window.
         n = self.make([win(16790), win(18599)], {16790: "Orders / Kite by Zerodha - Comet", 18599: "ACU input matrix - Comet"})
         out = self.raise_(n)
         self.assertTrue(out["success"], out)
