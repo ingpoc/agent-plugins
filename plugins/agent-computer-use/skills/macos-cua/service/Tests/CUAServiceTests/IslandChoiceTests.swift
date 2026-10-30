@@ -94,6 +94,25 @@ final class IslandChoiceTests: XCTestCase {
         XCTAssertFalse(c.debugModel.cardOpen, "click closes it")
     }
 
+    func testEscapeLeavesApprovalPending() throws {
+        try store.rotateToken(.grokBot)
+        let hub = IslandHub(store: store)
+        hub.frontmostBundleID = { nil }
+        let model = IslandModel()
+        hub.onSnapshot = { model.apply($0) }
+        var actions: [IslandCardAction] = []
+        model.onAction = { actions.append($0) }
+        let body: [String: Any] = ["source": "grok-bot", "id": "pending", "kind": "approval", "title": "Continue?"]
+        XCTAssertEqual(hub.handle(local("POST", "/api/island/publish", json: body), port: 0).status, 200)
+        model.hotKeyPressed()
+        XCTAssertTrue(model.cardOpen)
+        XCTAssertTrue(model.handleKey(keyCode: 53, characters: "", shift: false))
+        XCTAssertFalse(model.cardOpen)
+        XCTAssertEqual(hub.decision(IslandHub.key(.grokBot, "pending")), .pending)
+        XCTAssertNotNil(hub.compose().agent_approval)
+        XCTAssertTrue(actions.isEmpty)
+    }
+
     func testSocketParserMarksPeerAndHTTPParserNever() {
         let line = #"{"method":"get","path":"/api/agent/approval","query":{"source":"grok-bot","id":"q1","wait":5}}"#
         let r = IslandHubSocketServer.parse(Data(line.utf8))
@@ -108,6 +127,8 @@ final class IslandChoiceTests: XCTestCase {
         try store.rotateToken(.grokBot)
         let path = dir.appendingPathComponent("i.sock").path
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil, socketPath: path)
+        c.hub.frontmostBundleID = { nil }
+        c.frontmostAppName = { nil }
         c.start()
         defer { c.shutdown() }
         let attrs = try FileManager.default.attributesOfItem(atPath: path)
@@ -190,6 +211,30 @@ final class IslandChoiceTests: XCTestCase {
         XCTAssertEqual(hub.decision(IslandHub.key(.grokBot, "a1")), .denied)
     }
 
+    func testPendingChoiceRowOpensItsOptionsWithoutAnswering() throws {
+        try store.rotateToken(.grokBot)
+        let hub = IslandHub(store: store)
+        XCTAssertEqual(hub.handle(local("POST", "/api/island/publish", json: choiceBody("roster-choice")), port: 0).status, 200)
+        let id = IslandHub.key(.grokBot, "roster-choice")
+        let row = try XCTUnwrap(hub.compose().agents.first { $0.id == "pending:" + id })
+        XCTAssertEqual(row.request_kind, "choice")
+        XCTAssertEqual(IslandAgentRows.control(for: row), .review)
+
+        let model = IslandModel()
+        model.apply(hub.compose())
+        model.onRowControl = { selected, action in
+            guard action == .review, hub.selectApproval(id: String(selected.id.dropFirst("pending:".count))) else { return }
+            model.apply(hub.compose())
+            model.openApprovalFromRoster()
+        }
+        model.tapRowControl(row)
+
+        XCTAssertTrue(model.cardOpen)
+        guard case .choice(let details) = model.card.controls else { return XCTFail("choice details should open") }
+        XCTAssertEqual(details.options.map(\.value), ["great", "needs_work"])
+        XCTAssertEqual(hub.decision(id), .pending)
+    }
+
     func testQueueOrderCountAndExpiry() throws {
         try store.rotateToken(.grokBot)
         let hub = IslandHub(store: store)
@@ -243,17 +288,19 @@ final class IslandChoiceTests: XCTestCase {
         var a = IslandAgentApproval(id: "x", kind: "choice", options: [.init(label: "A", value: "a"), .init(label: "B", value: "b")])
         XCTAssertEqual(IslandChoiceLayout.cardHeight(a), 176, "one row of options")
         a.allow_text = true
-        XCTAssertEqual(IslandChoiceLayout.cardHeight(a), 176, "2 options + text row still fit 176")
+        XCTAssertEqual(IslandChoiceLayout.cardHeight(a), 220, "two 44-point rows fit the tall card")
         a.options += [.init(label: "C", value: "c")]
-        XCTAssertEqual(IslandChoiceLayout.cardHeight(a), 220, "3 rows → 220 tier")
+        XCTAssertEqual(IslandChoiceLayout.cardHeight(a), 244, "three 44-point rows fit without overlap")
         a.options = (1...6).map { .init(label: "\($0)", value: "\($0)") }
-        XCTAssertEqual(IslandChoiceLayout.cardHeight(a), 220)
+        XCTAssertEqual(IslandChoiceLayout.cardHeight(a), 244)
         XCTAssertEqual(IslandChoiceLayout.shownOptions(a).count, 3, "> 4 options: 3 + More in chat")
         XCTAssertTrue(IslandChoiceLayout.hasMore(a))
-        XCTAssertLessThanOrEqual(IslandChoiceLayout.contentHeight(a), 220, "never scrolls")
+        XCTAssertLessThanOrEqual(IslandChoiceLayout.contentHeight(a), IslandChoiceLayout.cardHeight(a), "never scrolls")
     }
 
     func testPanelNeverBecomesKeyWithoutAClick() async throws {
+        store.set(false, for: IslandSettingsSchema.hideInFullscreen)
+        store.set(false, for: IslandSettingsSchema.hideInMissionControl)
         try store.rotateToken(.grokBot)
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start()
@@ -266,7 +313,7 @@ final class IslandChoiceTests: XCTestCase {
         XCTAssertFalse(c.debugPanel.debugCanBecomeKey, "a new choice card never takes key")
         m.hoverOpen()
         XCTAssertTrue(m.cardOpen)
-        XCTAssertEqual(m.cardHeight, 176)
+        XCTAssertEqual(m.cardHeight, 220)
         XCTAssertFalse(c.debugPanel.debugCanBecomeKey, "opening the card never takes key")
         XCTAssertFalse(c.debugPanel.debugIsKey)
         m.beginTextEntry()   // == the click into the field
@@ -283,7 +330,9 @@ final class IslandChoiceTests: XCTestCase {
         XCTAssertNil(m.agentApproval)
     }
 
-    func testBeginTextEntryRequiresOpenTextCard() throws {
+    func testBeginTextEntryRequiresOpenTextCard() async throws {
+        store.set(false, for: IslandSettingsSchema.hideInFullscreen)
+        store.set(false, for: IslandSettingsSchema.hideInMissionControl)
         try store.rotateToken(.grokBot)
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start()
@@ -292,6 +341,10 @@ final class IslandChoiceTests: XCTestCase {
         c.debugModel.beginTextEntry()
         XCTAssertFalse(c.debugPanel.debugCanBecomeKey, "no card → no key")
         _ = c.hub.handle(local("POST", "/api/island/publish", json: choiceBody(extra: ["allow_text": false])), port: 0)
+        for _ in 0..<100 where c.debugModel.agentApproval == nil {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        XCTAssertNotNil(c.debugModel.agentApproval, "published card arrived before interaction")
         c.debugModel.hoverOpen()
         XCTAssertFalse(c.debugPanel.debugCanBecomeKey, "hover-open never takes key")
         c.debugModel.beginTextEntry()

@@ -50,19 +50,148 @@ final class IslandPolishTests: XCTestCase {
         m.onRowControl = { a, act in sent.append("\(a.id)=\(act.rawValue)") }
         m.hotKeyPressed()
         XCTAssertTrue(m.keyboardActive); XCTAssertTrue(m.cardOpen)
-        XCTAssertEqual(m.navTargets, [.row("codex:a"), .row("codex:b")], "rows without a control are skipped")
-        XCTAssertEqual(said.last, "Stop Codex: Migrate")
+        XCTAssertEqual(m.navTargets, [.row("codex:b"), .row("codex:a")], "urgent rows lead the navigation order")
+        XCTAssertTrue(said.last?.contains("Retry Codex: Build") == true)
         XCTAssertTrue(m.handleKey(keyCode: 125, characters: "", shift: false))   // ↓
-        XCTAssertEqual(m.navTarget, .row("codex:b")); XCTAssertEqual(said.last, "Retry Codex: Build")
+        XCTAssertEqual(m.navTarget, .row("codex:a")); XCTAssertTrue(said.last?.contains("Stop Codex: Migrate") == true)
         XCTAssertTrue(m.handleKey(keyCode: 125, characters: "", shift: false))   // wraps
+        XCTAssertEqual(m.navTarget, .row("codex:b"))
+        XCTAssertTrue(m.handleKey(keyCode: 126, characters: "", shift: false))   // ↑ to Stop
         XCTAssertEqual(m.navTarget, .row("codex:a"))
         XCTAssertTrue(m.handleKey(keyCode: 36, characters: "\r", shift: false))  // Return arms Stop
-        XCTAssertTrue(sent.isEmpty); XCTAssertEqual(said.last, "Confirm stop Codex")
+        XCTAssertTrue(sent.isEmpty); XCTAssertTrue(said.last?.hasPrefix("Confirm stop Codex") == true)
         XCTAssertTrue(m.handleKey(keyCode: 36, characters: "\r", shift: false))
         XCTAssertEqual(sent, ["codex:a=stop"])
         XCTAssertFalse(m.handleKey(keyCode: 0, characters: "a", shift: false), "letters pass through")
         XCTAssertTrue(m.handleKey(keyCode: 53, characters: "", shift: false))    // Esc
         XCTAssertFalse(m.keyboardActive); XCTAssertFalse(m.cardOpen)
+    }
+
+    func testStopConfirmationCanBeCancelledWithKeyboard() {
+        let agent = IslandAgent(id: "codex:stop", name: "Codex", title: "Coordinate release",
+                                status: "running", controls: ["stop"])
+        let model = IslandModel()
+        model.idleActivity = "agents"
+        model.apply(IslandSnapshot(kind: "idle", agents: [agent]))
+        var sent = 0
+        model.onRowControl = { _, _ in sent += 1 }
+        model.hotKeyPressed()
+
+        XCTAssertTrue(model.handleNavKey(keyCode: 36, shift: false))
+        XCTAssertEqual(model.navTargets, [.row(agent.id), .cancelStop(agent.id)])
+        XCTAssertEqual(model.navLabel(.row(agent.id)), "Confirm stop Codex: Coordinate release, running 0s")
+        XCTAssertEqual(model.navLabel(.cancelStop(agent.id)), "Keep Codex running")
+        XCTAssertTrue(model.handleNavKey(keyCode: 125, shift: false))
+        XCTAssertEqual(model.navTarget, .cancelStop(agent.id))
+        XCTAssertTrue(model.handleNavKey(keyCode: 36, shift: false))
+        XCTAssertFalse(model.isStopArmed(agent.id))
+        XCTAssertEqual(sent, 0)
+    }
+
+    func testKeyboardNavigationReachesOverflowRowsInParentOrder() {
+        let parent = IslandAgent(id: "agent:parent", name: "Codex", title: "Coordinate", status: "running", controls: ["stop"])
+        let child = IslandAgent(id: "agent:child", name: "Claude", title: "Blocked review", status: "error",
+                                parent_id: parent.id, controls: ["retry"])
+        let healthy = (1...4).map {
+            IslandAgent(id: "agent:healthy\($0)", name: "Agent \($0)", title: "Task \($0)", status: "running", controls: ["stop"])
+        }
+        let model = IslandModel()
+        model.idleActivity = "agents"
+        model.apply(IslandSnapshot(kind: "idle", agents: [healthy[0], parent, healthy[1], child, healthy[2], healthy[3]]))
+        model.hotKeyPressed()
+
+        let targets = model.navTargets
+        XCTAssertEqual(targets.count, 6)
+        for _ in 0..<(targets.count - 1) { XCTAssertTrue(model.handleNavKey(keyCode: 125, shift: false)) }
+        XCTAssertEqual(model.navTarget, targets.last, "keyboard focus can reach the sixth control")
+        let childLabel = model.navLabel(.row(child.id))
+        XCTAssertTrue(childLabel.contains("child of Codex"))
+        XCTAssertTrue(childLabel.contains("failed"))
+    }
+
+    func testDestructiveApprovalNeedsDetailAndSecondConfirmation() {
+        let approval = IslandAgentApproval(id: "cursor:delete", agent: "Cursor", app: "Cursor",
+                                           title: "Delete production database?",
+                                           subtitle: "Targets: customer-primary, customer-archive",
+                                           destructive: true)
+        let model = IslandModel()
+        var actions: [IslandCardAction] = []
+        var announcement = ""
+        model.onAction = { actions.append($0) }
+        model.onAnnounce = { announcement = $0 }
+        model.apply(IslandSnapshot(kind: "idle", agent_approval: approval))
+
+        model.performCardAction(.agentApprove(approval.id))
+        XCTAssertTrue(actions.isEmpty, "first activation only arms the approval")
+        XCTAssertTrue(model.cardOpen)
+        XCTAssertTrue(model.card.subtitle.contains("Destructive action"))
+        XCTAssertTrue(model.accessibilityText.contains("Destructive request"))
+        XCTAssertTrue(announcement.contains("Activate Confirm approve"))
+        guard case .decision(_, let primary, true) = model.card.controls else { return XCTFail("destructive decision expected") }
+        XCTAssertEqual(primary.0, "Confirm approve")
+
+        model.performCardAction(.agentApprove(approval.id))
+        XCTAssertEqual(actions, [.agentApprove(approval.id)])
+    }
+
+    func testDestructiveApprovalWithoutScopeCannotBeSubmitted() {
+        let approval = IslandAgentApproval(id: "cursor:unknown", agent: "Cursor", app: "Cursor",
+                                           title: "Delete stale branches?", destructive: true)
+        let model = IslandModel()
+        var actions: [IslandCardAction] = []
+        model.onAction = { actions.append($0) }
+        model.apply(IslandSnapshot(kind: "idle", agent_approval: approval))
+
+        XCTAssertFalse(model.prepareCardAction(.agentApprove(approval.id)))
+        XCTAssertTrue(model.destructiveApprovalMissingScope)
+        XCTAssertTrue(model.card.subtitle.contains("Target scope missing"))
+        guard case .decision(_, let primary, _) = model.card.controls else { return XCTFail("decision expected") }
+        XCTAssertEqual(primary.0, "Scope required")
+        XCTAssertTrue(actions.isEmpty)
+    }
+
+    func testCompactSummarySelectsHighestAttentionAgent() {
+        let parent = IslandAgent(id: "codex:parent", name: "Codex", title: "Coordinate",
+                                 status: "running", controls: ["stop"])
+        let healthy = IslandAgent(id: "codex:healthy", name: "Codex", title: "Healthy",
+                                  status: "running", controls: ["stop"])
+        let urgent = IslandAgent(id: "cursor:urgent", name: "Cursor", title: "Needs approval",
+                                 status: "needs_you", needs_you: true, parent_id: parent.id)
+        let failed = IslandAgent(id: "grok:failed", name: "Grok Bot", title: "Build failed", status: "error")
+        let model = IslandModel()
+        model.apply(IslandSnapshot(kind: "idle", agents: [healthy, failed, parent, urgent]))
+
+        XCTAssertEqual(model.compactAgentAttention?.agent.id, urgent.id)
+        XCTAssertEqual(model.compactAgentAttention?.parentName, parent.name)
+        XCTAssertGreaterThanOrEqual(model.drawnWidth, IslandBarLayout.agentAttentionWidth)
+    }
+
+    func testDestructiveKeyboardStartsOnDenyAndCommandReturnConfirms() {
+        let model = IslandModel()
+        let approval = IslandAgentApproval(id: "cursor:x", agent: "Cursor", app: "Cursor", title: "Delete branch?", subtitle: "Target: branch", destructive: true)
+        var actions: [IslandCardAction] = []
+        model.onAction = { actions.append($0) }
+        model.apply(IslandSnapshot(kind: "idle", agent_approval: approval))
+        model.hotKeyPressed()
+        XCTAssertEqual(model.navLabel(model.navTarget!), "Deny")
+        XCTAssertTrue(model.handleKey(keyCode: 36, characters: "\r", shift: false, command: true))
+        XCTAssertTrue(actions.isEmpty)
+        XCTAssertTrue(model.handleKey(keyCode: 36, characters: "\r", shift: false, command: true))
+        XCTAssertEqual(actions, [.agentApprove(approval.id)])
+    }
+
+    func testVoiceOverHoldsErrorAndDonePeeks() {
+        let now = Date()
+        for kind in ["error", "done"] {
+            let model = IslandModel()
+            model.voiceOverEnabled = { true }
+            model.apply(IslandSnapshot(kind: kind, title: "Result"), now: now)
+            XCTAssertTrue(model.cardOpen, kind)
+            _ = model.tick(now: now.addingTimeInterval(30))
+            XCTAssertTrue(model.cardOpen, kind)
+            model.toggleCard(byClick: false)
+            XCTAssertFalse(model.cardOpen, kind)
+        }
     }
 
     func testKeyboardDecisionStartsOnPrimary() {

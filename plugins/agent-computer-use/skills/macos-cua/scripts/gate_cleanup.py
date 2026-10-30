@@ -3,8 +3,7 @@
 
 run_gate.py runs the contract `cleanup` after every gate, green or failed, so
 this records a post-run doctor (the after-failure health check), then fails if
-any evidence that existed before cleanup is gone afterwards. It does not stop
-the shared operator service, which may have been running before the gate.
+any evidence that existed before cleanup is gone afterwards.
 """
 from __future__ import annotations
 

@@ -260,12 +260,8 @@ def compact_step(row: dict[str, Any]) -> dict[str, Any]:
         nested = result.get("result")
         if compact.get("error") is None and isinstance(nested, dict) and nested.get("error"):
             compact["error"] = str(nested["error"])[:300]
-        sync = ((result.get("move") or {}).get("sync") or {}).get("duration_ms")
-        if sync is not None:
-            compact["cursor_sync_ms"] = sync
-        move_error = ((result.get("move") or {}).get("sync") or {}).get("error")
-        if move_error:
-            compact["cursor_sync_error"] = str(move_error)[:300]
+        if isinstance(result.get("cursor_landing"), dict):
+            compact["cursor_landing"] = result["cursor_landing"]
     if row.get("verification") is not None:
         compact["verification"] = row["verification"]
     return compact
@@ -373,7 +369,6 @@ def dispatch_path(result: Any) -> str:
 
 
 FORBIDDEN_DISPATCH_SUBSTRINGS = (
-    "operator-proof-screen-coordinate",
     "global_input",
 )
 

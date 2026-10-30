@@ -205,26 +205,6 @@ def _main():
             )
         _emit_json(payload)
         return
-    if args.command == "operator":
-        controller = _operator_ui()
-        if args.action == "start":
-            result = controller.ensure()
-        elif args.action == "stop":
-            result = controller.stop()
-        elif args.action == "install-service":
-            result = controller.install_service()
-        elif args.action == "uninstall-service":
-            result = controller.uninstall_service()
-        elif args.action == "signing-status":
-            result = controller.signing_status()
-        elif args.action == "show-pip":
-            result = controller.set_pip_visible(True)
-        elif args.action == "hide-pip":
-            result = controller.set_pip_visible(False)
-        else:
-            result = controller.status()
-        _emit_json(result, require_ok=True)
-        return
     if args.command == "displays":
         disp_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "displays.py"
@@ -374,25 +354,7 @@ def _main():
             print(json.dumps({"error": str(exc)}))
             sys.exit(1)
 
-    if args.command not in _cli_parser().OBSERVING_COMMANDS:
-        operator_update(
-            name or args.app,
-            pid,
-            wid,
-            status="acting",
-            active=True,
-            message=f"{args.command} in progress",
-        )
-
     if args.command == "snap":
-        operator_update(
-            name or args.app,
-            pid,
-            wid,
-            status="observing",
-            active=True,
-            message="Accessibility state",
-        )
         snap = snapshot(pid, wid, args.max_elements, args.mode)
         if snap.get("error") or snap.get("ok") is False:
             payload = dict(snap)
@@ -469,19 +431,10 @@ def _main():
         element = args.element
         if element is None:
             element = find_clickable_index(fresh, args.label)
-        pre = pointer_preflight(
-            True, name or args.app, pid, wid, fresh, element,
-            f"Moving to {args.label or element}",
-        )
         if element is None:
             outcome = {"error": "element not found"}
-        elif pre and not pre.get("ok"):
-            outcome = pre
         else:
-            outcome = merge_pointer_proof(
-                perform_action(pid, wid, element, args.action, snapshot_data=fresh),
-                pre,
-            )
+            outcome = perform_action(pid, wid, element, args.action, snapshot_data=fresh)
         _emit_json(outcome)
     elif args.command == "drag":
         _emit_json(

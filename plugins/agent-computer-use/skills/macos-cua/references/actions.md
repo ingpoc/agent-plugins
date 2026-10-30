@@ -149,9 +149,7 @@ Use `key` for discrete presses and shortcuts. Use `hold-key <app> <key>
 in a `finally` path and bounds duration to 0.05–10 seconds. Add `--foreground`
 only after the target app has yielded focus and a raw-input surface ignores
 PID-targeted delivery; this fronts the resolved window and posts synthetic
-keyboard events through the system input tap without moving the pointer. Set
-`MACOS_CUA_OPERATOR_UI=0` when the native menu-bar/PiP process must remain
-stopped. `hold-key` itself does not start operator telemetry.
+keyboard events through the system input tap without moving the pointer.
 Use explicit `delivery_mode: system_events` (CLI: `key --system-events`) only
 when an exact-PID native modal ignores accepted foreground CGEvents. It never
 proves effect by itself; follow with fresh state or a plan expectation.
@@ -212,6 +210,5 @@ Best first, then fallback. Do not skip ahead.
 Do not pre-scale screenshot coordinates. If a background pixel click misses a
 custom surface, retry that click with `delivery_mode: "foreground"` and set
 `debug_image_out` to capture the driver's red-crosshair proof image.
-Point input is snapshot-bound: the operator proof must be no older than 30
-seconds and exact window geometry must still match. Re-run `state` after a
+Point input is snapshot-bound: the screenshot and exact window geometry must still be current. Re-run `state` after a
 resize, display move, or stale-proof error.

@@ -252,7 +252,6 @@ class InventoryTests(unittest.TestCase):
         }
         for rel in (
             "plugins/agent-computer-use/skills/macos-cua/tests/test_live_computer_parity.py",
-            "plugins/agent-computer-use/skills/macos-cua/tests/test_live_pointer_isolation.py",
         ):
             self.assertNotIn(rel, rels)
             self.assertIn(rel, check_inventory.script_files(ROOT))
@@ -394,6 +393,24 @@ class tempfile_cm:
 
 
 class HookEnvironmentTests(unittest.TestCase):
+    def test_each_child_has_private_activity_log_even_with_production_override(self):
+        from types import SimpleNamespace
+        run = SimpleNamespace(path=ROOT / "scripts/test_check_harness.py", cwd=ROOT,
+                              mode="module", start=None)
+        seen = []
+        def child(_cmd, *, cwd, env):
+            path = Path(env["VOICE_CUA_ACTIVITY_LOG"])
+            self.assertNotEqual(str(path), "/production/activity.jsonl")
+            self.assertTrue(path.parent.is_dir())
+            path.write_text("fixture")
+            seen.append(path)
+            return SimpleNamespace(returncode=0)
+        with mock.patch.object(check.subprocess, "run", side_effect=child):
+            for _ in range(2):
+                self.assertEqual(check._exec_python(run, {"VOICE_CUA_ACTIVITY_LOG": "/production/activity.jsonl"}), 0)
+        self.assertNotEqual(seen[0], seen[1])
+        self.assertTrue(all(not path.exists() for path in seen))
+
     def test_child_tests_preserve_home_but_drop_hook_repository_overrides(self):
         env = dict(os.environ, GIT_DIR="parent", GIT_INDEX_FILE="parent-index",
                    GIT_WORK_TREE="parent-tree", FIXTURE_SETTING="keep")

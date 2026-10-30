@@ -112,7 +112,7 @@ def _cost(rows: list[dict], arm: str, session_secs: float, prices: dict) -> dict
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--i-have-approval", action="store_true", help="run PAID live calls (Guru approved)")
+    ap.add_argument("--i-have-approval", action="store_true", help="run PAID live calls (owner approved)")
     ap.add_argument("--arms", default="gpt-live-1")
     ap.add_argument("--runs", type=int, default=10)
     ap.add_argument("--prices", type=Path)
@@ -128,7 +128,7 @@ def main() -> int:
     prices = json.loads(a.prices.read_text()) if a.prices else PRICES
     print(f"plan: {len(arms)} arms x {a.runs} runs, tasks: {[t for t, _ in TASKS]}")
     if not a.i_have_approval:
-        print("dry run: no calls made. Re-run with --i-have-approval once Guru OKs paid live calls.")
+        print("dry run: no calls made. Re-run with --i-have-approval once the owner approves paid live calls.")
         return 0
     summary = {}
     for arm in arms:

@@ -8,16 +8,25 @@ struct IslandAgent: Codable, Equatable, Identifiable {
     var name: String = ""      // "Codex"
     var app: String = ""       // app whose icon represents the agent ("Cursor", "Codex")
     var title: String = ""     // what it's doing
-    var status: String = ""    // running | done | error | needs_you
+    var status: String = ""    // running | done | error | needs_you | process (local PID; task activity unknown)
     var needs_you: Bool = false
     var elapsed_s: Double = 0
+    /// Fully qualified source:id of the registered parent task, when this is a subagent.
+    var parent_id: String? = nil
     /// Controls the posting agent honours ("stop", "retry"); the island only offers these.
     var controls: [String] = []
+    /// Hub-owned metadata used by request rows and control-failure recovery.
+    var request_kind: String? = nil
+    var destructive = false
+    var last_seen_at: Double = 0
 
     init(id: String = "", name: String = "", app: String = "", title: String = "", status: String = "",
-         needs_you: Bool = false, elapsed_s: Double = 0, controls: [String] = []) {
+         needs_you: Bool = false, elapsed_s: Double = 0, parent_id: String? = nil, controls: [String] = [],
+         request_kind: String? = nil, destructive: Bool = false, last_seen_at: Double = 0) {
         self.id = id; self.name = name; self.app = app; self.title = title
-        self.status = status; self.needs_you = needs_you; self.elapsed_s = elapsed_s; self.controls = controls
+        self.status = status; self.needs_you = needs_you; self.elapsed_s = elapsed_s
+        self.parent_id = parent_id; self.controls = controls
+        self.request_kind = request_kind; self.destructive = destructive; self.last_seen_at = last_seen_at
     }
 
     init(from decoder: Decoder) throws {
@@ -29,7 +38,11 @@ struct IslandAgent: Codable, Equatable, Identifiable {
         status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
         needs_you = try c.decodeIfPresent(Bool.self, forKey: .needs_you) ?? false
         elapsed_s = try c.decodeIfPresent(Double.self, forKey: .elapsed_s) ?? 0
+        parent_id = try c.decodeIfPresent(String.self, forKey: .parent_id)
         controls = try c.decodeIfPresent([String].self, forKey: .controls) ?? []
+        request_kind = try c.decodeIfPresent(String.self, forKey: .request_kind)
+        destructive = try c.decodeIfPresent(Bool.self, forKey: .destructive) ?? false
+        last_seen_at = try c.decodeIfPresent(Double.self, forKey: .last_seen_at) ?? 0
     }
 }
 
@@ -88,7 +101,7 @@ struct IslandAgentApproval: Codable, Equatable {
 }
 
 /// A card that timed out without an answer: 4 s notice, then a hollow red ring on its source's circle
-/// until Guru opens the agent list or the agent clears it (never dropped silently).
+/// until the user opens the agent list or the agent clears it (never dropped silently).
 struct IslandExpired: Codable, Equatable {
     var id: String = ""
     var agent: String = ""
@@ -206,6 +219,7 @@ enum IslandPalette {
     static let accent = Color(red: 0x64 / 255, green: 0xD2 / 255, blue: 0xFF / 255)  // #64D2FF
     static let amber = Color(red: 0xFF / 255, green: 0xB3 / 255, blue: 0x40 / 255)   // #FFB340
     static let red = Color(red: 0xFF / 255, green: 0x45 / 255, blue: 0x3A / 255)     // #FF453A
+    static let destructiveFill = Color(red: 0xB4 / 255, green: 0x22 / 255, blue: 0x1B / 255)
     static let green = Color(red: 0x30 / 255, green: 0xD1 / 255, blue: 0x58 / 255)   // #30D158
     static let keyLine = Color.white.opacity(0.10)
     static let track = Color.white.opacity(0.15)
@@ -221,20 +235,21 @@ enum IslandPresentation: Equatable {
     case nowPlaying
     /// A choice/approval just timed out: 4 s "Timed out. Still open in chat" notice.
     case expired
-    /// A2 volume / brightness HUD (200 wide, value animates the bar only).
+    /// Volume / brightness HUD fits the icon, gap, and value bar.
     case hud
-    /// A3 Quick Peek (244 wide: icon · sender · time).
+    /// Quick Peek fits its text and badges, capped at 244 pt.
     case peek
     /// A4 upcoming event countdown (ring on the calendar glyph).
     case calendar
     /// A9 file tray holding items (tray glyph + count).
     case tray
 
-    /// Compact widths: idle 74 · standard 136 · wide 200 · peek 244. Nothing else.
+    /// Base widths; Quick Peek measures content up to its cap.
     var compactWidth: CGFloat {
         switch self {
-        case .idle, .doneSettled: return IslandBarLayout.idleWidth
-        case .actingSteps, .hud: return IslandBarLayout.wideWidth
+        case .idle, .doneSettled, .nowPlaying, .calendar, .tray: return IslandBarLayout.idleWidth
+        case .actingSteps: return IslandBarLayout.wideWidth
+        case .hud: return IslandBarLayout.hudWidth
         case .peek: return IslandBarLayout.peekWidth
         default: return IslandBarLayout.standardWidth
         }
@@ -249,6 +264,15 @@ enum IslandPresentation: Equatable {
         default: return String(describing: self)
         }
     }
+
+    var isConversation: Bool {
+        switch self {
+        case .listening, .thinking, .speaking, .acting, .actingSteps, .done, .doneSettled: return true
+        default: return false
+        }
+    }
+
+    var motionFamily: String { isConversation ? "conversation" : family }
 
     var spokenName: String {
         switch self {
@@ -316,8 +340,10 @@ struct IslandSourceGroup: Equatable, Identifiable {
     var id: String            // source/agent name ("Grok Bot"), or "overflow"
     var app: String = ""
     var needsYou = 0
+    var failed = false
     var expired = false
     var overflow = 0
+    var processCount = 0
 }
 
 enum IslandSourceGroups {
@@ -325,18 +351,20 @@ enum IslandSourceGroups {
 
     /// `hidePending`: the card the pill itself shows — its row adds no circle/badge (one amber mark).
     static func groups(agents: [IslandAgent], expired: [IslandExpired], hidePending: String?) -> [IslandSourceGroup] {
+        let processCount = IslandAgentRows.processObservations(agents).count
         var order: [String] = []
         var map: [String: IslandSourceGroup] = [:]
         func touch(_ name: String, _ app: String) {
             if map[name] == nil { order.append(name); map[name] = IslandSourceGroup(id: name, app: app) }
             if map[name]!.app.isEmpty { map[name]!.app = app }
         }
-        for a in agents {
+        for a in IslandAgentRows.taskAgents(agents) {
             if let h = hidePending, a.id == "pending:" + h { continue }
             let name = a.name.isEmpty ? a.app : a.name
             guard !name.isEmpty else { continue }
             touch(name, a.app)
             if a.needs_you || a.status == "needs_you" { map[name]!.needsYou += 1 }
+            if a.status == "error" || a.status == "stale" { map[name]!.failed = true }
         }
         for e in expired {
             let name = e.agent.isEmpty ? e.app : e.agent
@@ -344,12 +372,20 @@ enum IslandSourceGroups {
             touch(name, e.app)
             map[name]!.expired = true
         }
-        var out = order.prefix(maxCircles).compactMap { map[$0] }
-        if order.count > maxCircles {
-            let rest = order.dropFirst(maxCircles).compactMap { map[$0] }
+        let ranked = order.enumerated().compactMap { index, name in map[name].map { (index, $0) } }
+            .sorted {
+                func rank(_ g: IslandSourceGroup) -> Int { g.needsYou > 0 ? 0 : (g.failed || g.expired ? 1 : 2) }
+                let l = rank($0.1), r = rank($1.1)
+                return l == r ? $0.0 < $1.0 : l < r
+            }.map(\.1)
+        let taskCircleLimit = maxCircles - (processCount > 0 ? 1 : 0)
+        var out = Array(ranked.prefix(taskCircleLimit))
+        if ranked.count > taskCircleLimit {
+            let rest = Array(ranked.dropFirst(taskCircleLimit))
             out.append(IslandSourceGroup(id: "overflow", needsYou: rest.reduce(0) { $0 + $1.needsYou },
-                                         expired: rest.contains { $0.expired }, overflow: rest.count))
+                                         failed: rest.contains { $0.failed }, expired: rest.contains { $0.expired }, overflow: rest.count))
         }
+        if processCount > 0 { out.append(IslandSourceGroup(id: "local-processes", processCount: processCount)) }
         return out
     }
 }
@@ -424,6 +460,7 @@ final class IslandModel: ObservableObject {
     @Published private(set) var stepTotal = 0
     @Published private(set) var agents: [IslandAgent] = []
     @Published private(set) var agentApproval: IslandAgentApproval?
+    @Published private(set) var destructiveApprovalArmedID: String?
     @Published private(set) var circles: [IslandCircleItem] = []
     @Published private(set) var presentation: IslandPresentation = .idle
     /// Compact width actually drawn (74 during the pinch of a kind change).
@@ -471,8 +508,12 @@ final class IslandModel: ObservableObject {
     private var apps: [String] = []
     private var lastActive: [String: Date] = [:]
     private var kindSince = Date()
+    private var conversationUntil = Date.distantPast
+    nonisolated static let conversationQuiet: TimeInterval = 3
     private var userOpened = false
     private var peekUntil: Date?
+    private var dismissedPeekKind: String?
+    var voiceOverEnabled: () -> Bool = { NSWorkspace.shared.isVoiceOverEnabled }
     private var lastMeter = Date.distantPast
     private var pinchTask: Task<Void, Never>?
     private var pinching = false
@@ -493,7 +534,7 @@ final class IslandModel: ObservableObject {
     private var noticeUntil: Date?
     private var lastNoticeAt: Double = 0
     private var ackOnClose: [String] = []
-    /// Source chat app frontmost and Guru typing (< 3 s since a key press) → hold the peek.
+    /// Source chat app frontmost and the user typing (< 3 s since a key press) → hold the peek.
     var peekSuppressed: (IslandAgentApproval) -> Bool = { _ in false }
     /// First time a card is seen (controller plays the soft Tink unless muted / source app frontmost).
     var onArrival: ((IslandAgentApproval) -> Void)?
@@ -521,11 +562,31 @@ final class IslandModel: ObservableObject {
     @Published var idleActivity = "duo" { didSet { if idleActivity != oldValue { refresh(now: Date()) } } }
     /// Settings → Contrast outline (the 1 pt key line on the shape).
     @Published var contrastOutline = true
+    @Published var systemIncreaseContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+    @Published var systemDifferentiate = NSWorkspace.shared.accessibilityDisplayShouldDifferentiateWithoutColor
     /// Settings → AI Agents: per-source filters applied to every snapshot.
     var agentAllowed: (IslandAgent) -> Bool = { _ in true }
     var approvalAllowed: (IslandAgentApproval) -> Bool = { _ in true }
 
-    var showAgentCircle: Bool { !sourceGroups.isEmpty && !(idleActivity == "samantha" && isIdlePresentation) }
+    var showAgentCircle: Bool { IslandAgentBadge.showsCircle(rowCount: agents.count + expired.count) && !(idleActivity == "samantha" && isIdlePresentation) }
+
+    var compactAgentAttention: IslandAgentRow? {
+        let candidate = agents.enumerated().filter {
+            !IslandAgentRows.isProcessObservation($0.element)
+                && (["needs_you", "error", "stale"].contains($0.element.status) || $0.element.needs_you)
+        }.min {
+            let a = IslandAgentRows.priority($0.element), b = IslandAgentRows.priority($1.element)
+            return a == b ? $0.offset < $1.offset : a < b
+        }
+        guard let agent = candidate?.element else { return nil }
+        let parentName = agent.parent_id.flatMap { id in agents.first { $0.id == id }?.name }
+        return IslandAgentRow(agent: agent, depth: 0, parentName: parentName)
+    }
+
+    var destructiveApprovalMissingScope: Bool {
+        guard let approval = agentApproval, approval.destructive else { return false }
+        return approval.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
     /// Settings → AI Agents → Samantha off: her non-blocking voice states stay compact-idle on the island
     /// (confirm / needs-you still surface — they block her).
     var samanthaEnabled = true
@@ -570,7 +631,8 @@ final class IslandModel: ObservableObject {
     var shapeRadius: CGFloat { cardOpen || trayTargeted ? IslandBarLayout.cardRadius : IslandBarLayout.compactRadius }
 
     /// Duo secondary pill rect (nil when there is none).
-    var secondaryRect: CGRect? { secondary == nil || cardOpen ? nil : IslandBarLayout.secondaryRect(shape: shapeRect) }
+    var secondaryWidth: CGFloat { secondary == .calendar ? 44 : IslandBarLayout.secondaryWidth }
+    var secondaryRect: CGRect? { secondary == nil || cardOpen ? nil : IslandBarLayout.secondaryRect(shape: shapeRect, width: secondaryWidth) }
 
     /// App circles hang off the right-most pill.
     var circleAnchor: CGRect { secondaryRect ?? shapeRect }
@@ -580,7 +642,7 @@ final class IslandModel: ObservableObject {
         var r = IslandBarLayout.hitRects(shape: shapeRect, circleCount: 0,
                                          agentCount: showAgentCircle ? sourceGroups.count : 0)
         if let s = secondaryRect { r.append(s.insetBy(dx: -2, dy: -3)) }
-        r += IslandBarLayout.circleRects(shape: circleAnchor, count: circleCount)
+        r += IslandBarLayout.circleRects(shape: circleAnchor, count: circleCount).map { $0.insetBy(dx: -2, dy: -2) }
         return r
     }
 
@@ -589,10 +651,13 @@ final class IslandModel: ObservableObject {
     /// Returns false when the snapshot was dropped (benign error).
     @discardableResult
     func apply(_ snap: IslandSnapshot, now: Date = Date()) -> Bool {
+        let previousKind = kind
+        let previousTitle = title
+        let previousNeedsYou = Set(agents.filter { $0.needs_you || $0.status == "needs_you" }.map(\.id))
         var t = snap.title
         var d = snap.kind == "confirm" && !snap.confirm_prompt.isEmpty ? snap.confirm_prompt : snap.detail
         if snap.kind == "error" {
-            let raw = [t, d].filter { !$0.isEmpty }.joined(separator: " · ")
+            let raw = t == "Action not confirmed" ? t : [t, d].filter { !$0.isEmpty }.joined(separator: " · ")
             guard let copy = IslandCopy.humanError(raw, target: snap.app) else { return false }
             if copy != raw { NSLog("[island] error raw=%@ shown=%@", String(raw.prefix(300)), copy) }
             t = copy
@@ -601,8 +666,14 @@ final class IslandModel: ObservableObject {
             (t, d) = IslandCopy.compact(title: t, detail: d)  // copy contract: card title only
         }
         let shownKind = samanthaEnabled || ["confirm", "needs_you", "idle"].contains(snap.kind) ? snap.kind : "idle"
-        if shownKind != kind { kindSince = now }
+        if shownKind != kind { kindSince = now; dismissedPeekKind = nil }
         kind = shownKind
+        if shownKind != previousKind && forceCompact { forceCompact = false }
+        if !samanthaEnabled || shownKind == "idle" {
+            conversationUntil = .distantPast
+        } else if ["thinking", "speaking", "acting", "done"].contains(shownKind) {
+            conversationUntil = now.addingTimeInterval(Self.conversationQuiet)
+        }
         title = t
         detail = d
         app = snap.app
@@ -613,12 +684,16 @@ final class IslandModel: ObservableObject {
         let nextAgents = snap.agents.filter(agentAllowed)
         if nextAgents != agents { agentsAt = now }
         agents = nextAgents
+        reconcileRowFailures(with: nextAgents)
         let prevID = agentApproval?.id
         agentApproval = snap.agent_approval.flatMap { approvalAllowed($0) ? $0 : nil }
+        if destructiveApprovalArmedID != nil && destructiveApprovalArmedID != agentApproval?.id {
+            disarmDestructiveApproval()
+        }
         if snap.pending_count != pendingCount { pendingCount = snap.pending_count }
         if let prevID, agentApproval?.id != prevID {
             // Answered / cleared / preempted: give key back; keep a draft; the next card slides in
-            // only if Guru was already in the card.
+            // only if the user was already in the card.
             saveDraft(prevID)
             endTextEntry()
             let keep = cardOpen && userOpened && agentApproval != nil
@@ -628,7 +703,18 @@ final class IslandModel: ObservableObject {
         } else if prevID == nil, let a = agentApproval {
             restoreDraft(a.id)
         }
-        if let a = agentApproval, a.id != prevID { arrive(a, now: now) }
+        if let a = agentApproval, a.id != prevID {
+            arrive(a, now: now)
+            announce("\(a.agent) needs \(a.isChoice ? "a choice" : "approval"): \(a.title)", trigger: a.isChoice ? .choice : .approval)
+        } else if let a = agents.first(where: { ($0.needs_you || $0.status == "needs_you") && !previousNeedsYou.contains($0.id) }) {
+            announce("\(a.name.isEmpty ? a.app : a.name) needs you: \(a.title)", trigger: .needsYou)
+        } else if shownKind != previousKind && ["needs_you", "confirm"].contains(shownKind) {
+            announce(t, trigger: .needsYou)
+        } else if shownKind == "error" && (shownKind != previousKind || t != previousTitle) {
+            announce(t, trigger: .error)
+        } else if shownKind == "done" && (shownKind != previousKind || t != previousTitle) && !t.isEmpty {
+            announce(t, trigger: .done)
+        }
         applyExpired(snap.expired, now: now)
         expandedFlag = snap.expanded
         if shownKind == "idle" {
@@ -644,10 +730,16 @@ final class IslandModel: ObservableObject {
         drivingApp = ["acting", "driving"].contains(shownKind) ? snap.app : ""
         if !snap.app.isEmpty { lastActive[snap.app] = now }
         applyMeter(snap, now: now, force: true)
-        // Auto-peek (§4): error 6 s; done 4 s only with a result value.
+        // Routine voice feedback stays compact; errors and decisions still demand attention.
         switch shownKind {
-        case "error": peekUntil = now.addingTimeInterval(Self.peekError)
-        case "done": peekUntil = Self.hasResultValue(snap) ? now.addingTimeInterval(Self.peekDone) : nil
+        case "error":
+            if dismissedPeekKind != shownKind {
+                peekUntil = voiceOverEnabled() ? .distantFuture : now.addingTimeInterval(Self.peekError)
+            }
+        case "done":
+            if voiceOverEnabled(), dismissedPeekKind != shownKind, !t.isEmpty { peekUntil = .distantFuture }
+            else if !voiceOverEnabled() { peekUntil = nil }
+        case "listening", "thinking", "speaking", "acting": peekUntil = nil
         default:
             if snap.expanded && (samanthaEnabled || shownKind != "idle") { peekUntil = now.addingTimeInterval(Self.peekDone) } else if !isSticky { peekUntil = nil }
         }
@@ -658,6 +750,7 @@ final class IslandModel: ObservableObject {
     private func arrive(_ a: IslandAgentApproval, now: Date) {
         let first = !seenCards.contains(a.id)
         if first {
+            forceCompact = false
             seenCards.append(a.id)
             if seenCards.count > 200 { seenCards.removeFirst(seenCards.count - 200) }
             IslandEventLog.log("shown", id: a.id, source: a.agent, kind: a.kind,
@@ -719,6 +812,11 @@ final class IslandModel: ObservableObject {
         guard force || now.timeIntervalSince(lastMeter) >= 0.1 else { return }
         lastMeter = now
         let level = max(0, min(1, snap.voice_level))
+        if samanthaEnabled, level > 0, ["user", "assistant"].contains(snap.voice_side) {
+            let wasQuiet = now >= conversationUntil
+            conversationUntil = now.addingTimeInterval(Self.conversationQuiet)
+            if wasQuiet { refresh(now: now) }
+        }
         bars5 = Self.resample(snap.voice_levels, to: 5, fallback: level)
         meter24 = Array((meter24 + [level]).suffix(24))
     }
@@ -746,6 +844,8 @@ final class IslandModel: ObservableObject {
     @Published private(set) var stopArmed: [String: Date] = [:]
     /// Rows flashing red after a failed / unacknowledged control.
     @Published private(set) var rowFlash: Set<String> = []
+    /// Textual control failure remains until the row updates or disappears.
+    @Published private(set) var rowFailures: [String: String] = [:]
     var trayEnabled = true
     /// AppKit's live Reduce Motion (controller observes the workspace notification); OR'd with SwiftUI's.
     @Published var systemReduceMotion = IslandMotion.systemReduceMotion { didSet { reduceMotion = systemReduceMotion } }
@@ -760,7 +860,14 @@ final class IslandModel: ObservableObject {
     /// Returns false when the panel could not take key (hidden): keyboard mode is rolled back.
     var onBeginKeyboard: (() -> Bool)?
     var onEndKeyboard: (() -> Void)?
+    var shortcutSpoken = IslandShortcut.default.spoken
     var onAnnounce: ((String) -> Void)?
+    private(set) var announcementPriority: IslandAnnouncementPriority = .medium
+    private func announce(_ text: String, trigger: IslandAnnouncementTrigger) {
+        announcementPriority = trigger.priority
+        onAnnounce?(text)
+        announcementPriority = .medium
+    }
     var calendarEnabled = true
     @Published var useCalendarColor = false
     /// Compact countdown starts this long before an event (Settings → Calendar → Time before event).
@@ -783,6 +890,9 @@ final class IslandModel: ObservableObject {
     fileprivate var peekPinned = false
     fileprivate var swipe = IslandSwipeTracker()
     fileprivate var rowStatusAtSend: [String: String] = [:]
+    private var rowFailureStatus: [String: String] = [:]
+    private var rowFailureLastSeen: [String: Double] = [:]
+    private var destructiveApprovalArmedAt: Date?
     fileprivate var hudScrollAccum: CGFloat = 0
 
     // MARK: Now Playing
@@ -812,7 +922,7 @@ final class IslandModel: ObservableObject {
     }
 
     /// Approval cards and Samantha's confirm hold the card open; choice cards show a compact
-    /// needs-you signal and open on click (they stay open while Guru is typing).
+    /// needs-you signal and open on click (they stay open while the user is typing).
     @Published private(set) var credentialRequest: CredentialRequest?
 
     func setCredentialRequest(_ request: CredentialRequest?) {
@@ -860,16 +970,39 @@ final class IslandModel: ObservableObject {
     /// Reply field lines (1…3) — the field grows, Shift-Return inserts a newline.
     var choiceTextLines: Int { IslandChoiceLayout.textLines(choiceText) }
 
-    /// 176 normally; a choice card grows to 220 (and a little more for a 2–3 line reply).
+    /// Simple cards fit their content; meters keep 176 pt and choices grow with their rows.
     var cardHeight: CGFloat {
         if credentialRequest != nil { return 292 }
         if cardMode == .agents {
-            return IslandAgentRows.cardHeight(rows: listRows.count, footer: listRows.count > IslandAgentRows.maxRows)
+            return IslandAgentRows.cardHeight(rows: rosterItemCount, footer: rosterHasMore,
+                                              stopConfirmation: !stopArmed.isEmpty, maxVisibleRows: rosterVisibleRows)
         }
         if presentation == .tray { return IslandTrayRules.cardHeight }
-        guard isChoiceCard, let a = agentApproval else { return IslandBarLayout.cardSize.height }
-        return IslandChoiceLayout.cardHeight(a, textLines: choiceTextLines)
+        if presentation == .needsYou {
+            let width = IslandBarLayout.cardTrailOrigin.x - IslandBarLayout.cardTextX - 8
+            let text = (detail as NSString).boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: NSFont.systemFont(ofSize: 13)])
+            return max(176, ceil(text.height) + 102)
+        }
+        if isChoiceCard, let a = agentApproval {
+            return IslandChoiceLayout.cardHeight(a, textLines: choiceTextLines)
+        }
+        if presentation == .agentApproval, let a = agentApproval, a.destructive {
+            let text = "Destructive action · \(a.agent) · \(a.subtitle)"
+            let width = IslandBarLayout.cardTrailOrigin.x - IslandBarLayout.cardTextX - 8
+            let measured = (text as NSString).boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: NSFont.systemFont(ofSize: 13)])
+            return min(IslandBarLayout.windowSize.height - IslandBarLayout.topInset,
+                       max(152, ceil(measured.height) + 120))
+        }
+        switch presentation {
+        case .idle, .doneSettled, .reconnecting, .thinking, .acting, .error, .done, .expired: return 136
+        case .agentApproval: return 152
+        default: return IslandBarLayout.cardSize.height
+        }
     }
+
+    var cardControlsY: CGFloat { cardHeight - IslandBarLayout.cardPadding - IslandBarLayout.cardControlsHeight }
 
     // MARK: Choice actions (click, keys)
 
@@ -930,16 +1063,26 @@ final class IslandModel: ObservableObject {
     }
 
     /// Key handling while the panel is key (choice card only). Returns true when consumed.
-    func handleKey(keyCode: UInt16, characters: String, shift: Bool, command: Bool = false) -> Bool {
+    func handleKey(keyCode: UInt16, characters: String, shift: Bool, command: Bool = false, control: Bool = false) -> Bool {
         if credentialRequest != nil {
             if keyCode == 53 { CredentialEntryController.shared.cancelActive(); return true }
             return false
         }
-        if keyboardActive && !textEntryActive && !command { return handleNavKey(keyCode: keyCode, shift: shift) }
-        guard isChoiceCard, cardOpen, textEntryActive, !command else { return false }
+        if keyboardActive && command && !control && (keyCode == 36 || keyCode == 76),
+           case .decision(_, let primary, _) = card.controls {
+            switch primary.1 {
+            case .allow, .agentApprove:
+                performCardAction(primary.1)
+                return true
+            default: break
+            }
+        }
+        if keyboardActive && !textEntryActive && !command && !control { return handleNavKey(keyCode: keyCode, shift: shift) }
+        guard isChoiceCard, cardOpen, textEntryActive, !command, !control else { return false }
         switch keyCode {
-        case 53:   // Esc → give focus back to the previous app (card stays)
+        case 53:
             endTextEntry()
+            if keyboardActive { endKeyboard(close: true) } else { forceCompact = true }
             return true
         case 36, 76:   // Return / Enter
             if shift {
@@ -957,14 +1100,28 @@ final class IslandModel: ObservableObject {
         }
     }
 
+    private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
+        if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
+        if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
+        if [.idle, .doneSettled].contains(state), compactAgentAttention != nil {
+            return max(state.compactWidth, IslandBarLayout.agentAttentionWidth)
+        }
+        return state.compactWidth
+    }
+
     private func refresh(now: Date) {
         if let n = noticeUntil, now >= n { noticeUntil = nil; notice = nil }
+        if voiceOverEnabled(), ["error", "done"].contains(kind), peekUntil != nil, dismissedPeekKind != kind {
+            peekUntil = .distantFuture
+        }
         let noticeActive = notice != nil && agentApproval == nil
         let live = liveActivities(now: now)
-        let next = credentialRequest != nil ? .needsYou : Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
-                                     notice: noticeActive, hud: hud != nil, peek: peek != nil, live: live)
+        let conversation = samanthaEnabled && now < conversationUntil
+        var next = credentialRequest != nil ? .needsYou : Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
+                                     notice: noticeActive, hud: hud != nil, peek: peek != nil, live: live, conversation: conversation)
+        if next == .doneSettled, voiceOverEnabled(), peekUntil == .distantFuture { next = .done }
         let resting = Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
-                                        notice: noticeActive, live: live)
+                                        notice: noticeActive, live: live, conversation: conversation)
         let idleNow = next == .idle || next == .doneSettled
         let nextCircles = idleNow && idleActivity == "samantha" ? []
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
@@ -976,6 +1133,9 @@ final class IslandModel: ObservableObject {
         if let e = agentApproval?.expiresDate {
             let r = e.timeIntervalSince(now)
             if r > 0 && r <= IslandPeekScheduler.finalLead { remaining = Int(r.rounded(.up)) }
+        }
+        if cardRemaining == nil, let remaining, let a = agentApproval {
+            announce("\(a.agent): \(remaining) seconds remaining", trigger: .expiry)
         }
         if remaining != cardRemaining { cardRemaining = remaining }
         // Choice Quick Peek (non-key, 4 s; hover pins).
@@ -995,10 +1155,9 @@ final class IslandModel: ObservableObject {
             && (userOpened || isSticky || (peekUntil.map { now < $0 } ?? false) || choicePeek
                 || (next == .expired && noticeUntil != nil))
         if !open && idleSamantha { userOpened = false }
-        if cardMode == .agents && agents.isEmpty && expired.isEmpty && userOpened { userOpened = false; cardMode = .samantha }
         if !open { cardMode = .samantha }
         if next != presentation {
-            let familyChanged = next.family != presentation.family
+            let familyChanged = next.motionFamily != presentation.motionFamily
             presentation = next
             if familyChanged, !(reduceMotion || systemReduceMotion), !open {
                 // Alcove content swap: pinch to 74, then grow to the new width.
@@ -1009,14 +1168,14 @@ final class IslandModel: ObservableObject {
                     try? await Task.sleep(nanoseconds: 160_000_000)
                     guard let self, !Task.isCancelled else { return }
                     self.pinching = false
-                    self.drawnWidth = self.presentation.compactWidth
+                    self.drawnWidth = self.compactWidth(for: self.presentation, now: Date())
                     self.onGeometryChange?()
                 }
             } else if !pinching {
-                drawnWidth = next.compactWidth
+                drawnWidth = compactWidth(for: next, now: now)
             }
         } else if !pinching {
-            drawnWidth = next.compactWidth
+            drawnWidth = compactWidth(for: next, now: now)
         }
         if open != wasOpen {
             cardOpen = open
@@ -1037,22 +1196,21 @@ final class IslandModel: ObservableObject {
         onGeometryChange?()
     }
 
-    /// Precedence: agent approval/choice → Samantha's active states (thinking/speaking/acting/
-    /// needs-you/error/done) → now playing → Samantha idle/listening/reconnecting.
-    /// Full order: approval → timed-out notice → needs-you → HUD → Quick Peek → Samantha's active states →
-    /// first live activity (media / calendar / tray, Duo order) → Samantha idle/listening/reconnecting.
+    /// Priority: approval → expiry notice → needs-you/reconnecting → HUD → peek → other active states
+    /// → live activities (media/calendar/tray) → Samantha idle/listening.
     nonisolated static func presentation(kind: String, stepTotal: Int, approval: IslandAgentApproval?,
                                          since: Date, now: Date, media: Bool = false,
                                          notice: Bool = false, hud: Bool = false, peek: Bool = false,
-                                         live: [IslandLiveActivity]? = nil) -> IslandPresentation {
+                                         live: [IslandLiveActivity]? = nil, conversation: Bool = false) -> IslandPresentation {
         if approval != nil { return .agentApproval }
         if notice { return .expired }
         let base = samanthaPresentation(kind: kind, stepTotal: stepTotal, since: since, now: now)
-        if base == .needsYou { return base }
+        if [.needsYou, .reconnecting].contains(base) { return base }
         if hud { return .hud }
         if peek { return .peek }
+        if conversation, [.listening, .doneSettled].contains(base) { return .listening }
         let acts = live ?? (media ? [.media] : [])
-        if let first = acts.first, [.idle, .doneSettled, .listening, .reconnecting].contains(base) {
+        if let first = acts.first, [.idle, .doneSettled, .listening].contains(base) {
             return first.presentation
         }
         return base
@@ -1086,6 +1244,13 @@ final class IslandModel: ObservableObject {
     }
 
     func toggleCard(byClick: Bool = true) {
+        if forceCompact && !cardOpen {
+            forceCompact = false
+            if cardOpen {
+                if byClick && isChoiceCard { beginTextEntry(focusField: agentApproval?.allow_text == true) }
+                return
+            }
+        }
         if !cardOpen && presentation == .hud { return }   // a HUD never opens a card
         if !cardOpen && presentation == .peek, let p = peek {
             onPeekOpen?(p)
@@ -1093,13 +1258,15 @@ final class IslandModel: ObservableObject {
             return
         }
         if !cardOpen && isIdlePresentation && !isSticky {
-            openAgentList()
+            // No idle card: an idle click opens the roster only when there is something in it.
+            if !agents.isEmpty || !expired.isEmpty { openAgentList() }
             return
         }
         let peeking = isPeeking
         if cardOpen && !isSticky && !peeking && !(presentation == .expired) {
             userOpened = false
             peekUntil = nil
+            dismissedPeekKind = kind
         } else if cardOpen && presentation == .expired {
             noticeUntil = nil
             notice = nil
@@ -1123,7 +1290,6 @@ final class IslandModel: ObservableObject {
     }
 
     func openAgentList() {
-        guard !agents.isEmpty || !expired.isEmpty else { return }
         IslandEventLog.log("clicked", kind: "agents", ["state": "circles"])
         ackOnClose = expired.map(\.id)
         userOpened = true
@@ -1131,34 +1297,71 @@ final class IslandModel: ObservableObject {
         refresh(now: Date())
     }
 
+    func openApprovalFromRoster() {
+        guard agentApproval != nil else { return }
+        userOpened = true
+        forceCompact = false
+        peekUntil = nil
+        choicePeekUntil = nil
+        cardMode = .samantha
+        openVia = "roster"
+        refresh(now: Date())
+        if isChoiceCard, cardOpen { beginTextEntry(focusField: agentApproval?.allow_text == true) }
+    }
+
     /// Agent list rows: live agents, then timed-out cards (hollow red ring).
     var listRows: [IslandAgent] {
-        agents + expired.reversed().map {
+        IslandAgentRows.taskAgents(agents) + expired.reversed().map {
             IslandAgent(id: "expired:" + $0.id, name: $0.agent, app: $0.app, title: $0.title, status: "expired")
         }
     }
+
+    var localProcessRows: [IslandAgent] { IslandAgentRows.processObservations(agents) }
+    var rosterItemCount: Int {
+        max(1, listRows.count + (listRows.isEmpty ? 1 : 0)
+            + (localProcessRows.isEmpty ? 0 : localProcessRows.count + 1))
+    }
+    var rosterVisibleRows: Int {
+        min(listRows.isEmpty ? IslandAgentRows.maxRows + 2 : IslandAgentRows.maxRows, rosterItemCount)
+    }
+    var rosterHasMore: Bool { rosterItemCount > rosterVisibleRows }
 
     /// Pointer left the shape: close (unless sticky) — the panel adds the 120 ms delay.
     func pointerLeft() {
         // An opened choice card stays until answered, dismissed (X) or clicked closed — hover-away
         // would drop in-progress selections/text.
         guard cardOpen, !isSticky, !textEntryActive, !isChoiceCard, presentation != .expired else { return }
+        // VoiceOver hold: an error/done peek stays until it is explicitly dismissed.
+        if voiceOverHold { return }
         userOpened = false
         peekUntil = nil
         refresh(now: Date())
+    }
+
+    var voiceOverHold: Bool {
+        voiceOverEnabled() && ["error", "done"].contains(kind) && peekUntil == .distantFuture && !userOpened
     }
 
     func dismissCard() {
         endTextEntry()
         userOpened = false
         peekUntil = nil
+        if presentation == .expired { notice = nil; noticeUntil = nil }
         if kind == "error" || kind == "done" { kind = "listening"; kindSince = Date() }
         refresh(now: Date())
     }
 
     // MARK: Card content
 
-    var card: IslandCard { Self.card(for: self.snapshotForCard) }
+    var card: IslandCard {
+        var card = Self.card(for: snapshotForCard)
+        if let a = agentApproval, a.destructive, case .decision(let secondary, let primary, let destructive) = card.controls {
+            let label = destructiveApprovalMissingScope ? "Scope required"
+                : isDestructiveApprovalArmed(a.id) ? "Confirm approve" : "Approve"
+            card.controls = .decision(secondary: secondary, primary: (label, primary.1), destructive: destructive)
+        }
+        return card
+    }
 
     struct CardInput: Equatable {
         var presentation: IslandPresentation
@@ -1181,9 +1384,11 @@ final class IslandModel: ObservableObject {
             c.title.isEmpty || skip.contains(c.title) ? fallback : c.title
         }
         switch c.presentation {
-        case .idle, .doneSettled, .reconnecting:
-            return IslandCard(art: .orb, title: c.presentation == .reconnecting ? "Reconnecting" : "Samantha",
-                              subtitle: c.detail.isEmpty ? "Say something to start" : c.detail,
+        case .reconnecting:
+            return IslandCard(art: .orb, title: "Reconnecting", subtitle: "Restoring your conversation. Please wait.",
+                              controls: .decision(secondary: ("Turn off", .stopListening), primary: ("Dismiss", .dismiss), destructive: false))
+        case .idle, .doneSettled:
+            return IslandCard(art: .orb, title: "Samantha", subtitle: c.detail.isEmpty ? "Say something to start" : c.detail,
                               controls: .icons([("mic.slash.fill", "Stop listening", .stopListening)]))
         case .listening:
             return IslandCard(art: .orb, title: "Listening", subtitle: c.detail, meta: .micMeter,
@@ -1242,16 +1447,21 @@ final class IslandModel: ObservableObject {
             let n = c.notice ?? IslandExpired()
             return IslandCard(art: .expiredRing, title: n.title.isEmpty ? "Request" : n.title,
                               subtitle: "Timed out. Still open in chat",
-                              controls: .icons([("arrow.up.right", "Open chat", .open(n.app))]))
+                              controls: .decision(secondary: ("Dismiss", .dismiss), primary: ("Open in chat", .open(n.app)), destructive: false))
         case .agentApproval where c.approval?.isChoice == true:
             let a = c.approval ?? IslandAgentApproval()
             return IslandCard(art: .agent(a.app), title: a.title.isEmpty ? "Choose" : a.title,
                               subtitle: a.subtitle.isEmpty ? a.agent : "\(a.agent) · \(a.subtitle)", controls: .choice(a))
         case .agentApproval:
             let a = c.approval ?? IslandAgentApproval()
+            let missingScope = a.destructive && a.subtitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let subtitle = missingScope
+                ? "\(a.agent) · Target scope missing. Ask the agent to restate the affected items."
+                : a.subtitle.isEmpty ? a.agent : "\(a.agent) · \(a.subtitle)"
+            let approveLabel = missingScope ? "Scope required" : "Approve"
             return IslandCard(art: .agent(a.app), title: IslandCopy.compact(title: a.title.isEmpty ? "Approve?" : a.title, detail: "").title,
-                              subtitle: a.subtitle.isEmpty ? a.agent : a.subtitle,
-                              controls: .decision(secondary: ("Deny", .agentDeny(a.id)), primary: ("Approve", .agentApprove(a.id)),
+                              subtitle: a.destructive ? "Destructive action · \(subtitle)" : subtitle,
+                              controls: .decision(secondary: ("Deny", .agentDeny(a.id)), primary: (approveLabel, .agentApprove(a.id)),
                                                   destructive: a.destructive))
         }
     }
@@ -1267,12 +1477,25 @@ final class IslandModel: ObservableObject {
 
     /// Full words for VoiceOver (compact view has no text).
     var accessibilityText: String {
-        var parts = ["Samantha, \(presentation.spokenName)"]
-        if let a = agentApproval { parts.append("\(a.agent): \(a.title)") }
+        var parts: [String] = []
+        if agentApproval == nil, !agents.isEmpty, ![.needsYou, .error].contains(presentation) {
+            parts.append(IslandAgentAccessibility.label(running: agents.count,
+                needsYou: agents.filter { $0.needs_you || $0.status == "needs_you" }.count))
+        }
+        if let a = agentApproval {
+            parts.append("\(a.agent) needs \(a.isChoice ? "a choice" : "approval"): \(a.title). \(shortcutSpoken) to review")
+            if a.destructive { parts.append("Destructive request") }
+            parts.append("\(a.agent): \(a.title)")
+            if !a.subtitle.isEmpty { parts.append(a.subtitle) }
+        }
+        parts.append("Samantha, \(presentation.spokenName)")
         if !title.isEmpty { parts.append(title) }
         if !detail.isEmpty { parts.append(detail) }
         if !circleApps.isEmpty { parts.append("Apps: " + circleApps.joined(separator: ", ")) }
-        if !agents.isEmpty { parts.append("\(agents.count) other agents") }
+        let taskCount = IslandAgentRows.taskAgents(agents).count
+        let processCount = IslandAgentRows.processObservations(agents).count
+        if taskCount > 0 { parts.append("\(taskCount) other agents") }
+        if processCount > 0 { parts.append("\(processCount) local processes detected; task activity unknown") }
         if let r = cardRemaining { parts.append("\(r) seconds left") }
         if let n = notice { parts.append("\(n.agent) request timed out. Still open in chat") }
         return parts.joined(separator: ". ")
@@ -1478,9 +1701,54 @@ extension IslandModel {
         stopArmed[id].map { now.timeIntervalSince($0) < IslandAgentRows.confirmWindow } ?? false
     }
 
-    /// Row button. Stop: first click arms (red + check), second within 3 s sends. Retry / Approve send at once.
+    func cancelStop(_ id: String) {
+        stopArmed[id] = nil
+    }
+
+    func isDestructiveApprovalArmed(_ id: String, now: Date = Date()) -> Bool {
+        destructiveApprovalArmedID == id && destructiveApprovalArmedAt.map { now.timeIntervalSince($0) < IslandAgentRows.confirmWindow } == true
+    }
+
+    /// Returns false after the first deliberate activation of a destructive approval.
+    func prepareCardAction(_ action: IslandCardAction, now: Date = Date()) -> Bool {
+        guard case .agentApprove(let id) = action, let approval = agentApproval,
+              approval.id == id, approval.destructive else { return true }
+        guard !destructiveApprovalMissingScope else {
+            onAnnounce?("Approval disabled. The agent did not provide the affected targets.")
+            return false
+        }
+        guard isDestructiveApprovalArmed(id, now: now) else {
+            destructiveApprovalArmedID = id
+            destructiveApprovalArmedAt = now
+            onAnnounce?("Destructive request: \(approval.title). Activate Confirm approve to submit this approval.")
+            refresh(now: now)
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(IslandAgentRows.confirmWindow * 1_000_000_000))
+                guard let self, self.destructiveApprovalArmedID == id,
+                      let armedAt = self.destructiveApprovalArmedAt,
+                      Date().timeIntervalSince(armedAt) >= IslandAgentRows.confirmWindow - 0.05 else { return }
+                self.disarmDestructiveApproval()
+                self.refresh(now: Date())
+            }
+            return false
+        }
+        disarmDestructiveApproval()
+        return true
+    }
+
+    private func disarmDestructiveApproval() {
+        destructiveApprovalArmedID = nil
+        destructiveApprovalArmedAt = nil
+    }
+
+    /// Row buttons: Stop arms; request review opens detail; dismiss removes a stale row locally.
     func tapRowControl(_ a: IslandAgent, now: Date = Date()) {
         guard let action = IslandAgentRows.control(for: a), rowControls[a.id] == nil else { return }
+        if action == .review {
+            IslandEventLog.log("row-control", id: a.id, source: a.name, kind: action.rawValue)
+            onRowControl?(a, action)
+            return
+        }
         if action == .stop && !isStopArmed(a.id, now: now) {
             stopArmed[a.id] = now
             Task { @MainActor [weak self] in
@@ -1505,11 +1773,34 @@ extension IslandModel {
         }
     }
 
-    /// Control failed (transport error) — red flash, revert.
+    private func reconcileRowFailures(with rows: [IslandAgent]) {
+        for id in Array(rowFailures.keys) {
+            guard let row = rows.first(where: { $0.id == id }) else {
+                rowFailures[id] = nil; rowFailureStatus[id] = nil; rowFailureLastSeen[id] = nil
+                continue
+            }
+            let statusChanged = row.status != rowFailureStatus[id] && row.status != "stale"
+            let updated = row.last_seen_at > (rowFailureLastSeen[id] ?? 0)
+            if statusChanged || updated {
+                rowFailures[id] = nil; rowFailureStatus[id] = nil; rowFailureLastSeen[id] = nil
+            }
+        }
+    }
+
+    /// Keep a textual error until a later publisher update acknowledges the row.
     func failRowControl(_ id: String) {
+        let action = rowControls[id]?.action
+        let row = listRows.first { $0.id == id }
         rowControls[id] = nil
         rowStatusAtSend[id] = nil
+        rowFailures[id] = "Not sent · Try again"
+        rowFailureStatus[id] = row?.status
+        rowFailureLastSeen[id] = row?.last_seen_at ?? 0
         flash(id)
+        if let row {
+            let verb = action?.rawValue ?? "control"
+            onAnnounce?("Could not send \(verb) for \(row.name.isEmpty ? row.app : row.name). Not sent. Try again.")
+        }
     }
 
     fileprivate func expireRowControls(now: Date) {

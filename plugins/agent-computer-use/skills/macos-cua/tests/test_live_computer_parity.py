@@ -297,6 +297,7 @@ def prove_drag() -> None:
                 {"local_y": local_y, "slider": slider_frame},
             )
 
+
             def prove_cursor_screenshot(
                 point_x: float, point_y: float, path: Path, label: str
             ) -> dict:
@@ -351,6 +352,7 @@ def prove_drag() -> None:
                 directory_path / "source-cursor.png",
                 "drag source",
             )
+
             first_drag = accepted(
                 MACOS_CUA.drag(
                     process.pid,
@@ -372,6 +374,7 @@ def prove_drag() -> None:
                 and first_drag.get("ok") is True
                 and landing.get("landed") is True
                 and not first_drag.get("system_cursor_used"),
+
                 "drag sets the AX slider after the agent cursor lands",
                 first_drag,
             )
@@ -381,7 +384,9 @@ def prove_drag() -> None:
                 local_y,
                 directory_path / "destination-cursor.png",
                 "drag destination",
+
             )
+            destination_proof = destination_state.get("screenshot") or {}
             after_red, after_green = indicator_pixels(
                 Path(destination_proof["raw_path"])
             )
@@ -455,7 +460,7 @@ def main() -> int:
     )
     check(preflight.returncode == 0, "preflight passes", preflight.stderr.strip())
     preflight_json = json.loads(preflight.stdout)
-    check(preflight_json.get("ready") is True, "permissions, daemon, signed operator ready")
+    check(preflight_json.get("ready") is True, "permissions and daemon ready")
     check(len(preflight.stdout) < 600, "healthy preflight output stays context-compact", len(preflight.stdout))
 
     activation = MACOS_CUA.launch_or_activate("Calculator")
@@ -556,28 +561,6 @@ def main() -> int:
         len(json.dumps(calculation, separators=(",", ":"))),
     )
 
-    operator = invoke("operator", "status")
-    check(operator.get("running") is False, "twin operator overlay stays stopped")
-    check(
-        (Path.home() / ".cache/macos-cua/CUAService.app").is_dir(),
-        "CUAService owns the agent pointer",
-    )
-    check(operator["signing"].get("mode") == "identity", "operator bundle keeps its identity signature")
-    check(
-        Path(operator["state"]["cursor_image_path"]).name == "hermes-pointer.png",
-        "pointer raster is the Hermes asset",
-    )
-    clicks = [step for step in calculation["steps"] if step.get("action") == "click"]
-    check(
-        bool(clicks)
-        and all(
-            isinstance(step.get("cursor_landing"), dict)
-            and step["cursor_landing"].get("landed") is True
-            for step in clicks
-        ),
-        "CUAService overlay landed on every calculator click",
-        clicks,
-    )
 
     prove_drag()
 
@@ -603,11 +586,13 @@ def main() -> int:
             fixture_pid, fixture_window_id, publish=True
         )
         check(text_window.get("label") == temporary.name, "isolated TextEdit fixture is controlled")
+
         check(
             Path((state.get("screenshot") or {}).get("raw_path", "")).is_file(),
             "controlled TextEdit observation includes its window screenshot",
             (state.get("screenshot") or {}).get("raw_path"),
         )
+
         index = area["element_index"]
 
         accepted(
@@ -929,10 +914,10 @@ def main() -> int:
     )
     check(closeout.returncode == 0, "closeout succeeds", closeout.stderr.strip())
     closeout_json = json.loads(closeout.stdout)
-    check(closeout_json.get("success") is True, "cursor sessions end and operator becomes idle")
+    check(closeout_json.get("success") is True, "cursor sessions end")
     check(closeout_json.get("daemon_ready") is True, "driver remains ready after closeout")
     print("\n=== SUMMARY ===")
-    print("  [PASS] live macos-cua parity primitives, operator UI, cursor, display, and cleanup")
+    print("  [PASS] live macos-cua parity primitives, cursor, display, and cleanup")
     return 0
 
 

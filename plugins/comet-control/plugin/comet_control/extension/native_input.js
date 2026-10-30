@@ -273,7 +273,12 @@ async function raiseLease(state, hooks, label) {
     const win = await api.windows.update(tab.windowId, { state: "normal", focused: true });
     const bounds = { left: win.left, top: win.top, width: win.width, height: win.height };
     const raised = await nativeRequest("raise", sessionId, { window: bounds, title: tab.title || "", action: label });
-    return { sessionId, windowId: raised.window_id, bounds, tab };
+    const frame = raised?.frame;
+    const real = frame && [frame.left, frame.top, frame.width, frame.height].every((v) => Number.isFinite(Number(v)))
+      && Number(frame.width) > 0 && Number(frame.height) > 0
+      ? { left: Number(frame.left), top: Number(frame.top), width: Number(frame.width), height: Number(frame.height) }
+      : bounds;
+    return { sessionId, windowId: raised.window_id, bounds: real, chromeBounds: bounds, tab };
   } catch (error) {
     await release(sessionId);
     throw error;
@@ -285,6 +290,35 @@ async function release(sessionId) {
 }
 
 // ── flows ─────────────────────────────────────────────────────────────────
+// Debugger-free raise for an occluded (document.hidden) leased window. Uses Chrome's own
+// window focus, not CUA bounds matching: Comet can report window bounds that differ from the
+// CG window (e.g. 1920x1050 vs 1900x1030), which made native "raise" fail WINDOW_NOT_FOUND.
+// prepare_raise/release keep the user's front app restore contract.
+export async function nativeBringToFront(state, hooks, { holdMs = 1500, label = "bring_to_front" } = {}) {
+  const sessionId = sessionOf(state);
+  if (!sessionId) throw codedError("LEASE_REQUIRED", "bring-to-front is lease-scoped");
+  const api = hooks.chrome || globalThis.chrome;
+  await nativeRequest("prepare_raise", sessionId).catch(() => {});
+  try {
+    const { tab } = await leaseWindow(state, api);
+    await api.windows.update(tab.windowId, { focused: true });
+    const start = Date.now();
+    let visible = false;
+    while (true) {
+      visible = await inTab(hooks, state.tabId, 0, () => document.visibilityState, [], "visibilityState") === "visible";
+      if (visible || Date.now() - start >= 3000) break;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    const visibility_wait_ms = Date.now() - start;
+    const hold_ms = Number.isFinite(Number(holdMs)) ? Math.max(0, Math.min(10000, Number(holdMs))) : 0;
+    if (hold_ms) await new Promise((resolve) => setTimeout(resolve, hold_ms));
+    logPath(state, "window", "window_focus", { action: label });
+    return { input_path: "window_focus", visible, visibility_wait_ms, hold_ms };
+  } finally {
+    await release(sessionId);
+  }
+}
+
 // Focus via scripting -> raise the exact leased window -> confirm page focus ->
 // CUAService keys/text -> verify through a scripting read -> optional Enter.
 export async function nativeTypeFlow(state, hooks, opts) {

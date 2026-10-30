@@ -45,7 +45,7 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(p("idle", approval: IslandAgentApproval(id: "a", title: "Ok?")), .agentApproval)
         XCTAssertEqual(p("idle", hud: false, peek: true), .peek)
         XCTAssertEqual(p("idle", hud: true, peek: true), .hud, "HUD beats peek")
-        XCTAssertEqual(IslandPresentation.hud.compactWidth, 200)
+        XCTAssertEqual(IslandPresentation.hud.compactWidth, 120)
         IslandModel.hudDwell = 0.1
         defer { IslandModel.hudDwell = 1.2 }
         let m = IslandModel()
@@ -87,6 +87,24 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(IslandPresentation.peek.compactWidth, 244)
         m.toggleCard()
         XCTAssertEqual(opened, ["Build done"]); XCTAssertNil(m.peek)
+    }
+
+    func testCompactActivitiesUseTheirContentWidth() {
+        let now = Date()
+        var peek = IslandPeekItem(id: "p", source: "Codex", title: "Build finished", at: now)
+        let shortWidth = IslandPeekRules.compactWidth(peek, now: now)
+        XCTAssertLessThan(shortWidth, 160, "short status must not leave a long blank tail")
+        peek.count = 12
+        XCTAssertGreaterThan(IslandPeekRules.compactWidth(peek, now: now), shortWidth)
+        peek.title = String(repeating: "A long build result ", count: 8)
+        XCTAssertEqual(IslandPeekRules.compactWidth(peek, now: now), IslandBarLayout.peekWidth)
+        for state in [IslandPresentation.nowPlaying, .calendar, .tray] {
+            XCTAssertEqual(state.compactWidth, 74)
+        }
+        let m = IslandModel()
+        m.reduceMotion = true
+        m.showPeek(IslandPeekItem(id: "short", source: "Codex", title: "Build finished", at: now), now: now)
+        XCTAssertEqual(m.shapeRect.width, shortWidth)
     }
 
     func testHubPeekNeedsInfoCap() throws {
@@ -137,6 +155,7 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(m.presentation, .nowPlaying)
         XCTAssertEqual(m.secondary, .calendar)
         XCTAssertNotNil(m.secondaryRect)
+        XCTAssertEqual(m.secondaryRect?.width, 44)
         XCTAssertTrue(m.hitRects.contains { $0.contains(m.secondaryRect!) })
         m.tapSecondary()
         XCTAssertEqual(m.presentation, .calendar)
@@ -192,13 +211,58 @@ final class IslandActivitiesTests: XCTestCase {
     }
 
     // MARK: 7 Agent rows
+    func testAgentRosterHierarchyKeepsChildrenOrphansAndCyclesVisible() {
+        let child = IslandAgent(id: "agent:child", name: "Claude", status: "running", parent_id: "agent:parent")
+        let parent = IslandAgent(id: "agent:parent", name: "Codex", status: "running")
+        let orphan = IslandAgent(id: "agent:orphan", name: "Cursor", status: "running", parent_id: "missing")
+        let cycleA = IslandAgent(id: "agent:cycle-a", name: "A", status: "running", parent_id: "agent:cycle-b")
+        let cycleB = IslandAgent(id: "agent:cycle-b", name: "B", status: "running", parent_id: "agent:cycle-a")
+
+        let rows = IslandAgentRows.hierarchical([child, parent, orphan, cycleA, cycleB])
+        XCTAssertEqual(rows.map(\.id), ["agent:parent", "agent:child", "agent:orphan", "agent:cycle-a", "agent:cycle-b"])
+        XCTAssertEqual(rows.map(\.depth), [0, 1, 0, 0, 1])
+        XCTAssertEqual(rows[1].parentName, "Codex")
+    }
+
+    func testUrgentDescendantMovesItsWholeBranchAheadOfHealthyRows() {
+        let healthy = IslandAgent(id: "agent:healthy", name: "Grok", status: "running")
+        let parent = IslandAgent(id: "agent:parent", name: "Codex", title: "Coordinate", status: "running")
+        let child = IslandAgent(id: "agent:child", name: "Claude", title: "Blocked", status: "needs_you",
+                                needs_you: true, parent_id: parent.id)
+        let failed = IslandAgent(id: "agent:failed", name: "Cursor", status: "error")
+
+        let rows = IslandAgentRows.hierarchical([healthy, parent, child, failed])
+        XCTAssertEqual(rows.map(\.id), [parent.id, child.id, failed.id, healthy.id])
+        XCTAssertEqual(rows.map(\.depth), [0, 1, 0, 0], "the urgent child stays adjacent to its parent")
+        XCTAssertEqual(rows[1].parentName, "Codex")
+    }
+
+    func testDetectedProcessesStayOutsideTaskRowsAndHaveUnknownActivity() {
+        let task = IslandAgent(id: "agent:task", name: "Codex", title: "Review", status: "running")
+        let process = IslandAgent(id: "local:codex:42", name: "Codex", title: "PID 42", status: "process")
+
+        XCTAssertEqual(IslandAgentRows.taskAgents([task, process]).map(\.id), [task.id])
+        XCTAssertEqual(IslandAgentRows.processObservations([task, process]).map(\.id), [process.id])
+        XCTAssertEqual(IslandAgentRows.statusText(process), "activity unknown")
+        XCTAssertNil(IslandAgentRows.control(for: process))
+        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 6, footer: false, maxVisibleRows: 6), 296)
+    }
+
+    func testLegacyAgentWireFormatNeedsNoParentField() throws {
+        let agent = try JSONDecoder().decode(IslandAgent.self, from: Data("{}".utf8))
+        XCTAssertNil(agent.parent_id)
+    }
+
     func testRowControlRulesAndFlow() async throws {
         let run = IslandAgent(id: "codex:j1", name: "Codex", title: "Migrating", status: "running", controls: ["stop"])
         let err = IslandAgent(id: "codex:j2", name: "Codex", title: "Build", status: "error", controls: ["retry"])
         XCTAssertEqual(IslandAgentRows.control(for: run), .stop)
         XCTAssertEqual(IslandAgentRows.control(for: err), .retry)
         XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "x", status: "running")), .stop, "every running row shows Stop")
-        XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "pending:a", status: "needs_you")), .approve)
+        XCTAssertNil(IslandAgentRows.control(for: IslandAgent(id: "agent:task", status: "running")), "shared roster rows need an explicit Stop handler")
+        XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "agent:task", status: "running", controls: ["stop"])), .stop)
+        XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "pending:a", status: "needs_you")), .review)
+        XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "agent:stale", status: "stale")), .dismiss)
         XCTAssertEqual(IslandAgentRows.cardHeight(rows: 1, footer: false), 96)
         XCTAssertEqual(IslandAgentRows.cardHeight(rows: 2, footer: false), 120)
         XCTAssertEqual(IslandAgentRows.cardHeight(rows: 3, footer: false), 164)
@@ -206,6 +270,8 @@ final class IslandActivitiesTests: XCTestCase {
         let m = IslandModel()
         m.apply(IslandSnapshot(kind: "idle", agents: [run, err]))
         var sent: [String] = []
+        var announcement = ""
+        m.onAnnounce = { announcement = $0 }
         m.onRowControl = { a, act in sent.append("\(a.id)=\(act.rawValue)") }
         let t0 = Date()
         m.tapRowControl(run, now: t0)
@@ -222,6 +288,11 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(sent.last, "codex:j2=retry")
         m.failRowControl(err.id)
         XCTAssertNil(m.rowControls[err.id]); XCTAssertTrue(m.rowFlash.contains(err.id))
+        XCTAssertEqual(m.rowFailures[err.id], "Not sent · Try again")
+        XCTAssertTrue(announcement.contains("Could not send retry for Codex"))
+        var acknowledgedErr = err; acknowledgedErr.last_seen_at = 10
+        m.apply(IslandSnapshot(kind: "idle", agents: [stopped, acknowledgedErr]))
+        XCTAssertNil(m.rowFailures[err.id], "a later publisher update clears the failure")
     }
 
     func testHubControlQueueAndDeliverOnce() async throws {

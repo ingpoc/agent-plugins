@@ -8,7 +8,9 @@
   island-post --source codex --kind clear --id deploy-1        # answered in chat: remove the card
   island-post --source grok-bot --kind peek --title "Build finished" --app Terminal   # 3 s Quick Peek
   island-post --source codex --kind running --id job1 --title "Migrating" --controls stop,retry --wait-control 600
-      # row with Stop/Retry buttons; prints {"action": "stop"} when Guru clicks (exit 0), timeout exit 2
+      # row with Stop/Retry buttons; prints {"action": "stop"} when the user clicks (exit 0), timeout exit 2
+  island-post --source agent --name Codex --id task-123 --kind running --title "Implementing roster"
+  island-post --source agent --name Codex --id child-1 --parent-id task-123 --kind running --title "Reviewing UI"
 
 Transport: CUAService's local socket (~/Library/Application Support/CUAService/island.sock, 0600,
 peer uid checked). No Keychain read happens in this process, so there is never a Keychain prompt;
@@ -33,7 +35,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-SOURCES = {"grok-bot": "grok", "grok": "grok", "cursor": "cursor", "codex": "codex", "samantha": "samantha"}
+SOURCES = {"grok-bot": "grok", "grok": "grok", "cursor": "cursor", "codex": "codex", "samantha": "samantha", "agent": "agent"}
 KINDS = ("running", "needs_you", "done", "error", "approval", "choice", "clear", "peek")
 CONTROLS = ("stop", "retry")
 MAX_WAIT = 3600
@@ -213,7 +215,7 @@ def main() -> int:
     p.add_argument("--kind", default=None, choices=KINDS, help="default: choice if --prompt/--option, else running")
     p.add_argument("--title", default="")
     p.add_argument("--prompt", default=None, help="choice: the question (defaults to --title)")
-    p.add_argument("--detail", default="")
+    p.add_argument("--detail", default="", help="approval: subtitle; required target scope for --destructive")
     p.add_argument("--option", action="append", type=parse_option, default=[], metavar="LABEL=VALUE",
                    help="choice option (repeat, max 6)")
     p.add_argument("--multi", action="store_true", help="choice: allow several options")
@@ -222,6 +224,8 @@ def main() -> int:
     p.add_argument("--danger", default="", help="choice: option value drawn red")
     p.add_argument("--app", default=None, help="app whose icon represents the row (default per source)")
     p.add_argument("--id", default="default", help="stable id; re-post to update, --kind clear to remove")
+    p.add_argument("--name", default="", help="agent roster: harness/agent label (for example Codex or Claude Code)")
+    p.add_argument("--parent-id", default="", help="agent roster: parent task ID, in the same source")
     p.add_argument("--destructive", action="store_true", help="approval: red Approve button")
     p.add_argument("--ttl", type=float, default=None, help="row/card lifetime in s (rows 600; choice 900 = 15 min; approvals 900, or --wait+30)")
     p.add_argument("--wait", type=float, default=0, help=f"approval/choice: wait up to N s (≤ {MAX_WAIT})")
@@ -269,6 +273,10 @@ def main() -> int:
                      "allow_text": a.allow_text, "primary": a.primary, "danger": a.danger})
     if a.app is not None:
         body["app"] = a.app
+    if a.name:
+        body["name"] = a.name
+    if a.parent_id:
+        body["parent_id"] = a.parent_id
     if a.destructive:
         body["destructive"] = True
     if a.symbol:

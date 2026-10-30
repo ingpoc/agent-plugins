@@ -60,7 +60,7 @@ class PlanContractTests(unittest.TestCase):
             plan_contract.result_accepted(
                 {
                     "ok": True,
-                    "path": "operator-proof-screen-coordinate",
+                    "path": "retired-global-coordinate",
                     "route": "global_input",
                 }
             )
@@ -118,7 +118,7 @@ class PlanContractTests(unittest.TestCase):
             "actions": [
                 {
                     "action": "click-label-pointer",
-                    "label": "Continue as Gurusharan Gupta",
+                    "label": "Continue as Jane Doe",
                 }
             ]
         }

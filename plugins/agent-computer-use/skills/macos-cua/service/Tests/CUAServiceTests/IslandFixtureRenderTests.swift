@@ -110,7 +110,7 @@ final class IslandFixtureRenderTests: XCTestCase {
         clearAll()
         // Card: 4-option multi-select with Production selected, then the confirm flip.
         publish(["source": "grok-bot", "id": "q4", "kind": "choice", "prompt": "Which environments should I deploy to?",
-                 "detail": "Pick any", "multi": true, "danger": "prod",
+                 "detail": "Website v1.4 · Pick any", "multi": true, "danger": "prod",
                  "options": [["label": "Dev", "value": "dev"], ["label": "Staging", "value": "staging"],
                              ["label": "QA", "value": "qa"], ["label": "Production", "value": "prod"]]])
         try await Task.sleep(nanoseconds: 50_000_000)

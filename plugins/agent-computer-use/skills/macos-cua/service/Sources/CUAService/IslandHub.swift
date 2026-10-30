@@ -25,6 +25,7 @@ final class IslandHub {
         var updated: Date
         var ttl: TimeInterval
         var started: Date = .distantPast
+        var stale = false
     }
 
     struct Pending: Equatable, Codable {
@@ -52,7 +53,11 @@ final class IslandHub {
     let store: IslandSettingsStore
     private(set) var samantha: IslandSnapshot?
     private(set) var entries: [String: Entry] = [:]   // key = source:id
+    private(set) var localHarnesses: [IslandAgent] = []
+    private var localHarnessScanAt = Date.distantPast
+    private var localHarnessScanInFlight = false
     private(set) var approvals: [Pending] = []
+    private var selectedApprovalID: String?
     /// Timed-out cards waiting to be acknowledged (hollow red ring on the source circle).
     private(set) var expiredNotices: [IslandExpired] = []
     nonisolated static let maxNotices = 10
@@ -108,20 +113,34 @@ final class IslandHub {
 
     func compose(now: Date = Date()) -> IslandSnapshot {
         var s = samantha ?? IslandSnapshot(kind: "idle")
-        let live = entries.values.filter { now.timeIntervalSince($0.updated) < $0.ttl }
+        let live = entries.values.filter { !isStale($0, now: now) }
             .sorted { $0.updated > $1.updated }
         s.agents += live.map { e in
             var a = e.agent
             if a.status == "running", e.started != .distantPast { a.elapsed_s = max(0, now.timeIntervalSince(e.started)) }
+            a.last_seen_at = e.updated.timeIntervalSince1970
             return a
         }
+        let stale = entries.values.filter { isStale($0, now: now) && Self.canRetainStale($0.agent) }
+            .sorted { $0.updated > $1.updated }
+        s.agents += stale.map { e in
+            var a = e.agent
+            a.status = "stale"
+            a.needs_you = false
+            a.controls = []
+            a.elapsed_s = max(0, now.timeIntervalSince(e.updated))
+            a.last_seen_at = e.updated.timeIntervalSince1970
+            return a
+        }
+        s.agents += localHarnesses
         // Queued cards: approvals jump the queue (then arrival order); the first owns the pill,
         // all show as needs-you rows + count.
         let queue = queued.filter { !shownInline($0) }
         s.agents += queue.map {
             IslandAgent(id: "pending:" + $0.approval.id, name: $0.source.title, app: $0.approval.app,
                         title: $0.approval.title, status: "needs_you", needs_you: true,
-                        elapsed_s: now.timeIntervalSince($0.created))
+                        elapsed_s: now.timeIntervalSince($0.created), request_kind: $0.approval.kind,
+                        destructive: $0.approval.destructive, last_seen_at: $0.created.timeIntervalSince1970)
         }
         s.agent_approval = queue.first?.approval ?? s.agent_approval
         s.pending_count = queue.count
@@ -129,23 +148,41 @@ final class IslandHub {
         return s
     }
 
-    /// Display order: approvals (non-choice) first, then choices; arrival order within each.
+    /// Selected request first, then approvals before choices and arrival order within each.
     var queued: [Pending] {
         approvals.enumerated().sorted { x, y in
+            let selectedX = x.element.approval.id == selectedApprovalID && !shownInline(x.element)
+            let selectedY = y.element.approval.id == selectedApprovalID && !shownInline(y.element)
+            if selectedX != selectedY { return selectedX }
             let a = x.element.approval.isChoice ? 1 : 0, b = y.element.approval.isChoice ? 1 : 0
             return a != b ? a < b : x.offset < y.offset
         }.map(\.element)
     }
 
+    @discardableResult
+    func selectApproval(id: String) -> Bool {
+        guard let request = approvals.first(where: { $0.approval.id == id }), !shownInline(request) else { return false }
+        selectedApprovalID = id
+        changed()
+        return true
+    }
+
     private func changed() { onSnapshot?(compose()) }
 
-    /// Drop expired agent rows and cards (1 s clock).
+    /// Drop terminal rows and turn silent active rows into non-actionable stale rows (1 s clock).
     func expire(now: Date = Date()) {
-        let before = entries.count
-        entries = entries.filter { now.timeIntervalSince($0.value.updated) < $0.value.ttl }
-        // A row that expired takes its queued Stop/Retry with it; parked long-polls wake to an empty answer.
-        for id in pendingControls.keys where entries[id] == nil { pendingControls[id] = nil }
-        for id in controlWaiters.keys where entries[id] == nil {
+        var rowsChanged = false
+        for (id, value) in entries where isStale(value, now: now) {
+            if Self.canRetainStale(value.agent) {
+                if !value.stale {
+                    entries[id]?.stale = true
+                    rowsChanged = true
+                }
+            } else {
+                entries[id] = nil
+                rowsChanged = true
+            }
+            pendingControls[id] = nil
             for c in (controlWaiters.removeValue(forKey: id) ?? [:]).values { c.resume() }
         }
         let dead = approvals.filter { $0.expires <= now }
@@ -158,8 +195,50 @@ final class IslandHub {
             if expiredNotices.count > Self.maxNotices { expiredNotices.removeFirst(expiredNotices.count - Self.maxNotices) }
         }
         approvals.removeAll { $0.expires <= now }
+        if let selectedApprovalID, !approvals.contains(where: { $0.approval.id == selectedApprovalID }) {
+            self.selectedApprovalID = nil
+        }
         if !dead.isEmpty { persist() }
-        if entries.count != before || !dead.isEmpty { changed() }
+        if rowsChanged || !dead.isEmpty { changed() }
+    }
+
+    private func isStale(_ entry: Entry, now: Date) -> Bool {
+        entry.stale || now.timeIntervalSince(entry.updated) >= entry.ttl
+    }
+
+    private static func canRetainStale(_ agent: IslandAgent) -> Bool {
+        agent.status == "running" || agent.status == "needs_you"
+    }
+
+    @discardableResult
+    func dismissStale(id: String, now: Date = Date()) -> Bool {
+        guard let entry = entries[id], isStale(entry, now: now), Self.canRetainStale(entry.agent) else { return false }
+        entries[id] = nil
+        pendingControls[id] = nil
+        for c in (controlWaiters.removeValue(forKey: id) ?? [:]).values { c.resume() }
+        changed()
+        return true
+    }
+
+    /// Best-effort local host scan; only exact allowlisted process names and PIDs are read.
+    func refreshLocalHarnesses(now: Date = Date()) {
+        guard !localHarnessScanInFlight, now.timeIntervalSince(localHarnessScanAt) >= 5 else { return }
+        localHarnessScanAt = now
+        localHarnessScanInFlight = true
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let rows = IslandLocalHarnessScanner.scan()
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.localHarnessScanInFlight = false
+                self.updateLocalHarnesses(self.store.sourceEnabled(.agentRoster) ? rows : [])
+            }
+        }
+    }
+
+    func updateLocalHarnesses(_ rows: [IslandAgent]) {
+        guard rows != localHarnesses else { return }
+        localHarnesses = rows
+        changed()
     }
 
     func clearSamantha() {
@@ -213,7 +292,7 @@ final class IslandHub {
         }
         let json = (try? JSONSerialization.jsonObject(with: r.body)) as? [String: Any] ?? [:]
         let rawSource = (json["source"] as? String) ?? r.query["source"] ?? r.headers["x-island-source"] ?? ""
-        guard let source = AgentSource.parse(rawSource) else { return .err(400, "unknown source (samantha|grok-bot|cursor|codex)") }
+        guard let source = AgentSource.parse(rawSource) else { return .err(400, "unknown source (samantha|grok-bot|cursor|codex|agent)") }
         if r.peerVerified {
             // Same-uid local peer: the source must be opted in (token created by the user's Rotate /
             // Samantha toggle). CUAService reads its own item — no Keychain prompt for anyone.
@@ -246,12 +325,20 @@ final class IslandHub {
         case ("GET", "/api/agent/control"):
             // The posting agent picks up Stop/Retry clicks for its own row (delivered once).
             let id = Self.key(source, r.query["id"] ?? "")
-            let action = entries[id] == nil ? "" : (pendingControls.removeValue(forKey: id) ?? "")
+            let action: String
+            if let entry = entries[id], !isStale(entry, now: now) {
+                action = pendingControls.removeValue(forKey: id) ?? ""
+            } else {
+                action = ""
+            }
             if !action.isEmpty { IslandEventLog.log("control-delivered", id: id, source: source.cliName, kind: action) }
             return .ok(["id": r.query["id"] ?? "", "action": action])
         case ("GET", "/api/island/state"):
             let s = compose(now: now)
-            return .ok(["kind": s.kind, "title": s.title, "agents": String(s.agents.count),
+            let agents = IslandAgentRows.taskAgents(s.agents)
+            let localProcesses = IslandAgentRows.processObservations(s.agents)
+            return .ok(["kind": s.kind, "title": s.title, "agents": String(agents.count),
+                        "local_processes": String(localProcesses.count),
                         "approval": s.agent_approval?.id ?? ""])
         default:
             return .err(404, "not found")
@@ -300,8 +387,8 @@ final class IslandHub {
         changed()
     }
 
-    /// Agent schema: {source, id, kind: running|needs_you|done|error|approval|clear, title, detail, app,
-    /// destructive, ttl_s}.
+    /// Agent schema: {source, id, name, parent_id, kind: running|needs_you|done|error|approval|clear,
+    /// title, detail, app, destructive, ttl_s}.
     private func publishAgent(_ j: [String: Any], source: AgentSource, now: Date) -> Response {
         let rawId = (j["id"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "default"
         guard rawId.count <= 80 else { return .err(400, "id too long") }
@@ -314,6 +401,8 @@ final class IslandHub {
         case "clear":
             entries[id] = nil
             pendingControls[id] = nil
+            if selectedApprovalID == id { selectedApprovalID = nil }
+            for c in (controlWaiters.removeValue(forKey: id) ?? [:]).values { c.resume() }
             if let p = approvals.first(where: { $0.approval.id == id }) {
                 approvals.removeAll { $0.approval.id == id }
                 record(id, Answer(status: .dismissed, at: now))   // answered in chat: wake any waiter
@@ -328,6 +417,10 @@ final class IslandHub {
             return .ok(["id": rawId])
         case "approval", "choice":
             guard store.mayRaiseApproval(source) else { return .err(403, "approval cards are off for \(source.cliName)") }
+            if kind == "approval", j["destructive"] as? Bool == true,
+               detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return .err(400, "destructive approval requires detail naming the affected targets")
+            }
             let prompt = String(((j["prompt"] as? String) ?? title).prefix(160))
             guard !prompt.isEmpty else { return .err(400, "title/prompt required") }
             var options: [IslandChoiceOption] = []
@@ -373,16 +466,27 @@ final class IslandHub {
             return .ok(["id": rawId])
         case "running", "needs_you", "done", "error":
             guard !title.isEmpty else { return .err(400, "title required") }
+            let rawParent = (j["parent_id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let rawParent {
+                guard !rawParent.isEmpty, rawParent.count <= 80 else { return .err(400, "parent_id must be 1-80 characters") }
+                guard rawParent != rawId else { return .err(400, "agent cannot be its own parent") }
+            }
+            let parentID = rawParent.map { Self.key(source, $0) } ?? entries[id]?.agent.parent_id
+            let rawName = (j["name"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayName = String((source == .agentRoster
+                                      ? (rawName.isEmpty ? (entries[id]?.agent.name ?? source.title) : rawName)
+                                      : source.title).prefix(48))
             let cap = store.cap(source)
             let needs = kind == "needs_you" && cap.rank >= AttentionCap.attention.rank
-            let defaultTTL: TimeInterval = (kind == "done" || kind == "error") ? 30 : 600
+            let defaultTTL: TimeInterval = (kind == "done" || kind == "error") ? 30
+                : source == .agentRoster ? 3600 : 600
             let ttl = min(3600, max(5, (j["ttl_s"] as? NSNumber)?.doubleValue ?? defaultTTL))
             let controls = ((j["controls"] as? [Any]) ?? []).compactMap { ($0 as? String)?.lowercased() }
                 .filter { Self.allowedControls.contains($0) }
             let started = entries[id].map { $0.agent.status == "running" && kind == "running" ? $0.started : now } ?? now
-            let agent = IslandAgent(id: id, name: source.title, app: app, title: title,
+            let agent = IslandAgent(id: id, name: displayName, app: app, title: title,
                                     status: kind == "needs_you" ? "needs_you" : kind, needs_you: needs,
-                                    controls: Array(Set(controls)).sorted())
+                                    parent_id: parentID, controls: Array(Set(controls)).sorted())
             entries[id] = Entry(source: source, agent: agent, updated: now, ttl: ttl, started: started)
             changed()
             return .ok(["id": rawId])
@@ -398,7 +502,7 @@ final class IslandHub {
     /// allowed — the island then reverts with a red flash (an agent that never acks times out the same way).
     @discardableResult
     func requestControl(id: String, action: String) -> Bool {
-        guard Self.allowedControls.contains(action), let e = entries[id],
+        guard Self.allowedControls.contains(action), let e = entries[id], !isStale(e, now: Date()),
               e.agent.controls.contains(action) || (action == "stop" && e.agent.status == "running") else { return false }
         pendingControls[id] = action
         IslandEventLog.log("control-queued", id: id, source: e.source.cliName, kind: action)
@@ -411,6 +515,7 @@ final class IslandHub {
     @discardableResult
     func waitForControl(_ id: String, timeout: TimeInterval) async -> Bool {
         guard pendingControls[id] == nil else { return true }
+        guard let entry = entries[id], !isStale(entry, now: Date()) else { return false }
         guard controlWaiters.values.reduce(0, { $0 + $1.count }) < Self.maxWaiters, (controlWaiters[id]?.count ?? 0) < Self.maxWaitersPerCard else { return false }
         let token = UUID()
         await withCheckedContinuation { (c: CheckedContinuation<Void, Never>) in
@@ -466,6 +571,7 @@ final class IslandHub {
                                ["via": via, "status": ans.status.rawValue, "values": ans.values.count, "has_text": ans.text != nil])
         }
         approvals.removeAll { $0.approval.id == id }
+        if selectedApprovalID == id { selectedApprovalID = nil }
         record(id, ans)
         persist()
         SamanthaActivityLog.startup(phase: "agent_approval_answer", status: "ok",
@@ -501,7 +607,7 @@ final class IslandHub {
         if r.method == "GET", r.path == "/api/agent/control", let w = r.query["wait"].flatMap(Double.init), w > 0,
            let source = AgentSource.parse(r.query["source"] ?? ""), r.headers["origin"] == nil {
             let id = Self.key(source, r.query["id"] ?? "")
-            if pendingControls[id] == nil, entries[id] != nil {
+            if pendingControls[id] == nil, let entry = entries[id], !isStale(entry, now: Date()) {
                 // Auth is checked by handle(); park only after a cheap pre-check passes.
                 let pre = handle(Request(method: "GET", path: "/api/island/state", query: r.query, headers: r.headers,
                                          body: r.body, peerVerified: r.peerVerified), port: port)
@@ -599,14 +705,19 @@ final class IslandHub {
     func applyGating() {
         let before = (entries.count, approvals.count)
         entries = entries.filter { store.sourceEnabled($0.value.source) }
+        let oldLocalHarnesses = localHarnesses
+        if !store.sourceEnabled(.agentRoster) { localHarnesses = [] }
         let gone = approvals.filter { !store.mayRaiseApproval($0.source) }
         for g in gone {
             record(g.approval.id, Answer(status: .dismissed))
             IslandEventLog.log("answered", id: g.approval.id, source: g.source.cliName, kind: g.approval.kind, ["via": "gated"])
         }
         approvals.removeAll { !store.mayRaiseApproval($0.source) }
+        if let selectedApprovalID, !approvals.contains(where: { $0.approval.id == selectedApprovalID }) {
+            self.selectedApprovalID = nil
+        }
         if !gone.isEmpty { persist() }
-        if before != (entries.count, approvals.count) { changed() }
+        if before != (entries.count, approvals.count) || oldLocalHarnesses != localHarnesses { changed() }
     }
 }
 

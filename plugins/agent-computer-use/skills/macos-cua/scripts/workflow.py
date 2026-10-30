@@ -15,6 +15,14 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
+
+_LEGACY = Path(__file__).resolve().parent / "legacy_operator_migration.py"
+_spec = importlib.util.spec_from_file_location("legacy_operator_migration", _LEGACY)
+_legacy = importlib.util.module_from_spec(_spec)
+assert _spec.loader is not None
+_spec.loader.exec_module(_legacy)
+retire_legacy_operator = _legacy.retire_legacy_operator
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ACTIONS = os.path.join(HERE, "macos-cua.py")
@@ -135,37 +143,12 @@ def cmd_preflight(*, quiet: bool = False, verbose: bool = False) -> int:
     win_count = len(listed["windows"])
     add("window enumeration", win_count > 0, f"{win_count} via {listed['method']}")
 
-    controller = cua._operator_ui()
-    service = controller._service_status()
-    operator = (
-        controller.install_service()
-        if not service.get("installed")
-        and os.environ.get("MACOS_CUA_INSTALL_SERVICE", "1") != "0"
-        else controller.ensure()
-    )
-    service = controller._service_status()
-    signing = controller.signing_status()
-    add("operator menu + PiP", bool(operator.get("ok")), str(operator)[:180])
-    # CUAService owns the agent pointer whenever its bundle is installed, and
-    # ensure() unloads the twin operator overlay on purpose. Requiring that
-    # launchd job to be running then would contradict the single-owner design.
-    owns_overlay = controller.CUA_SERVICE_APP.exists()
-    service_running = bool(service.get("running"))
+    retirement = retire_legacy_operator()
     add(
-        "operator launchd lifecycle",
-        service_running or owns_overlay,
-        str(service)[:180]
-        + (
-            " (CUAService owns the pointer; twin overlay stopped on purpose)"
-            if owns_overlay and not service_running
-            else ""
-        ),
-        informational=owns_overlay and not service_running,
-    )
-    add(
-        "operator signed app bundle",
-        bool(signing.get("ok") and signing.get("mode") == "identity"),
-        str(signing)[:180],
+        "legacy operator retired",
+        retirement["ok"],
+        str(retirement),
+        informational=retirement.get("already_retired"),
     )
 
     packet = cua._displays().display_packet()
@@ -187,6 +170,7 @@ def cmd_preflight(*, quiet: bool = False, verbose: bool = False) -> int:
                 {
                     "ready": True,
                     "checks_passed": len(out["checks"]),
+                    "legacy_operator_retired": retirement,
                     "method": out["method"],
                     "duration_ms": out["duration_ms"],
                     "display": out["display"],
@@ -238,15 +222,8 @@ def cmd_closeout(*, verbose: bool = False) -> int:
             out["reset_raw"] = stdout[:200]
     wr = load_window_resolve()
     cua = load_macos_cua()
-    # Wipe every cua-driver agent cursor (cyan auto-* + named). The signed
-    # Hermes operator overlay is the only pointer that should remain.
     cleanup = cua._cleanup_driver_cursors(include_named=True)
     ended = list(cleanup.get("ended") or [])
-    out["operator"] = cua.operator_update(
-        status="idle",
-        active=False,
-        message="No controlled app",
-    )
     out["ended_cursor_sessions"] = ended
     proof_cache = load_proof_cache()
     out["proof_cache"] = proof_cache.prune(

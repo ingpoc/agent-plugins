@@ -185,3 +185,6 @@ closeout, and native-control release remain available for safe cleanup.
 After `EXTENSION_DISCONNECTED`, `EXTENSION_REPLACED`, navigation, or a changed
 `page_revision`, discard prior refs and re-read `page_context`/`snapshot` on the
 same leased tab. Never reuse coordinates or fall back to another tab.
+
+## Screen checks
+For yes/no visual checks (error dialog, toast, cart count, disabled button, logged-in), call the `mini-brain` MCP tool `screen_check(image_path, question)` before a cloud vision check. If it returns `yes` or `no`, use that answer. If it returns `unsure` with `fallback: "cloud"`, do your own screenshot vision check. It uses the local Perplexity Decider (127.0.0.1:8080, no key); yes if p ≥ 0.8, no if p ≤ 0.2. Decider starts on demand and quits after 10 idle minutes.

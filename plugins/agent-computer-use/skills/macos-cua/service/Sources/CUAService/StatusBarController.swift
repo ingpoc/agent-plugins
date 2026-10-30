@@ -43,6 +43,7 @@ final class StatusBarController: NSObject {
 
     private var samanthaRow: MenuSwitchRowView?
     private var showIslandItem: NSMenuItem?
+    private var openIslandItem: NSMenuItem?
 
     func wire(voice: VoiceSupervisor, island: IslandController) {
         voiceSupervisor = voice
@@ -94,13 +95,19 @@ final class StatusBarController: NSObject {
         menu.addItem(samanthaItem)
         samanthaRow = row
 
-        let showIsland = NSMenuItem(title: "Show Dynamic Island", action: #selector(toggleShowIsland(_:)), keyEquivalent: "")
+        let openIsland = NSMenuItem(title: "Show Dynamic Island", action: #selector(openIslandCard), keyEquivalent: "")
+        openIsland.target = self
+        menu.addItem(openIsland)
+        openIslandItem = openIsland
+        updateShortcut(IslandSettingsStore.shared)
+        let showIsland = NSMenuItem(title: "Show Island in Menu Bar", action: #selector(toggleShowIsland(_:)), keyEquivalent: "")
         showIsland.target = self
         showIsland.state = IslandSettingsStore.shared.bool(IslandSettingsSchema.showIsland) ? .on : .off
         menu.addItem(showIsland)
         showIslandItem = showIsland
         IslandSettingsStore.shared.addObserver { [weak self] s in
             self?.showIslandItem?.state = s.bool(IslandSettingsSchema.showIsland) ? .on : .off
+            self?.updateShortcut(s)
         }
 
         // ACU Settings (⌘,): one settings window for the whole plugin (island, Samantha voice, agents, Computer Use).
@@ -166,6 +173,14 @@ final class StatusBarController: NSObject {
             voiceSupervisor?.stop()
         }
     }
+
+    private func updateShortcut(_ store: IslandSettingsStore) {
+        let shortcut = IslandShortcut.read(store)
+        openIslandItem?.keyEquivalent = shortcut.character.lowercased()
+        openIslandItem?.keyEquivalentModifierMask = shortcut.menuModifiers
+    }
+
+    @objc private func openIslandCard() { islandController?.openKeyboard() }
 
     @objc private func toggleShowIsland(_ sender: NSMenuItem) {
         let s = IslandSettingsStore.shared

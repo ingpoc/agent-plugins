@@ -535,18 +535,39 @@ class CometLease:
         unsupported = sorted({str(action.get("type") or "") for action in actions} - ALLOWED_ACTIONS)
         if unsupported:
             return {"ok": False, "error": f"unsupported Comet action: {', '.join(unsupported)}"}
+        missing_lease = False
         with self._lock:
             self._adopt_locked()
             if not self._session_id or self._workdir is None or self._controller is None:
                 return {"ok": False, "error": "no active Comet task lease; call comet_begin first"}
             self._cancel_idle()
             public = self._send_locked(actions, timeout)
+            response = public.get("response") if isinstance(public.get("response"), dict) else {}
+            error = str(response.get("error") or public.get("error") or "")
+            if (
+                not public.get("ok")
+                and error.startswith("No active browser lease for ")
+                and error.endswith("; run preflight first")
+            ):
+                self._cancel_idle()
+                self._session_id = ""
+                self._workdir = None
+                self._python = ""
+                self._controller = None
+                self._purpose = DEFAULT_PURPOSE
+                self._url = ""
+                self._clear_state()
+                public["error"] = "Comet browser lease expired; call comet_begin to start a new lease"
+                missing_lease = True
             for action in actions:
                 if action.get("type") == "goto" and public.get("ok"):
                     self._url = str(action.get("url") or self._url)
-            self._save_state_locked()
-            self._arm_idle()
-            return public
+            if not missing_lease:
+                self._save_state_locked()
+                self._arm_idle()
+        if missing_lease:
+            self._notify(False)
+        return public
 
     def end(self, *, user_requested: bool = False, _idle_gen: int | None = None) -> dict[str, Any]:
         closed_now = False

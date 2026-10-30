@@ -1,11 +1,13 @@
 ---
 name: macos-cua
 description: >-
-  Operate native macOS apps through CUAService. Act-first: one batched act
-  per app; compact state only for discovery or after an act miss.
+  Operate native macOS apps through CUAService. Use when an agent must operate
+  or validate native Mac apps, or use shared Dynamic Island across installed
+  harnesses to report task/subagent lifecycle, show status, request approval or
+  a choice, or save API keys, passwords, and tokens to login Keychain. Act-first: one batched act per app;
+  compact state only for discovery or after an act miss.
   Current-tree labels (Clear=All Clear). Overlay cursor; AX press first.
-  Use when an agent must operate or validate any native Mac app. Not for
-  terminal-only work or browser DOM tasks. Every session friction must
+  Browser DOM and unrelated terminal-only tasks do not trigger CUA actions. Every session friction must
   become an app-agnostic fast_path linter/grader so later agents do not
   repeat it.
 allowed-tools: Bash, Read
@@ -13,7 +15,7 @@ allowed-tools: Bash, Read
 
 # macos-cua
 
-Engine: **CUAService** (Swift `.app`). Cursor MCP is a 2-tool adapter (`state`, `act`) — not a second computer-use stack.
+Engine and sole visible-cursor owner: **CUAService** (Swift `.app`). Cursor MCP is a 2-tool adapter (`state`, `act`) — not a second computer-use stack.
 
 TCC on **macos-cua Service** / **CUAService**: Accessibility + Screen Recording. Relaunch after granting Screen Recording.
 
@@ -60,6 +62,8 @@ Comet **other-window** popups (Google chooser, Razorpay Bank) bind by window tit
 
 | When | File |
 | --- | --- |
+| Shared Dynamic Island task/subagent roster, status, approval/choice, or secure credential save from any installed harness | [`references/dynamic-island.md`](references/dynamic-island.md) |
+| Samantha voice/browser runtime verification and Kindle findings | [verify-samantha](../../runtime/voice-cua/verify/SKILL.md) |
 | Act-first loop / input delivery / Mini local-exec | [`references/fast-workflow.md`](references/fast-workflow.md) |
 | MCP / CUAService architecture | [`references/architecture.md`](references/architecture.md) |
 | Act deltas / failure taxonomy / focused window | [`references/observe-feedback.md`](references/observe-feedback.md) |

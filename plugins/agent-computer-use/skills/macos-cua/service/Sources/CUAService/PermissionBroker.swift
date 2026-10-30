@@ -8,7 +8,7 @@ import os
 import ServiceManagement
 
 /// THE choke point for every macOS consent prompt ACU can cause (TCC, Automation, Login Item,
-/// Keychain "Always Allow"). Guru's rule: every approval happens once, from a Grant click in
+/// Keychain "Always Allow"). Product rule: every approval happens once, from a Grant click in
 /// onboarding (or the same row in ACU Settings) — nowhere else. Everything outside this file uses
 /// preflight / no-prompt reads only; `tests/test_prompt_lint.py` fails the build if a request API
 /// appears anywhere else.

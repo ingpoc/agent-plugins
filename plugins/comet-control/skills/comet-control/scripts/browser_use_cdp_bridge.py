@@ -3,9 +3,12 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
+import mimetypes
 import os
+import re
 import secrets
 import shlex
 import threading
@@ -16,6 +19,15 @@ from urllib.parse import urlsplit
 from websockets.exceptions import ConnectionClosed
 from websockets.protocol import State
 from websockets.sync.server import ServerConnection, serve
+
+
+# Debugger-free upload_file: browser_harness calls DOM.getDocument -> DOM.querySelector ->
+# DOM.setFileInputFiles. When chrome.debugger is policy-blocked, emulate exactly that chain:
+# bytes are staged through userScripts Runtime.evaluate and attached with a DataTransfer.
+_POLICY_BLOCK = re.compile(r"needs chrome\.debugger|restricted by policy", re.I)
+UPLOAD_MAX_BYTES = 50 * 1024 * 1024
+UPLOAD_CHUNK_CHARS = int(os.environ.get("COMET_BRIDGE_UPLOAD_CHUNK") or 400_000)
+_UPLOAD_FAIL = "upload_file fallback (userScripts DataTransfer) failed: "
 
 
 class CDPError(RuntimeError):
@@ -52,6 +64,10 @@ class BrowserUseCDPBridge:
         self._client_active = False
         self._active_websocket: ServerConnection | None = None
         self._handler_threads: set[threading.Thread] = set()
+        self._dom_shim = False
+        self._dom_shim_nodes: dict[int, str] = {}
+        self._dom_shim_next = 1000
+        self.last_upload: dict[str, Any] | None = None
 
     def start(self, env_file: Path) -> dict[str, str]:
         self._server_thread.start()
@@ -163,9 +179,145 @@ class BrowserUseCDPBridge:
             raise CDPError(
                 f"Browser-wide CDP method is outside the leased tab: {method}"
             )
+        if method in {"DOM.getDocument", "DOM.querySelector", "DOM.setFileInputFiles"}:
+            return self._dom_file_command(method, params)
+        return self._page(method, params)
+
+    def _page(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
         return self.run_action(
             {"type": "browser_use_cdp", "method": method, "params": params}
         )
+
+    def _evaluate(self, expression: str) -> Any:
+        out = self._page(
+            "Runtime.evaluate",
+            {"expression": expression, "returnByValue": True, "awaitPromise": True},
+        )
+        details = out.get("exceptionDetails")
+        if details:
+            text = details.get("text") or (details.get("exception") or {}).get("description")
+            raise CDPError(_UPLOAD_FAIL + str(text or "evaluate failed")[:300])
+        return (out.get("result") or {}).get("value")
+
+    def _dom_file_command(self, method: str, params: dict[str, Any]) -> dict[str, Any]:
+        if method == "DOM.getDocument":
+            try:
+                result = self._page(method, params)
+            except Exception as error:
+                if not _POLICY_BLOCK.search(str(error)):
+                    raise
+                self._dom_shim = True
+                self._dom_shim_nodes = {}
+                url = ""
+                try:
+                    url = str(self.page_info().get("url") or "")
+                except Exception:
+                    pass
+                return {"root": {"nodeId": 1, "backendNodeId": 1, "nodeType": 9,
+                                 "nodeName": "#document", "localName": "", "nodeValue": "",
+                                 "childNodeCount": 1, "documentURL": url}}
+            self._dom_shim = False
+            return result
+        if method == "DOM.querySelector" and self._dom_shim and params.get("nodeId") == 1:
+            selector = str(params.get("selector") or "")
+            if not self._evaluate(f"!!document.querySelector({json.dumps(selector)})"):
+                return {"nodeId": 0}
+            self._dom_shim_next += 1
+            self._dom_shim_nodes[self._dom_shim_next] = selector
+            return {"nodeId": self._dom_shim_next}
+        if method == "DOM.setFileInputFiles" and params.get("nodeId") in self._dom_shim_nodes:
+            self._attach_files(self._dom_shim_nodes[params["nodeId"]], params.get("files"))
+            return {}
+        try:
+            return self._page(method, params)
+        except Exception as error:
+            if method == "DOM.setFileInputFiles" and _POLICY_BLOCK.search(str(error)):
+                raise CDPError(
+                    "DOM.setFileInputFiles needs chrome.debugger (policy-blocked); the "
+                    "debugger-free fallback supports nodeId from DOM.querySelector after "
+                    "DOM.getDocument only (upload_file path), not backendNodeId/objectId"
+                ) from error
+            raise
+
+    def _attach_files(self, selector: str, files: Any) -> None:
+        if not isinstance(files, list) or not files:
+            raise CDPError(_UPLOAD_FAIL + "files must be a non-empty list of absolute paths")
+        paths = []
+        for raw in files:
+            path = Path(str(raw))
+            if not path.is_absolute() or not path.is_file():
+                raise CDPError(_UPLOAD_FAIL + f"not an absolute path to a regular file: {raw}")
+            if path.stat().st_size > UPLOAD_MAX_BYTES:
+                raise CDPError(_UPLOAD_FAIL + f"{path.name} exceeds {UPLOAD_MAX_BYTES} bytes")
+            paths.append(path)
+        sel = json.dumps(selector)
+        pre = self._evaluate(
+            f"(() => {{ const el = document.querySelector({sel});"
+            " if (!el) return {ok:false, why:'no element'};"
+            " if (el.tagName !== 'INPUT' || el.type !== 'file') return {ok:false, why:'not an input[type=file]: <' + el.tagName.toLowerCase() + ' type=' + el.type + '>'};"
+            " if (el.disabled) return {ok:false, why:'input is disabled'};"
+            " return {ok:true, multiple: !!el.multiple}; })()"
+        ) or {}
+        if not pre.get("ok"):
+            raise CDPError(_UPLOAD_FAIL + f"{selector}: {pre.get('why') or 'preflight returned nothing'}")
+        if len(paths) > 1 and not pre.get("multiple"):
+            raise CDPError(_UPLOAD_FAIL + f"{selector} does not accept multiple files")
+        token = "u" + secrets.token_hex(8)
+        keys = []
+        metas = []
+        try:
+            for index, path in enumerate(paths):
+                data = path.read_bytes()
+                b64 = base64.b64encode(data).decode("ascii")
+                key = json.dumps(f"{token}_{index}")
+                keys.append(key)
+                sent = 0
+                for start in range(0, len(b64), max(1, UPLOAD_CHUNK_CHARS)) or [0]:
+                    chunk = b64[start:start + UPLOAD_CHUNK_CHARS]
+                    sent += len(chunk)
+                    got = self._evaluate(
+                        "((g) => { g.__ccUpload = g.__ccUpload || {};"
+                        f" g.__ccUpload[{key}] = (g.__ccUpload[{key}] || '') + {json.dumps(chunk)};"
+                        f" return g.__ccUpload[{key}].length; }})(globalThis)"
+                    )
+                    if got != sent:
+                        raise CDPError(_UPLOAD_FAIL + f"staging {path.name}: page holds {got} of {sent} chars")
+                mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+                metas.append({"key": f"{token}_{index}", "name": path.name, "type": mime,
+                              "lastModified": int(path.stat().st_mtime * 1000), "size": len(data)})
+            done = self._evaluate(
+                f"(() => {{ const el = document.querySelector({sel}); const metas = {json.dumps(metas)};"
+                " const g = globalThis; const store = g.__ccUpload || {};"
+                " try { if (!el) return {ok:false, why:'element vanished'};"
+                " const dt = new DataTransfer();"
+                " for (const m of metas) { const bin = atob(store[m.key] || ''); const u = new Uint8Array(bin.length);"
+                " for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);"
+                " dt.items.add(new File([u], m.name, {type: m.type, lastModified: m.lastModified})); }"
+                " el.files = dt.files;"
+                # Verify BEFORE dispatch: pages like X read the file in their change
+                # handler and reset input.value synchronously (files -> 0), so a
+                # post-dispatch readback is not evidence of failure.
+                " const names = [...el.files].map(f => f.name), sizes = [...el.files].map(f => f.size);"
+                " el.dispatchEvent(new Event('input', {bubbles:true, composed:true}));"
+                " el.dispatchEvent(new Event('change', {bubbles:true}));"
+                " const after = el.isConnected ? (el.files.length ? 'kept' : 'reset_by_page') : 'replaced_by_page';"
+                " return {ok:true, count: names.length, names, sizes, after};"
+                " } finally { for (const m of metas) delete store[m.key]; } })()"
+            ) or {}
+            want = [m["size"] for m in metas]
+            if not done.get("ok") or done.get("count") != len(metas) or done.get("sizes") != want:
+                raise CDPError(_UPLOAD_FAIL + f"{selector}: files before dispatch {done!r}, expected sizes {want}")
+            keys = []
+            self.last_upload = {"selector": selector, "sizes": want, "after": done.get("after")}
+        finally:
+            if keys:
+                try:
+                    self._evaluate(
+                        "((g) => { const s = g.__ccUpload || {};"
+                        f" for (const k of {json.dumps([json.loads(k) for k in keys])}) delete s[k]; return true; }})(globalThis)"
+                    )
+                except Exception:
+                    pass
 
     def _require_target(self, target_id: Any) -> None:
         if str(target_id or "") != self.target_id:

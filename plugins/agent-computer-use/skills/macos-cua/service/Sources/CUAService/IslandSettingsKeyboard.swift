@@ -9,7 +9,7 @@ enum SettingsKey: Equatable { case next, previous, activate, decrease, increase,
 @MainActor
 enum SettingsKeyboard {
     static func key(keyCode: UInt16, flags: NSEvent.ModifierFlags) -> SettingsKey? {
-        if flags.contains(.command) || flags.contains(.option) { return nil }
+        if IslandShortcutRecorder.recording || flags.contains(.command) || flags.contains(.option) { return nil }
         let shift = flags.contains(.shift), ctrl = flags.contains(.control)
         switch keyCode {
         case 48: return ctrl ? (shift ? .previousPane : .nextPane) : (shift ? .previous : .next)
@@ -82,6 +82,62 @@ enum SettingsKeyboard {
         case .activate: return values[(i + 1) % values.count]
         case .increase: return values[min(values.count - 1, i + 1)]
         default: return values[max(0, i - 1)]
+        }
+    }
+}
+
+import Carbon
+import SwiftUI
+
+struct IslandShortcutRecorder: NSViewRepresentable {
+    @ObservedObject var store: IslandSettingsStore
+    @MainActor static var recording = false
+
+    func makeNSView(context: Context) -> RecorderButton {
+        let button = RecorderButton()
+        button.store = store
+        button.target = button
+        button.action = #selector(RecorderButton.begin)
+        button.bezelStyle = .rounded
+        return button
+    }
+    func updateNSView(_ button: RecorderButton, context: Context) {
+        button.store = store
+        if !Self.recording { button.title = IslandShortcut.read(store).display }
+    }
+
+    final class RecorderButton: NSButton {
+        weak var store: IslandSettingsStore?
+        override var acceptsFirstResponder: Bool { true }
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            if newWindow == nil { IslandShortcutRecorder.recording = false }
+            super.viewWillMove(toWindow: newWindow)
+        }
+        @objc func begin() {
+            IslandShortcutRecorder.recording = true
+            title = "Type shortcut"
+            window?.makeFirstResponder(self)
+        }
+        override func resignFirstResponder() -> Bool {
+            IslandShortcutRecorder.recording = false
+            if let store { title = IslandShortcut.read(store).display }
+            return super.resignFirstResponder()
+        }
+        override func keyDown(with event: NSEvent) {
+            guard IslandShortcutRecorder.recording else { super.keyDown(with: event); return }
+            let flags = event.modifierFlags
+            var mods: UInt32 = 0
+            if flags.contains(.command) { mods |= UInt32(cmdKey) }
+            if flags.contains(.control) { mods |= UInt32(controlKey) }
+            if flags.contains(.option) { mods |= UInt32(optionKey) }
+            if flags.contains(.shift) { mods |= UInt32(shiftKey) }
+            guard mods != 0, let text = event.charactersIgnoringModifiers, text.count == 1,
+                  let scalar = text.unicodeScalars.first, !CharacterSet.controlCharacters.contains(scalar),
+                  let store else { NSSound.beep(); return }
+            IslandShortcutRecorder.recording = false
+            IslandShortcut(keyCode: UInt32(event.keyCode), modifiers: mods, character: text.lowercased()).save(store)
+            title = IslandShortcut.read(store).display
+            window?.makeFirstResponder(nil)
         }
     }
 }

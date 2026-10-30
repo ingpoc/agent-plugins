@@ -145,9 +145,15 @@ LIVE_INSTRUCTIONS = (
     "get a short spoken reply and no delegation.\n"
     "Interruption policy: Stop speaking when interrupted and listen. If the user changes or cancels the "
     "request, delegate the change; never say work was cancelled until the backend confirms it.\n"
-    "Backend: it can open and drive any Mac app (Calculator, Finder, TextEdit, Music, Calendar, Settings), "
-    "open and read websites in the Comet browser, and look up saved credentials without revealing them. "
-    "Delegate every request that needs the computer, an app, a website or a credential. Never claim an "
+    "Delegation policy:\n"
+    "Backend tools:\n- Mac apps (Calculator, Finder, TextEdit, Music, Calendar, Settings), Comet browsing, and "
+    "saved credential lookup without revealing secrets.\n"
+    "Generate <|SpawnThinking|> when the user asks for computer, app, website or credential work, a "
+    "correction changes work already requested, or the request needs careful reasoning beyond a simple reply.\n"
+    "Do not generate <|SpawnThinking|> for greetings, small talk, a brief clarification, a repeated result, "
+    "or an answer from the conversation or a still-current result.\n"
+    "Generate <|SpawnThinking|> before answering when the answer depends on backend work. Do not guess "
+    "the result while waiting. Never claim an "
     "action happened until the backend reports it. Unclear or partial speech, or a vague 'that thing'/'it' the last "
     "exchange didn't name: ask one short question (which one?) instead of delegating a guess. When the backend asks to confirm a risky action (send, buy, delete, "
     "pay, overwrite), ask the user plainly and wait for a clear yes."
@@ -303,6 +309,7 @@ class LiveProvider(VoiceProvider):
         self.voice = voice
         self._lock = threading.Lock()
         self.closed = threading.Event()
+        self._usage_unconfirmed = False
         self.store = store
         self.source_session_id = ""   # last session that reached session.started (fork source)
         self.fork_failed = False      # a fork attempt failed at startup: next connect starts fresh
@@ -325,6 +332,14 @@ class LiveProvider(VoiceProvider):
 
         begin_engagement()
         self._remember("user", text)
+        with self._lock:
+            backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
+            if backend_busy:
+                self._pending_spoken_update = text
+            else:
+                self._pending_spoken_update = ""
+        if backend_busy:
+            log_event("live_backend_input_queued", chars=len(text))
         # 'You:' line in voice.log plus the text (capped) in the local activity log.
         log_event("user_transcript", chars=len(text), text=text[:240], provider="openai-live")
         print(f"You: {text}", flush=True)
@@ -341,8 +356,12 @@ class LiveProvider(VoiceProvider):
             self._started = False
             self._ready = False           # session.started seen on this connection
             rotate = bool(getattr(self, "rotate_requested", False))
+            # Forks require a finalized recording, not just a session.started ID.
             self._forking = bool(self.store and getattr(self, "source_session_id", "")
+                                 and self.closed.is_set()
                                  and not getattr(self, "fork_failed", False) and not rotate)
+            self.closed.clear()
+            self._usage_unconfirmed = False
             self.rotate_requested = False
             self.seeded_for_context = rotate
             self._pending_audio: list[str] = []
@@ -368,8 +387,10 @@ class LiveProvider(VoiceProvider):
             self._delegation_response: dict[str, str] = {}
             self._response_text: dict[str, str] = {}
             self._response_calls: set[str] = set()
+            self._active_backend_responses: set[str] = set()
+            self._pending_spoken_update = ""
             self.voice_seconds = 0
-            self._out_seq = 0
+            self._out_seq = getattr(self, "_out_seq", 0)
             self._last_out = 0.0
 
     def url(self) -> str:
@@ -395,13 +416,22 @@ class LiveProvider(VoiceProvider):
     def finalize(self, send: Callable[[dict[str, Any]], bool], timeout: float) -> None:
         """Docs: send session.close and keep receiving until session.closed (final usage)."""
         with self._lock:
+            if self.closed.is_set():
+                return
             started = self._started
         if not started:
             return
-        self.closed.clear()
-        if send({"type": "session.close"}):
-            if not self.closed.wait(timeout):
-                log_event("live_close_unconfirmed", live_model=self.model)
+        if not send({"type": "session.close"}) or not self.closed.wait(timeout):
+            self.mark_usage_unconfirmed()
+
+    def mark_usage_unconfirmed(self) -> None:
+        """Keep the last observed usage when a running session closes without session.closed."""
+        with self._lock:
+            if not self._ready or self.closed.is_set() or self._usage_unconfirmed:
+                return
+            self._usage_unconfirmed = True
+            seconds = self.voice_seconds
+        log_event("live_close_unconfirmed", live_model=self.model, voice_seconds=seconds, final=False)
 
     def backend_model(self, tier: str | None = None) -> str:
         return self.intelligence if (tier or self.tier) == "intelligence" else self.bulk
@@ -530,6 +560,7 @@ class LiveProvider(VoiceProvider):
                              "content": text[:LIVE_APPEND_MAX_CHARS], "delegation_id": None}]
                 self._remember("user", text)  # typed turns seed restarts like spoken ones
                 with self._lock:
+                    self._pending_spoken_update = ""  # this newer explicit request supersedes queued speech
                     self._user_item_queued = True  # the next response.create opens a turn
                 return [{"type": "response.item.create", "item": {
                     "type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}}]
@@ -565,7 +596,20 @@ class LiveProvider(VoiceProvider):
                 # continuation the loop sends after the last output.
                 log_event("live_create_deferred", outstanding_calls=outstanding)
                 return []
-            return [{"type": "response.create"}]
+            with self._lock:
+                update = "" if self._active_backend_responses else self._pending_spoken_update
+                if update:
+                    self._pending_spoken_update = ""
+            out = []
+            if update:
+                # Only amend the backend input between responses, never mid-generation.
+                out.append({"type": "response.item.create", "item": {
+                    "type": "message", "role": "user", "content": [{"type": "input_text", "text":
+                        "Latest spoken update while your task was running (may be partial): "
+                        + update[:LIVE_APPEND_MAX_CHARS]
+                        + "\nUse this to revise the pending task. Do not repeat completed actions or guess at incomplete speech."}]}})
+                log_event("live_backend_input_updated", chars=len(update))
+            return out + [{"type": "response.create"}]
         return [event]
 
     def _tool_output(self, item: dict[str, Any]) -> list[dict[str, Any]]:
@@ -661,10 +705,13 @@ class LiveProvider(VoiceProvider):
             return [{"type": "session.updated", "session": event.get("session") or {}}]
         if et == "session.output_audio.delta":
             now = time.monotonic()
+            audible = not _is_silence(str(event.get("delta") or ""))
             with self._lock:
-                if now - self._last_out > 1.5:
-                    self._out_seq += 1
-                self._last_out = now
+                # Live streams silence too; only audible frames define a reply burst.
+                if audible:
+                    if not self._out_seq or now - self._last_out > 1.5:
+                        self._out_seq += 1
+                    self._last_out = now
                 rid = f"live_out_{self._out_seq}"
             return [{"type": "response.output_audio.delta", "response_id": rid, "item_id": rid,
                      "delta": event.get("delta") or ""}]
@@ -684,7 +731,8 @@ class LiveProvider(VoiceProvider):
             log_event("live_usage", live_model=self.model, voice_seconds=self.voice_seconds,
                       final=et == "session.closed", reason=str(event.get("reason") or "") or None)
             if et == "session.closed":
-                self.closed.set()
+                with self._lock:
+                    self.closed.set()
                 reason = str(event.get("reason") or "")
                 if reason in {"expired", "content", "connection_lost", "remote_hangup"} and not self.restart_requested:
                     with self._lock:
@@ -749,6 +797,7 @@ class LiveProvider(VoiceProvider):
         rid = str(response.get("id") or inner.get("response_id") or "")
         if it == "response.created":
             with self._lock:
+                self._active_backend_responses.add(rid)
                 self._delegation_response[delegation] = rid
         elif not rid:
             # Nested item/text events carry no response id: use the delegation's current response.
@@ -794,9 +843,12 @@ class LiveProvider(VoiceProvider):
             return [{"type": "response.output_item.done", "response_id": rid, "item": item}]
         if it in {"response.completed", "response.done", "response.failed", "response.incomplete"}:
             with self._lock:
+                self._active_backend_responses.discard(rid)
                 outstanding = bool(self._pending_calls.get(delegation))
                 had_calls = rid in self._response_calls
                 self._response_calls.discard(rid)
+                if not had_calls and not outstanding:
+                    self._pending_spoken_update = ""  # no continuation: do not leak speech into a later task
                 text = self._response_text.pop(rid, "")
                 request_id = self._current_request(delegation)
                 stale = bool(text) and not had_calls and not request_id and bool(
@@ -830,6 +882,7 @@ class LiveProvider(VoiceProvider):
         """Bind a new delegation to the turn current at its creation (caller holds the lock)."""
         if delegation in self._delegation_turn:
             return
+        self._pending_spoken_update = ""  # a new delegation already carries the newer conversation
         self._delegation_turn[delegation] = self._turn_seq
         if self._turn_request:
             self._delegation_request[delegation] = self._turn_request

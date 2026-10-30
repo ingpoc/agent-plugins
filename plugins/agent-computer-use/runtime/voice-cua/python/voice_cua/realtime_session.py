@@ -269,6 +269,10 @@ class RealtimeSession:
         self._last_activity = time.monotonic()
         self._last_user_activity = time.monotonic()  # speech, typed turns, backend work
         self._last_mic_audio = 0.0  # monotonic time of the last mic chunk sent
+        self._last_client_wire_type = ""
+        self._last_client_wire_at = 0.0
+        self._last_mic_append_at = 0.0
+        self._ping_ages_at_error: tuple[float | None, float | None] | None = None
         self._restart_pending = False
         # Phase 1 reliability state.
         self._comet_active = False
@@ -277,6 +281,7 @@ class RealtimeSession:
         self._current_response_id = ""
         self._last_user_text = ""
         self._reconnect_attempts = 0
+        self._last_server_event_at = 0.0
         self._connected_at = 0.0  # monotonic time of the last session.updated
         self._retry_not_before = 0.0  # monotonic; set by rate limits / retry-after
         self._retry_reason = ""
@@ -444,7 +449,7 @@ class RealtimeSession:
         log_event("voice_access_refused", provider=self.provider.name, model=self.provider.model,
                   status=self._access_refused)
         island_publish("error", title="Couldn't connect: access denied", detail=self.provider.model)
-        print(f"Realtime: {detail} — this API key/project can't use the selected voice model; "
+        print(f"GPT-Live: {detail} — this API key/project can't use the selected voice model; "
               "pick another model in Settings", flush=True)
 
     def _give_up_reconnect(self) -> None:
@@ -458,7 +463,7 @@ class RealtimeSession:
         # Island error copy must be a "Couldn't ..." line <= 32 chars (island_copy).
         island_publish("error", title="Couldn't reconnect voice")
         print(
-            f"Realtime: gave up after {failures} failed reconnect attempts — "
+            f"GPT-Live: gave up after {failures} failed reconnect attempts — "
             "voice is offline; turn Samantha off and on to retry",
             flush=True,
         )
@@ -533,15 +538,7 @@ class RealtimeSession:
         """Survive the server's 60-min cap: refresh the socket while idle."""
         if self._stop.is_set():
             return
-        with self._response_condition:
-            idle = (
-                not self._active_response_ids
-            )
-        if self._pending_calls or self._inflight_tools:
-            idle = False
-        if self._audio is not None and self._audio.has_playback():
-            idle = False
-        if not idle:
+        if self._conversation_busy(time.monotonic()):
             self._schedule_planned_reconnect(delay=self.PLANNED_RECONNECT_RETRY_SECONDS)
             return
         self._request_reconnect(reason="planned_reconnect_55m")
@@ -562,6 +559,7 @@ class RealtimeSession:
             self._last_mic_audio = time.monotonic()
             if _has_sound(str(event.get("audio") or "")):
                 self._last_user_activity = self._last_mic_audio
+                self._last_activity = self._last_mic_audio
         ok = True
         for wire in self.provider.outbound(event):
             ok = self._send_wire(wire) and ok
@@ -574,8 +572,14 @@ class RealtimeSession:
             return False  # socket closed (shutdown or mid-reconnect) — drop safely
         raw = json.dumps(event)
         try:
+            event_type = str(event.get("type") or "")[:100]
             with self._send_lock:
                 ws.send(raw)
+                sent_at = time.monotonic()
+                self._last_client_wire_type = event_type
+                self._last_client_wire_at = sent_at
+                if event_type in {"input_audio_buffer.append", "session.input_audio.append"}:
+                    self._last_mic_append_at = sent_at
             if event.get("type") in {"session.update", "session.start"}:
                 log_event("session_update", bytes=len(raw.encode("utf-8")), provider=self.provider.name)
             return True
@@ -669,6 +673,15 @@ class RealtimeSession:
 
     def _on_open(self, _ws: Any) -> None:
         mark("realtime_ws_open")
+        headers = getattr(getattr(getattr(_ws, "sock", None), "handshake_response", None), "headers", {})
+        headers = headers if isinstance(headers, dict) else {}
+        self._transport_request_id = str(headers.get("x-request-id") or "")[:160]
+        self._transport_edge_id = str(headers.get("cf-ray") or "")[:160]
+        self._last_server_event_type = ""
+        self._last_client_wire_type = ""
+        self._last_client_wire_at = 0.0
+        self._last_mic_append_at = 0.0
+        self._ping_ages_at_error = None
         self._conn_epoch += 1
         self._reconnect_requested = False
         reconnected = self._conn_epoch > 1
@@ -754,12 +767,14 @@ class RealtimeSession:
             self._send_system_note("The Comet window is now closed. Do not say it is open.")
 
     def _on_message(self, _ws: Any, message: str) -> None:
+        self._last_server_event_at = time.monotonic()
         try:
             event = json.loads(message)
         except json.JSONDecodeError:
             return
         if not isinstance(event, dict):
             return
+        self._last_server_event_type = str(event.get("type") or "")[:100]
         if event.get("type") not in {"session.usage.updated"}:
             self._last_activity = time.monotonic()
         if event.get("type") in {"session.input_transcript.delta", "session.delegation.created", "response.event"}:
@@ -1274,6 +1289,13 @@ class RealtimeSession:
         return True
 
     def _on_error(self, _ws: Any, error: Any) -> None:
+        now = time.time()
+        ping_at = getattr(_ws, "last_ping_tm", None)
+        pong_at = getattr(_ws, "last_pong_tm", None)
+        self._ping_ages_at_error = (
+            round(now - ping_at, 3) if isinstance(ping_at, (int, float)) and ping_at else None,
+            round(now - pong_at, 3) if isinstance(pong_at, (int, float)) and pong_at else None,
+        )
         # Transport-level (e.g. ping timeout): reconnectable, never fatal here.
         # Island feedback stays on "reconnecting" (published at close/retry).
         msg = str(error)[:120]
@@ -1283,6 +1305,8 @@ class RealtimeSession:
             error=msg,
             error_type="websocket",
             classification="transport",
+            exception_type=type(error).__name__,
+            epoch=self._conn_epoch,
         )
         print("ws error:", error, file=sys.stderr)
         # Handshake refusals (e.g. HTTP 429) carry status + retry-after headers.
@@ -1306,24 +1330,51 @@ class RealtimeSession:
         # Diagnose drops: close frame code/reason (None, None = TCP lost without a close frame).
         code = args[0] if args else None
         reason = args[1] if len(args) > 1 else None
+        now = time.time()
+        ping_at = getattr(_ws, "last_ping_tm", None)
+        pong_at = getattr(_ws, "last_pong_tm", None)
+        ping_ages = getattr(self, "_ping_ages_at_error", None)
+        ping_age = ping_ages[0] if ping_ages and ping_ages[0] is not None else None
+        pong_age = ping_ages[1] if ping_ages and ping_ages[1] is not None else None
         log_event("ws_closed", code=code, reason=str(reason or "")[:120] or None,
-                  connected_s=round(time.monotonic() - self._connected_at, 1) if self._connected_at else None,
-                  stopping=self._stop.is_set())
-        if self._stop.is_set():
+                  connected_s=round(time.monotonic() - getattr(self, "_connected_at", 0.0), 1) if getattr(self, "_connected_at", 0.0) else None,
+                  stopping=getattr(self, "_stop", threading.Event()).is_set(), epoch=getattr(self, "_conn_epoch", 0),
+                  reconnect_requested=getattr(self, "_reconnect_requested", False),
+                  close_frame_received=code is not None,
+                  last_server_event_type=getattr(self, "_last_server_event_type", "") or None,
+                  request_id=getattr(self, "_transport_request_id", "") or None,
+                  edge_id=getattr(self, "_transport_edge_id", "") or None,
+                  last_server_event_s=round(time.monotonic() - getattr(self, "_last_server_event_at", 0.0), 3) if getattr(self, "_last_server_event_at", 0.0) else None,
+                  last_client_wire_type=getattr(self, "_last_client_wire_type", "") or None,
+                  last_client_wire_s=round(time.monotonic() - getattr(self, "_last_client_wire_at", 0.0), 3) if getattr(self, "_last_client_wire_at", 0.0) else None,
+                  last_mic_append_s=round(time.monotonic() - getattr(self, "_last_mic_append_at", 0.0), 3) if getattr(self, "_last_mic_append_at", 0.0) else None,
+                  ping_timing_sample="transport_error" if ping_age is not None or pong_age is not None else "close_callback",
+                  last_ping_s=ping_age if ping_age is not None else round(now - ping_at, 3) if isinstance(ping_at, (int, float)) and ping_at else None,
+                  last_pong_s=pong_age if pong_age is not None else round(now - pong_at, 3) if isinstance(pong_at, (int, float)) and pong_at else None)
+        mark_usage_unconfirmed = getattr(getattr(self, "provider", None), "mark_usage_unconfirmed", None)
+        if mark_usage_unconfirmed:
+            mark_usage_unconfirmed()
+        if getattr(self, "_stop", threading.Event()).is_set():
             return
-        if not self._reconnect_requested and code is None:
+        if not getattr(self, "_reconnect_requested", False) and code is None:
             self._drop_plan = self._plan_drop_recovery()
         # Phase 1: close no longer kills the session — run() reconnects.
         island_publish("reconnecting", title="Reconnecting", detail="")
         print("Realtime closed", flush=True)
 
+    def _conversation_busy(self, now: float) -> bool:
+        """Maintenance must not interrupt input speech, playback, or unfinished work."""
+        with self._response_condition:
+            busy = bool(self._active_response_ids)
+        audio = getattr(self, "_audio", None)
+        return (busy or bool(self._pending_calls or self._inflight_tools or getattr(self, "_text_waiters", {}))
+                or bool(audio and audio.has_playback())
+                or now - self._last_user_activity < self.LIVE_ROTATE_QUIET_SECONDS)
+
     def _rest_after_expiry(self) -> bool:
         """Expired with nobody talking: go dormant (wake on speech/text) instead of reconnecting."""
         idle = time.monotonic() - getattr(self, "_last_user_activity", 0.0)
-        with self._response_condition:
-            busy = bool(self._active_response_ids)
-        busy = busy or bool(self._pending_calls or self._inflight_tools)
-        if busy or idle < self.LIVE_EXPIRED_REST_SECONDS or self._dormant.is_set():
+        if self._conversation_busy(time.monotonic()) or idle < self.LIVE_EXPIRED_REST_SECONDS or self._dormant.is_set():
             return False
         self.provider.restart_requested = ""
         log_event("live_expired_rest", idle_s=round(idle, 1))
@@ -1342,10 +1393,7 @@ class RealtimeSession:
             return False
         if now - self._last_mic_audio < 0.5:
             return False  # the mic is streaming (audio or muted zeros)
-        with self._response_condition:
-            busy = bool(self._active_response_ids)
-        busy = busy or bool(self._pending_calls or self._inflight_tools or self._text_waiters)
-        return busy or now - self._last_user_activity < self.LIVE_KEEPALIVE_SECONDS
+        return self._conversation_busy(now) or now - self._last_user_activity < self.LIVE_KEEPALIVE_SECONDS
 
     def _silence_keepalive(self) -> None:
         rate = REALTIME_SAMPLE_RATE
@@ -1364,15 +1412,14 @@ class RealtimeSession:
     def _idle_watchdog(self) -> None:
         """Close a GPT-Live session after LIVE_IDLE_CLOSE_SECONDS without speech or work."""
         while not self._stop.wait(timeout=5.0):
+            if self._audio:
+                self._audio.flush_timings()
             if not getattr(self.provider, "manages_barge_in", False) or self.LIVE_IDLE_CLOSE_SECONDS <= 0:
                 continue
             if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
                 continue
-            with self._response_condition:
-                busy = bool(self._active_response_ids)
-            busy = busy or bool(self._pending_calls or self._inflight_tools)
-            busy = busy or bool(self._audio and self._audio.has_playback())
-            quiet = time.monotonic() - self._last_activity
+            busy = self._conversation_busy(time.monotonic())
+            quiet = time.monotonic() - max(self._last_activity, self._last_user_activity)
             if (not busy and getattr(self.provider, "rotate_requested", False)
                     and quiet >= self.LIVE_ROTATE_QUIET_SECONDS and not getattr(self, "_restart_pending", False)):
                 # Context budget: restart seeded with recent utterances only (no fork) while quiet.
@@ -1553,7 +1600,7 @@ class RealtimeSession:
             transcript = self._response_transcripts.get(response_id, "")
         reply = _normalize_reply(" ".join(text_bits).strip() or transcript.strip())
         if reply:
-            log_event("assistant_reply", text=reply[:240])
+            log_event("assistant_reply", text=reply[:240], source="backend", response_id=response_id or None)
             print(f"Samantha: {reply}", flush=True)
         mark("response_done", status="ok" if reply else "empty")
         request_id = self._request_id(response) or self._request_for_response(response_id)

@@ -1,0 +1,49 @@
+# Changelog: agent-computer-use
+
+Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
+
+## 0.2.49 (2026-10-30)
+
+- Dynamic Island accessibility: the pill and the agent circle are single VoiceOver buttons with labels, values and a press action; the panel reports a floating-window subrole.
+- VoiceOver announcements for approvals, choices, needs-you, errors, results and the 60 s expiry warning, at most one per 3 s. Extra announcements are coalesced by priority, never dropped, so a routine message cannot hide an approval.
+- With VoiceOver on, error and result peeks stay until dismissed (moving the pointer away no longer closes them).
+- "Show Dynamic Island" menu-bar item that opens the island; the ⌃⌘I shortcut is rebindable in Settings › Island › Keyboard.
+- Contrast ladder 100/70/60/15/8 everywhere; Increase Contrast and Differentiate Without Colour are honoured (outline, text and shape badges).
+- Hit targets of at least 28 pt (compact) and 44 pt (cards). Deny gets first focus only for irreversible requests, ⌘↩ approves, Esc closes the card and leaves the approval pending.
+- Hover uses NSTrackingArea instead of 15 Hz polling, and re-checks the pointer when the island changes shape.
+- The agent badge counts only agents that need you; with no agents there is no circle. Empty roster reads "No agents running"; process rows lose the dead trailing glyph.
+- Legacy "macos-cua Operator" helper retired: preflight moves its LaunchAgent, app and state to the Trash once; doctor no longer checks it; the old operator menu is gone.
+- `install_harness.py cursor-plugin` no longer copies into Cursor directories; it moves the stale `~/.cursor/plugins/local/agent-computer-use` copy to the Trash and points `~/.local/bin/agent-computer-use-mcp` at the installed plugin.
+- Marketplace prep: Grok manifest, README overview, permissions list (Accessibility, Screen Recording with relaunch, Automation per app, optional Microphone, Calendars, Focus), secret templates moved to `config/secret-templates/` (local `config/.secret/` is gitignored).
+- Copy: Samantha is described as ACU's voice runtime on GPT-Live-1 (default) or Grok Voice 3.0. GPT Realtime was removed on 2026-10-21 (ad7414a).
+
+## 0.2.30 – 0.2.48 (2026-10-22 – 2026-10-25)
+
+- Cross-harness agent roster and shared Dynamic Island credential workflow.
+- Samantha hardening: audible latency measurement, connection diagnostics, island states.
+- One package and running-service contract; read-only contract probes; isolated media builds; release gate with installed live evidence.
+
+## 0.2.29 (2026-10-22)
+
+- Island layout, secure credential entry, workflow store, volume read-back.
+
+## 0.2.27 – 0.2.28 (2026-10-21 – 2026-10-22)
+
+- Plans after ⌘N target the new window; new-document guard; pinnable build number. Samantha validation and microphone permission fixes.
+
+## 0.2.26 (2026-10-21, tag `agent-computer-use-v0.2.26`, first notarized GitHub release)
+
+- Settings UX review fixes and island brand logos.
+
+## 0.2.23 – 0.2.25 (2026-10-21)
+
+- One ACU Settings window (voice and Computer Use panes), onboarding with one-time approvals, TCC audit, Developer ID release step.
+- Voice: GPT-Live-1 and Grok Voice 3.0 behind a provider adapter; GPT Realtime removed (GPT-Live-1 is the default OpenAI path).
+
+## 0.2.12 – 0.2.22 (2026-08-23 – 2026-10-11)
+
+- Samantha runtime packaged in the plugin; one CUAService instance; compact verified AX deltas and typed failure feedback; actions pinned to their window and fail closed without evidence.
+
+## 0.2.8 – 0.2.9 (2026-08-16)
+
+- First portable Agent Plugin release with the `state` and `act` MCP tools.

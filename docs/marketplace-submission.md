@@ -10,7 +10,7 @@ Sources checked: Cursor [Plugins reference → Submitting a plugin](https://curs
 
 | Plugin | Description (same text in `plugin.json`, `.cursor-plugin/`, `.grok-plugin/`, `.claude-plugin/` and every catalog) |
 | --- | --- |
-| `agent-computer-use` | Operate native macOS apps from an agent through two Accessibility-first MCP tools (state and act), with an optional GPT Realtime voice runtime. macOS only. |
+| `agent-computer-use` | Operate native macOS apps from an agent through two Accessibility-first MCP tools (state and act), with an optional voice runtime, Samantha (GPT-Live-1 or Grok Voice 3.0). macOS only. |
 | `comet-control` | Drive and verify web apps in one leased, visible Perplexity Comet window per agent, through a local broker and an unpacked Comet extension. Never touches Google Chrome or its profiles. macOS only. |
 | `context-ledger` | Local-first decision memory for agents: save the decisions and lessons from critical or recurring tasks, then look them up later through a scoped MCP server over a local SQLite ledger. |
 
@@ -122,7 +122,7 @@ Add to `xai-org/plugin-marketplace` `.grok-plugin/marketplace.json`, then run `p
 ```json
 {
   "name": "agent-computer-use",
-  "description": "Operate native macOS apps from an agent through two Accessibility-first MCP tools (state and act), with an optional GPT Realtime voice runtime. macOS only.",
+  "description": "Operate native macOS apps from an agent through two Accessibility-first MCP tools (state and act), with an optional voice runtime, Samantha (GPT-Live-1 or Grok Voice 3.0). macOS only.",
   "category": "productivity",
   "source": {"source": "url", "url": "https://github.com/ingpoc/agent-plugins.git", "sha": "<40-char sha>", "path": "plugins/agent-computer-use"},
   "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/agent-computer-use",

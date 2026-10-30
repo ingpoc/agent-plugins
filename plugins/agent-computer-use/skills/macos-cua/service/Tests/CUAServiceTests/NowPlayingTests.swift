@@ -115,7 +115,7 @@ final class NowPlayingTests: XCTestCase {
     }
 
     func testDeviceGlyphs() {
-        XCTAssertEqual(OutputDeviceGlyph.symbol(name: "Guru's AirPods Pro", transport: 0), "airpodspro")
+        XCTAssertEqual(OutputDeviceGlyph.symbol(name: "My AirPods Pro", transport: 0), "airpodspro")
         XCTAssertEqual(OutputDeviceGlyph.symbol(name: "AirPods Max", transport: 0), "airpodsmax")
         XCTAssertEqual(OutputDeviceGlyph.symbol(name: "Mac mini Speakers", transport: kAudioDeviceTransportTypeBuiltIn), "hifispeaker.fill")
         XCTAssertEqual(OutputDeviceGlyph.symbol(name: "LG", transport: kAudioDeviceTransportTypeHDMI), "tv")
@@ -219,7 +219,7 @@ final class NowPlayingTests: XCTestCase {
         XCTAssertEqual(p("error"), .error)
         XCTAssertEqual(p("idle", approval: IslandAgentApproval(id: "a", title: "Ok?")), .agentApproval, "agent approval beats music")
         XCTAssertEqual(p("idle", media: false), .idle)
-        XCTAssertEqual(IslandPresentation.nowPlaying.compactWidth, 136)
+        XCTAssertEqual(IslandPresentation.nowPlaying.compactWidth, 74, "music uses the compact activity width")
     }
 
     func testModelMusicReturnsAfterApprovalAndCardOpens() async throws {

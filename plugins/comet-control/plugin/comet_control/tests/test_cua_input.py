@@ -5,6 +5,8 @@ import importlib.util
 import json
 import tempfile
 import unittest
+import struct
+from unittest.mock import Mock, patch
 from pathlib import Path
 
 PATH = Path(__file__).resolve().parents[1] / "native" / "cua_input.py"
@@ -129,6 +131,12 @@ class KeySpecTests(unittest.TestCase):
         self.assertFalse(ci.title_matches("Orders / Kite by Zerodha - Comet", "ACU input matrix"))
         self.assertFalse(ci.title_matches("anything", ""))
 
+    def test_loose_match_accepts_macos_clamped_size_only(self):
+        lease = {"left": 0, "top": 30, "width": 1920, "height": 1050}
+        wins = [win(1, x=0, y=30, w=1900, h=1030), win(2, x=234, y=30, w=1686, h=1050), win(3, x=0, y=30, w=1800, h=1050)]
+        self.assertEqual(ci.match_windows(wins, lease), [])
+        self.assertEqual([w["id"] for w in ci.match_windows_loose(wins, lease)], [1])
+
 
 class AxPressTargetTests(unittest.TestCase):
     def test_deepest_pressable_element_under_point(self):
@@ -163,7 +171,7 @@ class NativeInputTests(unittest.TestCase):
         return n.handle({"op": "raise", "sessionId": "lease-1", "params": {"window": BOUNDS, "title": title}})
 
     def test_same_bounds_as_humans_window_resolves_by_title_only(self):
-        # Guru's Kite window shares the full-display bounds with a single-lease window.
+        # A full-screen app window shares the full-display bounds with a single-lease window.
         n = self.make([win(16790), win(18599)], {16790: "Orders / Kite by Zerodha - Comet", 18599: "ACU input matrix - Comet"})
         out = self.raise_(n)
         self.assertTrue(out["success"], out)
@@ -171,6 +179,20 @@ class NativeInputTests(unittest.TestCase):
         raised = [p for m, p in self.rpc.calls if m == "get_app_state" and p.get("raiseForInput")]
         self.assertEqual([p["windowId"] for p in raised], [18599])
         self.assertEqual(out["saved_front"], "com.anysphere.sand")
+
+    def test_raise_waits_for_stage_manager_thumbnail_to_settle(self):
+        n = self.make([win(18599, x=-288, y=739, w=217, h=177)], {18599: "ACU input matrix - Comet"})
+        calls = {"n": 0}
+        real = self.desk.windows
+        def settling(pid):
+            calls["n"] += 1
+            return real(pid) if calls["n"] < 4 else [win(18599)]
+        self.desk.windows = settling
+        out = self.raise_(n)
+        self.assertTrue(out["success"], out)
+        self.assertEqual(calls["n"], 5)  # 4 settle polls + 1 post-raise frame read
+        settled = win(18599)
+        self.assertEqual(out["frame"], {"left": settled["x"], "top": settled["y"], "width": settled["w"], "height": settled["h"]})
 
     def test_ambiguous_or_mismatched_title_refuses(self):
         n = self.make([win(1), win(2)], {1: "Same - Comet", 2: "Same - Comet"})
@@ -252,6 +274,43 @@ class NativeInputTests(unittest.TestCase):
         entry = json.loads(self.log.read_text().splitlines()[-1])
         self.assertEqual(entry["op"], "capture")
 
+
+
+class RuntimeContractTests(unittest.TestCase):
+    def test_request_uses_installed_package_identity_and_caches_it(self):
+        identity = {"version": "test", "sha256": "abc"}
+        rpc = ci.CuaRpc()
+        sock = Mock()
+        params = {"app": "Comet", "runtimeContract": {"sha256": "untrusted"}}
+        with patch.object(ci.runpy, "run_path", return_value={"package_identity": Mock(return_value=identity)}) as owner, patch.object(ci.socket, "socket", return_value=sock):
+            for req_id in (1, 2):
+                response = json.dumps({"id": req_id, "result": {"ok": True}}).encode()
+                sock.recv.side_effect = [struct.pack("<I", len(response)), response]
+                self.assertTrue(rpc.call("get_app_state", params)["ok"])
+                wire = sock.sendall.call_args.args[0]
+                sent = json.loads(wire[4:])
+                self.assertEqual(sent["params"]["runtimeContract"], identity)
+            owner.assert_called_once()
+        self.assertEqual(params["runtimeContract"], {"sha256": "untrusted"})
+
+    def test_missing_identity_fails_before_connecting(self):
+        with patch.object(ci.runpy, "run_path", side_effect=FileNotFoundError), patch.object(ci.socket, "socket") as sock:
+            with self.assertRaises(ci.NativeInputError) as caught:
+                ci.CuaRpc().call("get_app_state", {})
+            self.assertEqual(caught.exception.code, "CUA_CONTRACT")
+            sock.assert_not_called()
+
+    def test_service_rejection_is_not_bypassed(self):
+        rpc = ci.CuaRpc()
+        rpc._contract = {"version": "stale", "sha256": "stale"}
+        response = json.dumps({"id": 1, "error": {"code": -32010, "message": "RUNTIME_CONTRACT_FAILED"}}).encode()
+        sock = Mock()
+        sock.recv.side_effect = [struct.pack("<I", len(response)), response]
+        with patch.object(ci.socket, "socket", return_value=sock):
+            with self.assertRaises(ci.NativeInputError) as caught:
+                rpc.call("get_app_state", {})
+            self.assertIn("RUNTIME_CONTRACT_FAILED", str(caught.exception))
+            self.assertEqual(sock.sendall.call_count, 1)
 
 if __name__ == "__main__":
     unittest.main()

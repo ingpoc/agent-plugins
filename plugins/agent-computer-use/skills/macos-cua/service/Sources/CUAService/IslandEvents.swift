@@ -71,7 +71,7 @@ enum IslandEventLog {
 }
 
 /// Choice-arrival Quick Peek: 4 s non-key peek on arrival, re-peek at +2 min and at T-60 s,
-/// max 3 peeks per card. A slot that falls while Guru is typing in the source chat app waits
+/// max 3 peeks per card. A slot that falls while the user is typing in the source chat app waits
 /// until he stops (or the next slot replaces it).
 struct IslandPeekScheduler: Equatable {
     static let duration: TimeInterval = 4

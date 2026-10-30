@@ -2,6 +2,7 @@ import {
   USER_SCRIPTS_HINT,
   evaluateWithoutDebugger,
   logPath,
+  nativeBringToFront,
   nativeCapture,
   nativeClickFlow,
   nativeKeyFlow,
@@ -998,6 +999,9 @@ async function policyFallbackCdp(tabId, method, params, hooks, state = { tabId }
     return out;
   }
   if (caps && state.leaseRecord) {
+    if (method === "Page.bringToFront") {
+      return await nativeBringToFront(state, nativeHooks, { holdMs: Number(params.holdMs ?? 1500), label: "bu.bringToFront" });
+    }
     if (method === "Input.insertText") {
       const real = await nativeTypeFlow(state, nativeHooks, { text: String(params.text ?? ""), label: "bu.insertText" });
       return { input_path: real.input_path, text_mode: real.text_mode, verified: real.verified };
@@ -1062,7 +1066,7 @@ async function policyFallbackCdp(tabId, method, params, hooks, state = { tabId }
     await chrome.tabs.reload(tabId);
     return {};
   }
-  throw new Error(`${method} needs chrome.debugger, which browser policy blocks on this Comet ("Host access is restricted by policy."); use js() / DOM actions instead (Input.*, Page.captureScreenshot and Runtime.evaluate have real-input / userScripts fallbacks; DOM.* has none)`);
+  throw new Error(`${method} needs chrome.debugger, which browser policy blocks on this Comet ("Host access is restricted by policy."); use js() / DOM actions instead (Input.*, Page.bringToFront, Page.captureScreenshot and Runtime.evaluate have real-input / userScripts fallbacks; DOM.* has none)`);
 }
 
 async function cdpAction(action, state, hooks) {

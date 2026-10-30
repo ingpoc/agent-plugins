@@ -84,6 +84,7 @@ ni.setNativeTransport((msg) => {
       page.raised = true;
       page.pageFocus = page.blockPageFocus ? false : true;
       reply.window_id = 18599;
+      if (globalThis.__raiseFrame) reply.frame = globalThis.__raiseFrame;
     } else if (msg.op === "steps") {
       assert.equal(msg.params.window_id, 18599);
       for (const s of msg.params.steps) {
@@ -113,6 +114,23 @@ const hooks = {
   },
 };
 const state = { tabId: 7, leaseRecord: { sessionId: "lease-1", windowId: 70 } };
+
+resetPage();
+let visibilityReads = 0;
+const visibilityHooks = { ...hooks, executeScriptOnTab: async (_tabId, options) => {
+  assert.deepEqual(options.target.frameIds, [0]);
+  return [{ result: ++visibilityReads === 1 ? "hidden" : "visible" }];
+} };
+log.length = 0;
+const raised = await ni.nativeBringToFront(state, visibilityHooks, { holdMs: 0 });
+assert.equal(raised.visible, true);
+assert.equal(raised.input_path, "window_focus");
+assert.equal(raised.hold_ms, 0);
+assert.deepEqual(log.filter((op) => ["prepare_raise", "raise", "release"].includes(op)), ["prepare_raise", "release"]);
+log.length = 0;
+await assert.rejects(ni.nativeBringToFront(state, { ...hooks, executeScriptOnTab: async () => { throw new Error("poll failed"); } }, { holdMs: 0 }), /poll failed/);
+assert.deepEqual(log.filter((op) => ["prepare_raise", "raise", "release"].includes(op)), ["prepare_raise", "release"]);
+await assert.rejects(ni.nativeBringToFront({ tabId: 7 }, hooks, { holdMs: 0 }), { code: "LEASE_REQUIRED" });
 
 // ── 4) capability detection runs once per lease
 let probes = 0;
@@ -216,6 +234,12 @@ assert.deepEqual(log.filter((l) => !l.startsWith("log_path")), ["prepare_raise",
 log.length = 0;
 r = await ni.nativeClickFlow(state, hooks, { selector: "#trusted" });
 assert.ok(log.includes("steps:click@2660,454"));
+// macOS/Stage Manager clamps the real window 20px shorter than Chrome reports: map with the real frame.
+globalThis.__raiseFrame = { left: 2560, top: 317, width: 1920, height: 1030 };
+log.length = 0;
+await ni.nativeClickFlow(state, hooks, { selector: "#trusted" });
+assert.ok(log.includes("steps:click@2660,434"), log.join(" "));
+globalThis.__raiseFrame = undefined;
 assert.equal(r.trusted, true);
 await assert.rejects(ni.nativeClickFlow(state, hooks, { point: { x: 1, y: 1 }, frameId: 3 }), (e) => e.code === "REAL_MOUSE_FRAME");
 r = await ni.nativeCapture(state, hooks, { inline: true });
@@ -262,6 +286,10 @@ assert.ok(log.includes("steps:Enter"));
 resetPage("input", "");
 log.length = 0;
 const cdp = (method, params = {}) => ({ type: "browser_use_cdp", method, params });
+pr = await parity.runParityAction(cdp("Page.bringToFront", { holdMs: 0 }), state, { ...parityHooks, nativeHooks: visibilityHooks });
+assert.equal(pr.result.fallback, "policy");
+assert.equal(pr.result.result.input_path, "window_focus");
+assert.equal(pr.result.result.visible, true);
 pr = await parity.runParityAction(cdp("Input.insertText", { text: "abc" }), state, parityHooks);
 assert.equal(pr.result.fallback, "policy");
 assert.equal(pr.result.result.input_path, "cua_keyboard");

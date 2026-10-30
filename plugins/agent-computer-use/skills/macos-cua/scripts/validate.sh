@@ -25,13 +25,6 @@ oversized = {
     for path in sorted((root / "scripts").glob("*.py"))
     if path.name not in non_runtime and source_lines(path) > 600
 }
-oversized.update(
-    {
-        str(path.relative_to(root)): len(path.read_text().splitlines())
-        for path in sorted((root / "operator").glob("*.swift"))
-        if len(path.read_text().splitlines()) > 600
-    }
-)
 if oversized:
     raise SystemExit(f"production modules exceed 600 source lines: {oversized}")
 print("python syntax: ok")

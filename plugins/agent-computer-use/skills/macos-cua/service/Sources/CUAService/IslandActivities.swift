@@ -106,6 +106,19 @@ enum IslandPeekRules {
         now.timeIntervalSince(at) < 60 ? nil : age(at, now: now)
     }
 
+    static func compactWidth(_ item: IslandPeekItem, now: Date) -> CGFloat {
+        let title = (item.title as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 13, weight: .semibold)]).width
+        var width = IslandBarLayout.slotInset + 16 + 8 + ceil(title) + 10
+        if item.count > 1 {
+            let count = (String(item.count) as NSString).size(withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold)]).width
+            width += 8 + max(16, ceil(count) + (item.count > 9 ? 8 : 0))
+        }
+        if let age = ageLabel(item.at, now: now) {
+            width += 8 + ceil((age as NSString).size(withAttributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)]).width)
+        }
+        return min(IslandBarLayout.peekWidth, max(IslandBarLayout.idleWidth, width))
+    }
+
     /// Success glyphs draw in system green (#30D158).
     static func isSuccess(_ symbol: String) -> Bool { symbol.hasPrefix("checkmark") }
 }
@@ -321,11 +334,18 @@ struct IslandSwipeTracker {
 
 // MARK: - 7 Agent list controls
 
-/// Optimistic row state for Stop / Retry / Approve.
+/// Optimistic row state for agent controls and request review.
 struct IslandRowControl: Equatable {
-    enum Action: String, Equatable { case stop, retry, approve }
+    enum Action: String, Equatable { case stop, retry, review, dismiss }
     var action: Action
     var since: Date
+}
+
+struct IslandAgentRow: Equatable, Identifiable {
+    var agent: IslandAgent
+    var depth: Int
+    var parentName: String? = nil
+    var id: String { agent.id }
 }
 
 enum IslandAgentRows {
@@ -334,27 +354,102 @@ enum IslandAgentRows {
     static let confirmWindow: TimeInterval = 3
     static let ackTimeout: TimeInterval = 5
 
-    /// Card hugs its rows: 16 pt padding + 44 pt rows (+ 18 pt "+N in app"), min 96; 4 rows + footer = 226.
-    static func cardHeight(rows: Int, footer: Bool) -> CGFloat {
-        let n = CGFloat(min(max(rows, 1), maxRows))
-        return max(96, 2 * IslandBarLayout.cardPadding + n * rowHeight + (footer ? 18 : 0))
+    /// Card hugs its rows: 16 pt padding + 44 pt rows (+ confirmation space and footer), min 96.
+    static func cardHeight(rows: Int, footer: Bool, stopConfirmation: Bool = false,
+                           maxVisibleRows: Int = maxRows) -> CGFloat {
+        let n = CGFloat(min(max(rows, 1), max(1, maxVisibleRows)))
+        return max(96, 2 * IslandBarLayout.cardPadding + n * rowHeight
+            + (stopConfirmation ? 40 : 0) + (footer ? 18 : 0))
     }
 
-    /// Which control a row offers: Approve only when pending, Retry only failed (and retry-capable), Stop only running (and stop-capable).
+    static func isProcessObservation(_ agent: IslandAgent) -> Bool {
+        agent.status == "process" || agent.status == "harness"
+    }
+
+    static func processObservations(_ agents: [IslandAgent]) -> [IslandAgent] {
+        agents.filter(isProcessObservation)
+    }
+
+    static func taskAgents(_ agents: [IslandAgent]) -> [IslandAgent] {
+        agents.filter { !isProcessObservation($0) }
+    }
+
+    /// Keep children beneath their parent and rank branches by their most urgent descendant.
+    static func priority(_ a: IslandAgent) -> Int {
+        if a.needs_you || a.status == "needs_you" { return 0 }
+        if ["error", "stale", "expired"].contains(a.status) { return 1 }
+        if a.status == "running" { return 2 }
+        if a.status == "done" { return 3 }
+        return 4
+    }
+
+    static func hierarchical(_ agents: [IslandAgent]) -> [IslandAgentRow] {
+        var children: [String: [IslandAgent]] = [:]
+        var roots: [IslandAgent] = []
+        let ids = Set(agents.map(\.id))
+        let indices = Dictionary(agents.enumerated().map { ($0.element.id, $0.offset) }, uniquingKeysWith: { first, _ in first })
+        for agent in agents {
+            if let parent = agent.parent_id, parent != agent.id, ids.contains(parent) {
+                children[parent, default: []].append(agent)
+            } else {
+                roots.append(agent)
+            }
+        }
+
+        var rows: [IslandAgentRow] = []
+        var visited = Set<String>()
+        func branchPriority(_ agent: IslandAgent, visiting: Set<String> = []) -> Int {
+            guard !visiting.contains(agent.id) else { return priority(agent) }
+            var next = visiting
+            next.insert(agent.id)
+            return (children[agent.id] ?? []).reduce(priority(agent)) { min($0, branchPriority($1, visiting: next)) }
+        }
+        func ordered(_ agents: [IslandAgent]) -> [IslandAgent] {
+            agents.sorted {
+                let l = branchPriority($0), r = branchPriority($1)
+                return l == r ? (indices[$0.id] ?? 0) < (indices[$1.id] ?? 0) : l < r
+            }
+        }
+        func append(_ seeds: [(IslandAgent, Int)]) {
+            var stack = Array(seeds.sorted {
+                let l = branchPriority($0.0), r = branchPriority($1.0)
+                return l == r ? (indices[$0.0.id] ?? 0) < (indices[$1.0.id] ?? 0) : l < r
+            }.reversed())
+            while let (agent, depth) = stack.popLast() {
+                guard visited.insert(agent.id).inserted else { continue }
+                let parentName = agent.parent_id.flatMap { parent in agents.first(where: { $0.id == parent })?.name }
+                rows.append(IslandAgentRow(agent: agent, depth: depth, parentName: parentName))
+                for child in ordered(children[agent.id] ?? []).reversed() { stack.append((child, depth + 1)) }
+            }
+        }
+        append(roots.map { ($0, 0) })
+        for agent in agents where !visited.contains(agent.id) { append([(agent, 0)]) }
+        return rows
+    }
+
+    /// Pending rows open their request; they never answer it from the roster.
     static func control(for a: IslandAgent) -> IslandRowControl.Action? {
-        if a.id.hasPrefix("pending:") { return .approve }
+        if a.status == "stale" { return .dismiss }
+        if a.id.hasPrefix("pending:") { return .review }
         if a.status == "error", a.controls.contains("retry") { return .retry }
-        if a.status == "running" { return .stop }   // every running row can be stopped
+        if a.status == "running" {
+            return !a.id.hasPrefix("agent:") || a.controls.contains("stop") ? .stop : nil
+        }
         return nil
     }
 
-    /// "running 4m", "failed", "waiting", "done".
+    /// "running 4m", "failed", "needs you", "done", or the last-seen age for a stale row.
     static func statusText(_ a: IslandAgent, elapsedExtra: TimeInterval = 0) -> String {
         switch a.status {
         case "error": return "failed"
-        case "needs_you": return "waiting"
+        case "needs_you": return "needs you"
         case "done": return "done"
         case "expired": return "timed out"
+        case "stale":
+            let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))
+            let age = n < 60 ? "\(n)s" : n < 3600 ? "\(n / 60)m" : "\(n / 3600)h"
+            return "updates stopped · last seen \(age) ago"
+        case "process", "harness": return "activity unknown"
         default:
             let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))
             let t = n < 60 ? "\(n)s" : n < 3600 ? "\(n / 60)m" : "\(n / 3600)h"

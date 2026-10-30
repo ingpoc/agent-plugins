@@ -31,11 +31,19 @@ final class IslandCaptureHarness: XCTestCase {
     }
 
     private func capture(_ dir: String, _ name: String, tall: Bool) throws {
+        let size = NSSize(width: 640, height: tall ? 200 : 40)
+        let originX = Int(max(0, ((NSScreen.main?.frame.width ?? size.width) - size.width) / 2))
+        let imageURL = URL(fileURLWithPath: dir).appendingPathComponent(name + ".png")
+        try? FileManager.default.removeItem(at: imageURL)
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        proc.arguments = ["-x", "-R", tall ? "960,0,640,200" : "960,0,640,40", "\(dir)/\(name).png"]
+        proc.arguments = ["-x", "-R", "\(originX),0,\(Int(size.width)),\(Int(size.height))", imageURL.path]
         try proc.run()
         proc.waitUntilExit()
+        guard proc.terminationStatus == 0, let image = NSImage(contentsOf: imageURL), image.size.width > 0, image.size.height > 0 else {
+            throw NSError(domain: "IslandCaptureHarness", code: Int(proc.terminationStatus),
+                          userInfo: [NSLocalizedDescriptionKey: "screen capture failed; check Screen Recording access for the test runner"])
+        }
     }
 
     private func meters(side: String) async throws {
@@ -82,8 +90,8 @@ final class IslandCaptureHarness: XCTestCase {
                           "active_apps": ["Calculator"]], ""),
             ("07-done", ["kind": "done", "title": "84", "detail": "12 × 7", "app": "Calculator", "active_apps": ["Calculator"]], ""),
             ("08-agent-approval", ["kind": "listening", "title": "Listening", "active_apps": [],
-                                   "agent_approval": ["id": "m1", "agent": "Codex", "app": "Codex", "title": "Approve migration?",
-                                                      "subtitle": "Codex · ap-acu-samantha · 4m ago", "destructive": true]], ""),
+                                   "agent_approval": ["id": "m1", "agent": "Codex", "app": "Codex", "title": "Delete 3 stale branches?",
+                                                      "subtitle": "Targets: feature/cache, stale/logging, migration/legacy", "destructive": true]], ""),
             ("09-multi-agent", ["kind": "listening", "title": "Listening", "active_apps": ["Comet"], "app": "",
                                 "agents": agents, "agent_approval": [:]], "user"),
         ]

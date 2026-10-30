@@ -130,9 +130,9 @@ final class IslandSettingsTests: XCTestCase {
         let keys = IslandSettingsSchema.all.map(\.key)
         XCTAssertEqual(Set(keys).count, keys.count, "unique keys")
         XCTAssertTrue(keys.allSatisfy { $0.hasPrefix("island.") || $0.hasPrefix("voice.") || $0.hasPrefix("cua.") })
-        // Agents section lists the four sources; About is pinned (no header), not a sidebar group.
+        // AI Agents contains the individual sources and shared roster; About is pinned.
         let agents = SettingsTab.sidebar.first { $0.0 == "AI Agents" }?.1
-        XCTAssertEqual(agents, [.samantha, .grokBot, .cursor, .codex])
+        XCTAssertEqual(agents, [.samantha, .grokBot, .cursor, .codex, .agentRoster])
         XCTAssertFalse(SettingsTab.sidebar.contains { $0.0 == "Samantha" }, "no Samantha header")
         XCTAssertFalse(SettingsTab.sidebar.flatMap(\.1).contains(.about))
         XCTAssertEqual(SettingsTab.panes.last, .about)

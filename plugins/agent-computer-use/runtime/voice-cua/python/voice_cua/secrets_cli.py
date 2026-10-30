@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("path", help="Print secrets directory (~/.config/voice-cua/.secret)")
 
-    sub.add_parser("init", help="Install bundled config/.secret/*.json (skip existing)")
+    sub.add_parser("init", help="Install bundled config/secret-templates/*.json (skip existing)")
 
     sub.add_parser("labels", help="Print config/.secret/labels.json (refresh if stale)")
 
@@ -71,7 +71,7 @@ def main(argv: list[str] | None = None) -> int:
     p_put.add_argument("--platform", default="generic")
     p_put.add_argument("--env", default="local")
     p_put.add_argument("--role", help="Runtime role (e.g. openai-runtime)")
-    p_put.add_argument("--from-file", help="Read metadata from JSON file (config/.secret/<id>.json)")
+    p_put.add_argument("--from-file", help="Read metadata from JSON file (config/secret-templates/<id>.json)")
     p_put.add_argument("--stdin-value", action="store_true", help="Read secret from stdin")
     p_put.add_argument("--prompt", action="store_true", help="Prompt for secret (default if no stdin)")
 

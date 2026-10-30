@@ -112,7 +112,7 @@ struct PermissionRows: View {
             ForEach(Array(groups.enumerated()), id: \.offset) { gi, g in
                 VStack(alignment: .leading, spacing: 6) {
                     if let s = g.section {
-                        Text(s).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white.opacity(0.55))
+                        Text(s).font(.system(size: 12, weight: .semibold)).foregroundStyle(IslandInk.metaColor)
                             .lineLimit(1).truncationMode(.tail).help(s)
                             .layoutProbe("section:\(gi)", truncates: true).padding(.leading, 4)
                     }
@@ -187,7 +187,7 @@ struct OnboardingView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutProbe("welcome-title", truncates: true).padding(.leading, 4)
             Text("Agents see and use your Mac on your behalf. Grant each permission once here, so a task never stops halfway to ask.")
-                .font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.7))
+                .font(.system(size: 13)).foregroundStyle(IslandInk.secondaryColor)
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutProbe("welcome-body", truncates: true).padding(.leading, 4)
             SettingsCard {
@@ -197,7 +197,7 @@ struct OnboardingView: View {
                         Image(systemName: p.0).font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(SettingsStyle.accent).frame(width: 18)
                             .layoutProbe("welcome-symbol:\(i)", .glyph)
-                        Text(p.1).font(.system(size: 13)).foregroundStyle(Color.white.opacity(0.92))
+                        Text(p.1).font(.system(size: 13)).foregroundStyle(Color.white)
                             .lineLimit(1).truncationMode(.tail)
                             .layoutProbe("welcome-point:\(i)", truncates: true)
                         Spacer(minLength: 0)
@@ -207,7 +207,7 @@ struct OnboardingView: View {
                 }
             }
             Text("Every prompt is macOS's own. Nothing is granted for you.")
-                .font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45))
+                .font(.system(size: 11)).foregroundStyle(IslandInk.metaColor)
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutProbe("welcome-note", truncates: true).padding(.leading, 4)
         }
@@ -253,7 +253,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 14) {
             PermissionRows(rows: rows, store: store, rendering: rendering, focus: model.focusRow?.key, permissions: permissions)
             Text("Change these later in ACU Settings › Computer Use.")
-                .font(.system(size: 11)).foregroundStyle(Color.white.opacity(0.45))
+                .font(.system(size: 11)).foregroundStyle(IslandInk.metaColor)
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutProbe("permissions-note", truncates: true).padding(.leading, 4)
         }

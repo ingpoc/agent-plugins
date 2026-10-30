@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import shutil
 import socket
 import struct
@@ -28,6 +29,11 @@ from typing import Any, Callable
 COMET_BUNDLE_ID = "ai.perplexity.comet"
 DEFAULT_CUA_SOCKET = Path("~/.cache/macos-cua/cua-service.sock").expanduser()
 BOUNDS_TOLERANCE = 2.0
+# macOS clamps windows to the visible frame: Chrome can report 1920x1050 while the CG
+# window is 1900x1030. Same origin + slightly smaller size still identifies the window
+# (title + attested pid are checked after).
+SIZE_SLACK = 48.0
+RAISE_SETTLE_S = 1.5
 RESTORE_DELAY_S = 0.6
 PASTE_SETTLE_S = 0.12
 KEYSTROKE_MAX_CHARS = 40
@@ -140,6 +146,18 @@ def match_windows(windows: list[dict[str, Any]], bounds: dict[str, Any]) -> list
     return out
 
 
+def match_windows_loose(windows: list[dict[str, Any]], bounds: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fallback when exact bounds miss: same origin, size equal or up to SIZE_SLACK smaller."""
+    want = [float(bounds[k]) for k in ("left", "top", "width", "height")]
+    out = []
+    for win in windows:
+        x, y, w, h = (float(win[k]) for k in ("x", "y", "w", "h"))
+        if (abs(x - want[0]) <= BOUNDS_TOLERANCE and abs(y - want[1]) <= BOUNDS_TOLERANCE
+                and -BOUNDS_TOLERANCE <= want[2] - w <= SIZE_SLACK and -BOUNDS_TOLERANCE <= want[3] - h <= SIZE_SLACK):
+            out.append(win)
+    return out
+
+
 AX_CLICK_WALK = 800
 _PRESS_ROLES = {"AXButton", "AXLink", "AXCheckBox", "AXRadioButton", "AXMenuItem", "AXPopUpButton",
                 "AXDisclosureTriangle", "AXTab", "AXMenuButton", "AXImage", "AXCell", "AXRow", "AXStaticText"}
@@ -181,11 +199,21 @@ class CuaRpc:
         self.socket_path = Path(socket_path)
         self._seq = 0
         self._lock = threading.Lock()
+        self._contract: dict[str, str] | None = None
 
     def call(self, method: str, params: dict[str, Any], timeout: float = 15.0) -> dict[str, Any]:
         with self._lock:
             self._seq += 1
             req_id = self._seq
+        if method != "runtime_contract":
+            if self._contract is None:
+                root = Path.home() / ".agents/plugins/agent-computer-use"
+                try:
+                    owner = runpy.run_path(str(root / "skills/macos-cua/scripts/runtime_contract.py"))
+                    self._contract = owner["package_identity"](root)
+                except (OSError, ValueError, KeyError) as exc:
+                    raise NativeInputError("CUA_CONTRACT", "Installed Agent Computer Use identity unavailable; sync the plugin") from exc
+            params = {**params, "runtimeContract": self._contract}
         body = json.dumps({"jsonrpc": "2.0", "method": method, "params": params, "id": req_id}).encode()
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(timeout)
@@ -252,7 +280,22 @@ class MacDesktop:
         return out
 
     def frontmost(self) -> dict[str, Any] | None:
+        # NSWorkspace.frontmostApplication() is only refreshed by main-run-loop
+        # notifications, which the broker never pumps: it went stale, so release
+        # mistook Comet-in-front for "the human took focus" and never restored.
+        # The on-screen window order is always current.
         import AppKit
+        import Quartz
+        info = Quartz.CGWindowListCopyWindowInfo(
+            Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements, Quartz.kCGNullWindowID
+        ) or []
+        for win in info:
+            if int(win.get("kCGWindowLayer", 1)) != 0:
+                continue
+            pid = int(win.get("kCGWindowOwnerPID", 0))
+            app = AppKit.NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
+            if app is not None and int(app.activationPolicy()) == AppKit.NSApplicationActivationPolicyRegular:
+                return {"pid": pid, "bundle_id": str(app.bundleIdentifier() or "")}
         app = AppKit.NSWorkspace.sharedWorkspace().frontmostApplication()
         if app is None:
             return None
@@ -263,7 +306,21 @@ class MacDesktop:
         app = AppKit.NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
         if app is None or app.isTerminated():
             return False
-        return bool(app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps))
+        app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)
+        for _ in range(6):
+            if (self.frontmost() or {}).get("pid") == pid:
+                return True
+            time.sleep(0.05)
+        # macOS 14+ ignores activation requests from a background process; LaunchServices
+        # (`open -b`) still brings an already-running app forward without new permissions.
+        bundle = str(app.bundleIdentifier() or "")
+        if not bundle:
+            return False
+        import subprocess
+        subprocess.run(["/usr/bin/open", "-b", bundle], check=False, timeout=5,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(0.2)
+        return (self.frontmost() or {}).get("pid") == pid
 
     def clipboard_save(self) -> list[dict[str, bytes]]:
         import AppKit
@@ -392,7 +449,15 @@ class NativeInput:
 
     def _resolve_window(self, session: str, params: dict[str, Any]) -> tuple[int, str]:
         pid = self._comet_pid()
-        candidates = match_windows(self.desktop.windows(pid), params.get("window") or {})
+        bounds = params.get("window") or {}
+        # Stage Manager / Dock animations: right after chrome.windows.update(focused) the
+        # CG window can still be a small stage thumbnail. Poll briefly for it to settle.
+        for attempt in range(int(RAISE_SETTLE_S / 0.1) + 1):
+            windows = self.desktop.windows(pid)
+            candidates = match_windows(windows, bounds) or match_windows_loose(windows, bounds)
+            if candidates:
+                break
+            self.sleep(0.1)
         if not candidates:
             raise NativeInputError("WINDOW_NOT_FOUND", "no Comet window matches the leased window bounds")
         tab_title = str(params.get("title") or "")
@@ -443,8 +508,19 @@ class NativeInput:
         }, timeout=10)
         if int(state.get("windowId") or 0) != wid:
             raise NativeInputError("WINDOW_RAISE_FAILED", "CUAService raised a different window")
-        return {"window_id": wid, "window_title_len": len(title),
-                "saved_front": (self.saved_front or {}).get("bundle_id", "")}
+        out = {"window_id": wid, "window_title_len": len(title),
+               "saved_front": (self.saved_front or {}).get("bundle_id", "")}
+        # Real on-screen frame of the raised window. Chrome's window bounds can differ
+        # (macOS / Stage Manager clamp 1920x1050 to 1900x1030), and client->screen
+        # mapping from Chrome bounds then lands ~20px off.
+        try:
+            pid = self._comet_pid()
+            frame = next((w for w in self.desktop.windows(pid) if int(w["id"]) == wid), None)
+        except NativeInputError:
+            frame = None
+        if frame:
+            out["frame"] = {"left": frame["x"], "top": frame["y"], "width": frame["w"], "height": frame["h"]}
+        return out
 
     def op_steps(self, session: str, params: dict[str, Any]) -> dict[str, Any]:
         wid = self._pinned(session, params)

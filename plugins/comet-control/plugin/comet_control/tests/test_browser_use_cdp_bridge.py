@@ -281,5 +281,133 @@ const getStatus=()=>({visible:isVisible});
         self.assertIn('"pulseClick"', branch)
 
 
+POLICY = 'DOM.getDocument needs chrome.debugger, which browser policy blocks on this Comet ("Host access is restricted by policy.")'
+
+
+class FakeUploadPage:
+    """Python stand-in for the userScripts evaluate path used by the upload fallback."""
+
+    def __init__(self, element: dict | None, dom_error: str | None = POLICY) -> None:
+        import base64 as _b64
+        import re as _re
+        self._b64, self._re = _b64, _re
+        self.element = element
+        self.dom_error = dom_error
+        self.store: dict[str, str] = {}
+        self.calls: list[tuple[str, dict]] = []
+        self.files: list[tuple[str, int, str]] = []
+        self.after = "kept"
+        self.reject = False
+
+    def run_action(self, action: dict) -> dict:
+        method, params = action["method"], action.get("params") or {}
+        self.calls.append((method, params))
+        if method.startswith("DOM."):
+            if self.dom_error:
+                raise RuntimeError(self.dom_error.replace("DOM.getDocument", method))
+            return {"root": {"nodeId": 7}} if method == "DOM.getDocument" else {"nodeId": 9}
+        expr = params["expression"]
+        if expr.startswith("!!document.querySelector"):
+            value = self.element is not None
+        elif "not an input[type=file]" in expr:
+            el = self.element
+            if el is None:
+                value = {"ok": False, "why": "no element"}
+            elif el["tag"] != "INPUT" or el["type"] != "file":
+                value = {"ok": False, "why": "not an input[type=file]"}
+            else:
+                value = {"ok": True, "multiple": el.get("multiple", False)}
+        elif "g.__ccUpload[" in expr and "+ " in expr:
+            key = json.loads(self._re.search(r"g\.__ccUpload\[(\"[^\"]+\")\] = ", expr).group(1))
+            chunk = json.loads(self._re.search(r"\+ (\"[^\"]*\");", expr).group(1))
+            self.store[key] = self.store.get(key, "") + chunk
+            value = len(self.store[key])
+        elif "new DataTransfer()" in expr:
+            metas = json.loads(self._re.search(r"const metas = (\[.*?\]);", expr).group(1))
+            self.files = [(m["name"], len(self._b64.b64decode(self.store.get(m["key"], ""))), m["type"]) for m in metas]
+            for m in metas:
+                self.store.pop(m["key"], None)
+            value = {"ok": True, "count": len(self.files), "names": [f[0] for f in self.files], "sizes": [f[1] for f in self.files], "after": self.after}
+            if self.reject:
+                value = {"ok": True, "count": 0, "names": [], "sizes": [], "after": "kept"}
+        else:
+            value = True
+        return {"result": {"type": type(value).__name__, "value": value}}
+
+
+class UploadFallbackTests(unittest.TestCase):
+    def make(self, page: FakeUploadPage):
+        module = load_bridge()
+        bridge = module.BrowserUseCDPBridge("upload", page.run_action, lambda: {"url": "http://t/"}, lambda: None)
+        self.addCleanup(bridge.server.socket.close)
+        return module, bridge
+
+    def upload(self, bridge, selector: str, files: list) -> dict:
+        doc = bridge._browser_command("DOM.getDocument", {"depth": -1})
+        nid = bridge._browser_command("DOM.querySelector", {"nodeId": doc["root"]["nodeId"], "selector": selector})["nodeId"]
+        if not nid:
+            raise RuntimeError(f"no element for {selector}")
+        return bridge._browser_command("DOM.setFileInputFiles", {"files": files, "nodeId": nid})
+
+    def tmpfile(self, size: int, name: str = "cover.png") -> Path:
+        directory = Path(tempfile.mkdtemp())
+        path = directory / name
+        path.write_bytes(os.urandom(size))
+        return path
+
+    def test_policy_block_uses_shim_and_chunks_bytes(self) -> None:
+        page = FakeUploadPage({"tag": "INPUT", "type": "file"})
+        module, bridge = self.make(page)
+        module.UPLOAD_CHUNK_CHARS = 1000
+        path = self.tmpfile(5000)
+        self.assertEqual(self.upload(bridge, "input[type=file]", [str(path)]), {})
+        self.assertEqual(page.files, [("cover.png", 5000, "image/png")])
+        staged = [c for c in page.calls if "g.__ccUpload[" in c[1].get("expression", "") and "+ " in c[1]["expression"]]
+        self.assertGreater(len(staged), 5)
+        self.assertEqual(page.store, {})
+
+    def test_page_reset_after_change_is_success_but_rejected_assign_fails(self) -> None:
+        page = FakeUploadPage({"tag": "INPUT", "type": "file"})
+        page.after = "reset_by_page"  # X: change handler clears input.value
+        _module, bridge = self.make(page)
+        self.assertEqual(self.upload(bridge, "#f", [str(self.tmpfile(50))]), {})
+        self.assertEqual(bridge.last_upload["after"], "reset_by_page")
+        page = FakeUploadPage({"tag": "INPUT", "type": "file"})
+        page.reject = True
+        module, bridge = self.make(page)
+        with self.assertRaisesRegex(module.CDPError, "files before dispatch"):
+            self.upload(bridge, "#f", [str(self.tmpfile(50))])
+
+    def test_missing_element_returns_zero_node(self) -> None:
+        page = FakeUploadPage(None)
+        _module, bridge = self.make(page)
+        bridge._browser_command("DOM.getDocument", {})
+        self.assertEqual(bridge._browser_command("DOM.querySelector", {"nodeId": 1, "selector": "#x"}), {"nodeId": 0})
+
+    def test_non_file_input_and_bad_path_fail_clearly(self) -> None:
+        module, bridge = self.make(FakeUploadPage({"tag": "DIV", "type": ""}))
+        with self.assertRaisesRegex(module.CDPError, "userScripts DataTransfer.*not an input"):
+            self.upload(bridge, "#d", [str(self.tmpfile(10))])
+        module, bridge = self.make(FakeUploadPage({"tag": "INPUT", "type": "file"}))
+        with self.assertRaisesRegex(module.CDPError, "absolute path"):
+            self.upload(bridge, "#f", ["relative.png"])
+        with self.assertRaisesRegex(module.CDPError, "multiple"):
+            self.upload(bridge, "#f", [str(self.tmpfile(5)), str(self.tmpfile(5, "b.png"))])
+
+    def test_other_dom_errors_reraise_and_debugger_path_forwards(self) -> None:
+        _module, bridge = self.make(FakeUploadPage({"tag": "INPUT", "type": "file"}, dom_error="Node not found"))
+        with self.assertRaisesRegex(RuntimeError, "Node not found"):
+            bridge._browser_command("DOM.getDocument", {})
+        page = FakeUploadPage({"tag": "INPUT", "type": "file"}, dom_error=None)
+        _module, bridge = self.make(page)
+        self.upload(bridge, "#f", ["/x.png"])
+        self.assertEqual([c[0] for c in page.calls], ["DOM.getDocument", "DOM.querySelector", "DOM.setFileInputFiles"])
+
+    def test_backend_node_id_gets_clear_policy_error(self) -> None:
+        module, bridge = self.make(FakeUploadPage({"tag": "INPUT", "type": "file"}))
+        with self.assertRaisesRegex(module.CDPError, "not backendNodeId"):
+            bridge._browser_command("DOM.setFileInputFiles", {"files": ["/x.png"], "backendNodeId": 4})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -46,13 +46,36 @@ class _Fresh(unittest.TestCase):
 
 class LazyGroupTests(unittest.TestCase):
     def test_base_surface_has_no_secrets_or_confirm(self) -> None:
-        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "system_volume"})
+        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "comet_act", "comet_end", "system_volume"})
+
+    def test_comet_act_without_lease_has_no_action_side_effects(self) -> None:
+        with patch.object(tools, "comet_is_active", return_value=False), \
+                patch.object(tools, "comet_act") as act, \
+                patch.object(tools, "island_publish") as publish, \
+                patch.object(tools.GATE, "check") as check, \
+                patch.object(tools, "log_event") as log:
+            out = tools._comet_act({"actions": [{"type": "click_text", "text": "Continue"}]})
+        self.assertFalse(out["ok"])
+        self.assertIn("comet_begin", out["error"])
+        act.assert_not_called()
+        publish.assert_not_called()
+        check.assert_not_called()
+        log.assert_not_called()
 
     def test_secrets_group_loads_secrets_and_confirm(self) -> None:
         loaded = names(groups={"secrets"})
         self.assertTrue(set(tools.TOOL_GROUPS["secrets"]) <= loaded)
         self.assertIn("more_tools", loaded)  # workflows remain available
         self.assertNotIn("more_tools", names(groups={"secrets", "workflows"}))
+
+    def test_workflow_group_exposes_create_update_and_delete(self) -> None:
+        loaded = names(groups={"workflows"})
+        self.assertTrue(set(tools.TOOL_GROUPS["workflows"]) <= loaded)
+
+    def test_workflow_delete_dispatches_to_confined_store(self) -> None:
+        with patch("voice_cua.tools.workflow_store.delete_workflow", return_value={"ok": True}) as delete:
+            self.assertTrue(tools.dispatch("workflow_delete", {"slug": "stale", "expected_revision": "rev"})["ok"])
+        delete.assert_called_once_with({"slug": "stale", "expected_revision": "rev"})
 
     def test_confirm_group_exposes_confirm_risky_only(self) -> None:
         self.assertEqual(names(groups={"confirm"}) - names(), {"confirm_risky"})
@@ -164,6 +187,7 @@ class RiskGateTests(_Fresh):
         with patch("voice_cua.tools._resolve_secret_args", return_value=(item, None)), \
                 patch("voice_cua.tools.fetch_value") as fetch, \
                 patch("voice_cua.tools.comet_act") as cact, \
+                patch("voice_cua.tools.comet_is_active", return_value=True), \
                 patch("voice_cua.tools.island_confirm") as ask:
             for name, args in (
                 ("secrets_inject", {"app": "Safari", "label": "gh"}),
@@ -295,7 +319,7 @@ class CometActArgumentTests(unittest.TestCase):
     def test_goto_without_url_fails_fast(self) -> None:
         from unittest.mock import patch
         from voice_cua import tools
-        with patch.object(tools, "comet_act") as act:
+        with patch.object(tools, "comet_is_active", return_value=True), patch.object(tools, "comet_act") as act:
             out = tools._comet_act({"actions": [{"type": "goto"}]})
         act.assert_not_called()
         self.assertFalse(out["ok"])

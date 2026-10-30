@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guru's rule: every macOS approval happens once, in onboarding (or the same Settings Grant row).
+"""Product rule: every macOS approval happens once, in onboarding (or the same Settings Grant row).
 Fails if any prompting API appears outside the PermissionBroker choke point / cached readers."""
 from __future__ import annotations
 

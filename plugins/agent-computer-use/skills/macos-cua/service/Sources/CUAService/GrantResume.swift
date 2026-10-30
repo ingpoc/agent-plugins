@@ -1,6 +1,6 @@
 import AppKit
 
-/// Keeps the window Guru granted from in front of him across a TCC round trip.
+/// Keeps the window the user granted from in front of them across a TCC round trip.
 /// Grant hands focus to a TCC alert / System Settings; this LSUIElement app has no Dock icon, so its
 /// window drops behind System Settings and reads as "closed". Screen Recording's "Quit & Reopen"
 /// really does terminate + relaunch the app. So: windows never hide on deactivate, a granted
@@ -31,7 +31,7 @@ enum GrantSurface: Equatable {
     static func clear(_ d: UserDefaults = .standard) { d.removeObject(forKey: key) }
 
     /// Clear once Required is complete and nothing the user is still working through is pending
-    /// (Automation targets / Calendars are optional but Guru grants them in the same session).
+    /// (Automation targets / Calendars are optional but the user grants them in the same session).
     static func finished(_ states: [ACUPermission: PermissionState]) -> Bool {
         ACUPermission.allCases.allSatisfy { p in
             let s = states[p] ?? .missing

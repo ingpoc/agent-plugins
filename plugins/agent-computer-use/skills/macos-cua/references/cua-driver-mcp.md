@@ -53,7 +53,6 @@ has no `target`. Do not code from hosted examples.
 | Open app-level `AXMenu` first, then one window | `choose_walk_roots` + `_open_ax_menus` | Passing `AXMenuBar` as a walk root (Apple-menu flood) |
 | Snapshot reuse after accepted click | `runtime_plan` `state_reuses`; `Clear`/`All Clear` on the current tree; one refresh on remaining miss | Per-step `expect` or a fresh observe after every click |
 | Glide uses popover/sheet/dialog/menu/largest containing frame | `_glide_container_frame` | AXWindow-only glide (misses sheets) |
-| Labeled glide is window-local; no Python Quartz on the click path | `glide_operator_to_element` omits `cursor_screen_x/y` when an AXWindow exists; operator remaps normalized coords | Sending stale global screen points, or Quartz-reading on every AX click |
 | Background `key` retries once on `off_space_or_ax_unresolved` or `escalation.recommended=foreground` | `runtime_plan` / `key` | Front-then-key as the normal path |
 | Open-sheet filenames on the row | same attach, now includes `AXTextField` | System Events picker inside this plugin |
 | Empty Catalyst type is not accepted | `typed_text_is_proven` / `ax_incomplete_value` | Trusting `typed_path` / `ok` |
@@ -87,8 +86,6 @@ has no `target`. Do not code from hosted examples.
 | Require a second display in session preflight | Single-monitor is a supported runtime. The elon secondary-display check is lab-only | Never copy the lab gate into `workflow.py preflight` as a hard fail |
 | Sixth MCP tool for displays | Topology is CLI `displays` and `workflow.py preflight` | A client cannot read CLI/preflight and still needs a 6th tool |
 | Keep a change that made Calculator 17s / attach `display_packet` to every `state` | Official suite degraded (Calculator 5.23s → 17.21s). Extra NSScreen/CG/Quartz on every compact observe and labeled AX glide | Revisit only if a **warm** official suite is ≤ last green: best 5.23 / 0.73 / 5.79 / 2.40; post-revert 5.83 / 0.99 / 7.53 / 2.58. Topology stays on CLI `displays` and `workflow.py preflight` |
-| Pin labeled glides with `cursor_screen_x/y` | Operator already parents normalized coords to live Quartz bounds. Absolute screen points stale-click after a window move | Point/desktop clicks may still send screen coords and fail closed if geometry changed |
-| Poll `list_windows` every 50ms to follow a drag | Operator already polls its state file; follow is one `CGWindow` bounds read by known `window_id` | Never |
 | `just run cua-driver mcp` from the IDE / grant TCC to Cursor | Grants key to the signed driver bundle, not argv0. The facade must stay a thin Cursor child | Cua Driver.app is no longer the AX/Screen Recording principal |
 | Union-frame overlay / always-on screenshot | Token waste; MCP `state` is AX-only | A client cannot act without pixels |
 | Global HID click as the happy path | Watched path is glide then AX. Pixels are window-local and this-snapshot scale | `MACOS_CUA_PIXEL_CLICK=1` plus a live-frame gate |
@@ -129,4 +126,4 @@ Agent catalog: **`state`**, **`act`** only. Do not re-add `start_session` /
 
 ## Cursor host
 
-Cursor loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-computer-use-mcp`, cwd `${CURSOR_PLUGIN_ROOT}`). Root `mcp.json` stays `./bin/…` for spec clients. `install_harness.py cursor-plugin` only repairs pre-override cache copies (absolute launcher, `cwd` `./`) and removes `agent-computer-use` from `~/.cursor/mcp.json`.
+Cursor loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-computer-use-mcp`, cwd `${CURSOR_PLUGIN_ROOT}`). Root `mcp.json` stays `./bin/…` for spec clients. `install_harness.py cursor-plugin` moves the stale `~/.cursor/plugins/local/agent-computer-use` copy to the Trash, points `~/.local/bin/agent-computer-use-mcp` at the installed plugin and removes `agent-computer-use` from `~/.cursor/mcp.json`. It never copies into Cursor's plugin cache.

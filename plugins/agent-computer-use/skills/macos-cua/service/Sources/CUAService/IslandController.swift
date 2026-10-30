@@ -40,6 +40,8 @@ final class IslandController {
     private(set) lazy var hud = IslandHUDController(model: model)
     let calendar = IslandCalendarController()
     let hotKey = IslandHotKey()
+    private var announcementThrottle = IslandAnnouncementThrottle()
+    private var announcementDrainScheduled = false
     private(set) lazy var focus = IslandFocusStatus()
     private var reduceMotionObserver: Any?
     private var motionFlush: Timer?
@@ -87,7 +89,7 @@ final class IslandController {
         nowPlaying.onChange = { [weak self] in self?.pushNowPlaying() }
         model.onMedia = { [weak self] cmd in self?.nowPlaying.perform(cmd) }
         model.onMediaAction = { [weak self] a in self?.mediaAction(a) }
-        // Quick Peek waits while Guru is typing in the card's source chat app.
+        // Quick Peek waits while the user is typing in the card's source chat app.
         model.peekSuppressed = { [weak self] a in
             IslandInput.isSourceApp(self?.frontmostAppName(), approval: a)
                 && IslandInput.secondsSinceKeyDown() < IslandInput.typingWindow
@@ -177,10 +179,16 @@ final class IslandController {
     /// Push Settings → General / AI Agents into the model and panel. Re-run on every change.
     func applySettings(_ s: IslandSettingsStore) {
         typealias K = IslandSettingsSchema
+        let shortcut = IslandShortcut.read(s)
+        model.shortcutSpoken = shortcut.spoken
+        if hotKey.shortcut != shortcut {
+            hotKey.unregister()
+            hotKey.shortcut = shortcut
+        }
         if startsSystem {
             if s.bool(K.hotKey) {
                 if !hotKey.register() {
-                    SamanthaActivityLog.startup(phase: "island_hotkey", status: "fail", detail: "\(IslandHotKey.display) is taken by another app; island keyboard shortcut off")
+                    SamanthaActivityLog.startup(phase: "island_hotkey", status: "fail", detail: "\(shortcut.display) is taken by another app; island keyboard shortcut off")
                 }
             } else { hotKey.unregister() }
             applyMotionProbe()
@@ -189,6 +197,7 @@ final class IslandController {
         IslandModel.peekError = s.double(K.errorPeek)
         IslandModel.doneSettle = s.double(K.doneSettle)
         model.contrastOutline = s.bool(K.contrastOutline)
+        updateAccessibilityDisplay()
         typealias N = NowPlayingKeys
         let style = NowPlayingStyle(color: s.string(N.color), compactWaveform: !s.bool(N.disableCompactWaveform),
                                     artworkFlip: !s.bool(N.disableArtworkFlip),
@@ -199,7 +208,9 @@ final class IslandController {
         let enabled = Dictionary(uniqueKeysWithValues: AgentSource.allCases.map { ($0, s.sourceEnabled($0)) })
         let mayRaise = Dictionary(uniqueKeysWithValues: AgentSource.allCases.map { ($0, s.mayRaiseApproval($0)) })
         model.agentAllowed = { a in
-            guard let src = AgentSource.match(a.name) ?? AgentSource.match(a.app) else { return true }
+            let source: AgentSource? = a.id.hasPrefix("agent:") || a.id.hasPrefix("local:")
+                ? .agentRoster : AgentSource.match(a.name) ?? AgentSource.match(a.app)
+            guard let src = source else { return true }
             return enabled[src] ?? true
         }
         model.approvalAllowed = { a in
@@ -291,9 +302,15 @@ final class IslandController {
         model.onRowControl = { [weak self] a, action in
             guard let self else { return }
             switch action {
-            case .approve:
+            case .review:
                 let id = String(a.id.dropFirst("pending:".count))
-                self.hub.resolveApproval(id: id, approved: true)
+                guard self.hub.selectApproval(id: id) else {
+                    self.model.onAnnounce?("That request is no longer available to review.")
+                    return
+                }
+                self.model.openApprovalFromRoster()
+            case .dismiss:
+                if !self.hub.dismissStale(id: a.id) { self.model.failRowControl(a.id) }
             case .stop, .retry:
                 if !self.hub.requestControl(id: a.id, action: action.rawValue) { self.model.failRowControl(a.id) }
             }
@@ -315,9 +332,13 @@ final class IslandController {
             _ = self; PermissionBroker.requestFocus()
         }
         hotKey.onPress = { [weak self] in self?.model.hotKeyPressed() }
-        model.onAnnounce = { text in
-            NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
-                                 userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+        model.onAnnounce = { [weak self] text in
+            guard let self else { return }
+            if let item = self.announcementThrottle.offer(text, priority: self.model.announcementPriority) {
+                Self.postAnnouncement(item)
+            } else {
+                self.scheduleAnnouncementDrain()
+            }
         }
         model.peekGate = { [weak self] in
             guard let self else { return true }
@@ -329,8 +350,40 @@ final class IslandController {
         }
         reduceMotionObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.model.systemReduceMotion = IslandMotion.systemReduceMotion }
+            MainActor.assumeIsolated {
+                self?.model.systemReduceMotion = IslandMotion.systemReduceMotion
+                self?.updateAccessibilityDisplay()
+            }
         }
+    }
+
+    private static func postAnnouncement(_ item: IslandAnnouncementThrottle.Item) {
+        let priority: NSAccessibilityPriorityLevel = item.priority == .high ? .high : .medium
+        // https://developer.apple.com/documentation/appkit/nsaccessibility-swift.struct/notification/announcementrequested
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: item.text, .priority: priority.rawValue])
+    }
+
+    private func scheduleAnnouncementDrain() {
+        guard !announcementDrainScheduled, let due = announcementThrottle.nextDue else { return }
+        announcementDrainScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, due.timeIntervalSinceNow) + 0.01) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.announcementDrainScheduled = false
+                if let item = self.announcementThrottle.drain() { Self.postAnnouncement(item) }
+                self.scheduleAnnouncementDrain()
+            }
+        }
+    }
+
+    private func updateAccessibilityDisplay() {
+        // https://developer.apple.com/documentation/appkit/nsworkspace/accessibilitydisplayshouldincreasecontrast
+        // https://developer.apple.com/documentation/appkit/nsworkspace/accessibilitydisplayoptionsdidchangenotification
+        let workspace = NSWorkspace.shared
+        model.systemIncreaseContrast = workspace.accessibilityDisplayShouldIncreaseContrast
+        model.systemDifferentiate = workspace.accessibilityDisplayShouldDifferentiateWithoutColor
+        IslandInk.increased = model.contrastOutline || model.systemIncreaseContrast
     }
 
     private func startSystemActivities() {
@@ -417,6 +470,7 @@ final class IslandController {
     }
 
     /// Capture harness / test hooks.
+    func openKeyboard() { model.hotKeyPressed() }
     var debugModel: IslandModel { model }
     var debugPanel: SamanthaMenuBarIslandPanel { menuBarPanel }
 
@@ -549,6 +603,7 @@ final class IslandController {
                 guard let self else { return }
                 self.model.tick()
                 self.hub.expire()
+                if self.startsSystem { self.hub.refreshLocalHarnesses() }
                 self.nowPlaying.recompute()   // idle-duration collapse after a pause
             }
         }

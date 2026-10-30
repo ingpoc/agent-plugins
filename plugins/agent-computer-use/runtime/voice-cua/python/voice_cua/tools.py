@@ -20,6 +20,7 @@ from voice_cua.comet_bridge import (
     redact_actions,
     redact_url,
 )
+from voice_cua.inventory import build_inventory
 from voice_cua.inject import clipboard_paste_secret, clear_clipboard, set_clipboard
 from voice_cua.labels_tracker import labels_tracker_path, refresh_labels_tracker
 from voice_cua.keychain_access import describe_ref, enrich_items, fetch_value, list_keychain, resolve_ref
@@ -122,7 +123,7 @@ TOOL_GROUPS = {
     # Lazy-loaded: never used in normal turns, ~850 tokens on every response.
     "secrets": ("secrets_list", "secrets_label", "secrets_get", "secrets_put", "secrets_inject",
                 "secrets_provide", "confirm_risky"),
-    "workflows": ("workflow_read", "workflow_save"),
+    "workflows": ("workflow_read", "workflow_save", "workflow_delete"),
     # Loaded by the risk gate the moment a risky action is refused.
     "confirm": ("confirm_risky",),
 }
@@ -315,9 +316,7 @@ def tool_definitions(
         },
     })
     tools.extend(t for t in _lazy_tools() + _workflow_tools() if t["name"] in wanted)
-    active = comet_is_active() if comet_active is None else comet_active
-    # comet_begin is always offered: while the user's window is open it
-    # re-attaches to that same window (goto) instead of opening another.
+    # Browser schemas stay available; connection remains lazy until comet_begin.
     tools.append({
         "type": "function",
         "name": "comet_begin",
@@ -336,13 +335,12 @@ def tool_definitions(
             "required": ["url"],
         },
     })
-    if active:
-        tools.extend([
+    tools.extend([
             {
                 "type": "function",
                 "name": "comet_act",
                 "description": (
-                    "Run one batch in the active isolated Comet lease. Common actions: page_context; "
+                    "Run one batch in an active isolated Comet lease; call comet_begin first. Common actions: page_context; "
                     "goto {url}; click_text {text}; click_selector {selector}; fill_selector "
                     "{selector,value}; wait_for_selector; wait_for_url_change; screenshot {format:'png'}."
                 ),
@@ -374,7 +372,7 @@ def tool_definitions(
                 "type": "function",
                 "name": "comet_end",
                 "description": (
-                    "Finish the Comet task. A self_test window closes. The user's window stays open "
+                    "Finish the Comet task after comet_begin. A self_test window closes. The user's window stays open "
                     "unless user_requested=true because the user explicitly asked to close it."
                 ),
                 "parameters": {
@@ -404,6 +402,7 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         "show_details": _show_details,
         "workflow_read": workflow_store.read_workflow,
         "workflow_save": workflow_store.save_workflow,
+        "workflow_delete": workflow_store.delete_workflow,
         "system_volume": _system_volume,
     }
     fn = handlers.get(name)
@@ -418,7 +417,7 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return blocked
     try:
         result = fn(args)
-        if name != "system_volume" or args.get("direction", "read") != "read":
+        if not result.get("cancelled") and (name != "system_volume" or args.get("direction", "read") != "read"):
             workflow_store.note_failure(name, result if isinstance(result, dict) else {"ok": False})
         log_tool_result(name, result if isinstance(result, dict) else {"ok": False}, app=app)
         return result
@@ -631,6 +630,8 @@ def _normalize_comet_action(action: dict[str, Any]) -> dict[str, Any]:
 
 
 def _comet_act(args: dict[str, Any]) -> dict[str, Any]:
+    if not comet_is_active():
+        return {"ok": False, "error": "no active Comet task lease; call comet_begin first"}
     actions = args.get("actions")
     if not isinstance(actions, list) or not all(isinstance(action, dict) for action in actions):
         return {"ok": False, "error": "actions must be an array of objects"}
@@ -855,6 +856,11 @@ def _workflow_tools() -> list[dict[str, Any]]:
          "parameters": {"type": "object", "properties": {key: {"type": "string"} for key in
              ("slug", "title", "trigger", "content", "expected_revision")},
              "required": ["slug", "title", "trigger", "content", "expected_revision"], "additionalProperties": False}},
+        {"type": "function", "name": "workflow_delete",
+         "description": "Delete one stale or user-requested workflow and its trigger. Read it first; use its current revision. Delete only when requested or after a verified replacement, never based on age alone.",
+         "parameters": {"type": "object", "properties": {key: {"type": "string"} for key in
+             ("slug", "expected_revision")},
+             "required": ["slug", "expected_revision"], "additionalProperties": False}},
     ]
 
 

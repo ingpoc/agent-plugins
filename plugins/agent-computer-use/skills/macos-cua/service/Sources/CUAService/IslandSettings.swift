@@ -12,7 +12,7 @@ import Security
 enum SettingsTab: String, CaseIterable, Identifiable {
     case general, interaction, connectivity, display, sound
     case nowPlaying, calendar, fileTray
-    case samantha, grokBot, cursor, codex
+    case samantha, grokBot, cursor, codex, agentRoster
     case computerUse
     case about
     var id: String { rawValue }
@@ -31,6 +31,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .grokBot: return "Grok Bot"
         case .cursor: return "Cursor"
         case .codex: return "Codex"
+        case .agentRoster: return "Agent Roster"
         case .computerUse: return "Computer Use"
         case .about: return "About"
         }
@@ -51,6 +52,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .grokBot: return "sparkles"
         case .cursor: return "cursorarrow.rays"
         case .codex: return "chevron.left.forwardslash.chevron.right"
+        case .agentRoster: return "person.3.fill"
         case .computerUse: return "cursorarrow.click.2"
         case .about: return "info"
         }
@@ -70,6 +72,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .grokBot: return NSColor(white: 0.15, alpha: 1)
         case .cursor: return NSColor(white: 0.22, alpha: 1)
         case .codex: return NSColor(red: 0.10, green: 0.55, blue: 0.45, alpha: 1)
+        case .agentRoster: return NSColor(white: 0.36, alpha: 1)
         case .computerUse: return NSColor(red: 0.39, green: 0.82, blue: 1.0, alpha: 1)   // accent; tiles draw the brand mark
         }
     }
@@ -80,6 +83,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         case .grokBot: return .grokBot
         case .cursor: return .cursor
         case .codex: return .codex
+        case .agentRoster: return .agentRoster
         default: return nil
         }
     }
@@ -89,7 +93,7 @@ enum SettingsTab: String, CaseIterable, Identifiable {
         (nil, [.general, .interaction]),
         ("Notifications", [.connectivity, .display, .sound]),
         ("Live Activities", [.nowPlaying, .calendar, .fileTray]),
-        ("AI Agents", [.samantha, .grokBot, .cursor, .codex]),
+        ("AI Agents", [.samantha, .grokBot, .cursor, .codex, .agentRoster]),
         ("System", [.computerUse]),
     ]
     static let pinned: SettingsTab = .about
@@ -98,13 +102,14 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 }
 
 enum AgentSource: String, CaseIterable, Codable {
-    case samantha, grokBot = "grok", cursor, codex
+    case samantha, grokBot = "grok", cursor, codex, agentRoster = "agent"
     var title: String {
         switch self {
         case .samantha: return "Samantha"
         case .grokBot: return "Grok Bot"
         case .cursor: return "Cursor"
         case .codex: return "Codex"
+        case .agentRoster: return "Agent Roster"
         }
     }
     /// Map an island agent name/app ("Codex", "Grok Bot", "Cursor") to a source.
@@ -114,6 +119,7 @@ enum AgentSource: String, CaseIterable, Codable {
         if l.contains("grok") || l == "comet" { return .grokBot }  // Grok Bot drives Comet
         if l.contains("cursor") { return .cursor }
         if l.contains("codex") { return .codex }
+        if l == "agent" || l.contains("agent roster") { return .agentRoster }
         return nil
     }
     var keyPrefix: String { "island.agent.\(rawValue)." }
@@ -125,6 +131,7 @@ enum AgentSource: String, CaseIterable, Codable {
         case .grokBot: return "Comet"
         case .cursor: return "Cursor"
         case .codex: return "Codex"
+        case .agentRoster: return ""
         }
     }
     /// Exact source names accepted on the wire.
@@ -134,6 +141,7 @@ enum AgentSource: String, CaseIterable, Codable {
         case "grok", "grok-bot", "grokbot", "grok_bot": return .grokBot
         case "cursor": return .cursor
         case "codex": return .codex
+        case "agent": return .agentRoster
         default: return nil
         }
     }
@@ -216,6 +224,7 @@ enum IslandSettingsSchema {
     static let respectFocus = "island.connectivity.respectFocus"
     static let focusAccess = "island.connectivity.focusAccess"
     static let hotKey = "island.general.hotKey"
+    static let shortcut = "island.general.shortcut"
     nonisolated(unsafe) static var focusAccessAction: (() -> Void)?
     static let calendarEnabled = "island.calendar.enabled"
     static let calendarLead = "island.calendar.timeBefore"
@@ -269,7 +278,7 @@ enum IslandSettingsSchema {
         .init(tab: .general, section: nil, key: hideInFullscreen, label: "Hide in fullscreen", kind: .toggle, defaultValue: .bool(true)),
         .init(tab: .general, section: nil, key: hideInMissionControl, label: "Hide in mission control", kind: .toggle, defaultValue: .bool(true)),
         .init(tab: .general, section: nil, key: hideFromScreenCapture, label: "Hide from screen capture", kind: .toggle, defaultValue: .bool(false)),
-        .init(tab: .general, section: nil, key: hotKey, label: "Keyboard shortcut \(IslandHotKey.display)", kind: .toggle, defaultValue: .bool(true),
+        .init(tab: .general, section: nil, key: hotKey, label: "Enable keyboard shortcut", kind: .toggle, defaultValue: .bool(true),
               info: "Opens the island with keyboard focus: arrows or Tab move, Return activates, Esc closes. If another app owns the shortcut it stays off (see the log)"),
         .init(tab: .general, section: nil, key: displayOn, label: "Display on",
               kind: .popup([("main", "Main display"), ("builtIn", "Built-in display")]), defaultValue: .string("main")),
@@ -366,9 +375,17 @@ enum IslandSettingsSchema {
     ]
 
     static func agent(_ s: AgentSource) -> [SettingDef] {
-        let tab: SettingsTab = s == .samantha ? .samantha : s == .grokBot ? .grokBot : s == .cursor ? .cursor : .codex
+        let tab: SettingsTab
+        switch s {
+        case .samantha: tab = .samantha
+        case .grokBot: tab = .grokBot
+        case .cursor: tab = .cursor
+        case .codex: tab = .codex
+        case .agentRoster: tab = .agentRoster
+        }
         let p = s.keyPrefix
-        let cap: AttentionCap = s == .samantha ? .critical : s == .codex ? .info : .attention
+        let cap: AttentionCap = s == .samantha ? .critical : (s == .codex || s == .agentRoster) ? .info : .attention
+        let canRaiseApprovals = s != .codex && s != .agentRoster
         var rows: [SettingDef] = [
             // Samantha's pane is all Samantha: the switch reads "Enabled" (plain toggle, no icon).
             .init(tab: tab, section: nil, key: p + "enabled", label: s == .samantha ? "Enabled" : s.title,
@@ -378,7 +395,7 @@ enum IslandSettingsSchema {
                   kind: .tiles([t("ambient", "Ambient", "circle.dotted"), t("info", "Info", "info.circle"),
                                 t("attention", "Attention", "exclamationmark.circle"), t("critical", "Critical", "exclamationmark.octagon.fill")]),
                   defaultValue: .string(cap.rawValue), info: "Attention or higher may raise cards and the needs-you badge"),
-            .init(tab: tab, section: nil, key: p + "canRaiseApprovals", label: "Can raise approval cards", kind: .toggle, defaultValue: .bool(s != .codex)),
+            .init(tab: tab, section: nil, key: p + "canRaiseApprovals", label: "Can raise approval cards", kind: .toggle, defaultValue: .bool(canRaiseApprovals)),
             // `info` = the setup command, shown as the token row's tooltip (never a caption).
             .init(tab: tab, section: "Access", key: p + "token", label: "Token", kind: .token, defaultValue: .none,
                   info: s == .samantha ? nil : "island-post --source \(s.cliName)"),

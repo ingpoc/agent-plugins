@@ -32,7 +32,6 @@
   "source_paths": [
     "SKILL.md",
     "hardening-contract.json",
-    "operator",
     "references",
     "scripts",
     "tests"
@@ -65,13 +64,6 @@
       "timeout_seconds": 100,
       "budget_seconds": 65,
       "fail_patterns": ["Traceback", "DeprecationWarning", "CoreSVG has logged an error", "\"ok\": false"]
-    },
-    {
-      "name": "pointer",
-      "command": ["python3", "tests/test_live_pointer_isolation.py"],
-      "timeout_seconds": 90,
-      "budget_seconds": 25,
-      "fail_patterns": ["Traceback", "DeprecationWarning", "CoreSVG has logged an error"]
     },
     {
       "name": "parity",

@@ -38,6 +38,21 @@ final class IslandLayoutGateTests: XCTestCase {
         let now = Date()
         var out: [(String, IslandModel)] = []
         func add(_ n: String, _ f: (IslandModel) -> Void) { let m = IslandModel(); m.trayEnabled = true; f(m); out.append((n, m)) }
+        // Voice states, including small cards and warnings with activity present.
+        for kind in ["listening", "thinking", "speaking", "acting", "confirm", "error", "done", "reconnecting"] {
+            add("voice-\(kind)") { m in
+                m.forceCompact = true
+                m.apply(IslandSnapshot(kind: kind, title: kind == "error" ? "Action not confirmed" : "Checking the calendar", detail: "Review the result before continuing", app: "Calendar"))
+            }
+            add("voice-\(kind)-card") { m in
+                m.apply(IslandSnapshot(kind: kind, title: kind == "error" ? "Action not confirmed" : "Checking the calendar", detail: "Review the result before continuing", app: "Calendar"))
+                if !m.cardOpen { m.toggleCard() }
+            }
+        }
+        add("consent-long") { m in
+            m.apply(IslandSnapshot(kind: "confirm", title: "Allow saved sign-in?", detail: String(repeating: "W", count: 160), app: "Comet"))
+            m.toggleCard()
+        }
         // HUD
         add("hud-volume") { $0.showHUD(.init(kind: .volume, value: 0.6875)) }
         add("hud-volume-max") { $0.showHUD(.init(kind: .volume, value: 1)) }
