@@ -18,6 +18,7 @@ struct IslandAgent: Codable, Equatable, Identifiable {
     /// Hub-owned metadata used by request rows and control-failure recovery.
     var request_kind: String? = nil
     var destructive = false
+    var local_detail: String? = nil
     var last_seen_at: Double = 0
 
     init(id: String = "", name: String = "", app: String = "", title: String = "", status: String = "",
@@ -42,6 +43,7 @@ struct IslandAgent: Codable, Equatable, Identifiable {
         controls = try c.decodeIfPresent([String].self, forKey: .controls) ?? []
         request_kind = try c.decodeIfPresent(String.self, forKey: .request_kind)
         destructive = try c.decodeIfPresent(Bool.self, forKey: .destructive) ?? false
+        local_detail = try c.decodeIfPresent(String.self, forKey: .local_detail)
         last_seen_at = try c.decodeIfPresent(Double.self, forKey: .last_seen_at) ?? 0
     }
 }
@@ -1495,7 +1497,7 @@ final class IslandModel: ObservableObject {
         let taskCount = IslandAgentRows.taskAgents(agents).count
         let processCount = IslandAgentRows.processObservations(agents).count
         if taskCount > 0 { parts.append("\(taskCount) other agents") }
-        if processCount > 0 { parts.append("\(processCount) local processes detected; task activity unknown") }
+        if processCount > 0 { parts.append("\(processCount) local observations detected") }
         if let r = cardRemaining { parts.append("\(r) seconds left") }
         if let n = notice { parts.append("\(n.agent) request timed out. Still open in chat") }
         return parts.joined(separator: ". ")

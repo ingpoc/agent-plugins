@@ -31,6 +31,18 @@ enum IslandLocalHarnessScanner {
         }
     }
 
+    /// `ps -o pid,comm` gives the executable path (no arguments): tells the ChatGPT app's
+    /// app-server hosts apart from terminal `codex` processes.
+    static func codexProcesses(processList: String) -> [(pid: Int, executable: String)] {
+        processList.split(whereSeparator: { $0 == "\n" }).compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard let space = trimmed.firstIndex(where: \.isWhitespace), let pid = Int(trimmed[..<space]) else { return nil }
+            let executable = trimmed[space...].trimmingCharacters(in: .whitespaces)
+            guard URL(fileURLWithPath: executable).lastPathComponent == "codex" else { return nil }
+            return (pid, executable)
+        }
+    }
+
     static func scan() -> [IslandAgent] {
         let pattern = harnesses.map(\.processName).joined(separator: "|")
         guard let pgrep = run("/usr/bin/pgrep", arguments: ["-x", pattern]) else { return [] }
@@ -40,10 +52,17 @@ enum IslandLocalHarnessScanner {
               let ps = run("/bin/ps", arguments: ["-p", pids.map(String.init).joined(separator: ","), "-o", "pid,comm"]) else {
             return []
         }
-        return rows(processList: String(decoding: ps.data, as: UTF8.self))
+        let listing = String(decoding: ps.data, as: UTF8.self)
+        let processes = rows(processList: listing)
+        var others = processes.filter { !$0.id.hasPrefix("local:codex:") }
+        for index in others.indices where others[index].app == "Cursor" {
+            others[index].local_detail = "model unknown · activity unknown"
+        }
+        return others + IslandCodexThreads.scan(processes: codexProcesses(processList: listing))
+
     }
 
-    private static func run(_ path: String, arguments: [String]) -> (status: Int32, data: Data)? {
+    static func run(_ path: String, arguments: [String]) -> (status: Int32, data: Data)? {
         // Read only process names and PIDs; never inspect process arguments or environment.
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)

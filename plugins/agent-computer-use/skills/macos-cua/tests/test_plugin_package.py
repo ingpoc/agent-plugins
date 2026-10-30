@@ -187,21 +187,8 @@ class PluginPackageTests(unittest.TestCase):
         self.assertIn("--user-mcp", source)
 
 
-    def test_raw_driver_launcher_still_executes_driver_mcp(self):
-        launcher = PLUGIN_ROOT / "bin" / "cua-driver-mcp"
-        with tempfile.TemporaryDirectory() as directory:
-            fake = Path(directory) / "cua-driver"
-            fake.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\"\n")
-            fake.chmod(0o755)
-            env = os.environ | {"CUA_DRIVER_BIN": str(fake)}
-            result = subprocess.run(
-                [str(launcher)],
-                check=True,
-                capture_output=True,
-                text=True,
-                env=env,
-            )
-        self.assertEqual(result.stdout.strip(), "mcp --client agent-computer-use")
+    def test_raw_driver_launcher_is_retired(self):
+        self.assertFalse((PLUGIN_ROOT / "bin" / "cua-driver-mcp").exists())
 
 
 if __name__ == "__main__":

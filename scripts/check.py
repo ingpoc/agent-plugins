@@ -79,6 +79,7 @@ CLAUDE_CATALOG = ".claude-plugin/marketplace.json"
 CLAUDE_MCP_REL = "./.claude-plugin/mcp.json"
 CURSOR_PLUGIN_KEYS = {"name", "version", "description", "mcpServers"}
 CURSOR_MCP_REL = "./.cursor-plugin/mcp.json"
+GROK_MCP_REL = "./.mcp.json"
 CURSOR_ENOENT = "Cursor resolves ./ against the workspace -> ENOENT"
 # Component fields on a marketplace entry shadow the package's own files.
 CURSOR_COMPONENT_FIELDS = {"mcpServers", "skills", "rules", "agents", "commands", "hooks"}
@@ -473,8 +474,12 @@ def _relative_asset_errors(root: Path, where: str, rel: object) -> list[str]:
 def grok_package_errors(root: Path, manifest: dict) -> list[str]:
     """Optional Grok manifest: catalog metadata twin of plugin.json.
 
-    Grok reads .grok-plugin/plugin.json before .cursor-plugin/plugin.json, so it must
-    keep the same MCP config the Cursor manifest points at.
+    Grok picks the first of plugin.json, .grok-plugin/plugin.json and
+    .claude-plugin/plugin.json, so with a root plugin.json (no mcpServers) it loads MCP
+    from the root `.mcp.json` convention file and never reads this manifest's
+    mcpServers. Grok expands ${GROK_PLUGIN_ROOT} (and ${CLAUDE_PLUGIN_ROOT}) there but
+    not ${CURSOR_PLUGIN_ROOT} or Cursor's ${env:VAR}, so `.mcp.json` is the Cursor
+    config translated, and this manifest names the same file (or nothing).
     """
     path = root / ".grok-plugin" / "plugin.json"
     if not (root / ".grok-plugin").exists():
@@ -496,14 +501,38 @@ def grok_package_errors(root: Path, manifest: dict) -> list[str]:
             errors.append(f"{root}: .grok-plugin/plugin.json {key} must match plugin.json.")
     if "logo" in data:
         errors.extend(_relative_asset_errors(root, ".grok-plugin/plugin.json", data["logo"]))
-    cursor_manifest = root / ".cursor-plugin" / "plugin.json"
-    expected_mcp = CURSOR_MCP_REL if cursor_manifest.is_file() else None
+    cursor_mcp = root / ".cursor-plugin" / "mcp.json"
+    expected_mcp = GROK_MCP_REL if (root / ".mcp.json").is_file() else None
     if data.get("mcpServers") != expected_mcp:
         errors.append(
             f"{root}: .grok-plugin/plugin.json mcpServers must be "
-            f"{expected_mcp or 'absent'} (same MCP config as the Cursor manifest)."
+            f"{expected_mcp or 'absent'} (Grok's own MCP config)."
         )
+    if expected_mcp:
+        grok_mcp = root / ".mcp.json"
+        try:
+            got = json.loads(grok_mcp.read_text(encoding="utf-8"))
+            want = grok_mcp_from_cursor(json.loads(cursor_mcp.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError) as error:
+            return errors + [f"{root}: .mcp.json unreadable: {error}"]
+        if got != want:
+            errors.append(
+                f"{root}: .mcp.json (Grok) must equal .cursor-plugin/mcp.json with "
+                "${CURSOR_PLUGIN_ROOT} -> ${GROK_PLUGIN_ROOT} and ${env:VAR} -> ${VAR}."
+            )
     return errors
+
+
+def grok_mcp_from_cursor(cursor: object) -> object:
+    """Translate Cursor-only MCP variables into the forms Grok expands."""
+    if isinstance(cursor, dict):
+        return {key: grok_mcp_from_cursor(value) for key, value in cursor.items()}
+    if isinstance(cursor, list):
+        return [grok_mcp_from_cursor(value) for value in cursor]
+    if isinstance(cursor, str):
+        text = cursor.replace("${CURSOR_PLUGIN_ROOT}", "${GROK_PLUGIN_ROOT}")
+        return re.sub(r"\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}", r"${\1}", text)
+    return cursor
 
 
 def check_catalog_logos() -> list[str]:

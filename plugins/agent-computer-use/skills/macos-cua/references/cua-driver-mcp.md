@@ -122,7 +122,7 @@ Agent catalog: **`state`**, **`act`** only. Do not re-add `start_session` /
 - `act`: label/index/plan + `expect`. Returns compact AX **delta** on verified success;
   failures use `error_type` taxonomy (see `observe-feedback.md`). Glide then AX.
 - Modern `tools/call` returns `content[].text` **and** `structuredContent` (same payload).
-- `bin/cua-driver-mcp` stays diagnostic-only (not the agent path).
+- The raw `bin/cua-driver-mcp` wrapper is retired (0.2.51); `bin/agent-computer-use-mcp` is the only MCP entry.
 
 ## Cursor host
 

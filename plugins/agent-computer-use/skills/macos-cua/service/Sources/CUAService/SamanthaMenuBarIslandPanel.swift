@@ -10,6 +10,10 @@ import SwiftUI
 /// never become key or main (clicks never take focus).
 @MainActor
 final class SamanthaMenuBarIslandPanel {
+    /// Pointer source for hover and hit testing; tests park it off-screen so a real pointer resting
+    /// over the island can't open or pin cards mid-test.
+    nonisolated(unsafe) static var pointerLocation: () -> NSPoint = { NSEvent.mouseLocation }
+
     private var panel: IslandPanel?
     private weak var model: IslandModel?
     private var screenObserver: NSObjectProtocol?
@@ -375,7 +379,7 @@ final class SamanthaMenuBarIslandPanel {
 
     private func pointerChanged() {
         guard let panel, let model, panel.isVisible else { return }
-        let p = Self.windowPoint(screen: NSEvent.mouseLocation, frame: panel.frame)
+        let p = Self.windowPoint(screen: Self.pointerLocation(), frame: panel.frame)
         let dragNear = trackFileDrag(p, model: model)
         let overAny = dragNear || model.hitRects.contains { $0.contains(p) }
         if panel.ignoresMouseEvents == overAny { panel.ignoresMouseEvents = !overAny }

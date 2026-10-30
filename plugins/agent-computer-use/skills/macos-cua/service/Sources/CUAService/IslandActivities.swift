@@ -449,7 +449,7 @@ enum IslandAgentRows {
             let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))
             let age = n < 60 ? "\(n)s" : n < 3600 ? "\(n / 60)m" : "\(n / 3600)h"
             return "updates stopped · last seen \(age) ago"
-        case "process", "harness": return "activity unknown"
+        case "process", "harness": return a.local_detail ?? "activity unknown"
         default:
             let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))
             let t = n < 60 ? "\(n)s" : n < 3600 ? "\(n / 60)m" : "\(n / 3600)h"

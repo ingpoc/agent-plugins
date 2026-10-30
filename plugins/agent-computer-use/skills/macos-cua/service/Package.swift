@@ -21,6 +21,7 @@ let package = Package(
                 .product(name: "DynamicNotchKit", package: "DynamicNotchKit"),
             ],
             linkerSettings: [
+                .linkedLibrary("sqlite3"),
                 .linkedFramework("AppKit"),
                 .linkedFramework("ScreenCaptureKit"),
             ]

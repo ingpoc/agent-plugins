@@ -540,7 +540,7 @@ struct IslandAgentListBody: View {
                         .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .leading)
                         .padding(.horizontal, 8)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(processes.count) local processes detected; task activity unknown")
+                        .accessibilityLabel("\(processes.count) local observations detected")
                         ForEach(processes) { process in
                             row(process, depth: 0, parentName: nil, extra: 0).id(process.id)
                         }
@@ -588,7 +588,7 @@ struct IslandAgentListBody: View {
                             .layoutProbe("row-\(a.id)-name", truncates: true)
                             .layoutPriority(1)
                         if !a.title.isEmpty {
-                            Text(a.title).font(IslandType.body).foregroundStyle(IslandInk.secondaryColor).lineLimit(1)
+                            Text(a.local_detail == nil ? a.title : "· " + a.title).font(IslandType.body).foregroundStyle(IslandInk.secondaryColor).lineLimit(1)
                                 .layoutProbe("row-\(a.id)-title", truncates: true)
                         }
                     }

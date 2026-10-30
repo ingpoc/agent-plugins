@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "agent-computer-use": {
+      "type": "stdio",
+      "command": "${GROK_PLUGIN_ROOT}/bin/agent-computer-use-mcp",
+      "cwd": "${GROK_PLUGIN_ROOT}"
+    }
+  }
+}
