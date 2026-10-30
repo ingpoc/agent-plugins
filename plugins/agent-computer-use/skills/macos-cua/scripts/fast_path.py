@@ -972,10 +972,9 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "hardened runtime denies microphone without entitlement on each responsible executable",
     )
     add(
-        "microphone alert opens the current macOS privacy extension",
-        'OnboardingWindowController.shared.show(row: .microphone)' in status
-        and 'com.apple.settings.PrivacySecurity.extension?Privacy_Microphone' in (root / "service" / "Sources" / "CUAService" / "ACUPermissions.swift").read_text(),
-        "the legacy preference-pane URL opened Screen & System Audio Recording on macOS 26",
+        "microphone alert opens CUAService onboarding",
+        'OnboardingWindowController.shared.show(row: .microphone)' in status,
+        "microphone permission guidance is owned by CUAService onboarding",
     )
     add(
         "SwiftPM excludes only existing test fixtures",
