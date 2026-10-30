@@ -98,9 +98,9 @@ enum IslandCodexThreads {
         return row
     }
 
-    static func openReadOnly(_ path: String) -> OpaquePointer? {
+    static func openReadOnly(_ path: String, immutable: Bool = false) -> OpaquePointer? {
         var db: OpaquePointer?
-        let uri = URL(fileURLWithPath: path).absoluteString + "?mode=ro"
+        let uri = URL(fileURLWithPath: path).absoluteString + (immutable ? "?mode=ro&immutable=1" : "?mode=ro")
         guard sqlite3_open_v2(uri, &db, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nil) == SQLITE_OK else {
             sqlite3_close(db)
             return nil
@@ -108,29 +108,38 @@ enum IslandCodexThreads {
         return db
     }
 
+    /// Read-only. While Codex holds its lock on state_5.sqlite a plain `mode=ro` open fails with
+    /// SQLITE_CANTOPEN; then read once with `immutable=1` (no locks taken, still never writes).
     static func readDatabase(_ path: String) -> [ThreadRecord] {
-        guard let db = openReadOnly(path) else { return [] }
+        if let records = readDatabase(path, immutable: false) { return records }
+        return readDatabase(path, immutable: true) ?? []
+    }
+
+    static func readDatabase(_ path: String, immutable: Bool) -> [ThreadRecord]? {
+        guard let db = openReadOnly(path, immutable: immutable) else { return nil }
         defer { sqlite3_close(db) }
         let sql = "SELECT id, rollout_path, title, first_user_message, model, reasoning_effort, updated_at_ms, originator FROM threads WHERE archived = 0 ORDER BY updated_at_ms DESC LIMIT 20"
         var stmt: OpaquePointer?
         // Older state DBs have no originator column; read the rest and leave the host unknown.
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK
             || sqlite3_prepare_v2(db, sql.replacingOccurrences(of: ", originator FROM", with: ", NULL FROM"), -1, &stmt, nil) == SQLITE_OK
-        else { return [] }
+        else { return nil }
         defer { sqlite3_finalize(stmt) }
         func string(_ index: Int32) -> String? {
             guard let value = sqlite3_column_text(stmt, index) else { return nil }
             return String(cString: value)
         }
         var records: [ThreadRecord] = []
-        while sqlite3_step(stmt) == SQLITE_ROW {
+        var step = sqlite3_step(stmt)
+        while step == SQLITE_ROW {
+            defer { step = sqlite3_step(stmt) }
             guard let id = string(0), let path = string(1), sqlite3_column_type(stmt, 6) != SQLITE_NULL else { continue }
             records.append(ThreadRecord(id: id, rolloutPath: path, title: string(2), firstUserMessage: string(3),
                                         model: string(4), effort: string(5),
                                         updatedAt: Date(timeIntervalSince1970: Double(sqlite3_column_int64(stmt, 6)) / 1000),
                                         originator: string(7)))
         }
-        return records
+        return step == SQLITE_DONE ? records : nil
     }
 
     static func tail(_ path: String) -> Data? {

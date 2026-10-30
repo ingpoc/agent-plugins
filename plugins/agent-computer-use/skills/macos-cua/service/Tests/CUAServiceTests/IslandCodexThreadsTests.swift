@@ -69,5 +69,14 @@ final class IslandCodexThreadsTests: XCTestCase {
         sqlite3_close(readOnly)
         XCTAssertEqual(IslandCodexThreads.readDatabase(path).first?.firstUserMessage, "hello")
         XCTAssertEqual(IslandCodexThreads.readDatabase(path).first?.originator, "codex_exec")
+
+        // While a writer holds the lock (as Codex does), the immutable read-only fallback still reads.
+        var writer: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(path, &writer), SQLITE_OK)
+        defer { sqlite3_close(writer) }
+        XCTAssertEqual(sqlite3_exec(writer, "PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE;", nil, nil, nil), SQLITE_OK)
+        XCTAssertNil(IslandCodexThreads.readDatabase(path, immutable: false))
+        XCTAssertEqual(IslandCodexThreads.readDatabase(path).first?.model, "m")
+        sqlite3_exec(writer, "ROLLBACK", nil, nil, nil)
     }
 }
