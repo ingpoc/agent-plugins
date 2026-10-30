@@ -149,13 +149,16 @@ enum IslandCodexThreads {
         var records = homes.flatMap { readDB($0.appendingPathComponent("state_5.sqlite").path) }
             .sorted { $0.updatedAt > $1.updatedAt }
         records = Array(records.prefix(20))
-        for index in records.indices {
+        let paths = Dictionary(uniqueKeysWithValues: pids.map { ($0, lsof($0) ?? [""]) })
+        let open = Set(paths.values.joined())
+        // Tail only rollouts that can become rows: open in a PID, or updated in the last 30 min.
+        for index in records.indices where open.contains(records[index].rolloutPath)
+            || now.timeIntervalSince(records[index].updatedAt) <= 1800 {
             if let data = readTail(records[index].rolloutPath), let context = turnContext(data) {
-                records[index].model = context.model
-                records[index].effort = context.effort
+                records[index].model = context.model ?? records[index].model
+                records[index].effort = context.effort ?? records[index].effort
             }
         }
-        let paths = Dictionary(uniqueKeysWithValues: pids.map { ($0, lsof($0) ?? [""]) })
         return rows(records: records, pidPaths: paths, now: now)
     }
 }
