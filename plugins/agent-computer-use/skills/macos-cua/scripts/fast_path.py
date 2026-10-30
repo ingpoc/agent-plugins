@@ -1027,9 +1027,9 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "HARNESS_SKILL_DIRS" not in harness
         and "install_link(" not in harness
         and "CUA_DRIVER_" not in mcp_config
-        and "--delete-excluded" in harness
-        and '".build"' in harness,
-        "install only the plugin and exclude generated build caches",
+        and "rsync" not in harness
+        and "_retire_stale_local" in harness,
+        "never hand-copy the plugin into Cursor dirs; retire the stale local copy",
     )
     validator = (scripts / "validate-macos-cua.py").read_text()
     add(

@@ -30,7 +30,7 @@ Forge: [Cursor Origin](https://cursor.com/codebase/gurusharan/agent-plugins); Gi
 | Change plugin behavior | That plugin's `SKILL.md` and `mcp.json` |
 | Change how this plugin installs | That plugin's `AGENTS.md` |
 | Change published benchmark scores | That plugin's `README.md` |
-| Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That package's `.cursor-plugin/mcp.json`; context-ledger contract and bootstrap are in Repo Rules below. Dest repair: `install_harness.py cursor-plugin` or `scripts/install_cursor_dest.py`, only for pre-override relative installs |
+| Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That package's `.cursor-plugin/mcp.json`; context-ledger contract and bootstrap are in Repo Rules below. Dest repair: `scripts/install_cursor_dest.py`, only for pre-override relative installs. ACU `install_harness.py cursor-plugin` only retires the stale `~/.cursor/plugins/local` copy to the Trash |
 | Change context-ledger MCP manifests or the serve launcher | `plugins/context-ledger/tests/test_manifests.py` and `tests/test_contract.py` (stdio shape, resolver, keychain, shell files reject or-true) |
 | Checks, CI, pre-commit | `scripts/check.py` |
 | Claim a plugin fix is done | Live-verify the installed client copy (MCP/CLI). Update the standing canvas from that run. `scripts/check.py` is not that proof. |

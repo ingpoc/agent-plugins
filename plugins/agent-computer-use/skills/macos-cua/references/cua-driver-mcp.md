@@ -126,4 +126,4 @@ Agent catalog: **`state`**, **`act`** only. Do not re-add `start_session` /
 
 ## Cursor host
 
-Cursor loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-computer-use-mcp`, cwd `${CURSOR_PLUGIN_ROOT}`). Root `mcp.json` stays `./bin/…` for spec clients. `install_harness.py cursor-plugin` only repairs pre-override cache copies (absolute launcher, `cwd` `./`) and removes `agent-computer-use` from `~/.cursor/mcp.json`.
+Cursor loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-computer-use-mcp`, cwd `${CURSOR_PLUGIN_ROOT}`). Root `mcp.json` stays `./bin/…` for spec clients. `install_harness.py cursor-plugin` moves the stale `~/.cursor/plugins/local/agent-computer-use` copy to the Trash, points `~/.local/bin/agent-computer-use-mcp` at the installed plugin and removes `agent-computer-use` from `~/.cursor/mcp.json`. It never copies into Cursor's plugin cache.
