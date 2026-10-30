@@ -19,7 +19,6 @@ from typing import Any
 SKILL = Path(__file__).resolve().parents[1]
 WARM_README_REPEAT = 5
 FORBIDDEN_DISPATCH_SUBSTRINGS = (
-    "operator-proof-screen-coordinate",
     "global_input",
 )
 FORBIDDEN_CLICK_POINT_MARKERS = (
@@ -243,23 +242,6 @@ def grade_tool_trace(calls: Any) -> list[dict[str, Any]]:
                 {
                     "code": "redundant_verify_after_verified_act",
                     "app": app or last_verified_app,
-                }
-            )
-        # Detect cursor-glide failure that blocked an action despite AX availability.
-        result = item.get("result") if isinstance(item.get("result"), dict) else {}
-        err = str(result.get("error") or "")
-        if (
-            name == "act"
-            and not result.get("ok")
-            and ("cursor" in err.lower() or "operator" in err.lower() or "glide" in err.lower())
-            and result.get("label")
-        ):
-            errors.append(
-                {
-                    "code": "cursor_glide_blocked_ax_action",
-                    "app": app,
-                    "label": result.get("label"),
-                    "error": err[:200],
                 }
             )
         prev = item
@@ -491,22 +473,6 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "_dispatch_coordinate_click" not in point_actions,
         "a refused landing (CURSOR_NOT_LANDED) must not fall through to native AX/HID/desktop clicks",
     )
-    pointer = (scripts / "runtime_pointer.py").read_text()
-    preflight_fn = _function_source(pointer, "pointer_preflight")
-    add(
-        "pointer_preflight soft-fails on cursor glide timeout",
-        preflight_fn.count("return None") >= 2
-        and "return glide" not in preflight_fn,
-        "cursor glide failure in preflight must return None (skip), not propagate error",
-    )
-    glide_fn = _function_source(pointer, "glide_operator_to_element")
-    add(
-        "legacy operator glide waits for render ack before press",
-        "_wait_for_operator_cursor" in glide_fn
-        and "time.sleep" not in glide_fn
-        and "cursor_visible=False" in glide_fn,
-        "operator tip must land (render ack) before AX press; timeout hides + retries once",
-    )
     settle = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
     overlay = (root / "service" / "Sources" / "CUAService" / "CursorOverlay.swift").read_text()
     add(
@@ -658,14 +624,6 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         and "preferredWindowBounds" in overlay
         and "clamp(" in overlay,
         "overlay tip stays inside the AX window of the app being driven, not a Stage Manager proxy",
-    )
-    operator_ui = (scripts / "operator_ui.py").read_text()
-    add(
-        "operator overlay is not started when CUAService exists",
-        "CUA_SERVICE_APP" in operator_ui
-        and "skipped" in operator_ui
-        and "CUAService overlay" in operator_ui,
-        "two labeled pointers (Cursor + Agent) means the old operator twin is still running",
     )
     add(
         "expect matches text values not button titles",
@@ -1015,7 +973,8 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     )
     add(
         "microphone alert opens the current macOS privacy extension",
-        "com.apple.settings.PrivacySecurity.extension?Privacy_Microphone" in status,
+        'OnboardingWindowController.shared.show(row: .microphone)' in status
+        and 'com.apple.settings.PrivacySecurity.extension?Privacy_Microphone' in (root / "service" / "Sources" / "CUAService" / "ACUPermissions.swift").read_text(),
         "the legacy preference-pane URL opened Screen & System Audio Recording on macOS 26",
     )
     add(
@@ -1073,9 +1032,8 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     add(
         "validator uses CUAService rather than retired native twins",
         "CUAService RPC contracts" in validator
-        and "dump-docs" not in validator
-        and "operator_build" not in validator,
-        "validation must not restore cua-driver or build macos-cua Operator",
+        and "dump-docs" not in validator,
+        "validation must use the CUAService contracts",
     )
     router_src = (root / "service" / "Sources" / "CUAService" / "MethodRouter.swift").read_text()
     overlay_src = (root / "service" / "Sources" / "CUAService" / "CursorOverlay.swift").read_text()

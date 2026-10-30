@@ -136,7 +136,7 @@ def double_click(
                 "ok": True,
                 "path": "native-ax-double-press",
                 "method": (
-                    "agent-cursor-glide+native-ax-double-press"
+                    "cuaservice+native-ax-double-press"
                     if (presses[0] or {}).get("move")
                     else "native-ax-double-press"
                 ),

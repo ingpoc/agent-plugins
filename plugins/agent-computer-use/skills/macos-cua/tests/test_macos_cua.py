@@ -51,10 +51,6 @@ DISPLAYS_SPEC = importlib.util.spec_from_file_location("displays", DISPLAYS_SCRI
 displays = importlib.util.module_from_spec(DISPLAYS_SPEC)
 DISPLAYS_SPEC.loader.exec_module(displays)
 
-OPERATOR_SCRIPT = Path(__file__).parents[1] / "scripts" / "operator_ui.py"
-OPERATOR_SPEC = importlib.util.spec_from_file_location("operator_ui", OPERATOR_SCRIPT)
-operator_ui = importlib.util.module_from_spec(OPERATOR_SPEC)
-OPERATOR_SPEC.loader.exec_module(operator_ui)
 
 
 WORKFLOW_SCRIPT = Path(__file__).parents[1] / "scripts" / "workflow.py"
@@ -342,6 +338,28 @@ class BrowserCoexistenceTests(unittest.TestCase):
 
 
 class WorkflowPreflightTests(unittest.TestCase):
+    def test_retirement_is_reported_and_failure_blocks_readiness(self):
+        wr = mock.Mock()
+        wr.daemon_running.return_value = True
+        wr.call_driver.return_value = {"accessibility": True, "screen_recording": True}
+        wr.list_windows.return_value = {"windows": [{}], "method": "quartz"}
+        cua = mock.Mock()
+        cua.driver_version.return_value = {"ok": True}
+        cua._displays.return_value.display_packet.return_value = {}
+        for ok in (True, False):
+            retirement = {"ok": ok, "unloaded": False, "trashed": [], "already_retired": ok}
+            with self.subTest(ok=ok), \
+                    mock.patch.object(workflow, "load_window_resolve", return_value=wr), \
+                    mock.patch.object(workflow, "load_macos_cua", return_value=cua), \
+                    mock.patch.object(workflow.os.path, "exists", return_value=True), \
+                    mock.patch.object(workflow.os, "access", return_value=True), \
+                    mock.patch.object(workflow, "retire_legacy_operator", return_value=retirement) as retire, \
+                    mock.patch.object(workflow, "_print_result") as output:
+                self.assertEqual(workflow.cmd_preflight(verbose=True), 0 if ok else 1)
+            check = next(c for c in output.call_args.args[0]["checks"] if c["label"] == "legacy operator retired")
+            self.assertEqual(check["ok"], ok)
+            retire.assert_called_once()
+
     def test_generic_preflight_does_not_focus_or_launch_an_app(self):
         source = (Path(__file__).parents[1] / "scripts" / "workflow.py").read_text()
         preflight = source.split("def cmd_preflight", 1)[1].split("def cmd_smoke", 1)[0]
@@ -1673,96 +1691,8 @@ class CursorProofTests(unittest.TestCase):
             + chunk(b"IEND", b"")
         )
 
-    def test_cursor_ack_requires_matching_update_and_target_identity(self):
-        original_cache = macos_cua.CACHE_DIR
-        try:
-            with tempfile.TemporaryDirectory() as directory:
-                macos_cua.CACHE_DIR = directory
-                state_path = Path(directory) / "operator-state.json"
-                base = {
-                    "app": "Calculator",
-                    "pid": 10,
-                    "window_id": 20,
-                    "cursor_update_id": "new",
-                    "cursor_rendered_update_id": "old",
-                    "cursor_rendered_x": 0.25,
-                    "cursor_rendered_y": 0.75,
-                }
-                state_path.write_text(json.dumps(base))
-                with mock.patch.dict(
-                    os.environ, {"MACOS_CUA_CURSOR_SYNC_TIMEOUT": "0.03"}
-                ):
-                    stale = macos_cua._wait_for_operator_cursor(
-                        0.25,
-                        0.75,
-                        update_id="new",
-                        app_name="Calculator",
-                        pid=10,
-                        window_id=20,
-                    )
-                self.assertFalse(stale["ok"])
 
-                state_path.write_text(
-                    json.dumps({**base, "cursor_rendered_update_id": "new"})
-                )
-                current = macos_cua._wait_for_operator_cursor(
-                    0.25,
-                    0.75,
-                    update_id="new",
-                    app_name="Calculator",
-                    pid=10,
-                    window_id=20,
-                )
-                self.assertTrue(current["ok"])
-                self.assertEqual(current["update_id"], "new")
-        finally:
-            macos_cua.CACHE_DIR = original_cache
 
-    def test_glide_land_timeout_hides_and_retries_once(self):
-        """A timed-out land ack is not a hit: hide, republish once, re-wait."""
-        snapshot = {"elements": [
-            {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
-        ]}
-        with (
-            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
-            mock.patch.object(
-                macos_cua, "operator_update",
-                return_value={"ok": True, "state": {"cursor_update_id": "u"}},
-            ) as update,
-            mock.patch.object(
-                macos_cua, "_wait_for_operator_cursor",
-                side_effect=[{"ok": False, "error": "timeout"}, {"ok": True}],
-            ) as wait,
-        ):
-            result = macos_cua.glide_operator_to_element("App", 1, 2, snapshot, 1)
-        self.assertTrue(result["ok"])
-        self.assertTrue(result["landed"])
-        self.assertTrue(result["move"]["retried"])
-        self.assertEqual(wait.call_count, 2)
-        visible = [c.kwargs.get("cursor_visible") for c in update.call_args_list]
-        self.assertEqual(visible, [True, False, True])
-
-    def test_glide_double_land_timeout_stays_hidden_and_is_not_a_hit(self):
-        snapshot = {"elements": [
-            {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
-        ]}
-        with (
-            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
-            mock.patch.object(
-                macos_cua, "operator_update",
-                return_value={"ok": True, "state": {"cursor_update_id": "u"}},
-            ) as update,
-            mock.patch.object(
-                macos_cua, "_wait_for_operator_cursor",
-                return_value={"ok": False, "error": "timeout"},
-            ) as wait,
-        ):
-            result = macos_cua.glide_operator_to_element("App", 1, 2, snapshot, 1)
-        self.assertFalse(result["ok"])
-        self.assertFalse(result["landed"])
-        self.assertEqual(wait.call_count, 2)
-        visible = [c.kwargs.get("cursor_visible") for c in update.call_args_list]
-        self.assertEqual(visible, [True, False, True, False])
 
     def test_glide_failure_blocks_when_no_ax_element(self):
         """When no AX element is found and glide fails, hard-fail is correct."""
@@ -1780,41 +1710,7 @@ class CursorProofTests(unittest.TestCase):
             )
         self.assertFalse(result["ok"])
 
-    def test_pointer_preflight_returns_ok_on_confirmed_land(self):
-        """pointer_preflight returns ok only once the tip land ack arrives."""
-        snapshot = {
-            "elements": [
-                {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
-            ],
-        }
-        with (
-            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
-            mock.patch.object(
-                macos_cua, "_wait_for_operator_cursor", return_value={"ok": True}
-            ),
-        ):
-            result = macos_cua.pointer_preflight(
-                True, "App", 10, 20, snapshot, 1, "Moving to test"
-            )
-        self.assertIsNotNone(result)
-        self.assertTrue(result["ok"])
 
-    def test_pointer_preflight_returns_none_on_publish_failure(self):
-        """pointer_preflight returns None when operator_update itself fails."""
-        snapshot = {
-            "elements": [
-                {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
-            ],
-        }
-        with (
-            mock.patch.object(macos_cua, "element_center", return_value=(300, 500)),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": False, "error": "file write failed"}),
-        ):
-            result = macos_cua.pointer_preflight(
-                True, "App", 10, 20, snapshot, 1, "Moving to test"
-            )
-        self.assertIsNone(result, "pointer_preflight must return None on publish failure")
 
     def test_cleanup_driver_cursors_never_touches_retired_cua_driver(self):
         client = mock.Mock()
@@ -2258,20 +2154,6 @@ class CursorProofTests(unittest.TestCase):
         finally:
             os.chdir(previous_directory)
 
-    def test_operator_update_surfaces_cursor_raster_failure(self):
-        with (
-            mock.patch.object(
-                macos_cua,
-                "cursor_raster_path",
-                side_effect=macos_cua.CursorRasterError("raster failed"),
-            ),
-            mock.patch.object(macos_cua, "_operator_ui") as operator_ui,
-        ):
-            result = macos_cua.operator_update("Fixture")
-
-        self.assertFalse(result["ok"])
-        self.assertIn("raster failed", result["error"])
-        operator_ui.assert_not_called()
 
     def test_legacy_cursor_configuration_fails_closed_on_raster_error(self):
         with (
@@ -2411,7 +2293,6 @@ class CursorProofTests(unittest.TestCase):
                 "actions": [{"action": "wait", "seconds": 0}]}
         for raised in (False, True):
             with self.subTest(raised=raised), \
-                    mock.patch.object(macos_cua, "operator_update"), \
                     mock.patch.object(macos_cua, "_plan_snapshot", return_value={"elements": []}), \
                     mock.patch.object(macos_cua, "_hide_task_cursor",
                                       return_value={"ok": True}) as hide:
@@ -2428,8 +2309,7 @@ class CursorProofTests(unittest.TestCase):
     def test_run_actions_hide_failure_marks_plan_not_ok(self):
         plan = {"allow_unverified": True, "capture": "never", "settle_ms": 0,
                 "actions": [{"action": "wait", "seconds": 0}]}
-        with mock.patch.object(macos_cua, "operator_update"), \
-                mock.patch.object(macos_cua, "_plan_snapshot", return_value={"elements": [], "engine": "CUAService"}), \
+        with mock.patch.object(macos_cua, "_plan_snapshot", return_value={"elements": [], "engine": "CUAService"}), \
                 mock.patch.object(macos_cua, "_hide_task_cursor",
                                   return_value={"ok": False, "error": "socket down"}):
             result = macos_cua.run_actions(1, 2, plan, app_name="Fixture")
@@ -2480,283 +2360,6 @@ class CursorProofTests(unittest.TestCase):
         self.assertNotIn('"start_session"', source)
 
 
-class OperatorUITests(unittest.TestCase):
-    def test_visible_cursor_overlay_matches_hermes_render_contract(self):
-        operator = Path(__file__).parents[1] / "operator"
-        source = "\n".join(path.read_text() for path in sorted(operator.glob("*.swift")))
-        self.assertIn("cursorOverlayPanel.level = .popUpMenu", source)
-        self.assertNotIn("cursorOverlayPanel.level = .screenSaver", source)
-        self.assertIn("order(.above, relativeTo:", source)
-        self.assertIn("isCursorPointVisible", source)
-        self.assertIn("macos-cua · \\(agent)", source)
-        self.assertNotIn("Using your computer", source)
-        self.assertNotIn("Esc to cancel", source)
-        self.assertIn("cursorOverlayPanel.ignoresMouseEvents = true", source)
-        self.assertIn("width: 28, height: 28", source)
-        self.assertIn("cyanGlow.shadowBlurRadius = 12", source)
-        self.assertIn("depthShadow.shadowBlurRadius = 4", source)
-        self.assertIn('forKey: "hermes-pointer-idle"', source)
-        self.assertIn('stateURL.path + ".lock"', source)
-        self.assertIn("flock(lockDescriptor, LOCK_EX)", source)
-
-    def test_bundle_and_launch_agent_contracts(self):
-        originals = {
-            name: getattr(operator_ui, name)
-            for name in (
-                "APP_BUNDLE",
-                "BINARY",
-                "INFO_PLIST",
-                "LAUNCH_AGENT",
-                "STATE",
-                "LOG_FILE",
-            )
-        }
-        try:
-            with tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
-                operator_ui.APP_BUNDLE = root / "Operator.app"
-                operator_ui.BINARY = operator_ui.APP_BUNDLE / "Contents/MacOS/operator"
-                operator_ui.INFO_PLIST = operator_ui.APP_BUNDLE / "Contents/Info.plist"
-                operator_ui.LAUNCH_AGENT = root / "operator.plist"
-                operator_ui.STATE = root / "state.json"
-                operator_ui.LOG_FILE = root / "operator.log"
-                operator_ui._write_bundle_metadata()
-                operator_ui._write_launch_agent()
-
-                with operator_ui.INFO_PLIST.open("rb") as handle:
-                    bundle = plistlib.load(handle)
-                with operator_ui.LAUNCH_AGENT.open("rb") as handle:
-                    service = plistlib.load(handle)
-                self.assertTrue(bundle["LSUIElement"])
-                self.assertEqual(
-                    bundle["CFBundleIdentifier"], operator_ui.SERVICE_LABEL
-                )
-                self.assertTrue(service["KeepAlive"])
-                self.assertEqual(
-                    service["ProgramArguments"][0], str(operator_ui.BINARY)
-                )
-        finally:
-            for name, value in originals.items():
-                setattr(operator_ui, name, value)
-
-    def test_process_record_tracks_the_built_binary_version(self):
-        original_binary = operator_ui.BINARY
-        original_pid_file = operator_ui.PID_FILE
-        try:
-            with tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
-                operator_ui.BINARY = root / "operator"
-                operator_ui.PID_FILE = root / "operator.pid"
-                operator_ui.BINARY.write_text("v1")
-                operator_ui._atomic_json(
-                    operator_ui.PID_FILE,
-                    {
-                        "binary_mtime_ns": operator_ui.BINARY.stat().st_mtime_ns,
-                        "pid": 123,
-                    },
-                )
-
-                self.assertTrue(operator_ui._process_uses_current_binary())
-                operator_ui.BINARY.write_text("v2")
-                os.utime(
-                    operator_ui.BINARY,
-                    ns=(
-                        operator_ui.BINARY.stat().st_atime_ns,
-                        operator_ui.BINARY.stat().st_mtime_ns + 1,
-                    ),
-                )
-                self.assertFalse(operator_ui._process_uses_current_binary())
-        finally:
-            operator_ui.BINARY = original_binary
-            operator_ui.PID_FILE = original_pid_file
-
-    def test_state_contract_is_harness_independent(self):
-        original_state = operator_ui.STATE
-        original_pid_file = operator_ui.PID_FILE
-        try:
-            with tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
-                operator_ui.STATE = root / "state.json"
-                operator_ui.PID_FILE = root / "operator.pid"
-                result = operator_ui.update(
-                    start=False,
-                    active=True,
-                    app="Calculator",
-                    pid=10,
-                    window_id=20,
-                    screenshot_path="/tmp/calculator.png",
-                    status="observing",
-                    harness="Cursor",
-                    cursor_x=0.25,
-                    cursor_y=0.75,
-                    cursor_screen_x=640,
-                    cursor_screen_y=480,
-                    cursor_visible=True,
-                    cursor_image_path=macos_cua.CURSOR_ICON,
-                )
-
-                state = result["state"]
-                self.assertTrue(result["ok"])
-                self.assertEqual(state["harness"], "Cursor")
-                self.assertEqual(state["window_id"], 20)
-                self.assertEqual(state["screenshot_path"], "/tmp/calculator.png")
-                self.assertEqual(state["cursor_x"], 0.25)
-                self.assertEqual(state["cursor_screen_x"], 640)
-                self.assertTrue(state["cursor_visible"])
-                self.assertTrue(state["cursor_update_id"])
-                self.assertTrue(operator_ui.STATE.is_file())
-
-                previous_update_id = state["cursor_update_id"]
-                operator_ui._atomic_json(
-                    operator_ui.STATE,
-                    {
-                        **state,
-                        "cursor_rendered_x": 0.25,
-                        "cursor_rendered_y": 0.75,
-                        "cursor_rendered_update_id": previous_update_id,
-                    },
-                )
-                moved_again = operator_ui.update(
-                    start=False,
-                    active=True,
-                    app="Calculator",
-                    pid=10,
-                    window_id=20,
-                    cursor_x=0.25,
-                    cursor_y=0.75,
-                )
-                self.assertNotEqual(
-                    moved_again["state"]["cursor_update_id"], previous_update_id
-                )
-                self.assertNotIn("cursor_rendered_update_id", moved_again["state"])
-
-                switched = operator_ui.update(
-                    start=False,
-                    active=True,
-                    app="TextEdit",
-                    pid=11,
-                    window_id=21,
-                    screenshot_path="/tmp/textedit.png",
-                )
-                self.assertEqual(switched["state"]["screenshot_path"], "/tmp/textedit.png")
-                self.assertFalse(switched["state"]["cursor_visible"])
-                self.assertNotIn("cursor_screen_x", switched["state"])
-
-                changed = operator_ui.update(
-                    start=False,
-                    active=True,
-                    app="Finder",
-                    status="observing",
-                    harness="Cursor",
-                )
-                self.assertEqual(changed["state"]["screenshot_path"], "")
-                self.assertFalse(changed["state"]["cursor_visible"])
-
-                inactive = operator_ui.update(
-                    start=False,
-                    active=False,
-                    status="idle",
-                    message="No controlled app",
-                )
-                inactive_state = inactive["state"]
-                self.assertEqual(inactive_state["app"], "")
-                self.assertEqual(inactive_state["screenshot_path"], "")
-                self.assertEqual(inactive_state["raw_screenshot_path"], "")
-                self.assertFalse(inactive_state["cursor_visible"])
-                for stale_key in (
-                    "pid",
-                    "window_id",
-                    "snapshot_id",
-                    "window_frame",
-                    "cursor_x",
-                    "cursor_y",
-                    "cursor_update_id",
-                    "cursor_rendered_update_id",
-                ):
-                    self.assertNotIn(stale_key, inactive_state)
-        finally:
-            operator_ui.STATE = original_state
-            operator_ui.PID_FILE = original_pid_file
-
-    def test_state_lock_prevents_stale_ack_from_overwriting_new_publish(self):
-        original_state = operator_ui.STATE
-        original_pid_file = operator_ui.PID_FILE
-        try:
-            with tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
-                operator_ui.STATE = root / "state.json"
-                operator_ui.PID_FILE = root / "operator.pid"
-                operator_ui._atomic_json(
-                    operator_ui.STATE,
-                    {
-                        "app": "Calculator",
-                        "pid": 10,
-                        "window_id": 20,
-                        "cursor_update_id": "A",
-                        "cursor_x": 0.1,
-                        "cursor_y": 0.2,
-                    },
-                )
-                publisher_read = threading.Event()
-                original_read = operator_ui._read_json
-
-                def observed_read(path):
-                    if threading.current_thread().name == "publisher-B":
-                        publisher_read.set()
-                    return original_read(path)
-
-                def publish_b():
-                    operator_ui.update(
-                        start=False,
-                        app="Calculator",
-                        pid=10,
-                        window_id=20,
-                        cursor_x=0.7,
-                        cursor_y=0.8,
-                        cursor_update_id="B",
-                    )
-
-                with mock.patch.object(
-                    operator_ui, "_read_json", side_effect=observed_read
-                ):
-                    with operator_ui._state_lock():
-                        stale = original_read(operator_ui.STATE)
-                        publisher = threading.Thread(
-                            target=publish_b, name="publisher-B"
-                        )
-                        publisher.start()
-                        self.assertFalse(publisher_read.wait(0.05))
-                        operator_ui._atomic_json(
-                            operator_ui.STATE,
-                            {
-                                **stale,
-                                "cursor_rendered_x": 0.1,
-                                "cursor_rendered_y": 0.2,
-                                "cursor_rendered_update_id": "A",
-                            },
-                        )
-                    publisher.join(timeout=1)
-
-                self.assertFalse(publisher.is_alive())
-                self.assertTrue(publisher_read.is_set())
-                final = original_read(operator_ui.STATE)
-                self.assertEqual(final["cursor_update_id"], "B")
-                self.assertNotIn("cursor_rendered_update_id", final)
-        finally:
-            operator_ui.STATE = original_state
-            operator_ui.PID_FILE = original_pid_file
-
-    def test_pip_visibility_is_explicit_and_reversible(self):
-        with mock.patch.object(operator_ui, "update", return_value={"ok": True}) as update:
-            shown = operator_ui.set_pip_visible(True)
-            hidden = operator_ui.set_pip_visible(False)
-
-        self.assertTrue(shown["pip_visible"])
-        self.assertFalse(hidden["pip_visible"])
-        self.assertEqual(
-            [call.kwargs for call in update.call_args_list],
-            [{"pip_visible": True}, {"pip_visible": False}],
-        )
 
 
 class KeyboardTests(unittest.TestCase):
@@ -2953,23 +2556,6 @@ class KeyboardTests(unittest.TestCase):
 
 
 class StateEnrichmentTests(unittest.TestCase):
-    def test_resolution_reset_preserves_operator_json(self):
-        original_cache = macos_cua.CACHE_DIR
-        try:
-            with tempfile.TemporaryDirectory() as directory:
-                macos_cua.CACHE_DIR = directory
-                resolution = Path(directory) / "Calculator.json"
-                operator = Path(directory) / "operator-state.json"
-                resolution.write_text('{"pid": 1, "window_id": 2, "ts": 3}')
-                operator.write_text('{"pid": 4, "window_id": 5, "status": "active"}')
-
-                removed = macos_cua.clear_resolution_cache()
-
-                self.assertEqual(removed, [str(resolution)])
-                self.assertFalse(resolution.exists())
-                self.assertTrue(operator.exists())
-        finally:
-            macos_cua.CACHE_DIR = original_cache
 
     def test_static_child_text_is_attached_to_cell_and_row(self):
         state = {
@@ -3041,66 +2627,7 @@ class StateEnrichmentTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             macos_cua.choose_walk_roots(windows, [], menus=["ctx"], menubar="bar")
 
-    def test_glide_uses_popover_frame_when_window_missing(self):
-        snap = {
-            "elements": [
-                {
-                    "element_index": 1,
-                    "role": "AXPopover",
-                    "frame": {"x": 10, "y": 20, "w": 200, "h": 100},
-                },
-                {
-                    "element_index": 2,
-                    "role": "AXStaticText",
-                    "label": "Message yourself",
-                    "frame": {"x": 20, "y": 30, "w": 80, "h": 20},
-                },
-            ]
-        }
-        frame = macos_cua._glide_container_frame(snap, (40, 40))
-        self.assertEqual(frame["w"], 200)
-        self.assertEqual(frame["h"], 100)
 
-    def test_glide_omits_stale_screen_point_without_quartz(self):
-        snap = {
-            "elements": [
-                {
-                    "element_index": 1,
-                    "role": "AXWindow",
-                    "frame": {"x": 0, "y": 0, "w": 200, "h": 100},
-                },
-                {
-                    "element_index": 2,
-                    "role": "AXButton",
-                    "label": "7",
-                    "frame": {"x": 20, "y": 20, "w": 20, "h": 20},
-                },
-            ]
-        }
-        with (
-            mock.patch.object(
-                macos_cua, "_live_window_frame", side_effect=AssertionError("hot path")
-            ),
-            mock.patch.object(
-                macos_cua,
-                "operator_update",
-                return_value={"ok": True, "state": {"cursor_update_id": "u1"}},
-            ) as update,
-            mock.patch.object(
-                macos_cua, "_wait_for_operator_cursor", return_value={"ok": True}
-            ),
-        ):
-            result = macos_cua.glide_operator_to_element(
-                "Calculator", 11, 22, snap, 2
-            )
-        kwargs = update.call_args.kwargs
-        self.assertTrue(result["ok"])
-        self.assertAlmostEqual(kwargs["cursor_x"], 0.15)
-        self.assertAlmostEqual(kwargs["cursor_y"], 0.3)
-        self.assertIsNone(kwargs["cursor_screen_x"])
-        self.assertIsNone(kwargs["cursor_screen_y"])
-        self.assertAlmostEqual(result["coords"]["x"], 30)
-        self.assertAlmostEqual(result["coords"]["y"], 30)
 
     def test_display_packet_reports_asleep_configured_without_failing(self):
         active = [
@@ -3128,30 +2655,6 @@ class StateEnrichmentTests(unittest.TestCase):
                 pinned = displays.display_packet()
             self.assertEqual(pinned.get("pin_error"), "pinned display is not active")
 
-    def test_window_local_cursor_clears_stale_screen_point(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            operator_ui.STATE = root / "state.json"
-            operator_ui.PID_FILE = root / "operator.pid"
-            operator_ui.update(
-                start=False,
-                active=True,
-                app="Calculator",
-                cursor_x=0.2,
-                cursor_y=0.3,
-                cursor_screen_x=10,
-                cursor_screen_y=20,
-            )
-            cleared = operator_ui.update(
-                start=False,
-                active=True,
-                app="Calculator",
-                cursor_x=0.4,
-                cursor_y=0.5,
-            )
-            self.assertNotIn("cursor_screen_x", cleared["state"])
-            self.assertNotIn("cursor_screen_y", cleared["state"])
-            self.assertEqual(cleared["state"]["cursor_x"], 0.4)
 
     def test_typed_text_is_proven_fails_closed_on_empty_ax(self):
         self.assertTrue(macos_cua.typed_text_is_proven("hello", "hello there"))
@@ -3426,35 +2929,6 @@ class PrimitiveContractTests(unittest.TestCase):
             )
             self.assertTrue(Path(directory, "proof").is_dir())
 
-    def test_point_target_rejects_stale_operator_screenshot(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            screenshot = root / "proof.png"
-            screenshot.write_bytes(b"png")
-            os.utime(screenshot, (10, 10))
-            (root / "operator-state.json").write_text(
-                json.dumps(
-                    {
-                        "app": "Fixture",
-                        "pid": 10,
-                        "window_id": 20,
-                        "snapshot_id": "old-1",
-                        "raw_screenshot_path": str(screenshot),
-                    }
-                )
-            )
-            with (
-                mock.patch.object(macos_cua, "CACHE_DIR", str(root)),
-                mock.patch.object(macos_cua.time, "time", return_value=100),
-                mock.patch.object(macos_cua, "operator_update") as publish,
-            ):
-                result = macos_cua._move_operator_cursor_to_point(
-                    "Fixture", 10, 20, 30, 40
-                )
-
-        self.assertFalse(result["ok"])
-        self.assertIn("stale", result["error"])
-        publish.assert_not_called()
 
     def test_double_click_uses_two_native_presses_for_accessible_button(self):
         state = {
@@ -3517,43 +2991,14 @@ class PrimitiveContractTests(unittest.TestCase):
             macos_cua.perform_action(10, 20, 30, "Show Menu")
         self.assertEqual(rpc.call_args.args[2]["action"], "AXShowMenu")
 
-    def test_secondary_action_accepts_native_ax_action_name(self):
-        services = SimpleNamespace(
-            AXUIElementPerformAction=lambda element, action: 0,
-        )
-        state = {
-            "elements": [{"element_index": 30, "actions": ["AXShowMenu"]}]
-        }
-        with mock.patch.object(
-            macos_cua,
-            "_resolve_native_ax_element",
-            return_value=((object(), services), None),
-        ):
-            result = macos_cua.perform_action(
-                10, 20, 30, "showmenu", snapshot_data=state
-            )
-
-        self.assertEqual(result["path"], "native_ax")
-
-    def test_perform_action_fails_closed_when_ax_hangs(self):
-        services = SimpleNamespace(
-            AXUIElementSetMessagingTimeout=mock.Mock(),
-            AXUIElementPerformAction=lambda element, action: time.sleep(5) or 0,
-        )
-        state = {"elements": [{"element_index": 30, "actions": ["AXPress"]}]}
-        started = time.monotonic()
-        with mock.patch.object(
-            macos_cua,
-            "_resolve_native_ax_element",
-            return_value=((object(), services), None),
-        ):
-            result = macos_cua.perform_action(
-                10, 20, 30, "press", snapshot_data=state
-            )
-        elapsed = time.monotonic() - started
-        self.assertEqual(result.get("error_code"), "ax_timeout")
-        self.assertFalse(result.get("ok"))
-        self.assertLess(elapsed, 2.5)
+    def test_secondary_action_with_snapshot_uses_cuaservice(self):
+        state = {"elements": [{"element_index": 30, "actions": ["AXShowMenu"]}]}
+        with mock.patch.object(macos_cua, "require_cuaservice_window", return_value=None), \
+                mock.patch.object(macos_cua, "_cuaservice_rpc", return_value={"ok": True}) as rpc:
+            result = macos_cua.perform_action(10, 20, 30, "showmenu", snapshot_data=state)
+        self.assertTrue(result["ok"])
+        self.assertEqual(rpc.call_args.args[1], "perform_secondary_action")
+        self.assertEqual(rpc.call_args.args[2]["action"], "AXShowMenu")
 
     def test_selection_range_supports_context_and_cursor_modes(self):
         value = "one target two target three"
@@ -3590,7 +3035,7 @@ class PlanEfficiencyTests(unittest.TestCase):
         }
 
     def test_mutating_plan_requires_assertion_before_dispatch(self):
-        with mock.patch.object(macos_cua, "operator_update") as operator:
+        if True:
             result = macos_cua.run_actions(
                 10,
                 20,
@@ -3600,7 +3045,6 @@ class PlanEfficiencyTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["code"], "assertion_required")
         self.assertEqual(result["unasserted_steps"], [1])
-        operator.assert_not_called()
 
     def test_selected_element_is_reused_for_immediate_type(self):
         state = {
@@ -3615,7 +3059,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "type_text", return_value={"ok": True}
             ) as type_text,
-            mock.patch.object(macos_cua, "operator_update"),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -3642,7 +3086,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(macos_cua, "_new_ax_window_id", return_value=99),
             mock.patch.object(macos_cua, "_write_cache") as cache,
             mock.patch.object(macos_cua, "_plan_snapshot", return_value=state),
-            mock.patch.object(macos_cua, "operator_update"),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -3659,9 +3103,8 @@ class PlanEfficiencyTests(unittest.TestCase):
         self.assertEqual(result["window_id"], 99)
         cache.assert_called_once_with("TextEdit", 10, 99)
 
-    def test_malformed_plan_fails_before_operator_or_snapshot(self):
+    def test_malformed_plan_fails_before_snapshot(self):
         with (
-            mock.patch.object(macos_cua, "operator_update") as operator,
             mock.patch.object(macos_cua, "snapshot") as snapshot,
         ):
             result = macos_cua.run_actions(
@@ -3674,7 +3117,6 @@ class PlanEfficiencyTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["code"], "invalid_plan")
         self.assertEqual(result["errors"][0]["code"], "required_field_missing")
-        operator.assert_not_called()
         snapshot.assert_not_called()
 
     def test_pointer_coordinate_plan_observes_immediately_before_dispatch(self):
@@ -3687,7 +3129,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "click_point", return_value={"ok": True}
             ) as click_point,
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -3732,7 +3174,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "press_key", return_value={"ok": False, "error": "missed"}
             ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -3751,9 +3193,7 @@ class PlanEfficiencyTests(unittest.TestCase):
 
     def test_empty_expectation_does_not_exempt_mutating_plan(self):
         for empty in ({}, [], ""):
-            with self.subTest(empty=empty), mock.patch.object(
-                macos_cua, "operator_update"
-            ) as operator:
+            with self.subTest(empty=empty):
                 result = macos_cua.run_actions(
                     10,
                     20,
@@ -3765,7 +3205,6 @@ class PlanEfficiencyTests(unittest.TestCase):
                 )
             self.assertFalse(result["ok"])
             self.assertEqual(result["code"], "assertion_required")
-            operator.assert_not_called()
 
     def test_allow_unverified_dispatches_but_never_reports_success(self):
         state = self._snapshot("Go", "Ready")
@@ -3782,7 +3221,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
             ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -3815,7 +3254,7 @@ class PlanEfficiencyTests(unittest.TestCase):
                 "press_key",
                 return_value={"accepted": True, "effect": "unverifiable"},
             ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -3850,7 +3289,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "app_state", return_value=captured_state
             ) as app_state,
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -3888,7 +3327,7 @@ class PlanEfficiencyTests(unittest.TestCase):
                     {**unverified_dispatch, "path": "system_events_pid"},
                 ],
             ) as press_key,
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 32734,
@@ -3960,7 +3399,7 @@ class PlanEfficiencyTests(unittest.TestCase):
                 macos_cua,
                 "_driver_max_image_dimension",
             ) as driver_config,
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -4019,7 +3458,7 @@ class PlanEfficiencyTests(unittest.TestCase):
         with (
             mock.patch.object(macos_cua, "snapshot", return_value=state),
             mock.patch.object(macos_cua, "app_state", return_value=captured_state),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -4064,7 +3503,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "app_state", return_value=captured_state
             ) as app_state,
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 32734,
@@ -4102,7 +3541,7 @@ class PlanEfficiencyTests(unittest.TestCase):
                     "effect": "unverifiable",
                 },
             ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 32734,
@@ -4132,14 +3571,14 @@ class PlanEfficiencyTests(unittest.TestCase):
                 macos_cua,
                 "click_label_pointer",
                 side_effect=[
-                    {"ok": True, "method": "ax", "move": {"sync": {"duration_ms": 4}}},
-                    {"ok": True, "method": "ax", "move": {"sync": {"duration_ms": 3}}},
+                    {"ok": True, "method": "ax", "cursor_landing": {"landed": True, "wait_ms": 4}},
+                    {"ok": True, "method": "ax", "cursor_landing": {"landed": True, "wait_ms": 3}},
                 ],
             ) as click,
             mock.patch.object(
                 macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
             ) as cleanup,
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -4162,7 +3601,7 @@ class PlanEfficiencyTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["state_reuses"], 1)
         self.assertNotIn("elements", result["final"])
         self.assertEqual(result["steps"][1]["state_reused"], True)
-        self.assertEqual(result["steps"][0]["cursor_sync_ms"], 4)
+        self.assertEqual(result["steps"][0]["cursor_landing"]["wait_ms"], 4)
         cleanup.assert_called_once_with()
         self.assertTrue(all(call.kwargs["prepare_cursor"] is False for call in click.call_args_list))
 
@@ -4191,7 +3630,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
             ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -4244,7 +3683,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
             ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,
@@ -4297,7 +3736,7 @@ class PlanEfficiencyTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
             ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             result = macos_cua.run_actions(
                 10,

@@ -15,7 +15,7 @@ SPEC.loader.exec_module(proof_cache)
 
 
 class ProofCacheTests(unittest.TestCase):
-    def test_prune_removes_expired_files_but_protects_active_proof(self):
+    def test_prune_removes_expired_files(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             screenshots = root / "screenshots"
@@ -26,17 +26,14 @@ class ProofCacheTests(unittest.TestCase):
             expired.write_bytes(b"expired")
             os.utime(protected, (10, 10))
             os.utime(expired, (10, 10))
-            (root / "operator-state.json").write_text(
-                json.dumps({"raw_screenshot_path": str(protected)})
-            )
 
             result = proof_cache.prune(
                 root, max_bytes=1024, max_age_seconds=10, now=100
             )
 
             self.assertTrue(result["ok"])
-            self.assertEqual(result["removed"], 1)
-            self.assertTrue(protected.exists())
+            self.assertEqual(result["removed"], 2)
+            self.assertFalse(protected.exists())
             self.assertFalse(expired.exists())
 
     def test_prune_removes_oldest_files_until_size_budget_is_met(self):

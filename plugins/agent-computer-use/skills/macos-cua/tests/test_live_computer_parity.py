@@ -272,67 +272,6 @@ def prove_drag() -> None:
                 {"local_y": local_y, "slider": slider_frame},
             )
 
-            def prove_cursor_screenshot(
-                point_x: float, point_y: float, path: Path, label: str
-            ) -> dict:
-                proof_state = MACOS_CUA.app_state(
-                    "macos-cua Drag Fixture",
-                    process.pid,
-                    window_id,
-                    max_elements=80,
-                    include_screenshot=True,
-                    screenshot_out_file=str(path),
-                )
-                proof = proof_state.get("screenshot") or {}
-                check(
-                    proof.get("cursor_included") is True,
-                    f"{label} screenshot contains the agent cursor",
-                    proof,
-                )
-                expected = {
-                    "x": point_x / float(proof["width"]),
-                    "y": point_y / float(proof["height"]),
-                }
-                actual = proof.get("cursor") or {}
-                pixel_error = {
-                    "x": (float(actual.get("x", -1)) - expected["x"])
-                    * float(proof["width"]),
-                    "y": (float(actual.get("y", -1)) - expected["y"])
-                    * float(proof["height"]),
-                }
-                check(
-                    max(abs(pixel_error["x"]), abs(pixel_error["y"])) <= 1,
-                    f"{label} screenshot hotspot matches AXSlider within one pixel",
-                    pixel_error,
-                )
-                proof_path = Path(proof["path"])
-                check(proof_path.is_file(), f"{label} screenshot is materialized")
-                with Image.open(proof_path).convert("RGB") as image:
-                    target_x = round(expected["x"] * image.width)
-                    target_y = round(expected["y"] * image.height)
-                    cyan = 0
-                    for px in range(max(0, target_x - 6), min(image.width, target_x + 7)):
-                        for py in range(max(0, target_y - 6), min(image.height, target_y + 7)):
-                            red, green, blue = image.getpixel((px, py))
-                            if blue > 150 and green > 100 and red < 160:
-                                cyan += 1
-                check(cyan > 0, f"{label} screenshot ring is on the AXSlider", cyan)
-                return proof
-
-            source_move = MACOS_CUA._move_operator_cursor_to_point(
-                "macos-cua Drag Fixture",
-                process.pid,
-                window_id,
-                local_x,
-                local_y,
-            )
-            check(source_move.get("ok") is True, "cursor reaches live slider source")
-            prove_cursor_screenshot(
-                local_x,
-                local_y,
-                directory_path / "source-cursor.png",
-                "drag source",
-            )
             first_drag = accepted(
                 MACOS_CUA.drag(
                     process.pid,
@@ -358,22 +297,12 @@ def prove_drag() -> None:
                     "element": first_drag.get("element"),
                 },
             )
-            check(
-                first_drag.get("move", {}).get("source", {}).get("sync", {}).get("ok")
-                and first_drag.get("move", {}).get("destination", {}).get("sync", {}).get("ok"),
-                "macos-cua cursor visibly tracks the drag trajectory",
-                {
-                    "source_ms": first_drag["move"]["source"]["sync"]["duration_ms"],
-                    "destination_ms": first_drag["move"]["destination"]["sync"]["duration_ms"],
-                },
+            destination_path = directory_path / "destination.png"
+            destination_state = MACOS_CUA.app_state(
+                "macos-cua Drag Fixture", process.pid, window_id,
+                max_elements=80, include_screenshot=True, screenshot_out_file=str(destination_path),
             )
-            time.sleep(0.3)
-            destination_proof = prove_cursor_screenshot(
-                target_x,
-                local_y,
-                directory_path / "destination-cursor.png",
-                "drag destination",
-            )
+            destination_proof = destination_state.get("screenshot") or {}
             after_red, after_green = indicator_pixels(
                 Path(destination_proof["raw_path"])
             )
@@ -447,7 +376,7 @@ def main() -> int:
     )
     check(preflight.returncode == 0, "preflight passes", preflight.stderr.strip())
     preflight_json = json.loads(preflight.stdout)
-    check(preflight_json.get("ready") is True, "permissions, daemon, signed operator ready")
+    check(preflight_json.get("ready") is True, "permissions and daemon ready")
     check(len(preflight.stdout) < 600, "healthy preflight output stays context-compact", len(preflight.stdout))
 
     activation = MACOS_CUA.launch_or_activate("Calculator")
@@ -548,38 +477,6 @@ def main() -> int:
         len(json.dumps(calculation, separators=(",", ":"))),
     )
 
-    operator = invoke("operator", "status")
-    check(operator["running"], "menu-bar and PiP operator is running")
-    check(operator["signing"].get("mode") == "identity", "operator has identity signature")
-    check(operator["state"].get("cursor_visible") is True, "operator publishes live pointer state")
-    check(
-        Path(operator["state"]["cursor_image_path"]).name == "hermes-pointer.png",
-        "signed operator uses the Hermes pointer raster",
-    )
-    prior_pip_visibility = operator["pip_visible"]
-    invoke("operator", "show-pip")
-    time.sleep(0.5)
-    try:
-        operator_pid, operator_window, _, operator_error = MACOS_CUA.resolve_app(
-            "macos-cua Operator"
-        )
-        check(operator_error is None, "native operator window resolves", operator_error)
-        operator_ax = MACOS_CUA._native_ax_snapshot(
-            operator_pid,
-            max_elements=40,
-            window_id=operator_window,
-        )
-        check(
-            not operator_ax.get("error"),
-            "native operator accessibility state resolves",
-            operator_ax.get("error"),
-        )
-        labels = {element.get("label") for element in operator_ax["elements"]}
-        check({"Hide", "Refresh", "End"}.issubset(labels), "PiP exposes Hide, Refresh, and End controls")
-    finally:
-        if not prior_pip_visibility:
-            invoke("operator", "hide-pip")
-
     prove_drag()
 
     temporary = Path(tempfile.gettempdir()) / f"macos-cua-parity-{os.getpid()}.txt"
@@ -604,14 +501,6 @@ def main() -> int:
             fixture_pid, fixture_window_id, publish=True
         )
         check(text_window.get("label") == temporary.name, "isolated TextEdit fixture is controlled")
-        operator = MACOS_CUA._operator_ui().status()
-        check(
-            operator["state"].get("app") == "TextEdit"
-            and operator["state"].get("raw_screenshot_path")
-            == state["screenshot"]["raw_path"],
-            "PiP preview follows the currently controlled app",
-            operator["state"].get("app"),
-        )
         index = area["element_index"]
 
         accepted(
@@ -932,10 +821,10 @@ def main() -> int:
     )
     check(closeout.returncode == 0, "closeout succeeds", closeout.stderr.strip())
     closeout_json = json.loads(closeout.stdout)
-    check(closeout_json.get("success") is True, "cursor sessions end and operator becomes idle")
+    check(closeout_json.get("success") is True, "cursor sessions end")
     check(closeout_json.get("daemon_ready") is True, "driver remains ready after closeout")
     print("\n=== SUMMARY ===")
-    print("  [PASS] live macos-cua parity primitives, operator UI, cursor, display, and cleanup")
+    print("  [PASS] live macos-cua parity primitives, cursor, display, and cleanup")
     return 0
 
 

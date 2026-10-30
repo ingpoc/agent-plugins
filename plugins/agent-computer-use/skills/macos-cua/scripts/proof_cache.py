@@ -20,13 +20,6 @@ def prune(
     if not screenshots.is_dir():
         return {"ok": True, "removed": 0, "freed_bytes": 0, "remaining_bytes": 0}
     protected: set[Path] = set()
-    try:
-        state = json.loads((root / "operator-state.json").read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        state = {}
-    for key in ("screenshot_path", "raw_screenshot_path"):
-        if state.get(key):
-            protected.add(Path(state[key]).expanduser().resolve())
     current_time = time.time() if now is None else float(now)
     files = []
     for path in screenshots.iterdir():

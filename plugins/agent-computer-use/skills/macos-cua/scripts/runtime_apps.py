@@ -77,7 +77,7 @@ def _validated_window_override(pid, resolved_window_id, requested_window_id):
 def clear_resolution_cache():
     """Remove only ephemeral app/window resolution records.
 
-    Operator state, its process record, and other JSON owner surfaces share the
+    JSON owner surfaces share the
     cache directory and must survive an app-resolution reset.
     """
     removed = []

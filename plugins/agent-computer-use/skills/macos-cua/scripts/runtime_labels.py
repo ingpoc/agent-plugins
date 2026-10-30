@@ -308,33 +308,6 @@ def click(pid, window_id, element_index, *, app_name=None):
     return cua_click(pid, element_index, window_id=window_id)
 
 
-def _bounded_ax_perform_action(element, services, action_name, seconds=1.5):
-    """Fail closed if AX messaging hangs past the 1.5s contract."""
-    _ax_set_timeout(element, services, seconds=seconds)
-    box = {}
-
-    def run():
-        try:
-            box["code"] = services.AXUIElementPerformAction(element, action_name)
-        except Exception as exc:
-            box["error"] = str(exc)
-
-    worker = threading.Thread(target=run, daemon=True)
-    worker.start()
-    worker.join(seconds + 0.25)
-    if worker.is_alive():
-        return {
-            "error": (
-                f"AXUIElementPerformAction({action_name}) timed out after {seconds}s"
-            ),
-            "error_code": "ax_timeout",
-        }
-    if box.get("error"):
-        return {"error": box["error"]}
-    code = box.get("code")
-    if code != 0:
-        return {"error": f"AXUIElementPerformAction({action_name}) returned {code}"}
-    return {"ok": True, "error_code": 0}
 
 
 def perform_action(pid, window_id, element_index, action, snapshot_data=None):
@@ -372,49 +345,6 @@ def perform_action(pid, window_id, element_index, action, snapshot_data=None):
                 "error": f"AX action '{action}' is not advertised by element {element_index}",
                 "advertised_actions": sorted((target or {}).get("actions", [])),
             }
-        native, error = _resolve_native_ax_element(pid, snapshot_data, element_index)
-        if native is not None:
-            element, services = native
-            action_name = {
-                "show_menu": "AXShowMenu",
-                "press": "AXPress",
-                "pick": "AXPick",
-                "confirm": "AXConfirm",
-                "cancel": "AXCancel",
-                "open": "AXOpen",
-                "increment": "AXIncrement",
-                "decrement": "AXDecrement",
-                "raise": "AXRaise",
-                "zoom_window": "AXZoomWindow",
-            }[normalized]
-            result = _bounded_ax_perform_action(element, services, action_name)
-            if result.get("ok"):
-                return {
-                    "ok": True,
-                    "element": element_index,
-                    "action": normalized,
-                    "path": "native_ax",
-                    "error_code": 0,
-                }
-            error = result.get("error") or f"native AX action failed: {normalized}"
-            if result.get("error_code") == "ax_timeout":
-                return {
-                    "ok": False,
-                    "accepted": False,
-                    "error": error,
-                    "error_code": "ax_timeout",
-                    "element": element_index,
-                    "action": normalized,
-                }
-        if normalized not in {
-            "show_menu",
-            "press",
-            "pick",
-            "confirm",
-            "cancel",
-            "open",
-        }:
-            return {"error": error or f"native AX action failed: {normalized}"}
     ax_name = {
         "show_menu": "AXShowMenu",
         "press": "AXPress",

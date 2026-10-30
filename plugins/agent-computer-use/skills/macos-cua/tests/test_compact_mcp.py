@@ -1294,7 +1294,7 @@ class ExpectVerifiedTests(unittest.TestCase):
         tree = '[1] AXStaticText value="\u200eChats"'
         self.assertTrue(compact_mcp.expect_verified("Chats", tree))
 
-    def test_operator_button_titles_do_not_verify(self):
+    def test_unrelated_button_titles_do_not_verify(self):
         tree = (
             '[0] AXWindow "Calculator"\n'
             '[16] AXButton "All Clear" [pressable]\n'

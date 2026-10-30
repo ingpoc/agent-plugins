@@ -59,16 +59,11 @@ class SessionRuntime:
     def telemetry_read(self) -> dict[str, float | int]:
         return self.cua.telemetry_read()
 
-    def ensure_operator(self) -> dict[str, Any]:
-        return self.cua._operator_ui().ensure()
 
     def closeout(self) -> dict[str, Any]:
         cua = self.cua
         cleared = cua.clear_resolution_cache()
         cleanup = cua._cleanup_driver_cursors(include_named=True)
-        operator = cua.operator_update(
-            status="idle", active=False, message="No controlled app"
-        )
         service = cua.cuaservice_health()
         ready = service.get("ok") is True
         return {
@@ -76,7 +71,6 @@ class SessionRuntime:
             "cleared_cache": True,
             "cleared_entries": cleared,
             "ended_cursor_sessions": len(cleanup.get("ended") or []),
-            "operator": operator,
             "daemon_ready": ready,
             "cuaservice": service,
         }
@@ -215,23 +209,7 @@ class SessionRuntime:
                     target = cua.find_clickable_index(fresh, str(label))
                 if target is None:
                     return {"ok": False, "error": "element not found"}
-                preflight = cua.pointer_preflight(
-                    True,
-                    name,
-                    pid,
-                    window_id,
-                    fresh,
-                    target,
-                    f"Moving to {label or target}",
-                )
-                if preflight and not preflight.get("ok"):
-                    return preflight
-                return cua.merge_pointer_proof(
-                    cua.perform_action(
-                        pid, window_id, target, action, snapshot_data=fresh
-                    ),
-                    preflight,
-                )
+                return cua.perform_action(pid, window_id, target, action, snapshot_data=fresh)
             if label:
                 return cua.click_label_pointer(
                     pid, window_id, str(label), app_name=name

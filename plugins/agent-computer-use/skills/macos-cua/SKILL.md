@@ -13,7 +13,7 @@ allowed-tools: Bash, Read
 
 # macos-cua
 
-Engine: **CUAService** (Swift `.app`). Cursor MCP is a 2-tool adapter (`state`, `act`) — not a second computer-use stack.
+Engine and sole visible-cursor owner: **CUAService** (Swift `.app`). Cursor MCP is a 2-tool adapter (`state`, `act`) — not a second computer-use stack.
 
 TCC on **macos-cua Service** / **CUAService**: Accessibility + Screen Recording. Relaunch after granting Screen Recording.
 

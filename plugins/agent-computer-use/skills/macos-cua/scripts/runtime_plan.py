@@ -103,14 +103,6 @@ def _run_actions(
             "duration_ms": 0,
         }
     output_mode = str(plan.get("output", "compact")).lower()
-    operator_update(
-        app_name,
-        pid,
-        window_id,
-        status="acting",
-        active=True,
-        message=f"Running {len(plan.get('actions', []))} asserted actions",
-    )
     results = []
     max_elements = int(plan.get("max_elements", 120))
     # Keep the user's system pointer untouched, while making agent actions
@@ -269,26 +261,9 @@ def _run_actions(
                 element, label_err = resolve_clickable_index(current, label)
                 if label_err is not None:
                     result = label_err
-            pre = pointer_preflight(
-                pointer,
-                app_name,
-                pid,
-                window_id,
-                current,
-                element,
-                f"Moving to {label or element}",
-            )
-            if pre and not pre.get("ok"):
-                result = pre
-            elif result is None:
-                result = (
-                    perform_action(
-                        pid, window_id, element, step["name"], snapshot_data=current
-                    )
-                    if element is not None
-                    else {"error": "perform_action: element not found"}
-                )
-                result = merge_pointer_proof(result, pre)
+            if result is None:
+                result = (perform_action(pid, window_id, element, step["name"], snapshot_data=current)
+                          if element is not None else {"error": "perform_action: element not found"})
             row.update(label=label, element=element, name=step.get("name"))
         elif act == "drag":
             result = drag(
@@ -596,26 +571,4 @@ def _run_actions(
     }
     if accepted_plan and not verified_plan:
         result["code"] = "unverified_run"
-    operator_update(
-        app_name,
-        pid,
-        window_id,
-        status="complete" if result_ok else "error",
-        active=True,
-        screenshot_path=(screenshot or {}).get("raw_path")
-        or (screenshot or {}).get("path")
-        if screenshot
-        else None,
-        message=(
-            "Assertions passed"
-            if result_ok
-            else "Required capture failed"
-            if capture_error
-            else "Actions dispatched without complete outcome proof"
-            if accepted_plan and not verified_plan
-            else "One or more actions were not accepted"
-            if not accepted_plan
-            else "One or more assertions failed"
-        ),
-    )
     return result

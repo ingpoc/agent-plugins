@@ -396,18 +396,4 @@ def build_parser(*, cua_session: str, key_codes) -> argparse.ArgumentParser:
     )
     p.add_argument("--session", default=cua_session)
 
-    p = sub.add_parser("operator", help="Native menu-bar and Picture-in-Picture UI")
-    p.add_argument(
-        "action",
-        choices=[
-            "start",
-            "status",
-            "show-pip",
-            "hide-pip",
-            "stop",
-            "install-service",
-            "uninstall-service",
-            "signing-status",
-        ],
-    )
     return parser

@@ -28,7 +28,7 @@ final class BrandTests: XCTestCase {
         AppVersion.info = Bundle.main.infoDictionary   // xctest runner
         XCTAssertEqual(AppVersion.short, "dev")
         XCTAssertNil(AppVersion.build)
-        AppVersion.info = ["CFBundleIdentifier": AppVersion.bundleID, "CFBundleShortVersionString": "0.2.26", "CFBundleVersion": "412"]
+        AppVersion.info = ["CFBundleIdentifier": AppVersion.bundleID, "CFBundleShortVersionString": "0.2.27", "CFBundleVersion": "412"]
         XCTAssertEqual(AppVersion.build, "(412)")
         Self.injectApp()
     }

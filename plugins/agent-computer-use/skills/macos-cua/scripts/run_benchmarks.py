@@ -85,11 +85,7 @@ def steps_show_cursor(steps: Any) -> bool:
     ]
     if not mutating:
         return False
-    return all(
-        str(step.get("method") or "").startswith("agent-cursor-glide")
-        and not step.get("cursor_sync_error")
-        for step in mutating
-    )
+    return all((step.get("cursor_landing") or {}).get("landed") is True for step in mutating)
 
 
 def score(row: dict[str, Any], measured: dict[str, Any]) -> dict[str, bool]:
@@ -186,7 +182,7 @@ def probe_calculator(cua, row: dict[str, Any]) -> dict[str, Any]:
         "glided_steps": sum(
             1
             for step in result.get("steps") or []
-            if str(step.get("method") or "").startswith("agent-cursor-glide")
+            if (step.get("cursor_landing") or {}).get("landed") is True
         ),
     }
     duration_s = time.monotonic() - started
@@ -278,10 +274,7 @@ def probe_right_click(cua, parity, row: dict[str, Any]) -> dict[str, Any]:
         }
         return {
             "readback": copy_visible,
-            "cursor_visible": str((click or {}).get("method") or "").startswith(
-                "agent-cursor-glide"
-            )
-            and bool(((click or {}).get("move") or {}).get("ok")),
+            "cursor_visible": ((click or {}).get("cursor_landing") or {}).get("landed") is True,
             "robust": restored and cua._accepted(click),
             "output_bytes": _compact_bytes(compact),
             "duration_s": round(time.monotonic() - started, 3),
@@ -410,7 +403,7 @@ def source_hash(root: Path) -> str:
         path = root / rel
         if path.is_file():
             files.append(path)
-    for folder in ("operator", "references", "scripts", "tests"):
+    for folder in ("references", "scripts", "tests"):
         base = root / folder
         if not base.exists():
             continue

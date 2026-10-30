@@ -5,12 +5,12 @@
 > [`observe-feedback.md`](observe-feedback.md).
 >
 > The rest of this file is **maintainer / bench** lifecycle (workflow.py,
-> operator install, live gates). Do not treat it as the default agent path.
+> migration, live gates). Do not treat it as the default agent path.
 
 ```text
-workflow.py preflight     # once, start: CUAService, TCC, signed operator
+workflow.py preflight     # once, start: CUAService, TCC
   MCP state + act         # middle: act-first per app (compact deltas)
-workflow.py closeout      # once, end: cache, cursors, operator idle
+workflow.py closeout      # once, end: cache, cursors
 ```
 
 Preflight never launches or focuses an app. On-screen window readiness is
@@ -30,14 +30,10 @@ Preflight only stabilizes infrastructure: it requires the daemon's
 Accessibility and Screen Recording grants, but never launches or exercises a
 test app. Older drivers may also report a direct capture probe; an explicit
 `false` fails closed, while an absent probe is left to the live validation
-commands below. With operator confirmation, run `cua-driver permissions grant`,
+commands below. With user confirmation, run `cua-driver permissions grant`,
 then rerun preflight.
 
-Preflight packages, identity-signs, verifies, and starts the native operator as
-a per-user launchd service. The first build requires the system `swiftc`; later
-sessions reuse the installed app bundle. `state` and `run` publish
-app/window/harness/cursor/proof state automatically. Set
-`MACOS_CUA_INSTALL_SERVICE=0` only for a deliberate transient/manual run.
+Preflight retires the legacy operator by unloading its launch agent and moving its files to Trash. CUAService owns the visible cursor.
 Healthy preflight prints a compact readiness packet; add `--verbose` only when
 diagnosing a failed component.
 
@@ -68,9 +64,7 @@ Logs and the append-only local ledger live under
 state <app> --compact → asserted act/plan → conditional independent readback
 ```
 
-- The signed operator owns the visible cursor. Each pointer action publishes the
-  global AX target, waits for the operator's rendered-position acknowledgement,
-  then performs the AX click. Do not prepare or move the cua-driver cursor.
+- CUAService owns the visible cursor and handles pointer movement and landing before actions.
 - `scripts/mcp_runtime.py` holds one facade and driver socket for MCP lifecycle,
   state, and act calls. `scripts/macos-cua.py` remains the stable diagnostic
   compatibility facade. Cohesive `scripts/runtime_*.py` modules own
@@ -156,28 +150,13 @@ Mutating plans without `expect` are rejected (`assertion_required`).
 
 ## Closeout
 
-`workflow.py closeout` clears cached app/window resolution JSON, hides and ends
-agent cursor sessions, marks the operator idle (which hides PiP), and verifies
-the daemon. The signed launchd-owned menu item stays available for the next
-harness. Raw and cursor-composited proof screenshots under
-`~/.cache/macos-cua/screenshots/` remain available for review. Closeout protects
-the active proof and prunes unreferenced files beyond the configured 30-day or
-256-MB retention boundary.
+`workflow.py closeout` clears cached app/window resolution JSON, ends cursor sessions, prunes proof screenshots by age and size, and verifies the daemon.
 Healthy closeout prints only the compact cleanup proof; use `--verbose` for the
 full component report.
 
-Resolution reset is schema-scoped: it does not delete the operator state or
-process record even though those JSON files share the same cache directory.
-
 ## Storage
 
-Cache and proof screenshots live under `~/.cache/macos-cua/`. Closeout
-protects the active proof and prunes unreferenced screenshots beyond 30
-days or 256 MB; override with `MACOS_CUA_PROOF_MAX_AGE_SECONDS` and
-`MACOS_CUA_PROOF_MAX_BYTES`. The signed app lives under
-`~/Library/Application Support/macos-cua/`; its reversible service is
-`~/Library/LaunchAgents/com.macos-cua.operator.plist`. The skill stores
-no app data.
+Cache and proof screenshots live under `~/.cache/macos-cua/`. Retention defaults to 30 days or 256 MB; override with `MACOS_CUA_PROOF_MAX_AGE_SECONDS` and `MACOS_CUA_PROOF_MAX_BYTES`.
 
 ## Test-app hygiene
 

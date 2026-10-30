@@ -5,7 +5,7 @@ Usage:
     python3 install_service.py [--release [--sign-only]] [--team TEAM_ID] [--dest PATH]
 
 Installs to /Applications/Agent Computer Use.app and keeps ~/.cache/macos-cua/CUAService.app as a
-symlink to it, so existing callers (cua_client, operator_ui, `open ~/.cache/...`) keep working.
+symlink to it, so existing callers (cua_client, `open ~/.cache/...`) keep working.
 --release builds a staged copy, runs release/sign-notarize.sh on it (Developer ID, hardened runtime,
 notarize + staple), then installs the signed copy. Signing prefers Developer ID over Apple Development:
 its designated requirement is team-based, so TCC grants survive certificate renewals.
