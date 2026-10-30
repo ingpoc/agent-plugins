@@ -16,5 +16,5 @@
     "macos-cua"
   ],
   "logo": "assets/logo.svg",
-  "mcpServers": "./.cursor-plugin/mcp.json"
+  "mcpServers": "./.mcp.json"
 }
