@@ -123,12 +123,12 @@ const visibilityHooks = { ...hooks, executeScriptOnTab: async (_tabId, options) 
 log.length = 0;
 const raised = await ni.nativeBringToFront(state, visibilityHooks, { holdMs: 0 });
 assert.equal(raised.visible, true);
-assert.equal(raised.input_path, "cua_raise");
+assert.equal(raised.input_path, "window_focus");
 assert.equal(raised.hold_ms, 0);
-assert.deepEqual(log.filter((op) => ["prepare_raise", "raise", "release"].includes(op)), ["prepare_raise", "raise", "release"]);
+assert.deepEqual(log.filter((op) => ["prepare_raise", "raise", "release"].includes(op)), ["prepare_raise", "release"]);
 log.length = 0;
 await assert.rejects(ni.nativeBringToFront(state, { ...hooks, executeScriptOnTab: async () => { throw new Error("poll failed"); } }, { holdMs: 0 }), /poll failed/);
-assert.deepEqual(log.filter((op) => ["prepare_raise", "raise", "release"].includes(op)), ["prepare_raise", "raise", "release"]);
+assert.deepEqual(log.filter((op) => ["prepare_raise", "raise", "release"].includes(op)), ["prepare_raise", "release"]);
 await assert.rejects(ni.nativeBringToFront({ tabId: 7 }, hooks, { holdMs: 0 }), { code: "LEASE_REQUIRED" });
 
 // ── 4) capability detection runs once per lease
@@ -281,7 +281,7 @@ log.length = 0;
 const cdp = (method, params = {}) => ({ type: "browser_use_cdp", method, params });
 pr = await parity.runParityAction(cdp("Page.bringToFront", { holdMs: 0 }), state, { ...parityHooks, nativeHooks: visibilityHooks });
 assert.equal(pr.result.fallback, "policy");
-assert.equal(pr.result.result.input_path, "cua_raise");
+assert.equal(pr.result.result.input_path, "window_focus");
 assert.equal(pr.result.result.visible, true);
 pr = await parity.runParityAction(cdp("Input.insertText", { text: "abc" }), state, parityHooks);
 assert.equal(pr.result.fallback, "policy");
