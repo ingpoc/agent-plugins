@@ -24,7 +24,7 @@ Needs macOS 13 or later (Apple silicon tested) and `python3` on `PATH`.
 
 1. Download the notarized **Agent Computer Use** DMG from this repository's GitHub release, open it, and drag **Agent Computer Use** to Applications. The app is Developer ID signed and notarized, so Gatekeeper opens it without warnings. Building from source needs your own Apple code-signing identity (`install_service.py --team <TEAM_ID>`), so reviewers should use the DMG.
 2. Open **Agent Computer Use**. When asked, grant **Accessibility** and **Screen Recording** (System Settings → Privacy & Security), then quit and reopen the app.
-3. Install the `agent-computer-use` plugin and restart the client. The MCP server `agent-computer-use` should list exactly two tools: `state` and `act`.
+3. Install the `agent-computer-use` plugin and restart the client. The MCP server `agent-computer-use` should list three tools: `state`, `act` and read-only `sessions`.
 4. Prompt: *"Use agent-computer-use to open Calculator and compute 12 × 3."* Expected: the agent calls `state` and then `act`, Calculator shows **36**, and the `act` reply includes a verified change.
 5. Optional, needs your own OpenAI key: the Samantha voice runtime. Skip it for a functional review. Steps 1 to 4 do not need it.
 6. Cleanup: quit Agent Computer Use, move it from Applications to the Trash, and remove its Accessibility and Screen Recording entries.
