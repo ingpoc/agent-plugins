@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.58 (2026-10-30)
+
+- Grok Bot rows hold for the whole turn: the sidebar's ", Working" label shows only while a reply streams, so a Bot running a long tool call dropped off. The island now also reads the app's screen-reader status "<Bot> is working" for the open conversation (accepted only for a Bot in the sidebar). 0.2.57 was built but not tagged.
+
 ## 0.2.57 (2026-10-30)
 
 - Grok Bot agents show on the island while they work: a row per Bot titled with its name ("Agent Computer Use"), meta "Grok Bot · 3m", dropped as soon as the Bot stops. Source: Grok Bot's documented sidebar "Working" status, read from the app's accessibility tree through one AXObserver (event-driven, no timers, no clicks). Bots need to post nothing.

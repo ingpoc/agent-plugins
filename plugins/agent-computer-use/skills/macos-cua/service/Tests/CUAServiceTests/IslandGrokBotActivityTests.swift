@@ -10,6 +10,16 @@ final class IslandGrokBotActivityTests: XCTestCase {
                        ["Agent Computer Use · Macos computer use", "Hisab Pune Bot"])
     }
 
+    func testScreenReaderStatusCountsOnlyForASidebarBot() {
+        let labels = ["Grok Bot · Main contact, Main Bot", "Agent Computer Use · Macos computer use", "Finance"]
+        XCTAssertEqual(IslandGrokBotActivity.workingBots(labels: labels,
+                       statuses: ["Agent Computer Use · Macos computer use is working", "Somebody else is working"]),
+                       ["Agent Computer Use · Macos computer use"])
+        XCTAssertEqual(IslandGrokBotActivity.workingBots(labels: labels, statuses: ["Finance replied"]), [])
+        XCTAssertEqual(IslandGrokBotActivity.workingBots(labels: labels + ["Finance, Working"],
+                       statuses: ["Finance is working"]), ["Finance"])
+    }
+
     func testRowShowsBotNameAndGrokBotMeta() {
         let now = Date()
         let rows = IslandGrokBotActivity.rows([("Agent Computer Use · Macos computer use", now.addingTimeInterval(-185))], now: now)

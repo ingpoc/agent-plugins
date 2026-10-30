@@ -11,13 +11,25 @@ enum IslandGrokBotActivity {
     static let bundleID = "com.anysphere.sand"
     static let workingSuffix = ", Working"
 
-    /// Bot names whose sidebar row says Working, in sidebar order, without duplicates.
-    static func workingBots(labels: [String]) -> [String] {
+    static let statusSuffix = " is working"
+
+    /// Bot names the app reports as working, in sidebar order, without duplicates. Two native
+    /// signals: a sidebar row labelled "<name>, Working" (shown while a reply streams), and the
+    /// app's screen-reader status "<name> is working" for the open conversation (kept for the
+    /// whole turn, tool calls included). A status name counts only if it is a Bot in the sidebar.
+    static func workingBots(labels: [String], statuses: [String] = []) -> [String] {
+        let names = labels.map { label -> String in
+            for suffix in [workingSuffix] where label.hasSuffix(suffix) { return String(label.dropLast(suffix.count)) }
+            return label.components(separatedBy: ", ").first ?? label
+        }.map { $0.trimmingCharacters(in: .whitespaces) }
+        let fromStatus = Set(statuses.compactMap { text -> String? in
+            guard text.hasSuffix(statusSuffix) else { return nil }
+            return String(text.dropLast(statusSuffix.count)).trimmingCharacters(in: .whitespaces)
+        })
         var seen = Set<String>()
-        return labels.compactMap { label in
-            guard label.hasSuffix(workingSuffix) else { return nil }
-            let name = String(label.dropLast(workingSuffix.count)).trimmingCharacters(in: .whitespaces)
-            guard !name.isEmpty, seen.insert(name).inserted else { return nil }
+        return zip(labels, names).compactMap { label, name in
+            guard !name.isEmpty, label.hasSuffix(workingSuffix) || fromStatus.contains(name),
+                  seen.insert(name).inserted else { return nil }
             return name
         }
     }
@@ -51,6 +63,7 @@ final class IslandGrokBotWatcher {
     private var appElement: AXUIElement?
     private var pid: pid_t = 0
     private var botList: AXUIElement?
+    private var webArea: AXUIElement?
     private var readScheduled = false
     private var last: [String] = []
     private var tokens: [NSObjectProtocol] = []
@@ -104,7 +117,7 @@ final class IslandGrokBotWatcher {
 
     private func detach() {
         if let observer { CFRunLoopRemoveSource(CFRunLoopGetMain(), AXObserverGetRunLoopSource(observer), .defaultMode) }
-        observer = nil; appElement = nil; botList = nil; pid = 0
+        observer = nil; appElement = nil; botList = nil; webArea = nil; pid = 0
         publish([])
     }
 
@@ -130,7 +143,19 @@ final class IslandGrokBotWatcher {
         Self.walk(botList, limit: 600) { e in
             if Self.string(e, kAXRoleAttribute) == kAXButtonRole as String, let l = Self.label(e) { labels.append(l) }
         }
-        publish(IslandGrokBotActivity.workingBots(labels: labels))
+        // The screen-reader status sits two levels under the web area (a 1×1 pt live region).
+        if webArea == nil || Self.string(webArea!, kAXRoleAttribute) == nil {
+            webArea = Self.find(appElement) { Self.string($0, kAXRoleAttribute) == "AXWebArea" }
+        }
+        var statuses: [String] = []
+        if let webArea {
+            for group in Self.children(webArea) {
+                for e in Self.children(group) where Self.string(e, kAXRoleAttribute) == kAXStaticTextRole as String {
+                    if let v = Self.string(e, kAXValueAttribute), v.hasSuffix(IslandGrokBotActivity.statusSuffix) { statuses.append(v) }
+                }
+            }
+        }
+        publish(IslandGrokBotActivity.workingBots(labels: labels, statuses: statuses))
     }
 
     private func publish(_ names: [String]) {
