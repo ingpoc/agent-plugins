@@ -89,6 +89,9 @@ class CUABackend:
     def credential(self, operation: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return self._rpc(lambda client: client.call("credential_" + operation, arguments, retry=False), retry=False)
 
+    def sessions(self, arguments: dict[str, Any]) -> dict[str, Any]:
+        return self._rpc(lambda client: client.call("local_sessions", arguments))
+
     def state(self, app: str, **kwargs: Any) -> dict[str, Any]:
         max_elements = int(kwargs.get("max_elements") or DEFAULT_MAX)
         disable_diff = not bool(kwargs.get("diff"))

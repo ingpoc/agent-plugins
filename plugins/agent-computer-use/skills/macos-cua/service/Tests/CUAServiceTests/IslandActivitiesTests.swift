@@ -243,9 +243,9 @@ final class IslandActivitiesTests: XCTestCase {
 
         XCTAssertEqual(IslandAgentRows.taskAgents([task, process]).map(\.id), [task.id])
         XCTAssertEqual(IslandAgentRows.processObservations([task, process]).map(\.id), [process.id])
-        XCTAssertEqual(IslandAgentRows.statusText(process), "activity unknown")
+        XCTAssertEqual(IslandAgentRows.statusText(process), "", "never the word unknown")
         XCTAssertNil(IslandAgentRows.control(for: process))
-        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 6, footer: false, maxVisibleRows: 6), 296)
+        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 6, footer: false, maxVisibleRows: 6), 336)
     }
 
     func testLegacyAgentWireFormatNeedsNoParentField() throws {
@@ -264,9 +264,10 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "pending:a", status: "needs_you")), .review)
         XCTAssertEqual(IslandAgentRows.control(for: IslandAgent(id: "agent:stale", status: "stale")), .dismiss)
         XCTAssertEqual(IslandAgentRows.cardHeight(rows: 1, footer: false), 96)
-        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 2, footer: false), 120)
-        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 3, footer: false), 164)
-        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 9, footer: true), 226, "4 rows + footer cap")
+        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 2, footer: false), 128)
+        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 3, footer: false), 180)
+        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 9, footer: true), 198, "3 rows + footer cap")
+        XCTAssertEqual(IslandAgentRows.cardHeight(rows: 3, footer: false, askRows: 1), 214, "needs-you row adds its buttons")
         let m = IslandModel()
         m.apply(IslandSnapshot(kind: "idle", agents: [run, err]))
         var sent: [String] = []

@@ -43,23 +43,53 @@ enum IslandLocalHarnessScanner {
         }
     }
 
-    static func scan() -> [IslandAgent] {
+    static func processListing() -> String {
         let pattern = harnesses.map(\.processName).joined(separator: "|")
-        guard let pgrep = run("/usr/bin/pgrep", arguments: ["-x", pattern]) else { return [] }
-        let pids = String(decoding: pgrep.data, as: UTF8.self).split(whereSeparator: { $0 == "\n" })
-            .compactMap { Int($0) }
-        guard pgrep.status == 0, !pids.isEmpty,
-              let ps = run("/bin/ps", arguments: ["-p", pids.map(String.init).joined(separator: ","), "-o", "pid,comm"]) else {
-            return []
-        }
-        let listing = String(decoding: ps.data, as: UTF8.self)
-        let processes = rows(processList: listing)
-        var others = processes.filter { !$0.id.hasPrefix("local:codex:") }
-        for index in others.indices where others[index].app == "Cursor" {
-            others[index].local_detail = "model unknown · activity unknown"
-        }
-        return others + IslandCodexThreads.scan(processes: codexProcesses(processList: listing))
+        guard let pgrep = run("/usr/bin/pgrep", arguments: ["-x", pattern]), pgrep.status == 0 else { return "" }
+        let pids = String(decoding: pgrep.data, as: UTF8.self).split(whereSeparator: { $0 == "\n" }).compactMap { Int($0) }
+        guard !pids.isEmpty, let ps = run("/bin/ps", arguments: ["-p", pids.map(String.init).joined(separator: ","), "-o", "pid,comm"]) else { return "" }
+        return String(decoding: ps.data, as: UTF8.self)
+    }
 
+    static func scan() -> [IslandAgent] {
+        IslandCodexThreads.scan(processes: codexProcesses(processList: processListing()))
+    }
+
+    static func sessions(includeIdle: Bool, includeProbes: Bool, limit: Int) -> [String: Any] {
+        let now = Date()
+        let listing = processListing()
+        let (records, hosts) = IslandCodexThreads.scanData(processes: codexProcesses(processList: listing), now: now)
+        let formatter = ISO8601DateFormatter()
+        let helpers = Dictionary(grouping: records.filter { $0.parentID != nil }, by: { $0.parentID! })
+        var result: [[String: Any]] = records.filter { (includeIdle || $0.rollout.state != "idle") && (includeProbes || !IslandCodexThreads.isProbe($0)) }.map { record in
+            let host = hosts.first { $0.rollouts.contains(record.rolloutPath) }
+            let appHost = host == nil && ["Codex Desktop", "codex_work_desktop"].contains(record.originator ?? "")
+            let model = record.rollout.model ?? record.model
+            var item: [String: Any] = ["kind": "codex_thread", "app": "Codex", "thread_id": record.id,
+                "title": IslandCodexThreads.displayTitle(record), "state": record.rollout.state,
+                "updated_at": formatter.string(from: record.updatedAt), "age_s": max(0, Int(now.timeIntervalSince(record.updatedAt))),
+                "host": host != nil ? "terminal" : appHost ? "chatgpt_app" : "unknown",
+                "helpers": helpers[record.id]?.count ?? 0, "probe": IslandCodexThreads.isProbe(record),
+                "deep_link": "codex://threads/\(record.id)"]
+            if let v = host?.pid { item["pid"] = v }
+            if let v = model { item["model"] = v; item["model_name"] = IslandCodexThreads.productModelName(v) }
+            if let v = record.rollout.effort ?? record.effort { item["effort"] = v.lowercased() }
+            if let v = record.cwd { item["cwd"] = v }
+            if let v = record.branch { item["branch"] = v }
+            if let v = record.codexHome { item["codex_home"] = v }
+            if let v = record.parentID { item["parent_thread_id"] = v }
+            if let v = record.rollout.tokens { item["tokens"] = v }
+            if let v = record.rollout.contextPercent { item["context_pct"] = v }
+            if let v = record.originURL, !v.isEmpty { item["repo"] = URL(fileURLWithPath: v).deletingPathExtension().lastPathComponent }
+            else if let v = record.cwd { item["repo"] = URL(fileURLWithPath: v).lastPathComponent }
+            return item
+        }
+        result += hosts.filter(\.isDesktopApp).map { ["kind": "host", "app": "Codex", "host": "chatgpt_app", "pid": $0.pid, "probe": false] }
+        result += rows(processList: listing).filter { $0.app != "Codex" }.compactMap { row in
+            guard let pid = Int(row.title.replacingOccurrences(of: "PID ", with: "")) else { return nil }
+            return ["kind": "process", "app": row.app, "pid": pid, "probe": false]
+        }
+        return ["ok": true, "generated_at": formatter.string(from: now), "sessions": Array(result.prefix(max(1, min(limit, 500))))]
     }
 
     static func run(_ path: String, arguments: [String]) -> (status: Int32, data: Data)? {

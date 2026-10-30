@@ -20,6 +20,10 @@ struct IslandAgent: Codable, Equatable, Identifiable {
     var destructive = false
     var local_detail: String? = nil
     var last_seen_at: Double = 0
+    /// Native deep link that opens this session in its app (e.g. codex://threads/<id>); nil = focus the app.
+    var link: String? = nil
+    /// Hover text: "repo · branch" and tokens, only the parts that are known.
+    var tooltip: String? = nil
 
     init(id: String = "", name: String = "", app: String = "", title: String = "", status: String = "",
          needs_you: Bool = false, elapsed_s: Double = 0, parent_id: String? = nil, controls: [String] = [],
@@ -45,6 +49,8 @@ struct IslandAgent: Codable, Equatable, Identifiable {
         destructive = try c.decodeIfPresent(Bool.self, forKey: .destructive) ?? false
         local_detail = try c.decodeIfPresent(String.self, forKey: .local_detail)
         last_seen_at = try c.decodeIfPresent(Double.self, forKey: .last_seen_at) ?? 0
+        link = try c.decodeIfPresent(String.self, forKey: .link)
+        tooltip = try c.decodeIfPresent(String.self, forKey: .tooltip)
     }
 }
 
@@ -353,7 +359,6 @@ enum IslandSourceGroups {
 
     /// `hidePending`: the card the pill itself shows — its row adds no circle/badge (one amber mark).
     static func groups(agents: [IslandAgent], expired: [IslandExpired], hidePending: String?) -> [IslandSourceGroup] {
-        let processCount = IslandAgentRows.processObservations(agents).count
         var order: [String] = []
         var map: [String: IslandSourceGroup] = [:]
         func touch(_ name: String, _ app: String) {
@@ -380,14 +385,13 @@ enum IslandSourceGroups {
                 let l = rank($0.1), r = rank($1.1)
                 return l == r ? $0.0 < $1.0 : l < r
             }.map(\.1)
-        let taskCircleLimit = maxCircles - (processCount > 0 ? 1 : 0)
+        let taskCircleLimit = maxCircles
         var out = Array(ranked.prefix(taskCircleLimit))
         if ranked.count > taskCircleLimit {
             let rest = Array(ranked.dropFirst(taskCircleLimit))
             out.append(IslandSourceGroup(id: "overflow", needsYou: rest.reduce(0) { $0 + $1.needsYou },
                                          failed: rest.contains { $0.failed }, expired: rest.contains { $0.expired }, overflow: rest.count))
         }
-        if processCount > 0 { out.append(IslandSourceGroup(id: "local-processes", processCount: processCount)) }
         return out
     }
 }
@@ -880,6 +884,15 @@ final class IslandModel: ObservableObject {
     var onPeekOpen: ((IslandPeekItem) -> Void)?
     var onHaptic: (() -> Void)?
     var onRowControl: ((IslandAgent, IslandRowControl.Action) -> Void)?
+    /// Row click: open the session in its app (deep link, else focus the app).
+    var onRowOpen: ((IslandAgent) -> Void)?
+    /// Needs-you row buttons: answer the ask in place.
+    var onRowDecision: ((IslandAgent, Bool) -> Void)?
+    /// Hide while sharing is on and the screen is shared: rows show only "Codex · working".
+    @Published var redactRoster = false
+
+    func openRow(_ a: IslandAgent) { onRowOpen?(a) }
+    func decideRow(_ a: IslandAgent, approved: Bool) { onRowDecision?(a, approved) }
     var onTrayChange: (([IslandTrayItem]) -> Void)?
     /// Vertical scroll over a visible HUD adjusts that level (true = up).
     var onHUDScroll: ((IslandHUDState.Kind, Bool) -> Void)?
@@ -977,7 +990,8 @@ final class IslandModel: ObservableObject {
         if credentialRequest != nil { return 292 }
         if cardMode == .agents {
             return IslandAgentRows.cardHeight(rows: rosterItemCount, footer: rosterHasMore,
-                                              stopConfirmation: !stopArmed.isEmpty, maxVisibleRows: rosterVisibleRows)
+                                              stopConfirmation: !stopArmed.isEmpty, maxVisibleRows: rosterVisibleRows,
+                                              askRows: listRows.filter { $0.id.hasPrefix("pending:") && $0.request_kind != "choice" }.count)
         }
         if presentation == .tray { return IslandTrayRules.cardHeight }
         if presentation == .needsYou {
@@ -1318,13 +1332,12 @@ final class IslandModel: ObservableObject {
         }
     }
 
-    var localProcessRows: [IslandAgent] { IslandAgentRows.processObservations(agents) }
+    var localProcessRows: [IslandAgent] { [] }
     var rosterItemCount: Int {
-        max(1, listRows.count + (listRows.isEmpty ? 1 : 0)
-            + (localProcessRows.isEmpty ? 0 : localProcessRows.count + 1))
+        max(1, listRows.count)
     }
     var rosterVisibleRows: Int {
-        min(listRows.isEmpty ? IslandAgentRows.maxRows + 2 : IslandAgentRows.maxRows, rosterItemCount)
+        min(max(IslandAgentRows.maxRows, listRows.filter { $0.needs_you || $0.status == "needs_you" }.count), rosterItemCount)
     }
     var rosterHasMore: Bool { rosterItemCount > rosterVisibleRows }
 
@@ -1495,9 +1508,7 @@ final class IslandModel: ObservableObject {
         if !detail.isEmpty { parts.append(detail) }
         if !circleApps.isEmpty { parts.append("Apps: " + circleApps.joined(separator: ", ")) }
         let taskCount = IslandAgentRows.taskAgents(agents).count
-        let processCount = IslandAgentRows.processObservations(agents).count
         if taskCount > 0 { parts.append("\(taskCount) other agents") }
-        if processCount > 0 { parts.append("\(processCount) local observations detected") }
         if let r = cardRemaining { parts.append("\(r) seconds left") }
         if let n = notice { parts.append("\(n.agent) request timed out. Still open in chat") }
         return parts.joined(separator: ". ")

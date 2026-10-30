@@ -44,7 +44,7 @@ final class MethodRouter: @unchecked Sendable {
     static let cursorControlMethods: Set<String> = ["cursor_status", "configure_cursor"]
     /// Methods that never move the tip: no action bracket, so observers
     /// polling them neither show the tip nor extend its idle countdown.
-    static let nonActionMethods: Set<String> = ["runtime_contract", "list_apps", "hide_agent_cursor", "wait", "credential_request", "credential_status", "credential_cancel", "system_volume"]
+    static let nonActionMethods: Set<String> = ["runtime_contract", "list_apps", "hide_agent_cursor", "wait", "credential_request", "credential_status", "credential_cancel", "system_volume", "local_sessions"]
 
     static func movesTip(_ req: JSONRPCRequest) -> Bool {
         if nonActionMethods.contains(req.method) { return false }
@@ -121,6 +121,13 @@ final class MethodRouter: @unchecked Sendable {
     @MainActor
     private func route(_ req: JSONRPCRequest) async throws -> Any {
         switch req.method {
+        case "local_sessions":
+            let includeIdle: Bool = req.param("include_idle") ?? true
+            let includeProbes: Bool = req.param("include_probes") ?? true
+            let limit = req.paramInt("limit") ?? 50
+            return await Task.detached(priority: .utility) {
+                IslandLocalHarnessScanner.sessions(includeIdle: includeIdle, includeProbes: includeProbes, limit: limit)
+            }.value
         case "runtime_contract":
             return runtimeContract
         case "system_volume":

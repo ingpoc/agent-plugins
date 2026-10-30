@@ -20,7 +20,7 @@ SPEC = importlib.util.spec_from_file_location("compact_mcp", SCRIPT)
 compact_mcp = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(compact_mcp)
 
-FIVE = ["state", "act"]
+FIVE = ["state", "act", "sessions"]
 MODERN_META = {
     "io.modelcontextprotocol/protocolVersion": compact_mcp.MODERN_VERSION,
     "io.modelcontextprotocol/clientCapabilities": {},
@@ -471,7 +471,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertEqual(payload, {"ok": True, "verified": True})
         self.assertEqual(calls, [("Calculator", arguments)])
 
-    def test_catalog_is_state_and_act_only(self):
+    def test_catalog_includes_read_only_sessions(self):
         names = [tool["name"] for tool in compact_mcp.tool_schemas()]
         self.assertEqual(names, FIVE)
         self.assertFalse(hasattr(compact_mcp, "run_cli"))

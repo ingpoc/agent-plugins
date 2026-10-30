@@ -79,7 +79,7 @@ final class IslandPolishTests: XCTestCase {
 
         XCTAssertTrue(model.handleNavKey(keyCode: 36, shift: false))
         XCTAssertEqual(model.navTargets, [.row(agent.id), .cancelStop(agent.id)])
-        XCTAssertEqual(model.navLabel(.row(agent.id)), "Confirm stop Codex: Coordinate release, running 0s")
+        XCTAssertEqual(model.navLabel(.row(agent.id)), "Confirm stop Codex: Coordinate release, 0s")
         XCTAssertEqual(model.navLabel(.cancelStop(agent.id)), "Keep Codex running")
         XCTAssertTrue(model.handleNavKey(keyCode: 125, shift: false))
         XCTAssertEqual(model.navTarget, .cancelStop(agent.id))
@@ -249,8 +249,8 @@ final class IslandPolishTests: XCTestCase {
 
     func testRunningTicker() {
         let a = IslandAgent(id: "x", status: "running", elapsed_s: 58)
-        XCTAssertEqual(IslandAgentRows.statusText(a), "running 58s")
-        XCTAssertEqual(IslandAgentRows.statusText(a, elapsedExtra: 3), "running 1m")
+        XCTAssertEqual(IslandAgentRows.statusText(a), "58s")
+        XCTAssertEqual(IslandAgentRows.statusText(a, elapsedExtra: 3), "1m")
         XCTAssertEqual(IslandAgentRows.statusText(IslandAgent(id: "y", status: "error"), elapsedExtra: 9), "failed")
         let m = IslandModel()
         let t0 = m.agentsAt
@@ -267,7 +267,7 @@ final class IslandPolishTests: XCTestCase {
         XCTAssertEqual(IslandAgentTicker.next(after: t0, start: t0, bases: [245]).timeIntervalSince(t0), 55, accuracy: 0.001)
         XCTAssertEqual(IslandAgentTicker.next(after: t0, start: t0, bases: [245, 58]).timeIntervalSince(t0), 1, accuracy: 0.001)
         XCTAssertEqual(IslandAgentTicker.next(after: t0.addingTimeInterval(2.5), start: t0, bases: [58]).timeIntervalSince(t0), 62, accuracy: 0.001)
-        XCTAssertEqual(IslandAgentRows.statusText(IslandAgent(id: "r", status: "running", elapsed_s: 245)), "running 4m")
+        XCTAssertEqual(IslandAgentRows.statusText(IslandAgent(id: "r", status: "running", elapsed_s: 245)), "4m")
         // Peek: no "now"; time only after a minute; success glyph is green.
         XCTAssertNil(IslandPeekRules.ageLabel(t0, now: t0.addingTimeInterval(59)))
         XCTAssertEqual(IslandPeekRules.ageLabel(t0, now: t0.addingTimeInterval(60)), "1m")

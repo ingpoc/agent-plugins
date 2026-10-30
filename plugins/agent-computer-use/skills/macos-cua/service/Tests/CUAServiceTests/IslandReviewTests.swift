@@ -318,16 +318,15 @@ final class IslandReviewTests: XCTestCase {
         XCTAssertTrue(groups[1].failed)
     }
 
-    func testProcessCircleIsSeparateAndReservesOverflowSlot() {
+    func testProcessObservationsGetNoCircle() {
         let tasks = ["A", "B", "C", "D", "E"].map {
             IslandAgent(id: "agent:\($0)", name: $0, app: $0, status: "running")
         }
         let process = IslandAgent(id: "local:codex:42", name: "Codex", app: "Codex", status: "process")
         let groups = IslandSourceGroups.groups(agents: tasks + [process], expired: [], hidePending: nil)
 
-        XCTAssertEqual(groups.map(\.id), ["A", "B", "overflow", "local-processes"])
-        XCTAssertEqual(groups[2].overflow, 3)
-        XCTAssertEqual(groups.last?.processCount, 1)
+        XCTAssertEqual(groups.map(\.id), ["A", "B", "C", "overflow"], "no cpu circle for bare processes")
+        XCTAssertEqual(groups[3].overflow, 2)
     }
 
     func testDraftSurvivesPreemptionByApproval() {
