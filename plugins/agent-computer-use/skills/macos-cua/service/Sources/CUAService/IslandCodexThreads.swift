@@ -14,8 +14,11 @@ enum IslandCodexThreads {
 
     static func turnContext(_ tail: Data) -> (model: String?, effort: String?)? {
         var latest: (String?, String?)?
+        let marker = Data("\"turn_context\"".utf8)
         for line in tail.split(separator: 10) {
-            guard let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
+            // Decode only turn_context records; other rollout lines (prompts, tool output) are never parsed.
+            guard line.range(of: marker) != nil,
+                  let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
                   object["type"] as? String == "turn_context",
                   let payload = object["payload"] as? [String: Any] else { continue }
             latest = (payload["model"] as? String, payload["effort"] as? String)
@@ -46,7 +49,8 @@ enum IslandCodexThreads {
                 result.append(threadRow(record, id: "local:codex:\(pid)", now: now))
             } else {
                 hasUnmappedPID = true
-                var row = IslandAgent(id: "local:codex:\(pid)", name: paths.isEmpty ? "Codex app-server" : "Codex", app: "Codex",
+                // Without an open rollout the PID's thread is unknown; never guess its role.
+                var row = IslandAgent(id: "local:codex:\(pid)", name: "Codex", app: "Codex",
                                       title: "PID \(pid)", status: "process")
                 row.local_detail = paths.isEmpty ? "no open thread" : "open thread unknown"
                 result.append(row)

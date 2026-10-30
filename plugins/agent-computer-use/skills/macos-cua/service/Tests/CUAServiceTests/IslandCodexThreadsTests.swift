@@ -27,6 +27,7 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertEqual(rows[0].title, "First line")
         XCTAssertEqual(rows[0].local_detail, "model · high · working · 1m ago")
         XCTAssertEqual(rows[1].local_detail, "no open thread")
+        XCTAssertEqual(rows[1].name, "Codex")
         XCTAssertEqual(rows[2].local_detail, "model · high · idle · 1m ago")
     }
 

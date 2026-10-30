@@ -72,6 +72,8 @@ def mcp_config(plugin: Path, harness: str) -> dict | None:
     path = (plugin / (ref or convention)).resolve()
     assert path.is_relative_to(plugin.resolve()), f"{plugin.name}: mcpServers escapes the plugin"
     if not path.is_file():
+        # A manifest that names an MCP file must ship it; only the convention file is optional.
+        assert not ref, f"{plugin.name}/{harness}: mcpServers names missing {ref}"
         return None
     return json.loads(path.read_text())
 
@@ -94,7 +96,9 @@ def violations(plugin: Path, harness: str, config: dict) -> list[str]:
         if "url" in server:
             continue
         command = server.get("command", "")
-        if command.startswith("./") or server.get("cwd") in ("./", "."):
+        cwd = server.get("cwd")
+        anchored = ("/", "${")
+        if ("/" in command and not command.startswith(anchored)) or (cwd is not None and not str(cwd).startswith(anchored)):
             errors.append(f"{where}: cwd-relative command or cwd")
         expanded = command
         for var in allowed_roots:
@@ -145,6 +149,10 @@ class HarnessMcpVariables(unittest.TestCase):
         plugin = ROOT / "plugins" / "agent-computer-use"
         bad = {"mcpServers": {"x": {"command": "./bin/agent-computer-use-mcp", "cwd": "./"}}}
         self.assertTrue(violations(plugin, ".grok-plugin", bad))
+        sub = {"mcpServers": {"x": {"command": "${GROK_PLUGIN_ROOT}/bin/agent-computer-use-mcp", "cwd": "subdir"}}}
+        self.assertTrue(violations(plugin, ".grok-plugin", sub))
+        bare = {"mcpServers": {"x": {"command": "bin/agent-computer-use-mcp"}}}
+        self.assertTrue(violations(plugin, ".grok-plugin", bare))
 
     def test_grok_loads_mcp_for_plugins_that_ship_a_server(self):
         # agent-computer-use is the harness-claimed MCP plugin; Grok must see its server.
