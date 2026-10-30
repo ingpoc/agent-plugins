@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "comet-control",
-  "version": "0.1.21",
+  "version": "0.1.22",
   "description": "Drive and verify web apps in one leased, visible Perplexity Comet window per agent, through a local broker and an unpacked Comet extension. Never touches Google Chrome or its profiles. macOS only.",
   "author": {
     "name": "ingpoc",
