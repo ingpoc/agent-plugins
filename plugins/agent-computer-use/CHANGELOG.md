@@ -5,7 +5,7 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 ## 0.2.51 (2026-10-30)
 
 - Grok Build now loads the `agent-computer-use` MCP server. Grok reads the root `plugin.json` before `.grok-plugin/plugin.json`, so the Grok pointer was never read and Grok found no `.mcp.json`; the old pointer also used `${CURSOR_PLUGIN_ROOT}`, which Grok does not expand. The package ships a root `.mcp.json` with `${GROK_PLUGIN_ROOT}/bin/agent-computer-use-mcp`. A repo test fails when any harness manifest's MCP config uses another harness's variables or a cwd-relative command.
-- Dynamic Island "Detected local processes": each Codex row shows the thread title, model, reasoning effort, working/idle and last update, read-only from the Codex state DB (`state_5.sqlite`, `mode=ro`) and the rollout's latest `turn_context`. A PID maps to a thread only when it holds that rollout open; app-server PIDs say "no open thread" and recent threads are listed without a PID. Cursor rows say "model unknown".
+- Dynamic Island "Detected local processes": Codex threads are listed, not processes. Each row shows the thread title (or first prompt line), model, reasoning effort, working (rollout updated in the last 90 s) or idle, and the last update, read-only from the Codex state DB (`state_5.sqlite`, `mode=ro`, metadata columns only) and the rollout's latest `turn_context`. Threads are grouped under their host: terminal `codex` processes (mapped by the rollout they hold open, PID shown) or the ChatGPT app. The ChatGPT app's `codex` app-server processes appear only as one "Codex host" line. Cursor rows say "model unknown".
 - Retired `bin/cua-driver-mcp` (raw cua-driver wrapper, diagnostic only).
 
 ## 0.2.50 (2026-10-30)
