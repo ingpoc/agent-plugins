@@ -84,6 +84,7 @@ ni.setNativeTransport((msg) => {
       page.raised = true;
       page.pageFocus = page.blockPageFocus ? false : true;
       reply.window_id = 18599;
+      if (globalThis.__raiseFrame) reply.frame = globalThis.__raiseFrame;
     } else if (msg.op === "steps") {
       assert.equal(msg.params.window_id, 18599);
       for (const s of msg.params.steps) {
@@ -233,6 +234,12 @@ assert.deepEqual(log.filter((l) => !l.startsWith("log_path")), ["prepare_raise",
 log.length = 0;
 r = await ni.nativeClickFlow(state, hooks, { selector: "#trusted" });
 assert.ok(log.includes("steps:click@2660,454"));
+// macOS/Stage Manager clamps the real window 20px shorter than Chrome reports: map with the real frame.
+globalThis.__raiseFrame = { left: 2560, top: 317, width: 1920, height: 1030 };
+log.length = 0;
+await ni.nativeClickFlow(state, hooks, { selector: "#trusted" });
+assert.ok(log.includes("steps:click@2660,434"), log.join(" "));
+globalThis.__raiseFrame = undefined;
 assert.equal(r.trusted, true);
 await assert.rejects(ni.nativeClickFlow(state, hooks, { point: { x: 1, y: 1 }, frameId: 3 }), (e) => e.code === "REAL_MOUSE_FRAME");
 r = await ni.nativeCapture(state, hooks, { inline: true });
