@@ -296,6 +296,8 @@ class FakeUploadPage:
         self.store: dict[str, str] = {}
         self.calls: list[tuple[str, dict]] = []
         self.files: list[tuple[str, int, str]] = []
+        self.after = "kept"
+        self.reject = False
 
     def run_action(self, action: dict) -> dict:
         method, params = action["method"], action.get("params") or {}
@@ -325,7 +327,9 @@ class FakeUploadPage:
             self.files = [(m["name"], len(self._b64.b64decode(self.store.get(m["key"], ""))), m["type"]) for m in metas]
             for m in metas:
                 self.store.pop(m["key"], None)
-            value = {"ok": True, "count": len(self.files), "names": [f[0] for f in self.files], "sizes": [f[1] for f in self.files]}
+            value = {"ok": True, "count": len(self.files), "names": [f[0] for f in self.files], "sizes": [f[1] for f in self.files], "after": self.after}
+            if self.reject:
+                value = {"ok": True, "count": 0, "names": [], "sizes": [], "after": "kept"}
         else:
             value = True
         return {"result": {"type": type(value).__name__, "value": value}}
@@ -361,6 +365,18 @@ class UploadFallbackTests(unittest.TestCase):
         staged = [c for c in page.calls if "g.__ccUpload[" in c[1].get("expression", "") and "+ " in c[1]["expression"]]
         self.assertGreater(len(staged), 5)
         self.assertEqual(page.store, {})
+
+    def test_page_reset_after_change_is_success_but_rejected_assign_fails(self) -> None:
+        page = FakeUploadPage({"tag": "INPUT", "type": "file"})
+        page.after = "reset_by_page"  # X: change handler clears input.value
+        _module, bridge = self.make(page)
+        self.assertEqual(self.upload(bridge, "#f", [str(self.tmpfile(50))]), {})
+        self.assertEqual(bridge.last_upload["after"], "reset_by_page")
+        page = FakeUploadPage({"tag": "INPUT", "type": "file"})
+        page.reject = True
+        module, bridge = self.make(page)
+        with self.assertRaisesRegex(module.CDPError, "files before dispatch"):
+            self.upload(bridge, "#f", [str(self.tmpfile(50))])
 
     def test_missing_element_returns_zero_node(self) -> None:
         page = FakeUploadPage(None)
