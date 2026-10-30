@@ -41,7 +41,7 @@ class FastPathTests(unittest.TestCase):
         errors = fast_path.grade_click_result(
             {
                 "ok": True,
-                "path": "operator-proof-screen-coordinate",
+                "path": "retired-global-coordinate",
                 "route": "global_input",
                 "effect": "unverifiable",
             }

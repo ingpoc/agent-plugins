@@ -684,7 +684,7 @@ private extension CGRect {
     }
 }
 
-/// Pointer view matching the original OperatorDelegate style:
+/// Pointer view style:
 /// Dark angular pointer shape with cyan glow + depth shadow + floating label.
 final class CUACursorView: NSView {
     private let cursorContainer = NSView()
@@ -736,7 +736,7 @@ final class CUACursorView: NSView {
 }
 
 /// Draws the pointer shape from SVG path data — no file I/O, no third-party SVG libs.
-/// Dark angular pointer with cyan glow + depth shadow, matching the original operator design.
+/// Dark angular pointer with cyan glow and depth shadow.
 final class HermesPointerView: NSView {
     /// Pointer shape from pointer-shape-animated.svg, viewBox 0 0 512 512.
     /// Scaled to fit the draw rect at render time.

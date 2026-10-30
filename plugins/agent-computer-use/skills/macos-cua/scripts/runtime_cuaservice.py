@@ -210,33 +210,6 @@ def _normalize_cursor_xy(cursor_xy, window_frame, width, height):
         return None
 
 
-def _operator_cursor_xy(app_name, pid, window_id):
-    """Visible operator cursor for this exact window, normalized 0-1."""
-    path = Path.home() / ".cache/macos-cua/operator-state.json"
-    try:
-        state = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError, TypeError):
-        return None
-    if not isinstance(state, dict) or state.get("cursor_visible") is not True:
-        return None
-    if app_name and state.get("app") != app_name:
-        return None
-    try:
-        if pid is None or int(state.get("pid")) != int(pid):
-            return None
-        if window_id is None or int(state.get("window_id")) != int(window_id):
-            return None
-    except (TypeError, ValueError):
-        return None
-    x = state.get("cursor_rendered_x")
-    y = state.get("cursor_rendered_y")
-    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
-        x, y = state.get("cursor_x"), state.get("cursor_y")
-    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
-        return None
-    return float(x), float(y)
-
-
 def _annotate_cursor_screenshot(path, x, y):
     annotate = globals().get("annotate_cursor_screenshot")
     if annotate is None:
@@ -270,8 +243,6 @@ def _stamp_cursor_proof(screenshot, captured, cursor_xy, window_frame, app_name,
         cursor_xy, window_frame, screenshot.get("width"), screenshot.get("height")
     )
     if point is None:
-        point = _operator_cursor_xy(app_name, pid, window_id)
-    if point is None:
         return screenshot
     annotated = _annotate_cursor_screenshot(captured, point[0], point[1])
     if not isinstance(annotated, dict) or annotated.get("ok") is not True:
@@ -288,8 +259,8 @@ def cua_app_state(app_name, pid, window_id, *, max_elements=120, query=None,
                   prepare_foreground=False, cursor_xy=None):
     """`state`: CUAService AX text + elements (+ window screenshot) as one object.
 
-    A screenshot is stamped with the Hermes pointer when ``cursor_xy`` is set
-    or the operator cursor is visible on this window. ``cursor_xy`` is a
+    A screenshot is stamped with the Hermes pointer when ``cursor_xy`` is set.
+    ``cursor_xy`` is a
     normalized pair, ``{"x", "y"}``, ``{"local": (px, py)}`` screenshot pixels,
     or ``{"global": (x, y)}`` in window-frame space. The proof image is
     ``-cursor.png`` and ``cursor_included`` is set.

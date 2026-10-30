@@ -262,17 +262,6 @@ def _displays():
     return _DISPLAYS_MOD
 
 
-def _operator_ui():
-    """Load the native operator UI controller once per process."""
-    global _OPERATOR_UI_MOD
-    if _OPERATOR_UI_MOD is None:
-        path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "operator_ui.py"
-        )
-        spec = importlib.util.spec_from_file_location("operator_ui", path)
-        _OPERATOR_UI_MOD = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(_OPERATOR_UI_MOD)
-    return _OPERATOR_UI_MOD
 
 
 def _plan_contract():
@@ -326,57 +315,3 @@ def _native_text_pointer():
         _NATIVE_TEXT_POINTER_MOD = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(_NATIVE_TEXT_POINTER_MOD)
     return _NATIVE_TEXT_POINTER_MOD
-
-
-def operator_update(
-    app_name=None,
-    pid=None,
-    window_id=None,
-    *,
-    status="active",
-    active=True,
-    screenshot_path=None,
-    raw_screenshot_path=None,
-    snapshot_id=None,
-    screenshot_width=None,
-    screenshot_height=None,
-    window_frame=None,
-    cursor_x=None,
-    cursor_y=None,
-    cursor_screen_x=None,
-    cursor_screen_y=None,
-    cursor_duration_ms=None,
-    cursor_visible=None,
-    cursor_image_path=CURSOR_ICON,
-    message=None,
-):
-    """Publish operator-visible state without making UI availability fatal."""
-    if os.environ.get("MACOS_CUA_OPERATOR_UI", "1") == "0":
-        return {"ok": True, "disabled": True}
-    try:
-        if cursor_image_path == CURSOR_ICON:
-            cursor_image_path = cursor_raster_path()
-        return _operator_ui().update(
-            active=active,
-            app=app_name,
-            pid=pid,
-            window_id=window_id,
-            window_title=app_name,
-            screenshot_path=screenshot_path,
-            raw_screenshot_path=raw_screenshot_path,
-            snapshot_id=snapshot_id,
-            screenshot_width=screenshot_width,
-            screenshot_height=screenshot_height,
-            window_frame=window_frame,
-            cursor_x=cursor_x,
-            cursor_y=cursor_y,
-            cursor_screen_x=cursor_screen_x,
-            cursor_screen_y=cursor_screen_y,
-            cursor_duration_ms=cursor_duration_ms,
-            cursor_visible=cursor_visible,
-            cursor_image_path=cursor_image_path,
-            status=status,
-            message=message,
-        )
-    except (OSError, subprocess.SubprocessError) as error:
-        return {"ok": False, "error": f"operator UI unavailable: {error}"}

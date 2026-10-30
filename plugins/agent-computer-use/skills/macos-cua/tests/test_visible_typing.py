@@ -151,7 +151,7 @@ class VisibleTypingTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
             ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             macos_cua.run_actions(
                 10,
@@ -206,7 +206,7 @@ class VisibleTypingTests(unittest.TestCase):
             mock.patch.object(
                 macos_cua, "_cleanup_driver_cursors", return_value={"ended": []}
             ),
-            mock.patch.object(macos_cua, "operator_update", return_value={"ok": True}),
+
         ):
             macos_cua.run_actions(
                 10,

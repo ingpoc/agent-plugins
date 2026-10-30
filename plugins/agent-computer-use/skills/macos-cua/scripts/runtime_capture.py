@@ -17,23 +17,6 @@ import tempfile
 import time
 from pathlib import Path
 
-def _operator_cursor(app_name, pid, window_id):
-    """Return the persisted preview cursor only when it belongs to this window."""
-    try:
-        state = _operator_ui().status().get("state", {})
-    except (OSError, subprocess.SubprocessError):
-        return None
-    same_window = (
-        state.get("app") == app_name
-        and state.get("pid") == pid
-        and state.get("window_id") == window_id
-    )
-    if not same_window or not state.get("cursor_visible"):
-        return None
-    x, y = state.get("cursor_x"), state.get("cursor_y")
-    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
-        return None
-    return {"x": float(x), "y": float(y)}
 
 
 def _capture_ax_window_frames(raw):

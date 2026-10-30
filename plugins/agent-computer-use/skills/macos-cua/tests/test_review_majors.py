@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
+import sys
 import unittest
 from unittest import mock
 
@@ -16,6 +17,7 @@ def _load(name, filename):
 
 
 macos_cua = _load("macos_cua_review_majors", "macos-cua.py")
+DOCTOR_MOD = sys.modules["_macos_cua_runtime_doctor"]
 native_input = _load("macos_cua_review_native_input", "native_input.py")
 validator_live = _load("macos_cua_review_validator_live", "validator_live.py")
 
@@ -133,18 +135,23 @@ class SliderDragTests(unittest.TestCase):
 
 
 class DoctorTests(unittest.TestCase):
-    def _run(self, *, health=True, probe=None, signing="identity", app_error=None):
-        operator = SimpleNamespace(status=lambda: {
-            "ok": True, "pid": 7, "signing": {"mode": signing},
-            "service": {"installed": True, "running": True}})
+    def _run(self, *, health=True, probe=None, app_error=None, retirement=None):
+        retirement = retirement or {
+            "ok": True,
+            "already_retired": True,
+            "unloaded": False,
+            "trashed": [],
+        }
         calls = []
+
         def resolve(name, **kwargs):
             calls.append(kwargs)
             return (1, 2, name, app_error)
+
         with mock.patch.object(macos_cua, "cuaservice_health", return_value={"ok": health}), \
              mock.patch.object(macos_cua, "resolve_app", side_effect=resolve), \
              mock.patch.object(macos_cua, "cua_snapshot", return_value=probe or {}), \
-             mock.patch.object(macos_cua, "_operator_ui", return_value=operator):
+             mock.patch.object(DOCTOR_MOD, "retire_legacy_operator", return_value=retirement):
             return macos_cua.doctor(), calls
 
     def test_all_green(self):
@@ -162,14 +169,17 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(report["failed"], ["cuaservice", "permissions"])
         self.assertEqual(calls, [])
 
-    def test_optional_operator_does_not_mask_healthy_service(self):
-        report, _ = self._run(probe={"ax_trusted": True, "screen_capture": True}, signing="adhoc")
+    def test_legacy_operator_retirement_is_informational(self):
+        report, _ = self._run(
+            probe={"ax_trusted": True, "screen_capture": True},
+            retirement={"ok": False, "reason": "move failed"},
+        )
         self.assertTrue(report["ok"], report)
-        self.assertFalse(report["checks"]["operator"]["ok"])
-        self.assertFalse(report["checks"]["operator"]["required"])
+        self.assertFalse(report["checks"]["legacy_operator"]["ok"])
+        self.assertFalse(report["checks"]["legacy_operator"]["required"])
 
     def test_validator_gates_on_doctor(self):
-        cua = SimpleNamespace(doctor=lambda: {"ok": False, "failed": ["operator"]})
+        cua = SimpleNamespace(doctor=lambda: {"ok": False, "failed": ["permissions"]})
         with self.assertRaises(AssertionError):
             validator_live.doctor_ready(cua)
         self.assertEqual(validator_live.doctor_ready(SimpleNamespace(doctor=lambda: {"ok": True})), {"doctor": "ok"})

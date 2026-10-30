@@ -443,7 +443,7 @@ def source_hash(root: Path) -> str:
         path = root / rel
         if path.is_file():
             files.append(path)
-    for folder in ("operator", "references", "scripts", "tests"):
+    for folder in ("references", "scripts", "tests"):
         base = root / folder
         if not base.exists():
             continue

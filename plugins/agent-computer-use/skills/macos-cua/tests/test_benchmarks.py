@@ -109,14 +109,14 @@ class BenchmarkSuiteTests(unittest.TestCase):
         )
         self.assertFalse(untimed["speed"])
 
-    def test_steps_show_cursor_requires_glide_method(self):
+    def test_steps_show_cursor_requires_landing(self):
         runner = load_runner()
         self.assertTrue(
             runner.steps_show_cursor(
                 [
                     {
                         "action": "click",
-                        "method": "agent-cursor-glide+native-axpress-fallback",
+                        "cursor_landing": {"landed": True},
                     }
                 ]
             )

@@ -87,7 +87,7 @@ class GateCleanupTests(unittest.TestCase):
 
     def test_failed_doctor_is_recorded_not_fatal(self):
         report = gate_cleanup.cleanup({"evidence_paths": []},
-                                      run=lambda *a: {"ok": a[0] != "doctor", "failed": ["operator"]})
+                                      run=lambda *a: {"ok": a[0] != "doctor", "failed": ["permissions"]})
         self.assertTrue(report["ok"])
         self.assertFalse(report["doctor"]["ok"])
 

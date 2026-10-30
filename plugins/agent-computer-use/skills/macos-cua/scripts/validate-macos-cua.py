@@ -14,7 +14,6 @@ import sys
 HERE = Path(__file__).resolve().parent
 SKILL = HERE.parent
 MAIN = HERE / "macos-cua.py"
-OPERATOR = HERE / "operator_ui.py"
 HERMES_CURSOR = SKILL / "assets" / "pointer-shape-animated.svg"
 
 
@@ -62,7 +61,6 @@ def static_checks():
         "select-text",
         "perform-action",
         "run",
-        "operator",
     }
     missing_commands = sorted(
         command for command in expected_commands if command not in help_result.stdout
