@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+@testable import CUAService
 
 /// Every test `UserDefaults` suite goes through here. `removePersistentDomain` empties a suite but
 /// cfprefsd leaves `~/Library/Preferences/<suite>.plist` behind, so test runs used to strand one
@@ -17,6 +18,8 @@ enum TestDefaults {
             let o = Cleanup()
             observer = o
             XCTestObservationCenter.shared.addTestObserver(o)
+            // Island tests must not see the real pointer (a pointer resting on the island pins cards).
+            SamanthaMenuBarIslandPanel.pointerLocation = { NSPoint(x: -100_000, y: -100_000) }
         }
         lock.unlock()
         return UserDefaults(suiteName: suiteName)
