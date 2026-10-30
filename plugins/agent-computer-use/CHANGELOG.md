@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.53 (2026-10-30)
+
+- Hub error rows show the posted error as their meta line and stay 30 min; hub done rows fade after 3 min (was 30 s). Rollout tails widen to 4 MB when the last 256 KB holds no turn event, so a long instruction preamble no longer hides a working thread.
+
 ## 0.2.52 (2026-10-30)
 
 - Dynamic Island roster rebuilt to the UI & UX spec: only sessions a person acts on (needs you, error, working, done within 3 min); idle threads, PIDs, app-server hosts, the "Detected local processes" section, "unknown" fields and ACU's own probe runs are gone. Max 3 rows plus "+N more"; needs-you rows are never capped. Order: needs you (oldest ask first), error, working (newest first), done.
@@ -9,7 +13,6 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 - Row click opens the Codex thread via `codex://threads/<id>`; otherwise it focuses the app. Hover shows repo · branch and tokens. Hide while sharing reduces rows to "Codex · working". VoiceOver reads "Codex, needs approval, <ask>. Luna, low, 4 minutes."
 - New read-only `sessions` MCP tool: everything the island hides (pids, hosts, cwd, repo, branch, CODEX_HOME basename, tokens, context %, idle threads, probes flagged `probe: true`), never emails or account ids.
 - Codex thread state comes from rollout events (task_started / task_complete / error); only rollouts updated in the last 30 min are read.
-- Hub error rows show the posted error as their meta line and stay 30 min; hub done rows fade after 3 min (was 30 s). Rollout tails widen to 4 MB when the last 256 KB holds no turn event, so a long instruction preamble no longer hides a working thread.
 
 ## 0.2.51 (2026-10-30)
 
