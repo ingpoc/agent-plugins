@@ -2,6 +2,13 @@
 
 Built from commit history (`git log -- plugins/comet-control`). Dates are commit dates.
 
+## 0.1.23 (2026-10-30)
+
+- In-page input only: comet-control never moves the Mac's real mouse or sends real keys. Without the debugger, type, key and click run as DOM events in the leased tab, and the in-page cursor overlay draws each one.
+- `real_mouse` and `trusted:"real"` are retired (ignored, in-page click instead). The broker refuses real-input `steps` with `IN_PAGE_ONLY`.
+- Contenteditable typing tries `beforeinput`, `paste`, `textInput` and `execCommand` in order, stops at the first that lands, and reports `text_mode` and `tried`.
+- Synthetic keys set `keyCode`/`which` (Draft.js reads them) and apply the default action for Enter, Backspace, Delete, Tab and Meta+A.
+
 ## 0.1.22 (2026-10-30)
 
 - Debugger-free bring-to-front for a hidden leased window through Chrome window focus (PR #24).

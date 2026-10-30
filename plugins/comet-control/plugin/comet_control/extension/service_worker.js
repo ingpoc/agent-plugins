@@ -22,7 +22,6 @@ import {
   nativeTypeFlow,
   pickPath,
   setNativeTransport,
-  wantsRealMouse,
 } from "./native_input.js";
 
 const BROKER_URL = "ws://127.0.0.1:38927";
@@ -641,11 +640,15 @@ async function probeDebugger(tabId) {
   }
 }
 
-const nativeHooks = { executeScriptOnTab: (...args) => executeScriptOnTab(...args), probeDebugger };
+const nativeHooks = {
+  executeScriptOnTab: (...args) => executeScriptOnTab(...args),
+  sendToContentScript: (...args) => sendToContentScript(...args),
+  probeDebugger,
+};
 
-// Opt-in (real_mouse / trusted:"real") OS mouse for isTrusted-gated targets; default DOM click.
-function noteClickPath(state, actionType, realMouse) {
-  logPath(state, "click", pickPath({ debugger: false }, "click", { real_mouse: realMouse }), { action: actionType });
+// Clicks stay in the page (DOM events + in-page cursor). real_mouse / trusted:"real" are retired.
+function noteClickPath(state, actionType) {
+  logPath(state, "click", pickPath({ debugger: false }, "click"), { action: actionType });
 }
 
 async function stateCapabilities(state) {
@@ -1910,14 +1913,6 @@ async function clickAtPoint(tabId, point, expectation = {}, options = {}) {
       }
     } else {
       await parkContentScriptIdle(tabId, point.frame_id || 0);
-    }
-    if (options.realMouse) {
-      const lease = leaseForTab(tabId);
-      const real = await nativeClickFlow({ tabId, leaseRecord: lease }, nativeHooks, {
-        point: { x: Number(point.x), y: Number(point.y) }, frameId: point.frame_id || 0, label: "click",
-      });
-      return { ...real, x: point.x, y: point.y, frame_id: point.frame_id || 0, click_ring: ringShown, pulse: ringShown,
-        cursor_visible_during_click: visual, visual_synced: visual && cursorArrival?.confirmed !== false, cursor_arrival: cursorArrival };
     }
     if (trusted) {
       // Top-frame CDP mouse is the Chrome-parity navigation path. For OOPIF
@@ -3264,7 +3259,7 @@ async function runBrowserAction(action, state) {
   if (type === "cursor_type") {
     const { text, append } = action;
     const caps = await stateCapabilities(state);
-    if (pickPath(caps, "type", action) === "cua_keyboard" && action.synthetic !== true) {
+    if (pickPath(caps, "type", action) === "in_page" && action.synthetic !== true) {
       const status = (await sendToContentScript(state.tabId, "getStatus", [], 0))?.result || {};
       const point = Number.isFinite(Number(status.x)) && Number.isFinite(Number(status.y)) ? { x: Number(status.x), y: Number(status.y) } : null;
       const real = await nativeTypeFlow(state, nativeHooks, { point, text: String(text ?? ""), clear: !append, label: type });
@@ -3278,7 +3273,7 @@ async function runBrowserAction(action, state) {
     const { key, modifiers } = action;
     await sendToContentScript(state.tabId, "showKey", [key]);
     const caps = await stateCapabilities(state);
-    if (pickPath(caps, "key", action) === "cua_keyboard") {
+    if (pickPath(caps, "key", action) === "in_page") {
       return { type, key, ...(await nativeKeyFlow(state, nativeHooks, { key, modifiers: modifiers || [], label: type })) };
     }
     await pressKey(send, state.tabId, key, modifiers || []);
@@ -3286,11 +3281,11 @@ async function runBrowserAction(action, state) {
   }
 
   // type / press (alias key): focused-element keyboard input. CDP when the debugger
-  // is allowed; the real macOS keyboard (CUAService) on the leased window when not.
+  // is allowed; in-page DOM input (native_input.js) when not. Never the Mac keyboard.
   if (type === "type") {
     const text = String(action.text ?? action.value ?? "");
     const caps = await stateCapabilities(state);
-    if (pickPath(caps, "type", action) === "cua_keyboard") {
+    if (pickPath(caps, "type", action) === "in_page") {
       const real = await nativeTypeFlow(state, nativeHooks, {
         selector: action.selector || null, text, clear: Boolean(action.clear), submit: Boolean(action.submit),
         mode: action.mode || "auto", label: type,
@@ -3317,7 +3312,7 @@ async function runBrowserAction(action, state) {
 
   if (type === "press" || type === "key") {
     const caps = await stateCapabilities(state);
-    if (pickPath(caps, "key", action) === "cua_keyboard") {
+    if (pickPath(caps, "key", action) === "in_page") {
       return { type, key: action.key, ...(await nativeKeyFlow(state, nativeHooks, {
         selector: action.selector || null, key: action.key, modifiers: action.modifiers || [], label: type,
       })) };
@@ -3374,9 +3369,9 @@ async function runBrowserAction(action, state) {
     }
     const caps = await stateCapabilities(state);
     if (!caps.debugger) {
-      // Policy blocks CDP mouse: the real OS mouse at the same viewport point.
+      // Policy blocks CDP mouse: an in-page click at the same viewport point (own cursor drawn).
       const real = await nativeClickFlow(state, nativeHooks, { point: { x, y }, label: type });
-      return { type: "click_at_xy", x, y, trusted_click: true, visual_synced: visual, ...real };
+      return { type: "click_at_xy", x, y, trusted_click: false, visual_synced: visual, ...real };
     }
     const click = await trustedBrowserClickAtPoint(state.tabId, { x, y, frame_id: 0 }, {
       keepVisible: visual,
@@ -3415,11 +3410,10 @@ async function runBrowserAction(action, state) {
       ? await chrome.tabs.get(state.tabId).catch(() => null)
       : null;
     const debuggerAttached = await attachForClick(state.tabId);
-    // No debugger (policy / foreign frame): DOM click, or the real OS mouse when asked (isTrusted-gated).
+    // No debugger (policy / foreign frame): in-page DOM click with the comet cursor.
     if (!debuggerAttached) {
       clickOptions.trusted = false;
-      clickOptions.realMouse = wantsRealMouse(action);
-      noteClickPath(state, type, clickOptions.realMouse);
+      noteClickPath(state, type);
     }
     const runDialogAware = async () => {
       const clickPromise = withTimeout(
@@ -3599,11 +3593,10 @@ async function runBrowserAction(action, state) {
       ? await chrome.tabs.get(state.tabId).catch(() => null)
       : null;
     const debuggerAttached = await attachForClick(state.tabId);
-    // No debugger (policy / foreign frame): DOM click, or the real OS mouse when asked (isTrusted-gated).
+    // No debugger (policy / foreign frame): in-page DOM click with the comet cursor.
     if (!debuggerAttached) {
       clickOptions.trusted = false;
-      clickOptions.realMouse = wantsRealMouse(action);
-      noteClickPath(state, type, clickOptions.realMouse);
+      noteClickPath(state, type);
     }
     const clickPromise = withTimeout(
       clickResolvedTarget(

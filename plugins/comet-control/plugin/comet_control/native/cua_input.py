@@ -522,85 +522,10 @@ class NativeInput:
             out["frame"] = {"left": frame["x"], "top": frame["y"], "width": frame["w"], "height": frame["h"]}
         return out
 
-    def op_steps(self, session: str, params: dict[str, Any]) -> dict[str, Any]:
-        wid = self._pinned(session, params)
-        steps = params.get("steps") or []
-        if not isinstance(steps, list) or not steps or len(steps) > 64:
-            raise NativeInputError("STEPS_INVALID", "steps must be a non-empty list (<=64)")
-        allowed = None
-        results: list[dict[str, Any]] = []
-        pending_keys: list[str] = []
-
-        def flush() -> None:
-            if not pending_keys:
-                return
-            plan = self.rpc.call("execute_plan", {
-                "app": COMET_BUNDLE_ID, "windowId": wid,
-                "steps": [{"method": "press_key", "params": {"key": k}} for k in pending_keys],
-            }, timeout=10 + len(pending_keys) * 0.2)
-            rows = plan.get("results") or []
-            if plan.get("ok") is False or len(rows) != len(pending_keys) or not all(r.get("ok") for r in rows):
-                bad = next((r for r in rows if not r.get("ok")), {})
-                raise NativeInputError("KEY_FAILED", f"CUAService key plan failed: {bad.get('error') or plan.get('error') or 'incomplete'}")
-            pending_keys.clear()
-
-        for step in steps:
-            kind = str(step.get("kind") or "")
-            if kind == "key":
-                spec = key_spec(str(step.get("key") or ""), step.get("modifiers") or [])
-                pending_keys.append(spec)
-                results.append({"kind": "key", "key": spec})
-            elif kind == "text":
-                text = str(step.get("text") or "")
-                if not text:
-                    continue
-                if allowed is None:
-                    allowed = bool(self.desktop.keystrokes_allowed())
-                mode = text_mode(text, str(step.get("mode") or "auto"), allowed)
-                if mode == "keystrokes":
-                    pending_keys.extend(char_key_spec(ch) for ch in text)
-                else:
-                    flush()
-                    self._paste(wid, text)
-                results.append({"kind": "text", "mode": mode, "length": len(text)})
-            elif kind == "click":
-                flush()
-                x, y = float(step["x"]), float(step["y"])
-                count = int(step.get("count") or 1)
-                # Chromium drops pid-posted mouse events on web content; an AX press on the
-                # web element under the point is a trusted (isTrusted) activation.
-                index = None
-                if count == 1:
-                    walk = self.rpc.call("get_app_state", {
-                        "app": COMET_BUNDLE_ID, "windowId": wid, "includeScreenshot": False,
-                        "includeElements": True, "maxElements": AX_CLICK_WALK,
-                    }, timeout=15)
-                    index = ax_press_target(walk.get("elements") or [], x, y)
-                params = {"app": COMET_BUNDLE_ID, "windowId": wid}
-                params.update({"element_index": index} if index is not None else {"x": x, "y": y, "click_count": count})
-                out = self.rpc.call("click", params, timeout=10)
-                if out.get("ok") is not True:
-                    raise NativeInputError("CLICK_FAILED", f"CUAService click failed: {out.get('error') or out.get('method')}")
-                results.append({"kind": "click", "x": round(x, 1), "y": round(y, 1), "method": out.get("method"),
-                                "ax_element": index is not None})
-            elif kind == "wait":
-                flush()
-                self.sleep(min(max(float(step.get("ms") or 0), 0), 2000) / 1000)
-            else:
-                raise NativeInputError("STEPS_INVALID", f"unknown step kind {kind!r}")
-        flush()
-        return {"window_id": wid, "steps": results}
-
-    def _paste(self, wid: int, text: str) -> None:
-        saved = self.desktop.clipboard_save()
-        try:
-            self.desktop.clipboard_put_text(text)
-            out = self.rpc.call("press_key", {"app": COMET_BUNDLE_ID, "windowId": wid, "key": "cmd+v"}, timeout=10)
-            if out.get("ok") is not True:
-                raise NativeInputError("KEY_FAILED", f"Cmd+V failed: {out.get('error')}")
-            self.sleep(PASTE_SETTLE_S)
-        finally:
-            self.desktop.clipboard_restore(saved)
+    def op_steps(self, _session: str, _params: dict[str, Any]) -> dict[str, Any]:
+        # Launch rule: comet-control input stays in the page (DOM events + its own cursor).
+        # The Mac's real mouse and keyboard belong to Agent Computer Use, outside the browser.
+        raise NativeInputError("IN_PAGE_ONLY", "comet-control never sends real mouse or keyboard input; use in-page input")
 
     def op_release(self, session: str, params: dict[str, Any]) -> dict[str, Any]:
         if self.saved_front is None:

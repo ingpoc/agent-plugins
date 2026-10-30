@@ -1098,8 +1098,10 @@ async function check(actions, expected) {
         )
         self.assertIn("return false", attach)
         # Chrome 155 debugger policy: no CDP mouse, so both click paths drop to the DOM click.
-        # Real OS mouse only when the action opts in (isTrusted-gated targets).
-        self.assertEqual(source.count("clickOptions.trusted = false;\n      clickOptions.realMouse = wantsRealMouse(action);"), 2)
+        # In-page only: real_mouse is retired, so neither click path can reach the OS mouse.
+        self.assertEqual(source.count("clickOptions.trusted = false;\n      noteClickPath(state, type);"), 2)
+        self.assertNotIn("realMouse", source)
+        self.assertNotIn("cua_keyboard", source)
         self.assertIn('includes("restricted by policy")', source)
 
         frame_search = source.split("async function controllableFrameIds", 1)[1].split(
@@ -1755,7 +1757,7 @@ function element(seq) {
         cursor = CURSOR_AGENT.read_text()
         worker = SERVICE_WORKER.read_text()
         assert_packaged_version(self)
-        self.assertEqual(json.loads(PLUGIN_JSON.read_text())["version"], "0.1.22")
+        self.assertEqual(json.loads(PLUGIN_JSON.read_text())["version"], "0.1.23")
 
         miss = worker.split("function isLocatorMissError(error) {", 1)[1].split(
             "function isContentScriptTimeoutError", 1
