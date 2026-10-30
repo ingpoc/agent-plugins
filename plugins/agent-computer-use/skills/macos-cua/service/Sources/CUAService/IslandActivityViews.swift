@@ -610,6 +610,8 @@ struct IslandAgentListBody: View {
         .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: flashing)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibility)
+        // VoiceOver (and AX clients) open the row like a click: thread link, ask card, or clear an error.
+        .accessibilityAction { if !armed { model.openRow(a) } }
         .accessibilityHint(a.status == "stale" ? "Dismiss this stale entry. New updates restore it." : "")
     }
 
