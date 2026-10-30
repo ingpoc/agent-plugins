@@ -519,7 +519,13 @@ class LiveDropThenThreeRequestsTests(_Rows):
 
     def setUp(self) -> None:
         super().setUp()
-        for target in ("voice_cua.realtime_session.island_publish", "voice_cua.tools.island_publish"):
+        # hide_agent_cursor talks to the ACU service; unstubbed it blocks on a host without one
+        # (or moves the real agent cursor on a Mac), outlasting the settle window.
+        for target in (
+            "voice_cua.realtime_session.island_publish",
+            "voice_cua.tools.island_publish",
+            "voice_cua.realtime_session.hide_agent_cursor",
+        ):
             p = patch(target)
             p.start()
             self.addCleanup(p.stop)
