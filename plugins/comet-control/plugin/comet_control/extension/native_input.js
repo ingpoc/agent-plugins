@@ -285,25 +285,32 @@ async function release(sessionId) {
 }
 
 // ── flows ─────────────────────────────────────────────────────────────────
+// Debugger-free raise for an occluded (document.hidden) leased window. Uses Chrome's own
+// window focus, not CUA bounds matching: Comet can report window bounds that differ from the
+// CG window (e.g. 1920x1050 vs 1900x1030), which made native "raise" fail WINDOW_NOT_FOUND.
+// prepare_raise/release keep the user's front app restore contract.
 export async function nativeBringToFront(state, hooks, { holdMs = 1500, label = "bring_to_front" } = {}) {
-  const lease = await raiseLease(state, hooks, label);
+  const sessionId = sessionOf(state);
+  if (!sessionId) throw codedError("LEASE_REQUIRED", "bring-to-front is lease-scoped");
+  const api = hooks.chrome || globalThis.chrome;
+  await nativeRequest("prepare_raise", sessionId).catch(() => {});
   try {
-    const api = hooks.chrome || globalThis.chrome;
-    await api.tabs.update(state.tabId, { active: true }).catch(() => {});
+    const { tab } = await leaseWindow(state, api);
+    await api.windows.update(tab.windowId, { focused: true });
     const start = Date.now();
     let visible = false;
-    do {
+    while (true) {
       visible = await inTab(hooks, state.tabId, 0, () => document.visibilityState, [], "visibilityState") === "visible";
       if (visible || Date.now() - start >= 3000) break;
-      await new Promise((resolve) => setTimeout(resolve, Math.min(100, 3000 - (Date.now() - start))));
-    } while (Date.now() - start < 3000);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
     const visibility_wait_ms = Date.now() - start;
     const hold_ms = Number.isFinite(Number(holdMs)) ? Math.max(0, Math.min(10000, Number(holdMs))) : 0;
-    await new Promise((resolve) => setTimeout(resolve, hold_ms));
-    logPath(state, "window", "cua_raise", { action: label });
-    return { input_path: "cua_raise", visible, visibility_wait_ms, hold_ms };
+    if (hold_ms) await new Promise((resolve) => setTimeout(resolve, hold_ms));
+    logPath(state, "window", "window_focus", { action: label });
+    return { input_path: "window_focus", visible, visibility_wait_ms, hold_ms };
   } finally {
-    await release(lease.sessionId);
+    await release(sessionId);
   }
 }
 
