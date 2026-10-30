@@ -507,7 +507,10 @@ final class IslandTests: XCTestCase {
         let m = IslandModel()
         _ = m.apply(IslandSnapshot(kind: "ready", title: "Samantha"))
         m.toggleCard()
-        XCTAssertFalse(m.cardOpen, "no idle card")
+        XCTAssertTrue(m.cardOpen, "the empty pill opens a small card")
+        XCTAssertEqual(m.cardHeight, IslandAgentRows.emptyCardHeight)
+        m.toggleCard()
+        XCTAssertFalse(m.cardOpen, "a second click closes it")
         _ = m.apply(IslandSnapshot(kind: "ready", title: "Samantha",
                                    agents: [IslandAgent(id: "a", name: "Codex", app: "Codex", status: "running")]))
         m.toggleCard()

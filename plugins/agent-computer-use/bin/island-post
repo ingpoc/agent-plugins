@@ -6,6 +6,7 @@
   island-post --source grok-bot --kind choice --id q1 --prompt "Which one?" \\
       --option "Looks great=great" --option "Needs work=needs_work" --allow-text --wait 300
   island-post --source codex --kind clear --id deploy-1        # answered in chat: remove the card
+  island-post --source codex --kind error --id t1 --title "Run release tests" --detail "Tests failed after restart" --error "live-fd: 44 -> 51 fds"
   island-post --source grok-bot --kind peek --title "Build finished" --app Terminal   # 3 s Quick Peek
   island-post --source codex --kind running --id job1 --title "Migrating" --controls stop,retry --wait-control 600
       # row with Stop/Retry buttons; prints {"action": "stop"} when the user clicks (exit 0), timeout exit 2
@@ -215,7 +216,8 @@ def main() -> int:
     p.add_argument("--kind", default=None, choices=KINDS, help="default: choice if --prompt/--option, else running")
     p.add_argument("--title", default="")
     p.add_argument("--prompt", default=None, help="choice: the question (defaults to --title)")
-    p.add_argument("--detail", default="", help="approval: subtitle; required target scope for --destructive")
+    p.add_argument("--detail", default="", help="approval: subtitle; required target scope for --destructive; error: the human meta line")
+    p.add_argument("--error", default="", help="error row: technical detail for the hover tooltip")
     p.add_argument("--option", action="append", type=parse_option, default=[], metavar="LABEL=VALUE",
                    help="choice option (repeat, max 6)")
     p.add_argument("--multi", action="store_true", help="choice: allow several options")
@@ -268,6 +270,8 @@ def main() -> int:
 
     body: dict = {"source": a.source, "id": a.id, "kind": kind, "title": a.title or (a.prompt or ""),
                   "detail": a.detail}
+    if a.error:
+        body["error"] = a.error
     if kind == "choice":
         body.update({"prompt": a.prompt or a.title, "options": a.option, "multi": a.multi,
                      "allow_text": a.allow_text, "primary": a.primary, "danger": a.danger})

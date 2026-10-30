@@ -128,7 +128,7 @@ enum AgentSource: String, CaseIterable, Codable {
     var defaultApp: String {
         switch self {
         case .samantha: return ""
-        case .grokBot: return "Comet"
+        case .grokBot: return "Grok Bot"
         case .cursor: return "Cursor"
         case .codex: return "Codex"
         case .agentRoster: return ""

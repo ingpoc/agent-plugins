@@ -490,6 +490,12 @@ struct IslandAgentListBody: View {
         let processes = model.localProcessRows
         let extra = max(0, model.rosterItemCount - model.rosterVisibleRows)
         let h = model.cardHeight
+        if rows.isEmpty && processes.isEmpty {
+            // 13 pt at 60 %, centred; the card closes after 3 s or when the pointer leaves.
+            Text("No agents running").font(IslandType.body).foregroundStyle(IslandInk.metaColor)
+                .frame(width: IslandBarLayout.cardSize.width, height: h, alignment: .center)
+                .accessibilityLabel("No agents running")
+        } else {
         VStack(alignment: .leading, spacing: 0) {
             // One timeline for running duration and stale last-seen age, only while visible.
             Group {
@@ -504,28 +510,21 @@ struct IslandAgentListBody: View {
                 }
             }
             .frame(height: h - 2 * p - (extra > 0 ? 18 : 0), alignment: .top)
-            if extra > 0 {
-                Text("+\(extra) more").font(IslandType.meta).foregroundStyle(IslandInk.metaColor)
+            if model.rosterHasMore && extra > 0 {
+                IslandMoreButton(extra: extra) { model.expandRoster() }
                     .layoutProbe("agents-footer")
                     .frame(height: 18, alignment: .bottom)
             }
         }
         .padding(p)
         .frame(width: IslandBarLayout.cardSize.width, height: h, alignment: .topLeading)
+        }
     }
 
     private func rowStack(_ rows: [IslandAgentRow], processes: [IslandAgent], extra: TimeInterval) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical) {
                 LazyVStack(spacing: 8) {
-                    if rows.isEmpty && processes.isEmpty {
-                        HStack(spacing: 8) {
-                            Text("No agents running").font(IslandType.bodyStrong).foregroundStyle(IslandInk.metaColor)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .center)
-                        .padding(.horizontal, 8)
-                        .accessibilityElement(children: .combine)
-                    }
                     ForEach(rows) { item in
                         row(item.agent, depth: item.depth, parentName: item.parentName, extra: extra)
                             .id(item.id)
@@ -580,7 +579,7 @@ struct IslandAgentListBody: View {
                         }
                         Text(meta)
                             .foregroundStyle(model.rowFailures[a.id] != nil || a.status == "error" ? IslandPalette.red.opacity(0.95)
-                                : a.status == "needs_you" ? IslandPalette.amber : a.status == "stale" ? IslandPalette.amber.opacity(0.9)
+                                : a.status == "stale" ? IslandPalette.amber.opacity(0.9)
                                 : IslandInk.metaColor)
                             .layoutPriority(1)
                     }
@@ -733,5 +732,26 @@ struct IslandAgentTicker: TimelineSchedule {
             wait = min(wait, (floor(e / step) + 1) * step - e)
         }
         return d.addingTimeInterval(wait.isFinite ? max(0.05, wait) : 60)
+    }
+}
+
+
+/// "+N more": a real button (11 pt, 60 %, brighter on hover) that grows the roster card.
+struct IslandMoreButton: View {
+    let extra: Int
+    let action: () -> Void
+    @State private var hovering = false
+    var body: some View {
+        Button(action: action) {
+            Text("+\(extra) more")
+                .font(.system(size: 11, weight: .medium)).monospacedDigit()
+                .foregroundStyle(Color.white.opacity(hovering ? 0.9 : IslandInk.meta))
+                .padding(.horizontal, 6).padding(.vertical, 1)
+                .background(Capsule().fill(Color.white.opacity(hovering ? IslandInk.fill : 0)))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .accessibilityLabel("Show \(extra) more agents")
     }
 }

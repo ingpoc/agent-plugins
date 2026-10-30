@@ -23,6 +23,7 @@ enum AppIconResolver {
 
     static let bundleIDs: [String: String] = [
         "Comet": "ai.perplexity.comet",
+        "Grok Bot": "com.anysphere.sand",
         "Calculator": "com.apple.calculator",
         "TextEdit": "com.apple.TextEdit",
         "Notes": "com.apple.Notes",
@@ -45,7 +46,7 @@ enum AppIconResolver {
         "TextEdit": "doc.text", "Comet": "globe", "Safari": "safari", "Finder": "folder",
         "Terminal": "terminal", "Notes": "note.text", "Calculator": "plus.forwardslash.minus",
         "Mail": "envelope", "Calendar": "calendar", "Messages": "message", "Music": "music.note",
-        "Preview": "photo", "System Settings": "gearshape", "Cursor": "cursorarrow.rays", "Codex": "terminal",
+        "Preview": "photo", "System Settings": "gearshape", "Cursor": "cursorarrow.rays", "Codex": "terminal", "Grok Bot": "sparkles",
     ]
 
     static let fallbackSymbol = "app.dashed"
@@ -550,7 +551,7 @@ struct SamanthaIslandBar: View {
                     SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate)
                         // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(IslandAgentAccessibility.label(running: model.agents.count, needsYou: model.agents.filter { $0.needs_you || $0.status == "needs_you" }.count))
+                        .accessibilityLabel(IslandAgentAccessibility.label(model.agents))
                         .accessibilityAddTraits(.isButton)
                         .accessibilityAction { model.openAgentList() }
                         .accessibilityHidden(g.id != model.sourceGroups.first?.id)
