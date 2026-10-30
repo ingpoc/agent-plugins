@@ -79,7 +79,7 @@ enum ACUPermission: String, CaseIterable, Sendable {
         switch self {
         case .accessibility: return URL(string: base + "Accessibility")
         case .screenRecording: return URL(string: base + "ScreenCapture")
-        case .microphone: return URL(string: "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Microphone")
+        case .microphone: return URL(string: base + "Microphone")
         case .calendars: return URL(string: base + "Calendars")
         case .focus: return URL(string: base + "Focus")
         case .loginItem: return URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension")

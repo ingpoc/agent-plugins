@@ -2991,14 +2991,44 @@ class PrimitiveContractTests(unittest.TestCase):
             macos_cua.perform_action(10, 20, 30, "Show Menu")
         self.assertEqual(rpc.call_args.args[2]["action"], "AXShowMenu")
 
-    def test_secondary_action_with_snapshot_uses_cuaservice(self):
-        state = {"elements": [{"element_index": 30, "actions": ["AXShowMenu"]}]}
-        with mock.patch.object(macos_cua, "require_cuaservice_window", return_value=None), \
-                mock.patch.object(macos_cua, "_cuaservice_rpc", return_value={"ok": True}) as rpc:
-            result = macos_cua.perform_action(10, 20, 30, "showmenu", snapshot_data=state)
-        self.assertTrue(result["ok"])
-        self.assertEqual(rpc.call_args.args[1], "perform_secondary_action")
-        self.assertEqual(rpc.call_args.args[2]["action"], "AXShowMenu")
+    def test_secondary_action_accepts_native_ax_action_name(self):
+        services = SimpleNamespace(
+            AXUIElementPerformAction=lambda element, action: 0,
+        )
+        state = {
+            "elements": [{"element_index": 30, "actions": ["AXShowMenu"]}]
+        }
+        with mock.patch.object(
+            macos_cua,
+            "_resolve_native_ax_element",
+            return_value=((object(), services), None),
+        ):
+            result = macos_cua.perform_action(
+                10, 20, 30, "showmenu", snapshot_data=state
+            )
+
+        self.assertEqual(result["path"], "native_ax")
+
+
+    def test_perform_action_fails_closed_when_ax_hangs(self):
+        services = SimpleNamespace(
+            AXUIElementSetMessagingTimeout=mock.Mock(),
+            AXUIElementPerformAction=lambda element, action: time.sleep(5) or 0,
+        )
+        state = {"elements": [{"element_index": 30, "actions": ["AXPress"]}]}
+        started = time.monotonic()
+        with mock.patch.object(
+            macos_cua,
+            "_resolve_native_ax_element",
+            return_value=((object(), services), None),
+        ):
+            result = macos_cua.perform_action(
+                10, 20, 30, "press", snapshot_data=state
+            )
+        elapsed = time.monotonic() - started
+        self.assertEqual(result.get("error_code"), "ax_timeout")
+        self.assertFalse(result.get("ok"))
+        self.assertLess(elapsed, 2.5)
 
     def test_selection_range_supports_context_and_cursor_modes(self):
         value = "one target two target three"
