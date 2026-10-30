@@ -292,6 +292,17 @@ class AppliedLinkTests(LedgerLoopBase):
 
 
 class ABLogTests(LedgerLoopBase):
+    def test_invalid_scope_is_rejected_before_find_off_arm_log(self) -> None:
+        log = self.data / "ledger-loop" / "tasks.jsonl"
+        r = self.run_loop(
+            "find", self.task, "--bot", "efficient", "--query", "scope validation off arm",
+            "--caller-scope", "null", env={"LEDGER_AB_DATE": "2026-10-20"},
+        )
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("invalid caller_scope", r.stderr)
+        self.assertNotIn('"arm": "off"', r.stdout)
+        self.assertFalse(log.exists(), "invalid scope must not be logged as a successful off-arm lookup")
+
     def test_off_day_find_skips_lookup_and_close_logs_arm_off(self) -> None:
         off = {"LEDGER_AB_DATE": "2026-10-18"}
         r = self.run_loop("find", self.task, "--bot", "efficient", "--query", "kite holdings", env=off)
@@ -362,11 +373,28 @@ class StoreModeTests(LedgerLoopBase):
              "outcome": {"status": "pending", "note": "", "evidence": []}},
             mcp=True,
         )["decision_id"]
+        fleet = self.store.record(
+            {"request_id": _u(), "occurred_at": None,
+             "body": _body(summary) | {"scope": "fleet", "rationale": rationale},
+             "outcome": {"status": "pending", "note": "", "evidence": []}},
+            mcp=True,
+        )["decision_id"]
         r = self.run_loop("find", self.task, "--bot", "efficient", "--query", "review gate stays closed")
         self.assertEqual(r.returncode, 0, r.stderr)
         ids = [hit["decision_id"] for hit in json.loads(r.stdout)["matches"]]
         self.assertIn(brand, ids)
+        self.assertIn(fleet, ids)
         self.assertNotIn(other, ids)
+
+        fleet_only = self.run_loop(
+            "find", self.task, "--bot", "efficient", "--query", "review gate stays closed",
+            "--caller-scope", "{}",
+        )
+        self.assertEqual(fleet_only.returncode, 0, fleet_only.stderr)
+        fleet_ids = [hit["decision_id"] for hit in json.loads(fleet_only.stdout)["matches"]]
+        self.assertIn(fleet, fleet_ids)
+        self.assertNotIn(brand, fleet_ids)
+        self.assertNotIn(other, fleet_ids)
 
     def test_close_without_start_fails(self) -> None:
         self.assert_fail(self.run_loop("close", self.task), "no start lookup")
