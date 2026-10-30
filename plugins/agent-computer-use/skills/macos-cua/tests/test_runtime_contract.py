@@ -47,6 +47,16 @@ class RuntimeContractTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'package/app build mismatch'):
                 contract.check(root, app, live=False)
 
+    def test_cursor_cache_marker_does_not_change_identity(self):
+        with tempfile.TemporaryDirectory() as td:
+            root, app = self.fixture(td)
+            before = contract.package_identity(root)
+            (root / '.cache-complete').write_text('')
+            self.assertEqual(contract.package_identity(root), before)
+            self.assertTrue(contract.check(root, app, live=False)['ok'])
+            (root / 'bin/.cache-complete').write_text('')
+            self.assertNotEqual(contract.package_identity(root), before)
+
     def test_stale_running_service_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root, app = self.fixture(td)
