@@ -4,7 +4,11 @@ import Darwin
 /// Structured startup timeline — same jsonl as Python `startup_trace.py`.
 enum SamanthaActivityLog {
     private static var activityURL: URL {
-        FileManager.default.homeDirectoryForCurrentUser
+        // Unit tests drive real controllers; keep their rows out of the user's live timeline.
+        if NSClassFromString("XCTestCase") != nil {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("cua-tests-samantha-activity.jsonl")
+        }
+        return FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent(".cache/macos-cua/samantha-activity.jsonl")
     }
 

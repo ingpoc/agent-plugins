@@ -428,6 +428,46 @@ class WindowResolutionTests(unittest.TestCase):
         self.assertEqual(exact["bundle_id"], "com.google.Chrome")
         self.assertEqual(named["pid"], 1659)
 
+    def test_app_extension_is_never_the_named_app(self):
+        def running(pid, path, bundle):
+            app = mock.Mock()
+            app.processIdentifier.return_value = pid
+            app.localizedName.return_value = "WhatsApp"
+            app.bundleIdentifier.return_value = bundle
+            app.isActive.return_value = False
+            app.bundleURL.return_value.path.return_value = path
+            return app
+
+        extension = running(
+            17211,
+            "/Applications/WhatsApp.app/Contents/PlugIns/ServiceExtension.appex",
+            "net.whatsapp.WhatsApp.ServiceExtension",
+        )
+        main_app = running(20001, "/Applications/WhatsApp.app", "net.whatsapp.WhatsApp")
+        workspace = mock.Mock()
+        nsworkspace = mock.Mock()
+        nsworkspace.sharedWorkspace.return_value = workspace
+        with mock.patch.dict(
+            sys.modules,
+            {"AppKit": SimpleNamespace(NSWorkspace=nsworkspace)},
+        ), mock.patch.object(macos_cua, "list_apps", return_value={"apps": []}):
+            workspace.runningApplications.return_value = [extension]
+            self.assertIsNone(macos_cua._running_app_identity("WhatsApp"))
+            self.assertEqual(macos_cua._live_instances(), [])
+            workspace.runningApplications.return_value = [extension, main_app]
+            self.assertEqual(macos_cua._running_app_identity("WhatsApp")["pid"], 20001)
+            # An explicit pid still reaches the extension process.
+            self.assertEqual(macos_cua._running_app_identity("pid:17211")["pid"], 17211)
+
+    def test_cuaservice_selector_pins_pid_when_app_has_twins(self):
+        one = [{"pid": 699, "name": "TextEdit", "bundle_id": "com.apple.TextEdit", "active": True}]
+        two = one + [{"pid": 62171, "name": "TextEdit", "bundle_id": "com.apple.TextEdit", "active": False}]
+        with mock.patch.object(macos_cua, "_live_instances", return_value=one):
+            self.assertEqual(macos_cua._cuaservice_selector("com.apple.TextEdit", 699), "com.apple.TextEdit")
+        with mock.patch.object(macos_cua, "_live_instances", return_value=two):
+            self.assertEqual(macos_cua._cuaservice_selector("com.apple.TextEdit", 62171), "pid:62171")
+            self.assertEqual(macos_cua._cuaservice_selector("com.apple.TextEdit", 699), "pid:699")
+
     def test_pid_selector_returns_none_for_non_running_process(self):
         workspace = mock.Mock()
         workspace.runningApplications.return_value = []
@@ -2472,14 +2512,12 @@ class KeyboardTests(unittest.TestCase):
         self.assertIn("Recover with", failed["error"])
         client.close.assert_called_once()
 
-    def test_second_instance_of_same_bundle_fails_loud_instead_of_wrong_target(self):
+    def test_second_instance_of_same_bundle_is_addressed_by_exact_pid(self):
         client, patches = self._cuaservice()
         with patches[0], patches[1], patches[2], patches[3]:
             with mock.patch.object(macos_cua, "_pids_for_app", return_value=[10, 11]):
-                result = macos_cua.press_key(10, 20, "cmd+v")
-        client.press_key.assert_not_called()
-        self.assertFalse(macos_cua._accepted(result))
-        self.assertIn("instances", result["error"])
+                macos_cua.press_key(10, 20, "cmd+v")
+        client.press_key.assert_called_once_with("pid:10", "cmd+v", window_id=20)
 
     def test_bundleless_target_fails_loud(self):
         identity = {"pid": 10, "name": "Helper", "bundle_id": "", "active": False}

@@ -126,21 +126,11 @@ def _cuaservice_press_key(pid, combo, window_id=None):
             "error": f"pid {pid} has no bundle id; CUAService cannot target it exactly.",
             "engine": "CUAService",
         }
-    # CUAService resolves by bundle id/name (first match). Never let it pick a
-    # different instance than the pid the caller resolved.
-    twins = _pids_for_app(app)
-    if twins != [pid]:
-        return {
-            "ok": False,
-            "error": (
-                f"{app} has instances {twins}; CUAService press_key cannot target "
-                f"pid {pid} exactly."
-            ),
-            "engine": "CUAService",
-        }
+    # Several instances: address the exact pid, never the bundle id's first match.
+    selector = _cuaservice_selector(app, pid)
     client = _cuaservice_client()
     try:
-        result = client.press_key(app, combo, window_id=window_id)
+        result = client.press_key(selector, combo, window_id=window_id)
     except Exception as exc:  # RPCError / socket failure: report, never swallow
         return {"ok": False, "error": f"CUAService press_key failed: {exc}", "engine": "CUAService"}
     finally:

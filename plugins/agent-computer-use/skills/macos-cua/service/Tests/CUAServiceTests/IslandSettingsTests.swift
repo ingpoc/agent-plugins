@@ -11,7 +11,7 @@ final class IslandSettingsTests: XCTestCase {
 
     override func setUp() {
         suiteName = "cua.island.settings.test.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suiteName)
+        defaults = TestDefaults.make(suiteName)
     }
 
     override func tearDown() {
@@ -36,7 +36,7 @@ final class IslandSettingsTests: XCTestCase {
         VoiceSettingsStore.path = dir.appendingPathComponent("settings.json")
         try JSONSerialization.data(withJSONObject: ["realtime_model": "gpt-realtime-2.1-mini", "realtime_voice": "nope", "extra": "kept"])
             .write(to: VoiceSettingsStore.path)
-        let defaults = UserDefaults(suiteName: "voice-\(UUID().uuidString)")!
+        let defaults = TestDefaults.make("voice-\(UUID().uuidString)")!
         let s = IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore(), voiceInFile: true)
         XCTAssertEqual(s.string(IslandSettingsSchema.voiceModel), "gpt-live-1", "retired Realtime id maps to GPT-Live-1")
         s.set("ash", for: IslandSettingsSchema.voiceVoice)
@@ -93,7 +93,7 @@ final class IslandSettingsTests: XCTestCase {
         let saved = VoiceSettingsStore.path
         defer { VoiceSettingsStore.path = saved }
         VoiceSettingsStore.path = dir.appendingPathComponent("settings.json")
-        let s = IslandSettingsStore(defaults: UserDefaults(suiteName: "voice-\(UUID().uuidString)")!,
+        let s = IslandSettingsStore(defaults: TestDefaults.make("voice-\(UUID().uuidString)")!,
                                     tokens: MemoryTokenStore(), voiceInFile: true)
         s.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
         s.set("gpt-6-astra", for: IslandSettingsSchema.voiceLiveIntelligence)

@@ -18,14 +18,14 @@ final class OnboardingTests: XCTestCase {
         IslandLayoutRecorder.enabled = false
         IslandLayoutRecorder.shared.reset()
         PermissionCenter.override = nil
-        for s in suites { UserDefaults(suiteName: s)?.removePersistentDomain(forName: s) }
+        for s in suites { TestDefaults.make(s)?.removePersistentDomain(forName: s) }
         suites = []
     }
 
     private func defaults() -> UserDefaults {
         let s = "cua.onboarding.test.\(UUID().uuidString)"
         suites.append(s)
-        return UserDefaults(suiteName: s)!
+        return TestDefaults.make(s)!
     }
 
     private func store() -> IslandSettingsStore {
@@ -269,7 +269,7 @@ final class OnboardingTests: XCTestCase {
     }
 
     func testLaunchOpensAtFirstPendingRowOfAnySection() {
-        let d = UserDefaults(suiteName: "launch-\(UUID().uuidString)")!
+        let d = TestDefaults.make("launch-\(UUID().uuidString)")!
         // First run: Welcome, remembering the first missing row.
         XCTAssertEqual(OnboardingModel.launchDecision(states: states([.keychain]), build: "b1", defaults: d),
                        .init(step: .welcome, row: .keychain))
@@ -285,7 +285,7 @@ final class OnboardingTests: XCTestCase {
     }
 
     func testLaterSkipsExactlyTheRowsLeftOpen() {
-        let d = UserDefaults(suiteName: "skip-\(UUID().uuidString)")!
+        let d = TestDefaults.make("skip-\(UUID().uuidString)")!
         OnboardingModel.finish(states: states([.automationSpotify, .focus]), build: "b1", defaults: d)
         XCTAssertNil(OnboardingModel.launchDecision(states: states([.automationSpotify, .focus]), build: "b1", defaults: d),
                      "explicitly skipped rows don't reopen it")

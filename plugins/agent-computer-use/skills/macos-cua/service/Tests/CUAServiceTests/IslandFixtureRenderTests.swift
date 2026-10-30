@@ -43,7 +43,7 @@ final class IslandFixtureRenderTests: XCTestCase {
             throw XCTSkip("set CUA_ISLAND_RENDER_DIR to render")
         }
         let suite = "cua.island.render.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
+        let defaults = TestDefaults.make(suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let store = IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore())
         store.set("gradient", for: NowPlayingKeys.color)

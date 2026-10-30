@@ -134,11 +134,30 @@ final class AppResolver: @unchecked Sendable {
             }
     }
 
+    /// `pid:<n>` addresses one process exactly (a second TextEdit beside the user's own).
+    static func pidSelector(_ query: String) -> pid_t? {
+        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+        guard q.hasPrefix("pid:"), let n = Int32(q.dropFirst(4)), n > 0 else { return nil }
+        return n
+    }
+
+    /// App extensions / XPC services (WhatsApp's `ServiceExtension.appex` is named "WhatsApp")
+    /// are never the app a caller means by name.
+    static func isExtensionBundle(_ url: URL?) -> Bool {
+        guard let ext = url?.pathExtension.lowercased() else { return false }
+        return ext == "appex" || ext == "xpc"
+    }
+
     private func findRunningApp(_ query: String) -> NSRunningApplication? {
-        let apps = NSWorkspace.shared.runningApplications
-        if let match = apps.first(where: { $0.bundleIdentifier == query }) {
+        if let pid = Self.pidSelector(query) {
+            // Exact process only: never fall through to name matching or a launch.
+            return NSRunningApplication(processIdentifier: pid)
+        }
+        let all = NSWorkspace.shared.runningApplications
+        if let match = all.first(where: { $0.bundleIdentifier == query }) {
             return match
         }
+        let apps = all.filter { !Self.isExtensionBundle($0.bundleURL) }
         let lower = query.lowercased()
         if let match = apps.first(where: {
             $0.localizedName?.lowercased() == lower
