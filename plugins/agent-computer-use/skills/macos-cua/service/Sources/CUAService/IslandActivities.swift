@@ -349,17 +349,52 @@ struct IslandAgentRow: Equatable, Identifiable {
 }
 
 enum IslandAgentRows {
-    static let maxRows = 4
+    static let maxRows = 3
     static let rowHeight: CGFloat = 44
     static let confirmWindow: TimeInterval = 3
     static let ackTimeout: TimeInterval = 5
 
-    /// Card hugs its rows: 16 pt padding + 44 pt rows (+ confirmation space and footer), min 96.
+    static let rowGap: CGFloat = 8
+    static let askButtonsHeight: CGFloat = 34
+
+    /// Card hugs its rows: 16 pt padding + 44 pt rows with 8 pt gaps (+ needs-you buttons,
+    /// confirmation space and footer), min 96.
     static func cardHeight(rows: Int, footer: Bool, stopConfirmation: Bool = false,
-                           maxVisibleRows: Int = maxRows) -> CGFloat {
+                           maxVisibleRows: Int = maxRows, askRows: Int = 0) -> CGFloat {
         let n = CGFloat(min(max(rows, 1), max(1, maxVisibleRows)))
-        return max(96, 2 * IslandBarLayout.cardPadding + n * rowHeight
+        return max(96, 2 * IslandBarLayout.cardPadding + n * rowHeight + (n - 1) * rowGap
+            + CGFloat(min(askRows, Int(n))) * askButtonsHeight
             + (stopConfirmation ? 40 : 0) + (footer ? 18 : 0))
+    }
+
+    static func stateWord(_ a: IslandAgent) -> String {
+        if a.needs_you || a.status == "needs_you" { return "needs you" }
+        switch a.status {
+        case "error": return "failed"
+        case "done": return "done"
+        case "running": return "working"
+        case "stale": return "stopped updating"
+        case "expired": return "timed out"
+        default: return a.status
+        }
+    }
+
+    /// Hide while sharing: no titles, repos or asks; just "Codex · working".
+    static func redactedTitle(_ a: IslandAgent) -> String {
+        "\(a.app.isEmpty ? a.name : a.app) · \(stateWord(a))"
+    }
+
+    /// "Codex, needs approval, delete branch acu/x. Luna, low, 4 minutes."
+    static func voiceOverLabel(_ a: IslandAgent, title: String, meta: String, parent: String?) -> String {
+        let source = a.app.isEmpty ? a.name : a.app
+        let word = a.id.hasPrefix("pending:") ? (a.request_kind == "choice" ? "needs a choice" : "needs approval") : stateWord(a)
+        var spoken = meta.replacingOccurrences(of: " · ", with: ", ")
+        for (short, long) in [("s", " seconds"), ("m", " minutes"), ("h", " hours")] {
+            spoken = spoken.replacingOccurrences(of: "([0-9]+)\(short)\\b", with: "$1\(long)", options: .regularExpression)
+        }
+        let head = [source, word, title].filter { !$0.isEmpty }.joined(separator: ", ")
+        let tail = [parent.map { "helper of \($0)" }, spoken.isEmpty || spoken == word ? nil : spoken].compactMap { $0 }.joined(separator: ", ")
+        return tail.isEmpty ? head + "." : head + ". " + tail + "."
     }
 
     static func isProcessObservation(_ agent: IslandAgent) -> Bool {
@@ -404,17 +439,17 @@ enum IslandAgentRows {
             next.insert(agent.id)
             return (children[agent.id] ?? []).reduce(priority(agent)) { min($0, branchPriority($1, visiting: next)) }
         }
-        func ordered(_ agents: [IslandAgent]) -> [IslandAgent] {
-            agents.sorted {
-                let l = branchPriority($0), r = branchPriority($1)
-                return l == r ? (indices[$0.id] ?? 0) < (indices[$1.id] ?? 0) : l < r
-            }
+        // Within a tier: needs-you oldest ask first; everything else most recent activity first.
+        func before(_ a: IslandAgent, _ b: IslandAgent) -> Bool {
+            let l = branchPriority(a), r = branchPriority(b)
+            if l != r { return l < r }
+            if l == 0, a.elapsed_s != b.elapsed_s { return a.elapsed_s > b.elapsed_s }
+            if l > 0, a.last_seen_at != b.last_seen_at { return a.last_seen_at > b.last_seen_at }
+            return (indices[a.id] ?? 0) < (indices[b.id] ?? 0)
         }
+        func ordered(_ agents: [IslandAgent]) -> [IslandAgent] { agents.sorted(by: before) }
         func append(_ seeds: [(IslandAgent, Int)]) {
-            var stack = Array(seeds.sorted {
-                let l = branchPriority($0.0), r = branchPriority($1.0)
-                return l == r ? (indices[$0.0.id] ?? 0) < (indices[$1.0.id] ?? 0) : l < r
-            }.reversed())
+            var stack = Array(seeds.sorted { before($0.0, $1.0) }.reversed())
             while let (agent, depth) = stack.popLast() {
                 guard visited.insert(agent.id).inserted else { continue }
                 let parentName = agent.parent_id.flatMap { parent in agents.first(where: { $0.id == parent })?.name }
@@ -429,6 +464,7 @@ enum IslandAgentRows {
 
     /// Pending rows open their request; they never answer it from the roster.
     static func control(for a: IslandAgent) -> IslandRowControl.Action? {
+        if a.id.hasPrefix("local:codex-thread:") { return nil }
         if a.status == "stale" { return .dismiss }
         if a.id.hasPrefix("pending:") { return .review }
         if a.status == "error", a.controls.contains("retry") { return .retry }
@@ -440,20 +476,22 @@ enum IslandAgentRows {
 
     /// "running 4m", "failed", "needs you", "done", or the last-seen age for a stale row.
     static func statusText(_ a: IslandAgent, elapsedExtra: TimeInterval = 0) -> String {
+        if a.status == "running", let detail = a.local_detail { return detail }
         switch a.status {
-        case "error": return "failed"
+        case "error": return a.local_detail ?? "failed"
         case "needs_you": return "needs you"
-        case "done": return "done"
+        case "done": return a.local_detail ?? "done"
         case "expired": return "timed out"
         case "stale":
             let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))
             let age = n < 60 ? "\(n)s" : n < 3600 ? "\(n / 60)m" : "\(n / 3600)h"
             return "updates stopped · last seen \(age) ago"
-        case "process", "harness": return a.local_detail ?? "activity unknown"
+        case "process", "harness": return a.local_detail ?? ""
         default:
+            // Meta line: known parts only; with nothing known, just the elapsed time.
             let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))
             let t = n < 60 ? "\(n)s" : n < 3600 ? "\(n / 60)m" : "\(n / 3600)h"
-            return "running \(t)"
+            return t
         }
     }
 }

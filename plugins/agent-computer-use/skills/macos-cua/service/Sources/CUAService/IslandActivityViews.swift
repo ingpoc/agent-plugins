@@ -505,7 +505,7 @@ struct IslandAgentListBody: View {
             }
             .frame(height: h - 2 * p - (extra > 0 ? 18 : 0), alignment: .top)
             if extra > 0 {
-                Text("+\(extra) more · scroll").font(IslandType.meta).foregroundStyle(IslandInk.metaColor)
+                Text("+\(extra) more").font(IslandType.meta).foregroundStyle(IslandInk.metaColor)
                     .layoutProbe("agents-footer")
                     .frame(height: 18, alignment: .bottom)
             }
@@ -517,33 +517,18 @@ struct IslandAgentListBody: View {
     private func rowStack(_ rows: [IslandAgentRow], processes: [IslandAgent], extra: TimeInterval) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical) {
-                LazyVStack(spacing: 0) {
+                LazyVStack(spacing: 8) {
                     if rows.isEmpty && processes.isEmpty {
                         HStack(spacing: 8) {
                             Text("No agents running").font(IslandType.bodyStrong).foregroundStyle(IslandInk.metaColor)
                         }
-                        .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .leading)
+                        .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .center)
                         .padding(.horizontal, 8)
                         .accessibilityElement(children: .combine)
                     }
                     ForEach(rows) { item in
                         row(item.agent, depth: item.depth, parentName: item.parentName, extra: extra)
                             .id(item.id)
-                    }
-                    if !processes.isEmpty {
-                        HStack {
-                            Text("Detected local processes").font(IslandType.bodyStrong)
-                            Spacer(minLength: 8)
-                            Text("\(processes.count)").font(IslandType.meta).monospacedDigit()
-                        }
-                        .foregroundStyle(IslandInk.secondaryColor)
-                        .frame(maxWidth: .infinity, minHeight: IslandAgentRows.rowHeight, alignment: .leading)
-                        .padding(.horizontal, 8)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(processes.count) local observations detected")
-                        ForEach(processes) { process in
-                            row(process, depth: 0, parentName: nil, extra: 0).id(process.id)
-                        }
                     }
                 }
             }
@@ -562,8 +547,12 @@ struct IslandAgentListBody: View {
             .compactMap { $0 }.joined(separator: " · ")
         let who = a.name.isEmpty ? a.app : a.name
         let armed = model.isStopArmed(a.id)
-        let parent = parentName.map { "child of \($0)" }
-        let accessibility = [who, a.title, parent, status].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
+        let redacted = model.redactRoster
+        // Line 1 is the task (or the ask itself); while sharing it collapses to "Codex · working".
+        let line1 = redacted ? IslandAgentRows.redactedTitle(a) : (a.title.isEmpty ? who : a.title)
+        let meta = redacted ? "" : status
+        let accessibility = IslandAgentRows.voiceOverLabel(a, title: redacted ? "" : a.title, meta: meta, parent: parentName)
+        let inlineAsk = a.id.hasPrefix("pending:") && a.request_kind != "choice"
         return HStack(spacing: 10) {
             // 20 pt icon on a 28 pt tile (radius 7, white 8 %) on every row.
             SamanthaAppIcon(appName: a.app.isEmpty ? a.name : a.app, size: 20, radius: 5)
@@ -583,20 +572,13 @@ struct IslandAgentListBody: View {
                         .islandFocusRing(model.isNavFocused(.cancelStop(a.id)), shape: .capsule)
                         .accessibilityLabel("Keep \(who) running")
                 } else {
+                    Text(line1).font(IslandType.bodyStrong).foregroundStyle(Color.white).lineLimit(1).truncationMode(.tail)
+                        .layoutProbe("row-\(a.id)-name", truncates: true)
                     HStack(spacing: 4) {
-                        Text(who).font(IslandType.bodyStrong).foregroundStyle(Color.white).lineLimit(1)
-                            .layoutProbe("row-\(a.id)-name", truncates: true)
-                            .layoutPriority(1)
-                        if !a.title.isEmpty {
-                            Text(a.local_detail == nil ? a.title : "· " + a.title).font(IslandType.body).foregroundStyle(IslandInk.secondaryColor).lineLimit(1)
-                                .layoutProbe("row-\(a.id)-title", truncates: true)
-                        }
-                    }
-                    HStack(spacing: 4) {
-                        if let parentName {
+                        if let parentName, !redacted {
                             Text("↳ \(parentName)").foregroundStyle(IslandInk.secondaryColor).lineLimit(1)
                         }
-                        Text(status)
+                        Text(meta)
                             .foregroundStyle(model.rowFailures[a.id] != nil || a.status == "error" ? IslandPalette.red.opacity(0.95)
                                 : a.status == "needs_you" ? IslandPalette.amber : a.status == "stale" ? IslandPalette.amber.opacity(0.9)
                                 : IslandInk.metaColor)
@@ -606,12 +588,22 @@ struct IslandAgentListBody: View {
                     .contentTransition(reduceMotion ? .identity : .numericText())
                     .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: status)
                     .layoutProbe("row-\(a.id)-status")
+                    if inlineAsk { askButtons(a) }
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture { if !inlineAsk && !armed { model.openRow(a) } }
+            .help(redacted ? "" : (a.tooltip ?? ""))
             Spacer(minLength: 4)
-            control(a, pending: pending)
+            if inlineAsk {
+                statusGlyph(a).frame(width: 28, height: 28).layoutProbe("row-\(a.id)-glyph", .glyph)
+            } else {
+                control(a, pending: pending)
+            }
         }
-        .frame(height: armed ? IslandAgentRows.rowHeight + 40 : IslandAgentRows.rowHeight)
+        .frame(height: armed ? IslandAgentRows.rowHeight + 40
+               : inlineAsk ? IslandAgentRows.rowHeight + IslandAgentRows.askButtonsHeight : IslandAgentRows.rowHeight)
+        .transition(.opacity)
         .padding(.horizontal, 6)
         .padding(.leading, CGFloat(min(depth, 4)) * 14)
         .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -652,6 +644,31 @@ struct IslandAgentListBody: View {
         }
     }
 
+    /// Needs-you row: Approve (primary) and Deny act in place; irreversible asks put Deny first.
+    @ViewBuilder
+    private func askButtons(_ a: IslandAgent) -> some View {
+        let approve = Button { model.decideRow(a, approved: true) } label: {
+            Text("Approve").font(IslandType.meta.weight(.semibold)).foregroundStyle(Color.black.opacity(0.7))
+                .padding(.horizontal, 12).frame(height: 28)
+                .background(Capsule().fill(Color.white))
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(.return, modifiers: .command)
+        .accessibilityLabel("Approve \(a.title)")
+        let deny = Button { model.decideRow(a, approved: false) } label: {
+            Text("Deny").font(IslandType.meta.weight(.semibold)).foregroundStyle(Color.white)
+                .padding(.horizontal, 12).frame(height: 28)
+                .background(Capsule().fill(Color.white.opacity(IslandInk.fill)))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Deny \(a.title)")
+        HStack(spacing: 8) {
+            if a.destructive { deny; approve } else { approve; deny }
+        }
+        .padding(.top, 6)
+        .layoutProbe("row-\(a.id)-ask", .control)
+    }
+
     @ViewBuilder
     private func statusGlyph(_ a: IslandAgent) -> some View {
         if a.status == "expired" {
@@ -663,7 +680,7 @@ struct IslandAgentListBody: View {
         } else if a.status == "done" {
             SamanthaSymbol(name: "checkmark.circle.fill", color: IslandPalette.green)
         } else if a.needs_you || a.status == "needs_you" {
-            SamanthaSymbol(name: "hand.raised.fill", color: IslandPalette.amber)
+            SamanthaSymbol(name: "exclamationmark.circle.fill", color: IslandPalette.amber)
         } else {
             SamanthaProgressRing(fraction: nil, reduceMotion: reduceMotion).frame(width: 16, height: 16)
         }

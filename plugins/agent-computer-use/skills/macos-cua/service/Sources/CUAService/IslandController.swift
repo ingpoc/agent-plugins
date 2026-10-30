@@ -315,6 +315,18 @@ final class IslandController {
                 if !self.hub.requestControl(id: a.id, action: action.rawValue) { self.model.failRowControl(a.id) }
             }
         }
+        model.onRowOpen = { a in
+            // Codex: codex://threads/<id> (https://developers.openai.com/codex/app/commands#deep-links).
+            // Cursor has no thread link (https://cursor.com/docs/reference/deeplinks: prompt/command/rule only),
+            // so its rows, and any link that fails to open, focus the app instead.
+            if let link = a.link, let url = URL(string: link), NSWorkspace.shared.urlForApplication(toOpen: url) != nil,
+               NSWorkspace.shared.open(url) { return }
+            AppIconResolver.activate(a.app == "Codex" ? "ChatGPT" : a.app)
+        }
+        model.onRowDecision = { [weak self] a, approved in
+            guard let self, a.id.hasPrefix("pending:") else { return }
+            self.hub.resolveApproval(id: String(a.id.dropFirst("pending:".count)), approved: approved, via: "roster")
+        }
         model.onOpenEvent = { e, join in
             if join, let u = e.meetingURL { NSWorkspace.shared.open(u) } else { IslandCalendarController.open(e) }
         }
@@ -580,7 +592,17 @@ final class IslandController {
         render(d)
     }
 
+    private var sharingCheckedAt = Date.distantPast
+    private var sharingActive = false
+
     private func render(_ s: IslandSnapshot) {
+        // Renders can be frequent; the process-table check runs at most every 2 s.
+        if Date().timeIntervalSince(sharingCheckedAt) > 2 {
+            sharingCheckedAt = Date()
+            sharingActive = store.bool(IslandSettingsSchema.hideWhileSharing) && IslandPrivacy.screenSharingActive()
+        }
+        let redact = sharingActive
+        if model.redactRoster != redact { model.redactRoster = redact }
         guard model.apply(s) else { return } // benign error: never shown
         if s.kind != shownKind {
             shownKind = s.kind

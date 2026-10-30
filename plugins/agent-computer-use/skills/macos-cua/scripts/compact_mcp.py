@@ -207,6 +207,14 @@ def tool_schemas() -> list[dict[str, Any]]:
             ),
             "outputSchema": result_schema,
         },
+        {
+            "name": "sessions",
+            "description": "Read-only: local agent sessions the island hides (Codex threads with title, state, model, effort, cwd, repo, branch, tokens, context %, pid/host, deep_link; idle threads; probe runs flagged probe:true; harness processes). No emails or account ids.",
+            "inputSchema": _schema({"include_idle": {"type": "boolean", "default": True},
+                                    "include_probes": {"type": "boolean", "default": True},
+                                    "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 50}}),
+            "annotations": {"readOnlyHint": True, "idempotentHint": True},
+        },
     ]
 
 
@@ -234,6 +242,7 @@ def handle_act(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 HANDLERS = {
+    "sessions": lambda arguments: _backend().sessions(arguments),
     "state": _state_payload,
     "act": handle_act,
 }

@@ -2,6 +2,74 @@ import Foundation
 import SQLite3
 
 enum IslandCodexThreads {
+    struct RolloutState: Equatable {
+        var state = "idle"
+        var error: String?
+        var model: String?
+        var effort: String?
+        var tokens: Int?
+        var contextPercent: Int?
+        /// When the current state began (task_started / task_complete / error event timestamp).
+        var since: Date?
+    }
+
+    private static let stampFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    static func stamp(_ object: [String: Any]) -> Date? {
+        guard let text = object["timestamp"] as? String else { return nil }
+        return stampFormatter.date(from: text) ?? ISO8601DateFormatter().date(from: text)
+    }
+
+    /// Inspect only event and context records. Aborted turns are idle unless the reason
+    /// explicitly identifies a failure; user cancellation is not an error.
+    static func rolloutState(_ tail: Data, age: TimeInterval) -> RolloutState {
+        var result = RolloutState()
+        for line in tail.split(separator: 10) {
+            guard line.range(of: Data("\"event_msg\"".utf8)) != nil ||
+                    line.range(of: Data("\"turn_context\"".utf8)) != nil,
+                  let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
+                  let type = object["type"] as? String,
+                  let payload = object["payload"] as? [String: Any] else { continue }
+            if type == "turn_context" {
+                result.model = payload["model"] as? String ?? result.model
+                result.effort = payload["effort"] as? String ?? result.effort
+            } else if type == "event_msg", let event = payload["type"] as? String {
+                switch event {
+                case "task_started": result.state = "working"; result.error = nil; result.since = stamp(object)
+                case "task_complete": result.state = "done"; result.error = nil; result.since = stamp(object)
+                case "error":
+                    result.since = stamp(object)
+                    result.state = "error"
+                    result.error = (payload["message"] as? String)?.components(separatedBy: .newlines).first.map { String($0.prefix(60)) }
+                case "turn_aborted":
+                    let reason = (payload["reason"] as? String ?? "").lowercased()
+                    result.state = reason.contains("fail") || reason.contains("error") ? "error" : "idle"
+                    result.error = result.state == "error" ? String(reason.prefix(60)) : nil
+                case "token_count":
+                    if let info = payload["info"] as? [String: Any] {
+                        result.tokens = (info["total_token_usage"] as? [String: Any])?["total_tokens"] as? Int
+                        if let used = (info["last_token_usage"] as? [String: Any])?["total_tokens"] as? Int,
+                           let window = info["model_context_window"] as? Int, window > 0 {
+                            result.contextPercent = Int((Double(used) * 100 / Double(window)).rounded())
+                        }
+                    }
+                default: break
+                }
+            }
+        }
+        if (result.state == "working" && age > 600) || (result.state == "done" && age > 180) ||
+            (result.state == "error" && age > 1800) { result.state = "idle" }
+        return result
+    }
+
+    static func productModelName(_ model: String?) -> String? {
+        guard let part = model?.split(separator: "-").last, !part.isEmpty else { return nil }
+        return part.prefix(1).uppercased() + part.dropFirst().lowercased()
+    }
     struct ThreadRecord: Equatable {
         var id: String
         var rolloutPath: String
@@ -11,6 +79,13 @@ enum IslandCodexThreads {
         var effort: String?
         var updatedAt: Date
         var originator: String? = nil
+        var cwd: String? = nil
+        var branch: String? = nil
+        var originURL: String? = nil
+        var parentID: String? = nil
+        var role: String? = nil
+        var codexHome: String? = nil
+        var rollout = RolloutState()
     }
 
     /// A running `codex` process. App-server hosts (the ChatGPT desktop app spawns them from
@@ -50,52 +125,77 @@ enum IslandCodexThreads {
     static let recentWindow: TimeInterval = 1800
     static let workingWindow: TimeInterval = 90
 
-    /// Threads grouped under their host. A thread is "working" only when its rollout updated in
-    /// the last 90 s; app-server processes appear only as one small host line per host kind.
+    static func isProbe(_ record: ThreadRecord) -> Bool {
+        let cwd = record.cwd ?? ""
+        return URL(fileURLWithPath: cwd).lastPathComponent == "empty-probe" || cwd.contains("/acu-release/") ||
+            [record.title, record.firstUserMessage].contains { ($0 ?? "").hasPrefix("Call only the agent") }
+    }
+
+    static func displayTitle(_ record: ThreadRecord) -> String {
+        let title = record.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let prompt = record.firstUserMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !title.isEmpty && (prompt.isEmpty || !prompt.hasPrefix(title)) { return title }
+        let first = prompt.components(separatedBy: CharacterSet(charactersIn: ".!?\n")).first ?? ""
+        return first.isEmpty ? (title.isEmpty ? "Untitled thread" : String(title.prefix(40))) : String(first.prefix(40))
+    }
+
+    static func duration(_ seconds: Int) -> String {
+        seconds < 60 ? "\(seconds)s" : seconds < 3600 ? "\(seconds / 60)m" : "\(seconds / 3600)h"
+    }
+
+    static func repo(_ record: ThreadRecord) -> String? {
+        if let url = record.originURL, !url.isEmpty {
+            return URL(fileURLWithPath: url).deletingPathExtension().lastPathComponent
+        }
+        return record.cwd.map { URL(fileURLWithPath: $0).lastPathComponent }
+    }
+
+    static func tokensText(_ tokens: Int) -> String {
+        tokens >= 1_000_000 ? String(format: "%.1fM", Double(tokens) / 1_000_000)
+            : tokens >= 1000 ? "\(tokens / 1000)k" : "\(tokens)"
+    }
+
+    /// Hover text: "repo · branch" and "3.1M tokens · 62% of context", known parts only.
+    static func tooltip(_ record: ThreadRecord) -> String? {
+        let place = [repo(record), record.branch].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        let usage = [record.rollout.tokens.map { tokensText($0) + " tokens" },
+                     record.rollout.contextPercent.map { "\($0)% of context" }].compactMap { $0 }.joined(separator: " · ")
+        let text = [place, usage].filter { !$0.isEmpty }.joined(separator: "\n")
+        return text.isEmpty ? nil : text
+    }
+
+    /// Roster rows: working, done (3 min) and error (30 min) threads only; idle threads, helpers
+    /// (folded into the parent as "+N helpers") and ACU's own probe runs never show.
     static func rows(records: [ThreadRecord], hosts: [Host], now: Date) -> [IslandAgent] {
-        var terminalPID: [String: Int] = [:]
-        for host in hosts where !host.isDesktopApp {
-            for path in Set(host.rollouts) { terminalPID[path] = host.pid }
+        let helpers = Dictionary(grouping: records.filter { $0.parentID != nil }, by: { $0.parentID! })
+        return records.filter { $0.parentID == nil && $0.role == nil && !isProbe($0) && $0.rollout.state != "idle" }.map { record in
+            let state = record.rollout.state
+            let since = record.rollout.since ?? record.updatedAt
+            let age = max(0, Int(now.timeIntervalSince(since)))
+            var row = IslandAgent(id: "local:codex-thread:\(record.id)", name: "Codex", app: "Codex",
+                                  title: displayTitle(record), status: state == "working" ? "running" : state,
+                                  elapsed_s: Double(age), last_seen_at: record.updatedAt.timeIntervalSince1970)
+            var parts = [productModelName(record.rollout.model ?? record.model),
+                         (record.rollout.effort ?? record.effort)?.lowercased()].compactMap { $0 }
+            if let count = helpers[record.id]?.count, count > 0 { parts.append("+\(count) helpers") }
+            switch state {
+            case "error": row.local_detail = record.rollout.error ?? "failed"
+            case "done": row.local_detail = "done \(duration(age))"
+            default: row.local_detail = (parts + [duration(age)]).joined(separator: " · ")
+            }
+            // https://developers.openai.com/codex/app/commands#deep-links: codex://threads/<id> opens a local thread.
+            row.link = "codex://threads/\(record.id)"
+            row.tooltip = tooltip(record)
+            return row
         }
-        var result: [IslandAgent] = []
-        let appHosts = hosts.filter(\.isDesktopApp).map(\.pid).sorted()
-        if !appHosts.isEmpty {
-            var row = IslandAgent(id: "local:codex-host:app", name: "Codex host", app: "Codex",
-                                  title: "ChatGPT app · PID " + appHosts.map(String.init).joined(separator: ", "),
-                                  status: "process")
-            row.local_detail = "app-server; threads listed below"
-            result.append(row)
-        }
-        let shown = records.filter { terminalPID[$0.rolloutPath] != nil || now.timeIntervalSince($0.updatedAt) <= recentWindow }
-        for record in shown {
-            let pid = terminalPID[record.rolloutPath]
-            let group = pid != nil ? "terminal" : hostLabel(record.originator)
-            result.append(threadRow(record, id: "local:codex-thread:\(record.id)", group: group, pid: pid, now: now))
-        }
-        return result
     }
 
     static func hostLabel(_ originator: String?) -> String {
         switch originator ?? "" {
         case "codex_exec", "codex_cli_rs": return "terminal"
         case "Codex Desktop", "codex_work_desktop": return "ChatGPT app"
-        case "": return "host unknown"
-        default: return originator!
+        default: return "host unknown"
         }
-    }
-
-    private static func threadRow(_ record: ThreadRecord, id: String, group: String, pid: Int?, now: Date) -> IslandAgent {
-        let firstLine = record.firstUserMessage?.components(separatedBy: .newlines).first
-        let title = [record.title, firstLine].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .first { !$0.isEmpty } ?? "Untitled thread"
-        let shortTitle = title.count > 48 ? String(title.prefix(47)) + "…" : title
-        let seconds = max(0, Int(now.timeIntervalSince(record.updatedAt)))
-        let age = seconds < 60 ? "\(seconds)s" : seconds < 3600 ? "\(seconds / 60)m" : "\(seconds / 3600)h"
-        var row = IslandAgent(id: id, name: "Codex · " + group, app: "Codex", title: shortTitle, status: "process")
-        let activity = Double(seconds) < workingWindow ? "working" : "idle"
-        row.local_detail = "\(record.model ?? "model unknown") · \(record.effort ?? "effort unknown") · \(activity) · \(age) ago"
-            + (pid.map { " · PID \($0)" } ?? "")
-        return row
     }
 
     static func openReadOnly(_ path: String, immutable: Bool = false) -> OpaquePointer? {
@@ -119,17 +219,26 @@ enum IslandCodexThreads {
     static func readDatabase(_ path: String, immutable: Bool) -> [ThreadRecord]? {
         guard let db = openReadOnly(path, immutable: immutable) else { return nil }
         defer { sqlite3_close(db) }
-        let sql = "SELECT id, rollout_path, title, first_user_message, model, reasoning_effort, updated_at_ms, originator FROM threads WHERE archived = 0 ORDER BY updated_at_ms DESC LIMIT 20"
+        var columns: Set<String> = []
+        var schema: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "PRAGMA table_info(threads)", -1, &schema, nil) == SQLITE_OK else { return nil }
+        while sqlite3_step(schema) == SQLITE_ROW {
+            if let value = sqlite3_column_text(schema, 1) { columns.insert(String(cString: value)) }
+        }
+        sqlite3_finalize(schema)
+        let wanted = ["id", "rollout_path", "title", "first_user_message", "model", "reasoning_effort", "updated_at_ms", "originator", "cwd", "git_branch", "git_origin_url", "attached_thread_parent_id", "agent_role"]
+        guard columns.contains("id"), columns.contains("rollout_path"), columns.contains("updated_at_ms") else { return nil }
+        let fields = wanted.map { columns.contains($0) ? $0 : "NULL" }.joined(separator: ", ")
+        let filter = columns.contains("archived") ? " WHERE archived = 0" : ""
+        let sql = "SELECT \(fields) FROM threads\(filter) ORDER BY updated_at_ms DESC LIMIT 500"
         var stmt: OpaquePointer?
-        // Older state DBs have no originator column; read the rest and leave the host unknown.
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK
-            || sqlite3_prepare_v2(db, sql.replacingOccurrences(of: ", originator FROM", with: ", NULL FROM"), -1, &stmt, nil) == SQLITE_OK
-        else { return nil }
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
         defer { sqlite3_finalize(stmt) }
         func string(_ index: Int32) -> String? {
             guard let value = sqlite3_column_text(stmt, index) else { return nil }
             return String(cString: value)
         }
+        let homeName = URL(fileURLWithPath: path).deletingLastPathComponent().lastPathComponent
         var records: [ThreadRecord] = []
         var step = sqlite3_step(stmt)
         while step == SQLITE_ROW {
@@ -138,7 +247,8 @@ enum IslandCodexThreads {
             records.append(ThreadRecord(id: id, rolloutPath: path, title: string(2), firstUserMessage: string(3),
                                         model: string(4), effort: string(5),
                                         updatedAt: Date(timeIntervalSince1970: Double(sqlite3_column_int64(stmt, 6)) / 1000),
-                                        originator: string(7)))
+                                        originator: string(7), cwd: string(8), branch: string(9), originURL: string(10),
+                                        parentID: string(11), role: string(12), codexHome: homeName))
         }
         return step == SQLITE_DONE ? records : nil
     }
@@ -179,30 +289,37 @@ enum IslandCodexThreads {
         return paths
     }
 
-    static func scan(processes: [(pid: Int, executable: String)], home: URL = FileManager.default.homeDirectoryForCurrentUser,
+    static func scanData(processes: [(pid: Int, executable: String)], home: URL = FileManager.default.homeDirectoryForCurrentUser,
                      readDB: (String) -> [ThreadRecord] = readDatabase,
                      readTail: (String) -> Data? = tail,
-                     lsof: (Int) -> [String]? = lsofPaths, now: Date = Date()) -> [IslandAgent] {
-        guard !processes.isEmpty else { return [] }
+                     lsof: (Int) -> [String]? = lsofPaths, now: Date = Date()) -> ([ThreadRecord], [Host]) {
         let directories = (try? FileManager.default.contentsOfDirectory(at: home, includingPropertiesForKeys: nil)) ?? []
         let homes = directories.filter { $0.lastPathComponent == ".codex" || $0.lastPathComponent.hasPrefix(".codex-") }
         var records = homes.flatMap { readDB($0.appendingPathComponent("state_5.sqlite").path) }
             .sorted { $0.updatedAt > $1.updatedAt }
-        records = Array(records.prefix(20))
         // lsof only for terminal codex processes; app-server hosts never hold one thread's rollout.
         let hosts = processes.map { process in
             Host(pid: process.pid, executable: process.executable,
                  rollouts: Host(pid: process.pid, executable: process.executable, rollouts: []).isDesktopApp ? [] : (lsof(process.pid) ?? []))
         }
-        let open = Set(hosts.flatMap(\.rollouts))
-        // Tail only rollouts that can become rows: open in a terminal process, or updated in the last 30 min.
-        for index in records.indices where open.contains(records[index].rolloutPath)
-            || now.timeIntervalSince(records[index].updatedAt) <= recentWindow {
-            if let data = readTail(records[index].rolloutPath), let context = turnContext(data) {
-                records[index].model = context.model ?? records[index].model
-                records[index].effort = context.effort ?? records[index].effort
+        for index in records.indices {
+            let path = records[index].rolloutPath
+            guard now.timeIntervalSince(records[index].updatedAt) <= recentWindow + 300 else { continue }
+            let modified = (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate]) as? Date
+            let updated = max(records[index].updatedAt, modified ?? records[index].updatedAt)
+            records[index].updatedAt = updated
+            // Older threads are idle by definition (error rows last 30 min): never tail them.
+            if now.timeIntervalSince(updated) <= recentWindow, let data = readTail(path) {
+                records[index].rollout = rolloutState(data, age: max(0, now.timeIntervalSince(updated)))
             }
         }
+        return (records, hosts)
+    }
+
+    static func scan(processes: [(pid: Int, executable: String)], home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                     readDB: (String) -> [ThreadRecord] = readDatabase, readTail: (String) -> Data? = tail,
+                     lsof: (Int) -> [String]? = lsofPaths, now: Date = Date()) -> [IslandAgent] {
+        let (records, hosts) = scanData(processes: processes, home: home, readDB: readDB, readTail: readTail, lsof: lsof, now: now)
         return rows(records: records, hosts: hosts, now: now)
     }
 }

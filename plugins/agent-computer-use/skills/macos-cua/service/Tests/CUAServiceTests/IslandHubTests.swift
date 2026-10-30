@@ -105,30 +105,30 @@ final class IslandHubTests: XCTestCase {
     func testLocalHarnessRowsMergeIntoRoster() throws {
         let hub = IslandHub(store: store)
         let detected = (42...45).map {
-            IslandAgent(id: "local:codex:\($0)", name: "Codex", app: "Codex", title: "PID \($0)", status: "process")
+            IslandAgent(id: "local:codex-thread:t\($0)", name: "Codex", app: "Codex", title: "Thread \($0)",
+                        status: "running", elapsed_s: Double($0), last_seen_at: Double($0))
         }
         hub.updateLocalHarnesses(detected)
+        XCTAssertEqual(hub.localHarnesses, detected)
         let snapshot = hub.compose()
-        XCTAssertEqual(snapshot.agents, detected)
+        XCTAssertEqual(Set(snapshot.agents.map(\.id)), Set(detected.map(\.id)))
 
         let model = IslandModel()
         model.idleActivity = "agents"
         _ = model.apply(snapshot)
-        XCTAssertTrue(model.listRows.isEmpty)
-        XCTAssertEqual(model.localProcessRows, detected)
-        XCTAssertNil(model.compactAgentAttention)
-        XCTAssertEqual(model.sourceGroups.map(\.id), ["local-processes"])
-        XCTAssertEqual(model.sourceGroups.first?.processCount, 4)
-        XCTAssertEqual(IslandAgentRows.statusText(detected[0]), "activity unknown")
-        XCTAssertNil(IslandAgentRows.control(for: detected[0]))
+        XCTAssertEqual(model.listRows.map(\.id), detected.map(\.id))
+        XCTAssertTrue(model.localProcessRows.isEmpty, "no process section")
+        XCTAssertFalse(model.sourceGroups.contains { $0.processCount > 0 })
+        XCTAssertNil(IslandAgentRows.control(for: detected[0]), "local threads have no Stop")
         model.openAgentList()
-        XCTAssertEqual(model.cardHeight, 296, "empty task state plus process section and four rows")
-        XCTAssertTrue(model.accessibilityText.contains("4 local observations detected"))
+        XCTAssertEqual(model.rosterVisibleRows, 3)
+        XCTAssertTrue(model.rosterHasMore, "+1 more")
+        XCTAssertFalse(model.accessibilityText.contains("local observations"))
 
         let state = hub.handle(req("GET", "/api/island/state", token: try token(.codex), query: ["source": "codex"]), port: 8777)
         XCTAssertEqual(state.status, 200)
-        XCTAssertEqual(state.body["agents"], "0")
-        XCTAssertEqual(state.body["local_processes"], "4")
+        XCTAssertEqual(state.body["agents"], "4", "local threads are roster rows")
+        XCTAssertEqual(state.body["local_processes"], "0")
     }
 
     func testApprovalFlowAndGating() throws {
