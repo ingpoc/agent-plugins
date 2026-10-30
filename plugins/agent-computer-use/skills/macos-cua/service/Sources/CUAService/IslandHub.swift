@@ -235,12 +235,20 @@ final class IslandHub {
     }
 
     /// Best-effort local host scan; only exact allowlisted process names and PIDs are read.
+    private var postedAges: [String] = []
+
     func refreshLocalHarnesses(now: Date = Date()) {
         // Rides the existing island clock: "Grok Bot · 3m" moves on when the minute changes.
         if !grokBotWorking.isEmpty {
             let ages = IslandGrokBotActivity.rows(grokBotWorking, now: now).compactMap(\.local_detail)
             if ages != grokBotAges { grokBotAges = ages; changed() }
         }
+        // Posted rows with a meta line ("Grok 4.7 · high · 1m", "… · done 2m") age on the same clock.
+        let posted = entries.values.filter { ($0.agent.status == "running" || $0.agent.status == "done")
+            && !($0.agent.local_detail ?? "").isEmpty }
+            .map { e in "\(e.agent.id)|" + IslandCodexThreads.duration(Int(now.timeIntervalSince(e.agent.status == "running" ? e.started : e.updated))) }
+            .sorted()
+        if posted != postedAges { postedAges = posted; changed() }
         guard !localHarnessScanInFlight, now.timeIntervalSince(localHarnessScanAt) >= 5 else { return }
         localHarnessScanAt = now
         localHarnessScanInFlight = true
