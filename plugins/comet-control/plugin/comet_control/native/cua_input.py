@@ -279,7 +279,22 @@ class MacDesktop:
         return out
 
     def frontmost(self) -> dict[str, Any] | None:
+        # NSWorkspace.frontmostApplication() is only refreshed by main-run-loop
+        # notifications, which the broker never pumps: it went stale, so release
+        # mistook Comet-in-front for "the human took focus" and never restored.
+        # The on-screen window order is always current.
         import AppKit
+        import Quartz
+        info = Quartz.CGWindowListCopyWindowInfo(
+            Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements, Quartz.kCGNullWindowID
+        ) or []
+        for win in info:
+            if int(win.get("kCGWindowLayer", 1)) != 0:
+                continue
+            pid = int(win.get("kCGWindowOwnerPID", 0))
+            app = AppKit.NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
+            if app is not None and int(app.activationPolicy()) == AppKit.NSApplicationActivationPolicyRegular:
+                return {"pid": pid, "bundle_id": str(app.bundleIdentifier() or "")}
         app = AppKit.NSWorkspace.sharedWorkspace().frontmostApplication()
         if app is None:
             return None
