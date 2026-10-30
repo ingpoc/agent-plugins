@@ -273,7 +273,12 @@ async function raiseLease(state, hooks, label) {
     const win = await api.windows.update(tab.windowId, { state: "normal", focused: true });
     const bounds = { left: win.left, top: win.top, width: win.width, height: win.height };
     const raised = await nativeRequest("raise", sessionId, { window: bounds, title: tab.title || "", action: label });
-    return { sessionId, windowId: raised.window_id, bounds, tab };
+    const frame = raised?.frame;
+    const real = frame && [frame.left, frame.top, frame.width, frame.height].every((v) => Number.isFinite(Number(v)))
+      && Number(frame.width) > 0 && Number(frame.height) > 0
+      ? { left: Number(frame.left), top: Number(frame.top), width: Number(frame.width), height: Number(frame.height) }
+      : bounds;
+    return { sessionId, windowId: raised.window_id, bounds: real, chromeBounds: bounds, tab };
   } catch (error) {
     await release(sessionId);
     throw error;

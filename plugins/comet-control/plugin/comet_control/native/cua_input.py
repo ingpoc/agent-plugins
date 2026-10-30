@@ -508,8 +508,19 @@ class NativeInput:
         }, timeout=10)
         if int(state.get("windowId") or 0) != wid:
             raise NativeInputError("WINDOW_RAISE_FAILED", "CUAService raised a different window")
-        return {"window_id": wid, "window_title_len": len(title),
-                "saved_front": (self.saved_front or {}).get("bundle_id", "")}
+        out = {"window_id": wid, "window_title_len": len(title),
+               "saved_front": (self.saved_front or {}).get("bundle_id", "")}
+        # Real on-screen frame of the raised window. Chrome's window bounds can differ
+        # (macOS / Stage Manager clamp 1920x1050 to 1900x1030), and client->screen
+        # mapping from Chrome bounds then lands ~20px off.
+        try:
+            pid = self._comet_pid()
+            frame = next((w for w in self.desktop.windows(pid) if int(w["id"]) == wid), None)
+        except NativeInputError:
+            frame = None
+        if frame:
+            out["frame"] = {"left": frame["x"], "top": frame["y"], "width": frame["w"], "height": frame["h"]}
+        return out
 
     def op_steps(self, session: str, params: dict[str, Any]) -> dict[str, Any]:
         wid = self._pinned(session, params)

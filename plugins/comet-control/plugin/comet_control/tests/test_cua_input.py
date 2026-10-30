@@ -190,7 +190,9 @@ class NativeInputTests(unittest.TestCase):
         self.desk.windows = settling
         out = self.raise_(n)
         self.assertTrue(out["success"], out)
-        self.assertEqual(calls["n"], 4)
+        self.assertEqual(calls["n"], 5)  # 4 settle polls + 1 post-raise frame read
+        settled = win(18599)
+        self.assertEqual(out["frame"], {"left": settled["x"], "top": settled["y"], "width": settled["w"], "height": settled["h"]})
 
     def test_ambiguous_or_mismatched_title_refuses(self):
         n = self.make([win(1), win(2)], {1: "Same - Comet", 2: "Same - Comet"})
