@@ -15,7 +15,7 @@ from typing import Any
 
 DEFAULT_SECRETS_DIR = Path("~/.config/voice-cua/.secret").expanduser()
 LEGACY_CATALOG = Path("~/.config/voice-cua/catalog.json").expanduser()
-BUNDLED_SECRETS_DIR = Path(__file__).resolve().parents[2] / "config" / ".secret"
+BUNDLED_SECRETS_DIR = Path(__file__).resolve().parents[2] / "config" / "secret-templates"
 SECURITY = "/usr/bin/security"
 
 _ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
@@ -224,7 +224,7 @@ def upsert_key(catalog: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
 
 
 def init_secrets_from_bundle(*, force: bool = False) -> list[str]:
-    """Copy bundled config/.secret/*.json into user secrets dir (skip existing unless force)."""
+    """Copy bundled config/secret-templates/*.json into user secrets dir (skip existing unless force)."""
     src = BUNDLED_SECRETS_DIR
     if not src.is_dir():
         return []

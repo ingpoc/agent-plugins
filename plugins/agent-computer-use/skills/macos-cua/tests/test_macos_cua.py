@@ -1338,7 +1338,7 @@ class WindowResolutionTests(unittest.TestCase):
                         "pid": 1116,
                         "window_id": 13,
                         "app_name": "Notification Center",
-                        "title": "com.gurusharan.CodexWidget",
+                        "title": "com.example.CodexWidget",
                         "bounds": {"width": 1000, "height": 1000},
                     },
                     {

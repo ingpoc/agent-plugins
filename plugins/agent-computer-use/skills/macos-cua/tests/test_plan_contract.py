@@ -118,7 +118,7 @@ class PlanContractTests(unittest.TestCase):
             "actions": [
                 {
                     "action": "click-label-pointer",
-                    "label": "Continue as Gurusharan Gupta",
+                    "label": "Continue as Jane Doe",
                 }
             ]
         }

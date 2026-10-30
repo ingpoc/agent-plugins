@@ -4,6 +4,27 @@ Native macOS computer use through a two-tool MCP facade over compact AX-first ma
 
 Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGENTS.md`](AGENTS.md). Collection routing: repo-root `AGENTS.md`.
 
+## Overview
+
+**Purpose.** Lets an agent see and operate native macOS apps. The `agent-computer-use` MCP server exposes two tools: `state` (a compact Accessibility snapshot of one app) and `act` (a batch of actions that presses Accessibility elements first and falls back to pointer and keyboard input, then returns a verified delta). The `macos-cua` skill tells the agent how to use them. Optional: Samantha, a GPT Realtime voice runtime (`runtime/voice-cua/`) that drives the same tools by voice.
+
+**Requirements.** macOS 13 or later (tested on Apple silicon), `python3` on `PATH`, and the CUAService helper app (**Agent Computer Use.app**) installed with **Accessibility** and **Screen Recording** granted. Not supported on Linux or Windows.
+
+**Install.**
+
+1. Install the `agent-computer-use` plugin from this repository's marketplace (`.cursor-plugin/marketplace.json` or `.grok-plugin/marketplace.json`).
+2. Install CUAService. Testers use the notarized build from the repository's GitHub release (download the DMG, drag **Agent Computer Use** to Applications, open it). Maintainers can build from source with `python3 skills/macos-cua/service/install_service.py --team <YOUR_TEAM_ID>`. That needs Xcode Command Line Tools and a code-signing identity for that Apple Developer team.
+3. Grant Accessibility and Screen Recording to Agent Computer Use (System Settings → Privacy & Security), then relaunch it.
+4. Restart the client. The plugin should list exactly two tools, `state` and `act`.
+
+**Configuration.** Nothing is required. `AGENT_COMPUTER_USE_PYTHON` picks the Python interpreter. For voice only, store an OpenAI API key in the macOS login Keychain with the `runtime/voice-cua` secrets CLI. `runtime/voice-cua/config/secret-templates/` holds metadata only (label, Keychain service, account) and never a value.
+
+**Network endpoints and credentials.** `state` and `act` stay on the machine. They talk to the local CUAService process, and nothing is uploaded. The voice runtime, when you turn it on, calls `https://api.openai.com/v1/realtime` (session and WebSocket) with the Keychain OpenAI key. The developer-only benchmark `skills/macos-cua/scripts/bench_jev_act.py` calls `https://ai-gateway.vercel.sh` with your own gateway key. Runtime counters and logs stay local under `~/.cache/macos-cua/`. There is no remote telemetry.
+
+**Testing.** From this directory: `python3 -m unittest skills/macos-cua/tests/test_plugin_package.py skills/macos-cua/tests/test_jev_act.py skills/macos-cua/tests/test_cua_service_health.py`. Live check: ask the agent to "open Calculator and compute 12 × 3 with agent-computer-use". It should call `state` and then `act`, and the display should read 36.
+
+**License.** MIT (repository root [`LICENSE`](../../LICENSE)).
+
 ## Package boundary
 
 Cursor MCP loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-computer-use-mcp`, `cwd` `${CURSOR_PLUGIN_ROOT}`). Portable root `mcp.json` stays `./bin/agent-computer-use-mcp`. `python3 skills/macos-cua/scripts/install_harness.py cursor-plugin` only repairs pre-override cache copies. Details: [`AGENTS.md`](AGENTS.md).
