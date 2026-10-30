@@ -234,6 +234,23 @@ final class IslandHubTests: XCTestCase {
         XCTAssertEqual(IslandAgentRows.statusText(row), "Grok 4.7 · high · 1m")
     }
 
+    func testPostedMetaRowAgesOnTheClock() throws {
+        let hub = IslandHub(store: store)
+        let cursor = try token(.cursor)
+        let t0 = Date(timeIntervalSince1970: 20_000)
+        var changes = 0
+        hub.onSnapshot = { _ in changes += 1 }
+        let body: [String: Any] = ["source": "cursor", "id": "chat-1", "kind": "running", "title": "General chat",
+                                   "app": "Cursor", "meta": "Grok 4.7 · high"]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: cursor, json: body), port: 8777, now: t0).status, 200)
+        let before = changes
+        hub.refreshLocalHarnesses(now: t0.addingTimeInterval(61))
+        XCTAssertGreaterThan(changes, before, "the clock republishes a posted row when its age text moves")
+        let after = changes
+        hub.refreshLocalHarnesses(now: t0.addingTimeInterval(61.4))
+        XCTAssertEqual(changes, after, "no change, no republish")
+    }
+
     func testCursorDoneRowKeepsItsModelMeta() throws {
         let hub = IslandHub(store: store)
         let cursor = try token(.cursor)
