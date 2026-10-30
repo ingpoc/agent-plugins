@@ -15,9 +15,7 @@ from pathlib import Path
 PLUGIN_SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 MCP_SCHEMA_URL = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
 COLLECTION_ENV = "AGENT_PLUGINS_COLLECTION"
-KNOWN_COLLECTIONS = (
-    Path.home() / "Documents/remote-claude/active/apps/agent-plugins",
-)
+KNOWN_COLLECTIONS = (Path(__file__).resolve().parents[1],)
 DEFAULT_AUTHOR = {
     "name": "ingpoc",
     "url": "https://github.com/ingpoc",
