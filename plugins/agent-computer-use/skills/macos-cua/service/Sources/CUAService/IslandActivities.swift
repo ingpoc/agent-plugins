@@ -367,6 +367,9 @@ enum IslandAgentRows {
             + (stopConfirmation ? 40 : 0) + (footer ? 18 : 0))
     }
 
+    /// The empty roster: one centred line, "No agents running".
+    static let emptyCardHeight: CGFloat = 64
+
     static func stateWord(_ a: IslandAgent) -> String {
         if a.needs_you || a.status == "needs_you" { return "needs you" }
         switch a.status {
@@ -381,12 +384,12 @@ enum IslandAgentRows {
 
     /// Hide while sharing: no titles, repos or asks; just "Codex · working".
     static func redactedTitle(_ a: IslandAgent) -> String {
-        "\(a.app.isEmpty ? a.name : a.app) · \(stateWord(a))"
+        "\(a.name.isEmpty ? a.app : a.name) · \(stateWord(a))"
     }
 
     /// "Codex, needs approval, delete branch acu/x. Luna, low, 4 minutes."
     static func voiceOverLabel(_ a: IslandAgent, title: String, meta: String, parent: String?) -> String {
-        let source = a.app.isEmpty ? a.name : a.app
+        let source = a.name.isEmpty ? a.app : a.name
         let word = a.id.hasPrefix("pending:") ? (a.request_kind == "choice" ? "needs a choice" : "needs approval") : stateWord(a)
         var spoken = meta.replacingOccurrences(of: " · ", with: ", ")
         for (short, long) in [("s", " seconds"), ("m", " minutes"), ("h", " hours")] {
@@ -479,7 +482,11 @@ enum IslandAgentRows {
         if a.status == "running", let detail = a.local_detail { return detail }
         switch a.status {
         case "error": return a.local_detail ?? "failed"
-        case "needs_you": return "needs you"
+        case "needs_you":
+            // "Grok Bot · 2m": who is asking and for how long (the shape already says "needs you").
+            let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))
+            let age = n < 60 ? "\(n)s" : n < 3600 ? "\(n / 60)m" : "\(n / 3600)h"
+            return [a.name.isEmpty ? a.app : a.name, age].filter { !$0.isEmpty }.joined(separator: " · ")
         case "done": return a.local_detail ?? "done"
         case "expired": return "timed out"
         case "stale":

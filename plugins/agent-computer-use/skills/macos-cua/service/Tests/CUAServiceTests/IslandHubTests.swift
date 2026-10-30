@@ -207,9 +207,10 @@ final class IslandHubTests: XCTestCase {
         _ = hub.handle(req("POST", "/api/island/publish", token: t, json: ["source": "grok", "id": "a", "kind": "done", "title": "Booked"]), port: 8777, now: t0)
         _ = hub.handle(req("POST", "/api/island/publish", token: t, json: ["source": "grok", "id": "b", "title": "Research"]), port: 8777, now: t0)
         _ = hub.handle(req("POST", "/api/island/publish", token: t, json: ["source": "grok", "id": "c", "kind": "error", "title": "Run tests",
-                                                                           "detail": "live-fd: 44 → 51 fds\nmore"]), port: 8777, now: t0)
+                                                                           "detail": "live-fd: 44 → 51 fds\nmore", "error": "fd 44 -> 51"]), port: 8777, now: t0)
         XCTAssertEqual(hub.compose(now: t0).agents.count, 3)
         let failed = try XCTUnwrap(hub.compose(now: t0).agents.first { $0.title == "Run tests" })
+        XCTAssertEqual(failed.tooltip, "fd 44 -> 51", "technical error in the tooltip")
         XCTAssertEqual(IslandAgentRows.statusText(failed), "live-fd: 44 → 51 fds", "error meta is the error itself")
         hub.expire(now: t0.addingTimeInterval(181))
         XCTAssertEqual(hub.compose(now: t0.addingTimeInterval(181)).agents.map(\.title).sorted(), ["Research", "Run tests"],

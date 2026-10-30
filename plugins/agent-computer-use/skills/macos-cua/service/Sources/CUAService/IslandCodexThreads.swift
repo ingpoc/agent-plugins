@@ -61,7 +61,7 @@ enum IslandCodexThreads {
                 }
             }
         }
-        if (result.state == "working" && age > 600) || (result.state == "done" && age > 180) ||
+        if (result.state == "working" && age > 1800) || (result.state == "done" && age > 180) ||
             (result.state == "error" && age > 1800) { result.state = "idle" }
         return result
     }
@@ -134,10 +134,57 @@ enum IslandCodexThreads {
     static func displayTitle(_ record: ThreadRecord) -> String {
         let title = record.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let prompt = record.firstUserMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if !title.isEmpty && (prompt.isEmpty || !prompt.hasPrefix(title)) { return title }
-        let first = prompt.components(separatedBy: CharacterSet(charactersIn: ".!?\n")).first ?? ""
-        return first.isEmpty ? (title.isEmpty ? "Untitled thread" : String(title.prefix(40))) : String(first.prefix(40))
+        // Codex stores a clipped prompt as the title; prefer the full prompt then.
+        let source = !title.isEmpty && (prompt.isEmpty || !prompt.hasPrefix(title)) ? title : (prompt.isEmpty ? title : prompt)
+        let short = shortTitle(source)
+        return short.isEmpty ? "Untitled thread" : short
     }
+
+    /// "Audit release notes: run …" → "Audit release notes". Cut at the first colon or sentence
+    /// end, then at a word boundary (with "…") past `max` characters; never mid-word.
+    static func shortTitle(_ text: String, max: Int = 48) -> String {
+        var t = (text.components(separatedBy: .newlines).first ?? "").trimmingCharacters(in: .whitespaces)
+        if let r = t.range(of: #":(\s|$)"#, options: .regularExpression),
+           t.distance(from: t.startIndex, to: r.lowerBound) >= 3 { t = String(t[..<r.lowerBound]) }
+        if let r = t.range(of: #"[.!?](\s|$)"#, options: .regularExpression) {
+            let mark = t[r.lowerBound]
+            t = String(t[..<r.lowerBound]) + (mark == "." ? "" : String(mark))
+        }
+        t = t.trimmingCharacters(in: .whitespaces)
+        guard t.count > max else { return t }
+        let cut = t.prefix(max)
+        guard let space = cut.lastIndex(of: " ") else { return String(cut) + "…" }
+        return String(cut[..<space]).trimmingCharacters(in: CharacterSet(charactersIn: " ,;-–—")) + "…"
+    }
+
+    /// Human words for a turn error; the raw message stays in the tooltip and `sessions`.
+    static func humanError(_ raw: String?) -> String {
+        let s = (raw ?? "").lowercased()
+        if s.contains("rate limit") || s.contains("429") { return "Rate limited" }
+        if s.contains("context") { return "Ran out of context" }
+        if ["unauthorized", "401", "403", "login", "auth"].contains(where: s.contains) { return "Sign-in needed" }
+        if ["network", "stream", "connection", "disconnect", "timed out", "timeout"].contains(where: s.contains) { return "Connection lost" }
+        return "Turn failed"
+    }
+
+    /// A terminal thread whose process is gone (or a ChatGPT-app thread with no app-server) is
+    /// "stopped", never working. Live threads quiet for 10 min are idle.
+    static let stoppedGrace: TimeInterval = 20
+    static func liveState(_ record: ThreadRecord, hosts: [Host], now: Date) -> String {
+        let state = record.rollout.state
+        guard state == "working" else { return state }
+        let quiet = now.timeIntervalSince(record.updatedAt)
+        let desktop = ["Codex Desktop", "codex_work_desktop"].contains(record.originator ?? "")
+        let alive = desktop ? hosts.contains { $0.isDesktopApp } : hosts.contains { $0.rollouts.contains(record.rolloutPath) }
+        if !alive && quiet > stoppedGrace { return "stopped" }
+        return quiet > 600 ? "idle" : "working"
+    }
+
+    /// Threads shown as working this run; a stopped thread never seen working is dropped.
+    private static let seenLock = NSLock()
+    nonisolated(unsafe) private static var seenWorking: Set<String> = []
+    static func noteWorking(_ id: String) { seenLock.lock(); seenWorking.insert(id); seenLock.unlock() }
+    static func wasWorking(_ id: String) -> Bool { seenLock.lock(); defer { seenLock.unlock() }; return seenWorking.contains(id) }
 
     static func duration(_ seconds: Int) -> String {
         seconds < 60 ? "\(seconds)s" : seconds < 3600 ? "\(seconds / 60)m" : "\(seconds / 3600)h"
@@ -168,9 +215,16 @@ enum IslandCodexThreads {
     /// (folded into the parent as "+N helpers") and ACU's own probe runs never show.
     static func rows(records: [ThreadRecord], hosts: [Host], now: Date) -> [IslandAgent] {
         let helpers = Dictionary(grouping: records.filter { $0.parentID != nil }, by: { $0.parentID! })
-        return records.filter { $0.parentID == nil && $0.role == nil && !isProbe($0) && $0.rollout.state != "idle" }.map { record in
-            let state = record.rollout.state
-            let since = record.rollout.since ?? record.updatedAt
+        return records.filter { $0.parentID == nil && $0.role == nil && !isProbe($0) }.compactMap { record in
+            var state = liveState(record, hosts: hosts, now: now)
+            if state == "idle" { return nil }
+            if state == "working" { noteWorking(record.id) }
+            if state == "stopped" {
+                guard wasWorking(record.id) else { return nil }
+                state = "error"
+            }
+            let stopped = state == "error" && record.rollout.state == "working"
+            let since = stopped ? record.updatedAt : (record.rollout.since ?? record.updatedAt)
             let age = max(0, Int(now.timeIntervalSince(since)))
             var row = IslandAgent(id: "local:codex-thread:\(record.id)", name: "Codex", app: "Codex",
                                   title: displayTitle(record), status: state == "working" ? "running" : state,
@@ -179,13 +233,15 @@ enum IslandCodexThreads {
                          (record.rollout.effort ?? record.effort)?.lowercased()].compactMap { $0 }
             if let count = helpers[record.id]?.count, count > 0 { parts.append("+\(count) helpers") }
             switch state {
-            case "error": row.local_detail = record.rollout.error ?? "failed"
+            case "error": row.local_detail = stopped ? "Stopped" : humanError(record.rollout.error)
             case "done": row.local_detail = "done \(duration(age))"
             default: row.local_detail = (parts + [duration(age)]).joined(separator: " · ")
             }
             // https://developers.openai.com/codex/app/commands#deep-links: codex://threads/<id> opens a local thread.
             row.link = "codex://threads/\(record.id)"
-            row.tooltip = tooltip(record)
+            let technical = stopped ? "Stopped: the Codex process exited mid-turn" : state == "error" ? record.rollout.error : nil
+            row.tooltip = [technical, tooltip(record)].compactMap { $0 }.joined(separator: "\n")
+            if row.tooltip?.isEmpty == true { row.tooltip = nil }
             return row
         }
     }

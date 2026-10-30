@@ -605,10 +605,16 @@ final class IslandModel: ObservableObject {
     }
 
     private var rawAgents: [IslandAgent] = []
+    /// Error rows the user clicked open: cleared until the source posts a new state.
+    private(set) var openedErrors: Set<String> = []
+    private func notOpenedError(_ a: IslandAgent) -> Bool { !(a.status == "error" && openedErrors.contains(a.id)) }
+    /// "+N more" was clicked: the roster card grows to every row (scrolls only past the screen).
+    @Published private(set) var rosterExpanded = false
+    private var emptyCloseWork: DispatchWorkItem?
     private var rawApproval: IslandAgentApproval?
     /// Settings changed: re-run the source filters on the last snapshot's agents (no peek re-arm).
     func reapplyFilters() {
-        let a = rawAgents.filter(agentAllowed)
+        let a = rawAgents.filter(agentAllowed).filter(notOpenedError)
         if a != agents { agents = a }
         let ap = rawApproval.flatMap { approvalAllowed($0) ? $0 : nil }
         if ap != agentApproval { agentApproval = ap }
@@ -687,7 +693,8 @@ final class IslandModel: ObservableObject {
         stepTotal = snap.step_total
         rawAgents = snap.agents
         rawApproval = snap.agent_approval
-        let nextAgents = snap.agents.filter(agentAllowed)
+        openedErrors = openedErrors.filter { id in snap.agents.contains { $0.id == id && $0.status == "error" } }
+        let nextAgents = snap.agents.filter(agentAllowed).filter(notOpenedError)
         if nextAgents != agents { agentsAt = now }
         agents = nextAgents
         reconcileRowFailures(with: nextAgents)
@@ -891,7 +898,30 @@ final class IslandModel: ObservableObject {
     /// Hide while sharing is on and the screen is shared: rows show only "Codex · working".
     @Published var redactRoster = false
 
-    func openRow(_ a: IslandAgent) { onRowOpen?(a) }
+    func openRow(_ a: IslandAgent) {
+        // A pending ask opens its card; an opened error row is cleared (the app shows the detail).
+        if a.id.hasPrefix("pending:") { openApprovalFromRoster(); return }
+        if a.status == "error" {
+            openedErrors.insert(a.id)
+            agents.removeAll { $0.id == a.id }
+            refresh(now: Date())
+            onGeometryChange?()
+        }
+        onRowOpen?(a)
+    }
+
+    func expandRoster() {
+        guard cardMode == .agents, !rosterExpanded else { return }
+        IslandEventLog.log("clicked", kind: "agents", ["state": "more"])
+        rosterExpanded = true
+        refresh(now: Date())
+        onGeometryChange?()
+    }
+
+    /// Tallest card the screen allows (visible frame minus the menu bar gap and a margin).
+    nonisolated(unsafe) static var maxCardHeight: () -> CGFloat = {
+        max(240, (NSScreen.main?.visibleFrame.height ?? 800) - 48)
+    }
     func decideRow(_ a: IslandAgent, approved: Bool) { onRowDecision?(a, approved) }
     var onTrayChange: (([IslandTrayItem]) -> Void)?
     /// Vertical scroll over a visible HUD adjusts that level (true = up).
@@ -989,9 +1019,10 @@ final class IslandModel: ObservableObject {
     var cardHeight: CGFloat {
         if credentialRequest != nil { return 292 }
         if cardMode == .agents {
-            return IslandAgentRows.cardHeight(rows: rosterItemCount, footer: rosterHasMore,
+            if listRows.isEmpty { return IslandAgentRows.emptyCardHeight }
+            return min(Self.maxCardHeight(), IslandAgentRows.cardHeight(rows: rosterItemCount, footer: rosterHasMore,
                                               stopConfirmation: !stopArmed.isEmpty, maxVisibleRows: rosterVisibleRows,
-                                              askRows: listRows.filter { $0.id.hasPrefix("pending:") && $0.request_kind != "choice" }.count)
+                                              askRows: listRows.filter { $0.id.hasPrefix("pending:") && $0.request_kind != "choice" }.count))
         }
         if presentation == .tray { return IslandTrayRules.cardHeight }
         if presentation == .needsYou {
@@ -1142,7 +1173,7 @@ final class IslandModel: ObservableObject {
         let nextCircles = idleNow && idleActivity == "samantha" ? []
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
         if nextCircles != circles { circles = nextCircles }
-        let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: agentApproval?.id)
+        let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil)
         if groups != sourceGroups { sourceGroups = groups }
         // Final-60 s countdown for the pill's card.
         var remaining: Int?
@@ -1171,7 +1202,7 @@ final class IslandModel: ObservableObject {
             && (userOpened || isSticky || (peekUntil.map { now < $0 } ?? false) || choicePeek
                 || (next == .expired && noticeUntil != nil))
         if !open && idleSamantha { userOpened = false }
-        if !open { cardMode = .samantha }
+        if !open { cardMode = .samantha; if rosterExpanded { rosterExpanded = false } }
         if next != presentation {
             let familyChanged = next.motionFamily != presentation.motionFamily
             presentation = next
@@ -1273,9 +1304,16 @@ final class IslandModel: ObservableObject {
             dismissPeek()
             return
         }
+        // With an ask pending, a click opens the roster (needs-you row on top); the keyboard
+        // shortcut (byClick false) still goes straight to the ask card.
+        if byClick && !cardOpen && agentApproval != nil && !isPeeking && presentation != .expired {
+            openAgentList()
+            return
+        }
         if !cardOpen && isIdlePresentation && !isSticky {
-            // No idle card: an idle click opens the roster only when there is something in it.
-            if !agents.isEmpty || !expired.isEmpty { openAgentList() }
+            if !agents.isEmpty || !expired.isEmpty { openAgentList(); return }
+            // Empty pill: a small "No agents running" card that closes after 3 s (or on leave).
+            if byClick { openEmptyRoster() }
             return
         }
         let peeking = isPeeking
@@ -1309,8 +1347,22 @@ final class IslandModel: ObservableObject {
         IslandEventLog.log("clicked", kind: "agents", ["state": "circles"])
         ackOnClose = expired.map(\.id)
         userOpened = true
+        rosterExpanded = false
         cardMode = .agents
         refresh(now: Date())
+    }
+
+    func openEmptyRoster(after: TimeInterval = 3) {
+        openAgentList()
+        emptyCloseWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.cardMode == .agents, self.listRows.isEmpty, self.cardOpen else { return }
+            self.userOpened = false
+            self.cardMode = .samantha
+            self.refresh(now: Date())
+        }
+        emptyCloseWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + after, execute: work)
     }
 
     func openApprovalFromRoster() {
@@ -1337,9 +1389,10 @@ final class IslandModel: ObservableObject {
         max(1, listRows.count)
     }
     var rosterVisibleRows: Int {
-        min(max(IslandAgentRows.maxRows, listRows.filter { $0.needs_you || $0.status == "needs_you" }.count), rosterItemCount)
+        if rosterExpanded { return rosterItemCount }
+        return min(max(IslandAgentRows.maxRows, listRows.filter { $0.needs_you || $0.status == "needs_you" }.count), rosterItemCount)
     }
-    var rosterHasMore: Bool { rosterItemCount > rosterVisibleRows }
+    var rosterHasMore: Bool { !rosterExpanded && rosterItemCount > rosterVisibleRows }
 
     /// Pointer left the shape: close (unless sticky) — the panel adds the 120 ms delay.
     func pointerLeft() {
@@ -1494,8 +1547,7 @@ final class IslandModel: ObservableObject {
     var accessibilityText: String {
         var parts: [String] = []
         if agentApproval == nil, !agents.isEmpty, ![.needsYou, .error].contains(presentation) {
-            parts.append(IslandAgentAccessibility.label(running: agents.count,
-                needsYou: agents.filter { $0.needs_you || $0.status == "needs_you" }.count))
+            parts.append(IslandAgentAccessibility.label(agents))
         }
         if let a = agentApproval {
             parts.append("\(a.agent) needs \(a.isChoice ? "a choice" : "approval"): \(a.title). \(shortcutSpoken) to review")

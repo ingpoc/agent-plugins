@@ -50,9 +50,11 @@ final class IslandAccessibilityTests: XCTestCase {
     }
 
     func testAgentLabels() {
-        XCTAssertEqual(IslandAgentAccessibility.label(running: 0, needsYou: 0), "Agents: 0 running")
-        XCTAssertEqual(IslandAgentAccessibility.label(running: 1, needsYou: 1), "Agents: 1 running, 1 needs you")
-        XCTAssertEqual(IslandAgentAccessibility.label(running: 2, needsYou: 2), "Agents: 2 running, 2 need you")
+        func agent(_ status: String) -> IslandAgent { IslandAgent(id: UUID().uuidString, name: "Codex", status: status, needs_you: status == "needs_you") }
+        XCTAssertEqual(IslandAgentAccessibility.label([]), "Agents: none running")
+        XCTAssertEqual(IslandAgentAccessibility.label(["running", "error", "needs_you", "running"].map(agent)),
+                       "Agents: 1 needs you, 1 error, 2 running", "priority leads")
+        XCTAssertEqual(IslandAgentAccessibility.label(["needs_you", "needs_you", "done"].map(agent)), "Agents: 2 need you, 1 done")
     }
 }
 

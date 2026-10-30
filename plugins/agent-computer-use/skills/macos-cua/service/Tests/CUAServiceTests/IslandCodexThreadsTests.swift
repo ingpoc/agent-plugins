@@ -20,7 +20,8 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertEqual(result.tokens, 3_100_000)
         XCTAssertEqual(result.contextPercent, 62)
         XCTAssertEqual(IslandCodexThreads.productModelName(result.model), "Luna")
-        XCTAssertEqual(IslandCodexThreads.rolloutState(data, age: 601).state, "idle")
+        XCTAssertEqual(IslandCodexThreads.rolloutState(data, age: 601).state, "working", "liveState decides idle vs stopped")
+        XCTAssertEqual(IslandCodexThreads.rolloutState(data, age: 1801).state, "idle")
         let done = Data("{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\"}}".utf8)
         XCTAssertEqual(IslandCodexThreads.rolloutState(done, age: 180).state, "done")
         XCTAssertEqual(IslandCodexThreads.rolloutState(done, age: 181).state, "idle")
@@ -46,12 +47,13 @@ final class IslandCodexThreadsTests: XCTestCase {
         var thread = IslandCodexThreads.ThreadRecord(id: "a", rolloutPath: "/a", title: "A task", firstUserMessage: "different prompt", model: "gpt-6-luna", effort: "HIGH", updatedAt: now.addingTimeInterval(-89))
         XCTAssertTrue(IslandCodexThreads.rows(records: [thread], hosts: [], now: now).isEmpty)
         thread.rollout.state = "working"
-        let rows = IslandCodexThreads.rows(records: [thread], hosts: [], now: now)
+        let host = IslandCodexThreads.Host(pid: 7, executable: "/opt/homebrew/bin/codex", rollouts: ["/a"])
+        let rows = IslandCodexThreads.rows(records: [thread], hosts: [host], now: now)
         XCTAssertEqual(rows.count, 1)
         XCTAssertEqual(rows.first?.status, "running")
         XCTAssertEqual(rows.first?.local_detail, "Luna · high · 1m")
         thread.cwd = "/tmp/empty-probe"
-        XCTAssertTrue(IslandCodexThreads.rows(records: [thread], hosts: [], now: now).isEmpty)
+        XCTAssertTrue(IslandCodexThreads.rows(records: [thread], hosts: [host], now: now).isEmpty)
     }
 
     func testCodexProcessesFromPsComm() {
@@ -108,14 +110,33 @@ final class IslandCodexThreadsTests: XCTestCase {
         working.model = nil; working.rollout.model = nil
         var probe = working
         probe.id = "p"; probe.title = "Call only the agent-computer-use MCP tool"
-        let rows = IslandCodexThreads.rows(records: [done, failed, helper, working, probe], hosts: [], now: now)
+        let live = IslandCodexThreads.Host(pid: 42, executable: "/opt/homebrew/bin/codex", rollouts: ["/d"])
+        let rows = IslandCodexThreads.rows(records: [done, failed, helper, working, probe], hosts: [live], now: now)
         XCTAssertEqual(rows.map(\.id), ["local:codex-thread:d", "local:codex-thread:e", "local:codex-thread:w"], "helpers fold, probes hide")
         XCTAssertEqual(rows[0].local_detail, "done 2m")
-        XCTAssertEqual(rows[1].local_detail, "stream disconnected")
+        XCTAssertEqual(rows[1].local_detail, "Connection lost", "human words on the row")
+        XCTAssertTrue(rows[1].tooltip?.hasPrefix("stream disconnected") == true, "technical detail in the tooltip")
         XCTAssertEqual(rows[2].local_detail, "medium · +1 helpers · 4m", "unknown model omitted, never 'unknown'")
         XCTAssertEqual(rows[0].link, "codex://threads/d")
         XCTAssertEqual(rows[0].tooltip, "agent-plugins · codex/a\n3.1M tokens · 62% of context")
         XCTAssertFalse(rows.contains { ($0.local_detail ?? "").contains("unknown") || $0.title.contains("PID") })
+        // Its process exits mid-turn: the row turns into error "Stopped", never working.
+        let after = IslandCodexThreads.rows(records: [working], hosts: [], now: now)
+        XCTAssertEqual(after.map(\.status), ["error"])
+        XCTAssertEqual(after.first?.local_detail, "Stopped")
+        // A stopped thread the island never saw working is dropped.
+        var ghost = working; ghost.id = "ghost"; ghost.rolloutPath = "/ghost"
+        XCTAssertTrue(IslandCodexThreads.rows(records: [ghost], hosts: [], now: now).isEmpty)
+    }
+
+    func testShortTitles() {
+        XCTAssertEqual(IslandCodexThreads.shortTitle("Audit release notes: run the shell command sleep 420, then reply done."), "Audit release notes")
+        XCTAssertEqual(IslandCodexThreads.shortTitle("Summarise release notes. Reply with ok."), "Summarise release notes")
+        XCTAssertEqual(IslandCodexThreads.shortTitle("Ship v0.2.53 to https://x.dev now"), "Ship v0.2.53 to https://x.dev now")
+        XCTAssertEqual(IslandCodexThreads.shortTitle("Delete branch acu/demo?"), "Delete branch acu/demo?")
+        let long = IslandCodexThreads.shortTitle("Refactor the island roster layout and the session discovery code paths everywhere")
+        XCTAssertTrue(long.hasSuffix("…") && long.count <= 49, long)
+        XCTAssertEqual(long, "Refactor the island roster layout and the…")
     }
 
     @MainActor
@@ -136,9 +157,10 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertEqual(model.rosterVisibleRows, 4, "needs-you rows are never pushed off by the cap")
         var row = w2; row.local_detail = "Luna · low · 4m"
         XCTAssertEqual(IslandAgentRows.voiceOverLabel(ask1, title: ask1.title, meta: "Luna · low · 4m", parent: nil),
-                       "Grok, needs approval, Approve: delete branch acu/x. Luna, low, 4 minutes.")
+                       "Grok Bot, needs approval, Approve: delete branch acu/x. Luna, low, 4 minutes.")
         XCTAssertEqual(IslandAgentRows.redactedTitle(row), "Codex · working")
-        XCTAssertEqual(IslandAgentRows.redactedTitle(ask1), "Grok · needs you")
+        XCTAssertEqual(IslandAgentRows.redactedTitle(ask1), "Grok Bot · needs you")
+        XCTAssertEqual(IslandAgentRows.statusText(ask2), "Grok Bot · 1m", "needs-you meta: source and age")
     }
 
     /// A long instruction preamble pushes task_started out of the 256 KB tail; the tail widens.
@@ -153,5 +175,30 @@ final class IslandCodexThreadsTests: XCTestCase {
         try text.write(toFile: path, atomically: true, encoding: .utf8)
         let tail = try XCTUnwrap(IslandCodexThreads.tail(path))
         XCTAssertEqual(IslandCodexThreads.rolloutState(tail, age: 30).state, "working")
+    }
+
+    @MainActor
+    func testMoreButtonExpandsAndOpenedErrorsClear() {
+        let rows = (0..<5).map { IslandAgent(id: "w\($0)", name: "Codex", app: "Codex", title: "T\($0)", status: "running") }
+        let err = IslandAgent(id: "e", name: "Codex", app: "Codex", title: "Run tests", status: "error")
+        let model = IslandModel()
+        _ = model.apply(IslandSnapshot(kind: "idle", agents: rows + [err]))
+        model.openAgentList()
+        XCTAssertTrue(model.rosterHasMore)
+        let collapsed = model.cardHeight
+        model.expandRoster()
+        XCTAssertFalse(model.rosterHasMore, "no footer once grown")
+        XCTAssertEqual(model.rosterVisibleRows, 6)
+        XCTAssertGreaterThan(model.cardHeight, collapsed)
+        IslandModel.maxCardHeight = { 200 }
+        defer { IslandModel.maxCardHeight = { max(240, (NSScreen.main?.visibleFrame.height ?? 800) - 48) } }
+        XCTAssertEqual(model.cardHeight, 200, "past the screen's height the list scrolls")
+        model.openRow(err)
+        XCTAssertFalse(model.agents.contains { $0.id == "e" }, "an error row clears when opened")
+        _ = model.apply(IslandSnapshot(kind: "idle", agents: rows + [err]))
+        XCTAssertFalse(model.agents.contains { $0.id == "e" }, "and stays cleared while unchanged")
+        var again = err; again.status = "running"
+        _ = model.apply(IslandSnapshot(kind: "idle", agents: [again]))
+        XCTAssertTrue(model.agents.contains { $0.id == "e" }, "a new state brings it back")
     }
 }

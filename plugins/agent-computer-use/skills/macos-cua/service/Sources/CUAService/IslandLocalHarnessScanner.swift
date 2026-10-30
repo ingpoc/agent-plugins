@@ -61,12 +61,12 @@ enum IslandLocalHarnessScanner {
         let (records, hosts) = IslandCodexThreads.scanData(processes: codexProcesses(processList: listing), now: now)
         let formatter = ISO8601DateFormatter()
         let helpers = Dictionary(grouping: records.filter { $0.parentID != nil }, by: { $0.parentID! })
-        var result: [[String: Any]] = records.filter { (includeIdle || $0.rollout.state != "idle") && (includeProbes || !IslandCodexThreads.isProbe($0)) }.map { record in
+        var result: [[String: Any]] = records.filter { (includeIdle || IslandCodexThreads.liveState($0, hosts: hosts, now: now) != "idle") && (includeProbes || !IslandCodexThreads.isProbe($0)) }.map { record in
             let host = hosts.first { $0.rollouts.contains(record.rolloutPath) }
             let appHost = host == nil && ["Codex Desktop", "codex_work_desktop"].contains(record.originator ?? "")
             let model = record.rollout.model ?? record.model
             var item: [String: Any] = ["kind": "codex_thread", "app": "Codex", "thread_id": record.id,
-                "title": IslandCodexThreads.displayTitle(record), "state": record.rollout.state,
+                "title": IslandCodexThreads.displayTitle(record), "state": IslandCodexThreads.liveState(record, hosts: hosts, now: now),
                 "updated_at": formatter.string(from: record.updatedAt), "age_s": max(0, Int(now.timeIntervalSince(record.updatedAt))),
                 "host": host != nil ? "terminal" : appHost ? "chatgpt_app" : "unknown",
                 "helpers": helpers[record.id]?.count ?? 0, "probe": IslandCodexThreads.isProbe(record),
@@ -74,6 +74,7 @@ enum IslandLocalHarnessScanner {
             if let v = host?.pid { item["pid"] = v }
             if let v = model { item["model"] = v; item["model_name"] = IslandCodexThreads.productModelName(v) }
             if let v = record.rollout.effort ?? record.effort { item["effort"] = v.lowercased() }
+            if let v = record.rollout.error { item["error"] = v }
             if let v = record.cwd { item["cwd"] = v }
             if let v = record.branch { item["branch"] = v }
             if let v = record.codexHome { item["codex_home"] = v }

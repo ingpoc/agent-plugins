@@ -23,9 +23,18 @@ enum IslandAgentBadge {
 }
 
 enum IslandAgentAccessibility {
-    static func label(running: Int, needsYou: Int) -> String {
-        let suffix = needsYou > 0 ? ", \(needsYou) \(needsYou == 1 ? "needs" : "need") you" : ""
-        return "Agents: \(running) running" + suffix
+    /// Priority first: "Agents: 1 needs you, 1 error, 2 running, 1 done".
+    static func label(_ agents: [IslandAgent]) -> String {
+        let tasks = agents.filter { $0.status != "process" && $0.status != "harness" }
+        let needs = tasks.filter { $0.needs_you || $0.status == "needs_you" }.count
+        let errors = tasks.filter { !$0.needs_you && ["error", "stale", "expired"].contains($0.status) }.count
+        let running = tasks.filter { !$0.needs_you && $0.status == "running" }.count
+        let done = tasks.filter { !$0.needs_you && $0.status == "done" }.count
+        let parts = [needs > 0 ? "\(needs) \(needs == 1 ? "needs" : "need") you" : nil,
+                     errors > 0 ? "\(errors) \(errors == 1 ? "error" : "errors")" : nil,
+                     running > 0 ? "\(running) running" : nil,
+                     done > 0 ? "\(done) done" : nil].compactMap { $0 }
+        return "Agents: " + (parts.isEmpty ? "none running" : parts.joined(separator: ", "))
     }
 }
 

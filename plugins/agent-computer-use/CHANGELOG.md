@@ -2,6 +2,20 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.54 (2026-10-30)
+
+UI & UX review fixes on the accepted 0.2.53 roster:
+- Grok Bot asks show Grok Bot's own icon and name (row, pill circle, ask card and VoiceOver), not Comet.
+- The pill's VoiceOver label leads with priority: "Agents: 1 needs you, 1 error, 2 running".
+- Codex titles are cut at the first colon or sentence end, then at a word boundary ("Audit release notes"); `sessions` titles too.
+- Pill badge: amber #FFB340 with the needs-you count, including the ask the pill itself shows; red only for errors.
+- Error rows clear when clicked open, otherwise after 30 min.
+- A Codex turn whose process exited shows as error "Stopped" (dropped if never seen working), never as working. ChatGPT-app threads count as stopped when no app-server runs.
+- "+N more" is a button (11 pt, 60 %, hover state) that grows the card to every row; it scrolls only past the screen height.
+- With an ask pending, clicking the pill opens the roster with the needs-you row on top; ⌃⌘I still opens the ask card.
+- Clicking the empty pill opens a small "No agents running" card (13 pt, 60 %, centred) that closes after 3 s or when the pointer leaves.
+- Needs-you meta is "Grok Bot · 2m"; error meta is human words (`island-post --detail`, or "Connection lost" / "Turn failed" for Codex), with the technical detail in the tooltip (`island-post --error`) and in `sessions` (`error`).
+
 ## 0.2.53 (2026-10-30)
 
 - Hub error rows show the posted error as their meta line and stay 30 min; hub done rows fade after 3 min (was 30 s). Rollout tails widen to 4 MB when the last 256 KB holds no turn event, so a long instruction preamble no longer hides a working thread.

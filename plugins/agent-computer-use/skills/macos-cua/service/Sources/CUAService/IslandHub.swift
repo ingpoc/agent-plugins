@@ -137,7 +137,9 @@ final class IslandHub {
         // all show as needs-you rows + count.
         let queue = queued.filter { !shownInline($0) }
         s.agents += queue.map {
-            IslandAgent(id: "pending:" + $0.approval.id, name: $0.source.title, app: $0.approval.app,
+            // The posting agent's own icon and name (Grok Bot), not the app it is driving.
+            IslandAgent(id: "pending:" + $0.approval.id, name: $0.source.title,
+                        app: $0.source.defaultApp.isEmpty ? $0.approval.app : $0.source.defaultApp,
                         title: $0.approval.title, status: "needs_you", needs_you: true,
                         elapsed_s: now.timeIntervalSince($0.created), request_kind: $0.approval.kind,
                         destructive: $0.approval.destructive, last_seen_at: $0.created.timeIntervalSince1970)
@@ -488,10 +490,13 @@ final class IslandHub {
             let agent = IslandAgent(id: id, name: displayName, app: app, title: title,
                                     status: kind == "needs_you" ? "needs_you" : kind, needs_you: needs,
                                     parent_id: parentID, controls: Array(Set(controls)).sorted())
-            // Error rows show the error itself as the meta line (first line, 60 chars).
+            // Error rows: `detail` is the human meta line ("Tests failed after restart"); the
+            // technical `error` goes to the hover tooltip.
             var shown = agent
             if kind == "error", let line = (j["detail"] as? String)?.components(separatedBy: .newlines).first?
                 .trimmingCharacters(in: .whitespaces), !line.isEmpty { shown.local_detail = String(line.prefix(60)) }
+            if kind == "error", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !tech.isEmpty { shown.tooltip = String(tech.prefix(200)) }
             entries[id] = Entry(source: source, agent: shown, updated: now, ttl: ttl, started: started)
             changed()
             return .ok(["id": rawId])
