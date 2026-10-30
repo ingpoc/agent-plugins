@@ -419,7 +419,7 @@ struct SamanthaSourceCircle: View {
     }
 
     private var accessibility: String {
-        if group.processCount > 0 { return "\(group.processCount) local processes detected, task activity unknown" }
+        if group.processCount > 0 { return "\(group.processCount) local observations detected" }
         var s = group.overflow > 0 ? "\(group.overflow) more agents" : group.id
         if group.needsYou > 0 { s += ", needs you" }
         if group.failed { s += ", an agent failed or stopped updating" }

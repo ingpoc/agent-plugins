@@ -123,7 +123,7 @@ final class IslandHubTests: XCTestCase {
         XCTAssertNil(IslandAgentRows.control(for: detected[0]))
         model.openAgentList()
         XCTAssertEqual(model.cardHeight, 296, "empty task state plus process section and four rows")
-        XCTAssertTrue(model.accessibilityText.contains("4 local processes detected; task activity unknown"))
+        XCTAssertTrue(model.accessibilityText.contains("4 local observations detected"))
 
         let state = hub.handle(req("GET", "/api/island/state", token: try token(.codex), query: ["source": "codex"]), port: 8777)
         XCTAssertEqual(state.status, 200)

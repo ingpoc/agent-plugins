@@ -40,10 +40,18 @@ enum IslandLocalHarnessScanner {
               let ps = run("/bin/ps", arguments: ["-p", pids.map(String.init).joined(separator: ","), "-o", "pid,comm"]) else {
             return []
         }
-        return rows(processList: String(decoding: ps.data, as: UTF8.self))
+        let processes = rows(processList: String(decoding: ps.data, as: UTF8.self))
+        let codex = processes.filter { $0.id.hasPrefix("local:codex:") }
+        let codexPIDs = codex.compactMap { Int($0.id.split(separator: ":").last ?? "") }
+        var others = processes.filter { !$0.id.hasPrefix("local:codex:") }
+        for index in others.indices where others[index].app == "Cursor" {
+            others[index].local_detail = "model unknown · activity unknown"
+        }
+        return others + IslandCodexThreads.scan(pids: codexPIDs)
+
     }
 
-    private static func run(_ path: String, arguments: [String]) -> (status: Int32, data: Data)? {
+    static func run(_ path: String, arguments: [String]) -> (status: Int32, data: Data)? {
         // Read only process names and PIDs; never inspect process arguments or environment.
         let process = Process()
         process.executableURL = URL(fileURLWithPath: path)
