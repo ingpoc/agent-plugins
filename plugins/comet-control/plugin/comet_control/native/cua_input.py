@@ -29,6 +29,10 @@ from typing import Any, Callable
 COMET_BUNDLE_ID = "ai.perplexity.comet"
 DEFAULT_CUA_SOCKET = Path("~/.cache/macos-cua/cua-service.sock").expanduser()
 BOUNDS_TOLERANCE = 2.0
+# macOS clamps windows to the visible frame: Chrome can report 1920x1050 while the CG
+# window is 1900x1030. Same origin + slightly smaller size still identifies the window
+# (title + attested pid are checked after).
+SIZE_SLACK = 48.0
 RESTORE_DELAY_S = 0.6
 PASTE_SETTLE_S = 0.12
 KEYSTROKE_MAX_CHARS = 40
@@ -137,6 +141,18 @@ def match_windows(windows: list[dict[str, Any]], bounds: dict[str, Any]) -> list
     for win in windows:
         have = [float(win[k]) for k in ("x", "y", "w", "h")]
         if all(abs(a - b) <= BOUNDS_TOLERANCE for a, b in zip(have, want)):
+            out.append(win)
+    return out
+
+
+def match_windows_loose(windows: list[dict[str, Any]], bounds: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fallback when exact bounds miss: same origin, size equal or up to SIZE_SLACK smaller."""
+    want = [float(bounds[k]) for k in ("left", "top", "width", "height")]
+    out = []
+    for win in windows:
+        x, y, w, h = (float(win[k]) for k in ("x", "y", "w", "h"))
+        if (abs(x - want[0]) <= BOUNDS_TOLERANCE and abs(y - want[1]) <= BOUNDS_TOLERANCE
+                and -BOUNDS_TOLERANCE <= want[2] - w <= SIZE_SLACK and -BOUNDS_TOLERANCE <= want[3] - h <= SIZE_SLACK):
             out.append(win)
     return out
 
@@ -274,7 +290,21 @@ class MacDesktop:
         app = AppKit.NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
         if app is None or app.isTerminated():
             return False
-        return bool(app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps))
+        app.activateWithOptions_(AppKit.NSApplicationActivateIgnoringOtherApps)
+        for _ in range(6):
+            if (self.frontmost() or {}).get("pid") == pid:
+                return True
+            time.sleep(0.05)
+        # macOS 14+ ignores activation requests from a background process; LaunchServices
+        # (`open -b`) still brings an already-running app forward without new permissions.
+        bundle = str(app.bundleIdentifier() or "")
+        if not bundle:
+            return False
+        import subprocess
+        subprocess.run(["/usr/bin/open", "-b", bundle], check=False, timeout=5,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(0.2)
+        return (self.frontmost() or {}).get("pid") == pid
 
     def clipboard_save(self) -> list[dict[str, bytes]]:
         import AppKit
@@ -403,7 +433,10 @@ class NativeInput:
 
     def _resolve_window(self, session: str, params: dict[str, Any]) -> tuple[int, str]:
         pid = self._comet_pid()
-        candidates = match_windows(self.desktop.windows(pid), params.get("window") or {})
+        windows = self.desktop.windows(pid)
+        candidates = match_windows(windows, params.get("window") or {})
+        if not candidates:
+            candidates = match_windows_loose(windows, params.get("window") or {})
         if not candidates:
             raise NativeInputError("WINDOW_NOT_FOUND", "no Comet window matches the leased window bounds")
         tab_title = str(params.get("title") or "")
