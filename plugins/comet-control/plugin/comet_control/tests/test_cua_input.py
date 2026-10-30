@@ -131,6 +131,12 @@ class KeySpecTests(unittest.TestCase):
         self.assertFalse(ci.title_matches("Orders / Kite by Zerodha - Comet", "ACU input matrix"))
         self.assertFalse(ci.title_matches("anything", ""))
 
+    def test_loose_match_accepts_macos_clamped_size_only(self):
+        lease = {"left": 0, "top": 30, "width": 1920, "height": 1050}
+        wins = [win(1, x=0, y=30, w=1900, h=1030), win(2, x=234, y=30, w=1686, h=1050), win(3, x=0, y=30, w=1800, h=1050)]
+        self.assertEqual(ci.match_windows(wins, lease), [])
+        self.assertEqual([w["id"] for w in ci.match_windows_loose(wins, lease)], [1])
+
 
 class AxPressTargetTests(unittest.TestCase):
     def test_deepest_pressable_element_under_point(self):
