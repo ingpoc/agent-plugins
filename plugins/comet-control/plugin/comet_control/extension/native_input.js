@@ -1,5 +1,7 @@
-// Chrome 155 debugger policy fallback: real macOS input (CUAService via the broker),
-// chrome.userScripts for arbitrary js on CSP-strict pages, and a window capture.
+// Chrome 155 debugger policy fallback: IN-PAGE input only (DOM events in the leased tab,
+// drawn with comet-control's own cursor overlay), chrome.userScripts for arbitrary js on
+// CSP-strict pages, and a window capture. Launch rule: comet-control never moves the Mac's
+// real mouse or sends real keys; Agent Computer Use is for Mac operations outside the browser.
 // Capabilities are detected once per lease; the path is chosen deterministically
 // from them and logged into the broker flight recorder (input-paths.jsonl).
 // Policy is never bypassed: no remote-debugging port, no profile edits.
@@ -106,15 +108,16 @@ export function forgetLeaseCapabilities(sessionId) {
   leaseCaps.delete(String(sessionId || ""));
 }
 
-export function wantsRealMouse(action) {
-  return action?.real_mouse === true || action?.trusted === "real" || action?.trusted === "os";
+// Retired: `real_mouse` / `trusted:"real"` no longer reach the OS mouse. Kept so old
+// callers get the in-page path instead of an error.
+export function wantsRealMouse(_action) {
+  return false;
 }
 
 // Deterministic routing table. kind: type | key | click | screenshot | js
-export function pickPath(caps, kind, action = {}) {
+export function pickPath(caps, kind, _action = {}) {
   const dbg = Boolean(caps?.debugger);
-  if (kind === "type" || kind === "key") return dbg ? "cdp" : "cua_keyboard";
-  if (kind === "click") return dbg ? "cdp" : wantsRealMouse(action) ? "cua_mouse" : "dom";
+  if (kind === "type" || kind === "key" || kind === "click") return dbg ? "cdp" : "in_page";
   if (kind === "screenshot") return dbg ? "cdp" : "tabs.captureVisibleTab";
   if (kind === "js") return dbg ? "cdp" : caps?.user_scripts ? "user_script" : "scripting_main";
   throw new Error(`unknown path kind ${kind}`);
@@ -246,10 +249,11 @@ export function screenPointFor(bounds, client, viewport, zoom = 1) {
   return { x: bounds.left + insetX + client.x * z, y: bounds.top + toolbar + client.y * z };
 }
 
-async function inTab(hooks, tabId, frameId, func, args, label) {
-  const frames = await hooks.executeScriptOnTab(
-    tabId, { target: { tabId, frameIds: [frameId || 0] }, func, args }, 5000, label,
-  );
+async function inTab(hooks, tabId, frameId, func, args, label, world) {
+  const options = { target: { tabId, frameIds: [frameId || 0] }, func, args };
+  // MAIN world: editors (React/Draft.js) read clipboardData and event fields from page objects.
+  if (world) options.world = world;
+  const frames = await hooks.executeScriptOnTab(tabId, options, 10_000, label);
   return frames?.[0]?.result;
 }
 
@@ -260,29 +264,6 @@ async function leaseWindow(state, api = globalThis.chrome) {
   if (!tab.active) await api.tabs.update(state.tabId, { active: true });
   const win = await api.windows.get(windowId);
   return { tab, bounds: { left: win.left, top: win.top, width: win.width, height: win.height } };
-}
-
-async function raiseLease(state, hooks, label) {
-  const sessionId = sessionOf(state);
-  if (!sessionId) throw codedError("LEASE_REQUIRED", "real input is lease-scoped");
-  const api = hooks.chrome || globalThis.chrome;
-  try {
-    // Capture the user's front app before the leased window comes forward.
-    await nativeRequest("prepare_raise", sessionId);
-    const { tab } = await leaseWindow(state, api);
-    const win = await api.windows.update(tab.windowId, { state: "normal", focused: true });
-    const bounds = { left: win.left, top: win.top, width: win.width, height: win.height };
-    const raised = await nativeRequest("raise", sessionId, { window: bounds, title: tab.title || "", action: label });
-    const frame = raised?.frame;
-    const real = frame && [frame.left, frame.top, frame.width, frame.height].every((v) => Number.isFinite(Number(v)))
-      && Number(frame.width) > 0 && Number(frame.height) > 0
-      ? { left: Number(frame.left), top: Number(frame.top), width: Number(frame.width), height: Number(frame.height) }
-      : bounds;
-    return { sessionId, windowId: raised.window_id, bounds: real, chromeBounds: bounds, tab };
-  } catch (error) {
-    await release(sessionId);
-    throw error;
-  }
 }
 
 async function release(sessionId) {
@@ -319,76 +300,200 @@ export async function nativeBringToFront(state, hooks, { holdMs = 1500, label = 
   }
 }
 
-// Focus via scripting -> raise the exact leased window -> confirm page focus ->
-// CUAService keys/text -> verify through a scripting read -> optional Enter.
+// ── in-page page functions (run in the leased tab, MAIN world) ────────────
+// Methods, in auto order, for contenteditable editors. Each is tried only while the
+// target is still unchanged, so a method that worked is never layered with another.
+//   beforeinput: InputEvent("beforeinput", insertText) — Lexical/ProseMirror/Slate handle it.
+//   paste:       ClipboardEvent("paste") with text/plain (+ text/html) — Draft.js handlePastedText.
+//   textinput:   TextEvent("textInput") — React onBeforeInput (Draft.js typing path) and Chrome's
+//                own insertion when nobody prevents it.
+//   execcommand: document.execCommand("insertText" | "insertHTML").
+export const IN_PAGE_TEXT_METHODS = ["beforeinput", "paste", "textinput", "execcommand"];
+
+async function pageInsertText(text, clear, method, html) {
+  const target = document.querySelector("[data-comet-native-target]");
+  if (!target) return { ok: false, code: "TARGET_LOST", error: "focused target disappeared" };
+  const deepActive = () => {
+    let a = document.activeElement;
+    while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement;
+    return a;
+  };
+  const kind = target instanceof HTMLInputElement ? "input" : target instanceof HTMLTextAreaElement ? "textarea" : target.isContentEditable ? "contenteditable" : "other";
+  const read = () => String(kind === "input" || kind === "textarea" ? target.value : target.innerText || "");
+  const settle = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 60)));
+  if (deepActive() !== target && !target.contains(deepActive())) target.focus({ preventScroll: true });
+  if (clear) {
+    if (kind === "input" || kind === "textarea") target.select();
+    else {
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+  }
+  const before = read();
+  const tried = [];
+  const sink = () => deepActive() || target;
+  const attempt = {
+    beforeinput: () => sink().dispatchEvent(new InputEvent("beforeinput", { inputType: html ? "insertFromPaste" : "insertText", data: text, bubbles: true, cancelable: true, composed: true })),
+    paste: () => {
+      const data = new DataTransfer();
+      data.setData("text/plain", text);
+      if (html) data.setData("text/html", html);
+      sink().dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true, composed: true }));
+    },
+    textinput: () => {
+      const event = document.createEvent("TextEvent");
+      event.initTextEvent("textInput", true, true, window, text);
+      sink().dispatchEvent(event);
+    },
+    execcommand: () => document.execCommand(html ? "insertHTML" : "insertText", false, html || text),
+    setter: () => {
+      const proto = kind === "input" ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
+      const setValue = Object.getOwnPropertyDescriptor(proto, "value").set;
+      const start = clear ? 0 : target.selectionStart ?? before.length;
+      const end = clear ? before.length : target.selectionEnd ?? start;
+      setValue.call(target, before.slice(0, start) + text + before.slice(end));
+      target.dispatchEvent(new InputEvent("input", { inputType: "insertText", data: text, bubbles: true }));
+    },
+  };
+  const order = method && method !== "auto" ? [method]
+    : kind === "input" || kind === "textarea" ? ["execcommand", "setter"] : ["beforeinput", "paste", "textinput", "execcommand"];
+  let used = "";
+  for (const name of order) {
+    if (!attempt[name]) return { ok: false, code: "UNKNOWN_METHOD", error: `unknown in-page method ${name}` };
+    tried.push(name);
+    try { attempt[name](); } catch (error) { continue; }
+    await settle();
+    if (read() !== before || (!text && clear)) { used = name; break; }
+  }
+  return { ok: true, kind, method: used, tried, before, after: read() };
+}
+
+async function pageKey(key, modifiers) {
+  const mods = (modifiers || []).map((m) => String(m).toLowerCase());
+  let k = String(key || "");
+  if (k.includes("+") && k.length > 1) {
+    const parts = k.split("+");
+    k = parts.pop();
+    mods.push(...parts.map((m) => m.toLowerCase()));
+  }
+  const names = { enter: "Enter", return: "Enter", tab: "Tab", escape: "Escape", esc: "Escape", backspace: "Backspace", delete: "Delete", space: " ",
+    arrowleft: "ArrowLeft", arrowright: "ArrowRight", arrowup: "ArrowUp", arrowdown: "ArrowDown", home: "Home", end: "End" };
+  k = names[k.toLowerCase()] || k;
+  const codes = { Enter: 13, Tab: 9, Escape: 27, Backspace: 8, Delete: 46, " ": 32, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35 };
+  const keyCode = codes[k] || (k.length === 1 ? k.toUpperCase().charCodeAt(0) : 0);
+  const meta = mods.some((m) => ["meta", "cmd", "command"].includes(m));
+  const ctrl = mods.some((m) => ["ctrl", "control"].includes(m));
+  const init = { key: k, code: k.length === 1 ? (/[a-z]/i.test(k) ? `Key${k.toUpperCase()}` : "") : k === " " ? "Space" : k,
+    bubbles: true, cancelable: true, composed: true, metaKey: meta, ctrlKey: ctrl,
+    shiftKey: mods.includes("shift"), altKey: mods.some((m) => ["alt", "option"].includes(m)) };
+  let el = document.activeElement || document.body;
+  while (el && el.shadowRoot && el.shadowRoot.activeElement) el = el.shadowRoot.activeElement;
+  const fire = (type) => {
+    const event = new KeyboardEvent(type, init);
+    // Draft.js and older handlers key on keyCode/which; KeyboardEvent's constructor cannot set them.
+    Object.defineProperty(event, "keyCode", { get: () => keyCode });
+    Object.defineProperty(event, "which", { get: () => keyCode });
+    return el.dispatchEvent(event);
+  };
+  const notPrevented = fire("keydown");
+  let default_action = "";
+  if (notPrevented) {
+    const editable = el.isContentEditable || el instanceof HTMLTextAreaElement || (el instanceof HTMLInputElement);
+    if ((meta || ctrl) && k.toLowerCase() === "a") { document.execCommand("selectAll"); default_action = "selectAll"; }
+    else if (k === "Enter" && el.isContentEditable) { document.execCommand("insertParagraph"); default_action = "insertParagraph"; }
+    else if (k === "Enter" && el instanceof HTMLTextAreaElement) { document.execCommand("insertText", false, "\n"); default_action = "newline"; }
+    else if (k === "Enter" && el instanceof HTMLInputElement && el.form) { el.form.requestSubmit ? el.form.requestSubmit() : el.form.submit(); default_action = "submit"; }
+    else if (k === "Backspace" && editable) { document.execCommand("delete"); default_action = "delete"; }
+    else if (k === "Delete" && editable) { document.execCommand("forwardDelete"); default_action = "forwardDelete"; }
+    else if (k === "Tab") {
+      const focusable = [...document.querySelectorAll("a[href],button,input,select,textarea,[tabindex]:not([tabindex='-1']),[contenteditable='true']")]
+        .filter((n) => !n.disabled && n.getClientRects().length);
+      const i = focusable.indexOf(el);
+      const next = focusable[(i + (init.shiftKey ? -1 : 1) + focusable.length) % focusable.length];
+      if (next) { next.focus(); default_action = "focus"; }
+    } else if (k.length === 1 && !meta && !ctrl && editable) {
+      fire("keypress");
+      document.execCommand("insertText", false, k);
+      default_action = "insertText";
+    }
+  }
+  fire("keyup");
+  let a = document.activeElement;
+  while (a && a.shadowRoot && a.shadowRoot.activeElement) a = a.shadowRoot.activeElement;
+  return { ok: true, key: k, modifiers: mods, prevented: !notPrevented, default_action, active: a ? `${a.tagName.toLowerCase()}${a.id ? `#${a.id}` : ""}` : "" };
+}
+
+function pageClick(selector, point, count) {
+  let el = selector ? document.querySelector(selector) : null;
+  let x = point?.x;
+  let y = point?.y;
+  if (el && (x == null || y == null)) {
+    const r = el.getBoundingClientRect();
+    x = r.left + r.width / 2;
+    y = r.top + r.height / 2;
+  }
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, code: "ELEMENT_NOT_FOUND", error: "no click target" };
+  const hit = document.elementFromPoint(x, y);
+  if (el && hit && hit !== el && !el.contains(hit) && !hit.contains(el)) return { ok: false, code: "ACTIONABILITY_OCCLUDED", error: `click target is covered by <${hit.tagName.toLowerCase()}>` };
+  el = el || hit;
+  if (!el) return { ok: false, code: "ELEMENT_NOT_FOUND", error: "nothing at that point" };
+  const base = { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, button: 0 };
+  for (let i = 1; i <= Math.max(1, count || 1); i += 1) {
+    el.dispatchEvent(new PointerEvent("pointerdown", { ...base, pointerId: 1, pointerType: "mouse", isPrimary: true, buttons: 1, detail: i }));
+    el.dispatchEvent(new MouseEvent("mousedown", { ...base, buttons: 1, detail: i }));
+    if (i === 1 && typeof el.focus === "function") el.focus({ preventScroll: true });
+    el.dispatchEvent(new PointerEvent("pointerup", { ...base, pointerId: 1, pointerType: "mouse", isPrimary: true, detail: i }));
+    el.dispatchEvent(new MouseEvent("mouseup", { ...base, detail: i }));
+    el.dispatchEvent(new MouseEvent("click", { ...base, detail: i }));
+  }
+  if ((count || 1) >= 2) el.dispatchEvent(new MouseEvent("dblclick", { ...base, detail: 2 }));
+  return { ok: true, x, y, tag: el.tagName.toLowerCase() };
+}
+
+async function showCursor(hooks, tabId, frameId, point, label) {
+  // The in-page cursor overlay is drawn for every in-page action that has a point.
+  if (!point || typeof hooks.sendToContentScript !== "function") return false;
+  await hooks.sendToContentScript(tabId, "moveToAndWait", [point.x, point.y, 600], frameId || 0).catch(() => {});
+  await hooks.sendToContentScript(tabId, "pulseClick", [], frameId || 0).catch(() => {});
+  if (label) await hooks.sendToContentScript(tabId, "showKey", [label], frameId || 0).catch(() => {});
+  return true;
+}
+
+// ── flows (in-page only) ────────────────────────────────────────────────────
+// Names kept for callers; nothing here touches CUAService input.
 export async function nativeTypeFlow(state, hooks, opts) {
   const t0 = Date.now();
   const text = String(opts.text ?? "");
   const clear = Boolean(opts.clear);
   const frameId = opts.frameId || 0;
-  const timings = {};
   const focus = await inTab(hooks, state.tabId, frameId, pageFocus,
-    [opts.selector || null, opts.point || null, true, !clear], "nativeFocus");
+    [opts.selector || null, opts.point || null, true, !clear], "inPageFocus");
   if (!focus?.ok) throw codedError(focus?.code || "FOCUS_FAILED", focus?.error || "could not focus the target");
-  timings.focus = Date.now() - t0;
-  const lease = await raiseLease(state, hooks, opts.label || "type");
   try {
-    timings.raise = Date.now() - t0;
-    let check = await inTab(hooks, state.tabId, frameId, pageReadTarget, [false], "nativeFocusCheck");
-    if (!check?.focused) {
-      await inTab(hooks, state.tabId, frameId, pageFocus, [opts.selector || null, opts.point || null, true, !clear], "nativeRefocus");
-      check = await inTab(hooks, state.tabId, frameId, pageReadTarget, [false], "nativeFocusCheck");
-    }
-    if (!check?.page_focus || !check?.focused) {
-      throw codedError("FOCUS_NOT_IN_PAGE", "after raising the leased window the page target is not focused; nothing typed",
-        { page_focus: Boolean(check?.page_focus), active: check?.active || "" });
-    }
-    const steps = [];
-    if (clear) steps.push({ kind: "key", key: "Meta+a" }, { kind: "key", key: "Backspace" });
-    if (text) steps.push({ kind: "text", text, mode: opts.mode || "auto" });
-    let typed = { steps: [] };
-    if (steps.length) typed = await nativeRequest("steps", lease.sessionId, { window_id: lease.windowId, steps });
-    timings.steps = Date.now() - t0;
-    const textStep = (typed.steps || []).find((s) => s.kind === "text");
-    let after = await inTab(hooks, state.tabId, frameId, pageReadTarget, [false], "nativeVerify");
-    let verified = typedValueMatches({ ...focus, after: after?.value, text, clear });
-    if (!verified) {
-      await new Promise((r) => setTimeout(r, 150));
-      after = await inTab(hooks, state.tabId, frameId, pageReadTarget, [false], "nativeVerify");
-      verified = typedValueMatches({ ...focus, after: after?.value, text, clear });
-    }
-    let recovered = "";
-    if (!verified && textStep?.mode === "keystrokes" && (clear || !focus.before_len)) {
-      // Fast keystrokes can drop characters while a SPA re-renders (x.com search):
-      // retype once atomically through the clipboard (Cmd+V).
-      await nativeRequest("steps", lease.sessionId, { window_id: lease.windowId, steps: [
-        { kind: "key", key: "Meta+a" }, { kind: "key", key: "Backspace" }, { kind: "text", text, mode: "paste" },
-      ] });
-      after = await inTab(hooks, state.tabId, frameId, pageReadTarget, [false], "nativeVerify");
-      verified = typedValueMatches({ before: "", after: after?.value, text, clear: true, kind: focus.kind });
-      recovered = "paste";
-    }
-    timings.verify = Date.now() - t0;
+    const r = focus.rect;
+    if (r && frameId === 0) await showCursor(hooks, state.tabId, frameId, { x: r.x + Math.min(r.w / 2, 24), y: r.y + r.h / 2 }, "type");
+    const typed = await inTab(hooks, state.tabId, frameId, pageInsertText,
+      [text, clear, opts.method || opts.mode || "auto", opts.html || null], "inPageType", "MAIN");
+    if (!typed?.ok) throw codedError(typed?.code || "TYPE_FAILED", typed?.error || "in-page typing failed");
+    const after = await inTab(hooks, state.tabId, frameId, pageReadTarget, [false], "inPageVerify");
+    const verified = opts.html ? normalizeText(after?.value) !== normalizeText(focus.before)
+      : typedValueMatches({ ...focus, after: after?.value, text, clear });
     if (!verified && opts.verify !== false) {
-      throw codedError("TYPE_NOT_VERIFIED", "real-keyboard text did not land in the target",
-        { kind: focus.kind, expected_len: text.length, before_len: focus.before_len, after_len: String(after?.value || "").length, text_mode: textStep?.mode || "" });
+      throw codedError("TYPE_NOT_VERIFIED", "in-page text did not land in the target",
+        { kind: focus.kind, expected_len: text.length, before_len: focus.before_len, after_len: String(after?.value || "").length, tried: typed.tried || [] });
     }
-    if (opts.submit) {
-      await nativeRequest("steps", lease.sessionId, { window_id: lease.windowId, steps: [{ kind: "key", key: "Enter" }] });
-    }
-    for (const key of opts.keysAfter || []) {
-      await nativeRequest("steps", lease.sessionId, { window_id: lease.windowId, steps: [{ kind: "key", key }] });
-    }
-    timings.total = Date.now() - t0;
-    logPath(state, "type", "cua_keyboard", { action: opts.label || "type", reason: textStep?.mode || (clear ? "clear" : "") });
+    if (opts.submit) await nativeKeyFlow(state, hooks, { key: "Enter", frameId, label: "submit" });
+    for (const key of opts.keysAfter || []) await nativeKeyFlow(state, hooks, { key, frameId, label: "key" });
+    logPath(state, "type", "in_page", { action: opts.label || "type", reason: typed.method || "" });
     return {
-      input_path: "cua_keyboard", text_mode: textStep?.mode || "none", verified, target_kind: focus.kind,
-      ...(recovered ? { recovered_via: recovered } : {}),
-      value_length: String(after?.value || "").length, submitted: Boolean(opts.submit), timings_ms: timings,
+      input_path: "in_page", text_mode: typed.method || "none", tried: typed.tried || [], verified, target_kind: focus.kind,
+      value_length: String(after?.value || "").length, submitted: Boolean(opts.submit), timings_ms: { total: Date.now() - t0 },
     };
   } finally {
-    await inTab(hooks, state.tabId, frameId, pageReadTarget, [true], "nativeCleanup").catch(() => {});
-    await release(lease.sessionId);
+    await inTab(hooks, state.tabId, frameId, pageReadTarget, [true], "inPageCleanup").catch(() => {});
   }
 }
 
@@ -396,51 +501,33 @@ export async function nativeKeyFlow(state, hooks, opts) {
   const t0 = Date.now();
   const frameId = opts.frameId || 0;
   if (opts.selector || opts.point) {
-    const focus = await inTab(hooks, state.tabId, frameId, pageFocus, [opts.selector || null, opts.point || null, false, false], "nativeFocus");
+    const focus = await inTab(hooks, state.tabId, frameId, pageFocus, [opts.selector || null, opts.point || null, false, false], "inPageFocus");
     if (!focus?.ok) throw codedError(focus?.code || "FOCUS_FAILED", focus?.error || "could not focus the target");
+    await inTab(hooks, state.tabId, frameId, pageReadTarget, [true], "inPageCleanup").catch(() => {});
   }
-  const lease = await raiseLease(state, hooks, opts.label || "key");
-  try {
-    const check = await inTab(hooks, state.tabId, frameId, pageReadTarget, [false], "nativeFocusCheck");
-    if (!check?.page_focus) throw codedError("FOCUS_NOT_IN_PAGE", "leased page does not have keyboard focus; key not sent", { active: check?.active || "" });
-    const keys = Array.isArray(opts.keys) ? opts.keys : [{ key: opts.key, modifiers: opts.modifiers || [] }];
-    const out = await nativeRequest("steps", lease.sessionId, {
-      window_id: lease.windowId,
-      steps: keys.map((k) => ({ kind: "key", key: String(k.key), modifiers: k.modifiers || [] })),
-    });
-    const after = await inTab(hooks, state.tabId, frameId, pageReadTarget, [true], "nativeKeyAfter").catch(() => null);
-    logPath(state, "key", "cua_keyboard", { action: opts.label || "key" });
-    return { input_path: "cua_keyboard", keys: (out.steps || []).map((s) => s.key), active_after: after?.active || "", timings_ms: { total: Date.now() - t0 } };
-  } finally {
-    await release(lease.sessionId);
+  const keys = Array.isArray(opts.keys) ? opts.keys : [{ key: opts.key, modifiers: opts.modifiers || [] }];
+  const results = [];
+  for (const k of keys) {
+    if (typeof hooks.sendToContentScript === "function") await hooks.sendToContentScript(state.tabId, "showKey", [String(k.key)], frameId).catch(() => {});
+    results.push(await inTab(hooks, state.tabId, frameId, pageKey, [String(k.key), k.modifiers || []], "inPageKey", "MAIN"));
   }
+  logPath(state, "key", "in_page", { action: opts.label || "key" });
+  return { input_path: "in_page", keys: results.map((r) => r?.key || ""), default_actions: results.map((r) => r?.default_action || ""),
+    active_after: results.at(-1)?.active || "", timings_ms: { total: Date.now() - t0 } };
 }
 
 export async function nativeClickFlow(state, hooks, opts) {
   const t0 = Date.now();
-  if (opts.frameId && Number(opts.frameId) !== 0) throw codedError("REAL_MOUSE_FRAME", "real-mouse click supports the top frame only");
-  const api = hooks.chrome || globalThis.chrome;
-  const before = await inTab(hooks, state.tabId, 0, pageHitTest, [opts.selector || null, opts.point || null], "nativeHitTest");
+  const frameId = opts.frameId || 0;
+  const before = await inTab(hooks, state.tabId, frameId, pageHitTest, [opts.selector || null, opts.point || null], "inPageHitTest");
   if (!before?.ok) throw codedError(before?.code || "ELEMENT_NOT_FOUND", before?.error || "no click target");
   if (before.occluded) throw codedError("ACTIONABILITY_OCCLUDED", `click target is covered by <${before.hit}>`);
-  const lease = await raiseLease(state, hooks, opts.label || "click");
-  try {
-    const now = await inTab(hooks, state.tabId, 0, pageHitTest, [opts.selector || null, opts.point || null], "nativeHitTest");
-    if (!now?.ok || now.occluded) throw codedError("ACTIONABILITY_UNSTABLE", "click target moved or became covered after raise");
-    const zoom = await api.tabs.getZoom(state.tabId).catch(() => 1);
-    const screen = screenPointFor(lease.bounds, { x: now.x, y: now.y }, now, zoom);
-    const out = await nativeRequest("steps", lease.sessionId, {
-      window_id: lease.windowId, steps: [{ kind: "click", x: screen.x, y: screen.y, count: opts.count || 1 }],
-    });
-    logPath(state, "click", "cua_mouse", { action: opts.label || "click" });
-    return {
-      input_path: "cua_mouse", trusted: true, clicked: true, client: { x: now.x, y: now.y },
-      screen: { x: Math.round(screen.x), y: Math.round(screen.y) }, zoom, method: out.steps?.[0]?.method || "",
-      timings_ms: { total: Date.now() - t0 },
-    };
-  } finally {
-    await release(lease.sessionId);
-  }
+  const cursor = await showCursor(hooks, state.tabId, frameId, { x: before.x, y: before.y });
+  const out = await inTab(hooks, state.tabId, frameId, pageClick, [opts.selector || null, { x: before.x, y: before.y }, opts.count || 1], "inPageClick", "MAIN");
+  if (!out?.ok) throw codedError(out?.code || "CLICK_FAILED", out?.error || "in-page click failed");
+  logPath(state, "click", "in_page", { action: opts.label || "click" });
+  return { input_path: "in_page", trusted: false, clicked: true, client: { x: out.x, y: out.y }, tag: out.tag, cursor_drawn: cursor,
+    timings_ms: { total: Date.now() - t0 } };
 }
 
 export async function nativeCapture(state, hooks, opts = {}) {

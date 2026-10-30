@@ -7,7 +7,6 @@ import {
   nativeClickFlow,
   nativeKeyFlow,
   nativeTypeFlow,
-  pickPath,
 } from "./native_input.js";
 
 const CDP_EVENT_RING_MAX = 1000;
@@ -676,12 +675,6 @@ async function locatorAction(action, state, hooks) {
       const real = await nativeKeyFlow(state, nativeHooks, {
         selector: match.selector, frameId: match.frame_id, key: action.key || action.value,
         modifiers: action.modifiers || [], label: "locator.press",
-      });
-      return { type: "locator", operation, match, ...real };
-    }
-    if (pickPath(caps, "click", action) === "cua_mouse") {
-      const real = await nativeClickFlow(state, nativeHooks, {
-        selector: match.frame_id ? null : match.selector, point: match.point, frameId: match.frame_id, count, label: "locator.click",
       });
       return { type: "locator", operation, match, ...real };
     }

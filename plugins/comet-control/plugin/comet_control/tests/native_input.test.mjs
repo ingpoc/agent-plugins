@@ -1,4 +1,4 @@
-// Chrome 155 debugger policy: routing to real input (CUAService via broker), userScripts js(),
+// Chrome 155 debugger policy: in-page input only (never CUAService), userScripts js(),
 // and window capture. Usage: node native_input.test.mjs <extension dir>
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
@@ -30,12 +30,14 @@ const parity = await import(pathToFileURL(path.join(ext, "parity_capabilities.js
 const blocked = { debugger: false, user_scripts: false };
 const blockedUS = { debugger: false, user_scripts: true };
 const open = { debugger: true, user_scripts: true };
-assert.equal(ni.pickPath(blocked, "type"), "cua_keyboard");
-assert.equal(ni.pickPath(blocked, "key"), "cua_keyboard");
+assert.equal(ni.pickPath(blocked, "type"), "in_page");
+assert.equal(ni.pickPath(blocked, "key"), "in_page");
 assert.equal(ni.pickPath(open, "type"), "cdp");
-assert.equal(ni.pickPath(blocked, "click"), "dom");
-assert.equal(ni.pickPath(blocked, "click", { real_mouse: true }), "cua_mouse");
-assert.equal(ni.pickPath(blocked, "click", { trusted: "real" }), "cua_mouse");
+assert.equal(ni.pickPath(blocked, "click"), "in_page");
+// real_mouse / trusted:"real" are retired: still in-page, never the OS mouse.
+assert.equal(ni.pickPath(blocked, "click", { real_mouse: true }), "in_page");
+assert.equal(ni.pickPath(blocked, "click", { trusted: "real" }), "in_page");
+assert.equal(ni.wantsRealMouse({ real_mouse: true, trusted: "real" }), false);
 assert.equal(ni.pickPath(open, "click", { real_mouse: true }), "cdp");
 assert.equal(ni.pickPath(blocked, "screenshot"), "tabs.captureVisibleTab");
 assert.equal(ni.pickPath(blocked, "js"), "scripting_main");
@@ -145,45 +147,69 @@ ni.forgetLeaseCapabilities("lease-1");
 await ni.leaseCapabilities(state, countingHooks);
 assert.equal(probes, 2);
 
-// ── 5) type flow order: focus -> prepare_raise -> raise -> focus check -> steps -> verify -> cleanup -> release
+// ── 5) in-page flows: page functions only, never a broker "steps"/"raise"
+const worlds = [];
+const cursorCalls = [];
+const inPageHooks = {
+  ...hooks,
+  sendToContentScript: async (_tab, action, args) => { cursorCalls.push(action); return { result: { ok: true, click_ring: true } }; },
+  executeScriptOnTab: async (_tabId, options, _ms, label) => {
+    log.push(`page:${label}`);
+    worlds.push(`${options.func.name}:${options.world || "ISOLATED"}`);
+    const fn = options.func.name;
+    if (fn === "pageFocus") { page.focused = true; return [{ result: { ok: true, focused: true, kind: page.kind, tag: "input", page_focus: true, before: page.value, before_len: page.value.length, rect: { x: 10, y: 10, w: 100, h: 20 }, vw: 1920, vh: 963 } }]; }
+    if (fn === "pageInsertText") {
+      const [text, clear, method] = options.args;
+      if (page.dropText) return [{ result: { ok: true, kind: page.kind, method: "", tried: ["beforeinput", "paste", "textinput", "execcommand"] } }];
+      page.value = clear ? text : page.value + text;
+      return [{ result: { ok: true, kind: page.kind, method: method === "auto" ? "paste" : method, tried: ["beforeinput", "paste"] } }];
+    }
+    if (fn === "pageReadTarget") return [{ result: { found: true, value: page.value, focused: true } }];
+    if (fn === "pageKey") { page.keys = [...(page.keys || []), options.args[0]]; return [{ result: { ok: true, key: options.args[0], default_action: "submit", active: "input#name" } }]; }
+    if (fn === "pageHitTest") return [{ result: { ok: true, x: 100, y: 50, vw: 1920, vh: 963, occluded: page.occluded || false, hit: "div" } }];
+    if (fn === "pageClick") return [{ result: { ok: true, x: 100, y: 50, tag: "button" } }];
+    throw new Error(`unexpected page fn ${fn}`);
+  },
+};
+const brokerInput = () => log.filter((l) => l.startsWith("steps") || l === "raise" || l === "prepare_raise");
+
 resetPage("input", "old");
 log.length = 0;
-let r = await ni.nativeTypeFlow(state, hooks, { selector: "#name", text: "Héllo 😀", clear: true, submit: true });
+let r = await ni.nativeTypeFlow(state, inPageHooks, { selector: "#name", text: "Héllo 😀", clear: true, submit: true });
 assert.equal(r.verified, true);
-assert.equal(r.input_path, "cua_keyboard");
-assert.deepEqual(log.filter((l) => !l.startsWith("log_path")), [
-  "page:nativeFocus", "prepare_raise", "raise", "page:nativeFocusCheck", "steps:Meta+a,Backspace,text(Héllo 😀)",
-  "page:nativeVerify", "steps:Enter", "page:nativeCleanup", "release",
-]);
+assert.equal(r.input_path, "in_page");
+assert.equal(r.text_mode, "paste");
+assert.equal(page.value, "Héllo 😀");
+assert.deepEqual(page.keys, ["Enter"]);
+assert.deepEqual(brokerInput(), []);
+assert.ok(worlds.includes("pageInsertText:MAIN") && worlds.includes("pageKey:MAIN"));
+assert.ok(cursorCalls.includes("moveToAndWait"), "in-page cursor overlay drawn for typing");
 
-failPrepareRaise = true;
-log.length = 0;
-await assert.rejects(ni.nativeKeyFlow(state, hooks, { key: "Tab" }), (e) => e.code === "PREPARE_FAILED");
-failPrepareRaise = false;
-assert.deepEqual(log.filter((l) => !l.startsWith("log_path")), ["prepare_raise", "release"]);
-
-// ── 6) page lost keyboard focus after raise (omnibox) -> nothing typed, still released
-resetPage("input", "");
-page.blockPageFocus = true;
-log.length = 0;
-await assert.rejects(ni.nativeTypeFlow(state, hooks, { selector: "#name", text: "x" }), (e) => e.code === "FOCUS_NOT_IN_PAGE");
-assert.ok(!log.some((l) => l.startsWith("steps")));
-assert.equal(log.at(-1), "release");
-
-// ── 7) text that never lands -> TYPE_NOT_VERIFIED (no Enter sent)
+// text that never lands -> TYPE_NOT_VERIFIED (no Enter sent), with the methods tried
 resetPage("input", "");
 page.dropText = true;
-log.length = 0;
-await assert.rejects(ni.nativeTypeFlow(state, hooks, { selector: "#name", text: "abc", submit: true }), (e) => e.code === "TYPE_NOT_VERIFIED" && e.details.expected_len === 3);
-assert.ok(!log.includes("steps:Enter"));
+await assert.rejects(ni.nativeTypeFlow(state, inPageHooks, { selector: "#name", text: "abc", submit: true }),
+  (e) => e.code === "TYPE_NOT_VERIFIED" && e.details.expected_len === 3 && e.details.tried.length === 4);
+assert.equal(page.keys, undefined);
 
-resetPage("input", "hello");
-page.dropText = true;
+// key + click: in-page with the cursor overlay, never the OS
+resetPage();
 log.length = 0;
-await assert.rejects(ni.nativeTypeFlow(state, hooks, { selector: "#name", text: "hello", submit: true }), (e) => e.code === "TYPE_NOT_VERIFIED");
-assert.ok(!log.includes("steps:Enter"));
+cursorCalls.length = 0;
+r = await ni.nativeKeyFlow(state, inPageHooks, { key: "Tab" });
+assert.equal(r.input_path, "in_page");
+r = await ni.nativeClickFlow(state, inPageHooks, { selector: "#trusted" });
+assert.equal(r.input_path, "in_page");
+assert.equal(r.trusted, false);
+assert.equal(r.cursor_drawn, true);
+assert.ok(cursorCalls.includes("moveToAndWait") && cursorCalls.includes("pulseClick"));
+assert.deepEqual(brokerInput(), []);
+page.occluded = true;
+await assert.rejects(ni.nativeClickFlow(state, inPageHooks, { point: { x: 1, y: 1 } }), (e) => e.code === "ACTIONABILITY_OCCLUDED");
+r = await ni.nativeCapture(state, hooks, { inline: true });
+assert.equal(r.base64, "QUJD");
 
-// Exercise the actual page helpers: their old 4k/8k truncation escaped the mocked flow.
+// Real page focus/read helpers (their old 4k/8k truncation escaped the mocked flow); insert stubbed.
 class LongInput {
   constructor() { this.tagName = "INPUT"; this.type = "text"; this.marked = false; }
   get value() { return page.value; }
@@ -199,51 +225,24 @@ const longInput = new LongInput();
 const pageSandbox = {
   HTMLInputElement: LongInput, HTMLTextAreaElement: class {}, innerWidth: 1920, innerHeight: 963,
   document: {
-    activeElement: longInput, body: {}, hasFocus: () => page.pageFocus,
+    activeElement: longInput, body: {}, hasFocus: () => true,
     querySelector: (selector) => selector === "#name" || longInput.marked ? longInput : null,
     querySelectorAll: () => longInput.marked ? [longInput] : [],
   },
 };
-const realPageHooks = { ...hooks, executeScriptOnTab: async (_tabId, options) => [{ result:
-  vm.runInNewContext(`(${options.func.toString()})(...args)`, { ...pageSandbox, args: options.args }),
-}] };
+const realPageHooks = { ...inPageHooks, executeScriptOnTab: async (tabId, options, ms, label) => {
+  if (options.func.name === "pageInsertText") return inPageHooks.executeScriptOnTab(tabId, options, ms, label);
+  return [{ result: vm.runInNewContext(`(${options.func.toString()})(...args)`, { ...pageSandbox, args: options.args }) }];
+} };
 resetPage("input", "");
-r = await ni.nativeTypeFlow(state, realPageHooks, { selector: "#name", text: "x".repeat(9001), clear: true, mode: "paste" });
+r = await ni.nativeTypeFlow(state, realPageHooks, { selector: "#name", text: "x".repeat(9001), clear: true });
 assert.equal(r.verified, true);
 assert.equal(r.value_length, 9001);
 resetPage("input", "x".repeat(5000));
 longInput.setSelectionRange(5000, 5000);
-r = await ni.nativeTypeFlow(state, realPageHooks, { selector: "#name", text: "END", mode: "paste" });
+r = await ni.nativeTypeFlow(state, realPageHooks, { selector: "#name", text: "END" });
 assert.equal(r.verified, true);
 assert.equal(r.value_length, 5003);
-
-// ── 7b) keystrokes that drop characters are retyped once via paste (clear / empty field only)
-resetPage("input", "");
-page.dropOnce = true;
-log.length = 0;
-r = await ni.nativeTypeFlow(state, hooks, { selector: "#q", text: "comet browser", clear: true });
-assert.equal(r.verified, true);
-assert.equal(r.recovered_via, "paste");
-assert.ok(log.includes("steps:Meta+a,Backspace,text(comet browser)"));
-
-// ── 8) key + real-mouse click + capture
-resetPage();
-log.length = 0;
-r = await ni.nativeKeyFlow(state, hooks, { key: "Tab" });
-assert.deepEqual(log.filter((l) => !l.startsWith("log_path")), ["prepare_raise", "raise", "page:nativeFocusCheck", "steps:Tab", "page:nativeKeyAfter", "release"]);
-log.length = 0;
-r = await ni.nativeClickFlow(state, hooks, { selector: "#trusted" });
-assert.ok(log.includes("steps:click@2660,454"));
-// macOS/Stage Manager clamps the real window 20px shorter than Chrome reports: map with the real frame.
-globalThis.__raiseFrame = { left: 2560, top: 317, width: 1920, height: 1030 };
-log.length = 0;
-await ni.nativeClickFlow(state, hooks, { selector: "#trusted" });
-assert.ok(log.includes("steps:click@2660,434"), log.join(" "));
-globalThis.__raiseFrame = undefined;
-assert.equal(r.trusted, true);
-await assert.rejects(ni.nativeClickFlow(state, hooks, { point: { x: 1, y: 1 }, frameId: 3 }), (e) => e.code === "REAL_MOUSE_FRAME");
-r = await ni.nativeCapture(state, hooks, { inline: true });
-assert.equal(r.base64, "QUJD");
 
 // ── 9) js(): userScripts USER_SCRIPT world, expression then statement form; CSP error code without it
 let executed = [];
@@ -266,21 +265,22 @@ assert.match(out.exceptionDetails.text, /Allow User Scripts/);
 
 // ── 10) parity: locator type / press route to the real keyboard when the lease has no debugger
 const parityHooks = {
-  ...hooks,
+  ...inPageHooks,
   send: async () => { throw new Error("Host access is restricted by policy."); },
   moveCursorToPoint: async () => {},
   leaseCapabilities: async () => ({ debugger: false, user_scripts: false, user_scripts_reason: "USER_SCRIPTS_DISABLED" }),
-  nativeHooks: hooks,
+  nativeHooks: inPageHooks,
 };
 chromeFake.scripting.executeScript = async () => [{ result: [{ selector: "#name", frame_id: 0, point: { x: 50, y: 20 }, visible: true, enabled: true, name: "name", role: "textbox", text: "", value: "" }] }];
 resetPage("input", "");
 log.length = 0;
 let pr = await parity.runParityAction({ type: "locator", operation: "type", locator: { by: "css", selector: "#name" }, value: "hey" }, state, parityHooks);
-assert.equal(pr.result.input_path, "cua_keyboard");
-assert.ok(log.includes("steps:text(hey)"));
+assert.equal(pr.result.input_path, "in_page");
+assert.equal(page.value, "hey");
 log.length = 0;
 pr = await parity.runParityAction({ type: "locator", operation: "press", locator: { by: "css", selector: "#name" }, key: "Enter" }, state, parityHooks);
-assert.ok(log.includes("steps:Enter"));
+assert.equal(pr.result.input_path, "in_page");
+assert.deepEqual(brokerInput(), []);
 
 // ── 11) Browser Use CDP: Input.insertText / keyDown / click / screenshot / js without the debugger
 resetPage("input", "");
@@ -292,14 +292,15 @@ assert.equal(pr.result.result.input_path, "window_focus");
 assert.equal(pr.result.result.visible, true);
 pr = await parity.runParityAction(cdp("Input.insertText", { text: "abc" }), state, parityHooks);
 assert.equal(pr.result.fallback, "policy");
-assert.equal(pr.result.result.input_path, "cua_keyboard");
+assert.equal(pr.result.result.input_path, "in_page");
 pr = await parity.runParityAction(cdp("Input.dispatchKeyEvent", { type: "keyDown", key: "a", modifiers: 4 }), state, parityHooks);
-assert.ok(log.includes("steps:Meta+a") || log.some((l) => l.startsWith("steps:")));
+assert.equal(pr.result.result.input_path, "in_page");
 assert.deepEqual((await parity.runParityAction(cdp("Input.dispatchKeyEvent", { type: "keyUp", key: "a" }), state, parityHooks)).result.result, {});
 log.length = 0;
 await parity.runParityAction(cdp("Input.dispatchMouseEvent", { type: "mousePressed", x: 100, y: 50, clickCount: 1 }), state, parityHooks);
 await parity.runParityAction(cdp("Input.dispatchMouseEvent", { type: "mouseReleased", x: 100, y: 50, clickCount: 1 }), state, parityHooks);
-assert.ok(log.some((l) => l.startsWith("steps:click@")));
+assert.ok(log.includes("page:inPageClick"));
+assert.deepEqual(brokerInput(), []);
 pr = await parity.runParityAction(cdp("Page.captureScreenshot", { format: "png" }), state, parityHooks);
 assert.equal(pr.result.result.data, "QUJD");
 await assert.rejects(parity.runParityAction(cdp("DOM.getDocument"), state, parityHooks), /DOM\.\* has none/);

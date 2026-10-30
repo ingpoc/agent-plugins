@@ -204,52 +204,14 @@ class NativeInputTests(unittest.TestCase):
         self.assertEqual(self.raise_(n, "Mine")["error_code"], "WINDOW_NOT_FOUND")
         self.assertFalse(any(p.get("raiseForInput") for _m, p in self.rpc.calls))
 
-    def test_steps_need_the_raised_window_of_the_same_session(self):
+    def test_real_input_steps_are_refused_in_page_only(self):
         n = self.make([win(18599)], {18599: "ACU input matrix - Comet"})
-        out = n.handle({"op": "steps", "sessionId": "lease-1", "params": {"window_id": 18599, "steps": [{"kind": "key", "key": "Tab"}]}})
-        self.assertEqual(out["error_code"], "WINDOW_NOT_RAISED")
         self.raise_(n)
-        out = n.handle({"op": "steps", "sessionId": "other", "params": {"window_id": 18599, "steps": [{"kind": "key", "key": "Tab"}]}})
-        self.assertEqual(out["error_code"], "WINDOW_NOT_RAISED")
+        for step in ({"kind": "key", "key": "Tab"}, {"kind": "text", "text": "hi"}, {"kind": "click", "x": 2658, "y": 844}):
+            out = n.handle({"op": "steps", "sessionId": "lease-1", "params": {"window_id": 18599, "steps": [step]}})
+            self.assertEqual(out["error_code"], "IN_PAGE_ONLY")
+        self.assertFalse([m for m, _ in self.rpc.calls if m in {"execute_plan", "press_key", "click", "type_text"}])
         self.assertEqual(n.handle({"op": "raise", "params": {}})["error_code"], "SESSION_REQUIRED")
-
-    def test_keys_and_keystroke_text_batch_into_one_plan_paste_restores_clipboard(self):
-        n = self.make([win(18599)], {18599: "ACU input matrix - Comet"})
-        self.raise_(n)
-        out = n.handle({"op": "steps", "sessionId": "lease-1", "params": {"window_id": 18599, "steps": [
-            {"kind": "key", "key": "Meta+a"}, {"kind": "key", "key": "Backspace"}, {"kind": "text", "text": "Hi!"},
-            {"kind": "text", "text": "é😀"}, {"kind": "key", "key": "Enter"},
-        ]}})
-        self.assertTrue(out["success"], out)
-        plans = [p["steps"] for m, p in self.rpc.calls if m == "execute_plan"]
-        self.assertEqual([s["params"]["key"] for s in plans[0]], ["cmd+a", "delete", "shift+h", "i", "shift+1"])
-        self.assertEqual([s["params"]["key"] for s in plans[1]], ["return"])
-        self.assertIn(("press_key", {"app": ci.COMET_BUNDLE_ID, "windowId": 18599, "key": "cmd+v"}), self.rpc.calls)
-        self.assertEqual(self.desk.put, ["é😀"])
-        self.assertEqual(self.desk.clipboard, [{"public.utf8-plain-text": b"user clip"}])
-        modes = [s.get("mode") for s in out["steps"] if s["kind"] == "text"]
-        self.assertEqual(modes, ["keystrokes", "paste"])
-        logged = self.log.read_text()
-        self.assertNotIn("é😀", logged)
-        self.assertNotIn("Hi!", logged)
-        self.assertIn('"mode": "paste"', logged)
-
-    def test_click_prefers_trusted_ax_press_then_coordinates(self):
-        n = self.make([win(18599)], {18599: "ACU input matrix - Comet"})
-        self.raise_(n)
-        out = n.handle({"op": "steps", "sessionId": "lease-1", "params": {"window_id": 18599, "steps": [
-            {"kind": "click", "x": 2658, "y": 844}, {"kind": "click", "x": 3000, "y": 1000}]}})
-        self.assertTrue(out["success"], out)
-        clicks = [p for m, p in self.rpc.calls if m == "click"]
-        self.assertEqual(clicks[0], {"app": ci.COMET_BUNDLE_ID, "windowId": 18599, "element_index": 45})
-        self.assertEqual(clicks[1]["x"], 3000.0)
-        self.assertEqual([s["ax_element"] for s in out["steps"]], [True, False])
-
-    def test_failed_key_plan_is_an_error(self):
-        n = self.make([win(18599)], {18599: "ACU input matrix - Comet"}, fail_keys=True)
-        self.raise_(n)
-        out = n.handle({"op": "steps", "sessionId": "lease-1", "params": {"window_id": 18599, "steps": [{"kind": "key", "key": "Tab"}]}})
-        self.assertEqual(out["error_code"], "KEY_FAILED")
 
     def test_release_restores_front_only_while_comet_still_front(self):
         n = self.make([win(18599)], {18599: "ACU input matrix - Comet"})
