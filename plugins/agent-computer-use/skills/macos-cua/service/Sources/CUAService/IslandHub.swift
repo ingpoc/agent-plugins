@@ -478,7 +478,8 @@ final class IslandHub {
                                       : source.title).prefix(48))
             let cap = store.cap(source)
             let needs = kind == "needs_you" && cap.rank >= AttentionCap.attention.rank
-            let defaultTTL: TimeInterval = (kind == "done" || kind == "error") ? 30
+            // Roster spec: done rows fade after 3 min, error rows stay 30 min (or until cleared).
+            let defaultTTL: TimeInterval = kind == "done" ? 180 : kind == "error" ? 1800
                 : source == .agentRoster ? 3600 : 600
             let ttl = min(3600, max(5, (j["ttl_s"] as? NSNumber)?.doubleValue ?? defaultTTL))
             let controls = ((j["controls"] as? [Any]) ?? []).compactMap { ($0 as? String)?.lowercased() }
@@ -487,7 +488,11 @@ final class IslandHub {
             let agent = IslandAgent(id: id, name: displayName, app: app, title: title,
                                     status: kind == "needs_you" ? "needs_you" : kind, needs_you: needs,
                                     parent_id: parentID, controls: Array(Set(controls)).sorted())
-            entries[id] = Entry(source: source, agent: agent, updated: now, ttl: ttl, started: started)
+            // Error rows show the error itself as the meta line (first line, 60 chars).
+            var shown = agent
+            if kind == "error", let line = (j["detail"] as? String)?.components(separatedBy: .newlines).first?
+                .trimmingCharacters(in: .whitespaces), !line.isEmpty { shown.local_detail = String(line.prefix(60)) }
+            entries[id] = Entry(source: source, agent: shown, updated: now, ttl: ttl, started: started)
             changed()
             return .ok(["id": rawId])
         default:

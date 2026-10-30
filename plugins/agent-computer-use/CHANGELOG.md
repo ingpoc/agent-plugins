@@ -9,6 +9,7 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 - Row click opens the Codex thread via `codex://threads/<id>`; otherwise it focuses the app. Hover shows repo · branch and tokens. Hide while sharing reduces rows to "Codex · working". VoiceOver reads "Codex, needs approval, <ask>. Luna, low, 4 minutes."
 - New read-only `sessions` MCP tool: everything the island hides (pids, hosts, cwd, repo, branch, CODEX_HOME basename, tokens, context %, idle threads, probes flagged `probe: true`), never emails or account ids.
 - Codex thread state comes from rollout events (task_started / task_complete / error); only rollouts updated in the last 30 min are read.
+- Hub error rows show the posted error as their meta line and stay 30 min; hub done rows fade after 3 min (was 30 s). Rollout tails widen to 4 MB when the last 256 KB holds no turn event, so a long instruction preamble no longer hides a working thread.
 
 ## 0.2.51 (2026-10-30)
 
