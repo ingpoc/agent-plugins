@@ -143,18 +143,13 @@ final class IslandGrokBotWatcher {
         Self.walk(botList, limit: 600) { e in
             if Self.string(e, kAXRoleAttribute) == kAXButtonRole as String, let l = Self.label(e) { labels.append(l) }
         }
-        // The screen-reader status sits two levels under the web area (a 1×1 pt live region).
+        // The app's ARIA role="status" live region (subrole AXApplicationStatus, 1×1 pt, near the
+        // top of the web area: about 25 nodes within 6 levels) says "<Bot> is working".
         if webArea == nil || Self.string(webArea!, kAXRoleAttribute) == nil {
             webArea = Self.find(appElement) { Self.string($0, kAXRoleAttribute) == "AXWebArea" }
         }
         var statuses: [String] = []
-        if let webArea {
-            for group in Self.children(webArea) {
-                for e in Self.children(group) where Self.string(e, kAXRoleAttribute) == kAXStaticTextRole as String {
-                    if let v = Self.string(e, kAXValueAttribute), v.hasSuffix(IslandGrokBotActivity.statusSuffix) { statuses.append(v) }
-                }
-            }
-        }
+        if let webArea { Self.collectStatus(webArea, depth: 0, inStatus: false, into: &statuses) }
         publish(IslandGrokBotActivity.workingBots(labels: labels, statuses: statuses))
     }
 
@@ -162,6 +157,14 @@ final class IslandGrokBotWatcher {
         guard names != last else { return }
         last = names
         onChange(names)
+    }
+
+    static func collectStatus(_ e: AXUIElement, depth: Int, inStatus: Bool, into out: inout [String]) {
+        guard depth <= 6 else { return }
+        let status = inStatus || string(e, kAXSubroleAttribute) == "AXApplicationStatus"
+        if status, string(e, kAXRoleAttribute) == kAXStaticTextRole as String,
+           let v = string(e, kAXValueAttribute), v.hasSuffix(IslandGrokBotActivity.statusSuffix) { out.append(v) }
+        for c in children(e) { collectStatus(c, depth: depth + 1, inStatus: status, into: &out) }
     }
 
     static func string(_ e: AXUIElement, _ attribute: String) -> String? {
