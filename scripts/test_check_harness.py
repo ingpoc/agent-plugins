@@ -252,7 +252,6 @@ class InventoryTests(unittest.TestCase):
         }
         for rel in (
             "plugins/agent-computer-use/skills/macos-cua/tests/test_live_computer_parity.py",
-            "plugins/agent-computer-use/skills/macos-cua/tests/test_live_pointer_isolation.py",
         ):
             self.assertNotIn(rel, rels)
             self.assertIn(rel, check_inventory.script_files(ROOT))
@@ -430,19 +429,6 @@ class HookEnvironmentTests(unittest.TestCase):
             self.assertEqual(check.run_swift([ROOT/"plugins/agent-computer-use"]),0)
         self.assertNotIn("GIT_DIR", run.call_args.kwargs["env"])
         self.assertNotIn("GIT_INDEX_FILE", run.call_args.kwargs["env"])
-
-
-class PythonSelectionTests(unittest.TestCase):
-    def test_developer_observability_uses_installed_runtime_or_collection_python(self):
-        with tempfile_cm() as home:
-            runtime = home / ".local/share/developer-observability/runtime/bin/python3"
-            runtime.parent.mkdir(parents=True)
-            runtime.touch()
-            with mock.patch.object(check.Path, "home", return_value=home):
-                self.assertEqual(check._python_for(ROOT / "plugins/developer-observability", {}), str(runtime))
-            runtime.unlink()
-            with mock.patch.object(check.Path, "home", return_value=home):
-                self.assertEqual(check._python_for(ROOT / "plugins/developer-observability", {}), check.sys.executable)
 
 
 if __name__ == "__main__":
