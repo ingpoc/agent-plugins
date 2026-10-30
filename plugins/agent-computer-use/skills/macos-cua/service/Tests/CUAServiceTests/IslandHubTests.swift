@@ -13,7 +13,7 @@ final class IslandHubTests: XCTestCase {
 
     override func setUp() {
         suite = "cua.island.hub.test.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
+        defaults = TestDefaults.make(suite)
         mem = MemoryTokenStore()
         store = IslandSettingsStore(defaults: defaults, tokens: mem)
     }

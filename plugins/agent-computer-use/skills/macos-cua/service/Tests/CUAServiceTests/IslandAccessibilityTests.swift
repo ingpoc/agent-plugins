@@ -60,7 +60,7 @@ final class IslandAccessibilityTests: XCTestCase {
 final class IslandAccessibilityModelTests: XCTestCase {
     func testShortcutPersistsKeyCodeAndModifiers() {
         let suite = "cua.shortcut.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
+        let defaults = TestDefaults.make(suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let store = IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore())
         let shortcut = IslandShortcut(keyCode: 11, modifiers: 0x900, character: "b")

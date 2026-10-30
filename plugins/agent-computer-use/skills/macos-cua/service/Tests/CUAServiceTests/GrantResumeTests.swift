@@ -9,7 +9,7 @@ final class GrantResumeTests: XCTestCase {
     private var d: UserDefaults!
 
     override func setUp() {
-        d = UserDefaults(suiteName: "GrantResumeTests-\(UUID().uuidString)")
+        d = TestDefaults.make("GrantResumeTests-\(UUID().uuidString)")
     }
 
     func testSurfaceRoundTripsAcrossRelaunch() {

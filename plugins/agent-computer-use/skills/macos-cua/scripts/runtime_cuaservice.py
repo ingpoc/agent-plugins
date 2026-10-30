@@ -38,31 +38,35 @@ def _cuaservice_error(message, **extra):
 
 
 def _cuaservice_target(pid):
-    """(bundle id, None) for exactly one running instance with ``pid``, else (None, error)."""
+    """(selector, bundle id, None) for the running instance with ``pid``, else (None, None, error).
+
+    The selector is the bundle id when ``pid`` is the only instance, and
+    ``pid:<n>`` when the app has several (a second TextEdit, a test fixture
+    beside the user's own window). CUAService resolves ``pid:<n>`` to exactly
+    that process, so a twin can never be picked by bundle id first-match.
+    """
     identity = _running_app_identity(f"pid:{int(pid)}")
     if not identity:
-        return None, _cuaservice_error(f"no running app with pid {pid}")
+        return None, None, _cuaservice_error(f"no running app with pid {pid}")
     app = identity.get("bundle_id")
     if not app:
-        return None, _cuaservice_error(
+        return None, None, _cuaservice_error(
             f"pid {pid} has no bundle id; CUAService cannot target it exactly"
         )
-    # CUAService resolves by bundle id (first match): never let it pick a
-    # different instance than the pid the caller resolved.
-    twins = _pids_for_app(app)
-    if twins != [int(pid)]:
-        return None, _cuaservice_error(
-            f"{app} has instances {twins}; CUAService cannot target pid {pid} exactly"
-        )
-    return app, None
+    return _cuaservice_selector(app, pid), app, None
+
+
+def _cuaservice_selector(app, pid):
+    """Bundle id for a single instance, else the exact ``pid:<n>`` selector."""
+    return app if _pids_for_app(app) == [int(pid)] else f"pid:{int(pid)}"
 
 
 def _cuaservice_rpc(pid, method, params=None):
     """One CUAService call for the app owning ``pid``. Errors come back as dicts."""
-    app, error = _cuaservice_target(pid)
+    selector, app, error = _cuaservice_target(pid)
     if error:
         return error
-    payload = {"app": app, **(params or {})}
+    payload = {"app": selector, **(params or {})}
     if method in _INPUT_METHODS and os.environ.get("MACOS_CUA_ALLOW_UNLANDED") == "1":
         payload["allow_unlanded"] = True  # caller opted in to a blind press
     try:

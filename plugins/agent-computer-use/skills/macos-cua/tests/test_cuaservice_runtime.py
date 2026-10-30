@@ -356,15 +356,16 @@ class CUAServiceRuntimeTests(unittest.TestCase):
         self.assertEqual(apps["apps"][0], {"name": "TextEdit", "bundle_id": BUNDLE, "pid": 4242,
                                            "running": True, "active": False})
 
-    def test_twin_instances_are_refused_before_dispatch(self):
+    def test_twin_instances_are_addressed_by_exact_pid(self):
         client = FakeClient({})
         with mock.patch.object(macos_cua, "_running_app_identity",
                                return_value={"pid": 4242, "bundle_id": BUNDLE}), \
              mock.patch.object(macos_cua, "_pids_for_app", return_value=[4242, 5151]), \
              mock.patch.object(macos_cua, "_cuaservice_client", return_value=client):
-            res = macos_cua.click(4242, 77, 1)
-        self.assertIn("instances", res["error"])
-        self.assertEqual(client.calls, [])
+            macos_cua.click(4242, 77, 1)
+        # Never the bundle id (CUAService would take its first match): the pid selector.
+        self.assertTrue(client.calls)
+        self.assertTrue(all(params.get("app") == "pid:4242" for _, params in client.calls))
 
     def test_no_index_input_reaches_cua_driver(self):
         import inspect

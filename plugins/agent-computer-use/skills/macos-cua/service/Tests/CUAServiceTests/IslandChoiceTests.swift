@@ -14,7 +14,7 @@ final class IslandChoiceTests: XCTestCase {
 
     override func setUp() {
         suite = "cua.island.choice.test.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
+        defaults = TestDefaults.make(suite)
         mem = MemoryTokenStore()
         store = IslandSettingsStore(defaults: defaults, tokens: mem)
         // Short path (sun_path ≤ 104) under ~/.cache, never /tmp.

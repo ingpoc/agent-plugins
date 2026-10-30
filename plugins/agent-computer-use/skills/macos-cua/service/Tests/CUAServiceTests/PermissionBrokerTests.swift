@@ -47,7 +47,7 @@ final class PermissionBrokerTests: XCTestCase {
     }
 
     func testKeychainStatusFromFlagsAndMetadataOnly() {
-        let d = UserDefaults(suiteName: "kc-\(UUID().uuidString)")!
+        let d = TestDefaults.make("kc-\(UUID().uuidString)")!
         KeychainGrant.defaults = d
         KeychainGrant.existsOverride = { q in
             q[kSecAttrAccount as String] == "samantha" || q[kSecAttrLabel as String] == "xai-api"

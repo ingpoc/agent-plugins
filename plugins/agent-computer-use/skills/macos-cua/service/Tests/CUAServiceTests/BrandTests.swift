@@ -134,7 +134,7 @@ final class BrandTests: XCTestCase {
         try save(r.cgImage, "menubar-status-icon-2x-dark.png")
         let z = ImageRenderer(content: bar); z.scale = 8
         if let big = z.cgImage { try save(big.cropping(to: CGRect(x: 0, y: 0, width: Int(48 * 8), height: big.height)), "menubar-status-icon-zoom-dark.png") }
-        let store = IslandSettingsStore(defaults: UserDefaults(suiteName: "cua.brand.render.\(UUID().uuidString)")!, tokens: MemoryTokenStore())
+        let store = IslandSettingsStore(defaults: TestDefaults.make("cua.brand.render.\(UUID().uuidString)")!, tokens: MemoryTokenStore())
         let about = ImageRenderer(content: IslandSettingsRoot(store: store, tab: .about, rendering: true).environment(\.colorScheme, .dark))
         about.scale = 2
         try save(about.cgImage, "settings-about-brand-dark.png")

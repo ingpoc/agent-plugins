@@ -2,6 +2,13 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.50 (2026-10-30)
+
+- Dynamic Island stays visible while the Dock is showing. The Mission Control check counted the Dock's own window (display-sized, Dock level 20, on screen whenever the Dock is shown), so with "Hide in Mission Control" on the island was ordered out whenever the Dock appeared, and permanently with Dock auto-hide off. Mission Control is now detected from Window Server's `ExposeShieldWindow` (layer 19). Island hide/show transitions are logged with their reason (`island_env_hidden` / `island_env_shown`).
+- App resolution skips app extensions and XPC services. With only WhatsApp's `ServiceExtension.appex` running, "WhatsApp" resolved to the extension and the launch failed; it now resolves and launches `WhatsApp.app`.
+- Several instances of one app (a second TextEdit beside yours): input and state calls address the exact process with a `pid:<n>` selector instead of refusing. CUAService resolves `pid:<n>` to that process only.
+- Tests: every test `UserDefaults` suite is removed with its plist at the end of the run (runs used to leave one plist per suite in `~/Library/Preferences`), and unit tests no longer write to the live `~/.cache/macos-cua/samantha-activity.jsonl`.
+
 ## 0.2.49 (2026-10-30)
 
 - Dynamic Island accessibility: the pill and the agent circle are single VoiceOver buttons with labels, values and a press action; the panel reports a floating-window subrole.

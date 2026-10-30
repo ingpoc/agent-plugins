@@ -696,14 +696,27 @@ extension NSScreen {
 }
 
 enum IslandEnvironment {
-    /// Mission Control: the Dock shows full-screen windows at layer ≥ 18 covering a display.
+    /// Mission Control: Window Server shows a display-sized shield (`ExposeShieldWindow`, WindowManager,
+    /// layer 19) over each display. The Dock's own window is ALSO display-sized at the Dock level (20) and is
+    /// on screen whenever the Dock is showing, so it must never count — counting it hid the island for as
+    /// long as the Dock was visible (always, with Dock auto-hide off).
     static func missionControlActive() -> Bool {
         guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] else { return false }
         let displays = NSScreen.screens.compactMap { $0.displayID.map(CGDisplayBounds) }
-        return list.contains { w in
-            guard (w[kCGWindowOwnerName as String] as? String) == "Dock",
+        return missionControlActive(windows: list, displays: displays)
+    }
+
+    static let dockWindowLevel = Int(CGWindowLevelForKey(.dockWindow))
+
+    static func missionControlActive(windows: [[String: Any]], displays: [CGRect]) -> Bool {
+        windows.contains { w in
+            let owner = w[kCGWindowOwnerName as String] as? String ?? ""
+            guard owner == "Dock" || owner == "WindowManager",
                   let layer = w[kCGWindowLayer as String] as? Int, layer >= 18, layer < 25,
                   let b = w[kCGWindowBounds as String] as? [String: CGFloat] else { return false }
+            if owner == "Dock" && (layer == dockWindowLevel || (w[kCGWindowName as String] as? String) == "Dock") {
+                return false  // the Dock itself, shown or revealed: not Mission Control
+            }
             let r = CGRect(x: b["X"] ?? -1, y: b["Y"] ?? -1, width: b["Width"] ?? 0, height: b["Height"] ?? 0)
             return displays.contains { abs($0.minX - r.minX) < 2 && abs($0.minY - r.minY) < 2
                 && abs($0.width - r.width) < 2 && abs($0.height - r.height) < 2 }

@@ -13,7 +13,7 @@ final class IslandReviewTests: XCTestCase {
 
     override func setUp() {
         suite = "cua.island.review.test.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
+        defaults = TestDefaults.make(suite)
         store = IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore())
         try? store.rotateToken(.grokBot); try? store.rotateToken(.cursor); try? store.rotateToken(.codex)
         for src in [AgentSource.grokBot, .cursor, .codex] {

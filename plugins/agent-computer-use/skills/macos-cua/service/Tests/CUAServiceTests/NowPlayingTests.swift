@@ -25,7 +25,7 @@ final class NowPlayingTests: XCTestCase {
 
     override func setUp() {
         suite = "cua.island.np.test.\(UUID().uuidString)"
-        defaults = UserDefaults(suiteName: suite)
+        defaults = TestDefaults.make(suite)
         store = IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore())
     }
 

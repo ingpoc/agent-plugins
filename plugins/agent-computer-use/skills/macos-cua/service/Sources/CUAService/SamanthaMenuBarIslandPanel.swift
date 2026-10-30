@@ -201,6 +201,10 @@ final class SamanthaMenuBarIslandPanel {
         let mc = hideInMissionControl && IslandEnvironment.missionControlActive()
         let hidden = fullscreenStreak >= 2 || mc
         if hidden == envHidden && panel.isVisible == !hidden { return }
+        if hidden != envHidden {
+            SamanthaActivityLog.startup(phase: hidden ? "island_env_hidden" : "island_env_shown", status: "ok",
+                                        detail: hidden ? (mc ? "mission_control" : "fullscreen") : "")
+        }
         envHidden = hidden
         if hidden {
             panel.orderOut(nil)

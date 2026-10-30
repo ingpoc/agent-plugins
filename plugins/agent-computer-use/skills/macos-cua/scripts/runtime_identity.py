@@ -12,6 +12,24 @@ from __future__ import annotations
 import re
 
 
+def _is_app_extension(app):
+    """True for app extensions and XPC services (``.appex``/``.xpc`` bundles).
+
+    WhatsApp's ``ServiceExtension.appex`` runs on its own with
+    ``localizedName`` "WhatsApp". Treating it as the app made a cold WhatsApp
+    resolve to the extension, and activating it failed with
+    ``LSCopyApplicationURLsForBundleIdentifier() failed``. Extensions are never
+    a UI target; the regular ``.app`` is.
+    """
+    try:
+        url = app.bundleURL()
+        path = str(url.path() if url is not None else "")
+    except Exception:
+        path = ""
+    path = path.rstrip("/").lower()
+    return path.endswith(".appex") or path.endswith(".xpc")
+
+
 def _running_app_identity(app_name):
     """Resolve a running app by bundle/name before inspecting window titles.
 
@@ -32,6 +50,8 @@ def _running_app_identity(app_name):
         pid = int(app.processIdentifier())
         name = str(app.localizedName() or "")
         bundle_id = str(app.bundleIdentifier() or "")
+        if requested_pid is None and _is_app_extension(app):
+            continue
         if requested_pid is not None:
             if pid != requested_pid:
                 continue
@@ -133,6 +153,8 @@ def _live_instances():
     except ImportError:
         return list(found.values())
     for app in NSWorkspace.sharedWorkspace().runningApplications():
+        if _is_app_extension(app):
+            continue
         record(
             app.processIdentifier(),
             app.localizedName(),

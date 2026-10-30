@@ -21,7 +21,7 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
     override func tearDown() {
         IslandLayoutRecorder.enabled = false
         IslandLayoutRecorder.shared.reset()
-        for s in suites { UserDefaults(suiteName: s)?.removePersistentDomain(forName: s) }
+        for s in suites { TestDefaults.make(s)?.removePersistentDomain(forName: s) }
         suites = []
     }
 
@@ -30,7 +30,7 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
     private func store() -> IslandSettingsStore {
         let s = "cua.island.settings.gate.\(UUID().uuidString)"
         suites.append(s)
-        return IslandSettingsStore(defaults: UserDefaults(suiteName: s)!, tokens: MemoryTokenStore())
+        return IslandSettingsStore(defaults: TestDefaults.make(s)!, tokens: MemoryTokenStore())
     }
 
     static let panes = SettingsTab.panes
