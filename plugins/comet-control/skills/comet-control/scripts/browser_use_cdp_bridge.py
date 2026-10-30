@@ -67,6 +67,7 @@ class BrowserUseCDPBridge:
         self._dom_shim = False
         self._dom_shim_nodes: dict[int, str] = {}
         self._dom_shim_next = 1000
+        self.last_upload: dict[str, Any] | None = None
 
     def start(self, env_file: Path) -> dict[str, str]:
         self._server_thread.start()
@@ -293,15 +294,21 @@ class BrowserUseCDPBridge:
                 " for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);"
                 " dt.items.add(new File([u], m.name, {type: m.type, lastModified: m.lastModified})); }"
                 " el.files = dt.files;"
+                # Verify BEFORE dispatch: pages like X read the file in their change
+                # handler and reset input.value synchronously (files -> 0), so a
+                # post-dispatch readback is not evidence of failure.
+                " const names = [...el.files].map(f => f.name), sizes = [...el.files].map(f => f.size);"
                 " el.dispatchEvent(new Event('input', {bubbles:true, composed:true}));"
                 " el.dispatchEvent(new Event('change', {bubbles:true}));"
-                " return {ok:true, count: el.files.length, names: [...el.files].map(f => f.name), sizes: [...el.files].map(f => f.size)};"
+                " const after = el.isConnected ? (el.files.length ? 'kept' : 'reset_by_page') : 'replaced_by_page';"
+                " return {ok:true, count: names.length, names, sizes, after};"
                 " } finally { for (const m of metas) delete store[m.key]; } })()"
             ) or {}
             want = [m["size"] for m in metas]
             if not done.get("ok") or done.get("count") != len(metas) or done.get("sizes") != want:
-                raise CDPError(_UPLOAD_FAIL + f"{selector}: attach result {done!r}, expected sizes {want}")
+                raise CDPError(_UPLOAD_FAIL + f"{selector}: files before dispatch {done!r}, expected sizes {want}")
             keys = []
+            self.last_upload = {"selector": selector, "sizes": want, "after": done.get("after")}
         finally:
             if keys:
                 try:
