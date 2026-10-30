@@ -257,8 +257,16 @@ enum IslandCodexThreads {
         guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
         defer { try? handle.close() }
         guard let size = try? handle.seekToEnd() else { return nil }
-        let start = size > 256 * 1024 ? size - 256 * 1024 : 0
-        guard (try? handle.seek(toOffset: start)) != nil, let data = try? handle.readToEnd() else { return nil }
+        // Rollouts open with ~250 KB of instructions, so a short turn's task_started can sit
+        // before the last 256 KB; widen to 4 MB when the tail holds no lifecycle event.
+        var start = size > 256 * 1024 ? size - 256 * 1024 : 0
+        guard (try? handle.seek(toOffset: start)) != nil, var data = try? handle.readToEnd() else { return nil }
+        if start > 0, !["task_started", "task_complete", "turn_aborted"].contains(where: {
+            data.range(of: Data("\"\($0)\"".utf8)) != nil }) {
+            start = size > 4 * 1024 * 1024 ? size - 4 * 1024 * 1024 : 0
+            guard (try? handle.seek(toOffset: start)) != nil, let wider = try? handle.readToEnd() else { return nil }
+            data = wider
+        }
         if start > 0, let newline = data.firstIndex(of: 10) { return Data(data[data.index(after: newline)...]) }
         return data
     }

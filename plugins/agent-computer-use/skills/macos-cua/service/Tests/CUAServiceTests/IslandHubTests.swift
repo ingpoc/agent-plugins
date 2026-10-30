@@ -206,9 +206,16 @@ final class IslandHubTests: XCTestCase {
         let t0 = Date()
         _ = hub.handle(req("POST", "/api/island/publish", token: t, json: ["source": "grok", "id": "a", "kind": "done", "title": "Booked"]), port: 8777, now: t0)
         _ = hub.handle(req("POST", "/api/island/publish", token: t, json: ["source": "grok", "id": "b", "title": "Research"]), port: 8777, now: t0)
-        XCTAssertEqual(hub.compose(now: t0).agents.count, 2)
-        hub.expire(now: t0.addingTimeInterval(31))
-        XCTAssertEqual(hub.compose(now: t0.addingTimeInterval(31)).agents.map(\.title), ["Research"], "done rows expire after 30 s")
+        _ = hub.handle(req("POST", "/api/island/publish", token: t, json: ["source": "grok", "id": "c", "kind": "error", "title": "Run tests",
+                                                                           "detail": "live-fd: 44 → 51 fds\nmore"]), port: 8777, now: t0)
+        XCTAssertEqual(hub.compose(now: t0).agents.count, 3)
+        let failed = try XCTUnwrap(hub.compose(now: t0).agents.first { $0.title == "Run tests" })
+        XCTAssertEqual(IslandAgentRows.statusText(failed), "live-fd: 44 → 51 fds", "error meta is the error itself")
+        hub.expire(now: t0.addingTimeInterval(181))
+        XCTAssertEqual(hub.compose(now: t0.addingTimeInterval(181)).agents.map(\.title).sorted(), ["Research", "Run tests"],
+                       "done rows fade after 3 min; error rows stay")
+        hub.expire(now: t0.addingTimeInterval(1801))
+        XCTAssertFalse(hub.compose(now: t0.addingTimeInterval(1801)).agents.contains { $0.title == "Run tests" }, "error rows end at 30 min")
         _ = hub.handle(req("POST", "/api/island/publish", token: t, json: ["source": "grok", "id": "b", "kind": "clear"]), port: 8777)
         XCTAssertTrue(hub.compose().agents.isEmpty)
     }

@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.53 (2026-10-30)
+
+- Hub error rows show the posted error as their meta line and stay 30 min; hub done rows fade after 3 min (was 30 s). Rollout tails widen to 4 MB when the last 256 KB holds no turn event, so a long instruction preamble no longer hides a working thread.
+
 ## 0.2.52 (2026-10-30)
 
 - Dynamic Island roster rebuilt to the UI & UX spec: only sessions a person acts on (needs you, error, working, done within 3 min); idle threads, PIDs, app-server hosts, the "Detected local processes" section, "unknown" fields and ACU's own probe runs are gone. Max 3 rows plus "+N more"; needs-you rows are never capped. Order: needs you (oldest ask first), error, working (newest first), done.

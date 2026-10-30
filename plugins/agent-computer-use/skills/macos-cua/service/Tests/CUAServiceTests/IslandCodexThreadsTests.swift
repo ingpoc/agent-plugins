@@ -140,4 +140,18 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertEqual(IslandAgentRows.redactedTitle(row), "Codex · working")
         XCTAssertEqual(IslandAgentRows.redactedTitle(ask1), "Grok · needs you")
     }
+
+    /// A long instruction preamble pushes task_started out of the 256 KB tail; the tail widens.
+    func testTailWidensPastLongPreamble() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("tail-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let path = dir.appendingPathComponent("rollout.jsonl").path
+        var text = #"{"timestamp":"2026-10-30T13:59:45.419Z","type":"event_msg","payload":{"type":"task_started"}}"# + "\n"
+        let filler = #"{"type":"response_item","payload":{"type":"message","text":"\#(String(repeating: "x", count: 1000))"}}"#
+        for _ in 0..<300 { text += filler + "\n" }
+        try text.write(toFile: path, atomically: true, encoding: .utf8)
+        let tail = try XCTUnwrap(IslandCodexThreads.tail(path))
+        XCTAssertEqual(IslandCodexThreads.rolloutState(tail, age: 30).state, "working")
+    }
 }
