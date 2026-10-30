@@ -52,7 +52,6 @@ displays = importlib.util.module_from_spec(DISPLAYS_SPEC)
 DISPLAYS_SPEC.loader.exec_module(displays)
 
 
-
 WORKFLOW_SCRIPT = Path(__file__).parents[1] / "scripts" / "workflow.py"
 WORKFLOW_SPEC = importlib.util.spec_from_file_location("workflow", WORKFLOW_SCRIPT)
 workflow = importlib.util.module_from_spec(WORKFLOW_SPEC)
@@ -1691,11 +1690,8 @@ class CursorProofTests(unittest.TestCase):
             + chunk(b"IEND", b"")
         )
 
-
-
-
-    def test_glide_failure_blocks_when_no_ax_element(self):
-        """When no AX element is found and glide fails, hard-fail is correct."""
+    def test_click_label_pointer_fails_when_no_ax_element(self):
+        """Fail when no matching accessibility element is found."""
         snapshot = {
             "elements": [
                 {"role": "AXWindow", "frame": {"x": 100, "y": 200, "w": 400, "h": 600}},
@@ -1709,8 +1705,6 @@ class CursorProofTests(unittest.TestCase):
                 10, 20, "Missing", snapshot_data=snapshot, app_name="App"
             )
         self.assertFalse(result["ok"])
-
-
 
     def test_cleanup_driver_cursors_never_touches_retired_cua_driver(self):
         client = mock.Mock()
@@ -2360,8 +2354,6 @@ class CursorProofTests(unittest.TestCase):
         self.assertNotIn('"start_session"', source)
 
 
-
-
 class KeyboardTests(unittest.TestCase):
     def test_background_cmd_a_requires_native_text_readback_when_available(self):
         client = mock.Mock()
@@ -2626,8 +2618,6 @@ class StateEnrichmentTests(unittest.TestCase):
         )
         with self.assertRaises(TypeError):
             macos_cua.choose_walk_roots(windows, [], menus=["ctx"], menubar="bar")
-
-
 
     def test_display_packet_reports_asleep_configured_without_failing(self):
         active = [
@@ -3065,13 +3055,12 @@ class PlanEfficiencyTests(unittest.TestCase):
         }
 
     def test_mutating_plan_requires_assertion_before_dispatch(self):
-        if True:
-            result = macos_cua.run_actions(
-                10,
-                20,
-                {"actions": [{"action": "click", "label": "Go"}]},
-                app_name="Fixture",
-            )
+        result = macos_cua.run_actions(
+            10,
+            20,
+            {"actions": [{"action": "click", "label": "Go"}]},
+            app_name="Fixture",
+        )
         self.assertFalse(result["ok"])
         self.assertEqual(result["code"], "assertion_required")
         self.assertEqual(result["unasserted_steps"], [1])
