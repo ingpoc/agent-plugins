@@ -1,0 +1,18 @@
+{
+  "name": "context-ledger",
+  "version": "0.1.33",
+  "description": "Local-first decision memory for agents: save the decisions and lessons from critical or recurring tasks, then look them up later through a scoped MCP server over a local SQLite ledger.",
+  "author": {
+    "name": "ingpoc",
+    "url": "https://github.com/ingpoc"
+  },
+  "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/context-ledger",
+  "repository": "https://github.com/ingpoc/agent-plugins",
+  "license": "MIT",
+  "keywords": [
+    "context-ledger",
+    "context ledger"
+  ],
+  "mcpServers": "./.cursor-plugin/mcp.json",
+  "logo": "assets/logo.svg"
+}

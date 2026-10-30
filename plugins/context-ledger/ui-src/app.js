@@ -51,7 +51,7 @@ if(EMBED) window.addEventListener("message",ev=>{ if(ev.source!==parent) return;
 /* ---------- real ledger data -> view model ---------- */
 const sid=id=>id?id.slice(0,8):"–";
 const OKIND={helped:"helped",unmarked:"neutral",not_helped:"not_helped",misled:"misled"};
-const TIER={trusted:{label:"trusted (self-reported)",badge:"ok",title:"3+ distinct tasks whose latest final, evidenced outcome reports this helped, failure rate 10% or less. The applying agents' own record: not independent verification"},user_decision:{label:"user decision",badge:"acc",title:"Guru's attested decision; ranked above hints"},hint:{label:"hint",badge:"",title:"Not yet self-reported trusted: fewer than 3 helped observations from distinct tasks, or more than 10% failures"}};
+const TIER={trusted:{label:"trusted (self-reported)",badge:"ok",title:"3+ distinct tasks whose latest final, evidenced outcome reports this helped, failure rate 10% or less. The applying agents' own record: not independent verification"},user_decision:{label:"user decision",badge:"acc",title:"The owner's attested decision; ranked above hints"},hint:{label:"hint",badge:"",title:"Not yet self-reported trusted: fewer than 3 helped observations from distinct tasks, or more than 10% failures"}};
 let DECISIONS=[], EVENTS=[], RAW=[], AGENTS=[], STATS=null, ENTS=[], LOADED=false;
 const byId={};
 const WEEKS=8, wkStart=i=>NOW-(WEEKS-i)*7*DAY;
