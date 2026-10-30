@@ -12,6 +12,9 @@ import sys
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 APP = Path('/Applications/Agent Computer Use.app')
 RECORD = 'Contents/Resources/runtime-contract.json'
+# Files a harness writes into an installed plugin root that are not part of the package:
+# Cursor's plugin cache marks a finished download with `.cache-complete`.
+HARNESS_MARKERS = {'.cache-complete'}
 
 
 def package_identity(root: Path) -> dict:
@@ -21,8 +24,10 @@ def package_identity(root: Path) -> dict:
         children[:] = [d for d in children if d not in
                        {'.git', '.build', '__pycache__', 'Tests', 'tests', '.swiftpm',
                         'run', '.ruff_cache', '.pytest_cache'}]
+        at_root = Path(directory) == root
         paths.extend(Path(directory) / f for f in files
-                     if f != '.DS_Store' and not f.endswith('.pyc'))
+                     if f != '.DS_Store' and not f.endswith('.pyc')
+                     and not (at_root and f in HARNESS_MARKERS))
     for path in sorted(set(paths)):
         digest.update(path.relative_to(root).as_posix().encode() + b'\0')
         digest.update(path.read_bytes() + b'\0')

@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.56 (2026-10-30)
+
+- Cursor IDE marketplace installs work: Cursor's plugin cache writes `.cache-complete` into the plugin root, which the runtime contract hashed as package content, so the MCP launcher failed with `RUNTIME_CONTRACT_FAILED: package/app build mismatch` and Cursor showed "Connection closed". Harness marker files at the plugin root are no longer part of the build identity.
+
 ## 0.2.55 (2026-10-30)
 
 - Approval cards are sticky, so in 0.2.54 a click on the pill while an approval showed only pinned the ask card. A click now opens the roster with the needs-you row on top (choice cards being typed into keep their clicks); ⌃⌘I still opens the ask card.
