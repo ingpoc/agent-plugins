@@ -32,9 +32,7 @@ ledger only for backend selection, regression review, or a parity claim.
 | Multi-step proof | Agent-managed loop | One-process asserted plan, failure capture, final assertions | Above |
 | Token efficiency | AX diffs by default; screenshots after AX miss | Compact packets, `--query`/`--max`, `--diff` after first observe, AX-only MCP `state` | Parity after `--diff` |
 | MCP surface | Sky client + persistent `node_repl` (~10 methods). Standalone `[mcp_servers.computer-use]` is `enabled=false` so tools are not double-loaded | Packaged `./bin/agent-computer-use-mcp` (cwd `.`): **`state`**, **`act`** only (compact deltas + failure taxonomy; ≥0.2.18). Raw `cua-driver-mcp` is diagnostic-only. Agent loop is MCP; `macos-cua.py` is bench/debug | Parity on catalog size; asserted MCP/`run` batches still cheaper |
-| Visible agent pointer | Host-integrated software cursor; not evidence of a second system pointer | Labeled Hermes overlay is default for labeled plans and must acknowledge field focus before typing; coordinate CGEvents still use the one system pointer | Honest boundary |
-| PiP/operator state | Host PiP and Computer Use indicator | Signed all-Spaces PiP, exact target ring, app/harness/status label, Hide/Refresh/End | Above |
-| Menu bar | Host-owned control indication | Cursor icon plus controlled app; detailed menu and session actions | Above |
+| Visible agent pointer | Host-integrated software cursor; not evidence of a second system pointer | CUAService owns the overlay and pointer landing; coordinate CGEvents still use the one system pointer | Honest boundary |
 | Secondary displays | Runtime follows target | Explicit display discovery, overlay alignment, local/global conversion, pinned display option | Above |
 | Harness portability | OpenAI host runtime | Shell/driver contract plus shared links for Codex, Cursor, and other harnesses | Above |
 | Safety | Action-time confirmation policy | Same action-time boundary in `references/safety.md` | Parity |
@@ -54,20 +52,7 @@ ledger only for backend selection, regression review, or a parity claim.
 
 ## Live evidence
 
-- Bundled Computer Use read Calculator and the `macos-cua Operator` panel live;
-  the latter exposed its floating window and Hide, Refresh, and End controls.
-- `tests/test_live_computer_parity.py` proved Calculator stays on the Dell
-  secondary display, the labeled Hermes pointer and proof image, compact state,
-  signed operator state, text value/selection/type/key behavior, advertised
-  secondary action, visible menu disclosure, scroll, double click, drag,
-  coordinate click, right click, and clean closeout.
-- `tests/test_live_pointer_isolation.py` proves the overlay and AX dispatch
-  path. It does not prove coordinate isolation. The driver contract says
-  `element_index` is AX/no cursor move/no focus steal, while x/y is CGEvent.
-  `--preserve-pointer` only restores position after that interruptive interval.
-- `scripts/validate-macos-cua.py --live --progress` additionally owns Finder
-  state/scroll, operator menu Hide/Show, Cursor harness state, and launchd
-  self-healing checks.
+Past results predate the CUAService-only cursor. Run the current live gates and compare captures before making a parity claim.
 
 ## Aim
 
@@ -83,5 +68,5 @@ equal-weight live suite, portable CLI.
 
 Parity is valid only when static validation, the live parity test, the opt-in
 live validator, and current visual capture all pass against the installed
-signed operator and live cua-driver. Source inspection or compilation alone is
+CUAService and live cua-driver. Source inspection or compilation alone is
 not evidence of Computer Use parity.
