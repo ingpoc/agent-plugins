@@ -94,7 +94,7 @@ def mcp(plugin, *, compute=False):
     rows = {r['id']:r for line in result.stdout.splitlines()
             if (r := json.loads(line)).get('id') is not None}
     version = rows[1]['result']['serverInfo']['version']
-    if {t['name'] for t in rows[2]['result']['tools']} != {'state','act'}:
+    if {t['name'] for t in rows[2]['result']['tools']} != {'state','act','sessions'}:
         raise RuntimeError('installed MCP tool contract differs')
     def data(identifier):
         result = rows[identifier]['result']
