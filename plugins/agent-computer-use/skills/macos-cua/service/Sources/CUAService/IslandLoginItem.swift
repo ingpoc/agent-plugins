@@ -16,8 +16,8 @@ extension IslandLoginItem {
 @MainActor
 final class SystemIslandLoginItem: IslandLoginItem {
     var status: SMAppService.Status { SMAppService.mainApp.status }
-    func register() throws { try SMAppService.mainApp.register() }
-    func unregister() throws { try SMAppService.mainApp.unregister() }
+    func register() throws { try PermissionBroker.registerLoginItem() }
+    func unregister() throws { try PermissionBroker.unregisterLoginItem() }
     func openSettings() { SMAppService.openSystemSettingsLoginItems() }
 }
 
