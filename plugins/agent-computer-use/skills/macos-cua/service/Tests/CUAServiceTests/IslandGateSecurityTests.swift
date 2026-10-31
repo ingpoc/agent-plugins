@@ -27,9 +27,12 @@ final class IslandGateSecurityTests: XCTestCase {
         XCTAssertThrowsError(try verifier.verify(value, deviceID: device, now: now.addingTimeInterval(14 * 86400 + 1)))
     }
     func testFutureIssuedAtRejected() throws { XCTAssertThrowsError(try verifier.verify(token(iat: now.timeIntervalSince1970 + 86401), deviceID: device, now: now)) }
-    func testProductionPlaceholderFailsClosed() throws { XCTAssertThrowsError(try IslandGateVerifier(publicKey: IslandGateEnvironment.productionKey).verify(token(), deviceID: device, now: now)) }
-    func testProductionKeyPlaceholderDocumentedForReleaseChecklist() {
-        XCTAssertEqual(IslandGateEnvironment.productionKey, Data(repeating: 0, count: 32))
+    func testProductionPlaceholderFailsClosed() throws { XCTAssertThrowsError(try IslandGateVerifier(publicKey: IslandGateEnvironment.placeholderKey).verify(token(), deviceID: device, now: now)) }
+    func testProductionKeyIsPinnedAndValid() throws {
+        XCTAssertNotEqual(IslandGateEnvironment.productionKey, IslandGateEnvironment.placeholderKey)
+        XCTAssertNoThrow(try Curve25519.Signing.PublicKey(rawRepresentation: IslandGateEnvironment.productionKey))
+        // A token signed by another key must still fail against the pinned production key.
+        XCTAssertThrowsError(try IslandGateVerifier(publicKey: IslandGateEnvironment.productionKey).verify(token(), deviceID: device, now: now))
     }
     func testReleaseOverridesIgnored() {
         let name = "IslandGateTests.\(UUID())"

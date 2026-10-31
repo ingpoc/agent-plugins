@@ -13,8 +13,10 @@ extension Data {
 
 struct IslandGateEnvironment {
     static let productionURL = URL(string: "https://acu-gate.onrender.com")!
-    // SET AT RELEASE: fail closed until the production Ed25519 public key is pinned.
-    static let productionKey = Data(repeating: 0, count: 32)
+    /// All-zero key: never valid; the verifier fails closed on it.
+    static let placeholderKey = Data(repeating: 0, count: 32)
+    /// Production Ed25519 public key (raw 32 bytes) for https://acu-gate.onrender.com; private half lives only in Render and the Mini Keychain (acu-gate/entitlement_signing_key).
+    static let productionKey = Data(base64Encoded: "e4/hGS/yXjH634AFVcIdrDJubMJ9/p6sG3ud1akMrqo=")!
     let baseURL: URL
     let publicKey: Data
 
@@ -56,7 +58,7 @@ struct IslandGateVerifier {
     let publicKey: Data
     func verify(_ token: String, deviceID: String, now: Date = Date()) throws -> IslandGateEntitlement {
         let parts = token.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 2, publicKey != IslandGateEnvironment.productionKey,
+        guard parts.count == 2, publicKey != IslandGateEnvironment.placeholderKey, publicKey.count == 32,
               let payload = Data(gateBase64URL: String(parts[0])), let signature = Data(gateBase64URL: String(parts[1])),
               let key = try? Curve25519.Signing.PublicKey(rawRepresentation: publicKey),
               key.isValidSignature(signature, for: Data(parts[0].utf8)) else { throw IslandGateFailure(code: "invalid_entitlement") }

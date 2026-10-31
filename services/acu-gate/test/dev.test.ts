@@ -26,7 +26,7 @@ test("dev-local and gate-admin list", async (t) => {
   });
   const { stdout } = await execFileAsync(
     "node",
-    [join(process.cwd(), "scripts/gate-admin.mjs"), "list", "--base", local.base],
+    [join(process.cwd(), "scripts/gate-admin.mjs"), "--wake", "list", "--base", local.base],
     {
       encoding: "utf8",
       env: { ...process.env, ACU_GATE_ADMIN_TOKEN_FILE: tokenFile },

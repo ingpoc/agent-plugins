@@ -28,7 +28,8 @@ function parseArgs(argv) {
       out.flags.base = argv[++i];
       continue;
     }
-    if (arg === "--post-ok" || arg === "--post-not-ok") {
+    // Boolean flags never take a value (`--wake list` must not read "list" as --wake's value).
+    if (["--wake", "--follow", "--verified", "--post-ok", "--post-not-ok"].includes(arg)) {
       out.flags[arg.slice(2).replace(/-/g, "_")] = true;
       continue;
     }

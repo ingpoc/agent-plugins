@@ -19,7 +19,7 @@ final class IslandGateStateTests: XCTestCase {
         return payload + "." + (try signingKey.signature(for: Data(payload.utf8))).gateBase64URL
     }
     private func gate(store: IslandGateMemoryStore = .init()) -> IslandGate {
-        IslandGate(store: store, client: IslandGateURLProtocol.client(), publicKey: signingKey.publicKey.rawRepresentation, device: device)
+        IslandGate(store: store, client: IslandGateURLProtocol.client(), publicKey: signingKey.publicKey.rawRepresentation, device: device, openURL: { _ in })
     }
     func testRejectedCopyForReasonCodes() {
         for code in ["follow_missing", "post_missing", "post_author_mismatch", "post_too_old", "claim_expired"] {

@@ -51,7 +51,7 @@ final class IslandGateColdStartTests: XCTestCase {
         XCTAssertEqual(URLComponents(url: config.linkedin.share_url, resolvingAgainstBaseURL: false)?.queryItems?.first?.value, links[1])
         XCTAssertEqual(config.poll_seconds, 60)
         XCTAssertEqual(config.check_eta_text, preset["check_eta_text"] as? String)
-        XCTAssertNil(config.linkedInFollowURL)
+        XCTAssertEqual(config.linkedInFollowURL?.absoluteString, "https://www.linkedin.com/in/gurusharangupta/")
     }
 
     func testShareActionsUseBundledURLsWithoutNetwork() {
@@ -64,8 +64,8 @@ final class IslandGateColdStartTests: XCTestCase {
         gate.useLinkedInRoute()
         gate.openFollow()
         gate.openShare()
-        XCTAssertEqual(opened.last, IslandGateConfig.bundled.linkedin.share_url)
-        XCTAssertEqual(opened.count, 3)
+        XCTAssertEqual(Array(opened.suffix(2)), [URL(string: "https://www.linkedin.com/in/gurusharangupta/")!, IslandGateConfig.bundled.linkedin.share_url])
+        XCTAssertEqual(opened.count, 4)
     }
 
     func testPrefetchRetriesWithoutChangingStateAndReplacesDefault() async throws {

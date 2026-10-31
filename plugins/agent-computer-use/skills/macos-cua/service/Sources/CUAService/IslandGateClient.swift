@@ -30,7 +30,7 @@ extension IslandGateConfig {
         func encoded(_ value: String) -> String { value.addingPercentEncoding(withAllowedCharacters: allowed)! }
         return IslandGateConfig(
             x: X(handle: "gurusharan", profile_url: URL(string: "https://x.com/gurusharan")!, intent_url: URL(string: "https://x.com/intent/post?text=\(encoded(xText))")!, preset_text: xText),
-            linkedin: LinkedIn(share_url: URL(string: "https://www.linkedin.com/sharing/share-offsite/?url=\(encoded("https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-li"))")!, preset_text: linkedInText, follow_url: URL(string: "https://www.linkedin.com/in/REPLACE_WITH_GURU_PROFILE")!),
+            linkedin: LinkedIn(share_url: URL(string: "https://www.linkedin.com/sharing/share-offsite/?url=\(encoded("https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-li"))")!, preset_text: linkedInText, follow_url: URL(string: "https://www.linkedin.com/in/gurusharangupta/")!),
             match: nil, grace_days: 14, poll_seconds: 60, check_eta_text: "usually within the hour")
     }()
 
