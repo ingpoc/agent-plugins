@@ -204,11 +204,11 @@ final class IslandSettingsTests: XCTestCase {
         let s = store()
         XCTAssertTrue(s.sourceEnabled(.samantha))
         XCTAssertTrue(s.sourceEnabled(.codex))
-        XCTAssertEqual(IslandSettingsSchema.tableSources.map { s.cap($0) }, Array(repeating: .attention, count: IslandSettingsSchema.tableSources.count))
+        XCTAssertEqual(IslandSettingsSchema.tableSources.filter { $0 != .agentRoster }.map { s.cap($0) }, Array(repeating: .attention, count: IslandSettingsSchema.tableSources.count - 1))
         XCTAssertTrue(s.mayRaiseApproval(.cursor))
         XCTAssertTrue(s.mayRaiseApproval(.grokBot))
         XCTAssertFalse(s.mayRaiseApproval(.codex), "Codex is enabled but cannot raise approvals")
-        XCTAssertTrue(IslandSettingsSchema.tableSources.filter { $0 != .codex }.allSatisfy { s.mayRaiseApproval($0) })
+        XCTAssertTrue(IslandSettingsSchema.tableSources.filter { $0 != .codex && $0 != .agentRoster }.allSatisfy { s.mayRaiseApproval($0) })
         for lowCap in ["ambient", "info"] {
             s.set(lowCap, for: AgentSource.samantha.keyPrefix + "cap")
             XCTAssertEqual(s.cap(.samantha), .attention, "Samantha cannot be capped below attention")

@@ -36,6 +36,7 @@ final class IslandController {
     private var nowPlayingStarted = false
     private var activationObserver: NSObjectProtocol?
     private var promptGateObserver: NSObjectProtocol?
+    private var claudeDesktopWatcher: IslandClaudeDesktopWatcher?
     private var grokBotWatcher: IslandGrokBotWatcher?
     /// A2 HUD (media-key tap + CoreAudio), A4 calendar, A9 tray store — production only (`startsSystem`).
     private(set) lazy var hud = IslandHUDController(model: model)
@@ -404,6 +405,9 @@ final class IslandController {
         let watcher = IslandGrokBotWatcher { [weak self] names in self?.hub.updateGrokBotWorking(names) }
         watcher.start()
         grokBotWatcher = watcher
+        let claude = IslandClaudeDesktopWatcher { [weak self] snapshot in self?.hub.updateClaudeDesktop(snapshot) }
+        claude.start()
+        claudeDesktopWatcher = claude
         // Warm every activity offscreen once so the first real open drops no frames.
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { MainActor.assumeIsolated { IslandPrewarm.run() } }
         hud.onOutputChanged = { [weak self] name, symbol in

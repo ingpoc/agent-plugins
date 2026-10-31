@@ -36,7 +36,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-SOURCES = {"grok-bot": "grok", "grok": "grok", "cursor": "cursor", "codex": "codex", "samantha": "samantha", "agent": "agent"}
+SOURCES = {"grok-bot": "grok", "grok": "grok", "cursor": "cursor", "codex": "codex", "samantha": "samantha", "agent": "agent", "claude": "claude"}
 KINDS = ("running", "needs_you", "done", "error", "approval", "choice", "clear", "peek")
 CONTROLS = ("stop", "retry")
 MAX_WAIT = 3600
@@ -228,6 +228,7 @@ def main() -> int:
     p.add_argument("--app", default=None, help="app whose icon represents the row (default per source)")
     p.add_argument("--id", default="default", help="stable id; re-post to update, --kind clear to remove")
     p.add_argument("--name", default="", help="agent roster: harness/agent label (for example Codex or Claude Code)")
+    p.add_argument("--initiator", default="", help="raw ACU initiator label")
     p.add_argument("--parent-id", default="", help="agent roster: parent task ID, in the same source")
     p.add_argument("--destructive", action="store_true", help="approval: red Approve button")
     p.add_argument("--ttl", type=float, default=None, help="row/card lifetime in s (rows 600; choice 900 = 15 min; approvals 900, or --wait+30)")
@@ -282,6 +283,8 @@ def main() -> int:
         body["app"] = a.app
     if a.name:
         body["name"] = a.name
+    if a.initiator:
+        body["initiator"] = a.initiator
     if a.parent_id:
         body["parent_id"] = a.parent_id
     if a.destructive:

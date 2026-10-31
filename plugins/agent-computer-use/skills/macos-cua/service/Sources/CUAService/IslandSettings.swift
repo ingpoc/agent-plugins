@@ -44,13 +44,14 @@ enum SettingsTab: String, CaseIterable, Identifiable {
 }
 
 enum AgentSource: String, CaseIterable, Codable {
-    case samantha, grokBot = "grok", cursor, codex, agentRoster = "agent"
+    case samantha, grokBot = "grok", cursor, codex, claude, agentRoster = "agent"
     var title: String {
         switch self {
         case .samantha: return "Samantha"
         case .grokBot: return "Grok Bot"
         case .cursor: return "Cursor"
         case .codex: return "Codex"
+        case .claude: return "Claude"
         case .agentRoster: return "Agent Roster"
         }
     }
@@ -61,6 +62,7 @@ enum AgentSource: String, CaseIterable, Codable {
         if l.contains("grok") || l == "comet" { return .grokBot }  // Grok Bot drives Comet
         if l.contains("cursor") { return .cursor }
         if l.contains("codex") { return .codex }
+        if l.contains("claude") { return .claude }
         if l == "agent" || l.contains("agent roster") { return .agentRoster }
         return nil
     }
@@ -73,6 +75,7 @@ enum AgentSource: String, CaseIterable, Codable {
         case .grokBot: return "Grok Bot"
         case .cursor: return "Cursor"
         case .codex: return "Codex"
+        case .claude: return "Claude"
         case .agentRoster: return ""
         }
     }
@@ -83,6 +86,7 @@ enum AgentSource: String, CaseIterable, Codable {
         case "grok", "grok-bot", "grokbot", "grok_bot": return .grokBot
         case "cursor": return .cursor
         case "codex": return .codex
+        case "claude": return .claude
         case "agent": return .agentRoster
         default: return nil
         }
@@ -310,7 +314,7 @@ enum IslandSettingsSchema {
               caption: "Drag files onto the island to hold them here."),
     ]
 
-    static let tableSources: [AgentSource] = [.codex, .cursor, .grokBot, .samantha]
+    static let tableSources: [AgentSource] = [.samantha, .grokBot, .codex, .claude, .cursor, .agentRoster]
     static let alertOptions = [("info", "List only"), ("attention", "Needs you"), ("critical", "Needs you, done and errors")]
     static let sourceSettings: [SettingDef] = AgentSource.allCases.flatMap { s -> [SettingDef] in
         let p = s.keyPrefix
@@ -333,7 +337,7 @@ enum IslandSettingsSchema {
               caption: "No peeks or sounds. Screen sharing also hides titles."),
         .init(tab: .agents, section: nil, key: hideFromScreenCapture, label: "Hide island in screenshots and recordings", kind: .toggle, defaultValue: .bool(false)),
         .init(tab: .agents, section: nil, key: tokensExpanded, label: "Setup tokens", kind: .disclosure, defaultValue: .bool(false)),
-    ] + [AgentSource.codex, .cursor, .grokBot, .agentRoster].map { s in
+    ] + [AgentSource.codex, .claude, .cursor, .grokBot, .agentRoster].map { s in
         .init(tab: .agents, section: "Setup tokens", key: s.keyPrefix + "token", label: s.title, kind: .token, defaultValue: .none,
               visibleWhen: tokensExpanded)
     } + [

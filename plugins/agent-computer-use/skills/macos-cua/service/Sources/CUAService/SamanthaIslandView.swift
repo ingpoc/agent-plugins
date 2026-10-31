@@ -39,6 +39,7 @@ enum AppIconResolver {
         "Google Chrome": "com.google.Chrome",
         "Cursor": "com.todesktop.230313mzl4w4u92",
         "Codex": "com.openai.codex",
+        "Claude": "com.anthropic.claudefordesktop",
         "ChatGPT": "com.openai.chat",
     ]
 

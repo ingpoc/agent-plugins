@@ -78,7 +78,7 @@ final class IslandSettingsRedesignTests: XCTestCase {
 
     func testSourceTableDefaultsAndDisabledControls() {
         let s = store()
-        XCTAssertEqual(K.tableSources, [.codex, .cursor, .grokBot, .samantha])
+        XCTAssertEqual(K.tableSources, [.samantha, .grokBot, .codex, .claude, .cursor, .agentRoster])
         XCTAssertFalse(s.bool(K.naturalMovement), "the existing behaviour default is preserved")
         for source in AgentSource.allCases {
             XCTAssertTrue(s.sourceEnabled(source))
@@ -238,6 +238,6 @@ final class IslandSettingsRedesignTests: XCTestCase {
         XCTAssertFalse(IslandSettingsRoot.visibleDefs(.agents, store: s).contains { $0.kind == .token })
         nav.focus = K.tokensExpanded
         _ = SettingsKeyboard.handle(.activate, nav: nav, store: s, defs: defs, panes: SettingsTab.panes)
-        XCTAssertEqual(IslandSettingsRoot.visibleDefs(.agents, store: s).filter { $0.kind == .token }.count, 4)
+        XCTAssertEqual(IslandSettingsRoot.visibleDefs(.agents, store: s).filter { $0.kind == .token }.count, 5)
     }
 }

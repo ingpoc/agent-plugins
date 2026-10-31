@@ -56,6 +56,7 @@ final class IslandHub {
     private(set) var localHarnesses: [IslandAgent] = []
     /// Grok Bot Bots whose sidebar row says Working, with when the island first saw each one.
     private(set) var grokBotWorking: [(name: String, since: Date)] = []
+    private var claudeDesktop = IslandClaudeDesktopActivity.Snapshot()
     private var grokBotAges: [String] = []
     private var localHarnessScanAt = Date.distantPast
     private var localHarnessScanInFlight = false
@@ -88,6 +89,7 @@ final class IslandHub {
     /// Codex = ChatGPT.app (com.openai.codex), Cursor = Cursor.app, Grok Bot = Grok Bot.app.
     nonisolated static let sourceBundleIDs: [AgentSource: Set<String>] = [
         .codex: ["com.openai.codex"],
+        .claude: [IslandClaudeDesktopActivity.bundleID],
         .cursor: ["com.todesktop.230313mzl4w4u92"],
         .grokBot: ["com.anysphere.sand"],
     ]
@@ -144,6 +146,7 @@ final class IslandHub {
             return a
         }
         s.agents += localHarnesses
+        if store.sourceEnabled(.claude) { s.agents += claudeDesktop.agents }
         if store.sourceEnabled(.agentRoster) { s.agents += IslandGrokBotActivity.rows(grokBotWorking, now: now) }
         // Queued cards: approvals jump the queue (then arrival order); the first owns the pill,
         // all show as needs-you rows + count.
@@ -271,6 +274,22 @@ final class IslandHub {
         changed()
     }
 
+    func updateClaudeDesktop(_ snapshot: IslandClaudeDesktopActivity.Snapshot, now: Date = Date()) {
+        guard snapshot != claudeDesktop else { return }
+        let active = Set(claudeDesktop.agents.map(\.id))
+        claudeDesktop = snapshot
+        if store.sourceEnabled(.claude), store.cap(.claude).rank >= AttentionCap.critical.rank,
+           store.bool(IslandSettingsSchema.agentPeeks) {
+            for row in snapshot.rows where active.contains(row.id) && (row.status == .done || row.status == .error) {
+                onPeek?(IslandPeekItem(id: row.id, source: "Claude", app: "Claude",
+                    symbol: row.status == .done ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
+                    title: row.title, body: row.status == .error ? "Something went wrong" : "Done",
+                    at: now, extra: row.status == .error ? 2 : 0))
+            }
+        }
+        changed()
+    }
+
     func updateLocalHarnesses(_ rows: [IslandAgent]) {
         guard rows != localHarnesses else { return }
         localHarnesses = rows
@@ -328,7 +347,7 @@ final class IslandHub {
         }
         let json = (try? JSONSerialization.jsonObject(with: r.body)) as? [String: Any] ?? [:]
         let rawSource = (json["source"] as? String) ?? r.query["source"] ?? r.headers["x-island-source"] ?? ""
-        guard let source = AgentSource.parse(rawSource) else { return .err(400, "unknown source (samantha|grok-bot|cursor|codex|agent)") }
+        guard let source = AgentSource.parse(rawSource) else { return .err(400, "unknown source (samantha|grok-bot|cursor|codex|claude|agent)") }
         if r.peerVerified {
             // Same-uid local peer: the source must be opted in (token created by the user's Rotate /
             // Samantha toggle). CUAService reads its own item — no Keychain prompt for anyone.

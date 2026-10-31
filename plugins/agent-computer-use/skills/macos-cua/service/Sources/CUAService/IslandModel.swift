@@ -26,6 +26,9 @@ struct IslandInitiator: Codable, Equatable {
             let text = String(String.UnicodeScalarView(printable)).trimmingCharacters(in: .whitespacesAndNewlines)
             return text.isEmpty ? nil : String(text.prefix(24))
         }
+        if let value = value as? String {
+            if value.hasPrefix("acu_exec") { return parse(originator: value) }
+        }
         let object = value as? [String: Any]
         let parts = (value as? String)?.split(separator: "/", maxSplits: 1).map(String.init) ?? []
         guard let agent = clean(object?["agent"] as? String ?? parts.first) else { return nil }
