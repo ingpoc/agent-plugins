@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.66 (unreleased)
+
+- Keep unlock sharing available during service cold starts and retry checks through the wake budget.
+
 ## 0.2.65 (unreleased, PR draft)
 
 - Dynamic Island gate (free, verify-to-unlock, no paid APIs and no sign-in): "Unlock the island" opens x.com/gurusharan and the prefilled post in your default browser (any browser); you type your @handle once (post link optional) and ACU shows "Checking… usually within the hour" and unlocks by itself. Our side verifies the post for free through public X oEmbed or a Comet search and checks the follow against @gurusharan's follower list, through admin endpoints. LinkedIn route: follow nudge plus share, checked the same way. One person, one Mac, 14-day offline grace, rebind needs a new fresh post and a 7-day cooldown. Tolerates a 30–60 s cold start of the free unlock service ("Waking up the unlock service…"). `acu-island://unlock` deep link opens the unlock screen. While locked the island stays hidden and Samantha shows her state in the menu bar; computer use, Samantha and every other plugin are unchanged. Opt-in "Show me on the site" wall. Backend in `services/acu-gate` (Render free plan + Neon), not deployed. Handle-based claims can be spoofed; accepted tradeoff, see `docs/island-gate-plan.md`.

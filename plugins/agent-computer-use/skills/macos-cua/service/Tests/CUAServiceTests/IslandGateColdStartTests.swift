@@ -29,6 +29,66 @@ final class IslandGateColdStartTests: XCTestCase {
         return try! JSONSerialization.data(withJSONObject: root)
     }
 
+    func testBundledConfigMatchesPreset() throws {
+        var root = URL(fileURLWithPath: #filePath)
+        while root.path != "/" && !FileManager.default.fileExists(atPath: root.appendingPathComponent("services/acu-gate/config/preset.json").path) {
+            root.deleteLastPathComponent()
+        }
+        let file = root.appendingPathComponent("services/acu-gate/config/preset.json")
+        guard FileManager.default.fileExists(atPath: file.path) else { throw XCTSkip("Repository preset unavailable") }
+        let preset = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        let x = try XCTUnwrap(preset["x"] as? [String: String])
+        let linkedIn = try XCTUnwrap(preset["linkedin"] as? [String: String])
+        let match = try XCTUnwrap(preset["match"] as? [String: Any])
+        let links = try XCTUnwrap(match["ref_links"] as? [String])
+        let config = IslandGateConfig.bundled
+        XCTAssertEqual(config.x.handle, x["handle"])
+        XCTAssertEqual(config.x.profile_url.absoluteString, "https://x.com/\(x["handle"]!)")
+        XCTAssertEqual(config.x.preset_text, x["preset_text"])
+        XCTAssertEqual(URLComponents(url: config.x.intent_url, resolvingAgainstBaseURL: false)?.queryItems?.first?.value, x["preset_text"])
+        XCTAssertEqual(config.linkedin.preset_text, linkedIn["preset_text"])
+        XCTAssertEqual(config.linkedin.follow_url?.absoluteString, linkedIn["follow_url"])
+        XCTAssertEqual(URLComponents(url: config.linkedin.share_url, resolvingAgainstBaseURL: false)?.queryItems?.first?.value, links[1])
+        XCTAssertEqual(config.poll_seconds, 60)
+        XCTAssertEqual(config.check_eta_text, preset["check_eta_text"] as? String)
+        XCTAssertNil(config.linkedInFollowURL)
+    }
+
+    func testShareActionsUseBundledURLsWithoutNetwork() {
+        var opened: [URL] = []
+        let gate = IslandGate(store: IslandGateMemoryStore(), client: IslandGateURLProtocol.client(), device: device, openURL: { opened.append($0) })
+        IslandGateURLProtocol.handler = { _ in XCTFail("Unexpected network request"); return (503, Data()) }
+        gate.openFollow()
+        gate.openShare()
+        XCTAssertEqual(opened, [IslandGateConfig.bundled.x.profile_url, IslandGateConfig.bundled.x.intent_url])
+        gate.useLinkedInRoute()
+        gate.openFollow()
+        gate.openShare()
+        XCTAssertEqual(opened.last, IslandGateConfig.bundled.linkedin.share_url)
+        XCTAssertEqual(opened.count, 3)
+    }
+
+    func testPrefetchRetriesWithoutChangingStateAndReplacesDefault() async throws {
+        let gate = makeGate()
+        var attempts = 0
+        let updated = expectation(description: "Server config loaded")
+        gate.onChange.append {
+            if gate.config?.x.handle == "guru" { updated.fulfill() }
+        }
+        IslandGateURLProtocol.handler = { _ in
+            attempts += 1
+            if attempts < 3 { return (503, Data()) }
+            return (200, Self.configPayload())
+        }
+        gate.opened()
+        try await Task.sleep(nanoseconds: 25_000_000)
+        XCTAssertEqual(gate.state, .locked())
+        XCTAssertEqual(gate.config?.x.handle, "gurusharan")
+        await fulfillment(of: [updated], timeout: 2)
+        XCTAssertEqual(gate.state, .locked())
+        XCTAssertEqual(attempts, 3)
+    }
+
     func testCheckETATextUsesConfigThenFallback() throws {
         let gate = makeGate()
         XCTAssertEqual(gate.checkETAText, "usually within the hour")
@@ -40,17 +100,20 @@ final class IslandGateColdStartTests: XCTestCase {
         let gate = makeGate()
         gate.handleText = "@friend"
         var attempts = 0
+        var sawWaking = false
+        gate.onChange.append { if case .waking = gate.state { sawWaking = true } }
         IslandGateURLProtocol.handler = { req in
             if req.url?.path == "/v1/claims" {
                 attempts += 1
-                if attempts < 2 { return (503, Data(#"{"error":"server_error"}"#.utf8)) }
+                if attempts < 3 { return (503, Data(#"{"error":"server_error"}"#.utf8)) }
                 return (201, Data(#"{"claim_id":"c1","status":"pending_verification","checks":{"follow":"pending","post":"pending"},"poll_after":60}"#.utf8))
             }
             return (200, Self.configPayload())
         }
         gate.submitCheck()
         try await Task.sleep(nanoseconds: 500_000_000)
-        XCTAssertEqual(attempts, 2)
+        XCTAssertEqual(attempts, 3)
+        XCTAssertTrue(sawWaking)
         guard case .checking = gate.state else {
             if case .waking = gate.state { /* still retrying */ }
             return XCTFail("Expected checking, got \(gate.state)")

@@ -119,7 +119,9 @@ struct IslandGateView: View {
     }
     private var linkedInSteps: some View {
         Group {
-            stepRow("Follow Gurusharan on LinkedIn", button: "Follow", action: gate.openFollow, xPrimary: false)
+            if gate.config?.linkedInFollowURL != nil {
+                stepRow("Follow Gurusharan on LinkedIn", button: "Follow", action: gate.openFollow, xPrimary: false)
+            }
             stepRow("Share on LinkedIn", button: "Share", action: gate.openShare, xPrimary: false)
             if gate.copied { Text("Text copied - paste with ⌘V").font(.system(size: 12)).foregroundStyle(.mint).accessibilityAddTraits(.updatesFrequently) }
             Text("Your LinkedIn profile URL").font(.system(size: 12, weight: .medium))

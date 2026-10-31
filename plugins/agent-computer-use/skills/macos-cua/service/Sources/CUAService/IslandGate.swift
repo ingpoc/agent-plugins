@@ -25,7 +25,7 @@ enum IslandGateState: Equatable {
 final class IslandGate: ObservableObject {
     static let shared = IslandGate()
     @Published private(set) var state: IslandGateState = .locked()
-    @Published private(set) var config: IslandGateConfig?
+    @Published private(set) var config: IslandGateConfig? = .bundled
     @Published private(set) var showOnWall = false
     @Published private(set) var wallUpdating = false
     @Published private(set) var wallError: String?
@@ -49,6 +49,9 @@ final class IslandGate: ObservableObject {
     private var refreshTask: Task<Void, Never>?
     private var expiryTask: Task<Void, Never>?
     private var operation: Task<Void, Never>?
+    private var configTask: Task<Void, Never>?
+    private var fetchedConfig = false
+    private let openURL: (URL) -> Void
     private var wallOperation: Task<Void, Never>?
     private var generation = 0
     private let fixture: Bool
@@ -57,14 +60,15 @@ final class IslandGate: ObservableObject {
     var onChange: [() -> Void] = []
 
     init(store: IslandGateStoring = IslandGateKeychain(), client: IslandGateClient? = nil,
-         publicKey: Data? = nil, device: IslandGateDevice? = nil, fixtureState: IslandGateState? = nil, fixtureAccount: IslandGateAccount? = nil) {
+         publicKey: Data? = nil, device: IslandGateDevice? = nil, fixtureState: IslandGateState? = nil, fixtureAccount: IslandGateAccount? = nil, openURL: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) }) {
+        self.openURL = openURL
         self.store = store; self.client = client ?? IslandGateClient(baseURL: IslandGateEnvironment().baseURL)
         verifier = IslandGateVerifier(publicKey: publicKey ?? IslandGateEnvironment().publicKey)
         self.device = device; fixture = fixtureState != nil
         if let fixtureState { state = fixtureState; account = fixtureAccount }
     }
     deinit {
-        polling?.cancel(); refreshTask?.cancel(); expiryTask?.cancel(); operation?.cancel(); wallOperation?.cancel()
+        configTask?.cancel(); polling?.cancel(); refreshTask?.cancel(); expiryTask?.cancel(); operation?.cancel(); wallOperation?.cancel()
     }
     var isUnlocked: Bool {
         if case .unlocked(_, _, let exp) = state { return Date() < exp }
@@ -172,17 +176,18 @@ final class IslandGate: ObservableObject {
     func opened() {
         windowOpen = true
         updatePolling()
-        if !fixture, config == nil, case .locked = state {
-            operation?.cancel(); generation += 1
-            let version = generation
-            operation = Task { [weak self] in
+        if !fixture, !fetchedConfig, configTask == nil, case .locked = state {
+            configTask = Task { [weak self] in
                 guard let self else { return }
                 do {
-                    self.config = try await self.client.config()
-                    guard version == self.generation else { return }
+                    let config = try await self.client.config()
+                    guard !Task.isCancelled else { return }
+                    self.config = config
+                    self.fetchedConfig = true
                     if let seconds = self.config?.poll_seconds { self.pollInterval = TimeInterval(seconds) }
                     self.onChange.forEach { $0() }
                 } catch { /* cold-start prefetch is best-effort while locked */ }
+                self.configTask = nil
             }
         }
     }
@@ -216,7 +221,6 @@ final class IslandGate: ObservableObject {
             do {
                 if self.device == nil { self.device = try IslandGateDevice.load(store: self.store) }
                 guard let device = self.device else { return }
-                if self.config == nil { self.config = try await self.client.config(onWaking: wakeUI) }
                 guard version == self.generation else { return }
                 if let seconds = self.config?.poll_seconds { self.pollInterval = TimeInterval(seconds) }
                 let provider = self.lockedProvider
@@ -419,8 +423,8 @@ final class IslandGate: ObservableObject {
     }
     func openFollow() {
         guard let config else { return }
-        let url = lockedProvider == "linkedin" ? config.linkedin.follow_url : config.x.profile_url
-        if let url, url.scheme == "https" { NSWorkspace.shared.open(url) }
+        let url = lockedProvider == "linkedin" ? config.linkedInFollowURL : config.x.profile_url
+        if let url, url.scheme == "https" { openURL(url) }
     }
     func openShare() {
         guard let config else { handle(IslandGateFailure(code: "server_error")); return }
@@ -428,9 +432,9 @@ final class IslandGate: ObservableObject {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(config.linkedin.preset_text, forType: .string)
             copied = true
-            if config.linkedin.share_url.scheme == "https" { NSWorkspace.shared.open(config.linkedin.share_url) }
+            if config.linkedin.share_url.scheme == "https" { openURL(config.linkedin.share_url) }
         } else if config.x.intent_url.scheme == "https" {
-            NSWorkspace.shared.open(config.x.intent_url)
+            openURL(config.x.intent_url)
         }
     }
     func tryMoveHere() {
