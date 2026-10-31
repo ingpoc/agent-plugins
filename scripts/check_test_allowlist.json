@@ -84,6 +84,16 @@
       "id": "test_contract.StoreTests.test_select_is_off_on_an_a_b_off_day",
       "when": "platform != darwin",
       "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_request_scope.RequestScopeTests.test_feedback_duplicate_check_uses_requested_scope",
+      "when": "platform != darwin",
+      "reason": "installed NaturalLanguage embedding is macOS-only; the Mini check runs it"
+    },
+    {
+      "id": "test_request_scope.RequestScopeTests.test_select_uses_explicit_fleet_scope_instead_of_binding_project",
+      "when": "platform != darwin",
+      "reason": "installed NaturalLanguage embedding is macOS-only; the Mini check runs it"
     }
   ],
   "harness_skips": [
