@@ -477,7 +477,8 @@ final class IslandModel: ObservableObject {
         didSet {
             guard hovering != oldValue else { return }
             if presentation == .peek {
-                if hovering { pinPeek() } else { schedulePeekDismiss(after: 1.5) }
+                // Hovered peek: on leave it goes with the same short grace as a card (0.2.63).
+                if hovering { pinPeek() } else { schedulePeekDismiss(after: Self.leaveGrace) }
             }
             // Hover-hold: the pointer entering an alert-opened card (error/done peek) stops its timer;
             // it then closes only when the pointer leaves (pointerLeft), like a user-opened card.
@@ -568,6 +569,8 @@ final class IslandModel: ObservableObject {
 
     // Durations are user-settable (Settings → General → Durations); defaults match §4.
     nonisolated(unsafe) static var peekError: TimeInterval = 6
+    /// Pointer-leave grace for every hovered card or peek: crosses a seam, compacts well under 0.5 s.
+    nonisolated static let leaveGrace: TimeInterval = 0.3
     nonisolated(unsafe) static var peekDone: TimeInterval = 4
     nonisolated(unsafe) static var doneSettle: TimeInterval = 4
 
@@ -1208,6 +1211,7 @@ final class IslandModel: ObservableObject {
         }
         let choicePeek = agentApproval?.isChoice == true && (choicePeekUntil.map { now < $0 } ?? false)
         let wasOpen = cardOpen
+        let modeBefore = cardMode
         let idleSamantha = (next == .idle || next == .doneSettled) && cardMode == .samantha
         let open = next != .hud && next != .peek && !forceCompact && !(idleSamantha && !isSticky)
             && (userOpened || isSticky || (peekUntil.map { now < $0 } ?? false) || choicePeek
@@ -1242,6 +1246,7 @@ final class IslandModel: ObservableObject {
                                    ["via": isSticky && !userOpened ? "auto" : openVia])
             }
             if !open {
+                IslandEventLog.log("closed", kind: modeBefore == .agents ? "agents" : kind)
                 if textEntryActive { endTextEntry() }
                 if !ackOnClose.isEmpty { let ids = ackOnClose; ackOnClose = []; onAckExpired?(ids) }
             }

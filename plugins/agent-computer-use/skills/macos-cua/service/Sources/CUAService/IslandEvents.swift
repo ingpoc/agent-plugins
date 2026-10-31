@@ -4,7 +4,8 @@ import Foundation
 /// Island interaction log (`~/.cache/macos-cua/island-events.jsonl`, 0600, rotated at 2 MB).
 /// One JSON object per line: ts, event, id, source, kind + small numeric/enum fields.
 /// Never card titles, option values or typed text (they can carry secrets).
-/// Events: shown · hovered · clicked (x/y) · opened (via) · answered (via) · expired · peek · notice.
+/// Events: shown · hovered · clicked (x/y) · opened (via) · answered (via) · expired · peek · notice ·
+/// closed · pointer-left (via exit|watchdog|backstop) · exit-lost (tracking exit never arrived).
 enum IslandEventLog {
     /// Tests inject a sink; under XCTest nothing is written to disk unless `url` is set explicitly.
     nonisolated(unsafe) static var sink: (([String: Any]) -> Void)?

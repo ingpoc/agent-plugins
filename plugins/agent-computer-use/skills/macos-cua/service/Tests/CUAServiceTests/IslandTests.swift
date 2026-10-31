@@ -425,6 +425,37 @@ final class IslandTests: XCTestCase {
         }
     }
 
+    func testAgentRowIconsUseRealAppIconsOrNeutralSymbols() {
+        // Installed agent apps resolve by bundle id to their real icon (one small cached bitmap);
+        // missing ones fall back to a neutral symbol — never a bundled third-party logo.
+        for name in ["Grok Bot", "Codex", "Cursor"] {
+            switch AppIconResolver.resolve(name) {
+            case .image(let img):
+                XCTAssertNotNil(AppIconResolver.appURL(for: name), name)
+                XCTAssertEqual(img.representations.count, 1, "\(name): one cached bitmap")
+                XCTAssertEqual(img.representations.first?.pixelsWide, AppIconResolver.cachedSide)
+            case .symbol(let s):
+                XCTAssertNil(AppIconResolver.appURL(for: name), name)
+                XCTAssertEqual(s, AppIconResolver.symbols[name])
+            }
+        }
+        if let url = AppIconResolver.appURL(for: "Codex") {
+            XCTAssertEqual(Bundle(url: url)?.bundleIdentifier, "com.openai.codex", "Codex app, whatever its file name")
+        }
+    }
+
+    func testSamanthaRowsWearACUsOwnIcon() {
+        let brand = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("assets/brand/AppIcon.icns")
+        let saved = BrandTile.iconURL
+        BrandTile.iconURL = brand
+        defer { BrandTile.iconURL = saved }
+        guard FileManager.default.fileExists(atPath: brand.path) else { return XCTFail("missing \(brand.path)") }
+        if case .image(let img) = AppIconResolver.resolve("Samantha") {
+            XCTAssertEqual(img.representations.first?.pixelsWide, AppIconResolver.cachedSide)
+        } else { XCTFail("Samantha uses ACU's AppIcon") }
+    }
+
     // MARK: - IslandDwell
 
     func testDwellHoldsDoneForListening() {

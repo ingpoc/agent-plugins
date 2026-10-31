@@ -37,7 +37,16 @@ final class SamanthaMenuBarIslandPanel {
 
     /// Card closes this long after the pointer leaves it: enough grace to cross a seam between the
     /// card and an app circle without collapsing, still well under 0.5 s.
-    static let leaveDelay: TimeInterval = 0.3
+    static let leaveDelay: TimeInterval = IslandModel.leaveGrace
+
+    /// Leave watchdog period. Runs only while a card or peek is up (zero cost when compact).
+    static let watchInterval: TimeInterval = 0.1
+    /// Tracking areas report crossings only, and AppKit drops an exit when the areas or tracking
+    /// windows are rebuilt under the pointer (every card resize). While expanded, the watchdog polls
+    /// `NSEvent.mouseLocation` (screen coordinates, same space as `NSWindow.frame`) and reconciles.
+    /// https://developer.apple.com/documentation/appkit/nsevent/mouselocation
+    private var watchTimer: Timer?
+    private var leaveWatch = IslandLeaveWatch()
 
     /// App that was frontmost when text entry began (key goes back to it after submit / Escape).
     private var keyReturnApp: NSRunningApplication?
@@ -57,8 +66,10 @@ final class SamanthaMenuBarIslandPanel {
             guard let self, self.model?.textEntryActive != true else { return }
             self.endTextEntry()
         }
-        model.onGeometryChange = { [weak self] in self?.updateTrackingGeometry() }
-        model.onPeekVisible = { [weak self] on in self?.peekPrivate = on; self?.applyCaptureSharing() }
+        model.onGeometryChange = { [weak self] in self?.updateTrackingGeometry(); self?.syncLeaveWatch() }
+        model.onPeekVisible = { [weak self] on in
+            self?.peekPrivate = on; self?.applyCaptureSharing(); self?.syncLeaveWatch()
+        }
         resignObserver = NotificationCenter.default.addObserver(forName: NSWindow.didResignKeyNotification, object: nil, queue: .main) { [weak self] n in
             MainActor.assumeIsolated {
                 guard let self, let panel = self.panel, (n.object as AnyObject?) === panel else { return }
@@ -265,6 +276,7 @@ final class SamanthaMenuBarIslandPanel {
         panel?.ignoresMouseEvents = true
         model?.hovering = false
         insideShape = false
+        syncLeaveWatch()
     }
 
     private func updateTrackingGeometry(force: Bool = false) {
@@ -379,11 +391,16 @@ final class SamanthaMenuBarIslandPanel {
     }
 
     private func pointerChanged() {
-        guard let panel, let model, panel.isVisible else { return }
-        let p = Self.windowPoint(screen: Self.pointerLocation(), frame: panel.frame)
+        guard let panel, panel.isVisible else { return }
+        applyPointer(Self.windowPoint(screen: Self.pointerLocation(), frame: panel.frame))
+    }
+
+    /// Pointer at `p` (window coords): hover, click capture and the leave timer. `via` tags the log.
+    func applyPointer(_ p: CGPoint, via: String = "exit") {
+        guard let model else { return }
         let dragNear = trackFileDrag(p, model: model)
         let overAny = dragNear || model.hitRects.contains { $0.contains(p) }
-        if panel.ignoresMouseEvents == overAny { panel.ignoresMouseEvents = !overAny }
+        if let panel, panel.ignoresMouseEvents == overAny { panel.ignoresMouseEvents = !overAny }
         // Hover follows the same whole-pill target as clicks (incl. the band above it).
         let overShape = !model.idleHidden && IslandBarLayout.pillTarget(shape: model.shapeRect).contains(p)
         if overShape != model.hovering { model.hovering = overShape }
@@ -409,17 +426,75 @@ final class SamanthaMenuBarIslandPanel {
             leaveTask = nil
         } else if insideShape {
             leaveTask?.cancel()
+            // The watchdog sees a lost exit up to one period late: take that off the grace.
+            let grace = via == "watchdog" ? Self.leaveDelay - Self.watchInterval : Self.leaveDelay
             leaveTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64(Self.leaveDelay * 1_000_000_000))
+                try? await Task.sleep(nanoseconds: UInt64(grace * 1_000_000_000))
                 guard let self, !Task.isCancelled else { return }
                 // Tracking areas only report crossings: re-check the real pointer so a missed
                 // re-enter (geometry rebuilt under the pointer) never collapses a hovered card.
+                self.leaveTask = nil
                 if self.pointerOverHitRects() { self.insideShape = true; return }
+                if self.model?.cardOpen == true { IslandEventLog.log("pointer-left", ["via": via]) }
                 self.model?.pointerLeft()
             }
         }
         insideShape = overAny
     }
+
+    // MARK: Leave watchdog
+
+    /// Timer on while a card or peek is up on screen; off (and disarmed) when compact or hidden.
+    private func syncLeaveWatch() {
+        let need = panel?.isVisible == true && !envHidden && (model?.cardOpen == true || model?.peek != nil)
+        if need {
+            guard watchTimer == nil else { return }
+            leaveWatch.start(armed: insideShape)
+            let t = Timer(timeInterval: Self.watchInterval, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.watchTick() }
+            }
+            RunLoop.main.add(t, forMode: .common)
+            watchTimer = t
+        } else if let t = watchTimer {
+            t.invalidate()
+            watchTimer = nil
+            leaveWatch.reset()
+        }
+    }
+
+    private func watchTick() {
+        guard let panel, panel.isVisible else { syncLeaveWatch(); return }
+        watchStep(Self.windowPoint(screen: Self.pointerLocation(), frame: panel.frame), now: Date())
+    }
+
+    /// One watchdog step against the real pointer `p` (window coords); tests drive it directly.
+    /// 1. Reconcile: the pointer is not where the last tracking event left us (a lost exit or
+    ///    enter) → run the normal pointer path, which starts the usual `leaveDelay` grace.
+    /// 2. Backstop: the pointer has been off the island past the grace with no leave pending
+    ///    (timer lost to a rebuild) → leave now.
+    func watchStep(_ p: CGPoint, now: Date) {
+        guard let model else { return }
+        let over = model.hitRects.contains { $0.contains(p) }
+        let overShape = !model.idleHidden && IslandBarLayout.pillTarget(shape: model.shapeRect).contains(p)
+        if over != insideShape || overShape != model.hovering {
+            if !over && insideShape { IslandEventLog.log("exit-lost", ["via": "watchdog"]) }
+            applyPointer(p, via: "watchdog")
+        }
+        let active = model.cardOpen || model.peek != nil
+        guard let out = leaveWatch.observe(over: over, active: active, now: now),
+              out >= Self.leaveDelay + Self.watchInterval, leaveTask == nil else { return }
+        leaveWatch.reset()
+        if model.hovering { model.hovering = false }   // peek: starts its short dismiss
+        if model.cardOpen {
+            IslandEventLog.log("pointer-left", ["via": "backstop"])
+            model.pointerLeft()
+        }
+    }
+
+    /// Test hooks.
+    var debugInsideShape: Bool { insideShape }
+    var debugLeavePending: Bool { leaveTask != nil }
+    var debugWatchRunning: Bool { watchTimer != nil }
 
     private func pointerOverHitRects() -> Bool {
         guard let panel, let model, panel.isVisible else { return false }
@@ -472,6 +547,27 @@ final class SamanthaMenuBarIslandPanel {
         panel.ignoresMouseEvents = true
         panel.contentView = host
         return panel
+    }
+}
+
+/// Pointer-leave bookkeeping for the watchdog (pure; unit-tested).
+/// Armed once the pointer has been over the island while expanded; disarmed when compact.
+struct IslandLeaveWatch: Equatable {
+    private(set) var armed = false
+    private(set) var outsideSince: Date?
+
+    mutating func start(armed: Bool) { self.armed = armed; outsideSince = nil }
+    mutating func reset() { armed = false; outsideSince = nil }
+
+    /// Seconds the pointer has been off the island since it was last seen on it; nil when inside,
+    /// unarmed (never hovered: keyboard- or alert-opened cards keep their own rules) or inactive.
+    mutating func observe(over: Bool, active: Bool, now: Date) -> TimeInterval? {
+        guard active else { reset(); return nil }
+        if over { armed = true; outsideSince = nil; return nil }
+        guard armed else { return nil }
+        let since = outsideSince ?? now
+        outsideSince = since
+        return now.timeIntervalSince(since)
     }
 }
 
