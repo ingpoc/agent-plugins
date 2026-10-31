@@ -99,6 +99,16 @@ export function settings(input: NodeJS.ProcessEnv) {
     )
   )
     throw new Error("Invalid FOLLOW_CHECK_MODE");
+  const hops = Number(env.TRUST_PROXY_HOPS ?? 0);
+  if (!Number.isInteger(hops) || hops < 0 || hops > 8)
+    throw new Error("Invalid TRUST_PROXY_HOPS");
+  env.TRUST_PROXY_HOPS = String(hops);
+  const budget = Number(env.X_DAILY_CALL_BUDGET ?? 2000);
+  if (!Number.isInteger(budget) || budget < 1)
+    throw new Error("Invalid X_DAILY_CALL_BUDGET");
+  env.X_DAILY_CALL_BUDGET = String(budget);
+  env.LINKEDIN_JWKS_URL ||=
+    "https://www.linkedin.com/oauth/openid/jwks";
   return env;
 }
 /** encrypt provides its exported service behavior. */

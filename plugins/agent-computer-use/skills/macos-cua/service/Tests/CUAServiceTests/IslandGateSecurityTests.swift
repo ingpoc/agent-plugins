@@ -28,6 +28,9 @@ final class IslandGateSecurityTests: XCTestCase {
     }
     func testFutureIssuedAtRejected() throws { XCTAssertThrowsError(try verifier.verify(token(iat: now.timeIntervalSince1970 + 86401), deviceID: device, now: now)) }
     func testProductionPlaceholderFailsClosed() throws { XCTAssertThrowsError(try IslandGateVerifier(publicKey: IslandGateEnvironment.productionKey).verify(token(), deviceID: device, now: now)) }
+    func testProductionKeyPlaceholderDocumentedForReleaseChecklist() {
+        XCTAssertEqual(IslandGateEnvironment.productionKey, Data(repeating: 0, count: 32))
+    }
     func testReleaseOverridesIgnored() {
         let name = "IslandGateTests.\(UUID())"
         let defaults = UserDefaults(suiteName: name)!

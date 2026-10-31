@@ -34,9 +34,16 @@ export function signature(
     ...(show === undefined ? {} : { show }),
   };
 }
+export function callbackParams(location: string) {
+  const target = new URL(location);
+  return target.hash.startsWith("#")
+    ? new URLSearchParams(target.hash.slice(1))
+    : target.searchParams;
+}
 export async function harness(
   t: TestContext,
   store: Store = new MemoryStore(),
+  envExtra: Record<string, string> = {},
 ) {
   const mock = await startMocks();
   const gate = createGate(
@@ -46,6 +53,7 @@ export async function harness(
       OWNER_X_USER_ID: "owner",
       FOLLOW_CHECK_MODE: "user_following",
       ...mock.env,
+      ...envExtra,
     },
     store,
     { pageFetch: mock.pageFetch },
@@ -96,6 +104,14 @@ export async function harness(
     else await response.arrayBuffer();
     return { status: response.status, data, headers: response.headers };
   }
+  async function linkTicket(session: string, deviceId: string) {
+    const ticket = await request("/v1/auth/link-ticket", {
+      data: { device_id: deviceId },
+      session,
+    });
+    assert.equal(ticket.status, 200);
+    return String(ticket.data.ticket);
+  }
   async function authorize(
     provider = "x",
     user = "guru_test",
@@ -108,8 +124,11 @@ export async function harness(
       device_name: "Test Mac",
       app_challenge: pkce(verifier),
       mock_user: user,
-      ...(link ? { link: "1", session: link } : {}),
     });
+    if (link) {
+      params.set("link", "1");
+      params.set("link_ticket", await linkTicket(link, d.id));
+    }
     const start = await request(`/v1/auth/${provider}/start?${params}`);
     assert.equal(start.status, 302);
     const authorize = new URL(start.headers.get("location")!);
@@ -122,13 +141,11 @@ export async function harness(
     });
     assert.equal(callback.status, 302);
     await callback.arrayBuffer();
-    const target = new URL(callback.headers.get("location")!);
-    assert.equal(
-      target.searchParams.get("error"),
-      null,
-      "OAuth callback failed",
-    );
-    return { code: target.searchParams.get("code"), verifier, device: d };
+    const location = callback.headers.get("location")!;
+    const callbackQuery = callbackParams(location);
+    assert.equal(callbackQuery.get("error"), null, "OAuth callback failed");
+    assert.match(location, /#code=/);
+    return { code: callbackQuery.get("code"), verifier, device: d };
   }
   async function login(
     provider = "x",

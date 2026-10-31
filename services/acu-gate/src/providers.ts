@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, createPublicKey, verify } from "node:crypto";
 import { GateError, object, text } from "./errors.ts";
 import { safeAvatar } from "./crypto.ts";
 import type { Store } from "./store.ts";
@@ -21,7 +21,7 @@ export interface Provider {
     callback: string,
     nonce: string,
   ): URL;
-  exchange(code: string, verifier: string, callback: string): Promise<string>;
+  exchange(code: string, verifier: string, callback: string, nonce?: string): Promise<string>;
   identity(token: string): Promise<Identity>;
 }
 export const pkce = (s: string) =>
@@ -71,10 +71,13 @@ async function json(
 function list(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.map(object) : [];
 }
+export type XSpend = () => Promise<void>;
 export class XProvider implements Provider {
   env: NodeJS.ProcessEnv;
-  constructor(env: NodeJS.ProcessEnv) {
+  spend: XSpend;
+  constructor(env: NodeJS.ProcessEnv, spend: XSpend = async () => {}) {
     this.env = env;
+    this.spend = spend;
   }
   authorize(state: string, verifier: string, callback: string) {
     const url = new URL(
@@ -115,6 +118,7 @@ export class XProvider implements Provider {
     return text(data.access_token);
   }
   async api(path: string, token: string, params: Record<string, string> = {}) {
+    await this.spend();
     const url = new URL(path, this.env.X_API_BASE || "https://api.x.com");
     url.search = new URLSearchParams(params).toString();
     return json(url, { headers: { authorization: `Bearer ${token}` } }, "x");
@@ -257,6 +261,59 @@ export function postKey(raw: string) {
     throw new GateError(422, "post_url_invalid");
   }
 }
+const jwksCache = new Map<string, { at: number; keys: Record<string, unknown>[] }>();
+async function linkedinJwks(url: string) {
+  const cached = jwksCache.get(url);
+  if (cached && Date.now() - cached.at < 3600000) return cached.keys;
+  const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!response.ok) throw new Error("jwks_unavailable");
+  const data = object(JSON.parse(await limitedBody(response)));
+  const keys = list(data.keys);
+  jwksCache.set(url, { at: Date.now(), keys });
+  return keys;
+}
+function decodeJwtPart(part: string) {
+  return JSON.parse(
+    Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString(
+      "utf8",
+    ),
+  );
+}
+/** verifyLinkedInIdToken validates OIDC id_token (RS256, iss, aud, exp, nonce). */
+export async function verifyLinkedInIdToken(
+  token: string,
+  env: NodeJS.ProcessEnv,
+  nonce: string,
+) {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new GateError(400, "invalid_token");
+  const header = object(decodeJwtPart(parts[0]));
+  const payload = object(decodeJwtPart(parts[1]));
+  const keys = await linkedinJwks(
+    env.LINKEDIN_JWKS_URL || "https://www.linkedin.com/oauth/openid/jwks",
+  );
+  const jwk = keys.find((key) => key.kid === header.kid);
+  if (!jwk) throw new GateError(400, "invalid_token");
+  const key = createPublicKey({ key: jwk, format: "jwk" });
+  if (
+    !verify(
+      "sha256",
+      Buffer.from(`${parts[0]}.${parts[1]}`),
+      key,
+      Buffer.from(parts[2].replace(/-/g, "+").replace(/_/g, "/"), "base64"),
+    )
+  )
+    throw new GateError(400, "invalid_token");
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.iss !== "https://www.linkedin.com")
+    throw new GateError(400, "invalid_token");
+  if (payload.aud !== env.LINKEDIN_CLIENT_ID)
+    throw new GateError(400, "invalid_token");
+  if (typeof payload.exp !== "number" || payload.exp < now)
+    throw new GateError(400, "invalid_token");
+  if (payload.nonce !== nonce) throw new GateError(400, "invalid_token");
+  return text(payload.sub);
+}
 const normalize = (s: string) =>
   s.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
 function decode(s: string) {
@@ -290,7 +347,7 @@ export class LinkedInProvider implements Provider {
     }).toString();
     return url;
   }
-  async exchange(code: string, _verifier: string, callback: string) {
+  async exchange(code: string, _verifier: string, callback: string, nonce?: string) {
     const data = await json(
       new URL(
         "/oauth/v2/accessToken",
@@ -309,7 +366,14 @@ export class LinkedInProvider implements Provider {
       },
       "linkedin",
     );
-    return text(data.access_token);
+    const access = text(data.access_token);
+    if (nonce) {
+      const idToken =
+        typeof data.id_token === "string" ? data.id_token : undefined;
+      if (!idToken) throw new GateError(400, "invalid_token");
+      await verifyLinkedInIdToken(idToken, this.env, nonce);
+    }
+    return access;
   }
   async identity(token: string): Promise<Identity> {
     const data = await json(
@@ -320,8 +384,9 @@ export class LinkedInProvider implements Provider {
       { headers: { authorization: `Bearer ${token}` } },
       "linkedin",
     );
+    const sub = text(data.sub);
     return {
-      userId: text(data.sub),
+      userId: sub,
       handle: text(data.name),
       name: text(data.name),
       avatar: safeAvatar(data.picture),

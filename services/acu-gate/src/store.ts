@@ -38,13 +38,19 @@ export const tables = {
   ],
   login_codes: [
     "code_hash",
-    "account_id",
-    "identity_id",
+    "provider",
+    "link_account_id",
     "app_challenge",
     "device_id",
     "device_name",
+    "token_ciphertext",
+    "token_nonce",
+    "token_tag",
     "expires_at",
   ],
+  link_tickets: ["ticket_hash", "account_id", "device_id", "expires_at"],
+  x_calls: ["day", "count"],
+  verify_limits: ["account_id", "x_last_at", "linkedin_last_at", "day", "day_count"],
   sessions: [
     "token_hash",
     "account_id",
@@ -94,7 +100,11 @@ export type Op =
   | { kind: "insert"; table: Table; row: Row; ignore?: boolean }
   | { kind: "update"; table: Table; where: Row; row: Row; required?: boolean }
   | { kind: "delete"; table: Table; where: Row; required?: boolean }
-  | { kind: "increment"; table: "ref_clicks" | "download_hits"; where: Row };
+  | {
+      kind: "increment";
+      table: "ref_clicks" | "download_hits" | "x_calls";
+      where: Row;
+    };
 export interface Store {
   list(table: Table, where?: Row): Promise<Row[]>;
   atomic(ops: Op[]): Promise<void>;
@@ -107,6 +117,9 @@ const unique: Partial<Record<Table, string[][]>> = {
   x_profiles: [["identity_id"]],
   login_states: [["state_hash"]],
   login_codes: [["code_hash"]],
+  link_tickets: [["ticket_hash"]],
+  x_calls: [["day"]],
+  verify_limits: [["account_id"]],
   sessions: [["token_hash"]],
   bindings: [["account_id"], ["device_id"]],
   unlocks: [["account_id"]],
@@ -134,6 +147,7 @@ export class MemoryStore implements Store {
     for (const table of [
       "login_states",
       "login_codes",
+      "link_tickets",
       "sessions",
       "device_replays",
     ] satisfies Table[])
@@ -303,6 +317,7 @@ export class NeonStore implements Store {
           [
             "login_states",
             "login_codes",
+            "link_tickets",
             "sessions",
             "device_replays",
           ] satisfies Table[]

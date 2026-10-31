@@ -30,9 +30,25 @@ final class IslandGateClientTests: XCTestCase {
             let url = client.startURL(provider: provider, deviceID: "hex", deviceName: "Guru's Mac & Studio", challenge: "abc_-")
             XCTAssertEqual(url.path, "/v1/auth/\(provider)/start")
             let items = Dictionary(uniqueKeysWithValues: URLComponents(url: url, resolvingAgainstBaseURL: false)!.queryItems!.map { ($0.name, $0.value!) })
-            XCTAssertEqual(items, ["device_id": "hex", "device_name": "Guru's Mac & Studio", "app_challenge": "abc_-", "link": "0"])
+            XCTAssertEqual(items, ["device_id": "hex", "device_name": "Guru's Mac & Studio", "app_challenge": "abc_-"])
             XCTAssertNil(items["session"])
+            XCTAssertNil(items["link"])
         }
+    }
+    func testStartURLWithLinkTicket() {
+        let client = IslandGateURLProtocol.client()
+        let url = client.startURL(provider: "linkedin", deviceID: "hex", deviceName: "Mac", challenge: "abc", linkTicket: "ticket-value")
+        let items = Dictionary(uniqueKeysWithValues: URLComponents(url: url, resolvingAgainstBaseURL: false)!.queryItems!.map { ($0.name, $0.value!) })
+        XCTAssertEqual(items["link"], "1")
+        XCTAssertEqual(items["link_ticket"], "ticket-value")
+    }
+    func testCallbackPrefersFragmentCode() {
+        let url = URL(string: "acu-island://auth#code=fragment-code")!
+        let params = URLComponents(string: "?\(url.fragment!)")!.queryItems!
+        XCTAssertEqual(params.first(where: { $0.name == "code" })?.value, "fragment-code")
+        let fallback = URL(string: "acu-island://auth?code=query-code#code=fragment-code")!
+        let mixed = URLComponents(string: "?\(fallback.fragment!)")!.queryItems!
+        XCTAssertEqual(mixed.first(where: { $0.name == "code" })?.value, "fragment-code")
     }
     func testConfigUsesServerShareLinksAndCopy() async throws {
         IslandGateURLProtocol.handler = { req in
@@ -45,7 +61,7 @@ final class IslandGateClientTests: XCTestCase {
         XCTAssertEqual(config.linkedin.follow_url?.path, "/in/example")
     }
     func testEveryContractErrorDecodedWithFriendlyCopy() async throws {
-        let codes = ["not_signed_in", "session_expired", "follow_missing", "post_missing", "post_url_invalid", "post_url_used", "pending_review", "rejected", "device_conflict", "device_taken", "rebind_cooldown", "device_moved", "revoked", "x_unavailable", "server_error", "not_found"]
+        let codes = ["not_signed_in", "session_expired", "follow_missing", "post_missing", "post_url_invalid", "post_url_used", "pending_review", "rejected", "device_conflict", "device_taken", "rebind_cooldown", "device_moved", "revoked", "x_unavailable", "rate_limited", "server_error", "not_found"]
         for code in codes {
             IslandGateURLProtocol.handler = { _ in
                 (422, try JSONSerialization.data(withJSONObject: ["error": code, "message": "DO NOT SHOW RAW SERVER TEXT", "follow": true, "post": false, "device_name": "Studio", "bound_at": "2026-10-20T00:00:00Z", "rebind_available_at": "2026-11-01T00:00:00Z"]))

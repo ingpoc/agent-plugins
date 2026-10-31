@@ -54,6 +54,7 @@ struct IslandGateFailure: Error, Decodable, Equatable {
         case "device_moved": return "Your island was moved to another Mac. Sign in to move it back."
         case "revoked": return "Island access was withdrawn. Sign in again to check your account."
         case "x_unavailable": return "X verification is unavailable right now. Try again later or use LinkedIn."
+        case "rate_limited": return "Too many tries. Try again in a minute."
         case "not_found": return "This Mac has no island access yet. Sign in to unlock it."
         case "invalid_entitlement": return "Island access couldn't be validated for this Mac. Sign in to renew it."
         case "keychain": return "We couldn't securely save island access. Unlock your login Keychain and try again."
@@ -69,10 +70,19 @@ final class IslandGateClient {
     let baseURL: URL
     private let session: URLSession
     init(baseURL: URL, session: URLSession = .shared) { self.baseURL = baseURL; self.session = session }
-    func startURL(provider: String, deviceID: String, deviceName: String, challenge: String) -> URL {
+    func startURL(provider: String, deviceID: String, deviceName: String, challenge: String, linkTicket: String? = nil) -> URL {
         var parts = URLComponents(url: baseURL.appendingPathComponent("v1/auth/\(provider)/start"), resolvingAgainstBaseURL: false)!
-        parts.queryItems = [URLQueryItem(name: "device_id", value: deviceID), .init(name: "device_name", value: deviceName), .init(name: "app_challenge", value: challenge), .init(name: "link", value: "0")]
+        var items = [URLQueryItem(name: "device_id", value: deviceID), .init(name: "device_name", value: deviceName), .init(name: "app_challenge", value: challenge)]
+        if let linkTicket {
+            items.append(.init(name: "link", value: "1"))
+            items.append(.init(name: "link_ticket", value: linkTicket))
+        }
+        parts.queryItems = items
         return parts.url!
+    }
+    func linkTicket(bearer: String, deviceID: String) async throws -> String {
+        struct Ticket: Decodable { let ticket: String }
+        return try await request("v1/auth/link-ticket", body: ["device_id": deviceID], bearer: bearer, as: Ticket.self).ticket
     }
     func config() async throws -> IslandGateConfig { try await request("v1/config", as: IslandGateConfig.self) }
     func request<T: Decodable>(_ path: String, body: [String: Any]? = nil, bearer: String? = nil, as type: T.Type) async throws -> T {

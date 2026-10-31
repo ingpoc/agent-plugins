@@ -1,6 +1,10 @@
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { once } from "node:events";
+import {
+  generateKeyPairSync,
+  createSign,
+} from "node:crypto";
 import { opaque, pkce } from "./providers.ts";
 import type { PageFetch } from "./providers.ts";
 export type MockUser = {
@@ -16,13 +20,47 @@ export async function startMocks() {
   const users = new Map<string, MockUser>(),
     codes = new Map<
       string,
-      { user: string; challenge: string; redirect: string }
+      {
+        user: string;
+        challenge: string;
+        redirect: string;
+        nonce?: string;
+      }
     >(),
     tokens = new Map<string, string>();
   const pages = new Map<
     string,
     { status?: number; author?: string; body?: string; redirect?: string }
   >();
+  const linkedinKeys = generateKeyPairSync("rsa", { modulusLength: 2048 });
+  const linkedinJwk = linkedinKeys.publicKey.export({ format: "jwk" }) as Record<
+    string,
+    string
+  >;
+  linkedinJwk.kid = "mock-li";
+  linkedinJwk.alg = "RS256";
+  linkedinJwk.use = "sig";
+  function signIdToken(user: string, nonce: string, clientId: string) {
+    const header = Buffer.from(
+      JSON.stringify({ alg: "RS256", typ: "JWT", kid: "mock-li" }),
+    ).toString("base64url");
+    const now = Math.floor(Date.now() / 1000);
+    const payload = Buffer.from(
+      JSON.stringify({
+        iss: "https://www.linkedin.com",
+        aud: clientId,
+        sub: `li:${user}`,
+        exp: now + 3600,
+        nonce,
+      }),
+    ).toString("base64url");
+    const data = `${header}.${payload}`;
+    const sig = createSign("RSA-SHA256")
+      .update(data)
+      .sign(linkedinKeys.privateKey)
+      .toString("base64url");
+    return `${data}.${sig}`;
+  }
   const state = {
     xStatus: 200,
     githubStatus: 200,
@@ -68,6 +106,7 @@ export async function startMocks() {
         user: id,
         challenge: url.searchParams.get("code_challenge") || "",
         redirect: url.searchParams.get("redirect_uri") || "",
+        nonce: url.searchParams.get("nonce") || undefined,
       });
       const redirect = new URL(url.searchParams.get("redirect_uri")!);
       redirect.search = new URLSearchParams({
@@ -98,8 +137,21 @@ export async function startMocks() {
       codes.delete(data.get("code")!);
       const token = opaque();
       tokens.set(token, code.user);
+      if (url.pathname === "/oauth/v2/accessToken") {
+        return json(200, {
+          access_token: token,
+          token_type: "bearer",
+          id_token: signIdToken(
+            code.user,
+            code.nonce || "",
+            data.get("client_id") || "",
+          ),
+        });
+      }
       return json(200, { access_token: token, token_type: "bearer" });
     }
+    if (url.pathname === "/oauth/openid/jwks")
+      return json(200, { keys: [linkedinJwk] });
     if (url.pathname.startsWith("/2/")) {
       if (state.xStatus !== 200)
         return json(state.xStatus, { error: "mock_failure" });
@@ -227,6 +279,7 @@ export async function startMocks() {
       X_API_BASE: base,
       LINKEDIN_AUTH_BASE: base,
       LINKEDIN_API_BASE: base,
+      LINKEDIN_JWKS_URL: `${base}/oauth/openid/jwks`,
       GITHUB_API_BASE: base,
     },
     close: () => closeServer(server),

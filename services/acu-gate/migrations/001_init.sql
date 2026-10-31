@@ -42,12 +42,35 @@ CREATE TABLE IF NOT EXISTS login_states (
 -- statement-break
 CREATE TABLE IF NOT EXISTS login_codes (
   code_hash text PRIMARY KEY,
-  account_id uuid NOT NULL REFERENCES accounts(id),
-  identity_id uuid NOT NULL REFERENCES identities(id),
+  provider text NOT NULL CHECK (provider IN ('x', 'linkedin')),
+  link_account_id uuid REFERENCES accounts(id),
   app_challenge text NOT NULL,
   device_id text NOT NULL,
   device_name text NOT NULL,
+  token_ciphertext text NOT NULL,
+  token_nonce text NOT NULL,
+  token_tag text NOT NULL,
   expires_at timestamptz NOT NULL
+);
+-- statement-break
+CREATE TABLE IF NOT EXISTS link_tickets (
+  ticket_hash text PRIMARY KEY,
+  account_id uuid NOT NULL REFERENCES accounts(id),
+  device_id text NOT NULL,
+  expires_at timestamptz NOT NULL
+);
+-- statement-break
+CREATE TABLE IF NOT EXISTS x_calls (
+  day date PRIMARY KEY,
+  count bigint NOT NULL DEFAULT 0
+);
+-- statement-break
+CREATE TABLE IF NOT EXISTS verify_limits (
+  account_id uuid PRIMARY KEY REFERENCES accounts(id),
+  x_last_at timestamptz NOT NULL DEFAULT '1970-01-01',
+  linkedin_last_at timestamptz NOT NULL DEFAULT '1970-01-01',
+  day date NOT NULL,
+  day_count bigint NOT NULL DEFAULT 0
 );
 -- statement-break
 CREATE TABLE IF NOT EXISTS sessions (

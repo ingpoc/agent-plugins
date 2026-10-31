@@ -40,5 +40,7 @@ services:
         sync: false
       - key: ADMIN_TOKEN
         sync: false
+      - key: TRUST_PROXY_HOPS
+        value: "1"
       - key: GITHUB_TOKEN
         sync: false

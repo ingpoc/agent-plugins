@@ -26,6 +26,7 @@ import {
   constantEqual,
 } from "./settings.ts";
 import { Downloads } from "./downloads.ts";
+import { clientIp } from "./client-ip.ts";
 const now = () => Math.floor(Date.now() / 1000);
 const iso = () => new Date().toISOString();
 const expires = (seconds: number) =>
@@ -98,7 +99,21 @@ export function createGate(
   options: { pageFetch?: PageFetch; downloads?: Downloads } = {},
 ) {
   const env = settings(input);
-  const x = new XProvider(env),
+  const trustHops = Number(env.TRUST_PROXY_HOPS || 0);
+  const xBudget = Number(env.X_DAILY_CALL_BUDGET || 2000);
+  async function spendX() {
+    const day = iso().slice(0, 10);
+    const row = await first(store, "x_calls", { day });
+    if (row && Number(row.count) >= xBudget)
+      throw new GateError(503, "x_unavailable");
+    await store.atomic([
+      { kind: "increment", table: "x_calls", where: { day } },
+    ]);
+    const after = await first(store, "x_calls", { day });
+    if (after && Number(after.count) > xBudget)
+      throw new GateError(503, "x_unavailable");
+  }
+  const x = new XProvider(env, spendX),
     linkedin = new LinkedInProvider(env, options.pageFetch);
   const providers = { x, linkedin };
   const downloads = options.downloads ?? new Downloads(env);
@@ -110,17 +125,148 @@ export function createGate(
     }
   }
   const buckets = new Map<string, { tokens: number; at: number }>();
-  function rate(req: IncomingMessage) {
+  const adminFails = new Map<string, { count: number; at: number }>();
+  function rateLimited(retryAfter: number) {
+    throw new GateError(429, "rate_limited", {
+      retry_after: Math.max(1, Math.ceil(retryAfter)),
+    });
+  }
+  function rateLimit(
+    name: string,
+    max: number,
+    windowMs: number,
+    req: IncomingMessage,
+  ) {
     const time = Date.now(),
-      ip = req.socket.remoteAddress || "unknown";
-    for (const [key, b] of buckets)
-      if (time - b.at > 120000) buckets.delete(key);
-    const bucket = buckets.get(ip) ?? { tokens: 60, at: time };
-    bucket.tokens = Math.min(60, bucket.tokens + (time - bucket.at) / 1000);
+      ip = clientIp(req, trustHops),
+      key = `${name}:${ip}`;
+    for (const [k, b] of buckets)
+      if (time - b.at > windowMs * 2) buckets.delete(k);
+    const rate = max / (windowMs / 1000);
+    const bucket = buckets.get(key) ?? { tokens: max, at: time };
+    bucket.tokens = Math.min(
+      max,
+      bucket.tokens + ((time - bucket.at) / 1000) * rate,
+    );
     bucket.at = time;
-    if (bucket.tokens < 1) throw new GateError(429, "rate_limited");
-    bucket.tokens--;
-    buckets.set(ip, bucket);
+    if (bucket.tokens < 1) rateLimited((1 - bucket.tokens) / rate);
+    bucket.tokens -= 1;
+    buckets.set(key, bucket);
+  }
+  function ratePublic(req: IncomingMessage) {
+    rateLimit("public", 60, 60000, req);
+  }
+  function adminAuthFail(req: IncomingMessage) {
+    const time = Date.now(),
+      ip = clientIp(req, trustHops);
+    const entry = adminFails.get(ip) ?? { count: 0, at: time };
+    if (time - entry.at > 60000) {
+      entry.count = 0;
+      entry.at = time;
+    }
+    entry.count += 1;
+    adminFails.set(ip, entry);
+    if (entry.count > 10) rateLimited(60);
+    throw new GateError(401, "not_signed_in");
+  }
+  async function checkVerifyLimit(accountId: string, provider: ProviderName) {
+    const day = iso().slice(0, 10),
+      row = await first(store, "verify_limits", { account_id: accountId });
+    if (!row) return;
+    const last =
+      provider === "x" ? row.x_last_at : row.linkedin_last_at;
+    if (
+      Date.parse(String(last)) > 0 &&
+      Date.now() - Date.parse(String(last)) < 20000
+    )
+      rateLimited(20);
+    if (String(row.day) === day && Number(row.day_count) >= 30)
+      rateLimited(3600);
+  }
+  async function recordVerifyAttempt(accountId: string) {
+    const day = iso().slice(0, 10),
+      row = await first(store, "verify_limits", { account_id: accountId });
+    const next = {
+      x_last_at: row ? String(row.x_last_at) : new Date(0).toISOString(),
+      linkedin_last_at: row
+        ? String(row.linkedin_last_at)
+        : new Date(0).toISOString(),
+      day,
+      day_count:
+        row && String(row.day) === day ? Number(row.day_count) + 1 : 1,
+    };
+    await store.atomic([
+      row
+        ? update("verify_limits", { account_id: accountId }, next)
+        : insert("verify_limits", { account_id: accountId, ...next }),
+    ]);
+  }
+  async function recordVerifySuccess(
+    accountId: string,
+    provider: ProviderName,
+  ) {
+    const field = provider === "x" ? "x_last_at" : "linkedin_last_at";
+    const row = await first(store, "verify_limits", { account_id: accountId });
+    if (!row) return;
+    await store.atomic([
+      update("verify_limits", { account_id: accountId }, { [field]: iso() }),
+    ]);
+  }
+  function appRedirect(code: string) {
+    return `${env.APP_CALLBACK_SCHEME}://auth#code=${encodeURIComponent(code)}`;
+  }
+  function appRedirectError(code: string) {
+    return `${env.APP_CALLBACK_SCHEME}://auth#error=${encodeURIComponent(code)}`;
+  }
+  async function upsertOAuthIdentity(
+    provider: ProviderName,
+    info: Identity,
+    linkAccountId: string | null,
+    access: string,
+  ) {
+    let identity = await first(store, "identities", {
+      provider,
+      provider_user_id: info.userId,
+    });
+    if (identity && linkAccountId && identity.account_id !== linkAccountId)
+      throw new GateError(409, "identity_taken");
+    const account = identity?.account_id ?? linkAccountId ?? randomUUID();
+    const id = identity?.id ?? randomUUID();
+    const fields = {
+      handle: info.handle,
+      name: info.name,
+      avatar_url: info.avatar,
+      profile_url: info.profile,
+      email_hash: info.email
+        ? emailHash(info.email, env.EMAIL_HASH_KEY!)
+        : null,
+      token_blob: tokenBlob(access, env.TOKEN_ENC_KEY!),
+    };
+    const ops: Op[] = [];
+    if (!identity && !linkAccountId)
+      ops.push(
+        insert("accounts", {
+          id: account,
+          created_at: iso(),
+          wall_opt_in: false,
+          wall_opt_in_at: null,
+        }),
+      );
+    if (identity) ops.push(update("identities", { id }, fields));
+    else
+      ops.push(
+        insert("identities", {
+          id,
+          account_id: account,
+          provider,
+          provider_user_id: info.userId,
+          ...fields,
+        }),
+      );
+    if (provider === "x")
+      ops.push(...(await profileOps(String(id), info)));
+    if (ops.length) await store.atomic(ops);
+    return { accountId: account, identityId: id };
   }
   async function session(token: string | undefined) {
     if (!token) throw new GateError(401, "not_signed_in");
@@ -383,7 +529,7 @@ export function createGate(
     async function handlePublic() {
       if (path.startsWith("/v1/public/")) {
         responseHeaders["access-control-allow-origin"] = "*";
-        rate(req);
+        ratePublic(req);
         if (method === "OPTIONS") {
           res.writeHead(204, {
             "access-control-allow-origin": "*",
@@ -396,8 +542,10 @@ export function createGate(
       }
       if (path === "/healthz" && method === "GET")
         return reply(200, { ok: true });
-      if (path === "/v1/config" && method === "GET")
+      if (path === "/v1/config" && method === "GET") {
+        rateLimit("config", 120, 60000, req);
         return reply(200, config());
+      }
       if (path === "/v1/public/counter" && method === "GET") {
         responseHeaders["cache-control"] = "public, max-age=60";
         return reply(200, {
@@ -436,23 +584,58 @@ export function createGate(
       }
     }
     async function handleAuth() {
+      if (path === "/v1/auth/link-ticket" && method === "POST") {
+        rateLimit("auth_start", 10, 60000, req);
+        const s = await auth(req),
+          data = await body(req),
+          id = deviceId(data.device_id);
+        if (id !== s.device_id) throw new GateError(409, "device_conflict");
+        if (
+          Date.now() - Date.parse(String(s.expires_at)) + 30 * 86400000 >
+          10 * 60000
+        )
+          throw new GateError(401, "session_expired");
+        const ticket = opaque();
+        await store.atomic([
+          insert("link_tickets", {
+            ticket_hash: sha256(ticket),
+            account_id: s.account_id,
+            device_id: id,
+            expires_at: expires(120),
+          }),
+        ]);
+        return reply(200, { ticket, expires_in: 120 });
+      }
       const admin = path.startsWith("/v1/admin/");
       if (admin && !constantEqual(bearer(req) || "", env.ADMIN_TOKEN!))
-        throw new GateError(401, "not_signed_in");
+        adminAuthFail(req);
       const start = path.match(/^\/v1\/auth\/(x|linkedin)\/start$/);
       const owner = path === "/v1/admin/x-owner/start";
       if ((start || owner) && method === "GET") {
+        if (!owner) rateLimit("auth_start", 10, 60000, req);
         await cleanup();
         const provider: ProviderName =
           start?.[1] === "linkedin" ? "linkedin" : "x";
-        let linked: Row | undefined;
+        let linkAccountId: string | null = null;
         if (url.searchParams.get("link") === "1") {
-          linked = await session(url.searchParams.get("session") || undefined);
-          if (
-            Date.now() - Date.parse(String(linked.expires_at)) + 30 * 86400000 >
-            10 * 60000
-          )
-            throw new GateError(401, "session_expired");
+          const ticket = text(url.searchParams.get("link_ticket"), 128);
+          const row = await first(store, "link_tickets", {
+            ticket_hash: sha256(ticket),
+          });
+          if (!row || Date.parse(String(row.expires_at)) <= Date.now())
+            throw new GateError(401, "invalid_ticket");
+          linkAccountId = String(row.account_id);
+          const id = deviceId(url.searchParams.get("device_id"));
+          if (String(row.device_id) !== id)
+            throw new GateError(409, "device_conflict");
+          await store.atomic([
+            {
+              kind: "delete",
+              table: "link_tickets",
+              where: { ticket_hash: row.ticket_hash },
+              required: true,
+            },
+          ]);
         }
         const state = opaque(),
           verifier = opaque(),
@@ -465,8 +648,6 @@ export function createGate(
         const id = owner
           ? "0".repeat(64)
           : deviceId(url.searchParams.get("device_id"));
-        if (linked && linked.device_id !== id)
-          throw new GateError(409, "device_conflict");
         await store.atomic([
           insert("login_states", {
             state_hash: sha256(state),
@@ -478,7 +659,7 @@ export function createGate(
             device_name: owner
               ? "Owner"
               : text(url.searchParams.get("device_name"), 200),
-            link_account_id: linked?.account_id ?? null,
+            link_account_id: linkAccountId,
             owner_authorization: owner,
             expires_at: expires(600),
           }),
@@ -519,13 +700,15 @@ export function createGate(
           ]);
           if (url.searchParams.has("error"))
             throw new GateError(400, "authorization_denied");
+          const callbackUrl = `${env.PUBLIC_BASE_URL}/v1/auth/${provider}/callback`;
           const access = await providers[provider].exchange(
             text(url.searchParams.get("code")),
             String(state.verifier),
-            `${env.PUBLIC_BASE_URL}/v1/auth/${provider}/callback`,
+            callbackUrl,
+            provider === "linkedin" ? String(state.nonce) : undefined,
           );
-          const info = await providers[provider].identity(access);
           if (state.owner_authorization === true) {
+            const info = await providers[provider].identity(access);
             if (provider !== "x" || info.userId !== env.OWNER_X_USER_ID)
               throw new GateError(403, "owner_mismatch");
             const row = {
@@ -539,77 +722,35 @@ export function createGate(
             ]);
             return reply(200, { ok: true });
           }
-          let identity = await first(store, "identities", {
-            provider,
-            provider_user_id: info.userId,
-          });
-          if (
-            identity &&
-            state.link_account_id &&
-            identity.account_id !== state.link_account_id
-          )
-            throw new GateError(409, "identity_taken");
-          const account =
-            identity?.account_id ?? state.link_account_id ?? randomUUID();
-          const id = identity?.id ?? randomUUID();
-          const fields = {
-            handle: info.handle,
-            name: info.name,
-            avatar_url: info.avatar,
-            profile_url: info.profile,
-            email_hash: info.email
-              ? emailHash(info.email, env.EMAIL_HASH_KEY!)
-              : null,
-            token_blob: tokenBlob(access, env.TOKEN_ENC_KEY!),
-          };
-          const ops: Op[] = [];
-          if (!identity && !state.link_account_id)
-            ops.push(
-              insert("accounts", {
-                id: account,
-                created_at: iso(),
-                wall_opt_in: false,
-                wall_opt_in_at: null,
-              }),
-            );
-          if (identity) ops.push(update("identities", { id }, fields));
-          else
-            ops.push(
-              insert("identities", {
-                id,
-                account_id: account,
-                provider,
-                provider_user_id: info.userId,
-                ...fields,
-              }),
-            );
-          if (provider === "x")
-            ops.push(...(await profileOps(String(id), info)));
           const code = opaque();
-          ops.push(
+          const tokenFields = encrypt(access, env.TOKEN_ENC_KEY!);
+          await store.atomic([
             insert("login_codes", {
               code_hash: sha256(code),
-              account_id: account,
-              identity_id: id,
+              provider,
+              link_account_id: state.link_account_id,
               app_challenge: state.app_challenge,
               device_id: state.device_id,
               device_name: state.device_name,
+              token_ciphertext: tokenFields.ciphertext,
+              token_nonce: tokenFields.nonce,
+              token_tag: tokenFields.tag,
               expires_at: expires(60),
             }),
-          );
-          await store.atomic(ops);
-          return redirect(`${env.APP_CALLBACK_SCHEME}://auth?code=${code}`);
+          ]);
+          return redirect(appRedirect(code));
         } catch (error) {
           return redirect(
-            `${env.APP_CALLBACK_SCHEME}://auth?error=${
-              error instanceof GateError ? error.code : "server_error"
-            }`,
+            appRedirectError(
+              error instanceof GateError ? error.code : "server_error",
+            ),
           );
         }
       }
     }
     async function handleSessionVerify() {
       if (path === "/v1/session/redeem" && method === "POST") {
+        rateLimit("redeem", 20, 60000, req);
         const data = await body(req),
           code = await first(store, "login_codes", {
             code_hash: sha256(text(data.code)),
@@ -624,12 +765,31 @@ export function createGate(
           deviceId(data.device_id) !== code.device_id
         )
           throw new GateError(401, "invalid_code");
+        const provider = code.provider as ProviderName;
+        const access = decrypt(
+          {
+            ciphertext: String(code.token_ciphertext),
+            nonce: String(code.token_nonce),
+            tag: String(code.token_tag),
+          },
+          env.TOKEN_ENC_KEY!,
+        );
+        const info = await providers[provider].identity(access);
+        const linkAccountId = code.link_account_id
+          ? String(code.link_account_id)
+          : null;
+        const { accountId, identityId } = await upsertOAuthIdentity(
+          provider,
+          info,
+          linkAccountId,
+          access,
+        );
         const rawKey = deviceKey(data.device_pubkey),
           plain = opaque();
         const s = {
           token_hash: sha256(plain),
-          account_id: code.account_id,
-          identity_id: code.identity_id,
+          account_id: accountId,
+          identity_id: identityId,
           device_id: code.device_id,
           device_name: code.device_name,
           device_pubkey: rawKey,
@@ -675,11 +835,15 @@ export function createGate(
           share_links: config(),
         });
       }
-      if (path === "/v1/status" && method === "GET")
+      if (path === "/v1/status" && method === "GET") {
+        rateLimit("status", 120, 60000, req);
         return reply(200, await accountStatus(await auth(req)));
+      }
       if (path === "/v1/verify/x" && method === "POST") {
         const s = await auth(req),
           data = await body(req);
+        await checkVerifyLimit(String(s.account_id), "x");
+        await recordVerifyAttempt(String(s.account_id));
         const show = consent(data.show_on_wall);
         await checkRevoked(String(s.account_id));
         const identity = await first(store, "identities", {
@@ -722,28 +886,29 @@ export function createGate(
         const used = await first(store, "used_posts", { post_key: key });
         if (used && used.account_id !== s.account_id)
           throw new GateError(422, "post_url_used");
-        return reply(
-          200,
-          await finish(
-            s,
-            identity,
-            key,
-            show,
-            used
-              ? []
-              : [
-                  insert("used_posts", {
-                    post_key: key,
-                    account_id: s.account_id,
-                    created_at: iso(),
-                  }),
-                ],
-          ),
+        const unlocked = await finish(
+          s,
+          identity,
+          key,
+          show,
+          used
+            ? []
+            : [
+                insert("used_posts", {
+                  post_key: key,
+                  account_id: s.account_id,
+                  created_at: iso(),
+                }),
+              ],
         );
+        await recordVerifySuccess(String(s.account_id), "x");
+        return reply(200, unlocked);
       }
       if (path === "/v1/verify/linkedin" && method === "POST") {
         const s = await auth(req),
           data = await body(req);
+        await checkVerifyLimit(String(s.account_id), "linkedin");
+        await recordVerifyAttempt(String(s.account_id));
         const show = consent(data.show_on_wall);
         await checkRevoked(String(s.account_id));
         await ensureDevice(s);
@@ -775,8 +940,11 @@ export function createGate(
             String(identity.name),
             match("linkedin"),
           )
-        )
-          return reply(200, await finish(s, identity, key, show, [reserve]));
+        ) {
+          const unlocked = await finish(s, identity, key, show, [reserve]);
+          await recordVerifySuccess(String(s.account_id), "linkedin");
+          return reply(200, unlocked);
+        }
         try {
           await store.atomic([
             reserve,
@@ -804,6 +972,7 @@ export function createGate(
     }
     async function handleDevice() {
       if (path === "/v1/device/rebind" && method === "POST") {
+        rateLimit("rebind", 30, 60000, req);
         const s = await auth(req),
           data = await body(req),
           id = deviceId(data.device_id);
@@ -875,6 +1044,7 @@ export function createGate(
         });
       }
       if (path === "/v1/entitlement/refresh" && method === "POST") {
+        rateLimit("refresh", 30, 60000, req);
         const data = await body(req),
           id = deviceId(data.device_id);
         const binding = await first(store, "bindings", { device_id: id });
@@ -892,6 +1062,7 @@ export function createGate(
         return reply(200, { entitlement: token(binding, unlock) });
       }
       if (path === "/v1/wall" && method === "POST") {
+        rateLimit("wall", 30, 60000, req);
         const data = await body(req),
           show = consent(data.show);
         let account: string;

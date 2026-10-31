@@ -177,10 +177,15 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
                     guard let self, self.generation == version else { return }
                     self.authentication = nil
                     if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin { self.cancelSignIn(); return }
-                    guard error == nil, let callback, callback.scheme == "acu-island", callback.host == "auth",
-                          let parts = URLComponents(url: callback, resolvingAgainstBaseURL: false) else { self.handle(IslandGateFailure(code: "invalid_callback")); return }
-                    if let code = parts.queryItems?.first(where: { $0.name == "error" })?.value { self.handle(IslandGateFailure(code: code)); return }
-                    guard let code = parts.queryItems?.first(where: { $0.name == "code" })?.value, !code.isEmpty else { self.handle(IslandGateFailure(code: "invalid_callback")); return }
+                    guard error == nil, let callback, callback.scheme == "acu-island", callback.host == "auth" else { self.handle(IslandGateFailure(code: "invalid_callback")); return }
+                    let params: [URLQueryItem]
+                    if let fragment = callback.fragment, !fragment.isEmpty {
+                        params = URLComponents(string: "?\(fragment)")?.queryItems ?? []
+                    } else {
+                        params = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                    }
+                    if let code = params.first(where: { $0.name == "error" })?.value { self.handle(IslandGateFailure(code: code)); return }
+                    guard let code = params.first(where: { $0.name == "code" })?.value, !code.isEmpty else { self.handle(IslandGateFailure(code: "invalid_callback")); return }
                     self.operation = Task { await self.redeem(code: code, pkce: pkce, version: version) }
                 }
             }
