@@ -47,22 +47,59 @@ enum AppIconResolver {
         "Terminal": "terminal", "Notes": "note.text", "Calculator": "plus.forwardslash.minus",
         "Mail": "envelope", "Calendar": "calendar", "Messages": "message", "Music": "music.note",
         "Preview": "photo", "System Settings": "gearshape", "Cursor": "cursorarrow.rays", "Codex": "terminal", "Grok Bot": "sparkles",
+        "Samantha": "waveform",
     ]
 
     static let fallbackSymbol = "app.dashed"
 
+    /// Rows from Samantha (and ACU itself) wear ACU's own app icon — never a third-party logo.
+    static let ownIconNames: Set<String> = ["Samantha", "Agent Computer Use", "ACU"]
+
+    /// ACU's AppIcon: the bundled AppIcon.icns, else this .app bundle's Finder icon.
+    static func ownIcon() -> NSImage? {
+        if let icns = BrandTile.icon { return icns }
+        let bundle = Bundle.main.bundleURL
+        return bundle.pathExtension == "app" ? NSWorkspace.shared.icon(forFile: bundle.path) : nil
+    }
+
+    /// Icons are resolved once per name and kept as one small bitmap (64 pt @2x), not the full
+    /// multi-resolution icon family `icon(forFile:)` returns.
+    /// https://developer.apple.com/documentation/appkit/nsworkspace/icon(forfile:)
+    nonisolated static let cachedSide = 128
+
     static func resolve(_ name: String) -> Resolved {
         if let hit = cache[name] { return hit }
         let result: Resolved
-        if let url = appURL(for: name),
+        if ownIconNames.contains(name), let own = ownIcon() {
+            result = .image(small(own))
+        } else if let url = appURL(for: name),
            case let icon = NSWorkspace.shared.icon(forFile: url.path),
            !isBlank(icon) {
-            result = .image(icon)
+            result = .image(small(icon))
         } else {
             result = .symbol(symbols[name] ?? fallbackSymbol)
         }
         cache[name] = result
         return result
+    }
+
+    /// One `cachedSide`-pixel bitmap of `image` (point size half that, for Retina).
+    nonisolated static func small(_ image: NSImage, side: Int = cachedSide) -> NSImage {
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil, pixelsWide: side, pixelsHigh: side, bitsPerSample: 8,
+            samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+            bytesPerRow: 0, bitsPerPixel: 0
+        ) else { return image }
+        let pt = NSSize(width: CGFloat(side) / 2, height: CGFloat(side) / 2)
+        rep.size = pt
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        NSGraphicsContext.current?.imageInterpolation = .high
+        image.draw(in: NSRect(origin: .zero, size: pt))
+        NSGraphicsContext.restoreGraphicsState()
+        let out = NSImage(size: pt)
+        out.addRepresentation(rep)
+        return out
     }
 
     /// Only real .app bundles — never a guessed path (that yields the blank document icon).
@@ -73,11 +110,13 @@ enum AppIconResolver {
             var dir: ObjCBool = false
             return fm.fileExists(atPath: url.path, isDirectory: &dir) && dir.boolValue ? url : nil
         }
-        if let running = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == name }),
-           let url = isApp(running.bundleURL) { return url }
+        // Known apps by bundle id first: the Codex app installs as ChatGPT.app (com.openai.codex).
+        // https://developer.apple.com/documentation/appkit/nsworkspace/urlforapplication(withbundleidentifier:)
         if let id = bundleIDs[name], let url = isApp(NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)) {
             return url
         }
+        if let running = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == name }),
+           let url = isApp(running.bundleURL) { return url }
         let dirs = ["/Applications", "/System/Applications", "/System/Applications/Utilities",
                     "/Applications/Utilities", NSHomeDirectory() + "/Applications"]
         for dir in dirs {

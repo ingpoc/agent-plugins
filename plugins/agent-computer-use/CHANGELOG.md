@@ -5,6 +5,7 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 ## 0.2.63 (2026-10-31)
 
 - Island leave fix: a card you opened (or an alert you hovered) now compacts about 0.3 s after the pointer leaves, every time, however long it was open. Root cause: leave detection relied only on NSTrackingArea mouseExited, and the tracking areas and tracking windows are rebuilt whenever the card resizes (rows join, open/close) — an exit that crossed a rebuild never arrived, so the hover flag stayed true and the 0.2.62 hover-hold kept the card open until the next geometry change. While a card or peek is up, a 10 Hz watchdog now checks the real pointer (NSEvent.mouseLocation vs the panel frame) and runs the normal leave path when it disagrees; a backstop leaves if the pointer stays off the island past the grace with no leave pending. Nothing runs while compact.
+- Island rows wear the real app icon of the agent's app — Grok Bot, Codex (the ChatGPT/Codex app, found by bundle id com.openai.codex) and Cursor — resolved natively with NSWorkspace (urlForApplication(withBundleIdentifier:) → icon(forFile:)), cached once per app as one small bitmap. Not installed → a neutral SF Symbol. Samantha rows use ACU's own app icon. No bundled third-party logos.
 - Hovered peeks dismiss 0.3 s after the pointer leaves (was 1.5 s); unhovered alerts and peeks keep their timers. island-events.jsonl now logs closed, pointer-left (via exit/watchdog/backstop) and exit-lost.
 
 ## 0.2.62 (2026-10-31)
