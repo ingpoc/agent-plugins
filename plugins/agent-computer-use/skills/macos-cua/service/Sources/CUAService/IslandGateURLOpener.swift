@@ -49,7 +49,7 @@ final class IslandGateValidatedURLOpener: IslandGateURLOpening {
 enum IslandGateURLOpenerDefault {
     static func make(fixtureState: IslandGateState?) -> IslandGateURLOpening {
         if IslandGateSafety.restricted || fixtureState != nil { return IslandGateRecordingURLOpener() }
-        return IslandGateSystemURLOpener()
+        return IslandGateValidatedURLOpener()
     }
 }
 

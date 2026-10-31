@@ -71,7 +71,7 @@ enum IslandGateFixtures {
         case "checking", "04-checking":
             state = .checking(claimID: "fixture-claim", since: Date(), follow: .confirmed, post: .pending)
         case "conflict": state = .conflict(deviceName: "Studio Mac", rebindAvailableAt: nil)
-        case "unlocked", "05-unlocked": state = .unlocked(account: account, verified: true, exp: ISO8601DateFormatter().date(from: "2026-11-14T23:59:59Z")!)
+        case "unlocked", "05-unlocked": state = .unlocked(account: account, verified: true, exp: ISO8601DateFormatter().date(from: "2026-11-14T12:00:00Z")!)
         case "rejected": state = .rejected(message: IslandGateFailure(code: "follow_missing").message)
         case "error", "06-error-offline": state = .error(code: "offline", message: IslandGateFailure(code: "offline").message)
         case "07-error-notfound": state = .error(code: "post_not_found", message: IslandGateFailure(code: "post_not_found").message)

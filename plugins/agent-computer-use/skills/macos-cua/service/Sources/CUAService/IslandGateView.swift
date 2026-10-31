@@ -90,15 +90,17 @@ struct IslandGateView: View {
         Group {
             if reduceMotion { ProgressView().progressViewStyle(.linear).frame(height: 4) }
             else {
-                GeometryReader { proxy in
-                    Capsule().fill(.white.opacity(0.1))
-                        .overlay(alignment: .leading) {
-                            Capsule().fill(GateColor.blue).frame(width: proxy.size.width * 0.38)
-                                .offset(x: barMoving ? proxy.size.width * 0.62 : 0)
-                        }.clipped()
-                }.frame(height: 4).onAppear {
-                    withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { barMoving = true }
-                }
+                // Fixed track width (440 - 2 x 24) and a scoped animation: a GeometryReader plus withAnimation(repeatForever)
+                // made the whole window content animate during fitContent.
+                let track: CGFloat = 392
+                Capsule().fill(.white.opacity(0.1)).frame(width: track, height: 4)
+                    .overlay(alignment: .leading) {
+                        Capsule().fill(GateColor.blue).frame(width: track * 0.38, height: 4)
+                            .offset(x: barMoving ? track * 0.62 : 0)
+                            .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: false), value: barMoving)
+                    }
+                    .clipShape(Capsule())
+                    .onAppear { barMoving = true }
             }
         }
     }
