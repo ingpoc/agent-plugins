@@ -66,6 +66,8 @@ enum AgentSource: String, CaseIterable, Codable {
         if l == "agent" || l.contains("agent roster") { return .agentRoster }
         return nil
     }
+    /// Codex and Claude are observed read-only (thread state / hooks); they cannot take a decision back.
+    var canDecide: Bool { self != .codex && self != .claude }
     var keyPrefix: String { "island.agent.\(rawValue)." }
     /// CLI / wire name (island-post --source).
     var cliName: String { self == .grokBot ? "grok-bot" : rawValue }
@@ -321,7 +323,7 @@ enum IslandSettingsSchema {
         return [
             .init(tab: .agents, section: nil, key: p + "enabled", label: s.title, kind: .toggle, defaultValue: .bool(true)),
             .init(tab: .agents, section: nil, key: p + "cap", label: s.title + " alerts", kind: .popup(alertOptions), defaultValue: .string(s == .agentRoster ? "info" : "attention")),
-            .init(tab: .agents, section: nil, key: p + "canRaiseApprovals", label: s.title + " approve", kind: .toggle, defaultValue: .bool(s != .codex && s != .agentRoster)),
+            .init(tab: .agents, section: nil, key: p + "canRaiseApprovals", label: s.title + " approve", kind: .toggle, defaultValue: .bool(s.canDecide && s != .agentRoster)),
         ]
     }
     static let agents: [SettingDef] = [
@@ -454,7 +456,7 @@ final class IslandSettingsStore: ObservableObject {
 
     func bool(_ key: String) -> Bool {
         if key == IslandSettingsSchema.openAtLogin { return loginItem.isOn }
-        if key == AgentSource.codex.keyPrefix + "canRaiseApprovals" { return false }
+        if key == AgentSource.codex.keyPrefix + "canRaiseApprovals" || key == AgentSource.claude.keyPrefix + "canRaiseApprovals" { return false }
         if key == IslandSettingsSchema.hideInMissionControl { return true }
         if key == IslandSettingsSchema.agentPeeks, defaults.object(forKey: key) == nil { return true }
         if defaults.object(forKey: key) != nil { return defaults.bool(forKey: key) }
@@ -505,14 +507,14 @@ final class IslandSettingsStore: ObservableObject {
         return c == .ambient ? .info : c
     }
     func mayRaiseApproval(_ s: AgentSource) -> Bool {
-        s != .codex && sourceEnabled(s) && bool(s.keyPrefix + "canRaiseApprovals") && cap(s).rank >= AttentionCap.attention.rank
+        s.canDecide && sourceEnabled(s) && bool(s.keyPrefix + "canRaiseApprovals") && cap(s).rank >= AttentionCap.attention.rank
     }
 
     func sourceControlEnabled(_ key: String) -> Bool {
         guard let s = AgentSource.allCases.first(where: { key.hasPrefix($0.keyPrefix) }) else { return true }
         if key.hasSuffix(".enabled") { return true }
         if !sourceEnabled(s) { return false }
-        if key.hasSuffix(".canRaiseApprovals") { return s != .codex && cap(s).rank >= AttentionCap.attention.rank }
+        if key.hasSuffix(".canRaiseApprovals") { return s.canDecide && cap(s).rank >= AttentionCap.attention.rank }
         return true
     }
 

@@ -83,7 +83,7 @@ final class IslandSettingsRedesignTests: XCTestCase {
         for source in AgentSource.allCases {
             XCTAssertTrue(s.sourceEnabled(source))
             XCTAssertEqual(s.cap(source), source == .agentRoster ? .info : .attention)
-            XCTAssertEqual(s.mayRaiseApproval(source), source != .codex && source != .agentRoster)
+            XCTAssertEqual(s.mayRaiseApproval(source), source.canDecide && source != .agentRoster)
         }
         let codexApprove = AgentSource.codex.keyPrefix + "canRaiseApprovals"
         s.set(true, for: codexApprove)
@@ -174,7 +174,7 @@ final class IslandSettingsRedesignTests: XCTestCase {
         XCTAssertEqual((s.tokens as! MemoryTokenStore).tokens, tokens)
         for source in AgentSource.allCases {
             XCTAssertTrue(s.sourceEnabled(source)); XCTAssertEqual(s.cap(source), source == .agentRoster ? .info : .attention)
-            XCTAssertEqual(s.mayRaiseApproval(source), source != .codex && source != .agentRoster)
+            XCTAssertEqual(s.mayRaiseApproval(source), source.canDecide && source != .agentRoster)
         }
         XCTAssertEqual(s.double(K.alertDuration), 4); XCTAssertTrue(s.bool(K.promptSound))
         for key in [K.respectFocus, K.hideWhileSharing, K.hideInFullscreen] { XCTAssertTrue(s.bool(key)) }

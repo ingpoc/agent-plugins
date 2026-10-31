@@ -208,7 +208,8 @@ final class IslandSettingsTests: XCTestCase {
         XCTAssertTrue(s.mayRaiseApproval(.cursor))
         XCTAssertTrue(s.mayRaiseApproval(.grokBot))
         XCTAssertFalse(s.mayRaiseApproval(.codex), "Codex is enabled but cannot raise approvals")
-        XCTAssertTrue(IslandSettingsSchema.tableSources.filter { $0 != .codex && $0 != .agentRoster }.allSatisfy { s.mayRaiseApproval($0) })
+        XCTAssertFalse(s.mayRaiseApproval(.claude), "Claude is observed read-only and cannot take a decision back")
+        XCTAssertTrue(IslandSettingsSchema.tableSources.filter { $0.canDecide && $0 != .agentRoster }.allSatisfy { s.mayRaiseApproval($0) })
         for lowCap in ["ambient", "info"] {
             s.set(lowCap, for: AgentSource.samantha.keyPrefix + "cap")
             XCTAssertEqual(s.cap(.samantha), .attention, "Samantha cannot be capped below attention")
