@@ -35,8 +35,9 @@ final class SamanthaMenuBarIslandPanel {
     private var hideInMissionControl = true
     private var hideFromCapture = false
 
-    /// Card closes this long after the pointer leaves it (Alcove: ~120 ms).
-    static let leaveDelay: TimeInterval = 0.12
+    /// Card closes this long after the pointer leaves it: enough grace to cross a seam between the
+    /// card and an app circle without collapsing, still well under 0.5 s.
+    static let leaveDelay: TimeInterval = 0.3
 
     /// App that was frontmost when text entry began (key goes back to it after submit / Escape).
     private var keyReturnApp: NSRunningApplication?
@@ -410,11 +411,20 @@ final class SamanthaMenuBarIslandPanel {
             leaveTask?.cancel()
             leaveTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(Self.leaveDelay * 1_000_000_000))
-                guard !Task.isCancelled else { return }
-                self?.model?.pointerLeft()
+                guard let self, !Task.isCancelled else { return }
+                // Tracking areas only report crossings: re-check the real pointer so a missed
+                // re-enter (geometry rebuilt under the pointer) never collapses a hovered card.
+                if self.pointerOverHitRects() { self.insideShape = true; return }
+                self.model?.pointerLeft()
             }
         }
         insideShape = overAny
+    }
+
+    private func pointerOverHitRects() -> Bool {
+        guard let panel, let model, panel.isVisible else { return false }
+        let p = Self.windowPoint(screen: Self.pointerLocation(), frame: panel.frame)
+        return model.hitRects.contains { $0.contains(p) }
     }
 
     /// Same band as Window Server Menubar (24) + 1 so the island paints over the strip.
@@ -482,7 +492,10 @@ final class IslandTrackingView: NSView {
         super.updateTrackingAreas()
         if let area { removeTrackingArea(area) }
         // https://developer.apple.com/documentation/appkit/nstrackingarea
-        let next = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways], owner: self)
+        // .activeAlways: fires while ACU is not frontmost. .inVisibleRect: AppKit keeps the area equal
+        // to the view's visible rect, so a resized tracking window can't keep a stale rect.
+        // https://developer.apple.com/documentation/appkit/nstrackingarea/options-swift.struct/invisiblerect
+        let next = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self)
         addTrackingArea(next)
         area = next
     }
