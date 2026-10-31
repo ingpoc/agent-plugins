@@ -465,3 +465,55 @@ test("followers and batch verification report blocked claim outcomes", async (t)
     });
   }
 });
+
+test("admin post_ok verifies checked posts while preserving other checks", async (t) => {
+  const h = await harness(t);
+  const created = await h.claim("x", "checked", device());
+  const path = `/v1/admin/claims/${created.data.claim_id}/verify`;
+  const postUrl = xPostUrl("checked", freshStatusId());
+  const base = { source: "comet", post_url: postUrl };
+  const omitted = await h.request(path, { admin: true, data: base });
+  assert.equal(omitted.status, 422);
+  assert.equal(omitted.data.error, "post_missing_tag");
+  const wrongAuthor = await h.request(path, {
+    admin: true,
+    data: { ...base, post_url: xPostUrl("someoneelse", freshStatusId()), post_ok: true },
+  });
+  assert.equal(wrongAuthor.status, 422);
+  assert.equal(wrongAuthor.data.error, "post_author_mismatch");
+  const before = await h.poll(String(created.data.claim_id), created.device);
+  const notOk = await h.request(path, {
+    admin: true,
+    data: { ...base, post_ok: false, follow_confirmed: true, verified: true },
+  });
+  assert.equal(notOk.status, 422);
+  assert.equal(notOk.data.error, "post_not_ok");
+  const after = await h.poll(String(created.data.claim_id), created.device);
+  assert.deepEqual(after.data, before.data);
+  const noUrl = await h.request(path, { admin: true, data: { post_ok: true } });
+  assert.equal(noUrl.data.status, "pending_verification");
+  assert.notEqual(noUrl.data.checks.post, "confirmed");
+  const ok = await h.request(path, {
+    admin: true,
+    data: { ...base, post_ok: true, follow_confirmed: true },
+  });
+  assert.equal(ok.data.status, "unlocked");
+});
+
+test("batch post_ok handles LinkedIn and rejects false without changing the claim", async (t) => {
+  const h = await harness(t);
+  const accepted = await h.claim("linkedin", "checked-li", device());
+  const rejected = await h.claim("linkedin", "missing-li", device());
+  const response = await h.request("/v1/admin/claims/verify-batch", {
+    admin: true,
+    data: { results: [
+      { claim_id: accepted.data.claim_id, post_url: "https://www.linkedin.com/posts/checked", post_ok: true },
+      { claim_id: rejected.data.claim_id, post_url: "https://www.linkedin.com/posts/missing", post_ok: false },
+    ] },
+  });
+  assert.equal(response.data.results[0].status, "unlocked");
+  assert.equal(response.data.results[1].error, "post_not_ok");
+  const polled = await h.poll(String(rejected.data.claim_id), rejected.device);
+  assert.equal(polled.data.status, "pending_verification");
+  assert.notEqual(polled.data.checks.post, "confirmed");
+});

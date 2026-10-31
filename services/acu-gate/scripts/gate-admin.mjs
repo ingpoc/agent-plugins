@@ -9,7 +9,7 @@ function usage() {
   gate-admin.mjs [--wake] list [--provider x|linkedin]
   gate-admin.mjs [--wake] push-followers <file.json>
   gate-admin.mjs [--wake] verify <claim_id> [--post-url U] [--post-text T] [--follow] [--source comet]
-    [--verified] [--followers-count N] [--avatar-url U]
+    [--post-ok | --post-not-ok] [--verified] [--followers-count N] [--avatar-url U]
   gate-admin.mjs [--wake] verify-batch <file.json>
   gate-admin.mjs [--wake] reject <claim_id> <reason>
   gate-admin.mjs [--wake] stats
@@ -26,6 +26,10 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === "--base") {
       out.flags.base = argv[++i];
+      continue;
+    }
+    if (arg === "--post-ok" || arg === "--post-not-ok") {
+      out.flags[arg.slice(2).replace(/-/g, "_")] = true;
       continue;
     }
     if (arg.startsWith("--")) {
@@ -143,7 +147,10 @@ if (!base) {
       const payload = JSON.parse(readFileSync(rest[1], "utf8"));
       result = await call("/v1/admin/followers", "POST", payload);
     } else if (cmd === "verify") {
+      if (flags.post_ok && flags.post_not_ok) throw new Error("Choose --post-ok or --post-not-ok");
       const body = { source: flags.source || "manual" };
+      if (flags.post_ok) body.post_ok = true;
+      if (flags.post_not_ok) body.post_ok = false;
       if (flags.post_url) body.post_url = flags.post_url;
       if (flags.post_text) body.post_text = flags.post_text;
       if (flags.follow) body.follow_confirmed = true;

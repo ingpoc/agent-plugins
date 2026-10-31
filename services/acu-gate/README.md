@@ -57,6 +57,8 @@ Use **`POST /v1/admin/accounts/{id}/revoke`** or **`POST /v1/admin/accounts/{id}
 
 Query: `status` (default `pending_verification`), optional `provider=x|linkedin`, `limit` (max 500, default 200).
 
+`post_ok: true` substitutes for matching post text when a valid post URL is supplied (X requires `source: "comet"`); `false` rejects with `post_not_ok`, and omission retains text matching.
+
 **Response (example from tests):**
 
 ```json
@@ -115,7 +117,7 @@ The response also includes `results`, with each processed claim's `claim_id`, `s
 {
   "follow_confirmed": true,
   "post_url": "https://x.com/comet1/status/1999999999999999999",
-  "post_text": "…#AgentComputerUse…",
+  "post_ok": true,
   "source": "comet",
   "verified": true,
   "verified_type": "blue",
@@ -136,7 +138,7 @@ The response also includes `results`, with each processed claim's `claim_id`, `s
 
 Verify and verify-batch return the same status, checks, reason, and optional cooldown date for each claim.
 
-**CLI:** `node scripts/gate-admin.mjs verify <claim_id> --post-url … --post-text … --follow --source comet --verified --followers-count 50`
+**CLI:** `node scripts/gate-admin.mjs verify <claim_id> --post-url … --post-ok --follow --source comet --verified --followers-count 50`
 
 ### `POST /v1/admin/claims/verify-batch`
 
@@ -148,12 +150,14 @@ Verify and verify-batch return the same status, checks, reason, and optional coo
     {
       "claim_id": "746e6d59-db80-4537-835d-c0a5443fe145",
       "post_url": "https://www.linkedin.com/posts/neon",
-      "post_text": "…?ref=acu-li…#AgentComputerUse",
+      "post_ok": true,
       "source": "comet"
     }
   ]
 }
 ```
+
+Each item accepts `post_ok`: `true` substitutes for matching text with a valid post URL (X requires `source: "comet"`); `false` rejects that item, and omission retains existing behavior.
 
 **Response:**
 

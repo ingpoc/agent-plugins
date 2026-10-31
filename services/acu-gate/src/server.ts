@@ -582,6 +582,7 @@ export function createGate(
   async function adminVerifyClaim(claimId: string, payload: Record<string, unknown>) {
     const claim = await first(store, "claims", { id: claimId });
     if (!claim) throw new GateError(404, "not_found");
+    if (payload.post_ok === false) throw new GateError(422, "post_not_ok");
     let current = await expireIfNeeded(claim);
     if (current.status !== "pending_verification")
       throw new GateError(409, "rejected");
@@ -608,8 +609,10 @@ export function createGate(
         }
         if (!classifyOEmbedHttpStatus(httpStatus))
           throw new GateError(422, "post_missing_tag");
-        if (!matchText(postText, "x")) throw new GateError(422, "post_missing_tag");
-        const key = parseXStatusUrl(postUrl).postKey;
+        if (payload.post_ok !== true && !matchText(postText, "x")) throw new GateError(422, "post_missing_tag");
+        const parsed = parseXStatusUrl(postUrl);
+        if (payload.post_ok === true && parsed.handle !== handle) throw new GateError(422, "post_author_mismatch");
+        const key = parsed.postKey;
         await store.atomic([
           update("claims", { id: claimId }, {
             post_url: postUrl,
@@ -633,7 +636,7 @@ export function createGate(
         current = { ...current, post_url: postUrl, post_key: result.postKey, post_check: "confirmed" };
       }
     } else if (account.provider === "linkedin" && (postUrl || postText)) {
-      if (!matchText(postText, "linkedin")) throw new GateError(422, "post_missing_tag");
+      if (!(postUrl && payload.post_ok === true) && !matchText(postText, "linkedin")) throw new GateError(422, "post_missing_tag");
       const key = postUrl ? validateLinkedInPostUrl(postUrl) : String(current.post_key || "");
       if (!key) throw new GateError(422, "post_missing_tag");
       await store.atomic([
