@@ -5,6 +5,9 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 ## 0.2.66 (unreleased)
 
 - Keep unlock sharing available during service cold starts and retry checks through the wake budget.
+- Add signed-DMG release asset manifests/checksums and a macOS installer with read-only verification and JSON summaries.
+- Add read-only `acu status --json` for runtime, permission, and island-gate diagnostics.
+- Package Claude Code hooks separately from Cursor hooks and avoid duplicate fallback registration.
 
 ## 0.2.65 (unreleased, PR draft)
 

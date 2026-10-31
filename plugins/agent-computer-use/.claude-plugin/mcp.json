@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "agent-computer-use": {
+      "type": "stdio",
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/agent-computer-use-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}

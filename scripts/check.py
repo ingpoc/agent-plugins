@@ -77,7 +77,7 @@ CATALOGS = (
 # Claude Code catalog. Lists only plugins that ship .claude-plugin/, not the full set.
 CLAUDE_CATALOG = ".claude-plugin/marketplace.json"
 CLAUDE_MCP_REL = "./.claude-plugin/mcp.json"
-CURSOR_PLUGIN_KEYS = {"name", "version", "description", "mcpServers"}
+CURSOR_PLUGIN_KEYS = {"name", "version", "description", "mcpServers", "hooks"}
 CURSOR_MCP_REL = "./.cursor-plugin/mcp.json"
 GROK_MCP_REL = "./.mcp.json"
 CURSOR_ENOENT = "Cursor resolves ./ against the workspace -> ENOENT"
@@ -338,6 +338,10 @@ def cursor_package_errors(root: Path, manifest: dict) -> list[str]:
     if cursor_manifest.get("mcpServers") != CURSOR_MCP_REL:
         errors.append(
             f"{root}: .cursor-plugin/plugin.json mcpServers must be {CURSOR_MCP_REL}."
+        )
+    if "hooks" in cursor_manifest and cursor_manifest["hooks"] != "./hooks/cursor-hooks.json":
+        errors.append(
+            f"{root}: .cursor-plugin/plugin.json hooks must be ./hooks/cursor-hooks.json."
         )
     raw = cursor_mcp_path.read_text(encoding="utf-8")
     if "${PLUGIN_ROOT}" in raw or "${PLUGIN_DATA}" in raw:

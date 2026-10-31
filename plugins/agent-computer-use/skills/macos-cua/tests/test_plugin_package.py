@@ -40,6 +40,7 @@ class PluginPackageTests(unittest.TestCase):
                 "version": data["version"],
                 "description": data["description"],
                 "mcpServers": "./.cursor-plugin/mcp.json",
+                "hooks": "./hooks/cursor-hooks.json",
             },
         )
         cursor_mcp = json.loads((PLUGIN_ROOT / ".cursor-plugin/mcp.json").read_text())
@@ -66,6 +67,43 @@ class PluginPackageTests(unittest.TestCase):
             "Efficiency",
         ):
             self.assertIn(f"### {axis}", readme)
+
+    def test_cursor_claude_hooks_and_claude_manifest_shapes(self):
+        cursor_hooks = json.loads((PLUGIN_ROOT / "hooks/cursor-hooks.json").read_text())
+        self.assertEqual(cursor_hooks, {
+            "version": 1,
+            "hooks": {
+                event: [{"command": '"$CURSOR_PLUGIN_ROOT/bin/acu-cursor-hook"', "timeout": 5}]
+                for event in ("beforeSubmitPrompt", "stop", "sessionEnd")
+            },
+        })
+
+        claude_hooks = json.loads((PLUGIN_ROOT / "hooks/hooks.json").read_text())
+        claude_command = '"${CLAUDE_PLUGIN_ROOT}/bin/acu-claude-hook"'
+        self.assertEqual(set(claude_hooks), {"hooks"})
+        self.assertEqual(set(claude_hooks["hooks"]), {
+            "SessionStart", "UserPromptSubmit", "Notification", "PermissionRequest",
+            "Stop", "StopFailure", "SessionEnd",
+        })
+        for groups in claude_hooks["hooks"].values():
+            self.assertEqual(groups, [{
+                "matcher": "",
+                "hooks": [{"type": "command", "command": claude_command, "timeout": 5}],
+            }])
+
+        portable = json.loads((PLUGIN_ROOT / "plugin.json").read_text())
+        claude_plugin = json.loads((PLUGIN_ROOT / ".claude-plugin/plugin.json").read_text())
+        self.assertEqual(claude_plugin, {
+            "name": portable["name"],
+            "version": portable["version"],
+            "description": portable["description"],
+            "author": portable["author"],
+            "homepage": portable["homepage"],
+            "repository": portable["repository"],
+            "license": portable["license"],
+            "keywords": portable["keywords"],
+            "mcpServers": "./.claude-plugin/mcp.json",
+        })
 
     def test_skill_orders_ax_first_then_fallback(self):
         skill = (PLUGIN_ROOT / "skills/macos-cua/SKILL.md").read_text()

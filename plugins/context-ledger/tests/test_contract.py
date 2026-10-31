@@ -199,7 +199,9 @@ class PackageTests(unittest.TestCase):
             self.assertIn("context-ledger", names, rel)
         claude = json.loads((collection / ".claude-plugin/marketplace.json").read_text(encoding="utf-8"))
         claude_names = [p["name"] for p in claude["plugins"]]
-        self.assertEqual(claude_names, ["context-ledger"])
+        expected = sorted(path.name for path in (collection / "plugins").iterdir()
+                          if (path / ".claude-plugin/plugin.json").is_file())
+        self.assertEqual(sorted(claude_names), expected)
 
     def test_cursor_package_override(self) -> None:
         collection = _collection_root()

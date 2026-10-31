@@ -2,5 +2,6 @@
   "name": "agent-computer-use",
   "version": "0.2.66",
   "description": "Native macOS computer use through CUAService, with optional Samantha voice control (GPT-Live-1 or Grok Voice 3.0).",
-  "mcpServers": "./.cursor-plugin/mcp.json"
+  "mcpServers": "./.cursor-plugin/mcp.json",
+  "hooks": "./hooks/cursor-hooks.json"
 }
