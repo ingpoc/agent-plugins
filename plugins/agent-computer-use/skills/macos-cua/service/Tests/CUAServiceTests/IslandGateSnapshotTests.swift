@@ -28,7 +28,7 @@ final class IslandGateSnapshotTests: XCTestCase {
         XCTAssertFalse(window.isVisible)
     }
     func testEveryOffscreenStateHasUniformWidthAndOpaqueDarkEdges() throws {
-        for state in ["locked", "signing-in", "needs-verify-x", "needs-verify-linkedin", "pending", "conflict", "unlocked", "error"] {
+        for state in ["locked", "locked-linkedin", "waking", "checking", "conflict", "unlocked", "rejected", "error"] {
             let url = output(state)
             let command = try IslandGateSnapshotCommand.parse(["--state", state, "--out", url.path])
             try command.run()

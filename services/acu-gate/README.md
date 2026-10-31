@@ -1,21 +1,237 @@
-# ACU Dynamic Island gate
+# ACU Gate
 
-Node 24 runs the TypeScript source directly; there is no build step. The only runtime dependency is the pinned Neon HTTP driver. `render.yaml` defines the web service; Neon is external. This service gates only Dynamic Island entitlements.
+Claim-and-verify API for the Dynamic Island unlock flow. No OAuth and no paid X API usage: the app submits a handle (and optional post URL); verification uses oEmbed, a follower snapshot from the admin routine, and optional Comet evidence.
 
-Run `npm ci`, then `npm test`. All provider traffic in these tests goes to local mocks. `ACU_GATE_DATABASE_URL_FILE="$HOME/.config/acu-gate/neon-dev.url" npm run test:neon` reads the URL inside the process, creates a unique `acu_test_*` schema, tests the same HTTP flows through NeonStore, and truncates only its own tables afterward. It never drops shared schemas. Test networking permits localhost and the configured Neon HTTP endpoint only. The URL is never printed or placed in argv or environment.
+## Run locally
 
-`npm run dev:local` starts the gate on `127.0.0.1:8790` and local mock providers. It uses MemoryStore unless `ACU_GATE_DATABASE_URL_FILE` points to a database URL file. OAuth auto-approves. Add `mock_user=guru_test`, `mock_user=no_follow`, `mock_user=no_post` or `mock_user=expanded` to the auth start URL to select test behavior. The per-run Ed25519 private key stays in memory; only the raw 32-byte public key (base64) is written to `~/.config/acu-gate/dev-public-key.txt`. This public key and base URL can be used by the app's DEBUG override.
+```bash
+npm ci
+npm run dev:local
+```
 
-Production requires the names listed in `.env.example` (which deliberately contains names only), excluding optional GitHub credentials/base overrides and development settings. Required: `PUBLIC_BASE_URL`, `DATABASE_URL`, X and LinkedIn client credentials, `OWNER_X_USER_ID`, `ENTITLEMENT_PRIVATE_KEY` (base64 Ed25519 PKCS8 DER), `TOKEN_ENC_KEY` and `EMAIL_HASH_KEY` (base64, 32 bytes each), and `ADMIN_TOKEN`. Configure secrets through the deployment provider's secure settings. Startup fails if required configuration is absent. `DEV=1` generates ephemeral development secrets; never enable it in production. The default callback scheme is `acu-island`, port is `10000`, and production binds `0.0.0.0`.
+Uses in-memory storage unless `ACU_GATE_DATABASE_URL_FILE` points at a Neon URL file. Writes the dev Ed25519 public key to `~/.config/acu-gate/dev-public-key.txt`. Port: `ACU_GATE_DEV_PORT` (default `8790`). Mock oEmbed and GitHub live on the same mock HTTP server.
 
-Run `npm run migrate` before `npm start`. Migrations are idempotent and use Neon HTTP non-interactive transactions. Store mutations use unique constraints and guarded transactions for single-use codes, device bindings, review claims and replay records. Provider access tokens are encrypted with AES-256-GCM, session and one-time codes are stored as SHA-256 hashes, and verified email is stored only as an HMAC. No request/token/email logging is enabled. Rate limits are in-memory token buckets per client IP and route group (public 60/min, auth start 10/min, redeem 20/min, refresh 30/min, admin failed auth 10/min), plus per-account verify limits (20 s cooldown, 30/day) and a daily X API call budget (`X_DAILY_CALL_BUDGET`, default 2000). The client IP is the socket address unless `TRUST_PROXY_HOPS` > 0, in which case it is read that many hops from the right of `X-Forwarded-For` (Render: 1, set in `render.yaml`).
+## Tests
 
-The default X follow check uses the owner's follower cache. Authorize the configured owner once by opening `GET /v1/admin/x-owner/start` with `Authorization: Bearer <ADMIN_TOKEN>`; that grant includes `offline.access`, stores encrypted access and refresh tokens with expiry, and refreshes automatically before follower sync. If refresh fails, `/v1/admin/stats` reports `owner_auth_required: true` and verify fails as `x_unavailable` until owner authorization is repeated. The user OAuth grant intentionally omits `offline.access`. `FOLLOW_CHECK_MODE=user_following` selects the explicit fallback. X 402/429/5xx and unavailable owner credentials fail as `x_unavailable`; X API credits and deployment remain approval-gated outside this implementation.
+```bash
+npm test
+ACU_GATE_DATABASE_URL_FILE=$HOME/.config/acu-gate/neon-dev.url npm run test:neon
+```
 
-LinkedIn checks only public HTTPS post URLs, follows at most three redirects within LinkedIn hosts, and bounds the complete fetch to eight seconds/two MB. A matching preset marker plus normalized author metadata is required for auto-approval. Auth walls, mismatched author names, failed fetches and redirects outside LinkedIn enter manual review. Admin approval records an unlock; the app's next authenticated status request binds its Mac and issues the entitlement. OIDC linking requires a fresh session (ten minutes) from the same Mac. Identity linking never merges two existing accounts.
+## Environment
 
-All API responses and entitlement formats follow `docs/island-gate-plan.md`. Administrative endpoints require constant-time Bearer token validation. Rebind requires a fresh sign-in on the new Mac and a P-256 signature; the second move within seven days requires an admin cooldown reset. Entitlements expire after fourteen days. Refresh and wall device signatures use a five-minute timestamp window and ten-minute replay retention. Wall signatures cover `acu-gate-wall|<device_id>|<ts>|<true|false>`; refresh and rebind use the messages in the plan. Raw device keys are uncompressed X9.63 P-256; signatures are base64 DER.
+See `.env.example`. Production on Render uses the **free** web plan: the service sleeps when idle and cold starts typically take **30–60 seconds**. The app’s 14-day entitlement grace and claim polling tolerate that; use `gate-admin.mjs --wake` for the verification routine.
 
-The public site snippets are in `site/`. Replace `https://REPLACE_WITH_GATE_HOST` before embedding. The counter remains available independently. Site stats combine GitHub DMG asset downloads and counted redirect hits (events, not unique people), total unlocks and an opt-in wall. GitHub counts cache for fifteen minutes and preserve the last good value on errors; consent removal reads directly from the store and public responses cache for at most sixty seconds. The optional `GITHUB_TOKEN` is used only for GitHub API requests; `GITHUB_API_BASE` supports local tests. GitHub pagination cannot redirect credentials to a different origin.
+Secrets on Render: `PUBLIC_BASE_URL`, `DATABASE_URL`, `ENTITLEMENT_PRIVATE_KEY`, `ADMIN_TOKEN`, optional `GITHUB_TOKEN`, `TRUST_PROXY_HOPS=1`.
 
-`POST /v1/wall {show}` accepts a Bearer session or a device signature. Consent defaults to false, can be supplied as `show_on_wall` during verification, and is immediately removable. Wall data is snapshotted at unlock, with HTTPS avatars restricted to the X/LinkedIn media hosts. The site snippet uses no external dependencies or HTML interpolation of user data. The LinkedIn follow URL is intentionally a placeholder until Guru supplies the profile URL.
+## Mini: base URL and admin token
+
+| What | Where on the Mac mini |
+| --- | --- |
+| Gate base URL | `~/.config/acu-gate/gate.json` → `{"base_url":"https://…"}` (used by `gate-admin.mjs` when `--base` and `ACU_GATE_BASE_URL` are unset) |
+| Admin bearer token | macOS Keychain: service **`acu-gate`**, account **`admin_token`**; or set `ACU_GATE_ADMIN_TOKEN_FILE` to a file containing the token (never commit it) |
+
+## Admin API for the verification routine
+
+All admin routes require:
+
+```http
+Authorization: Bearer <ADMIN_TOKEN>
+```
+
+Failed auth returns `401` with `{"error":"not_found",…}` (intentionally vague). More than ten failed attempts per minute per IP returns `429` with `{"error":"rate_limited","retry_after":…}`.
+
+Validation failures on verify often return `422` with codes such as `post_missing_tag`, `post_author_mismatch`, `post_not_found`, `post_too_old`. Missing rows return `404` with `{"error":"not_found",…}`.
+
+### Recommended routine order
+
+1. **`GET /v1/admin/claims`** — pending work list (`status=pending_verification`, optional `provider`, `limit`).
+2. **`POST /v1/admin/followers`** — push Guru’s X follower snapshot; confirms follow on matching claims and may unlock when the post is already confirmed.
+3. **`POST /v1/admin/claims/verify-batch`** — batch post verification (Comet/oEmbed evidence) for remaining X/LinkedIn claims.
+4. **`POST /v1/admin/claims/{id}/reject`** — reject stale or bad claims (e.g. after 72h or spam).
+5. **`GET /v1/admin/stats`** — optional dashboard read after a pass.
+
+Use **`POST /v1/admin/accounts/{id}/revoke`** or **`POST /v1/admin/accounts/{id}/reset-rebind`** only for manual ops, not each cycle.
+
+### `GET /v1/admin/claims`
+
+Query: `status` (default `pending_verification`), optional `provider=x|linkedin`, `limit` (max 500, default 200).
+
+**Response (example from tests):**
+
+```json
+{
+  "claims": [
+    {
+      "id": "746e6d59-db80-4537-835d-c0a5443fe145",
+      "provider": "x",
+      "handle": "fan1",
+      "x_user_id": null,
+      "post_url": "https://x.com/fan1/status/1999999999999999999",
+      "checks": { "follow": "pending", "post": "confirmed" },
+      "created_at": "2026-10-31T12:00:00.000Z",
+      "expires_at": "2026-11-03T12:00:00.000Z",
+      "device_name": "Test Mac"
+    }
+  ]
+}
+```
+
+**CLI:** `node scripts/gate-admin.mjs --wake list` · `node scripts/gate-admin.mjs list --provider x`
+
+### `POST /v1/admin/followers`
+
+**Request:**
+
+```json
+{
+  "provider": "x",
+  "followers": [{ "id": "9", "handle": "fan1" }],
+  "source": "x_plugin",
+  "complete": false
+}
+```
+
+**Response (example from tests):**
+
+```json
+{
+  "upserted": 1,
+  "follow_confirmed_claims": ["746e6d59-db80-4537-835d-c0a5443fe145"],
+  "unlocked_claims": ["746e6d59-db80-4537-835d-c0a5443fe145"]
+}
+```
+
+**CLI:** `node scripts/gate-admin.mjs --wake push-followers followers.json`
+
+### `POST /v1/admin/claims/{id}/verify`
+
+**Request (X, Comet when oEmbed 404):**
+
+```json
+{
+  "follow_confirmed": true,
+  "post_url": "https://x.com/comet1/status/1999999999999999999",
+  "post_text": "…#AgentComputerUse…",
+  "source": "comet",
+  "verified": true,
+  "verified_type": "blue",
+  "followers_count": 50,
+  "avatar_url": "https://pbs.twimg.com/profile_images/example.jpg"
+}
+```
+
+**Response (example from tests):**
+
+```json
+{
+  "claim_id": "746e6d59-db80-4537-835d-c0a5443fe145",
+  "status": "unlocked",
+  "checks": { "follow": "confirmed", "post": "confirmed" }
+}
+```
+
+**CLI:** `node scripts/gate-admin.mjs verify <claim_id> --post-url … --post-text … --follow --source comet --verified --followers-count 50`
+
+### `POST /v1/admin/claims/verify-batch`
+
+**Request:**
+
+```json
+{
+  "results": [
+    {
+      "claim_id": "746e6d59-db80-4537-835d-c0a5443fe145",
+      "post_url": "https://www.linkedin.com/posts/neon",
+      "post_text": "…?ref=acu-li…#AgentComputerUse",
+      "source": "comet"
+    }
+  ]
+}
+```
+
+**Response:**
+
+```json
+{
+  "results": [
+    {
+      "claim_id": "746e6d59-db80-4537-835d-c0a5443fe145",
+      "status": "unlocked",
+      "checks": { "follow": "n/a", "post": "confirmed" }
+    }
+  ]
+}
+```
+
+**CLI:** `node scripts/gate-admin.mjs verify-batch batch.json`
+
+### `POST /v1/admin/claims/{id}/reject`
+
+**Request:**
+
+```json
+{ "reason": "spam" }
+```
+
+**Response (example from tests):**
+
+```json
+{ "status": "rejected", "reason": "spam" }
+```
+
+Allowed reasons include `follow_missing`, `post_missing`, `post_author_mismatch`, `spam`, `other`.
+
+**CLI:** `node scripts/gate-admin.mjs reject <claim_id> spam`
+
+### `GET /v1/admin/stats`
+
+**Response (shape from tests; numbers vary):**
+
+```json
+{
+  "unlocks": { "x": 1, "linkedin": 0, "total": 1 },
+  "verified_unlocks": 1,
+  "verified_by_type": { "blue": 1 },
+  "reach": 50,
+  "claims": { "pending": 0, "rejected": 0, "expired": 0 },
+  "followers_known": 1,
+  "ref_clicks": { "acu-x": 1, "acu-li": 0 },
+  "downloads": { "github_dmg": 42, "redirect_hits": 1, "total": 43 },
+  "wall_opt_in": 0
+}
+```
+
+**CLI:** `node scripts/gate-admin.mjs --wake stats`
+
+### `POST /v1/admin/accounts/{id}/revoke`
+
+**Request:** `{}` (empty JSON body).
+
+**Response:**
+
+```json
+{ "ok": true }
+```
+
+Revoked accounts get `403 revoked` on refresh; wall opt-in cleared.
+
+### `POST /v1/admin/accounts/{id}/reset-rebind`
+
+**Request:** `{}`.
+
+**Response:**
+
+```json
+{ "ok": true }
+```
+
+Clears `last_rebind_at` so the account can rebind after cooldown rules with a fresh post.
+
+## Public HTTP surface
+
+`GET /healthz`, `GET /v1/config` (includes `poll_seconds: 60` and `check_eta_text`), `POST /v1/claims`, `GET /v1/claims/{id}`, `POST /v1/entitlement/refresh`, `POST /v1/wall`, `GET /v1/public/counter`, `GET /v1/public/site-stats`, `GET|POST /v1/public/ref-click`, `GET /v1/public/download`.
+
+## Honest limits
+
+Handle entry is not cryptographic identity proof. Mitigations: fresh posts, one-use URLs, one Mac per account, rebind with cooldown. Follow checks use the pushed follower snapshot only at verification time. LinkedIn often needs Comet. Routine cadence drives latency; claims expire after 72 hours.

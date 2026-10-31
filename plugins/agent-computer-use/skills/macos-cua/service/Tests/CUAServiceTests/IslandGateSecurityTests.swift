@@ -43,24 +43,18 @@ final class IslandGateSecurityTests: XCTestCase {
         let noOptIn = IslandGateEnvironment(defaults: defaults, environment: [:])
         XCTAssertEqual(noOptIn.baseURL, IslandGateEnvironment.productionURL)
     }
-    func testPKCE() throws {
-        let pkce = try IslandGatePKCE()
-        XCTAssertEqual(Data(gateBase64URL: pkce.verifier)?.count, 32)
-        XCTAssertEqual(pkce.challenge, Data(SHA256.hash(data: Data(pkce.verifier.utf8))).gateBase64URL)
-        XCTAssertNotEqual(pkce.verifier, try IslandGatePKCE().verifier)
-    }
     func testDeviceIdentifier() {
         XCTAssertEqual(IslandGateDevice.identifier(platformUUID: "test"), SHA256.hash(data: Data("acu-island-gate|test".utf8)).map { String(format: "%02x", $0) }.joined())
     }
     func testDeviceSignaturesUseExactMessagesAndDER() throws {
         let device = IslandGateDevice(id: self.device, key: P256.Signing.PrivateKey())
-        for action in ["refresh", "rebind"] {
-            let body = try device.signedBody(action: action, timestamp: 1800000000)
-            let signature = try P256.Signing.ECDSASignature(derRepresentation: Data(base64Encoded: body["sig"] as! String)!)
-            let expected = Data("acu-gate-\(action)|\(self.device)|1800000000".utf8)
-            XCTAssertTrue(device.key.publicKey.isValidSignature(signature, for: expected))
-            XCTAssertFalse(device.key.publicKey.isValidSignature(signature, for: Data("wrong".utf8)))
-            XCTAssertEqual(body["device_id"] as? String, self.device)
+        for action in ["refresh", "wall", "claim", "poll"] {
+            let body = action == "poll" ? Data() : Data("{}".utf8)
+            let signed = try device.sign(action: action, body: body, timestamp: 1_800_000_000)
+            let signature = try P256.Signing.ECDSASignature(derRepresentation: Data(base64Encoded: signed.signatureBase64)!)
+            let expected = Data(IslandGateDevice.signMessage(action: action, deviceID: self.device, timestamp: 1_800_000_000, body: body).utf8)
+            XCTAssertTrue(device.key.publicKey.isValidSignature(signature, for: expected), action)
+            XCTAssertEqual(signed.deviceID, self.device)
         }
     }
     func testKeychainRoundTrip() throws {

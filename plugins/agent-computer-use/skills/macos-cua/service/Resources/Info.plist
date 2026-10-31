@@ -6,7 +6,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.ingpoc.acu.island-gate.auth</string>
+			<string>com.ingpoc.acu.island-gate</string>
 			<key>CFBundleURLSchemes</key>
 			<array><string>acu-island</string></array>
 		</dict>

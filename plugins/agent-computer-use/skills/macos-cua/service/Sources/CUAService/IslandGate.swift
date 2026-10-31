@@ -1,39 +1,46 @@
 import AppKit
-import AuthenticationServices
 import Combine
 import Foundation
 
-// Gate ownership ends at panel visibility. Voice, onboarding, hub and socket APIs run independently.
+enum IslandGateCheckStatus: String, Equatable {
+    case pending, confirmed, failed
+    case notApplicable = "n/a"
+    init(raw: String) {
+        self = IslandGateCheckStatus(rawValue: raw) ?? .pending
+    }
+}
+
 enum IslandGateState: Equatable {
-    case locked(String? = nil)
-    case signingIn(String)
-    case needsVerify(provider: String, follow: Bool, post: Bool)
-    case verifying
-    case pendingReview
-    case conflict(deviceName: String, boundAt: String?, rebindAvailableAt: String?)
+    case locked(linkedIn: Bool = false, message: String? = nil)
+    case submitting
+    case waking
+    case checking(claimID: String, since: Date, follow: IslandGateCheckStatus, post: IslandGateCheckStatus)
     case unlocked(account: IslandGateAccount, verified: Bool, exp: Date)
+    case rejected(message: String)
+    case conflict(deviceName: String?, rebindAvailableAt: String?)
     case error(code: String, message: String)
 }
 
 @MainActor
-final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentationContextProviding {
+final class IslandGate: ObservableObject {
     static let shared = IslandGate()
     @Published private(set) var state: IslandGateState = .locked()
     @Published private(set) var config: IslandGateConfig?
     @Published private(set) var showOnWall = false
     @Published private(set) var wallUpdating = false
     @Published private(set) var wallError: String?
+    @Published var handleText = ""
     @Published var postURL = ""
     @Published var copied = false
-    @Published private(set) var verificationMessage: String?
+    @Published private(set) var deepLinkBanner: String?
     private(set) var account: IslandGateAccount?
-    private var sessionToken: String?
     private var entitlement: String?
+    private var claimID: String?
+    private var pollInterval: TimeInterval = 60
     private let store: IslandGateStoring
     private let client: IslandGateClient
     private let verifier: IslandGateVerifier
     private var device: IslandGateDevice?
-    private var authentication: ASWebAuthenticationSession?
     private var windowController: IslandGateWindowController?
     private var polling: Task<Void, Never>?
     private var refreshTask: Task<Void, Never>?
@@ -43,6 +50,7 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
     private var generation = 0
     private let fixture: Bool
     private var windowOpen = false
+    private var unlockLinkedInRoute = false
     var onChange: [() -> Void] = []
 
     init(store: IslandGateStoring = IslandGateKeychain(), client: IslandGateClient? = nil,
@@ -51,7 +59,6 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
         self.store = store; self.client = client ?? IslandGateClient(baseURL: environment.baseURL)
         verifier = IslandGateVerifier(publicKey: publicKey ?? environment.publicKey)
         self.device = device; fixture = fixtureState != nil
-        super.init()
         if let fixtureState { state = fixtureState; account = fixtureAccount }
     }
     deinit {
@@ -61,13 +68,24 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
         if case .unlocked(_, _, let exp) = state { return Date() < exp }
         return false
     }
-    var provider: String {
-        if case .needsVerify(let provider, _, _) = state { return provider }
+    var lockedProvider: String {
+        if case .locked(let linkedIn, _) = state { return linkedIn ? "linkedin" : "x" }
+        if case .submitting = state { return unlockLinkedInRoute ? "linkedin" : "x" }
+        if case .waking = state { return unlockLinkedInRoute ? "linkedin" : "x" }
+        if case .checking = state { return account?.provider ?? (unlockLinkedInRoute ? "linkedin" : "x") }
         return account?.provider ?? "x"
     }
     var accessSummary: String {
         if case .unlocked(let account, _, _) = state { return "\(account.handle) · \(account.provider == "x" ? "X" : "LinkedIn")" }
         return "Unlock Dynamic Island…"
+    }
+    var checkETAText: String {
+        let trimmed = config?.check_eta_text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? "usually within an hour" : trimmed
+    }
+    func openFromDeepLink() {
+        deepLinkBanner = isUnlocked ? "Your island is already unlocked." : nil
+        show()
     }
     func transition(_ next: IslandGateState) {
         state = next
@@ -75,10 +93,9 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
         if case .unlocked(_, _, let exp) = next {
             expiryTask = Task { [weak self] in
                 let delay = max(0, exp.timeIntervalSinceNow)
-                // Bound sleep conversion even for malformed but correctly signed timestamps.
                 try? await Task.sleep(nanoseconds: UInt64(min(delay + 0.01, 60 * 60 * 24 * 365) * 1_000_000_000))
                 guard !Task.isCancelled, let self else { return }
-                if !self.isUnlocked { self.transition(.locked("Island access has expired. Connect and sign in to renew it.")) }
+                if !self.isUnlocked { self.transition(.locked(message: "Island access has expired. Connect and unlock again to renew it.")) }
             }
         }
         onChange.forEach { $0() }
@@ -88,13 +105,14 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
         guard !fixture else { return }
         do {
             if device == nil { device = try IslandGateDevice.load(store: store) }
-            sessionToken = try store.read("session").flatMap { String(data: $0, encoding: .utf8) }
+            claimID = try store.read("claim-id").flatMap { String(data: $0, encoding: .utf8) }
             if let data = try store.read("account") {
                 account = try JSONDecoder().decode(IslandGateAccount.self, from: data)
                 showOnWall = account?.show_on_wall ?? false
             }
             entitlement = try store.read("entitlement").flatMap { String(data: $0, encoding: .utf8) }
             if let entitlement { try accept(entitlement) }
+            else if claimID != nil { transition(.checking(claimID: claimID!, since: Date(), follow: .pending, post: .pending)) }
         } catch { handle(error) }
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -107,15 +125,15 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
         guard !fixture, let device, entitlement != nil else { return }
         let version = generation
         do {
-            let reply = try await client.request("v1/entitlement/refresh", body: device.signedBody(action: "refresh"), as: IslandGateReply.self)
+            let reply = try await client.refreshEntitlement(device: device)
             guard version == generation else { return }
             if let token = reply.entitlement { try accept(token) }
         } catch {
             guard version == generation else { return }
             let failure = error as? IslandGateFailure
-            if failure?.code == "offline" || (failure?.httpStatus ?? 0) >= 500 {
+            if failure?.code == "offline" || failure?.code == "service_wake_timeout" || (failure?.httpStatus ?? 0) >= 500 {
                 if let entitlement, (try? verifier.verify(entitlement, deviceID: device.id)) != nil { return }
-                if case .unlocked = state { transition(.locked("Connect to renew your island access.")) }
+                if case .unlocked = state { transition(.locked(message: "Connect to renew your island access.")) }
                 return
             }
             if failure?.code == "not_found", entitlement == nil { return }
@@ -131,7 +149,16 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
         try store.write(try JSONEncoder().encode(identity), name: "account")
         try store.write(Data(token.utf8), name: "entitlement")
         entitlement = token; account = identity
+        clearClaimID()
         transition(.unlocked(account: identity, verified: identity.verified ?? false, exp: Date(timeIntervalSince1970: claim.exp)))
+    }
+    private func clearClaimID() {
+        claimID = nil
+        try? store.delete("claim-id")
+    }
+    private func persistClaimID(_ id: String) throws {
+        claimID = id
+        try store.write(Data(id.utf8), name: "claim-id")
     }
     func show() {
         if windowController == nil { windowController = IslandGateWindowController(gate: self) }
@@ -139,196 +166,204 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
         windowController?.showWindow(nil)
         windowController?.window?.makeKeyAndOrderFront(nil)
         NSApplication.shared.activate(ignoringOtherApps: true)
-        updatePolling()
     }
     func opened() {
         windowOpen = true
         updatePolling()
-        if !fixture, sessionToken != nil, entitlement == nil, case .locked = state {
-            perform { gate in
-                gate.config = try await gate.client.config()
-                return try await gate.client.request("v1/status", bearer: gate.sessionToken, as: IslandGateReply.self)
+        if !fixture, config == nil, case .locked = state {
+            operation?.cancel(); generation += 1
+            let version = generation
+            operation = Task { [weak self] in
+                guard let self else { return }
+                do {
+                    self.config = try await self.client.config()
+                    guard version == self.generation else { return }
+                    if let seconds = self.config?.poll_seconds { self.pollInterval = TimeInterval(seconds) }
+                    self.onChange.forEach { $0() }
+                } catch { /* cold-start prefetch is best-effort while locked */ }
             }
         }
     }
     func closed() {
-        windowOpen = false; polling?.cancel(); polling = nil
-        if case .signingIn = state { cancelSignIn() }
+        windowOpen = false
+        deepLinkBanner = nil
+        updatePolling()
     }
-    func cancelSignIn() {
-        generation += 1; authentication?.cancel(); authentication = nil
-        operation?.cancel(); operation = nil
-        transition(.locked())
+    func useLinkedInRoute() {
+        guard case .locked = state else { return }
+        transition(.locked(linkedIn: true))
     }
-    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor { windowController!.window! }
-    func signIn(_ provider: String) {
-        guard !fixture else { return }
-        if windowController == nil { show() }
-        operation?.cancel(); generation += 1
-        let version = generation
-        do {
-            if device == nil { device = try IslandGateDevice.load(store: store) }
-            guard let device else { return }
-            let pkce = try IslandGatePKCE()
-            transition(.signingIn(provider))
-            let url = client.startURL(provider: provider, deviceID: device.id, deviceName: Host.current().localizedName ?? "Mac", challenge: pkce.challenge)
-            let auth = ASWebAuthenticationSession(url: url, callbackURLScheme: "acu-island") { [weak self] callback, error in
-                Task { @MainActor in
-                    guard let self, self.generation == version else { return }
-                    self.authentication = nil
-                    if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin { self.cancelSignIn(); return }
-                    guard error == nil, let callback, callback.scheme == "acu-island", callback.host == "auth" else { self.handle(IslandGateFailure(code: "invalid_callback")); return }
-                    let params: [URLQueryItem]
-                    if let fragment = callback.fragment, !fragment.isEmpty {
-                        params = URLComponents(string: "?\(fragment)")?.queryItems ?? []
-                    } else {
-                        params = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
-                    }
-                    if let code = params.first(where: { $0.name == "error" })?.value { self.handle(IslandGateFailure(code: code)); return }
-                    guard let code = params.first(where: { $0.name == "code" })?.value, !code.isEmpty else { self.handle(IslandGateFailure(code: "invalid_callback")); return }
-                    self.operation = Task { await self.redeem(code: code, pkce: pkce, version: version) }
-                }
-            }
-            authentication = auth
-            auth.presentationContextProvider = self
-            auth.prefersEphemeralWebBrowserSession = false
-            if !auth.start() { authentication = nil; handle(IslandGateFailure(code: "invalid_callback")) }
-        } catch { handle(error) }
+    func useXRoute() {
+        guard case .locked(let linkedIn, _) = state, linkedIn else { return }
+        transition(.locked(linkedIn: false))
     }
-    private func redeem(code: String, pkce: IslandGatePKCE, version: Int) async {
-        guard let device else { return }
-        do {
-            let reply = try await client.request("v1/session/redeem", body: ["code": code, "app_verifier": pkce.verifier, "device_id": device.id, "device_pubkey": device.publicKey], as: IslandGateReply.self)
-            guard version == generation else { return }
-            if let token = reply.session {
-                try store.write(Data(token.utf8), name: "session")
-                wallOperation?.cancel(); wallUpdating = false; wallError = nil
-                sessionToken = token
-            }
-            if let identity = reply.account {
-                try store.write(try JSONEncoder().encode(identity), name: "account")
-                account = identity; showOnWall = reply.show_on_wall ?? identity.show_on_wall ?? false
-            }
-            // Sharing configuration is needed only for the verification checklist.
-            if reply.status == "needs_verify", reply.entitlement == nil {
-                config = try await client.config()
-                guard version == generation else { return }
-            }
-            try apply(reply)
-        } catch { if version == generation { handle(error) } }
-    }
-    func apply(_ reply: IslandGateReply) throws {
-        if let identity = reply.account { account = identity }
-        if let consent = reply.show_on_wall ?? reply.account?.show_on_wall { showOnWall = consent }
-        if var identity = account {
-            if let verified = reply.verified { identity.verified = verified }
-            identity.show_on_wall = showOnWall
-            try store.write(try JSONEncoder().encode(identity), name: "account")
-            account = identity
-        }
-        if let token = reply.entitlement { try accept(token) }
-        else if reply.status == "pending_review" { transition(.pendingReview) }
-        else if reply.status == "needs_verify" { transition(.needsVerify(provider: provider, follow: false, post: false)) }
-        else { throw IslandGateFailure(code: "server_error") }
-    }
-    func verify() {
-        perform { gate in
-            if gate.config == nil { gate.config = try await gate.client.config() }
-            guard let token = gate.sessionToken else { throw IslandGateFailure(code: "not_signed_in") }
-            var body: [String: Any] = ["show_on_wall": gate.showOnWall]
-            if gate.provider == "linkedin" { body["post_url"] = gate.postURL.trimmingCharacters(in: .whitespacesAndNewlines) }
-            return try await gate.client.request("v1/verify/\(gate.provider)", body: body, bearer: token, as: IslandGateReply.self)
-        }
-    }
-    func rebind() {
-        // A restored refresh credential is insufficient: only a fresh sign-in obtains a session on this Mac.
-        if sessionToken == nil { signIn(provider); return }
-        perform { gate in
-            guard let device = gate.device else { throw IslandGateFailure(code: "device_identity") }
-            return try await gate.client.request("v1/device/rebind", body: device.signedBody(action: "rebind"), bearer: gate.sessionToken, as: IslandGateReply.self)
-        }
-    }
-    private func perform(_ work: @escaping (IslandGate) async throws -> IslandGateReply) {
+    func submitCheck() {
         guard !fixture else { return }
         operation?.cancel(); generation += 1
         let version = generation
-        transition(.verifying)
+        if case .locked(let linkedIn, _) = state { unlockLinkedInRoute = linkedIn }
+        transition(.submitting)
         operation = Task { [weak self] in
             guard let self else { return }
+            let wakeUI: @MainActor () -> Void = { [weak self] in self?.transition(.waking) }
             do {
-                let reply = try await work(self)
+                if self.device == nil { self.device = try IslandGateDevice.load(store: self.store) }
+                guard let device = self.device else { return }
+                if self.config == nil { self.config = try await self.client.config(onWaking: wakeUI) }
                 guard version == self.generation else { return }
-                try self.apply(reply)
-            } catch { if version == self.generation { self.handle(error) } }
+                if let seconds = self.config?.poll_seconds { self.pollInterval = TimeInterval(seconds) }
+                let provider = self.lockedProvider
+                let handle: String
+                if provider == "linkedin" {
+                    guard let slug = IslandGateValidation.normalizeLinkedInProfile(self.handleText) else {
+                        throw IslandGateFailure(code: "invalid_handle")
+                    }
+                    handle = slug
+                } else {
+                    guard let normalized = IslandGateValidation.normalizeXHandle(self.handleText) else {
+                        throw IslandGateFailure(code: "invalid_handle")
+                    }
+                    handle = normalized
+                }
+                let trimmedPost = self.postURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                let postValue: Any = trimmedPost.isEmpty ? NSNull() : trimmedPost
+                let body: [String: Any] = [
+                    "provider": provider,
+                    "handle": handle,
+                    "post_url": postValue,
+                    "device_pubkey": device.publicKey,
+                    "device_name": Host.current().localizedName ?? "Mac",
+                    "show_on_wall": self.showOnWall
+                ]
+                let reply = try await self.client.createClaim(device: device, body: body, onWaking: wakeUI)
+                guard version == self.generation else { return }
+                try self.applyClaim(reply, since: Date())
+            } catch {
+                if version == self.generation { self.handleSubmitError(error) }
+            }
         }
     }
-    func poll() async {
-        guard !fixture, windowOpen, case .pendingReview = state, let sessionToken else { return }
+    private func handleSubmitError(_ error: Error) {
+        let failure = (error as? IslandGateFailure) ?? IslandGateFailure(code: "server_error")
+        if failure.code == "service_wake_timeout" || (failure.code == "offline" && (state == .submitting || state == .waking)) {
+            transition(.error(code: "service_wake_timeout", message: IslandGateFailure.friendlyMessage(for: "service_wake_timeout")))
+            return
+        }
+        handle(error)
+    }
+    func applyClaim(_ reply: IslandGateClaimResponse, since: Date) throws {
+        if let token = reply.entitlement {
+            try accept(token)
+            return
+        }
+        if let id = reply.claim_id {
+            try persistClaimID(id)
+            let follow = IslandGateCheckStatus(raw: reply.checks?.follow ?? "pending")
+            let post = IslandGateCheckStatus(raw: reply.checks?.post ?? "pending")
+            if let after = reply.poll_after { pollInterval = TimeInterval(after) }
+            transition(.checking(claimID: id, since: since, follow: follow, post: post))
+            return
+        }
+        throw IslandGateFailure(code: "server_error")
+    }
+    func pollOnce() async {
+        guard !fixture, let device, let claimID else { return }
         let version = generation
         do {
-            let reply = try await client.request("v1/status", bearer: sessionToken, as: IslandGateReply.self)
-            guard version == generation, windowOpen else { return }
-            if reply.status != "pending_review" { try apply(reply) }
+            let reply = try await client.pollClaim(id: claimID, device: device)
+            guard version == generation else { return }
+            if let token = reply.entitlement {
+                try accept(token)
+                return
+            }
+            switch reply.status {
+            case "unlocked":
+                if let token = reply.entitlement { try accept(token) }
+                else { throw IslandGateFailure(code: "server_error") }
+            case "rejected", "expired":
+                clearClaimID()
+                let reason = reply.reason ?? (reply.status == "expired" ? "claim_expired" : "rejected")
+                transition(.rejected(message: IslandGateFailure.rejectedMessage(reason: reason)))
+            case "pending_verification", .none:
+                if case .checking(let id, let since, _, _) = state {
+                    let follow = IslandGateCheckStatus(raw: reply.checks?.follow ?? "pending")
+                    let post = IslandGateCheckStatus(raw: reply.checks?.post ?? "pending")
+                    transition(.checking(claimID: id, since: since, follow: follow, post: post))
+                }
+            default:
+                break
+            }
         } catch {
             guard version == generation else { return }
-            let f = error as? IslandGateFailure
-            if f?.code != "offline" && (f?.httpStatus ?? 0) < 500 { handle(error) }
+            if IslandGateFailure.isTransient(error) { return }
+            let failure = error as? IslandGateFailure
+            if failure?.code != "offline" && (failure?.httpStatus ?? 0) < 500 { handle(error) }
         }
     }
     private func updatePolling() {
-        if case .pendingReview = state, windowOpen, !fixture {
+        let shouldPoll: Bool
+        if case .checking = state, claimID != nil, !fixture { shouldPoll = true }
+        else { shouldPoll = false }
+        if shouldPoll {
             guard polling == nil else { return }
+            var interval = pollInterval
             polling = Task { [weak self] in
                 while !Task.isCancelled {
-                    try? await Task.sleep(nanoseconds: 60_000_000_000)
+                    await self?.pollOnce()
                     guard !Task.isCancelled else { break }
-                    await self?.poll()
+                    try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                    interval = min(interval * 1.5, 300)
                 }
             }
-        } else { polling?.cancel(); polling = nil }
+        } else {
+            polling?.cancel(); polling = nil
+        }
     }
     func handle(_ error: Error) {
         let failure = (error as? IslandGateFailure) ?? IslandGateFailure(code: "server_error")
         switch failure.code {
-        case "follow_missing", "post_missing": transition(.needsVerify(provider: "x", follow: failure.follow ?? false, post: failure.post ?? false))
-        case "post_url_invalid", "post_url_used", "rejected":
-            verificationMessage = failure.message
-            transition(.needsVerify(provider: "linkedin", follow: false, post: false))
-        case "not_signed_in", "session_expired":
-            sessionToken = nil
-            try? store.delete("session")
-            transition(.locked(failure.message))
-        case "pending_review": transition(.pendingReview)
-        case "device_conflict": transition(.conflict(deviceName: failure.device_name ?? "another Mac", boundAt: failure.bound_at, rebindAvailableAt: failure.rebind_available_at))
-        case "rebind_cooldown": transition(.conflict(deviceName: "your other Mac", boundAt: nil, rebindAvailableAt: failure.rebind_available_at))
+        case "device_conflict":
+            transition(.conflict(deviceName: failure.device_name, rebindAvailableAt: failure.rebind_available_at))
+        case "rebind_cooldown":
+            transition(.conflict(deviceName: failure.device_name, rebindAvailableAt: failure.rebind_available_at))
         case "device_moved", "revoked", "not_found":
             entitlement = nil
+            clearClaimID()
             do { try store.delete("entitlement") } catch { transition(.error(code: "keychain", message: IslandGateFailure(code: "keychain").message)); return }
-            transition(.locked(failure.message))
-        default: transition(.error(code: failure.code, message: failure.message))
+            transition(.locked(message: failure.message))
+        case "invalid_handle", "post_url_invalid", "post_url_used", "post_not_found", "post_author_mismatch", "post_too_old", "post_missing_tag", "follow_missing", "post_missing", "claim_expired", "rejected":
+            transition(.rejected(message: failure.message))
+        case "device_taken":
+            transition(.error(code: failure.code, message: failure.message))
+        default:
+            transition(.error(code: failure.code, message: failure.message))
         }
     }
+    func retryFromRejected() {
+        transition(.locked(linkedIn: lockedProvider == "linkedin"))
+    }
     func retry() {
-        if sessionToken != nil { verify() } else { signIn(provider) }
+        if case .error = state { transition(.locked()) }
+        else { retryFromRejected() }
     }
     func signOut() {
-        generation += 1; operation?.cancel(); authentication?.cancel(); authentication = nil
-        // Lock immediately, even if Keychain removal fails.
+        generation += 1; operation?.cancel(); polling?.cancel(); polling = nil
         wallOperation?.cancel(); wallOperation = nil
         showOnWall = false; wallUpdating = false; wallError = nil
-        entitlement = nil; sessionToken = nil; account = nil; postURL = ""; copied = false; verificationMessage = nil
+        entitlement = nil; account = nil; handleText = ""; postURL = ""; copied = false
+        clearClaimID()
         transition(.locked())
-        do { for name in ["entitlement", "session", "account"] { try store.delete(name) } }
+        do { for name in ["entitlement", "account", "claim-id"] { try store.delete(name) } }
         catch { handle(error) }
     }
-    var wallConsentTitle: String {
-        if provider == "linkedin" { return "Show my name on the Agent Plugins site" }
-        let handle = (account?.handle ?? "your handle").trimmingCharacters(in: CharacterSet(charactersIn: "@"))
-        return "Show @\(handle) on the Agent Plugins site"
-    }
-    func setVerificationWallConsent(_ show: Bool) {
-        showOnWall = show; wallError = nil
+    func setLocalWallConsent(_ show: Bool) {
+        showOnWall = show
         onChange.forEach { $0() }
+    }
+    var wallConsentTitle: String {
+        if lockedProvider == "linkedin" { return "Show my name on the Agent Plugins site" }
+        let handle = (handleText.isEmpty ? (account?.handle ?? "your handle") : handleText).trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+        return "Show @\(handle) on the Agent Plugins site"
     }
     func setWallVisibility(_ show: Bool) {
         guard !wallUpdating, show != showOnWall else { return }
@@ -336,20 +371,25 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
         showOnWall = show; wallUpdating = true; wallError = nil
         onChange.forEach { $0() }
         guard !fixture else { wallUpdating = false; return }
-        let session = sessionToken
+        guard isUnlocked else {
+            showOnWall = previous; wallUpdating = false; wallError = "Unlock the island before changing site visibility."
+            onChange.forEach { $0() }
+            return
+        }
         wallOperation = Task { [weak self] in
             guard let self else { return }
             do {
-                guard let sessionToken = self.sessionToken else { throw IslandGateFailure(code: "not_signed_in") }
-                try await self.client.setWallVisibility(show, bearer: sessionToken)
-                guard self.sessionToken == session else { return }
+                guard let device = self.device ?? (try? IslandGateDevice.load(store: self.store)) else {
+                    throw IslandGateFailure(code: "device_identity")
+                }
+                self.device = device
+                try await self.client.setWallVisibility(show, device: device)
                 self.account?.show_on_wall = show
                 if let account = self.account {
                     do { try self.store.write(try JSONEncoder().encode(account), name: "account") }
                     catch { self.wallError = "Your site preference was updated, but couldn't be saved on this Mac. Try again after unlocking your login Keychain." }
                 }
             } catch {
-                guard self.sessionToken == session else { return }
                 self.showOnWall = previous
                 let failure = (error as? IslandGateFailure) ?? IslandGateFailure(code: "server_error")
                 self.wallError = "Couldn't update your site visibility. \(failure.message) Your previous setting is shown. Try again."
@@ -359,16 +399,44 @@ final class IslandGate: NSObject, ObservableObject, ASWebAuthenticationPresentat
         }
     }
     func openFollow() {
-        let url = provider == "linkedin" ? config?.linkedin.follow_url : URL(string: "https://x.com/intent/follow?screen_name=gurusharan")
+        guard let config else { return }
+        let url = lockedProvider == "linkedin" ? config.linkedin.follow_url : config.x.profile_url
         if let url, url.scheme == "https" { NSWorkspace.shared.open(url) }
     }
     func openShare() {
         guard let config else { handle(IslandGateFailure(code: "server_error")); return }
-        let url: URL
-        if provider == "linkedin" {
-            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(config.linkedin.preset_text, forType: .string)
-            copied = true; url = config.linkedin.share_url
-        } else { url = config.x.intent_url }
-        if url.scheme == "https" { NSWorkspace.shared.open(url) }
+        if lockedProvider == "linkedin" {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(config.linkedin.preset_text, forType: .string)
+            copied = true
+            if config.linkedin.share_url.scheme == "https" { NSWorkspace.shared.open(config.linkedin.share_url) }
+        } else if config.x.intent_url.scheme == "https" {
+            NSWorkspace.shared.open(config.x.intent_url)
+        }
+    }
+    func tryMoveHere() {
+        guard case .conflict(_, let available) = state else { return }
+        guard !IslandGateView.inCooldown(available) else { return }
+        transition(.locked(linkedIn: lockedProvider == "linkedin"))
+    }
+}
+
+// Test hook for entitlement-only apply
+extension IslandGate {
+    func applyEntitlementForTests(_ token: String) throws { try accept(token) }
+    func setConfigForTests(_ config: IslandGateConfig) { self.config = config }
+    func setClientTimingForTests(requestTimeout: TimeInterval, coldStartBudget: TimeInterval, retryBackoffBase: TimeInterval = 0.01) {
+        client.requestTimeout = requestTimeout
+        client.coldStartBudget = coldStartBudget
+        client.retryBackoffBase = retryBackoffBase
+    }
+    func stopPollingForTests() {
+        polling?.cancel()
+        polling = nil
+    }
+    func armCheckingClaimForTests(id: String) throws {
+        try persistClaimID(id)
+        transition(.checking(claimID: id, since: Date(), follow: .pending, post: .pending))
+        stopPollingForTests()
     }
 }

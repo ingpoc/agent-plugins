@@ -5,8 +5,9 @@ import { once } from "node:events";
 import { generateKeyPairSync } from "node:crypto";
 import { createGate } from "./server.ts";
 import { MemoryStore, NeonStore, databaseUrl } from "./store.ts";
-import { startMocks, closeServer } from "./mock-providers.ts";
+import { startMockServices } from "./mock-services.ts";
 import { settings } from "./settings.ts";
+
 /** Starts the local development gate and its mock providers. */
 export async function devLocal(
   options: {
@@ -15,7 +16,7 @@ export async function devLocal(
     env?: NodeJS.ProcessEnv;
   } = {},
 ) {
-  const mocks = await startMocks();
+  const mocks = await startMockServices();
   const keys = generateKeyPairSync("ed25519");
   const pub = keys.publicKey.export({ format: "jwk" });
   let gate: ReturnType<typeof createGate> | undefined;
@@ -28,7 +29,6 @@ export async function devLocal(
       ...mocks.env,
       DEV: "1",
       PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
-      FOLLOW_CHECK_MODE: "user_following",
       ENTITLEMENT_PRIVATE_KEY: keys.privateKey
         .export({ format: "der", type: "pkcs8" })
         .toString("base64"),
@@ -56,12 +56,15 @@ export async function devLocal(
       mocks,
       base: gate.env.PUBLIC_BASE_URL,
       stop: async () => {
-        await closeServer(current.server);
+        await new Promise<void>((resolve, reject) =>
+          current.server.close((error) => (error ? reject(error) : resolve())),
+        );
         await mocks.close();
       },
     };
   } catch (error) {
-    if (gate) await closeServer(gate.server);
+    if (gate)
+      await new Promise<void>((resolve) => gate!.server.close(() => resolve()));
     await mocks.close();
     throw error;
   }
@@ -74,9 +77,7 @@ if (import.meta.main)
       };
       process.once("SIGINT", stop);
       process.once("SIGTERM", stop);
-      process.stdout.write(
-        `Local ACU gate: ${local.base} (mock_user=guru_test, no_follow, no_post, expanded)\n`,
-      );
+      process.stdout.write(`Local ACU gate: ${local.base}\n`);
     })
     .catch((error) => {
       const detail =

@@ -6,126 +6,54 @@ import { MemoryStore, NeonStore, StoreConflict, databaseUrl } from "./store.ts";
 import type { Store, Row, Op } from "./store.ts";
 import { GateError, object, text } from "./errors.ts";
 import {
-  XProvider,
-  LinkedInProvider,
-  opaque,
-  pkce,
-  postKey,
-} from "./providers.ts";
-import type { ProviderName, PageFetch, Identity, XTokenBundle } from "./providers.ts";
-import { sha256, issueEntitlement, verifyDeviceSignature } from "./crypto.ts";
-import {
-  settings,
-  config,
-  preset,
-  encrypt,
-  decrypt,
-  tokenBlob,
-  openBlob,
-  emailHash,
-  constantEqual,
-} from "./settings.ts";
+  sha256Hex,
+  issueEntitlement,
+  verifyDeviceSignature,
+  safeAvatar,
+  type DeviceAction,
+} from "./crypto.ts";
+import { settings, config, preset, constantEqual } from "./settings.ts";
 import { Downloads } from "./downloads.ts";
 import { clientIp } from "./client-ip.ts";
+import { createOEmbedClient, classifyOEmbedHttpStatus } from "./oembed.ts";
+import type { OEmbedClient } from "./oembed.ts";
+import {
+  defaultPageFetch,
+  fetchLinkedInPublicPost,
+  type PageFetch,
+} from "./linkedin-page.ts";
+import {
+  normalizeHandle,
+  parseXStatusUrl,
+  validateLinkedInPostUrl,
+  snowflakeMs,
+  type Provider,
+} from "./handles.ts";
+
+const CLAIM_TTL_MS = 72 * 3600000;
+const REBIND_COOLDOWN_MS = 7 * 86400000;
 const now = () => Math.floor(Date.now() / 1000);
 const iso = () => new Date().toISOString();
 const expires = (seconds: number) =>
   new Date(Date.now() + seconds * 1000).toISOString();
-const first = async (
-  store: Store,
-  table: Parameters<Store["list"]>[0],
-  where: Row,
-) => (await store.list(table, where))[0];
-const insert = (
-  table: Parameters<Store["list"]>[0],
-  row: Row,
-  ignore = false,
-): Op => ({ kind: "insert", table, row, ignore });
+const first = async (store: Store, table: Parameters<Store["list"]>[0], where: Row) =>
+  (await store.list(table, where))[0];
+const insert = (table: Parameters<Store["list"]>[0], row: Row, ignore = false): Op => ({
+  kind: "insert",
+  table,
+  row,
+  ignore,
+});
 const update = (
   table: Parameters<Store["list"]>[0],
   where: Row,
   row: Row,
   required = false,
 ): Op => ({ kind: "update", table, where, row, required });
-function ownerTokenRow(bundle: XTokenBundle, key: string): Row {
-  const access = encrypt(bundle.accessToken, key);
-  const row: Row = {
-    provider: "x",
-    ciphertext: access.ciphertext,
-    nonce: access.nonce,
-    tag: access.tag,
-    access_expires_at: bundle.expiresAt,
-    owner_auth_required: false,
-    refresh_ciphertext: null,
-    refresh_nonce: null,
-    refresh_tag: null,
-  };
-  if (bundle.refreshToken) {
-    const refresh = encrypt(bundle.refreshToken, key);
-    row.refresh_ciphertext = refresh.ciphertext;
-    row.refresh_nonce = refresh.nonce;
-    row.refresh_tag = refresh.tag;
-  }
-  return row;
-}
-async function markOwnerAuthRequired(store: Store) {
-  if (!(await first(store, "owner_tokens", { provider: "x" }))) return;
-  await store.atomic([
-    update("owner_tokens", { provider: "x" }, { owner_auth_required: true }),
-  ]);
-}
-async function ownerAccessToken(
-  store: Store,
-  env: NodeJS.ProcessEnv,
-  x: XProvider,
-) {
-  const row = await first(store, "owner_tokens", { provider: "x" });
-  if (!row) return undefined;
-  const key = env.TOKEN_ENC_KEY!;
-  const access = decrypt(
-    {
-      ciphertext: String(row.ciphertext),
-      nonce: String(row.nonce),
-      tag: String(row.tag),
-    },
-    key,
-  );
-  const expiresAt = Date.parse(String(row.access_expires_at ?? ""));
-  if (
-    !Number.isFinite(expiresAt) ||
-    expiresAt - Date.now() > 5 * 60 * 1000
-  )
-    return access;
-  const refresh =
-    row.refresh_ciphertext && row.refresh_nonce && row.refresh_tag
-      ? decrypt(
-          {
-            ciphertext: String(row.refresh_ciphertext),
-            nonce: String(row.refresh_nonce),
-            tag: String(row.refresh_tag),
-          },
-          key,
-        )
-      : null;
-  if (!refresh) {
-    await markOwnerAuthRequired(store);
-    throw new GateError(503, "x_unavailable");
-  }
-  try {
-    const bundle = await x.refreshAccessToken(refresh);
-    await store.atomic([
-      update("owner_tokens", { provider: "x" }, ownerTokenRow(bundle, key)),
-    ]);
-    return bundle.accessToken;
-  } catch (error) {
-    await markOwnerAuthRequired(store);
-    if (error instanceof GateError) throw error;
-    throw new GateError(503, "x_unavailable");
-  }
-}
-function deviceId(value: unknown) {
-  const id = text(value, 64);
-  if (!/^[a-f0-9]{64}$/.test(id)) throw new GateError(400, "invalid_device");
+
+function deviceIdHeader(value: string | undefined) {
+  const id = text(value ?? "", 64);
+  if (!/^[a-f0-9]{64}$/.test(id)) throw new GateError(401, "bad_signature");
   return id;
 }
 function deviceKey(value: unknown) {
@@ -148,7 +76,7 @@ function deviceKey(value: unknown) {
   }
   return encoded;
 }
-async function body(req: IncomingMessage) {
+async function readRawBody(req: IncomingMessage) {
   const chunks: Buffer[] = [];
   let bytes = 0;
   for await (const chunk of req) {
@@ -156,8 +84,12 @@ async function body(req: IncomingMessage) {
     if (bytes > 65536) throw new GateError(413, "request_too_large");
     chunks.push(chunk);
   }
+  return Buffer.concat(chunks);
+}
+async function body(req: IncomingMessage) {
+  const raw = await readRawBody(req);
   try {
-    return object(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"));
+    return object(JSON.parse(raw.toString("utf8") || "{}"));
   } catch (error) {
     if (error instanceof GateError) throw error;
     throw new GateError(400, "invalid_request");
@@ -168,30 +100,34 @@ function consent(value: unknown, defaultValue = false) {
   if (typeof value !== "boolean") throw new GateError(400, "invalid_request");
   return value;
 }
-/** createGate provides its exported service behavior. */
+function checksPayload(claim: Row) {
+  return {
+    follow: claim.follow_check,
+    post: claim.post_check,
+  };
+}
+function matchText(textValue: string, provider: Provider) {
+  const ref = preset.match.ref_links[provider === "x" ? 0 : 1];
+  return (
+    textValue.toLowerCase().includes(preset.match.hashtag.toLowerCase()) ||
+    textValue.includes(ref)
+  );
+}
+
+/** createGate wires HTTP handlers to the gate store and dependencies. */
 export function createGate(
   input: NodeJS.ProcessEnv,
   store: Store,
-  options: { pageFetch?: PageFetch; downloads?: Downloads } = {},
+  options: {
+    pageFetch?: PageFetch;
+    downloads?: Downloads;
+    oembed?: OEmbedClient;
+  } = {},
 ) {
   const env = settings(input);
   const trustHops = Number(env.TRUST_PROXY_HOPS || 0);
-  const xBudget = Number(env.X_DAILY_CALL_BUDGET || 2000);
-  async function spendX() {
-    const day = iso().slice(0, 10);
-    const row = await first(store, "x_calls", { day });
-    if (row && Number(row.count) >= xBudget)
-      throw new GateError(503, "x_unavailable");
-    await store.atomic([
-      { kind: "increment", table: "x_calls", where: { day } },
-    ]);
-    const after = await first(store, "x_calls", { day });
-    if (after && Number(after.count) > xBudget)
-      throw new GateError(503, "x_unavailable");
-  }
-  const x = new XProvider(env, spendX),
-    linkedin = new LinkedInProvider(env, options.pageFetch);
-  const providers = { x, linkedin };
+  const oembed = options.oembed ?? createOEmbedClient(env);
+  const pageFetch = options.pageFetch ?? defaultPageFetch;
   const downloads = options.downloads ?? new Downloads(env);
   let lastCleanup = 0;
   async function cleanup() {
@@ -201,6 +137,7 @@ export function createGate(
     }
   }
   const buckets = new Map<string, { tokens: number; at: number }>();
+  const pollBuckets = new Map<string, { tokens: number; at: number }>();
   const adminFails = new Map<string, { count: number; at: number }>();
   function rateLimited(retryAfter: number) {
     throw new GateError(429, "rate_limited", {
@@ -212,25 +149,33 @@ export function createGate(
     max: number,
     windowMs: number,
     req: IncomingMessage,
+    keySuffix = "",
   ) {
     const time = Date.now(),
       ip = clientIp(req, trustHops),
-      key = `${name}:${ip}`;
+      key = `${name}:${ip}${keySuffix}`;
     for (const [k, b] of buckets)
       if (time - b.at > windowMs * 2) buckets.delete(k);
     const rate = max / (windowMs / 1000);
     const bucket = buckets.get(key) ?? { tokens: max, at: time };
-    bucket.tokens = Math.min(
-      max,
-      bucket.tokens + ((time - bucket.at) / 1000) * rate,
-    );
+    bucket.tokens = Math.min(max, bucket.tokens + ((time - bucket.at) / 1000) * rate);
     bucket.at = time;
     if (bucket.tokens < 1) rateLimited((1 - bucket.tokens) / rate);
     bucket.tokens -= 1;
     buckets.set(key, bucket);
   }
-  function ratePublic(req: IncomingMessage) {
-    rateLimit("public", 60, 60000, req);
+  function rateDevice(name: string, max: number, windowMs: number, deviceId: string) {
+    const time = Date.now(),
+      key = `${name}:${deviceId}`;
+    for (const [k, b] of pollBuckets)
+      if (time - b.at > windowMs * 2) pollBuckets.delete(k);
+    const rate = max / (windowMs / 1000);
+    const bucket = pollBuckets.get(key) ?? { tokens: max, at: time };
+    bucket.tokens = Math.min(max, bucket.tokens + ((time - bucket.at) / 1000) * rate);
+    bucket.at = time;
+    if (bucket.tokens < 1) rateLimited((1 - bucket.tokens) / rate);
+    bucket.tokens -= 1;
+    pollBuckets.set(key, bucket);
   }
   function adminAuthFail(req: IncomingMessage) {
     const time = Date.now(),
@@ -243,126 +188,21 @@ export function createGate(
     entry.count += 1;
     adminFails.set(ip, entry);
     if (entry.count > 10) rateLimited(60);
-    throw new GateError(401, "not_signed_in");
-  }
-  async function checkVerifyLimit(accountId: string, provider: ProviderName) {
-    const day = iso().slice(0, 10),
-      row = await first(store, "verify_limits", { account_id: accountId });
-    if (!row) return;
-    const last =
-      provider === "x" ? row.x_last_at : row.linkedin_last_at;
-    if (
-      Date.parse(String(last)) > 0 &&
-      Date.now() - Date.parse(String(last)) < 20000
-    )
-      rateLimited(20);
-    if (String(row.day) === day && Number(row.day_count) >= 30)
-      rateLimited(3600);
-  }
-  async function recordVerifyAttempt(accountId: string) {
-    const day = iso().slice(0, 10),
-      row = await first(store, "verify_limits", { account_id: accountId });
-    const next = {
-      x_last_at: row ? String(row.x_last_at) : new Date(0).toISOString(),
-      linkedin_last_at: row
-        ? String(row.linkedin_last_at)
-        : new Date(0).toISOString(),
-      day,
-      day_count:
-        row && String(row.day) === day ? Number(row.day_count) + 1 : 1,
-    };
-    await store.atomic([
-      row
-        ? update("verify_limits", { account_id: accountId }, next)
-        : insert("verify_limits", { account_id: accountId, ...next }),
-    ]);
-  }
-  async function recordVerifySuccess(
-    accountId: string,
-    provider: ProviderName,
-  ) {
-    const field = provider === "x" ? "x_last_at" : "linkedin_last_at";
-    const row = await first(store, "verify_limits", { account_id: accountId });
-    if (!row) return;
-    await store.atomic([
-      update("verify_limits", { account_id: accountId }, { [field]: iso() }),
-    ]);
-  }
-  function appRedirect(code: string) {
-    return `${env.APP_CALLBACK_SCHEME}://auth#code=${encodeURIComponent(code)}`;
-  }
-  function appRedirectError(code: string) {
-    return `${env.APP_CALLBACK_SCHEME}://auth#error=${encodeURIComponent(code)}`;
-  }
-  async function upsertOAuthIdentity(
-    provider: ProviderName,
-    info: Identity,
-    linkAccountId: string | null,
-    access: string,
-  ) {
-    let identity = await first(store, "identities", {
-      provider,
-      provider_user_id: info.userId,
-    });
-    if (identity && linkAccountId && identity.account_id !== linkAccountId)
-      throw new GateError(409, "identity_taken");
-    const account = identity?.account_id ?? linkAccountId ?? randomUUID();
-    const id = identity?.id ?? randomUUID();
-    const fields = {
-      handle: info.handle,
-      name: info.name,
-      avatar_url: info.avatar,
-      profile_url: info.profile,
-      email_hash: info.email
-        ? emailHash(info.email, env.EMAIL_HASH_KEY!)
-        : null,
-      token_blob: tokenBlob(access, env.TOKEN_ENC_KEY!),
-    };
-    const ops: Op[] = [];
-    if (!identity && !linkAccountId)
-      ops.push(
-        insert("accounts", {
-          id: account,
-          created_at: iso(),
-          wall_opt_in: false,
-          wall_opt_in_at: null,
-        }),
-      );
-    if (identity) ops.push(update("identities", { id }, fields));
-    else
-      ops.push(
-        insert("identities", {
-          id,
-          account_id: account,
-          provider,
-          provider_user_id: info.userId,
-          ...fields,
-        }),
-      );
-    if (provider === "x")
-      ops.push(...(await profileOps(String(id), info)));
-    if (ops.length) await store.atomic(ops);
-    return { accountId: account, identityId: id };
-  }
-  async function session(token: string | undefined) {
-    if (!token) throw new GateError(401, "not_signed_in");
-    const row = await first(store, "sessions", { token_hash: sha256(token) });
-    if (!row) throw new GateError(401, "not_signed_in");
-    if (Date.parse(String(row.expires_at)) <= Date.now())
-      throw new GateError(401, "session_expired");
-    return row;
+    throw new GateError(401, "not_found");
   }
   function bearer(req: IncomingMessage) {
     return req.headers.authorization?.match(/^Bearer (\S+)$/)?.[1];
-  }
-  async function auth(req: IncomingMessage) {
-    return session(bearer(req));
   }
   async function checkRevoked(account: string) {
     if (await first(store, "revocations", { account_id: account }))
       throw new GateError(403, "revoked");
   }
-  function token(binding: Row, unlock: Row) {
+  function profileUrl(provider: Provider, handle: string) {
+    return provider === "x"
+      ? `https://x.com/${handle}`
+      : `https://www.linkedin.com/in/${handle}`;
+  }
+  function token(binding: Row, unlock: Row, account: Row) {
     return issueEntitlement(env.ENTITLEMENT_PRIVATE_KEY!, {
       acct: String(binding.account_id),
       prov: unlock.provider === "x" ? "x" : "linkedin",
@@ -370,164 +210,25 @@ export function createGate(
       device_id: String(binding.device_id),
     });
   }
-  function bindingError(binding: Row) {
-    return new GateError(409, "device_conflict", {
-      device_name: binding.device_name,
-      bound_at: binding.bound_at,
-      rebind_available_at: binding.last_rebind_at
-        ? new Date(
-            Date.parse(String(binding.last_rebind_at)) + 7 * 86400000,
-          ).toISOString()
-        : iso(),
-    });
-  }
-  async function ensureDevice(s: Row) {
-    const taken = await first(store, "bindings", { device_id: s.device_id });
-    if (taken && taken.account_id !== s.account_id)
-      throw new GateError(409, "device_taken");
-    const bound = await first(store, "bindings", { account_id: s.account_id });
-    if (bound && bound.device_id !== s.device_id) throw bindingError(bound);
-    return bound;
-  }
-  async function accountStatus(s: Row, enforce = true) {
-    await checkRevoked(String(s.account_id));
-    const unlock = await first(store, "unlocks", { account_id: s.account_id });
-    if (unlock) {
-      let binding = enforce
-        ? await ensureDevice(s)
-        : await first(store, "bindings", { account_id: s.account_id });
-      if (enforce && !binding) {
-        const row = {
-          account_id: s.account_id,
-          device_id: s.device_id,
-          device_pubkey: s.device_pubkey,
-          device_name: s.device_name,
-          bound_at: iso(),
-          last_rebind_at: null,
-        };
-        try {
-          await store.atomic([insert("bindings", row)]);
-        } catch (error) {
-          if (!(error instanceof StoreConflict)) throw error;
-        }
-        binding = await ensureDevice(s);
-      }
-      return {
-        status: "unlocked",
-        entitlement:
-          binding?.device_id === s.device_id ? token(binding, unlock) : null,
-      };
-    }
-    const claims = await store.list("pending_claims", {
-      account_id: s.account_id,
-    });
-    if (
-      enforce &&
-      !claims.some((c) => c.status === "pending") &&
-      claims.some((c) => c.status === "rejected")
-    )
-      throw new GateError(422, "rejected");
-    return {
-      status: claims.some((c) => c.status === "pending")
-        ? "pending_review"
-        : "needs_verify",
-      entitlement: null,
-    };
-  }
-  async function finish(
-    s: Row,
-    identity: Row,
-    post: string,
-    show: boolean,
-    extra: Op[] = [],
-  ) {
-    await checkRevoked(String(s.account_id));
-    const bound = await ensureDevice(s);
-    const existing = await first(store, "unlocks", {
-      account_id: s.account_id,
-    });
-    const binding = bound ?? {
-      account_id: s.account_id,
-      device_id: s.device_id,
-      device_pubkey: s.device_pubkey,
-      device_name: s.device_name,
-      bound_at: iso(),
-      last_rebind_at: null,
-    };
-    const unlock = existing ?? {
-      account_id: s.account_id,
-      provider: identity.provider,
-      post_ref: post,
-      created_at: iso(),
-      handle: identity.handle,
-      name: identity.name,
-      avatar_url: identity.avatar_url ?? null,
-      profile_url: identity.profile_url ?? null,
-    };
-    const ops = [...extra];
-    if (!bound) ops.push(insert("bindings", binding));
-    if (!existing) ops.push(insert("unlocks", unlock));
-    ops.push(
-      update(
-        "accounts",
-        { id: s.account_id },
-        { wall_opt_in: show, wall_opt_in_at: show ? iso() : null },
-      ),
-    );
-    try {
-      await store.atomic(ops);
-    } catch (error) {
-      if (error instanceof StoreConflict) {
-        await ensureDevice(s);
-        const used = await first(store, "used_posts", { post_key: post });
-        if (used && used.account_id !== s.account_id)
-          throw new GateError(422, "post_url_used");
-        if (await first(store, "unlocks", { account_id: s.account_id }))
-          return accountStatus(s);
-        throw new GateError(409, "concurrent_change");
-      }
-      throw error;
-    }
-    return { status: "unlocked", entitlement: token(binding, unlock) };
-  }
-  async function profileOps(id: string, info: Identity): Promise<Op[]> {
-    const row = {
-      identity_id: id,
-      verified: info.verified ?? false,
-      verified_type: info.verifiedType ?? "",
-      followers_count: info.followers ?? 0,
-      username: info.handle,
-    };
-    return [
-      (await first(store, "x_profiles", { identity_id: id }))
-        ? update("x_profiles", { identity_id: id }, row)
-        : insert("x_profiles", row),
-    ];
-  }
-  const match = (provider: ProviderName) => (s: string) =>
-    s.toLowerCase().includes(preset.match.hashtag.toLowerCase()) ||
-    s.includes(preset.match.ref_links[provider === "x" ? 0 : 1]);
-  async function signed(
-    data: Record<string, unknown>,
-    action: "refresh" | "rebind" | "wall",
-    key: string,
-    id: string,
-    show?: boolean,
+  async function signedRequest(
+    req: IncomingMessage,
+    action: DeviceAction,
+    pubkey: string,
+    bodyRaw: Buffer,
   ) {
     await cleanup();
-    const ts = data.ts;
-    if (
-      typeof ts !== "number" ||
-      !Number.isSafeInteger(ts) ||
-      Math.abs(now() - ts) > 300
-    )
-      throw new GateError(401, "stale_timestamp");
-    const signature = text(data.sig, 256);
-    if (!verifyDeviceSignature(key, action, id, ts, signature, show))
+    const id = deviceIdHeader(req.headers["x-acu-device"] as string | undefined);
+    const tsRaw = req.headers["x-acu-ts"];
+    const ts = Number(tsRaw);
+    if (!Number.isSafeInteger(ts) || Math.abs(now() - ts) > 300)
+      throw new GateError(401, "bad_signature");
+    const sig = text(req.headers["x-acu-sig"] as string | undefined, 256);
+    const bodyHash = sha256Hex(bodyRaw.toString("utf8"));
+    if (!verifyDeviceSignature(pubkey, action, id, ts, sig, bodyHash))
       throw new GateError(401, "bad_signature");
     const old = await first(store, "device_replays", { device_id: id, ts });
     if (old && Date.parse(String(old.expires_at)) > Date.now())
-      throw new GateError(401, "replay");
+      throw new GateError(401, "bad_signature");
     const ops: Op[] = [];
     if (old)
       ops.push({
@@ -536,15 +237,427 @@ export function createGate(
         where: { device_id: id, ts },
         required: true,
       });
-    ops.push(
-      insert("device_replays", { device_id: id, ts, expires_at: expires(600) }),
-    );
+    ops.push(insert("device_replays", { device_id: id, ts, expires_at: expires(600) }));
     try {
       await store.atomic(ops);
     } catch (error) {
-      if (error instanceof StoreConflict) throw new GateError(401, "replay");
+      if (error instanceof StoreConflict) throw new GateError(401, "bad_signature");
       throw error;
     }
+    return id;
+  }
+  async function isFollower(provider: Provider, handle: string, xUserId: string | null) {
+    if (provider !== "x") return false;
+    if (await first(store, "followers", { provider: "x", handle })) return true;
+    if (xUserId) {
+      const rows = await store.list("followers", { provider: "x" });
+      return rows.some((r) => r.x_user_id === xUserId);
+    }
+    return false;
+  }
+  async function markFollowFromTable(account: Row, claim: Row) {
+    if (account.provider !== "x") return claim;
+    if (claim.follow_check === "confirmed") return claim;
+    if (await isFollower("x", String(account.handle), account.x_user_id ? String(account.x_user_id) : null)) {
+      await store.atomic([
+        update("claims", { id: claim.id }, { follow_check: "confirmed" }),
+      ]);
+      return { ...claim, follow_check: "confirmed" };
+    }
+    return claim;
+  }
+  async function expireIfNeeded(claim: Row) {
+    if (
+      claim.status === "pending_verification" &&
+      Date.parse(String(claim.expires_at)) <= Date.now()
+    ) {
+      await store.atomic([
+        update("claims", { id: claim.id, status: "pending_verification" }, { status: "expired" }, true),
+      ]);
+      return { ...claim, status: "expired" };
+    }
+    return claim;
+  }
+  function rebindAvailableAt(binding: Row) {
+    return binding.last_rebind_at
+      ? new Date(Date.parse(String(binding.last_rebind_at)) + REBIND_COOLDOWN_MS).toISOString()
+      : iso();
+  }
+  async function bindingConflict(accountId: string, deviceId: string) {
+    const deviceBound = await first(store, "bindings", { device_id: deviceId });
+    if (deviceBound && deviceBound.account_id !== accountId)
+      throw new GateError(409, "device_taken");
+    const accountBound = await first(store, "bindings", { account_id: accountId });
+    if (accountBound && accountBound.device_id !== deviceId) {
+      throw new GateError(409, "device_conflict", {
+        rebind_available_at: rebindAvailableAt(accountBound),
+      });
+    }
+    return accountBound;
+  }
+  async function rebindPostRequired(
+    accountId: string,
+    postKey: string | null,
+    postCreatedMs: number,
+  ) {
+    const binding = await first(store, "bindings", { account_id: accountId });
+    if (!binding) return;
+    if (binding.device_id) {
+      const cooldownEnd =
+        Date.parse(String(binding.last_rebind_at ?? binding.bound_at)) + REBIND_COOLDOWN_MS;
+      if (cooldownEnd > Date.now()) throw new GateError(429, "rebind_cooldown", {
+        rebind_available_at: new Date(cooldownEnd).toISOString(),
+      });
+    }
+    if (!postKey) throw new GateError(422, "post_missing_tag");
+    const used = await first(store, "used_posts", { post_key: postKey });
+    if (used) throw new GateError(422, "post_url_used");
+    const minMs = Date.parse(String(binding.bound_at));
+    if (postCreatedMs < minMs) throw new GateError(422, "post_too_old");
+  }
+  async function tryUnlock(claim: Row, account: Row) {
+    claim = await expireIfNeeded(claim);
+    if (claim.status !== "pending_verification") return claim;
+    claim = await markFollowFromTable(account, claim);
+    const needFollow = account.provider === "x";
+    if (needFollow && claim.follow_check !== "confirmed") return claim;
+    if (claim.post_check !== "confirmed") return claim;
+    if (!claim.post_key) return claim;
+    await checkRevoked(String(account.id));
+    const deviceBound = await first(store, "bindings", { device_id: claim.device_id });
+    if (deviceBound && deviceBound.account_id !== account.id) return claim;
+    const accountBound = await first(store, "bindings", { account_id: account.id });
+    if (accountBound && accountBound.device_id !== claim.device_id) {
+      const cooldownEnd =
+        Date.parse(String(accountBound.last_rebind_at ?? accountBound.bound_at)) +
+        REBIND_COOLDOWN_MS;
+      if (cooldownEnd > Date.now()) return claim;
+      const used = await first(store, "used_posts", { post_key: String(claim.post_key) });
+      if (used) return claim;
+      const postMs =
+        account.provider === "x" && claim.post_url
+          ? snowflakeMs(parseXStatusUrl(String(claim.post_url)).statusId)
+          : Date.parse(String(claim.created_at));
+      if (postMs < Date.parse(String(accountBound.bound_at))) return claim;
+    } else {
+      const taken = await first(store, "bindings", { device_id: claim.device_id });
+      if (taken && taken.account_id !== account.id) {
+        await store.atomic([
+          update(
+            "claims",
+            { id: claim.id },
+            { status: "rejected", reject_reason: "device_taken" },
+            true,
+          ),
+        ]);
+        return { ...claim, status: "rejected", reject_reason: "device_taken" };
+      }
+    }
+    const binding = accountBound ?? null;
+    const unlockExisting = await first(store, "unlocks", { account_id: account.id });
+    const displayName =
+      account.provider === "x" ? `@${account.handle}` : String(account.handle);
+    const ops: Op[] = [
+      update(
+        "claims",
+        { id: claim.id, status: "pending_verification" },
+        { status: "unlocked" },
+        true,
+      ),
+      update(
+        "accounts",
+        { id: account.id },
+        {
+          wall_opt_in: claim.show_on_wall === true,
+          wall_opt_in_at: claim.show_on_wall === true ? iso() : null,
+        },
+      ),
+      insert(
+        "used_posts",
+        { post_key: String(claim.post_key), account_id: account.id, created_at: iso() },
+        true,
+      ),
+    ];
+    if (!binding)
+      ops.push(
+        insert("bindings", {
+          account_id: account.id,
+          device_id: claim.device_id,
+          device_pubkey: claim.device_pubkey,
+          device_name: claim.device_name,
+          bound_at: iso(),
+          last_rebind_at: unlockExisting ? iso() : null,
+        }),
+      );
+    else if (binding.device_id !== claim.device_id)
+      ops.push(
+        insert(
+          "moved_devices",
+          { device_id: binding.device_id, account_id: account.id },
+          true,
+        ),
+        update(
+          "bindings",
+          { account_id: account.id },
+          {
+            device_id: claim.device_id,
+            device_pubkey: claim.device_pubkey,
+            device_name: claim.device_name,
+            bound_at: iso(),
+            last_rebind_at: iso(),
+          },
+          true,
+        ),
+        { kind: "delete", table: "moved_devices", where: { device_id: claim.device_id } },
+      );
+    if (!unlockExisting)
+      ops.push(
+        insert("unlocks", {
+          account_id: account.id,
+          provider: account.provider,
+          post_ref: claim.post_key,
+          handle: account.handle,
+          display_name: displayName,
+          avatar_url: account.avatar_url ?? null,
+          profile_url: account.profile_url ?? profileUrl(account.provider as Provider, String(account.handle)),
+          created_at: iso(),
+        }),
+      );
+    try {
+      await store.atomic(ops);
+    } catch (error) {
+      if (error instanceof StoreConflict) {
+        const used = await first(store, "used_posts", { post_key: String(claim.post_key) });
+        if (used && used.account_id !== account.id)
+          throw new GateError(422, "post_url_used");
+        throw new GateError(409, "device_taken");
+      }
+      throw error;
+    }
+    return { ...claim, status: "unlocked" };
+  }
+  async function claimResponse(claim: Row, account: Row) {
+    claim = await expireIfNeeded(claim);
+    if (claim.status === "unlocked") {
+      const binding = await first(store, "bindings", { account_id: account.id });
+      const unlock = await first(store, "unlocks", { account_id: account.id });
+      if (binding && unlock && binding.device_id === claim.device_id)
+        return {
+          status: "unlocked",
+          checks: checksPayload(claim),
+          reason: null,
+          entitlement: token(binding, unlock, account),
+        };
+    }
+    return {
+      status: claim.status,
+      checks: checksPayload(claim),
+      reason: claim.reject_reason ? String(claim.reject_reason) : null,
+      entitlement: null,
+    };
+  }
+  async function checkInstantPost(
+    provider: Provider,
+    handle: string,
+    postUrl: string,
+    claimCreatedMs: number,
+    accountId: string,
+  ) {
+    if (provider === "x") {
+      try {
+        const parsed = parseXStatusUrl(postUrl);
+        if (parsed.handle !== handle)
+          return { post_key: parsed.postKey, post_check: "failed" as const, post_source: null };
+        const binding = await first(store, "bindings", { account_id: accountId });
+        const minMs = binding ? Date.parse(String(binding.bound_at)) : 0;
+        const result = await oembed.fetch(postUrl, handle, claimCreatedMs, minMs);
+        if (!result.ok) {
+          const check =
+            result.code === "post_not_found" ? ("pending" as const) : ("failed" as const);
+          return { post_key: parsed.postKey, post_check: check, post_source: null };
+        }
+        const used = await first(store, "used_posts", { post_key: result.postKey });
+        if (used && used.account_id !== accountId)
+          throw new GateError(422, "post_url_used");
+        if (binding)
+          await rebindPostRequired(accountId, result.postKey, result.createdMs);
+        return {
+          post_key: result.postKey,
+          post_check: "confirmed" as const,
+          post_source: "oembed",
+        };
+      } catch (error) {
+        if (error instanceof GateError) throw error;
+        return { post_key: null, post_check: "pending" as const, post_source: null };
+      }
+    }
+    const postKey = validateLinkedInPostUrl(postUrl);
+    const used = await first(store, "used_posts", { post_key: postKey });
+    if (used && used.account_id !== accountId) throw new GateError(422, "post_url_used");
+    const page = await fetchLinkedInPublicPost(postUrl, handle, pageFetch);
+    if (!page.ok) return { post_key: postKey, post_check: "pending" as const, post_source: null };
+    return { post_key: page.postKey, post_check: "confirmed" as const, post_source: "public" };
+  }
+  async function upsertAccount(provider: Provider, handle: string) {
+    let account = await first(store, "accounts", { provider, handle });
+    if (account) return account;
+    const row = {
+      id: randomUUID(),
+      provider,
+      handle,
+      x_user_id: null,
+      verified: false,
+      verified_type: null,
+      followers_count: null,
+      avatar_url: null,
+      profile_url: profileUrl(provider, handle),
+      wall_opt_in: false,
+      wall_opt_in_at: null,
+      created_at: iso(),
+    };
+    await store.atomic([insert("accounts", row)]);
+    return row;
+  }
+  async function recordClaimDevice(deviceId: string) {
+    const day = iso().slice(0, 10);
+    await store.atomic([
+      { kind: "increment", table: "claim_device_limits", where: { device_id: deviceId, day } },
+    ]);
+    const row = await first(store, "claim_device_limits", { device_id: deviceId, day });
+    if (row && Number(row.count) > 10) rateLimited(3600);
+  }
+  async function pushFollowers(body: Record<string, unknown>) {
+    const followers = body.followers;
+    if (!Array.isArray(followers)) throw new GateError(400, "invalid_request");
+    let upserted = 0;
+    const ops: Op[] = [];
+    for (const item of followers) {
+      const row = object(item);
+      const handle = String(row.handle || "").replace(/^@/, "").toLowerCase();
+      if (!/^[a-z0-9_]{1,15}$/.test(handle)) continue;
+      ops.push(
+        insert(
+          "followers",
+          {
+            provider: "x",
+            handle,
+            x_user_id: row.id ? String(row.id) : null,
+          },
+          true,
+        ),
+      );
+      upserted += 1;
+      const accounts = await store.list("accounts", { provider: "x", handle });
+      for (const account of accounts) {
+        if (row.id && !account.x_user_id)
+          ops.push(update("accounts", { id: account.id }, { x_user_id: String(row.id) }));
+      }
+    }
+    ops.push(
+      insert(
+        "follower_meta",
+        {
+          id: "x",
+          source: String(body.source || "manual"),
+          complete: body.complete === true,
+          updated_at: iso(),
+        },
+        true,
+      ),
+    );
+    if (ops.length) await store.atomic(ops);
+    const followConfirmed: string[] = [];
+    const unlocked: string[] = [];
+    const pending = await store.list("claims", { status: "pending_verification" });
+    for (const claim of pending) {
+      const account = await first(store, "accounts", { id: claim.account_id });
+      if (!account || account.provider !== "x") continue;
+      const updated = await markFollowFromTable(account, claim);
+      if (updated.follow_check === "confirmed") followConfirmed.push(String(claim.id));
+      const after = await tryUnlock(updated, account);
+      if (after.status === "unlocked") unlocked.push(String(claim.id));
+    }
+    return { upserted, follow_confirmed_claims: followConfirmed, unlocked_claims: unlocked };
+  }
+  async function adminVerifyClaim(claimId: string, payload: Record<string, unknown>) {
+    const claim = await first(store, "claims", { id: claimId });
+    if (!claim) throw new GateError(404, "not_found");
+    let current = await expireIfNeeded(claim);
+    if (current.status !== "pending_verification")
+      throw new GateError(409, "rejected");
+    const account = await first(store, "accounts", { id: claim.account_id });
+    if (!account) throw new GateError(404, "not_found");
+    const source = payload.source ? String(payload.source) : "manual";
+    if (payload.follow_confirmed === true && account.provider === "x") {
+      await store.atomic([update("claims", { id: claimId }, { follow_check: "confirmed" })]);
+      current = { ...current, follow_check: "confirmed" };
+    }
+    const postUrl = payload.post_url ? String(payload.post_url) : null;
+    const postText = payload.post_text ? String(payload.post_text) : "";
+    if (postUrl && account.provider === "x") {
+      const handle = String(account.handle);
+      if (source === "comet") {
+        let httpStatus = 200;
+        try {
+          const target = new URL(env.OEMBED_BASE || "https://publish.x.com/oembed");
+          target.searchParams.set("url", postUrl);
+          const response = await fetch(target, { signal: AbortSignal.timeout(8000) });
+          httpStatus = response.status;
+        } catch {
+          httpStatus = 503;
+        }
+        if (!classifyOEmbedHttpStatus(httpStatus))
+          throw new GateError(422, "post_missing_tag");
+        if (!matchText(postText, "x")) throw new GateError(422, "post_missing_tag");
+        const key = parseXStatusUrl(postUrl).postKey;
+        await store.atomic([
+          update("claims", { id: claimId }, {
+            post_url: postUrl,
+            post_key: key,
+            post_check: "confirmed",
+            post_source: "comet",
+          }),
+        ]);
+        current = { ...current, post_key: key, post_check: "confirmed" };
+      } else {
+        const result = await oembed.fetch(postUrl, handle, Date.parse(String(current.created_at)));
+        if (!result.ok) throw new GateError(422, result.code);
+        await store.atomic([
+          update("claims", { id: claimId }, {
+            post_url: postUrl,
+            post_key: result.postKey,
+            post_check: "confirmed",
+            post_source: "oembed",
+          }),
+        ]);
+        current = { ...current, post_key: result.postKey, post_check: "confirmed" };
+      }
+    } else if (account.provider === "linkedin" && (postUrl || postText)) {
+      if (!matchText(postText, "linkedin")) throw new GateError(422, "post_missing_tag");
+      const key = postUrl ? validateLinkedInPostUrl(postUrl) : String(current.post_key || "");
+      if (!key) throw new GateError(422, "post_missing_tag");
+      await store.atomic([
+        update("claims", { id: claimId }, {
+          post_url: postUrl ?? current.post_url,
+          post_key: key,
+          post_check: "confirmed",
+          post_source: source,
+        }),
+      ]);
+      current = { ...current, post_key: key, post_check: "confirmed" };
+    }
+    const accountUpdates: Row = {};
+    if (typeof payload.verified === "boolean") accountUpdates.verified = payload.verified;
+    if (payload.verified_type != null) accountUpdates.verified_type = String(payload.verified_type);
+    if (payload.followers_count != null)
+      accountUpdates.followers_count = Number(payload.followers_count);
+    const avatar = safeAvatar(payload.avatar_url);
+    if (avatar) accountUpdates.avatar_url = avatar;
+    if (Object.keys(accountUpdates).length)
+      await store.atomic([update("accounts", { id: account.id }, accountUpdates)]);
+    const refreshedAccount = { ...account, ...accountUpdates };
+    const unlocked = await tryUnlock(current, refreshedAccount);
+    return { claim_id: claimId, status: unlocked.status, checks: checksPayload(unlocked) };
   }
   async function siteStats() {
     const [unlocks, accounts, hits, github] = await Promise.all([
@@ -566,13 +679,10 @@ export function createGate(
       unlocks: unlocks.length,
       wall: unlocks
         .filter((u) => opted.has(u.account_id))
-        .sort((a, b) =>
-          String(b.created_at).localeCompare(String(a.created_at)),
-        )
+        .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
         .slice(0, 200)
         .map((u) => ({
           handle: u.handle,
-          name: u.name,
           provider: u.provider,
           avatar_url: u.avatar_url,
           profile_url: u.profile_url,
@@ -602,10 +712,10 @@ export function createGate(
     const url = new URL(req.url || "/", env.PUBLIC_BASE_URL);
     const path = url.pathname;
     const method = req.method || "GET";
-    async function handlePublic() {
+    try {
       if (path.startsWith("/v1/public/")) {
         responseHeaders["access-control-allow-origin"] = "*";
-        ratePublic(req);
+        rateLimit("public", 60, 60000, req);
         if (method === "OPTIONS") {
           res.writeHead(204, {
             "access-control-allow-origin": "*",
@@ -616,8 +726,7 @@ export function createGate(
           return;
         }
       }
-      if (path === "/healthz" && method === "GET")
-        return reply(200, { ok: true });
+      if (path === "/healthz" && method === "GET") return reply(200, { ok: true });
       if (path === "/v1/config" && method === "GET") {
         rateLimit("config", 120, 60000, req);
         return reply(200, config());
@@ -637,695 +746,309 @@ export function createGate(
         const ref = url.searchParams.get("ref");
         if (ref === "acu-x" || ref === "acu-li")
           await store.atomic([
-            {
-              kind: "increment",
-              table: "ref_clicks",
-              where: { ref, day: iso().slice(0, 10) },
-            },
+            { kind: "increment", table: "ref_clicks", where: { ref, day: iso().slice(0, 10) } },
           ]);
         return reply(204, null);
       }
       if (path === "/v1/public/download" && method === "GET") {
         const data = await downloads.get();
-        if (!data.url) throw new GateError(503, "download_unavailable");
+        if (!data.url) throw new GateError(503, "server_error");
         await store.atomic([
-          {
-            kind: "increment",
-            table: "download_hits",
-            where: { day: iso().slice(0, 10) },
-          },
+          { kind: "increment", table: "download_hits", where: { day: iso().slice(0, 10) } },
         ]);
         res.setHeader("access-control-allow-origin", "*");
         return redirect(data.url);
       }
-    }
-    async function handleAuth() {
-      if (path === "/v1/auth/link-ticket" && method === "POST") {
-        rateLimit("auth_start", 10, 60000, req);
-        const s = await auth(req),
-          data = await body(req),
-          id = deviceId(data.device_id);
-        if (id !== s.device_id) throw new GateError(409, "device_conflict");
-        if (
-          Date.now() - Date.parse(String(s.expires_at)) + 30 * 86400000 >
-          10 * 60000
-        )
-          throw new GateError(401, "session_expired");
-        const ticket = opaque();
-        await store.atomic([
-          insert("link_tickets", {
-            ticket_hash: sha256(ticket),
-            account_id: s.account_id,
-            device_id: id,
-            expires_at: expires(120),
-          }),
-        ]);
-        return reply(200, { ticket, expires_in: 120 });
-      }
-      const admin = path.startsWith("/v1/admin/");
-      if (admin && !constantEqual(bearer(req) || "", env.ADMIN_TOKEN!))
-        adminAuthFail(req);
-      const start = path.match(/^\/v1\/auth\/(x|linkedin)\/start$/);
-      const owner = path === "/v1/admin/x-owner/start";
-      if ((start || owner) && method === "GET") {
-        if (!owner) rateLimit("auth_start", 10, 60000, req);
-        await cleanup();
-        const provider: ProviderName =
-          start?.[1] === "linkedin" ? "linkedin" : "x";
-        let linkAccountId: string | null = null;
-        if (url.searchParams.get("link") === "1") {
-          const ticket = text(url.searchParams.get("link_ticket"), 128);
-          const row = await first(store, "link_tickets", {
-            ticket_hash: sha256(ticket),
-          });
-          if (!row || Date.parse(String(row.expires_at)) <= Date.now())
-            throw new GateError(401, "invalid_ticket");
-          linkAccountId = String(row.account_id);
-          const id = deviceId(url.searchParams.get("device_id"));
-          if (String(row.device_id) !== id)
-            throw new GateError(409, "device_conflict");
-          await store.atomic([
-            {
-              kind: "delete",
-              table: "link_tickets",
-              where: { ticket_hash: row.ticket_hash },
-              required: true,
-            },
-          ]);
-        }
-        const state = opaque(),
-          verifier = opaque(),
-          nonce = opaque();
-        const challenge = owner
-          ? "owner"
-          : text(url.searchParams.get("app_challenge"), 43);
-        if (!owner && !/^[\w-]{43}$/.test(challenge))
+      if (path === "/v1/claims" && method === "POST") {
+        rateLimit("claims", 5, 60000, req);
+        const raw = await readRawBody(req);
+        const data = object(JSON.parse(raw.toString("utf8") || "{}"));
+        const provider = text(data.provider, 20) as Provider;
+        if (provider !== "x" && provider !== "linkedin")
           throw new GateError(400, "invalid_request");
-        const id = owner
-          ? "0".repeat(64)
-          : deviceId(url.searchParams.get("device_id"));
-        await store.atomic([
-          insert("login_states", {
-            state_hash: sha256(state),
-            provider,
-            verifier,
-            nonce,
-            app_challenge: challenge,
-            device_id: id,
-            device_name: owner
-              ? "Owner"
-              : text(url.searchParams.get("device_name"), 200),
-            link_account_id: linkAccountId,
-            owner_authorization: owner,
-            expires_at: expires(600),
-          }),
-        ]);
-        const target = providers[provider].authorize(
-          state,
-          verifier,
-          `${env.PUBLIC_BASE_URL}/v1/auth/${provider}/callback`,
-          nonce,
-          owner || undefined,
-        );
-        if (env.DEV === "1" && url.searchParams.has("mock_user"))
-          target.searchParams.set(
-            "mock_user",
-            url.searchParams.get("mock_user")!,
-          );
-        return redirect(target.href);
-      }
-      const callback = path.match(/^\/v1\/auth\/(x|linkedin)\/callback$/);
-      if (callback && method === "GET") {
-        try {
-          const provider: ProviderName = callback[1] === "x" ? "x" : "linkedin";
-          const state = await first(store, "login_states", {
-            state_hash: sha256(text(url.searchParams.get("state"))),
+        const handleRaw = data.handle;
+        if (typeof handleRaw !== "string" || !String(handleRaw).trim())
+          throw new GateError(400, "invalid_handle");
+        const handle = normalizeHandle(provider, text(handleRaw, 200));
+        const show = consent(data.show_on_wall, false);
+        const pubkey = deviceKey(data.device_pubkey);
+        const deviceName = text(data.device_name, 200);
+        const postUrl = data.post_url == null ? null : text(data.post_url, 2048);
+        const id = await signedRequest(req, "claim", pubkey, raw);
+        const account = await upsertAccount(provider, handle);
+        const boundDevice = await first(store, "bindings", { device_id: id });
+        if (boundDevice) {
+          const boundAccount = await first(store, "accounts", {
+            id: boundDevice.account_id,
           });
           if (
-            !state ||
-            state.provider !== provider ||
-            Date.parse(String(state.expires_at)) <= Date.now()
+            !boundAccount ||
+            boundAccount.provider !== provider ||
+            String(boundAccount.handle) !== handle
           )
-            throw new GateError(400, "invalid_state");
-          await store.atomic([
-            {
-              kind: "delete",
-              table: "login_states",
-              where: { state_hash: state.state_hash },
-              required: true,
-            },
-          ]);
-          if (url.searchParams.has("error"))
-            throw new GateError(400, "authorization_denied");
-          const callbackUrl = `${env.PUBLIC_BASE_URL}/v1/auth/${provider}/callback`;
-          const oauthCode = text(url.searchParams.get("code"));
-          const oauthVerifier = String(state.verifier);
-          if (state.owner_authorization === true) {
-            const bundle = await x.exchangeTokens(
-              oauthCode,
-              oauthVerifier,
-              callbackUrl,
-            );
-            const info = await x.identity(bundle.accessToken);
-            if (provider !== "x" || info.userId !== env.OWNER_X_USER_ID)
-              throw new GateError(403, "owner_mismatch");
-            await store.atomic([
-              (await first(store, "owner_tokens", { provider: "x" }))
-                ? update(
-                    "owner_tokens",
-                    { provider: "x" },
-                    ownerTokenRow(bundle, env.TOKEN_ENC_KEY!),
-                  )
-                : insert(
-                    "owner_tokens",
-                    ownerTokenRow(bundle, env.TOKEN_ENC_KEY!),
-                  ),
-            ]);
-            return reply(200, { ok: true });
-          }
-          const access = await providers[provider].exchange(
-            oauthCode,
-            oauthVerifier,
-            callbackUrl,
-            provider === "linkedin" ? String(state.nonce) : undefined,
-          );
-          const code = opaque();
-          const tokenFields = encrypt(access, env.TOKEN_ENC_KEY!);
-          await store.atomic([
-            insert("login_codes", {
-              code_hash: sha256(code),
-              provider,
-              link_account_id: state.link_account_id,
-              app_challenge: state.app_challenge,
-              device_id: state.device_id,
-              device_name: state.device_name,
-              token_ciphertext: tokenFields.ciphertext,
-              token_nonce: tokenFields.nonce,
-              token_tag: tokenFields.tag,
-              expires_at: expires(60),
-            }),
-          ]);
-          return redirect(appRedirect(code));
-        } catch (error) {
-          return redirect(
-            appRedirectError(
-              error instanceof GateError ? error.code : "server_error",
-            ),
-          );
+            throw new GateError(409, "device_taken");
         }
-      }
-    }
-    async function handleSessionVerify() {
-      if (path === "/v1/session/redeem" && method === "POST") {
-        rateLimit("redeem", 20, 60000, req);
-        const data = await body(req),
-          code = await first(store, "login_codes", {
-            code_hash: sha256(text(data.code)),
-          });
-        if (!code || Date.parse(String(code.expires_at)) <= Date.now())
-          throw new GateError(401, "invalid_code");
-        if (
-          !constantEqual(
-            pkce(text(data.app_verifier, 128)),
-            String(code.app_challenge),
-          ) ||
-          deviceId(data.device_id) !== code.device_id
-        )
-          throw new GateError(401, "invalid_code");
-        const provider = code.provider as ProviderName;
-        const access = decrypt(
-          {
-            ciphertext: String(code.token_ciphertext),
-            nonce: String(code.token_nonce),
-            tag: String(code.token_tag),
-          },
-          env.TOKEN_ENC_KEY!,
-        );
-        const info = await providers[provider].identity(access);
-        const linkAccountId = code.link_account_id
-          ? String(code.link_account_id)
-          : null;
-        const { accountId, identityId } = await upsertOAuthIdentity(
-          provider,
-          info,
-          linkAccountId,
-          access,
-        );
-        const rawKey = deviceKey(data.device_pubkey),
-          plain = opaque();
-        const s = {
-          token_hash: sha256(plain),
-          account_id: accountId,
-          identity_id: identityId,
-          device_id: code.device_id,
-          device_name: code.device_name,
-          device_pubkey: rawKey,
-          expires_at: expires(30 * 86400),
-        };
-        const existing = await first(store, "bindings", {
-          device_id: s.device_id,
-        });
-        if (existing && existing.account_id !== s.account_id)
-          throw new GateError(409, "device_taken");
-        if (existing && existing.device_pubkey !== rawKey)
-          throw new GateError(409, "device_key_conflict");
-        try {
-          await store.atomic([
-            {
-              kind: "delete",
-              table: "login_codes",
-              where: { code_hash: code.code_hash },
-              required: true,
-            },
-            insert("sessions", s),
-          ]);
-        } catch (error) {
-          if (error instanceof StoreConflict)
-            throw new GateError(401, "invalid_code");
-          throw error;
-        }
-        const identity = await first(store, "identities", {
-          id: s.identity_id,
-        });
-        return reply(200, {
-          session: plain,
-          account: {
-            id: s.account_id,
-            provider: identity.provider,
-            handle: identity.handle,
-            name: identity.name,
-            linked: (
-              await store.list("identities", { account_id: s.account_id })
-            ).map((i) => i.provider),
-          },
-          ...(await accountStatus(s, false)),
-          share_links: config(),
-        });
-      }
-      if (path === "/v1/status" && method === "GET") {
-        rateLimit("status", 120, 60000, req);
-        return reply(200, await accountStatus(await auth(req)));
-      }
-      if (path === "/v1/verify/x" && method === "POST") {
-        const s = await auth(req),
-          data = await body(req);
-        await checkVerifyLimit(String(s.account_id), "x");
-        await recordVerifyAttempt(String(s.account_id));
-        const show = consent(data.show_on_wall);
-        await checkRevoked(String(s.account_id));
-        const identity = await first(store, "identities", {
-          account_id: s.account_id,
-          provider: "x",
-        });
-        if (!identity) throw new GateError(401, "not_signed_in");
-        const access = openBlob(
-            String(identity.token_blob),
-            env.TOKEN_ENC_KEY!,
-          ),
-          info = await x.identity(access);
-        const fields = {
-          handle: info.handle,
-          name: info.name,
-          avatar_url: info.avatar,
-          profile_url: info.profile,
-        };
-        await store.atomic([
-          update("identities", { id: identity.id }, fields),
-          ...(await profileOps(String(identity.id), info)),
-        ]);
-        Object.assign(identity, fields);
-        const ownerAccess = await ownerAccessToken(store, env, x);
-        if (!(await x.follows(info.userId, access, store, ownerAccess)))
-          throw new GateError(422, "follow_missing");
-        const post = await x.post(info.userId, access, match("x"));
-        if (!post) throw new GateError(422, "post_missing");
-        const key = `x:${post}`;
-        const used = await first(store, "used_posts", { post_key: key });
-        if (used && used.account_id !== s.account_id)
-          throw new GateError(422, "post_url_used");
-        const unlocked = await finish(
-          s,
-          identity,
-          key,
-          show,
-          used
-            ? []
-            : [
-                insert("used_posts", {
-                  post_key: key,
-                  account_id: s.account_id,
-                  created_at: iso(),
-                }),
-              ],
-        );
-        await recordVerifySuccess(String(s.account_id), "x");
-        return reply(200, unlocked);
-      }
-      if (path === "/v1/verify/linkedin" && method === "POST") {
-        const s = await auth(req),
-          data = await body(req);
-        await checkVerifyLimit(String(s.account_id), "linkedin");
-        await recordVerifyAttempt(String(s.account_id));
-        const show = consent(data.show_on_wall);
-        await checkRevoked(String(s.account_id));
-        await ensureDevice(s);
-        const identity = await first(store, "identities", {
-          account_id: s.account_id,
-          provider: "linkedin",
-        });
-        if (!identity) throw new GateError(401, "not_signed_in");
-        const key = postKey(text(data.post_url));
-        const used = await first(store, "used_posts", { post_key: key });
-        if (used) {
-          if (used.account_id !== s.account_id)
-            throw new GateError(422, "post_url_used");
-          const claim = await first(store, "pending_claims", { post_key: key });
-          if (claim?.status === "rejected")
-            throw new GateError(422, "rejected");
-          if (claim?.status === "pending")
-            return reply(202, { status: "pending_review" });
-          return reply(200, await accountStatus(s));
-        }
-        const reserve = insert("used_posts", {
-          post_key: key,
-          account_id: s.account_id,
-          created_at: iso(),
-        });
-        if (
-          await linkedin.verifyPage(
-            key,
-            String(identity.name),
-            match("linkedin"),
-          )
-        ) {
-          const unlocked = await finish(s, identity, key, show, [reserve]);
-          await recordVerifySuccess(String(s.account_id), "linkedin");
-          return reply(200, unlocked);
-        }
-        try {
-          await store.atomic([
-            reserve,
-            insert("pending_claims", {
-              id: randomUUID(),
-              account_id: s.account_id,
-              identity_id: identity.id,
-              post_key: key,
-              status: "pending",
-              created_at: iso(),
-            }),
-            update(
-              "accounts",
-              { id: s.account_id },
-              { wall_opt_in: show, wall_opt_in_at: show ? iso() : null },
-            ),
-          ]);
-        } catch (error) {
-          if (error instanceof StoreConflict)
-            throw new GateError(422, "post_url_used");
-          throw error;
-        }
-        return reply(202, { status: "pending_review" });
-      }
-    }
-    async function handleDevice() {
-      if (path === "/v1/device/rebind" && method === "POST") {
-        rateLimit("rebind", 30, 60000, req);
-        const s = await auth(req),
-          data = await body(req),
-          id = deviceId(data.device_id);
-        await checkRevoked(String(s.account_id));
-        if (
-          id !== s.device_id ||
-          Date.now() - Date.parse(String(s.expires_at)) + 30 * 86400000 >
-            10 * 60000
-        )
-          throw new GateError(401, "fresh_sign_in_required");
-        await signed(data, "rebind", String(s.device_pubkey), id);
-        const bound = await first(store, "bindings", {
-          account_id: s.account_id,
-        });
-        const unlock = await first(store, "unlocks", {
-          account_id: s.account_id,
-        });
-        if (!bound || !unlock) throw new GateError(404, "not_found");
-        if (
-          bound.last_rebind_at &&
-          Date.parse(String(bound.last_rebind_at)) + 7 * 86400000 > Date.now()
-        )
-          throw new GateError(429, "rebind_cooldown", {
-            rebind_available_at: new Date(
-              Date.parse(String(bound.last_rebind_at)) + 7 * 86400000,
-            ).toISOString(),
-          });
-        const taken = await first(store, "bindings", { device_id: id });
-        if (taken && taken.account_id !== s.account_id)
-          throw new GateError(409, "device_taken");
-        const row = {
+        const open = (await store.list("claims", {
+          account_id: account.id,
           device_id: id,
-          device_pubkey: s.device_pubkey,
-          device_name: s.device_name,
-          bound_at: iso(),
-          last_rebind_at: iso(),
-        };
+          status: "pending_verification",
+        })).find((c) => Date.parse(String(c.expires_at)) > Date.now());
+        if (open) {
+          let current = await markFollowFromTable(account, open);
+          current = await tryUnlock(current, account);
+          const response = await claimResponse(current, account);
+          if (response.status === "unlocked")
+            return reply(200, { claim_id: open.id, ...response, poll_after: 60 });
+          return reply(200, {
+            claim_id: open.id,
+            status: current.status,
+            checks: checksPayload(current),
+            poll_after: 60,
+          });
+        }
         try {
-          await store.atomic([
-            insert(
-              "moved_devices",
-              { device_id: bound.device_id, account_id: s.account_id },
-              true,
-            ),
-            {
-              kind: "delete",
-              table: "moved_devices",
-              where: { device_id: id },
-            },
-            update(
-              "bindings",
-              {
-                account_id: s.account_id,
-                device_id: bound.device_id,
-                last_rebind_at: bound.last_rebind_at,
-              },
-              row,
-              true,
-            ),
-          ]);
+          await bindingConflict(String(account.id), id);
         } catch (error) {
-          if (error instanceof StoreConflict)
-            throw new GateError(409, "concurrent_change");
+          if (error instanceof GateError && error.code === "device_taken") throw error;
+        }
+        await recordClaimDevice(id);
+        const claimId = randomUUID();
+        const createdAt = iso();
+        const claimCreatedMs = Date.parse(createdAt);
+        let followCheck = provider === "x" ? "pending" : "n/a";
+        if (provider === "x" && (await isFollower("x", handle, account.x_user_id ? String(account.x_user_id) : null)))
+          followCheck = "confirmed";
+        let postCheck = "pending";
+        let postKey: string | null = null;
+        let postSource: string | null = null;
+        if (postUrl) {
+          const instant = await checkInstantPost(provider, handle, postUrl, claimCreatedMs, String(account.id));
+          postKey = instant.post_key;
+          postCheck = instant.post_check;
+          postSource = instant.post_source;
+        }
+        const claimRow = {
+          id: claimId,
+          account_id: account.id,
+          device_id: id,
+          device_pubkey: pubkey,
+          device_name: deviceName,
+          post_url: postUrl,
+          post_key: postKey,
+          follow_check: followCheck,
+          post_check: postCheck,
+          status: "pending_verification",
+          reject_reason: null,
+          show_on_wall: show,
+          post_source: postSource,
+          created_at: createdAt,
+          expires_at: new Date(Date.now() + CLAIM_TTL_MS).toISOString(),
+        };
+        await store.atomic([insert("claims", claimRow)]);
+        let claim = claimRow as Row;
+        try {
+          claim = await tryUnlock(claim, account);
+          if (claim.status === "rejected" && claim.reject_reason === "device_taken")
+            return reply(409, { error: "device_taken", message: "device taken" });
+        } catch (error) {
+          if (error instanceof GateError) {
+            const refreshed = await first(store, "claims", { id: claimId });
+            if (refreshed?.status === "rejected")
+              return reply(409, { error: error.code, message: error.message, ...error.extra });
+            throw error;
+          }
           throw error;
         }
-        return reply(200, {
-          status: "unlocked",
-          entitlement: token({ ...bound, ...row }, unlock),
+        const response = await claimResponse(claim, account);
+        if (response.status === "unlocked")
+          return reply(201, { claim_id: claimId, ...response, poll_after: 60 });
+        return reply(201, {
+          claim_id: claimId,
+          status: claim.status,
+          checks: checksPayload(claim),
+          poll_after: 60,
         });
+      }
+      const pollMatch = path.match(/^\/v1\/claims\/([\w-]+)$/);
+      if (pollMatch && method === "GET") {
+        const raw = Buffer.alloc(0);
+        const claim = await first(store, "claims", { id: pollMatch[1] });
+        if (!claim) throw new GateError(404, "not_found");
+        const id = await signedRequest(req, "poll", String(claim.device_pubkey), raw);
+        if (id !== claim.device_id) throw new GateError(401, "bad_signature");
+        rateDevice("poll", 60, 3600000, id);
+        const account = await first(store, "accounts", { id: claim.account_id });
+        if (!account) throw new GateError(404, "not_found");
+        let current = await markFollowFromTable(account, claim);
+        current = await tryUnlock(current, account);
+        return reply(200, await claimResponse(current, account));
       }
       if (path === "/v1/entitlement/refresh" && method === "POST") {
         rateLimit("refresh", 30, 60000, req);
-        const data = await body(req),
-          id = deviceId(data.device_id);
+        const raw = await readRawBody(req);
+        const data = object(JSON.parse(raw.toString("utf8") || "{}"));
+        const id = deviceIdHeader(req.headers["x-acu-device"] as string | undefined);
+        if (deviceId(data.device_id) !== id) throw new GateError(401, "bad_signature");
         const binding = await first(store, "bindings", { device_id: id });
         if (!binding) {
           if (await first(store, "moved_devices", { device_id: id }))
             throw new GateError(409, "device_moved");
           throw new GateError(404, "not_found");
         }
-        await signed(data, "refresh", String(binding.device_pubkey), id);
+        await signedRequest(req, "refresh", String(binding.device_pubkey), raw);
         await checkRevoked(String(binding.account_id));
-        const unlock = await first(store, "unlocks", {
-          account_id: binding.account_id,
-        });
+        const unlock = await first(store, "unlocks", { account_id: binding.account_id });
         if (!unlock) throw new GateError(404, "not_found");
-        return reply(200, { entitlement: token(binding, unlock) });
+        const account = await first(store, "accounts", { id: binding.account_id });
+        return reply(200, { entitlement: token(binding, unlock, account!) });
       }
       if (path === "/v1/wall" && method === "POST") {
         rateLimit("wall", 30, 60000, req);
-        const data = await body(req),
-          show = consent(data.show);
-        let account: string;
-        if (typeof data.show !== "boolean")
-          throw new GateError(400, "invalid_request");
-        if (bearer(req)) account = String((await auth(req)).account_id);
-        else {
-          const id = deviceId(data.device_id);
-          const binding = await first(store, "bindings", { device_id: id });
-          if (!binding) throw new GateError(404, "not_found");
-          await signed(data, "wall", String(binding.device_pubkey), id, show);
-          account = String(binding.account_id);
-        }
-        await checkRevoked(account);
+        const raw = await readRawBody(req);
+        const data = object(JSON.parse(raw.toString("utf8") || "{}"));
+        const show = consent(data.show);
+        const id = deviceId(data.device_id);
+        const binding = await first(store, "bindings", { device_id: id });
+        if (!binding) throw new GateError(404, "not_found");
+        await signedRequest(req, "wall", String(binding.device_pubkey), raw);
+        await checkRevoked(String(binding.account_id));
         await store.atomic([
           update(
             "accounts",
-            { id: account },
+            { id: binding.account_id },
             { wall_opt_in: show, wall_opt_in_at: show ? iso() : null },
             true,
           ),
         ]);
         return reply(200, { show });
       }
-    }
-    async function handleAdmin() {
       const admin = path.startsWith("/v1/admin/");
       if (admin) {
-        if (path === "/v1/admin/pending" && method === "GET")
-          return reply(200, {
-            pending: await store.list("pending_claims", { status: "pending" }),
-          });
-        const review = path.match(
-          /^\/v1\/admin\/pending\/([\w-]+)\/(approve|reject)$/,
-        );
-        if (review && method === "POST") {
-          const claim = await first(store, "pending_claims", { id: review[1] });
-          if (!claim) throw new GateError(404, "not_found");
-          if (claim.status !== "pending")
-            throw new GateError(409, "already_reviewed");
-          if (review[2] === "reject") {
-            await store.atomic([
-              update(
-                "pending_claims",
-                { id: claim.id, status: "pending" },
-                { status: "rejected" },
-                true,
-              ),
-            ]);
-            return reply(200, { status: "rejected" });
+        if (!constantEqual(bearer(req) || "", env.ADMIN_TOKEN!)) adminAuthFail(req);
+        if (path === "/v1/admin/claims" && method === "GET") {
+          const status = url.searchParams.get("status") || "pending_verification";
+          const provider = url.searchParams.get("provider");
+          const limit = Math.min(Number(url.searchParams.get("limit") || 200), 500);
+          let claims = await store.list("claims", { status });
+          if (provider === "x" || provider === "linkedin") {
+            const accounts = await store.list("accounts", { provider });
+            const ids = new Set(accounts.map((a) => a.id));
+            claims = claims.filter((c) => ids.has(c.account_id));
           }
-          const identity = await first(store, "identities", {
-            id: claim.identity_id,
-          });
-          const account = await first(store, "accounts", {
-            id: claim.account_id,
-          });
-          // Approval records the unlock; the authenticated app binds its current Mac on status.
-          const existing = await first(store, "unlocks", {
-            account_id: claim.account_id,
-          });
-          await checkRevoked(String(claim.account_id));
-          const ops: Op[] = [
+          claims = claims.slice(0, limit);
+          const rows = [];
+          for (const claim of claims) {
+            const account = await first(store, "accounts", { id: claim.account_id });
+            rows.push({
+              id: claim.id,
+              provider: account?.provider,
+              handle: account?.handle,
+              x_user_id: account?.x_user_id ?? null,
+              post_url: claim.post_url,
+              checks: checksPayload(claim),
+              created_at: claim.created_at,
+              expires_at: claim.expires_at,
+              device_name: claim.device_name,
+            });
+          }
+          return reply(200, { claims: rows });
+        }
+        if (path === "/v1/admin/followers" && method === "POST")
+          return reply(200, await pushFollowers(await body(req)));
+        const verifyMatch = path.match(/^\/v1\/admin\/claims\/([\w-]+)\/verify$/);
+        if (verifyMatch && method === "POST")
+          return reply(200, await adminVerifyClaim(verifyMatch[1], await body(req)));
+        if (path === "/v1/admin/claims/verify-batch" && method === "POST") {
+          const payload = await body(req);
+          const results = Array.isArray(payload.results) ? payload.results : [];
+          const out = [];
+          for (const item of results) {
+            const row = object(item);
+            const claimId = text(row.claim_id);
+            try {
+              out.push(await adminVerifyClaim(claimId, row));
+            } catch (error) {
+              out.push({
+                claim_id: claimId,
+                error: error instanceof GateError ? error.code : "server_error",
+              });
+            }
+          }
+          return reply(200, { results: out });
+        }
+        const rejectMatch = path.match(/^\/v1\/admin\/claims\/([\w-]+)\/reject$/);
+        if (rejectMatch && method === "POST") {
+          const payload = await body(req);
+          const reason = text(payload.reason, 64);
+          await store.atomic([
             update(
-              "pending_claims",
-              { id: claim.id, status: "pending" },
-              { status: "approved" },
+              "claims",
+              { id: rejectMatch[1], status: "pending_verification" },
+              { status: "rejected", reject_reason: reason },
               true,
             ),
-          ];
-          if (!existing)
-            ops.push(
-              insert("unlocks", {
-                account_id: claim.account_id,
-                provider: "linkedin",
-                post_ref: claim.post_key,
-                created_at: iso(),
-                handle: identity.handle,
-                name: identity.name,
-                avatar_url: identity.avatar_url ?? null,
-                profile_url: identity.profile_url ?? null,
-              }),
-            );
-          await store.atomic(ops);
-          return reply(200, {
-            status: "unlocked",
-            wall_opt_in: account.wall_opt_in,
-          });
+          ]);
+          return reply(200, { status: "rejected", reason });
         }
-        const action = path.match(
-          /^\/v1\/admin\/accounts\/([\w-]+)\/(revoke|reset-rebind)$/,
-        );
+        const action = path.match(/^\/v1\/admin\/accounts\/([\w-]+)\/(revoke|reset-rebind)$/);
         if (action && method === "POST") {
           if (!(await first(store, "accounts", { id: action[1] })))
             throw new GateError(404, "not_found");
           await store.atomic(
             action[2] === "revoke"
               ? [
-                  insert(
-                    "revocations",
-                    { account_id: action[1], created_at: iso() },
-                    true,
-                  ),
-                  update(
-                    "accounts",
-                    { id: action[1] },
-                    { wall_opt_in: false, wall_opt_in_at: null },
-                  ),
+                  insert("revocations", { account_id: action[1], created_at: iso() }, true),
+                  update("accounts", { id: action[1] }, { wall_opt_in: false, wall_opt_in_at: null }),
                 ]
-              : [
-                  update(
-                    "bindings",
-                    { account_id: action[1] },
-                    { last_rebind_at: null },
-                  ),
-                ],
+              : [update("bindings", { account_id: action[1] }, { last_rebind_at: null })],
           );
           return reply(200, { ok: true });
         }
         if (path === "/v1/admin/stats" && method === "GET") {
           const stats = await siteStats();
           const unlocks = await store.list("unlocks");
-          const profiles = await store.list("x_profiles");
-          const identities = await store.list("identities");
+          const accounts = await store.list("accounts");
           const refs = await store.list("ref_clicks");
-          const xAccounts = new Set(
-            unlocks.filter((u) => u.provider === "x").map((u) => u.account_id),
-          );
-          const ids = new Set(
-            identities
-              .filter((i) => i.provider === "x" && xAccounts.has(i.account_id))
-              .map((i) => i.id),
-          );
-          const selected = profiles.filter((p) => ids.has(p.identity_id));
+          const claims = await store.list("claims");
+          const verifiedAccounts = accounts.filter((a) => a.verified === true);
           const byType: Record<string, number> = {};
-          for (const profile of selected.filter((p) => p.verified === true)) {
-            const type = String(profile.verified_type || "unknown");
+          for (const account of verifiedAccounts) {
+            const type = String(account.verified_type || "unknown");
             byType[type] = (byType[type] || 0) + 1;
           }
+          const reach = accounts.reduce(
+            (sum, a) => sum + Number(a.followers_count || 0),
+            0,
+          );
           return reply(200, {
             unlocks: {
               x: unlocks.filter((u) => u.provider === "x").length,
               linkedin: unlocks.filter((u) => u.provider === "linkedin").length,
               total: unlocks.length,
             },
-            verified_unlocks: selected.filter((p) => p.verified === true)
-              .length,
+            verified_unlocks: verifiedAccounts.length,
             verified_by_type: byType,
-            reach: selected.reduce(
-              (sum, profile) => sum + Number(profile.followers_count),
-              0,
-            ),
-            pending: (await store.list("pending_claims", { status: "pending" }))
-              .length,
+            reach,
+            claims: {
+              pending: claims.filter((c) => c.status === "pending_verification").length,
+              rejected: claims.filter((c) => c.status === "rejected").length,
+              expired: claims.filter((c) => c.status === "expired").length,
+            },
+            followers_known: (await store.list("followers")).length,
             ref_clicks: {
               "acu-x": refs
-                .filter((ref) => ref.ref === "acu-x")
-                .reduce((count, ref) => count + Number(ref.count), 0),
+                .filter((r) => r.ref === "acu-x")
+                .reduce((n, r) => n + Number(r.count), 0),
               "acu-li": refs
-                .filter((ref) => ref.ref === "acu-li")
-                .reduce((count, ref) => count + Number(ref.count), 0),
+                .filter((r) => r.ref === "acu-li")
+                .reduce((n, r) => n + Number(r.count), 0),
             },
-            ref_clicks_by_day: refs.sort((a, b) =>
-              String(a.day).localeCompare(String(b.day)),
-            ),
             downloads: stats.downloads,
-            wall_opt_in: (await store.list("accounts", { wall_opt_in: true }))
-              .length,
-            owner_auth_required:
-              (await first(store, "owner_tokens", { provider: "x" }))
-                ?.owner_auth_required === true,
+            wall_opt_in: accounts.filter((a) => a.wall_opt_in === true).length,
           });
         }
       }
       throw new GateError(404, "not_found");
-    }
-    try {
-      await handlePublic();
-      if (res.writableEnded) return;
-      await handleAuth();
-      if (res.writableEnded) return;
-      await handleSessionVerify();
-      if (res.writableEnded) return;
-      await handleDevice();
-      if (res.writableEnded) return;
-      await handleAdmin();
     } catch (error) {
       if (error instanceof GateError)
         return reply(error.status, {
@@ -1346,7 +1069,12 @@ export function createGate(
   });
   return { server, env, store };
 }
-/** main provides its exported service behavior. */
+function deviceId(value: unknown) {
+  const id = text(value, 64);
+  if (!/^[a-f0-9]{64}$/.test(id)) throw new GateError(400, "invalid_request");
+  return id;
+}
+/** main starts the production gate server. */
 export async function main() {
   const env = settings(process.env),
     url = await databaseUrl(env);

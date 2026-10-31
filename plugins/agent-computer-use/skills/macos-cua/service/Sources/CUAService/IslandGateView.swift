@@ -59,50 +59,25 @@ struct IslandGateView: View {
     }
     @ViewBuilder private var content: some View {
         switch gate.state {
-        case .locked(let message):
-            heading("Bring your Mac to life.", "A quiet home for your agents, right at the top of your screen. Unlock it with a follow and a post.")
-            if let message { notice(message) }
-            Button { gate.signIn("x") } label: {
-                HStack(spacing: 9) { IslandGateXMark().stroke(.black, lineWidth: 1.5).frame(width: 15, height: 15); Text("Sign in with X") }.frame(maxWidth: .infinity)
-            }.buttonStyle(IslandGatePrimaryButtonStyle(xBrand: true)).keyboardShortcut(.defaultAction)
-                .accessibilityLabel("Sign in with X to unlock Dynamic Island")
-            Button("No X account? Use LinkedIn") { gate.signIn("linkedin") }.buttonStyle(.link).font(.system(size: 12)).frame(maxWidth: .infinity)
-        case .signingIn(let provider):
-            heading("Continue in your browser", "Sign in with \(provider == "x" ? "X" : "LinkedIn"). We'll bring you back here when you're ready.")
-            HStack { ProgressView().controlSize(.small); Text("Waiting for sign-in…").font(.system(size: 13)) }
-            Button("Cancel") { gate.cancelSignIn() }.buttonStyle(.link)
-        case .needsVerify(let provider, let follow, let post):
-            heading("Make it yours.", provider == "x" ? "Two small steps to unlock your Dynamic Island." : "Share a public post, then paste its link for review.")
-            if provider == "x" {
-                checklist("Follow @gurusharan", button: "Follow", done: follow, required: true, action: gate.openFollow)
-                checklist("Post about ACU", button: "Post", done: post, required: true, action: gate.openShare)
-                if !follow || !post { notice(!follow && !post ? "Still needed: follow @gurusharan and publish your ACU post." : (!follow ? "Still needed: follow @gurusharan." : "Still needed: publish your ACU post.")) }
-            } else {
-                checklist("Follow Gurusharan on LinkedIn", button: "Follow", done: false, required: false, action: gate.openFollow)
-                checklist("Share on LinkedIn", button: "Share", done: false, required: true, action: gate.openShare)
-                if gate.copied { Text("Text copied - paste with ⌘V").font(.system(size: 12)).foregroundStyle(.mint).accessibilityAddTraits(.updatesFrequently) }
-                Text("Paste your post link").font(.system(size: 12, weight: .medium))
-                TextField("https://www.linkedin.com/posts/…", text: $gate.postURL).textFieldStyle(.roundedBorder).accessibilityLabel("Paste your post link")
-            }
-            wallConsent(unlocked: false)
-            if let message = gate.verificationMessage { notice(message) }
-            primary("Verify", action: gate.verify)
-            Button("Use a different account") { gate.signOut() }.buttonStyle(.link).font(.system(size: 12))
-        case .verifying:
-            heading("Checking your island access", "This may take a moment.")
+        case .locked(let linkedIn, let message):
+            unlockSheet(linkedIn: linkedIn, message: message)
+        case .submitting:
+            heading("Sending your check", "Hang on a moment.")
             ProgressView().controlSize(.small)
-        case .pendingReview:
-            heading("Your post is in review.", "Thanks for sharing ACU. We'll check every minute while this window is open. You can close it and come back later.")
-            Label("Waiting for approval", systemImage: "clock").font(.system(size: 13)).foregroundStyle(.orange)
-            primary("Done", action: close)
-        case .conflict(let device, let boundAt, let available):
-            heading("Bring your island here?", "Island is on \(device)\(boundAt.map { " since \(Self.date($0))" } ?? ""). Move it to this Mac?")
-            Label(device, systemImage: "laptopcomputer").font(.system(size: 14, weight: .medium))
+        case .waking:
+            heading("Waking up the unlock service…", "This can take up to a minute the first time.")
+            ProgressView().controlSize(.small)
+        case .checking(_, _, let follow, let post):
+            checkingView(follow: follow, post: post)
+        case .conflict(let device, let available):
+            heading("Bring your island here?", "Island is on \(device ?? "another Mac"). Move it to this Mac with a fresh post?")
+            if let device { Label(device, systemImage: "laptopcomputer").font(.system(size: 14, weight: .medium)) }
             if let available { notice("You can move it on \(Self.date(available)).") }
-            primary("Move to this Mac", action: gate.rebind).disabled(Self.inCooldown(available))
+            primary("Try again", action: gate.tryMoveHere).disabled(Self.inCooldown(available))
             Button("Cancel", action: close).buttonStyle(.link)
         case .unlocked(let account, let verified, let exp):
             heading("Your island is ready.", "Your agents now have a home at the top of this Mac.")
+            if let banner = gate.deepLinkBanner { notice(banner) }
             HStack {
                 Label(account.handle, systemImage: "person.crop.circle")
                 if verified { Image(systemName: "checkmark.seal.fill").foregroundStyle(.blue).accessibilityLabel("Verified account") }
@@ -111,20 +86,91 @@ struct IslandGateView: View {
             Text("Offline access until \(exp.formatted(date: .abbreviated, time: .omitted))").font(.system(size: 11)).foregroundStyle(.secondary)
             wallConsent(unlocked: true)
             primary("Enjoy your island", action: close)
+        case .rejected(let message):
+            heading("Almost there.", message)
+            primary("Try again", action: gate.retryFromRejected)
         case .error(_, let message):
             heading("Let's try that again.", message)
             primary("Retry", action: gate.retry)
             Button("Start over") { gate.signOut() }.buttonStyle(.link)
-            Button("Use LinkedIn instead") { gate.signIn("linkedin") }.buttonStyle(.link)
         }
+    }
+    @ViewBuilder private func unlockSheet(linkedIn: Bool, message: String?) -> some View {
+        heading("Unlock the island", linkedIn ? "Follow on LinkedIn, share the preset, then tell us your profile." : "Follow @gurusharan, post about ACU, then tell us your handle.")
+        if let message { notice(message) }
+        if let banner = gate.deepLinkBanner, !gate.isUnlocked { notice(banner) }
+        if linkedIn {
+            linkedInSteps
+        } else {
+            xSteps
+            Button("No X account? Use LinkedIn") { gate.useLinkedInRoute() }.buttonStyle(.link).font(.system(size: 12)).frame(maxWidth: .infinity)
+        }
+    }
+    private var xSteps: some View {
+        Group {
+            stepRow("Follow @gurusharan", button: "Follow", action: gate.openFollow, xPrimary: true)
+            stepRow("Post about ACU", button: "Post", action: gate.openShare, xPrimary: true)
+            Text("Your X handle").font(.system(size: 12, weight: .medium))
+            TextField("@handle", text: $gate.handleText).textFieldStyle(.roundedBorder).accessibilityLabel("Your X handle")
+            optionalPostLink
+            wallConsent(unlocked: false)
+            primary("Check", action: gate.submitCheck)
+        }
+    }
+    private var linkedInSteps: some View {
+        Group {
+            stepRow("Follow Gurusharan on LinkedIn", button: "Follow", action: gate.openFollow, xPrimary: false)
+            stepRow("Share on LinkedIn", button: "Share", action: gate.openShare, xPrimary: false)
+            if gate.copied { Text("Text copied - paste with ⌘V").font(.system(size: 12)).foregroundStyle(.mint).accessibilityAddTraits(.updatesFrequently) }
+            Text("Your LinkedIn profile URL").font(.system(size: 12, weight: .medium))
+            TextField("https://www.linkedin.com/in/…", text: $gate.handleText).textFieldStyle(.roundedBorder).accessibilityLabel("Your LinkedIn profile URL")
+            optionalPostLink
+            wallConsent(unlocked: false)
+            primary("Check", action: gate.submitCheck)
+            Button("Use X instead") { gate.useXRoute() }.buttonStyle(.link).font(.system(size: 12))
+        }
+    }
+    private var optionalPostLink: some View {
+        Group {
+            Text("Post link (optional)").font(.system(size: 12, weight: .medium))
+            TextField("https://…", text: $gate.postURL).textFieldStyle(.roundedBorder).accessibilityLabel("Post link optional")
+        }
+    }
+    private func checkingView(follow: IslandGateCheckStatus, post: IslandGateCheckStatus) -> some View {
+        Group {
+            heading("Checking… \(gate.checkETAText)", "You can close this window, the island turns on by itself.")
+            ProgressView().controlSize(.regular)
+            checkRow("Follow @gurusharan", status: follow)
+            checkRow("Post about ACU", status: post)
+        }
+    }
+    private func checkRow(_ title: String, status: IslandGateCheckStatus) -> some View {
+        HStack(spacing: 9) {
+            Image(systemName: status == .confirmed ? "checkmark.circle.fill" : (status == .failed ? "xmark.circle.fill" : "circle"))
+                .foregroundColor(status == .confirmed ? .mint : (status == .failed ? .orange : .secondary))
+            Text(title).font(.system(size: 12, weight: .medium))
+            Spacer()
+            Text(status == .confirmed ? "Confirmed" : (status == .failed ? "Pending" : "Pending")).font(.system(size: 11)).foregroundStyle(.secondary)
+        }.padding(12).background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+    }
+    private func stepRow(_ title: String, button: String, action: @escaping () -> Void, xPrimary: Bool) -> some View {
+        HStack {
+            Text(title).font(.system(size: 12, weight: .medium)).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 8)
+            if xPrimary {
+                Button(button, action: action).buttonStyle(IslandGatePrimaryButtonStyle(xBrand: true)).controlSize(.small)
+            } else {
+                Button(button, action: action).buttonStyle(.link).controlSize(.small)
+            }
+        }.padding(12).background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
     }
     private func wallConsent(unlocked: Bool) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(gate.wallConsentTitle, isOn: Binding(get: { gate.showOnWall }, set: { show in
-                if unlocked { gate.setWallVisibility(show) } else { gate.setVerificationWallConsent(show) }
+                if unlocked { gate.setWallVisibility(show) } else { gate.setLocalWallConsent(show) }
             }))
                 .toggleStyle(.checkbox).font(.system(size: 12))
-                .disabled(gate.wallUpdating)
+                .disabled(unlocked && gate.wallUpdating)
             Text("Your handle, avatar and profile link appear in the public 'Who's using it' list. Turn off any time.")
                 .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if let error = gate.wallError { notice(error) }
@@ -141,17 +187,6 @@ struct IslandGateView: View {
     }
     private func notice(_ text: String) -> some View {
         Text(text).font(.system(size: 12)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
-    }
-    private func checklist(_ title: String, button: String, done: Bool, required: Bool, action: @escaping () -> Void) -> some View {
-        HStack(alignment: .center, spacing: 9) {
-            Image(systemName: done ? "checkmark.circle.fill" : "circle").foregroundColor(done ? .mint : .secondary)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 12, weight: .medium)).fixedSize(horizontal: false, vertical: true)
-                Text(done ? "Complete" : (required ? "Required" : "Optional · not verified")).font(.system(size: 10)).foregroundStyle(done ? .mint : .secondary)
-            }
-            Spacer(minLength: 4)
-            Button(button, action: action).buttonStyle(.link).controlSize(.small).accessibilityLabel(title)
-        }.padding(12).background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
     }
     static func date(_ raw: String) -> String {
         if let date = ISO8601DateFormatter().date(from: raw) ?? Double(raw).map({ Date(timeIntervalSince1970: $0) }) { return date.formatted(date: .abbreviated, time: .shortened) }
@@ -183,7 +218,6 @@ struct IslandGateVibrancy: NSViewRepresentable {
 
 @MainActor
 private final class IslandGateHostingView: NSHostingView<IslandGateView> {
-    // macOS 13.0–13.2 predates NSHostingView.safeAreaRegions.
     override var safeAreaInsets: NSEdgeInsets { NSEdgeInsetsZero }
 }
 
@@ -219,7 +253,6 @@ final class IslandGateWindowController: NSWindowController, NSWindowDelegate {
         guard let window, let content = window.contentView else { return }
         content.layoutSubtreeIfNeeded()
         let height = max(1, content.fittingSize.height)
-        // A full-size content view includes the title bar; set the frame without adding it again.
         window.setFrame(NSRect(x: window.frame.minX, y: window.frame.maxY - height, width: 440, height: height), display: window.isVisible)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -242,10 +275,8 @@ struct IslandGateAccessRow: View {
                     .toggleStyle(.checkbox).disabled(gate.wallUpdating)
                 if let error = gate.wallError { Text(error).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
                 Label("Bound to this Mac", systemImage: "laptopcomputer").foregroundStyle(.secondary)
-                Button("Move to this Mac") { gate.show(); gate.signIn(account.provider) }.buttonStyle(.link)
             } else {
                 Button("Unlock Dynamic Island…") { gate.show() }
-                Button("Move to this Mac") { gate.show(); gate.signIn(gate.provider) }.buttonStyle(.link)
             }
         }.font(.system(size: 12)).padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)

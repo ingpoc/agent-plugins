@@ -4,62 +4,39 @@ import { readFile } from "node:fs/promises";
 export type Cell = string | number | boolean | null;
 export type Row = Record<string, Cell>;
 export const tables = {
-  accounts: ["id", "created_at", "wall_opt_in", "wall_opt_in_at"],
-  identities: [
+  accounts: [
     "id",
-    "account_id",
     "provider",
-    "provider_user_id",
     "handle",
-    "name",
-    "email_hash",
-    "avatar_url",
-    "profile_url",
-    "token_blob",
-  ],
-  x_profiles: [
-    "identity_id",
+    "x_user_id",
     "verified",
     "verified_type",
     "followers_count",
-    "username",
+    "avatar_url",
+    "profile_url",
+    "wall_opt_in",
+    "wall_opt_in_at",
+    "created_at",
   ],
-  login_states: [
-    "state_hash",
-    "provider",
-    "verifier",
-    "nonce",
-    "app_challenge",
-    "device_id",
-    "device_name",
-    "link_account_id",
-    "owner_authorization",
-    "expires_at",
-  ],
-  login_codes: [
-    "code_hash",
-    "provider",
-    "link_account_id",
-    "app_challenge",
-    "device_id",
-    "device_name",
-    "token_ciphertext",
-    "token_nonce",
-    "token_tag",
-    "expires_at",
-  ],
-  link_tickets: ["ticket_hash", "account_id", "device_id", "expires_at"],
-  x_calls: ["day", "count"],
-  verify_limits: ["account_id", "x_last_at", "linkedin_last_at", "day", "day_count"],
-  sessions: [
-    "token_hash",
+  claims: [
+    "id",
     "account_id",
-    "identity_id",
     "device_id",
-    "device_name",
     "device_pubkey",
+    "device_name",
+    "post_url",
+    "post_key",
+    "follow_check",
+    "post_check",
+    "status",
+    "reject_reason",
+    "show_on_wall",
+    "post_source",
+    "created_at",
     "expires_at",
   ],
+  followers: ["provider", "handle", "x_user_id"],
+  follower_meta: ["id", "source", "complete", "updated_at"],
   bindings: [
     "account_id",
     "device_id",
@@ -72,33 +49,14 @@ export const tables = {
     "account_id",
     "provider",
     "post_ref",
-    "created_at",
     "handle",
-    "name",
+    "display_name",
     "avatar_url",
     "profile_url",
-  ],
-  used_posts: ["post_key", "account_id", "created_at"],
-  pending_claims: [
-    "id",
-    "account_id",
-    "identity_id",
-    "post_key",
-    "status",
     "created_at",
   ],
-  owner_tokens: [
-    "provider",
-    "ciphertext",
-    "nonce",
-    "tag",
-    "refresh_ciphertext",
-    "refresh_nonce",
-    "refresh_tag",
-    "access_expires_at",
-    "owner_auth_required",
-  ],
-  owner_followers: ["x_user_id"],
+  used_posts: ["post_key", "account_id", "created_at"],
+  claim_device_limits: ["device_id", "day", "count"],
   ref_clicks: ["ref", "day", "count"],
   download_hits: ["day", "count"],
   revocations: ["account_id", "created_at"],
@@ -112,7 +70,7 @@ export type Op =
   | { kind: "delete"; table: Table; where: Row; required?: boolean }
   | {
       kind: "increment";
-      table: "ref_clicks" | "download_hits" | "x_calls";
+      table: "ref_clicks" | "download_hits" | "claim_device_limits";
       where: Row;
     };
 export interface Store {
@@ -122,21 +80,14 @@ export interface Store {
 }
 export class StoreConflict extends Error {}
 const unique: Partial<Record<Table, string[][]>> = {
-  accounts: [["id"]],
-  identities: [["id"], ["provider", "provider_user_id"]],
-  x_profiles: [["identity_id"]],
-  login_states: [["state_hash"]],
-  login_codes: [["code_hash"]],
-  link_tickets: [["ticket_hash"]],
-  x_calls: [["day"]],
-  verify_limits: [["account_id"]],
-  sessions: [["token_hash"]],
+  accounts: [["id"], ["provider", "handle"]],
+  claims: [["id"]],
+  followers: [["provider", "handle"]],
+  follower_meta: [["id"]],
   bindings: [["account_id"], ["device_id"]],
   unlocks: [["account_id"]],
   used_posts: [["post_key"]],
-  pending_claims: [["id"], ["post_key"]],
-  owner_tokens: [["provider"]],
-  owner_followers: [["x_user_id"]],
+  claim_device_limits: [["device_id", "day"]],
   ref_clicks: [["ref", "day"]],
   download_hits: [["day"]],
   revocations: [["account_id"]],
@@ -154,19 +105,20 @@ export class MemoryStore implements Store {
     );
   }
   async purgeExpired(at: string) {
-    for (const table of [
-      "login_states",
-      "login_codes",
-      "link_tickets",
-      "sessions",
+    const claims = this.data.get("claims") ?? [];
+    for (const row of claims) {
+      if (
+        row.status === "pending_verification" &&
+        Date.parse(String(row.expires_at)) <= Date.parse(at)
+      )
+        row.status = "expired";
+    }
+    this.data.set(
       "device_replays",
-    ] satisfies Table[])
-      this.data.set(
-        table,
-        (this.data.get(table) ?? []).filter(
-          (row) => Date.parse(String(row.expires_at)) > Date.parse(at),
-        ),
-      );
+      (this.data.get("device_replays") ?? []).filter(
+        (row) => Date.parse(String(row.expires_at)) > Date.parse(at),
+      ),
+    );
   }
   async atomic(ops: Op[]) {
     const copy = structuredClone(this.data);
@@ -322,22 +274,16 @@ export class NeonStore implements Store {
   }
   async purgeExpired(at: string) {
     await this.sql
-      .transaction(
-        (
-          [
-            "login_states",
-            "login_codes",
-            "link_tickets",
-            "sessions",
-            "device_replays",
-          ] satisfies Table[]
-        ).map((table) =>
-          this.sql.query(
-            `DELETE FROM ${this.name(table)} WHERE expires_at <= $1`,
-            [at],
-          ),
+      .transaction([
+        this.sql.query(
+          `UPDATE ${this.name("claims")} SET status='expired' WHERE status='pending_verification' AND expires_at <= $1`,
+          [at],
         ),
-      )
+        this.sql.query(
+          `DELETE FROM ${this.name("device_replays")} WHERE expires_at <= $1`,
+          [at],
+        ),
+      ])
       .catch(() => {
         throw new Error("database_unavailable");
       });
@@ -345,18 +291,16 @@ export class NeonStore implements Store {
   async migrate() {
     try {
       await this.sql.query(`CREATE SCHEMA IF NOT EXISTS "${this.schema}"`);
-      for (const file of ["001_init.sql", "002_owner_token_refresh.sql"]) {
-        const source = await readFile(
-          new URL(`../migrations/${file}`, import.meta.url),
-          "utf8",
-        );
-        await this.sql.transaction([
-          this.sql.query(`SET LOCAL search_path TO "${this.schema}"`),
-          ...source
-            .split("-- statement-break")
-            .map((statement) => this.sql.query(statement)),
-        ]);
-      }
+      const source = await readFile(
+        new URL("../migrations/001_init.sql", import.meta.url),
+        "utf8",
+      );
+      await this.sql.transaction([
+        this.sql.query(`SET LOCAL search_path TO "${this.schema}"`),
+        ...source
+          .split("-- statement-break")
+          .map((statement) => this.sql.query(statement)),
+      ]);
     } catch {
       throw new Error("database_migration_failed");
     }
@@ -364,7 +308,6 @@ export class NeonStore implements Store {
   async cleanupOwnSchema() {
     if (!this.schema.startsWith("acu_test_"))
       throw new Error("test_schema_required");
-    // Retain the isolated schema; never DROP a shared schema.
     await this.sql
       .query(
         `TRUNCATE ${Object.keys(tables)
@@ -376,7 +319,7 @@ export class NeonStore implements Store {
       });
   }
 }
-/** databaseUrl provides its exported service behavior. */
+/** databaseUrl resolves DATABASE_URL from env or file. */
 export async function databaseUrl(env: NodeJS.ProcessEnv) {
   if (env.ACU_GATE_DATABASE_URL_FILE) {
     const value = (

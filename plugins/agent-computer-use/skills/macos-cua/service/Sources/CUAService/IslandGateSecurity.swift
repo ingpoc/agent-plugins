@@ -102,12 +102,24 @@ struct IslandGateKeychain: IslandGateStoring {
     }
 }
 
+struct IslandGateDeviceSignature {
+    let deviceID: String
+    let timestamp: Int64
+    let signatureBase64: String
+}
+
 struct IslandGateDevice {
     let id: String
     let key: P256.Signing.PrivateKey
     var publicKey: String { key.publicKey.x963Representation.base64EncodedString() }
     static func identifier(platformUUID: String) -> String {
         SHA256.hash(data: Data(("acu-island-gate|" + platformUUID).utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+    static func bodyHash(_ body: Data) -> String {
+        SHA256.hash(data: body).map { String(format: "%02x", $0) }.joined()
+    }
+    static func signMessage(action: String, deviceID: String, timestamp: Int64, body: Data) -> String {
+        "acu-gate|\(action)|\(deviceID)|\(timestamp)|\(bodyHash(body))"
     }
     static func load(store: IslandGateStoring) throws -> Self {
         let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
@@ -119,19 +131,29 @@ struct IslandGateDevice {
         else { key = P256.Signing.PrivateKey(); try store.write(key.rawRepresentation, name: "device-key") }
         return Self(id: identifier(platformUUID: uuid), key: key)
     }
-    static func message(action: String, deviceID: String, timestamp: Int64) -> String { "acu-gate-\(action)|\(deviceID)|\(timestamp)" }
-    func signedBody(action: String, timestamp: Int64 = Int64(Date().timeIntervalSince1970)) throws -> [String: Any] {
-        let message = Self.message(action: action, deviceID: id, timestamp: timestamp)
-        return ["device_id": id, "ts": timestamp, "sig": try key.signature(for: Data(message.utf8)).derRepresentation.base64EncodedString()]
+    func sign(action: String, body: Data = Data(), timestamp: Int64 = Int64(Date().timeIntervalSince1970)) throws -> IslandGateDeviceSignature {
+        let message = Self.signMessage(action: action, deviceID: id, timestamp: timestamp, body: body)
+        let sig = try key.signature(for: Data(message.utf8))
+        return IslandGateDeviceSignature(deviceID: id, timestamp: timestamp, signatureBase64: sig.derRepresentation.base64EncodedString())
     }
 }
 
-struct IslandGatePKCE {
-    let verifier: String
-    var challenge: String { Data(SHA256.hash(data: Data(verifier.utf8))).gateBase64URL }
-    init() throws {
-        var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { throw IslandGateFailure(code: "random") }
-        verifier = Data(bytes).gateBase64URL
+enum IslandGateValidation {
+    private static let xHandle = try! NSRegularExpression(pattern: "^@?[A-Za-z0-9_]{1,15}$")
+    private static let linkedInProfile = try! NSRegularExpression(pattern: "^https://(www\\.)?linkedin\\.com/in/[A-Za-z0-9_-]+/?$", options: .caseInsensitive)
+
+    static func normalizeXHandle(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, xHandle.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) != nil else { return nil }
+        return trimmed.hasPrefix("@") ? String(trimmed.dropFirst()) : trimmed
+    }
+
+    static func normalizeLinkedInProfile(_ raw: String) -> String? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard linkedInProfile.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)) != nil else { return nil }
+        guard let url = URL(string: trimmed), let host = url.host?.lowercased(), host.contains("linkedin.com") else { return nil }
+        let parts = url.path.split(separator: "/").map(String.init)
+        guard parts.count >= 2, parts[0] == "in", !parts[1].isEmpty else { return nil }
+        return "/in/\(parts[1].lowercased())"
     }
 }

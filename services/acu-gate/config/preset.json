@@ -8,6 +8,7 @@
     "preset_text": "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by Gurusharan Gupta https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-li #AgentComputerUse"
   },
   "linkedin_prefill_text": false,
+  "check_eta_text": "usually within an hour",
   "match": {
     "hashtag": "#AgentComputerUse",
     "ref_links": [

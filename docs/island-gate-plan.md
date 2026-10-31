@@ -1,112 +1,85 @@
-# Dynamic Island gate (free, verify-to-unlock): plan
+# Dynamic Island gate (free, claim-and-verify): plan
 
-Status: draft PR, not merged, not deployed. Deploy, release and X API credit purchase need Guru's approval.
+Status: draft PR #52, not merged, not deployed. Deploy and release need Guru's approval.
+Final scope (Guru, 2026-10-31 20:04 and 20:07 IST): no X API credits or any paid API, no OAuth, users use any browser, verification runs on OUR side (Guru's Grok Bot / ACU routine with Guru's free X plugin and Guru's Comet).
 
-## Product rules (Guru, 2026-10-31)
-
-- comet-control, macos-cua and Samantha stay free and unlocked. Only the Dynamic Island is gated.
-- The island is free for everyone. Unlock = (X route) follows @gurusharan and posts Guru's preset text on X, or (LinkedIn route) posts the preset text on LinkedIn and pastes the post URL. No payment, no cap.
-- One person = one unlock = one Mac. Rebinding goes through a safe path.
-- Locked island: the island panel stays hidden; Samantha keeps working and shows her state in the menu bar status item. Nothing else changes.
-- A public counter shows total unlocks (JSON endpoint + snippet for the Agent Plugins site; site deploy needs Guru).
+## Product rules
+- comet-control, macos-cua and Samantha stay free and unlocked. Only the Dynamic Island is gated. The island is free for everyone, no cap.
+- Unlock = follow @gurusharan on X + post Guru's preset (route X, primary). No X account: LinkedIn route (follow nudge, share the preset, our side reads the post; no follow check).
+- One person (provider + handle) = one unlock = one Mac. 14-day offline grace.
+- Locked: island panel hidden, Samantha shows her state in the menu bar, nothing else changes.
+- Public: total unlocks, downloads (GitHub DMG download_count), opt-in "who's using it" wall. Private: admin stats. Ref click-throughs (`?ref=acu-x`, `?ref=acu-li`).
 
 ## Docs checked (2026-10-31)
-
 | Topic | Source | What we rely on |
-| --- | --- | --- |
-| X OAuth 2.0 PKCE | <https://docs.x.com/fundamentals/authentication/oauth-2-0/authorization-code> | authorize `https://x.com/i/oauth2/authorize`, token `https://api.x.com/2/oauth2/token`, S256 PKCE, exact-match callback, auth code expires in 30 s, access token 2 h unless `offline.access`; Web App = confidential client (has secret) |
-| X users/me | <https://docs.x.com/x-api/users/get-my-user> | id, username, `verified`, `verified_type` via `user.fields` |
-| X follows | <https://docs.x.com/x-api/users/follows/introduction>, /x-api/users/get-followers, /x-api/users/get-following | no "does A follow B" endpoint in v2; lists only, paginated |
-| X user posts | <https://docs.x.com/x-api/users/get-posts> | `GET /2/users/:id/tweets`, `max_results` 5..100, `start_time`, `exclude` |
-| X recent search | <https://docs.x.com/x-api/posts/search/introduction> | last 7 days, all developers |
-| X pricing | <https://docs.x.com/x-api/getting-started/pricing> , /x-api/getting-started/free-credits | pay-per-use only, no free tier: User read $0.010, Following/Followers read $0.010 per resource, Posts read $0.005, Owned Reads $0.001 when the authenticated user owns the developer app (followers/following/tweets of the owner); daily dedup; up to $70 promo credits after a first purchase |
-| LinkedIn OIDC | <https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/sign-in-with-linkedin-v2> | scopes `openid profile email`; `GET https://api.linkedin.com/v2/userinfo`; `sub` is pairwise (per app); email optional; "does not verify user identities"; 500 req/member/day |
-| LinkedIn auth code | <https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow> | HTTPS absolute redirect URL registered on the Auth tab; token exchange needs `client_secret` (server-side) |
-| LinkedIn share | <https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/plugins/share-plugin> | only the Share Plugin is documented (a URL share, `share-offsite/?url=`). Prefilled text (`/feed/?shareActive=true&text=`) is NOT documented. Posting via API needs `w_member_social` (Share on LinkedIn product), which we do not request |
-| ASWebAuthenticationSession | <https://developer.apple.com/documentation/authenticationservices/aswebauthenticationsession> | macOS opens the default browser (or Safari), only the calling app's session gets the callback even if another app registers the scheme; `prefersEphemeralWebBrowserSession` |
-| Keychain | <https://developer.apple.com/documentation/security/storing-keys-in-the-keychain> , .../ksecattraccessibleafterfirstunlockthisdeviceonly | generic-password items; `AfterFirstUnlockThisDeviceOnly` items never migrate to another Mac (fits a one-Mac binding, readable by a background agent after first unlock) |
-| Render web services | <https://render.com/docs/web-services> , <https://render.com/docs/blueprint-spec> | bind `0.0.0.0:$PORT` (default 10000), `healthCheckPath`, secrets as `sync: false` env vars |
-| Neon serverless driver | <https://neon.com/docs/serverless/serverless-driver> | `neon()` over HTTP for single queries and non-interactive transactions; WebSocket `Pool` only for interactive transactions |
+|---|---|---|
+| X oEmbed | https://docs.x.com/x-for-websites/oembed-api | `GET https://publish.x.com/oembed?url=<post url>`: "Requires authentication? No", "Rate limited: No", JSON with `author_name`, `author_url`, `html` (post text). Tested 2026-10-31: publish.twitter.com 301 → publish.x.com, 200, no key; unknown post → 404. Free, no developer app. |
+| X web intents | https://docs.x.com/x-for-websites/web-intents/overview | `https://x.com/intent/post?text=` (prefilled post; the user presses Post), follow via the profile page `https://x.com/gurusharan` |
+| X post id time | X ids are Snowflake ids: `(id >> 22) + 1288834974657` = creation ms | freshness check of a claimed post without any API |
+| X API pricing (why no API) | https://docs.x.com/x-api/getting-started/pricing | pay-per-use only, no free tier → not used anywhere |
+| LinkedIn share | https://learn.microsoft.com/en-us/linkedin/consumer/integrations/self-serve/plugins/share-plugin | only URL sharing (`share-offsite/?url=`) is documented; prefilled text is not, so the app copies the text to the clipboard |
+| ASWebAuthenticationSession | (no longer used) | removed with OAuth |
+| Keychain | https://developer.apple.com/documentation/security/ksecattraccessibleafterfirstunlockthisdeviceonly | device key, claim id and entitlement stored ThisDeviceOnly |
+| Render web services | https://render.com/docs/web-services , https://render.com/docs/blueprint-spec | bind 0.0.0.0:$PORT, healthCheckPath, secrets `sync: false` |
+| Neon serverless driver | https://neon.com/docs/serverless/serverless-driver | `neon()` HTTP queries, non-interactive transactions |
 
-## X API tier: blocker
+## User flow (ACU app, any default browser, no scraping on the user's Mac)
+1. Locked sheet "Unlock the island": step 1 "Follow @gurusharan" opens `https://x.com/gurusharan` with `NSWorkspace.open` (default browser). Step 2 "Post about ACU" opens `https://x.com/intent/post?text=<preset>`; the user presses Post themselves. Step 3: type `@handle` once (post link optional) → "Check".
+2. App `POST /v1/claims` (device-signed). Server creates claim `pending_verification` bound to this Mac. If a post URL was given, the server checks it immediately through oEmbed.
+3. App shows "Checking… usually a few minutes" and polls `GET /v1/claims/{id}` (60 s, backing off to 5 min; also at launch). On `unlocked` it stores the entitlement and the island appears. No further action from the user.
+4. LinkedIn ("No X account?"): "Follow Gurusharan on LinkedIn" (profile URL from config, not checked), "Share on LinkedIn" (`share-offsite/?url=<ref link>` + preset copied to clipboard), then the user enters their LinkedIn profile URL (handle = `/in/<slug>`) and optionally the post URL → same claim + poll. The server tries one public fetch of a given post URL; otherwise our side reads the post with Comet.
 
-There is no free X API tier any more. Every call the X route needs is paid per use:
+## Our side (routine owned by Grok Bot; this PR builds endpoints + `services/acu-gate/scripts/gate-admin.mjs`)
+1. `GET /v1/admin/claims?status=pending_verification` → work list.
+2. Follows: read Guru's follower list with Guru's connected X plugin (free) and push it: `POST /v1/admin/followers`. The server matches pending X claims by handle (or id) and marks `follow_confirmed`.
+3. Posts: for X claims without a confirmed post, our side finds the post (oEmbed if a URL is known, else Guru's Comet search `#AgentComputerUse from:<handle>`), then `POST /v1/admin/claims/{id}/verify` with the post URL, text and source. For X post URLs the server re-checks through oEmbed itself; `source: "comet"` evidence is accepted only when oEmbed cannot see the post (protected/deleted), and is recorded as such.
+4. LinkedIn: Comet on our side reads the user's post/activity, then `verify` with `source: "comet"`.
+5. A claim with follow (X only) + post confirmed flips to `unlocked`: unlock row, Mac binding, wall consent applied. The app picks it up on its next poll.
 
-- sign-in identity `GET /2/users/me`: $0.010 per sign-in (no way around it: the OAuth token has no user id);
-- post check `GET /2/users/:id/tweets?max_results=5&start_time=now-7d`: $0.005 per post returned, at most ~$0.025-0.05;
-- follow check: cheapest path is an Owned Read of @gurusharan's own followers (`GET /2/users/{guru_id}/followers`, $0.001 per follower) with Guru's own user token, synced incrementally (stop at the first already-known id). Checking the user's `following` list instead costs $0.010 per account returned and is a fallback only.
-Expected cost about $0.02-0.07 per verified user. Guru must buy X API credits (payment = his approval) and the developer app must be owned by @gurusharan for the $0.001 owned-read rate. Until then the X route can only run against the mock. Fallback if Guru declines credits: LinkedIn route + manual approval queue only.
+## Match rules
+- Preset (server config only, `services/acu-gate/config/preset.json`): X "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-x #AgentComputerUse"; LinkedIn same with "Gurusharan Gupta" and `?ref=acu-li`.
+- A post matches when its text contains `#AgentComputerUse` (case-insensitive) or the ref link.
+- X post must be authored by the claimed handle (oEmbed `author_url`), created no earlier than 24 h before the claim (Snowflake time), and each post URL is usable once.
 
-## Flow
+## One person, one unlock, one Mac
+- Account key = (provider, normalized handle): X handle lowercased without `@`; LinkedIn `/in/<slug>` lowercased. Our side may attach the X numeric id from the follower list; handle renames are matched by id when present.
+- Unique: `accounts(provider, handle)`, `unlocks.account_id`, `bindings.account_id`, `bindings.device_id`, `used_posts(post_key)`.
+- A Mac already bound to another account → `device_taken`. An account already bound to another Mac → the claim needs a NEW post (fresh, unused URL, created after the existing binding) and the rebind cooldown (7 days); the old Mac's refresh gets `device_moved`.
+- Cross-provider: X and LinkedIn are separate accounts, but each Mac holds one account, so a person gets at most one island per Mac. No email matching (we collect no email).
 
-1. App opens `ASWebAuthenticationSession` at `{GATE}/v1/auth/{x|linkedin}/start?device_id&device_name&app_challenge`, callback scheme `acu-island`.
-2. Server keeps the provider PKCE verifier/state/nonce, redirects to the provider, gets the callback on `{GATE}/v1/auth/{p}/callback`, exchanges the code with the client secret, stores the provider access token encrypted on the one-time login code row, then redirects to `acu-island://auth#code=<one-time, 60 s>`. Identity (`users/me` for X, userinfo for LinkedIn) runs at `POST /v1/session/redeem` after app PKCE verification.
-3. App `POST /v1/session/redeem {code, app_verifier, device_id, device_pubkey}` (app-side PKCE: S256(app_verifier) must equal app_challenge). Returns an opaque session (hashed in DB, 30 d) + account status + the user's share links. Secrets never reach the app.
-4. Share: the preset texts live only in server config (`services/acu-gate/config/preset.json`, served by `GET /v1/config`; the app never hard-codes copy). Guru's text (2026-10-31):
-   - X: `Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-x #AgentComputerUse`
-   - LinkedIn: same text with `Gurusharan Gupta` instead of `@gurusharan` and `?ref=acu-li`.
-   - Match rule: a post matches when it contains `#AgentComputerUse` (case-insensitive) or the ref link (`?ref=acu-x` / `?ref=acu-li`, also via X `entities.urls[].expanded_url`, since X wraps links in t.co).
-   X opens `https://x.com/intent/post?text=<urlencoded>`. LinkedIn opens the documented `https://www.linkedin.com/sharing/share-offsite/?url=<urlencoded ref link>` and copies the full preset to the clipboard ("Paste with Cmd-V"); the undocumented `feed/?shareActive=true&text=` is behind config `linkedin_prefill_text` (off by default).
-5. Verify:
-   - X `POST /v1/verify/x`: follow (owner-followers cache, incremental sync; fallback user following) AND a post in the last 7 days that matches the rule above (the user's own timeline, so the author is the signed-in user). Missing parts come back separately so the UI can say exactly what is left.
-   - LinkedIn `POST /v1/verify/linkedin {post_url}`: URL must be `https://www.linkedin.com/(posts|feed/update)/...`; each post URL usable once. Server fetches the public page (8 s timeout, no cookies). Auto-pass only if the page matches the rule AND its author name equals the LinkedIn OIDC `name` (the only author signal available: `sub` is pairwise and never appears on the page). If LinkedIn serves an auth wall/999/non-200 (common), the claim goes to the `pending` queue for manual approval (admin endpoints). The app shows "Waiting for review" and polls.
-6. Unlock: on pass the server binds the account to this Mac and returns an Ed25519-signed entitlement `{v, acct, prov, handle, device_id, iat, exp}`; the app checks it offline with the public key compiled into the app.
-
-## One person, one unlock, one Mac (dedup)
-
-- `accounts` = person; `identities(provider, provider_user_id)` unique, points to one account. `unlocks.account_id` unique, `bindings.account_id` unique and `bindings.device_id` unique.
-- `device_id` = SHA-256 of the Mac's IOPlatformUUID + app salt (stable across reinstalls) and the device holds a P-256 key in the Keychain (ThisDeviceOnly) that signs refresh and rebind.
-- Second provider on the same Mac: if a session exists the new identity is LINKED to the current account (explicit, signed-in link). Without a session the Mac is already bound to another account → `device_taken`, offer "Sign in with the account that unlocked this Mac".
-- No automatic email merge: LinkedIn says its OIDC does not verify identity and email is optional; X email needs an extra scope and is optional; merging on email enables account takeover. Emails are stored only as an HMAC (`EMAIL_HASH_KEY`) and shown to the reviewer on LinkedIn pending claims when they collide with an unlocked account.
-- Residual: a LinkedIn author-name match is weak (names are not unique), so any doubt goes to the pending queue. One person with two Macs, an X account and a LinkedIn account could unlock twice. Accepted: the island is free, each unlock still costs a public post, and the Mac binding caps it at one per Mac.
-
-## Rebind (one Mac)
-
-Account bound elsewhere → app shows "The island is active on <name> since <date>. Move it to this Mac?". `POST /v1/device/rebind` needs a fresh sign-in session from this Mac (proves account ownership) and is limited to once per 7 days (after that the reviewer can reset). The old Mac's next refresh gets `device_moved` and locks.
+## Honest limits (accepted tradeoffs)
+- Without OAuth the user is not authenticated. Someone could type another person's handle whose fresh qualifying post exists; mitigations: post freshness (24 h before claim), one-use post URLs, one Mac per account, and the real owner can move the island with a new post. Low harm: the island is free.
+- The follow check is our side's read of Guru's follower list at verification time; later unfollows are not re-checked (optional future routine).
+- LinkedIn has no follow check and public post pages are often login-walled, so most LinkedIn claims wait for our side.
+- Verification latency = routine cadence: Guru's routine runs hourly, so a claim usually unlocks within an hour (instantly when the follower list already has the handle and the post URL passes oEmbed). The wait text comes from `/v1/config` (`check_eta_text`). Claims expire after 72 h without verification (user can resubmit).
+- Render free plan (Guru, 20:10 IST): the service sleeps after idle and cold-starts in ~30-60 s. The app treats timeouts/502/503/504 during the first 90 s as "Waking up the unlock service…", never as an error; polls stay silent on network errors. The 14-day grace makes sleep invisible to unlocked users.
+- First run on a clean Mac needs nothing but ACU and a default browser: no Comet, no X/LinkedIn developer app, no sign-in inside ACU.
 
 ## Offline grace: 14 days
+Entitlement Ed25519 `exp = iat + 14 d`, refreshed every 24 h (`POST /v1/entitlement/refresh`, device-signed). Covers travel and server sleep, bounds how long a moved/revoked Mac keeps the island; `iat` more than 1 day in the future is rejected.
 
-Entitlement `exp = iat + 14 d`, refreshed every 24 h when online (silent). 14 days covers travel and a dead Render free-tier instance without bothering anyone, and bounds how long a moved/revoked Mac keeps the island. Clock rollback is ignored except that a token with `iat` more than 1 day in the future is rejected.
+## API contract
+JSON. Errors `{"error":"<code>","message":"..."}`. Codes: `invalid_handle`, `post_url_invalid`, `post_url_used`, `post_not_found`, `post_author_mismatch`, `post_too_old`, `post_missing_tag`, `follow_missing`, `claim_expired`, `rejected`, `device_taken`, `device_conflict` (extra `rebind_available_at`), `rebind_cooldown`, `device_moved`, `revoked`, `bad_signature`, `rate_limited` (`retry_after`), `not_found`, `server_error`.
+Device signature: base64 DER ECDSA P-256 SHA-256 over `acu-gate|<action>|<device_id>|<ts>|<body_sha256_hex>`; `ts` unix seconds ±300 s; replay window 10 min. Device key = raw X9.63 P-256 public key, base64. `device_id` = hex SHA-256 of "acu-island-gate|" + IOPlatformUUID.
 
-## Counter
+Public / app:
+- `GET /healthz`, `GET /v1/config` → `{"x":{"handle":"gurusharan","profile_url":"https://x.com/gurusharan","intent_url":"...","preset_text":"..."},"linkedin":{"follow_url":"...","share_url":"...","preset_text":"..."},"match":{...},"grace_days":14,"poll_seconds":60,"check_eta_text":"usually within an hour"}`
+- `POST /v1/claims` headers `X-ACU-Device`, `X-ACU-TS`, `X-ACU-Sig` (action `claim`); body `{"provider":"x|linkedin","handle":"...","post_url":null|"...","device_pubkey":"...","device_name":"...","show_on_wall":false}` → 201 `{"claim_id","status":"pending_verification","checks":{"follow":"pending|confirmed|n/a","post":"pending|confirmed|failed"},"poll_after":60}` (or 200 `unlocked` + `entitlement` when everything is already confirmed). Same device + same account reuses the open claim.
+- `GET /v1/claims/{id}` (signed, action `poll`) → `{"status":"pending_verification|unlocked|rejected|expired","checks":{...},"reason":null|"<code>","entitlement":null|"..."}`
+- `POST /v1/entitlement/refresh` (signed, action `refresh`) → `{"entitlement"}` | 409 `device_moved` | 403 `revoked`
+- `POST /v1/wall {show}` (signed, action `wall`) → `{"show"}`
+- `GET /v1/public/counter` → `{"unlocks","updated_at"}`; `GET /v1/public/site-stats` → `{"downloads":{"github_dmg","redirect_hits","total"},"unlocks","wall":[{"handle","provider","avatar_url","profile_url","unlocked_at"}],"updated_at"}`; `GET|POST /v1/public/ref-click?ref=acu-x|acu-li` → 204; `GET /v1/public/download` → 302 latest DMG.
+Entitlement: `base64url(payload).base64url(ed25519 sig)`, payload `{"v":1,"acct","prov","handle","device_id","iat","exp"}`; app verifies with the compiled-in public key (placeholder fails closed until release).
 
-`GET /v1/public/counter` → `{"unlocks": n, "updated_at": ...}`, CORS `*`, `Cache-Control: public, max-age=60`. Snippet: `services/acu-gate/site/counter-snippet.html`.
+Admin (Bearer `ADMIN_TOKEN`, constant-time compare, failed-auth backoff) — for the routine:
+- `GET /v1/admin/claims?status=pending_verification&provider=x|linkedin&limit=200` → `{"claims":[{"id","provider","handle","x_user_id","post_url","checks":{"follow","post"},"created_at","expires_at","device_name"}]}`
+- `POST /v1/admin/followers` `{"provider":"x","followers":[{"id":"123","handle":"alice"}],"source":"x_plugin","complete":false}` → `{"upserted":n,"follow_confirmed_claims":[ids],"unlocked_claims":[ids]}`. Idempotent; `complete:true` marks the snapshot as the full list (enables unfollow stats only).
+- `POST /v1/admin/claims/{id}/verify` `{"follow_confirmed":true|false|null,"post_url":"...","post_text":"...","author_handle":"...","source":"oembed|comet|x_plugin|manual","verified":bool|null,"verified_type":null|"blue",...,"followers_count":n|null,"avatar_url":null|"https://pbs.twimg.com/..."}` → claim. Server re-checks X posts via oEmbed; mismatches return 422 with the code and leave the claim pending.
+- `POST /v1/admin/claims/verify-batch` `{"results":[ ...same objects with "claim_id"... ]}` → per-item results.
+- `POST /v1/admin/claims/{id}/reject` `{"reason":"follow_missing|post_missing|post_author_mismatch|spam|other"}`
+- `GET /v1/admin/stats` → `{"unlocks":{"x","linkedin","total"},"verified_unlocks","verified_by_type","reach","claims":{"pending","rejected","expired"},"followers_known","ref_clicks":{...},"downloads":{...},"wall_opt_in"}`
+- `POST /v1/admin/accounts/{id}/revoke`, `POST /v1/admin/accounts/{id}/reset-rebind`
 
-## Optional later
-
-LinkedIn API posting (`w_member_social`) to skip the paste step; X Activity API `follow.follow` webhook ($0.010/event) instead of follower sync.
-
-## API contract (server `services/acu-gate`, app `IslandGate*.swift`)
-
-All JSON, UTF-8. Errors: HTTP 4xx/5xx with `{"error": "<code>", "message": "<human>", ...extra}`. Rate limit: 429 `{"error":"rate_limited","retry_after":<seconds>}`. Error codes the app must handle: `not_signed_in`, `session_expired`, `follow_missing`, `post_missing`, `post_url_invalid`, `post_url_used`, `pending_review`, `rejected`, `device_conflict` (extra `device_name`, `bound_at`, `rebind_available_at`), `device_taken`, `rebind_cooldown` (extra `rebind_available_at`), `device_moved`, `revoked`, `x_unavailable` (X API out of credits / 402 / 429 / daily budget), `rate_limited`, `server_error`.
-
-- `GET /healthz` → `{"ok":true}`
-- `GET /v1/config` → `{"x":{"handle":"gurusharan","intent_url":"https://x.com/intent/post?text=...","preset_text":"..."},"linkedin":{"share_url":"https://www.linkedin.com/sharing/share-offsite/?url=...","preset_text":"...","prefill_text":false},"match":{"hashtag":"#AgentComputerUse","ref_links":["...?ref=acu-x","...?ref=acu-li"]},"providers":["x","linkedin"],"grace_days":14}`
-- `GET /v1/auth/{x|linkedin}/start?device_id=<hex64>&device_name=<str>&app_challenge=<b64url S256>&link=<0|1>` → 302 to provider. `link=1` requires `link_ticket=<single-use ticket>` from `POST /v1/auth/link-ticket` (Bearer session, bound to account + device_id; 120 s TTL).
-- `POST /v1/auth/link-ticket` (Bearer session) `{device_id}` → `{"ticket":"<random>","expires_in":120}`.
-- `GET /v1/auth/{p}/callback?code&state` → 302 `acu-island://auth#code=<one-time>` or `acu-island://auth#error=<code>`.
-- `POST /v1/session/redeem {code, app_verifier, device_id, device_pubkey}` (device_pubkey = base64 raw P-256 public key, x963) → `{"session":"<opaque>","account":{"id","provider","handle","name","linked":["x"]},"status":"needs_verify|pending_review|unlocked","entitlement":"<token>|null"}`
-- `POST /v1/verify/x` (Authorization: Bearer <session>) → 200 `{"status":"unlocked","entitlement":"..."}` or 422 `{"error":"follow_missing"|"post_missing","follow":bool,"post":bool}`
-- `POST /v1/verify/linkedin {post_url}` (Bearer) → 200 unlocked, 202 `{"status":"pending_review"}`, 422 `post_url_invalid|post_url_used|rejected`
-- `GET /v1/status` (Bearer) → `{"status": ..., "entitlement": ...}` (app polls pending every 60 s while the sheet is open)
-- Unlock from verify/status may return 409 `device_conflict` or `device_taken`.
-- `POST /v1/device/rebind` (Bearer) `{device_id, ts, sig}` → 200 `{"status":"unlocked","entitlement"}` or 429 `rebind_cooldown`
-- `POST /v1/entitlement/refresh {device_id, ts, sig}` (no session; sig = base64 DER ECDSA P-256 SHA-256 over `"acu-gate-refresh|<device_id>|<ts>"`, ts unix seconds within ±300 s) → 200 `{"entitlement"}` | 409 `device_moved` | 403 `revoked` | 404 `not_found`. Rebind sig message: `"acu-gate-rebind|<device_id>|<ts>"`.
-- `GET /v1/public/counter` → `{"unlocks":n,"updated_at":"ISO"}` CORS `*`, max-age 60.
-- Admin (Bearer `ADMIN_TOKEN`): `GET /v1/admin/pending`, `POST /v1/admin/pending/{id}/approve|reject`, `POST /v1/admin/accounts/{id}/revoke`, `POST /v1/admin/accounts/{id}/reset-rebind`, `GET /v1/admin/x-owner/start` (Guru authorizes his own X account once for owned-read follower sync; scopes include `offline.access`, refresh token stored encrypted, auto-refreshed before follower sync).
-- Entitlement token: `base64url(payload_json) + "." + base64url(ed25519_sig over the first part)`; payload `{"v":1,"acct":"...","prov":"x|linkedin","handle":"...","device_id":"<hex64>","iat":unix,"exp":unix}`; app verifies with the compiled-in Ed25519 public key (raw 32 bytes, base64), DEBUG builds may override base URL + public key via `defaults write com.ingpoc.cua-service ACUGateDevBaseURL/ACUGateDevPublicKey` only when env `ACU_GATE_DEV=1`.
-
-## Traction design (Guru, 2026-10-31)
-
-- X is the primary route (big "Sign in with X" button). LinkedIn is a secondary "No X account?" text link.
-- X follow of @gurusharan is required. Verified is NOT required.
-- Each X unlock stores `verified`, `verified_type`, `public_metrics.followers_count` from `GET /2/users/me?user.fields=verified,verified_type,public_metrics` (same $0.010 call as sign-in, refreshed on each verify), for "verified unlocks" and "reach".
-- LinkedIn route shows "Follow Gurusharan on LinkedIn" (opens config `linkedin.follow_url`, placeholder until Guru gives his profile URL) before "Share on LinkedIn". Not verified, never blocks.
-- Ref click-throughs: `POST|GET /v1/public/ref-click?ref=acu-x|acu-li` → 204, CORS `*`, counts per ref per UTC day, no IP or cookie stored; only known refs counted. The site calls it with `navigator.sendBeacon` when `?ref=` is present (snippet `services/acu-gate/site/ref-beacon-snippet.html`; site deploy waits for Guru).
-- `GET /v1/admin/stats` (Bearer `ADMIN_TOKEN`) → `{"unlocks":{"x":n,"linkedin":n,"total":n},"verified_unlocks":n,"verified_by_type":{"blue":n,...},"reach":sum_followers_of_x_unlocks,"pending":n,"ref_clicks":{"acu-x":n,"acu-li":n},"ref_clicks_by_day":[...],"owner_auth_required":boolean}` (`owner_auth_required` true when owner token refresh failed and Guru must re-run `/v1/admin/x-owner/start`)
-
-## Site stats: downloads, unlocks, wall
-
-`GET /v1/public/site-stats` returns downloads (`github_dmg`, `redirect_hits`, and their sum `total`), total unlocks, an opt-in user wall (newest first, at most 200), and `updated_at`. It has CORS `*` and a 60-second public cache lifetime. GitHub release asset totals include only `AgentComputerUse-*.dmg` assets under `agent-computer-use-v` tags, follow pagination, and cache for 15 minutes while retaining the last successful value on error. `GET /v1/public/download` counts a daily redirect hit and redirects to the latest stable ACU release's DMG. These are download events, not unique installations.
-
-Wall consent defaults to false. Verify requests may set `show_on_wall`; `POST /v1/wall {show}` changes consent immediately on the server using a Bearer session or the bound device key. Device authorization includes `device_id`, Unix `ts` within 300 seconds, and base64 DER P-256 SHA-256 `sig` over `acu-gate-wall|<device_id>|<ts>|<true|false>`; replay protection also applies. The wall snapshots handle/name/avatar/profile at unlock, allows only HTTPS avatars on `pbs.twimg.com` or `media.licdn.com`, and excludes opted-out or revoked accounts. LinkedIn profile URLs remain null when unavailable. The embeddable site stats snippet uses DOM text and attribute setters; profile links have `rel="noopener nofollow ugc"`. Admin stats additionally exposes downloads and `wall_opt_in`. Site deployment still requires Guru's approval.
+## Where our side keeps its settings (Mini)
+- Public base URL: `~/.config/acu-gate/gate.json` → `{"base_url":"https://<render-host>"}` (not secret).
+- Admin token: macOS Keychain generic password, service `acu-gate`, account `admin_token` (read inside `gate-admin.mjs`; never printed). Alternative for non-macOS: a 0600 file named by `ACU_GATE_ADMIN_TOKEN_FILE`.

@@ -1,11 +1,16 @@
-import { createHash, createPublicKey, sign, verify } from "node:crypto";
+import {
+  createHash,
+  createPublicKey,
+  sign,
+  verify,
+} from "node:crypto";
 
-/** sha256 provides its exported service behavior. */
-export function sha256(value: string): string {
-  return createHash("sha256").update(value).digest("base64url");
+/** sha256Hex returns hex SHA-256 of UTF-8 input. */
+export function sha256Hex(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
 }
 
-/** issueEntitlement provides its exported service behavior. */
+/** issueEntitlement signs a 14-day offline grace entitlement. */
 export function issueEntitlement(
   privateKey: string,
   claims: {
@@ -27,14 +32,26 @@ export function issueEntitlement(
   return `${payload}.${signature.toString("base64url")}`;
 }
 
-/** verifyDeviceSignature provides its exported service behavior. */
+export type DeviceAction = "claim" | "poll" | "refresh" | "wall";
+
+/** deviceMessage builds the signed payload string. */
+export function deviceMessage(
+  action: DeviceAction,
+  deviceId: string,
+  ts: number,
+  bodySha256Hex: string,
+) {
+  return `acu-gate|${action}|${deviceId}|${ts}|${bodySha256Hex}`;
+}
+
+/** verifyDeviceSignature validates P-256 ECDSA over the device message. */
 export function verifyDeviceSignature(
   publicKey: string,
-  action: "refresh" | "rebind" | "wall",
+  action: DeviceAction,
   deviceId: string,
   ts: number,
   signature: string,
-  show?: boolean,
+  bodySha256Hex: string,
 ): boolean {
   try {
     const raw = Buffer.from(publicKey, "base64");
@@ -42,6 +59,7 @@ export function verifyDeviceSignature(
       raw.length !== 65 ||
       raw[0] !== 4 ||
       !/^[a-f0-9]{64}$/.test(deviceId) ||
+      !/^[a-f0-9]{64}$/.test(bodySha256Hex) ||
       !Number.isSafeInteger(ts)
     )
       return false;
@@ -56,9 +74,7 @@ export function verifyDeviceSignature(
     });
     return verify(
       "sha256",
-      Buffer.from(
-        `acu-gate-${action}|${deviceId}|${ts}${action === "wall" ? `|${show}` : ""}`,
-      ),
+      Buffer.from(deviceMessage(action, deviceId, ts, bodySha256Hex)),
       key,
       Buffer.from(signature, "base64"),
     );
@@ -67,25 +83,7 @@ export function verifyDeviceSignature(
   }
 }
 
-export class ReplayGuard {
-  private seen = new Map<string, number>();
-
-  accept(
-    deviceId: string,
-    ts: number,
-    now = Math.floor(Date.now() / 1000),
-  ): boolean {
-    if (!Number.isSafeInteger(ts) || Math.abs(now - ts) > 300) return false;
-    for (const [key, expires] of this.seen)
-      if (expires <= now) this.seen.delete(key);
-    const key = `${deviceId}|${ts}`;
-    if (this.seen.has(key)) return false;
-    this.seen.set(key, now + 600);
-    return true;
-  }
-}
-
-/** safeAvatar provides its exported service behavior. */
+/** safeAvatar allows only approved avatar hosts. */
 export function safeAvatar(value: unknown): string | null {
   if (typeof value !== "string") return null;
   try {

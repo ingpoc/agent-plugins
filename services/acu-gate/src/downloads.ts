@@ -1,4 +1,4 @@
-import { limitedBody } from "./providers.ts";
+import { limitedBody } from "./http-utils.ts";
 import { object } from "./errors.ts";
 export class Downloads {
   private value = { count: 0, url: null as string | null };

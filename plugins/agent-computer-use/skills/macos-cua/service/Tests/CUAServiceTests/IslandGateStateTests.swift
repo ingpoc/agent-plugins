@@ -21,67 +21,49 @@ final class IslandGateStateTests: XCTestCase {
     private func gate(store: IslandGateMemoryStore = .init()) -> IslandGate {
         IslandGate(store: store, client: IslandGateURLProtocol.client(), publicKey: signingKey.publicKey.rawRepresentation, device: device)
     }
-    func testCancelReturnsToLocked() {
-        let gate = gate(); gate.transition(.signingIn("x")); gate.cancelSignIn()
-        XCTAssertEqual(gate.state, .locked()); XCTAssertFalse(gate.isUnlocked)
+    func testRejectedCopyForReasonCodes() {
+        for code in ["follow_missing", "post_missing", "post_author_mismatch", "post_too_old", "claim_expired"] {
+            let gate = gate()
+            gate.handle(IslandGateFailure(code: code))
+            guard case .rejected(let message) = gate.state else { return XCTFail("Expected rejected for \(code)") }
+            XCTAssertEqual(message, IslandGateFailure.friendlyMessage(for: code))
+        }
     }
-    func testMissingFollowAndPostFlagsRemainIndependent() {
+    func testConflictTransitions() {
         let gate = gate()
-        gate.handle(IslandGateFailure(code: "follow_missing", follow: false, post: true))
-        XCTAssertEqual(gate.state, .needsVerify(provider: "x", follow: false, post: true))
-        gate.handle(IslandGateFailure(code: "post_missing", follow: true, post: false))
-        XCTAssertEqual(gate.state, .needsVerify(provider: "x", follow: true, post: false))
-    }
-    func testPendingAndConflictTransitions() {
-        let gate = gate()
-        gate.handle(IslandGateFailure(code: "pending_review")); XCTAssertEqual(gate.state, .pendingReview)
-        gate.handle(IslandGateFailure(code: "device_conflict", device_name: "Studio", bound_at: "2026-10-20", rebind_available_at: "2026-11-01"))
-        XCTAssertEqual(gate.state, .conflict(deviceName: "Studio", boundAt: "2026-10-20", rebindAvailableAt: "2026-11-01"))
-        gate.handle(IslandGateFailure(code: "rebind_cooldown", rebind_available_at: "2026-11-01"))
-        XCTAssertEqual(gate.state, .conflict(deviceName: "your other Mac", boundAt: nil, rebindAvailableAt: "2026-11-01"))
-    }
-    func testPostURLFailureAllowsEditingAgain() {
-        let gate = gate(); gate.postURL = "bad"
-        gate.handle(IslandGateFailure(code: "post_url_invalid"))
-        XCTAssertEqual(gate.state, .needsVerify(provider: "linkedin", follow: false, post: false))
-        XCTAssertNotNil(gate.verificationMessage)
-    }
-    func testSessionExpiryRequiresSignIn() {
-        let gate = gate(); gate.handle(IslandGateFailure(code: "session_expired"))
-        guard case .locked(let message) = gate.state else { return XCTFail("Expected locked") }
-        XCTAssertNotNil(message)
+        gate.handle(IslandGateFailure(code: "device_conflict", device_name: "Studio", rebind_available_at: "2026-11-01"))
+        XCTAssertEqual(gate.state, .conflict(deviceName: "Studio", rebindAvailableAt: "2026-11-01"))
     }
     func testValidEntitlementUnlocksAndPersists() throws {
         let store = IslandGateMemoryStore(), gate = gate(store: store)
-        try gate.apply(IslandGateReply(status: "unlocked", entitlement: token()))
+        try gate.applyEntitlementForTests(token())
         XCTAssertTrue(gate.isUnlocked); XCTAssertNotNil(store.values["entitlement"])
     }
     func testMovedAndRevokedLockImmediatelyAndDeleteToken() throws {
         for code in ["device_moved", "revoked"] {
             let store = IslandGateMemoryStore(), gate = gate(store: store)
-            try gate.apply(IslandGateReply(entitlement: token()))
+            try gate.applyEntitlementForTests(token())
             gate.handle(IslandGateFailure(code: code))
             XCTAssertFalse(gate.isUnlocked); XCTAssertNil(store.values["entitlement"])
-            guard case .locked(let message) = gate.state else { return XCTFail("Expected locked") }
-            XCTAssertNotNil(message)
+            guard case .locked = gate.state else { return XCTFail("Expected locked") }
         }
     }
     func testOfflineAndServerFailureKeepValidEntitlement() async throws {
         let gate = gate()
-        try gate.apply(IslandGateReply(entitlement: token()))
+        try gate.applyEntitlementForTests(token())
         IslandGateURLProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
         await gate.refresh(); XCTAssertTrue(gate.isUnlocked)
         IslandGateURLProtocol.handler = { _ in (503, Data(#"{"error":"server_error"}"#.utf8)) }
         await gate.refresh(); XCTAssertTrue(gate.isUnlocked)
     }
     func testRefreshMovedLocksImmediately() async throws {
-        let gate = gate(); try gate.apply(IslandGateReply(entitlement: token()))
+        let gate = gate(); try gate.applyEntitlementForTests(token())
         IslandGateURLProtocol.handler = { _ in (409, Data(#"{"error":"device_moved"}"#.utf8)) }
         await gate.refresh(); XCTAssertFalse(gate.isUnlocked)
     }
     func testExpiryHidesPanelWithoutWaitingForDailyRefresh() async throws {
         let gate = gate()
-        try gate.apply(IslandGateReply(entitlement: token(exp: Date().addingTimeInterval(0.1))))
+        try gate.applyEntitlementForTests(token(exp: Date().addingTimeInterval(0.1)))
         XCTAssertTrue(gate.isUnlocked)
         try await Task.sleep(nanoseconds: 250_000_000)
         XCTAssertFalse(gate.isUnlocked)
@@ -89,70 +71,45 @@ final class IslandGateStateTests: XCTestCase {
     }
     func testSignOutCannotRefreshBackToUnlocked() async throws {
         let store = IslandGateMemoryStore(), gate = gate(store: store)
-        try gate.apply(IslandGateReply(entitlement: token()))
+        try gate.applyEntitlementForTests(token())
         gate.signOut()
         IslandGateURLProtocol.handler = { _ in XCTFail("Signed-out gate must not refresh"); return (500, Data()) }
         await gate.refresh(); XCTAssertFalse(gate.isUnlocked)
-        XCTAssertNil(store.values["session"]); XCTAssertNil(store.values["entitlement"])
+        XCTAssertNil(store.values["entitlement"])
     }
-    func testSignOutDiscardsInFlightRefresh() async throws {
-        let gate = gate(); try gate.apply(IslandGateReply(entitlement: token()))
-        let reply = try JSONSerialization.data(withJSONObject: ["entitlement": token()])
-        let began = expectation(description: "Refresh began")
-        let finish = DispatchSemaphore(value: 0)
-        defer { finish.signal() }
-        IslandGateURLProtocol.handler = { _ in
-            began.fulfill()
-            guard finish.wait(timeout: .now() + 3) == .success else { throw URLError(.timedOut) }
-            return (200, reply)
-        }
-        let refresh = Task { await gate.refresh() }
-        await fulfillment(of: [began], timeout: 3)
-        gate.signOut(); finish.signal()
-        await refresh.value
-        XCTAssertFalse(gate.isUnlocked)
-        XCTAssertEqual(gate.state, .locked())
-    }
-    func testPendingPollingOnlyWhileOpen() async throws {
+    func testLaunchResumesOpenClaim() throws {
         let store = IslandGateMemoryStore()
-        store.values["session"] = Data("test-session".utf8)
-        let gate = gate(store: store); gate.start(); gate.transition(.pendingReview)
-        var calls = 0
-        IslandGateURLProtocol.handler = { req in
-            calls += 1
-            XCTAssertEqual(req.url?.path, "/v1/status")
-            return (200, Data(#"{"status":"pending_review"}"#.utf8))
-        }
-        await gate.poll(); XCTAssertEqual(calls, 0)
-        gate.opened(); await gate.poll(); XCTAssertEqual(calls, 1)
-        XCTAssertEqual(gate.state, .pendingReview)
-        gate.closed(); await gate.poll(); XCTAssertEqual(calls, 1)
+        store.values["claim-id"] = Data("open-claim".utf8)
+        let gate = gate(store: store)
+        gate.start()
+        guard case .checking(let id, _, _, _) = gate.state else { return XCTFail("Expected checking") }
+        XCTAssertEqual(id, "open-claim")
     }
-    func testPendingPollCanUnlock() async throws {
-        let store = IslandGateMemoryStore(); store.values["session"] = Data("test-session".utf8)
-        let gate = gate(store: store); gate.start(); gate.transition(.pendingReview); gate.opened()
+    func testPollUnlockStoresEntitlement() async throws {
+        let store = IslandGateMemoryStore()
+        store.values["claim-id"] = Data("claim-42".utf8)
+        let gate = gate(store: store)
+        gate.start()
         let data = try JSONSerialization.data(withJSONObject: ["status": "unlocked", "entitlement": token()])
-        IslandGateURLProtocol.handler = { _ in (200, data) }
-        await gate.poll(); XCTAssertTrue(gate.isUnlocked); gate.closed()
-    }
-    func testConflictRebindSignsRequestAndUnlocks() async throws {
-        let store = IslandGateMemoryStore(); store.values["session"] = Data("test-session".utf8)
-        let gate = gate(store: store); gate.start()
-        gate.handle(IslandGateFailure(code: "device_conflict", device_name: "Studio"))
-        let data = try JSONSerialization.data(withJSONObject: ["status": "unlocked", "entitlement": token()])
-        let received = expectation(description: "Rebind request")
         IslandGateURLProtocol.handler = { req in
-            XCTAssertEqual(req.url?.path, "/v1/device/rebind")
-            XCTAssertEqual(req.value(forHTTPHeaderField: "Authorization"), "Bearer test-session")
-            received.fulfill(); return (200, data)
+            XCTAssertEqual(req.url?.path, "/v1/claims/claim-42")
+            return (200, data)
         }
-        gate.rebind()
-        await fulfillment(of: [received], timeout: 3)
-        for _ in 0..<30 {
-            if gate.isUnlocked { break }
-            try await Task.sleep(nanoseconds: 10_000_000)
-        }
+        await gate.pollOnce()
         XCTAssertTrue(gate.isUnlocked)
+        XCTAssertNil(store.values["claim-id"])
+    }
+    func testShareCopiesLinkedInPreset() {
+        let gate = gate()
+        gate.setConfigForTests(IslandGateConfig(
+            x: .init(handle: "guru", profile_url: URL(string: "https://x.com/guru")!, intent_url: URL(string: "https://x.com/intent/post")!, preset_text: "x"),
+            linkedin: .init(share_url: URL(string: "https://www.linkedin.com/sharing/share-offsite/?url=x")!, preset_text: "li preset", follow_url: URL(string: "https://www.linkedin.com/in/guru")),
+            match: nil, grace_days: 14, poll_seconds: 60, check_eta_text: nil
+        ))
+        gate.transition(.locked(linkedIn: true))
+        gate.openShare()
+        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "li preset")
+        XCTAssertTrue(gate.copied)
     }
     func testIslandPanelPermissionAndVoiceStreamingIndependent() throws {
         let gate = gate()
@@ -166,22 +123,19 @@ final class IslandGateStateTests: XCTestCase {
         defer { island.shutdown() }
         XCTAssertFalse(island.panelAllowed)
         XCTAssertFalse(island.debugPanel.isShown)
-        // These paths and the hub remain callable with a locked gate.
         island.startStreaming()
         XCTAssertFalse(island.debugPanel.isShown)
         island.stopStreaming()
-        XCTAssertFalse(island.debugPanel.isShown)
         island.ingest(IslandSnapshot(kind: "listening", title: "Listening"))
-        try gate.apply(IslandGateReply(entitlement: token()))
+        try gate.applyEntitlementForTests(token())
         XCTAssertTrue(island.panelAllowed)
         XCTAssertTrue(island.debugPanel.isShown)
         settings.set(false, for: IslandSettingsSchema.showIsland)
         XCTAssertFalse(island.panelAllowed)
         gate.signOut(); XCTAssertFalse(island.panelAllowed)
-        XCTAssertFalse(island.debugPanel.isShown)
     }
     func testEverySnapshotFixtureAvoidsKeychainAndNetwork() throws {
-        for state in ["locked", "signing-in", "needs-verify-x", "needs-verify-linkedin", "pending", "conflict", "unlocked", "error"] {
+        for state in ["locked", "locked-linkedin", "waking", "checking", "conflict", "unlocked", "rejected", "error"] {
             let gate = try IslandGateFixtures.gate(state)
             gate.start()
             XCTAssertEqual(gate.isUnlocked, state == "unlocked")

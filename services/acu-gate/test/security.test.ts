@@ -1,114 +1,138 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createSign, generateKeyPairSync } from "node:crypto";
-import {
-  verifyLinkedInIdToken,
-} from "../src/providers.ts";
-import { startMocks } from "../src/mock-providers.ts";
-import { harness } from "./helpers.ts";
+import { harness, device, signRequest, xPostUrl, goodPostText } from "./helpers.ts";
+import { seedGoodPost } from "../src/mock-services.ts";
 import { MemoryStore } from "../src/store.ts";
+import { authorHandleFromOEmbedUrl } from "../src/handles.ts";
 
-function signBadLinkedInToken(
-  env: NodeJS.ProcessEnv,
-  overrides: Record<string, unknown>,
-) {
-  const keys = generateKeyPairSync("rsa", { modulusLength: 2048 });
-  const jwk = keys.publicKey.export({ format: "jwk" }) as Record<string, string>;
-  jwk.kid = "bad";
-  const header = Buffer.from(
-    JSON.stringify({ alg: "RS256", typ: "JWT", kid: "bad" }),
-  ).toString("base64url");
-  const now = Math.floor(Date.now() / 1000);
-  const payload = Buffer.from(
-    JSON.stringify({
-      iss: "https://www.linkedin.com",
-      aud: env.LINKEDIN_CLIENT_ID,
-      sub: "li:test",
-      exp: now + 3600,
-      nonce: "expected",
-      ...overrides,
-    }),
-  ).toString("base64url");
-  const data = `${header}.${payload}`;
-  const sig = createSign("RSA-SHA256")
-    .update(data)
-    .sign(keys.privateKey)
-    .toString("base64url");
-  return { token: `${data}.${sig}`, jwk };
+function freshStatusId() {
+  return ((BigInt(Date.now() - 1288834974657) << 22n) + 1n).toString();
 }
 
-test("LinkedIn id_token rejects bad nonce, aud, and signature", async (t) => {
-  const mock = await startMocks();
-  t.after(mock.close);
-  const env = {
-    ...mock.env,
-    LINKEDIN_CLIENT_ID: "test-client",
-    LINKEDIN_JWKS_URL: `${mock.base}/oauth/openid/jwks`,
-  };
-  await assert.rejects(
-    verifyLinkedInIdToken(
-      signBadLinkedInToken(env, { nonce: "wrong" }).token,
-      env,
-      "expected",
-    ),
-    (error: { code?: string }) => error.code === "invalid_token",
-  );
-  await assert.rejects(
-    verifyLinkedInIdToken(
-      signBadLinkedInToken(env, { aud: "other-client" }).token,
-      env,
-      "expected",
-    ),
-    (error: { code?: string }) => error.code === "invalid_token",
-  );
-  const mismatched = signBadLinkedInToken(env, {});
-  await assert.rejects(
-    verifyLinkedInIdToken(mismatched.token, env, "expected"),
-    (error: { code?: string }) => error.code === "invalid_token",
-  );
+test("oEmbed author_url must be on X hosts", () => {
+  assert.equal(authorHandleFromOEmbedUrl("https://evil.test/alice"), "");
+  assert.equal(authorHandleFromOEmbedUrl("https://x.com/alice"), "alice");
 });
 
-test("OAuth callback stores token without calling X users/me", async (t) => {
+test("oEmbed spoofed author_url on foreign host fails post check", async (t) => {
   const h = await harness(t);
-  const prepared = await h.authorize("x", "guru_test");
-  assert.ok(prepared.code);
-  assert.equal((await h.store.list("identities")).length, 0);
-  assert.equal((await h.store.list("x_calls")).length, 0);
-  const redeemed = await h.request("/v1/session/redeem", {
-    data: {
-      code: prepared.code,
-      app_verifier: prepared.verifier,
-      device_id: prepared.device.id,
-      device_pubkey: prepared.device.key,
+  const handle = "alice";
+  const postUrl = xPostUrl(handle, freshStatusId());
+  h.mock.state.oembed.set(postUrl, {
+    status: 200,
+    author_url: `https://evil.test/${handle}`,
+    html: `<p>${goodPostText()}</p>`,
+  });
+  const created = await h.claim("x", handle, device(), postUrl);
+  assert.equal(created.data.checks.post, "failed");
+});
+
+test("claim body hash must match signed bytes", async (t) => {
+  const h = await harness(t);
+  const d = device();
+  const signed = signRequest(d, "claim", {
+    provider: "x",
+    handle: "bodyhash",
+    post_url: null,
+    device_pubkey: d.key,
+    device_name: "Mac",
+  });
+  const tampered = JSON.stringify({
+    ...JSON.parse(signed.body),
+    device_name: "Other Mac",
+  });
+  const response = await fetch(`${h.base}/v1/claims`, {
+    method: "POST",
+    headers: signed.headers,
+    body: tampered,
+  });
+  assert.equal(response.status, 401);
+});
+
+test("claim rate limit per IP", async (t) => {
+  const h = await harness(t);
+  let limited = { status: 200 };
+  for (let i = 0; i < 8; i += 1) {
+    const d = device();
+    const signed = signRequest(d, "claim", {
+      provider: "x",
+      handle: `ip${i}`,
+      post_url: null,
+      device_pubkey: d.key,
+      device_name: "Mac",
+    });
+    limited = await fetch(`${h.base}/v1/claims`, {
+      method: "POST",
+      headers: signed.headers,
+      body: signed.body,
+    });
+    if (limited.status === 429) break;
+  }
+  assert.equal(limited.status, 429);
+  assert.equal((await limited.json()).error, "rate_limited");
+});
+
+test("claim rate limit per device daily", async (t) => {
+  const store = new MemoryStore();
+  const h = await harness(t, store);
+  const d = device();
+  const day = new Date().toISOString().slice(0, 10);
+  await store.atomic([
+    {
+      kind: "insert",
+      table: "claim_device_limits",
+      row: { device_id: d.id, day, count: 10 },
     },
+  ]);
+  const signed = signRequest(d, "claim", {
+    provider: "x",
+    handle: "limited",
+    post_url: null,
+    device_pubkey: d.key,
+    device_name: "Mac",
   });
-  assert.equal(redeemed.status, 200);
+  const limited = await fetch(`${h.base}/v1/claims`, {
+    method: "POST",
+    headers: signed.headers,
+    body: signed.body,
+  });
+  assert.equal(limited.status, 429);
+  assert.equal((await limited.json()).error, "rate_limited");
 });
 
-test("verify rate limit returns retry_after", async (t) => {
+test("poll rate limit per device", async (t) => {
   const h = await harness(t);
-  const a = await h.login();
-  const first = await h.request("/v1/verify/x", {
-    session: a.data.session,
-    data: {},
-  });
-  assert.notEqual(first.status, 429);
-  const second = await h.request("/v1/verify/x", {
-    session: a.data.session,
-    data: {},
-  });
-  assert.equal(second.status, 429);
-  assert.equal(second.data.error, "rate_limited");
-  assert.equal(typeof second.data.retry_after, "number");
+  const handle = "pollrate";
+  const d = device();
+  const created = await h.claim("x", handle, d);
+  let limited = { status: 200 };
+  for (let i = 0; i < 62; i += 1) {
+    limited = await h.poll(String(created.data.claim_id), d);
+    if (limited.status === 429) break;
+  }
+  assert.equal(limited.status, 429);
 });
 
-test("X daily budget circuit breaker", async (t) => {
-  const h = await harness(t, new MemoryStore(), { X_DAILY_CALL_BUDGET: "1" });
-  const a = await h.login();
-  const result = await h.request("/v1/verify/x", {
-    session: a.data.session,
-    data: {},
+test("wall consent requires valid signature", async (t) => {
+  const h = await harness(t);
+  const handle = "wall1";
+  const d = device();
+  const postUrl = xPostUrl(handle, freshStatusId());
+  seedGoodPost(h.mock.state, postUrl, handle, goodPostText());
+  await h.store.atomic([
+    {
+      kind: "insert",
+      table: "followers",
+      row: { provider: "x", handle, x_user_id: "1" },
+    },
+  ]);
+  await h.claim("x", handle, d, postUrl);
+  const payload = { device_id: d.id, show: true };
+  const signed = signRequest(d, "wall", payload);
+  const ok = await fetch(`${h.base}/v1/wall`, {
+    method: "POST",
+    headers: signed.headers,
+    body: signed.body,
   });
-  assert.equal(result.status, 503);
-  assert.equal(result.data.error, "x_unavailable");
+  assert.equal(ok.status, 200);
 });

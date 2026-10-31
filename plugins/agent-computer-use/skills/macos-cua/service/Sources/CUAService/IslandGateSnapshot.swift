@@ -20,10 +20,8 @@ struct IslandGateSnapshotCommand: ParsableCommand {
             let gate = try IslandGateFixtures.gate(stateName)
             let controller = IslandGateWindowController(gate: gate)
             guard let window = controller.window, let content = window.contentView else { throw ValidationError("Cannot create snapshot window") }
-            // Lay out the same NSHostingView and AppKit controls used by the interactive window.
             defer { window.close() }
             controller.fitContent()
-            // Render offscreen unless the caller explicitly requested a visible window.
             if !live && capturePath == nil { window.setFrameOrigin(NSPoint(x: -10_000, y: -10_000)) }
             window.orderFrontRegardless()
             content.layoutSubtreeIfNeeded()
@@ -55,19 +53,24 @@ struct IslandGateSnapshotCommand: ParsableCommand {
 @MainActor
 enum IslandGateFixtures {
     static func gate(_ name: String) throws -> IslandGate {
-        let account = IslandGateAccount(id: "fixture", provider: name == "needs-verify-linkedin" ? "linkedin" : "x", handle: "@islandfriend", name: "Island Friend", verified: true)
+        let account = IslandGateAccount(id: "fixture", provider: name.contains("linkedin") ? "linkedin" : "x", handle: "@islandfriend", name: "Island Friend", verified: true)
         let state: IslandGateState
         switch name {
         case "locked": state = .locked()
-        case "signing-in": state = .signingIn("x")
-        case "needs-verify-x": state = .needsVerify(provider: "x", follow: true, post: false)
-        case "needs-verify-linkedin": state = .needsVerify(provider: "linkedin", follow: false, post: false)
-        case "pending": state = .pendingReview
-        case "conflict": state = .conflict(deviceName: "Studio Mac", boundAt: "2026-10-24T12:00:00Z", rebindAvailableAt: nil)
+        case "locked-linkedin": state = .locked(linkedIn: true)
+        case "waking": state = .waking
+        case "checking":
+            state = .checking(claimID: "fixture-claim", since: Date(), follow: .pending, post: .confirmed)
+        case "conflict": state = .conflict(deviceName: "Studio Mac", rebindAvailableAt: nil)
         case "unlocked": state = .unlocked(account: account, verified: true, exp: Date().addingTimeInterval(14 * 86400))
+        case "rejected": state = .rejected(message: IslandGateFailure(code: "follow_missing").message)
         case "error": state = .error(code: "offline", message: IslandGateFailure(code: "offline").message)
         default: throw ValidationError("Unknown gate state: \(name)")
         }
-        return IslandGate(fixtureState: state, fixtureAccount: account)
+        let gate = IslandGate(fixtureState: state, fixtureAccount: account)
+        if name == "locked" || name == "locked-linkedin" {
+            gate.handleText = name == "locked-linkedin" ? "https://www.linkedin.com/in/islandfriend" : "@islandfriend"
+        }
+        return gate
     }
 }

@@ -3,10 +3,14 @@ import { once } from "node:events";
 import { generateKeyPairSync, randomBytes, sign } from "node:crypto";
 import type { TestContext } from "node:test";
 import { createGate } from "../src/server.ts";
-import { startMocks, closeServer } from "../src/mock-providers.ts";
+import { startMockServices } from "../src/mock-services.ts";
 import { MemoryStore } from "../src/store.ts";
 import type { Store } from "../src/store.ts";
-import { pkce, opaque } from "../src/providers.ts";
+import { sha256Hex } from "../src/crypto.ts";
+import { preset } from "../src/settings.ts";
+
+let signSecond = Math.floor(Date.now() / 1000);
+
 export function device() {
   const keys = generateKeyPairSync("ec", { namedCurve: "prime256v1" }),
     jwk = keys.publicKey.export({ format: "jwk" });
@@ -20,43 +24,50 @@ export function device() {
     privateKey: keys.privateKey,
   };
 }
-export function signature(
+
+export function signRequest(
   d: ReturnType<typeof device>,
-  action: string,
-  ts = Math.floor(Date.now() / 1000),
-  show?: boolean,
+  action: "claim" | "poll" | "refresh" | "wall",
+  body: string | Record<string, unknown> = "{}",
 ) {
-  const message = `acu-gate-${action}|${d.id}|${ts}${action === "wall" ? `|${show}` : ""}`;
+  const raw = typeof body === "string" ? body : JSON.stringify(body);
+  const ts = signSecond++;
+  const bodyHash = sha256Hex(raw);
+  const message = `acu-gate|${action}|${d.id}|${ts}|${bodyHash}`;
   return {
-    device_id: d.id,
-    ts,
-    sig: sign("sha256", Buffer.from(message), d.privateKey).toString("base64"),
-    ...(show === undefined ? {} : { show }),
+    headers: {
+      "x-acu-device": d.id,
+      "x-acu-ts": String(ts),
+      "x-acu-sig": sign("sha256", Buffer.from(message), d.privateKey).toString("base64"),
+      "content-type": "application/json",
+    },
+    body: raw,
   };
 }
-export function callbackParams(location: string) {
-  const target = new URL(location);
-  return target.hash.startsWith("#")
-    ? new URLSearchParams(target.hash.slice(1))
-    : target.searchParams;
+
+export function goodPostText() {
+  return preset.x.preset_text;
 }
+
+export function xPostUrl(handle: string, statusId = "1999999999999999999") {
+  return `https://x.com/${handle}/status/${statusId}`;
+}
+
 export async function harness(
   t: TestContext,
   store: Store = new MemoryStore(),
   envExtra: Record<string, string> = {},
 ) {
-  const mock = await startMocks();
+  const mock = await startMockServices();
   const gate = createGate(
     {
       DEV: "1",
       PUBLIC_BASE_URL: "http://127.0.0.1",
-      OWNER_X_USER_ID: "owner",
-      FOLLOW_CHECK_MODE: "user_following",
       ...mock.env,
       ...envExtra,
     },
     store,
-    { pageFetch: mock.pageFetch },
+    { pageFetch: mock.pageFetch, oembed: undefined, downloads: undefined },
   );
   gate.server.listen(0, "127.0.0.1");
   await once(gate.server, "listening");
@@ -65,37 +76,78 @@ export async function harness(
   const base = `http://127.0.0.1:${address.port}`;
   gate.env.PUBLIC_BASE_URL = base;
   t.after(async () => {
-    await closeServer(gate.server);
     await mock.close();
+    await new Promise<void>((resolve, reject) =>
+      gate.server.close((error) => (error ? reject(error) : resolve())),
+    );
   });
+  async function claim(
+    provider: "x" | "linkedin",
+    handle: string,
+    d = device(),
+    post_url: string | null = null,
+    show_on_wall = false,
+  ) {
+    const payload = {
+      provider,
+      handle,
+      post_url,
+      device_pubkey: d.key,
+      device_name: "Test Mac",
+      show_on_wall,
+    };
+    const signed = signRequest(d, "claim", payload);
+    const response = await fetch(`${base}/v1/claims`, {
+      method: "POST",
+      headers: signed.headers,
+      body: signed.body,
+    });
+    const data = await response.json();
+    return { status: response.status, data, device: d };
+  }
+  async function poll(claimId: string, d: ReturnType<typeof device>) {
+    const signed = signRequest(d, "poll", "");
+    const response = await fetch(`${base}/v1/claims/${claimId}`, {
+      method: "GET",
+      headers: signed.headers,
+    });
+    return { status: response.status, data: await response.json() };
+  }
   async function request(
     path: string,
     options: {
       method?: string;
       data?: unknown;
-      session?: string;
       admin?: boolean;
+      headers?: Record<string, string>;
+      body?: string;
     } = {},
   ) {
     const response = await fetch(base + path, {
-      method: options.method || (options.data === undefined ? "GET" : "POST"),
+      method: options.method || (options.data === undefined && !options.body ? "GET" : "POST"),
       redirect: "manual",
       headers: {
-        ...(options.session
-          ? { authorization: `Bearer ${options.session}` }
-          : {}),
         ...(options.admin
           ? { authorization: `Bearer ${gate.env.ADMIN_TOKEN}` }
           : {}),
-        ...(options.data === undefined
-          ? {}
-          : { "content-type": "application/json" }),
+        ...(options.headers ?? {}),
+        ...(options.body !== undefined ||
+        (options.data !== undefined &&
+          (options.method === "POST" || options.method === "PUT" || options.method === "PATCH"))
+          ? { "content-type": "application/json" }
+          : {}),
       },
-      ...(options.data === undefined
-        ? {}
-        : { body: JSON.stringify(options.data) }),
+      ...(options.body !== undefined
+        ? { body: options.body }
+        : options.data !== undefined &&
+            (options.method === "POST" ||
+              options.method === "PUT" ||
+              options.method === "PATCH" ||
+              (!options.method && options.data !== undefined))
+          ? { body: JSON.stringify(options.data) }
+          : {}),
     });
-    let data: Record<string, any> = {};
+    let data: Record<string, unknown> = {};
     if (
       response.status !== 204 &&
       response.headers.get("content-type")?.includes("application/json")
@@ -104,65 +156,5 @@ export async function harness(
     else await response.arrayBuffer();
     return { status: response.status, data, headers: response.headers };
   }
-  async function linkTicket(session: string, deviceId: string) {
-    const ticket = await request("/v1/auth/link-ticket", {
-      data: { device_id: deviceId },
-      session,
-    });
-    assert.equal(ticket.status, 200);
-    return String(ticket.data.ticket);
-  }
-  async function authorize(
-    provider = "x",
-    user = "guru_test",
-    d = device(),
-    link?: string,
-  ) {
-    const verifier = opaque();
-    const params = new URLSearchParams({
-      device_id: d.id,
-      device_name: "Test Mac",
-      app_challenge: pkce(verifier),
-      mock_user: user,
-    });
-    if (link) {
-      params.set("link", "1");
-      params.set("link_ticket", await linkTicket(link, d.id));
-    }
-    const start = await request(`/v1/auth/${provider}/start?${params}`);
-    assert.equal(start.status, 302);
-    const authorize = new URL(start.headers.get("location")!);
-    authorize.searchParams.set("mock_user", user);
-    const approved = await fetch(authorize, { redirect: "manual" });
-    assert.equal(approved.status, 302);
-    await approved.arrayBuffer();
-    const callback = await fetch(approved.headers.get("location")!, {
-      redirect: "manual",
-    });
-    assert.equal(callback.status, 302);
-    await callback.arrayBuffer();
-    const location = callback.headers.get("location")!;
-    const callbackQuery = callbackParams(location);
-    assert.equal(callbackQuery.get("error"), null, "OAuth callback failed");
-    assert.match(location, /#code=/);
-    return { code: callbackQuery.get("code"), verifier, device: d };
-  }
-  async function login(
-    provider = "x",
-    user = "guru_test",
-    d = device(),
-    link?: string,
-  ) {
-    const prepared = await authorize(provider, user, d, link);
-    const redeemed = await request("/v1/session/redeem", {
-      data: {
-        code: prepared.code,
-        app_verifier: prepared.verifier,
-        device_id: d.id,
-        device_pubkey: d.key,
-      },
-    });
-    return { ...redeemed, ...prepared };
-  }
-  return { mock, gate, store, base, request, login, authorize };
+  return { mock, gate, store, base, request, claim, poll, device };
 }
