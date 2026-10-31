@@ -59,6 +59,31 @@
       "id": "test_install_release.InstallReleaseTests.test_icns_built_by_iconutil",
       "when": "platform != darwin",
       "reason": "iconutil ships only with macOS; the icns build is proven on the Mini check"
+    },
+    {
+      "id": "test_contract.StoreTests.test_the_helper_bills_every_read_it_makes_to_a_named_actor",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_lookup_task_ids_reach_access_logs_and_reject_invalid_ids",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_select_reports_whether_its_nearest_record_is_grounded",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_select_does_not_surface_a_record_find_hides",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_select_is_off_on_an_a_b_off_day",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
     }
   ],
   "harness_skips": [
