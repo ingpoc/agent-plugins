@@ -24,3 +24,5 @@ plugins/agent-computer-use/runtime/voice-cua/*.spec
 **/.secret/
 .env
 .env.*
+services/*/node_modules/
+services/*/.env

@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: acu-gate
+    runtime: node
+    region: oregon
+    # The free plan sleeps; the 14-day entitlement grace covers outages.
+    plan: starter
+    rootDir: services/acu-gate
+    buildCommand: npm ci
+    startCommand: npm run migrate && node src/server.ts
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: PORT
+        value: "10000"
+      - key: APP_CALLBACK_SCHEME
+        value: acu-island
+      - key: FOLLOW_CHECK_MODE
+        value: owner_followers
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: X_CLIENT_ID
+        sync: false
+      - key: X_CLIENT_SECRET
+        sync: false
+      - key: OWNER_X_USER_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: ENTITLEMENT_PRIVATE_KEY
+        sync: false
+      - key: TOKEN_ENC_KEY
+        sync: false
+      - key: EMAIL_HASH_KEY
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false

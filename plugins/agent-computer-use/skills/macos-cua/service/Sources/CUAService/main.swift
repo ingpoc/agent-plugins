@@ -65,4 +65,8 @@ struct CUAServiceCLI: ParsableCommand {
     }
 }
 
-CUAServiceCLI.main()
+if CommandLine.arguments.dropFirst().first == "gate-snapshot" {
+    IslandGateSnapshotCommand.main(Array(CommandLine.arguments.dropFirst(2)))
+} else {
+    CUAServiceCLI.main()
+}

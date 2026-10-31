@@ -1,0 +1,4 @@
+<span data-acu-counter="https://REPLACE_WITH_GATE_HOST">Unlocks: —</span>
+<script>
+(()=>{const element=document.currentScript.previousElementSibling;fetch(element.dataset.acuCounter+'/v1/public/counter').then(r=>r.json()).then(data=>{element.textContent='Unlocks: '+Number(data.unlocks).toLocaleString();}).catch(()=>{});})();
+</script>

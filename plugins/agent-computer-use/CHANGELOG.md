@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.65 (unreleased, PR draft)
+
+- Dynamic Island gate (free, verify-to-unlock): the island unlocks after Sign in with X (follow @gurusharan + post the preset) or, with no X account, Sign In with LinkedIn (share the preset + paste the post link, reviewed when it can't be auto-checked). One person, one Mac, 14-day offline grace, safe "Move to this Mac" rebind. While locked the island stays hidden and Samantha shows her state in the menu bar; computer use, Samantha and every other plugin are unchanged. Opt-in "Show me on the site" wall. Backend in `services/acu-gate` (Render + Neon), not deployed. Plan: `docs/island-gate-plan.md`.
+
 ## 0.2.64 (2026-10-31)
 
 - Settings redesign: General, Agents, Samantha and Computer Use panes plus About. One source table (show and alert level per agent), three alert levels, one alert timer, "Open on" choice, Open at login (SMAppService), done/error peeks only at the critical level, last pane remembered. Old settings migrate on first launch; every allowed value was screenshotted at its extremes.
