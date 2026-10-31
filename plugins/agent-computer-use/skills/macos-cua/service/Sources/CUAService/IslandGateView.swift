@@ -1,194 +1,224 @@
 import AppKit
 import SwiftUI
+import Combine
+
+private enum GateColor {
+    static let window = Color(red: 30/255, green: 30/255, blue: 30/255)
+    static let card = Color(red: 42/255, green: 42/255, blue: 44/255)
+    static let blue = Color(red: 10/255, green: 132/255, blue: 1)
+    static let green = Color(red: 48/255, green: 209/255, blue: 88/255)
+    static let red = Color(red: 1, green: 69/255, blue: 58/255)
+    static let amber = Color(red: 1, green: 179/255, blue: 64/255)
+    static let wave = Color(red: 100/255, green: 210/255, blue: 1)
+}
 
 struct IslandGateView: View {
     @ObservedObject var gate: IslandGate
     var close: () -> Void = {}
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var inputFocused: Bool
+    @State private var linkHover = false
+    @State private var animateWave = false
+    @State private var barMoving = false
 
     var body: some View {
-        VStack(spacing: 22) {
-            HStack(spacing: 10) {
-                BrandMark(size: 28)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Agent Computer Use").font(.system(size: 14, weight: .semibold))
-                    Text("DYNAMIC ISLAND").font(.system(size: 10, weight: .medium)).tracking(1.5).foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            preview
-            VStack(alignment: .leading, spacing: 16) { content }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            HStack {
-                Image(systemName: "lock.shield")
-                Text("Free to unlock. One account, one Mac.")
-            }.font(.system(size: 11)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 0) {
+            preview.frame(maxWidth: .infinity)
+            gap(24)
+            content
+            gap(gate.state == .waking ? 20 : 16)
+            HStack(spacing: 5) { Image(systemName: "lock.shield"); Text("Free to unlock. One account, one Mac.") }
+                .font(.system(size: 11)).foregroundStyle(.white.opacity(0.5)).frame(maxWidth: .infinity)
             Button("Close", action: close).keyboardShortcut(.cancelAction).hidden().frame(height: 0)
         }
-        .padding(28).frame(width: 440)
-        .background {
-            ZStack {
-                Color(white: 0.075)
-                IslandGateVibrancy()
-                Color.black.opacity(0.74)
-            }.ignoresSafeArea()
-        }
-        .ignoresSafeArea()
-        .foregroundStyle(.white)
-        .preferredColorScheme(.dark)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: gate.state)
+        .padding(.horizontal, 24).padding(.top, 48).padding(.bottom, 20)
+        .frame(width: 440).fixedSize(horizontal: false, vertical: true)
+        .background(GateColor.window).foregroundStyle(.white).preferredColorScheme(.dark)
+        .onAppear { if gate.focusInput { inputFocused = true; gate.focusInput = false } }
+        .onChange(of: gate.focusInput) { value in if value { inputFocused = true; gate.focusInput = false } }
     }
+    private func gap(_ n: CGFloat) -> some View { Color.clear.frame(height: n) }
     private var preview: some View {
         HStack(spacing: 12) {
-            BrandMark(size: 20)
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Your agents, at a glance").font(.system(size: 12, weight: .semibold))
-                Text("Live runs · approvals · Samantha").font(.system(size: 10)).foregroundStyle(.secondary)
+            BrandMark(size: 24)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Your agents, at a glance").font(.system(size: 13, weight: .semibold))
+                HStack(spacing: 4) {
+                    if gate.isUnlocked { Circle().fill(GateColor.green).frame(width: 5, height: 5) }
+                    Text("Live runs · approvals · Samantha").font(.system(size: 11)).foregroundStyle(.white.opacity(0.6))
+                }
             }
             Spacer(minLength: 0)
-            Image(systemName: "waveform").foregroundStyle(.mint)
-        }.padding(.horizontal, 20).padding(.vertical, 17)
-            .background(.black, in: Capsule())
-            .clipShape(Capsule())
-            .overlay(Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 1))
-            .compositingGroup()
-            .shadow(color: .mint.opacity(0.12), radius: 6, y: 2)
-            .padding(18)
-            .clipped()
+            HStack(spacing: 2) {
+                ForEach(0..<10) { i in
+                    Capsule().fill(GateColor.wave).frame(width: 2, height: CGFloat([6, 10, 15, 20, 14, 19, 12, 16, 10, 6][i]) * (gate.isUnlocked && animateWave ? 0.65 : 1))
+                }
+            }.onAppear {
+                if gate.isUnlocked && !reduceMotion { withAnimation(.easeInOut(duration: 0.65).repeatForever(autoreverses: true)) { animateWave = true } }
+            }.onChange(of: gate.isUnlocked) { live in
+                if live && !reduceMotion { withAnimation(.easeInOut(duration: 0.65).repeatForever(autoreverses: true)) { animateWave = true } }
+            }
+        }.padding(.horizontal, 18).frame(width: 340, height: 56)
+            .background(.black, in: Capsule()).overlay(Capsule().strokeBorder(.white.opacity(0.08)))
             .accessibilityElement(children: .combine)
     }
     @ViewBuilder private var content: some View {
         switch gate.state {
-        case .locked(let linkedIn, let message):
-            unlockSheet(linkedIn: linkedIn, message: message)
-        case .submitting:
-            heading("Sending your check", "Hang on a moment.")
-            ProgressView().controlSize(.small)
+        case .locked(let linkedIn, let message): form(linkedIn: linkedIn, message: message)
+        case .submitting: heading("Checking your post", "Hang on a moment."); gap(20); ProgressView().controlSize(.mini)
         case .waking:
-            heading("Waking up the unlock service…", "This can take up to a minute the first time.")
-            ProgressView().controlSize(.small)
-        case .checking(_, _, let follow, let post):
-            checkingView(follow: follow, post: post)
+            heading("Starting the unlock service", "This takes up to a minute the first time."); gap(20)
+            wakingBar
+        case .checking(_, _, let follow, let post): checking(follow: follow, post: post, notFound: post == .failed)
+        case .unlocked(let account, _, let exp): unlocked(account, exp: exp)
+        case .error(let code, let message):
+            if ["post_not_found", "post_author_mismatch", "post_missing_tag", "post_too_old"].contains(code) {
+                checking(follow: .confirmed, post: .failed, notFound: true)
+            } else if ["offline", "service_wake_timeout", "timeout", "network_error"].contains(code) {
+                Image(systemName: "exclamationmark.triangle").font(.system(size: 28)).foregroundStyle(GateColor.red); gap(12)
+                heading("Can’t reach the unlock service", "Check your connection and try again. Your steps are saved."); gap(20)
+                primary("Try again", enabled: true, action: gate.retry); gap(12)
+                secondary("Start over", action: gate.startOver)
+            } else { heading("Let’s try that again.", message); gap(20); primary("Try again", enabled: true, action: gate.retry); gap(12); secondary("Start over", action: gate.startOver) }
+        case .rejected(let message): heading("Almost there.", message); gap(20); primary("Try again", enabled: true, action: gate.retryFromRejected)
         case .conflict(let device, let available):
-            heading("Bring your island here?", "Island is on \(device ?? "another Mac"). Move it to this Mac with a fresh post?")
-            if let device { Label(device, systemImage: "laptopcomputer").font(.system(size: 14, weight: .medium)) }
-            if let available { notice("You can move it on \(Self.date(available)).") }
-            primary("Try again", action: gate.tryMoveHere).disabled(Self.inCooldown(available))
-            Button("Cancel", action: close).buttonStyle(.link)
-        case .unlocked(let account, let verified, let exp):
-            heading("Your island is ready.", "Your agents now have a home at the top of this Mac.")
-            if let banner = gate.deepLinkBanner { notice(banner) }
-            HStack {
-                Label(account.handle, systemImage: "person.crop.circle")
-                if verified { Image(systemName: "checkmark.seal.fill").foregroundStyle(.blue).accessibilityLabel("Verified account") }
-            }.font(.system(size: 14, weight: .semibold))
-            Text("\(account.provider == "x" ? "X" : "LinkedIn") · Bound to this Mac").font(.system(size: 12)).foregroundStyle(.secondary)
-            Text("Offline access until \(exp.formatted(date: .abbreviated, time: .omitted))").font(.system(size: 11)).foregroundStyle(.secondary)
-            wallConsent(unlocked: true)
-            primary("Enjoy your island", action: close)
-        case .rejected(let message):
-            heading("Almost there.", message)
-            primary("Try again", action: gate.retryFromRejected)
-        case .error(_, let message):
-            heading("Let's try that again.", message)
-            primary("Retry", action: gate.retry)
-            Button("Start over") { gate.signOut() }.buttonStyle(.link)
+            heading("Bring your island here?", "Island is on \(device ?? "another Mac"). Move it to this Mac with a fresh post?"); gap(20)
+            primary("Try again", enabled: !Self.inCooldown(available), action: gate.tryMoveHere); gap(12); secondary("Cancel", action: close)
         }
     }
-    @ViewBuilder private func unlockSheet(linkedIn: Bool, message: String?) -> some View {
-        heading("Unlock the island", linkedIn ? "Follow on LinkedIn, share the preset, then tell us your profile." : "Follow @gurusharan, post about ACU, then tell us your handle.")
-        if let message { notice(message) }
-        if let banner = gate.deepLinkBanner, !gate.isUnlocked { notice(banner) }
-        if linkedIn {
-            linkedInSteps
-        } else {
-            xSteps
-            Button("No X account? Use LinkedIn") { gate.useLinkedInRoute() }.buttonStyle(.link).font(.system(size: 12)).frame(maxWidth: .infinity)
-        }
-    }
-    private var xSteps: some View {
+    private var wakingBar: some View {
         Group {
-            stepRow("Follow @gurusharan", button: "Follow", action: gate.openFollow, xPrimary: true)
-            stepRow("Post about ACU", button: "Post", action: gate.openShare, xPrimary: true)
-            Text("Your X handle").font(.system(size: 12, weight: .medium))
-            TextField("@handle", text: $gate.handleText).textFieldStyle(.roundedBorder).accessibilityLabel("Your X handle").accessibilityIdentifier("Your X handle")
-            optionalPostLink
-            wallConsent(unlocked: false)
-            primary("Check", action: gate.submitCheck).disabled(!gate.isHandleValid)
-        }
-    }
-    private var linkedInSteps: some View {
-        Group {
-            if gate.config?.linkedInFollowURL != nil {
-                stepRow("Follow Gurusharan on LinkedIn", button: "Follow", action: gate.openFollow, xPrimary: false)
+            if reduceMotion { ProgressView().progressViewStyle(.linear).frame(height: 4) }
+            else {
+                GeometryReader { proxy in
+                    Capsule().fill(.white.opacity(0.1))
+                        .overlay(alignment: .leading) {
+                            Capsule().fill(GateColor.blue).frame(width: proxy.size.width * 0.38)
+                                .offset(x: barMoving ? proxy.size.width * 0.62 : 0)
+                        }.clipped()
+                }.frame(height: 4).onAppear {
+                    withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { barMoving = true }
+                }
             }
-            stepRow("Share on LinkedIn", button: "Share", action: gate.openShare, xPrimary: false)
-            if gate.copied { Text("Text copied - paste with ⌘V").font(.system(size: 12)).foregroundStyle(.mint).accessibilityAddTraits(.updatesFrequently) }
-            Text("Your LinkedIn profile URL").font(.system(size: 12, weight: .medium))
-            TextField("https://www.linkedin.com/in/…", text: $gate.handleText).textFieldStyle(.roundedBorder).accessibilityLabel("Your LinkedIn profile URL")
-            optionalPostLink
-            wallConsent(unlocked: false)
-            primary("Check", action: gate.submitCheck).disabled(!gate.isHandleValid)
-            Button("Use X instead") { gate.useXRoute() }.buttonStyle(.link).font(.system(size: 12))
-        }
-    }
-    private var optionalPostLink: some View {
-        Group {
-            Text("Post link (optional)").font(.system(size: 12, weight: .medium))
-            TextField("https://…", text: $gate.postURL).textFieldStyle(.roundedBorder).accessibilityLabel("Post link").accessibilityIdentifier("Post link")
-        }
-    }
-    private func checkingView(follow: IslandGateCheckStatus, post: IslandGateCheckStatus) -> some View {
-        Group {
-            heading("Checking… \(gate.checkETAText)", "You can close this window, the island turns on by itself.")
-            ProgressView().controlSize(.regular)
-            checkRow("Follow @gurusharan", status: follow)
-            checkRow("Post about ACU", status: post)
-        }
-    }
-    private func checkRow(_ title: String, status: IslandGateCheckStatus) -> some View {
-        HStack(spacing: 9) {
-            Image(systemName: status == .confirmed ? "checkmark.circle.fill" : (status == .failed ? "xmark.circle.fill" : "circle"))
-                .foregroundColor(status == .confirmed ? .mint : (status == .failed ? .orange : .secondary))
-            Text(title).font(.system(size: 12, weight: .medium))
-            Spacer()
-            Text(status == .confirmed ? "Confirmed" : (status == .failed ? "Pending" : "Pending")).font(.system(size: 11)).foregroundStyle(.secondary)
-        }.padding(12).background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
-    }
-    private func stepRow(_ title: String, button: String, action: @escaping () -> Void, xPrimary: Bool) -> some View {
-        HStack {
-            Text(title).font(.system(size: 12, weight: .medium)).fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
-            if xPrimary {
-                Button(button, action: action).accessibilityLabel(button).accessibilityIdentifier(button).buttonStyle(IslandGatePrimaryButtonStyle(xBrand: true)).controlSize(.small)
-            } else {
-                Button(button, action: action).accessibilityLabel(button).accessibilityIdentifier(button).buttonStyle(.link).controlSize(.small)
-            }
-        }.padding(12).background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
-    }
-    private func wallConsent(unlocked: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle(gate.wallConsentTitle, isOn: Binding(get: { gate.showOnWall }, set: { show in
-                if unlocked { gate.setWallVisibility(show) } else { gate.setLocalWallConsent(show) }
-            }))
-                .toggleStyle(.checkbox).font(.system(size: 12))
-                .disabled(unlocked && gate.wallUpdating)
-            Text("Your handle, avatar and profile link appear in the public 'Who's using it' list. Turn off any time.")
-                .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if let error = gate.wallError { notice(error) }
         }
     }
     private func heading(_ title: String, _ subtitle: String) -> some View {
-        VStack(alignment: .leading, spacing: 9) {
-            Text(title).font(.system(size: 25, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
-            Text(subtitle).font(.system(size: 13)).foregroundStyle(.secondary).lineSpacing(3).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.system(size: 22, weight: .bold)).fixedSize(horizontal: false, vertical: true)
+            Text(subtitle).font(.system(size: 13)).foregroundStyle(.white.opacity(0.6)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+    private func form(linkedIn: Bool, message: String?) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            heading("Unlock the island", linkedIn ? "Follow, share a post, then paste its link. Takes about a minute." : "Follow, post, then tell us your handle. Takes about a minute.")
+            if let message { gap(8); Text(message).font(.system(size: 11)).foregroundStyle(GateColor.amber) }
+            gap(20)
+            VStack(spacing: 0) {
+                stepRow(1, title: linkedIn ? "Follow Gurusharan on LinkedIn" : "Follow @\(gate.config?.x.handle ?? "gurusharan")", caption: linkedIn ? "Opens LinkedIn in your browser" : "Opens X in your browser", button: "Follow", done: gate.followDone, action: gate.openFollow)
+                separator
+                stepRow(2, title: linkedIn ? "Share a post" : "Post about ACU", caption: linkedIn ? "Text is ready, paste it and post" : "Text is ready, just tap Post on X", button: "Post", done: gate.postDone, action: gate.openShare)
+                separator
+                HStack(spacing: 12) {
+                    badge(3, done: gate.isHandleValid, active: gate.activeStep == 3)
+                    TextField(linkedIn ? "LinkedIn post link" : "@handle or post link", text: $gate.handleText)
+                        .textFieldStyle(.plain).font(.system(size: 13)).padding(.horizontal, 8).frame(height: 30)
+                        .background(.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 7))
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(inputFocused ? GateColor.blue : .white.opacity(0.12), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(inputFocused ? GateColor.blue.opacity(0.5) : .clear, lineWidth: 3))
+                        .focused($inputFocused).onSubmit { if gate.isHandleValid { gate.submitCheck() } }
+                        .accessibilityLabel(linkedIn ? "Step 3 of 3, your LinkedIn post link" : "Step 3 of 3, your X handle or post link")
+                }.padding(.horizontal, 16).frame(minHeight: 56)
+            }.background(GateColor.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.06)))
+            if !gate.handleText.isEmpty && !gate.isHandleValid {
+                gap(6); Text(linkedIn ? "That doesn’t look like a LinkedIn post link." : "That doesn’t look like an X handle or post link.").font(.system(size: 11)).foregroundStyle(GateColor.red)
+            }
+            gap(16); wallConsent(unlocked: false, linkedIn: linkedIn); gap(16)
+            primary("Unlock", enabled: gate.isHandleValid, isDefault: gate.activeStep == 3, action: gate.submitCheck)
+            gap(12); secondary(linkedIn ? "Use X instead" : "No X account? Use LinkedIn", action: linkedIn ? gate.useXRoute : gate.useLinkedInRoute)
         }
     }
-    private func primary(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Text(title).frame(maxWidth: .infinity) }.accessibilityLabel(title).accessibilityIdentifier(title).buttonStyle(IslandGatePrimaryButtonStyle()).keyboardShortcut(.defaultAction)
+    private var separator: some View { Rectangle().fill(.white.opacity(0.08)).frame(height: 1).padding(.leading, 52) }
+    private func badge(_ n: Int, done: Bool, active: Bool) -> some View {
+        ZStack {
+            Circle().fill(done ? GateColor.green : .clear)
+            Circle().stroke(done ? .clear : (active ? GateColor.blue : .white.opacity(0.3)), lineWidth: 1.5)
+            if done { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)) }
+            else { Text("\(n)").font(.system(size: 12, weight: .semibold)).foregroundStyle(active ? GateColor.blue : .white.opacity(0.7)) }
+        }.frame(width: 24, height: 24)
     }
-    private func notice(_ text: String) -> some View {
-        Text(text).font(.system(size: 12)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+    private func stepRow(_ number: Int, title: String, caption: String, button: String, done: Bool, action: @escaping () -> Void) -> some View {
+        let active = gate.activeStep == number
+        return HStack(spacing: 12) {
+            badge(number, done: done, active: active)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.system(size: 13, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
+                Text(caption).font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            Group {
+                if active && !done { stepButton(button, active: true, done: false, action: action).keyboardShortcut(.defaultAction) }
+                else { stepButton(done ? "Open again" : button, active: false, done: done, action: action) }
+            }
+        }.padding(.horizontal, 16).frame(minHeight: 56)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Step \(number) of 3, \(title), \(done ? "done" : active ? "current step" : "not done")")
+            .accessibilityAction(named: Text(done ? "Open again" : button), action)
+    }
+    private func stepButton(_ title: String, active: Bool, done: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Text(title).font(.system(size: done ? 12 : 13, weight: done ? .regular : .semibold)).foregroundStyle(done ? .white.opacity(0.55) : .white).frame(width: 84, height: 28).background(done ? .clear : active ? GateColor.blue : .white.opacity(0.1), in: RoundedRectangle(cornerRadius: 7)) }
+            .buttonStyle(.plain).gateFocusEffectDisabled()
+    }
+    private func primary(_ title: String, enabled: Bool, isDefault: Bool = true, action: @escaping () -> Void) -> some View {
+        let button = Button(action: action) { Text(title).font(.system(size: 14, weight: .semibold)).foregroundStyle(enabled ? .white : .white.opacity(0.35)).frame(maxWidth: .infinity).frame(height: 36).background(enabled ? GateColor.blue : .white.opacity(0.08), in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(.plain).disabled(!enabled)
+        return Group { if isDefault && enabled { button.keyboardShortcut(.defaultAction) } else { button } }
+    }
+    private func secondary(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Text(title).font(.system(size: 12)).foregroundStyle(.white.opacity(0.6)).underline(linkHover).frame(maxWidth: .infinity) }.buttonStyle(.plain).onHover { linkHover = $0 }
+    }
+    private func wallConsent(unlocked: Bool, linkedIn: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Toggle("Show me on the Who’s using it wall", isOn: Binding(get: { gate.showOnWall }, set: { if unlocked { gate.setWallVisibility($0) } else { gate.setLocalWallConsent($0) } })).toggleStyle(.checkbox).font(.system(size: 13)).disabled(unlocked && gate.wallUpdating)
+            Text(linkedIn ? "Your LinkedIn name and photo on the Agent Plugins site. Turn off any time." : "Your handle and avatar on the Agent Plugins site. Turn off any time.").font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)).padding(.leading, 22).fixedSize(horizontal: false, vertical: true)
+            if let error = gate.wallError { Text(error).foregroundStyle(GateColor.amber).font(.system(size: 11)) }
+        }
+    }
+    private func checking(follow: IslandGateCheckStatus, post: IslandGateCheckStatus, notFound: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if notFound { Image(systemName: "exclamationmark.magnifyingglass").font(.system(size: 28)).foregroundStyle(GateColor.amber); gap(12) }
+            heading(notFound ? "We couldn’t find your post yet" : "Checking your post", notFound ? "Make sure it’s public and posted from \(gate.handleText)." : "Usually within the hour. You can close this window. The island turns on by itself.")
+            gap(20)
+            VStack(spacing: 0) {
+                statusRow(1, title: "Following @\(gate.config?.x.handle ?? "gurusharan")", status: follow, notFound: false)
+                separator
+                statusRow(2, title: "Post about ACU", status: post, notFound: notFound)
+            }.background(GateColor.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.06)))
+            gap(12)
+            HStack(spacing: 3) { Text(gate.handleText).foregroundStyle(.white.opacity(0.55)); Text("·").foregroundStyle(.white.opacity(0.55)); Button("Change", action: gate.changeInput).buttonStyle(.plain).foregroundStyle(GateColor.blue) }.font(.system(size: 12))
+            gap(16)
+            if notFound { primary("Check again", enabled: true, action: gate.retry) }
+            else { Button(action: close) { Text("Close").font(.system(size: 14, weight: .semibold)).frame(maxWidth: .infinity).frame(height: 36).background(.white.opacity(0.1), in: RoundedRectangle(cornerRadius: 9)) }.buttonStyle(.plain) }
+        }
+    }
+    private func statusRow(_ n: Int, title: String, status: IslandGateCheckStatus, notFound: Bool) -> some View {
+        HStack(spacing: 12) {
+            if notFound { Image(systemName: "minus.circle").font(.system(size: 24)).foregroundStyle(GateColor.amber) }
+            else { badge(n, done: status == .confirmed, active: status != .confirmed) }
+            Text(title).font(.system(size: 13, weight: .semibold)); Spacer(minLength: 0)
+            if notFound { Text("Not found").font(.system(size: 12)).foregroundStyle(GateColor.amber); stepButton("Post again", active: false, done: false, action: gate.openShare) }
+            else if status == .confirmed { Label("Found", systemImage: "checkmark").font(.system(size: 12)).foregroundStyle(GateColor.green) }
+            else { ProgressView().controlSize(.mini); Text("Checking").font(.system(size: 12)).foregroundStyle(.white.opacity(0.55)) }
+        }.padding(.horizontal, 16).frame(minHeight: 44)
+    }
+    private func unlocked(_ account: IslandGateAccount, exp: Date) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            heading("Your island is on", "Your agents now live at the top of this Mac."); gap(20)
+            VStack(spacing: 0) {
+                HStack(spacing: 12) { Text(account.provider == "x" ? "𝕏" : "in"); VStack(alignment: .leading, spacing: 2) { Text(account.handle).font(.system(size: 13, weight: .semibold)); Text("Bound to this Mac").font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)) }; Spacer() }.padding(.horizontal, 16).frame(minHeight: 56)
+                separator
+                HStack(spacing: 12) { Image(systemName: "calendar"); Text("Works offline until \(exp.formatted(.dateTime.day().month(.abbreviated).year()))").font(.system(size: 13, weight: .semibold)); Spacer() }.padding(.horizontal, 16).frame(minHeight: 44)
+            }.background(GateColor.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.06)))
+            gap(16); wallConsent(unlocked: true, linkedIn: account.provider == "linkedin"); gap(16); primary("Done", enabled: true, action: close)
+        }
     }
     static func date(_ raw: String) -> String {
         if let date = ISO8601DateFormatter().date(from: raw) ?? Double(raw).map({ Date(timeIntervalSince1970: $0) }) { return date.formatted(date: .abbreviated, time: .shortened) }
@@ -201,21 +231,10 @@ struct IslandGateView: View {
     }
 }
 
-private struct IslandGateXMark: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: rect.minX, y: rect.minY)); p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        p.move(to: CGPoint(x: rect.maxX, y: rect.minY)); p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        return p
+private extension View {
+    @ViewBuilder func gateFocusEffectDisabled() -> some View {
+        if #available(macOS 14, *) { focusEffectDisabled() } else { self }
     }
-}
-
-struct IslandGateVibrancy: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSVisualEffectView {
-        let view = NSVisualEffectView(); view.material = .hudWindow; view.blendingMode = .behindWindow; view.state = .active
-        return view
-    }
-    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
 @MainActor
@@ -231,6 +250,7 @@ private final class IslandGateWindow: NSWindow {
 @MainActor
 final class IslandGateWindowController: NSWindowController, NSWindowDelegate {
     private let gate: IslandGate
+    private var changes: AnyCancellable?
     init(gate: IslandGate) {
         self.gate = gate
         let window = IslandGateWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 500), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
@@ -238,7 +258,7 @@ final class IslandGateWindowController: NSWindowController, NSWindowDelegate {
         window.title = "Unlock Dynamic Island"
         window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden
         window.titlebarSeparatorStyle = .none
-        window.isOpaque = false; window.backgroundColor = NSColor(calibratedWhite: 0.075, alpha: 1)
+        window.isOpaque = false; window.backgroundColor = NSColor(calibratedWhite: 30.0 / 255.0, alpha: 1)
         window.isMovableByWindowBackground = true
         window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false; window.delegate = self
@@ -246,6 +266,9 @@ final class IslandGateWindowController: NSWindowController, NSWindowDelegate {
         if #available(macOS 13.3, *) { hosting.safeAreaRegions = [] }
         window.contentView = hosting
         gate.onChange.append { [weak self] in
+            DispatchQueue.main.async { self?.fitContent() }
+        }
+        changes = gate.objectWillChange.sink { [weak self] _ in
             DispatchQueue.main.async { self?.fitContent() }
         }
         fitContent()

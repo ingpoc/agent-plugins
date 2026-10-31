@@ -11,7 +11,7 @@ struct IslandGateAccount: Codable, Equatable {
 }
 
 struct IslandGateConfig: Decodable {
-    struct X: Decodable { let handle: String; let profile_url: URL; let intent_url: URL; let preset_text: String }
+    struct X: Decodable { let handle: String; let profile_url: URL; let intent_url: URL; let preset_text: String; var follow_url: URL? = nil }
     struct LinkedIn: Decodable { let share_url: URL; let preset_text: String; let follow_url: URL? }
     struct Match: Decodable { let tag: String?; let ref_x: String?; let ref_li: String? }
     let x: X
@@ -30,7 +30,7 @@ extension IslandGateConfig {
         func encoded(_ value: String) -> String { value.addingPercentEncoding(withAllowedCharacters: allowed)! }
         return IslandGateConfig(
             x: X(handle: "gurusharan", profile_url: URL(string: "https://x.com/gurusharan")!, intent_url: URL(string: "https://x.com/intent/post?text=\(encoded(xText))")!, preset_text: xText),
-            linkedin: LinkedIn(share_url: URL(string: "https://www.linkedin.com/sharing/share-offsite/?url=\(encoded("https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-li"))")!, preset_text: linkedInText, follow_url: URL(string: "https://www.linkedin.com/in/gurusharangupta/")!),
+            linkedin: LinkedIn(share_url: URL(string: "https://www.linkedin.com/feed/?shareActive=true&text=\(encoded(linkedInText))")!, preset_text: linkedInText, follow_url: URL(string: "https://www.linkedin.com/in/gurusharangupta/")!),
             match: nil, grace_days: 14, poll_seconds: 60, check_eta_text: "usually within the hour")
     }()
 

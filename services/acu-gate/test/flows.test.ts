@@ -36,6 +36,37 @@ test("claim validation rejects bad handles and URLs", async (t) => {
   }
 });
 
+test("LinkedIn post link can create a claim without a profile", async (t) => {
+  const h = await harness(t);
+  const d = device();
+  const signed = signRequest(d, "claim", {
+    provider: "linkedin",
+    post_url: "https://www.linkedin.com/posts/alice_example-activity-123",
+    device_pubkey: d.key,
+    device_name: "Mac",
+  });
+  const response = await fetch(`${h.base}/v1/claims`, {
+    method: "POST", headers: signed.headers, body: signed.body,
+  });
+  assert.equal(response.status, 201);
+  const body = await response.json();
+  assert.ok(body.claim_id);
+  const accounts = await h.store.list("accounts", { provider: "linkedin" });
+  assert.equal(accounts[0]?.handle, "alice");
+});
+
+test("LinkedIn activity URL can create a claim without a profile", async (t) => {
+  const h = await harness(t);
+  const d = device();
+  const signed = signRequest(d, "claim", {
+    provider: "linkedin", post_url: "https://www.linkedin.com/feed/update/urn:li:activity:123456789",
+    device_pubkey: d.key, device_name: "Mac",
+  });
+  const response = await fetch(`${h.base}/v1/claims`, { method: "POST", headers: signed.headers, body: signed.body });
+  assert.equal(response.status, 201);
+  assert.equal((await h.store.list("accounts", { provider: "linkedin" }))[0]?.handle, "activity:123456789");
+});
+
 test("instant oEmbed pass unlocks when follow already known", async (t) => {
   const h = await harness(t);
   const handle = "alice";

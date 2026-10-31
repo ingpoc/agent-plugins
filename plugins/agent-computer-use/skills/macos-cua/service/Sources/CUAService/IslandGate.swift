@@ -32,6 +32,13 @@ final class IslandGate: ObservableObject {
     @Published var handleText = ""
     @Published var postURL = ""
     @Published var copied = false
+    @Published private(set) var followDone: Bool
+    @Published private(set) var postDone: Bool
+    @Published var focusInput = false
+    private let defaults: UserDefaults?
+    private var pendingSteps: Set<Int> = []
+    private var activationObserver: AnyCancellable?
+    private let wakeSleep: () async throws -> Void
     @Published private(set) var deepLinkBanner: String?
     private(set) var account: IslandGateAccount?
     private var entitlement: String?
@@ -51,7 +58,8 @@ final class IslandGate: ObservableObject {
     private var operation: Task<Void, Never>?
     private var configTask: Task<Void, Never>?
     private var fetchedConfig = false
-    private let openURL: (URL) -> Void
+    let urlOpener: IslandGateURLOpening
+    let pasteboard: IslandGatePasteboard
     private var wallOperation: Task<Void, Never>?
     private var generation = 0
     private let fixture: Bool
@@ -60,18 +68,27 @@ final class IslandGate: ObservableObject {
     var onChange: [() -> Void] = []
 
     init(store: IslandGateStoring = IslandGateKeychain(), client: IslandGateClient? = nil,
-         publicKey: Data? = nil, device: IslandGateDevice? = nil, fixtureState: IslandGateState? = nil, fixtureAccount: IslandGateAccount? = nil, openURL: @escaping (URL) -> Void = { NSWorkspace.shared.open($0) }) {
-        self.openURL = openURL
+         publicKey: Data? = nil, device: IslandGateDevice? = nil, fixtureState: IslandGateState? = nil, fixtureAccount: IslandGateAccount? = nil, urlOpener: IslandGateURLOpening? = nil, pasteboard: IslandGatePasteboard? = nil, defaults: UserDefaults? = nil, wakeSleep: @escaping () async throws -> Void = { try await Task.sleep(nanoseconds: 1_500_000_000) }) {
+        self.wakeSleep = wakeSleep
+        let settings = defaults ?? ((IslandGateSafety.restricted || fixtureState != nil) ? nil : UserDefaults(suiteName: "com.ingpoc.cua-service"))
+        self.defaults = settings
+        followDone = settings?.bool(forKey: "islandGate.followDone") ?? false
+        postDone = settings?.bool(forKey: "islandGate.postDone") ?? false
+        self.urlOpener = urlOpener ?? IslandGateURLOpenerDefault.make(fixtureState: fixtureState)
+        self.pasteboard = pasteboard ?? ((IslandGateSafety.restricted || fixtureState != nil) ? IslandGateRecordingPasteboard() : IslandGateSystemPasteboard())
         self.store = store; self.client = client ?? IslandGateClient(baseURL: IslandGateEnvironment().baseURL)
         verifier = IslandGateVerifier(publicKey: publicKey ?? IslandGateEnvironment().publicKey)
         self.device = device; fixture = fixtureState != nil
         if let fixtureState { state = fixtureState; account = fixtureAccount }
+        activationObserver = NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification).sink { [weak self] _ in
+            Task { @MainActor in self?.didBecomeActive() }
+        }
     }
     deinit {
         configTask?.cancel(); polling?.cancel(); refreshTask?.cancel(); expiryTask?.cancel(); operation?.cancel(); wallOperation?.cancel()
     }
     var isUnlocked: Bool {
-        if case .unlocked(_, _, let exp) = state { return Date() < exp }
+        if case .unlocked(_, _, let exp) = state { return fixture || Date() < exp }
         return false
     }
     var lockedProvider: String {
@@ -206,9 +223,24 @@ final class IslandGate: ObservableObject {
     }
     var isHandleValid: Bool {
         lockedProvider == "linkedin"
-            ? IslandGateValidation.normalizeLinkedInProfile(handleText) != nil
-            : IslandGateValidation.normalizeXHandle(handleText) != nil
+            ? IslandGateInputParser.parseLinkedIn(handleText) != nil
+            : IslandGateInputParser.parseX(handleText) != nil
     }
+    var activeStep: Int { !followDone ? 1 : !postDone ? 2 : 3 }
+    func didBecomeActive() {
+        if pendingSteps.contains(1) { followDone = true; defaults?.set(true, forKey: "islandGate.followDone") }
+        if pendingSteps.contains(2) { postDone = true; defaults?.set(true, forKey: "islandGate.postDone") }
+        pendingSteps.removeAll()
+    }
+    func startOver() {
+        operation?.cancel(); generation += 1
+        clearClaimID()
+        followDone = false; postDone = false; pendingSteps.removeAll()
+        defaults?.removeObject(forKey: "islandGate.followDone"); defaults?.removeObject(forKey: "islandGate.postDone")
+        handleText = ""; postURL = ""; transition(.locked(linkedIn: unlockLinkedInRoute))
+    }
+    func changeInput() { transition(.locked(linkedIn: unlockLinkedInRoute)); focusInput = true }
+    func setFixtureSteps(follow: Bool, post: Bool) { followDone = follow; postDone = post }
     func submitCheck() {
         guard !fixture, isHandleValid else { return }
         operation?.cancel(); generation += 1
@@ -217,36 +249,37 @@ final class IslandGate: ObservableObject {
         transition(.submitting)
         operation = Task { [weak self] in
             guard let self else { return }
-            let wakeUI: @MainActor () -> Void = { [weak self] in self?.transition(.waking) }
+            let wakeTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                do { try await self.wakeSleep() } catch { return }
+                guard !Task.isCancelled, version == self.generation, self.state == .submitting else { return }
+                self.transition(.waking)
+            }
+            defer { wakeTask.cancel() }
             do {
                 if self.device == nil { self.device = try IslandGateDevice.load(store: self.store) }
                 guard let device = self.device else { return }
                 guard version == self.generation else { return }
                 if let seconds = self.config?.poll_seconds { self.pollInterval = TimeInterval(seconds) }
                 let provider = self.lockedProvider
-                let handle: String
-                if provider == "linkedin" {
-                    guard let slug = IslandGateValidation.normalizeLinkedInProfile(self.handleText) else {
-                        throw IslandGateFailure(code: "invalid_handle")
-                    }
-                    handle = slug
-                } else {
-                    guard let normalized = IslandGateValidation.normalizeXHandle(self.handleText) else {
-                        throw IslandGateFailure(code: "invalid_handle")
-                    }
-                    handle = normalized
-                }
-                let trimmedPost = self.postURL.trimmingCharacters(in: .whitespacesAndNewlines)
-                let postValue: Any = trimmedPost.isEmpty ? NSNull() : trimmedPost
-                let body: [String: Any] = [
-                    "provider": provider,
-                    "handle": handle,
-                    "post_url": postValue,
-                    "device_pubkey": device.publicKey,
-                    "device_name": Host.current().localizedName ?? "Mac",
-                    "show_on_wall": self.showOnWall
+                var body: [String: Any] = [
+                    "provider": provider, "device_pubkey": device.publicKey,
+                    "device_name": Host.current().localizedName ?? "Mac", "show_on_wall": self.showOnWall
                 ]
-                let reply = try await self.client.createClaim(device: device, body: body, onWaking: wakeUI)
+                if provider == "linkedin" {
+                    guard let link = IslandGateInputParser.parseLinkedIn(self.handleText) else {
+                        throw IslandGateFailure(code: "invalid_handle")
+                    }
+                    body["post_url"] = link.absoluteString
+                } else {
+                    guard let parsed = IslandGateInputParser.parseX(self.handleText) else {
+                        throw IslandGateFailure(code: "invalid_handle")
+                    }
+                    body["handle"] = parsed.handle
+                    let oldPost = self.postURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                    body["post_url"] = parsed.link?.absoluteString ?? (oldPost.isEmpty ? NSNull() : oldPost as Any)
+                }
+                let reply = try await self.client.createClaim(device: device, body: body, onWaking: { wakeTask.cancel() })
                 guard version == self.generation else { return }
                 try self.applyClaim(reply, since: Date())
             } catch {
@@ -354,7 +387,9 @@ final class IslandGate: ObservableObject {
             clearClaimID()
             do { try store.delete("entitlement") } catch { transition(.error(code: "keychain", message: IslandGateFailure(code: "keychain").message)); return }
             transition(.locked(message: failure.message))
-        case "invalid_handle", "post_url_invalid", "post_url_used", "post_not_found", "post_author_mismatch", "post_too_old", "post_missing_tag", "follow_missing", "post_missing", "claim_expired", "rejected":
+        case "post_not_found", "post_author_mismatch", "post_too_old", "post_missing_tag":
+            transition(.error(code: failure.code, message: failure.message))
+        case "invalid_handle", "post_url_invalid", "post_url_used", "follow_missing", "post_missing", "claim_expired", "rejected":
             transition(.rejected(message: failure.message))
         case "device_taken":
             transition(.rejected(message: failure.message))
@@ -366,8 +401,8 @@ final class IslandGate: ObservableObject {
         transition(.locked(linkedIn: lockedProvider == "linkedin"))
     }
     func retry() {
-        if case .error = state { transition(.locked()) }
-        else { retryFromRejected() }
+        transition(.locked(linkedIn: unlockLinkedInRoute))
+        submitCheck()
     }
     func signOut() {
         generation += 1; operation?.cancel(); polling?.cancel(); polling = nil
@@ -423,18 +458,20 @@ final class IslandGate: ObservableObject {
     }
     func openFollow() {
         guard let config else { return }
-        let url = lockedProvider == "linkedin" ? config.linkedInFollowURL : config.x.profile_url
-        if let url, url.scheme == "https" { openURL(url) }
+        var components = URLComponents(string: "https://x.com/intent/follow")!
+        components.queryItems = [URLQueryItem(name: "screen_name", value: config.x.handle)]
+        let url = lockedProvider == "linkedin" ? config.linkedInFollowURL : (config.x.follow_url ?? components.url)
+        if let url, url.scheme == "https" { pendingSteps.insert(1); urlOpener.open(url) }
     }
     func openShare() {
         guard let config else { handle(IslandGateFailure(code: "server_error")); return }
+        pendingSteps.insert(2)
         if lockedProvider == "linkedin" {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(config.linkedin.preset_text, forType: .string)
+            pasteboard.write(config.linkedin.preset_text)
             copied = true
-            if config.linkedin.share_url.scheme == "https" { openURL(config.linkedin.share_url) }
+            if config.linkedin.share_url.scheme == "https" { urlOpener.open(config.linkedin.share_url) }
         } else if config.x.intent_url.scheme == "https" {
-            openURL(config.x.intent_url)
+            urlOpener.open(config.x.intent_url)
         }
     }
     func tryMoveHere() {

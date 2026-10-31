@@ -4,6 +4,8 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 
 ## 0.2.66 (unreleased)
 
+- Island gate go-live: production gate at https://acu-gate.onrender.com with a pinned key, redesigned unlock window, LinkedIn follow, and guarded URL opening. Fix `gate-admin --wake`; ship release manifests and installer.
+
 - Keep unlock sharing available during service cold starts and retry checks through the wake budget.
 - Add signed-DMG release asset manifests/checksums and a macOS installer with read-only verification and JSON summaries.
 - Add read-only `acu status --json` for runtime, permission, and island-gate diagnostics.

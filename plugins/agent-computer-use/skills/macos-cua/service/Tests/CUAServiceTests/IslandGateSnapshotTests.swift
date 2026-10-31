@@ -28,13 +28,13 @@ final class IslandGateSnapshotTests: XCTestCase {
         XCTAssertFalse(window.isVisible)
     }
     func testEveryOffscreenStateHasUniformWidthAndOpaqueDarkEdges() throws {
-        for state in ["locked", "locked-linkedin", "waking", "checking", "conflict", "unlocked", "rejected", "error"] {
+        for state in ["01-start", "02-followed", "03-ready", "04-checking", "05-unlocked", "06-error-offline", "07-error-notfound", "08-waking", "09-linkedin", "conflict", "rejected"] {
             let url = output(state)
             let command = try IslandGateSnapshotCommand.parse(["--state", state, "--out", url.path])
             try command.run()
             let bitmap = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: url)))
             XCTAssertEqual(bitmap.pixelsWide, 880, state)
-            XCTAssertGreaterThan(bitmap.pixelsHigh, 600, state)
+            XCTAssertGreaterThan(bitmap.pixelsHigh, 400, state)
             for x in [0, bitmap.pixelsWide / 2, bitmap.pixelsWide - 1] {
                 for y in [0, bitmap.pixelsHigh - 1] {
                     let color = try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))

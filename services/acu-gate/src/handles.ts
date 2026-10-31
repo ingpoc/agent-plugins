@@ -1,4 +1,5 @@
 import { GateError } from "./errors.ts";
+import { createHash } from "node:crypto";
 
 export type Provider = "x" | "linkedin";
 
@@ -88,6 +89,18 @@ export function validateLinkedInPostUrl(postUrl: string) {
   if (!/^\/(posts|feed\/update)\//.test(url.pathname))
     throw new GateError(400, "post_url_invalid");
   return linkedInPostKey(postUrl);
+}
+
+export function linkedInHandleFromPostUrl(postUrl: string) {
+  validateLinkedInPostUrl(postUrl);
+  const path = new URL(postUrl).pathname;
+  const vanity = path.match(/^\/posts\/([A-Za-z0-9-]+)_/i)?.[1];
+  if (vanity) return vanity.toLowerCase();
+  const activity = path.match(/^\/feed\/update\/urn:li:activity:(\d+)\/?$/i)?.[1] ?? path.match(/activity[-:](\d+)/i)?.[1];
+  if (activity) return `activity:${activity}`;
+  if (/^\/posts\/[^/]+\/?$/i.test(path))
+    return `post:${createHash("sha256").update(path.toLowerCase()).digest("hex")}`;
+  throw new GateError(400, "post_url_invalid");
 }
 
 const OEMBED_AUTHOR_HOSTS = new Set(["x.com", "twitter.com", "www.twitter.com"]);

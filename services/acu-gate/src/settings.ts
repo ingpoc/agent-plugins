@@ -14,13 +14,14 @@ export function config() {
     x: {
       ...preset.x,
       profile_url: `https://x.com/${preset.x.handle}`,
+      follow_url: `https://x.com/intent/follow?screen_name=${encodeURIComponent(preset.x.handle)}`,
       intent_url: `https://x.com/intent/post?text=${encodeURIComponent(preset.x.preset_text)}`,
       preset_text: preset.x.preset_text,
     },
     linkedin: {
       ...preset.linkedin,
-      share_url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
-        preset.match.ref_links[1],
+      share_url: `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(
+        preset.linkedin.preset_text,
       )}`,
       preset_text: preset.linkedin.preset_text,
     },

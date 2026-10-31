@@ -18,12 +18,14 @@ struct IslandGateDemoCommand: ParsableCommand {
     @Option var pollSeconds: Double = 5
     @Option var captureDir: String?
     @Option var timeoutSeconds: Double = 900
+    @Flag var realOpen = false
 
     static func requireDev(_ environment: [String: String]) throws {
         guard environment["ACU_GATE_DEV"] == "1" else { throw ValidationError("gate-demo requires ACU_GATE_DEV=1") }
     }
     func validate() throws {
         try Self.requireDev(ProcessInfo.processInfo.environment)
+        if realOpen { try IslandGateValidatedURLOpener.validate(.bundled) }
         guard let url = URL(string: baseUrl), ["http", "https"].contains(url.scheme ?? ""), url.host != nil else { throw ValidationError("Invalid base URL") }
         guard pollSeconds.isFinite, pollSeconds > 0, pollSeconds <= 86400, timeoutSeconds.isFinite, timeoutSeconds > 0 else { throw ValidationError("Polling and timeout seconds must be positive finite values") }
     }
@@ -36,7 +38,8 @@ struct IslandGateDemoCommand: ParsableCommand {
         app.setActivationPolicy(.regular)
         MainActor.assumeIsolated {
             let device = IslandGateDevice(id: SHA256.hash(data: Data("acu-island-gate|demo-\(UUID().uuidString)".utf8)).map { String(format: "%02x", $0) }.joined(), key: P256.Signing.PrivateKey())
-            let gate = IslandGate(store: DemoStore(), client: IslandGateClient(baseURL: URL(string: baseUrl)!), publicKey: key, device: device)
+            let opener: IslandGateURLOpening = realOpen ? IslandGateValidatedURLOpener() : IslandGateRecordingURLOpener()
+            let gate = IslandGate(store: DemoStore(), client: IslandGateClient(baseURL: URL(string: baseUrl)!), publicKey: key, device: device, urlOpener: opener, pasteboard: IslandGateRecordingPasteboard())
             gate.debugPollInterval = pollSeconds
             let controller = IslandGateWindowController(gate: gate)
             let start = ProcessInfo.processInfo.systemUptime

@@ -10,7 +10,7 @@ final class IslandGateWallTests: XCTestCase {
         let account = IslandGateAccount(id: "wall-account", provider: provider, handle: "@friend", name: "Island Friend", show_on_wall: consent)
         store.values["account"] = try JSONEncoder().encode(account)
         let device = IslandGateDevice(id: String(repeating: "d", count: 64), key: P256.Signing.PrivateKey())
-        let gate = IslandGate(store: store, client: IslandGateURLProtocol.client(), device: device, openURL: { _ in })
+        let gate = IslandGate(store: store, client: IslandGateURLProtocol.client(), device: device, urlOpener: IslandGateRecordingURLOpener())
         gate.start()
         gate.transition(.unlocked(account: account, verified: false, exp: Date().addingTimeInterval(86400)))
         return (gate, store)

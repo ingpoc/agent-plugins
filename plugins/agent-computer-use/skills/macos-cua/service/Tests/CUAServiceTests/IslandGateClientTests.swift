@@ -29,7 +29,7 @@ final class IslandGateURLProtocol: URLProtocol, @unchecked Sendable {
 
 final class IslandGateClientTests: XCTestCase {
     override func tearDown() { IslandGateURLProtocol.handler = nil; super.tearDown() }
-    private static func body(_ request: URLRequest) throws -> Data {
+    static func body(_ request: URLRequest) throws -> Data {
         var data = request.httpBody ?? Data()
         if data.isEmpty, let stream = request.httpBodyStream {
             stream.open(); defer { stream.close() }

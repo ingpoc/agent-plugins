@@ -11,6 +11,11 @@ test("config exposes poll interval and presets", () => {
   assert.equal(value.poll_seconds, 60);
   assert.equal(value.check_eta_text, "usually within the hour");
   assert.match(value.x.intent_url, /intent\/post/);
+  assert.equal(new URL(value.x.follow_url).searchParams.get("screen_name"), value.x.handle);
+  const share = new URL(value.linkedin.share_url);
+  assert.equal(share.pathname, "/feed/");
+  assert.equal(share.searchParams.get("shareActive"), "true");
+  assert.equal(share.searchParams.get("text"), value.linkedin.preset_text);
   assert.equal(value.grace_days, 14);
 });
 

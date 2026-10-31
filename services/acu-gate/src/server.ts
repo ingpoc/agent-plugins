@@ -26,6 +26,7 @@ import {
   normalizeHandle,
   parseXStatusUrl,
   validateLinkedInPostUrl,
+  linkedInHandleFromPostUrl,
   snowflakeMs,
   type Provider,
 } from "./handles.ts";
@@ -770,14 +771,16 @@ export function createGate(
         const provider = text(data.provider, 20) as Provider;
         if (provider !== "x" && provider !== "linkedin")
           throw new GateError(400, "invalid_request");
+        const postUrl = data.post_url == null ? null : text(data.post_url, 2048);
         const handleRaw = data.handle;
-        if (typeof handleRaw !== "string" || !String(handleRaw).trim())
-          throw new GateError(400, "invalid_handle");
-        const handle = normalizeHandle(provider, text(handleRaw, 200));
+        const handle = typeof handleRaw === "string" && handleRaw.trim()
+          ? normalizeHandle(provider, text(handleRaw, 200))
+          : provider === "linkedin" && postUrl
+            ? linkedInHandleFromPostUrl(postUrl)
+            : (() => { throw new GateError(400, "invalid_handle"); })();
         const show = consent(data.show_on_wall, false);
         const pubkey = deviceKey(data.device_pubkey);
         const deviceName = text(data.device_name, 200);
-        const postUrl = data.post_url == null ? null : text(data.post_url, 2048);
         const id = await signedRequest(req, "claim", pubkey, raw);
         const account = await upsertAccount(provider, handle);
         const boundDevice = await first(store, "bindings", { device_id: id });

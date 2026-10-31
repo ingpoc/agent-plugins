@@ -19,14 +19,19 @@ final class IslandGateStateTests: XCTestCase {
         return payload + "." + (try signingKey.signature(for: Data(payload.utf8))).gateBase64URL
     }
     private func gate(store: IslandGateMemoryStore = .init()) -> IslandGate {
-        IslandGate(store: store, client: IslandGateURLProtocol.client(), publicKey: signingKey.publicKey.rawRepresentation, device: device, openURL: { _ in })
+        IslandGate(store: store, client: IslandGateURLProtocol.client(), publicKey: signingKey.publicKey.rawRepresentation, device: device, urlOpener: IslandGateRecordingURLOpener())
     }
     func testRejectedCopyForReasonCodes() {
-        for code in ["follow_missing", "post_missing", "post_author_mismatch", "post_too_old", "claim_expired"] {
+        for code in ["follow_missing", "post_missing", "claim_expired"] {
             let gate = gate()
             gate.handle(IslandGateFailure(code: code))
             guard case .rejected(let message) = gate.state else { return XCTFail("Expected rejected for \(code)") }
             XCTAssertEqual(message, IslandGateFailure.friendlyMessage(for: code))
+        }
+        for code in ["post_not_found", "post_author_mismatch", "post_too_old", "post_missing_tag"] {
+            let gate = gate()
+            gate.handle(IslandGateFailure(code: code))
+            XCTAssertEqual(gate.state, .error(code: code, message: IslandGateFailure.friendlyMessage(for: code)))
         }
     }
     func testConflictTransitions() {
@@ -48,6 +53,8 @@ final class IslandGateStateTests: XCTestCase {
             XCTAssertNil(store.values["claim-id"])
             if reason == "rebind_cooldown" {
                 XCTAssertEqual(gate.state, .conflict(deviceName: nil, rebindAvailableAt: "2026-11-08T00:00:00.000Z"))
+            } else if reason == "post_too_old" {
+                XCTAssertEqual(gate.state, .error(code: reason, message: IslandGateFailure.friendlyMessage(for: reason)))
             } else {
                 XCTAssertEqual(gate.state, .rejected(message: IslandGateFailure.friendlyMessage(for: reason)))
             }
@@ -127,7 +134,7 @@ final class IslandGateStateTests: XCTestCase {
         ))
         gate.transition(.locked(linkedIn: true))
         gate.openShare()
-        XCTAssertEqual(NSPasteboard.general.string(forType: .string), "li preset")
+        XCTAssertEqual((gate.pasteboard as? IslandGateRecordingPasteboard)?.written, ["li preset"])
         XCTAssertTrue(gate.copied)
     }
     func testIslandPanelPermissionAndVoiceStreamingIndependent() throws {
