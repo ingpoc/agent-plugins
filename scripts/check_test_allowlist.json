@@ -54,6 +54,11 @@
       "id": "test_comet_minimal_env.LiveMinimalEnvProbe.test_real_probe_minimal_env",
       "when": "not env:VOICE_CUA_LIVE_COMET",
       "reason": "live probe of the installed Comet Control under a minimal env; opt-in via VOICE_CUA_LIVE_COMET=1"
+    },
+    {
+      "id": "test_install_release.InstallReleaseTests.test_icns_built_by_iconutil",
+      "when": "platform != darwin",
+      "reason": "iconutil ships only with macOS; the icns build is proven on the Mini check"
     }
   ],
   "harness_skips": [
