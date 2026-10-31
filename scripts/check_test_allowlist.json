@@ -54,6 +54,46 @@
       "id": "test_comet_minimal_env.LiveMinimalEnvProbe.test_real_probe_minimal_env",
       "when": "not env:VOICE_CUA_LIVE_COMET",
       "reason": "live probe of the installed Comet Control under a minimal env; opt-in via VOICE_CUA_LIVE_COMET=1"
+    },
+    {
+      "id": "test_install_release.InstallReleaseTests.test_icns_built_by_iconutil",
+      "when": "platform != darwin",
+      "reason": "iconutil ships only with macOS; the icns build is proven on the Mini check"
+    },
+    {
+      "id": "test_contract.StoreTests.test_the_helper_bills_every_read_it_makes_to_a_named_actor",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_lookup_task_ids_reach_access_logs_and_reject_invalid_ids",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_select_reports_whether_its_nearest_record_is_grounded",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_select_does_not_surface_a_record_find_hides",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_contract.StoreTests.test_select_is_off_on_an_a_b_off_day",
+      "when": "platform != darwin",
+      "reason": "sentence embedding skip is the non-darwin contract, not a passing proof"
+    },
+    {
+      "id": "test_request_scope.RequestScopeTests.test_feedback_duplicate_check_uses_requested_scope",
+      "when": "platform != darwin",
+      "reason": "installed NaturalLanguage embedding is macOS-only; the Mini check runs it"
+    },
+    {
+      "id": "test_request_scope.RequestScopeTests.test_select_uses_explicit_fleet_scope_instead_of_binding_project",
+      "when": "platform != darwin",
+      "reason": "installed NaturalLanguage embedding is macOS-only; the Mini check runs it"
     }
   ],
   "harness_skips": [

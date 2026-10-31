@@ -774,6 +774,8 @@ class WindowResolutionTests(unittest.TestCase):
                 "_resolve_bundle_id",
                 return_value=("com.example.app", "Example"),
             ),
+            # Hermetic: the live-instance lookup asks the host (AppKit or lsappinfo).
+            mock.patch.object(macos_cua, "_live_app_instances", return_value=[]),
             mock.patch.object(
                 macos_cua.subprocess, "run", return_value=completed
             ) as run,
