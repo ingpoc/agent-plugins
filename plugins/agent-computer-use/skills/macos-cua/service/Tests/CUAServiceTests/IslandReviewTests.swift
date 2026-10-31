@@ -55,6 +55,7 @@ final class IslandReviewTests: XCTestCase {
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start(); defer { c.shutdown() }
         let m = c.debugModel
+        m.peekSuppressed = { _ in false }   // never the real frontmost app / keyboard
         XCTAssertEqual(post(c.hub, choice(extra: ["allow_text": true])).status, 200)
         XCTAssertEqual(names("shown").count, 1)
         XCTAssertEqual(names("opened").first?["via"] as? String, "peek")
@@ -135,6 +136,7 @@ final class IslandReviewTests: XCTestCase {
         c.start(); defer { c.shutdown() }
         c.debugPanel.debugEnsurePanel()
         let m = c.debugModel
+        m.peekSuppressed = { _ in false }   // never the real frontmost app / keyboard
         _ = post(c.hub, choice())
         XCTAssertTrue(m.cardOpen); XCTAssertTrue(m.isPeeking)
         XCTAssertFalse(c.debugPanel.debugCanBecomeKey, "peek is never key")
