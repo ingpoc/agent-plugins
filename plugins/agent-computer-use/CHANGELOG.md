@@ -2,7 +2,12 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
-## 0.2.66 (unreleased)
+## 0.2.67 (2026-11-01)
+
+- Claude Code: the ACU MCP server connects again. The runtime contract now ignores Claude's `.in_use/<pid>` session markers in the plugin root (like Cursor's `.cache-complete`), which made every Claude session fail with `package/app build mismatch`.
+- install-mac.sh filters plugins by each harness's catalog: comet-control is never requested for Claude Code; a plugin missing from a catalog is reported as `skipped: not in catalog` instead of exiting 14. Grok is reported from `grok plugin list --json` (skip when current, otherwise manual: its trust prompt is yours to confirm), never installed or prompted by the script, and finish gives Grok a listing proof.
+
+## 0.2.66 (2026-11-01)
 
 - Island gate go-live: production gate at https://acu-gate.onrender.com with a pinned key, redesigned unlock window, LinkedIn follow, and guarded URL opening. Fix `gate-admin --wake`; ship release manifests and installer.
 

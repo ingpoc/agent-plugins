@@ -14,7 +14,7 @@ MANIFEST=https://github.com/$REPO/releases/latest/download/manifest.json
 ## install
 1. Preflight: macOS >= manifest minMacOS; `uname -m` is arm64, else exit 12. Admin check `id -Gn | grep -qw admin` picks /Applications, else ~/Applications.
 2. Detect harnesses: command -v codex, agent/cursor-agent, grok, claude, plus their config dirs. Report Grok Bot as handled-by-bot.
-3. Plugins: agent-computer-use for every detected harness. comet-control only if /Applications/Comet.app exists. context-ledger only via --plugins. Install through each harness's documented CLI (marketplace add/update, then install/update), with the doc cited in a comment for each command. Cursor needs the remove/re-add-or-update quirk for new catalog rows.
+3. Plugins: agent-computer-use for every detected harness. comet-control only if /Applications/Comet.app exists. context-ledger only via --plugins. Each harness only gets plugins its own catalog publishes (Claude Code's has agent-computer-use and context-ledger); others are reported as `skipped: not in catalog`. Grok is read with `grok plugin list --json` and never installed by the script (its trust prompt belongs to the user): current is `skip`, otherwise `manual`. Install through each harness's documented CLI (marketplace add/update, then install/update), with the doc cited in a comment for each command. Cursor needs the remove/re-add-or-update quirk for new catalog rows.
 4. Manifest: fetch with `curl -fsSL --proto =https`. Cross-check sha256 against SHA256SUMS; a mismatch exits 10.
 5. Runtime skip: if the installed app (found by bundleId via mdfind) has CFBundleShortVersionString+CFBundleVersion equal to the manifest's, skip it.
 6. Download to ~/Library/Caches/agent-plugins/, then verify in order: shasum -a 256; `spctl -a -t open --context context:primary-signature -vv` on the DMG; `hdiutil attach -nobrowse -readonly`; `codesign --verify --deep --strict`; TeamIdentifier == TEAM_ID; `spctl -a -vv -t exec` reports Notarized Developer ID. On any failure: detach, move the download to the Trash, exit 10.
@@ -31,7 +31,7 @@ Human-readable logs go to stderr and to ~/Library/Logs/agent-plugins/install.log
 {"phase","harnesses":[{"name","plugins":[{"name","version","action"}]}],"runtime":{"version","build","path","action"},"permissions":{...},"proof":[{"harness","ok","detail"}],"unlock_opened"}
 
 ## Exit codes
-0 ok, 10 verification failed, 11 needs quit consent, 12 unsupported Mac, 13 network or manifest error, 14 harness install failed (partial result still in the JSON).
+0 ok, 10 verification failed, 11 needs quit consent, 12 unsupported Mac, 13 network or manifest error, 14 a real harness install failed (partial result still in the JSON); catalog skips and manual steps never exit 14.
 
 ## Hard rules
 Never remove quarantine, use spctl --master-disable, write to TCC, or script System Settings. No secrets in args or env. No ps/pgrep flags that show command lines (only pgrep -x). No building from source.

@@ -13,8 +13,14 @@ PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 APP = Path('/Applications/Agent Computer Use.app')
 RECORD = 'Contents/Resources/runtime-contract.json'
 # Files a harness writes into an installed plugin root that are not part of the package:
-# Cursor's plugin cache marks a finished download with `.cache-complete`.
+# Cursor's plugin cache marks a finished download with `.cache-complete`; Claude Code
+# keeps per-session lock entries under `.in_use/<pid>` while a session uses the plugin.
 HARNESS_MARKERS = {'.cache-complete'}
+HARNESS_MARKER_PREFIXES = ('.in_use',)
+
+
+def _harness_marker(name: str) -> bool:
+    return name in HARNESS_MARKERS or name.startswith(HARNESS_MARKER_PREFIXES)
 
 
 def package_identity(root: Path) -> dict:
@@ -25,9 +31,11 @@ def package_identity(root: Path) -> dict:
                        {'.git', '.build', '__pycache__', 'Tests', 'tests', '.swiftpm',
                         'run', '.ruff_cache', '.pytest_cache'}]
         at_root = Path(directory) == root
+        if at_root:
+            children[:] = [d for d in children if not _harness_marker(d)]
         paths.extend(Path(directory) / f for f in files
                      if f != '.DS_Store' and not f.endswith('.pyc')
-                     and not (at_root and f in HARNESS_MARKERS))
+                     and not (at_root and _harness_marker(f)))
     for path in sorted(set(paths)):
         digest.update(path.relative_to(root).as_posix().encode() + b'\0')
         digest.update(path.read_bytes() + b'\0')

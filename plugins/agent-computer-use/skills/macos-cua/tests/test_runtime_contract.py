@@ -57,6 +57,18 @@ class RuntimeContractTests(unittest.TestCase):
             (root / 'bin/.cache-complete').write_text('')
             self.assertNotEqual(contract.package_identity(root), before)
 
+    def test_claude_in_use_marker_does_not_change_identity(self):
+        with tempfile.TemporaryDirectory() as td:
+            root, app = self.fixture(td)
+            before = contract.package_identity(root)
+            (root / '.in_use').mkdir()
+            (root / '.in_use/12345').write_text('12345')
+            (root / '.in_use.lock').write_text('')
+            self.assertEqual(contract.package_identity(root), before)
+            self.assertTrue(contract.check(root, app, live=False)['ok'])
+            (root / 'bin/.in_use').write_text('')
+            self.assertNotEqual(contract.package_identity(root), before)
+
     def test_stale_running_service_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             root, app = self.fixture(td)

@@ -24,7 +24,11 @@ logfile="$HOME/Library/Logs/agent-plugins/install.log"
 appdir=/Applications
 if ! id -Gn | grep -qw admin; then appdir="$HOME/Applications"; fi
 manifest_url=$MANIFEST
+comet_app=/Applications/Comet.app
+cursor_receipt="$HOME/.cursor/plugins/installed_plugins.json"
 if [ "${AGENT_PLUGINS_TEST:-0}" = 1 ]; then
+    comet_app=${AGENT_PLUGINS_COMET_APP:-$comet_app}
+    cursor_receipt=${AGENT_PLUGINS_CURSOR_RECEIPT:-$cursor_receipt}
     cache=${AGENT_PLUGINS_CACHE_DIR:-$cache}
     appdir=${AGENT_PLUGINS_APP_DIR:-$appdir}
     logfile=${AGENT_PLUGINS_LOG:-$logfile}
@@ -113,7 +117,7 @@ for name in codex cursor claude grok; do
     if command -v "$cli" >/dev/null || [ -d "$config" ]; then names="$names $name"; fi
 done
 plugins=agent-computer-use
-[ ! -d /Applications/Comet.app ] || plugins="$plugins comet-control"
+[ ! -d "$comet_app" ] || plugins="$plugins comet-control"
 case ",$requested," in *,context-ledger,*) plugins="$plugins context-ledger" ;; esac
 if [ -n "$requested" ] && [ "$requested" != pending ]; then
     for p in ${requested//,/ }; do
@@ -211,19 +215,32 @@ else
     app=$(find_app)
     if [ -n "$app" ]; then version=$(plist "$app" CFBundleShortVersionString); build=$(plist "$app" CFBundleVersion); fi
 fi
+# Plugins each harness catalog publishes (.agents/plugins, .cursor-plugin, .grok-plugin and
+# .claude-plugin marketplace.json); scripts/test_install_mac.py keeps this table in sync.
+catalog() {
+    case "$1" in
+        claude) printf '%s\n' 'agent-computer-use context-ledger' ;;
+        codex|cursor|grok) printf '%s\n' 'agent-computer-use comet-control context-ledger' ;;
+        *) printf '\n' ;;
+    esac
+}
+in_catalog() { case " $(catalog "$1") " in *" $2 "*) return 0 ;; *) return 1 ;; esac; }
 # Listing evidence is intentionally labelled as such; it is not a tool-call proof.
 installed_version() {
     local harness=$1 plugin=$2 listing="$scratch/$1-list.json" selector=${3:-version}
     case "$harness" in
         codex)
             # https://developers.openai.com/plugins/build/plugins
-            codex plugin list --json > "$listing" 2>> "$logfile" || return 1 ;;
+            codex plugin list --json < /dev/null > "$listing" 2>> "$logfile" || return 1 ;;
         claude)
             # https://code.claude.com/docs/en/plugins-reference#cli-commands-reference
-            claude plugin list --json > "$listing" 2>> "$logfile" || return 1 ;;
+            claude plugin list --json < /dev/null > "$listing" 2>> "$logfile" || return 1 ;;
+        grok)
+            # `grok plugin list --help`: read-only JSON listing; never `install`, which asks for trust.
+            grok plugin list --json < /dev/null > "$listing" 2>> "$logfile" || return 1 ;;
         cursor)
             # Cursor has no documented plugin-install/list CLI: inspect its local receipt only.
-            listing="$HOME/.cursor/plugins/installed_plugins.json"
+            listing=$cursor_receipt
             [ -f "$listing" ] || return 1 ;;
         *) return 1 ;;
     esac
@@ -232,7 +249,7 @@ ObjC.import('Foundation');
 function run(a) {
  var v=JSON.parse(ObjC.unwrap($.NSString.stringWithContentsOfFileEncodingError(a[0],$.NSUTF8StringEncoding,null)));
  var rows=Array.isArray(v)?v:(Array.isArray(v.installed)?v.installed:[]);
- var p=rows.find(function(x){return (x.name===a[1] || (x.id||x.pluginId||'').split('@')[0]===a[1]) && (a[3]==='remove' || x.enabled===true);});
+ var p=rows.find(function(x){return (x.name===a[1] || (x.id||x.pluginId||'').split('@')[0]===a[1]) && (a[3]==='remove' || x.enabled===true || x.status==='installed');});
  if(!p || !p.version) throw Error('No enabled versioned receipt'); return String(a[2]==='id' ? (p.id||p.pluginId||p.name) : p.version);
 }
 JXA
@@ -243,8 +260,18 @@ for name in $names; do
     for plugin in $plugins; do
         prior_code=$result_code; result_code=0
         pv=''; action=skip
-        if [ "$name" = grok ]; then action=handled-by-bot
+        if ! in_catalog "$name" "$plugin"; then action='skipped: not in catalog'
         elif [ "$phase" = finish ]; then action=skip
+        elif [ "$name" = grok ]; then
+            # Grok installs need the user's own trust confirmation, so the installer only reports.
+            pv=$(installed_version grok "$plugin" 2>/dev/null) || pv=''
+            wanted=$pv; if [ "$plugin" = agent-computer-use ]; then wanted=$version; fi
+            if [ "$phase" = install ] && [ -n "$pv" ] && [ "$pv" = "$wanted" ]; then action=skip
+            elif [ "$phase" = remove ] && [ -z "$pv" ]; then action=skip
+            else
+                action=manual; [ "$dry" = 0 ] || action=would-manual
+                log "Manual Grok $phase for $plugin: grok plugin $([ "$phase" = remove ] && echo uninstall || echo 'install/update') (confirm its trust prompt yourself)."
+            fi
         else
             pv=$(installed_version "$name" "$plugin" 2>/dev/null) || pv=''
             wanted=$pv
@@ -337,7 +364,8 @@ if [ "$phase" = finish ]; then
             claude)
                 # https://code.claude.com/docs/en/plugins-reference#cli-commands-reference
                 if installed_version claude agent-computer-use > "$proofout" 2>> "$logfile"; then ok=true; detail='enabled agent-computer-use receipt (listing proof)'; else detail='plugin listing failed or plugin disabled/missing'; fi ;;
-            grok) detail='handled-by-bot: bot must call ACU state; no documented noninteractive CLI proof' ;;
+            grok)
+                if installed_version grok agent-computer-use > "$proofout" 2>> "$logfile"; then ok=true; detail='installed agent-computer-use receipt (listing proof)'; else detail='not installed in Grok; install it there yourself (trust prompt)'; fi ;;
         esac
         [ -z "$proof" ] || proof="$proof,"
         proof="$proof{\"harness\":$(quote "$name"),\"ok\":$ok,\"detail\":$(quote "$detail")}"
