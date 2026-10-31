@@ -212,8 +212,13 @@ class ClaudeHookTests(unittest.TestCase):
             settings = Path(home) / ".claude/settings.json"
             settings.parent.mkdir()
             settings.write_text("{invalid")
-            self.run_hook(home, {}, ["--install"])
+            result, _ = self.run_hook(home, {}, ["--install"])
             self.assertEqual(settings.read_text(), "{invalid")
+            self.assertEqual(result.returncode, 1, "setup reports failure; only hook events fail open")
+            settings.write_text(json.dumps({"hooks": {"Stop": {"not": "a list"}}}))
+            result, _ = self.run_hook(home, {}, ["--install"])
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(json.loads(settings.read_text()), {"hooks": {"Stop": {"not": "a list"}}})
 
     def test_install_uninstall_is_idempotent_and_preserves_foreign_mixed_group(self):
         with tempfile.TemporaryDirectory() as home:

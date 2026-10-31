@@ -216,7 +216,7 @@ def install() -> None:
     for event in EVENTS:
         groups = hooks.setdefault(event, [])
         if not isinstance(groups, list):
-            continue
+            raise ValueError(f"hooks.{event} must be a list")
         groups[:] = without_ours(groups)
         groups.extend(config_entries())
     atomic_json(path, data)
@@ -267,6 +267,14 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if any(a in ("--install", "--uninstall") for a in sys.argv[1:]):
+        # Setup is not a hook: report failure so the installer never thinks it registered.
+        try:
+            main()
+        except Exception as error:
+            print(f"acu-claude-hook: {error}", file=sys.stderr)
+            raise SystemExit(1)
+        raise SystemExit(0)
     try:
         main()
     except (Exception, SystemExit):
