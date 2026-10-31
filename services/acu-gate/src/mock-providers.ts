@@ -25,9 +25,11 @@ export async function startMocks() {
         challenge: string;
         redirect: string;
         nonce?: string;
+        scope: string;
       }
     >(),
-    tokens = new Map<string, string>();
+    tokens = new Map<string, string>(),
+    refreshTokens = new Map<string, string>();
   const pages = new Map<
     string,
     { status?: number; author?: string; body?: string; redirect?: string }
@@ -63,6 +65,7 @@ export async function startMocks() {
   }
   const state = {
     xStatus: 200,
+    refreshFail: false,
     githubStatus: 200,
     githubCalls: 0,
     followersCalls: 0,
@@ -107,6 +110,7 @@ export async function startMocks() {
         challenge: url.searchParams.get("code_challenge") || "",
         redirect: url.searchParams.get("redirect_uri") || "",
         nonce: url.searchParams.get("nonce") || undefined,
+        scope: url.searchParams.get("scope") || "",
       });
       const redirect = new URL(url.searchParams.get("redirect_uri")!);
       redirect.search = new URLSearchParams({
@@ -123,8 +127,29 @@ export async function startMocks() {
     ) {
       let raw = "";
       for await (const chunk of req) raw += chunk;
-      const data = new URLSearchParams(raw),
-        code = codes.get(data.get("code") || "");
+      const data = new URLSearchParams(raw);
+      if (
+        url.pathname === "/2/oauth2/token" &&
+        data.get("grant_type") === "refresh_token"
+      ) {
+        if (state.refreshFail) return json(401, { error: "invalid_grant" });
+        const refresh = data.get("refresh_token") || "",
+          user = refreshTokens.get(refresh);
+        if (!user || !req.headers.authorization?.startsWith("Basic "))
+          return json(400, { error: "invalid_grant" });
+        refreshTokens.delete(refresh);
+        const token = opaque(),
+          rotated = opaque();
+        tokens.set(token, user);
+        refreshTokens.set(rotated, user);
+        return json(200, {
+          access_token: token,
+          refresh_token: rotated,
+          expires_in: 7200,
+          token_type: "bearer",
+        });
+      }
+      const code = codes.get(data.get("code") || "");
       if (
         !code ||
         code.redirect !== data.get("redirect_uri") ||
@@ -137,6 +162,9 @@ export async function startMocks() {
       codes.delete(data.get("code")!);
       const token = opaque();
       tokens.set(token, code.user);
+      const offline = code.scope.includes("offline.access");
+      const refresh = offline ? opaque() : undefined;
+      if (refresh) refreshTokens.set(refresh, code.user);
       if (url.pathname === "/oauth/v2/accessToken") {
         return json(200, {
           access_token: token,
@@ -148,7 +176,13 @@ export async function startMocks() {
           ),
         });
       }
-      return json(200, { access_token: token, token_type: "bearer" });
+      return json(200, {
+        access_token: token,
+        token_type: "bearer",
+        ...(offline
+          ? { refresh_token: refresh, expires_in: 7200 }
+          : { expires_in: 7200 }),
+      });
     }
     if (url.pathname === "/oauth/openid/jwks")
       return json(200, { keys: [linkedinJwk] });

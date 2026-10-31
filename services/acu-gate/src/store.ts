@@ -87,7 +87,17 @@ export const tables = {
     "status",
     "created_at",
   ],
-  owner_tokens: ["provider", "ciphertext", "nonce", "tag"],
+  owner_tokens: [
+    "provider",
+    "ciphertext",
+    "nonce",
+    "tag",
+    "refresh_ciphertext",
+    "refresh_nonce",
+    "refresh_tag",
+    "access_expires_at",
+    "owner_auth_required",
+  ],
   owner_followers: ["x_user_id"],
   ref_clicks: ["ref", "day", "count"],
   download_hits: ["day", "count"],
@@ -334,18 +344,19 @@ export class NeonStore implements Store {
   }
   async migrate() {
     try {
-      const source = await readFile(
-        new URL("../migrations/001_init.sql", import.meta.url),
-        "utf8",
-      );
-      // The migration is one query, so its DDL and schema search path share a transaction.
       await this.sql.query(`CREATE SCHEMA IF NOT EXISTS "${this.schema}"`);
-      await this.sql.transaction([
-        this.sql.query(`SET LOCAL search_path TO "${this.schema}"`),
-        ...source
-          .split("-- statement-break")
-          .map((statement) => this.sql.query(statement)),
-      ]);
+      for (const file of ["001_init.sql", "002_owner_token_refresh.sql"]) {
+        const source = await readFile(
+          new URL(`../migrations/${file}`, import.meta.url),
+          "utf8",
+        );
+        await this.sql.transaction([
+          this.sql.query(`SET LOCAL search_path TO "${this.schema}"`),
+          ...source
+            .split("-- statement-break")
+            .map((statement) => this.sql.query(statement)),
+        ]);
+      }
     } catch {
       throw new Error("database_migration_failed");
     }

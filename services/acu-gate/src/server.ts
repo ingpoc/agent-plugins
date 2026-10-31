@@ -12,7 +12,7 @@ import {
   pkce,
   postKey,
 } from "./providers.ts";
-import type { ProviderName, PageFetch, Identity } from "./providers.ts";
+import type { ProviderName, PageFetch, Identity, XTokenBundle } from "./providers.ts";
 import { sha256, issueEntitlement, verifyDeviceSignature } from "./crypto.ts";
 import {
   settings,
@@ -47,6 +47,82 @@ const update = (
   row: Row,
   required = false,
 ): Op => ({ kind: "update", table, where, row, required });
+function ownerTokenRow(bundle: XTokenBundle, key: string): Row {
+  const access = encrypt(bundle.accessToken, key);
+  const row: Row = {
+    provider: "x",
+    ciphertext: access.ciphertext,
+    nonce: access.nonce,
+    tag: access.tag,
+    access_expires_at: bundle.expiresAt,
+    owner_auth_required: false,
+    refresh_ciphertext: null,
+    refresh_nonce: null,
+    refresh_tag: null,
+  };
+  if (bundle.refreshToken) {
+    const refresh = encrypt(bundle.refreshToken, key);
+    row.refresh_ciphertext = refresh.ciphertext;
+    row.refresh_nonce = refresh.nonce;
+    row.refresh_tag = refresh.tag;
+  }
+  return row;
+}
+async function markOwnerAuthRequired(store: Store) {
+  if (!(await first(store, "owner_tokens", { provider: "x" }))) return;
+  await store.atomic([
+    update("owner_tokens", { provider: "x" }, { owner_auth_required: true }),
+  ]);
+}
+async function ownerAccessToken(
+  store: Store,
+  env: NodeJS.ProcessEnv,
+  x: XProvider,
+) {
+  const row = await first(store, "owner_tokens", { provider: "x" });
+  if (!row) return undefined;
+  const key = env.TOKEN_ENC_KEY!;
+  const access = decrypt(
+    {
+      ciphertext: String(row.ciphertext),
+      nonce: String(row.nonce),
+      tag: String(row.tag),
+    },
+    key,
+  );
+  const expiresAt = Date.parse(String(row.access_expires_at ?? ""));
+  if (
+    !Number.isFinite(expiresAt) ||
+    expiresAt - Date.now() > 5 * 60 * 1000
+  )
+    return access;
+  const refresh =
+    row.refresh_ciphertext && row.refresh_nonce && row.refresh_tag
+      ? decrypt(
+          {
+            ciphertext: String(row.refresh_ciphertext),
+            nonce: String(row.refresh_nonce),
+            tag: String(row.refresh_tag),
+          },
+          key,
+        )
+      : null;
+  if (!refresh) {
+    await markOwnerAuthRequired(store);
+    throw new GateError(503, "x_unavailable");
+  }
+  try {
+    const bundle = await x.refreshAccessToken(refresh);
+    await store.atomic([
+      update("owner_tokens", { provider: "x" }, ownerTokenRow(bundle, key)),
+    ]);
+    return bundle.accessToken;
+  } catch (error) {
+    await markOwnerAuthRequired(store);
+    if (error instanceof GateError) throw error;
+    throw new GateError(503, "x_unavailable");
+  }
+}
 function deviceId(value: unknown) {
   const id = text(value, 64);
   if (!/^[a-f0-9]{64}$/.test(id)) throw new GateError(400, "invalid_device");
@@ -669,6 +745,7 @@ export function createGate(
           verifier,
           `${env.PUBLIC_BASE_URL}/v1/auth/${provider}/callback`,
           nonce,
+          owner || undefined,
         );
         if (env.DEV === "1" && url.searchParams.has("mock_user"))
           target.searchParams.set(
@@ -701,27 +778,37 @@ export function createGate(
           if (url.searchParams.has("error"))
             throw new GateError(400, "authorization_denied");
           const callbackUrl = `${env.PUBLIC_BASE_URL}/v1/auth/${provider}/callback`;
-          const access = await providers[provider].exchange(
-            text(url.searchParams.get("code")),
-            String(state.verifier),
-            callbackUrl,
-            provider === "linkedin" ? String(state.nonce) : undefined,
-          );
+          const oauthCode = text(url.searchParams.get("code"));
+          const oauthVerifier = String(state.verifier);
           if (state.owner_authorization === true) {
-            const info = await providers[provider].identity(access);
+            const bundle = await x.exchangeTokens(
+              oauthCode,
+              oauthVerifier,
+              callbackUrl,
+            );
+            const info = await x.identity(bundle.accessToken);
             if (provider !== "x" || info.userId !== env.OWNER_X_USER_ID)
               throw new GateError(403, "owner_mismatch");
-            const row = {
-              provider: "x",
-              ...encrypt(access, env.TOKEN_ENC_KEY!),
-            };
             await store.atomic([
               (await first(store, "owner_tokens", { provider: "x" }))
-                ? update("owner_tokens", { provider: "x" }, row)
-                : insert("owner_tokens", row),
+                ? update(
+                    "owner_tokens",
+                    { provider: "x" },
+                    ownerTokenRow(bundle, env.TOKEN_ENC_KEY!),
+                  )
+                : insert(
+                    "owner_tokens",
+                    ownerTokenRow(bundle, env.TOKEN_ENC_KEY!),
+                  ),
             ]);
             return reply(200, { ok: true });
           }
+          const access = await providers[provider].exchange(
+            oauthCode,
+            oauthVerifier,
+            callbackUrl,
+            provider === "linkedin" ? String(state.nonce) : undefined,
+          );
           const code = opaque();
           const tokenFields = encrypt(access, env.TOKEN_ENC_KEY!);
           await store.atomic([
@@ -867,17 +954,7 @@ export function createGate(
           ...(await profileOps(String(identity.id), info)),
         ]);
         Object.assign(identity, fields);
-        const owner = await first(store, "owner_tokens", { provider: "x" });
-        const ownerAccess = owner
-          ? decrypt(
-              {
-                ciphertext: String(owner.ciphertext),
-                nonce: String(owner.nonce),
-                tag: String(owner.tag),
-              },
-              env.TOKEN_ENC_KEY!,
-            )
-          : undefined;
+        const ownerAccess = await ownerAccessToken(store, env, x);
         if (!(await x.follows(info.userId, access, store, ownerAccess)))
           throw new GateError(422, "follow_missing");
         const post = await x.post(info.userId, access, match("x"));
@@ -1231,6 +1308,9 @@ export function createGate(
             downloads: stats.downloads,
             wall_opt_in: (await store.list("accounts", { wall_opt_in: true }))
               .length,
+            owner_auth_required:
+              (await first(store, "owner_tokens", { provider: "x" }))
+                ?.owner_auth_required === true,
           });
         }
       }

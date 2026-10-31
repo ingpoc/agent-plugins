@@ -19,11 +19,19 @@ export interface Provider {
     state: string,
     verifier: string,
     callback: string,
-    nonce: string,
+    nonce?: string,
+    owner?: boolean,
   ): URL;
   exchange(code: string, verifier: string, callback: string, nonce?: string): Promise<string>;
   identity(token: string): Promise<Identity>;
 }
+export type XTokenBundle = {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt: string;
+};
+const X_USER_SCOPES = "tweet.read users.read follows.read";
+const X_OWNER_SCOPES = `${X_USER_SCOPES} offline.access`;
 export const pkce = (s: string) =>
   createHash("sha256").update(s).digest("base64url");
 export const opaque = () => randomBytes(32).toString("base64url");
@@ -79,7 +87,13 @@ export class XProvider implements Provider {
     this.env = env;
     this.spend = spend;
   }
-  authorize(state: string, verifier: string, callback: string) {
+  authorize(
+    state: string,
+    verifier: string,
+    callback: string,
+    _nonce?: string,
+    owner?: boolean,
+  ) {
     const url = new URL(
       "/i/oauth2/authorize",
       this.env.X_AUTH_BASE || "https://x.com",
@@ -89,14 +103,14 @@ export class XProvider implements Provider {
       client_id: this.env.X_CLIENT_ID || "",
       redirect_uri: callback,
       state,
-      scope: "tweet.read users.read follows.read",
+      scope: owner ? X_OWNER_SCOPES : X_USER_SCOPES,
       code_challenge: pkce(verifier),
       code_challenge_method: "S256",
     }).toString();
     return url;
   }
-  async exchange(code: string, verifier: string, callback: string) {
-    const data = await json(
+  private async tokenRequest(body: URLSearchParams) {
+    return json(
       new URL("/2/oauth2/token", this.env.X_API_BASE || "https://api.x.com"),
       {
         method: "POST",
@@ -106,16 +120,47 @@ export class XProvider implements Provider {
             `${this.env.X_CLIENT_ID}:${this.env.X_CLIENT_SECRET}`,
           ).toString("base64")}`,
         },
-        body: new URLSearchParams({
+        body,
+      },
+      "x",
+    );
+  }
+  private bundleFromTokenResponse(data: Record<string, unknown>): XTokenBundle {
+    const expiresIn =
+      typeof data.expires_in === "number" && data.expires_in > 0
+        ? data.expires_in
+        : 7200;
+    return {
+      accessToken: text(data.access_token),
+      refreshToken:
+        typeof data.refresh_token === "string" ? data.refresh_token : undefined,
+      expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+    };
+  }
+  async exchangeTokens(code: string, verifier: string, callback: string) {
+    return this.bundleFromTokenResponse(
+      await this.tokenRequest(
+        new URLSearchParams({
           grant_type: "authorization_code",
           code,
           redirect_uri: callback,
           code_verifier: verifier,
         }),
-      },
-      "x",
+      ),
     );
-    return text(data.access_token);
+  }
+  async refreshAccessToken(refreshToken: string) {
+    return this.bundleFromTokenResponse(
+      await this.tokenRequest(
+        new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+        }),
+      ),
+    );
+  }
+  async exchange(code: string, verifier: string, callback: string) {
+    return (await this.exchangeTokens(code, verifier, callback)).accessToken;
   }
   async api(path: string, token: string, params: Record<string, string> = {}) {
     await this.spend();
@@ -332,7 +377,13 @@ export class LinkedInProvider implements Provider {
     this.env = env;
     this.pageFetch = pageFetch;
   }
-  authorize(state: string, _verifier: string, callback: string, nonce: string) {
+  authorize(
+    state: string,
+    _verifier: string,
+    callback: string,
+    nonce: string,
+    _owner?: boolean,
+  ) {
     const url = new URL(
       "/oauth/v2/authorization",
       this.env.LINKEDIN_AUTH_BASE || "https://www.linkedin.com",

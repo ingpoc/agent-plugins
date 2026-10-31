@@ -122,7 +122,12 @@ CREATE TABLE IF NOT EXISTS owner_tokens (
   provider text PRIMARY KEY,
   ciphertext text NOT NULL,
   nonce text NOT NULL,
-  tag text NOT NULL
+  tag text NOT NULL,
+  refresh_ciphertext text,
+  refresh_nonce text,
+  refresh_tag text,
+  access_expires_at timestamptz NOT NULL DEFAULT (now() + interval '2 hours'),
+  owner_auth_required boolean NOT NULL DEFAULT false
 );
 -- statement-break
 CREATE TABLE IF NOT EXISTS owner_followers (

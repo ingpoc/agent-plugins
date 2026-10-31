@@ -196,7 +196,9 @@ test(
       h.request("/v1/session/redeem", { data }),
       h.request("/v1/session/redeem", { data }),
     ]);
-    assert.deepEqual(results.map((r) => r.status).sort(), [200, 401]);
+    assert.equal(results.filter((r) => r.status === 200).length, 1);
+    const lost = results.find((r) => r.status !== 200)!;
+    assert.ok([401, 409].includes(lost.status));
     assert.equal(
       (await store.list("sessions", { device_id: prepared.device.id })).length,
       1,

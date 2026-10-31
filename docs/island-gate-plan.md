@@ -93,7 +93,7 @@ All JSON, UTF-8. Errors: HTTP 4xx/5xx with `{"error": "<code>", "message": "<hum
 - `POST /v1/device/rebind` (Bearer) `{device_id, ts, sig}` → 200 `{"status":"unlocked","entitlement"}` or 429 `rebind_cooldown`
 - `POST /v1/entitlement/refresh {device_id, ts, sig}` (no session; sig = base64 DER ECDSA P-256 SHA-256 over `"acu-gate-refresh|<device_id>|<ts>"`, ts unix seconds within ±300 s) → 200 `{"entitlement"}` | 409 `device_moved` | 403 `revoked` | 404 `not_found`. Rebind sig message: `"acu-gate-rebind|<device_id>|<ts>"`.
 - `GET /v1/public/counter` → `{"unlocks":n,"updated_at":"ISO"}` CORS `*`, max-age 60.
-- Admin (Bearer `ADMIN_TOKEN`): `GET /v1/admin/pending`, `POST /v1/admin/pending/{id}/approve|reject`, `POST /v1/admin/accounts/{id}/revoke`, `POST /v1/admin/accounts/{id}/reset-rebind`, `GET /v1/admin/x-owner/start` (Guru authorizes his own X account once for owned-read follower sync).
+- Admin (Bearer `ADMIN_TOKEN`): `GET /v1/admin/pending`, `POST /v1/admin/pending/{id}/approve|reject`, `POST /v1/admin/accounts/{id}/revoke`, `POST /v1/admin/accounts/{id}/reset-rebind`, `GET /v1/admin/x-owner/start` (Guru authorizes his own X account once for owned-read follower sync; scopes include `offline.access`, refresh token stored encrypted, auto-refreshed before follower sync).
 - Entitlement token: `base64url(payload_json) + "." + base64url(ed25519_sig over the first part)`; payload `{"v":1,"acct":"...","prov":"x|linkedin","handle":"...","device_id":"<hex64>","iat":unix,"exp":unix}`; app verifies with the compiled-in Ed25519 public key (raw 32 bytes, base64), DEBUG builds may override base URL + public key via `defaults write com.ingpoc.cua-service ACUGateDevBaseURL/ACUGateDevPublicKey` only when env `ACU_GATE_DEV=1`.
 
 ## Traction design (Guru, 2026-10-31)
@@ -103,7 +103,7 @@ All JSON, UTF-8. Errors: HTTP 4xx/5xx with `{"error": "<code>", "message": "<hum
 - Each X unlock stores `verified`, `verified_type`, `public_metrics.followers_count` from `GET /2/users/me?user.fields=verified,verified_type,public_metrics` (same $0.010 call as sign-in, refreshed on each verify), for "verified unlocks" and "reach".
 - LinkedIn route shows "Follow Gurusharan on LinkedIn" (opens config `linkedin.follow_url`, placeholder until Guru gives his profile URL) before "Share on LinkedIn". Not verified, never blocks.
 - Ref click-throughs: `POST|GET /v1/public/ref-click?ref=acu-x|acu-li` → 204, CORS `*`, counts per ref per UTC day, no IP or cookie stored; only known refs counted. The site calls it with `navigator.sendBeacon` when `?ref=` is present (snippet `services/acu-gate/site/ref-beacon-snippet.html`; site deploy waits for Guru).
-- `GET /v1/admin/stats` (Bearer `ADMIN_TOKEN`) → `{"unlocks":{"x":n,"linkedin":n,"total":n},"verified_unlocks":n,"verified_by_type":{"blue":n,...},"reach":sum_followers_of_x_unlocks,"pending":n,"ref_clicks":{"acu-x":n,"acu-li":n},"ref_clicks_by_day":[...]}`
+- `GET /v1/admin/stats` (Bearer `ADMIN_TOKEN`) → `{"unlocks":{"x":n,"linkedin":n,"total":n},"verified_unlocks":n,"verified_by_type":{"blue":n,...},"reach":sum_followers_of_x_unlocks,"pending":n,"ref_clicks":{"acu-x":n,"acu-li":n},"ref_clicks_by_day":[...],"owner_auth_required":boolean}` (`owner_auth_required` true when owner token refresh failed and Guru must re-run `/v1/admin/x-owner/start`)
 
 ## Site stats: downloads, unlocks, wall
 
