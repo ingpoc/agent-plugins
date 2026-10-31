@@ -52,6 +52,9 @@ enum PermissionBroker {
     /// Settings › Calendar / Focus buttons are Grant rows too.
     static func requestCalendars() { request(.calendars, from: .settingsGrant) }
     static func requestFocus() { request(.focus, from: .settingsGrant) }
+    /// Settings > General > Open at login: the user flipped the switch (SMAppService main-app login item).
+    static func registerLoginItem() throws { try SMAppService.mainApp.register() }
+    static func unregisterLoginItem() throws { try SMAppService.mainApp.unregister() }
 
     /// Real request API first, from this (installed) process, so TCC
     /// registers this exact app (bundle + designated requirement) and lists it in System Settings.

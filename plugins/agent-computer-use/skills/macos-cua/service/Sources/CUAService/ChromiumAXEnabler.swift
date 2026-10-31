@@ -46,6 +46,11 @@ final class ChromiumAXEnabler: @unchecked Sendable {
         }
     }
 
+    /// Metadata watchers enable Electron AX without taking a conversation snapshot.
+    func enableManualAccessibility(axApp: AXUIElement) {
+        AXUIElementSetAttributeValue(axApp, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+    }
+
     /// If shell looks Chromium and tree is sparse, enable AX once and signal rewalk.
     func enrichIfNeeded(
         axApp: AXUIElement,

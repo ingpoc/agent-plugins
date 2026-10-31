@@ -38,13 +38,14 @@ enum IslandCodexThreads {
                 result.model = payload["model"] as? String ?? result.model
                 result.effort = payload["effort"] as? String ?? result.effort
             } else if type == "event_msg", let event = payload["type"] as? String {
+                if event.hasPrefix("hook_") || [payload["message"] as? String, payload["reason"] as? String].compactMap({ $0 }).contains(where: { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased().hasPrefix("hook:") }) { continue }
                 switch event {
                 case "task_started": result.state = "working"; result.error = nil; result.since = stamp(object)
                 case "task_complete": result.state = "done"; result.error = nil; result.since = stamp(object)
                 case "error":
                     result.since = stamp(object)
                     result.state = "error"
-                    result.error = (payload["message"] as? String)?.components(separatedBy: .newlines).first.map { String($0.prefix(60)) }
+                    result.error = payload["message"] as? String
                 case "turn_aborted":
                     let reason = (payload["reason"] as? String ?? "").lowercased()
                     result.state = reason.contains("fail") || reason.contains("error") ? "error" : "idle"
@@ -136,7 +137,7 @@ enum IslandCodexThreads {
         let prompt = record.firstUserMessage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         // Codex stores a clipped prompt as the title; prefer the full prompt then.
         let source = !title.isEmpty && (prompt.isEmpty || !prompt.hasPrefix(title)) ? title : (prompt.isEmpty ? title : prompt)
-        let short = shortTitle(source)
+        let short = shortTitle(source, max: Int.max)
         return short.isEmpty ? "Untitled thread" : short
     }
 
@@ -180,12 +181,6 @@ enum IslandCodexThreads {
         return quiet > 600 ? "idle" : "working"
     }
 
-    /// Threads shown as working this run; a stopped thread never seen working is dropped.
-    private static let seenLock = NSLock()
-    nonisolated(unsafe) private static var seenWorking: Set<String> = []
-    static func noteWorking(_ id: String) { seenLock.lock(); seenWorking.insert(id); seenLock.unlock() }
-    static func wasWorking(_ id: String) -> Bool { seenLock.lock(); defer { seenLock.unlock() }; return seenWorking.contains(id) }
-
     static func duration(_ seconds: Int) -> String {
         seconds < 60 ? "\(seconds)s" : seconds < 3600 ? "\(seconds / 60)m" : "\(seconds / 3600)h"
     }
@@ -216,26 +211,26 @@ enum IslandCodexThreads {
     static func rows(records: [ThreadRecord], hosts: [Host], now: Date) -> [IslandAgent] {
         let helpers = Dictionary(grouping: records.filter { $0.parentID != nil }, by: { $0.parentID! })
         return records.filter { $0.parentID == nil && $0.role == nil && !isProbe($0) }.compactMap { record in
-            var state = liveState(record, hosts: hosts, now: now)
+            let state = liveState(record, hosts: hosts, now: now)
             if state == "idle" { return nil }
-            if state == "working" { noteWorking(record.id) }
             if state == "stopped" {
-                guard wasWorking(record.id) else { return nil }
-                state = "error"
+                if now.timeIntervalSince(record.updatedAt) > 180 { return nil }
             }
-            let stopped = state == "error" && record.rollout.state == "working"
+            let stopped = state == "stopped"
             let since = stopped ? record.updatedAt : (record.rollout.since ?? record.updatedAt)
             let age = max(0, Int(now.timeIntervalSince(since)))
             var row = IslandAgent(id: "local:codex-thread:\(record.id)", name: "Codex", app: "Codex",
                                   title: displayTitle(record), status: state == "working" ? "running" : state,
                                   elapsed_s: Double(age), last_seen_at: record.updatedAt.timeIntervalSince1970)
+            row.initiator = IslandInitiator.parse(originator: record.originator)
             let desktop = ["Codex Desktop", "codex_work_desktop"].contains(record.originator ?? "")
             var parts = [productModelName(record.rollout.model ?? record.model),
                          effortLabel(record.rollout.effort ?? record.effort, desktop: desktop)].compactMap { $0 }
             if let count = helpers[record.id]?.count, count > 0 { parts.append("+\(count) helpers") }
             switch state {
-            case "error": row.local_detail = stopped ? "Stopped" : humanError(record.rollout.error)
-            case "done": row.local_detail = (parts + ["done \(duration(age))"]).joined(separator: " · ")
+            case "error": row.local_detail = humanError(record.rollout.error)
+            case "stopped": row.local_detail = "Stopped"
+            case "done": row.local_detail = (parts + [age < 60 ? "done now" : "done \(duration(age))"]).joined(separator: " · ")
             default: row.local_detail = (parts + [duration(age)]).joined(separator: " · ")
             }
             // https://developers.openai.com/codex/app/commands#deep-links: codex://threads/<id> opens a local thread.
@@ -256,6 +251,7 @@ enum IslandCodexThreads {
     }
 
     static func hostLabel(_ originator: String?) -> String {
+        if originator == "acu_exec" || (originator?.hasPrefix("acu_exec.") ?? false) { return "terminal" }
         switch originator ?? "" {
         case "codex_exec", "codex_cli_rs": return "terminal"
         case "Codex Desktop", "codex_work_desktop": return "ChatGPT app"

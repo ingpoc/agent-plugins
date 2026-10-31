@@ -3,7 +3,48 @@ import SwiftUI
 
 // MARK: - Wire format
 
+struct IslandInitiator: Codable, Equatable {
+    var agent: String
+    var bot: String?
+    var chain: [String]
+
+    static func parse(originator: String?) -> IslandInitiator? {
+        guard let originator, originator == "acu_exec" || originator.hasPrefix("acu_exec.") else { return nil }
+        let ids = originator.split(separator: ".", omittingEmptySubsequences: false).dropFirst()
+        guard ids.allSatisfy({ !$0.isEmpty }) else { return nil }
+        let names = ids.map { id -> String in
+            let value = ["grokbot": "Grok Bot", "grok-bot": "Grok Bot", "grok": "Grok Bot", "codex": "Codex", "cursor": "Cursor", "samantha": "Samantha"][id.lowercased()] ?? String(id)
+            return value.count > 16 ? String(value.prefix(15)) + "…" : value
+        }
+        return IslandInitiator(agent: "ACU", bot: names.first, chain: names)
+    }
+
+    static func fromPost(_ value: Any?) -> IslandInitiator? {
+        func clean(_ value: String?) -> String? {
+            guard let value else { return nil }
+            let printable = value.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }
+            let text = String(String.UnicodeScalarView(printable)).trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? nil : String(text.prefix(24))
+        }
+        if let value = value as? String {
+            if value.hasPrefix("acu_exec") { return parse(originator: value) }
+        }
+        let object = value as? [String: Any]
+        let parts = (value as? String)?.split(separator: "/", maxSplits: 1).map(String.init) ?? []
+        guard let agent = clean(object?["agent"] as? String ?? parts.first) else { return nil }
+        let bot = clean(object?["bot"] as? String ?? (parts.count > 1 ? parts[1] : nil))
+        return IslandInitiator(agent: agent, bot: bot, chain: bot.map { [$0] } ?? [])
+    }
+
+    func description(app: String) -> String {
+        let names = chain.isEmpty ? bot.map { [$0] } ?? [] : chain
+        let detail = names.isEmpty ? "" : " (" + names.enumerated().map { $0.offset == 0 ? $0.element : "then " + $0.element }.joined(separator: ", ") + ")"
+        return "Started by \(agent)\(detail) · running in \(app)"
+    }
+}
+
 struct IslandAgent: Codable, Equatable, Identifiable {
+    var initiator: IslandInitiator? = nil
     var id: String = ""
     var name: String = ""      // "Codex"
     var app: String = ""       // app whose icon represents the agent ("Cursor", "Codex")
@@ -36,6 +77,7 @@ struct IslandAgent: Codable, Equatable, Identifiable {
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
+        initiator = try c.decodeIfPresent(IslandInitiator.self, forKey: .initiator)
         id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
         app = try c.decodeIfPresent(String.self, forKey: .app) ?? ""
@@ -478,7 +520,7 @@ final class IslandModel: ObservableObject {
             guard hovering != oldValue else { return }
             if presentation == .peek {
                 // Hovered peek: on leave it goes with the same short grace as a card (0.2.63).
-                if hovering { pinPeek() } else { schedulePeekDismiss(after: Self.leaveGrace) }
+                if hovering { pinPeek() } else { schedulePeekDismiss(after: Self.leaveGrace + (peek?.extra ?? 0)) }
             }
             // Hover-hold: the pointer entering an alert-opened card (error/done peek) stops its timer;
             // it then closes only when the pointer leaves (pointerLeft), like a user-opened card.
@@ -1664,7 +1706,7 @@ extension IslandModel {
         if peek == nil { onPeekVisible?(true) }
         let (merged, _) = IslandPeekRules.merge(current: peek, incoming: item, now: now, window: Self.peekDwell)
         peek = merged
-        if !peekPinned { schedulePeekDismiss(after: Self.peekDwell) }
+        if !peekPinned { schedulePeekDismiss(after: Self.peekDwell + merged.extra) }
         refresh(now: now)
     }
 

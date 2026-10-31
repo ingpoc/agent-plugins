@@ -56,6 +56,7 @@ final class IslandHub {
     private(set) var localHarnesses: [IslandAgent] = []
     /// Grok Bot Bots whose sidebar row says Working, with when the island first saw each one.
     private(set) var grokBotWorking: [(name: String, since: Date)] = []
+    private var claudeDesktop = IslandClaudeDesktopActivity.Snapshot()
     private var grokBotAges: [String] = []
     private var localHarnessScanAt = Date.distantPast
     private var localHarnessScanInFlight = false
@@ -88,6 +89,7 @@ final class IslandHub {
     /// Codex = ChatGPT.app (com.openai.codex), Cursor = Cursor.app, Grok Bot = Grok Bot.app.
     nonisolated static let sourceBundleIDs: [AgentSource: Set<String>] = [
         .codex: ["com.openai.codex"],
+        .claude: [IslandClaudeDesktopActivity.bundleID],
         .cursor: ["com.todesktop.230313mzl4w4u92"],
         .grokBot: ["com.anysphere.sand"],
     ]
@@ -144,6 +146,7 @@ final class IslandHub {
             return a
         }
         s.agents += localHarnesses
+        if store.sourceEnabled(.claude) { s.agents += claudeDesktop.agents }
         if store.sourceEnabled(.agentRoster) { s.agents += IslandGrokBotActivity.rows(grokBotWorking, now: now) }
         // Queued cards: approvals jump the queue (then arrival order); the first owns the pill,
         // all show as needs-you rows + count.
@@ -271,6 +274,22 @@ final class IslandHub {
         changed()
     }
 
+    func updateClaudeDesktop(_ snapshot: IslandClaudeDesktopActivity.Snapshot, now: Date = Date()) {
+        guard snapshot != claudeDesktop else { return }
+        let active = Set(claudeDesktop.agents.map(\.id))
+        claudeDesktop = snapshot
+        if store.sourceEnabled(.claude), store.cap(.claude).rank >= AttentionCap.critical.rank,
+           store.bool(IslandSettingsSchema.agentPeeks) {
+            for row in snapshot.rows where active.contains(row.id) && (row.status == .done || row.status == .error) {
+                onPeek?(IslandPeekItem(id: row.id, source: "Claude", app: "Claude",
+                    symbol: row.status == .done ? "checkmark.circle.fill" : "xmark.circle.fill",
+                    title: row.title, body: row.status == .error ? "Something went wrong" : "Done",
+                    at: now, extra: row.status == .error ? 2 : 0))
+            }
+        }
+        changed()
+    }
+
     func updateLocalHarnesses(_ rows: [IslandAgent]) {
         guard rows != localHarnesses else { return }
         localHarnesses = rows
@@ -328,7 +347,7 @@ final class IslandHub {
         }
         let json = (try? JSONSerialization.jsonObject(with: r.body)) as? [String: Any] ?? [:]
         let rawSource = (json["source"] as? String) ?? r.query["source"] ?? r.headers["x-island-source"] ?? ""
-        guard let source = AgentSource.parse(rawSource) else { return .err(400, "unknown source (samantha|grok-bot|cursor|codex|agent)") }
+        guard let source = AgentSource.parse(rawSource) else { return .err(400, "unknown source (samantha|grok-bot|cursor|codex|claude|agent)") }
         if r.peerVerified {
             // Same-uid local peer: the source must be opted in (token created by the user's Rotate /
             // Samantha toggle). CUAService reads its own item — no Keychain prompt for anyone.
@@ -430,7 +449,7 @@ final class IslandHub {
         guard rawId.count <= 80 else { return .err(400, "id too long") }
         let id = Self.key(source, rawId)
         let kind = (j["kind"] as? String ?? "running").lowercased()
-        let title = String((j["title"] as? String ?? "").prefix(120))
+        let title = j["title"] as? String ?? ""
         let detail = String((j["detail"] as? String ?? "").prefix(200))
         let app = String((j["app"] as? String ?? source.defaultApp).prefix(40))
         switch kind {
@@ -495,13 +514,14 @@ final class IslandHub {
             // A3 Quick Peek: one line (title = sender/headline), optional body; shown ~3 s, never a row.
             guard !title.isEmpty else { return .err(400, "title required") }
             let cap = store.cap(source)
-            guard cap.rank >= AttentionCap.info.rank else { return .err(403, "peeks need attention cap info or higher for \(source.cliName)") }
+            guard cap.rank >= AttentionCap.attention.rank else { return .err(403, "peeks need attention cap attention or higher for \(source.cliName)") }
             guard store.bool(IslandSettingsSchema.agentPeeks) else { return .err(403, "agent peeks are off in ACU Settings") }
             onPeek?(IslandPeekItem(id: id, source: source.title, app: app, symbol: String((j["symbol"] as? String ?? "").prefix(40)),
                                    title: title, body: detail, at: now))
             return .ok(["id": rawId])
         case "running", "needs_you", "done", "error":
             guard !title.isEmpty else { return .err(400, "title required") }
+            let previousStatus = entries[id]?.agent.status
             let rawParent = (j["parent_id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
             if let rawParent {
                 guard !rawParent.isEmpty, rawParent.count <= 80 else { return .err(400, "parent_id must be 1-80 characters") }
@@ -527,6 +547,7 @@ final class IslandHub {
             // Error rows: `detail` is the human meta line ("Tests failed after restart"); the
             // technical `error` goes to the hover tooltip.
             var shown = agent
+            shown.initiator = IslandInitiator.fromPost(j["initiator"]) ?? entries[id]?.agent.initiator
             if kind == "error", let line = (j["detail"] as? String)?.components(separatedBy: .newlines).first?
                 .trimmingCharacters(in: .whitespaces), !line.isEmpty { shown.local_detail = String(line.prefix(60)) }
             if kind == "running" || kind == "done", let meta = (j["meta"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -534,6 +555,14 @@ final class IslandHub {
             if kind == "error", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !tech.isEmpty { shown.tooltip = String(tech.prefix(200)) }
             entries[id] = Entry(source: source, agent: shown, updated: now, ttl: ttl, started: started)
+            if (kind == "done" || kind == "error"), (previousStatus == nil || previousStatus == "running"),
+               store.cap(source).rank >= AttentionCap.critical.rank,
+               store.bool(IslandSettingsSchema.agentPeeks) {
+                onPeek?(IslandPeekItem(id: id, source: source.title, app: app,
+                                       symbol: kind == "done" ? "checkmark.circle.fill" : "xmark.circle.fill",
+                                       title: title, body: (j["meta"] as? String) ?? detail,
+                                       at: now, extra: kind == "error" ? 2 : 0))
+            }
             changed()
             return .ok(["id": rawId])
         default:

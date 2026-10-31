@@ -43,6 +43,31 @@ class IslandPostRosterTests(unittest.TestCase):
         self.assertEqual(body["name"], "Claude Code")
         self.assertEqual(body["parent_id"], "parent-1")
 
+    def test_claude_source_and_initiator_reach_the_transport(self):
+        requests = []
+
+        class FakeSocketTransport:
+            def __init__(self, path):
+                pass
+
+            def call(self, method, path, body=None, **kwargs):
+                requests.append(body)
+                return 200, {"id": body["id"]}
+
+        argv = ["island-post", "--source", "claude", "--id", "claude-code:session",
+                "--app", "Claude", "--initiator", "acu_exec.grokbot.cursor",
+                "--kind", "running", "--title", "Build app"]
+        with patch.object(sys, "argv", argv), \
+             patch.object(island_post, "socket_path", return_value="/tmp/island.sock"), \
+             patch.object(island_post, "valid_socket", return_value=True), \
+             patch.object(island_post, "SocketTransport", FakeSocketTransport), \
+             contextlib.redirect_stdout(StringIO()):
+            self.assertEqual(island_post.main(), 0)
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(requests[0]["source"], "claude")
+        self.assertEqual(requests[0]["id"], "claude-code:session")
+        self.assertEqual(requests[0]["initiator"], "acu_exec.grokbot.cursor")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -30,7 +30,13 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
     private func store() -> IslandSettingsStore {
         let s = "cua.island.settings.gate.\(UUID().uuidString)"
         suites.append(s)
-        return IslandSettingsStore(defaults: TestDefaults.make(s)!, tokens: MemoryTokenStore())
+        let store = IslandSettingsStore(defaults: TestDefaults.make(s)!, tokens: MemoryTokenStore())
+        store.screens = {
+            [.init(uuid: "builtin", name: "Built-in Retina Display", builtIn: true),
+             .init(uuid: "external", name: String(repeating: "A long connected display name ", count: 4), builtIn: false)]
+        }
+        store.seedLoginItem()
+        return store
     }
 
     static let panes = SettingsTab.panes
@@ -39,10 +45,10 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
     private func toggled(_ s: IslandSettingsStore) {
         for d in IslandSettingsSchema.all {
             switch d.kind {
-            case .master, .toggle:
+            case .master, .toggle, .disclosure:
                 if case .bool(let b) = d.defaultValue { s.set(!b, for: d.key) }
             case .tiles(let o): if let v = o.last?.value { s.set(v, for: d.key) }
-            case .popup(let o): if let v = o.last?.value { s.set(v, for: d.key) }
+            case .popup(let o): if let v = (d.dynamicOptions?(s) ?? o).last?.value { s.set(v, for: d.key) }
             case .slider(_, let hi, _, _): s.set(hi, for: d.key)
             default: break
             }
@@ -80,11 +86,16 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
             let w = store(); toggled(w)
             out.append(State(name: "worst-\(t.rawValue)", view: IslandSettingsRoot(store: w, tab: t, rendering: true, permissions: Self.missing, defs: Self.worstDefs)))
         }
+        let more = store(); more.set(true, for: IslandSettingsSchema.moreExpanded)
+        out.append(State(name: "more-expanded", view: IslandSettingsRoot(store: more, rendering: true)))
+        let info = store()
+        info.set("info", for: AgentSource.cursor.keyPrefix + "cap")
+        out.append(State(name: "list-only-agents", view: IslandSettingsRoot(store: info, tab: .agents, rendering: true)))
         // Token and permission states the renders show by name.
-        out.append(State(name: "default-grokBot-notoken", view: IslandSettingsRoot(store: store(), tab: .grokBot, rendering: true)))
-        let tk = store(); try? tk.rotateToken(.grokBot)
-        out.append(State(name: "default-grokBot-token", view: IslandSettingsRoot(store: tk, tab: .grokBot, rendering: true)))
-        out.append(State(name: "calendar-granted", view: IslandSettingsRoot(store: store(), tab: .calendar, rendering: true, permissions: Self.granted)))
+        out.append(State(name: "default-grokBot-notoken", view: IslandSettingsRoot(store: store(), tab: .agents, rendering: true)))
+        let tk = store(); tk.set(true, for: IslandSettingsSchema.tokensExpanded); try? tk.rotateToken(.grokBot)
+        out.append(State(name: "default-grokBot-token", view: IslandSettingsRoot(store: tk, tab: .agents, rendering: true)))
+        out.append(State(name: "calendar-granted", view: IslandSettingsRoot(store: store(), tab: .general, rendering: true, permissions: Self.granted)))
         let live = store(); live.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
         out.append(State(name: "live-samantha", view: IslandSettingsRoot(store: live, tab: .samantha, rendering: true)))
         let liveW = store(); liveW.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
@@ -95,21 +106,22 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
                                                                             permissions: OnboardingTests.mixed)))
         out.append(State(name: "granted-computerUse", view: IslandSettingsRoot(store: store(), tab: .computerUse, rendering: true,
                                                                               permissions: Self.granted)))
-        out.append(State(name: "calendar-missing", view: IslandSettingsRoot(store: store(), tab: .calendar, rendering: true, permissions: Self.missing)))
+        out.append(State(name: "calendar-missing", view: IslandSettingsRoot(store: store(), tab: .general, rendering: true, permissions: Self.missing)))
         let focus: [(String, SettingsTab, String)] = [
             ("toggle", .general, IslandSettingsSchema.showIsland),
             ("popup", .general, IslandSettingsSchema.displayOn),
             ("tiles", .general, IslandSettingsSchema.idleActivity),
-            ("slider", .general, IslandSettingsSchema.resultPeek),
-            ("master", .sound, IslandSettingsSchema.soundEnabled),
-            ("permission", .calendar, IslandSettingsSchema.calendarAccess),
+            ("slider", .agents, IslandSettingsSchema.alertDuration),
+            ("master", .general, IslandSettingsSchema.soundEnabled),
+            ("permission", .general, IslandSettingsSchema.calendarAccess),
             ("button", .about, "island.about.openLog"),
             ("voice-popup", .samantha, IslandSettingsSchema.voiceModel),
-            ("live-popup", .samantha, IslandSettingsSchema.voiceLiveIntelligence),
+            ("disclosure", .general, IslandSettingsSchema.moreExpanded),
+            ("source", .agents, AgentSource.cursor.keyPrefix + "cap"),
             ("cua-permission", .computerUse, IslandSettingsSchema.cuaScreenRecording),
         ]
         for (n, t, k) in focus {
-            let fs = store()
+            let fs = store(); fs.set(true, for: IslandSettingsSchema.moreExpanded)
             if n == "live-popup" { fs.set("gpt-live-1", for: IslandSettingsSchema.voiceModel) }  // rows show only for GPT-Live-1
             out.append(State(name: "focus-\(n)", view: IslandSettingsRoot(store: fs, nav: SettingsNav(tab: t, focus: k), rendering: true,
                                                                          permissions: Self.missing)))
@@ -157,11 +169,10 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
     func testRenderSettings() throws {
         guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_RENDER_DIR"] else { throw XCTSkip("set CUA_ISLAND_RENDER_DIR to render") }
         IslandLayoutRecorder.enabled = false
-        let wanted: Set<String> = ["default-general", "default-interaction", "default-grokBot-notoken", "default-grokBot-token",
-                                   "calendar-granted", "calendar-missing", "default-fileTray", "worst-samantha",
-                                   "default-samantha", "default-computerUse", "toggled-computerUse", "focus-voice-popup",
-                                   "live-samantha", "focus-live-popup", "mixed-computerUse", "granted-computerUse",
-                                   "focus-tiles"]
+        let wanted: Set<String> = ["default-general", "default-agents", "toggled-agents", "worst-agents",
+                                   "more-expanded", "list-only-agents", "default-grokBot-token",
+                                   "default-samantha", "default-computerUse", "mixed-computerUse", "granted-computerUse",
+                                   "focus-tiles", "focus-voice-popup", "focus-source", "worst-general"]
         func save(_ img: CGImage, _ name: String) throws {
             let url = URL(fileURLWithPath: dir).appendingPathComponent("settings-\(name)-dark.png")
             XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "never overwrite \(url.lastPathComponent)")
@@ -182,29 +193,17 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
     }
 
     /// Item 9: General must fit one screen (~800 pt of content). Measures General with and without the
-    /// Behaviour + Gestures sections (now the Interaction pane).
-    func testGeneralFitsOneScreen() throws {
-        IslandLayoutRecorder.enabled = false
-        func height(_ defs: @escaping (SettingsTab) -> [SettingDef]) -> CGFloat {
-            let r = ImageRenderer(content: IslandSettingsRoot(store: store(), tab: .general, rendering: true, defs: defs))
-            r.scale = 1
-            r.proposedSize = ProposedViewSize(width: SettingsStyle.size.width, height: nil)
-            return CGFloat(r.cgImage?.height ?? 0)
-        }
-        func content(_ defs: @escaping (SettingsTab) -> [SettingDef]) -> CGFloat {
-            // Window height is max(content, 687); measure content alone by stretching the defs list.
-            height(defs)
-        }
-        let now = content(IslandSettingsSchema.defs(for:))
-        let merged = content { t in t == .general
-            ? IslandSettingsSchema.general + IslandSettingsSchema.interaction.map { var d = $0; d.tab = .general; return d }
-            : IslandSettingsSchema.defs(for: t) }
-        if let path = ProcessInfo.processInfo.environment["CUA_SETTINGS_GATE_REPORT"] {
-            try "General height: \(Int(merged)) pt with Behaviour + Gestures, \(Int(now)) pt after moving them to Interaction\n"
-                .write(toFile: path + ".general-height.txt", atomically: true, encoding: .utf8)
-        }
-        XCTAssertGreaterThan(merged, 800, "the split is warranted")
-        XCTAssertLessThanOrEqual(now, 800, "General fits one screen")
+    func testGeneralFitsOneScreen() {
+        let s = store()
+        let collapsed = IslandSettingsRoot.visibleDefs(.general, store: s)
+        XCTAssertFalse(collapsed.contains { $0.key == IslandSettingsSchema.haptics })
+        let renderer = ImageRenderer(content: IslandSettingsRoot(store: s, rendering: true))
+        renderer.scale = 1
+        XCTAssertLessThanOrEqual(renderer.cgImage?.height ?? Int.max, Int(SettingsStyle.size.height))
+        s.set(true, for: IslandSettingsSchema.moreExpanded)
+        let expanded = IslandSettingsRoot.visibleDefs(.general, store: s)
+        XCTAssertTrue(expanded.contains { $0.key == IslandSettingsSchema.haptics })
+        XCTAssertGreaterThan(expanded.count, collapsed.count)
     }
 
     // MARK: Keyboard model
@@ -225,28 +224,31 @@ final class IslandSettingsLayoutGateTests: XCTestCase {
         _ = press(.activate); XCTAssertEqual(s.bool(IslandSettingsSchema.showIsland), !before)
         _ = press(.increase); XCTAssertTrue(s.bool(IslandSettingsSchema.showIsland))
         _ = press(.decrease); XCTAssertFalse(s.bool(IslandSettingsSchema.showIsland))
-        nav.focus = IslandSettingsSchema.resultPeek
-        s.set(7.5, for: IslandSettingsSchema.resultPeek)
+        nav.tab = .agents
+        nav.focus = IslandSettingsSchema.alertDuration
+        s.set(7.5, for: IslandSettingsSchema.alertDuration)
         _ = press(.increase); _ = press(.increase)
-        XCTAssertEqual(s.double(IslandSettingsSchema.resultPeek), 8, "clamped at max")
+        XCTAssertEqual(s.double(IslandSettingsSchema.alertDuration), 8, "clamped at max")
+        nav.tab = .general; s.set(true, for: IslandSettingsSchema.moreExpanded)
         nav.focus = IslandSettingsSchema.idleActivity
         s.set("agents", for: IslandSettingsSchema.idleActivity)
         _ = press(.increase); XCTAssertEqual(s.string(IslandSettingsSchema.idleActivity), "duo")
         _ = press(.activate); XCTAssertEqual(s.string(IslandSettingsSchema.idleActivity), "none", "Space cycles")
+        s.screens = { [.init(uuid: "builtin", name: "Built-in", builtIn: true)] }
         nav.focus = IslandSettingsSchema.displayOn
         _ = press(.activate); XCTAssertEqual(s.string(IslandSettingsSchema.displayOn), "builtIn")
         XCTAssertTrue(press(.escape).0); XCTAssertNil(nav.focus)
         XCTAssertFalse(press(.escape).0, "Esc passes through when nothing is focused")
-        _ = press(.nextPane); XCTAssertEqual(nav.tab, .interaction); XCTAssertNil(nav.focus)
-        nav.tab = .calendar; nav.focus = IslandSettingsSchema.calendarAccess
+        _ = press(.nextPane); XCTAssertEqual(nav.tab, .agents); XCTAssertNil(nav.focus)
+        nav.tab = .general; nav.focus = IslandSettingsSchema.calendarAccess
         XCTAssertEqual(press(.activate).1, IslandSettingsSchema.calendarAccess, "missing permission: Allow… runs")
-        let granted = SettingsKeyboard.handle(.activate, nav: nav, store: s, defs: IslandSettingsRoot.visibleDefs(.calendar, store: s),
+        let granted = SettingsKeyboard.handle(.activate, nav: nav, store: s, defs: IslandSettingsRoot.visibleDefs(.general, store: s),
                                               panes: Self.panes, permissions: { _ in true })
         XCTAssertEqual(granted.handled, true); XCTAssertNil(granted.action, "allowed: nothing to request")
     }
 
     func testKeyboardSkipsTokenRowsAndMapsKeys() {
-        let defs = IslandSettingsSchema.defs(for: .grokBot)
+        let defs = IslandSettingsSchema.defs(for: .agents)
         XCTAssertFalse(SettingsKeyboard.focusable(defs).contains { if case .token = $0.kind { return true }; return false })
         XCTAssertEqual(SettingsKeyboard.key(keyCode: 48, flags: []), .next)
         XCTAssertEqual(SettingsKeyboard.key(keyCode: 48, flags: .shift), .previous)

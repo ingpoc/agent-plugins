@@ -36,6 +36,7 @@ final class IslandController {
     private var nowPlayingStarted = false
     private var activationObserver: NSObjectProtocol?
     private var promptGateObserver: NSObjectProtocol?
+    private var claudeDesktopWatcher: IslandClaudeDesktopWatcher?
     private var grokBotWatcher: IslandGrokBotWatcher?
     /// A2 HUD (media-key tap + CoreAudio), A4 calendar, A9 tray store — production only (`startsSystem`).
     private(set) lazy var hud = IslandHUDController(model: model)
@@ -194,9 +195,11 @@ final class IslandController {
             } else { hotKey.unregister() }
             applyMotionProbe()
         }
-        IslandModel.peekDone = s.double(K.resultPeek)
-        IslandModel.peekError = s.double(K.errorPeek)
-        IslandModel.doneSettle = s.double(K.doneSettle)
+        let alertDuration = s.double(K.alertDuration)
+        IslandModel.peekDone = alertDuration
+        IslandModel.peekError = alertDuration + 2
+        IslandModel.peekDwell = alertDuration
+        IslandModel.doneSettle = 4
         model.contrastOutline = s.bool(K.contrastOutline)
         updateAccessibilityDisplay()
         typealias N = NowPlayingKeys
@@ -230,7 +233,6 @@ final class IslandController {
             hud.volumeEnabled = s.bool(K.soundEnabled)
             hud.brightnessEnabled = s.bool(K.displayEnabled)
         }
-        IslandModel.peekDwell = max(2.5, min(6, s.double(K.peekDuration)))
         model.calendarEnabled = s.bool(K.calendarEnabled)
         model.calendarLead = max(5, min(30, s.double(K.calendarLead))) * 60
         model.useCalendarColor = s.bool(K.calendarColor)
@@ -403,6 +405,9 @@ final class IslandController {
         let watcher = IslandGrokBotWatcher { [weak self] names in self?.hub.updateGrokBotWorking(names) }
         watcher.start()
         grokBotWatcher = watcher
+        let claude = IslandClaudeDesktopWatcher { [weak self] snapshot in self?.hub.updateClaudeDesktop(snapshot) }
+        claude.start()
+        claudeDesktopWatcher = claude
         // Warm every activity offscreen once so the first real open drops no frames.
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { MainActor.assumeIsolated { IslandPrewarm.run() } }
         hud.onOutputChanged = { [weak self] name, symbol in
@@ -451,9 +456,9 @@ final class IslandController {
     /// Frontmost app name (tests inject a fixed one).
     var frontmostAppName: () -> String? = { NSWorkspace.shared.frontmostApplication?.localizedName }
 
-    /// Soft Tink on a new card — only when its source app isn't frontmost, and not when muted.
+    /// Soft Tink on a new card — only when its source app isn't frontmost, and when prompt sound is enabled.
     private func cardArrived(_ a: IslandAgentApproval) {
-        guard !store.bool(IslandSettingsSchema.mutePromptSound) else { return }
+        guard store.bool("island.agents.promptSound") else { return }
         guard !IslandInput.isSourceApp(frontmostAppName(), approval: a) else { return }
         IslandSound.tink()
     }

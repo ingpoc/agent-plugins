@@ -192,6 +192,9 @@ final class MethodRouter: @unchecked Sendable {
             }
             // Report the pane actually shown (no pane = the window's last pane).
             let shown: String = await MainActor.run {
+                if SettingsTab.opensMore(raw) {
+                    IslandSettingsStore.shared.set(true, for: IslandSettingsSchema.moreExpanded)
+                }
                 IslandSettingsWindowController.shared.showSettings(tab: tab)
                 return IslandSettingsWindowController.shared.nav.tab.rawValue
             }

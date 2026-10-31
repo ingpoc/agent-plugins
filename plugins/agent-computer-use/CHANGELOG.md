@@ -2,6 +2,13 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.64 (2026-10-31)
+
+- Settings redesign: General, Agents, Samantha and Computer Use panes plus About. One source table (show and alert level per agent), three alert levels, one alert timer, "Open on" choice, Open at login (SMAppService), done/error peeks only at the critical level, last pane remembered. Old settings migrate on first launch; every allowed value was screenshotted at its extremes.
+- Agent-started runs: a run a bot started shows the agent app icon with the starter's icon as a small badge, and a second line like "via ACU · Sol · light · 4m" that drops time, effort, model and "via" in that order when space is short. The tooltip and VoiceOver say who started it. Detection is native: ACU sets Codex's originator (`acu_exec.<bot>`), recorded in Codex's own thread state; no command-line scraping. Screen sharing hides the "via" name.
+- Claude on the island: Claude Code via its official hooks (SessionStart, UserPromptSubmit, Notification, PermissionRequest, Stop, StopFailure, SessionEnd; `bin/acu-claude-hook --install` registers them in ~/.claude/settings.json and keeps existing hooks) and the Claude desktop app via an event-driven AX observer of its sidebar status and model picker. Only title, model, effort and state are read; chat contents never are.
+- A Codex run whose process exits mid-turn now shows "Stopped", not "Failed", and hook events never mark a run failed. "Failed" means a real failed turn, with its reason.
+
 ## 0.2.63 (2026-10-31)
 
 - Island leave fix: a card you opened (or an alert you hovered) now compacts about 0.3 s after the pointer leaves, every time, however long it was open. Root cause: leave detection relied only on NSTrackingArea mouseExited, and the tracking areas and tracking windows are rebuilt whenever the card resizes (rows join, open/close) — an exit that crossed a rebuild never arrived, so the hover flag stayed true and the 0.2.62 hover-hold kept the card open until the next geometry change. While a card or peek is up, a 10 Hz watchdog now checks the real pointer (NSEvent.mouseLocation vs the panel frame) and runs the normal leave path when it disagrees; a backstop leaves if the pointer stays off the island past the grace with no leave pending. Nothing runs while compact.

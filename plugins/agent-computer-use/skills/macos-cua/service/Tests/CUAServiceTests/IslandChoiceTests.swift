@@ -300,7 +300,6 @@ final class IslandChoiceTests: XCTestCase {
 
     func testPanelNeverBecomesKeyWithoutAClick() async throws {
         store.set(false, for: IslandSettingsSchema.hideInFullscreen)
-        store.set(false, for: IslandSettingsSchema.hideInMissionControl)
         try store.rotateToken(.grokBot)
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start()
@@ -332,7 +331,6 @@ final class IslandChoiceTests: XCTestCase {
 
     func testBeginTextEntryRequiresOpenTextCard() async throws {
         store.set(false, for: IslandSettingsSchema.hideInFullscreen)
-        store.set(false, for: IslandSettingsSchema.hideInMissionControl)
         try store.rotateToken(.grokBot)
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start()

@@ -15,8 +15,8 @@ final class IslandReviewTests: XCTestCase {
         suite = "cua.island.review.test.\(UUID().uuidString)"
         defaults = TestDefaults.make(suite)
         store = IslandSettingsStore(defaults: defaults, tokens: MemoryTokenStore())
-        try? store.rotateToken(.grokBot); try? store.rotateToken(.cursor); try? store.rotateToken(.codex)
-        for src in [AgentSource.grokBot, .cursor, .codex] {
+        try? store.rotateToken(.grokBot); try? store.rotateToken(.cursor); try? store.rotateToken(.codex); try? store.rotateToken(.agentRoster)
+        for src in [AgentSource.grokBot, .cursor, .codex, .agentRoster] {
             store.set(true, for: src.keyPrefix + "enabled")
             store.set(true, for: src.keyPrefix + "canRaiseApprovals")
             store.set("attention", for: src.keyPrefix + "cap")
@@ -43,7 +43,7 @@ final class IslandReviewTests: XCTestCase {
          "options": (1...n).map { ["label": "Opt \($0)", "value": "v\($0)"] }].merging(extra) { $1 }
     }
 
-    private func approval(_ id: String, source: String = "codex") -> [String: Any] {
+    private func approval(_ id: String, source: String = "agent") -> [String: Any] {
         ["source": source, "id": id, "kind": "approval", "title": "SECRET approve \(id)"]
     }
 
@@ -180,15 +180,16 @@ final class IslandReviewTests: XCTestCase {
         XCTAssertEqual(IslandSound.played, 1)
         _ = post(c.hub, choice("s1"))
         XCTAssertEqual(IslandSound.played, 1, "re-post of the same card is not a new arrival")
-        store.set(true, for: IslandSettingsSchema.mutePromptSound)
+        store.set(false, for: IslandSettingsSchema.promptSound)
         _ = post(c.hub, ["source": "grok-bot", "id": "s1", "kind": "clear"])
         _ = post(c.hub, choice("s2"))
         XCTAssertEqual(IslandSound.played, 1, "muted")
-        store.set(false, for: IslandSettingsSchema.mutePromptSound)
+        store.set(true, for: IslandSettingsSchema.promptSound)
         c.frontmostAppName = { "Comet" }
         _ = post(c.hub, choice("s3"))
         XCTAssertEqual(IslandSound.played, 1, "source app frontmost → silent")
-        XCTAssertNotNil(IslandSettingsSchema.all.first { $0.key == IslandSettingsSchema.mutePromptSound })
+        XCTAssertTrue(IslandSettingsSchema.defs(for: .agents).contains { $0.key == IslandSettingsSchema.promptSound },
+                      "prompt sound is controlled from Agents")
     }
 
     func testChoiceDefaultTimeoutIs15Minutes() {
@@ -257,7 +258,6 @@ final class IslandReviewTests: XCTestCase {
 
     func testClickOpenTakesKeyAndKeysWork() async throws {
         store.set(false, for: IslandSettingsSchema.hideInFullscreen)
-        store.set(false, for: IslandSettingsSchema.hideInMissionControl)
         let c = IslandController(gatewayPort: 1, store: store, hubPort: nil)
         c.start(); defer { c.shutdown() }
         c.debugPanel.debugEnsurePanel()
@@ -302,11 +302,11 @@ final class IslandReviewTests: XCTestCase {
         let m = c.debugModel
         _ = post(c.hub, choice("c1", source: "grok-bot"))
         _ = post(c.hub, choice("c2", source: "cursor"))
-        XCTAssertEqual(post(c.hub, approval("a1", source: "codex")).body["error"], nil)
+        XCTAssertEqual(post(c.hub, approval("a1", source: "agent")).body["error"], nil)
         let s = c.hub.compose()
-        XCTAssertEqual(s.agent_approval?.id, IslandHub.key(.codex, "a1"), "approval jumps the queue")
+        XCTAssertEqual(s.agent_approval?.id, IslandHub.key(.agentRoster, "a1"), "approval jumps the queue")
         XCTAssertEqual(s.pending_count, 3)
-        XCTAssertEqual(m.sourceGroups.map(\.id), ["Codex", "Grok Bot", "Cursor"], "the pill's own ask still counts (amber badge)")
+        XCTAssertEqual(m.sourceGroups.map(\.id), ["Agent Roster", "Grok Bot", "Cursor"], "the pill's own ask still counts (amber badge)")
         XCTAssertEqual(m.sourceGroups.map(\.needsYou), [1, 1, 1])
         XCTAssertEqual(m.hitRects.count, 4, "pill + 3 source circles")
         XCTAssertEqual(m.sourceGroups.first { $0.id == "Grok Bot" }?.app, "Grok Bot", "Grok Bot's own icon, not Comet")
@@ -353,7 +353,7 @@ final class IslandReviewTests: XCTestCase {
         _ = post(c.hub, approval("a1"))
         XCTAssertEqual(m.agentApproval?.kind, "approval")
         XCTAssertEqual(m.choiceText, "")
-        c.hub.resolveApproval(id: IslandHub.key(.codex, "a1"), approved: true)
+        c.hub.resolveApproval(id: IslandHub.key(.agentRoster, "a1"), approved: true)
         XCTAssertEqual(m.agentApproval?.id, IslandHub.key(.grokBot, "p1"))
         XCTAssertEqual(m.choiceText, "half typed")
     }

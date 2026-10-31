@@ -24,7 +24,14 @@ enum SettingsKeyboard {
     }
 
     static func focusable(_ defs: [SettingDef]) -> [SettingDef] {
-        defs.filter { if case .token = $0.kind { return false }; return true }
+        defs.flatMap { d -> [SettingDef] in
+            if case .sourceTable = d.kind {
+                return IslandSettingsSchema.tableSources.flatMap { IslandSettingsSchema.agent($0) }
+            }
+            if case .token = d.kind { return [] }
+            if case .shortcut = d.kind { return [] }
+            return [d]
+        }
     }
 
     /// Applies one key. `handled` = consume the event; `action` = button row key whose action should run.
@@ -51,8 +58,9 @@ enum SettingsKeyboard {
         case .activate, .decrease, .increase:
             guard let i else { return (false, nil) }
             let d = f[i]
+            guard store.sourceControlEnabled(d.key) else { return (true, nil) }
             switch d.kind {
-            case .master, .toggle:
+            case .master, .toggle, .disclosure:
                 store.set(k == .activate ? !store.bool(d.key) : k == .increase, for: d.key)
             case .slider(let lo, let hi, let step, _):
                 guard k != .activate else { return (true, nil) }
@@ -61,13 +69,16 @@ enum SettingsKeyboard {
             case .tiles(let o):
                 store.set(cycle(o.map(\.value), store.string(d.key), k), for: d.key)
             case .popup(let o):
-                store.set(cycle(o.map(\.value), store.string(d.key), k), for: d.key)
+                let options = d.dynamicOptions?(store) ?? o
+                let values = options.map(\.value).filter { d.key != AgentSource.samantha.keyPrefix + "cap" || $0 != "info" }
+                let current = d.key == IslandSettingsSchema.displayOn ? store.displaySelection() : store.string(d.key)
+                store.set(cycle(values, current, k), for: d.key)
             case .button:
                 return (true, k == .activate ? d.key : nil)
             case .permission:
                 // Already allowed: nothing to ask for (the row shows "Allowed", not a button).
                 return (true, k == .activate && !permissions(d.key) ? d.key : nil)
-            case .token:
+            case .token, .sourceTable, .shortcut:
                 return (false, nil)
             }
             return (true, nil)
@@ -92,6 +103,10 @@ import SwiftUI
 struct IslandShortcutRecorder: NSViewRepresentable {
     @ObservedObject var store: IslandSettingsStore
     @MainActor static var recording = false
+    /// "Record Shortcut" when cleared (hotKey off), else the chord.
+    @MainActor static func title(_ store: IslandSettingsStore) -> String {
+        store.bool(IslandSettingsSchema.hotKey) ? IslandShortcut.read(store).display : "Record Shortcut"
+    }
 
     func makeNSView(context: Context) -> RecorderButton {
         let button = RecorderButton()
@@ -103,7 +118,7 @@ struct IslandShortcutRecorder: NSViewRepresentable {
     }
     func updateNSView(_ button: RecorderButton, context: Context) {
         button.store = store
-        if !Self.recording { button.title = IslandShortcut.read(store).display }
+        if !Self.recording { button.title = Self.title(store) }
     }
 
     final class RecorderButton: NSButton {
@@ -120,7 +135,7 @@ struct IslandShortcutRecorder: NSViewRepresentable {
         }
         override func resignFirstResponder() -> Bool {
             IslandShortcutRecorder.recording = false
-            if let store { title = IslandShortcut.read(store).display }
+            if let store { title = IslandShortcutRecorder.title(store) }
             return super.resignFirstResponder()
         }
         override func keyDown(with event: NSEvent) {
@@ -136,7 +151,8 @@ struct IslandShortcutRecorder: NSViewRepresentable {
                   let store else { NSSound.beep(); return }
             IslandShortcutRecorder.recording = false
             IslandShortcut(keyCode: UInt32(event.keyCode), modifiers: mods, character: text.lowercased()).save(store)
-            title = IslandShortcut.read(store).display
+            store.set(true, for: IslandSettingsSchema.hotKey)  // recording a shortcut turns it on
+            title = IslandShortcutRecorder.title(store)
             window?.makeFirstResponder(nil)
         }
     }

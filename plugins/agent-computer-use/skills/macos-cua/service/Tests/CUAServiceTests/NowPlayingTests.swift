@@ -197,9 +197,17 @@ final class NowPlayingTests: XCTestCase {
         XCTAssertEqual(store.string(NowPlayingKeys.color), "mono")
         XCTAssertEqual(store.string(NowPlayingKeys.action), "favorite", "shuffle was cut")
         XCTAssertTrue(store.bool(NowPlayingKeys.automaticSource))
-        let keys = Set(IslandSettingsSchema.defs(for: .nowPlaying).map(\.key))
+        let general = IslandSettingsSchema.defs(for: .general)
+        let keys = Set(general.map(\.key))
+        XCTAssertTrue(keys.contains(NowPlayingKeys.enabled), "Now Playing settings live in General's More section")
+        XCTAssertFalse(IslandSettingsSchema.defs(for: .agents).contains { $0.key == NowPlayingKeys.enabled })
         XCTAssertFalse(keys.contains("island.nowPlaying.badge") || keys.contains("island.nowPlaying.liveWaveform"),
                        "the unbuilt badge and live waveform rows are gone")
+        XCTAssertFalse(IslandSettingsRoot.visibleDefs(.general, store: store).contains { $0.key == NowPlayingKeys.enabled },
+                       "More starts collapsed")
+        store.set(true, for: IslandSettingsSchema.moreExpanded)
+        XCTAssertTrue(IslandSettingsRoot.visibleDefs(.general, store: store).contains { $0.key == NowPlayingKeys.enabled },
+                      "expanding More reveals the Now Playing settings")
     }
 
     // MARK: Model precedence (Duo-ready)

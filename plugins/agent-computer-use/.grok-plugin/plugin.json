@@ -1,6 +1,6 @@
 {
   "name": "agent-computer-use",
-  "version": "0.2.63",
+  "version": "0.2.64",
   "description": "Native macOS computer use through CUAService, with optional Samantha voice control (GPT-Live-1 or Grok Voice 3.0).",
   "author": {
     "name": "ingpoc",
