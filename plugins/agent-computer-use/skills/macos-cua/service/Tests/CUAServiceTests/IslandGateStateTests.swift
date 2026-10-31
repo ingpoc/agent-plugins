@@ -34,6 +34,25 @@ final class IslandGateStateTests: XCTestCase {
         gate.handle(IslandGateFailure(code: "device_conflict", device_name: "Studio", rebind_available_at: "2026-11-01"))
         XCTAssertEqual(gate.state, .conflict(deviceName: "Studio", rebindAvailableAt: "2026-11-01"))
     }
+    func testPollMapsBlockedClaims() async {
+        for reason in ["rebind_cooldown", "post_url_used", "post_too_old", "device_taken"] {
+            let store = IslandGateMemoryStore()
+            store.values["claim-id"] = Data("blocked-claim".utf8)
+            let gate = gate(store: store)
+            gate.start()
+            IslandGateURLProtocol.handler = { _ in
+                let body: [String: Any] = ["status": "rejected", "reason": reason, "rebind_available_at": "2026-11-08T00:00:00.000Z"]
+                return (200, try! JSONSerialization.data(withJSONObject: body))
+            }
+            await gate.pollOnce()
+            XCTAssertNil(store.values["claim-id"])
+            if reason == "rebind_cooldown" {
+                XCTAssertEqual(gate.state, .conflict(deviceName: nil, rebindAvailableAt: "2026-11-08T00:00:00.000Z"))
+            } else {
+                XCTAssertEqual(gate.state, .rejected(message: IslandGateFailure.friendlyMessage(for: reason)))
+            }
+        }
+    }
     func testValidEntitlementUnlocksAndPersists() throws {
         let store = IslandGateMemoryStore(), gate = gate(store: store)
         try gate.applyEntitlementForTests(token())

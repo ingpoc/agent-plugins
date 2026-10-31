@@ -413,3 +413,55 @@ test("entitlement shape", async (t) => {
   assert.equal(claims.exp - claims.iat, 14 * 86400);
   assert.ok(snowflakeMs(freshStatusId()) > 0);
 });
+
+test("verified blocked claims become rejected and report the reason", async (t) => {
+  for (const reason of ["rebind_cooldown", "post_url_used", "post_too_old", "device_taken"]) {
+    await t.test(reason, async (t) => {
+      const h = await harness(t);
+      const d = device();
+      const url = xPostUrl("blocked", freshStatusId(reason === "post_too_old" ? -2 * 86400000 : 0));
+      const created = await h.claim("x", "blocked", d, url);
+      const claim = (await h.store.list("claims", { id: created.data.claim_id }))[0];
+      const boundAt = new Date(Date.now() - 86400000).toISOString();
+      const boundDevice = reason === "device_taken" ? d : device();
+      await h.store.atomic([
+        { kind: "update", table: "claims", where: { id: claim.id }, row: { post_check: "confirmed" } },
+        { kind: "insert", table: "bindings", row: { account_id: reason === "device_taken" ? "another-account" : claim.account_id, device_id: boundDevice.id, device_pubkey: boundDevice.key, device_name: "Other", bound_at: boundAt, last_rebind_at: reason === "rebind_cooldown" ? null : new Date(Date.now() - 8 * 86400000).toISOString() } },
+        ...(reason === "post_url_used" ? [{ kind: "insert" as const, table: "used_posts" as const, row: { post_key: claim.post_key, account_id: claim.account_id, created_at: boundAt } }] : []),
+      ]);
+      const verified = await h.request(`/v1/admin/claims/${claim.id}/verify`, { admin: true, data: { follow_confirmed: true } });
+      assert.equal(verified.data.status, "rejected");
+      assert.equal(verified.data.reason, reason);
+      assert.deepEqual(verified.data.checks, { follow: "confirmed", post: "confirmed" });
+      const polled = await h.poll(String(claim.id), d);
+      assert.equal(polled.data.reason, reason);
+      assert.equal(polled.data.status, "rejected");
+      if (reason === "rebind_cooldown") {
+        assert.equal(polled.data.rebind_available_at, new Date(Date.parse(boundAt) + 7 * 86400000).toISOString());
+        assert.equal(verified.data.rebind_available_at, polled.data.rebind_available_at);
+      }
+    });
+  }
+});
+
+test("followers and batch verification report blocked claim outcomes", async (t) => {
+  for (const route of ["followers", "verify-batch"]) {
+    await t.test(route, async (t) => {
+      const h = await harness(t);
+      const d = device();
+      const created = await h.claim("x", "blocked", d, xPostUrl("blocked", freshStatusId()));
+      const claim = (await h.store.list("claims", { id: created.data.claim_id }))[0];
+      const other = device();
+      await h.store.atomic([
+        { kind: "update", table: "claims", where: { id: claim.id }, row: { post_check: "confirmed" } },
+        { kind: "insert", table: "bindings", row: { account_id: claim.account_id, device_id: other.id, device_pubkey: other.key, device_name: "Other", bound_at: new Date().toISOString(), last_rebind_at: null } },
+      ]);
+      const data = route === "followers" ? { followers: [{ handle: "blocked" }] } : { results: [{ claim_id: claim.id, follow_confirmed: true }] };
+      const reply = await h.request(`/v1/admin/${route === "followers" ? route : `claims/${route}`}`, { admin: true, data });
+      const result = (reply.data.results as Record<string, unknown>[])[0];
+      assert.equal(result.status, "rejected");
+      assert.equal(result.reason, "rebind_cooldown");
+      assert.ok(result.rebind_available_at);
+    });
+  }
+});

@@ -263,6 +263,10 @@ final class IslandGate: ObservableObject {
             try accept(token)
             return
         }
+        if reply.status == "rejected" || reply.status == "expired" {
+            handle(IslandGateFailure(code: reply.reason ?? (reply.status == "expired" ? "claim_expired" : "rejected"), rebind_available_at: reply.rebind_available_at))
+            return
+        }
         if let id = reply.claim_id {
             try persistClaimID(id)
             let follow = IslandGateCheckStatus(raw: reply.checks?.follow ?? "pending")
@@ -290,7 +294,7 @@ final class IslandGate: ObservableObject {
             case "rejected", "expired":
                 clearClaimID()
                 let reason = reply.reason ?? (reply.status == "expired" ? "claim_expired" : "rejected")
-                transition(.rejected(message: IslandGateFailure.rejectedMessage(reason: reason)))
+                handle(IslandGateFailure(code: reason, rebind_available_at: reply.rebind_available_at))
             case "pending_verification", .none:
                 if case .checking(let id, let since, _, _) = state {
                     let follow = IslandGateCheckStatus(raw: reply.checks?.follow ?? "pending")
@@ -349,7 +353,7 @@ final class IslandGate: ObservableObject {
         case "invalid_handle", "post_url_invalid", "post_url_used", "post_not_found", "post_author_mismatch", "post_too_old", "post_missing_tag", "follow_missing", "post_missing", "claim_expired", "rejected":
             transition(.rejected(message: failure.message))
         case "device_taken":
-            transition(.error(code: failure.code, message: failure.message))
+            transition(.rejected(message: failure.message))
         default:
             transition(.error(code: failure.code, message: failure.message))
         }

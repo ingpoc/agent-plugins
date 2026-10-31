@@ -325,34 +325,23 @@ export function createGate(
     if (claim.post_check !== "confirmed") return claim;
     if (!claim.post_key) return claim;
     await checkRevoked(String(account.id));
+    const reject = async (reason: string) => {
+      await store.atomic([update("claims", { id: claim.id, status: "pending_verification" },
+        { status: "rejected", reject_reason: reason }, true)]);
+      return { ...claim, status: "rejected", reject_reason: reason };
+    };
     const deviceBound = await first(store, "bindings", { device_id: claim.device_id });
-    if (deviceBound && deviceBound.account_id !== account.id) return claim;
+    if (deviceBound && deviceBound.account_id !== account.id) return reject("device_taken");
     const accountBound = await first(store, "bindings", { account_id: account.id });
     if (accountBound && accountBound.device_id !== claim.device_id) {
-      const cooldownEnd =
-        Date.parse(String(accountBound.last_rebind_at ?? accountBound.bound_at)) +
-        REBIND_COOLDOWN_MS;
-      if (cooldownEnd > Date.now()) return claim;
+      const cooldownEnd = Date.parse(String(accountBound.last_rebind_at ?? accountBound.bound_at)) + REBIND_COOLDOWN_MS;
+      if (cooldownEnd > Date.now()) return reject("rebind_cooldown");
       const used = await first(store, "used_posts", { post_key: String(claim.post_key) });
-      if (used) return claim;
-      const postMs =
-        account.provider === "x" && claim.post_url
-          ? snowflakeMs(parseXStatusUrl(String(claim.post_url)).statusId)
-          : Date.parse(String(claim.created_at));
-      if (postMs < Date.parse(String(accountBound.bound_at))) return claim;
-    } else {
-      const taken = await first(store, "bindings", { device_id: claim.device_id });
-      if (taken && taken.account_id !== account.id) {
-        await store.atomic([
-          update(
-            "claims",
-            { id: claim.id },
-            { status: "rejected", reject_reason: "device_taken" },
-            true,
-          ),
-        ]);
-        return { ...claim, status: "rejected", reject_reason: "device_taken" };
-      }
+      if (used) return reject("post_url_used");
+      const postMs = account.provider === "x" && claim.post_url
+        ? snowflakeMs(parseXStatusUrl(String(claim.post_url)).statusId)
+        : Date.parse(String(claim.created_at));
+      if (postMs < Date.parse(String(accountBound.bound_at))) return reject("post_too_old");
     }
     const binding = accountBound ?? null;
     const unlockExisting = await first(store, "unlocks", { account_id: account.id });
@@ -429,9 +418,10 @@ export function createGate(
     } catch (error) {
       if (error instanceof StoreConflict) {
         const used = await first(store, "used_posts", { post_key: String(claim.post_key) });
-        if (used && used.account_id !== account.id)
-          throw new GateError(422, "post_url_used");
-        throw new GateError(409, "device_taken");
+        if (used && used.account_id !== account.id) return reject("post_url_used");
+        const taken = await first(store, "bindings", { device_id: claim.device_id });
+        if (taken && taken.account_id !== account.id) return reject("device_taken");
+        throw error;
       }
       throw error;
     }
@@ -455,6 +445,12 @@ export function createGate(
       checks: checksPayload(claim),
       reason: claim.reject_reason ? String(claim.reject_reason) : null,
       entitlement: null,
+      ...(claim.reject_reason === "rebind_cooldown" ? {
+        rebind_available_at: await (async () => {
+          const binding = await first(store, "bindings", { account_id: account.id });
+          return binding ? new Date(Date.parse(String(binding.last_rebind_at ?? binding.bound_at)) + REBIND_COOLDOWN_MS).toISOString() : null;
+        })(),
+      } : {}),
     };
   }
   async function checkInstantPost(
@@ -569,6 +565,7 @@ export function createGate(
     if (ops.length) await store.atomic(ops);
     const followConfirmed: string[] = [];
     const unlocked: string[] = [];
+    const results: Row[] = [];
     const pending = await store.list("claims", { status: "pending_verification" });
     for (const claim of pending) {
       const account = await first(store, "accounts", { id: claim.account_id });
@@ -577,8 +574,10 @@ export function createGate(
       if (updated.follow_check === "confirmed") followConfirmed.push(String(claim.id));
       const after = await tryUnlock(updated, account);
       if (after.status === "unlocked") unlocked.push(String(claim.id));
+      const { entitlement: _entitlement, ...result } = await claimResponse(after, account);
+      results.push({ claim_id: claim.id, ...result });
     }
-    return { upserted, follow_confirmed_claims: followConfirmed, unlocked_claims: unlocked };
+    return { upserted, follow_confirmed_claims: followConfirmed, unlocked_claims: unlocked, results };
   }
   async function adminVerifyClaim(claimId: string, payload: Record<string, unknown>) {
     const claim = await first(store, "claims", { id: claimId });
@@ -619,7 +618,7 @@ export function createGate(
             post_source: "comet",
           }),
         ]);
-        current = { ...current, post_key: key, post_check: "confirmed" };
+        current = { ...current, post_url: postUrl, post_key: key, post_check: "confirmed" };
       } else {
         const result = await oembed.fetch(postUrl, handle, Date.parse(String(current.created_at)));
         if (!result.ok) throw new GateError(422, result.code);
@@ -631,7 +630,7 @@ export function createGate(
             post_source: "oembed",
           }),
         ]);
-        current = { ...current, post_key: result.postKey, post_check: "confirmed" };
+        current = { ...current, post_url: postUrl, post_key: result.postKey, post_check: "confirmed" };
       }
     } else if (account.provider === "linkedin" && (postUrl || postText)) {
       if (!matchText(postText, "linkedin")) throw new GateError(422, "post_missing_tag");
@@ -645,7 +644,7 @@ export function createGate(
           post_source: source,
         }),
       ]);
-      current = { ...current, post_key: key, post_check: "confirmed" };
+      current = { ...current, post_url: postUrl ?? current.post_url, post_key: key, post_check: "confirmed" };
     }
     const accountUpdates: Row = {};
     if (typeof payload.verified === "boolean") accountUpdates.verified = payload.verified;
@@ -658,7 +657,8 @@ export function createGate(
       await store.atomic([update("accounts", { id: account.id }, accountUpdates)]);
     const refreshedAccount = { ...account, ...accountUpdates };
     const unlocked = await tryUnlock(current, refreshedAccount);
-    return { claim_id: claimId, status: unlocked.status, checks: checksPayload(unlocked) };
+    const { entitlement: _entitlement, ...result } = await claimResponse(unlocked, refreshedAccount);
+    return { claim_id: claimId, ...result };
   }
   async function siteStats() {
     const [unlocks, accounts, hits, github] = await Promise.all([
@@ -865,8 +865,7 @@ export function createGate(
           return reply(201, { claim_id: claimId, ...response, poll_after: 60 });
         return reply(201, {
           claim_id: claimId,
-          status: claim.status,
-          checks: checksPayload(claim),
+          ...response,
           poll_after: 60,
         });
       }

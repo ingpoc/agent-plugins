@@ -98,9 +98,12 @@ Query: `status` (default `pending_verification`), optional `provider=x|linkedin`
 {
   "upserted": 1,
   "follow_confirmed_claims": ["746e6d59-db80-4537-835d-c0a5443fe145"],
-  "unlocked_claims": ["746e6d59-db80-4537-835d-c0a5443fe145"]
+  "unlocked_claims": ["746e6d59-db80-4537-835d-c0a5443fe145"],
+  "results": [{ "claim_id": "746e6d59-db80-4537-835d-c0a5443fe145", "status": "unlocked", "checks": { "follow": "confirmed", "post": "confirmed" }, "reason": null }]
 }
 ```
+
+The response also includes `results`, with each processed claim's `claim_id`, `status`, `checks`, and `reason`. A blocked verified claim is `rejected` with reason `rebind_cooldown`, `post_url_used`, `post_too_old`, or `device_taken`. Cooldown responses include the ISO `rebind_available_at`; the user can submit a new claim after that time.
 
 **CLI:** `node scripts/gate-admin.mjs --wake push-followers followers.json`
 
@@ -130,6 +133,8 @@ Query: `status` (default `pending_verification`), optional `provider=x|linkedin`
   "checks": { "follow": "confirmed", "post": "confirmed" }
 }
 ```
+
+Verify and verify-batch return the same status, checks, reason, and optional cooldown date for each claim.
 
 **CLI:** `node scripts/gate-admin.mjs verify <claim_id> --post-url … --post-text … --follow --source comet --verified --followers-count 50`
 

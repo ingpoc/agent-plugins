@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { join } from "node:path";
-import { writeFileSync, unlinkSync } from "node:fs";
+import { writeFileSync, unlinkSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { devLocal } from "../src/dev-local.ts";
 
 const execFileAsync = promisify(execFile);
 
 test("dev-local and gate-admin list", async (t) => {
-  const local = await devLocal({ port: 0 });
+  const local = await devLocal({ port: 0, keyDirectory: mkdtempSync(join(tmpdir(), "acu-gate-dev-")) });
   t.after(async () => {
     await local.stop();
   });
