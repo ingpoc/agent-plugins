@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { harness, device, signRequest, xPostUrl, goodPostText } from "./helpers.ts";
+import { harness, device, signRequest, xPostUrl, goodPostText, assertSameSecondReplay } from "./helpers.ts";
 import { seedGoodPost } from "../src/mock-services.ts";
 import { MemoryStore } from "../src/store.ts";
 import { authorHandleFromOEmbedUrl } from "../src/handles.ts";
@@ -135,4 +135,8 @@ test("wall consent requires valid signature", async (t) => {
     body: signed.body,
   });
   assert.equal(ok.status, 200);
+});
+
+test("same-second claim and poll succeed; replay is rejected", async (t) => {
+  await assertSameSecondReplay(await harness(t));
 });

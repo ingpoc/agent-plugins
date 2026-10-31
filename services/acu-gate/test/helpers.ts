@@ -29,9 +29,9 @@ export function signRequest(
   d: ReturnType<typeof device>,
   action: "claim" | "poll" | "refresh" | "wall",
   body: string | Record<string, unknown> = "{}",
+  ts = signSecond++,
 ) {
   const raw = typeof body === "string" ? body : JSON.stringify(body);
-  const ts = signSecond++;
   const bodyHash = sha256Hex(raw);
   const message = `acu-gate|${action}|${d.id}|${ts}|${bodyHash}`;
   return {
@@ -157,4 +157,24 @@ export async function harness(
     return { status: response.status, data, headers: response.headers };
   }
   return { mock, gate, store, base, request, claim, poll, device };
+}
+
+export async function assertSameSecondReplay(h: Awaited<ReturnType<typeof harness>>) {
+  const d = device();
+  const ts = Math.floor(Date.now() / 1000);
+  const claim = signRequest(d, "claim", {
+    provider: "x", handle: "same_second", post_url: null,
+    device_pubkey: d.key, device_name: "Test Mac",
+  }, ts);
+  const created = await fetch(`${h.base}/v1/claims`, { method: "POST", headers: claim.headers, body: claim.body });
+  assert.equal(created.status, 201);
+  const data = await created.json();
+  const poll = signRequest(d, "poll", "", ts);
+  const url = `${h.base}/v1/claims/${data.claim_id}`;
+  assert.equal((await fetch(url, { headers: poll.headers })).status, 200);
+  const replay = await fetch(url, { headers: poll.headers });
+  assert.equal(replay.status, 401);
+  assert.equal((await replay.json()).error, "bad_signature");
+  const alternateEncoding = { ...poll.headers, "x-acu-sig": poll.headers["x-acu-sig"].replace(/=+$/, "") };
+  assert.equal((await fetch(url, { headers: alternateEncoding })).status, 401);
 }

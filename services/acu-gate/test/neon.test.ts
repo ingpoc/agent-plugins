@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { NeonStore, databaseUrl } from "../src/store.ts";
 import { migrate } from "../src/migrate.ts";
-import { harness, goodPostText, xPostUrl, device } from "./helpers.ts";
+import { harness, goodPostText, xPostUrl, device, assertSameSecondReplay } from "./helpers.ts";
 import { seedGoodPost } from "../src/mock-services.ts";
 
 const enabled = process.env.ACU_GATE_NEON_TEST === "1";
@@ -89,4 +89,8 @@ test("Neon: LinkedIn admin verify unlock persists", options, async (t) => {
   });
   const polled = await h.poll(String(created.data.claim_id), created.device);
   assert.equal(polled.data.status, "unlocked");
+});
+
+test("Neon: same-second claim and poll succeed; replay is rejected", options, async (t) => {
+  await assertSameSecondReplay(await harness(t, store));
 });

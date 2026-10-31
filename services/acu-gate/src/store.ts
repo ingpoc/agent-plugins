@@ -61,7 +61,7 @@ export const tables = {
   download_hits: ["day", "count"],
   revocations: ["account_id", "created_at"],
   moved_devices: ["device_id", "account_id"],
-  device_replays: ["device_id", "ts", "expires_at"],
+  device_replays: ["device_id", "sig_hash", "expires_at"],
 } satisfies Record<string, string[]>;
 export type Table = keyof typeof tables;
 export type Op =
@@ -92,7 +92,7 @@ const unique: Partial<Record<Table, string[][]>> = {
   download_hits: [["day"]],
   revocations: [["account_id"]],
   moved_devices: [["device_id"]],
-  device_replays: [["device_id", "ts"]],
+  device_replays: [["device_id", "sig_hash"]],
 };
 function matches(row: Row, where: Row) {
   return Object.entries(where).every(([k, v]) => row[k] === v);

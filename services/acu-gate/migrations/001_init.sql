@@ -101,6 +101,6 @@ CREATE TABLE IF NOT EXISTS revocations (
 -- statement-break
 CREATE TABLE IF NOT EXISTS moved_devices (device_id text PRIMARY KEY, account_id uuid NOT NULL REFERENCES accounts(id));
 -- statement-break
-CREATE TABLE IF NOT EXISTS device_replays (device_id text NOT NULL, ts bigint NOT NULL, expires_at timestamptz NOT NULL, PRIMARY KEY(device_id,ts));
+CREATE TABLE IF NOT EXISTS device_replays (device_id text NOT NULL, sig_hash text NOT NULL, expires_at timestamptz NOT NULL, PRIMARY KEY(device_id,sig_hash));
 -- statement-break
 CREATE OR REPLACE FUNCTION acu_require(n integer) RETURNS integer LANGUAGE plpgsql AS $$ BEGIN IF n = 0 THEN RAISE EXCEPTION 'concurrent_change'; END IF; RETURN n; END $$;

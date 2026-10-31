@@ -111,10 +111,10 @@ struct IslandGateView: View {
             stepRow("Follow @gurusharan", button: "Follow", action: gate.openFollow, xPrimary: true)
             stepRow("Post about ACU", button: "Post", action: gate.openShare, xPrimary: true)
             Text("Your X handle").font(.system(size: 12, weight: .medium))
-            TextField("@handle", text: $gate.handleText).textFieldStyle(.roundedBorder).accessibilityLabel("Your X handle")
+            TextField("@handle", text: $gate.handleText).textFieldStyle(.roundedBorder).accessibilityLabel("Your X handle").accessibilityIdentifier("Your X handle")
             optionalPostLink
             wallConsent(unlocked: false)
-            primary("Check", action: gate.submitCheck)
+            primary("Check", action: gate.submitCheck).disabled(!gate.isHandleValid)
         }
     }
     private var linkedInSteps: some View {
@@ -126,14 +126,14 @@ struct IslandGateView: View {
             TextField("https://www.linkedin.com/in/…", text: $gate.handleText).textFieldStyle(.roundedBorder).accessibilityLabel("Your LinkedIn profile URL")
             optionalPostLink
             wallConsent(unlocked: false)
-            primary("Check", action: gate.submitCheck)
+            primary("Check", action: gate.submitCheck).disabled(!gate.isHandleValid)
             Button("Use X instead") { gate.useXRoute() }.buttonStyle(.link).font(.system(size: 12))
         }
     }
     private var optionalPostLink: some View {
         Group {
             Text("Post link (optional)").font(.system(size: 12, weight: .medium))
-            TextField("https://…", text: $gate.postURL).textFieldStyle(.roundedBorder).accessibilityLabel("Post link optional")
+            TextField("https://…", text: $gate.postURL).textFieldStyle(.roundedBorder).accessibilityLabel("Post link").accessibilityIdentifier("Post link")
         }
     }
     private func checkingView(follow: IslandGateCheckStatus, post: IslandGateCheckStatus) -> some View {
@@ -158,9 +158,9 @@ struct IslandGateView: View {
             Text(title).font(.system(size: 12, weight: .medium)).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 8)
             if xPrimary {
-                Button(button, action: action).buttonStyle(IslandGatePrimaryButtonStyle(xBrand: true)).controlSize(.small)
+                Button(button, action: action).accessibilityLabel(button).accessibilityIdentifier(button).buttonStyle(IslandGatePrimaryButtonStyle(xBrand: true)).controlSize(.small)
             } else {
-                Button(button, action: action).buttonStyle(.link).controlSize(.small)
+                Button(button, action: action).accessibilityLabel(button).accessibilityIdentifier(button).buttonStyle(.link).controlSize(.small)
             }
         }.padding(12).background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
     }
@@ -183,7 +183,7 @@ struct IslandGateView: View {
         }
     }
     private func primary(_ title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Text(title).frame(maxWidth: .infinity) }.buttonStyle(IslandGatePrimaryButtonStyle()).keyboardShortcut(.defaultAction)
+        Button(action: action) { Text(title).frame(maxWidth: .infinity) }.accessibilityLabel(title).accessibilityIdentifier(title).buttonStyle(IslandGatePrimaryButtonStyle()).keyboardShortcut(.defaultAction)
     }
     private func notice(_ text: String) -> some View {
         Text(text).font(.system(size: 12)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)

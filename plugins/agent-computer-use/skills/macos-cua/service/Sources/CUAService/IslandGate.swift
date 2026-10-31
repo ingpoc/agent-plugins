@@ -37,6 +37,9 @@ final class IslandGate: ObservableObject {
     private var entitlement: String?
     private var claimID: String?
     private var pollInterval: TimeInterval = 60
+    #if DEBUG
+    var debugPollInterval: TimeInterval?
+    #endif
     private let store: IslandGateStoring
     private let client: IslandGateClient
     private let verifier: IslandGateVerifier
@@ -55,9 +58,8 @@ final class IslandGate: ObservableObject {
 
     init(store: IslandGateStoring = IslandGateKeychain(), client: IslandGateClient? = nil,
          publicKey: Data? = nil, device: IslandGateDevice? = nil, fixtureState: IslandGateState? = nil, fixtureAccount: IslandGateAccount? = nil) {
-        let environment = IslandGateEnvironment()
-        self.store = store; self.client = client ?? IslandGateClient(baseURL: environment.baseURL)
-        verifier = IslandGateVerifier(publicKey: publicKey ?? environment.publicKey)
+        self.store = store; self.client = client ?? IslandGateClient(baseURL: IslandGateEnvironment().baseURL)
+        verifier = IslandGateVerifier(publicKey: publicKey ?? IslandGateEnvironment().publicKey)
         self.device = device; fixture = fixtureState != nil
         if let fixtureState { state = fixtureState; account = fixtureAccount }
     }
@@ -197,8 +199,13 @@ final class IslandGate: ObservableObject {
         guard case .locked(let linkedIn, _) = state, linkedIn else { return }
         transition(.locked(linkedIn: false))
     }
+    var isHandleValid: Bool {
+        lockedProvider == "linkedin"
+            ? IslandGateValidation.normalizeLinkedInProfile(handleText) != nil
+            : IslandGateValidation.normalizeXHandle(handleText) != nil
+    }
     func submitCheck() {
-        guard !fixture else { return }
+        guard !fixture, isHandleValid else { return }
         operation?.cancel(); generation += 1
         let version = generation
         if case .locked(let linkedIn, _) = state { unlockLinkedInRoute = linkedIn }
@@ -307,12 +314,20 @@ final class IslandGate: ObservableObject {
         if shouldPoll {
             guard polling == nil else { return }
             var interval = pollInterval
+            #if DEBUG
+            if let debugPollInterval { interval = debugPollInterval }
+            #endif
             polling = Task { [weak self] in
                 while !Task.isCancelled {
-                    await self?.pollOnce()
+                    do { try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000)) }
+                    catch { break }
                     guard !Task.isCancelled else { break }
-                    try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                    await self?.pollOnce()
+                    #if DEBUG
+                    if self?.debugPollInterval == nil { interval = min(interval * 1.5, 300) }
+                    #else
                     interval = min(interval * 1.5, 300)
+                    #endif
                 }
             }
         } else {

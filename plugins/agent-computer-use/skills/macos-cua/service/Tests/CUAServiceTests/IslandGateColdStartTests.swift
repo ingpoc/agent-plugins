@@ -102,4 +102,47 @@ final class IslandGateColdStartTests: XCTestCase {
         gate.stopPollingForTests()
         relaunch.stopPollingForTests()
     }
+    func testInvalidHandleCannotSubmit() {
+        let gate = makeGate()
+        for value in ["", "@", "bad handle", String(repeating: "a", count: 16)] {
+            gate.handleText = value
+            XCTAssertFalse(gate.isHandleValid)
+            gate.submitCheck()
+            guard case .locked = gate.state else { return XCTFail("Invalid handle changed state") }
+        }
+        gate.handleText = "@valid_name"
+        XCTAssertTrue(gate.isHandleValid)
+    }
+
+    func testFirstPollWaitsForClaimInterval() async throws {
+        let gate = makeGate()
+        gate.handleText = "friend"
+        gate.setConfigForTests(try JSONDecoder().decode(IslandGateConfig.self, from: Self.configPayload()))
+        let checking = expectation(description: "Claim accepted")
+        let polled = expectation(description: "Poll after interval")
+        let updated = expectation(description: "Poll response applied")
+        var didPoll = false
+        var enteredChecking = false
+        gate.onChange.append {
+            if case .checking = gate.state {
+                if enteredChecking { updated.fulfill() }
+                else { enteredChecking = true; checking.fulfill() }
+            }
+        }
+        IslandGateURLProtocol.handler = { request in
+            if request.url?.path == "/v1/claims" {
+                return (201, Data(#"{"claim_id":"wait-claim","status":"pending_verification","poll_after":1}"#.utf8))
+            }
+            didPoll = true
+            polled.fulfill()
+            return (200, Data(#"{"status":"pending_verification"}"#.utf8))
+        }
+        gate.submitCheck()
+        await fulfillment(of: [checking], timeout: 2)
+        try await Task.sleep(nanoseconds: 250_000_000)
+        XCTAssertFalse(didPoll)
+        await fulfillment(of: [polled, updated], timeout: 2)
+        gate.stopPollingForTests()
+    }
+
 }

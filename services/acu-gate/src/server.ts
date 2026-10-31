@@ -226,7 +226,8 @@ export function createGate(
     const bodyHash = sha256Hex(bodyRaw.toString("utf8"));
     if (!verifyDeviceSignature(pubkey, action, id, ts, sig, bodyHash))
       throw new GateError(401, "bad_signature");
-    const old = await first(store, "device_replays", { device_id: id, ts });
+    const sigHash = sha256Hex(Buffer.from(sig, "base64"));
+    const old = await first(store, "device_replays", { device_id: id, sig_hash: sigHash });
     if (old && Date.parse(String(old.expires_at)) > Date.now())
       throw new GateError(401, "bad_signature");
     const ops: Op[] = [];
@@ -234,10 +235,10 @@ export function createGate(
       ops.push({
         kind: "delete",
         table: "device_replays",
-        where: { device_id: id, ts },
+        where: { device_id: id, sig_hash: sigHash },
         required: true,
       });
-    ops.push(insert("device_replays", { device_id: id, ts, expires_at: expires(600) }));
+    ops.push(insert("device_replays", { device_id: id, sig_hash: sigHash, expires_at: expires(600) }));
     try {
       await store.atomic(ops);
     } catch (error) {

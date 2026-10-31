@@ -6,7 +6,7 @@ import {
 } from "node:crypto";
 
 /** sha256Hex returns hex SHA-256 of UTF-8 input. */
-export function sha256Hex(value: string): string {
+export function sha256Hex(value: string | Buffer): string {
   return createHash("sha256").update(value).digest("hex");
 }
 

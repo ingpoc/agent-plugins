@@ -140,7 +140,7 @@ struct IslandGateDevice {
 
 enum IslandGateValidation {
     private static let xHandle = try! NSRegularExpression(pattern: "^@?[A-Za-z0-9_]{1,15}$")
-    private static let linkedInProfile = try! NSRegularExpression(pattern: "^https://(www\\.)?linkedin\\.com/in/[A-Za-z0-9_-]+/?$", options: .caseInsensitive)
+    private static let linkedInProfile = try! NSRegularExpression(pattern: "^https://(www\\.)?linkedin\\.com/in/[A-Za-z0-9_-]{1,100}/?$", options: .caseInsensitive)
 
     static func normalizeXHandle(_ raw: String) -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
