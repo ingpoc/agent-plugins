@@ -1,8 +1,88 @@
 {
-  "version": 1,
   "hooks": {
-    "beforeSubmitPrompt": [{ "command": "\"$CURSOR_PLUGIN_ROOT/bin/acu-cursor-hook\"", "timeout": 5 }],
-    "stop": [{ "command": "\"$CURSOR_PLUGIN_ROOT/bin/acu-cursor-hook\"", "timeout": 5 }],
-    "sessionEnd": [{ "command": "\"$CURSOR_PLUGIN_ROOT/bin/acu-cursor-hook\"", "timeout": 5 }]
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/acu-claude-hook\"",
+            "timeout": 5
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/acu-claude-hook\"",
+            "timeout": 5
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/acu-claude-hook\"",
+            "timeout": 5
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/acu-claude-hook\"",
+            "timeout": 5
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/acu-claude-hook\"",
+            "timeout": 5
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/acu-claude-hook\"",
+            "timeout": 5
+          }
+        ],
+        "matcher": ""
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/bin/acu-claude-hook\"",
+            "timeout": 5
+          }
+        ],
+        "matcher": ""
+      }
+    ]
   }
 }

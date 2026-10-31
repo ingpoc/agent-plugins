@@ -1,0 +1,20 @@
+{
+  "name": "agent-computer-use",
+  "version": "0.2.66",
+  "description": "Native macOS computer use through CUAService, with optional Samantha voice control (GPT-Live-1 or Grok Voice 3.0).",
+  "author": {
+    "name": "ingpoc",
+    "url": "https://github.com/ingpoc"
+  },
+  "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/agent-computer-use",
+  "repository": "https://github.com/ingpoc/agent-plugins",
+  "license": "MIT",
+  "keywords": [
+    "macos",
+    "computer-use",
+    "voice",
+    "accessibility",
+    "automation"
+  ],
+  "mcpServers": "./.claude-plugin/mcp.json"
+}

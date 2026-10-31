@@ -65,4 +65,15 @@ struct CUAServiceCLI: ParsableCommand {
     }
 }
 
-CUAServiceCLI.main()
+#if DEBUG
+if CommandLine.arguments.dropFirst().first == "gate-demo" {
+    IslandGateDemoCommand.main(Array(CommandLine.arguments.dropFirst(2)))
+}
+#endif
+if CommandLine.arguments.dropFirst().first == "status" {
+    CUAServiceStatusCommand.main(Array(CommandLine.arguments.dropFirst(2)))
+} else if CommandLine.arguments.dropFirst().first == "gate-snapshot" {
+    IslandGateSnapshotCommand.main(Array(CommandLine.arguments.dropFirst(2)))
+} else {
+    CUAServiceCLI.main()
+}

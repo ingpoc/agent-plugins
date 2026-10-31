@@ -8,6 +8,11 @@
       "name": "context-ledger",
       "source": "./plugins/context-ledger",
       "description": "Local-first decision memory for agents: save the decisions and lessons from critical or recurring tasks, then look them up later through a scoped MCP server over a local SQLite ledger."
+    },
+    {
+      "name": "agent-computer-use",
+      "source": "./plugins/agent-computer-use",
+      "description": "Native macOS computer use through CUAService, with optional Samantha voice control (GPT-Live-1 or Grok Voice 3.0)."
     }
   ]
 }

@@ -264,6 +264,68 @@ class ClaudeHookTests(unittest.TestCase):
             self.run_hook(home, {}, ["--uninstall"])
             self.assertEqual(json.loads(path.read_text()), foreign)
 
+    def prepare_plugin_files(self, home):
+        root = Path(home) / "plugin"
+        (root / ".claude-plugin").mkdir()
+        (root / ".claude-plugin/plugin.json").write_text(json.dumps({"name": "agent-computer-use"}))
+        (root / "hooks").mkdir()
+        (root / "hooks/hooks.json").write_text("{}")
+        return root
+
+    def test_install_registers_from_uninstalled_plugin_checkout(self):
+        with tempfile.TemporaryDirectory() as home:
+            self.setup_home(home)
+            self.prepare_plugin_files(home)
+            self.run_hook(home, {}, ["--install"])
+            settings = json.loads((Path(home) / ".claude/settings.json").read_text())
+            ours = [entry for groups in settings["hooks"].values() for group in groups
+                    for entry in group.get("hooks", []) if "acu-claude-hook" in entry.get("command", "")]
+            self.assertEqual(len(ours), 7)
+
+    def test_install_skips_registration_for_enabled_installed_plugin_hooks(self):
+        with tempfile.TemporaryDirectory() as home:
+            self.setup_home(home)
+            root = self.prepare_plugin_files(home)
+            plugin_id = "agent-computer-use@test-marketplace"
+            claude_dir = Path(home) / ".claude"
+            claude_dir.mkdir(exist_ok=True)
+            (claude_dir / "settings.json").write_text(json.dumps({"enabledPlugins": {plugin_id: True}}))
+            plugins_dir = claude_dir / "plugins"
+            plugins_dir.mkdir()
+            (plugins_dir / "installed_plugins.json").write_text(json.dumps({
+                "plugins": {plugin_id: [{"installPath": str(root)}]},
+            }))
+            self.run_hook(home, {}, ["--install"])
+            settings = json.loads((claude_dir / "settings.json").read_text())
+            self.assertEqual(settings, {"enabledPlugins": {plugin_id: True}})
+
+    def test_install_skips_checkout_fallback_when_enabled_cache_has_plugin_hooks(self):
+        with tempfile.TemporaryDirectory() as home:
+            self.setup_home(home)
+            self.prepare_plugin_files(home)  # The hook is running from this checkout.
+            installed_root = Path(home) / "plugin-cache/agent-computer-use"
+            installed_root.mkdir(parents=True)
+            (installed_root / ".claude-plugin").mkdir()
+            (installed_root / ".claude-plugin/plugin.json").write_text(
+                json.dumps({"name": "agent-computer-use"})
+            )
+            (installed_root / "hooks").mkdir()
+            (installed_root / "hooks/hooks.json").write_text("{}")
+            plugin_id = "agent-computer-use@test-marketplace"
+            claude_dir = Path(home) / ".claude"
+            claude_dir.mkdir(exist_ok=True)
+            (claude_dir / "settings.json").write_text(json.dumps({"enabledPlugins": {plugin_id: True}}))
+            plugins_dir = claude_dir / "plugins"
+            plugins_dir.mkdir()
+            (plugins_dir / "installed_plugins.json").write_text(json.dumps({
+                "plugins": {plugin_id: [{"installPath": str(installed_root)}]},
+            }))
+            self.run_hook(home, {}, ["--install"])
+            self.assertEqual(
+                json.loads((claude_dir / "settings.json").read_text()),
+                {"enabledPlugins": {plugin_id: True}},
+            )
+
     def test_invalid_cli_always_exits_zero_without_stdout(self):
         with tempfile.TemporaryDirectory() as home:
             self.setup_home(home)

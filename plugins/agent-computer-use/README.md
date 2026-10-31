@@ -35,7 +35,12 @@ Cursor MCP loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-com
 
 CUAService (the Agent Computer Use menu bar app) hosts the island from launch, Samantha or not. Menu: **Show Dynamic Island** (default on), **ACU Settings…** (⌘,: the one ACU Settings window — island, Samantha voice, AI agents, Computer Use permissions; also `macos-cua settings [pane]`), Samantha on/off.
 
+### Deep link
+
+Open the island unlock window from a browser or shortcut with **`acu-island://unlock`**. If the island is locked, ACU shows the normal unlock sheet. If it is already unlocked, ACU still opens the window and shows **Your island is already unlocked.** Other `acu-island` paths are ignored.
+
 **Transports.**
+
 - **Local socket (default for `island-post` and Samantha's helper):** `~/Library/Application Support/CUAService/island.sock`, directory 0700, socket 0600. CUAService checks each peer's uid with `getpeereid()`. The client reads nothing from the Keychain, so macOS never shows a Keychain dialog. CUAService accepts a source once it is set up (ACU Settings → AI Agents → source → **Rotate**; Samantha's is created when you turn her on), and the source's toggle and attention cap still apply.
 - **HTTP `127.0.0.1:8777` with `Authorization: Bearer <token>`:** for other harnesses (`island-post --http` too). The token sits in the Keychain (service `samantha.island`, account `samantha`/`grok`/`cursor`/`codex`). The item trusts only CUAService, so reading it with `/usr/bin/security` prompts. Use the socket where you can. Loopback only: `Origin` headers and non-loopback `Host` are rejected. Unsigned requests get 401 unless the local-dev flag `island.hub.allowUnsignedLocalDev` is on (off by default).
 
@@ -51,6 +56,7 @@ island-post --source codex --kind clear --id deploy-1
 ```
 
 **Choice cards** (`--kind choice`, implied by `--prompt`/`--option`):
+
 - Options: up to 6 `--option label=value`, plus `--multi`, `--allow-text`, `--primary <value>` and `--danger <value>`.
 - Compact island: the source icon and one amber mark (a count badge instead when 2+ cards wait). Other sources get one circle each on the left (max 3 + "+N"). With music playing, a choice card shares the pill (Duo: artwork lead, source + mark trail); an approval takes the whole pill.
 - Arrival: a soft Tink (ACU Settings → General → Mute agent prompt sound; silent when the source app is frontmost) and a 4 s **Quick Peek** of the card (never key). It re-peeks at +2 min and at T-60 s, max 3, and holds off while the owner is typing in the source chat app. Hovering a peek pins it.
@@ -128,3 +134,91 @@ Wall-clock p50 and p95 per row against the row's floor.
 ### Efficiency
 
 Tool calls and fallbacks per verified action.
+
+## Release assets
+
+DMGs are built, signed and notarized outside this repository. After notarization,
+prepare a self-contained release directory (failure: nonzero exit):
+
+```bash
+python3 scripts/release_assets.py build \
+  --dmg /path/to/AgentComputerUse-X.Y.Z.dmg --out /path/to/assets
+python3 scripts/release_assets.py upload \
+  --tag agent-computer-use-vX.Y.Z --dir /path/to/assets --dry-run
+```
+
+The builder mounts the DMG read-only, reads the app's bundle ID, version, build,
+and minimum macOS, then detaches. `manifest.json` uses schema 1 and the pinned
+`ingpoc/agent-plugins` repository. `SHA256SUMS` covers every DMG, the manifest, and
+`install-mac.sh`. Repeated `--dmg` arguments must identify the same app release;
+the first is the manifest's primary asset. Upload prints the `gh release upload`
+command by default; only an explicit `--yes` publishes. Build does not sign,
+notarize, publish, tag, or release anything.
+
+The installer contract is [install-mac-SPEC.md](../../docs/install-mac-SPEC.md).
+Download `install-mac.sh` as a file and check its SHA256SUMS entry before running
+it with Bash. Do not pipe a download into a shell. It supports:
+
+```bash
+bash install-mac.sh install --dry-run
+bash install-mac.sh install --allow-quit
+bash install-mac.sh finish
+bash install-mac.sh remove --allow-quit
+```
+
+Failure is a nonzero exit. Codes are 0 success, 10 verification failure,
+11 quit consent needed, 12 unsupported Mac, 13 network/manifest error, and
+14 harness failure. The last stdout line is JSON, including partial failures;
+human logs go to stderr and `~/Library/Logs/agent-plugins/install.log`.
+Runtime and harness actions are independent: an up-to-date app is skipped while
+missing harness plugins can still require installation or manual setup. An exit 0
+with `manual` or `handled-by-bot` entries leaves those actions outstanding.
+`--dry-run` reads and verifies but never swaps, quits, installs plugins, or opens
+anything. Verification failures move the downloaded DMG to Trash; the external
+source artifact is preserved. Removal keeps user data and Keychain items.
+
+The signing team is pinned to `9UPQL479Z5`. Test-only path overrides are accepted
+only with `AGENT_PLUGINS_TEST=1`: `AGENT_PLUGINS_MANIFEST_URL` (including `file://`),
+`AGENT_PLUGINS_CACHE_DIR`, `AGENT_PLUGINS_APP_DIR`, and `AGENT_PLUGINS_LOG`.
+The test app-directory override restricts app lookup to that directory. It does
+not disable any signature, notarization, checksum, architecture, or team check.
+
+Codex and Cursor plugin installation/removal is reported as `manual` when the
+current public documentation supplies no noninteractive plugin lifecycle
+command. See [Codex packaging](https://developers.openai.com/plugins/build/plugins)
+and [Cursor plugins](https://cursor.com/docs/plugins). Cursor's marketplace must
+be refreshed/updated, or removed and re-added, to re-index new catalog rows.
+Claude uses its documented marketplace and plugin CLI. Grok Bot is
+`handled-by-bot`. `context-ledger` is selected only with `--plugins context-ledger`;
+`comet-control` is selected only when `/Applications/Comet.app` exists.
+
+## Proof per harness
+
+`finish` waits up to ten minutes for the installed app's read-only
+`CUAService status --json` to report Accessibility, Screen Recording and
+Microphone granted, runs the checks below, and opens `acu-island://unlock` after
+successful CLI checks. `bin/acu status --json` locates the installed app by bundle
+ID and forwards to that command. Status never requests a permission or unlock. Its `ok` requires the service to
+be running with all three permissions granted; island unlock is separate.
+
+| Harness | Exact noninteractive check used by `finish` | Required output | Evidence |
+| --- | --- | --- | --- |
+| Codex | `codex plugin list --json` | An enabled installed `agent-computer-use` record with a nonempty `version` | Plugin listing; does not prove an MCP tool call |
+| Cursor | `agent mcp list-tools agent-computer-use` (or `cursor-agent mcp list-tools agent-computer-use`) | Both `state` and `act` tools | Live MCP tool enumeration |
+| Claude Code | `claude plugin list --json` | An enabled `agent-computer-use@…` record with a nonempty `version` | Plugin listing; does not prove an MCP tool call |
+| Grok Bot | No documented noninteractive CLI command; bot must call ACU `state` | Successful tool response from the bot | `finish` reports `ok:false`, `handled-by-bot`; bot proof remains outstanding |
+
+A nonzero command exit or missing required record/tool means failure. Listing
+proof is deliberately labelled separately from a successful MCP tool call.
+The portable MCP exposes `state`, `act`, and `sessions`; it has no `status` or
+`version` tool. To prove an end-to-end tool call in Codex or Claude, request ACU
+`state` in a new enabled-plugin session and inspect its successful response.
+See [Codex plugin docs](https://developers.openai.com/plugins/build/plugins),
+[Cursor MCP CLI](https://cursor.com/docs/cli/reference/mcp), and
+[Claude plugin CLI](https://code.claude.com/docs/en/plugins-reference#cli-commands-reference).
+
+Claude Code discovers `hooks/hooks.json` from the installed plugin. Cursor's
+manifest explicitly selects `hooks/cursor-hooks.json`. The standalone
+`bin/acu-claude-hook --install` remains a fallback: it leaves settings untouched
+when an enabled installed ACU plugin receipt points to a package with its own
+Claude hooks, including when the fallback is invoked from another checkout.

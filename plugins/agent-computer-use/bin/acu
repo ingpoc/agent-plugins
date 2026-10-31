@@ -1,0 +1,42 @@
+#!/bin/sh
+set -eu
+
+bundle_id='com.ingpoc.cua-service'
+app=''
+
+valid_app() {
+  candidate=$1
+  [ -x "$candidate/Contents/MacOS/CUAService" ] || return 1
+  candidate_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$candidate/Contents/Info.plist" 2>/dev/null || true)
+  [ "$candidate_id" = "$bundle_id" ]
+}
+
+for candidate in "/Applications/Agent Computer Use.app" "$HOME/Applications/Agent Computer Use.app"; do
+  if valid_app "$candidate"; then
+    app=$candidate
+    break
+  fi
+done
+
+if [ -z "$app" ] && command -v mdfind >/dev/null 2>&1; then
+  app=$(mdfind "kMDItemCFBundleIdentifier == '$bundle_id'" 2>/dev/null | while IFS= read -r candidate; do
+    if valid_app "$candidate"; then
+      printf '%s\n' "$candidate"
+      break
+    fi
+  done)
+fi
+
+if [ -z "$app" ]; then
+  echo "acu: Agent Computer Use.app (com.ingpoc.cua-service) was not found" >&2
+  exit 127
+fi
+
+if [ "${1:-}" = "status" ]; then
+  shift
+fi
+if [ "$#" -eq 0 ]; then
+  set -- --json
+fi
+
+exec "$app/Contents/MacOS/CUAService" status "$@"

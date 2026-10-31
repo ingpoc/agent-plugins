@@ -1,0 +1,27 @@
+<div class="acu-stats" data-acu-gate="https://acu-gate.onrender.com">
+  <style>
+    .acu-stats{font:15px/1.5 system-ui,sans-serif;color:light-dark(#17202a,#e9eef4);background:light-dark(#f4f6f8,#171d25);color-scheme:light dark;padding:24px;border-radius:16px}.acu-stats dl{display:flex;gap:40px;margin:0 0 24px}.acu-stats dd{font-size:32px;font-weight:700;margin:0}.acu-stats dt{opacity:.7}.acu-stats ul{display:flex;flex-wrap:wrap;gap:12px;list-style:none;padding:0}.acu-stats li{display:flex;align-items:center;gap:8px}.acu-stats img{width:36px;height:36px;border-radius:50%;object-fit:cover}.acu-stats a{color:inherit;text-decoration:none}.acu-stats h3{font-size:16px}
+  </style>
+  <dl><div><dt>Downloads</dt><dd data-downloads>—</dd></div><div><dt>Unlocks</dt><dd data-unlocks>—</dd></div></dl>
+  <h3>Who's using it</h3><ul data-wall aria-label="People who chose to appear"></ul>
+  <script>
+    (()=>{
+      const root=document.currentScript.parentElement;
+      const safe=(value,hosts)=>{try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&hosts.includes(u.hostname)?u.href:null;}catch{return null;}};
+      fetch(root.dataset.acuGate+'/v1/public/site-stats').then(r=>{if(!r.ok)throw new Error('Stats unavailable');return r.json();}).then(data=>{
+        root.querySelector('[data-downloads]').textContent=Number(data.downloads.total).toLocaleString();
+        root.querySelector('[data-unlocks]').textContent=Number(data.unlocks).toLocaleString();
+        const wall=root.querySelector('[data-wall]');
+        for(const person of data.wall){
+          const li=document.createElement('li');
+          const href=safe(person.profile_url,['x.com','www.linkedin.com']);
+          const entry=document.createElement(href?'a':'span');
+          if(href){entry.setAttribute('href',href);entry.setAttribute('rel','noopener nofollow ugc');entry.setAttribute('target','_blank');}
+          const avatar=safe(person.avatar_url,['pbs.twimg.com','media.licdn.com']);
+          if(avatar){const img=document.createElement('img');img.setAttribute('src',avatar);img.setAttribute('alt','');img.setAttribute('loading','lazy');img.setAttribute('referrerpolicy','no-referrer');li.append(img);}
+          entry.textContent=person.name||person.handle;li.append(entry);wall.append(li);
+        }
+      }).catch(()=>{root.querySelector('[data-wall]').textContent='Stats are temporarily unavailable.';});
+    })();
+  </script>
+</div>

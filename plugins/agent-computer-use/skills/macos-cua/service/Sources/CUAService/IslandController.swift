@@ -7,6 +7,10 @@ import SwiftUI
 /// on 127.0.0.1:8777; the hub composes Samantha's state with other agents' rows and approvals.
 @MainActor
 final class IslandController {
+    private let gate: IslandGate?
+    var onVoiceStateChanged: ((String) -> Void)?
+    // ServiceDelegate supplies the production gate; standalone panel tests own their visibility policy.
+    var panelAllowed: Bool { (gate?.isUnlocked ?? true) && store.bool(IslandSettingsSchema.showIsland) }
     private var gateway: URL
     /// Voice helper control token (set by ServiceDelegate; empty = helper not launched by us).
     var controlToken: () -> String = { "" }
@@ -56,7 +60,8 @@ final class IslandController {
 
     /// `hubPort` nil = no HTTP listener (unit tests drive `hub` directly); 0 = ephemeral.
     init(gatewayPort: Int = 8765, store: IslandSettingsStore? = nil, hubPort: UInt16? = IslandHub.defaultPort,
-         socketPath: String? = nil, startsNowPlaying: Bool = false, startsSystem: Bool? = nil) {
+         socketPath: String? = nil, startsNowPlaying: Bool = false, startsSystem: Bool? = nil, gate: IslandGate? = nil) {
+        self.gate = gate
         self.socketPath = socketPath
         self.startsNowPlaying = startsNowPlaying
         self.startsSystem = startsSystem ?? startsNowPlaying
@@ -99,6 +104,7 @@ final class IslandController {
         model.onArrival = { [weak self] a in self?.cardArrived(a) }
         wireActivities()
         model.onAckExpired = { [weak self] ids in self?.hub.ackExpired(ids: ids) }
+        self.gate?.onChange.append { [weak self] in self?.updatePanelVisibility() }
         applySettings(store)
         store.addObserver { [weak self] store in self?.applySettings(store) }
     }
@@ -159,7 +165,7 @@ final class IslandController {
 
     private func updatePanelVisibility() {
         guard started else { return }
-        if store.bool(IslandSettingsSchema.showIsland) {
+        if panelAllowed {
             menuBarPanel.show(on: SamanthaMenuBarIslandPanel.menuBarScreen())
         } else {
             menuBarPanel.hide()
@@ -168,6 +174,7 @@ final class IslandController {
 
     /// Hub snapshot → model (dwell / connecting rules as before; meters-only updates are cheap).
     func ingest(_ snap: IslandSnapshot) {
+        onVoiceStateChanged?(hub.samantha?.kind ?? (voiceSessionActive ? snap.kind : "idle"))
         if last == nil || !snap.sameVisual(as: last!) {
             last = snap
             pendingConfirmId = snap.confirm_id
@@ -346,7 +353,7 @@ final class IslandController {
         IslandSettingsSchema.focusAccessAction = { [weak self] in
             _ = self; PermissionBroker.requestFocus()
         }
-        hotKey.onPress = { [weak self] in self?.model.hotKeyPressed() }
+        hotKey.onPress = { [weak self] in self?.openKeyboard() }
         model.onAnnounce = { [weak self] text in
             guard let self else { return }
             if let item = self.announcementThrottle.offer(text, priority: self.model.announcementPriority) {
@@ -491,7 +498,10 @@ final class IslandController {
     }
 
     /// Capture harness / test hooks.
-    func openKeyboard() { model.hotKeyPressed() }
+    func openKeyboard() {
+        guard panelAllowed else { gate?.show(); return }
+        model.hotKeyPressed()
+    }
     var debugModel: IslandModel { model }
     var debugPanel: SamanthaMenuBarIslandPanel { menuBarPanel }
 

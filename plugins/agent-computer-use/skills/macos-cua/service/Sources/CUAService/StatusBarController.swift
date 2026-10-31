@@ -34,6 +34,11 @@ final class MenuSwitchRowView: NSView {
 @MainActor
 final class StatusBarController: NSObject {
     private var item: NSStatusItem?
+    private let gate: IslandGate
+    private var gateItem: NSMenuItem?
+    private var wallItem: NSMenuItem?
+    private var wallErrorItem: NSMenuItem?
+    private var voiceState = "idle"
     private var active = false
     private var voiceRunning = false
     private var suppressToggleAction = false
@@ -45,7 +50,16 @@ final class StatusBarController: NSObject {
     private var showIslandItem: NSMenuItem?
     private var openIslandItem: NSMenuItem?
 
+    init(gate: IslandGate? = nil) {
+        self.gate = gate ?? .shared
+        super.init()
+    }
+
     func wire(voice: VoiceSupervisor, island: IslandController) {
+        island.onVoiceStateChanged = { [weak self] kind in
+            self?.voiceState = kind
+            self?.updateGateStatus()
+        }
         voiceSupervisor = voice
         islandController = island
         voice.onGatewayPortChanged = { [weak island] port in
@@ -95,6 +109,13 @@ final class StatusBarController: NSObject {
         menu.addItem(samanthaItem)
         samanthaRow = row
 
+        let access = NSMenuItem(title: gate.accessSummary, action: #selector(openGate), keyEquivalent: "")
+        access.target = self
+        menu.addItem(access)
+        gateItem = access
+        gate.onChange.append { [weak self] in self?.updateGateStatus() }
+        updateGateAccountRow()
+
         let openIsland = NSMenuItem(title: "Show Dynamic Island", action: #selector(openIslandCard), keyEquivalent: "")
         openIsland.target = self
         menu.addItem(openIsland)
@@ -135,6 +156,7 @@ final class StatusBarController: NSObject {
 
     func setActive(_ on: Bool) {
         active = on
+        defer { updateGateStatus() }
         item?.button?.appearsDisabled = false
         item?.button?.alphaValue = 1.0
         item?.button?.toolTip = on
@@ -144,6 +166,7 @@ final class StatusBarController: NSObject {
 
     private func setVoiceRunning(_ on: Bool) {
         voiceRunning = on
+        defer { updateGateStatus() }
         suppressToggleAction = true
         samanthaRow?.toggle.state = on ? .on : .off
         samanthaRow?.toggle.isEnabled = true
@@ -178,6 +201,60 @@ final class StatusBarController: NSObject {
         let shortcut = IslandShortcut.read(store)
         openIslandItem?.keyEquivalent = shortcut.character.lowercased()
         openIslandItem?.keyEquivalentModifierMask = shortcut.menuModifiers
+    }
+
+    @objc private func openGate() { gate.show() }
+
+    @objc private func toggleWallVisibility() { gate.setWallVisibility(!gate.showOnWall) }
+
+    private func updateGateAccountRow() {
+        gateItem?.title = gate.accessSummary
+        guard gate.isUnlocked else {
+            gateItem?.submenu = nil; wallItem = nil; wallErrorItem = nil
+            return
+        }
+        if gateItem?.submenu == nil {
+            let menu = NSMenu(title: "Island account")
+            let details = NSMenuItem(title: "Account details…", action: #selector(openGate), keyEquivalent: "")
+            details.target = self
+            menu.addItem(details)
+            let visibility = NSMenuItem(title: "Show me on the site", action: #selector(toggleWallVisibility), keyEquivalent: "")
+            visibility.target = self
+            menu.addItem(visibility)
+            wallItem = visibility
+            let error = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+            error.isEnabled = false
+            menu.addItem(error)
+            wallErrorItem = error
+            // Keep the optimistic request disabled while AppKit tracks the open menu.
+            menu.autoenablesItems = false
+            gateItem?.submenu = menu
+        }
+        wallItem?.state = gate.showOnWall ? .on : .off
+        wallItem?.isEnabled = !gate.wallUpdating
+        wallErrorItem?.isHidden = gate.wallError == nil
+        wallErrorItem?.title = gate.wallError ?? ""
+        wallErrorItem?.toolTip = gate.wallError
+    }
+
+    private func updateGateStatus() {
+        updateGateAccountRow()
+        guard let button = item?.button else { return }
+        let kind = voiceRunning ? voiceState : "idle"
+        let symbol: String?
+        switch kind {
+        case "listening": symbol = "mic.fill"
+        case "speaking": symbol = "waveform"
+        case "thinking", "reconnecting": symbol = "ellipsis.bubble.fill"
+        default: symbol = nil
+        }
+        if !gate.isUnlocked, let symbol {
+            button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Samantha \(kind)")
+            button.toolTip = "Agent Computer Use — Samantha \(kind)"
+        } else {
+            button.image = Self.loadIcon()
+            button.toolTip = voiceRunning ? "Agent Computer Use — Samantha on" : (active ? "Agent Computer Use — active" : "Agent Computer Use")
+        }
     }
 
     @objc private func openIslandCard() { islandController?.openKeyboard() }

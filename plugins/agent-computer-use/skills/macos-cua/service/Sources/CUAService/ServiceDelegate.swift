@@ -14,6 +14,8 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController?
     private var voiceSupervisor: VoiceSupervisor?
     private var islandController: IslandController?
+    private let islandGate = IslandGate.shared
+    private var islandGateURLHandler: IslandGateURLHandler?
     private var signalSources: [DispatchSourceSignal] = []
 
     init(socketPath: String, logger: Logger) {
@@ -23,8 +25,10 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        islandGate.start()
+        islandGateURLHandler = IslandGateURLHandler(gate: islandGate)
         cursorOverlay = CursorOverlay()
-        islandController = IslandController(socketPath: IslandHubSocketServer.defaultPath(), startsNowPlaying: true)
+        islandController = IslandController(socketPath: IslandHubSocketServer.defaultPath(), startsNowPlaying: true, gate: islandGate)
         islandController?.start()  // island + hub live from launch, Samantha or not
         voiceSupervisor = VoiceSupervisor()
         statusBar = StatusBarController()

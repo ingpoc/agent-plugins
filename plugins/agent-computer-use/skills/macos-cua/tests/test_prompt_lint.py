@@ -61,11 +61,22 @@ class PromptLint(unittest.TestCase):
             for i, line in enumerate(f.read_text().splitlines(), 1):
                 if re.search(r"kSecReturnData as String:\s*true", line.split("//", 1)[0]):
                     hits.append((f.name, i))
-        self.assertEqual([h[0] for h in hits], ["IslandSettings.swift"], hits)
+        self.assertCountEqual([h[0] for h in hits], ["IslandSettings.swift", "Status.swift"], hits)
         src = (SOURCES / "IslandSettings.swift").read_text()
         reader = src[src.index("static func readData(source:"):]
         self.assertIn("kSecReturnData", reader[:600], "data read must live in KeychainTokenStore.readData")
         self.assertIn("cache.withLock", src[src.index("struct KeychainTokenStore"):src.index("static func readData(source:")])
+
+        status = (SOURCES / "Status.swift").read_text()
+        self.assertIn('struct IslandGateStatusKeychain: IslandGateStoring', status)
+        self.assertIn('private let service = "com.ingpoc.acu.island-gate"', status)
+        read = status[status.index("func read(_ name:"):status.index("func write(")]
+        self.assertIn("authenticationContext.interactionNotAllowed = true", read)
+        self.assertIn("kSecUseAuthenticationContext as String: authenticationContext", read)
+        self.assertIn("kSecAttrService as String: service", read)
+        self.assertIn("kSecAttrAccount as String: name", read)
+        self.assertIn('func write(_ data: Data, name: String) throws { throw IslandGateFailure(code: "read_only") }', status)
+        self.assertIn('func delete(_ name: String) throws { throw IslandGateFailure(code: "read_only") }', status)
 
     def test_python_runtime_reads_only_approved(self):
         py = PLUGIN / "runtime" / "voice-cua" / "python" / "voice_cua"

@@ -1,0 +1,19 @@
+{
+  "name": "acu-gate",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "dev:local": "node src/dev-local.ts",
+    "migrate": "node src/migrate.ts",
+    "test": "node --import ./test/network-guard.ts --test test/*.test.ts",
+    "test:neon": "ACU_GATE_NEON_TEST=1 node --import ./test/network-guard.ts --test test/neon.test.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.2.0"
+  }
+}

@@ -243,6 +243,7 @@ struct IslandSettingsRoot: View {
         let visible = Self.visibleDefs(tab, store: store, defs: defs)
         let groups = Self.group(visible)
         return VStack(alignment: .leading, spacing: 14) {
+            if tab == .general { IslandGateAccessRow(gate: .shared) }
             ForEach(Array(groups.enumerated()), id: \.element.rows.first?.key) { gi, g in
                 VStack(alignment: .leading, spacing: 6) {
                     if let s = g.section {

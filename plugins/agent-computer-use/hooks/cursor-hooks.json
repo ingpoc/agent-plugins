@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [{ "command": "\"$CURSOR_PLUGIN_ROOT/bin/acu-cursor-hook\"", "timeout": 5 }],
+    "stop": [{ "command": "\"$CURSOR_PLUGIN_ROOT/bin/acu-cursor-hook\"", "timeout": 5 }],
+    "sessionEnd": [{ "command": "\"$CURSOR_PLUGIN_ROOT/bin/acu-cursor-hook\"", "timeout": 5 }]
+  }
+}
