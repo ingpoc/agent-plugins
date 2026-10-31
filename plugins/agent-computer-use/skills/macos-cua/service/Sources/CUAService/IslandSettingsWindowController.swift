@@ -9,13 +9,15 @@ import SwiftUI
 final class IslandSettingsWindowController: NSWindowController {
     static let shared = IslandSettingsWindowController()
 
-    let nav = SettingsNav()
+    let nav = SettingsNav(defaults: .standard)
+    private var restored = false
     private var keyMonitor: Any?
     private var watchers: [AnyCancellable] = []
 
     /// A token (even masked) is on screen: keep the window out of screen captures and shares.
     static func showsToken(tab: SettingsTab, store: IslandSettingsStore) -> Bool {
-        tab.agentSource.map { store.hasToken($0) } ?? false
+        tab == .agents && store.bool(IslandSettingsSchema.tokensExpanded) &&
+            [AgentSource.codex, .cursor, .grokBot, .agentRoster].contains { store.hasToken($0) }
     }
 
     private init() {
@@ -52,6 +54,9 @@ final class IslandSettingsWindowController: NSWindowController {
         watchers = [nav.objectWillChange.sink { _ in update() }, IslandSettingsStore.shared.objectWillChange.sink { _ in update() },
                     PermissionCenter.shared.$states.dropFirst().sink { [weak self] _ in self?.nav.objectWillChange.send() }]
         update()
+        NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.nav.objectWillChange.send() }
+        }
         // Permission rows read the real state; re-read whenever the window comes forward.
         NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.nav.objectWillChange.send(); PermissionCenter.shared.refresh() }
@@ -71,7 +76,8 @@ final class IslandSettingsWindowController: NSWindowController {
                                                 defs: IslandSettingsRoot.visibleDefs(self.nav.tab, store: store),
                                                 panes: SettingsTab.panes,
                                                 permissions: IslandSettingsSchema.permissionGranted)
-                if let key = r.action {
+                if r.action == IslandSettingsSchema.restoreAgents { store.restoreAgentDefaults() }
+                else if let key = r.action {
                     IslandSettingsRoot.perform(key, onShowLog: { IslandSettingsWindowController.revealLog() })
                 }
                 return r.handled
@@ -85,6 +91,10 @@ final class IslandSettingsWindowController: NSWindowController {
 
     /// User-initiated only. `tab` deep-links a pane (CLI / island); nil keeps the last pane.
     func showSettings(tab: SettingsTab? = nil) {
+        if !restored {
+            if tab == nil { nav.tab = SettingsNav.restoredTab(.standard) }
+            restored = true
+        }
         if let tab { nav.tab = tab }
         if window?.isVisible != true { window?.center() }
         showWindow(nil)
@@ -103,11 +113,20 @@ final class IslandSettingsWindowController: NSWindowController {
 extension SettingsTab {
     /// CLI/RPC pane name → tab. `.some(nil)` = no pane given (keep the window's last pane);
     /// `nil` = unknown pane. Case, spaces, "-" and "_" are ignored ("computer-use", "grok_bot").
+    static func opensMore(_ raw: String) -> Bool {
+        let key = raw.lowercased().filter { !$0.isWhitespace && $0 != "-" && $0 != "_" }
+        return ["interaction", "display", "sound", "connectivity", "nowplaying", "calendar", "filetray"].contains(key)
+    }
+
     static func forPane(_ raw: String) -> SettingsTab?? {
         let key = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             .replacingOccurrences(of: "-", with: "").replacingOccurrences(of: "_", with: "")
             .replacingOccurrences(of: " ", with: "")
         if key.isEmpty { return .some(nil) }
+        if ["interaction", "display", "sound", "connectivity", "nowplaying", "calendar", "filetray"].contains(key) {
+            return .some(.general)
+        }
+        if ["grokbot", "cursor", "codex", "agentroster"].contains(key) { return .some(.agents) }
         guard let tab = SettingsTab.allCases.first(where: { $0.rawValue.lowercased() == key }) else { return nil }
         return .some(tab)
     }

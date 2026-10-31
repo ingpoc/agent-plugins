@@ -77,6 +77,7 @@ struct IslandPeekItem: Equatable, Identifiable {
     var body: String = ""      // never shown in compact; VoiceOver + card only
     var at: Date = Date()
     var count: Int = 1
+    var extra: TimeInterval = 0
 
     var spoken: String {
         [title, body].filter { !$0.isEmpty }.joined(separator: ". ") + (count > 1 ? ". \(count) notifications" : "")

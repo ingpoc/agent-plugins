@@ -24,7 +24,14 @@ enum SettingsKeyboard {
     }
 
     static func focusable(_ defs: [SettingDef]) -> [SettingDef] {
-        defs.filter { if case .token = $0.kind { return false }; return true }
+        defs.flatMap { d -> [SettingDef] in
+            if case .sourceTable = d.kind {
+                return IslandSettingsSchema.tableSources.flatMap { IslandSettingsSchema.agent($0) }
+            }
+            if case .token = d.kind { return [] }
+            if case .shortcut = d.kind { return [] }
+            return [d]
+        }
     }
 
     /// Applies one key. `handled` = consume the event; `action` = button row key whose action should run.
@@ -51,8 +58,9 @@ enum SettingsKeyboard {
         case .activate, .decrease, .increase:
             guard let i else { return (false, nil) }
             let d = f[i]
+            guard store.sourceControlEnabled(d.key) else { return (true, nil) }
             switch d.kind {
-            case .master, .toggle:
+            case .master, .toggle, .disclosure:
                 store.set(k == .activate ? !store.bool(d.key) : k == .increase, for: d.key)
             case .slider(let lo, let hi, let step, _):
                 guard k != .activate else { return (true, nil) }
@@ -61,13 +69,16 @@ enum SettingsKeyboard {
             case .tiles(let o):
                 store.set(cycle(o.map(\.value), store.string(d.key), k), for: d.key)
             case .popup(let o):
-                store.set(cycle(o.map(\.value), store.string(d.key), k), for: d.key)
+                let options = d.dynamicOptions?(store) ?? o
+                let values = options.map(\.value).filter { d.key != AgentSource.samantha.keyPrefix + "cap" || $0 != "info" }
+                let current = d.key == IslandSettingsSchema.displayOn ? store.displaySelection() : store.string(d.key)
+                store.set(cycle(values, current, k), for: d.key)
             case .button:
                 return (true, k == .activate ? d.key : nil)
             case .permission:
                 // Already allowed: nothing to ask for (the row shows "Allowed", not a button).
                 return (true, k == .activate && !permissions(d.key) ? d.key : nil)
-            case .token:
+            case .token, .sourceTable, .shortcut:
                 return (false, nil)
             }
             return (true, nil)

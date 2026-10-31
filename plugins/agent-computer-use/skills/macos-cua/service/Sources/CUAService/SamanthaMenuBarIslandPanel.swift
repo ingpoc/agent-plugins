@@ -29,8 +29,8 @@ final class SamanthaMenuBarIslandPanel {
     private var fullscreenStreak = 0
 
     // Settings (General), pushed by applySettings.
-    private var expandOnHover = false
-    private var hoverDelay: TimeInterval = 0
+    private(set) var expandOnHover = false
+    private(set) var hoverDelay: TimeInterval = 0
     private var hideInFullscreen = true
     private var hideInMissionControl = true
     private var hideFromCapture = false
@@ -180,7 +180,7 @@ final class SamanthaMenuBarIslandPanel {
 
     func applySettings(_ s: IslandSettingsStore) {
         typealias K = IslandSettingsSchema
-        expandOnHover = s.bool(K.expandOnHover)
+        expandOnHover = s.string(K.openOn) == "hover"
         hoverDelay = s.double(K.hoverDuration)
         hideInFullscreen = s.bool(K.hideInFullscreen)
         hideInMissionControl = s.bool(K.hideInMissionControl)

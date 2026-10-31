@@ -16,9 +16,6 @@ final class IslandSettingsTests: XCTestCase {
 
     override func tearDown() {
         defaults.removePersistentDomain(forName: suiteName)
-        IslandModel.peekDone = 4
-        IslandModel.peekError = 6
-        IslandModel.doneSettle = 4
     }
 
     private func store() -> IslandSettingsStore {
@@ -45,16 +42,18 @@ final class IslandSettingsTests: XCTestCase {
         XCTAssertEqual(obj?["realtime_model"] as? String, "gpt-live-1")
         XCTAssertEqual(obj?["extra"] as? String, "kept")
         XCTAssertNil(defaults.object(forKey: IslandSettingsSchema.voiceVoice), "voice rows never land in UserDefaults")
-        // Every stored value is one of the popup's options (no orphaned selection after the move).
-        for key in IslandSettingsSchema.voiceKeys {
+        // Only Voice and Model are schema rows. Voice backend choices persist in the file without UI defaults.
+        for key in [IslandSettingsSchema.voiceVoice, IslandSettingsSchema.voiceModel] {
             guard case .popup(let o)? = IslandSettingsSchema.def(key)?.kind else { return XCTFail("\(key) is a popup") }
             XCTAssertTrue(o.contains { $0.value == s.string(key) }, key)
         }
+        XCTAssertNil(IslandSettingsSchema.def(IslandSettingsSchema.voiceLiveBulk))
+        XCTAssertNil(IslandSettingsSchema.def(IslandSettingsSchema.voiceLiveIntelligence))
     }
 
     /// Model picker: GPT-Live-1 (default), Grok Voice 3.0 (same ids as voice_settings.MODELS). Realtime removed.
-    /// The Bulk / Intelligence pickers show only while GPT-Live-1 is selected.
-    func testModelPickerAndLiveBackendRows() {
+    /// Samantha exposes only Voice and Model; backend keys remain file-backed metadata.
+    func testModelPickerAndSamanthaRows() {
         XCTAssertEqual(VoiceSettingsStore.models.map(\.value),
                        ["gpt-live-1", "grok-voice-latest"])
         XCTAssertEqual(VoiceSettingsStore.Settings.default.realtimeModel, "gpt-live-1")
@@ -67,23 +66,13 @@ final class IslandSettingsTests: XCTestCase {
         VoiceSettingsStore.xaiKeyAvailable = { true }
         XCTAssertEqual(VoiceSettingsStore.models.first { $0.value == "grok-voice-latest" }?.label, "Grok Voice 3.0")
 
-        let s = store()
-        func liveRows() -> [String] {
-            IslandSettingsRoot.visibleDefs(.samantha, store: s).map(\.key)
-                .filter { $0 == IslandSettingsSchema.voiceLiveBulk || $0 == IslandSettingsSchema.voiceLiveIntelligence }
-        }
-        s.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
-        XCTAssertEqual(liveRows(), [IslandSettingsSchema.voiceLiveBulk, IslandSettingsSchema.voiceLiveIntelligence])
-        XCTAssertEqual(s.string(IslandSettingsSchema.voiceLiveBulk), "gpt-6-luna")
-        XCTAssertEqual(s.string(IslandSettingsSchema.voiceLiveIntelligence), "gpt-6.1-sol")
-        s.set("grok-voice-latest", for: IslandSettingsSchema.voiceModel)
-        XCTAssertEqual(liveRows(), [])
-        // Voice picks the GPT-Live voice; Listening / Microphone rows are gone with Realtime.
-        func shown() -> Set<String> { Set(IslandSettingsRoot.visibleDefs(.samantha, store: s).map(\.key)) }
-        XCTAssertFalse(shown().contains(IslandSettingsSchema.voiceVoice))
-        XCTAssertTrue(shown().isDisjoint(with: [IslandSettingsSchema.voiceEagerness, IslandSettingsSchema.voiceMic]))
-        s.set("gpt-live-1", for: IslandSettingsSchema.voiceModel)
-        XCTAssertTrue(shown().contains(IslandSettingsSchema.voiceVoice))
+        let rows = IslandSettingsSchema.defs(for: .samantha)
+        XCTAssertEqual(rows.map(\.key), [IslandSettingsSchema.voiceVoice, IslandSettingsSchema.voiceModel])
+        XCTAssertNil(IslandSettingsSchema.def(IslandSettingsSchema.voiceLiveBulk))
+        XCTAssertNil(IslandSettingsSchema.def(IslandSettingsSchema.voiceLiveIntelligence))
+        XCTAssertTrue(IslandSettingsRoot.visibleDefs(.samantha, store: store()).allSatisfy {
+            $0.key == IslandSettingsSchema.voiceVoice || $0.key == IslandSettingsSchema.voiceModel
+        })
     }
 
     func testLiveBackendKeysRoundTripTheSharedFile() throws {
@@ -105,13 +94,13 @@ final class IslandSettingsTests: XCTestCase {
         XCTAssertEqual(env["VOICE_CUA_LIVE_INTELLIGENCE_MODEL"], "gpt-6-astra")
     }
 
-    func testSamanthaEnabledRowAndTaskModelsSection() {
+    func testSamanthaSourceSettingsAreMetadataNotPaneRows() {
         let rows = IslandSettingsSchema.defs(for: .samantha)
-        XCTAssertEqual(rows.first?.label, "Enabled")
-        guard case .toggle = rows.first?.kind else { return XCTFail("Samantha's top row is a plain toggle (no icon)") }
-        XCTAssertEqual(rows.filter { $0.visibleWhen == IslandSettingsSchema.whenLive }.map(\.section), ["Voice", "Task models", "Task models"])
-        XCTAssertFalse(IslandSettingsSchema.all.contains { $0.section == "GPT-Live-1 Tasks" })
-        XCTAssertEqual(IslandSettingsSchema.def(AgentSource.grokBot.keyPrefix + "enabled")?.label, AgentSource.grokBot.title, "other sources keep their master row")
+        XCTAssertEqual(rows.map(\.key), [IslandSettingsSchema.voiceVoice, IslandSettingsSchema.voiceModel])
+        let enabled = AgentSource.samantha.keyPrefix + "enabled"
+        XCTAssertTrue(IslandSettingsSchema.all.contains { $0.key == enabled }, "source table metadata remains in the schema")
+        XCTAssertFalse(IslandSettingsSchema.defs(for: .agents).contains { $0.key == enabled },
+                       "the source table expands controls without individual settings rows")
     }
 
     func testComputerUsePaneIsThePermissionRows() {
@@ -125,15 +114,23 @@ final class IslandSettingsTests: XCTestCase {
 
     func testSchemaCoversEveryTabWithUniqueKeys() {
         for tab in SettingsTab.allCases {
-            XCTAssertFalse(IslandSettingsSchema.defs(for: tab).isEmpty || tab == .about && false, "\(tab) has rows")
+            XCTAssertFalse(IslandSettingsSchema.defs(for: tab).isEmpty, "\(tab) has rows")
         }
         let keys = IslandSettingsSchema.all.map(\.key)
         XCTAssertEqual(Set(keys).count, keys.count, "unique keys")
         XCTAssertTrue(keys.allSatisfy { $0.hasPrefix("island.") || $0.hasPrefix("voice.") || $0.hasPrefix("cua.") })
-        // AI Agents contains the individual sources and shared roster; About is pinned.
-        let agents = SettingsTab.sidebar.first { $0.0 == "AI Agents" }?.1
-        XCTAssertEqual(agents, [.samantha, .grokBot, .cursor, .codex, .agentRoster])
-        XCTAssertFalse(SettingsTab.sidebar.contains { $0.0 == "Samantha" }, "no Samantha header")
+        let sourceKeys = AgentSource.allCases.flatMap { IslandSettingsSchema.agent($0).map(\.key) }
+        XCTAssertTrue(Set(keys).isSuperset(of: sourceKeys), "per-source controls remain available as source-table metadata")
+        let agentRows = IslandSettingsSchema.defs(for: .agents)
+        XCTAssertTrue(Set(agentRows.map(\.key)).isDisjoint(with: sourceKeys), "source rows are expanded by the table")
+        XCTAssertTrue(agentRows.contains { d in
+            guard d.key == IslandSettingsSchema.sourceTable else { return false }
+            if case .sourceTable = d.kind { return true }
+            return false
+        })
+        XCTAssertEqual(SettingsTab.allCases, [.general, .agents, .samantha, .computerUse, .about])
+        XCTAssertEqual(SettingsTab.sidebar.flatMap(\.1), [.general, .agents, .samantha, .computerUse])
+        XCTAssertEqual(SettingsTab.sidebar.map(\.0), [nil, "System"])
         XCTAssertFalse(SettingsTab.sidebar.flatMap(\.1).contains(.about))
         XCTAssertEqual(SettingsTab.panes.last, .about)
         XCTAssertEqual(Set(SettingsTab.panes), Set(SettingsTab.allCases), "every pane is reachable")
@@ -144,20 +141,23 @@ final class IslandSettingsTests: XCTestCase {
         let keys = Set(IslandSettingsSchema.all.map(\.key))
         for k in IslandSettingsSchema.retiredKeys { XCTAssertFalse(keys.contains(k), k) }
         for p in IslandSettingsSchema.retiredPrefixes { XCTAssertFalse(keys.contains { $0.hasPrefix(p) }, p) }
-        XCTAssertEqual(IslandSettingsSchema.all.filter { $0.section == "Durations" }.map(\.tab), [.general, .general, .general],
-                       "one global Durations card")
+        XCTAssertTrue(IslandSettingsSchema.all.filter { $0.visibleWhen == IslandSettingsSchema.moreExpanded }
+            .allSatisfy { $0.tab == .general }, "expanded More rows live under General")
         let s = store()
         defaults.set(9, forKey: "island.agent.cursor.needsYouPeek")
         defaults.set(true, forKey: "island.lockScreen.widget.weather")
         defaults.set(false, forKey: "island.general.launchAtLogin")
         defaults.set("all", forKey: IslandSettingsSchema.displayOn)
         defaults.set(5, forKey: IslandSettingsSchema.resultPeek)
+        defaults.set(7, forKey: IslandSettingsSchema.errorPeek)
         s.dropRetiredSettings()
         XCTAssertNil(defaults.object(forKey: "island.agent.cursor.needsYouPeek"))
         XCTAssertNil(defaults.object(forKey: "island.lockScreen.widget.weather"))
         XCTAssertNil(defaults.object(forKey: "island.general.launchAtLogin"))
         XCTAssertEqual(s.string(IslandSettingsSchema.displayOn), "main", "All displays (never built) → main")
-        XCTAssertEqual(s.double(IslandSettingsSchema.resultPeek), 5, "live settings untouched")
+        XCTAssertEqual(s.double(IslandSettingsSchema.alertDuration), 5, "legacy result duration migrates to Alerts")
+        XCTAssertNil(defaults.object(forKey: IslandSettingsSchema.resultPeek))
+        XCTAssertNil(defaults.object(forKey: IslandSettingsSchema.errorPeek))
     }
 
     /// At most one "i" per card; captions replace the master rows' info.
@@ -175,30 +175,44 @@ final class IslandSettingsTests: XCTestCase {
         let s = store()
         XCTAssertTrue(s.bool(IslandSettingsSchema.hideInFullscreen))
         XCTAssertEqual(s.string(IslandSettingsSchema.idleActivity), "duo")
-        XCTAssertEqual(s.double(IslandSettingsSchema.errorPeek), 6)
+        XCTAssertEqual(s.double(IslandSettingsSchema.alertDuration), 4)
+        XCTAssertEqual(s.string(IslandSettingsSchema.openOn), "click")
+        XCTAssertEqual(s.double(IslandSettingsSchema.hoverDuration), 0.2, accuracy: 0.001)
         s.set(false, for: IslandSettingsSchema.hideInFullscreen)
-        s.set(7.5, for: IslandSettingsSchema.errorPeek)
+        s.set(7.5, for: IslandSettingsSchema.alertDuration)
+        s.set("hover", for: IslandSettingsSchema.openOn)
+        s.set(0.3, for: IslandSettingsSchema.hoverDuration)
         s.set("none", for: IslandSettingsSchema.idleActivity)
         let again = store()
         XCTAssertFalse(again.bool(IslandSettingsSchema.hideInFullscreen))
-        XCTAssertEqual(again.double(IslandSettingsSchema.errorPeek), 7.5)
+        XCTAssertEqual(again.double(IslandSettingsSchema.alertDuration), 7.5)
+        XCTAssertEqual(again.string(IslandSettingsSchema.openOn), "hover")
+        XCTAssertEqual(again.double(IslandSettingsSchema.hoverDuration), 0.3, accuracy: 0.001)
         XCTAssertEqual(again.string(IslandSettingsSchema.idleActivity), "none")
+        XCTAssertTrue(IslandSettingsRoot.visibleDefs(.general, store: again).contains { $0.key == IslandSettingsSchema.hoverDuration })
     }
 
     func testObserverFiresOnSet() {
         let s = store()
         var n = 0
         s.addObserver { _ in n += 1 }
-        s.set(true, for: IslandSettingsSchema.expandOnHover)
+        s.set(true, for: IslandSettingsSchema.moreExpanded)
         XCTAssertEqual(n, 1)
     }
 
     func testAgentGatingDefaults() {
         let s = store()
         XCTAssertTrue(s.sourceEnabled(.samantha))
+        XCTAssertTrue(s.sourceEnabled(.codex))
+        XCTAssertEqual(IslandSettingsSchema.tableSources.map { s.cap($0) }, Array(repeating: .attention, count: IslandSettingsSchema.tableSources.count))
         XCTAssertTrue(s.mayRaiseApproval(.cursor))
         XCTAssertTrue(s.mayRaiseApproval(.grokBot))
-        XCTAssertFalse(s.mayRaiseApproval(.codex), "Codex defaults to info cap, no approvals")
+        XCTAssertFalse(s.mayRaiseApproval(.codex), "Codex is enabled but cannot raise approvals")
+        XCTAssertTrue(IslandSettingsSchema.tableSources.filter { $0 != .codex }.allSatisfy { s.mayRaiseApproval($0) })
+        for lowCap in ["ambient", "info"] {
+            s.set(lowCap, for: AgentSource.samantha.keyPrefix + "cap")
+            XCTAssertEqual(s.cap(.samantha), .attention, "Samantha cannot be capped below attention")
+        }
         s.set("ambient", for: AgentSource.cursor.keyPrefix + "cap")
         XCTAssertFalse(s.mayRaiseApproval(.cursor), "cap below attention cannot raise cards")
         XCTAssertEqual(AgentSource.match("Grok Bot"), .grokBot)
@@ -206,7 +220,7 @@ final class IslandSettingsTests: XCTestCase {
         XCTAssertNil(AgentSource.match("Terminal"))
         XCTAssertEqual(AgentSource.match("Comet"), .grokBot)
         s.set("garbage", for: AgentSource.codex.keyPrefix + "cap")
-        XCTAssertEqual(s.cap(.codex), .info, "corrupt prefs fall back to the per-source default")
+        XCTAssertEqual(s.cap(.codex), .attention, "corrupt prefs fall back to the per-source default")
     }
 
     func testTokenRotateAndMaskNeverShowsFullToken() throws {
@@ -282,14 +296,23 @@ final class IslandSettingsTests: XCTestCase {
         XCTAssertEqual(m.presentation, .needsYou)
     }
 
-    func testDurationsAreSettable() {
-        IslandModel.doneSettle = 2
-        let since = Date()
-        XCTAssertEqual(IslandModel.presentation(kind: "done", stepTotal: 0, approval: nil, since: since,
-                                                now: since.addingTimeInterval(2.5)), .doneSettled)
-        IslandModel.doneSettle = 4
-        XCTAssertEqual(IslandModel.presentation(kind: "done", stepTotal: 0, approval: nil, since: since,
-                                                now: since.addingTimeInterval(2.5)), .done)
+    func testAlertDurationAndOpenOnControls() {
+        let s = store()
+        guard let duration = IslandSettingsSchema.def(IslandSettingsSchema.alertDuration) else {
+            return XCTFail("agent alert duration row exists")
+        }
+        guard case .slider(let min, let max, _, let unit) = duration.kind else {
+            return XCTFail("agent alert duration is a slider")
+        }
+        XCTAssertEqual(min, 3)
+        XCTAssertEqual(max, 8)
+        XCTAssertEqual(unit, "s")
+        XCTAssertEqual(duration.defaultValue, .double(4))
+        XCTAssertFalse(IslandSettingsRoot.visibleDefs(.general, store: s).contains { $0.key == IslandSettingsSchema.hoverDuration })
+        s.set("hover", for: IslandSettingsSchema.openOn)
+        XCTAssertTrue(IslandSettingsRoot.visibleDefs(.general, store: s).contains { $0.key == IslandSettingsSchema.hoverDuration })
+        s.set("click", for: IslandSettingsSchema.openOn)
+        XCTAssertFalse(IslandSettingsRoot.visibleDefs(.general, store: s).contains { $0.key == IslandSettingsSchema.hoverDuration })
     }
 
     func testDisplayChoiceFallsBackToMain() {

@@ -430,7 +430,7 @@ final class IslandHub {
         guard rawId.count <= 80 else { return .err(400, "id too long") }
         let id = Self.key(source, rawId)
         let kind = (j["kind"] as? String ?? "running").lowercased()
-        let title = String((j["title"] as? String ?? "").prefix(120))
+        let title = j["title"] as? String ?? ""
         let detail = String((j["detail"] as? String ?? "").prefix(200))
         let app = String((j["app"] as? String ?? source.defaultApp).prefix(40))
         switch kind {
@@ -495,13 +495,14 @@ final class IslandHub {
             // A3 Quick Peek: one line (title = sender/headline), optional body; shown ~3 s, never a row.
             guard !title.isEmpty else { return .err(400, "title required") }
             let cap = store.cap(source)
-            guard cap.rank >= AttentionCap.info.rank else { return .err(403, "peeks need attention cap info or higher for \(source.cliName)") }
+            guard cap.rank >= AttentionCap.attention.rank else { return .err(403, "peeks need attention cap attention or higher for \(source.cliName)") }
             guard store.bool(IslandSettingsSchema.agentPeeks) else { return .err(403, "agent peeks are off in ACU Settings") }
             onPeek?(IslandPeekItem(id: id, source: source.title, app: app, symbol: String((j["symbol"] as? String ?? "").prefix(40)),
                                    title: title, body: detail, at: now))
             return .ok(["id": rawId])
         case "running", "needs_you", "done", "error":
             guard !title.isEmpty else { return .err(400, "title required") }
+            let previousStatus = entries[id]?.agent.status
             let rawParent = (j["parent_id"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
             if let rawParent {
                 guard !rawParent.isEmpty, rawParent.count <= 80 else { return .err(400, "parent_id must be 1-80 characters") }
@@ -534,6 +535,14 @@ final class IslandHub {
             if kind == "error", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !tech.isEmpty { shown.tooltip = String(tech.prefix(200)) }
             entries[id] = Entry(source: source, agent: shown, updated: now, ttl: ttl, started: started)
+            if (kind == "done" || kind == "error"), (previousStatus == nil || previousStatus == "running"),
+               store.cap(source).rank >= AttentionCap.critical.rank,
+               store.bool(IslandSettingsSchema.agentPeeks) {
+                onPeek?(IslandPeekItem(id: id, source: source.title, app: app,
+                                       symbol: kind == "done" ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
+                                       title: title, body: (j["meta"] as? String) ?? detail,
+                                       at: now, extra: kind == "error" ? 2 : 0))
+            }
             changed()
             return .ok(["id": rawId])
         default:

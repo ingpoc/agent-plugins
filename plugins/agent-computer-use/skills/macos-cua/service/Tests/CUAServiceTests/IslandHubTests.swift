@@ -136,7 +136,7 @@ final class IslandHubTests: XCTestCase {
         let codex = try token(.codex)
         let body: [String: Any] = ["source": "codex", "id": "m1", "kind": "approval", "title": "Run migration?"]
         XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: codex, json: body), port: 8777).status, 403,
-                       "Codex defaults to info cap → no approval cards")
+                       "Codex cannot receive decisions")
         let cursor = try token(.cursor)
         var b = body; b["source"] = "cursor"; b["detail"] = "staging"
         XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: cursor, json: b), port: 8777).status, 200)
@@ -150,6 +150,81 @@ final class IslandHubTests: XCTestCase {
         hub.resolveApproval(id: card.id, approved: true)
         XCTAssertNil(hub.compose().agent_approval)
         XCTAssertEqual(hub.handle(poll, port: 8777).body["status"], "approved")
+    }
+
+    func testPeekRequiresAttentionCap() throws {
+        store.set("info", for: AgentSource.codex.keyPrefix + "cap")
+        let hub = IslandHub(store: store)
+        let codex = try token(.codex)
+        var item: IslandPeekItem?
+        hub.onPeek = { item = $0 }
+        let body: [String: Any] = ["source": "codex", "id": "peek-1", "kind": "peek", "title": "Ready"]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: codex, json: body), port: 8777).status, 403,
+                       "info cap blocks peeks")
+        XCTAssertNil(item)
+        store.set("attention", for: AgentSource.codex.keyPrefix + "cap")
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: codex, json: body), port: 8777).status, 200)
+        XCTAssertEqual(item?.title, "Ready")
+    }
+
+    func testCriticalTerminalAgentTransitionsEmitResultPeeks() throws {
+        let hub = IslandHub(store: store)
+        let codex = try token(.codex)
+        store.set("critical", for: AgentSource.codex.keyPrefix + "cap")
+        var peeks: [IslandPeekItem] = []
+        hub.onPeek = { peeks.append($0) }
+
+        func post(_ id: String, _ kind: String, _ extra: [String: Any] = [:]) -> Int {
+            var body: [String: Any] = ["source": "codex", "id": id, "kind": kind, "title": "Run tests",
+                                       "app": "Terminal", "detail": "Build output"]
+            extra.forEach { body[$0.key] = $0.value }
+            return hub.handle(req("POST", "/api/island/publish", token: codex, json: body), port: 8777).status
+        }
+
+        XCTAssertEqual(post("ok", "running"), 200)
+        XCTAssertEqual(post("ok", "done", ["meta": "All tests passed"]), 200)
+        XCTAssertEqual(post("ok", "done"), 200)
+        XCTAssertEqual(post("failed", "error", ["error": "Build failed"]), 200)
+        XCTAssertEqual(peeks.count, 2, "only entry into a terminal state emits")
+        XCTAssertEqual(peeks[0].source, "Codex")
+        XCTAssertEqual(peeks[0].app, "Terminal")
+        XCTAssertEqual(peeks[0].symbol, "checkmark.circle.fill")
+        XCTAssertEqual(peeks[0].title, "Run tests")
+        XCTAssertEqual(peeks[0].body, "All tests passed")
+        XCTAssertEqual(peeks[0].extra, 0)
+        XCTAssertEqual(peeks[1].symbol, "exclamationmark.triangle.fill")
+        XCTAssertEqual(peeks[1].body, "Build output", "peek body uses row meta/detail rather than technical error text")
+        XCTAssertEqual(peeks[1].extra, 2)
+    }
+
+    func testTerminalPeeksRequireCriticalAndAgentPeeks() throws {
+        let hub = IslandHub(store: store)
+        let codex = try token(.codex)
+        var peeks: [IslandPeekItem] = []
+        hub.onPeek = { peeks.append($0) }
+        for cap in ["info", "attention", "critical"] {
+            store.set(cap, for: AgentSource.codex.keyPrefix + "cap")
+            store.set(cap != "critical", for: IslandSettingsSchema.agentPeeks)
+            for kind in ["done", "error"] {
+                let body: [String: Any] = ["source": "codex", "id": cap + kind, "kind": kind, "title": "Run tests"]
+                XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: codex, json: body), port: 8777).status, 200)
+            }
+        }
+        XCTAssertTrue(peeks.isEmpty)
+    }
+
+    func testAgentRowTitlesArePreservedAndTerminalBodiesUseMetaOrDetail() throws {
+        let hub = IslandHub(store: store)
+        let codex = try token(.codex)
+        store.set("critical", for: AgentSource.codex.keyPrefix + "cap")
+        let title = String(repeating: "A long agent task title ", count: 12)
+        var peeks: [IslandPeekItem] = []
+        hub.onPeek = { peeks.append($0) }
+        let body: [String: Any] = ["source": "codex", "id": "long", "kind": "error", "title": title, "error": "technical internals"]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: codex, json: body), port: 8777).status, 200)
+        XCTAssertEqual(hub.compose().agents.first?.title, title)
+        XCTAssertEqual(peeks.first?.title, title)
+        XCTAssertEqual(peeks.first?.body, "", "technical errors are tooltips rather than peek body")
     }
 
     func testDestructiveApprovalsRequireTargetScope() throws {

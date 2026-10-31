@@ -194,9 +194,11 @@ final class IslandController {
             } else { hotKey.unregister() }
             applyMotionProbe()
         }
-        IslandModel.peekDone = s.double(K.resultPeek)
-        IslandModel.peekError = s.double(K.errorPeek)
-        IslandModel.doneSettle = s.double(K.doneSettle)
+        let alertDuration = s.double(K.alertDuration)
+        IslandModel.peekDone = alertDuration
+        IslandModel.peekError = alertDuration + 2
+        IslandModel.peekDwell = alertDuration
+        IslandModel.doneSettle = 4
         model.contrastOutline = s.bool(K.contrastOutline)
         updateAccessibilityDisplay()
         typealias N = NowPlayingKeys
@@ -230,7 +232,6 @@ final class IslandController {
             hud.volumeEnabled = s.bool(K.soundEnabled)
             hud.brightnessEnabled = s.bool(K.displayEnabled)
         }
-        IslandModel.peekDwell = max(2.5, min(6, s.double(K.peekDuration)))
         model.calendarEnabled = s.bool(K.calendarEnabled)
         model.calendarLead = max(5, min(30, s.double(K.calendarLead))) * 60
         model.useCalendarColor = s.bool(K.calendarColor)
@@ -451,9 +452,9 @@ final class IslandController {
     /// Frontmost app name (tests inject a fixed one).
     var frontmostAppName: () -> String? = { NSWorkspace.shared.frontmostApplication?.localizedName }
 
-    /// Soft Tink on a new card — only when its source app isn't frontmost, and not when muted.
+    /// Soft Tink on a new card — only when its source app isn't frontmost, and when prompt sound is enabled.
     private func cardArrived(_ a: IslandAgentApproval) {
-        guard !store.bool(IslandSettingsSchema.mutePromptSound) else { return }
+        guard store.bool("island.agents.promptSound") else { return }
         guard !IslandInput.isSourceApp(frontmostAppName(), approval: a) else { return }
         IslandSound.tink()
     }

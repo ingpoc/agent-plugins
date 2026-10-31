@@ -107,7 +107,7 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(m.shapeRect.width, shortWidth)
     }
 
-    func testHubPeekNeedsInfoCap() throws {
+    func testHubPeekNeedsAttentionCap() throws {
         let hub = IslandHub(store: store)
         var got: [IslandPeekItem] = []
         hub.onPeek = { got.append($0) }

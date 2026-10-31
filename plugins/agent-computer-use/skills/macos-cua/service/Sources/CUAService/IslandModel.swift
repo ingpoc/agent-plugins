@@ -478,7 +478,7 @@ final class IslandModel: ObservableObject {
             guard hovering != oldValue else { return }
             if presentation == .peek {
                 // Hovered peek: on leave it goes with the same short grace as a card (0.2.63).
-                if hovering { pinPeek() } else { schedulePeekDismiss(after: Self.leaveGrace) }
+                if hovering { pinPeek() } else { schedulePeekDismiss(after: Self.leaveGrace + (peek?.extra ?? 0)) }
             }
             // Hover-hold: the pointer entering an alert-opened card (error/done peek) stops its timer;
             // it then closes only when the pointer leaves (pointerLeft), like a user-opened card.
@@ -1664,7 +1664,7 @@ extension IslandModel {
         if peek == nil { onPeekVisible?(true) }
         let (merged, _) = IslandPeekRules.merge(current: peek, incoming: item, now: now, window: Self.peekDwell)
         peek = merged
-        if !peekPinned { schedulePeekDismiss(after: Self.peekDwell) }
+        if !peekPinned { schedulePeekDismiss(after: Self.peekDwell + merged.extra) }
         refresh(now: now)
     }
 

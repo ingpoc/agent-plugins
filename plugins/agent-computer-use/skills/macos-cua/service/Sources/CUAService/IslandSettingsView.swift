@@ -43,9 +43,20 @@ struct SettingsFocusRing: ViewModifier {
 /// Selected pane + keyboard focus (a row key). Shared with the window's key monitor.
 @MainActor
 final class SettingsNav: ObservableObject {
-    @Published var tab: SettingsTab { didSet { if tab != oldValue { focus = nil } } }
+    @Published var tab: SettingsTab {
+        didSet {
+            if tab != oldValue { focus = nil; defaults?.set(tab.rawValue, forKey: Self.lastPaneKey) }
+        }
+    }
+    static let lastPaneKey = "island.settings.lastPane"
+    private let defaults: UserDefaults?
+    static func restoredTab(_ defaults: UserDefaults) -> SettingsTab {
+        SettingsTab(rawValue: defaults.string(forKey: lastPaneKey) ?? "") ?? .general
+    }
     @Published var focus: String?
-    init(tab: SettingsTab = .general, focus: String? = nil) { self.tab = tab; self.focus = focus }
+    init(tab: SettingsTab = .general, focus: String? = nil, defaults: UserDefaults? = nil) {
+        self.tab = tab; self.focus = focus; self.defaults = defaults
+    }
 }
 
 struct IslandSettingsRoot: View {
@@ -63,7 +74,7 @@ struct IslandSettingsRoot: View {
          defs: @escaping (SettingsTab) -> [SettingDef] = IslandSettingsSchema.defs(for:),
          onShowLog: @escaping () -> Void = {}) {
         self.store = store
-        self.nav = nav ?? SettingsNav(tab: tab)
+        self.nav = nav ?? SettingsNav(tab: tab, defaults: store.defaults)
         self.rendering = rendering
         self.permissions = permissions
         self.defs = defs
@@ -211,13 +222,18 @@ struct IslandSettingsRoot: View {
     /// Standard show/hide for rows whose `visibleWhen` flips (e.g. Task models): 0.25 s height + fade.
     static let rowVisibility = Animation.easeInOut(duration: 0.25)
 
+    private func perform(_ key: String) {
+        if key == IslandSettingsSchema.restoreAgents { store.restoreAgentDefaults() }
+        else { Self.perform(key, onShowLog: onShowLog) }
+    }
+
     @ViewBuilder
     private var page: some View {
         if tab == .computerUse {
             // The exact rows onboarding shows (shared component, same live status).
             PermissionRows(rows: Self.visibleDefs(tab, store: store, defs: defs), store: store, rendering: rendering,
                            focus: nav.focus, permissions: permissions,
-                           onButton: { key in Self.perform(key, onShowLog: onShowLog) })
+                           onButton: { key in perform(key) })
         } else {
             genericPage
         }
@@ -237,26 +253,14 @@ struct IslandSettingsRoot: View {
                     SettingsCard {
                         ForEach(Array(g.rows.enumerated()), id: \.element.key) { i, d in
                             if i > 0 { Rectangle().fill(SettingsStyle.divider).frame(height: 1).padding(.horizontal, 10) }
-                            SettingRow(def: d, store: store, rendering: rendering, card: "c\(gi)", focused: nav.focus == d.key,
+                            SettingRow(def: d, store: store, rendering: rendering, card: "c\(gi)", focused: nav.focus == d.key, focus: nav.focus,
                                        granted: { if case .permission = d.kind { return permissions(d.key) }; return false }(),
-                                       onButton: { key in Self.perform(key, onShowLog: onShowLog) })
+                                       onButton: { key in perform(key) })
                             .transition(.opacity)
                         }
                     }
                 }
                 .transition(.opacity)
-            }
-            if tab == .interaction {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Keyboard").font(.system(size: 12, weight: .semibold)).foregroundStyle(IslandInk.metaColor)
-                    SettingsCard {
-                        HStack {
-                            Text("Show Dynamic Island shortcut")
-                            Spacer()
-                            IslandShortcutRecorder(store: store).frame(width: 120, height: 28)
-                        }.padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
-                    }
-                }
             }
             if tab == .about { aboutFooter }
         }
@@ -290,7 +294,7 @@ struct IslandSettingsRoot: View {
     static func group(_ defs: [SettingDef]) -> [(section: String?, rows: [SettingDef])] {
         var out: [(String?, [SettingDef])] = []
         for d in defs {
-            if let last = out.last, last.0 == d.section { out[out.count - 1].1.append(d) } else { out.append((d.section, [d])) }
+            if let last = out.last, last.0 == d.section, d.kind != .sourceTable, last.1.last?.kind != .sourceTable { out[out.count - 1].1.append(d) } else { out.append((d.section, [d])) }
         }
         return out.map { (section: $0.0, rows: $0.1) }
     }
@@ -325,12 +329,16 @@ struct SettingRow: View {
     var rendering = false
     var card = "c0"
     var focused = false
+    var focus: String?
     /// `.permission` rows: the real (or injected) macOS permission state.
     var granted = false
     var onButton: (String) -> Void = { _ in }
 
     static func kindTag(_ k: SettingKind) -> String {
         switch k {
+        case .disclosure: return "disclosure"
+        case .sourceTable: return "sourceTable"
+        case .shortcut: return "shortcut"
         case .master: return "master"
         case .toggle: return "toggle"
         case .slider: return "slider"
@@ -366,6 +374,36 @@ struct SettingRow: View {
     @ViewBuilder
     private var rowBody: some View {
         switch def.kind {
+        case .disclosure:
+            Button { store.set(!store.bool(key), for: key) } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                        .rotationEffect(.degrees(store.bool(key) ? 90 : 0))
+                        .layoutProbe("symbol:\(key)", .glyph)
+                    label
+                    Spacer(minLength: 0)
+                }.padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
+            }
+            .buttonStyle(.plain)
+            .modifier(SettingsFocusRing(on: focused, radius: 6, key: key, hOutset: -3))
+            .accessibilityValue(store.bool(key) ? "Expanded" : "Collapsed")
+        case .shortcut:
+            HStack {
+                label
+                Spacer(minLength: 0)
+                Group {
+                    if rendering {
+                        Text(IslandShortcut.read(store).display).font(.system(size: 12, weight: .medium))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(RoundedRectangle(cornerRadius: 5).fill(Color.white.opacity(IslandInk.fill)))
+                    } else {
+                        IslandShortcutRecorder(store: store)
+                    }
+                }.frame(width: 120, height: 26)
+                    .layoutProbe("control:\(key)", .control)
+            }.padding(.horizontal, 12).frame(height: SettingsStyle.rowHeight)
+        case .sourceTable:
+            IslandSourceTable(store: store, rendering: rendering, focus: focus)
         case .master(let symbol):
             HStack(spacing: 8) {
                 Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(Color(nsColor: def.tab.tint).opacity(0.95))
@@ -409,7 +447,7 @@ struct SettingRow: View {
                 label
                 if let i = def.info { InfoDot(text: i).fixedSize().layoutProbe("info:\(key)", .glyph) }
                 Spacer(minLength: 0)
-                SettingsPopup(options: options, selection: stringBinding, rendering: rendering, key: key)
+                SettingsPopup(options: def.dynamicOptions?(store) ?? options, selection: stringBinding, rendering: rendering, key: key)
                     .layoutProbe("control:\(key)", .control)
                     .modifier(SettingsFocusRing(on: focused, radius: 6, key: key, hOutset: 7))
             }
@@ -467,7 +505,7 @@ struct SettingRow: View {
         Binding(get: { store.double(def.key) }, set: { store.set($0, for: def.key) })
     }
     private var stringBinding: Binding<String> {
-        Binding(get: { store.string(def.key) }, set: { store.set($0, for: def.key) })
+        Binding(get: { def.key == IslandSettingsSchema.displayOn ? store.displaySelection() : store.string(def.key) }, set: { store.set($0, for: def.key) })
     }
 
     static func format(_ v: Double, step: Double, unit: String) -> String {
@@ -590,20 +628,23 @@ struct SettingsPopup: View {
     @Binding var selection: String
     var rendering = false
     var key = ""
+    var compactWidth: CGFloat? = nil
+    var disabledValues: Set<String> = []
     var body: some View {
         let current = options.first { $0.value == selection }?.label ?? selection
         let lbl = HStack(spacing: 4) {
             Text(current).font(.system(size: 12)).foregroundStyle(IslandInk.secondaryColor)
-                .lineLimit(1).truncationMode(.tail).frame(width: Self.textWidth(current))
+                .lineLimit(1).truncationMode(.tail).frame(width: compactWidth ?? Self.textWidth(current), alignment: .leading)
                 .layoutProbe("popup-text:\(key)", truncates: true)
             Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(IslandInk.metaColor)
         }
         if rendering {
-            lbl.fixedSize(horizontal: false, vertical: true)
+            lbl.fixedSize(horizontal: false, vertical: true).help(current)
         } else {
             Menu {
-                ForEach(options, id: \.value) { o in Button(o.label) { selection = o.value } }
+                ForEach(options, id: \.value) { o in Button(o.label) { selection = o.value }.disabled(disabledValues.contains(o.value)) }
             } label: { lbl }
+            .help(current)
             .menuStyle(.borderlessButton)
             .fixedSize()
         }
@@ -636,13 +677,15 @@ struct TokenRow: View {
     @State private var error: String?
     @State private var copied = false
 
-    private var source: AgentSource? { def.tab.agentSource }
+    private var source: AgentSource? { AgentSource.allCases.first { def.key.hasPrefix($0.keyPrefix) } }
 
     var body: some View {
         let masked = source.flatMap { store.maskedToken($0) }
         HStack(spacing: 8) {
             Image(systemName: "key.fill").font(.system(size: 12)).foregroundStyle(IslandInk.metaColor)
                 .frame(width: 14).layoutProbe("symbol:\(def.key)", .glyph)
+            Text(source?.title ?? def.label).font(.system(size: 12, weight: .medium))
+                .lineLimit(1).truncationMode(.tail).layoutProbe("source:\(def.key)", truncates: true)
             if let error {
                 Text(error).font(.system(size: 12)).foregroundStyle(Color(nsColor: .systemRed))
                     .lineLimit(1).layoutProbe("token:\(def.key)", truncates: true)
