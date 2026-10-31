@@ -230,7 +230,7 @@ enum IslandCodexThreads {
             switch state {
             case "error": row.local_detail = humanError(record.rollout.error)
             case "stopped": row.local_detail = "Stopped"
-            case "done": row.local_detail = (parts + ["done \(duration(age))"]).joined(separator: " · ")
+            case "done": row.local_detail = (parts + [age < 60 ? "done now" : "done \(duration(age))"]).joined(separator: " · ")
             default: row.local_detail = (parts + [duration(age)]).joined(separator: " · ")
             }
             // https://developers.openai.com/codex/app/commands#deep-links: codex://threads/<id> opens a local thread.

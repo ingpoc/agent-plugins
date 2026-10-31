@@ -204,7 +204,7 @@ final class IslandSettingsTests: XCTestCase {
         let s = store()
         XCTAssertTrue(s.sourceEnabled(.samantha))
         XCTAssertTrue(s.sourceEnabled(.codex))
-        XCTAssertEqual(IslandSettingsSchema.tableSources.filter { $0 != .agentRoster }.map { s.cap($0) }, Array(repeating: .attention, count: IslandSettingsSchema.tableSources.count - 1))
+        XCTAssertEqual(IslandSettingsSchema.tableSources.map { s.cap($0) }, Array(repeating: .attention, count: IslandSettingsSchema.tableSources.count), "shipped default is Needs you for every source")
         XCTAssertTrue(s.mayRaiseApproval(.cursor))
         XCTAssertTrue(s.mayRaiseApproval(.grokBot))
         XCTAssertFalse(s.mayRaiseApproval(.codex), "Codex is enabled but cannot raise approvals")
@@ -215,7 +215,7 @@ final class IslandSettingsTests: XCTestCase {
             XCTAssertEqual(s.cap(.samantha), .attention, "Samantha cannot be capped below attention")
         }
         s.set("ambient", for: AgentSource.cursor.keyPrefix + "cap")
-        XCTAssertFalse(s.mayRaiseApproval(.cursor), "cap below attention cannot raise cards")
+        XCTAssertTrue(s.mayRaiseApproval(.cursor), "approval cards are needs-you: independent of the alert level")
         XCTAssertEqual(AgentSource.match("Grok Bot"), .grokBot)
         XCTAssertEqual(AgentSource.match("Cursor Agent"), .cursor)
         XCTAssertNil(AgentSource.match("Terminal"))

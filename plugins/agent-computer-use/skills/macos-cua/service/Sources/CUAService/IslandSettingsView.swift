@@ -391,9 +391,18 @@ struct SettingRow: View {
             HStack {
                 label
                 Spacer(minLength: 0)
+                // Clear (x): turns the shortcut off; recording a new one turns it back on.
+                Button { store.set(false, for: IslandSettingsSchema.hotKey) } label: {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 13)).foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .opacity(store.bool(IslandSettingsSchema.hotKey) ? 1 : 0)
+                .disabled(!store.bool(IslandSettingsSchema.hotKey))
+                .accessibilityLabel("Clear keyboard shortcut")
+                .help("Clear keyboard shortcut")
                 Group {
                     if rendering {
-                        Text(IslandShortcut.read(store).display).font(.system(size: 12, weight: .medium))
+                        Text(IslandShortcutRecorder.title(store)).font(.system(size: 12, weight: .medium))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .background(RoundedRectangle(cornerRadius: 5).fill(Color.white.opacity(IslandInk.fill)))
                     } else {

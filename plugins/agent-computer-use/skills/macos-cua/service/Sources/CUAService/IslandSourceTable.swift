@@ -63,7 +63,7 @@ struct IslandSourceTable: View {
                     .modifier(SettingsFocusRing(on: focus == cap, radius: 6, key: cap, hOutset: 2))
                     .accessibilityLabel(source.title + " Alerts")
                     .disabled(!shown).opacity(shown ? 1 : 0.4)
-                SettingsSwitch(isOn: Binding(get: { !source.canDecide ? false : store.bool(approve) }, set: { store.set($0, for: approve) }),
+                SettingsSwitch(isOn: Binding(get: { canApprove && store.bool(approve) }, set: { store.set($0, for: approve) }),
                                probe: "control:\(approve)")
                     .modifier(SettingsFocusRing(on: focus == approve, radius: 10, key: approve))
                     .accessibilityLabel(source.title + " Approve")
@@ -73,8 +73,6 @@ struct IslandSourceTable: View {
             .frame(height: SettingsStyle.rowHeight).padding(.horizontal, 12)
             if !source.canDecide {
                 caption("\(source.title) can't receive decisions yet.", key: prefix)
-            } else if shown && store.cap(source) == .info {
-                caption("List only sends no approval cards.", key: prefix)
             }
             if source == .samantha { caption("Voice turns always alert.", key: prefix + "voice") }
         }

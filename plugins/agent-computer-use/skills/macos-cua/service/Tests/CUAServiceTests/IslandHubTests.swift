@@ -192,7 +192,7 @@ final class IslandHubTests: XCTestCase {
         XCTAssertEqual(peeks[0].title, "Run tests")
         XCTAssertEqual(peeks[0].body, "All tests passed")
         XCTAssertEqual(peeks[0].extra, 0)
-        XCTAssertEqual(peeks[1].symbol, "exclamationmark.triangle.fill")
+        XCTAssertEqual(peeks[1].symbol, "xmark.circle.fill")
         XCTAssertEqual(peeks[1].body, "Build output", "peek body uses row meta/detail rather than technical error text")
         XCTAssertEqual(peeks[1].extra, 2)
     }

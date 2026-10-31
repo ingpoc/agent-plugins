@@ -40,6 +40,7 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(IslandAgent.self, from: JSONEncoder().encode(agent)), agent)
         XCTAssertEqual(IslandAgentRows.metaCandidates("Sol · light · 4m", initiator: initiator, redacted: false), ["via ACU · Sol · light · 4m", "via ACU · Sol · light", "via ACU · Sol", "via ACU", ""])
         XCTAssertEqual(IslandAgentRows.metaCandidates("Sol · light · 4m", initiator: initiator, redacted: true).first, "Sol · light · 4m")
+        XCTAssertEqual(IslandAgentRows.metaCandidates("Sol · light · done now", initiator: initiator, redacted: false)[1], "via ACU · Sol · light", "done now drops first, like elapsed time")
         XCTAssertEqual(IslandAgentRows.voiceOverLabel(agent, title: "Task", meta: "Sol · light · 4m", parent: nil), "Task, Codex, started by ACU, Sol, light, working.")
         let post = try XCTUnwrap(IslandInitiator.fromPost(["agent": "ACU\n", "bot": "Grok Bot\u{0007}"]))
         XCTAssertEqual(post.bot, "Grok Bot")

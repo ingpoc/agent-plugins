@@ -412,7 +412,7 @@ enum IslandAgentRows {
         let via = redacted ? nil : initiator.map { "via " + $0.agent }
         func joined() -> String { ([via].compactMap { $0 } + parts).joined(separator: " · ") }
         var result = [joined()]
-        if parts.last?.range(of: #"^(done )?[0-9]+[smh]$"#, options: .regularExpression) != nil { parts.removeLast(); result.append(joined()) }
+        if parts.last?.range(of: #"^(done now|(done )?[0-9]+[smh])$"#, options: .regularExpression) != nil { parts.removeLast(); result.append(joined()) }
         if parts.count > 1 { parts.removeLast(); result.append(joined()) }
         if !parts.isEmpty { parts.removeLast(); result.append(joined()) }
         if via != nil { result.append("") }

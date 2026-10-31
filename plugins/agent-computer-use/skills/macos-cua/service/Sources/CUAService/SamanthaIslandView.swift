@@ -400,6 +400,8 @@ struct SamanthaAppCircle: View {
 struct SamanthaSourceCircle: View {
     let group: IslandSourceGroup
     var differentiate = false
+    /// Off while the compact pill already carries the failure: one error mark, never two.
+    var failedMark = true
     var body: some View {
         ZStack {
             Circle().fill(Color.black)
@@ -446,9 +448,10 @@ struct SamanthaSourceCircle: View {
             }
         }
         .overlay(alignment: .topLeading) {
-            if group.failed {
-                Text(differentiate ? "×" : "!")
-                    .font(.system(size: 8, weight: .heavy))
+            if group.failed && failedMark {
+                // Failed is always a red circle with an x; "!" is reserved for needs-you (amber).
+                Image(systemName: "xmark")
+                    .font(.system(size: 7, weight: .heavy))
                     .foregroundStyle(Color.white)
                     .frame(width: 12, height: 12)
                     .background(Circle().fill(IslandPalette.red))
@@ -545,6 +548,11 @@ struct SamanthaIslandBar: View {
     /// SwiftUI's value OR AppKit's live `accessibilityDisplayShouldReduceMotion` (model mirrors it).
     private var reduceMotion: Bool { envReduceMotion || model.systemReduceMotion }
 
+    /// The compact pill is showing an agent's needs-you / failed state (same gate as the pill below).
+    private var compactAttentionShown: Bool {
+        !model.cardOpen && [.idle, .doneSettled].contains(model.presentation) && model.compactAgentAttention != nil
+    }
+
     var body: some View {
         let rect = model.shapeRect
         ZStack(alignment: .topLeading) {
@@ -568,10 +576,12 @@ struct SamanthaIslandBar: View {
                 let agent = attention.agent
                 let status = agent.status == "needs_you" || agent.needs_you ? "Needs you"
                     : agent.status == "stale" ? "Updates stopped" : "Failed"
-                let symbol = agent.status == "needs_you" || agent.needs_you ? "hand.raised.fill"
-                    : agent.status == "stale" ? "clock.badge.exclamationmark" : "exclamationmark.triangle.fill"
+                let needsYou = agent.status == "needs_you" || agent.needs_you
+                let symbol = needsYou ? "exclamationmark.circle.fill"
+                    : agent.status == "stale" ? "clock.badge.exclamationmark" : "xmark.circle.fill"
+                let tint: Color = needsYou ? IslandPalette.amber : agent.status == "stale" ? Color.white : IslandPalette.red
                 HStack(spacing: 5) {
-                    Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).frame(width: 14)
+                    Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(tint).frame(width: 14)
                     VStack(alignment: .leading, spacing: 0) {
                         Text(agent.name.isEmpty ? agent.app : agent.name)
                             .font(.system(size: 11, weight: .semibold)).lineLimit(1)
@@ -588,7 +598,8 @@ struct SamanthaIslandBar: View {
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
-                    SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate)
+                    SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate,
+                                         failedMark: !(compactAttentionShown && model.compactAgentAttention?.agent.status == "error"))
                         // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(IslandAgentAccessibility.label(model.agents))

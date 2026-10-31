@@ -555,8 +555,9 @@ struct IslandAgentListBody: View {
         let accessibility = IslandAgentRows.voiceOverLabel(a, title: redacted ? "" : a.title, meta: meta, parent: parentName)
         let inlineAsk = a.id.hasPrefix("pending:") && a.request_kind != "choice"
         return HStack(spacing: 10) {
-            // 20 pt icon on a 28 pt tile (radius 7, white 8 %) on every row.
-            SamanthaAppIcon(appName: a.app.isEmpty ? a.name : a.app, size: large ? 24 : 20, radius: 5)
+            // The real app icon at full 20 pt (24 at large text), no tile; the starter badge sits off its
+            // bottom-right corner (+4/+4) so it covers at most ~25 % of the icon.
+            SamanthaAppIcon(appName: a.app.isEmpty ? a.name : a.app, size: large ? 24 : 20, radius: 0)
                 .overlay(alignment: .bottomTrailing) {
                     if let initiator = a.initiator {
                         SamanthaAppIcon(appName: initiator.chain.first ?? initiator.bot ?? initiator.agent, size: large ? 14 : 12, radius: 7)
@@ -565,7 +566,6 @@ struct IslandAgentListBody: View {
                     }
                 }
                 .frame(width: 28, height: 28)
-                .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(IslandInk.fill)))
                 .layoutProbe("row-\(a.id)-icon", .glyph)
             VStack(alignment: .leading, spacing: 2) {
                 if armed {

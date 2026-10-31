@@ -103,6 +103,10 @@ import SwiftUI
 struct IslandShortcutRecorder: NSViewRepresentable {
     @ObservedObject var store: IslandSettingsStore
     @MainActor static var recording = false
+    /// "Record Shortcut" when cleared (hotKey off), else the chord.
+    @MainActor static func title(_ store: IslandSettingsStore) -> String {
+        store.bool(IslandSettingsSchema.hotKey) ? IslandShortcut.read(store).display : "Record Shortcut"
+    }
 
     func makeNSView(context: Context) -> RecorderButton {
         let button = RecorderButton()
@@ -114,7 +118,7 @@ struct IslandShortcutRecorder: NSViewRepresentable {
     }
     func updateNSView(_ button: RecorderButton, context: Context) {
         button.store = store
-        if !Self.recording { button.title = IslandShortcut.read(store).display }
+        if !Self.recording { button.title = Self.title(store) }
     }
 
     final class RecorderButton: NSButton {
@@ -131,7 +135,7 @@ struct IslandShortcutRecorder: NSViewRepresentable {
         }
         override func resignFirstResponder() -> Bool {
             IslandShortcutRecorder.recording = false
-            if let store { title = IslandShortcut.read(store).display }
+            if let store { title = IslandShortcutRecorder.title(store) }
             return super.resignFirstResponder()
         }
         override func keyDown(with event: NSEvent) {
@@ -147,7 +151,8 @@ struct IslandShortcutRecorder: NSViewRepresentable {
                   let store else { NSSound.beep(); return }
             IslandShortcutRecorder.recording = false
             IslandShortcut(keyCode: UInt32(event.keyCode), modifiers: mods, character: text.lowercased()).save(store)
-            title = IslandShortcut.read(store).display
+            store.set(true, for: IslandSettingsSchema.hotKey)  // recording a shortcut turns it on
+            title = IslandShortcutRecorder.title(store)
             window?.makeFirstResponder(nil)
         }
     }

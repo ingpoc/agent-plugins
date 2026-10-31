@@ -282,7 +282,7 @@ final class IslandHub {
            store.bool(IslandSettingsSchema.agentPeeks) {
             for row in snapshot.rows where active.contains(row.id) && (row.status == .done || row.status == .error) {
                 onPeek?(IslandPeekItem(id: row.id, source: "Claude", app: "Claude",
-                    symbol: row.status == .done ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
+                    symbol: row.status == .done ? "checkmark.circle.fill" : "xmark.circle.fill",
                     title: row.title, body: row.status == .error ? "Something went wrong" : "Done",
                     at: now, extra: row.status == .error ? 2 : 0))
             }
@@ -559,7 +559,7 @@ final class IslandHub {
                store.cap(source).rank >= AttentionCap.critical.rank,
                store.bool(IslandSettingsSchema.agentPeeks) {
                 onPeek?(IslandPeekItem(id: id, source: source.title, app: app,
-                                       symbol: kind == "done" ? "checkmark.circle.fill" : "exclamationmark.triangle.fill",
+                                       symbol: kind == "done" ? "checkmark.circle.fill" : "xmark.circle.fill",
                                        title: title, body: (j["meta"] as? String) ?? detail,
                                        at: now, extra: kind == "error" ? 2 : 0))
             }

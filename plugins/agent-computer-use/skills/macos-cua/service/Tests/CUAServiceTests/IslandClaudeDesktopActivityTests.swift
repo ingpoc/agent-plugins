@@ -104,7 +104,7 @@ final class IslandClaudeDesktopActivityTests: XCTestCase {
         XCTAssertEqual(AgentSource.parse("claude"), .claude)
         XCTAssertEqual(AgentSource.claude.cliName, "claude")
         XCTAssertEqual(AgentSource.claude.defaultApp, "Claude")
-        XCTAssertEqual(IslandSettingsSchema.tableSources, [.samantha, .grokBot, .codex, .claude, .cursor, .agentRoster])
+        XCTAssertEqual(IslandSettingsSchema.tableSources, [.samantha, .grokBot, .codex, .claude, .cursor], "Agent Roster has no row in the table")
     }
 
     func testInitiatorBotChain() {

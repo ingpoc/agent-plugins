@@ -78,7 +78,7 @@ final class IslandSettingsRedesignTests: XCTestCase {
 
     func testSourceTableDefaultsAndDisabledControls() {
         let s = store()
-        XCTAssertEqual(K.tableSources, [.samantha, .grokBot, .codex, .claude, .cursor, .agentRoster])
+        XCTAssertEqual(K.tableSources, [.samantha, .grokBot, .codex, .claude, .cursor])
         XCTAssertFalse(s.bool(K.naturalMovement), "the existing behaviour default is preserved")
         for source in AgentSource.allCases {
             XCTAssertTrue(s.sourceEnabled(source))
@@ -94,7 +94,7 @@ final class IslandSettingsRedesignTests: XCTestCase {
         s.defaults.set("ambient", forKey: AgentSource.samantha.keyPrefix + "cap")
         XCTAssertEqual(s.cap(.samantha), .attention)
         s.set("info", for: AgentSource.cursor.keyPrefix + "cap")
-        XCTAssertFalse(s.sourceControlEnabled(AgentSource.cursor.keyPrefix + "canRaiseApprovals"))
+        XCTAssertTrue(s.sourceControlEnabled(AgentSource.cursor.keyPrefix + "canRaiseApprovals"), "Approve is independent of the alert level")
         s.set(false, for: AgentSource.grokBot.keyPrefix + "enabled")
         XCTAssertFalse(s.sourceControlEnabled(AgentSource.grokBot.keyPrefix + "cap"))
         XCTAssertFalse(s.sourceControlEnabled(AgentSource.grokBot.keyPrefix + "canRaiseApprovals"))

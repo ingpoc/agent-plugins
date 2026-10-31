@@ -198,7 +198,11 @@ enum IslandSettingsSchema {
     static let promptSound = "island.agents.promptSound"
     static let restoreAgents = "island.agents.restoreDefaults"
     static let sourceTable = "island.agents.sources"
-    static let all: [SettingDef] = general + agents + samantha + computerUse + about + sourceSettings
+    static let all: [SettingDef] = general + agents + samantha + computerUse + about + sourceSettings + backing
+    /// Stored settings drawn by another row: hotKey is the Keyboard shortcut row's clear (x) / record state.
+    static let backing: [SettingDef] = [
+        .init(tab: .general, section: nil, key: hotKey, label: "Keyboard shortcut on", kind: .toggle, defaultValue: .bool(true)),
+    ]
 
     // Samantha voice settings: same keys as ~/.config/voice-cua/settings.json (read by voice_settings.py),
     // so stored values survive the move from the old Samantha Settings window.
@@ -235,11 +239,10 @@ enum IslandSettingsSchema {
         .init(tab: .general, section: nil, key: displayOn, label: "Show on", kind: .popup([]), defaultValue: .string("main"),
               dynamicOptions: { $0.displayOptions() }),
         .init(tab: .general, section: nil, key: openOn, label: "Open the island",
-              kind: .tiles([t("click", "Click", "cursorarrow.click"), t("hover", "Hover", "hand.point.up")]), defaultValue: .string("click")),
+              kind: .popup([("click", "On click"), ("hover", "On hover")]), defaultValue: .string("click")),
         .init(tab: .general, section: nil, key: hoverDuration, label: "Hover delay", kind: .slider(min: 0.1, max: 0.5, step: 0.1, unit: "s"),
               defaultValue: .double(0.2), visibleWhen: openOn + "=hover"),
-        .init(tab: .general, section: nil, key: hotKey, label: "Enable keyboard shortcut", kind: .toggle, defaultValue: .bool(true)),
-        .init(tab: .general, section: nil, key: shortcut, label: "Show Dynamic Island shortcut", kind: .shortcut, defaultValue: .none),
+        .init(tab: .general, section: nil, key: shortcut, label: "Keyboard shortcut", kind: .shortcut, defaultValue: .none),
         .init(tab: .general, section: nil, key: openAtLogin, label: "Open at login", kind: .toggle, defaultValue: .bool(true)),
         .init(tab: .general, section: nil, key: moreExpanded, label: "More", kind: .disclosure, defaultValue: .bool(false)),
     ] + more
@@ -316,7 +319,7 @@ enum IslandSettingsSchema {
               caption: "Drag files onto the island to hold them here."),
     ]
 
-    static let tableSources: [AgentSource] = [.samantha, .grokBot, .codex, .claude, .cursor, .agentRoster]
+    static let tableSources: [AgentSource] = [.samantha, .grokBot, .codex, .claude, .cursor]
     static let alertOptions = [("info", "List only"), ("attention", "Needs you"), ("critical", "Needs you, done and errors")]
     static let sourceSettings: [SettingDef] = AgentSource.allCases.flatMap { s -> [SettingDef] in
         let p = s.keyPrefix
@@ -384,7 +387,7 @@ enum IslandSettingsSchema {
         }
     }
 
-    static func defs(for tab: SettingsTab) -> [SettingDef] { all.filter { d in d.tab == tab && !sourceSettings.contains { $0.key == d.key } } }
+    static func defs(for tab: SettingsTab) -> [SettingDef] { all.filter { d in d.tab == tab && !(sourceSettings + backing).contains { $0.key == d.key } } }
     static func def(_ key: String) -> SettingDef? { all.first { $0.key == key } }
 
 }
@@ -507,14 +510,14 @@ final class IslandSettingsStore: ObservableObject {
         return c == .ambient ? .info : c
     }
     func mayRaiseApproval(_ s: AgentSource) -> Bool {
-        s.canDecide && sourceEnabled(s) && bool(s.keyPrefix + "canRaiseApprovals") && cap(s).rank >= AttentionCap.attention.rank
+        s.canDecide && sourceEnabled(s) && bool(s.keyPrefix + "canRaiseApprovals")  // approvals are needs-you: independent of the alert level
     }
 
     func sourceControlEnabled(_ key: String) -> Bool {
         guard let s = AgentSource.allCases.first(where: { key.hasPrefix($0.keyPrefix) }) else { return true }
         if key.hasSuffix(".enabled") { return true }
         if !sourceEnabled(s) { return false }
-        if key.hasSuffix(".canRaiseApprovals") { return s.canDecide && cap(s).rank >= AttentionCap.attention.rank }
+        if key.hasSuffix(".canRaiseApprovals") { return s.canDecide }
         return true
     }
 
