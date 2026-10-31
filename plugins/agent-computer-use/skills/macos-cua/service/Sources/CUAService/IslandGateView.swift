@@ -93,14 +93,15 @@ struct IslandGateView: View {
                 // Fixed track width (440 - 2 x 24) and a scoped animation: a GeometryReader plus withAnimation(repeatForever)
                 // made the whole window content animate during fitContent.
                 let track: CGFloat = 392
-                Capsule().fill(.white.opacity(0.1)).frame(width: track, height: 4)
-                    .overlay(alignment: .leading) {
-                        Capsule().fill(GateColor.blue).frame(width: track * 0.38, height: 4)
-                            .offset(x: barMoving ? track * 0.62 : 0)
-                            .animation(.easeInOut(duration: 1.6).repeatForever(autoreverses: false), value: barMoving)
-                    }
-                    .clipShape(Capsule())
-                    .onAppear { barMoving = true }
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.white.opacity(0.1)).frame(width: track, height: 4)
+                    Capsule().fill(GateColor.blue).frame(width: track * 0.38, height: 4)
+                        .offset(x: barMoving ? track * 0.62 : 0)
+                        .animation(gate.isFixture ? nil : .easeInOut(duration: 1.6).repeatForever(autoreverses: false), value: barMoving)
+                }
+                .frame(width: track, height: 4)
+                .clipShape(Capsule())
+                .onAppear { if !gate.isFixture { barMoving = true } }
             }
         }
     }

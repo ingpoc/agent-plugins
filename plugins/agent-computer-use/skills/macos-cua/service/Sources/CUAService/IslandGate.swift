@@ -63,6 +63,8 @@ final class IslandGate: ObservableObject {
     private var wallOperation: Task<Void, Never>?
     private var generation = 0
     private let fixture: Bool
+    /// Fixture renders (gate-snapshot) draw a still frame: offscreen cacheDisplay skips in-flight Core Animation layers.
+    var isFixture: Bool { fixture }
     private var windowOpen = false
     private var unlockLinkedInRoute = false
     var onChange: [() -> Void] = []
