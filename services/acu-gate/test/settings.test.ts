@@ -9,7 +9,7 @@ test("settings requires production secrets", () => {
 test("config exposes poll interval and presets", () => {
   const value = config();
   assert.equal(value.poll_seconds, 60);
-  assert.equal(value.check_eta_text, "usually within an hour");
+  assert.equal(value.check_eta_text, "usually within the hour");
   assert.match(value.x.intent_url, /intent\/post/);
   assert.equal(value.grace_days, 14);
 });

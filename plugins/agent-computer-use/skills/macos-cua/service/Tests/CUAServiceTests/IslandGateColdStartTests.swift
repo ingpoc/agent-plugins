@@ -19,7 +19,7 @@ final class IslandGateColdStartTests: XCTestCase {
         return IslandGate(store: store, client: client, publicKey: signingKey.publicKey.rawRepresentation, device: device)
     }
 
-    private static func configPayload(eta: String? = "usually within an hour") -> Data {
+    private static func configPayload(eta: String? = "usually within the hour") -> Data {
         var root: [String: Any] = [
             "x": ["handle": "guru", "profile_url": "https://x.com/guru", "intent_url": "https://x.com/intent/post?text=server", "preset_text": "server"],
             "linkedin": ["share_url": "https://www.linkedin.com/sharing/share-offsite/?url=server", "preset_text": "from server", "follow_url": "https://www.linkedin.com/in/example"],
@@ -31,7 +31,7 @@ final class IslandGateColdStartTests: XCTestCase {
 
     func testCheckETATextUsesConfigThenFallback() throws {
         let gate = makeGate()
-        XCTAssertEqual(gate.checkETAText, "usually within an hour")
+        XCTAssertEqual(gate.checkETAText, "usually within the hour")
         gate.setConfigForTests(try JSONDecoder().decode(IslandGateConfig.self, from: Self.configPayload(eta: "usually a few minutes")))
         XCTAssertEqual(gate.checkETAText, "usually a few minutes")
     }

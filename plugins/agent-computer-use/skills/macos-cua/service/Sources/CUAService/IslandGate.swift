@@ -81,7 +81,7 @@ final class IslandGate: ObservableObject {
     }
     var checkETAText: String {
         let trimmed = config?.check_eta_text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return trimmed.isEmpty ? "usually within an hour" : trimmed
+        return trimmed.isEmpty ? "usually within the hour" : trimmed
     }
     func openFromDeepLink() {
         deepLinkBanner = isUnlocked ? "Your island is already unlocked." : nil

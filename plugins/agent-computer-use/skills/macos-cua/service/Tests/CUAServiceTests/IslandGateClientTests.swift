@@ -45,7 +45,7 @@ final class IslandGateClientTests: XCTestCase {
     func testConfigUsesServerShareLinksAndCopy() async throws {
         IslandGateURLProtocol.handler = { req in
             XCTAssertEqual(req.url?.path, "/v1/config")
-            return (200, Data(#"{"x":{"handle":"guru","profile_url":"https://x.com/guru","intent_url":"https://x.com/intent/post?text=server","preset_text":"server"},"linkedin":{"share_url":"https://www.linkedin.com/sharing/share-offsite/?url=server","preset_text":"from server","follow_url":"https://www.linkedin.com/in/example"},"poll_seconds":60,"grace_days":14,"check_eta_text":"usually within an hour"}"#.utf8))
+            return (200, Data(#"{"x":{"handle":"guru","profile_url":"https://x.com/guru","intent_url":"https://x.com/intent/post?text=server","preset_text":"server"},"linkedin":{"share_url":"https://www.linkedin.com/sharing/share-offsite/?url=server","preset_text":"from server","follow_url":"https://www.linkedin.com/in/example"},"poll_seconds":60,"grace_days":14,"check_eta_text":"usually within the hour"}"#.utf8))
         }
         let config = try await IslandGateURLProtocol.client().config()
         XCTAssertEqual(config.x.profile_url.absoluteString, "https://x.com/guru")

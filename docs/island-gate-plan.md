@@ -51,7 +51,7 @@ Final scope (Guru, 2026-10-31 20:04 and 20:07 IST): no X API credits or any paid
 - Without OAuth the user is not authenticated. Someone could type another person's handle whose fresh qualifying post exists; mitigations: post freshness (24 h before claim), one-use post URLs, one Mac per account, and the real owner can move the island with a new post. Low harm: the island is free.
 - The follow check is our side's read of Guru's follower list at verification time; later unfollows are not re-checked (optional future routine).
 - LinkedIn has no follow check and public post pages are often login-walled, so most LinkedIn claims wait for our side.
-- Verification latency = routine cadence: Guru's routine runs hourly, so a claim usually unlocks within an hour (instantly when the follower list already has the handle and the post URL passes oEmbed). The wait text comes from `/v1/config` (`check_eta_text`). Claims expire after 72 h without verification (user can resubmit).
+- Verification latency = routine cadence: Guru's routine runs hourly, so a claim usually unlocks within the hour (instantly when the follower list already has the handle and the post URL passes oEmbed). The wait text comes from `/v1/config` (`check_eta_text`). Claims expire after 72 h without verification (user can resubmit).
 - Render free plan (Guru, 20:10 IST): the service sleeps after idle and cold-starts in ~30-60 s. The app treats timeouts/502/503/504 during the first 90 s as "Waking up the unlock service…", never as an error; polls stay silent on network errors. The 14-day grace makes sleep invisible to unlocked users.
 - First run on a clean Mac needs nothing but ACU and a default browser: no Comet, no X/LinkedIn developer app, no sign-in inside ACU.
 
@@ -63,7 +63,7 @@ JSON. Errors `{"error":"<code>","message":"..."}`. Codes: `invalid_handle`, `pos
 Device signature: base64 DER ECDSA P-256 SHA-256 over `acu-gate|<action>|<device_id>|<ts>|<body_sha256_hex>`; `ts` unix seconds ±300 s; replay window 10 min. Device key = raw X9.63 P-256 public key, base64. `device_id` = hex SHA-256 of "acu-island-gate|" + IOPlatformUUID.
 
 Public / app:
-- `GET /healthz`, `GET /v1/config` → `{"x":{"handle":"gurusharan","profile_url":"https://x.com/gurusharan","intent_url":"...","preset_text":"..."},"linkedin":{"follow_url":"...","share_url":"...","preset_text":"..."},"match":{...},"grace_days":14,"poll_seconds":60,"check_eta_text":"usually within an hour"}`
+- `GET /healthz`, `GET /v1/config` → `{"x":{"handle":"gurusharan","profile_url":"https://x.com/gurusharan","intent_url":"...","preset_text":"..."},"linkedin":{"follow_url":"...","share_url":"...","preset_text":"..."},"match":{...},"grace_days":14,"poll_seconds":60,"check_eta_text":"usually within the hour"}`
 - `POST /v1/claims` headers `X-ACU-Device`, `X-ACU-TS`, `X-ACU-Sig` (action `claim`); body `{"provider":"x|linkedin","handle":"...","post_url":null|"...","device_pubkey":"...","device_name":"...","show_on_wall":false}` → 201 `{"claim_id","status":"pending_verification","checks":{"follow":"pending|confirmed|n/a","post":"pending|confirmed|failed"},"poll_after":60}` (or 200 `unlocked` + `entitlement` when everything is already confirmed). Same device + same account reuses the open claim.
 - `GET /v1/claims/{id}` (signed, action `poll`) → `{"status":"pending_verification|unlocked|rejected|expired","checks":{...},"reason":null|"<code>","entitlement":null|"..."}`
 - `POST /v1/entitlement/refresh` (signed, action `refresh`) → `{"entitlement"}` | 409 `device_moved` | 403 `revoked`
