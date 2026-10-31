@@ -426,8 +426,10 @@ final class SamanthaMenuBarIslandPanel {
             leaveTask = nil
         } else if insideShape {
             leaveTask?.cancel()
+            // The watchdog sees a lost exit up to one period late: take that off the grace.
+            let grace = via == "watchdog" ? Self.leaveDelay - Self.watchInterval : Self.leaveDelay
             leaveTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64(Self.leaveDelay * 1_000_000_000))
+                try? await Task.sleep(nanoseconds: UInt64(grace * 1_000_000_000))
                 guard let self, !Task.isCancelled else { return }
                 // Tracking areas only report crossings: re-check the real pointer so a missed
                 // re-enter (geometry rebuilt under the pointer) never collapses a hovered card.

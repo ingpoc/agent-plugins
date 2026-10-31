@@ -1211,6 +1211,7 @@ final class IslandModel: ObservableObject {
         }
         let choicePeek = agentApproval?.isChoice == true && (choicePeekUntil.map { now < $0 } ?? false)
         let wasOpen = cardOpen
+        let modeBefore = cardMode
         let idleSamantha = (next == .idle || next == .doneSettled) && cardMode == .samantha
         let open = next != .hud && next != .peek && !forceCompact && !(idleSamantha && !isSticky)
             && (userOpened || isSticky || (peekUntil.map { now < $0 } ?? false) || choicePeek
@@ -1245,7 +1246,7 @@ final class IslandModel: ObservableObject {
                                    ["via": isSticky && !userOpened ? "auto" : openVia])
             }
             if !open {
-                IslandEventLog.log("closed", kind: cardMode == .agents ? "agents" : kind)
+                IslandEventLog.log("closed", kind: modeBefore == .agents ? "agents" : kind)
                 if textEntryActive { endTextEntry() }
                 if !ackOnClose.isEmpty { let ids = ackOnClose; ackOnClose = []; onAckExpired?(ids) }
             }
