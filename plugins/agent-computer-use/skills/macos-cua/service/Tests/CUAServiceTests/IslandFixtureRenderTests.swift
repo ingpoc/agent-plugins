@@ -3,6 +3,15 @@ import SwiftUI
 import XCTest
 @testable import CUAService
 
+private struct InitiatorRowFixture: View {
+    @ObservedObject var model: IslandModel
+    let agent: IslandAgent
+    let large: Bool
+    var body: some View {
+        IslandAgentListBody(model: model).row(agent, depth: 0, parentName: nil, extra: 0, largeOverride: large)
+    }
+}
+
 /// Offscreen FIXTURE renders (no window, no focus, fake data). Env-gated:
 /// CUA_ISLAND_RENDER_DIR=<dir> swift test --filter IslandFixtureRenderTests
 @MainActor
@@ -36,6 +45,30 @@ final class IslandFixtureRenderTests: XCTestCase {
         guard let img = ctx.makeImage() else { return XCTFail("flatten") }
         let url = URL(fileURLWithPath: dir).appendingPathComponent(name + ".png")
         try NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: url)
+    }
+
+    func testRenderInitiatorRows() throws {
+        guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_RENDER_DIR"] else { throw XCTSkip("set CUA_ISLAND_RENDER_DIR to render") }
+        for large in [false, true] {
+            for started in [false, true] {
+                let model = IslandModel()
+                var agent = IslandAgent(id: "fixture", name: "Codex", app: "Codex", title: "A long task title that must fit within the narrow island", status: "done")
+                agent.local_detail = "Sol · light · 4m"
+                if started { agent.initiator = IslandInitiator.parse(originator: "acu_exec.grokbot") }
+                model.idleActivity = "agents"
+                model.apply(IslandSnapshot(kind: "idle", agents: [agent]))
+                model.openAgentList()
+                XCTAssertEqual(model.listRows.count, 1)
+                let view = InitiatorRowFixture(model: model, agent: agent, large: large).frame(width: IslandBarLayout.cardSize.width - 32, height: 44)
+                    .environment(\.dynamicTypeSize, large ? .accessibility5 : .large)
+                    .environment(\.colorScheme, .dark).background(Color.black)
+                let renderer = ImageRenderer(content: view)
+                renderer.scale = 2
+                guard let image = renderer.cgImage else { XCTFail("row render"); continue }
+                let name = "initiator-\(large ? "large" : "default")-\(started ? "agent" : "self").png"
+                try NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
+            }
+        }
     }
 
     func testRenderNowPlayingAndChoiceFixtures() async throws {

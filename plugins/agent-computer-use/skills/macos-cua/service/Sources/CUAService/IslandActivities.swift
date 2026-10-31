@@ -376,6 +376,7 @@ enum IslandAgentRows {
         switch a.status {
         case "error": return "failed"
         case "done": return "done"
+        case "stopped": return "stopped"
         case "running": return "working"
         case "stale": return "stopped updating"
         case "expired": return "timed out"
@@ -396,9 +397,26 @@ enum IslandAgentRows {
         for (short, long) in [("s", " seconds"), ("m", " minutes"), ("h", " hours")] {
             spoken = spoken.replacingOccurrences(of: "([0-9]+)\(short)\\b", with: "$1\(long)", options: .regularExpression)
         }
-        let head = [source, word, title].filter { !$0.isEmpty }.joined(separator: ", ")
-        let tail = [parent.map { "helper of \($0)" }, spoken.isEmpty || spoken == word ? nil : spoken].compactMap { $0 }.joined(separator: ", ")
-        return tail.isEmpty ? head + "." : head + ". " + tail + "."
+        if a.id.hasPrefix("pending:") {
+            let head = [source, word, title].filter { !$0.isEmpty }.joined(separator: ", ")
+            let tail = [parent.map { "helper of \($0)" }, spoken.isEmpty || spoken == word ? nil : spoken].compactMap { $0 }.joined(separator: ", ")
+            return tail.isEmpty ? head + "." : head + ". " + tail + "."
+        }
+        let components = spoken.components(separatedBy: ", ").filter { !$0.isEmpty && !$0.hasPrefix("via ") && $0 != word && $0.range(of: #"^[0-9]+ (seconds|minutes|hours)$"#, options: .regularExpression) == nil }
+        let starter = a.initiator.map { "started by " + $0.agent }
+        return ([title, source, starter].compactMap { $0 }.filter { !$0.isEmpty } + components + [word]).joined(separator: ", ") + "."
+    }
+
+    static func metaCandidates(_ status: String, initiator: IslandInitiator?, redacted: Bool) -> [String] {
+        var parts = status.components(separatedBy: " · ").filter { !$0.isEmpty }
+        let via = redacted ? nil : initiator.map { "via " + $0.agent }
+        func joined() -> String { ([via].compactMap { $0 } + parts).joined(separator: " · ") }
+        var result = [joined()]
+        if parts.last?.range(of: #"^(done )?[0-9]+[smh]$"#, options: .regularExpression) != nil { parts.removeLast(); result.append(joined()) }
+        if parts.count > 1 { parts.removeLast(); result.append(joined()) }
+        if !parts.isEmpty { parts.removeLast(); result.append(joined()) }
+        if via != nil { result.append("") }
+        return result
     }
 
     static func isProcessObservation(_ agent: IslandAgent) -> Bool {
@@ -483,6 +501,7 @@ enum IslandAgentRows {
         if a.status == "running", let detail = a.local_detail { return detail }
         switch a.status {
         case "error": return a.local_detail ?? "failed"
+        case "stopped": return "Stopped"
         case "needs_you":
             // "Grok Bot · 2m": who is asking and for how long (the shape already says "needs you").
             let n = max(0, Int(a.elapsed_s + max(0, elapsedExtra)))

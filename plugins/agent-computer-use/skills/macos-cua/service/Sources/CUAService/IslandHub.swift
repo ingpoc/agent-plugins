@@ -528,6 +528,7 @@ final class IslandHub {
             // Error rows: `detail` is the human meta line ("Tests failed after restart"); the
             // technical `error` goes to the hover tooltip.
             var shown = agent
+            shown.initiator = IslandInitiator.fromPost(j["initiator"]) ?? entries[id]?.agent.initiator
             if kind == "error", let line = (j["detail"] as? String)?.components(separatedBy: .newlines).first?
                 .trimmingCharacters(in: .whitespaces), !line.isEmpty { shown.local_detail = String(line.prefix(60)) }
             if kind == "running" || kind == "done", let meta = (j["meta"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),

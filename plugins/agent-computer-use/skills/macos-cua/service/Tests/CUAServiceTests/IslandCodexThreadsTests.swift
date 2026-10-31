@@ -28,6 +28,41 @@ final class IslandCodexThreadsTests: XCTestCase {
         let aborted = Data("{\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\",\"reason\":\"interrupted\"}}".utf8)
         XCTAssertEqual(IslandCodexThreads.rolloutState(aborted, age: 0).state, "idle")
     }
+    func testInitiatorAndStoppedContracts() throws {
+        XCTAssertNil(IslandInitiator.parse(originator: "codex_exec"))
+        XCTAssertEqual(IslandInitiator.parse(originator: "acu_exec")?.agent, "ACU")
+        let initiator = try XCTUnwrap(IslandInitiator.parse(originator: "acu_exec.grokbot.samantha"))
+        XCTAssertEqual(initiator.chain, ["Grok Bot", "Samantha"])
+        XCTAssertEqual(initiator.description(app: "Codex"), "Started by ACU (Grok Bot, then Samantha) · running in Codex")
+        XCTAssertEqual(IslandInitiator.parse(originator: "acu_exec.abcdefghijklmnopq")?.bot, "abcdefghijklmno…")
+        var agent = IslandAgent(name: "Codex", app: "Codex", title: "Task", status: "running")
+        agent.initiator = initiator
+        XCTAssertEqual(try JSONDecoder().decode(IslandAgent.self, from: JSONEncoder().encode(agent)), agent)
+        XCTAssertEqual(IslandAgentRows.metaCandidates("Sol · light · 4m", initiator: initiator, redacted: false), ["via ACU · Sol · light · 4m", "via ACU · Sol · light", "via ACU · Sol", "via ACU", ""])
+        XCTAssertEqual(IslandAgentRows.metaCandidates("Sol · light · 4m", initiator: initiator, redacted: true).first, "Sol · light · 4m")
+        XCTAssertEqual(IslandAgentRows.voiceOverLabel(agent, title: "Task", meta: "Sol · light · 4m", parent: nil), "Task, Codex, started by ACU, Sol, light, working.")
+        let post = try XCTUnwrap(IslandInitiator.fromPost(["agent": "ACU\n", "bot": "Grok Bot\u{0007}"]))
+        XCTAssertEqual(post.bot, "Grok Bot")
+        XCTAssertEqual(IslandInitiator.fromPost("ACU/Grok Bot"), post)
+        let hook = Data("""
+        {"type":"event_msg","payload":{"type":"task_complete"}}
+        {"type":"event_msg","payload":{"type":"hook_completed","status":"failed"}}
+        {"type":"event_msg","payload":{"type":"error","message":"hook: Stop Failed"}}
+        """.utf8)
+        XCTAssertEqual(IslandCodexThreads.rolloutState(hook, age: 0).state, "done")
+        let failure = Data("{\"type\":\"event_msg\",\"payload\":{\"type\":\"error\",\"message\":\"real failure\"}}".utf8)
+        XCTAssertEqual(IslandCodexThreads.rolloutState(failure, age: 0).error, "real failure")
+        let now = Date()
+        var thread = IslandCodexThreads.ThreadRecord(id: UUID().uuidString, rolloutPath: "/task", title: "Task", firstUserMessage: nil, model: nil, effort: nil, updatedAt: now.addingTimeInterval(-30))
+        thread.originator = "acu_exec.grokbot"; thread.cwd = "/tmp/worktree"; thread.rollout.state = "working"
+        let host = IslandCodexThreads.Host(pid: 1, executable: "codex", rollouts: ["/task"])
+        XCTAssertEqual(IslandCodexThreads.rows(records: [thread], hosts: [host], now: now).first?.initiator?.bot, "Grok Bot")
+        let stopped = try XCTUnwrap(IslandCodexThreads.rows(records: [thread], hosts: [], now: now).first)
+        XCTAssertEqual(stopped.status, "stopped")
+        XCTAssertEqual(IslandAgentRows.statusText(stopped), "Stopped")
+        XCTAssertEqual(IslandAgentRows.stateWord(stopped), "stopped")
+        XCTAssertFalse(IslandAgentRows.voiceOverLabel(stopped, title: "Task", meta: "Stopped", parent: nil).lowercased().contains("failed"))
+    }
     func testTailAndLsofFilter() {
         let input = """
         {"type":"turn_context","payload":{"model":"old","effort":"low"}}
@@ -136,11 +171,11 @@ final class IslandCodexThreadsTests: XCTestCase {
         XCTAssertFalse(rows.contains { ($0.local_detail ?? "").contains("unknown") || $0.title.contains("PID") })
         // Its process exits mid-turn: the row turns into error "Stopped", never working.
         let after = IslandCodexThreads.rows(records: [working], hosts: [], now: now)
-        XCTAssertEqual(after.map(\.status), ["error"])
+        XCTAssertEqual(after.map(\.status), ["stopped"])
         XCTAssertEqual(after.first?.local_detail, "Stopped")
-        // A stopped thread the island never saw working is dropped.
+        // A stopped thread remains visible even if the process exited before observation.
         var ghost = working; ghost.id = "ghost"; ghost.rolloutPath = "/ghost"
-        XCTAssertTrue(IslandCodexThreads.rows(records: [ghost], hosts: [], now: now).isEmpty)
+        XCTAssertEqual(IslandCodexThreads.rows(records: [ghost], hosts: [], now: now).first?.status, "stopped")
     }
 
     func testShortTitles() {

@@ -309,6 +309,17 @@ final class IslandHubTests: XCTestCase {
         XCTAssertEqual(IslandAgentRows.statusText(row), "Grok 4.7 · high · 1m")
     }
 
+    func testPostedInitiatorIsSanitizedAndStored() throws {
+        let hub = IslandHub(store: store)
+        let cursor = try token(.cursor)
+        var body: [String: Any] = ["source": "cursor", "id": "origin", "kind": "running", "title": "Task", "app": "Cursor", "initiator": ["agent": "ACU\n", "bot": "Grok Bot\u{0007}"]]
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: cursor, json: body), port: 8777).status, 200)
+        XCTAssertEqual(hub.compose().agents.first?.initiator?.bot, "Grok Bot")
+        body["initiator"] = "ACU/Samantha"
+        XCTAssertEqual(hub.handle(req("POST", "/api/island/publish", token: cursor, json: body), port: 8777).status, 200)
+        XCTAssertEqual(hub.compose().agents.first?.initiator?.bot, "Samantha")
+    }
+
     func testPostedMetaRowAgesOnTheClock() throws {
         let hub = IslandHub(store: store)
         let cursor = try token(.cursor)

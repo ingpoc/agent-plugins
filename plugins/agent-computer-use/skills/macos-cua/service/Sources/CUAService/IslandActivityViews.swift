@@ -482,6 +482,7 @@ struct IslandSecondaryPill: View {
 
 struct IslandAgentListBody: View {
     @ObservedObject var model: IslandModel
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var reduceMotion = false
     var body: some View {
         let p = IslandBarLayout.cardPadding
@@ -538,7 +539,7 @@ struct IslandAgentListBody: View {
         }
     }
 
-    private func row(_ a: IslandAgent, depth: Int, parentName: String?, extra: TimeInterval) -> some View {
+    func row(_ a: IslandAgent, depth: Int, parentName: String?, extra: TimeInterval, largeOverride: Bool? = nil) -> some View {
         let pending = model.rowControls[a.id]
         let flashing = model.rowFlash.contains(a.id)
         let state = IslandAgentRows.statusText(a, elapsedExtra: extra)
@@ -549,12 +550,20 @@ struct IslandAgentListBody: View {
         let redacted = model.redactRoster
         // Line 1 is the task (or the ask itself); while sharing it collapses to "Codex · working".
         let line1 = redacted ? IslandAgentRows.redactedTitle(a) : (a.title.isEmpty ? who : a.title)
-        let meta = redacted ? "" : status
+        let meta = status
+        let large = largeOverride ?? dynamicTypeSize.isAccessibilitySize
         let accessibility = IslandAgentRows.voiceOverLabel(a, title: redacted ? "" : a.title, meta: meta, parent: parentName)
         let inlineAsk = a.id.hasPrefix("pending:") && a.request_kind != "choice"
         return HStack(spacing: 10) {
             // 20 pt icon on a 28 pt tile (radius 7, white 8 %) on every row.
-            SamanthaAppIcon(appName: a.app.isEmpty ? a.name : a.app, size: 20, radius: 5)
+            SamanthaAppIcon(appName: a.app.isEmpty ? a.name : a.app, size: large ? 24 : 20, radius: 5)
+                .overlay(alignment: .bottomTrailing) {
+                    if let initiator = a.initiator {
+                        SamanthaAppIcon(appName: initiator.chain.first ?? initiator.bot ?? initiator.agent, size: large ? 14 : 12, radius: 7)
+                            .clipShape(Circle()).overlay(Circle().stroke(Color.black, lineWidth: 1.5))
+                            .offset(x: 4, y: 4).accessibilityHidden(true)
+                    }
+                }
                 .frame(width: 28, height: 28)
                 .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.white.opacity(IslandInk.fill)))
                 .layoutProbe("row-\(a.id)-icon", .glyph)
@@ -571,17 +580,14 @@ struct IslandAgentListBody: View {
                         .islandFocusRing(model.isNavFocused(.cancelStop(a.id)), shape: .capsule)
                         .accessibilityLabel("Keep \(who) running")
                 } else {
-                    Text(line1).font(IslandType.bodyStrong).foregroundStyle(Color.white).lineLimit(1).truncationMode(.tail)
+                    Text(line1).font(.system(size: large ? 16 : 13, weight: .semibold)).foregroundStyle(Color.white).lineLimit(1).truncationMode(.tail)
                         .layoutProbe("row-\(a.id)-name", truncates: true)
-                    HStack(spacing: 4) {
-                        if let parentName, !redacted {
-                            Text("↳ \(parentName)").foregroundStyle(IslandInk.secondaryColor).lineLimit(1)
+                    ViewThatFits(in: .horizontal) {
+                        ForEach(Array(IslandAgentRows.metaCandidates(meta, initiator: a.initiator, redacted: redacted).enumerated()), id: \.offset) { _, candidate in
+                            Text(candidate).fixedSize(horizontal: true, vertical: false)
+                                .foregroundStyle(model.rowFailures[a.id] != nil || a.status == "error" ? IslandPalette.red.opacity(0.95)
+                                    : a.status == "stale" ? IslandPalette.amber.opacity(0.9) : IslandInk.metaColor)
                         }
-                        Text(meta)
-                            .foregroundStyle(model.rowFailures[a.id] != nil || a.status == "error" ? IslandPalette.red.opacity(0.95)
-                                : a.status == "stale" ? IslandPalette.amber.opacity(0.9)
-                                : IslandInk.metaColor)
-                            .layoutPriority(1)
                     }
                     .font(IslandType.meta)
                     .contentTransition(reduceMotion ? .identity : .numericText())
@@ -592,7 +598,7 @@ struct IslandAgentListBody: View {
             }
             .contentShape(Rectangle())
             .onTapGesture { if !inlineAsk && !armed { model.openRow(a) } }
-            .help(redacted ? "" : (a.tooltip ?? ""))
+            .help(redacted ? "" : ([a.initiator?.description(app: a.app), a.tooltip].compactMap { $0 }.joined(separator: "\n")))
             Spacer(minLength: 4)
             if inlineAsk {
                 statusGlyph(a).frame(width: 28, height: 28).layoutProbe("row-\(a.id)-glyph", .glyph)
