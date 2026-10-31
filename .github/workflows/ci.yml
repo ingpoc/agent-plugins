@@ -25,7 +25,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Comet optional test deps
-        run: python3 -m pip install --quiet 'websockets==16.0' Pillow 'mcp==2.2.0' websocket-client
+        run: python3 -m pip install --quiet 'websockets==16.0' Pillow 'mcp==2.2.0' websocket-client numpy
       - name: Audit test inventory
         run: |
           python3 scripts/check.py --audit-tests | python3 -c '
