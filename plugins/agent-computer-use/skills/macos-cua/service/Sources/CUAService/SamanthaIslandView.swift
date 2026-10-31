@@ -581,7 +581,16 @@ struct SamanthaIslandBar: View {
                     : agent.status == "stale" ? "clock.badge.exclamationmark" : "xmark.circle.fill"
                 let tint: Color = needsYou ? IslandPalette.amber : agent.status == "stale" ? Color.white : IslandPalette.red
                 HStack(spacing: 5) {
-                    Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(tint).frame(width: 14)
+                    Group {
+                        if needsYou || agent.status != "stale" {
+                            // Drawn, not a multicolor symbol: a solid amber "!" (needs you) or red "x" (failed) disc.
+                            Circle().fill(tint).frame(width: 14, height: 14)
+                                .overlay(Image(systemName: needsYou ? "exclamationmark" : "xmark")
+                                    .font(.system(size: 8, weight: .heavy)).foregroundStyle(needsYou ? Color.black : Color.white))
+                        } else {
+                            Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(tint)
+                        }
+                    }.frame(width: 14)
                     VStack(alignment: .leading, spacing: 0) {
                         Text(agent.name.isEmpty ? agent.app : agent.name)
                             .font(.system(size: 11, weight: .semibold)).lineLimit(1)
