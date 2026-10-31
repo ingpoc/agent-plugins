@@ -479,6 +479,14 @@ final class IslandModel: ObservableObject {
             if presentation == .peek {
                 if hovering { pinPeek() } else { schedulePeekDismiss(after: 1.5) }
             }
+            // Hover-hold: the pointer entering an alert-opened card (error/done peek) stops its timer;
+            // it then closes only when the pointer leaves (pointerLeft), like a user-opened card.
+            if hovering, cardOpen, !userOpened, !isSticky, agentApproval == nil, presentation != .expired,
+               let until = peekUntil, until != .distantFuture, Date() < until {
+                userOpened = true
+                openVia = "hover-pin"
+                refresh(now: Date())
+            }
             if hovering, let a = agentApproval {
                 if hoveredIDs.insert(a.id).inserted {
                     IslandEventLog.log("hovered", id: a.id, source: a.agent, kind: a.kind, ["state": cardOpen ? "card" : "compact"])
@@ -709,7 +717,7 @@ final class IslandModel: ObservableObject {
             // only if the user was already in the card.
             saveDraft(prevID)
             endTextEntry()
-            let keep = cardOpen && userOpened && agentApproval != nil
+            let keep = cardOpen && userOpened && (agentApproval != nil || cardMode == .agents)
             userOpened = keep
             choicePeekUntil = nil
             restoreDraft(agentApproval?.id)
@@ -734,8 +742,11 @@ final class IslandModel: ObservableObject {
             apps = []
             lastActive = [:]
             // Hub refreshes (rows, queue count) must not collapse an open choice/approval card.
+            // Nor the roster the user opened, nor any card under the pointer (hover-hold): roster rows
+            // and their ages change every second, so resetting here collapsed it within ~1 s (0.2.61).
             if agentApproval == nil && !mediaVisible && notice == nil
-                && !(cardOpen && [.calendar, .tray].contains(presentation)) { userOpened = false }
+                && !(cardOpen && [.calendar, .tray].contains(presentation))
+                && !userHold { userOpened = false }
         } else {
             apps = snap.active_apps.isEmpty && !snap.app.isEmpty ? [snap.app] : snap.active_apps
             for a in apps where lastActive[a] == nil { lastActive[a] = now }
@@ -1360,6 +1371,7 @@ final class IslandModel: ObservableObject {
         emptyCloseWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             guard let self, self.cardMode == .agents, self.listRows.isEmpty, self.cardOpen else { return }
+            if self.hovering { return }   // hover-hold: closes on pointer leave instead
             self.userOpened = false
             self.cardMode = .samantha
             self.refresh(now: Date())
@@ -1397,7 +1409,7 @@ final class IslandModel: ObservableObject {
     }
     var rosterHasMore: Bool { !rosterExpanded && rosterItemCount > rosterVisibleRows }
 
-    /// Pointer left the shape: close (unless sticky) — the panel adds the 120 ms delay.
+    /// Pointer left the shape: close (unless sticky) — the panel adds the leave grace (`leaveDelay`).
     func pointerLeft() {
         // An opened choice card stays until answered, dismissed (X) or clicked closed — hover-away
         // would drop in-progress selections/text.
@@ -1408,6 +1420,13 @@ final class IslandModel: ObservableObject {
         peekUntil = nil
         refresh(now: Date())
     }
+
+    /// Who holds the card open: the user (click, hover-expand, keyboard, or a hover-pinned alert) or an
+    /// alert's own timer/stickiness. User-held cards ignore data refreshes and close on pointer leave.
+    var openSource: IslandOpenSource { !cardOpen ? .closed : userOpened ? .user : .alert }
+
+    /// A user-held roster, or any user-held card under the pointer, survives hub refreshes.
+    var userHold: Bool { cardOpen && userOpened && (cardMode == .agents || hovering) }
 
     var voiceOverHold: Bool {
         voiceOverEnabled() && ["error", "done"].contains(kind) && peekUntil == .distantFuture && !userOpened
@@ -1886,3 +1905,6 @@ extension IslandModel {
         }
     }
 }
+
+/// Why the island card is open (hover-hold contract, 0.2.62).
+enum IslandOpenSource: Equatable { case closed, user, alert }

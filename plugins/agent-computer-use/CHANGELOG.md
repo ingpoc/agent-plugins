@@ -2,6 +2,11 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.62 (2026-10-31)
+
+- Island hover-hold: a card you open (click or hover-expand) stays open while the pointer is over it and compacts about 0.3 s after the pointer leaves. Root cause: every hub snapshot with Samantha idle reset the "user opened" flag, and since 0.2.61 roster ages change every second, so the roster closed within 1–2 s. Data refreshes and answered asks no longer close the roster you opened.
+- Alerts (error/done peeks) keep their timed auto-collapse; the pointer entering one switches it to hover-hold. The empty "No agents running" card waits for the pointer to leave. The leave grace is 0.3 s (was 0.12 s), and the leave timer re-checks the real pointer before closing.
+
 ## 0.2.61 (2026-10-30)
 
 - Posted rows with a meta line (Cursor) now age on the island's 1 s clock, like Grok Bot rows; before, "· 34s" froze until the next post.
