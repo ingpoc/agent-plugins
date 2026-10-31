@@ -73,6 +73,13 @@ final class IslandGateRedesignTests: XCTestCase {
         let width = NSAttributedString(string: "Post again", attributes: [.font: font]).size().width
         XCTAssertLessThanOrEqual(width, 84)
     }
+    func testWallCaptionsFitOneLine() {
+        // 440 window - 2 x 24 insets - 22 pt checkbox inset
+        let font = NSFont.systemFont(ofSize: 11)
+        for caption in ["Your name and photo on the Agent Plugins site. Turn off any time.", "Your handle and avatar on the Agent Plugins site. Turn off any time."] {
+            XCTAssertLessThanOrEqual(NSAttributedString(string: caption, attributes: [.font: font]).size().width, 370, caption)
+        }
+    }
     func testWakingWaitsForInjectedTimer() async throws {
         var release: CheckedContinuation<Void, Error>?
         let device = IslandGateDevice(id: String(repeating: "d", count: 64), key: P256.Signing.PrivateKey())

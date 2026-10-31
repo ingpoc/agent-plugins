@@ -181,7 +181,7 @@ struct IslandGateView: View {
     private func wallConsent(unlocked: Bool, linkedIn: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Toggle("Show me on the Who’s using it wall", isOn: Binding(get: { gate.showOnWall }, set: { if unlocked { gate.setWallVisibility($0) } else { gate.setLocalWallConsent($0) } })).toggleStyle(.checkbox).font(.system(size: 13)).disabled(unlocked && gate.wallUpdating)
-            Text(linkedIn ? "Your LinkedIn name and photo on the Agent Plugins site. Turn off any time." : "Your handle and avatar on the Agent Plugins site. Turn off any time.").font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)).padding(.leading, 22).fixedSize(horizontal: false, vertical: true)
+            Text(linkedIn ? "Your name and photo on the Agent Plugins site. Turn off any time." : "Your handle and avatar on the Agent Plugins site. Turn off any time.").font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)).padding(.leading, 22).fixedSize(horizontal: false, vertical: true)
             if let error = gate.wallError { Text(error).foregroundStyle(GateColor.amber).font(.system(size: 11)) }
         }
     }
@@ -204,7 +204,7 @@ struct IslandGateView: View {
     }
     private func statusRow(_ n: Int, title: String, status: IslandGateCheckStatus, notFound: Bool) -> some View {
         HStack(spacing: 12) {
-            if notFound { Image(systemName: "minus.circle").font(.system(size: 24)).foregroundStyle(GateColor.amber) }
+            if notFound { Image(systemName: "minus.circle").font(.system(size: 22)).foregroundStyle(GateColor.amber).frame(width: 24, height: 24) }
             else { badge(n, done: status == .confirmed, active: status != .confirmed) }
             Text(title).font(.system(size: 13, weight: .semibold)); Spacer(minLength: 0)
             if notFound { Text("Not found").font(.system(size: 12)).foregroundStyle(GateColor.amber); stepButton("Post again", active: false, done: false, action: gate.openShare) }
@@ -216,9 +216,9 @@ struct IslandGateView: View {
         VStack(alignment: .leading, spacing: 0) {
             heading("Your island is on", "Your agents now live at the top of this Mac."); gap(20)
             VStack(spacing: 0) {
-                HStack(spacing: 12) { Text(account.provider == "x" ? "𝕏" : "in"); VStack(alignment: .leading, spacing: 2) { Text(account.handle).font(.system(size: 13, weight: .semibold)); Text("Bound to this Mac").font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)) }; Spacer() }.padding(.horizontal, 16).frame(minHeight: 56)
+                HStack(spacing: 12) { Text(account.provider == "x" ? "𝕏" : "in").font(.system(size: 15, weight: .semibold)).frame(width: 20, height: 20); VStack(alignment: .leading, spacing: 2) { Text(account.handle).font(.system(size: 13, weight: .semibold)); Text("Bound to this Mac").font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)) }; Spacer() }.padding(.horizontal, 16).frame(minHeight: 56)
                 separator
-                HStack(spacing: 12) { Image(systemName: "calendar"); Text("Works offline until \(exp.formatted(.dateTime.day().month(.abbreviated).year()))").font(.system(size: 13, weight: .semibold)); Spacer() }.padding(.horizontal, 16).frame(minHeight: 44)
+                HStack(spacing: 12) { Image(systemName: "calendar").font(.system(size: 14)).frame(width: 20, height: 20); Text("Works offline until \(exp.formatted(.dateTime.day().month(.abbreviated).year()))").font(.system(size: 13)); Spacer() }.padding(.horizontal, 16).frame(minHeight: 44)
             }.background(GateColor.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.06)))
             gap(16); wallConsent(unlocked: true, linkedIn: account.provider == "linkedin"); gap(16); primary("Done", enabled: true, action: close)
         }
@@ -248,6 +248,14 @@ private final class IslandGateHostingView: NSHostingView<IslandGateView> {
 @MainActor
 private final class IslandGateWindow: NSWindow {
     override func cancelOperation(_ sender: Any?) { performClose(sender) }
+    /// AppKit selects the whole field when it gains focus; put the insertion point at the end instead (UI & UX fix 4).
+    override func makeFirstResponder(_ responder: NSResponder?) -> Bool {
+        let accepted = super.makeFirstResponder(responder)
+        if let editor = firstResponder as? NSTextView, editor.isFieldEditor {
+            editor.setSelectedRange(NSRange(location: (editor.string as NSString).length, length: 0))
+        }
+        return accepted
+    }
 }
 
 @MainActor
