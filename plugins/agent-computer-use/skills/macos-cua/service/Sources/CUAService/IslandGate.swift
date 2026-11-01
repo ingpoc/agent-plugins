@@ -87,6 +87,8 @@ final class IslandGate: ObservableObject {
     private let fixture: Bool
     /// Fixture renders (gate-snapshot) draw a still frame: offscreen cacheDisplay skips in-flight Core Animation layers.
     var isFixture: Bool { fixture }
+    /// Live motion (wave, waking bar). Off for fixture stills; tests turn it on to check the live window.
+    lazy var liveMotion: Bool = !fixture
     private var windowOpen = false
     private var unlockLinkedInRoute = false
     var onChange: [() -> Void] = []

@@ -53,11 +53,12 @@ struct IslandGateView: View {
                 ForEach(0..<10) { i in
                     Capsule().fill(GateColor.wave).frame(width: 2, height: CGFloat([6, 10, 15, 20, 14, 19, 12, 16, 10, 6][i]) * (gate.isUnlocked && animateWave ? 0.65 : 1))
                 }
-            }.onAppear {
-                if !gate.isFixture && gate.isUnlocked && !reduceMotion { withAnimation(.easeInOut(duration: 0.65).repeatForever(autoreverses: true)) { animateWave = true } }
-            }.onChange(of: gate.isUnlocked) { live in
-                if !gate.isFixture && live && !reduceMotion { withAnimation(.easeInOut(duration: 0.65).repeatForever(autoreverses: true)) { animateWave = true } }
             }
+            // Scoped to the wave (as with wakingBar): withAnimation(repeatForever) in onAppear also captured the
+            // window's first-layout change, so the whole card swung up and down forever (Guru, 2026-11-01 19:46 IST).
+            .animation(gate.liveMotion && !reduceMotion ? .easeInOut(duration: 0.65).repeatForever(autoreverses: true) : nil, value: animateWave)
+            .onAppear { if gate.liveMotion && gate.isUnlocked && !reduceMotion { animateWave = true } }
+            .onChange(of: gate.isUnlocked) { live in if gate.liveMotion && live && !reduceMotion { animateWave = true } }
         }.padding(.horizontal, 18).frame(width: 340, height: 56)
             .background(.black, in: Capsule()).overlay(Capsule().strokeBorder(.white.opacity(0.08)))
             .accessibilityElement(children: .combine)
@@ -112,11 +113,11 @@ struct IslandGateView: View {
                     Capsule().fill(Color.white.opacity(0.1)).frame(width: track, height: 4)
                     Capsule().fill(GateColor.blue).frame(width: track * 0.38, height: 4)
                         .offset(x: barMoving ? track * 0.62 : 0)
-                        .animation(gate.isFixture ? nil : .easeInOut(duration: 1.6).repeatForever(autoreverses: false), value: barMoving)
+                        .animation(!gate.liveMotion ? nil : .easeInOut(duration: 1.6).repeatForever(autoreverses: false), value: barMoving)
                 }
                 .frame(width: track, height: 4)
                 .clipShape(Capsule())
-                .onAppear { if !gate.isFixture { barMoving = true } }
+                .onAppear { if gate.liveMotion { barMoving = true } }
             }
         }
     }
@@ -366,8 +367,16 @@ final class IslandGateWindowController: NSWindowController, NSWindowDelegate {
     private var changes: AnyCancellable?
     init(gate: IslandGate) {
         self.gate = gate
-        let window = IslandGateWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 500), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
+        var closeAction: () -> Void = {}
+        let hosting = IslandGateHostingView(rootView: IslandGateView(gate: gate, close: { closeAction() }))
+        if #available(macOS 13.3, *) { hosting.safeAreaRegions = [] }
+        // Size the window to its content before the first layout: a first pass at a placeholder height
+        // moved the whole card when the window then shrank to fit.
+        hosting.frame = NSRect(x: 0, y: 0, width: 440, height: 1)
+        let height = max(1, hosting.fittingSize.height)
+        let window = IslandGateWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: height), styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
         super.init(window: window)
+        closeAction = { [weak self] in self?.close() }
         window.title = "Unlock Dynamic Island"
         window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden
         window.titlebarSeparatorStyle = .none
@@ -375,8 +384,6 @@ final class IslandGateWindowController: NSWindowController, NSWindowDelegate {
         window.isMovableByWindowBackground = true
         window.appearance = NSAppearance(named: .darkAqua)
         window.isReleasedWhenClosed = false; window.delegate = self
-        let hosting = IslandGateHostingView(rootView: IslandGateView(gate: gate, close: { [weak self] in self?.close() }))
-        if #available(macOS 13.3, *) { hosting.safeAreaRegions = [] }
         window.contentView = hosting
         gate.onChange.append { [weak self] in
             DispatchQueue.main.async { self?.fitContent() }
@@ -391,6 +398,8 @@ final class IslandGateWindowController: NSWindowController, NSWindowDelegate {
         guard let window, let content = window.contentView else { return }
         content.layoutSubtreeIfNeeded()
         let height = max(1, content.fittingSize.height)
+        // Only a real change resizes: re-setting the same frame on every publish re-ran layout for nothing.
+        guard abs(window.frame.height - height) > 0.5 || window.frame.width != 440 else { return }
         window.setFrame(NSRect(x: window.frame.minX, y: window.frame.maxY - height, width: 440, height: height), display: window.isVisible)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
