@@ -12,7 +12,7 @@ import {
   safeAvatar,
   type DeviceAction,
 } from "./crypto.ts";
-import { settings, config, preset, constantEqual } from "./settings.ts";
+import { settings, config, constantEqual, matchesPreset } from "./settings.ts";
 import { Downloads } from "./downloads.ts";
 import { clientIp } from "./client-ip.ts";
 import { createOEmbedClient, classifyOEmbedHttpStatus } from "./oembed.ts";
@@ -31,7 +31,7 @@ import {
   type Provider,
 } from "./handles.ts";
 
-const CLAIM_TTL_MS = 72 * 3600000;
+const CLAIM_TTL_MS = 30 * 86400000;
 const REBIND_COOLDOWN_MS = 7 * 86400000;
 const now = () => Math.floor(Date.now() / 1000);
 const iso = () => new Date().toISOString();
@@ -107,13 +107,6 @@ function checksPayload(claim: Row) {
     post: claim.post_check,
   };
 }
-function matchText(textValue: string, provider: Provider) {
-  const ref = preset.match.ref_links[provider === "x" ? 0 : 1];
-  return (
-    textValue.toLowerCase().includes(preset.match.hashtag.toLowerCase()) ||
-    textValue.includes(ref)
-  );
-}
 
 /** createGate wires HTTP handlers to the gate store and dependencies. */
 export function createGate(
@@ -126,6 +119,55 @@ export function createGate(
   } = {},
 ) {
   const env = settings(input);
+  const publicConfig = config(env);
+  const launchObservedAt = iso();
+  const firstLaunch = new Map<Provider, number>();
+  let launchInitialization: Promise<void> | undefined;
+  const trialHoursMs = publicConfig.trial_hours * 3600000;
+  function hasLaunch(provider: Provider) {
+    return provider === "x" ? publicConfig.x.launch_post_id != null : publicConfig.linkedin.launch_post_url != null;
+  }
+  async function preserveTrialClaim(trial: Row) {
+    const claim = await first(store, "claims", { id: trial.claim_id });
+    if (!claim || !["pending_verification", "expired"].includes(String(claim.status))) return;
+    // Prelaunch can outlast the ordinary claim TTL; keep its conversion path alive.
+    const until = (hasLaunch(trial.provider as Provider)
+      ? firstLaunch.get(trial.provider as Provider)!
+      : Date.now()) + CLAIM_TTL_MS;
+    if (Date.parse(String(claim.expires_at)) < until)
+      await store.atomic([update("claims", { id: claim.id }, {
+        expires_at: new Date(until).toISOString(), status: "pending_verification",
+      })]);
+  }
+  async function trialWindow(trial: Row) {
+    if (trial.converted_at) return trial;
+    const provider = trial.provider as Provider;
+    const end = hasLaunch(provider)
+      ? Math.max(Date.parse(String(trial.ends_at)), firstLaunch.get(provider)! + trialHoursMs)
+      : Date.now() + trialHoursMs;
+    if (Date.parse(String(trial.ends_at)) !== end) {
+      await store.atomic([update("trials", { id: trial.id, ends_at: trial.ends_at }, { ends_at: new Date(end).toISOString() })]);
+      trial = (await first(store, "trials", { id: trial.id }))!;
+    }
+    await preserveTrialClaim(trial);
+    return trial;
+  }
+  async function initializeLaunchWindows() {
+    if (!launchInitialization) {
+      launchInitialization = (async () => {
+        for (const provider of ["x", "linkedin"] as const) {
+          if (!hasLaunch(provider)) continue;
+          const key = `${provider}_launch_first_seen_at`;
+          await store.atomic([insert("gate_settings", { key, value: launchObservedAt, updated_at: launchObservedAt }, true)]);
+          const setting = (await first(store, "gate_settings", { key }))!;
+          firstLaunch.set(provider, Date.parse(String(setting.value)));
+          for (const trial of await store.list("trials", { provider, converted_at: null }))
+            await trialWindow(trial);
+        }
+      })().catch((error) => { launchInitialization = undefined; throw error; });
+    }
+    await launchInitialization;
+  }
   const trustHops = Number(env.TRUST_PROXY_HOPS || 0);
   const oembed = options.oembed ?? createOEmbedClient(env);
   const pageFetch = options.pageFetch ?? defaultPageFetch;
@@ -211,6 +253,31 @@ export function createGate(
       device_id: String(binding.device_id),
     });
   }
+  async function startTrial(claim: Row, account: Row) {
+    if (claim.status !== "pending_verification" || (account.provider === "x" && claim.follow_check !== "confirmed")) return;
+    if (await first(store, "unlocks", { account_id: account.id }) ||
+        await first(store, "trials", { account_id: account.id }) ||
+        await first(store, "trials", { device_id: claim.device_id }) ||
+        await first(store, "revocations", { account_id: account.id })) return;
+    const bound = await first(store, "bindings", { device_id: claim.device_id });
+    if (bound && bound.account_id !== account.id) return;
+    const started = iso();
+    try {
+      await store.atomic([insert("trials", {
+        id: randomUUID(), account_id: account.id, device_id: claim.device_id,
+        provider: account.provider, handle: account.handle, claim_id: claim.id,
+        started_at: started, ends_at: new Date(Date.parse(started) + publicConfig.trial_hours * 3600000).toISOString(),
+        converted_at: null, created_at: started,
+      })]);
+    } catch (error) { if (!(error instanceof StoreConflict)) throw error; }
+  }
+  function trialToken(trial: Row, account: Row) {
+    return issueEntitlement(env.ENTITLEMENT_PRIVATE_KEY!, {
+      acct: String(account.id), prov: account.provider as Provider,
+      handle: String(account.handle), device_id: String(trial.device_id), tier: "trial",
+      exp: Math.floor(Date.parse(String(trial.ends_at)) / 1000),
+    });
+  }
   async function signedRequest(
     req: IncomingMessage,
     action: DeviceAction,
@@ -264,7 +331,8 @@ export function createGate(
       await store.atomic([
         update("claims", { id: claim.id }, { follow_check: "confirmed" }),
       ]);
-      return { ...claim, follow_check: "confirmed" };
+      const confirmed = { ...claim, follow_check: "confirmed" };
+      return confirmed;
     }
     return claim;
   }
@@ -320,11 +388,18 @@ export function createGate(
   async function tryUnlock(claim: Row, account: Row) {
     claim = await expireIfNeeded(claim);
     if (claim.status !== "pending_verification") return claim;
+    const existingBinding = await first(store, "bindings", { account_id: account.id, device_id: claim.device_id });
+    if (existingBinding && await first(store, "unlocks", { account_id: account.id })) {
+      await checkRevoked(String(account.id));
+      await store.atomic([update("claims", { id: claim.id, status: "pending_verification" }, { status: "unlocked" }, true)]);
+      return { ...claim, status: "unlocked" };
+    }
     claim = await markFollowFromTable(account, claim);
     const needFollow = account.provider === "x";
-    if (needFollow && claim.follow_check !== "confirmed") return claim;
-    if (claim.post_check !== "confirmed") return claim;
-    if (!claim.post_key) return claim;
+    if ((needFollow && claim.follow_check !== "confirmed") || claim.post_check !== "confirmed" || !claim.post_key) {
+      await startTrial(claim, account);
+      return claim;
+    }
     await checkRevoked(String(account.id));
     const reject = async (reason: string) => {
       await store.atomic([update("claims", { id: claim.id, status: "pending_verification" },
@@ -369,6 +444,7 @@ export function createGate(
         true,
       ),
     ];
+    ops.push(update("trials", { account_id: account.id, converted_at: null }, { converted_at: iso() }));
     if (!binding)
       ops.push(
         insert("bindings", {
@@ -440,6 +516,15 @@ export function createGate(
           reason: null,
           entitlement: token(binding, unlock, account),
         };
+    }
+    let trial = await first(store, "trials", { account_id: account.id, device_id: claim.device_id });
+    if (["pending_verification", "expired"].includes(String(claim.status)) && trial && !trial.converted_at) {
+      await checkRevoked(String(account.id));
+      trial = await trialWindow(trial);
+      const active = Date.parse(String(trial.ends_at)) > Date.now();
+      return { status: active ? "trial" : "trial_expired", trial_ends_at: trial.ends_at,
+        checks: checksPayload(claim), reason: null,
+        entitlement: active ? trialToken(trial, account) : null, poll_after: 300 };
     }
     return {
       status: claim.status,
@@ -578,7 +663,47 @@ export function createGate(
       const { entitlement: _entitlement, ...result } = await claimResponse(after, account);
       results.push({ claim_id: claim.id, ...result });
     }
-    return { upserted, follow_confirmed_claims: followConfirmed, unlocked_claims: unlocked, results };
+    const trialUnfollowed = [];
+    if (body.complete === true) {
+      const supplied = Array.isArray(body.followers) ? body.followers : [];
+      for (const trial of await store.list("trials", { provider: "x", converted_at: null })) {
+        if (Date.parse(String(trial.ends_at)) <= Date.now()) continue;
+        const account = await first(store, "accounts", { id: trial.account_id });
+        const present = supplied.some((value) => value && typeof value === "object" &&
+          ((typeof value.handle === "string" && value.handle.replace(/^@/, "").toLowerCase() === trial.handle) ||
+            (account?.x_user_id && String(value.id) === account.x_user_id)));
+        if (!present) trialUnfollowed.push({ account_id: trial.account_id, handle: trial.handle });
+      }
+    }
+    return { upserted, follow_confirmed_claims: followConfirmed, unlocked_claims: unlocked, results, trial_unfollowed: trialUnfollowed };
+  }
+  async function confirmRepost(claim: Row, account: Row, source: string) {
+    const launch = account.provider === "x" ? publicConfig.x.launch_post_id : publicConfig.linkedin.launch_post_url;
+    if (!launch) throw new GateError(422, "launch_post_not_configured");
+    if (source !== (account.provider === "x" ? "x_plugin" : "comet")) throw new GateError(400, "invalid_source");
+    const key = account.provider === "x" ? `x-repost:${launch}:${account.id}` : `li-repost:${new URL(launch).pathname}:${account.id}`;
+    const fields = { post_check: "confirmed", post_source: "repost", post_key: key };
+    await store.atomic([update("claims", { id: claim.id }, fields)]);
+    return { ...claim, ...fields };
+  }
+  async function pushReposters(payload: Record<string, unknown>) {
+    if (payload.provider !== "x" || payload.source !== "x_plugin" || !publicConfig.x.launch_post_id || payload.post_id !== publicConfig.x.launch_post_id || !Array.isArray(payload.reposters))
+      throw new GateError(400, "invalid_request");
+    const results = [], unlocked: string[] = [];
+    for (const claim of await store.list("claims", { status: "pending_verification" })) {
+      const account = await first(store, "accounts", { id: claim.account_id });
+      if (!account || account.provider !== "x" || Date.parse(String(claim.expires_at)) <= Date.now()) continue;
+      const reposter = payload.reposters.find((value) => value && typeof value === "object" &&
+        ((typeof value.handle === "string" && value.handle.replace(/^@/, "").toLowerCase() === String(account.handle).toLowerCase()) ||
+          (account.x_user_id && String(value.id) === account.x_user_id)));
+      if (!reposter) continue;
+      if (reposter.id) await store.atomic([update("accounts", { id: account.id }, { x_user_id: String(reposter.id) })]);
+      const updated = await tryUnlock(await confirmRepost(claim, account, "x_plugin"), account);
+      if (updated.status === "unlocked") unlocked.push(String(claim.id));
+      const { entitlement: _, ...result } = await claimResponse(updated, account);
+      results.push({ claim_id: claim.id, ...result });
+    }
+    return { results, unlocked_claims: unlocked };
   }
   async function adminVerifyClaim(claimId: string, payload: Record<string, unknown>) {
     const claim = await first(store, "claims", { id: claimId });
@@ -594,6 +719,7 @@ export function createGate(
       await store.atomic([update("claims", { id: claimId }, { follow_check: "confirmed" })]);
       current = { ...current, follow_check: "confirmed" };
     }
+    if (payload.repost_confirmed === true) current = await confirmRepost(current, account, source);
     const postUrl = payload.post_url ? String(payload.post_url) : null;
     const postText = payload.post_text ? String(payload.post_text) : "";
     if (postUrl && account.provider === "x") {
@@ -610,7 +736,7 @@ export function createGate(
         }
         if (!classifyOEmbedHttpStatus(httpStatus))
           throw new GateError(422, "post_missing_tag");
-        if (payload.post_ok !== true && !matchText(postText, "x")) throw new GateError(422, "post_missing_tag");
+        if (payload.post_ok !== true && !matchesPreset(postText, "x")) throw new GateError(422, "post_missing_tag");
         const parsed = parseXStatusUrl(postUrl);
         if (payload.post_ok === true && parsed.handle !== handle) throw new GateError(422, "post_author_mismatch");
         const key = parsed.postKey;
@@ -637,7 +763,7 @@ export function createGate(
         current = { ...current, post_url: postUrl, post_key: result.postKey, post_check: "confirmed" };
       }
     } else if (account.provider === "linkedin" && (postUrl || postText)) {
-      if (!(postUrl && payload.post_ok === true) && !matchText(postText, "linkedin")) throw new GateError(422, "post_missing_tag");
+      if (!(postUrl && payload.post_ok === true) && !matchesPreset(postText, "linkedin")) throw new GateError(422, "post_missing_tag");
       const key = postUrl ? validateLinkedInPostUrl(postUrl) : String(current.post_key || "");
       if (!key) throw new GateError(422, "post_missing_tag");
       await store.atomic([
@@ -718,6 +844,7 @@ export function createGate(
     const path = url.pathname;
     const method = req.method || "GET";
     try {
+      await initializeLaunchWindows();
       if (path.startsWith("/v1/public/")) {
         responseHeaders["access-control-allow-origin"] = "*";
         rateLimit("public", 60, 60000, req);
@@ -734,7 +861,7 @@ export function createGate(
       if (path === "/healthz" && method === "GET") return reply(200, { ok: true });
       if (path === "/v1/config" && method === "GET") {
         rateLimit("config", 120, 60000, req);
-        return reply(200, config());
+        return reply(200, publicConfig);
       }
       if (path === "/v1/public/counter" && method === "GET") {
         responseHeaders["cache-control"] = "public, max-age=60";
@@ -804,14 +931,7 @@ export function createGate(
           let current = await markFollowFromTable(account, open);
           current = await tryUnlock(current, account);
           const response = await claimResponse(current, account);
-          if (response.status === "unlocked")
-            return reply(200, { claim_id: open.id, ...response, poll_after: 60 });
-          return reply(200, {
-            claim_id: open.id,
-            status: current.status,
-            checks: checksPayload(current),
-            poll_after: 60,
-          });
+          return reply(200, { claim_id: open.id, ...response, poll_after: response.status === "trial" ? 300 : 60 });
         }
         try {
           await bindingConflict(String(account.id), id);
@@ -872,7 +992,7 @@ export function createGate(
         return reply(201, {
           claim_id: claimId,
           ...response,
-          poll_after: 60,
+          poll_after: response.status === "trial" ? 300 : 60,
         });
       }
       const pollMatch = path.match(/^\/v1\/claims\/([\w-]+)$/);
@@ -897,6 +1017,17 @@ export function createGate(
         if (deviceId(data.device_id) !== id) throw new GateError(401, "bad_signature");
         const binding = await first(store, "bindings", { device_id: id });
         if (!binding) {
+          let trial = await first(store, "trials", { device_id: id });
+          if (trial && !trial.converted_at) {
+            const claim = await first(store, "claims", { id: trial.claim_id });
+            if (!claim) throw new GateError(404, "not_found");
+            await signedRequest(req, "refresh", String(claim.device_pubkey), raw);
+            await checkRevoked(String(trial.account_id));
+            trial = await trialWindow(trial);
+            if (Date.parse(String(trial.ends_at)) <= Date.now()) throw new GateError(410, "trial_expired");
+            const account = await first(store, "accounts", { id: trial.account_id });
+            return reply(200, { status: "trial", trial_ends_at: trial.ends_at, entitlement: trialToken(trial, account!) });
+          }
           if (await first(store, "moved_devices", { device_id: id }))
             throw new GateError(409, "device_moved");
           throw new GateError(404, "not_found");
@@ -914,18 +1045,31 @@ export function createGate(
         const data = object(JSON.parse(raw.toString("utf8") || "{}"));
         const show = consent(data.show);
         const id = deviceId(data.device_id);
-        const binding = await first(store, "bindings", { device_id: id });
-        if (!binding) throw new GateError(404, "not_found");
+        let binding = await first(store, "bindings", { device_id: id });
+        let trial: Row | undefined;
+        if (!binding) {
+          trial = await first(store, "trials", { device_id: id, converted_at: null });
+          if (!trial) throw new GateError(404, "not_found");
+          const claim = await first(store, "claims", { id: trial.claim_id });
+          if (!claim) throw new GateError(404, "not_found");
+          binding = { account_id: trial.account_id, device_pubkey: claim.device_pubkey };
+        }
         await signedRequest(req, "wall", String(binding.device_pubkey), raw);
         await checkRevoked(String(binding.account_id));
-        await store.atomic([
+        if (trial) {
+          trial = await trialWindow(trial);
+          if (Date.parse(String(trial.ends_at)) <= Date.now()) throw new GateError(410, "trial_expired");
+        }
+        const ops: Op[] = [
           update(
             "accounts",
             { id: binding.account_id },
             { wall_opt_in: show, wall_opt_in_at: show ? iso() : null },
             true,
           ),
-        ]);
+        ];
+        if (trial) ops.push(update("claims", { account_id: binding.account_id, device_id: id, status: "pending_verification" }, { show_on_wall: show }));
+        await store.atomic(ops);
         return reply(200, { show });
       }
       const admin = path.startsWith("/v1/admin/");
@@ -941,6 +1085,12 @@ export function createGate(
             const ids = new Set(accounts.map((a) => a.id));
             claims = claims.filter((c) => ids.has(c.account_id));
           }
+          const needs = url.searchParams.get("needs");
+          if (needs && !["follow", "repost"].includes(needs)) throw new GateError(400, "invalid_request");
+          if (needs === "follow") {
+            const ids = new Set((await store.list("accounts", { provider: "x" })).map((a) => a.id));
+            claims = claims.filter((c) => ids.has(c.account_id) && c.follow_check === "pending");
+          } else if (needs === "repost") claims = claims.filter((c) => c.post_check === "pending");
           claims = claims.slice(0, limit);
           const rows = [];
           for (const claim of claims) {
@@ -950,6 +1100,7 @@ export function createGate(
               provider: account?.provider,
               handle: account?.handle,
               x_user_id: account?.x_user_id ?? null,
+              trial_ends_at: (await first(store, "trials", { account_id: claim.account_id }))?.ends_at ?? null,
               post_url: claim.post_url,
               checks: checksPayload(claim),
               created_at: claim.created_at,
@@ -959,6 +1110,8 @@ export function createGate(
           }
           return reply(200, { claims: rows });
         }
+        if (path === "/v1/admin/reposts" && method === "POST")
+          return reply(200, await pushReposters(await body(req)));
         if (path === "/v1/admin/followers" && method === "POST")
           return reply(200, await pushFollowers(await body(req)));
         const verifyMatch = path.match(/^\/v1\/admin\/claims\/([\w-]+)\/verify$/);

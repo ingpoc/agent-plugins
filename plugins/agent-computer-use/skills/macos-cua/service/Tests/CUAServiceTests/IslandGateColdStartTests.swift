@@ -19,6 +19,12 @@ final class IslandGateColdStartTests: XCTestCase {
         return IslandGate(store: store, client: client, publicKey: signingKey.publicKey.rawRepresentation, device: device, wakeSleep: { try await Task.sleep(nanoseconds: 10_000_000) })
     }
 
+    private func signedEntitlement(tier: String?, exp: Date) throws -> String {
+        let payload = try JSONEncoder().encode(IslandGateEntitlement(v: 1, acct: "account", prov: "x", handle: "friend", device_id: device.id,
+            iat: Date().timeIntervalSince1970 - 1, exp: exp.timeIntervalSince1970, tier: tier)).gateBase64URL
+        return payload + "." + (try signingKey.signature(for: Data(payload.utf8))).gateBase64URL
+    }
+
     private static func configPayload(eta: String? = "usually within the hour") -> Data {
         var root: [String: Any] = [
             "x": ["handle": "guru", "profile_url": "https://x.com/guru", "intent_url": "https://x.com/intent/post?text=server", "preset_text": "server"],
@@ -37,33 +43,31 @@ final class IslandGateColdStartTests: XCTestCase {
         let file = root.appendingPathComponent("services/acu-gate/config/preset.json")
         guard FileManager.default.fileExists(atPath: file.path) else { throw XCTSkip("Repository preset unavailable") }
         let preset = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
-        let x = try XCTUnwrap(preset["x"] as? [String: String])
-        let linkedIn = try XCTUnwrap(preset["linkedin"] as? [String: String])
-        let config = IslandGateConfig.bundled
-        XCTAssertEqual(config.x.handle, x["handle"])
-        XCTAssertEqual(config.x.profile_url.absoluteString, "https://x.com/\(x["handle"]!)")
-        XCTAssertEqual(config.x.preset_text, x["preset_text"])
-        XCTAssertEqual(URLComponents(url: config.x.intent_url, resolvingAgainstBaseURL: false)?.queryItems?.first?.value, x["preset_text"])
-        XCTAssertEqual(config.linkedin.preset_text, linkedIn["preset_text"])
-        XCTAssertEqual(config.linkedin.follow_url?.absoluteString, linkedIn["follow_url"])
-        XCTAssertEqual(URLComponents(url: config.linkedin.share_url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "text" })?.value, linkedIn["preset_text"])
-        XCTAssertEqual(config.poll_seconds, 60)
+        let x = try XCTUnwrap(preset["x"] as? [String: Any])
+        let linkedIn = try XCTUnwrap(preset["linkedin"] as? [String: Any])
+        let config = try JSONDecoder().decode(IslandGateConfig.self, from: Data(contentsOf: file))
+        XCTAssertEqual(config.x.handle, x["handle"] as? String)
+        XCTAssertEqual(config.x.profile_url.absoluteString, "https://x.com/\(x["handle"] as! String)")
+        XCTAssertEqual(config.x.preset_text, x["preset_text"] as? String)
+        XCTAssertEqual(config.linkedin.preset_text, linkedIn["preset_text"] as? String)
+        XCTAssertEqual(config.linkedInFollowURL?.absoluteString, linkedIn["follow_url"] as? String)
+        XCTAssertEqual(config.poll_seconds, nil)
         XCTAssertEqual(config.check_eta_text, preset["check_eta_text"] as? String)
-        XCTAssertEqual(config.linkedInFollowURL?.absoluteString, "https://www.linkedin.com/in/gurusharangupta/")
+        XCTAssertEqual(config.trial_hours, preset["trial_hours"] as? Int)
+        XCTAssertEqual(config.trial_eta_text, preset["trial_eta_text"] as? String)
     }
 
-    func testShareActionsUseBundledURLsWithoutNetwork() {
+    func testFollowActionsOpenConfiguredProfilesWithoutNetwork() {
         let opener = IslandGateRecordingURLOpener()
         let gate = IslandGate(store: IslandGateMemoryStore(), client: IslandGateURLProtocol.client(), device: device, urlOpener: opener)
         IslandGateURLProtocol.handler = { _ in XCTFail("Unexpected network request"); return (503, Data()) }
         gate.openFollow()
-        gate.openShare()
-        XCTAssertEqual(opener.opened, [URL(string: "https://x.com/intent/follow?screen_name=gurusharan")!, IslandGateConfig.bundled.x.intent_url])
+        XCTAssertEqual(opener.opened, [IslandGateConfig.bundled.x.profile_url])
         gate.useLinkedInRoute()
         gate.openFollow()
-        gate.openShare()
-        XCTAssertEqual(Array(opener.opened.suffix(2)), [URL(string: "https://www.linkedin.com/in/gurusharangupta/")!, IslandGateConfig.bundled.linkedin.share_url])
-        XCTAssertEqual(opener.opened.count, 4)
+        XCTAssertEqual(Array(opener.opened.suffix(1)), [URL(string: "https://www.linkedin.com/in/gurusharangupta/")!])
+        XCTAssertEqual(opener.opened.count, 2)
+        XCTAssertEqual((gate.pasteboard as? IslandGateRecordingPasteboard)?.written, [])
     }
 
     func testPrefetchRetriesWithoutChangingStateAndReplacesDefault() async throws {
@@ -94,6 +98,34 @@ final class IslandGateColdStartTests: XCTestCase {
         XCTAssertEqual(gate.checkETAText, "usually a few minutes")
     }
 
+    func testLegacyConfigDecodesWithoutTrialAndRepostFields() throws {
+        let config = try JSONDecoder().decode(IslandGateConfig.self, from: Self.configPayload())
+        XCTAssertNil(config.x.launch_post_id)
+        XCTAssertNil(config.x.repost_url)
+        XCTAssertNil(config.linkedin.launch_post_url)
+        XCTAssertNil(config.linkedin.repost_url)
+        XCTAssertNil(config.trial_hours)
+        XCTAssertNil(config.trial_eta_text)
+    }
+
+    func testWindowOpeningRefreshesConfigForTrialAndExpiredStates() async throws {
+        for expired in [false, true] {
+            let gate = makeGate()
+            if expired {
+                gate.transition(.trialExpired(account: IslandGateAccount(id: "account", provider: "x", handle: "friend")))
+            } else {
+                try gate.applyEntitlementForTests(signedEntitlement(tier: "trial", exp: Date().addingTimeInterval(72 * 3600)))
+            }
+            let updated = expectation(description: expired ? "expired config" : "trial config")
+            gate.onChange.append { if gate.config?.x.handle == "guru" { updated.fulfill() } }
+            IslandGateURLProtocol.handler = { _ in (200, Self.configPayload()) }
+            gate.opened()
+            await fulfillment(of: [updated], timeout: 2)
+            XCTAssertEqual(gate.config?.x.handle, "guru")
+            gate.closed()
+        }
+    }
+
     func testSubmitColdStartShowsWakingThenSucceeds() async throws {
         let gate = makeGate()
         gate.handleText = "@friend"
@@ -112,10 +144,11 @@ final class IslandGateColdStartTests: XCTestCase {
         try await Task.sleep(nanoseconds: 500_000_000)
         XCTAssertEqual(attempts, 3)
         XCTAssertFalse(sawWaking, "A quick first response must not show the waking state")
-        guard case .checking = gate.state else {
+        guard case .pendingFollow = gate.state else {
             if case .waking = gate.state { /* still retrying */ }
-            return XCTFail("Expected checking, got \(gate.state)")
+            return XCTFail("Expected pending follow, got \(gate.state)")
         }
+        gate.stopPollingForTests()
     }
 
     func testSubmitColdStartBudgetShowsRetryError() async throws {
@@ -144,9 +177,9 @@ final class IslandGateColdStartTests: XCTestCase {
         gate.handleText = "@friend"
         gate.setConfigForTests(try JSONDecoder().decode(IslandGateConfig.self, from: Self.configPayload()))
         let submitted = expectation(description: "Claim created")
-        let checking = expectation(description: "Checking")
+        let pendingFollow = expectation(description: "Starting trial verification")
         gate.onChange.append {
-            if case .checking = gate.state { checking.fulfill() }
+            if case .pendingFollow = gate.state { pendingFollow.fulfill() }
         }
         IslandGateURLProtocol.handler = { req in
             guard req.url?.path == "/v1/claims" else { return (200, Self.configPayload()) }
@@ -154,11 +187,12 @@ final class IslandGateColdStartTests: XCTestCase {
             return (201, Data(#"{"claim_id":"fresh-claim","status":"pending_verification","checks":{"follow":"pending","post":"pending"},"poll_after":60}"#.utf8))
         }
         gate.submitCheck()
-        await fulfillment(of: [submitted, checking], timeout: 3)
+        await fulfillment(of: [submitted, pendingFollow], timeout: 3)
         XCTAssertNotNil(store.values["claim-id"])
         let relaunch = makeGate(store: store)
         relaunch.start()
-        guard case .checking(let id, _, _, _) = relaunch.state else { return XCTFail("Relaunch must resume checking") }
+        guard case .pendingFollow = relaunch.state else { return XCTFail("Relaunch must resume trial verification") }
+        let id = String(data: try XCTUnwrap(store.values["claim-id"]), encoding: .utf8)
         XCTAssertEqual(id, "fresh-claim")
         gate.stopPollingForTests()
         relaunch.stopPollingForTests()
@@ -175,10 +209,10 @@ final class IslandGateColdStartTests: XCTestCase {
         XCTAssertTrue(gate.isHandleValid)
     }
 
-    func testLinkedInClaimSendsPostLinkWithoutProfile() async throws {
+    func testLinkedInClaimSendsHandleWithoutPostURL() async throws {
         let gate = makeGate()
         gate.useLinkedInRoute()
-        gate.handleText = "linkedin.com/feed/update/urn:li:activity:123456"
+        gate.handleText = "uk.linkedin.com/in/Some-Name"
         XCTAssertTrue(gate.isHandleValid)
         let submitted = expectation(description: "LinkedIn claim submitted")
         let checking = expectation(description: "claim accepted")
@@ -187,8 +221,8 @@ final class IslandGateColdStartTests: XCTestCase {
             let data = try IslandGateClientTests.body(request)
             let body = try JSONSerialization.jsonObject(with: data) as? [String: Any]
             XCTAssertEqual(body?["provider"] as? String, "linkedin")
-            XCTAssertNil(body?["handle"])
-            XCTAssertEqual(body?["post_url"] as? String, "https://www.linkedin.com/feed/update/urn:li:activity:123456")
+            XCTAssertEqual(body?["handle"] as? String, "some-name")
+            XCTAssertNil(body?["post_url"])
             submitted.fulfill()
             return (201, Data(#"{"claim_id":"li-claim","status":"pending_verification","poll_after":60}"#.utf8))
         }
@@ -202,30 +236,24 @@ final class IslandGateColdStartTests: XCTestCase {
         let gate = makeGate()
         gate.handleText = "friend"
         gate.setConfigForTests(try JSONDecoder().decode(IslandGateConfig.self, from: Self.configPayload()))
-        let checking = expectation(description: "Claim accepted")
+        let pendingFollow = expectation(description: "Claim accepted")
         let polled = expectation(description: "Poll after interval")
-        let updated = expectation(description: "Poll response applied")
         var didPoll = false
-        var enteredChecking = false
         gate.onChange.append {
-            if case .checking = gate.state {
-                if enteredChecking { updated.fulfill() }
-                else { enteredChecking = true; checking.fulfill() }
-            }
+            if case .pendingFollow = gate.state { pendingFollow.fulfill() }
         }
         IslandGateURLProtocol.handler = { request in
             if request.url?.path == "/v1/claims" {
-                return (201, Data(#"{"claim_id":"wait-claim","status":"pending_verification","poll_after":1}"#.utf8))
+                return (201, Data(#"{"claim_id":"wait-claim","status":"pending_verification","checks":{"follow":"pending","post":"pending"},"poll_after":1}"#.utf8))
             }
-            didPoll = true
-            polled.fulfill()
-            return (200, Data(#"{"status":"pending_verification"}"#.utf8))
+            if !didPoll { didPoll = true; polled.fulfill() }
+            return (200, Data(#"{"status":"pending_verification","checks":{"follow":"pending","post":"pending"}}"#.utf8))
         }
         gate.submitCheck()
-        await fulfillment(of: [checking], timeout: 2)
+        await fulfillment(of: [pendingFollow], timeout: 2)
         try await Task.sleep(nanoseconds: 250_000_000)
         XCTAssertFalse(didPoll)
-        await fulfillment(of: [polled, updated], timeout: 2)
+        await fulfillment(of: [polled], timeout: 2)
         gate.stopPollingForTests()
     }
 

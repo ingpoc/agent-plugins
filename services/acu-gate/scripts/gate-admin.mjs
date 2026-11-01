@@ -7,11 +7,14 @@ import { execFileSync } from "node:child_process";
 function usage() {
   process.stderr.write(`Usage:
   gate-admin.mjs [--wake] list [--provider x|linkedin]
+  gate-admin.mjs [--wake] pending [--needs follow|repost] [--provider x|linkedin]
   gate-admin.mjs [--wake] push-followers <file.json>
+  gate-admin.mjs [--wake] push-reposters <file.json>
   gate-admin.mjs [--wake] verify <claim_id> [--post-url U] [--post-text T] [--follow] [--source comet]
     [--post-ok | --post-not-ok] [--verified] [--followers-count N] [--avatar-url U]
   gate-admin.mjs [--wake] verify-batch <file.json>
   gate-admin.mjs [--wake] reject <claim_id> <reason>
+  gate-admin.mjs [--wake] verify <id> --repost [--source comet]
   gate-admin.mjs [--wake] stats
 
 Base URL: --base, ACU_GATE_BASE_URL, or ~/.config/acu-gate/gate.json {"base_url": "..."}
@@ -29,7 +32,7 @@ function parseArgs(argv) {
       continue;
     }
     // Boolean flags never take a value (`--wake list` must not read "list" as --wake's value).
-    if (["--wake", "--follow", "--verified", "--post-ok", "--post-not-ok"].includes(arg)) {
+    if (["--wake", "--follow", "--verified", "--post-ok", "--post-not-ok", "--repost"].includes(arg)) {
       out.flags[arg.slice(2).replace(/-/g, "_")] = true;
       continue;
     }
@@ -144,9 +147,22 @@ if (!base) {
       const q = new URLSearchParams({ status: "pending_verification" });
       if (flags.provider) q.set("provider", String(flags.provider));
       result = await call(`/v1/admin/claims?${q}`, "GET");
+    } else if (cmd === "pending") {
+      const q = new URLSearchParams();
+      if (flags.needs) q.set("needs", String(flags.needs));
+      if (flags.provider) q.set("provider", String(flags.provider));
+      result = await call(`/v1/admin/claims?${q}`, "GET");
     } else if (cmd === "push-followers") {
       const payload = JSON.parse(readFileSync(rest[1], "utf8"));
       result = await call("/v1/admin/followers", "POST", payload);
+    } else if (cmd === "push-reposters") {
+      const payload = JSON.parse(readFileSync(rest[1], "utf8"));
+      result = await call("/v1/admin/reposts", "POST", payload);
+    } else if (cmd === "verify" && flags.repost) {
+      result = await call(`/v1/admin/claims/${rest[1]}/verify`, "POST", {
+        repost_confirmed: true,
+        source: flags.source || (flags.provider === "linkedin" ? "comet" : "x_plugin"),
+      });
     } else if (cmd === "verify") {
       if (flags.post_ok && flags.post_not_ok) throw new Error("Choose --post-ok or --post-not-ok");
       const body = { source: flags.source || "manual" };

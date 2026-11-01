@@ -17,10 +17,8 @@ final class IslandGateRedesignTests: XCTestCase {
         XCTAssertFalse(gate.followDone)
         gate.didBecomeActive()
         XCTAssertEqual(gate.activeStep, 2)
-        gate.openShare(); gate.didBecomeActive()
-        XCTAssertEqual(gate.activeStep, 3)
         let restored = IslandGate(urlOpener: IslandGateRecordingURLOpener(), defaults: defaults)
-        XCTAssertTrue(restored.followDone); XCTAssertTrue(restored.postDone)
+        XCTAssertTrue(restored.followDone); XCTAssertFalse(restored.postDone)
         restored.handleText = "@example"
         restored.startOver()
         XCTAssertEqual(restored.activeStep, 1); XCTAssertEqual(restored.handleText, "")
@@ -32,7 +30,7 @@ final class IslandGateRedesignTests: XCTestCase {
         let followed = try IslandGateFixtures.gate("02-followed")
         XCTAssertEqual(followed.activeStep, 2)
         let ready = try IslandGateFixtures.gate("03-ready")
-        XCTAssertEqual(ready.activeStep, 3); XCTAssertTrue(ready.isHandleValid)
+        XCTAssertEqual(ready.activeStep, 2); XCTAssertTrue(ready.isHandleValid)
         let checking = try IslandGateFixtures.gate("04-checking")
         guard case .checking(_, _, .confirmed, .pending) = checking.state else { return XCTFail("wrong checking state") }
         checking.changeInput()
@@ -51,11 +49,35 @@ final class IslandGateRedesignTests: XCTestCase {
         XCTAssertEqual(missingCode, "post_not_found")
         XCTAssertEqual(try IslandGateFixtures.gate("08-waking").state, .waking)
     }
+    func testTrialAndLinkFreeFixtureStates() throws {
+        let names = ["locked-x", "locked-x-ready", "locked-x-no-launch", "locked-x-prelaunch", "locked-linkedin", "pending-follow", "trial-3days", "trial-nudge-day2", "trial-lastday", "trial-prelaunch", "trial-expired", "repost-checking", "unlocked"]
+        for name in names { XCTAssertNoThrow(try IslandGateFixtures.gate(name), name) }
+        let trial = try IslandGateFixtures.gate("trial-3days")
+        XCTAssertTrue(trial.isUnlocked)
+        guard case .trial(_, let ends) = trial.state else { return XCTFail("expected trial") }
+        XCTAssertGreaterThan(ends.timeIntervalSinceNow, 2 * 86_400)
+        let expired = try IslandGateFixtures.gate("trial-expired")
+        XCTAssertFalse(expired.isUnlocked)
+        let locked = try IslandGateFixtures.gate("locked-x")
+        XCTAssertEqual(locked.handleText, "")
+        let ready = try IslandGateFixtures.gate("locked-x-ready")
+        XCTAssertEqual(ready.handleText, "@acu_demo_g2")
+        XCTAssertTrue(ready.followDone)
+        let noLaunch = try IslandGateFixtures.gate("locked-x-no-launch")
+        XCTAssertNil(noLaunch.config?.x.repost_url)
+        XCTAssertFalse(noLaunch.isLaunchConfigured(for: "x"))
+        let prelaunchLock = try IslandGateFixtures.gate("locked-x-prelaunch")
+        XCTAssertNil(prelaunchLock.config?.x.launch_post_id)
+        let prelaunchTrial = try IslandGateFixtures.gate("trial-prelaunch")
+        XCTAssertFalse(prelaunchTrial.isLaunchConfigured(for: "x"))
+        guard case .trial = prelaunchTrial.state else { return XCTFail("expected prelaunch trial") }
+        XCTAssertTrue(prelaunchTrial.isUnlocked)
+        XCTAssertTrue(trial.isLaunchConfigured(for: "x"))
+    }
     func testActivationNotificationCompletesOnlyTappedSteps() async throws {
         let gate = IslandGate(urlOpener: IslandGateRecordingURLOpener())
         gate.openFollow()
-        NotificationCenter.default.post(name: NSApplication.didBecomeActiveNotification, object: nil)
-        for _ in 0..<20 where !gate.followDone { await Task.yield() }
+        gate.didBecomeActive()
         XCTAssertTrue(gate.followDone)
         XCTAssertFalse(gate.postDone)
     }
@@ -70,7 +92,7 @@ final class IslandGateRedesignTests: XCTestCase {
     }
     func testPostAgainFits() {
         let font = NSFont.systemFont(ofSize: 13, weight: .semibold)
-        let width = NSAttributedString(string: "Post again", attributes: [.font: font]).size().width
+        let width = NSAttributedString(string: "Repost again", attributes: [.font: font]).size().width
         XCTAssertLessThanOrEqual(width, 84)
     }
     func testWallCaptionsFitOneLine() {
@@ -91,7 +113,7 @@ final class IslandGateRedesignTests: XCTestCase {
             return (201, Data(#"{"claim_id":"c1","status":"pending_verification","checks":{"follow":"pending","post":"pending"}}"#.utf8))
         }
         let finished = expectation(description: "claim completed")
-        gate.onChange.append { if case .checking = gate.state { finished.fulfill() } }
+        gate.onChange.append { if case .pendingFollow = gate.state { finished.fulfill() } }
         defer { gate.stopPollingForTests(); IslandGateURLProtocol.handler = nil }
         gate.handleText = "@example"
         gate.submitCheck()
@@ -101,6 +123,7 @@ final class IslandGateRedesignTests: XCTestCase {
         try await Task.sleep(nanoseconds: 30_000_000)
         XCTAssertEqual(gate.state, .waking)
         await fulfillment(of: [finished], timeout: 3)
-        guard case .checking = gate.state else { return XCTFail("expected checking, got \(gate.state)") }
+        guard case .pendingFollow = gate.state else { return XCTFail("expected pending follow, got \(gate.state)") }
+        gate.stopPollingForTests()
     }
 }

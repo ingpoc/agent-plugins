@@ -2,6 +2,13 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.68 (2026-11-01)
+
+- Unlock the island by entering your handle once and following Gurusharan for a free three-day trial. Repost the launch post to keep it permanently, with no post to write or link to paste.
+- Before the launch post is published, trials stay free and the Repost row stays hidden. Once the launch is configured, everyone gets at least three days to repost. Follow and repost already confirmed together unlock permanently without creating a trial. Existing unlocked accounts keep their access, and older post-link unlocks remain supported by the gate.
+- The unlocked card now says “Works offline too”.
+- Claude desktop activity supports the new sidebar layout and the Stop response signal without reading chat text. Finished runs remain visible briefly, and status JSON includes Claude attachment and accessibility diagnostics.
+
 ## 0.2.67 (2026-11-01)
 
 - Claude Code: the ACU MCP server connects again. The runtime contract now ignores Claude's `.in_use/<pid>` session markers in the plugin root (like Cursor's `.cache-complete`), which made every Claude session fail with `package/app build mismatch`.

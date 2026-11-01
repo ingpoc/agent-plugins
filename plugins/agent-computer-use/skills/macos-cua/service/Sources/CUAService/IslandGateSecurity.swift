@@ -52,6 +52,12 @@ struct IslandGateEntitlement: Codable, Equatable {
     let device_id: String
     let iat: Double
     let exp: Double
+    let tier: String?
+
+    init(v: Int, acct: String, prov: String, handle: String, device_id: String, iat: Double, exp: Double, tier: String? = nil) {
+        self.v = v; self.acct = acct; self.prov = prov; self.handle = handle
+        self.device_id = device_id; self.iat = iat; self.exp = exp; self.tier = tier
+    }
 }
 
 struct IslandGateVerifier {

@@ -276,7 +276,7 @@ final class IslandHub {
 
     func updateClaudeDesktop(_ snapshot: IslandClaudeDesktopActivity.Snapshot, now: Date = Date()) {
         guard snapshot != claudeDesktop else { return }
-        let active = Set(claudeDesktop.agents.map(\.id))
+        let active = Set(claudeDesktop.rows.filter { $0.status == .working || $0.status == .needsYou }.map(\.id))
         claudeDesktop = snapshot
         if store.sourceEnabled(.claude), store.cap(.claude).rank >= AttentionCap.critical.rank,
            store.bool(IslandSettingsSchema.agentPeeks) {

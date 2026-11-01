@@ -56,7 +56,7 @@ final class IslandGateWallTests: XCTestCase {
         ))
         let finished = expectation(description: "Claim submitted")
         gate.onChange.append {
-            if case .checking = gate.state { finished.fulfill() }
+            if case .pendingFollow = gate.state { finished.fulfill() }
         }
         IslandGateURLProtocol.handler = { request in
             if request.url?.path == "/v1/claims" {

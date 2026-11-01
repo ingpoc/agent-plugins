@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 export type Cell = string | number | boolean | null;
 export type Row = Record<string, Cell>;
 export const tables = {
+  gate_settings: ["key", "value", "updated_at"],
+  trials: ["id", "account_id", "device_id", "provider", "handle", "claim_id", "started_at", "ends_at", "converted_at", "created_at"],
   accounts: [
     "id",
     "provider",
@@ -80,6 +82,8 @@ export interface Store {
 }
 export class StoreConflict extends Error {}
 const unique: Partial<Record<Table, string[][]>> = {
+  gate_settings: [["key"]],
+  trials: [["id"], ["account_id"], ["device_id"]],
   accounts: [["id"], ["provider", "handle"]],
   claims: [["id"]],
   followers: [["provider", "handle"]],
@@ -291,10 +295,8 @@ export class NeonStore implements Store {
   async migrate() {
     try {
       await this.sql.query(`CREATE SCHEMA IF NOT EXISTS "${this.schema}"`);
-      const source = await readFile(
-        new URL("../migrations/001_init.sql", import.meta.url),
-        "utf8",
-      );
+      const source = (await Promise.all(["001_init.sql", "002_trials.sql"].map((name) =>
+        readFile(new URL(`../migrations/${name}`, import.meta.url), "utf8")))).join("\n-- statement-break\n");
       await this.sql.transaction([
         this.sql.query(`SET LOCAL search_path TO "${this.schema}"`),
         ...source

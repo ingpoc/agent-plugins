@@ -5,7 +5,7 @@ import {
   parseXStatusUrl,
   snowflakeMs,
 } from "./handles.ts";
-import { oEmbedHosts, preset } from "./settings.ts";
+import { oEmbedHosts, matchesPreset } from "./settings.ts";
 
 export type OEmbedResult =
   | {
@@ -21,13 +21,7 @@ export type OEmbedClient = {
   fetch(postUrl: string, claimHandle: string, claimCreatedMs: number, minCreatedMs?: number): Promise<OEmbedResult>;
 };
 
-function matchesText(text: string, provider: "x" | "linkedin") {
-  const ref = preset.match.ref_links[provider === "x" ? 0 : 1];
-  return (
-    text.toLowerCase().includes(preset.match.hashtag.toLowerCase()) ||
-    text.includes(ref)
-  );
-}
+
 
 /** createOEmbedClient builds the production oEmbed client. */
 export function createOEmbedClient(env: NodeJS.ProcessEnv): OEmbedClient {
@@ -64,7 +58,7 @@ export function createOEmbedClient(env: NodeJS.ProcessEnv): OEmbedClient {
       if (authorHandle !== claimHandle)
         return { ok: false, code: "post_author_mismatch" };
       const text = htmlToText(parsed.html);
-      if (!matchesText(text, "x"))
+      if (!matchesPreset(text, "x"))
         return { ok: false, code: "post_missing_tag" };
       return { ok: true, postKey, text, authorHandle, createdMs };
     },

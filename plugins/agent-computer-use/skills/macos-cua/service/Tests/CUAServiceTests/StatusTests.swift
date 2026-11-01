@@ -20,11 +20,12 @@ final class StatusTests: XCTestCase {
             running: true,
             permissions: .init(accessibility: true, screen_recording: false, microphone: "not_determined"),
             island: .init(state: "checking", provider: nil, handle: nil, expires_at: nil),
+            claude_desktop: IslandClaudeDesktopStatus.current(),
             ok: true
         )
         let data = try JSONEncoder().encode(value)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        XCTAssertEqual(Set(object.keys), Set(["version", "build", "bundleId", "path", "running", "permissions", "island", "ok"]))
+        XCTAssertEqual(Set(object.keys), Set(["version", "build", "bundleId", "path", "running", "permissions", "island", "claude_desktop", "ok"]))
         let permissions = try XCTUnwrap(object["permissions"] as? [String: Any])
         XCTAssertEqual(Set(permissions.keys), Set(["accessibility", "screen_recording", "microphone"]))
         XCTAssertEqual(permissions["microphone"] as? String, "not_determined")
@@ -40,6 +41,30 @@ final class StatusTests: XCTestCase {
         XCTAssertEqual(CUAServiceStatus.microphoneStatus(.denied), "denied")
         XCTAssertEqual(CUAServiceStatus.microphoneStatus(.restricted), "denied")
         XCTAssertEqual(CUAServiceStatus.microphoneStatus(.notDetermined), "not_determined")
+    }
+
+    func testClaudeDesktopStatusShapeEncodesMetadataOnly() throws {
+        IslandClaudeDesktopStatus.update(pid: nil,
+            snapshot: .init(rows: [.init(status: .working, title: "Task"), .init(status: .idle, title: "Old")],
+                             modelLabel: "Model: Sonnet 5.5 Medium", chatTabActive: true),
+            readAt: Date(timeIntervalSince1970: 1_700_000_000), attempts: 2, lastError: nil)
+        let status = IslandClaudeDesktopStatus.current()
+        XCTAssertNil(status.attached_pid)
+        XCTAssertEqual(status.row_count, 2)
+        XCTAssertEqual(status.rows_by_status["working"], 1)
+        XCTAssertEqual(status.rows_by_status["idle"], 1)
+        XCTAssertEqual(status.rows_by_status["error"], 0)
+        XCTAssertTrue(status.model_picker_seen)
+        XCTAssertTrue(status.manual_accessibility.set)
+        XCTAssertEqual(status.manual_accessibility.attempts, 2)
+        XCTAssertTrue(status.chat_tab_active)
+        XCTAssertTrue(status.last_read_at?.hasSuffix("Z") == true)
+        let data = try JSONEncoder().encode(status)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertNil(object["attached_pid"] as? Int)
+        XCTAssertNotNil(object["attached_pid"] as? NSNull)
+        XCTAssertNil(object["last_read_at"] as? NSNull)
+        XCTAssertNil(String(data: data, encoding: .utf8)?.range(of: "Task"))
     }
 
     func testReadyRequiresRunningServiceAndAllRequiredPermissions() {

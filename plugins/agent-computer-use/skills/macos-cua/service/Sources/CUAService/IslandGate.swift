@@ -16,6 +16,10 @@ enum IslandGateState: Equatable {
     case waking
     case checking(claimID: String, since: Date, follow: IslandGateCheckStatus, post: IslandGateCheckStatus)
     case unlocked(account: IslandGateAccount, verified: Bool, exp: Date)
+    case pendingFollow(account: IslandGateAccount, since: Date)
+    case trial(account: IslandGateAccount, ends: Date)
+    case trialExpired(account: IslandGateAccount)
+    case repostChecking(account: IslandGateAccount, trialEnds: Date?)
     case rejected(message: String)
     case conflict(deviceName: String?, rebindAvailableAt: String?)
     case error(code: String, message: String)
@@ -30,8 +34,6 @@ final class IslandGate: ObservableObject {
     @Published private(set) var wallUpdating = false
     @Published private(set) var wallError: String?
     @Published var handleText = ""
-    @Published var postURL = ""
-    @Published var copied = false
     @Published private(set) var followDone: Bool
     @Published private(set) var postDone: Bool
     @Published var focusInput = false
@@ -42,6 +44,7 @@ final class IslandGate: ObservableObject {
     @Published private(set) var deepLinkBanner: String?
     private(set) var account: IslandGateAccount?
     private var entitlement: String?
+    private var entitlementTier: String?
     private var claimID: String?
     private var pollInterval: TimeInterval = 60
     #if DEBUG
@@ -82,26 +85,41 @@ final class IslandGate: ObservableObject {
         verifier = IslandGateVerifier(publicKey: publicKey ?? IslandGateEnvironment().publicKey)
         self.device = device; fixture = fixtureState != nil
         if let fixtureState { state = fixtureState; account = fixtureAccount }
-        activationObserver = NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification).sink { [weak self] _ in
-            Task { @MainActor in self?.didBecomeActive() }
+        if !IslandGateSafety.restricted {
+            activationObserver = NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification).sink { [weak self] _ in
+                Task { @MainActor in self?.didBecomeActive() }
+            }
         }
     }
     deinit {
         configTask?.cancel(); polling?.cancel(); refreshTask?.cancel(); expiryTask?.cancel(); operation?.cancel(); wallOperation?.cancel()
     }
     var isUnlocked: Bool {
-        if case .unlocked(_, _, let exp) = state { return fixture || Date() < exp }
+        if case .unlocked(_, _, let exp) = state { return Date() < exp }
+        if case .trial(_, let ends) = state { return Date() < ends }
+        if case .repostChecking(_, let ends?) = state { return Date() < ends }
         return false
+    }
+    func isLaunchConfigured(for provider: String) -> Bool {
+        guard let config else { return false }
+        return provider == "linkedin" ? config.linkedin.launch_post_url != nil : config.x.launch_post_id != nil
     }
     var lockedProvider: String {
         if case .locked(let linkedIn, _) = state { return linkedIn ? "linkedin" : "x" }
         if case .submitting = state { return unlockLinkedInRoute ? "linkedin" : "x" }
         if case .waking = state { return unlockLinkedInRoute ? "linkedin" : "x" }
         if case .checking = state { return account?.provider ?? (unlockLinkedInRoute ? "linkedin" : "x") }
+        if case .pendingFollow(let account, _) = state { return account.provider }
+        if case .trial(let account, _) = state { return account.provider }
+        if case .trialExpired(let account) = state { return account.provider }
+        if case .repostChecking(let account, _) = state { return account.provider }
         return account?.provider ?? "x"
     }
     var accessSummary: String {
         if case .unlocked(let account, _, _) = state { return "\(account.handle) · \(account.provider == "x" ? "X" : "LinkedIn")" }
+        if case .trial(let account, _) = state { return "\(account.handle) · trial" }
+        if case .trialExpired(let account) = state { return "\(account.handle) · trial ended" }
+        if case .repostChecking(let account, _) = state { return "\(account.handle) · repost checking" }
         return "Unlock Dynamic Island…"
     }
     var checkETAText: String {
@@ -113,6 +131,10 @@ final class IslandGate: ObservableObject {
         show()
     }
     func transition(_ next: IslandGateState) {
+        if case .trialExpired(let identity) = next {
+            handleText = identity.handle
+            unlockLinkedInRoute = identity.provider == "linkedin"
+        }
         state = next
         expiryTask?.cancel(); expiryTask = nil
         if case .unlocked(_, _, let exp) = next {
@@ -121,6 +143,22 @@ final class IslandGate: ObservableObject {
                 try? await Task.sleep(nanoseconds: UInt64(min(delay + 0.01, 60 * 60 * 24 * 365) * 1_000_000_000))
                 guard !Task.isCancelled, let self else { return }
                 if !self.isUnlocked { self.transition(.locked(message: "Island access has expired. Connect and unlock again to renew it.")) }
+            }
+        }
+        if case .trial(let identity, let ends) = next, ends > Date() {
+            expiryTask = Task { [weak self] in
+                let delay = max(0, ends.timeIntervalSinceNow)
+                try? await Task.sleep(nanoseconds: UInt64(min(delay + 0.01, 60 * 60 * 24 * 365) * 1_000_000_000))
+                guard !Task.isCancelled, let self, case .trial = self.state else { return }
+                self.trialReachedEnd(identity)
+            }
+        }
+        if case .repostChecking(let identity, let ends?) = next, ends > Date() {
+            expiryTask = Task { [weak self] in
+                let delay = max(0, ends.timeIntervalSinceNow)
+                try? await Task.sleep(nanoseconds: UInt64(min(delay + 0.01, 60 * 60 * 24 * 365) * 1_000_000_000))
+                guard !Task.isCancelled, let self, case .repostChecking(_, let currentEnds?) = self.state, currentEnds == ends else { return }
+                self.trialReachedEnd(identity)
             }
         }
         onChange.forEach { $0() }
@@ -136,8 +174,25 @@ final class IslandGate: ObservableObject {
                 showOnWall = account?.show_on_wall ?? false
             }
             entitlement = try store.read("entitlement").flatMap { String(data: $0, encoding: .utf8) }
-            if let entitlement { try accept(entitlement) }
-            else if claimID != nil { transition(.checking(claimID: claimID!, since: Date(), follow: .pending, post: .pending)) }
+            entitlementTier = try store.read("entitlement-tier").flatMap { String(data: $0, encoding: .utf8) }
+            if let entitlement {
+                do { try accept(entitlement) }
+                catch {
+                    if entitlementTier == "trial", let account,
+                       let raw = try store.read("trial-ends-at").flatMap({ String(data: $0, encoding: .utf8) }),
+                       let ends = IslandGateTrialNoticeSchedule.parseDate(raw), ends <= Date() {
+                        transition(isLaunchConfigured(for: account.provider) ? .trialExpired(account: account) : .trial(account: account, ends: ends))
+                    } else { throw error }
+                }
+            }
+            else if entitlementTier == "trial", let account,
+                    let raw = try store.read("trial-ends-at").flatMap({ String(data: $0, encoding: .utf8) }),
+                    let ends = IslandGateTrialNoticeSchedule.parseDate(raw), ends <= Date() {
+                transition(.trial(account: account, ends: ends))
+            }
+            else if let claimID, let data = try store.read("pending-follow"), let pending = try? JSONDecoder().decode(IslandGateAccount.self, from: data) {
+                transition(.pendingFollow(account: pending, since: Date()))
+            } else if claimID != nil { transition(.checking(claimID: claimID!, since: Date(), follow: .pending, post: .pending)) }
         } catch { handle(error) }
         refreshTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -147,7 +202,7 @@ final class IslandGate: ObservableObject {
         }
     }
     func refresh() async {
-        guard !fixture, let device, entitlement != nil else { return }
+        guard !fixture, let device, entitlement != nil || (entitlementTier == "trial" && account != nil) else { return }
         let version = generation
         do {
             let reply = try await client.refreshEntitlement(device: device)
@@ -174,12 +229,25 @@ final class IslandGate: ObservableObject {
         try store.write(try JSONEncoder().encode(identity), name: "account")
         try store.write(Data(token.utf8), name: "entitlement")
         entitlement = token; account = identity
-        clearClaimID()
-        transition(.unlocked(account: identity, verified: identity.verified ?? false, exp: Date(timeIntervalSince1970: claim.exp)))
+        try store.delete("pending-follow")
+        entitlementTier = claim.tier
+        let expiry = Date(timeIntervalSince1970: claim.exp)
+        if entitlementTier == "trial" {
+            try store.write(Data("trial".utf8), name: "entitlement-tier")
+            try store.write(Data(ISO8601DateFormatter().string(from: expiry).utf8), name: "trial-ends-at")
+            transition(.trial(account: identity, ends: expiry))
+            if isLaunchConfigured(for: identity.provider) { IslandGateTrialNoticeSchedule.schedule(accountID: identity.id, trialEnds: expiry, fixture: fixture) }
+            else { IslandGateTrialNoticeSchedule.cancel(accountID: identity.id, fixture: fixture) }
+        } else {
+            try store.delete("entitlement-tier"); try store.delete("trial-ends-at")
+            IslandGateTrialNoticeSchedule.cancel(accountID: identity.id, fixture: fixture)
+            clearClaimID(); transition(.unlocked(account: identity, verified: identity.verified ?? false, exp: expiry))
+        }
     }
     private func clearClaimID() {
         claimID = nil
         try? store.delete("claim-id")
+        try? store.delete("pending-follow")
     }
     private func persistClaimID(_ id: String) throws {
         claimID = id
@@ -195,7 +263,7 @@ final class IslandGate: ObservableObject {
     func opened() {
         windowOpen = true
         updatePolling()
-        if !fixture, !fetchedConfig, configTask == nil, case .locked = state {
+        if !fixture, !fetchedConfig, configTask == nil {
             configTask = Task { [weak self] in
                 guard let self else { return }
                 do {
@@ -203,17 +271,66 @@ final class IslandGate: ObservableObject {
                     guard !Task.isCancelled else { return }
                     self.config = config
                     self.fetchedConfig = true
-                    if let seconds = self.config?.poll_seconds { self.pollInterval = TimeInterval(seconds) }
+                    if let seconds = self.config?.poll_seconds { self.pollInterval = min(300, max(1, TimeInterval(seconds))) }
+                    self.reconcileTrialForLaunchConfig()
                     self.onChange.forEach { $0() }
-                } catch { /* cold-start prefetch is best-effort while locked */ }
+                } catch { /* A later window opening can retry the best-effort prefetch. */ }
                 self.configTask = nil
             }
         }
     }
     func closed() {
         windowOpen = false
+        fetchedConfig = false
         deepLinkBanner = nil
         updatePolling()
+    }
+    private func trialReachedEnd(_ identity: IslandGateAccount) {
+        if isLaunchConfigured(for: identity.provider) {
+            transition(.trialExpired(account: identity))
+        } else {
+            // Keep the identity and claim polling active until a fresh signed token arrives.
+            transition(.trial(account: identity, ends: Date()))
+            Task { await refresh() }
+        }
+    }
+    private func reconcileTrialForLaunchConfig() {
+        guard let account else { return }
+        switch state {
+        case .trial(_, let ends):
+            guard isLaunchConfigured(for: account.provider) else {
+                IslandGateTrialNoticeSchedule.cancel(accountID: account.id, fixture: fixture)
+                return
+            }
+            if ends <= Date() { transition(.trialExpired(account: account)) }
+            else { IslandGateTrialNoticeSchedule.schedule(accountID: account.id, trialEnds: ends, fixture: fixture) }
+        case .repostChecking(_, let ends?):
+            if isLaunchConfigured(for: account.provider), ends <= Date() { transition(.trialExpired(account: account)) }
+        default: break
+        }
+    }
+    private func trialExpiredByServer() {
+        guard let account else { transition(.locked(message: "Your trial ended.")); return }
+        if isLaunchConfigured(for: account.provider) {
+            entitlement = nil
+            do { try store.delete("entitlement") }
+            catch { transition(.error(code: "keychain", message: IslandGateFailure(code: "keychain").message)); return }
+            transition(.trialExpired(account: account))
+        } else if !fixture, configTask == nil {
+            // The server may have launched since our cached prelaunch config. Refresh
+            // config once; further recovery uses the normal poll/refresh intervals.
+            let version = generation
+            configTask = Task { [weak self] in
+                guard let self else { return }
+                defer { self.configTask = nil }
+                do {
+                    let updated = try await self.client.config()
+                    guard version == self.generation else { return }
+                    self.config = updated
+                    if self.isLaunchConfigured(for: account.provider) { self.trialExpiredByServer() }
+                } catch { }
+            }
+        }
     }
     func useLinkedInRoute() {
         guard case .locked = state else { return }
@@ -239,7 +356,7 @@ final class IslandGate: ObservableObject {
         clearClaimID()
         followDone = false; postDone = false; pendingSteps.removeAll()
         defaults?.removeObject(forKey: "islandGate.followDone"); defaults?.removeObject(forKey: "islandGate.postDone")
-        handleText = ""; postURL = ""; transition(.locked(linkedIn: unlockLinkedInRoute))
+        handleText = ""; transition(.locked(linkedIn: unlockLinkedInRoute))
     }
     func changeInput() { transition(.locked(linkedIn: unlockLinkedInRoute)); focusInput = true }
     func setFixtureSteps(follow: Bool, post: Bool) { followDone = follow; postDone = post }
@@ -262,24 +379,22 @@ final class IslandGate: ObservableObject {
                 if self.device == nil { self.device = try IslandGateDevice.load(store: self.store) }
                 guard let device = self.device else { return }
                 guard version == self.generation else { return }
-                if let seconds = self.config?.poll_seconds { self.pollInterval = TimeInterval(seconds) }
+                if let seconds = self.config?.poll_seconds { self.pollInterval = min(300, max(1, TimeInterval(seconds))) }
                 let provider = self.lockedProvider
                 var body: [String: Any] = [
                     "provider": provider, "device_pubkey": device.publicKey,
                     "device_name": Host.current().localizedName ?? "Mac", "show_on_wall": self.showOnWall
                 ]
                 if provider == "linkedin" {
-                    guard let link = IslandGateInputParser.parseLinkedIn(self.handleText) else {
+                    guard let link = IslandGateInputParser.parseLinkedIn(self.handleText), let handle = link.path.split(separator: "/").dropFirst().first else {
                         throw IslandGateFailure(code: "invalid_handle")
                     }
-                    body["post_url"] = link.absoluteString
+                    body["handle"] = String(handle).lowercased()
                 } else {
                     guard let parsed = IslandGateInputParser.parseX(self.handleText) else {
                         throw IslandGateFailure(code: "invalid_handle")
                     }
                     body["handle"] = parsed.handle
-                    let oldPost = self.postURL.trimmingCharacters(in: .whitespacesAndNewlines)
-                    body["post_url"] = parsed.link?.absoluteString ?? (oldPost.isEmpty ? NSNull() : oldPost as Any)
                 }
                 let reply = try await self.client.createClaim(device: device, body: body, onWaking: { wakeTask.cancel() })
                 guard version == self.generation else { return }
@@ -298,19 +413,40 @@ final class IslandGate: ObservableObject {
         handle(error)
     }
     func applyClaim(_ reply: IslandGateClaimResponse, since: Date) throws {
+        if let after = reply.poll_after { pollInterval = min(300, max(1, TimeInterval(after))) }
+        if let id = reply.claim_id { try persistClaimID(id) }
         if let token = reply.entitlement {
             try accept(token)
             return
         }
-        if reply.status == "rejected" || reply.status == "expired" {
+        if reply.status == "trial_expired" || reply.status == "expired" {
+            if let account {
+                if reply.status == "trial_expired" { trialExpiredByServer() }
+                else { transition(.trialExpired(account: account)) }
+            }
+            else { handle(IslandGateFailure(code: reply.reason ?? "trial_expired", rebind_available_at: reply.rebind_available_at)) }
+            return
+        }
+        if reply.status == "rejected" {
             handle(IslandGateFailure(code: reply.reason ?? (reply.status == "expired" ? "claim_expired" : "rejected"), rebind_available_at: reply.rebind_available_at))
             return
         }
         if let id = reply.claim_id {
             try persistClaimID(id)
+            let provider = lockedProvider
+            let followPending = reply.checks?.follow == "pending"
+            if provider == "x", followPending, ["pending_follow", "starting_trial", "pending_verification"].contains(reply.status ?? "") {
+                let handle = provider == "linkedin"
+                    ? IslandGateInputParser.parseLinkedIn(handleText)?.path.split(separator: "/").dropFirst().first.map(String.init) ?? handleText
+                    : IslandGateInputParser.parseX(handleText)?.handle ?? handleText
+                let pending = IslandGateAccount(id: "pending", provider: provider, handle: handle.lowercased())
+                try store.write(try JSONEncoder().encode(pending), name: "pending-follow")
+                if let after = reply.poll_after { pollInterval = min(300, max(1, TimeInterval(after))) }
+                transition(.pendingFollow(account: pending, since: since))
+                return
+            }
             let follow = IslandGateCheckStatus(raw: reply.checks?.follow ?? "pending")
             let post = IslandGateCheckStatus(raw: reply.checks?.post ?? "pending")
-            if let after = reply.poll_after { pollInterval = TimeInterval(after) }
             transition(.checking(claimID: id, since: since, follow: follow, post: post))
             return
         }
@@ -322,11 +458,21 @@ final class IslandGate: ObservableObject {
         do {
             let reply = try await client.pollClaim(id: claimID, device: device)
             guard version == generation else { return }
+            if let after = reply.poll_after { pollInterval = min(300, max(1, TimeInterval(after))) }
             if let token = reply.entitlement {
                 try accept(token)
+                if reply.status == "trial", let account, case .trial(_, let ends) = state {
+                    try persistClaimID(claimID)
+                    if isLaunchConfigured(for: account.provider) { IslandGateTrialNoticeSchedule.schedule(accountID: account.id, trialEnds: ends, fixture: fixture) }
+                }
                 return
             }
             switch reply.status {
+            case "trial":
+                // trial_ends_at is informational; only a verified signed entitlement extends access.
+                break
+            case "trial_expired":
+                trialExpiredByServer()
             case "unlocked":
                 if let token = reply.entitlement { try accept(token) }
                 else { throw IslandGateFailure(code: "server_error") }
@@ -334,7 +480,8 @@ final class IslandGate: ObservableObject {
                 clearClaimID()
                 let reason = reply.reason ?? (reply.status == "expired" ? "claim_expired" : "rejected")
                 handle(IslandGateFailure(code: reason, rebind_available_at: reply.rebind_available_at))
-            case "pending_verification", .none:
+            case "pending_follow", "starting_trial", "pending_verification", .none:
+                if case .pendingFollow = state { break }
                 if case .checking(let id, let since, _, _) = state {
                     let follow = IslandGateCheckStatus(raw: reply.checks?.follow ?? "pending")
                     let post = IslandGateCheckStatus(raw: reply.checks?.post ?? "pending")
@@ -353,6 +500,9 @@ final class IslandGate: ObservableObject {
     private func updatePolling() {
         let shouldPoll: Bool
         if case .checking = state, claimID != nil, !fixture { shouldPoll = true }
+        else if case .pendingFollow = state, claimID != nil, !fixture { shouldPoll = true }
+        else if case .trial = state, claimID != nil, !fixture { shouldPoll = true }
+        else if case .repostChecking = state, claimID != nil, !fixture { shouldPoll = true }
         else { shouldPoll = false }
         if shouldPoll {
             guard polling == nil else { return }
@@ -389,6 +539,8 @@ final class IslandGate: ObservableObject {
             clearClaimID()
             do { try store.delete("entitlement") } catch { transition(.error(code: "keychain", message: IslandGateFailure(code: "keychain").message)); return }
             transition(.locked(message: failure.message))
+        case "trial_expired":
+            trialExpiredByServer()
         case "post_not_found", "post_author_mismatch", "post_too_old", "post_missing_tag":
             transition(.error(code: failure.code, message: failure.message))
         case "invalid_handle", "post_url_invalid", "post_url_used", "follow_missing", "post_missing", "claim_expired", "rejected":
@@ -410,10 +562,10 @@ final class IslandGate: ObservableObject {
         generation += 1; operation?.cancel(); polling?.cancel(); polling = nil
         wallOperation?.cancel(); wallOperation = nil
         showOnWall = false; wallUpdating = false; wallError = nil
-        entitlement = nil; account = nil; handleText = ""; postURL = ""; copied = false
+        entitlement = nil; entitlementTier = nil; account = nil; handleText = ""
         clearClaimID()
         transition(.locked())
-        do { for name in ["entitlement", "account", "claim-id"] { try store.delete(name) } }
+        do { for name in ["entitlement", "entitlement-tier", "trial-ends-at", "account", "claim-id", "pending-follow"] { try store.delete(name) } }
         catch { handle(error) }
     }
     func setLocalWallConsent(_ show: Bool) {
@@ -460,21 +612,19 @@ final class IslandGate: ObservableObject {
     }
     func openFollow() {
         guard let config else { return }
-        var components = URLComponents(string: "https://x.com/intent/follow")!
-        components.queryItems = [URLQueryItem(name: "screen_name", value: config.x.handle)]
-        let url = lockedProvider == "linkedin" ? config.linkedInFollowURL : (config.x.follow_url ?? components.url)
+        let url = lockedProvider == "linkedin" ? config.linkedInFollowURL : (config.x.follow_url ?? config.x.profile_url)
         if let url, url.scheme == "https" { pendingSteps.insert(1); urlOpener.open(url) }
     }
-    func openShare() {
-        guard let config else { handle(IslandGateFailure(code: "server_error")); return }
-        pendingSteps.insert(2)
-        if lockedProvider == "linkedin" {
-            pasteboard.write(config.linkedin.preset_text)
-            copied = true
-            if config.linkedin.share_url.scheme == "https" { urlOpener.open(config.linkedin.share_url) }
-        } else if config.x.intent_url.scheme == "https" {
-            urlOpener.open(config.x.intent_url)
+    func openRepost() {
+        guard let config else { return }
+        let provider = account?.provider ?? lockedProvider
+        let url = provider == "linkedin" ? config.linkedin.repost_url : config.x.repost_url
+        guard let url, url.scheme?.lowercased() == "https" else { return }
+        if let identity = account {
+            if case .trial(_, let ends) = state { transition(.repostChecking(account: identity, trialEnds: ends)) }
+            else { transition(.repostChecking(account: identity, trialEnds: nil)) }
         }
+        urlOpener.open(url)
     }
     func tryMoveHere() {
         guard case .conflict(_, let available) = state else { return }

@@ -70,7 +70,7 @@ test(
 
 test("Neon: LinkedIn admin verify unlock persists", options, async (t) => {
   const h = await harness(t, store);
-  const slug = "neon_li";
+  const slug = "neon-li";
   const postUrl = "https://www.linkedin.com/posts/neon";
   const created = await h.claim(
     "linkedin",

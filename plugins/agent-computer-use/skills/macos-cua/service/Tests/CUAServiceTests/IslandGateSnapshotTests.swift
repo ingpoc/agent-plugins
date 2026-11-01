@@ -28,7 +28,7 @@ final class IslandGateSnapshotTests: XCTestCase {
         XCTAssertFalse(window.isVisible)
     }
     func testEveryOffscreenStateHasUniformWidthAndOpaqueDarkEdges() throws {
-        for state in ["01-start", "02-followed", "03-ready", "04-checking", "05-unlocked", "06-error-offline", "07-error-notfound", "08-waking", "09-linkedin", "conflict", "rejected"] {
+        for state in ["01-start", "02-followed", "03-ready", "04-checking", "05-unlocked", "06-error-offline", "07-error-notfound", "08-waking", "09-linkedin", "conflict", "rejected", "locked-x", "locked-x-ready", "locked-x-no-launch", "locked-x-prelaunch", "locked-linkedin", "pending-follow", "trial-3days", "trial-nudge-day2", "trial-lastday", "trial-prelaunch", "trial-expired", "repost-checking", "unlocked"] {
             let url = output(state)
             let command = try IslandGateSnapshotCommand.parse(["--state", state, "--out", url.path])
             try command.run()
@@ -39,6 +39,7 @@ final class IslandGateSnapshotTests: XCTestCase {
                 for y in [0, bitmap.pixelsHigh - 1] {
                     let color = try XCTUnwrap(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB))
                     XCTAssertGreaterThan(color.alphaComponent, 0.99, "\(state) edge must be opaque")
+                    XCTAssertGreaterThan(color.redComponent, 0.08, "\(state) edge must use the window background rather than clipped black pixels")
                     XCTAssertLessThan(max(color.redComponent, color.greenComponent, color.blueComponent), 0.2, "\(state) edge must be dark")
                 }
             }

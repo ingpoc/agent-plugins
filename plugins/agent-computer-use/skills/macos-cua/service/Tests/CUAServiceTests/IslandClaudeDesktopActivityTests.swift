@@ -4,6 +4,15 @@ import XCTest
 final class IslandClaudeDesktopActivityTests: XCTestCase {
     typealias Activity = IslandClaudeDesktopActivity
 
+    private final class PoisonConversation: Activity.AXElement {
+        var role: String { "AXArticle" }
+        var subrole: String? { XCTFail("must not read conversation subrole"); return nil }
+        var roleDescription: String? { XCTFail("must not read conversation role description"); return nil }
+        func labels() -> [String] { XCTFail("must not read conversation text"); return [] }
+        func isSelected() -> Bool { XCTFail("must not inspect conversation selection"); return false }
+        func childElements(limit: Int) -> [any Activity.AXElement] { XCTFail("must not traverse conversation subtree"); return [] }
+    }
+
     func testStatusLabels() {
         for (word, status) in [("Working", Activity.Status.working), ("Needs input", .needsYou),
             ("Ready", .done), ("Completed", .done), ("Done", .done), ("Idle", .idle), ("Something went wrong", .error)] {
@@ -32,6 +41,93 @@ final class IslandClaudeDesktopActivityTests: XCTestCase {
         XCTAssertNil(Activity.parseModel("Sonnet 5.5 Medium"))
     }
 
+    func testNewSidebarRowsAndSafeTraversal() {
+        let idle = Activity.Element(role: "AXButton", title: "Idle Notes", description: "Mark as unread Idle Notes")
+        let work = Activity.Element(role: "AXButton", title: "Working Research", description: "Mark as unread Working Research", selected: true)
+        let error = Activity.Element(role: "AXButton", title: "Something went wrong Retry", description: "Something went wrong Retry")
+        let root = Activity.Element(role: "AXApplication", children: [
+            Activity.Element(role: "AXGroup", roleDescription: "Sidebar", children: [idle, work, error]),
+            Activity.Element(role: "AXPopUpButton", title: "Model: Sonnet 5.5 Medium"),
+            Activity.Element(role: "AXButton", title: "Stop response"),
+            PoisonConversation(),
+            Activity.Element(role: "AXTextArea", children: [Activity.Element(role: "AXButton", title: "Working Secret editor")])
+        ])
+        let result = Activity.read(root)
+        XCTAssertEqual(Set(result.rows.map(\.title)), ["Notes", "Research", "Retry"])
+        XCTAssertTrue(result.chatTabActive)
+        XCTAssertEqual(result.modelLabel, "Model: Sonnet 5.5 Medium")
+    }
+
+    func testMoreOptionsSiblingAndChatStopSignal() {
+        let root = Activity.Element(role: "AXApplication", children: [
+            Activity.Element(role: "AXGroup", children: [
+                Activity.Element(role: "AXButton", title: "Working Draft"),
+                Activity.Element(role: "AXButton", title: "More options for Draft")
+            ]),
+            Activity.Element(role: "AXButton", description: "Stop")
+        ])
+        let result = Activity.read(root)
+        XCTAssertEqual(Set(result.rows.map(\.title)), ["Draft"])
+        XCTAssertTrue(result.chatTabActive)
+        XCTAssertFalse(Activity.read(Activity.Element(role: "AXApplication")).chatTabActive)
+    }
+
+    func testFinishedWorkingRowsExpireAfterTenSecondsIncludingDisappearance() {
+        var finished: [String: Date] = [:]
+        let working = [Activity.Row(status: .working, title: "Task")]
+        XCTAssertEqual(Activity.retainFinishedRows([], previous: working, finishedAt: &finished, now: Date(timeIntervalSince1970: 100)).first?.status, .done)
+        XCTAssertEqual(Activity.retainFinishedRows([], previous: working, finishedAt: &finished, now: Date(timeIntervalSince1970: 109)).count, 1)
+        XCTAssertEqual(Activity.retainFinishedRows([], previous: [], finishedAt: &finished, now: Date(timeIntervalSince1970: 110)).count, 0)
+
+        let chatWorking = Activity.read(Activity.Element(role: "AXApplication", children: [
+            Activity.Element(role: "AXButton", title: "Stop response")
+        ])).rows
+        var chatFinished: [String: Date] = [:]
+        let chatDone = Activity.retainFinishedRows([], previous: chatWorking, finishedAt: &chatFinished,
+                                                    now: Date(timeIntervalSince1970: 200))
+        XCTAssertEqual(chatDone.first?.title, "Current response")
+        XCTAssertEqual(chatDone.first?.status, .done)
+        XCTAssertEqual(Activity.Snapshot(rows: chatDone).agents.first?.status, "done")
+
+        var resumedFinished = ["Task": Date(timeIntervalSince1970: 300)]
+        let resumed = Activity.retainFinishedRows(working, previous: [Activity.Row(status: .done, title: "Task", completionHeld: true)],
+                                                   finishedAt: &resumedFinished, now: Date(timeIntervalSince1970: 305))
+        XCTAssertEqual(resumed.first?.status, .working)
+        XCTAssertFalse(resumed.first?.completionHeld ?? true)
+        XCTAssertTrue(resumedFinished.isEmpty)
+    }
+
+    func testWorkingToIdleRetainsDoneAndStopDoesNotDuplicateWorkingRow() {
+        let start = Date(timeIntervalSince1970: 100)
+        let working = [Activity.Row(status: .working, title: "Task")]
+        let idle = [Activity.Row(status: .idle, title: "Task")]
+        var deadlines: [String: Date] = [:]
+        let done = Activity.retainFinishedRows(idle, previous: working, finishedAt: &deadlines, now: start)
+        XCTAssertEqual(Activity.Snapshot(rows: done).agents.first?.status, "done")
+        let stillDone = Activity.retainFinishedRows(idle, previous: done, finishedAt: &deadlines, now: start.addingTimeInterval(9))
+        XCTAssertEqual(Activity.Snapshot(rows: stillDone).agents.first?.status, "done")
+        let expired = Activity.retainFinishedRows(idle, previous: stillDone, finishedAt: &deadlines, now: start.addingTimeInterval(10))
+        XCTAssertTrue(Activity.Snapshot(rows: expired).agents.isEmpty)
+        let root = Activity.Element(role: "AXApplication", children: [
+            Activity.Element(role: "AXGroup", subrole: "AXSidePanel", children: [Activity.Element(role: "AXButton", title: "Working Task")]),
+            Activity.Element(role: "AXButton", title: "Stop response")
+        ])
+        let read = Activity.read(root)
+        XCTAssertTrue(read.chatTabActive)
+        XCTAssertEqual(read.agents.count, 1)
+        XCTAssertEqual(read.agents.first?.title, "Task")
+    }
+    func testRowCountLoggingIsBoundedAndWaitsForWindows() {
+        var state = Activity.ReadLogState()
+        XCTAssertFalse(state.shouldLog(rowCount: 0, hasWindows: false))
+        XCTAssertFalse(state.shouldLog(rowCount: 0, hasWindows: false))
+        XCTAssertTrue(state.shouldLog(rowCount: 0, hasWindows: true))
+        XCTAssertFalse(state.shouldLog(rowCount: 0, hasWindows: true))
+        XCTAssertTrue(state.shouldLog(rowCount: 2, hasWindows: true))
+        XCTAssertFalse(state.shouldLog(rowCount: 2, hasWindows: true))
+        XCTAssertTrue(state.shouldLog(rowCount: 0, hasWindows: true))
+        XCTAssertFalse(state.shouldLog(rowCount: 0, hasWindows: true))
+    }
     func testOnlySelectedSoleWorkingRowGetsModel() {
         var snapshot = Activity.Snapshot(rows: [.init(status: .working, title: "First", selected: true)],
                                          modelLabel: "Model: Sonnet 5.5 Medium")
@@ -75,10 +171,10 @@ final class IslandClaudeDesktopActivityTests: XCTestCase {
         XCTAssertTrue(peeks.isEmpty)
         hub.updateClaudeDesktop(.init(rows: [.init(status: .working, title: "First")]))
         XCTAssertEqual(hub.compose().agents.filter { $0.app == "Claude" }.map(\.title), ["First"])
-        hub.updateClaudeDesktop(.init(rows: [.init(status: .done, title: "First")]))
+        hub.updateClaudeDesktop(.init(rows: [.init(status: .done, title: "First", completionHeld: true)]))
         XCTAssertEqual(peeks.count, 1)
-        XCTAssertTrue(hub.compose().agents.filter { $0.app == "Claude" }.isEmpty)
-        hub.updateClaudeDesktop(.init(rows: [.init(status: .done, title: "First")]))
+        XCTAssertEqual(hub.compose().agents.filter { $0.app == "Claude" }.map(\.status), ["done"])
+        hub.updateClaudeDesktop(.init(rows: [.init(status: .done, title: "First", completionHeld: true)]))
         XCTAssertEqual(peeks.count, 1)
         hub.updateClaudeDesktop(.init(rows: [.init(status: .needsYou, title: "Second")]))
         hub.updateClaudeDesktop(.init(rows: [.init(status: .error, title: "Second")]))

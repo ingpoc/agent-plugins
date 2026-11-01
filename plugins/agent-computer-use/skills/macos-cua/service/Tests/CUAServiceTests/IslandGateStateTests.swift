@@ -14,8 +14,8 @@ final class IslandGateMemoryStore: IslandGateStoring {
 final class IslandGateStateTests: XCTestCase {
     private let signingKey = Curve25519.Signing.PrivateKey()
     private let device = IslandGateDevice(id: String(repeating: "d", count: 64), key: P256.Signing.PrivateKey())
-    private func token(exp: Date = Date().addingTimeInterval(86400 * 14)) throws -> String {
-        let payload = try JSONEncoder().encode(IslandGateEntitlement(v: 1, acct: "account", prov: "x", handle: "friend", device_id: device.id, iat: Date().timeIntervalSince1970 - 100, exp: exp.timeIntervalSince1970)).gateBase64URL
+    private func token(exp: Date = Date().addingTimeInterval(86400 * 14), tier: String? = nil) throws -> String {
+        let payload = try JSONEncoder().encode(IslandGateEntitlement(v: 1, acct: "account", prov: "x", handle: "friend", device_id: device.id, iat: Date().timeIntervalSince1970 - 100, exp: exp.timeIntervalSince1970, tier: tier)).gateBase64URL
         return payload + "." + (try signingKey.signature(for: Data(payload.utf8))).gateBase64URL
     }
     private func gate(store: IslandGateMemoryStore = .init()) -> IslandGate {
@@ -64,6 +64,97 @@ final class IslandGateStateTests: XCTestCase {
         let store = IslandGateMemoryStore(), gate = gate(store: store)
         try gate.applyEntitlementForTests(token())
         XCTAssertTrue(gate.isUnlocked); XCTAssertNotNil(store.values["entitlement"])
+    }
+    func testSignedTrialPersistsPollsExpiresAndConverts() async throws {
+        let store = IslandGateMemoryStore()
+        let gate = gate(store: store)
+        gate.setConfigForTests(.init(
+            x: .init(handle: "guru", profile_url: URL(string: "https://x.com/guru")!, intent_url: URL(string: "https://x.com/intent/post")!, preset_text: "legacy", launch_post_id: "123", repost_url: URL(string: "https://x.com/intent/retweet?tweet_id=123")),
+            linkedin: .init(share_url: URL(string: "https://www.linkedin.com/feed/")!, preset_text: "legacy", follow_url: URL(string: "https://www.linkedin.com/in/guru")!, launch_post_url: nil, repost_url: nil),
+            match: nil, grace_days: 14, poll_seconds: 60, check_eta_text: nil
+        ))
+        try gate.armCheckingClaimForTests(id: "trial-claim")
+        let expired = expectation(description: "trial expires")
+        gate.onChange.append { if case .trialExpired = gate.state { expired.fulfill() } }
+        try gate.applyEntitlementForTests(token(exp: Date().addingTimeInterval(0.5), tier: "trial"))
+        guard case .trial = gate.state else { return XCTFail("signed trial tier should unlock trial state") }
+        XCTAssertEqual(String(data: try XCTUnwrap(store.values["entitlement-tier"]), encoding: .utf8), "trial")
+        XCTAssertEqual(String(data: try XCTUnwrap(store.values["claim-id"]), encoding: .utf8), "trial-claim")
+        await fulfillment(of: [expired], timeout: 2)
+        XCTAssertFalse(gate.isUnlocked)
+
+        try gate.applyEntitlementForTests(token())
+        guard case .unlocked = gate.state else { return XCTFail("full entitlement should leave trial state") }
+        XCTAssertNil(store.values["entitlement-tier"])
+        XCTAssertNil(store.values["trial-ends-at"])
+        XCTAssertNil(store.values["claim-id"])
+    }
+    func testExpiredFixtureEntitlementsDoNotBypassSignedExpiry() throws {
+        let account = IslandGateAccount(id: "account", provider: "x", handle: "friend")
+        let gate = IslandGate(fixtureState: .trial(account: account, ends: Date().addingTimeInterval(-1)), fixtureAccount: account)
+        XCTAssertFalse(gate.isUnlocked)
+        let permanent = IslandGate(fixtureState: .unlocked(account: account, verified: true, exp: Date().addingTimeInterval(-1)), fixtureAccount: account)
+        XCTAssertFalse(permanent.isUnlocked)
+    }
+    func testPrelaunchTrialExpiryKeepsIdentityAndRefreshesWithSignedToken() async throws {
+        let store = IslandGateMemoryStore()
+        let account = IslandGateAccount(id: "account", provider: "x", handle: "friend")
+        store.values["account"] = try JSONEncoder().encode(account)
+        store.values["entitlement-tier"] = Data("trial".utf8)
+        store.values["trial-ends-at"] = Data(ISO8601DateFormatter().string(from: Date().addingTimeInterval(-1)).utf8)
+        store.values["entitlement"] = Data(try token(exp: Date().addingTimeInterval(-1), tier: "trial").utf8)
+        let gate = gate(store: store)
+        let fresh = try token(exp: Date().addingTimeInterval(72 * 3600), tier: "trial")
+        IslandGateURLProtocol.handler = { request in
+            XCTAssertEqual(request.url?.path, "/v1/entitlement/refresh")
+            return (200, try JSONSerialization.data(withJSONObject: ["entitlement": fresh]))
+        }
+        defer { gate.stopPollingForTests(); IslandGateURLProtocol.handler = nil }
+        let refreshed = expectation(description: "server returns rolling signed trial")
+        gate.onChange.append { if case .trial(_, let ends) = gate.state, ends.timeIntervalSinceNow > 71 * 3600 { refreshed.fulfill() } }
+        gate.start()
+        XCTAssertFalse(gate.isUnlocked, "Expired signed token must not be extended locally")
+        await fulfillment(of: [refreshed], timeout: 2)
+        XCTAssertTrue(gate.isUnlocked)
+        XCTAssertEqual(gate.account?.id, "account")
+        XCTAssertEqual(String(data: try XCTUnwrap(store.values["entitlement-tier"]), encoding: .utf8), "trial")
+    }
+    func testServerExpiryRefreshesStalePrelaunchConfigOnce() async throws {
+        let gate = gate()
+        try gate.applyEntitlementForTests(token(exp: Date().addingTimeInterval(3600), tier: "trial"))
+        var refreshes = 0
+        var configs = 0
+        IslandGateURLProtocol.handler = { request in
+            if request.url?.path == "/v1/entitlement/refresh" {
+                refreshes += 1
+                return (410, Data(#"{"error":"trial_expired"}"#.utf8))
+            }
+            XCTAssertEqual(request.url?.path, "/v1/config")
+            configs += 1
+            return (200, Data(#"{"x":{"handle":"guru","profile_url":"https://x.com/guru","intent_url":"https://x.com/intent/post","preset_text":"legacy","launch_post_id":"123","repost_url":"https://x.com/intent/retweet?tweet_id=123"},"linkedin":{"share_url":"https://www.linkedin.com/feed/","preset_text":"legacy","follow_url":"https://www.linkedin.com/in/example/"}}"#.utf8))
+        }
+        defer { gate.stopPollingForTests(); IslandGateURLProtocol.handler = nil }
+        let expired = expectation(description: "configured launch expires the cached prelaunch trial")
+        gate.onChange.append { if case .trialExpired = gate.state { expired.fulfill() } }
+        await gate.refresh()
+        await fulfillment(of: [expired], timeout: 2)
+        try await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(refreshes, 1, "An expiry response must not trigger an immediate refresh loop")
+        XCTAssertEqual(configs, 1)
+        XCTAssertFalse(gate.isUnlocked)
+        XCTAssertNotNil(gate.account)
+    }
+    func testUnsignedTrialEndDateDoesNotExtendAccess() async throws {
+        let store = IslandGateMemoryStore()
+        store.values["claim-id"] = Data("claim-unsigned-trial".utf8)
+        let gate = gate(store: store)
+        gate.start()
+        IslandGateURLProtocol.handler = { _ in
+            (200, Data(#"{"status":"trial","trial_ends_at":"2099-01-01T00:00:00.000Z"}"#.utf8))
+        }
+        defer { gate.stopPollingForTests(); IslandGateURLProtocol.handler = nil }
+        await gate.pollOnce()
+        XCTAssertFalse(gate.isUnlocked)
     }
     func testMovedAndRevokedLockImmediatelyAndDeleteToken() throws {
         for code in ["device_moved", "revoked"] {
@@ -125,17 +216,19 @@ final class IslandGateStateTests: XCTestCase {
         XCTAssertTrue(gate.isUnlocked)
         XCTAssertNil(store.values["claim-id"])
     }
-    func testShareCopiesLinkedInPreset() {
-        let gate = gate()
+    func testRepostOpensConfiguredURLWithoutClipboard() {
+        let opener = IslandGateRecordingURLOpener()
+        let liRepost = URL(string: "https://www.linkedin.com/feed/update/urn:li:activity:123456")!
+        let gate = IslandGate(store: IslandGateMemoryStore(), client: IslandGateURLProtocol.client(), publicKey: signingKey.publicKey.rawRepresentation, device: device, urlOpener: opener)
         gate.setConfigForTests(IslandGateConfig(
-            x: .init(handle: "guru", profile_url: URL(string: "https://x.com/guru")!, intent_url: URL(string: "https://x.com/intent/post")!, preset_text: "x"),
-            linkedin: .init(share_url: URL(string: "https://www.linkedin.com/sharing/share-offsite/?url=x")!, preset_text: "li preset", follow_url: URL(string: "https://www.linkedin.com/in/guru")),
+            x: .init(handle: "guru", profile_url: URL(string: "https://x.com/guru")!, intent_url: URL(string: "https://x.com/intent/post")!, preset_text: "x", repost_url: URL(string: "https://x.com/intent/retweet?tweet_id=123456")),
+            linkedin: .init(share_url: URL(string: "https://www.linkedin.com/sharing/share-offsite/?url=x")!, preset_text: "li preset", follow_url: URL(string: "https://www.linkedin.com/in/guru"), repost_url: liRepost),
             match: nil, grace_days: 14, poll_seconds: 60, check_eta_text: nil
         ))
         gate.transition(.locked(linkedIn: true))
-        gate.openShare()
-        XCTAssertEqual((gate.pasteboard as? IslandGateRecordingPasteboard)?.written, ["li preset"])
-        XCTAssertTrue(gate.copied)
+        gate.openRepost()
+        XCTAssertEqual(opener.opened, [liRepost])
+        XCTAssertEqual((gate.pasteboard as? IslandGateRecordingPasteboard)?.written, [])
     }
     func testIslandPanelPermissionAndVoiceStreamingIndependent() throws {
         let gate = gate()
@@ -153,9 +246,17 @@ final class IslandGateStateTests: XCTestCase {
         XCTAssertFalse(island.debugPanel.isShown)
         island.stopStreaming()
         island.ingest(IslandSnapshot(kind: "listening", title: "Listening"))
-        try gate.applyEntitlementForTests(token())
-        XCTAssertTrue(island.panelAllowed)
-        XCTAssertTrue(island.debugPanel.isShown)
+        let status = StatusBarController(gate: gate)
+        let menu = status.makeMenu()
+        let access = try XCTUnwrap(menu.items.first { $0.title == gate.accessSummary })
+        XCTAssertNil(access.submenu)
+        for tier in [String?.some("trial"), nil] {
+            try gate.applyEntitlementForTests(token(tier: tier))
+            XCTAssertTrue(gate.isUnlocked)
+            XCTAssertTrue(island.panelAllowed)
+            XCTAssertTrue(island.debugPanel.isShown)
+            XCTAssertNotNil(access.submenu, "Trial and full tokens unlock the same status menu features")
+        }
         settings.set(false, for: IslandSettingsSchema.showIsland)
         XCTAssertFalse(island.panelAllowed)
         gate.signOut(); XCTAssertFalse(island.panelAllowed)

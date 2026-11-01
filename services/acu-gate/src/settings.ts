@@ -8,18 +8,43 @@ import { readFileSync } from "node:fs";
 export const preset = JSON.parse(
   readFileSync(new URL("../config/preset.json", import.meta.url), "utf8"),
 );
-/** config provides public app configuration. */
-export function config() {
+export function matchesPreset(text: string, provider: "x" | "linkedin") {
+  if (text.toLowerCase().includes(preset.match.hashtag.toLowerCase())) return true;
+  const ref = provider === "x" ? "acu-x" : "acu-li";
+  return (text.match(/https:\/\/[^\s<>"']+/g) ?? []).some((candidate) => {
+    try {
+      const url = new URL(candidate);
+      return !url.username && !url.password && !url.port &&
+        ["ingpoc-agent-plugins.rpg-ramashram.chatgpt.site", "ingpoc-agent-plugins.nicewasp128.chatgpt.site"].includes(url.hostname) &&
+        url.search === `?ref=${ref}` && !url.hash;
+    } catch { return false; }
+  });
+}
+function launchValue(value: unknown, provider: "x" | "linkedin"): string | null {
+  if (value == null || value === "") return null;
+  const valid = typeof value === "string" && (provider === "x"
+    ? /^\d{1,25}$/.test(value)
+    : /^https:\/\/www\.linkedin\.com\/(?:posts\/[^\s?#]+|feed\/update\/urn:li:(?:activity|share|ugcPost):\d+\/?)(?:\?[^\s#]*)?$/.test(value));
+  if (!valid) { process.stderr.write(`ACU gate: invalid ${provider} launch post configuration; disabled\n`); return null; }
+  return value as string;
+}
+export function config(env: NodeJS.ProcessEnv = {}) {
+  const xLaunch = launchValue(env.GATE_X_LAUNCH_POST_ID ?? preset.x.launch_post_id, "x");
+  const liLaunch = launchValue(env.GATE_LINKEDIN_LAUNCH_POST_URL ?? preset.linkedin.launch_post_url, "linkedin");
   return {
     x: {
       ...preset.x,
       profile_url: `https://x.com/${preset.x.handle}`,
-      follow_url: `https://x.com/intent/follow?screen_name=${encodeURIComponent(preset.x.handle)}`,
+      follow_url: `https://x.com/${preset.x.handle}`,
+      launch_post_id: xLaunch,
+      repost_url: xLaunch ? `https://x.com/intent/retweet?tweet_id=${xLaunch}` : null,
       intent_url: `https://x.com/intent/post?text=${encodeURIComponent(preset.x.preset_text)}`,
       preset_text: preset.x.preset_text,
     },
     linkedin: {
       ...preset.linkedin,
+      launch_post_url: liLaunch,
+      repost_url: liLaunch,
       share_url: `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(
         preset.linkedin.preset_text,
       )}`,
@@ -29,6 +54,8 @@ export function config() {
     grace_days: 14,
     poll_seconds: 60,
     check_eta_text: preset.check_eta_text,
+    trial_hours: preset.trial_hours,
+    trial_eta_text: preset.trial_eta_text,
   };
 }
 /** settings validates environment configuration. */

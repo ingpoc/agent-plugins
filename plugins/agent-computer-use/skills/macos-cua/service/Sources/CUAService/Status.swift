@@ -66,6 +66,7 @@ struct CUAServiceStatus: Encodable, Equatable {
     let running: Bool
     let permissions: Permissions
     let island: Island
+    let claude_desktop: IslandClaudeDesktopStatus
     let ok: Bool
 
     static func microphoneStatus(_ status: AVAuthorizationStatus) -> String {
@@ -158,6 +159,7 @@ struct CUAServiceStatus: Encodable, Equatable {
             running: running,
             permissions: permissions,
             island: islandStatus(store: IslandGateStatusKeychain()),
+            claude_desktop: IslandClaudeDesktopStatus.current(),
             ok: isReady(running: running, permissions: permissions)
         )
     }
