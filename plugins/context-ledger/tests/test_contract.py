@@ -175,12 +175,12 @@ class PackageTests(unittest.TestCase):
         self.assertIn("read/write-capable Context Ledger subagent", text)
         self.assertIn("references/lookup-subagent.md", text)
         text = (ROOT / "skills/context-ledger/references/lookup-subagent.md").read_text(encoding="utf-8")
-        self.assertIn("answer these four yourself before adding anything", text)
+        self.assertIn("the parent must answer all four checks for that candidate, not for a batch", text)
         for question in (
-            "Is this a decision or a lesson?",
-            "Which future task will apply it?",
-            "Would a `find` for what that task would type return it?",
-            "Is it already recorded, and does it carry its `scope`?",
+            "**Future task:** When would an agent retrieve this?",
+            "**Changed choice:** What would the agent decide differently, and why?",
+            "**Unique value:** What does this add beyond existing records, code or documentation?",
+            "**Lifetime and scope:** Is it durable, temporary, superseded or limited to one task?",
         ):
             self.assertIn(question, text)
 

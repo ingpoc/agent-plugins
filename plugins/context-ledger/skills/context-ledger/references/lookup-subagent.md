@@ -26,16 +26,18 @@ With caller_scope, gap scope must be fleet or that caller's project/tools, valid
 
 ## Capture and closeout
 
-Exactly one capture path: MCP `get`, `record`, `append_event` (CLI `lookup.py get`, `record`, `append`). After a long workflow lands, answer these four yourself before adding anything, keep only what passes, and decide alone; never ask or report them:
+Exactly one capture path: MCP `get`, `record`, `append_event` (CLI `lookup.py get`, `record`, `append`). Before creating or substantively changing each decision, the parent must answer all four checks for that candidate, not for a batch:
 
-1. Is this a decision or a lesson? A lesson is not the record.
-2. Which future task will apply it? If none, skip.
-3. Would a `find` for what that task would type return it? If not, skip.
-4. Is it already recorded, and does it carry its `scope`?
+1. **Future task:** When would an agent retrieve this? Name a concrete task and a natural `find` query. Broad topical relevance is insufficient; skip if neither is credible.
+2. **Changed choice:** What would the agent decide differently, and why? Keep the trigger, chosen action and rationale; skip observations or lessons without a reusable choice.
+3. **Unique value:** What does this add beyond existing records, code or documentation? The helper checks for duplicates. Skip or update the existing decision by default; preserve a distinct tradeoff, owner preference or causal reason, linking the owning source instead of copying its recipe.
+4. **Lifetime and scope:** Is it durable, temporary, superseded or limited to one task? Require the narrowest supported `scope`. Skip temporary status and one-off authorizations; give a reusable time-bound decision `expires_at` or `replace_when` in its supported trace metadata. Never turn a past task approval into standing authority.
+
+If any check fails, do not write a new decision. Keep compact decision facts in the supported applicability, action, rationale and constraint fields, with source evidence and supported lifetime metadata; never store checklist transcripts or hidden reasoning. No new field or invented outcome is required.
 
 - New decision: `trigger → action`, one or two lines, at most three; `record` requires `scope`.
 - Observation: facts only. A tacit exception is not approval.
-- Update: append outcome, correction or supersession; do not rerun the gate.
+- Update: append factual outcomes without rerunning the gate. A changed choice or applicability must pass the gate before correction or supersession; preserve the old evidence and outcome attribution.
 - Applied: `append_event` `event_type` `applied` with `task_id` and existing `decision_ids`; the outcome sets `applied_event_id`, the only link `close` accepts.
 
 Skip routine status, duplicates, raw prompts, hidden reasoning and secrets.

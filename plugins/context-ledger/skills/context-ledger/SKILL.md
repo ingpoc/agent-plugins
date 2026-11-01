@@ -27,6 +27,6 @@ The [helper protocol](references/lookup-subagent.md#retrieval) owns find-first r
 
 ## Capture and closeout
 
-Send feedback or a candidate to the same helper. Before adding anything, apply the [capture gate](references/lookup-subagent.md#capture-and-closeout) yourself; do not ask the user or narrate its questions. The helper owns duplicate checks and record or append_event writes. Skip routine status, raw prompts, hidden reasoning and secrets.
+Send feedback or a candidate to the same helper. Before creating or substantively changing each decision, apply the [capture gate](references/lookup-subagent.md#capture-and-closeout) yourself, individually rather than per batch. Default to skip or update an existing decision; write a new one only when every check passes. Do not ask the user or narrate internal deliberation. The helper owns duplicate checks and record or append_event writes. Skip routine status, raw prompts, hidden reasoning and secrets.
 
 Send one closeout envelope from that protocol with the same task_id. Include only decisions actually applied and evaluated, their observed results and evidence. No application means no invented outcome. Preserve confirmed write IDs on partial failure. Confidence is observed usefulness, not correctness or independent verification.

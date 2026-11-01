@@ -3,6 +3,7 @@
 ## 0.1.37
 
 - Make helper routing harness-neutral: explicitly select the lowest-cost capable model for retained ledger operations, keep relevance and deletion judgments with the parent, and escalate only unresolved judgments. Report unavailable cheaper-model selection without claiming measured savings.
+- Require an individual capture gate for future task/query, changed choice and rationale, unique value, and lifetime/scope. Default to skip or update existing decisions; substantive corrections pass the same gate, while factual outcomes retain their attribution.
 - Each ledger call shows a context-ledger mark on the right of the ACU Dynamic Island for the calling actor, held while the call runs and dropped 2 s after it (needs ACU with `bin/island_activity.py`; `CONTEXT_LEDGER_ISLAND=0` turns it off).
 
 ## 0.1.36

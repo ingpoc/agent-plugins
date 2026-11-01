@@ -16,6 +16,8 @@ This pass exercised macOS arm64 only. Other architecture targets stay release-bl
 
 **Helper model.** Use the lowest-cost available model that can reliably follow the ledger protocol, selected through the current harness. The parent reviews decisions; the retained helper performs ledger operations. No provider, model name or harness-specific agent role is prescribed. If cheaper-model selection is unavailable, report the limitation; cost savings are not established by these instructions.
 
+**Capture gate.** Before saving or substantively changing each decision, identify its future task and retrieval query, the choice it changes and why, its unique value beyond existing records and owning sources, and its lifetime and narrow scope. Default to skip or update an existing record. One-off approvals, status snapshots and copied implementation recipes do not become reusable decisions. This is an agent protocol; the server's field validation does not establish semantic usefulness.
+
 **Install.**
 
 1. Install the `context-ledger` plugin from this repository's marketplace.
