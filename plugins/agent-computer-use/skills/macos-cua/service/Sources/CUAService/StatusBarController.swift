@@ -124,7 +124,7 @@ final class StatusBarController: NSObject {
 
         // ACU Settings (⌘,): one settings window for the whole plugin (island, Samantha voice, agents, Computer Use).
         let settingsItem = NSMenuItem(
-            title: "ACU Settings…",
+            title: "Settings…",
             action: #selector(openSettings),
             keyEquivalent: ","
         )

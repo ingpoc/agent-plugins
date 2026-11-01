@@ -181,7 +181,11 @@ final class IslandPolishTests: XCTestCase {
         model.dismissCard()
         XCTAssertFalse(model.cardOpen)
         XCTAssertNil(model.compactAgentAttention, "seen failure leaves the compact pill")
-        XCTAssertEqual(model.sourceGroups.first?.failed, false, "and its circle loses the red mark")
+        XCTAssertTrue(model.sourceGroups.isEmpty, "and its circle goes: a seen failure must not read as working (review D)")
+        var rerun = failed; rerun.id = "codex:t2"; rerun.status = "running"
+        model.apply(IslandSnapshot(kind: "idle", agents: [failed, rerun]))
+        XCTAssertEqual(model.sourceGroups.map(\.id), ["Codex"], "a real new run brings the circle back")
+        XCTAssertEqual(model.sourceGroups.first?.failed, false)
         var again = failed; again.last_seen_at = 200
         model.apply(IslandSnapshot(kind: "idle", agents: [again]))
         XCTAssertEqual(model.compactAgentAttention?.agent.id, failed.id, "a new failure shows again")
@@ -348,5 +352,53 @@ final class IslandPolishTests: XCTestCase {
         XCTAssertEqual(IslandTrayRules.cardHeight, 168)
         let m = IslandModel(); m.addToTray([URL(fileURLWithPath: "/tmp/x.txt")]); m.toggleCard()
         XCTAssertEqual(m.cardHeight, 168, "tray card is shorter than the 176 default")
+    }
+
+    // MARK: UI & UX review of 0.2.69 compact pill (A, B, C)
+
+    func testDoneCircleCarriesCheckForTenSecondsThenLeaves() {
+        let now = Date()
+        var done = IslandAgent(id: "claude:claude-code:d", name: "Claude", app: "Claude", title: "Essay", status: "done")
+        done.last_seen_at = now.timeIntervalSince1970
+        var g = IslandSourceGroups.groups(agents: [done], expired: [], hidePending: nil, now: now)
+        XCTAssertEqual(g.map(\.id), ["Claude"]); XCTAssertEqual(g.first?.done, true)
+        XCTAssertEqual(IslandAgentAccessibility.circleLabel(groups: g, agents: [done]), "Claude finished")
+        g = IslandSourceGroups.groups(agents: [done], expired: [], hidePending: nil, now: now.addingTimeInterval(9.9))
+        XCTAssertEqual(g.first?.done, true, "held for 10 s")
+        g = IslandSourceGroups.groups(agents: [done], expired: [], hidePending: nil, now: now.addingTimeInterval(11))
+        XCTAssertTrue(g.isEmpty, "circle leaves after the hold; the row stays in the expanded list")
+        // Desktop observer rows (last_seen_at 0) hold themselves for 10 s.
+        let desk = IslandAgent(id: "claude-desktop:x", name: "Claude", app: "Claude", title: "Essay", status: "done")
+        XCTAssertEqual(IslandSourceGroups.groups(agents: [desk], expired: [], hidePending: nil, now: now.addingTimeInterval(60)).first?.done, true)
+        // A running sibling wins: working circle, no check.
+        let run = IslandAgent(id: "claude-desktop:y", name: "Claude", app: "Claude", title: "Other", status: "running")
+        XCTAssertEqual(IslandSourceGroups.groups(agents: [done, run], expired: [], hidePending: nil, now: now).first?.done, false)
+    }
+
+    func testDoneCircleExpiresWithoutAnotherSnapshot() {
+        let model = IslandModel()
+        var done = IslandAgent(id: "claude:claude-code:d", name: "Claude", app: "Claude", title: "Essay", status: "done")
+        done.last_seen_at = Date().timeIntervalSince1970 - 9.7
+        model.apply(IslandSnapshot(kind: "idle", agents: [done]))
+        XCTAssertEqual(model.sourceGroups.first?.done, true)
+        let gone = expectation(description: "circle leaves")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            XCTAssertTrue(model.sourceGroups.isEmpty); gone.fulfill()
+        }
+        wait(for: [gone], timeout: 2)
+    }
+
+    func testPillOrbBrightAndBreathingOnlyWhileWorking() {
+        XCTAssertEqual(IslandIdleDot.diameter, 12)
+        XCTAssertEqual(IslandIdleDot.opacity(working: false, reduceMotion: false, at: 0.7), 0.4, accuracy: 1e-9)
+        XCTAssertEqual(IslandIdleDot.opacity(working: true, reduceMotion: true, at: 0.7), 1, accuracy: 1e-9)
+        let samples = stride(from: 0.0, through: 2.0, by: 0.05).map { IslandIdleDot.opacity(working: true, reduceMotion: false, at: $0) }
+        XCTAssertEqual(samples.min()!, 0.7, accuracy: 1e-3); XCTAssertEqual(samples.max()!, 1, accuracy: 1e-9)
+        XCTAssertEqual(IslandIdleDot.opacity(working: true, reduceMotion: false, at: 0),
+                       IslandIdleDot.opacity(working: true, reduceMotion: false, at: 2), accuracy: 1e-9, "2 s period")
+        let model = IslandModel()
+        XCTAssertFalse(model.anyAgentRunning)
+        model.apply(IslandSnapshot(kind: "idle", agents: [IslandAgent(id: "codex:r", name: "Codex", app: "Codex", title: "T", status: "running")]))
+        XCTAssertTrue(model.anyAgentRunning)
     }
 }

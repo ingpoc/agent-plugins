@@ -36,6 +36,14 @@ enum IslandAgentAccessibility {
                      done > 0 ? "\(done) done" : nil].compactMap { $0 }
         return "Agents: " + (parts.isEmpty ? "none running" : parts.joined(separator: ", "))
     }
+
+    /// The compact circles' label: "<Agent> finished" while only done circles show (review A).
+    static func circleLabel(groups: [IslandSourceGroup], agents: [IslandAgent]) -> String {
+        if !groups.isEmpty, groups.allSatisfy(\.done) {
+            return groups.map(\.id).joined(separator: ", ") + " finished"
+        }
+        return label(agents)
+    }
 }
 
 

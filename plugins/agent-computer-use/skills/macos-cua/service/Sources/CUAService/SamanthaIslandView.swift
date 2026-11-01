@@ -177,6 +177,38 @@ struct SamanthaArtTile<Content: View>: View {
     }
 }
 
+/// Compact idle / working dot (review 0.2.69 B, C): 12 pt #64D2FF centred in the 74×24 pill, no disk or
+/// ring. Idle 40 %; working 100 % with a 2 s breathe 70–100 % (static 100 % under Reduce Motion).
+struct IslandIdleDot: View {
+    let working: Bool
+    var reduceMotion = false
+    static let diameter: CGFloat = 12
+    static let idleOpacity = 0.4
+    static let breatheLow = 0.7
+    static let breathePeriod: TimeInterval = 2
+
+    static func opacity(working: Bool, reduceMotion: Bool, at t: TimeInterval) -> Double {
+        guard working else { return idleOpacity }
+        guard !reduceMotion else { return 1 }
+        let phase = (1 - cos(2 * .pi * t / breathePeriod)) / 2      // 0 → 1 → 0 over 2 s
+        return 1 - (1 - breatheLow) * phase
+    }
+
+    var body: some View {
+        if working && !reduceMotion {
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
+                dot(Self.opacity(working: true, reduceMotion: false, at: ctx.date.timeIntervalSinceReferenceDate))
+            }
+        } else {
+            dot(Self.opacity(working: working, reduceMotion: reduceMotion, at: 0))
+        }
+    }
+
+    private func dot(_ opacity: Double) -> some View {
+        Circle().fill(IslandPalette.accent).frame(width: Self.diameter, height: Self.diameter).opacity(opacity)
+    }
+}
+
 struct SamanthaOrb: View {
     var size: CGFloat = 16
     var dotSize: CGFloat? = nil
@@ -425,6 +457,14 @@ struct SamanthaSourceCircle: View {
                     .frame(minWidth: 12, minHeight: 12)
                     .background(Capsule().fill(IslandPalette.amber))
                     .offset(x: 3, y: -3)
+            } else if group.done && group.needsYou == 0 {
+                // A: finished — 12 pt green check in the amber "1" slot.
+                Image(systemName: "checkmark")
+                    .font(.system(size: 7, weight: .heavy))
+                    .foregroundStyle(Color.black)
+                    .frame(width: 12, height: 12)
+                    .background(Circle().fill(IslandPalette.green))
+                    .offset(x: 2, y: -2)
             } else if IslandAgentBadge.count(needsYou: group.needsYou) == 1 {
                 Text("1")
                     .font(.system(size: 8, weight: .heavy).monospacedDigit())
@@ -465,6 +505,7 @@ struct SamanthaSourceCircle: View {
     private var accessibility: String {
         if group.processCount > 0 { return "\(group.processCount) local observations detected" }
         var s = group.overflow > 0 ? "\(group.overflow) more agents" : group.id
+        if group.done { s += " finished" }
         if group.needsYou > 0 { s += ", needs you" }
         if group.failed { s += ", an agent failed or stopped updating" }
         if group.expired { s += ", a request timed out" }
@@ -609,6 +650,14 @@ struct SamanthaIslandBar: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(agent.name.isEmpty ? agent.app : agent.name), \(status)\(attention.parentName.map { ", child of \($0)" } ?? "")")
             }
+            if !model.cardOpen, [.idle, .doneSettled].contains(model.presentation), model.compactAgentAttention == nil {
+                // C + B: one 12 pt dot centred in the pill; dim at idle, full and breathing while an agent runs.
+                IslandIdleDot(working: model.anyAgentRunning, reduceMotion: reduceMotion)
+                    .frame(width: rect.width, height: IslandBarLayout.compactHeight)
+                    .offset(x: rect.minX, y: rect.minY)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
@@ -616,13 +665,14 @@ struct SamanthaIslandBar: View {
                                          failedMark: !(compactAttentionShown && model.compactAgentAttention?.agent.status == "error"))
                         // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(IslandAgentAccessibility.label(model.agents))
+                        .accessibilityLabel(IslandAgentAccessibility.circleLabel(groups: model.sourceGroups, agents: model.agents))
                         .accessibilityAddTraits(.isButton)
                         .accessibilityAction { model.openAgentList() }
                         .accessibilityHidden(g.id != model.sourceGroups.first?.id)
                         .onTapGesture { model.openAgentList() }
                         .offset(x: r.minX, y: r.minY)
-                        .transition(circleTransition)
+                        // A: the circle leaves with a 200 ms fade (after the done hold).
+                        .transition(.asymmetric(insertion: circleTransition, removal: .opacity.animation(.easeOut(duration: 0.2))))
                 }
             }
             if let sec = model.secondary, let sr = model.secondaryRect {
@@ -729,7 +779,7 @@ struct SamanthaIslandBar: View {
         .contextMenu {
             if model.secondary != nil { Button("Swap activities") { model.swapActivities() } }
             if !model.tray.isEmpty { Button("Clear File Tray") { model.clearTray() } }
-            Button("ACU Settings…") { model.onOpenSettings?() }
+            Button("Settings…") { model.onOpenSettings?() }
         }
         // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
         .accessibilityElement(children: model.cardOpen ? .contain : .combine)
@@ -840,8 +890,9 @@ struct SamanthaIslandBar: View {
         } else {
             switch model.presentation {
             case .idle, .doneSettled:
-                // The failed / needs-you mark takes this slot; the dim orb drawn under it showed a grey ring.
-                if model.compactAgentAttention == nil { SamanthaOrb(size: size, dim: true) } else { Color.clear.frame(width: size, height: size) }
+                // Idle / working draw the centred IslandIdleDot instead (C); the failed / needs-you mark
+                // takes the pill otherwise. Nothing here, so no grey disk or ring.
+                Color.clear.frame(width: size, height: size)
             case .reconnecting:
                 SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)
             case .listening:

@@ -394,6 +394,10 @@ struct IslandSourceGroup: Equatable, Identifiable {
     var expired = false
     var overflow = 0
     var processCount = 0
+    /// Only finished rows (no run, ask or failure): the circle carries the green check badge.
+    var done = false
+    /// At least one row of this source is running.
+    var running = false
 }
 
 enum IslandSourceGroups {
@@ -401,8 +405,17 @@ enum IslandSourceGroups {
 
     /// `hidePending`: the card the pill itself shows — its row adds no circle/badge (one amber mark).
     /// `seenFailures`: failures the user already opened the island on — no red mark on their circle.
+    /// A finished row keeps its circle (green check) this long after it finished, then the circle leaves.
+    static let doneHold: TimeInterval = 10
+
+    /// True while a done row still earns a circle. `last_seen_at == 0` = a local observer row (Claude
+    /// desktop) that holds itself for `doneHold` and disappears on its own.
+    static func doneVisible(_ a: IslandAgent, now: Date) -> Bool {
+        a.last_seen_at == 0 || now.timeIntervalSince1970 - a.last_seen_at < doneHold
+    }
+
     static func groups(agents: [IslandAgent], expired: [IslandExpired], hidePending: String?,
-                       seenFailures: [String: String] = [:]) -> [IslandSourceGroup] {
+                       seenFailures: [String: String] = [:], now: Date = Date()) -> [IslandSourceGroup] {
         var order: [String] = []
         var map: [String: IslandSourceGroup] = [:]
         func touch(_ name: String, _ app: String) {
@@ -413,15 +426,23 @@ enum IslandSourceGroups {
             if let h = hidePending, a.id == "pending:" + h { continue }
             let name = a.name.isEmpty ? a.app : a.name
             guard !name.isEmpty else { continue }
+            let failure = a.status == "error" || a.status == "stale"
+            // A seen failure adds no circle (it would read as "working"); a done row only for `doneHold`.
+            if failure, !a.needs_you, seenFailures[a.id] == IslandModel.failureSignature(a) { continue }
+            if a.status == "done", !doneVisible(a, now: now) { continue }
             touch(name, a.app)
             if a.needs_you || a.status == "needs_you" { map[name]!.needsYou += 1 }
-            if a.status == "error" || a.status == "stale", seenFailures[a.id] != IslandModel.failureSignature(a) {
-                map[name]!.failed = true
-            }
+            if failure { map[name]!.failed = true }
+            if a.status == "running" { map[name]!.running = true }
+            if a.status == "done" { map[name]!.done = true }
         }
         // Same rule as the compact pill: a live row of the source outranks its older failure mark.
         let runningNames = Set(IslandAgentRows.taskAgents(agents).filter { $0.status == "running" }.map { $0.name.isEmpty ? $0.app : $0.name })
         for name in runningNames { map[name]?.failed = false }
+        for name in order where map[name]!.done {
+            let g = map[name]!
+            if g.running || g.needsYou > 0 || g.failed { map[name]!.done = false }
+        }
         for e in expired {
             let name = e.agent.isEmpty ? e.app : e.agent
             guard !name.isEmpty else { continue }
@@ -563,7 +584,7 @@ final class IslandModel: ObservableObject {
     }
     var reduceMotion: Bool = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     var resolveConfirm: ((Bool) -> Void)?
-    /// Island context menu → ACU Settings… (General pane).
+    /// Island context menu → Settings… (General pane).
     var onOpenSettings: (() -> Void)?
     var onAction: ((IslandCardAction) -> Void)?
     /// Called when the shape/circle geometry changes so the panel can update hit-testing.
@@ -646,6 +667,24 @@ final class IslandModel: ObservableObject {
         for a in agents where ["error", "stale"].contains(a.status) && !a.needs_you {
             seenFailures[a.id] = Self.failureSignature(a)
         }
+    }
+
+    /// Pill orb (B): bright and breathing while any task row runs; dim otherwise.
+    var anyAgentRunning: Bool {
+        agents.contains { $0.status == "running" && !IslandAgentRows.isProcessObservation($0) }
+    }
+
+    private var doneExpiryWork: DispatchWorkItem?
+    /// Re-compose when the next done circle's hold ends (hub done rows live 3 min; the circle 10 s).
+    private func scheduleDoneExpiry(now: Date) {
+        let next = agents.filter { $0.status == "done" && $0.last_seen_at > 0 }
+            .map { $0.last_seen_at + IslandSourceGroups.doneHold - now.timeIntervalSince1970 }
+            .filter { $0 > 0 }.min()
+        doneExpiryWork?.cancel(); doneExpiryWork = nil
+        guard let next else { return }
+        let work = DispatchWorkItem { [weak self] in self?.refresh(now: Date()) }
+        doneExpiryWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + next + 0.05, execute: work)
     }
 
     var compactAgentAttention: IslandAgentRow? {
@@ -1253,8 +1292,10 @@ final class IslandModel: ObservableObject {
         let nextCircles = idleNow && idleActivity == "samantha" ? []
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
         if nextCircles != circles { circles = nextCircles }
-        let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil, seenFailures: seenFailures)
+        let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil,
+                                               seenFailures: seenFailures, now: now)
         if groups != sourceGroups { sourceGroups = groups }
+        scheduleDoneExpiry(now: now)
         // Final-60 s countdown for the pill's card.
         var remaining: Int?
         if let e = agentApproval?.expiresDate {

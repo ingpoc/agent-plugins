@@ -56,12 +56,20 @@ final class IslandFixtureRenderTests: XCTestCase {
             return a
         }
         let claude = agent("claude-desktop:a", "Claude", "History of lighthouses essay", "running")
+        // A Claude Code turn that finished `ago` seconds before the render (the circle holds 10 s).
+        func doneAt(_ ago: TimeInterval) -> IslandAgent {
+            var a = agent("claude:claude-code:d", "Claude", "History of lighthouses essay", "done")
+            a.last_seen_at = Date().timeIntervalSince1970 - ago
+            return a
+        }
         let states: [(String, [IslandAgent])] = [
             ("1-idle", []),
             ("2-one-working", [claude]),
             ("3-several", [claude, agent("codex:b", "Codex", "Fix island", "running"), agent("cursor:c", "Cursor", "Review PR", "running")]),
             ("4-failed", [agent("codex:f", "Codex", "Run release tests", "error")]),
-            ("5-done", [agent("claude-desktop:a", "Claude", "History of lighthouses essay", "done")]),
+            ("5-done", [doneAt(0)]),
+            ("5-done-t0", [doneAt(0)]),
+            ("5-done-t11", [doneAt(11)]),
             ("6-needs-you", [agent("claude:claude-code:p", "Claude", "Permission requested", "needs_you", needs: true)]),
         ]
         for (name, agents) in states {
@@ -70,6 +78,12 @@ final class IslandFixtureRenderTests: XCTestCase {
             model.apply(IslandSnapshot(kind: "idle", agents: agents))
             try await save(model, "compact-" + name, dir: dir)
         }
+        // Working under Reduce Motion: the orb is static at 100 %.
+        let still = IslandModel()
+        still.idleActivity = "duo"
+        still.systemReduceMotion = true
+        still.apply(IslandSnapshot(kind: "idle", agents: [claude]))
+        try await save(still, "compact-2-one-working-reduce-motion", dir: dir)
         // A Claude Code sign-in failure while a Claude desktop chat replies: the pill yields to the live row.
         let yielding = IslandModel()
         yielding.idleActivity = "duo"

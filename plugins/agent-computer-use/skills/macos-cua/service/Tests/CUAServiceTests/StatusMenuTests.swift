@@ -3,13 +3,13 @@ import SwiftUI
 import XCTest
 @testable import CUAService
 
-/// The menu-bar menu: one "ACU Settings…" (⌘,) entry point, no Voice/Island Settings leftovers.
+/// The menu-bar menu: one "Settings…" (⌘,) entry point, no Voice/Island Settings leftovers.
 @MainActor
 final class StatusMenuTests: XCTestCase {
     func testMenuHasOneACUSettingsItemWithCommandComma() {
         let menu = StatusBarController().makeMenu()
         let titles = menu.items.map(\.title)
-        let settings = menu.items.filter { $0.title == "ACU Settings…" }
+        let settings = menu.items.filter { $0.title == "Settings…" }
         XCTAssertEqual(settings.count, 1)
         XCTAssertEqual(settings.first?.keyEquivalent, ",")
         XCTAssertEqual(settings.first?.keyEquivalentModifierMask, [.command])
@@ -28,7 +28,7 @@ final class StatusMenuTests: XCTestCase {
         XCTAssertFalse(menu.items.contains { $0.keyEquivalent == shortcut.character.lowercased() && !$0.keyEquivalent.isEmpty
             && $0.keyEquivalentModifierMask.contains(.control) }, "no menu item carries the island hotkey")
         XCTAssertNotNil(menu.items.first { $0.title == "Show Island in Menu Bar" }?.action)
-        XCTAssertNotNil(menu.items.first { $0.title == "ACU Settings…" })
+        XCTAssertNotNil(menu.items.first { $0.title == "Settings…" })
         XCTAssertNotNil(menu.items.first { $0.title == "Quit Agent Computer Use" })
     }
 
