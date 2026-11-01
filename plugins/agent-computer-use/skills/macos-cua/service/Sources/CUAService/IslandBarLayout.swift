@@ -103,6 +103,14 @@ enum IslandBarLayout {
     }
 
     /// Source circles, right to left from the shape's left edge (one per source, max 3 + "+N").
+    /// Compact status dot (Guru, 2026-11-01 19:19 IST; like the iPhone's camera-in-use dot): solid 6 pt,
+    /// 9 pt in from the pill's right end, vertically centred (9 pt top and bottom in the 24 pt pill).
+    static let compactDotDiameter: CGFloat = 6
+    static func compactDotRect(shape: CGRect) -> CGRect {
+        CGRect(x: shape.maxX - 9 - compactDotDiameter, y: shape.minY + (compactHeight - compactDotDiameter) / 2,
+               width: compactDotDiameter, height: compactDotDiameter)
+    }
+
     static func agentRects(shape: CGRect, count: Int) -> [CGRect] {
         (0..<max(0, count)).map { i in
             CGRect(x: shape.minX - circleGap - circleDiameter - CGFloat(i) * (circleDiameter + circleSpacing),

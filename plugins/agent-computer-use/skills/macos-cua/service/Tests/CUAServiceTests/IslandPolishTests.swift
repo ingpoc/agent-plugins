@@ -388,29 +388,99 @@ final class IslandPolishTests: XCTestCase {
         wait(for: [gone], timeout: 2)
     }
 
-    /// Guru, 2026-11-01 19:16 IST: no dot. Idle and working draw nothing inside the pill; working is the circle.
-    func testCompactPillDrawsNoOrbIdleOrWorking() throws {
-        for agents in [[], [IslandAgent(id: "codex:r", name: "Codex", app: "Codex", title: "T", status: "running")]] {
+    /// Guru, 2026-11-01 19:19 IST: idle is the empty pill; working adds one solid 6 pt #64D2FF dot,
+    /// 9 pt in from the right end and vertically centred; done shows no dot.
+    func testCompactPillWorkingDotOnlyWhileRunning() throws {
+        let shape = CGRect(x: 100, y: 0, width: 74, height: 24)
+        XCTAssertEqual(IslandBarLayout.compactDotRect(shape: shape), CGRect(x: 159, y: 9, width: 6, height: 6))
+        var done = IslandAgent(id: "claude:claude-code:d", name: "Claude", app: "Claude", title: "T", status: "done")
+        done.last_seen_at = Date().timeIntervalSince1970
+        let running = IslandAgent(id: "codex:r", name: "Codex", app: "Codex", title: "T", status: "running")
+        for (agents, expectDot) in [([IslandAgent](), false), ([running], true), ([done], false)] {
             let model = IslandModel()
             model.idleActivity = "duo"
             model.apply(IslandSnapshot(kind: "idle", agents: agents))
+            XCTAssertEqual(model.anyAgentRunning, expectDot)
             let r = ImageRenderer(content: SamanthaIslandBar(model: model).environment(\.colorScheme, .dark))
-            r.scale = 1
+            r.scale = 2
             let img = try XCTUnwrap(r.cgImage)
-            let inner = model.shapeRect.insetBy(dx: 14, dy: 5)
             let cs = CGColorSpace(name: CGColorSpace.sRGB)!
             let ctx = try XCTUnwrap(CGContext(data: nil, width: img.width, height: img.height, bitsPerComponent: 8, bytesPerRow: img.width * 4,
                                               space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
             ctx.draw(img, in: CGRect(x: 0, y: 0, width: img.width, height: img.height))
             let px = ctx.data!.bindMemory(to: UInt8.self, capacity: img.width * img.height * 4)
-            var brightest = 0
-            for y in Int(inner.minY)..<Int(inner.maxY) {
-                for x in Int(inner.minX)..<Int(inner.maxX) {
-                    let o = (y * img.width + x) * 4   // CGContext rows run top-down in memory
-                    brightest = max(brightest, Int(px[o]), Int(px[o + 1]), Int(px[o + 2]))
-                }
+            func rgb(_ x: CGFloat, _ y: CGFloat) -> (Int, Int, Int) {
+                let o = (Int(y * 2) * img.width + Int(x * 2)) * 4   // rows run top-down in memory
+                return (Int(px[o]), Int(px[o + 1]), Int(px[o + 2]))
             }
-            XCTAssertLessThan(brightest, 24, "pill interior must be plain black (agents: \(agents.count))")
+            let dot = IslandBarLayout.compactDotRect(shape: model.shapeRect)
+            let c = rgb(dot.midX, dot.midY)
+            if expectDot {
+                XCTAssertGreaterThan(c.2, 200, "working: #64D2FF dot at the right"); XCTAssertGreaterThan(c.1, 150); XCTAssertLessThan(c.0, 160)
+            } else {
+                XCTAssertLessThan(max(c.0, c.1, c.2), 24, "no dot (agents: \(agents.map(\.status)))")
+            }
+            // Everything else inside the pill is plain black: no orb on the left or centre.
+            let inner = model.shapeRect.insetBy(dx: 14, dy: 5)
+            var brightest = 0
+            var y = inner.minY
+            while y < inner.maxY {
+                var x = inner.minX
+                while x < inner.maxX {
+                    if !dot.insetBy(dx: -2, dy: -2).contains(CGPoint(x: x, y: y)) {
+                        let p = rgb(x, y); brightest = max(brightest, p.0, p.1, p.2)
+                    }
+                    x += 0.5
+                }
+                y += 0.5
+            }
+            XCTAssertLessThan(brightest, 24, "pill interior outside the dot is black (agents: \(agents.map(\.status)))")
         }
+    }
+
+    /// Guru, 2026-11-01 19:20 IST: red (unseen failure) > amber (needs you) > blue (working) > none.
+    func testCompactDotPrecedenceAndSeenFailureClearsRed() {
+        func a(_ id: String, _ status: String, needs: Bool = false) -> IslandAgent {
+            IslandAgent(id: id, name: id, app: id, title: "T", status: status, needs_you: needs, last_seen_at: 100)
+        }
+        let run = a("Cursor", "running"), ask = a("Claude", "needs_you", needs: true), fail = a("Codex", "error")
+        let cases: [([IslandAgent], IslandCompactDot?)] = [
+            ([], nil), ([run], .working), ([run, ask], .needsYou), ([run, ask, fail], .failed),
+            ([fail, run], .failed), ([a("Codex", "stale")], .failed), ([a("Claude", "done")], nil),
+        ]
+        for (agents, want) in cases {
+            let m = IslandModel(); m.apply(IslandSnapshot(kind: "idle", agents: agents))
+            XCTAssertEqual(m.compactDot, want, "\(agents.map(\.status))")
+        }
+        XCTAssertEqual(IslandCompactDot.failed.color, IslandPalette.red)
+        XCTAssertEqual(IslandCompactDot.needsYou.color, IslandPalette.amber)
+        XCTAssertEqual(IslandCompactDot.working.color, IslandPalette.accent)
+        // Seen: the red clears (with the circle); what remains decides the dot.
+        let m = IslandModel(); m.apply(IslandSnapshot(kind: "idle", agents: [fail, run]))
+        m.openAgentList(); m.dismissCard()
+        XCTAssertEqual(m.compactDot, .working)
+        XCTAssertFalse(m.sourceGroups.contains { $0.id == "Codex" })
+        m.apply(IslandSnapshot(kind: "idle", agents: [fail]))
+        XCTAssertNil(m.compactDot, "seen failure alone: idle, no dot")
+    }
+
+    /// The red dot shows when the failure's one-line text is hidden (it yields to a new run of the same app).
+    func testRedDotRendersWhenFailureTextYields() throws {
+        let old = IslandAgent(id: "codex:f", name: "Codex", app: "Codex", title: "Old", status: "error", last_seen_at: 100)
+        let new = IslandAgent(id: "codex:n", name: "Codex", app: "Codex", title: "New", status: "running", last_seen_at: 100)
+        let model = IslandModel(); model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "idle", agents: [old, new]))
+        XCTAssertNil(model.compactAgentAttention)
+        XCTAssertEqual(model.compactDot, .failed)
+        let r = ImageRenderer(content: SamanthaIslandBar(model: model).environment(\.colorScheme, .dark))
+        r.scale = 2
+        let img = try XCTUnwrap(r.cgImage)
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: img.width, height: img.height, bitsPerComponent: 8, bytesPerRow: img.width * 4,
+                                          space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.draw(img, in: CGRect(x: 0, y: 0, width: img.width, height: img.height))
+        let px = ctx.data!.bindMemory(to: UInt8.self, capacity: img.width * img.height * 4)
+        let d = IslandBarLayout.compactDotRect(shape: model.shapeRect)
+        let o = (Int(d.midY * 2) * img.width + Int(d.midX * 2)) * 4
+        XCTAssertGreaterThan(Int(px[o]), 200, "red"); XCTAssertLessThan(Int(px[o + 1]), 120); XCTAssertLessThan(Int(px[o + 2]), 110)
     }
 }

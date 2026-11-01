@@ -386,6 +386,17 @@ enum IslandCircles {
 
 // MARK: - Source circles (left of the pill): one circle per source, max 3 + "+N"
 
+enum IslandCompactDot: Equatable {
+    case failed, needsYou, working
+    var color: Color {
+        switch self {
+        case .failed: return IslandPalette.red        // #FF453A
+        case .needsYou: return IslandPalette.amber
+        case .working: return IslandPalette.accent    // #64D2FF
+        }
+    }
+}
+
 struct IslandSourceGroup: Equatable, Identifiable {
     var id: String            // source/agent name ("Grok Bot"), or "overflow"
     var app: String = ""
@@ -667,6 +678,23 @@ final class IslandModel: ObservableObject {
         for a in agents where ["error", "stale"].contains(a.status) && !a.needs_you {
             seenFailures[a.id] = Self.failureSignature(a)
         }
+    }
+
+    /// Any task row running (process observations excluded): the compact pill shows the working dot.
+    var anyAgentRunning: Bool {
+        agents.contains { $0.status == "running" && !IslandAgentRows.isProcessObservation($0) }
+    }
+
+    /// The compact pill's 6 pt right-hand dot (Guru, 2026-11-01): red for an unseen failure, then amber
+    /// for needs-you, then blue for working; none at idle or done. A seen failure clears its red.
+    var compactDot: IslandCompactDot? {
+        let tasks = agents.filter { !IslandAgentRows.isProcessObservation($0) }
+        if tasks.contains(where: { a in
+            !a.needs_you && (a.status == "error" || a.status == "stale") && seenFailures[a.id] != Self.failureSignature(a)
+        }) { return .failed }
+        if tasks.contains(where: { $0.needs_you || $0.status == "needs_you" }) { return .needsYou }
+        if anyAgentRunning { return .working }
+        return nil
     }
 
     private var doneExpiryWork: DispatchWorkItem?

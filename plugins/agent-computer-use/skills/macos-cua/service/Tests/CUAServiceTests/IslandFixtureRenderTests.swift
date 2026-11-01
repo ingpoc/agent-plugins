@@ -78,6 +78,12 @@ final class IslandFixtureRenderTests: XCTestCase {
             model.apply(IslandSnapshot(kind: "idle", agents: agents))
             try await save(model, "compact-" + name, dir: dir)
         }
+        // Failed with its text yielded to a new Codex run: the red 6 pt dot keeps the failure visible.
+        let red = IslandModel()
+        red.idleActivity = "duo"
+        red.apply(IslandSnapshot(kind: "idle", agents: [agent("codex:f", "Codex", "Run release tests", "error"),
+                                                         agent("codex:n", "Codex", "Re-run release tests", "running")]))
+        try await save(red, "compact-4b-failed-red-dot", dir: dir)
         // A Claude Code sign-in failure while a Claude desktop chat replies: the pill yields to the live row.
         let yielding = IslandModel()
         yielding.idleActivity = "duo"

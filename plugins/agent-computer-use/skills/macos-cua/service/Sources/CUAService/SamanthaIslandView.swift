@@ -618,6 +618,17 @@ struct SamanthaIslandBar: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(agent.name.isEmpty ? agent.app : agent.name), \(status)\(attention.parentName.map { ", child of \($0)" } ?? "")")
             }
+            if !model.cardOpen, [.idle, .doneSettled].contains(model.presentation),
+               model.compactAgentAttention == nil, let dot = model.compactDot {
+                // One solid 6 pt dot at the pill's right (no glow, ring or animation): red failed > amber
+                // needs-you > blue working. Idle and done: none. Hidden while the one-line text shows.
+                let d = IslandBarLayout.compactDotRect(shape: rect)
+                Circle().fill(dot.color)
+                    .frame(width: d.width, height: d.height)
+                    .offset(x: d.minX, y: d.minY)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
@@ -850,8 +861,8 @@ struct SamanthaIslandBar: View {
         } else {
             switch model.presentation {
             case .idle, .doneSettled:
-                // No orb (Guru, 2026-11-01): idle is the empty pill, working is the agent circle beside it,
-                // and the failed / needs-you text takes the pill.
+                // No orb here (Guru, 2026-11-01): idle is the empty pill; working adds the 6 pt right-hand
+                // dot and the agent circle; the failed / needs-you text takes the pill.
                 Color.clear.frame(width: size, height: size)
             case .reconnecting:
                 SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)
