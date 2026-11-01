@@ -11,6 +11,7 @@ import os
 /// never become key or main (clicks never take focus).
 @MainActor
 final class SamanthaMenuBarIslandPanel {
+    private static let gateLog = Logger(subsystem: "com.ingpoc.cua-service", category: "gate")
     private static let log = Logger(subsystem: "com.ingpoc.cua-service", category: "island")
     /// Pointer source for hover and hit testing; tests park it off-screen so a real pointer resting
     /// over the island can't open or pin cards mid-test.
@@ -107,7 +108,7 @@ final class SamanthaMenuBarIslandPanel {
         startEnvTimer()
         evaluateEnvironment()
         if !envHidden {
-            panel?.orderFrontRegardless()
+            setPanelVisibility(true, reason: "allowed")
             startPointerTracking()
         }
     }
@@ -165,14 +166,25 @@ final class SamanthaMenuBarIslandPanel {
     /// Test hooks: the one panel instance, and whether the island is meant to be up.
     var panelID: ObjectIdentifier? { panel.map(ObjectIdentifier.init) }
     var isShown: Bool { wantsVisible }
+    var actualVisible: Bool { panel?.isVisible ?? false }
+    var actualFrame: NSRect? { panel?.frame }
 
-    func hide() {
+    private func setPanelVisibility(_ visible: Bool, reason: String) {
+        guard let panel else { return }
+        let changed = panel.isVisible != visible
+        if visible { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
+        if changed {
+            Self.gateLog.info("Island panel visible=\(visible, privacy: .public) reason=\(reason, privacy: .public)")
+        }
+    }
+
+    func hide(reason: String = "setting_off") {
         CredentialEntryController.shared.cancelActive()
         model?.endTextEntry()
         model?.endKeyboard(close: false)
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
         wantsVisible = false
-        panel?.orderOut(nil)
+        setPanelVisibility(false, reason: reason)
         stopPointerTracking()
         envTimer?.invalidate()
         envTimer = nil
@@ -226,11 +238,11 @@ final class SamanthaMenuBarIslandPanel {
         }
         envHidden = hidden
         if hidden {
-            panel.orderOut(nil)
+            setPanelVisibility(false, reason: "env_hidden")
             stopPointerTracking()
         } else {
             reposition(on: screen, logCorrection: true)
-            panel.orderFrontRegardless()
+            setPanelVisibility(true, reason: "allowed")
             startPointerTracking()
         }
     }

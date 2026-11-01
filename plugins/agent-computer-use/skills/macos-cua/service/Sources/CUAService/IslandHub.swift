@@ -335,10 +335,20 @@ final class IslandHub {
     /// Unix socket path actually bound (nil = not listening → the helper falls back to HTTP).
     static var boundSocketPath: String?
 
+    /// Supplied by the running service; this route exposes panel metadata only to a verified
+    /// same-uid Unix-socket peer.
+    var onGateLiveStatus: (() -> IslandGateLiveStatus)?
+
     func handle(_ r: Request, port: UInt16, now: Date = Date()) -> Response {
         if r.headers["origin"] != nil { return .err(403, "browser-origin requests are not allowed") }
         if r.method == "GET", r.path == "/health" {
             return .ok(["service": "island-hub"])
+        }
+        if r.method == "GET", r.path == "/api/island/gate-status" {
+            guard r.peerVerified else { return .err(403, "local peer required") }
+            guard let live = onGateLiveStatus?() else { return .err(503, "gate status unavailable") }
+            return .ok(["state": live.state, "panel_visible": live.panel_visible ? "true" : "false",
+                        "panel_frame": live.panel_frame.map { "\($0.x),\($0.y),\($0.width),\($0.height)" } ?? "null"])
         }
         if !r.peerVerified {
             let host = (r.headers["host"] ?? "").lowercased()

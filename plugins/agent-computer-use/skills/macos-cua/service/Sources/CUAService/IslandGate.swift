@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import Foundation
+import os
 
 enum IslandGateCheckStatus: String, Equatable {
     case pending, confirmed, failed
@@ -23,10 +24,28 @@ enum IslandGateState: Equatable {
     case rejected(message: String)
     case conflict(deviceName: String?, rebindAvailableAt: String?)
     case error(code: String, message: String)
+
+    var name: String {
+        switch self {
+        case .locked: return "locked"
+        case .submitting: return "submitting"
+        case .waking: return "waking"
+        case .checking: return "checking"
+        case .unlocked: return "unlocked"
+        case .pendingFollow: return "pending_follow"
+        case .trial: return "trial"
+        case .trialExpired: return "trial_expired"
+        case .repostChecking: return "repost_checking"
+        case .rejected: return "rejected"
+        case .conflict: return "conflict"
+        case .error: return "error"
+        }
+    }
 }
 
 @MainActor
 final class IslandGate: ObservableObject {
+    private static let log = Logger(subsystem: "com.ingpoc.cua-service", category: "gate")
     static let shared = IslandGate()
     @Published private(set) var state: IslandGateState = .locked()
     @Published private(set) var config: IslandGateConfig? = .bundled
@@ -44,6 +63,7 @@ final class IslandGate: ObservableObject {
     @Published private(set) var deepLinkBanner: String?
     private(set) var account: IslandGateAccount?
     private var entitlement: String?
+    private var verifiedEntitlementExpiry: Date?
     private var entitlementTier: String?
     private var claimID: String?
     private var pollInterval: TimeInterval = 60
@@ -95,11 +115,13 @@ final class IslandGate: ObservableObject {
         configTask?.cancel(); polling?.cancel(); refreshTask?.cancel(); expiryTask?.cancel(); operation?.cancel(); wallOperation?.cancel()
     }
     var isUnlocked: Bool {
+        if entitlement != nil, let verifiedEntitlementExpiry { return Date() < verifiedEntitlementExpiry }
         if case .unlocked(_, _, let exp) = state { return Date() < exp }
         if case .trial(_, let ends) = state { return Date() < ends }
         if case .repostChecking(_, let ends?) = state { return Date() < ends }
         return false
     }
+    var stateName: String { state.name }
     func isLaunchConfigured(for provider: String) -> Bool {
         guard let config else { return false }
         return provider == "linkedin" ? config.linkedin.launch_post_url != nil : config.x.launch_post_id != nil
@@ -131,6 +153,7 @@ final class IslandGate: ObservableObject {
         show()
     }
     func transition(_ next: IslandGateState) {
+        Self.log.info("Gate state \(self.state.name, privacy: .public) -> \(next.name, privacy: .public)")
         if case .trialExpired(let identity) = next {
             handleText = identity.handle
             unlockLinkedInRoute = identity.provider == "linkedin"
@@ -159,6 +182,14 @@ final class IslandGate: ObservableObject {
                 try? await Task.sleep(nanoseconds: UInt64(min(delay + 0.01, 60 * 60 * 24 * 365) * 1_000_000_000))
                 guard !Task.isCancelled, let self, case .repostChecking(_, let currentEnds?) = self.state, currentEnds == ends else { return }
                 self.trialReachedEnd(identity)
+            }
+        }
+        if expiryTask == nil, entitlement != nil, let expiry = verifiedEntitlementExpiry, expiry > Date() {
+            expiryTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(min(max(0, expiry.timeIntervalSinceNow + 0.01), 60 * 60 * 24 * 365) * 1_000_000_000))
+                guard !Task.isCancelled, let self, !self.isUnlocked else { return }
+                if self.entitlementTier == "trial", let account = self.account { self.trialReachedEnd(account) }
+                else { self.transition(.locked(message: "Island access has expired. Connect to renew it.")) }
             }
         }
         onChange.forEach { $0() }
@@ -211,6 +242,10 @@ final class IslandGate: ObservableObject {
         } catch {
             guard version == generation else { return }
             let failure = error as? IslandGateFailure
+            let bindingRemoved = (failure?.code == "revoked" && failure?.httpStatus == 403)
+                || (failure?.code == "device_moved" && failure?.httpStatus == 409)
+                || (failure?.code == "not_found" && failure?.httpStatus == 404)
+            if !bindingRemoved, entitlement != nil, let verifiedEntitlementExpiry, Date() < verifiedEntitlementExpiry { return }
             if failure?.code == "offline" || failure?.code == "service_wake_timeout" || (failure?.httpStatus ?? 0) >= 500 {
                 if let entitlement, (try? verifier.verify(entitlement, deviceID: device.id)) != nil { return }
                 if case .unlocked = state { transition(.locked(message: "Connect to renew your island access.")) }
@@ -226,6 +261,8 @@ final class IslandGate: ObservableObject {
         var identity = account ?? IslandGateAccount(id: claim.acct, provider: claim.prov, handle: claim.handle)
         identity.show_on_wall = showOnWall
         guard identity.id == claim.acct else { throw IslandGateFailure(code: "invalid_entitlement") }
+        entitlement = token
+        verifiedEntitlementExpiry = Date(timeIntervalSince1970: claim.exp)
         try store.write(try JSONEncoder().encode(identity), name: "account")
         try store.write(Data(token.utf8), name: "entitlement")
         entitlement = token; account = identity

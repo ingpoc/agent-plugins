@@ -211,12 +211,12 @@ final class IslandGateClient {
     }
 
     func refreshEntitlement(device: IslandGateDevice) async throws -> IslandGateEntitlementResponse {
-        let empty = Data("{}".utf8)
-        return try await request("v1/entitlement/refresh", method: "POST", body: empty, device: device, action: "refresh", mode: .background, onWaking: nil, as: IslandGateEntitlementResponse.self)
+        let body = try JSONSerialization.data(withJSONObject: ["device_id": device.id])
+        return try await request("v1/entitlement/refresh", method: "POST", body: body, device: device, action: "refresh", mode: .background, onWaking: nil, as: IslandGateEntitlementResponse.self)
     }
 
     func setWallVisibility(_ show: Bool, device: IslandGateDevice) async throws {
-        let payload = try JSONSerialization.data(withJSONObject: ["show": show])
+        let payload = try JSONSerialization.data(withJSONObject: ["device_id": device.id, "show": show])
         _ = try await request("v1/wall", method: "POST", body: payload, device: device, action: "wall", mode: .background, onWaking: nil, as: IslandGateWallResponse.self)
     }
 

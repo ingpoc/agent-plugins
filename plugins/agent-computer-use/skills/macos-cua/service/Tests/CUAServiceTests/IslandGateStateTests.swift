@@ -119,7 +119,7 @@ final class IslandGateStateTests: XCTestCase {
         XCTAssertEqual(gate.account?.id, "account")
         XCTAssertEqual(String(data: try XCTUnwrap(store.values["entitlement-tier"]), encoding: .utf8), "trial")
     }
-    func testServerExpiryRefreshesStalePrelaunchConfigOnce() async throws {
+    func testServerExpiryCannotShortenValidSignedTrialOrCauseRefreshLoop() async throws {
         let gate = gate()
         try gate.applyEntitlementForTests(token(exp: Date().addingTimeInterval(3600), tier: "trial"))
         var refreshes = 0
@@ -134,14 +134,12 @@ final class IslandGateStateTests: XCTestCase {
             return (200, Data(#"{"x":{"handle":"guru","profile_url":"https://x.com/guru","intent_url":"https://x.com/intent/post","preset_text":"legacy","launch_post_id":"123","repost_url":"https://x.com/intent/retweet?tweet_id=123"},"linkedin":{"share_url":"https://www.linkedin.com/feed/","preset_text":"legacy","follow_url":"https://www.linkedin.com/in/example/"}}"#.utf8))
         }
         defer { gate.stopPollingForTests(); IslandGateURLProtocol.handler = nil }
-        let expired = expectation(description: "configured launch expires the cached prelaunch trial")
-        gate.onChange.append { if case .trialExpired = gate.state { expired.fulfill() } }
         await gate.refresh()
-        await fulfillment(of: [expired], timeout: 2)
         try await Task.sleep(nanoseconds: 50_000_000)
         XCTAssertEqual(refreshes, 1, "An expiry response must not trigger an immediate refresh loop")
-        XCTAssertEqual(configs, 1)
-        XCTAssertFalse(gate.isUnlocked)
+        XCTAssertEqual(configs, 0, "A non-revoking refresh error preserves offline access without extra requests")
+        XCTAssertTrue(gate.isUnlocked, "A 410 cannot shorten a verified trial's signed expiration")
+        guard case .trial = gate.state else { return XCTFail("Keep the verified trial until signed expiry") }
         XCTAssertNotNil(gate.account)
     }
     func testUnsignedTrialEndDateDoesNotExtendAccess() async throws {

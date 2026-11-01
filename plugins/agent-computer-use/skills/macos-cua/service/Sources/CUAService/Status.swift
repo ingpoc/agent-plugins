@@ -48,14 +48,20 @@ struct CUAServiceStatus: Encodable, Equatable {
         let provider: String?
         let handle: String?
         let expires_at: String?
+        let live: IslandGateLiveStatus?
 
-        private enum CodingKeys: String, CodingKey { case state, provider, handle, expires_at }
+        private enum CodingKeys: String, CodingKey { case state, provider, handle, expires_at, live }
         func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             try container.encode(state, forKey: .state)
             try container.encode(provider, forKey: .provider)
             try container.encode(handle, forKey: .handle)
             try container.encode(expires_at, forKey: .expires_at)
+            try container.encodeIfPresent(live, forKey: .live)
+        }
+
+        init(state: String, provider: String?, handle: String?, expires_at: String?, live: IslandGateLiveStatus? = nil) {
+            self.state = state; self.provider = provider; self.handle = handle; self.expires_at = expires_at; self.live = live
         }
     }
 
@@ -82,27 +88,27 @@ struct CUAServiceStatus: Encodable, Equatable {
         running && permissions.accessibility && permissions.screen_recording && permissions.microphone == "granted"
     }
 
-    static func islandStatus(store: IslandGateStoring, now: Date = Date()) -> Island {
+    static func islandStatus(store: IslandGateStoring, now: Date = Date(), live: IslandGateLiveStatus? = nil) -> Island {
         do {
             guard let tokenData = try store.read("entitlement") else {
                 if try store.read("claim-id") != nil {
-                    return Island(state: "checking", provider: nil, handle: nil, expires_at: nil)
+                    return Island(state: "checking", provider: nil, handle: nil, expires_at: nil, live: live)
                 }
-                return Island(state: "locked", provider: nil, handle: nil, expires_at: nil)
+                return Island(state: "locked", provider: nil, handle: nil, expires_at: nil, live: live)
             }
             guard
                   let token = String(data: tokenData, encoding: .utf8),
                   let accountData = try store.read("account"),
                   let account = try? JSONDecoder().decode(IslandGateAccount.self, from: accountData) else {
-                return Island(state: "unknown", provider: nil, handle: nil, expires_at: nil)
+                return Island(state: "unknown", provider: nil, handle: nil, expires_at: nil, live: live)
             }
             let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("IOPlatformExpertDevice"))
             guard service != 0 else {
-                return Island(state: "unknown", provider: account.provider, handle: account.handle, expires_at: nil)
+                return Island(state: "unknown", provider: account.provider, handle: account.handle, expires_at: nil, live: live)
             }
             defer { IOObjectRelease(service) }
             guard let uuid = IORegistryEntryCreateCFProperty(service, "IOPlatformUUID" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? String else {
-                return Island(state: "unknown", provider: account.provider, handle: account.handle, expires_at: nil)
+                return Island(state: "unknown", provider: account.provider, handle: account.handle, expires_at: nil, live: live)
             }
             let deviceID = IslandGateDevice.identifier(platformUUID: uuid)
             guard let payloadPart = token.split(separator: ".", omittingEmptySubsequences: false).first,
@@ -111,12 +117,12 @@ struct CUAServiceStatus: Encodable, Equatable {
                     .verify(token, deviceID: deviceID, now: now),
                   claim.acct == account.id, claim.prov == account.provider, claim.handle == account.handle else {
                 let expiry = Self.unverifiedExpiry(token)
-                return Island(state: "unknown", provider: account.provider, handle: account.handle, expires_at: expiry.map(Self.iso8601))
+                return Island(state: "unknown", provider: account.provider, handle: account.handle, expires_at: expiry.map(Self.iso8601), live: live)
             }
             let expiry = Date(timeIntervalSince1970: claim.exp)
-            return Island(state: now < expiry ? "unlocked" : "locked", provider: account.provider, handle: account.handle, expires_at: Self.iso8601(expiry))
+            return Island(state: now < expiry ? "unlocked" : "locked", provider: account.provider, handle: account.handle, expires_at: Self.iso8601(expiry), live: live)
         } catch {
-            return Island(state: "unknown", provider: nil, handle: nil, expires_at: nil)
+            return Island(state: "unknown", provider: nil, handle: nil, expires_at: nil, live: live)
         }
     }
 
@@ -158,7 +164,7 @@ struct CUAServiceStatus: Encodable, Equatable {
             path: Bundle.main.bundleURL.path,
             running: running,
             permissions: permissions,
-            island: islandStatus(store: IslandGateStatusKeychain()),
+            island: islandStatus(store: IslandGateStatusKeychain(), live: IslandGateLiveStatusClient.fetch()),
             claude_desktop: IslandClaudeDesktopStatus.current(),
             ok: isReady(running: running, permissions: permissions)
         )
