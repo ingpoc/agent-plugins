@@ -2,7 +2,7 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
-## Unreleased
+## 0.2.69 (unreleased: not tagged; waiting for Guru's OK)
 
 - Claude desktop: an open chat shows as Working while Claude replies and Done after. A plain chat's sidebar row stays "Idle <title>" while it streams, so the watcher now reads the composer's "Stop response" button (which sits below the old depth-30 walk limit) and the "Currently streaming message" message group, and names the row from the chat header. A new chat that Claude renames mid-reply no longer flashes Done. The "Chat and Cowork" tab is read from its AXValue. Message subtrees are pruned and only their accessible names are read.
 - Claude Code: a sign-in or billing failure (`authentication_failed`, `billing_error`) now ages out after 2 minutes instead of holding "Claude · Failed" for 30 minutes. A failed or stale row also gives up the compact pill while a row from the same app is running.
