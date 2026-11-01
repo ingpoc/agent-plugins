@@ -447,7 +447,6 @@ final class InputActions: @unchecked Sendable {
 
         // Empty Electron/web contenteditables (Claude desktop composer) report a nil AXValue and ignore
         // AXSelectedText, but accept an AXValue write. Splice into "" rather than refusing.
-        if selected == .success, let after = axStringValue(focused), after != (before ?? "") { return false }
         let current = before ?? ""
         let ns = current as NSString
         var loc = ns.length
@@ -489,9 +488,13 @@ final class InputActions: @unchecked Sendable {
     private func axInsertLanded(
         _ el: AXUIElement, _ text: String, before: String?
     ) -> Bool {
-        guard let after = axStringValue(el) else { return false }
-        if after.contains(text) { return true }
-        if let before, after.count >= before.count + text.count { return true }
+        // Web/Electron editors (Claude desktop) apply the edit asynchronously: re-read briefly.
+        for attempt in 0..<7 {
+            if attempt > 0 { Thread.sleep(forTimeInterval: 0.05) }
+            guard let after = axStringValue(el) else { continue }
+            if after.contains(text) { return true }
+            if let before, after.count >= before.count + text.count { return true }
+        }
         return false
     }
 
