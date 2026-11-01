@@ -595,12 +595,13 @@ struct SamanthaIslandBar: View {
                             Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(tint)
                         }
                     }.frame(width: 14)
-                    VStack(alignment: .leading, spacing: 0) {
+                    // One line: two stacked 11/10 pt lines need ~25 pt and clipped in the 24 pt pill.
+                    HStack(spacing: 4) {
                         Text(agent.name.isEmpty ? agent.app : agent.name)
-                            .font(.system(size: 11, weight: .semibold)).lineLimit(1)
-                        Text(status).font(.system(size: 10, weight: .medium)).lineLimit(1)
+                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white).lineLimit(1)
+                        Text(status).font(.system(size: 12, weight: .regular)).foregroundStyle(Color.white.opacity(0.7))
+                            .lineLimit(1).fixedSize().layoutPriority(1)
                     }
-                    .foregroundStyle(Color.white)
                 }
                 .frame(width: rect.width - 16, height: IslandBarLayout.compactHeight, alignment: .leading)
                 .padding(.horizontal, 8)
@@ -839,7 +840,8 @@ struct SamanthaIslandBar: View {
         } else {
             switch model.presentation {
             case .idle, .doneSettled:
-                SamanthaOrb(size: size, dim: true)
+                // The failed / needs-you mark takes this slot; the dim orb drawn under it showed a grey ring.
+                if model.compactAgentAttention == nil { SamanthaOrb(size: size, dim: true) } else { Color.clear.frame(width: size, height: size) }
             case .reconnecting:
                 SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)
             case .listening:

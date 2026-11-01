@@ -51,14 +51,6 @@ struct IslandShortcut: Equatable {
           modifiers & UInt32(shiftKey) != 0 ? "Shift" : nil,
           modifiers & UInt32(cmdKey) != 0 ? "Command" : nil, character.uppercased()].compactMap { $0 }).joined(separator: "-")
     }
-    var menuModifiers: NSEvent.ModifierFlags {
-        var f: NSEvent.ModifierFlags = []
-        if modifiers & UInt32(controlKey) != 0 { f.insert(.control) }
-        if modifiers & UInt32(optionKey) != 0 { f.insert(.option) }
-        if modifiers & UInt32(shiftKey) != 0 { f.insert(.shift) }
-        if modifiers & UInt32(cmdKey) != 0 { f.insert(.command) }
-        return f
-    }
     @MainActor func save(_ store: IslandSettingsStore) {
         store.set(["keyCode": Int(keyCode), "modifiers": Int(modifiers), "character": character], for: IslandSettingsSchema.shortcut)
     }

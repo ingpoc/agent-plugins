@@ -190,7 +190,7 @@ struct IslandGateView: View {
             if !gate.handleText.isEmpty && !gate.isHandleValid {
                 gap(6); Text(linkedIn ? "Enter a valid LinkedIn profile name or URL." : "Enter a valid X handle.").font(.system(size: 11)).foregroundStyle(GateColor.red)
             }
-            gap(16); wallConsent(unlocked: false, linkedIn: linkedIn)
+            gap(16); wallConsent(linkedIn: linkedIn)
             gap(12); neutralClose()
             if !expired { gap(12); secondary(linkedIn ? "Use X instead" : "No X account? Use LinkedIn", action: linkedIn ? gate.useXRoute : gate.useLinkedInRoute) }
         }
@@ -232,12 +232,16 @@ struct IslandGateView: View {
     private func secondary(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) { Text(title).font(.system(size: 12)).foregroundStyle(.white.opacity(0.6)).underline(linkHover).frame(maxWidth: .infinity) }.buttonStyle(.plain).onHover { linkHover = $0 }
     }
-    private func wallConsent(unlocked: Bool, linkedIn: Bool) -> some View {
+    /// Asked once, before the unlock claim; the answer is final (Guru, 2026-11-01).
+    private func wallConsent(linkedIn: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Toggle("Show me on the Who’s using it wall", isOn: Binding(get: { gate.showOnWall }, set: { if unlocked { gate.setWallVisibility($0) } else { gate.setLocalWallConsent($0) } })).toggleStyle(.checkbox).font(.system(size: 13)).disabled(unlocked && gate.wallUpdating)
-            Text(linkedIn ? "Your name and photo on the Agent Plugins site. Turn off any time." : "Your handle and avatar on the Agent Plugins site. Turn off any time.").font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)).padding(.leading, 22).fixedSize(horizontal: false, vertical: true)
-            if let error = gate.wallError { Text(error).foregroundStyle(GateColor.amber).font(.system(size: 11)) }
+            Toggle("Show me on the Who’s using it wall", isOn: Binding(get: { gate.showOnWall }, set: { gate.setLocalWallConsent($0) })).toggleStyle(.checkbox).font(.system(size: 13))
+            Text(IslandGateWallCopy.caption(linkedIn: linkedIn)).font(.system(size: 11)).foregroundStyle(.white.opacity(0.55)).padding(.leading, 22).fixedSize(horizontal: false, vertical: true)
         }
+    }
+    /// After unlock: the choice made at unlock, read-only.
+    private var wallChoice: some View {
+        Text(IslandGateWallCopy.choice(gate.showOnWall)).font(.system(size: 12)).foregroundStyle(.white.opacity(0.6))
     }
     private func checking(follow: IslandGateCheckStatus, post: IslandGateCheckStatus, notFound: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -282,7 +286,7 @@ struct IslandGateView: View {
                 separator
                 HStack(spacing: 12) { Image(systemName: "wifi.slash").font(.system(size: 14)).frame(width: 20, height: 20); Text("Works offline too").font(.system(size: 13)); Spacer() }.padding(.horizontal, 16).frame(minHeight: 44)
             }.background(GateColor.card, in: RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.06)))
-            gap(16); wallConsent(unlocked: true, linkedIn: account.provider == "linkedin"); gap(16); primary("Done", enabled: true, action: close)
+            gap(16); wallChoice; gap(16); primary("Done", enabled: true, action: close)
         }
     }
     private func trial(_ account: IslandGateAccount, ends: Date) -> some View {
@@ -393,6 +397,16 @@ final class IslandGateWindowController: NSWindowController, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) { gate.closed() }
 }
 
+enum IslandGateWallCopy {
+    static func caption(linkedIn: Bool) -> String {
+        linkedIn ? "Your name and photo on the Agent Plugins site. This choice is final."
+            : "Your handle and avatar on the Agent Plugins site. This choice is final."
+    }
+    static func choice(_ shown: Bool) -> String {
+        shown ? "Shown on the Agent Plugins site" : "Not shown on the Agent Plugins site"
+    }
+}
+
 struct IslandGateAccessRow: View {
     @ObservedObject var gate: IslandGate
     var body: some View {
@@ -405,9 +419,7 @@ struct IslandGateAccessRow: View {
                     Spacer()
                     Button("Sign out") { gate.signOut() }
                 }
-                Toggle("Show me on the site", isOn: Binding(get: { gate.showOnWall }, set: { gate.setWallVisibility($0) }))
-                    .toggleStyle(.checkbox).disabled(gate.wallUpdating)
-                if let error = gate.wallError { Text(error).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true) }
+                Text(IslandGateWallCopy.choice(gate.showOnWall)).foregroundStyle(.secondary)
                 Label("Bound to this Mac", systemImage: "laptopcomputer").foregroundStyle(.secondary)
             } else {
                 Button("Unlock Dynamic Island…") { gate.show() }

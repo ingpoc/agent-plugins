@@ -24,6 +24,9 @@ enum IslandClaudeDesktopActivity {
         var title: String
         var selected = false
         var completionHeld = false
+        /// Working because the open chat streams (composer "Stop response" / "Currently streaming message"),
+        /// not because its sidebar row says so: plain chats keep "Idle <title>" while Claude replies.
+        var openChat = false
         var id: String {
             "claude-desktop:" + SHA256.hash(data: Data(title.utf8)).map { String(format: "%02x", $0) }.joined()
         }
@@ -33,6 +36,10 @@ enum IslandClaudeDesktopActivity {
         var modelLabel: String?
         var chatTabActive = false
         var stopButtonVisible = false
+        var streamingMessageVisible = false
+        /// Open chat's title from the header's "<title>, rename chat" button.
+        var openChatTitle: String?
+        var responding: Bool { stopButtonVisible || streamingMessageVisible }
 
         var agents: [IslandAgent] {
             let working = rows.filter { $0.status == .working }
@@ -71,6 +78,12 @@ enum IslandClaudeDesktopActivity {
         func childElements(limit: Int) -> [any AXElement] { Array(children.prefix(limit)) }
     }
 
+    /// Live 4.4212 tree: the composer's "Stop response" sits at depth 32 from the app element,
+    /// below the old 30 cap; chat messages are pruned, so a deeper walk stays cheap.
+    static let maxDepth = 48
+    static let renameChatSuffix = ", rename chat"
+    static let streamingMessageLabel = "Currently streaming message"
+
     static func read(_ root: any AXElement) -> Snapshot {
         var snapshot = Snapshot()
         var queue: [(any AXElement, Int, Bool, [any AXElement])] = [(root, 0, false, [])]
@@ -81,7 +94,15 @@ enum IslandClaudeDesktopActivity {
         while index < queue.count, index < 4000 {
             let (element, depth, parentSidebar, siblings) = queue[index]
             index += 1
-            if ["AXHeading", "AXStaticText", "AXTextArea", "AXTextField", "AXArticle"].contains(element.role) { continue }
+            // Headings are walked (the chat header's "<title>, rename chat" button sits in one) but never
+            // read; message headings ("You said: …") live inside pruned message articles.
+            if ["AXStaticText", "AXTextArea", "AXTextField", "AXArticle"].contains(element.role) { continue }
+            // A chat message: read only its accessible name ("Message 2 of 3" / "Currently streaming
+            // message"), never its content, and don't descend.
+            if element.role == "AXGroup", element.subrole == "AXDocumentArticle" {
+                if element.labels().contains(streamingMessageLabel) { snapshot.streamingMessageVisible = true }
+                continue
+            }
             let sidebarContainer = ["AXGroup", "AXList", "AXScrollArea"].contains(element.role)
             let sideLabel = sidebarContainer ? ((element.subrole ?? "") + " " + (element.roleDescription ?? "")).lowercased() : ""
             // Claude 4.4212+ titles the sidebar group "Sidebar" (no sidebar subrole / role description).
@@ -91,6 +112,10 @@ enum IslandClaudeDesktopActivity {
             let labels = ["AXButton", "AXPopUpButton"].contains(element.role) ? element.labels() : []
             if element.role == "AXButton", labels.contains(where: { ["Stop", "Stop response"].contains($0) }) {
                 snapshot.stopButtonVisible = true
+            }
+            if element.role == "AXButton", snapshot.openChatTitle == nil,
+               let label = labels.first(where: { $0.hasSuffix(renameChatSuffix) && $0.count > renameChatSuffix.count }) {
+                snapshot.openChatTitle = String(label.dropLast(renameChatSuffix.count))
             }
             if element.role == "AXRadioButton", element.labels().contains("Chat and Cowork"), element.isSelected() {
                 snapshot.chatTabActive = true
@@ -112,7 +137,7 @@ enum IslandClaudeDesktopActivity {
             if element.role == "AXPopUpButton", let label = labels.first(where: { $0.hasPrefix("Model: ") }) {
                 snapshot.modelLabel = label
             }
-            if depth < 30, queue.count < 4000 {
+            if depth < maxDepth, queue.count < 4000 {
                 let children = element.childElements(limit: 4000 - queue.count)
                 queue += children.map { ($0, depth + 1, sidebar, children) }
             }
@@ -123,8 +148,17 @@ enum IslandClaudeDesktopActivity {
                   seen.insert(row.title).inserted else { continue }
             snapshot.rows.append(.init(status: row.status, title: row.title, selected: candidate.selected))
         }
-        if snapshot.stopButtonVisible, !snapshot.rows.contains(where: { $0.status == .working }) {
-            snapshot.rows.append(.init(status: .working, title: "Current response", selected: true))
+        // A plain chat's sidebar row stays "Idle <title>" while Claude replies: the open chat is the
+        // working one. Mark its row (matched by the header title) or add it.
+        if snapshot.responding, !snapshot.rows.contains(where: { $0.status == .working }) {
+            if let title = snapshot.openChatTitle, let i = snapshot.rows.firstIndex(where: { sameTitle($0.title, title) }) {
+                snapshot.rows[i].status = .working
+                snapshot.rows[i].selected = true
+                snapshot.rows[i].openChat = true
+            } else {
+                snapshot.rows.append(.init(status: .working, title: snapshot.openChatTitle ?? "Current response",
+                                           selected: true, openChat: true))
+            }
         }
         return snapshot
     }
@@ -133,7 +167,11 @@ enum IslandClaudeDesktopActivity {
         var current: [String: Row] = [:]
         for row in rows { current[row.title] = row }
         for row in rows where row.status == .working || row.status == .needsYou { finishedAt.removeValue(forKey: row.title) }
+        // Claude retitles a new chat mid-reply ("ACU island test…" → "History of lighthouses essay"):
+        // the open chat is still working, so the old title must not flash Done.
+        let openChatStillWorking = rows.contains { $0.openChat && $0.status == .working }
         for old in previous where old.status == .working && current[old.title] == nil {
+            if old.openChat, openChatStillWorking { continue }
             finishedAt[old.title] = finishedAt[old.title] ?? now
             current[old.title] = Row(status: .done, title: old.title, completionHeld: true)
         }
@@ -152,6 +190,18 @@ enum IslandClaudeDesktopActivity {
             }
         }
         return current.values.sorted { $0.title < $1.title }
+    }
+
+    /// Header and sidebar truncate long titles differently ("Draft about clo..." vs the full title).
+    static func sameTitle(_ a: String, _ b: String) -> Bool {
+        if a == b { return true }
+        func stem(_ s: String) -> String? {
+            for tail in ["...", "…"] where s.hasSuffix(tail) { return String(s.dropLast(tail.count)) }
+            return nil
+        }
+        if let sa = stem(a), sa.count >= 8, b.hasPrefix(sa) { return true }
+        if let sb = stem(b), sb.count >= 8, a.hasPrefix(sb) { return true }
+        return false
     }
 
     private static func hasMoreOptionsSibling(_ label: String, siblings: [any AXElement]) -> Bool {
@@ -325,7 +375,7 @@ final class IslandClaudeDesktopWatcher {
         }
         // Poll as well as observe: Electron does not always post AX notifications for sidebar status
         // changes, and a Working phase can last only a few seconds.
-        let busy = snapshot.stopButtonVisible || snapshot.rows.contains { $0.status == .working || $0.status == .needsYou }
+        let busy = snapshot.responding || snapshot.rows.contains { $0.status == .working || $0.status == .needsYou }
         var next: TimeInterval = busy ? 1.0 : 2.0
         if let nextExpiry = finishDates.values.map({ $0.addingTimeInterval(10) }).min() {
             next = min(next, max(0.05, nextExpiry.timeIntervalSinceNow + 0.05))

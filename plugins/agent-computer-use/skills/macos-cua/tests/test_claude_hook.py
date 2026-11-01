@@ -155,7 +155,8 @@ class ClaudeHookTests(unittest.TestCase):
             self.setup_home(home)
             for error, detail in cases.items():
                 _, posts = self.run_hook(home, {"hook_event_name": "StopFailure", "session_id": "s1", "error": error})
-                self.assert_post(posts[-1], "--kind", "error", "--title", "Claude Code", "--detail", detail)
+                ttl = ["--ttl", "120"] if error in {"authentication_failed", "billing_error"} else []
+                self.assert_post(posts[-1], "--kind", "error", "--title", "Claude Code", "--detail", detail, *ttl)
 
     def test_session_end_posts_clear_then_removes_cache(self):
         with tempfile.TemporaryDirectory() as home:

@@ -50,8 +50,6 @@ final class IslandGate: ObservableObject {
     @Published private(set) var state: IslandGateState = .locked()
     @Published private(set) var config: IslandGateConfig? = .bundled
     @Published private(set) var showOnWall = false
-    @Published private(set) var wallUpdating = false
-    @Published private(set) var wallError: String?
     @Published var handleText = ""
     @Published private(set) var followDone: Bool
     @Published private(set) var postDone: Bool
@@ -85,7 +83,6 @@ final class IslandGate: ObservableObject {
     private var fetchedConfig = false
     let urlOpener: IslandGateURLOpening
     let pasteboard: IslandGatePasteboard
-    private var wallOperation: Task<Void, Never>?
     private var generation = 0
     private let fixture: Bool
     /// Fixture renders (gate-snapshot) draw a still frame: offscreen cacheDisplay skips in-flight Core Animation layers.
@@ -114,7 +111,7 @@ final class IslandGate: ObservableObject {
         }
     }
     deinit {
-        configTask?.cancel(); polling?.cancel(); refreshTask?.cancel(); expiryTask?.cancel(); operation?.cancel(); wallOperation?.cancel()
+        configTask?.cancel(); polling?.cancel(); refreshTask?.cancel(); expiryTask?.cancel(); operation?.cancel()
     }
     var isUnlocked: Bool {
         if entitlement != nil, let verifiedEntitlementExpiry { return Date() < verifiedEntitlementExpiry }
@@ -632,8 +629,7 @@ final class IslandGate: ObservableObject {
     }
     func signOut() {
         generation += 1; operation?.cancel(); polling?.cancel(); polling = nil
-        wallOperation?.cancel(); wallOperation = nil
-        showOnWall = false; wallUpdating = false; wallError = nil
+        showOnWall = false
         entitlement = nil; entitlementTier = nil; account = nil; handleText = ""
         reportedFollowCheck = nil; isEditingHandle = false
         clearClaimID()
@@ -649,39 +645,6 @@ final class IslandGate: ObservableObject {
         if lockedProvider == "linkedin" { return "Show my name on the Agent Plugins site" }
         let handle = (handleText.isEmpty ? (account?.handle ?? "your handle") : handleText).trimmingCharacters(in: CharacterSet(charactersIn: "@"))
         return "Show @\(handle) on the Agent Plugins site"
-    }
-    func setWallVisibility(_ show: Bool) {
-        guard !wallUpdating, show != showOnWall else { return }
-        let previous = showOnWall
-        showOnWall = show; wallUpdating = true; wallError = nil
-        onChange.forEach { $0() }
-        guard !fixture else { wallUpdating = false; return }
-        guard isUnlocked else {
-            showOnWall = previous; wallUpdating = false; wallError = "Unlock the island before changing site visibility."
-            onChange.forEach { $0() }
-            return
-        }
-        wallOperation = Task { [weak self] in
-            guard let self else { return }
-            do {
-                guard let device = self.device ?? (try? IslandGateDevice.load(store: self.store)) else {
-                    throw IslandGateFailure(code: "device_identity")
-                }
-                self.device = device
-                try await self.client.setWallVisibility(show, device: device)
-                self.account?.show_on_wall = show
-                if let account = self.account {
-                    do { try self.store.write(try JSONEncoder().encode(account), name: "account") }
-                    catch { self.wallError = "Your site preference was updated, but couldn't be saved on this Mac. Try again after unlocking your login Keychain." }
-                }
-            } catch {
-                self.showOnWall = previous
-                let failure = (error as? IslandGateFailure) ?? IslandGateFailure(code: "server_error")
-                self.wallError = "Couldn't update your site visibility. \(failure.message) Your previous setting is shown. Try again."
-            }
-            self.wallUpdating = false
-            self.onChange.forEach { $0() }
-        }
     }
     func openFollow() {
         guard let config else { return }

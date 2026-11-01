@@ -166,6 +166,54 @@ final class IslandPolishTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(model.drawnWidth, IslandBarLayout.agentAttentionWidth)
     }
 
+    /// Guru 2026-11-01: expanding the island marks the shown failure as seen; after collapse the compact
+    /// pill drops it. A newer failure (same row, later last_seen_at) shows again.
+    func testExpandingIslandMarksFailureSeen() {
+        let failed = IslandAgent(id: "codex:t1", name: "Codex", app: "Codex", title: "Build", status: "error",
+                                 last_seen_at: 100)
+        let model = IslandModel()
+        model.apply(IslandSnapshot(kind: "idle", agents: [failed]))
+        XCTAssertEqual(model.compactAgentAttention?.agent.id, failed.id)
+        model.openAgentList()
+        XCTAssertTrue(model.cardOpen)
+        XCTAssertEqual(model.seenFailures[failed.id], IslandModel.failureSignature(failed))
+        XCTAssertTrue(model.agents.contains { $0.id == failed.id }, "row stays in the expanded list")
+        model.dismissCard()
+        XCTAssertFalse(model.cardOpen)
+        XCTAssertNil(model.compactAgentAttention, "seen failure leaves the compact pill")
+        XCTAssertEqual(model.sourceGroups.first?.failed, false, "and its circle loses the red mark")
+        var again = failed; again.last_seen_at = 200
+        model.apply(IslandSnapshot(kind: "idle", agents: [again]))
+        XCTAssertEqual(model.compactAgentAttention?.agent.id, failed.id, "a new failure shows again")
+        let needs = IslandAgent(id: "cursor:n", name: "Cursor", app: "Cursor", title: "Approve?", status: "needs_you",
+                                needs_you: true, last_seen_at: 100)
+        model.apply(IslandSnapshot(kind: "idle", agents: [needs]))
+        model.openAgentList(); model.dismissCard()
+        XCTAssertEqual(model.compactAgentAttention?.agent.id, needs.id, "needs-you is never cleared by a look")
+    }
+
+    /// 2026-11-01: a Claude Code sign-in failure held the pill as "Claude · Failed" while a Claude
+    /// desktop chat replied. A failed row yields the pill to a live row of the same app.
+    func testFailedRowYieldsPillToRunningRowOfSameApp() {
+        let codeFailed = IslandAgent(id: "claude:claude-code:s1", name: "Claude", app: "Claude",
+                                     title: "Claude Code · gurusharan", status: "error")
+        let desktop = IslandAgent(id: "claude-desktop:abc", name: "Claude", app: "Claude",
+                                  title: "History of lighthouses essay", status: "running")
+        let model = IslandModel()
+        model.apply(IslandSnapshot(kind: "idle", agents: [codeFailed]))
+        XCTAssertEqual(model.compactAgentAttention?.agent.id, codeFailed.id)
+        model.apply(IslandSnapshot(kind: "idle", agents: [codeFailed, desktop]))
+        XCTAssertNil(model.compactAgentAttention)
+        XCTAssertEqual(model.sourceGroups.first { $0.id == "Claude" }?.failed, false, "no red mark on a working source")
+        let otherFailed = IslandAgent(id: "codex:x", name: "Codex", app: "Codex", title: "Build", status: "error")
+        model.apply(IslandSnapshot(kind: "idle", agents: [codeFailed, desktop, otherFailed]))
+        XCTAssertEqual(model.compactAgentAttention?.agent.id, otherFailed.id)
+        let needs = IslandAgent(id: "claude:claude-code:s2", name: "Claude", app: "Claude", title: "Permission",
+                                status: "needs_you", needs_you: true)
+        model.apply(IslandSnapshot(kind: "idle", agents: [desktop, needs]))
+        XCTAssertEqual(model.compactAgentAttention?.agent.id, needs.id, "needs-you never yields")
+    }
+
     func testDestructiveKeyboardStartsOnDenyAndCommandReturnConfirms() {
         let model = IslandModel()
         let approval = IslandAgentApproval(id: "cursor:x", agent: "Cursor", app: "Cursor", title: "Delete branch?", subtitle: "Target: branch", destructive: true)

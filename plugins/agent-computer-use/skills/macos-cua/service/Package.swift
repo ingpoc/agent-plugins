@@ -29,7 +29,7 @@ let package = Package(
         .testTarget(
             name: "CUAServiceTests",
             dependencies: ["CUAService"],
-            exclude: ["test_cua_client.py"]
+            exclude: ["test_cua_client.py", "Fixtures"]
         ),
     ]
 )

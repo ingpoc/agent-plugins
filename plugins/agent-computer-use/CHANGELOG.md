@@ -2,6 +2,13 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## Unreleased
+
+- Claude desktop: an open chat shows as Working while Claude replies and Done after. A plain chat's sidebar row stays "Idle <title>" while it streams, so the watcher now reads the composer's "Stop response" button (which sits below the old depth-30 walk limit) and the "Currently streaming message" message group, and names the row from the chat header. A new chat that Claude renames mid-reply no longer flashes Done. The "Chat and Cowork" tab is read from its AXValue. Message subtrees are pruned and only their accessible names are read.
+- Claude Code: a sign-in or billing failure (`authentication_failed`, `billing_error`) now ages out after 2 minutes instead of holding "Claude · Failed" for 30 minutes. A failed or stale row also gives up the compact pill while a row from the same app is running.
+- The compact pill stops showing a failure once you open the island; a new failure shows again.
+- Menu bar: removed "Show Dynamic Island" (⌃⌘I), since it only expanded the island. The global hotkey still works. Removed "Show me on the site" from the account submenu: you answer the site question once, before unlock, and that answer is final. The unlocked card and Settings now show the choice without a toggle.
+
 ## 0.2.68 (2026-11-01)
 
 - Unlock the island by entering your handle once and following Gurusharan for a free three-day trial. Repost the launch post to keep it permanently, with no post to write or link to paste.

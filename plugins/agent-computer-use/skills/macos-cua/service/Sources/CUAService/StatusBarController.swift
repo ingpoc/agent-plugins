@@ -36,8 +36,6 @@ final class StatusBarController: NSObject {
     private var item: NSStatusItem?
     private let gate: IslandGate
     private var gateItem: NSMenuItem?
-    private var wallItem: NSMenuItem?
-    private var wallErrorItem: NSMenuItem?
     private var voiceState = "idle"
     private var active = false
     private var voiceRunning = false
@@ -48,7 +46,6 @@ final class StatusBarController: NSObject {
 
     private var samanthaRow: MenuSwitchRowView?
     private var showIslandItem: NSMenuItem?
-    private var openIslandItem: NSMenuItem?
 
     init(gate: IslandGate? = nil) {
         self.gate = gate ?? .shared
@@ -116,11 +113,6 @@ final class StatusBarController: NSObject {
         gate.onChange.append { [weak self] in self?.updateGateStatus() }
         updateGateAccountRow()
 
-        let openIsland = NSMenuItem(title: "Show Dynamic Island", action: #selector(openIslandCard), keyEquivalent: "")
-        openIsland.target = self
-        menu.addItem(openIsland)
-        openIslandItem = openIsland
-        updateShortcut(IslandSettingsStore.shared)
         let showIsland = NSMenuItem(title: "Show Island in Menu Bar", action: #selector(toggleShowIsland(_:)), keyEquivalent: "")
         showIsland.target = self
         showIsland.state = IslandSettingsStore.shared.bool(IslandSettingsSchema.showIsland) ? .on : .off
@@ -128,7 +120,6 @@ final class StatusBarController: NSObject {
         showIslandItem = showIsland
         IslandSettingsStore.shared.addObserver { [weak self] s in
             self?.showIslandItem?.state = s.bool(IslandSettingsSchema.showIsland) ? .on : .off
-            self?.updateShortcut(s)
         }
 
         // ACU Settings (⌘,): one settings window for the whole plugin (island, Samantha voice, agents, Computer Use).
@@ -197,20 +188,12 @@ final class StatusBarController: NSObject {
         }
     }
 
-    private func updateShortcut(_ store: IslandSettingsStore) {
-        let shortcut = IslandShortcut.read(store)
-        openIslandItem?.keyEquivalent = shortcut.character.lowercased()
-        openIslandItem?.keyEquivalentModifierMask = shortcut.menuModifiers
-    }
-
     @objc private func openGate() { gate.show() }
-
-    @objc private func toggleWallVisibility() { gate.setWallVisibility(!gate.showOnWall) }
 
     private func updateGateAccountRow() {
         gateItem?.title = gate.accessSummary
         guard gate.isUnlocked else {
-            gateItem?.submenu = nil; wallItem = nil; wallErrorItem = nil
+            gateItem?.submenu = nil
             return
         }
         if gateItem?.submenu == nil {
@@ -218,23 +201,9 @@ final class StatusBarController: NSObject {
             let details = NSMenuItem(title: "Account details…", action: #selector(openGate), keyEquivalent: "")
             details.target = self
             menu.addItem(details)
-            let visibility = NSMenuItem(title: "Show me on the site", action: #selector(toggleWallVisibility), keyEquivalent: "")
-            visibility.target = self
-            menu.addItem(visibility)
-            wallItem = visibility
-            let error = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-            error.isEnabled = false
-            menu.addItem(error)
-            wallErrorItem = error
-            // Keep the optimistic request disabled while AppKit tracks the open menu.
-            menu.autoenablesItems = false
+            // The site-wall choice is made once during unlock and is final (Guru, 2026-11-01): no toggle here.
             gateItem?.submenu = menu
         }
-        wallItem?.state = gate.showOnWall ? .on : .off
-        wallItem?.isEnabled = !gate.wallUpdating
-        wallErrorItem?.isHidden = gate.wallError == nil
-        wallErrorItem?.title = gate.wallError ?? ""
-        wallErrorItem?.toolTip = gate.wallError
     }
 
     private func updateGateStatus() {
@@ -256,8 +225,6 @@ final class StatusBarController: NSObject {
             button.toolTip = voiceRunning ? "Agent Computer Use — Samantha on" : (active ? "Agent Computer Use — active" : "Agent Computer Use")
         }
     }
-
-    @objc private func openIslandCard() { islandController?.openKeyboard() }
 
     @objc private func toggleShowIsland(_ sender: NSMenuItem) {
         let s = IslandSettingsStore.shared

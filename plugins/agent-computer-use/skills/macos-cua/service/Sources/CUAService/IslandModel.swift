@@ -400,7 +400,9 @@ enum IslandSourceGroups {
     static let maxCircles = 3
 
     /// `hidePending`: the card the pill itself shows — its row adds no circle/badge (one amber mark).
-    static func groups(agents: [IslandAgent], expired: [IslandExpired], hidePending: String?) -> [IslandSourceGroup] {
+    /// `seenFailures`: failures the user already opened the island on — no red mark on their circle.
+    static func groups(agents: [IslandAgent], expired: [IslandExpired], hidePending: String?,
+                       seenFailures: [String: String] = [:]) -> [IslandSourceGroup] {
         var order: [String] = []
         var map: [String: IslandSourceGroup] = [:]
         func touch(_ name: String, _ app: String) {
@@ -413,8 +415,13 @@ enum IslandSourceGroups {
             guard !name.isEmpty else { continue }
             touch(name, a.app)
             if a.needs_you || a.status == "needs_you" { map[name]!.needsYou += 1 }
-            if a.status == "error" || a.status == "stale" { map[name]!.failed = true }
+            if a.status == "error" || a.status == "stale", seenFailures[a.id] != IslandModel.failureSignature(a) {
+                map[name]!.failed = true
+            }
         }
+        // Same rule as the compact pill: a live row of the source outranks its older failure mark.
+        let runningNames = Set(IslandAgentRows.taskAgents(agents).filter { $0.status == "running" }.map { $0.name.isEmpty ? $0.app : $0.name })
+        for name in runningNames { map[name]?.failed = false }
         for e in expired {
             let name = e.agent.isEmpty ? e.app : e.agent
             guard !name.isEmpty else { continue }
@@ -629,10 +636,27 @@ final class IslandModel: ObservableObject {
 
     var showAgentCircle: Bool { IslandAgentBadge.showsCircle(rowCount: agents.count + expired.count) && !(idleActivity == "samantha" && isIdlePresentation) }
 
+    /// Failures the user already saw by expanding the island (id → status|last_seen_at). The compact
+    /// pill stops showing them; a newer failure on the same row (new last_seen_at) shows again.
+    private(set) var seenFailures: [String: String] = [:]
+    nonisolated static func failureSignature(_ a: IslandAgent) -> String { "\(a.status)|\(a.last_seen_at)" }
+    private func markFailuresSeen() {
+        let ids = Set(agents.map(\.id))
+        seenFailures = seenFailures.filter { ids.contains($0.key) }
+        for a in agents where ["error", "stale"].contains(a.status) && !a.needs_you {
+            seenFailures[a.id] = Self.failureSignature(a)
+        }
+    }
+
     var compactAgentAttention: IslandAgentRow? {
+        // A failed or stale row yields the pill to a live row of the same app: a Claude Code sign-in
+        // failure must not show "Claude · Failed" while a Claude desktop chat is replying.
+        let runningApps = Set(agents.filter { $0.status == "running" && !$0.app.isEmpty && !IslandAgentRows.isProcessObservation($0) }.map(\.app))
         let candidate = agents.enumerated().filter {
             !IslandAgentRows.isProcessObservation($0.element)
                 && (["needs_you", "error", "stale"].contains($0.element.status) || $0.element.needs_you)
+                && ($0.element.needs_you || $0.element.status == "needs_you"
+                    || (!runningApps.contains($0.element.app) && seenFailures[$0.element.id] != Self.failureSignature($0.element)))
         }.min {
             let a = IslandAgentRows.priority($0.element), b = IslandAgentRows.priority($1.element)
             return a == b ? $0.offset < $1.offset : a < b
@@ -1229,7 +1253,7 @@ final class IslandModel: ObservableObject {
         let nextCircles = idleNow && idleActivity == "samantha" ? []
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
         if nextCircles != circles { circles = nextCircles }
-        let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil)
+        let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil, seenFailures: seenFailures)
         if groups != sourceGroups { sourceGroups = groups }
         // Final-60 s countdown for the pill's card.
         var remaining: Int?
@@ -1283,6 +1307,7 @@ final class IslandModel: ObservableObject {
         }
         if open != wasOpen {
             cardOpen = open
+            if open, userOpened { markFailuresSeen() }
             if open, let a = agentApproval, cardMode == .samantha {
                 IslandEventLog.log("opened", id: a.id, source: a.agent, kind: a.kind,
                                    ["via": isSticky && !userOpened ? "auto" : openVia])

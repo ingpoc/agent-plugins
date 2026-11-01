@@ -19,7 +19,14 @@ struct IslandClaudeDesktopNativeAXElement: IslandClaudeDesktopActivity.AXElement
     }
 
     func labels() -> [String] {
-        guard ["AXButton", "AXPopUpButton"].contains(role) else { return [] }
+        let role = self.role
+        // Groups expose only their accessible name, and only for chat messages ("Currently streaming
+        // message", never content) and the complementary landmark (the "Sidebar").
+        if role == "AXGroup" {
+            return ["AXDocumentArticle", "AXLandmarkComplementary"].contains(subrole ?? "")
+                ? [Self.string(element, kAXDescriptionAttribute)].compactMap { $0 } : []
+        }
+        guard ["AXButton", "AXPopUpButton", "AXRadioButton"].contains(role) else { return [] }
         return [kAXTitleAttribute, kAXDescriptionAttribute].compactMap {
             Self.string(element, $0)
         }
@@ -28,7 +35,12 @@ struct IslandClaudeDesktopNativeAXElement: IslandClaudeDesktopActivity.AXElement
     func isSelected() -> Bool {
         var selected: CFTypeRef?
         AXUIElementCopyAttributeValue(element, kAXSelectedAttribute as CFString, &selected)
-        return selected as? Bool == true
+        if selected as? Bool == true { return true }
+        // Claude's mode radios report the checked tab as AXValue 1, not AXSelected.
+        guard role == "AXRadioButton" else { return false }
+        var value: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &value)
+        return (value as? NSNumber)?.intValue == 1
     }
 
     func childElements(limit: Int) -> [any IslandClaudeDesktopActivity.AXElement] {
