@@ -4,8 +4,10 @@ import { readFile } from "node:fs/promises";
 export type Cell = string | number | boolean | null;
 export type Row = Record<string, Cell>;
 export const tables = {
+  device_keys: ["device_pubkey", "device_id", "created_at"],
+  x_identities: ["x_user_id", "handle"],
   gate_settings: ["key", "value", "updated_at"],
-  trials: ["id", "account_id", "device_id", "provider", "handle", "claim_id", "started_at", "ends_at", "converted_at", "created_at"],
+  trials: ["id", "account_id", "device_id", "device_pubkey", "provider", "handle", "claim_id", "started_at", "ends_at", "converted_at", "created_at"],
   accounts: [
     "id",
     "provider",
@@ -76,14 +78,16 @@ export type Op =
       where: Row;
     };
 export interface Store {
-  list(table: Table, where?: Row): Promise<Row[]>;
+  list(table: Table, where?: Row, limit?: number): Promise<Row[]>;
   atomic(ops: Op[]): Promise<void>;
   purgeExpired(at: string): Promise<void>;
 }
 export class StoreConflict extends Error {}
 const unique: Partial<Record<Table, string[][]>> = {
+  device_keys: [["device_pubkey"]],
+  x_identities: [["x_user_id"], ["handle"]],
   gate_settings: [["key"]],
-  trials: [["id"], ["account_id"], ["device_id"]],
+  trials: [["id"], ["account_id"], ["device_id"], ["device_pubkey"]],
   accounts: [["id"], ["provider", "handle"]],
   claims: [["id"]],
   followers: [["provider", "handle"]],
@@ -103,9 +107,9 @@ function matches(row: Row, where: Row) {
 }
 export class MemoryStore implements Store {
   private data = new Map<Table, Row[]>();
-  async list(table: Table, where: Row = {}) {
+  async list(table: Table, where: Row = {}, limit?: number) {
     return structuredClone(
-      (this.data.get(table) ?? []).filter((r) => matches(r, where)),
+      (this.data.get(table) ?? []).filter((r) => matches(r, where)).slice(0, limit),
     );
   }
   async purgeExpired(at: string) {
@@ -133,7 +137,7 @@ export class MemoryStore implements Store {
         if (op.kind === "insert") {
           if (
             (unique[op.table] ?? []).some((keys) =>
-              rows.some((r) => keys.every((k) => r[k] === op.row[k])),
+              keys.every((k) => op.row[k] != null) && rows.some((r) => keys.every((k) => r[k] === op.row[k])),
             )
           ) {
             if (op.ignore) continue;
@@ -158,7 +162,7 @@ export class MemoryStore implements Store {
               const next = { ...row, ...op.row };
               if (
                 (unique[op.table] ?? []).some((keys) =>
-                  rows.some(
+                  keys.every((k) => next[k] != null) && rows.some(
                     (r) => r !== row && keys.every((k) => r[k] === next[k]),
                   ),
                 )
@@ -200,10 +204,13 @@ export class NeonStore implements Store {
         .join(" AND ") || "TRUE"
     );
   }
-  async list(table: Table, where: Row = {}) {
+  async list(table: Table, where: Row = {}, limit?: number) {
     const params: Cell[] = [];
+    const filter = this.filter(table, where, params);
+    if (limit !== undefined && (!Number.isInteger(limit) || limit < 0 || limit > 5000)) throw new Error("invalid_limit");
+    const bound = limit === undefined ? "" : ` LIMIT $${params.push(limit)}`;
     const rows = await this.sql.query(
-      `SELECT * FROM ${this.name(table)} WHERE ${this.filter(table, where, params)}`,
+      `SELECT * FROM ${this.name(table)} WHERE ${filter}${bound}`,
       params,
     );
     return rows.map((row) =>
@@ -295,7 +302,7 @@ export class NeonStore implements Store {
   async migrate() {
     try {
       await this.sql.query(`CREATE SCHEMA IF NOT EXISTS "${this.schema}"`);
-      const source = (await Promise.all(["001_init.sql", "002_trials.sql"].map((name) =>
+      const source = (await Promise.all(["001_init.sql", "002_trials.sql", "003_device_keys.sql"].map((name) =>
         readFile(new URL(`../migrations/${name}`, import.meta.url), "utf8")))).join("\n-- statement-break\n");
       await this.sql.transaction([
         this.sql.query(`SET LOCAL search_path TO "${this.schema}"`),

@@ -28,6 +28,18 @@ test("config exposes poll interval and presets", () => {
   assert.equal(value.linkedin.repost_url, null);
 });
 
+test("malformed launch overrides fail settings and config with provider-specific safe errors", () => {
+  for (const [name, value, message] of [
+    ["GATE_X_LAUNCH_POST_ID", "not-an-id", /Invalid x launch post configuration/],
+    ["GATE_X_LAUNCH_POST_ID", "", /Invalid x launch post configuration/],
+    ["GATE_LINKEDIN_LAUNCH_POST_URL", "https://example.com/post", /Invalid linkedin launch post configuration/],
+    ["GATE_LINKEDIN_LAUNCH_POST_URL", "", /Invalid linkedin launch post configuration/],
+  ] as const) {
+    assert.throws(() => config({ [name]: value }), message);
+    assert.throws(() => settings({ DEV: "1", PUBLIC_BASE_URL: "http://127.0.0.1:1", [name]: value }), message);
+  }
+});
+
 test("preset matching supports provider-specific references from both domains", () => {
   assert.equal(
     matchesPreset("https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-x", "x"),

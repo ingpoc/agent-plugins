@@ -51,7 +51,7 @@ The app accepts a handle for both X and LinkedIn. For LinkedIn, the handle may b
 
 Before a provider's launch post is configured, its trial entitlement rolls forward on poll and refresh, including after the previous trial end time. While the launch is still unconfigured, an unconverted trial can also continue polling after its original 30-day claim expiry; each prelaunch check renews the claim's eligibility for another 30 days. This keeps prelaunch users active while the launch post is unavailable.
 
-Once a launch post is configured, the service persists that provider's first-seen time in `gate_settings` as `<provider>_launch_first_seen_at`. Unconverted trial access then ends at the later of the existing trial end and 72 hours after that persisted first-seen time. The first-seen deadline survives restarts and is tracked separately for X and LinkedIn, so restarting the service does not restart the 72-hour period. An existing prelaunch claim stays eligible for at least 30 days after that same persisted first-seen time; a newer claim retains its own 30-day TTL. Converted trials remain permanent. Trials are limited to one per account and one per device across both providers.
+Once a launch post is configured, the service persists that provider's first-seen time in `gate_settings` as `<provider>_launch_first_seen_at`. This history is immutable: removing the launch setting later does not restore rolling prelaunch access. Unconverted trial access then ends at the later of the existing trial end and 72 hours after that persisted first-seen time. The first-seen deadline survives restarts and is tracked separately for X and LinkedIn, so restarting the service does not restart the 72-hour period. An existing prelaunch claim stays eligible for at least 30 days after that same persisted first-seen time; a newer claim retains its own 30-day TTL. Converted trials remain permanent. Trials are limited to one per account and one per device across both providers.
 
 1. **`GET /v1/admin/claims`** — inspect outstanding follow or repost work; filter with `needs=follow|repost` and `provider=x|linkedin`.
 2. **`POST /v1/admin/followers`** — push Guru’s X follower snapshot.
@@ -263,7 +263,7 @@ Clears `last_rebind_at` so the account can rebind after cooldown rules with a fr
 
 ## Honest limits
 
-Handle entry is not cryptographic identity proof. Mitigations: fresh posts, one-use URLs, one Mac per account, rebind with cooldown. Follow checks use the pushed follower snapshot only at verification time. LinkedIn often needs Comet. Routine cadence drives latency; ordinary claims expire after 30 days.
+Handle entry is not cryptographic identity proof. A fixed public key and client-supplied device ID prevent simple identity reuse, but a modified client can generate fresh signing keys for new claims. The service does not attest hardware identity, so this does not prove one physical Mac per trial. Fresh posts, one-use URLs, one account per accepted device key, and rebind cooldown reduce abuse but do not eliminate it. Follow checks use the pushed follower snapshot only at verification time. LinkedIn often needs Comet. Routine cadence drives latency; ordinary claims expire after 30 days.
 
 ### Trial entitlements and compatibility
 
@@ -274,3 +274,12 @@ Active claim creation and polls return `status: "trial"`, `trial_ends_at`, `chec
 `GET /v1/config` exposes the launch targets, derived repost URLs, `trial_hours: 72`, and `trial_eta_text`, while retaining the legacy post and share fields. `GET /v1/admin/claims` adds `trial_ends_at` to each row. A complete follower snapshot reports missing active trial handles in `trial_unfollowed`; it does not revoke their trial.
 
 Active trial devices can also use the signed wall-preference route. Their choice is retained when the trial converts; public wall listings still require a permanent unlock.
+
+
+### Security invariants
+
+Migration `003_device_keys.sql` adds the trial public key and a unique index, backfills a durable signing-key/device-ID registry from existing claims and bindings, and retains every consumed trial row. Legacy duplicate-key trial records are preserved; only the earliest receives the indexed key. A claim signed by a key already registered to another device ID returns `409 device_conflict`. Generating fresh keys on a modified client remains outside this software-only identity guarantee.
+
+Follower and reposter snapshots validate each ID/handle pair before applying it. Established X IDs are immutable, and durable unique identity pairs prevent simultaneous pushes from assigning one ID to different handles. Handle-only legacy follower entries cannot match an established account ID. Authenticated admin requests have a 120-request burst with refill at 120/minute per IP; snapshots cap entries at 5,000 (the existing raw-body byte cap also applies), and each follow/repost pass processes at most 500 claims still needing that check. Repeat pushes can process the remaining claims.
+
+Rebinding compares the observed device ID, bound time and last rebind time inside the same atomic transaction that consumes the post and changes the binding. A losing transaction rolls back and re-evaluates current cooldown and post-use state before retrying.

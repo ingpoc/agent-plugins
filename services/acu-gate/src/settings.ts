@@ -21,11 +21,11 @@ export function matchesPreset(text: string, provider: "x" | "linkedin") {
   });
 }
 function launchValue(value: unknown, provider: "x" | "linkedin"): string | null {
-  if (value == null || value === "") return null;
+  if (value == null) return null;
   const valid = typeof value === "string" && (provider === "x"
     ? /^\d{1,25}$/.test(value)
     : /^https:\/\/www\.linkedin\.com\/(?:posts\/[^\s?#]+|feed\/update\/urn:li:(?:activity|share|ugcPost):\d+\/?)(?:\?[^\s#]*)?$/.test(value));
-  if (!valid) { process.stderr.write(`ACU gate: invalid ${provider} launch post configuration; disabled\n`); return null; }
+  if (!valid) throw new Error(`Invalid ${provider} launch post configuration`);
   return value as string;
 }
 export function config(env: NodeJS.ProcessEnv = {}) {
@@ -97,6 +97,8 @@ export function settings(input: NodeJS.ProcessEnv) {
     throw new Error("Invalid TRUST_PROXY_HOPS");
   env.TRUST_PROXY_HOPS = String(hops);
   env.OEMBED_BASE = normalizeOEmbedBase(env.OEMBED_BASE, env.DEV === "1");
+  // Validate launch configuration during startup, including preset defaults.
+  config(env);
   return env;
 }
 const PRODUCTION_OEMBED_HOSTS = new Set(["publish.x.com", "publish.twitter.com"]);

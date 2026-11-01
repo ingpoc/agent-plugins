@@ -11,7 +11,7 @@ test("trial migration is additive and declares account/device uniqueness", async
   assert.match(migration, /claim_id uuid NOT NULL REFERENCES claims\(id\)/i);
   assert.match(migration, /CREATE TABLE IF NOT EXISTS gate_settings\s*\(\s*key text PRIMARY KEY,\s*value text NOT NULL,\s*updated_at timestamptz NOT NULL/i);
   assert.deepEqual(tables.trials, [
-    "id", "account_id", "device_id", "provider", "handle", "claim_id",
+    "id", "account_id", "device_id", "device_pubkey", "provider", "handle", "claim_id",
     "started_at", "ends_at", "converted_at", "created_at",
   ]);
   assert.deepEqual(tables.gate_settings, ["key", "value", "updated_at"]);

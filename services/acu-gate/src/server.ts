@@ -75,7 +75,7 @@ function deviceKey(value: unknown) {
   } catch {
     throw new GateError(400, "invalid_device_key");
   }
-  return encoded;
+  return raw.toString("base64");
 }
 async function readRawBody(req: IncomingMessage) {
   const chunks: Buffer[] = [];
@@ -125,7 +125,7 @@ export function createGate(
   let launchInitialization: Promise<void> | undefined;
   const trialHoursMs = publicConfig.trial_hours * 3600000;
   function hasLaunch(provider: Provider) {
-    return provider === "x" ? publicConfig.x.launch_post_id != null : publicConfig.linkedin.launch_post_url != null;
+    return firstLaunch.has(provider) || (provider === "x" ? publicConfig.x.launch_post_id != null : publicConfig.linkedin.launch_post_url != null);
   }
   async function preserveTrialClaim(trial: Row) {
     const claim = await first(store, "claims", { id: trial.claim_id });
@@ -142,6 +142,12 @@ export function createGate(
   async function trialWindow(trial: Row) {
     if (trial.converted_at) return trial;
     const provider = trial.provider as Provider;
+    const history = await first(store, "gate_settings", { key: `${provider}_launch_first_seen_at` });
+    if (history) {
+      const seen = Date.parse(String(history.value));
+      if (!Number.isFinite(seen)) throw new Error("invalid_launch_history");
+      firstLaunch.set(provider, seen);
+    }
     const end = hasLaunch(provider)
       ? Math.max(Date.parse(String(trial.ends_at)), firstLaunch.get(provider)! + trialHoursMs)
       : Date.now() + trialHoursMs;
@@ -156,11 +162,14 @@ export function createGate(
     if (!launchInitialization) {
       launchInitialization = (async () => {
         for (const provider of ["x", "linkedin"] as const) {
-          if (!hasLaunch(provider)) continue;
           const key = `${provider}_launch_first_seen_at`;
-          await store.atomic([insert("gate_settings", { key, value: launchObservedAt, updated_at: launchObservedAt }, true)]);
-          const setting = (await first(store, "gate_settings", { key }))!;
-          firstLaunch.set(provider, Date.parse(String(setting.value)));
+          if (hasLaunch(provider))
+            await store.atomic([insert("gate_settings", { key, value: launchObservedAt, updated_at: launchObservedAt }, true)]);
+          const setting = await first(store, "gate_settings", { key });
+          if (!setting) continue;
+          const seen = Date.parse(String(setting.value));
+          if (!Number.isFinite(seen)) throw new Error("invalid_launch_history");
+          firstLaunch.set(provider, seen);
           for (const trial of await store.list("trials", { provider, converted_at: null }))
             await trialWindow(trial);
         }
@@ -258,13 +267,14 @@ export function createGate(
     if (await first(store, "unlocks", { account_id: account.id }) ||
         await first(store, "trials", { account_id: account.id }) ||
         await first(store, "trials", { device_id: claim.device_id }) ||
+        await first(store, "trials", { device_pubkey: claim.device_pubkey }) ||
         await first(store, "revocations", { account_id: account.id })) return;
     const bound = await first(store, "bindings", { device_id: claim.device_id });
     if (bound && bound.account_id !== account.id) return;
     const started = iso();
     try {
       await store.atomic([insert("trials", {
-        id: randomUUID(), account_id: account.id, device_id: claim.device_id,
+        id: randomUUID(), account_id: account.id, device_id: claim.device_id, device_pubkey: claim.device_pubkey,
         provider: account.provider, handle: account.handle, claim_id: claim.id,
         started_at: started, ends_at: new Date(Date.parse(started) + publicConfig.trial_hours * 3600000).toISOString(),
         converted_at: null, created_at: started,
@@ -313,15 +323,28 @@ export function createGate(
       if (error instanceof StoreConflict) throw new GateError(401, "bad_signature");
       throw error;
     }
+    if (action === "claim") await registerDeviceKey(pubkey, id);
     return id;
+  }
+  async function registerDeviceKey(pubkey: string, id: string) {
+    const existing = await first(store, "device_keys", { device_pubkey: pubkey });
+    if (existing && existing.device_id !== id) throw new GateError(409, "device_conflict");
+    if (!existing) {
+      for (const table of ["claims", "bindings", "trials"] as const) {
+        const seen = await store.list(table, { device_pubkey: pubkey });
+        if (seen.some((row) => row.device_id !== id)) throw new GateError(409, "device_conflict");
+      }
+      await store.atomic([insert("device_keys", { device_pubkey: pubkey, device_id: id, created_at: iso() }, true)]);
+      const registered = await first(store, "device_keys", { device_pubkey: pubkey });
+      if (registered?.device_id !== id) throw new GateError(409, "device_conflict");
+    }
   }
   async function isFollower(provider: Provider, handle: string, xUserId: string | null) {
     if (provider !== "x") return false;
-    if (await first(store, "followers", { provider: "x", handle })) return true;
-    if (xUserId) {
-      const rows = await store.list("followers", { provider: "x" });
-      return rows.some((r) => r.x_user_id === xUserId);
-    }
+    const follower = xUserId
+      ? await first(store, "followers", { provider: "x", x_user_id: xUserId, handle })
+      : await first(store, "followers", { provider: "x", handle });
+    if (follower) return true;
     return false;
   }
   async function markFollowFromTable(account: Row, claim: Row) {
@@ -386,12 +409,29 @@ export function createGate(
     if (postCreatedMs < minMs) throw new GateError(422, "post_too_old");
   }
   async function tryUnlock(claim: Row, account: Row) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try { return await tryUnlockAttempt(claim, account); }
+      catch (error) {
+        if (!(error instanceof StoreConflict) || attempt === 2) throw error;
+        claim = (await first(store, "claims", { id: claim.id }))!;
+        account = (await first(store, "accounts", { id: account.id }))!;
+      }
+    }
+    throw new StoreConflict("concurrent_change");
+  }
+  function bindingVersion(binding: Row): Row {
+    return { account_id: binding.account_id, device_id: binding.device_id, bound_at: binding.bound_at, last_rebind_at: binding.last_rebind_at ?? null };
+  }
+  async function tryUnlockAttempt(claim: Row, account: Row) {
     claim = await expireIfNeeded(claim);
     if (claim.status !== "pending_verification") return claim;
     const existingBinding = await first(store, "bindings", { account_id: account.id, device_id: claim.device_id });
     if (existingBinding && await first(store, "unlocks", { account_id: account.id })) {
       await checkRevoked(String(account.id));
-      await store.atomic([update("claims", { id: claim.id, status: "pending_verification" }, { status: "unlocked" }, true)]);
+      await store.atomic([
+        update("bindings", bindingVersion(existingBinding), { device_id: existingBinding.device_id }, true),
+        update("claims", { id: claim.id, status: "pending_verification" }, { status: "unlocked" }, true),
+      ]);
       return { ...claim, status: "unlocked" };
     }
     claim = await markFollowFromTable(account, claim);
@@ -423,6 +463,8 @@ export function createGate(
     const unlockExisting = await first(store, "unlocks", { account_id: account.id });
     const displayName =
       account.provider === "x" ? `@${account.handle}` : String(account.handle);
+    const usedPost = await first(store, "used_posts", { post_key: claim.post_key });
+    if (usedPost && usedPost.account_id !== account.id) return reject("post_url_used");
     const ops: Op[] = [
       update(
         "claims",
@@ -438,13 +480,11 @@ export function createGate(
           wall_opt_in_at: claim.show_on_wall === true ? iso() : null,
         },
       ),
-      insert(
-        "used_posts",
-        { post_key: String(claim.post_key), account_id: account.id, created_at: iso() },
-        true,
-      ),
+      ...(!usedPost ? [insert("used_posts", { post_key: String(claim.post_key), account_id: account.id, created_at: iso() })] : []),
     ];
     ops.push(update("trials", { account_id: account.id, converted_at: null }, { converted_at: iso() }));
+    if (binding && binding.device_id === claim.device_id)
+      ops.push(update("bindings", bindingVersion(binding), { device_id: binding.device_id }, true));
     if (!binding)
       ops.push(
         insert("bindings", {
@@ -465,7 +505,7 @@ export function createGate(
         ),
         update(
           "bindings",
-          { account_id: account.id },
+          bindingVersion(binding),
           {
             device_id: claim.device_id,
             device_pubkey: claim.device_pubkey,
@@ -490,18 +530,7 @@ export function createGate(
           created_at: iso(),
         }),
       );
-    try {
-      await store.atomic(ops);
-    } catch (error) {
-      if (error instanceof StoreConflict) {
-        const used = await first(store, "used_posts", { post_key: String(claim.post_key) });
-        if (used && used.account_id !== account.id) return reject("post_url_used");
-        const taken = await first(store, "bindings", { device_id: claim.device_id });
-        if (taken && taken.account_id !== account.id) return reject("device_taken");
-        throw error;
-      }
-      throw error;
-    }
+    await store.atomic(ops);
     return { ...claim, status: "unlocked" };
   }
   async function claimResponse(claim: Row, account: Row) {
@@ -588,7 +617,7 @@ export function createGate(
       id: randomUUID(),
       provider,
       handle,
-      x_user_id: null,
+      x_user_id: provider === "x" ? (await first(store, "followers", { provider: "x", handle }))?.x_user_id ?? null : null,
       verified: false,
       verified_type: null,
       followers_count: null,
@@ -609,32 +638,70 @@ export function createGate(
     const row = await first(store, "claim_device_limits", { device_id: deviceId, day });
     if (row && Number(row.count) > 10) rateLimited(3600);
   }
-  async function pushFollowers(body: Record<string, unknown>) {
-    const followers = body.followers;
-    if (!Array.isArray(followers)) throw new GateError(400, "invalid_request");
-    let upserted = 0;
-    const ops: Op[] = [];
-    for (const item of followers) {
+  type XIdentity = { id: string | null; handle: string; account?: Row; pinned: boolean };
+  async function xIdentities(value: unknown): Promise<XIdentity[]> {
+    if (!Array.isArray(value) || value.length > 5000) throw new GateError(400, "invalid_request");
+    const handles = new Map<string, string | null>(), ids = new Map<string, string>();
+    const identities: XIdentity[] = [];
+    for (const item of value) {
       const row = object(item);
-      const handle = String(row.handle || "").replace(/^@/, "").toLowerCase();
-      if (!/^[a-z0-9_]{1,15}$/.test(handle)) continue;
-      ops.push(
-        insert(
-          "followers",
-          {
-            provider: "x",
-            handle,
-            x_user_id: row.id ? String(row.id) : null,
-          },
-          true,
-        ),
-      );
-      upserted += 1;
-      const accounts = await store.list("accounts", { provider: "x", handle });
-      for (const account of accounts) {
-        if (row.id && !account.x_user_id)
-          ops.push(update("accounts", { id: account.id }, { x_user_id: String(row.id) }));
+      if (typeof row.handle !== "string" || !/^@?[A-Za-z0-9_]{1,15}$/.test(row.handle) ||
+          (row.id !== undefined && (typeof row.id !== "string" || !/^\d{1,25}$/.test(row.id))))
+        throw new GateError(400, "invalid_request");
+      const handle = row.handle.replace(/^@/, "").toLowerCase();
+      const id = typeof row.id === "string" ? row.id : null;
+      if ((handles.has(handle) && handles.get(handle) !== id) || (id && ids.has(id) && ids.get(id) !== handle))
+        throw new GateError(409, "identity_conflict");
+      if (handles.has(handle)) continue;
+      handles.set(handle, id);
+      if (id) ids.set(id, handle);
+      const account = await first(store, "accounts", { provider: "x", handle });
+      const follower = await first(store, "followers", { provider: "x", handle });
+      const pinnedHandle = await first(store, "x_identities", { handle });
+      const pinnedID = id ? await first(store, "x_identities", { x_user_id: id }) : undefined;
+      if (id) {
+        if ((pinnedHandle && pinnedHandle.x_user_id !== id) || (pinnedID && pinnedID.handle !== handle))
+          throw new GateError(409, "identity_conflict");
+        if ((account?.x_user_id && account.x_user_id !== id) || (follower?.x_user_id && follower.x_user_id !== id))
+          throw new GateError(409, "identity_conflict");
+        const owners = await store.list("accounts", { provider: "x", x_user_id: id });
+        const followers = await store.list("followers", { provider: "x", x_user_id: id });
+        if (owners.some((owner) => owner.handle !== handle) || followers.some((owner) => owner.handle !== handle))
+          throw new GateError(409, "identity_conflict");
       }
+      identities.push({ id, handle, account, pinned: pinnedID != null });
+    }
+    return identities;
+  }
+  function matchesXIdentity(row: XIdentity, account: Row) {
+    return account.handle === row.handle && (account.x_user_id ? row.id === account.x_user_id : true);
+  }
+  function identityAssignments(rows: XIdentity[]): Op[] {
+    return rows.flatMap(({ id, handle, account, pinned }) => {
+      const ops: Op[] = [];
+      if (id && !pinned) ops.push(insert("x_identities", { x_user_id: id, handle }));
+      if (id && account && !account.x_user_id)
+        ops.push(update("accounts", { id: account.id, x_user_id: account.x_user_id ?? null }, { x_user_id: id }, true));
+      return ops;
+    });
+  }
+  async function applyIdentitySnapshot(ops: Op[]) {
+    try { await store.atomic(ops); }
+    catch (error) {
+      if (error instanceof StoreConflict) throw new GateError(409, "identity_conflict");
+      throw error;
+    }
+  }
+  async function pushFollowers(body: Record<string, unknown>) {
+    const followers = await xIdentities(body.followers);
+    let upserted = 0;
+    const ops: Op[] = identityAssignments(followers);
+    for (const row of followers) {
+      const existing = await first(store, "followers", { provider: "x", handle: row.handle });
+      if (existing) {
+        if (row.id && !existing.x_user_id) ops.push(update("followers", { provider: "x", handle: row.handle, x_user_id: existing.x_user_id ?? null }, { x_user_id: row.id }, true));
+      } else ops.push(insert("followers", { provider: "x", handle: row.handle, x_user_id: row.id }));
+      upserted += 1;
     }
     ops.push(
       insert(
@@ -648,11 +715,11 @@ export function createGate(
         true,
       ),
     );
-    if (ops.length) await store.atomic(ops);
+    if (ops.length) await applyIdentitySnapshot(ops);
     const followConfirmed: string[] = [];
     const unlocked: string[] = [];
     const results: Row[] = [];
-    const pending = await store.list("claims", { status: "pending_verification" });
+    const pending = await store.list("claims", { status: "pending_verification", follow_check: "pending" }, 500);
     for (const claim of pending) {
       const account = await first(store, "accounts", { id: claim.account_id });
       if (!account || account.provider !== "x") continue;
@@ -665,13 +732,11 @@ export function createGate(
     }
     const trialUnfollowed = [];
     if (body.complete === true) {
-      const supplied = Array.isArray(body.followers) ? body.followers : [];
+      const supplied = followers;
       for (const trial of await store.list("trials", { provider: "x", converted_at: null })) {
         if (Date.parse(String(trial.ends_at)) <= Date.now()) continue;
         const account = await first(store, "accounts", { id: trial.account_id });
-        const present = supplied.some((value) => value && typeof value === "object" &&
-          ((typeof value.handle === "string" && value.handle.replace(/^@/, "").toLowerCase() === trial.handle) ||
-            (account?.x_user_id && String(value.id) === account.x_user_id)));
+        const present = account && supplied.some((value) => matchesXIdentity(value, account));
         if (!present) trialUnfollowed.push({ account_id: trial.account_id, handle: trial.handle });
       }
     }
@@ -687,17 +752,17 @@ export function createGate(
     return { ...claim, ...fields };
   }
   async function pushReposters(payload: Record<string, unknown>) {
-    if (payload.provider !== "x" || payload.source !== "x_plugin" || !publicConfig.x.launch_post_id || payload.post_id !== publicConfig.x.launch_post_id || !Array.isArray(payload.reposters))
+    if (payload.provider !== "x" || payload.source !== "x_plugin" || !publicConfig.x.launch_post_id || payload.post_id !== publicConfig.x.launch_post_id)
       throw new GateError(400, "invalid_request");
+    const reposters = await xIdentities(payload.reposters);
+    const assignments = identityAssignments(reposters);
+    if (assignments.length) await applyIdentitySnapshot(assignments);
     const results = [], unlocked: string[] = [];
-    for (const claim of await store.list("claims", { status: "pending_verification" })) {
+    for (const claim of await store.list("claims", { status: "pending_verification", post_check: "pending" }, 500)) {
       const account = await first(store, "accounts", { id: claim.account_id });
       if (!account || account.provider !== "x" || Date.parse(String(claim.expires_at)) <= Date.now()) continue;
-      const reposter = payload.reposters.find((value) => value && typeof value === "object" &&
-        ((typeof value.handle === "string" && value.handle.replace(/^@/, "").toLowerCase() === String(account.handle).toLowerCase()) ||
-          (account.x_user_id && String(value.id) === account.x_user_id)));
+      const reposter = reposters.find((row) => matchesXIdentity(row, account));
       if (!reposter) continue;
-      if (reposter.id) await store.atomic([update("accounts", { id: account.id }, { x_user_id: String(reposter.id) })]);
       const updated = await tryUnlock(await confirmRepost(claim, account, "x_plugin"), account);
       if (updated.status === "unlocked") unlocked.push(String(claim.id));
       const { entitlement: _, ...result } = await claimResponse(updated, account);
@@ -1075,11 +1140,14 @@ export function createGate(
       const admin = path.startsWith("/v1/admin/");
       if (admin) {
         if (!constantEqual(bearer(req) || "", env.ADMIN_TOKEN!)) adminAuthFail(req);
+        rateLimit("admin", 120, 60000, req);
         if (path === "/v1/admin/claims" && method === "GET") {
           const status = url.searchParams.get("status") || "pending_verification";
           const provider = url.searchParams.get("provider");
-          const limit = Math.min(Number(url.searchParams.get("limit") || 200), 500);
-          let claims = await store.list("claims", { status });
+          const requestedLimit = Number(url.searchParams.get("limit") || 200);
+          if (!Number.isInteger(requestedLimit) || requestedLimit < 1) throw new GateError(400, "invalid_request");
+          const limit = Math.min(requestedLimit, 500);
+          let claims = await store.list("claims", { status }, 500);
           if (provider === "x" || provider === "linkedin") {
             const accounts = await store.list("accounts", { provider });
             const ids = new Set(accounts.map((a) => a.id));
@@ -1246,7 +1314,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)
   main().catch((error) => {
     const message =
       error instanceof Error &&
-      /^Missing required setting: [A-Z_]+$/.test(error.message)
+      /^(?:Missing required setting: [A-Z_]+|Invalid (?:x|linkedin) launch post configuration)$/.test(error.message)
         ? error.message
         : "required configuration or database unavailable";
     process.stderr.write(`ACU gate startup failed: ${message}\n`);

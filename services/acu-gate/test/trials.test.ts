@@ -35,14 +35,8 @@ test("launch config validates environment overrides and publishes repost targets
     "https://www.linkedin.com/posts/owner_launch-activity-1234567890",
   );
   assert.equal(value.linkedin.repost_url, value.linkedin.launch_post_url);
-  const invalid = config({
-    GATE_X_LAUNCH_POST_ID: "javascript:bad",
-    GATE_LINKEDIN_LAUNCH_POST_URL: "https://example.com/launch",
-  });
-  assert.equal(invalid.x.launch_post_id, null);
-  assert.equal(invalid.x.repost_url, null);
-  assert.equal(invalid.linkedin.launch_post_url, null);
-  assert.equal(invalid.linkedin.repost_url, null);
+  assert.throws(() => config({ GATE_X_LAUNCH_POST_ID: "javascript:bad" }), /Invalid x launch post configuration/);
+  assert.throws(() => config({ GATE_LINKEDIN_LAUNCH_POST_URL: "https://example.com/launch" }), /Invalid linkedin launch post configuration/);
 });
 
 test("preset matching recognizes both provider domains and rejects cross-provider refs", () => {
