@@ -32,7 +32,7 @@ Forge: [Cursor Origin](https://cursor.com/codebase/gurusharan/agent-plugins); Gi
 | Change published benchmark scores | That plugin's `README.md` |
 | Cursor MCP spawn / marketplace cache still relative or `${PLUGIN_*}` literal | That package's `.cursor-plugin/mcp.json`; context-ledger contract and bootstrap are in Repo Rules below. Dest repair: `scripts/install_cursor_dest.py`, only for pre-override relative installs. ACU `install_harness.py cursor-plugin` only retires the stale `~/.cursor/plugins/local` copy to the Trash |
 | Change context-ledger MCP manifests or the serve launcher | `plugins/context-ledger/tests/test_manifests.py` and `tests/test_contract.py` (stdio shape, resolver, keychain, shell files reject or-true) |
-| Checks, CI, pre-commit | `scripts/check.py` |
+| Checks, CI, pre-push | `scripts/check.py` (CI: path-filtered, parallel, full nightly on GitHub); local gate `scripts/install-hooks.sh` → `.githooks/pre-push` → `scripts/prepush.py` |
 | Claim a plugin fix is done | Live-verify the installed client copy (MCP/CLI). Update the standing canvas from that run. `scripts/check.py` is not that proof. |
 | Marketplace index stale after Origin main moves | `scripts/refresh_cursor_marketplace_index.sh`, run by the Origin mirror job. Team Auto Refresh does not cover the user-scoped registration. Recovery is remove, then add with no `--git-ref`. |
 

@@ -431,5 +431,89 @@ class HookEnvironmentTests(unittest.TestCase):
         self.assertNotIn("GIT_INDEX_FILE", run.call_args.kwargs["env"])
 
 
+class SelectionAndParallelTests(unittest.TestCase):
+    def names(self, paths):
+        plugins, reason = check.plugins_for_paths(paths)
+        return [plugin.name for plugin in plugins], reason
+
+    def test_plugin_paths_select_only_that_plugin(self):
+        names, reason = self.names(["plugins/comet-control/README.md", "docs/x.md"])
+        self.assertEqual(names, ["comet-control"])
+        self.assertIn("comet-control", reason)
+
+    def test_tooling_unknown_and_unmapped_paths_run_everything(self):
+        every = [plugin.name for plugin in check.plugin_dirs()]
+        for path in ("scripts/check.py", ".github/workflows/ci.yml", ".githooks/pre-push",
+                     "plugins/not-a-plugin/x.py", ".gitignore", "Makefile",
+                     ".cursor-plugin/marketplace.json"):
+            with self.subTest(path=path):
+                names, reason = self.names(["plugins/comet-control/x.py", path])
+                self.assertEqual(names, every)
+                self.assertTrue(reason.startswith("full run"), reason)
+
+    def test_docs_only_change_selects_no_plugin(self):
+        self.assertEqual(self.names(["docs/a.md", "README.md", "services/acu-gate/app.py"])[0], [])
+
+    def test_unreadable_base_runs_everything(self):
+        plugins, reason = check.selected_plugins(False, "0" * 40)
+        self.assertEqual(plugins, check.plugin_dirs())
+        self.assertIn("failed", reason)
+
+    def test_guard_fails_when_nothing_would_run(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            self.assertEqual(check.run_jobs([], 4), 1)
+        self.assertIn("tested nothing", err.getvalue())
+
+    def test_parallel_runs_every_job_and_reports_the_failure(self):
+        env = dict(os.environ)
+        ok = check.Job("test ok", [sys.executable, "-c", "print('fine')"], ROOT, env)
+        bad = check.Job("test bad", [sys.executable, "-c", "raise SystemExit(3)"], ROOT, env)
+        out, err = io.StringIO(), io.StringIO()
+        import tempfile
+        with tempfile.TemporaryDirectory() as temp, \
+                mock.patch.dict(os.environ, {"AGENT_PLUGINS_CHECK_TIMINGS": f"{temp}/t.json"}), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(check.run_jobs([bad, ok, ok], 3), 3)
+            self.assertEqual(set(json.loads(Path(f"{temp}/t.json").read_text())), {"test ok", "test bad"})
+        self.assertIn("test ok", out.getvalue())
+        self.assertIn("fine", out.getvalue())
+        self.assertIn("check: ran 3 test processes, 3 at a time", out.getvalue())
+        self.assertIn("test bad (exit 3)", err.getvalue())
+
+
+class PrePushTests(unittest.TestCase):
+    def test_gate_rejects_undefined_names_and_bad_json(self):
+        import prepush
+        with self._tmp() as rel:
+            (ROOT / rel / "bad.py").write_text("print(missing_name)\n", encoding="utf-8")
+            (ROOT / rel / "bad.json").write_text("{", encoding="utf-8")
+            (ROOT / rel / "good.py").write_text("print(1)\n", encoding="utf-8")
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                self.assertEqual(prepush.main(["--files", f"{rel}/good.py"]), 0)
+                self.assertEqual(
+                    prepush.main(["--files", f"{rel}/bad.py", f"{rel}/bad.json"]), 1)
+            text = err.getvalue()
+            self.assertIn("FAIL format: json", text)
+            if prepush.shutil.which("ruff"):
+                self.assertIn("F821", text)
+
+    def test_new_branch_range_starts_at_merge_base(self):
+        import prepush
+        head = prepush.git("rev-parse", "HEAD").stdout.strip()
+        ranges = prepush.pushed_ranges(f"refs/heads/x {head} refs/heads/x {'0' * 40}\n")
+        self.assertEqual(len(ranges), 1)
+        self.assertEqual(ranges[0][1], head)
+        self.assertNotEqual(ranges[0][0], "0" * 40)
+        self.assertEqual(prepush.pushed_ranges(f"(delete) {'0' * 40} refs/heads/x {head}\n"), [])
+
+    @contextlib.contextmanager
+    def _tmp(self):
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix=".prepush-test-", dir=ROOT) as path:
+            yield Path(path).relative_to(ROOT).as_posix()
+
+
 if __name__ == "__main__":
     unittest.main()

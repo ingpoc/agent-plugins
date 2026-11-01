@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Fast local gate (format, lint, compile, manifest contract) on the pushed files.
+# Install once per clone: scripts/install-hooks.sh. Tests run in CI.
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+exec python3 "$ROOT/scripts/prepush.py"
