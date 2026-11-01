@@ -17,9 +17,16 @@ enum IslandInk {
 }
 
 
-enum IslandAgentBadge {
+enum IslandAgentBadge: Equatable {
+    /// Guru 2026-11-01 19:30 IST: one 12 pt badge at a circle's top-right, same order as the pill dot.
+    case failed, needsYou, done
     static func showsCircle(rowCount: Int) -> Bool { rowCount > 0 }
-    static func count(needsYou: Int) -> Int? { needsYou > 0 ? needsYou : nil }
+    static func badge(for g: IslandSourceGroup) -> IslandAgentBadge? {
+        if g.failed { return .failed }
+        if g.needsYou > 0 { return .needsYou }
+        if g.done { return .done }
+        return nil
+    }
 }
 
 enum IslandAgentAccessibility {

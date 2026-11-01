@@ -400,8 +400,6 @@ struct SamanthaAppCircle: View {
 struct SamanthaSourceCircle: View {
     let group: IslandSourceGroup
     var differentiate = false
-    /// Off while the compact pill already carries the failure: one error mark, never two.
-    var failedMark = true
     var body: some View {
         ZStack {
             Circle().fill(Color.black)
@@ -418,52 +416,26 @@ struct SamanthaSourceCircle: View {
         }
         .frame(width: IslandBarLayout.circleDiameter, height: IslandBarLayout.circleDiameter)
         .overlay(alignment: .topTrailing) {
-            if let count = IslandAgentBadge.count(needsYou: group.needsYou), count >= 2 {
-                Text("\(count)")
-                    .font(.system(size: 9, weight: .bold)).monospacedDigit()
-                    .foregroundStyle(Color.black)
-                    .frame(minWidth: 12, minHeight: 12)
-                    .background(Capsule().fill(IslandPalette.amber))
-                    .offset(x: 3, y: -3)
-            } else if group.done && group.needsYou == 0 {
-                // A: finished — 12 pt green check in the amber "1" slot.
-                Image(systemName: "checkmark")
+            // One 12 pt badge (Guru 19:30 IST): red cross failed > amber "!" needs you > green check done.
+            if let badge = IslandAgentBadge.badge(for: group) {
+                let (symbol, fill, ink): (String, Color, Color) = switch badge {
+                case .failed: ("xmark", IslandPalette.red, .white)
+                case .needsYou: ("exclamationmark", IslandPalette.amber, .black)
+                case .done: ("checkmark", IslandPalette.green, .black)
+                }
+                Image(systemName: symbol)
                     .font(.system(size: 7, weight: .heavy))
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(ink)
                     .frame(width: 12, height: 12)
-                    .background(Circle().fill(IslandPalette.green))
-                    .offset(x: 2, y: -2)
-            } else if IslandAgentBadge.count(needsYou: group.needsYou) == 1 {
-                Text("1")
-                    .font(.system(size: 8, weight: .heavy).monospacedDigit())
-                    .foregroundStyle(Color.black)
-                    .frame(width: 12, height: 12)
-                    .background(Circle().fill(IslandPalette.amber))
+                    .background(Circle().fill(fill))
                     .offset(x: 2, y: -2)
             }
         }
-        .overlay(alignment: group.needsYou > 0 ? .bottomTrailing : .topTrailing) {
+        .overlay(alignment: .bottomTrailing) {
             if group.expired {
                 IslandHollowRing().overlay {
                     if differentiate { Text("×").font(.system(size: 7, weight: .bold)).foregroundStyle(IslandPalette.red) }
-                }.offset(x: 1, y: group.needsYou > 0 ? 1 : -1)
-            }
-        }
-        .overlay(alignment: .bottomLeading) {
-            if differentiate && group.needsYou > 0 {
-                Text("!").font(.system(size: 7, weight: .black)).foregroundStyle(Color.black)
-                    .frame(width: 9, height: 9).background(Circle().fill(IslandPalette.amber))
-            }
-        }
-        .overlay(alignment: .topLeading) {
-            if group.failed && failedMark {
-                // Failed is always a red circle with an x; "!" is reserved for needs-you (amber).
-                Image(systemName: "xmark")
-                    .font(.system(size: 7, weight: .heavy))
-                    .foregroundStyle(Color.white)
-                    .frame(width: 12, height: 12)
-                    .background(Circle().fill(IslandPalette.red))
-                    .offset(x: -2, y: -2)
+                }.offset(x: 1, y: 1)
             }
         }
         .contentShape(Circle())
@@ -561,11 +533,6 @@ struct SamanthaIslandBar: View {
     /// SwiftUI's value OR AppKit's live `accessibilityDisplayShouldReduceMotion` (model mirrors it).
     private var reduceMotion: Bool { envReduceMotion || model.systemReduceMotion }
 
-    /// The compact pill is showing an agent's needs-you / failed state (same gate as the pill below).
-    private var compactAttentionShown: Bool {
-        !model.cardOpen && [.idle, .doneSettled].contains(model.presentation) && model.compactAgentAttention != nil
-    }
-
     var body: some View {
         let rect = model.shapeRect
         ZStack(alignment: .topLeading) {
@@ -584,44 +551,20 @@ struct SamanthaIslandBar: View {
             ghostStack(rect)
             // Fixed window-size container: only the path (and offsets) animate, never a frame.
             shape.modifier(IslandMotionProbe(size: rect.size))
-            if !model.cardOpen, [.idle, .doneSettled].contains(model.presentation),
-               let attention = model.compactAgentAttention {
-                let agent = attention.agent
-                let status = agent.status == "needs_you" || agent.needs_you ? "Needs you"
-                    : agent.status == "stale" ? "Updates stopped" : "Failed"
-                let needsYou = agent.status == "needs_you" || agent.needs_you
-                let symbol = needsYou ? "exclamationmark.circle.fill"
-                    : agent.status == "stale" ? "clock.badge.exclamationmark" : "xmark.circle.fill"
-                let tint: Color = needsYou ? IslandPalette.amber : agent.status == "stale" ? Color.white : IslandPalette.red
-                HStack(spacing: 5) {
-                    Group {
-                        if needsYou || agent.status != "stale" {
-                            // Drawn, not a multicolor symbol: a solid amber "!" (needs you) or red "x" (failed) disc.
-                            Circle().fill(tint).frame(width: 14, height: 14)
-                                .overlay(Image(systemName: needsYou ? "exclamationmark" : "xmark")
-                                    .font(.system(size: 8, weight: .heavy)).foregroundStyle(needsYou ? Color.black : Color.white))
-                        } else {
-                            Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(tint)
-                        }
-                    }.frame(width: 14)
-                    // One line: two stacked 11/10 pt lines need ~25 pt and clipped in the 24 pt pill.
-                    HStack(spacing: 4) {
-                        Text(agent.name.isEmpty ? agent.app : agent.name)
-                            .font(.system(size: 12, weight: .semibold)).foregroundStyle(Color.white).lineLimit(1)
-                        Text(status).font(.system(size: 12, weight: .regular)).foregroundStyle(Color.white.opacity(0.7))
-                            .lineLimit(1).fixedSize().layoutPriority(1)
-                    }
-                }
-                .frame(width: rect.width - 16, height: IslandBarLayout.compactHeight, alignment: .leading)
-                .padding(.horizontal, 8)
-                .offset(x: rect.minX, y: rect.minY)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(agent.name.isEmpty ? agent.app : agent.name), \(status)\(attention.parentName.map { ", child of \($0)" } ?? "")")
+            if !model.cardOpen, [.idle, .doneSettled].contains(model.presentation), model.compactDot != nil {
+                // No details in the pill (Guru, 2026-11-01 19:28 IST): text and icons live in the expanded
+                // island only. VoiceOver still reads the full state from the pill.
+                Color.clear
+                    .frame(width: rect.width, height: IslandBarLayout.compactHeight)
+                    .offset(x: rect.minX, y: rect.minY)
+                    .allowsHitTesting(false)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(model.compactPillLabel)
             }
             if !model.cardOpen, [.idle, .doneSettled].contains(model.presentation),
-               model.compactAgentAttention == nil, let dot = model.compactDot {
+               let dot = model.compactDot {
                 // One solid 6 pt dot at the pill's right (no glow, ring or animation): red failed > amber
-                // needs-you > blue working. Idle and done: none. Hidden while the one-line text shows.
+                // needs-you > blue working. Idle and done: none. The pill's only content.
                 let d = IslandBarLayout.compactDotRect(shape: rect)
                 Circle().fill(dot.color)
                     .frame(width: d.width, height: d.height)
@@ -632,8 +575,7 @@ struct SamanthaIslandBar: View {
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
-                    SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate,
-                                         failedMark: !(compactAttentionShown && model.compactAgentAttention?.agent.status == "error"))
+                    SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate)
                         // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(IslandAgentAccessibility.circleLabel(groups: model.sourceGroups, agents: model.agents))
@@ -861,8 +803,7 @@ struct SamanthaIslandBar: View {
         } else {
             switch model.presentation {
             case .idle, .doneSettled:
-                // No orb here (Guru, 2026-11-01): idle is the empty pill; working adds the 6 pt right-hand
-                // dot and the agent circle; the failed / needs-you text takes the pill.
+                // No orb or icon here (Guru, 2026-11-01): the pill holds only the 6 pt right-hand dot.
                 Color.clear.frame(width: size, height: size)
             case .reconnecting:
                 SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)

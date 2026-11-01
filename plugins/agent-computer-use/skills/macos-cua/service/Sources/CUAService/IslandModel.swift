@@ -447,9 +447,7 @@ enum IslandSourceGroups {
             if a.status == "running" { map[name]!.running = true }
             if a.status == "done" { map[name]!.done = true }
         }
-        // Same rule as the compact pill: a live row of the source outranks its older failure mark.
-        let runningNames = Set(IslandAgentRows.taskAgents(agents).filter { $0.status == "running" }.map { $0.name.isEmpty ? $0.app : $0.name })
-        for name in runningNames { map[name]?.failed = false }
+        // Same order as the pill dot: an unseen failure keeps its red cross even while the source runs again.
         for name in order where map[name]!.done {
             let g = map[name]!
             if g.running || g.needsYou > 0 || g.failed { map[name]!.done = false }
@@ -697,6 +695,29 @@ final class IslandModel: ObservableObject {
         return nil
     }
 
+    /// VoiceOver for the detail-free compact pill, in dot order: "Codex failed, Claude needs you, 2 Cursor working".
+    var compactPillLabel: String {
+        let tasks = agents.filter { !IslandAgentRows.isProcessObservation($0) }
+        func name(_ a: IslandAgent) -> String { a.name.isEmpty ? a.app : a.name }
+        func parent(_ a: IslandAgent) -> String {
+            guard let p = a.parent_id, let row = agents.first(where: { $0.id == p }) else { return "" }
+            return ", child of \(name(row))"
+        }
+        var parts: [String] = []
+        for a in tasks where !a.needs_you && (a.status == "error" || a.status == "stale")
+            && seenFailures[a.id] != Self.failureSignature(a) {
+            parts.append(name(a) + (a.status == "stale" ? " stopped updating" : " failed") + parent(a))
+        }
+        for a in tasks where a.needs_you || a.status == "needs_you" { parts.append(name(a) + " needs you" + parent(a)) }
+        var running: [String: Int] = [:]; var order: [String] = []
+        for a in tasks where a.status == "running" && !a.needs_you {
+            if running[name(a)] == nil { order.append(name(a)) }
+            running[name(a), default: 0] += 1
+        }
+        for n in order { parts.append((running[n]! > 1 ? "\(running[n]!) " : "") + n + " working") }
+        return parts.joined(separator: ", ")
+    }
+
     private var doneExpiryWork: DispatchWorkItem?
     /// Re-compose when the next done circle's hold ends (hub done rows live 3 min; the circle 10 s).
     private func scheduleDoneExpiry(now: Date) {
@@ -708,24 +729,6 @@ final class IslandModel: ObservableObject {
         let work = DispatchWorkItem { [weak self] in self?.refresh(now: Date()) }
         doneExpiryWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + next + 0.05, execute: work)
-    }
-
-    var compactAgentAttention: IslandAgentRow? {
-        // A failed or stale row yields the pill to a live row of the same app: a Claude Code sign-in
-        // failure must not show "Claude · Failed" while a Claude desktop chat is replying.
-        let runningApps = Set(agents.filter { $0.status == "running" && !$0.app.isEmpty && !IslandAgentRows.isProcessObservation($0) }.map(\.app))
-        let candidate = agents.enumerated().filter {
-            !IslandAgentRows.isProcessObservation($0.element)
-                && (["needs_you", "error", "stale"].contains($0.element.status) || $0.element.needs_you)
-                && ($0.element.needs_you || $0.element.status == "needs_you"
-                    || (!runningApps.contains($0.element.app) && seenFailures[$0.element.id] != Self.failureSignature($0.element)))
-        }.min {
-            let a = IslandAgentRows.priority($0.element), b = IslandAgentRows.priority($1.element)
-            return a == b ? $0.offset < $1.offset : a < b
-        }
-        guard let agent = candidate?.element else { return nil }
-        let parentName = agent.parent_id.flatMap { id in agents.first { $0.id == id }?.name }
-        return IslandAgentRow(agent: agent, depth: 0, parentName: parentName)
     }
 
     var destructiveApprovalMissingScope: Bool {
@@ -1292,9 +1295,6 @@ final class IslandModel: ObservableObject {
     private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
         if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
         if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
-        if [.idle, .doneSettled].contains(state), compactAgentAttention != nil {
-            return max(state.compactWidth, IslandBarLayout.agentAttentionWidth)
-        }
         return state.compactWidth
     }
 

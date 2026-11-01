@@ -45,8 +45,11 @@ final class IslandAccessibilityTests: XCTestCase {
     func testAgentBadges() {
         XCTAssertFalse(IslandAgentBadge.showsCircle(rowCount: 0))
         XCTAssertTrue(IslandAgentBadge.showsCircle(rowCount: 1))
-        XCTAssertNil(IslandAgentBadge.count(needsYou: 0))
-        XCTAssertEqual(IslandAgentBadge.count(needsYou: 3), 3)
+        XCTAssertNil(IslandAgentBadge.badge(for: IslandSourceGroup(id: "Codex", running: true)))
+        XCTAssertEqual(IslandAgentBadge.badge(for: IslandSourceGroup(id: "Codex", needsYou: 3)), .needsYou, "exclamation, not a count")
+        XCTAssertEqual(IslandAgentBadge.badge(for: IslandSourceGroup(id: "Codex", done: true)), .done)
+        XCTAssertEqual(IslandAgentBadge.badge(for: IslandSourceGroup(id: "Codex", failed: true)), .failed)
+        XCTAssertEqual(IslandAgentBadge.badge(for: IslandSourceGroup(id: "Codex", needsYou: 1, failed: true)), .failed, "red outranks amber")
     }
 
     func testAgentLabels() {
