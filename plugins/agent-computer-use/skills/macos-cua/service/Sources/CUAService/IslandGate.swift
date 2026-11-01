@@ -56,6 +56,8 @@ final class IslandGate: ObservableObject {
     @Published private(set) var followDone: Bool
     @Published private(set) var postDone: Bool
     @Published var focusInput = false
+    @Published private(set) var isEditingHandle = false
+    @Published private(set) var reportedFollowCheck: String?
     private let defaults: UserDefaults?
     private var pendingSteps: Set<Int> = []
     private var activationObserver: AnyCancellable?
@@ -152,9 +154,38 @@ final class IslandGate: ObservableObject {
         deepLinkBanner = isUnlocked ? "Your island is already unlocked." : nil
         show()
     }
+    var followNeedsAttention: Bool {
+        ["failed", "not_following", "not following", "unfollowed"].contains(reportedFollowCheck ?? "")
+    }
+    var followStepDone: Bool {
+        guard !followNeedsAttention else { return false }
+        switch state {
+        case .trial, .trialExpired, .repostChecking: return true
+        default: return followDone
+        }
+    }
+    var canOpenRepost: Bool {
+        let provider = lockedProvider
+        let url = provider == "linkedin" ? config?.linkedin.repost_url : config?.x.repost_url
+        guard isLaunchConfigured(for: provider), url != nil else { return false }
+        switch state {
+        case .trial, .repostChecking: return account != nil
+        default: return isHandleValid
+        }
+    }
+    var followStepActive: Bool { isHandleValid && !followStepDone }
+    var repostStepActive: Bool { canOpenRepost && followStepDone }
+    func editHandle() { isEditingHandle = true; focusInput = true }
+    private func applyFollowCheck(_ checks: IslandGateChecks?) {
+        guard let value = checks?.follow else { return }
+        reportedFollowCheck = value.lowercased()
+        if value == "confirmed" { followDone = true }
+        else if followNeedsAttention { followDone = false }
+    }
     func transition(_ next: IslandGateState) {
         Self.log.info("Gate state \(self.state.name, privacy: .public) -> \(next.name, privacy: .public)")
         if case .trialExpired(let identity) = next {
+            isEditingHandle = false
             handleText = identity.handle
             unlockLinkedInRoute = identity.provider == "linkedin"
         }
@@ -391,12 +422,14 @@ final class IslandGate: ObservableObject {
     func startOver() {
         operation?.cancel(); generation += 1
         clearClaimID()
-        followDone = false; postDone = false; pendingSteps.removeAll()
+        followDone = false; postDone = false; reportedFollowCheck = nil; isEditingHandle = false; pendingSteps.removeAll()
         defaults?.removeObject(forKey: "islandGate.followDone"); defaults?.removeObject(forKey: "islandGate.postDone")
         handleText = ""; transition(.locked(linkedIn: unlockLinkedInRoute))
     }
     func changeInput() { transition(.locked(linkedIn: unlockLinkedInRoute)); focusInput = true }
-    func setFixtureSteps(follow: Bool, post: Bool) { followDone = follow; postDone = post }
+    func setFixtureSteps(follow: Bool, post: Bool, reportedFollow: String? = nil) {
+        followDone = follow; postDone = post; reportedFollowCheck = reportedFollow
+    }
     func submitCheck() {
         guard !fixture, isHandleValid else { return }
         operation?.cancel(); generation += 1
@@ -450,6 +483,7 @@ final class IslandGate: ObservableObject {
         handle(error)
     }
     func applyClaim(_ reply: IslandGateClaimResponse, since: Date) throws {
+        applyFollowCheck(reply.checks)
         if let after = reply.poll_after { pollInterval = min(300, max(1, TimeInterval(after))) }
         if let id = reply.claim_id { try persistClaimID(id) }
         if let token = reply.entitlement {
@@ -495,6 +529,7 @@ final class IslandGate: ObservableObject {
         do {
             let reply = try await client.pollClaim(id: claimID, device: device)
             guard version == generation else { return }
+            applyFollowCheck(reply.checks)
             if let after = reply.poll_after { pollInterval = min(300, max(1, TimeInterval(after))) }
             if let token = reply.entitlement {
                 try accept(token)
@@ -600,6 +635,7 @@ final class IslandGate: ObservableObject {
         wallOperation?.cancel(); wallOperation = nil
         showOnWall = false; wallUpdating = false; wallError = nil
         entitlement = nil; entitlementTier = nil; account = nil; handleText = ""
+        reportedFollowCheck = nil; isEditingHandle = false
         clearClaimID()
         transition(.locked())
         do { for name in ["entitlement", "entitlement-tier", "trial-ends-at", "account", "claim-id", "pending-follow"] { try store.delete(name) } }

@@ -113,12 +113,18 @@ final class IslandGateRefreshCompatibilityTests: XCTestCase {
         let store = ReadOnlyStore(values: ["account": try JSONEncoder().encode(account), "entitlement": Data(try token().utf8)])
         let gate = IslandGate(store: store, client: IslandGateURLProtocol.client(), publicKey: signingKey.publicKey.rawRepresentation,
                               device: device, urlOpener: IslandGateRecordingURLOpener(), pasteboard: IslandGateRecordingPasteboard())
-        IslandGateURLProtocol.handler = { _ in (400, Data(#"{"error":"invalid_request"}"#.utf8)) }
+        let requests = expectation(description: "startup and explicit refresh finish before removing the mock")
+        requests.expectedFulfillmentCount = 2
+        IslandGateURLProtocol.handler = { _ in
+            requests.fulfill()
+            return (400, Data(#"{"error":"invalid_request"}"#.utf8))
+        }
         defer { IslandGateURLProtocol.handler = nil }
         gate.start()
         XCTAssertEqual(gate.stateName, "error")
         XCTAssertTrue(gate.isUnlocked, "A verified stored token is still authoritative when persistence fails")
         await gate.refresh()
+        await fulfillment(of: [requests], timeout: 1)
         XCTAssertTrue(gate.isUnlocked)
     }
     func testTransitionNamesExcludeAssociatedAccountAndErrorData() {

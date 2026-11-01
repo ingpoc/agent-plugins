@@ -28,7 +28,7 @@ final class IslandGateSnapshotTests: XCTestCase {
         XCTAssertFalse(window.isVisible)
     }
     func testEveryOffscreenStateHasUniformWidthAndOpaqueDarkEdges() throws {
-        for state in ["01-start", "02-followed", "03-ready", "04-checking", "05-unlocked", "06-error-offline", "07-error-notfound", "08-waking", "09-linkedin", "conflict", "rejected", "locked-x", "locked-x-ready", "locked-x-no-launch", "locked-x-prelaunch", "locked-linkedin", "pending-follow", "trial-3days", "trial-nudge-day2", "trial-lastday", "trial-prelaunch", "trial-expired", "repost-checking", "unlocked"] {
+        for state in ["01-start", "02-followed", "03-ready", "04-checking", "05-unlocked", "06-error-offline", "07-error-notfound", "08-waking", "09-linkedin", "conflict", "rejected", "locked-x", "locked-x-ready", "locked-x-no-launch", "locked-x-prelaunch", "locked-linkedin", "pending-follow", "trial-3days", "trial-nudge-day2", "trial-lastday", "trial-prelaunch", "trial-expired", "trial-expired-unfollowed", "locked-x-valid", "trial-linkedin", "repost-checking", "unlocked"] {
             let url = output(state)
             let command = try IslandGateSnapshotCommand.parse(["--state", state, "--out", url.path])
             try command.run()
@@ -77,5 +77,19 @@ final class IslandGateSnapshotTests: XCTestCase {
         XCTAssertGreaterThan(fills[1].blueComponent, 0.7)
         XCTAssertLessThan(fills[1].redComponent, 0.3)
         XCTAssertLessThan(fills[2].blueComponent, fills[1].blueComponent * 0.6)
+    }
+
+    func testCloseAndTrialDoneFootersHaveNoPrimaryBlueFill() throws {
+        for state in ["locked-x", "locked-x-ready", "locked-x-prelaunch", "locked-linkedin", "trial-expired", "trial-expired-unfollowed", "pending-follow", "repost-checking", "trial-3days", "trial-nudge-day2", "trial-lastday", "trial-prelaunch"] {
+            let url = output(state)
+            defer { try? FileManager.default.removeItem(at: url) }
+            try IslandGateSnapshotCommand.parse(["--state", state, "--out", url.path]).run()
+            let bitmap = try XCTUnwrap(NSBitmapImageRep(data: Data(contentsOf: url)))
+            // The final 95 pt contains the footer and its bottom caption, below any Repost action.
+            for y in (bitmap.pixelsHigh - 190)..<bitmap.pixelsHigh {
+                let color = try XCTUnwrap(bitmap.colorAt(x: 70, y: y)?.usingColorSpace(.deviceRGB))
+                XCTAssertFalse(color.blueComponent > 0.6 && color.redComponent < 0.25 && color.greenComponent > 0.25, "\(state) footer must stay neutral at row \(y)")
+            }
+        }
     }
 }

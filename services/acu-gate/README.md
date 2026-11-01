@@ -54,7 +54,7 @@ Before a provider's launch post is configured, its trial entitlement rolls forwa
 Once a launch post is configured, the service persists that provider's first-seen time in `gate_settings` as `<provider>_launch_first_seen_at`. This history is immutable: removing the launch setting later does not restore rolling prelaunch access. Unconverted trial access then ends at the later of the existing trial end and 72 hours after that persisted first-seen time. The first-seen deadline survives restarts and is tracked separately for X and LinkedIn, so restarting the service does not restart the 72-hour period. An existing prelaunch claim stays eligible for at least 30 days after that same persisted first-seen time; a newer claim retains its own 30-day TTL. Converted trials remain permanent. Trials are limited to one per account and one per device across both providers.
 
 1. **`GET /v1/admin/claims`** — inspect outstanding follow or repost work; filter with `needs=follow|repost` and `provider=x|linkedin`.
-2. **`POST /v1/admin/followers`** — push Guru’s X follower snapshot.
+2. **`POST /v1/admin/followers`** — push @gurusharan’s X follower snapshot.
 3. **`POST /v1/admin/reposts`** — push the X launch-post reposter snapshot for pending claims.
 4. **`POST /v1/admin/claims/{id}/verify`** — record a confirmed repost when verifying an individual claim.
 5. **`GET /v1/admin/stats`** — optional dashboard read after a pass.
@@ -66,7 +66,7 @@ The CLI equivalents are `node scripts/gate-admin.mjs pending [--needs follow|rep
 ### Existing claim verification routine
 
 1. **`GET /v1/admin/claims`** — pending work list (`status=pending_verification`, optional `provider`, `limit`).
-2. **`POST /v1/admin/followers`** — push Guru’s X follower snapshot; confirms follow on matching claims.
+2. **`POST /v1/admin/followers`** — push @gurusharan’s X follower snapshot; confirms follow on matching claims.
 3. **`POST /v1/admin/claims/verify-batch`** — batch post verification (Comet/oEmbed evidence) for remaining claims.
 4. **`POST /v1/admin/claims/{id}/reject`** — reject stale or bad claims.
 5. **`GET /v1/admin/stats`** — optional dashboard read after a pass.

@@ -62,10 +62,10 @@ struct IslandGateSnapshotCommand: ParsableCommand {
 @MainActor
 enum IslandGateFixtures {
     static func gate(_ name: String, urlOpener: IslandGateURLOpening? = nil) throws -> IslandGate {
-        let account = IslandGateAccount(id: "fixture", provider: name.contains("linkedin") ? "linkedin" : "x", handle: "@acu_demo_g2", name: "Island Friend", verified: true)
+        let account = IslandGateAccount(id: "fixture", provider: name.contains("linkedin") ? "linkedin" : "x", handle: name.contains("linkedin") ? "islandfriend" : "@acu_demo_g2", name: "Island Friend", verified: true)
         let state: IslandGateState
         switch name {
-        case "locked", "01-start", "02-followed", "03-ready", "locked-x", "locked-x-ready", "locked-x-no-launch", "locked-x-prelaunch": state = .locked()
+        case "locked", "01-start", "02-followed", "03-ready", "locked-x", "locked-x-valid", "locked-x-ready", "locked-x-no-launch", "locked-x-prelaunch": state = .locked()
         case "locked-linkedin", "09-linkedin": state = .locked(linkedIn: true)
         case "waking", "08-waking": state = .waking
         case "checking", "04-checking":
@@ -73,11 +73,11 @@ enum IslandGateFixtures {
         case "conflict": state = .conflict(deviceName: "Studio Mac", rebindAvailableAt: nil)
         case "unlocked", "05-unlocked": state = .unlocked(account: account, verified: true, exp: ISO8601DateFormatter().date(from: "2026-11-14T12:00:00Z")!)
         case "pending-follow": state = .pendingFollow(account: account, since: Date())
-        case "trial-3days": state = .trial(account: account, ends: Date().addingTimeInterval(3 * 86_400))
+        case "trial-3days", "trial-linkedin": state = .trial(account: account, ends: Date().addingTimeInterval(3 * 86_400))
         case "trial-prelaunch": state = .trial(account: account, ends: Date().addingTimeInterval(3 * 86_400))
         case "trial-nudge-day2": state = .trial(account: account, ends: Date().addingTimeInterval(36 * 3_600))
         case "trial-lastday": state = .trial(account: account, ends: Date().addingTimeInterval(12 * 3_600))
-        case "trial-expired": state = .trialExpired(account: account)
+        case "trial-expired", "trial-expired-unfollowed": state = .trialExpired(account: account)
         case "repost-checking": state = .repostChecking(account: account, trialEnds: nil)
         case "rejected": state = .rejected(message: IslandGateFailure(code: "follow_missing").message)
         case "error", "06-error-offline": state = .error(code: "offline", message: IslandGateFailure(code: "offline").message)
@@ -95,9 +95,9 @@ enum IslandGateFixtures {
             trial_hours: 72, trial_eta_text: "Usually starts within a few minutes")
         let gate = IslandGate(store: IslandGateFixtureStore(), fixtureState: state, fixtureAccount: account, urlOpener: urlOpener ?? IslandGateRecordingURLOpener(), pasteboard: IslandGateRecordingPasteboard())
         gate.setConfigForTests(config)
-        let followed = ["02-followed", "03-ready", "04-checking", "05-unlocked", "07-error-notfound", "locked-x-ready"].contains(name)
-        gate.setFixtureSteps(follow: followed, post: false)
-        if ["03-ready", "04-checking", "05-unlocked", "07-error-notfound", "locked-x-ready", "trial-expired"].contains(name) { gate.handleText = "@acu_demo_g2" }
+        let followed = ["02-followed", "03-ready", "04-checking", "05-unlocked", "07-error-notfound", "locked-x-ready", "trial-expired"].contains(name)
+        gate.setFixtureSteps(follow: followed, post: false, reportedFollow: name == "trial-expired-unfollowed" ? "not_following" : nil)
+        if ["03-ready", "04-checking", "05-unlocked", "07-error-notfound", "locked-x-valid", "locked-x-ready", "trial-expired", "trial-expired-unfollowed"].contains(name) { gate.handleText = "@acu_demo_g2" }
         if name == "03-ready" { gate.focusInput = true }
         if name == "locked" || name == "locked-linkedin" || name == "locked-x" || name == "locked-x-no-launch" || name == "locked-x-prelaunch" {
             gate.handleText = name == "locked-linkedin" ? "https://www.linkedin.com/in/islandfriend" : (name == "locked-x" ? "" : "@islandfriend")

@@ -7,11 +7,11 @@ final class IslandGateTrialCopyTests: XCTestCase {
     func testTrialCaptionsFitTwoLinesAt440Points() {
         let available: CGFloat = 440 - 2 * 24
         let captions = [
-            "Repost opens when the launch post is live. Your trial still starts with Follow.",
-            "Your free 3-day trial starts when you tap Follow.",
+            "From @gurusharan. Keeps your island on for good.",
+            "Opens LinkedIn in your browser",
             "Usually starts within a few minutes. You can close this window.",
-            "Repost to keep your island after the trial.",
-            "Your trial ended. Repost to turn the island back on.",
+            "Your trial ends today. Repost to keep your island for good.",
+            "Your trial ended. Repost the launch post to turn your island back on.",
             "Follow to start a free 3-day trial. Repost to keep it.",
             "Follow to start your free trial."
         ]
