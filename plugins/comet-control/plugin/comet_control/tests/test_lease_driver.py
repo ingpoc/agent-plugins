@@ -27,6 +27,10 @@ DRIVER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(DRIVER)
 
 
+
+def _default_sigint() -> None:
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 class FakeBridge:
     def __init__(self) -> None:
         self.tempdir = tempfile.TemporaryDirectory(prefix="comet-control-driver-test-")
@@ -289,6 +293,9 @@ class LeaseDriverTests(unittest.TestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            # A runner started with `nohup … &` passes SIGINT down as ignored, and
+            # Python then never installs KeyboardInterrupt, so the SIGINT case hung.
+            preexec_fn=_default_sigint,
         )
 
     def wait_for_count(

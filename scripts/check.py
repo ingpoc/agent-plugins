@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repo checks. Pre-commit and CI run this file; do not add a parallel lint list.
+"""Repo checks. CI runs this file and the pre-push hook runs --validate-only; do not add a parallel lint list.
 
 Owner of portable package shape: same rules as scripts/create_agent_plugin.py --validate.
 Owner of context-ledger regressions: plugins/context-ledger/tests/test_contract.py.
@@ -15,8 +15,14 @@ INTEGRATION_REQUIRES. Each one prints "integration: skipped <path>, needs
 <requires>" unless AGENT_PLUGINS_INTEGRATION=1, which runs it under
 run_strict.py, where a skip or a missing service fails.
 
---fast validates only the selected plugins and runs discovered tests for those
-plugins. Collection scripts/ tests still run.
+--fast tests only the plugins touched by the index (pre-commit shape).
+--changed-since REF (or AGENT_PLUGINS_CHECK_BASE) tests only the plugins the
+diff REF...HEAD touches; scripts/, CI files, catalogs and any path outside
+plugins/ and docs run everything. Collection scripts/ tests always run, every
+package is always validated, and a selection that would run no test fails.
+--jobs N runs test processes in parallel (default: CPU count, never more).
+--validate-only runs the manifest and catalog contract checks, no tests (the
+pre-push hook uses it).
 --audit-tests prints one JSON line of found/run/skip counts and exits 0
 without running tests.
 
@@ -30,6 +36,7 @@ interpreter cannot import mcp.server.mcpserver.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import functools
 import json
 import os
@@ -37,7 +44,9 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
+from typing import NamedTuple
 
 ROOT = Path(__file__).resolve().parent.parent
 _SCRIPTS = Path(__file__).resolve().parent
@@ -87,7 +96,8 @@ FULL_TRIGGERS = (
     "scripts/check.py",
     "AGENTS.md",
     ".github/workflows/ci.yml",
-    ".githooks/pre-commit",
+    ".githooks/pre-push",
+    "scripts/prepush.py",
     *CATALOGS,
     CLAUDE_CATALOG,
 )
@@ -108,23 +118,65 @@ def staged_paths() -> list[str]:
     return [item for item in proc.stdout.split("\0") if item]
 
 
-def selected_plugins(fast: bool) -> list[Path]:
+def changed_paths(base: str) -> list[str] | None:
+    """Paths changed on HEAD since its merge base with base; None when git can't say."""
+    proc = subprocess.run(
+        ["git", "diff", "--name-only", "-z", f"{base}...HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return None
+    return [item for item in proc.stdout.split("\0") if item]
+
+
+# Paths no plugin test reads (docs; the Render-hosted services/ have no tests here).
+# Everything else outside plugins/<name>/ runs all plugins.
+NO_PLUGIN_INPUT_PREFIXES = ("docs/", "services/")
+NO_PLUGIN_INPUT_FILES = {"README.md", "LICENSE", "render.yaml"}
+
+
+def plugins_for_paths(paths: list[str]) -> tuple[list[Path], str]:
+    """Plugins a change set can break, plus the reason, failing safe to all."""
     plugins = plugin_dirs()
+    names = {plugin.name for plugin in plugins}
+    if not paths:
+        return plugins, "no changed paths; full run"
+    wanted: set[str] = set()
+    for path in paths:
+        parts = Path(path).parts
+        if path in FULL_TRIGGERS or path.startswith((".github/", ".githooks/", "scripts/")):
+            return plugins, f"full run: {path} is collection tooling"
+        if len(parts) >= 2 and parts[0] == "plugins":
+            if parts[1] not in names:
+                return plugins, f"full run: {path} is under no known plugin"
+            wanted.add(parts[1])
+            continue
+        if path.startswith(NO_PLUGIN_INPUT_PREFIXES) or path in NO_PLUGIN_INPUT_FILES:
+            continue
+        return plugins, f"full run: {path} is not mapped to a plugin"
+    chosen = [plugin for plugin in plugins if plugin.name in wanted]
+    label = ", ".join(plugin.name for plugin in chosen) or "none (docs or services only)"
+    return chosen, f"plugins touched: {label}"
+
+
+def selected_plugins(fast: bool, base: str | None = None) -> tuple[list[Path], str]:
+    if base:
+        paths = changed_paths(base)
+        if paths is None:
+            return plugin_dirs(), f"full run: git diff {base}...HEAD failed"
+        return plugins_for_paths(paths)
     if not fast:
-        return plugins
+        return plugin_dirs(), "full run"
     staged = staged_paths()
     if not staged:
-        return plugins
-    if any(path in FULL_TRIGGERS or path.startswith(".github/") for path in staged):
-        return plugins
-    wanted = set()
-    for path in staged:
-        parts = Path(path).parts
-        if len(parts) >= 2 and parts[0] == "plugins":
-            wanted.add(parts[1])
-    if not wanted:
-        return plugins
-    return [path for path in plugins if path.name in wanted]
+        return plugin_dirs(), "full run: nothing staged"
+    chosen, reason = plugins_for_paths(staged)
+    if not chosen:
+        return plugin_dirs(), "full run: staged change touches no plugin"
+    return chosen, reason
 
 
 def validate_mcp(path: Path) -> list[str]:
@@ -732,7 +784,17 @@ def test_environment(env=None):
             if key not in _git_local_env_names()}
 
 
-def _exec_python(run: check_inventory.PythonRun, env: dict[str, str], python: str | None = None) -> int:
+class Job(NamedTuple):  # not a dataclass: create_agent_plugin.py loads this file outside sys.modules
+    label: str
+    cmd: list[str]
+    cwd: Path
+    env: dict[str, str]
+
+
+def _python_job(
+    run: check_inventory.PythonRun, env: dict[str, str], python: str | None = None
+) -> Job | None:
+    """The test process for one module, or None for an allow-listed harness skip."""
     env = test_environment(env)
     rel = run.path.relative_to(ROOT).as_posix()
     rule = check_inventory.load_allowlist(check_inventory.DEFAULT_ALLOWLIST).match(
@@ -743,7 +805,7 @@ def _exec_python(run: check_inventory.PythonRun, env: dict[str, str], python: st
     )
     if rule is not None:
         print(f"allowed skip {rel}: {rule.reason}", flush=True)
-        return 0
+        return None
     # One module per process so a re-exec or a darwin-only import cannot drop
     # the rest of its tests directory. The runner filename must not contain
     # "unittest": test_http_server re-execs `python -m unittest` when argv[0] does.
@@ -759,14 +821,106 @@ def _exec_python(run: check_inventory.PythonRun, env: dict[str, str], python: st
         cmd.extend(["discover", "-s", str(run.start.relative_to(run.cwd)), "-p", run.path.name])
     else:
         cmd.extend(["module", str(run.path.relative_to(run.cwd))])
-    print(f"test {rel}", flush=True)
+    return Job(f"test {rel}", cmd, run.cwd, env)
+
+
+def _run_job(job: Job, capture: bool) -> tuple[int, str, float]:
+    started = time.monotonic()
     with tempfile.TemporaryDirectory(prefix="samantha-test-log-") as log_dir:
+        env = dict(job.env)
         env["VOICE_CUA_ACTIVITY_LOG"] = str(Path(log_dir) / "activity.jsonl")
-        proc = subprocess.run(cmd, cwd=run.cwd, env=env)
-    return proc.returncode
+        if capture:
+            proc = subprocess.run(
+                job.cmd, cwd=job.cwd, env=env, stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            )
+            output = proc.stdout or ""
+        else:
+            proc = subprocess.run(job.cmd, cwd=job.cwd, env=env)
+            output = ""
+    return proc.returncode, output, time.monotonic() - started
 
 
-def run_tests(plugin: Path) -> int:
+def _exec_python(run: check_inventory.PythonRun, env: dict[str, str], python: str | None = None) -> int:
+    """Run one module now, streaming its output (integration suites and callers that need one)."""
+    job = _python_job(run, env, python)
+    if job is None:
+        return 0
+    print(job.label, flush=True)
+    return _run_job(job, capture=False)[0]
+
+
+def _timings_path() -> Path:
+    return Path(os.environ.get("AGENT_PLUGINS_CHECK_TIMINGS")
+                or Path.home() / ".cache" / "agent-plugins" / "check-timings.json")
+
+
+def _load_timings() -> dict[str, float]:
+    try:
+        data = json.loads(_timings_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {k: float(v) for k, v in data.items() if isinstance(v, (int, float))} if isinstance(data, dict) else {}
+
+
+def _save_timings(timings: list[tuple[float, str]]) -> None:
+    known = _load_timings()
+    known.update({label: round(seconds, 1) for seconds, label in timings})
+    path = _timings_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(known, indent=0, sort_keys=True), encoding="utf-8")
+    except OSError as exc:
+        print(f"note: could not save test timings to {path}: {exc}", flush=True)
+
+
+def run_jobs(jobs: list[Job], workers: int) -> int:
+    """Run test processes, at most workers at once; every job runs, first failure wins.
+
+    In parallel, the slowest jobs of the last run start first (unknown jobs count as slow),
+    so one long module does not start last and set the wall time.
+    """
+    if not jobs:
+        print("every test was skipped: refusing a green run that tested nothing", file=sys.stderr)
+        return 1
+    timings: list[tuple[float, str]] = []
+    failed: list[tuple[str, int]] = []
+    if workers <= 1:
+        for job in jobs:
+            print(job.label, flush=True)
+            code, _, seconds = _run_job(job, capture=False)
+            timings.append((seconds, job.label))
+            if code != 0:
+                failed.append((job.label, code))
+                break
+    else:
+        last = _load_timings()
+        jobs = sorted(jobs, key=lambda job: -last.get(job.label, float("inf")))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {pool.submit(_run_job, job, True): job for job in jobs}
+            for future in concurrent.futures.as_completed(futures):
+                job = futures[future]
+                code, output, seconds = future.result()
+                timings.append((seconds, job.label))
+                print(f"{job.label} ({seconds:.1f}s, exit {code})", flush=True)
+                if output:
+                    print(output, end="" if output.endswith("\n") else "\n", flush=True)
+                if code != 0:
+                    failed.append((job.label, code))
+        _save_timings(timings)
+    if len(timings) > 1:
+        slowest = ", ".join(f"{label.removeprefix('test ')} {seconds:.1f}s"
+                            for seconds, label in sorted(timings, reverse=True)[:3])
+        print(f"check: ran {len(timings)} test processes, {workers} at a time; slowest: {slowest}",
+              flush=True)
+    if failed:
+        print("failed: " + ", ".join(f"{label} (exit {code})" for label, code in failed),
+              file=sys.stderr)
+        return failed[0][1] or 1
+    return 0
+
+
+def plugin_jobs(plugin: Path) -> list[Job] | None:
     if plugin.name == "comet-control" and _missing_comet_deps():
         print(
             "comet-control tests need websockets and Pillow "
@@ -774,35 +928,48 @@ def run_tests(plugin: Path) -> int:
             "pip install 'websockets==16.0' Pillow",
             file=sys.stderr,
         )
-        return 1
+        return None
     env = os.environ.copy()
     env["PYTHONPATH"] = str(plugin)
     env["PYTHONNOUSERSITE"] = "1"
     env["AGENT_PLUGINS_COLLECTION"] = str(ROOT)
     python = _python_for(plugin, env)
+    jobs: list[Job] = []
     for run in check_inventory.python_runs(ROOT, {plugin.name}):
         if run.path.relative_to(ROOT).parts[0] != "plugins":
             continue
-        code = _exec_python(run, env, python)
-        if code != 0:
-            return code
-    return 0
+        job = _python_job(run, env, python)
+        if job is not None:
+            jobs.append(job)
+    return jobs
 
 
-def run_collection_scripts() -> int:
+def run_tests(plugin: Path) -> int:
+    jobs = plugin_jobs(plugin)
+    return 1 if jobs is None else run_jobs(jobs, 1) if jobs else 0
+
+
+def collection_jobs() -> list[Job]:
     env = os.environ.copy()
+    jobs: list[Job] = []
     for run in check_inventory.python_runs(ROOT):
         if run.path.relative_to(ROOT).parts[0] != "scripts":
             continue
-        code = _exec_python(run, env)
-        if code != 0:
-            return code
-    return 0
+        job = _python_job(run, env)
+        if job is not None:
+            jobs.append(job)
+    return jobs
 
 
-def run_swift(plugins: list[Path]) -> int:
+def swift_jobs(plugins: list[Path], workers: int = 1) -> list[Job] | None:
+    """SwiftPM test jobs. AGENT_PLUGINS_SWIFT_SCRATCH keeps a warm build dir per package.
+
+    With workers > 1, XCTest runs in parallel on half the cores; the Python jobs share the rest.
+    """
     names = {plugin.name for plugin in plugins}
     allow = check_inventory.load_allowlist(check_inventory.DEFAULT_ALLOWLIST)
+    scratch_root = os.environ.get("AGENT_PLUGINS_SWIFT_SCRATCH")
+    jobs: list[Job] = []
     for package in check_inventory.swift_packages(ROOT):
         if package.relative_to(ROOT).parts[1] not in names:
             continue
@@ -813,13 +980,19 @@ def run_swift(plugins: list[Path]) -> int:
                 print(f"allowed skip {check_inventory.swift_id(ROOT, package)}: {rule.reason}", flush=True)
                 continue
             print(f"swift package {rel} did not run and is not allow-listed", file=sys.stderr)
-            return 1
-        print(f"test swift {rel}", flush=True)
-        proc = subprocess.run(["swift", "test", "--package-path", str(package), "-q"],
-                              cwd=ROOT, env=test_environment())
-        if proc.returncode != 0:
-            return proc.returncode
-    return 0
+            return None
+        cmd = ["swift", "test", "--package-path", str(package), "-q"]
+        if workers > 1:
+            cmd.extend(["--parallel", "--num-workers", str(max(1, workers // 2))])
+        if scratch_root:
+            cmd.extend(["--scratch-path", str(Path(scratch_root) / rel.replace("/", "_"))])
+        jobs.append(Job(f"test swift {rel}", cmd, ROOT, test_environment()))
+    return jobs
+
+
+def run_swift(plugins: list[Path]) -> int:
+    jobs = swift_jobs(plugins)
+    return 1 if jobs is None else run_jobs(jobs, 1) if jobs else 0
 
 
 def run_integration(plugins: list[Path]) -> int:
@@ -869,8 +1042,27 @@ def main(argv: list[str] | None = None) -> int:
             "then exit 0 without running tests."
         ),
     )
+    parser.add_argument(
+        "--changed-since",
+        metavar="REF",
+        default=os.environ.get("AGENT_PLUGINS_CHECK_BASE") or None,
+        help="Test only plugins the diff REF...HEAD touches (default: $AGENT_PLUGINS_CHECK_BASE).",
+    )
+    parser.add_argument(
+        "--jobs",
+        type=int,
+        default=int(os.environ.get("AGENT_PLUGINS_CHECK_JOBS") or 0) or None,
+        help="Parallel test processes (default and maximum: CPU count; 1 is serial).",
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Run manifest and catalog contract checks only, no tests.",
+    )
     args = parser.parse_args(argv)
-    plugins = selected_plugins(args.fast)
+    plugins, reason = selected_plugins(args.fast, args.changed_since)
+    cores = os.cpu_count() or 1
+    workers = max(1, min(args.jobs or cores, cores))
     if args.audit_tests:
         try:
             report = check_inventory.audit(
@@ -887,7 +1079,7 @@ def main(argv: list[str] | None = None) -> int:
         release_agent_computer_use.policy(ROOT)
     except (RuntimeError, ValueError, OSError, subprocess.SubprocessError) as exc:
         errors.append(f"ACU release policy: {exc}")
-    for plugin in plugins:
+    for plugin in plugin_dirs() if args.changed_since or args.validate_only else plugins:
         print(f"validate {plugin.relative_to(ROOT)}", flush=True)
         errors.extend(validate_plugin(plugin))
     errors.extend(check_host_dest())
@@ -899,14 +1091,22 @@ def main(argv: list[str] | None = None) -> int:
     except check_inventory.AllowlistError as exc:
         print(str(exc), file=sys.stderr)
         return 2
+    if args.validate_only:
+        print("validate ok", flush=True)
+        return 0
+    print(f"selection: {reason}", flush=True)
+    jobs: list[Job] = []
+    swift = swift_jobs(plugins, workers)
+    if swift is None:
+        return 1
+    jobs.extend(swift)  # longest single job: start it first
     for plugin in plugins:
-        code = run_tests(plugin)
-        if code != 0:
-            return code
-    code = run_collection_scripts()
-    if code != 0:
-        return code
-    code = run_swift(plugins)
+        found = plugin_jobs(plugin)
+        if found is None:
+            return 1
+        jobs.extend(found)
+    jobs.extend(collection_jobs())
+    code = run_jobs(jobs, workers)
     if code != 0:
         return code
     code = run_integration(plugins)
