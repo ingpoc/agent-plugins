@@ -386,7 +386,6 @@ def prove_drag() -> None:
                 "drag destination",
 
             )
-            destination_proof = destination_state.get("screenshot") or {}
             after_red, after_green = indicator_pixels(
                 Path(destination_proof["raw_path"])
             )
