@@ -177,38 +177,6 @@ struct SamanthaArtTile<Content: View>: View {
     }
 }
 
-/// Compact idle / working dot (review 0.2.69 B, C): 12 pt #64D2FF centred in the 74×24 pill, no disk or
-/// ring. Idle 40 %; working 100 % with a 2 s breathe 70–100 % (static 100 % under Reduce Motion).
-struct IslandIdleDot: View {
-    let working: Bool
-    var reduceMotion = false
-    static let diameter: CGFloat = 12
-    static let idleOpacity = 0.4
-    static let breatheLow = 0.7
-    static let breathePeriod: TimeInterval = 2
-
-    static func opacity(working: Bool, reduceMotion: Bool, at t: TimeInterval) -> Double {
-        guard working else { return idleOpacity }
-        guard !reduceMotion else { return 1 }
-        let phase = (1 - cos(2 * .pi * t / breathePeriod)) / 2      // 0 → 1 → 0 over 2 s
-        return 1 - (1 - breatheLow) * phase
-    }
-
-    var body: some View {
-        if working && !reduceMotion {
-            TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
-                dot(Self.opacity(working: true, reduceMotion: false, at: ctx.date.timeIntervalSinceReferenceDate))
-            }
-        } else {
-            dot(Self.opacity(working: working, reduceMotion: reduceMotion, at: 0))
-        }
-    }
-
-    private func dot(_ opacity: Double) -> some View {
-        Circle().fill(IslandPalette.accent).frame(width: Self.diameter, height: Self.diameter).opacity(opacity)
-    }
-}
-
 struct SamanthaOrb: View {
     var size: CGFloat = 16
     var dotSize: CGFloat? = nil
@@ -650,14 +618,6 @@ struct SamanthaIslandBar: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(agent.name.isEmpty ? agent.app : agent.name), \(status)\(attention.parentName.map { ", child of \($0)" } ?? "")")
             }
-            if !model.cardOpen, [.idle, .doneSettled].contains(model.presentation), model.compactAgentAttention == nil {
-                // C + B: one 12 pt dot centred in the pill; dim at idle, full and breathing while an agent runs.
-                IslandIdleDot(working: model.anyAgentRunning, reduceMotion: reduceMotion)
-                    .frame(width: rect.width, height: IslandBarLayout.compactHeight)
-                    .offset(x: rect.minX, y: rect.minY)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
@@ -890,8 +850,8 @@ struct SamanthaIslandBar: View {
         } else {
             switch model.presentation {
             case .idle, .doneSettled:
-                // Idle / working draw the centred IslandIdleDot instead (C); the failed / needs-you mark
-                // takes the pill otherwise. Nothing here, so no grey disk or ring.
+                // No orb (Guru, 2026-11-01): idle is the empty pill, working is the agent circle beside it,
+                // and the failed / needs-you text takes the pill.
                 Color.clear.frame(width: size, height: size)
             case .reconnecting:
                 SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)

@@ -669,11 +669,6 @@ final class IslandModel: ObservableObject {
         }
     }
 
-    /// Pill orb (B): bright and breathing while any task row runs; dim otherwise.
-    var anyAgentRunning: Bool {
-        agents.contains { $0.status == "running" && !IslandAgentRows.isProcessObservation($0) }
-    }
-
     private var doneExpiryWork: DispatchWorkItem?
     /// Re-compose when the next done circle's hold ends (hub done rows live 3 min; the circle 10 s).
     private func scheduleDoneExpiry(now: Date) {

@@ -354,7 +354,7 @@ final class IslandPolishTests: XCTestCase {
         XCTAssertEqual(m.cardHeight, 168, "tray card is shorter than the 176 default")
     }
 
-    // MARK: UI & UX review of 0.2.69 compact pill (A, B, C)
+    // MARK: UI & UX review of 0.2.69 compact pill (A: done check)
 
     func testDoneCircleCarriesCheckForTenSecondsThenLeaves() {
         let now = Date()
@@ -388,17 +388,29 @@ final class IslandPolishTests: XCTestCase {
         wait(for: [gone], timeout: 2)
     }
 
-    func testPillOrbBrightAndBreathingOnlyWhileWorking() {
-        XCTAssertEqual(IslandIdleDot.diameter, 12)
-        XCTAssertEqual(IslandIdleDot.opacity(working: false, reduceMotion: false, at: 0.7), 0.4, accuracy: 1e-9)
-        XCTAssertEqual(IslandIdleDot.opacity(working: true, reduceMotion: true, at: 0.7), 1, accuracy: 1e-9)
-        let samples = stride(from: 0.0, through: 2.0, by: 0.05).map { IslandIdleDot.opacity(working: true, reduceMotion: false, at: $0) }
-        XCTAssertEqual(samples.min()!, 0.7, accuracy: 1e-3); XCTAssertEqual(samples.max()!, 1, accuracy: 1e-9)
-        XCTAssertEqual(IslandIdleDot.opacity(working: true, reduceMotion: false, at: 0),
-                       IslandIdleDot.opacity(working: true, reduceMotion: false, at: 2), accuracy: 1e-9, "2 s period")
-        let model = IslandModel()
-        XCTAssertFalse(model.anyAgentRunning)
-        model.apply(IslandSnapshot(kind: "idle", agents: [IslandAgent(id: "codex:r", name: "Codex", app: "Codex", title: "T", status: "running")]))
-        XCTAssertTrue(model.anyAgentRunning)
+    /// Guru, 2026-11-01 19:16 IST: no dot. Idle and working draw nothing inside the pill; working is the circle.
+    func testCompactPillDrawsNoOrbIdleOrWorking() throws {
+        for agents in [[], [IslandAgent(id: "codex:r", name: "Codex", app: "Codex", title: "T", status: "running")]] {
+            let model = IslandModel()
+            model.idleActivity = "duo"
+            model.apply(IslandSnapshot(kind: "idle", agents: agents))
+            let r = ImageRenderer(content: SamanthaIslandBar(model: model).environment(\.colorScheme, .dark))
+            r.scale = 1
+            let img = try XCTUnwrap(r.cgImage)
+            let inner = model.shapeRect.insetBy(dx: 14, dy: 5)
+            let cs = CGColorSpace(name: CGColorSpace.sRGB)!
+            let ctx = try XCTUnwrap(CGContext(data: nil, width: img.width, height: img.height, bitsPerComponent: 8, bytesPerRow: img.width * 4,
+                                              space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            ctx.draw(img, in: CGRect(x: 0, y: 0, width: img.width, height: img.height))
+            let px = ctx.data!.bindMemory(to: UInt8.self, capacity: img.width * img.height * 4)
+            var brightest = 0
+            for y in Int(inner.minY)..<Int(inner.maxY) {
+                for x in Int(inner.minX)..<Int(inner.maxX) {
+                    let o = (y * img.width + x) * 4   // CGContext rows run top-down in memory
+                    brightest = max(brightest, Int(px[o]), Int(px[o + 1]), Int(px[o + 2]))
+                }
+            }
+            XCTAssertLessThan(brightest, 24, "pill interior must be plain black (agents: \(agents.count))")
+        }
     }
 }

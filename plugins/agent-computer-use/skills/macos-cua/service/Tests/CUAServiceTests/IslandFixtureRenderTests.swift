@@ -78,12 +78,6 @@ final class IslandFixtureRenderTests: XCTestCase {
             model.apply(IslandSnapshot(kind: "idle", agents: agents))
             try await save(model, "compact-" + name, dir: dir)
         }
-        // Working under Reduce Motion: the orb is static at 100 %.
-        let still = IslandModel()
-        still.idleActivity = "duo"
-        still.systemReduceMotion = true
-        still.apply(IslandSnapshot(kind: "idle", agents: [claude]))
-        try await save(still, "compact-2-one-working-reduce-motion", dir: dir)
         // A Claude Code sign-in failure while a Claude desktop chat replies: the pill yields to the live row.
         let yielding = IslandModel()
         yielding.idleActivity = "duo"
