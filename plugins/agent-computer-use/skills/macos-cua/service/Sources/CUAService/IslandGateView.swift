@@ -132,7 +132,7 @@ struct IslandGateView: View {
             if expired {
                 Text("Unlock the island").font(.system(size: 22, weight: .bold))
                 gap(8)
-                Text("Your trial ended. Repost the launch post to turn your island back on.")
+                Text(gate.followNeedsAttention ? "Follow again and repost to turn your island back on." : "Your trial ended. Repost the launch post to turn your island back on.")
                     .font(.system(size: 12)).foregroundStyle(GateColor.amber).fixedSize(horizontal: false, vertical: true)
             } else {
                 heading("Unlock the island", launchConfigured ? "Follow to start a free 3-day trial. Repost to keep it." : "Follow to start your free trial.")
@@ -164,7 +164,7 @@ struct IslandGateView: View {
                 HStack(spacing: 12) {
                     badge(2, done: gate.followStepDone, active: gate.followStepActive)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(gate.followNeedsAttention ? "Not following anymore" : (linkedIn ? "Follow Gurusharan on LinkedIn" : "Follow @\(gate.config?.x.handle ?? "gurusharan")"))
+                        Text(gate.followNeedsAttention ? (linkedIn ? "Not following Gurusharan anymore" : "Not following @\(gate.config?.x.handle ?? "gurusharan") anymore") : (linkedIn ? "Follow Gurusharan on LinkedIn" : "Follow @\(gate.config?.x.handle ?? "gurusharan")"))
                             .font(.system(size: 13, weight: .semibold)).foregroundStyle(gate.followNeedsAttention ? GateColor.amber : .white)
                         Text(linkedIn ? "Opens LinkedIn in your browser" : "Opens X in your browser")
                             .font(.system(size: 11)).foregroundStyle(.white.opacity(0.55))

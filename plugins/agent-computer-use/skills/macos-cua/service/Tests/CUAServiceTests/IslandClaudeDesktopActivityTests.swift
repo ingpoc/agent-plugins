@@ -54,7 +54,7 @@ final class IslandClaudeDesktopActivityTests: XCTestCase {
         ])
         let result = Activity.read(root)
         XCTAssertEqual(Set(result.rows.map(\.title)), ["Notes", "Research", "Retry"])
-        XCTAssertTrue(result.chatTabActive)
+        XCTAssertTrue(result.stopButtonVisible)
         XCTAssertEqual(result.modelLabel, "Model: Sonnet 5.5 Medium")
     }
 
@@ -68,8 +68,64 @@ final class IslandClaudeDesktopActivityTests: XCTestCase {
         ])
         let result = Activity.read(root)
         XCTAssertEqual(Set(result.rows.map(\.title)), ["Draft"])
+        XCTAssertTrue(result.stopButtonVisible)
+        XCTAssertFalse(Activity.read(Activity.Element(role: "AXApplication")).stopButtonVisible)
+    }
+
+    /// Shaped like the live Claude 4.4212 tree (synthetic titles): a group titled "Sidebar" with no
+    /// sidebar subrole, rows nested in unlabeled groups, "More options" popups in a different parent,
+    /// a toolbar duplicate, and "Mark as unread <title>" rows without a status word.
+    func testLive4212TreeShape() {
+        typealias E = Activity.Element
+        func nest(_ e: any Activity.AXElement, _ n: Int) -> any Activity.AXElement {
+            var cur = e
+            for _ in 0..<n { cur = E(role: "AXGroup", children: [cur]) }
+            return cur
+        }
+        let sidebar = E(role: "AXGroup", title: "Sidebar", children: [
+            E(role: "AXRadioGroup", title: "Mode", children: [
+                E(role: "AXRadioButton", title: "Chat and Cowork", selected: true),
+                E(role: "AXRadioButton", title: "Code")
+            ]),
+            nest(E(role: "AXButton", title: "Working Alpha notes", selected: true), 5),
+            nest(E(role: "AXButton", title: "Idle Beta plan"), 5),
+            nest(E(role: "AXButton", title: "Mark as unread Gamma review"), 5),
+            nest(E(role: "AXButton", title: "Something went wrong Delta run"), 5),
+            nest(E(role: "AXPopUpButton", title: "More options for Alpha notes"), 6),
+            nest(E(role: "AXButton", title: "Mark as unread"), 6)
+        ])
+        let root = E(role: "AXApplication", children: [E(role: "AXWindow", children: [nest(sidebar, 8),
+            nest(E(role: "AXToolbar", title: "Page tools", children: [E(role: "AXPopUpButton", title: "More options for Alpha notes")]), 8),
+            nest(E(role: "AXButton", title: "Stop response"), 10)])])
+        let result = Activity.read(root)
+        XCTAssertEqual(result.rows.count, 4)
+        XCTAssertEqual(Dictionary(uniqueKeysWithValues: result.rows.map { ($0.title, $0.status) }),
+                       ["Alpha notes": .working, "Beta plan": .idle, "Gamma review": .done, "Delta run": .error])
         XCTAssertTrue(result.chatTabActive)
-        XCTAssertFalse(Activity.read(Activity.Element(role: "AXApplication")).chatTabActive)
+        XCTAssertTrue(result.stopButtonVisible)
+        XCTAssertEqual(result.agents.map(\.title), ["Alpha notes"])
+
+        // Same rows outside any titled sidebar are still accepted via a matching popup anywhere in the window.
+        let loose = E(role: "AXApplication", children: [
+            nest(E(role: "AXButton", title: "Working Epsilon"), 4),
+            nest(E(role: "AXPopUpButton", title: "More options for Epsilon"), 7),
+            nest(E(role: "AXButton", title: "Working Unrelated"), 4)
+        ])
+        XCTAssertEqual(Activity.read(loose).rows.map(\.title), ["Epsilon"])
+
+        // Working -> gone lingers as done for 10 s.
+        var finished: [String: Date] = [:]
+        let t0 = Date(timeIntervalSince1970: 1000)
+        let held = Activity.retainFinishedRows([], previous: result.rows, finishedAt: &finished, now: t0)
+        XCTAssertEqual(held.first { $0.title == "Alpha notes" }?.status, .done)
+        XCTAssertTrue(Activity.retainFinishedRows([], previous: held, finishedAt: &finished, now: t0.addingTimeInterval(10)).allSatisfy { !$0.completionHeld })
+    }
+
+    func testMarkAsUnreadWithoutStatusIsDone() {
+        XCTAssertEqual(Activity.parseClaudeRow("Mark as unread Organize files")?.status, .done)
+        XCTAssertEqual(Activity.parseClaudeRow("Mark as unread Organize files")?.title, "Organize files")
+        XCTAssertNil(Activity.parseClaudeRow("Mark as unread"))
+        XCTAssertNil(Activity.parseClaudeRow("Mark as unread "))
     }
 
     func testFinishedWorkingRowsExpireAfterTenSecondsIncludingDisappearance() {
@@ -113,7 +169,7 @@ final class IslandClaudeDesktopActivityTests: XCTestCase {
             Activity.Element(role: "AXButton", title: "Stop response")
         ])
         let read = Activity.read(root)
-        XCTAssertTrue(read.chatTabActive)
+        XCTAssertTrue(read.stopButtonVisible)
         XCTAssertEqual(read.agents.count, 1)
         XCTAssertEqual(read.agents.first?.title, "Task")
     }

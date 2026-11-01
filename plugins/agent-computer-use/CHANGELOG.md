@@ -8,6 +8,8 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 - Before the launch post is published, trials stay free and the Repost row stays hidden. Once the launch is configured, everyone gets at least three days to repost. Follow and repost already confirmed together unlock permanently without creating a trial. Existing unlocked accounts keep their access, and older post-link unlocks remain supported by the gate.
 - Unlock screens highlight the next step, show follow and repost checks in a status card, and use neutral Close and Done buttons. Expired trials keep the confirmed Follow step, with a Change link for the handle. Missing-permission warnings replace the island's app glyph without shifting the pill.
 - The unlocked card now says “Works offline too”. Valid offline access survives refresh errors, and refresh/wall requests include the signed device ID required by both gate server versions.
+- Claude desktop: sidebar rows are found in Claude 4.4212+ ("Sidebar"-titled group, "More options" popups in a different parent, "Mark as unread" rows), the watcher polls every 1–2 s, and `status --json` adds `stop_button_visible`.
+- Typing into empty web/Electron composers (e.g. Claude desktop) now falls back to an AXValue write instead of refusing.
 - Gate transitions and panel visibility reasons are logged without tokens. Status JSON can report the running service’s gate state and actual panel frame over the private local socket.
 - Claude desktop activity supports the new sidebar layout and the Stop response signal without reading chat text. Finished runs remain visible briefly, and status JSON includes Claude attachment and accessibility diagnostics.
 

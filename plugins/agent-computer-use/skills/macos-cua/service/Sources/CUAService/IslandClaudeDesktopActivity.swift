@@ -32,6 +32,7 @@ enum IslandClaudeDesktopActivity {
         var rows: [Row] = []
         var modelLabel: String?
         var chatTabActive = false
+        var stopButtonVisible = false
 
         var agents: [IslandAgent] {
             let working = rows.filter { $0.status == .working }
@@ -74,6 +75,8 @@ enum IslandClaudeDesktopActivity {
         var snapshot = Snapshot()
         var queue: [(any AXElement, Int, Bool, [any AXElement])] = [(root, 0, false, [])]
         var seen = Set<String>()
+        var moreOptionsTitles = Set<String>()
+        var candidates: [(label: String, selected: Bool, inSidebar: Bool)] = []
         var index = 0
         while index < queue.count, index < 4000 {
             let (element, depth, parentSidebar, siblings) = queue[index]
@@ -81,16 +84,29 @@ enum IslandClaudeDesktopActivity {
             if ["AXHeading", "AXStaticText", "AXTextArea", "AXTextField", "AXArticle"].contains(element.role) { continue }
             let sidebarContainer = ["AXGroup", "AXList", "AXScrollArea"].contains(element.role)
             let sideLabel = sidebarContainer ? ((element.subrole ?? "") + " " + (element.roleDescription ?? "")).lowercased() : ""
-            let sidebar = parentSidebar || element.role == "AXOutline" || element.subrole == "AXLandmarkNavigation"
+            // Claude 4.4212+ titles the sidebar group "Sidebar" (no sidebar subrole / role description).
+            let titledSidebar = sidebarContainer && element.labels().contains { $0.lowercased() == "sidebar" }
+            let sidebar = parentSidebar || element.role == "AXOutline" || element.subrole == "AXLandmarkNavigation" || titledSidebar
                 || (sidebarContainer && (sideLabel.contains("sidebar") || sideLabel.contains("side panel") || sideLabel.contains("sidepanel")))
             let labels = ["AXButton", "AXPopUpButton"].contains(element.role) ? element.labels() : []
             if element.role == "AXButton", labels.contains(where: { ["Stop", "Stop response"].contains($0) }) {
+                snapshot.stopButtonVisible = true
+            }
+            if element.role == "AXRadioButton", element.labels().contains("Chat and Cowork"), element.isSelected() {
                 snapshot.chatTabActive = true
             }
-            let rowLabel = labels.first { parseClaudeRow($0) != nil }
-            if element.role == "AXButton", let rowLabel, sidebar || hasMoreOptionsSibling(rowLabel, siblings: siblings) {
-                if let row = parseClaudeRow(rowLabel), seen.insert(row.title).inserted {
-                    snapshot.rows.append(.init(status: row.status, title: row.title, selected: element.isSelected()))
+            if element.role == "AXPopUpButton" || element.role == "AXButton" {
+                for label in labels where label.hasPrefix("More options for ") {
+                    moreOptionsTitles.insert(String(label.dropFirst("More options for ".count)))
+                }
+            }
+            if element.role == "AXButton", let rowLabel = labels.first(where: { parseClaudeRow($0) != nil }) {
+                if sidebar || hasMoreOptionsSibling(rowLabel, siblings: siblings) {
+                    if let row = parseClaudeRow(rowLabel), seen.insert(row.title).inserted {
+                        snapshot.rows.append(.init(status: row.status, title: row.title, selected: element.isSelected()))
+                    }
+                } else {
+                    candidates.append((rowLabel, element.isSelected(), false))
                 }
             }
             if element.role == "AXPopUpButton", let label = labels.first(where: { $0.hasPrefix("Model: ") }) {
@@ -101,7 +117,13 @@ enum IslandClaudeDesktopActivity {
                 queue += children.map { ($0, depth + 1, sidebar, children) }
             }
         }
-        if snapshot.chatTabActive, !snapshot.rows.contains(where: { $0.status == .working }) {
+        // Rows whose "More options for <title>" popup sits in a different parent (live 4.4212 tree).
+        for candidate in candidates {
+            guard let row = parseClaudeRow(candidate.label), moreOptionsTitles.contains(row.title),
+                  seen.insert(row.title).inserted else { continue }
+            snapshot.rows.append(.init(status: row.status, title: row.title, selected: candidate.selected))
+        }
+        if snapshot.stopButtonVisible, !snapshot.rows.contains(where: { $0.status == .working }) {
             snapshot.rows.append(.init(status: .working, title: "Current response", selected: true))
         }
         return snapshot
@@ -148,6 +170,11 @@ enum IslandClaudeDesktopActivity {
         for (word, status) in statuses where text.hasPrefix(word + " ") {
             let title = String(text.dropFirst(word.count + 1)).trimmingCharacters(in: .whitespacesAndNewlines)
             if !title.isEmpty { return (status, title) }
+        }
+        // "Mark as unread <title>" with no status word: a finished chat the user hasn't opened yet.
+        if label.hasPrefix(prefix) {
+            let title = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !title.isEmpty { return (.done, title) }
         }
         return nil
     }
@@ -296,9 +323,14 @@ final class IslandClaudeDesktopWatcher {
         if rowLogState.shouldLog(rowCount: snapshot.rows.count, hasWindows: hasWindows) {
             logger.info("Claude Desktop sidebar rows observed", metadata: ["row_count": .string(String(snapshot.rows.count))])
         }
+        // Poll as well as observe: Electron does not always post AX notifications for sidebar status
+        // changes, and a Working phase can last only a few seconds.
+        let busy = snapshot.stopButtonVisible || snapshot.rows.contains { $0.status == .working || $0.status == .needsYou }
+        var next: TimeInterval = busy ? 1.0 : 2.0
         if let nextExpiry = finishDates.values.map({ $0.addingTimeInterval(10) }).min() {
-            scheduleRead(after: max(0.05, nextExpiry.timeIntervalSinceNow + 0.05))
+            next = min(next, max(0.05, nextExpiry.timeIntervalSinceNow + 0.05))
         }
+        scheduleRead(after: next)
     }
 
     private func appHasWindows() -> Bool {

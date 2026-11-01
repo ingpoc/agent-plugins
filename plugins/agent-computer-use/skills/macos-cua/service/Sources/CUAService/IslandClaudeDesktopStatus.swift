@@ -9,6 +9,7 @@ struct IslandClaudeDesktopStatus: Codable, Equatable {
     var model_picker_seen: Bool
     var manual_accessibility: ManualAccessibility
     var chat_tab_active: Bool
+    var stop_button_visible: Bool = false
 
     struct ManualAccessibility: Codable, Equatable {
         var set: Bool
@@ -63,13 +64,13 @@ struct IslandClaudeDesktopStatus: Codable, Equatable {
         latest = Self(attached_pid: pid, last_read_at: readAt.map(iso8601), rows_by_status: counts,
             row_count: rows.count, model_picker_seen: snapshot?.modelLabel != nil,
             manual_accessibility: .init(set: attempts > 0 && lastError == nil, attempts: attempts, last_error: lastError),
-            chat_tab_active: snapshot?.chatTabActive ?? false)
+            chat_tab_active: snapshot?.chatTabActive ?? false, stop_button_visible: snapshot?.stopButtonVisible ?? false)
         if let data = try? JSONEncoder().encode(latest) { UserDefaults.standard.set(data, forKey: defaultsKey) }
     }
 
     private static var emptyCounts: [String: Int] { ["working": 0, "idle": 0, "error": 0, "done": 0, "needs_you": 0] }
 
-    private enum CodingKeys: String, CodingKey { case attached_pid, last_read_at, rows_by_status, row_count, model_picker_seen, manual_accessibility, chat_tab_active }
+    private enum CodingKeys: String, CodingKey { case attached_pid, last_read_at, rows_by_status, row_count, model_picker_seen, manual_accessibility, chat_tab_active, stop_button_visible }
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(attached_pid, forKey: .attached_pid)
@@ -79,6 +80,7 @@ struct IslandClaudeDesktopStatus: Codable, Equatable {
         try c.encode(model_picker_seen, forKey: .model_picker_seen)
         try c.encode(manual_accessibility, forKey: .manual_accessibility)
         try c.encode(chat_tab_active, forKey: .chat_tab_active)
+        try c.encode(stop_button_visible, forKey: .stop_button_visible)
     }
 
     private static func iso8601(_ date: Date) -> String {

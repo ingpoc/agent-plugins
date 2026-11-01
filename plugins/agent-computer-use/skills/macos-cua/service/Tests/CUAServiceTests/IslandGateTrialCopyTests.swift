@@ -12,6 +12,8 @@ final class IslandGateTrialCopyTests: XCTestCase {
             "Usually starts within a few minutes. You can close this window.",
             "Your trial ends today. Repost to keep your island for good.",
             "Your trial ended. Repost the launch post to turn your island back on.",
+            "Follow again and repost to turn your island back on.",
+            "Not following @gurusharan anymore",
             "Follow to start a free 3-day trial. Repost to keep it.",
             "Follow to start your free trial."
         ]

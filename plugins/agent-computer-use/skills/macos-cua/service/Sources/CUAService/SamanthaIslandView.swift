@@ -537,8 +537,8 @@ struct IslandPermissionBadge: View {
         }
         .buttonStyle(.plain)
         .frame(width: size, height: size)
-        .help("\(label) permission is off. Click to fix.")
-        .accessibilityLabel("\(label) permission is off. Open permission settings.")
+        .help("Agent Computer Use needs a permission. Click to fix.")
+        .accessibilityLabel("Agent Computer Use needs a permission. Click to fix.")
     }
 }
 
@@ -792,7 +792,8 @@ struct SamanthaIslandBar: View {
     private var open: Bool { model.cardOpen }
     private var permissionWarningAccessibilityLabel: String {
         guard let warning = model.permissionWarning else { return "" }
-        return "\(warning) permission is off. Open permission settings."
+        _ = warning
+        return "Agent Computer Use needs a permission. Click to fix."
     }
 
     private var leadMorph: some View {

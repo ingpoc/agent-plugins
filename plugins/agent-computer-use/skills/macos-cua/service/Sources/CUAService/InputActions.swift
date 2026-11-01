@@ -441,11 +441,14 @@ final class InputActions: @unchecked Sendable {
             kAXSelectedTextAttribute as CFString,
             text as CFTypeRef
         )
-        if selected == .success {
-            return axInsertLanded(focused, text, before: before)
+        if selected == .success, axInsertLanded(focused, text, before: before) {
+            return true
         }
 
-        guard let current = before else { return false }
+        // Empty Electron/web contenteditables (Claude desktop composer) report a nil AXValue and ignore
+        // AXSelectedText, but accept an AXValue write. Splice into "" rather than refusing.
+        if selected == .success, let after = axStringValue(focused), after != (before ?? "") { return false }
+        let current = before ?? ""
         let ns = current as NSString
         var loc = ns.length
         var len = 0
