@@ -14,6 +14,8 @@ This pass exercised macOS arm64 only. Other architecture targets stay release-bl
 
 **Requirements.** macOS (arm64 tested) and Python 3.11 or later. `setup` installs the hash-pinned dependencies from `requirements.lock` into a private runtime.
 
+**Helper model.** Use the lowest-cost available model that can reliably follow the ledger protocol, selected through the current harness. The parent reviews decisions; the retained helper performs ledger operations. No provider, model name or harness-specific agent role is prescribed. If cheaper-model selection is unavailable, report the limitation; cost savings are not established by these instructions.
+
 **Install.**
 
 1. Install the `context-ledger` plugin from this repository's marketplace.
