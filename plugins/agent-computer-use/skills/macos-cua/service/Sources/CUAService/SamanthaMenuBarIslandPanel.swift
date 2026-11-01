@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import os
 
 /// Fixed 640×320 transparent, non-activating panel pinned to the top centre of
 /// the menu-bar display (spec §1). Only the black shape morphs inside it.
@@ -10,6 +11,7 @@ import SwiftUI
 /// never become key or main (clicks never take focus).
 @MainActor
 final class SamanthaMenuBarIslandPanel {
+    private static let log = Logger(subsystem: "com.ingpoc.cua-service", category: "island")
     /// Pointer source for hover and hit testing; tests park it off-screen so a real pointer resting
     /// over the island can't open or pin cards mid-test.
     nonisolated(unsafe) static var pointerLocation: () -> NSPoint = { NSEvent.mouseLocation }
@@ -85,7 +87,7 @@ final class SamanthaMenuBarIslandPanel {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                guard let self, self.panel?.isVisible == true else { return }
+                guard let self else { return }
                 self.reposition(on: Self.menuBarScreen())
             }
         }
@@ -216,6 +218,7 @@ final class SamanthaMenuBarIslandPanel {
         fullscreenStreak = fs ? fullscreenStreak + 1 : 0
         let mc = hideInMissionControl && IslandEnvironment.missionControlActive()
         let hidden = fullscreenStreak >= 2 || mc
+        if panel.isVisible && !hidden { reposition(on: screen, logCorrection: true) }
         if hidden == envHidden && panel.isVisible == !hidden { return }
         if hidden != envHidden {
             SamanthaActivityLog.startup(phase: hidden ? "island_env_hidden" : "island_env_shown", status: "ok",
@@ -226,7 +229,7 @@ final class SamanthaMenuBarIslandPanel {
             panel.orderOut(nil)
             stopPointerTracking()
         } else {
-            reposition(on: screen)
+            reposition(on: screen, logCorrection: true)
             panel.orderFrontRegardless()
             startPointerTracking()
         }
@@ -235,13 +238,19 @@ final class SamanthaMenuBarIslandPanel {
     /// Kept for callers; hit-testing is now pointer-driven.
     func setInteractive(_ on: Bool) {}
 
-    func reposition(on screen: NSScreen? = nil) {
+    func reposition(on screen: NSScreen? = nil, logCorrection: Bool = false) {
         guard let panel else { return }
         let target = screen ?? Self.menuBarScreen()
         let bar = MenuBarWindowAnchor.strip(on: target)?.appKit
-            ?? CGRect(x: target.frame.minX, y: target.frame.maxY - 30, width: target.frame.width, height: 30)
-        let frame = IslandBarLayout.windowFrame(bar: bar, screen: target.frame)
-        if panel.frame != frame { panel.setFrame(frame, display: true); updateTrackingGeometry(force: true) }
+        let frame = IslandBarLayout.windowFrame(bar: bar, screen: target.frame,
+                                                auxLeft: target.auxiliaryTopLeftArea, auxRight: target.auxiliaryTopRightArea)
+        if IslandBarLayout.needsFrameCorrection(current: panel.frame, expected: frame) {
+            if logCorrection {
+                Self.log.info("Island frame correction old=\(NSStringFromRect(panel.frame), privacy: .public) new=\(NSStringFromRect(frame), privacy: .public) strip=\(bar.map(NSStringFromRect) ?? "nil", privacy: .public) screen=\(NSStringFromRect(target.frame), privacy: .public)")
+            }
+            panel.setFrame(frame, display: true)
+            updateTrackingGeometry(force: true)
+        }
         panel.level = Self.menuBarPanelLevel
     }
 
@@ -296,6 +305,7 @@ final class SamanthaMenuBarIslandPanel {
                                width: rect.width, height: rect.height)
             let child = IslandTrackingPanel(contentRect: frame, styleMask: [.nonactivatingPanel, .borderless], backing: .buffered, defer: false)
             child.isOpaque = false; child.backgroundColor = .clear; child.hasShadow = false
+            child.isMovable = false; child.isMovableByWindowBackground = false
             child.level = panel.level
             child.hidesOnDeactivate = false
             child.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
@@ -540,6 +550,8 @@ final class SamanthaMenuBarIslandPanel {
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.isFloatingPanel = false
+        panel.isMovable = false
+        panel.isMovableByWindowBackground = false
         panel.level = Self.menuBarPanelLevel
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle, .fullScreenAuxiliary]
         panel.hidesOnDeactivate = false
@@ -617,6 +629,7 @@ final class IslandTrackingView: NSView {
 /// Never main, and key ONLY while the user is typing into a choice card's text field (after their click);
 /// clicking an app circle activates that app, not us.
 final class IslandPanel: NSPanel {
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
     /// Set by `SamanthaMenuBarIslandPanel.beginTextEntry` (a click into the field) and cleared on
     /// submit / Escape / card change. Nothing else may set it.
     var allowKey = false

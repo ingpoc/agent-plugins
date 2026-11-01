@@ -85,6 +85,36 @@ final class IslandTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(h.minX, 0)
     }
 
+    func testIslandCenterAcrossDisplaysAndNotch() {
+        let primary = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let strip = CGRect(x: 0, y: 1050, width: 1920, height: 30)
+        let center = IslandBarLayout.islandCenterX
+        XCTAssertEqual(center(primary, strip, nil, nil), 960)
+        let old = CGRect(x: 0, y: 0, width: 1448, height: 900)
+        XCTAssertEqual(center(old, nil, nil, nil), 724)
+        let left = CGRect(x: 0, y: 1048, width: 700, height: 32)
+        let right = CGRect(x: 900, y: 1048, width: 1020, height: 32)
+        XCTAssertEqual(center(primary, strip, left, right), 800)
+        XCTAssertEqual(IslandBarLayout.windowFrame(bar: strip, screen: primary, auxLeft: left, auxRight: right).midX, 800)
+        for x: CGFloat in [-1600, 1920] {
+            let secondary = CGRect(x: x, y: 100, width: 1600, height: 900)
+            XCTAssertEqual(center(secondary, strip, nil, nil), secondary.midX)
+        }
+        let partial = CGRect(x: 0, y: 1050, width: 1448, height: 30)
+        XCTAssertEqual(center(primary, partial, nil, nil), 960)
+        let expected = IslandBarLayout.windowFrame(bar: strip, screen: primary)
+        XCTAssertEqual(expected.minX, 640)
+        XCTAssertTrue(IslandBarLayout.needsFrameCorrection(current: expected.offsetBy(dx: -236, dy: 0), expected: expected))
+        XCTAssertFalse(IslandBarLayout.needsFrameCorrection(current: expected, expected: expected))
+    }
+
+    func testEveryShapeWidthIsCenteredInFixedWindow() {
+        for width in [IslandBarLayout.idleWidth, IslandBarLayout.standardWidth, IslandBarLayout.wideWidth, IslandBarLayout.peekWidth] {
+            XCTAssertEqual(IslandBarLayout.shapeRect(compactWidth: width, card: false).midX, IslandBarLayout.windowSize.width / 2)
+        }
+        XCTAssertEqual(IslandBarLayout.shapeRect(compactWidth: IslandBarLayout.idleWidth, card: true).midX, IslandBarLayout.windowSize.width / 2)
+    }
+
     func testPointerMapping() {
         let frame = CGRect(x: 960, y: 1120, width: 640, height: 320)
         XCTAssertEqual(SamanthaMenuBarIslandPanel.windowPoint(screen: CGPoint(x: 1280, y: 1440 - 15), frame: frame),

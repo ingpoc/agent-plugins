@@ -129,11 +129,26 @@ enum IslandBarLayout {
 
     /// AppKit frame for the fixed window: top edge on the screen top, centred
     /// on the menu bar, clamped inside the screen.
-    static func windowFrame(bar: CGRect, screen: CGRect) -> CGRect {
+    static func islandCenterX(screenFrame: CGRect, menubarStrip: CGRect?, auxLeft: CGRect?, auxRight: CGRect?) -> CGFloat {
+        if let left = auxLeft, let right = auxRight {
+            return (left.maxX + right.minX) / 2
+        }
+        if let strip = menubarStrip, strip.width >= screenFrame.width * 0.9,
+           strip.minX >= screenFrame.minX, strip.maxX <= screenFrame.maxX,
+           strip.intersects(screenFrame) {
+            return strip.midX
+        }
+        return screenFrame.midX
+    }
+
+    static func needsFrameCorrection(current: CGRect, expected: CGRect) -> Bool { current != expected }
+
+    static func windowFrame(bar: CGRect?, screen: CGRect, auxLeft: CGRect? = nil, auxRight: CGRect? = nil) -> CGRect {
         let w = min(windowSize.width, screen.width)
         let minX = screen.minX
         let maxX = screen.maxX - w
-        let x = min(max(bar.midX - w / 2, minX), max(minX, maxX))
+        let center = islandCenterX(screenFrame: screen, menubarStrip: bar, auxLeft: auxLeft, auxRight: auxRight)
+        let x = min(max(center - w / 2, minX), max(minX, maxX))
         return CGRect(x: x.rounded(.down), y: screen.maxY - windowSize.height, width: w, height: windowSize.height)
     }
 }
