@@ -47,6 +47,56 @@ final class IslandFixtureRenderTests: XCTestCase {
         try NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: url)
     }
 
+    /// Compact pill in every state (2x), for the UI & UX review set.
+    func testRenderCompactStates() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_RENDER_DIR"] else { throw XCTSkip("set CUA_ISLAND_RENDER_DIR to render") }
+        func agent(_ id: String, _ name: String, _ title: String, _ status: String, needs: Bool = false) -> IslandAgent {
+            var a = IslandAgent(id: id, name: name, app: name, title: title, status: status, needs_you: needs, last_seen_at: 100)
+            if status == "running" { a.elapsed_s = 42 }
+            return a
+        }
+        let claude = agent("claude-desktop:a", "Claude", "History of lighthouses essay", "running")
+        // A Claude Code turn that finished `ago` seconds before the render (the circle holds 10 s).
+        func doneAt(_ ago: TimeInterval) -> IslandAgent {
+            var a = agent("claude:claude-code:d", "Claude", "History of lighthouses essay", "done")
+            a.last_seen_at = Date().timeIntervalSince1970 - ago
+            return a
+        }
+        let states: [(String, [IslandAgent])] = [
+            ("1-idle", []),
+            ("2-one-working", [claude]),
+            ("3-several", [claude, agent("codex:b", "Codex", "Fix island", "running"), agent("cursor:c", "Cursor", "Review PR", "running")]),
+            ("4-failed", [agent("codex:f", "Codex", "Run release tests", "error")]),
+            ("5-done", [doneAt(0)]),
+            ("5-done-t0", [doneAt(0)]),
+            ("5-done-t11", [doneAt(11)]),
+            ("6-needs-you", [agent("claude:claude-code:p", "Claude", "Permission requested", "needs_you", needs: true)]),
+        ]
+        for (name, agents) in states {
+            let model = IslandModel()
+            model.idleActivity = "duo"
+            model.apply(IslandSnapshot(kind: "idle", agents: agents))
+            try await save(model, "compact-" + name, dir: dir)
+        }
+        // Failed with its text yielded to a new Codex run: the red 6 pt dot keeps the failure visible.
+        let red = IslandModel()
+        red.idleActivity = "duo"
+        red.apply(IslandSnapshot(kind: "idle", agents: [agent("codex:f", "Codex", "Run release tests", "error"),
+                                                         agent("codex:n", "Codex", "Re-run release tests", "running")]))
+        try await save(red, "compact-4b-failed-red-dot", dir: dir)
+        // A Claude Code sign-in failure while a Claude desktop chat replies: the pill yields to the live row.
+        let yielding = IslandModel()
+        yielding.idleActivity = "duo"
+        yielding.apply(IslandSnapshot(kind: "idle", agents: [agent("claude:claude-code:s", "Claude", "Claude Code · gurusharan", "error"), claude]))
+        try await save(yielding, "compact-8-working-over-claude-code-failure", dir: dir)
+        // Failed, then the user opened and closed the island: the compact pill drops the seen failure.
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "idle", agents: [agent("codex:f", "Codex", "Run release tests", "error")]))
+        model.openAgentList(); model.dismissCard()
+        try await save(model, "compact-7-failed-after-seen", dir: dir)
+    }
+
     func testRenderInitiatorRows() throws {
         guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_RENDER_DIR"] else { throw XCTSkip("set CUA_ISLAND_RENDER_DIR to render") }
         for large in [false, true] {

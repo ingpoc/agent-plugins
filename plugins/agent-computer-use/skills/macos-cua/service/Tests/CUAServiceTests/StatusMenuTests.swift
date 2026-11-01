@@ -3,13 +3,13 @@ import SwiftUI
 import XCTest
 @testable import CUAService
 
-/// The menu-bar menu: one "ACU Settings…" (⌘,) entry point, no Voice/Island Settings leftovers.
+/// The menu-bar menu: one "Settings…" (⌘,) entry point, no Voice/Island Settings leftovers.
 @MainActor
 final class StatusMenuTests: XCTestCase {
     func testMenuHasOneACUSettingsItemWithCommandComma() {
         let menu = StatusBarController().makeMenu()
         let titles = menu.items.map(\.title)
-        let settings = menu.items.filter { $0.title == "ACU Settings…" }
+        let settings = menu.items.filter { $0.title == "Settings…" }
         XCTAssertEqual(settings.count, 1)
         XCTAssertEqual(settings.first?.keyEquivalent, ",")
         XCTAssertEqual(settings.first?.keyEquivalentModifierMask, [.command])
@@ -19,14 +19,17 @@ final class StatusMenuTests: XCTestCase {
         XCTAssertEqual(IslandSettingsWindowController.shared.window?.title, "ACU Settings")
     }
 
-    func testIslandMenuItemUsesCurrentShortcut() {
+    /// "Show Dynamic Island" (⌃⌘I) only expanded the island and duplicated the global hotkey: gone (Guru, 2026-11-01).
+    func testMenuHasNoShowDynamicIslandItemOrIslandShortcut() {
         let menu = StatusBarController().makeMenu()
+        let titles = menu.items.map(\.title)
+        XCTAssertFalse(titles.contains("Show Dynamic Island"), "\(titles)")
         let shortcut = IslandShortcut.read(IslandSettingsStore.shared)
-        let item = menu.items.first { $0.title == "Show Dynamic Island" }
-        XCTAssertNotNil(item?.action)
-        XCTAssertEqual(item?.keyEquivalent, shortcut.character.lowercased())
-        XCTAssertEqual(item?.keyEquivalentModifierMask, shortcut.menuModifiers)
-        XCTAssertNotNil(menu.items.first { $0.title == "Show Island in Menu Bar" })
+        XCTAssertFalse(menu.items.contains { $0.keyEquivalent == shortcut.character.lowercased() && !$0.keyEquivalent.isEmpty
+            && $0.keyEquivalentModifierMask.contains(.control) }, "no menu item carries the island hotkey")
+        XCTAssertNotNil(menu.items.first { $0.title == "Show Island in Menu Bar" }?.action)
+        XCTAssertNotNil(menu.items.first { $0.title == "Settings…" })
+        XCTAssertNotNil(menu.items.first { $0.title == "Quit Agent Computer Use" })
     }
 
     func testOpenSettingsPaneNames() {
@@ -46,7 +49,16 @@ final class StatusMenuTests: XCTestCase {
     /// (titles, check state, shortcuts, the Samantha switch row) in the dark menu style.
     func testRenderMenu() throws {
         guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_RENDER_DIR"] else { throw XCTSkip("set CUA_ISLAND_RENDER_DIR to render") }
-        let menu = StatusBarController().makeMenu()
+        try render(StatusBarController().makeMenu(), to: URL(fileURLWithPath: dir).appendingPathComponent("menu-acu-v3-dark.png"))
+        // Unlocked: the account row's submenu ("Account details…" only; no site toggle).
+        let gate = try IslandGateFixtures.gate("unlocked")
+        let menu = StatusBarController(gate: gate).makeMenu()
+        let account = try XCTUnwrap(menu.items.first { $0.title == gate.accessSummary }?.submenu)
+        try render(menu, to: URL(fileURLWithPath: dir).appendingPathComponent("menu-acu-v3-unlocked-dark.png"))
+        try render(account, to: URL(fileURLWithPath: dir).appendingPathComponent("menu-acu-v3-account-submenu-dark.png"))
+    }
+
+    private func render(_ menu: NSMenu, to url: URL) throws {
         let rows: [MenuRow] = menu.items.map { item in
             if item.isSeparatorItem { return MenuRow(kind: .separator, title: "", key: "", on: false) }
             if let v = item.view as? MenuSwitchRowView { return MenuRow(kind: .toggle, title: v.label.stringValue, key: "", on: v.toggle.state == .on) }
@@ -56,7 +68,6 @@ final class StatusMenuTests: XCTestCase {
         let r = ImageRenderer(content: MenuMock(rows: rows).environment(\.colorScheme, .dark))
         r.scale = 2
         guard let img = r.cgImage else { return XCTFail("render menu") }
-        let url = URL(fileURLWithPath: dir).appendingPathComponent("menu-acu-settings-v2-dark.png")
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path), "never overwrite")
         try NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?.write(to: url)
     }

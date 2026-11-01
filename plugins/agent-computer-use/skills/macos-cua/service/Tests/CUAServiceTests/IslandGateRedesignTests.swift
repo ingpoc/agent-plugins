@@ -98,7 +98,7 @@ final class IslandGateRedesignTests: XCTestCase {
     func testWallCaptionsFitOneLine() {
         // 440 window - 2 x 24 insets - 22 pt checkbox inset
         let font = NSFont.systemFont(ofSize: 11)
-        for caption in ["Your name and photo on the Agent Plugins site. Turn off any time.", "Your handle and avatar on the Agent Plugins site. Turn off any time."] {
+        for caption in [IslandGateWallCopy.caption(linkedIn: true), IslandGateWallCopy.caption(linkedIn: false)] {
             XCTAssertLessThanOrEqual(NSAttributedString(string: caption, attributes: [.font: font]).size().width, 370, caption)
         }
     }

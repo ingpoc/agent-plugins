@@ -150,7 +150,7 @@ final class IslandPolishTests: XCTestCase {
         XCTAssertTrue(actions.isEmpty)
     }
 
-    func testCompactSummarySelectsHighestAttentionAgent() {
+    func testCompactPillSummaryReadsFullStateWithoutWidening() {
         let parent = IslandAgent(id: "codex:parent", name: "Codex", title: "Coordinate",
                                  status: "running", controls: ["stop"])
         let healthy = IslandAgent(id: "codex:healthy", name: "Codex", title: "Healthy",
@@ -161,9 +161,58 @@ final class IslandPolishTests: XCTestCase {
         let model = IslandModel()
         model.apply(IslandSnapshot(kind: "idle", agents: [healthy, failed, parent, urgent]))
 
-        XCTAssertEqual(model.compactAgentAttention?.agent.id, urgent.id)
-        XCTAssertEqual(model.compactAgentAttention?.parentName, parent.name)
-        XCTAssertGreaterThanOrEqual(model.drawnWidth, IslandBarLayout.agentAttentionWidth)
+        XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth, "no details in the pill: it stays 74 pt")
+        XCTAssertEqual(model.compactDot, .failed)
+        XCTAssertEqual(model.compactPillLabel, "Grok Bot failed, Cursor needs you, child of Codex, 2 Codex working")
+    }
+
+    /// Guru 2026-11-01: expanding the island marks the shown failure as seen; after collapse the compact
+    /// pill drops it. A newer failure (same row, later last_seen_at) shows again.
+    func testExpandingIslandMarksFailureSeen() {
+        let failed = IslandAgent(id: "codex:t1", name: "Codex", app: "Codex", title: "Build", status: "error",
+                                 last_seen_at: 100)
+        let model = IslandModel()
+        model.apply(IslandSnapshot(kind: "idle", agents: [failed]))
+        XCTAssertEqual(model.compactDot, .failed)
+        XCTAssertEqual(IslandAgentBadge.badge(for: model.sourceGroups[0]), .failed)
+        model.openAgentList()
+        XCTAssertTrue(model.cardOpen)
+        XCTAssertEqual(model.seenFailures[failed.id], IslandModel.failureSignature(failed))
+        XCTAssertTrue(model.agents.contains { $0.id == failed.id }, "row stays in the expanded list")
+        model.dismissCard()
+        XCTAssertFalse(model.cardOpen)
+        XCTAssertNil(model.compactDot, "seen failure clears the red dot")
+        XCTAssertTrue(model.sourceGroups.isEmpty, "and its circle goes: a seen failure must not read as working (review D)")
+        var rerun = failed; rerun.id = "codex:t2"; rerun.status = "running"
+        model.apply(IslandSnapshot(kind: "idle", agents: [failed, rerun]))
+        XCTAssertEqual(model.sourceGroups.map(\.id), ["Codex"], "a real new run brings the circle back")
+        XCTAssertEqual(model.sourceGroups.first?.failed, false)
+        var again = failed; again.last_seen_at = 200
+        model.apply(IslandSnapshot(kind: "idle", agents: [again]))
+        XCTAssertEqual(model.compactDot, .failed, "a new failure shows again")
+        let needs = IslandAgent(id: "cursor:n", name: "Cursor", app: "Cursor", title: "Approve?", status: "needs_you",
+                                needs_you: true, last_seen_at: 100)
+        model.apply(IslandSnapshot(kind: "idle", agents: [needs]))
+        model.openAgentList(); model.dismissCard()
+        XCTAssertEqual(model.compactDot, .needsYou, "needs-you is never cleared by a look")
+    }
+
+    /// 2026-11-01: a Claude Code sign-in failure must not hide a Claude desktop reply. Both show: the
+    /// working circle stays, the unseen failure keeps the red dot and cross until seen (Guru 19:20-19:30 IST).
+    func testClaudeCodeFailureDoesNotHideDesktopRun() {
+        let codeFailed = IslandAgent(id: "claude:claude-code:s1", name: "Claude", app: "Claude",
+                                     title: "Claude Code · gurusharan", status: "error")
+        let desktop = IslandAgent(id: "claude-desktop:abc", name: "Claude", app: "Claude",
+                                  title: "History of lighthouses essay", status: "running")
+        let model = IslandModel()
+        model.apply(IslandSnapshot(kind: "idle", agents: [codeFailed, desktop]))
+        XCTAssertEqual(model.sourceGroups.map(\.id), ["Claude"])
+        XCTAssertEqual(model.sourceGroups[0].running, true)
+        XCTAssertEqual(model.compactDot, .failed)
+        XCTAssertTrue(model.compactPillLabel.contains("Claude failed") && model.compactPillLabel.contains("Claude working"))
+        model.openAgentList(); model.dismissCard()
+        XCTAssertEqual(model.compactDot, .working)
+        XCTAssertNil(IslandAgentBadge.badge(for: model.sourceGroups[0]))
     }
 
     func testDestructiveKeyboardStartsOnDenyAndCommandReturnConfirms() {
@@ -300,5 +349,143 @@ final class IslandPolishTests: XCTestCase {
         XCTAssertEqual(IslandTrayRules.cardHeight, 168)
         let m = IslandModel(); m.addToTray([URL(fileURLWithPath: "/tmp/x.txt")]); m.toggleCard()
         XCTAssertEqual(m.cardHeight, 168, "tray card is shorter than the 176 default")
+    }
+
+    // MARK: UI & UX review of 0.2.69 compact pill (A: done check)
+
+    func testDoneCircleCarriesCheckForTenSecondsThenLeaves() {
+        let now = Date()
+        var done = IslandAgent(id: "claude:claude-code:d", name: "Claude", app: "Claude", title: "Essay", status: "done")
+        done.last_seen_at = now.timeIntervalSince1970
+        var g = IslandSourceGroups.groups(agents: [done], expired: [], hidePending: nil, now: now)
+        XCTAssertEqual(g.map(\.id), ["Claude"]); XCTAssertEqual(g.first?.done, true)
+        XCTAssertEqual(IslandAgentAccessibility.circleLabel(groups: g, agents: [done]), "Claude finished")
+        g = IslandSourceGroups.groups(agents: [done], expired: [], hidePending: nil, now: now.addingTimeInterval(9.9))
+        XCTAssertEqual(g.first?.done, true, "held for 10 s")
+        g = IslandSourceGroups.groups(agents: [done], expired: [], hidePending: nil, now: now.addingTimeInterval(11))
+        XCTAssertTrue(g.isEmpty, "circle leaves after the hold; the row stays in the expanded list")
+        // Desktop observer rows (last_seen_at 0) hold themselves for 10 s.
+        let desk = IslandAgent(id: "claude-desktop:x", name: "Claude", app: "Claude", title: "Essay", status: "done")
+        XCTAssertEqual(IslandSourceGroups.groups(agents: [desk], expired: [], hidePending: nil, now: now.addingTimeInterval(60)).first?.done, true)
+        // A running sibling wins: working circle, no check.
+        let run = IslandAgent(id: "claude-desktop:y", name: "Claude", app: "Claude", title: "Other", status: "running")
+        XCTAssertEqual(IslandSourceGroups.groups(agents: [done, run], expired: [], hidePending: nil, now: now).first?.done, false)
+    }
+
+    func testDoneCircleExpiresWithoutAnotherSnapshot() {
+        let model = IslandModel()
+        var done = IslandAgent(id: "claude:claude-code:d", name: "Claude", app: "Claude", title: "Essay", status: "done")
+        done.last_seen_at = Date().timeIntervalSince1970 - 9.7
+        model.apply(IslandSnapshot(kind: "idle", agents: [done]))
+        XCTAssertEqual(model.sourceGroups.first?.done, true)
+        let gone = expectation(description: "circle leaves")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            XCTAssertTrue(model.sourceGroups.isEmpty); gone.fulfill()
+        }
+        wait(for: [gone], timeout: 2)
+    }
+
+    /// Guru, 2026-11-01 19:19-19:28 IST: the pill is empty except one solid 6 pt dot 9 pt in from the right,
+    /// vertically centred: blue working, red failed, amber needs-you, none idle or done.
+    func testCompactPillHoldsOnlyTheStatusDot() throws {
+        let shape = CGRect(x: 100, y: 0, width: 74, height: 24)
+        XCTAssertEqual(IslandBarLayout.compactDotRect(shape: shape), CGRect(x: 159, y: 9, width: 6, height: 6))
+        var done = IslandAgent(id: "claude:claude-code:d", name: "Claude", app: "Claude", title: "T", status: "done")
+        done.last_seen_at = Date().timeIntervalSince1970
+        let running = IslandAgent(id: "codex:r", name: "Codex", app: "Codex", title: "T", status: "running")
+        let failed = IslandAgent(id: "codex:f", name: "Codex", app: "Codex", title: "T", status: "error", last_seen_at: 100)
+        let needs = IslandAgent(id: "claude:n", name: "Claude", app: "Claude", title: "T", status: "needs_you", needs_you: true, last_seen_at: 100)
+        // Guru 19:28 IST: no text or icon in the pill in any state; only the dot (RGB floor / ceiling checks).
+        let cases: [([IslandAgent], IslandCompactDot?)] = [([], nil), ([running], .working), ([done], nil), ([failed], .failed), ([needs], .needsYou)]
+        for (agents, want) in cases {
+            let expectDot = want != nil
+            let model = IslandModel()
+            model.idleActivity = "duo"
+            model.apply(IslandSnapshot(kind: "idle", agents: agents))
+            XCTAssertEqual(model.compactDot, want)
+            XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth, "the pill stays 74 pt")
+            let r = ImageRenderer(content: SamanthaIslandBar(model: model).environment(\.colorScheme, .dark))
+            r.scale = 2
+            let img = try XCTUnwrap(r.cgImage)
+            let cs = CGColorSpace(name: CGColorSpace.sRGB)!
+            let ctx = try XCTUnwrap(CGContext(data: nil, width: img.width, height: img.height, bitsPerComponent: 8, bytesPerRow: img.width * 4,
+                                              space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            ctx.draw(img, in: CGRect(x: 0, y: 0, width: img.width, height: img.height))
+            let px = ctx.data!.bindMemory(to: UInt8.self, capacity: img.width * img.height * 4)
+            func rgb(_ x: CGFloat, _ y: CGFloat) -> (Int, Int, Int) {
+                let o = (Int(y * 2) * img.width + Int(x * 2)) * 4   // rows run top-down in memory
+                return (Int(px[o]), Int(px[o + 1]), Int(px[o + 2]))
+            }
+            let dot = IslandBarLayout.compactDotRect(shape: model.shapeRect)
+            let c = rgb(dot.midX, dot.midY)
+            switch want {
+            case .working?: XCTAssertGreaterThan(c.2, 200, "#64D2FF"); XCTAssertGreaterThan(c.1, 150); XCTAssertLessThan(c.0, 160)
+            case .failed?: XCTAssertGreaterThan(c.0, 200, "#FF453A"); XCTAssertLessThan(c.1, 120); XCTAssertLessThan(c.2, 110)
+            case .needsYou?: XCTAssertGreaterThan(c.0, 200, "amber"); XCTAssertGreaterThan(c.1, 140); XCTAssertLessThan(c.2, 120)
+            case nil:
+                XCTAssertLessThan(max(c.0, c.1, c.2), 24, "no dot (agents: \(agents.map(\.status)))")
+            }
+            _ = expectDot
+            // Everything else inside the pill is plain black: no orb on the left or centre.
+            let inner = model.shapeRect.insetBy(dx: 14, dy: 5)
+            var brightest = 0
+            var y = inner.minY
+            while y < inner.maxY {
+                var x = inner.minX
+                while x < inner.maxX {
+                    if !dot.insetBy(dx: -2, dy: -2).contains(CGPoint(x: x, y: y)) {
+                        let p = rgb(x, y); brightest = max(brightest, p.0, p.1, p.2)
+                    }
+                    x += 0.5
+                }
+                y += 0.5
+            }
+            XCTAssertLessThan(brightest, 24, "pill interior outside the dot is black (agents: \(agents.map(\.status)))")
+        }
+    }
+
+    /// Guru, 2026-11-01 19:20 IST: red (unseen failure) > amber (needs you) > blue (working) > none.
+    func testCompactDotPrecedenceAndSeenFailureClearsRed() {
+        func a(_ id: String, _ status: String, needs: Bool = false) -> IslandAgent {
+            IslandAgent(id: id, name: id, app: id, title: "T", status: status, needs_you: needs, last_seen_at: 100)
+        }
+        let run = a("Cursor", "running"), ask = a("Claude", "needs_you", needs: true), fail = a("Codex", "error")
+        let cases: [([IslandAgent], IslandCompactDot?)] = [
+            ([], nil), ([run], .working), ([run, ask], .needsYou), ([run, ask, fail], .failed),
+            ([fail, run], .failed), ([a("Codex", "stale")], .failed), ([a("Claude", "done")], nil),
+        ]
+        for (agents, want) in cases {
+            let m = IslandModel(); m.apply(IslandSnapshot(kind: "idle", agents: agents))
+            XCTAssertEqual(m.compactDot, want, "\(agents.map(\.status))")
+        }
+        XCTAssertEqual(IslandCompactDot.failed.color, IslandPalette.red)
+        XCTAssertEqual(IslandCompactDot.needsYou.color, IslandPalette.amber)
+        XCTAssertEqual(IslandCompactDot.working.color, IslandPalette.accent)
+        // Seen: the red clears (with the circle); what remains decides the dot.
+        let m = IslandModel(); m.apply(IslandSnapshot(kind: "idle", agents: [fail, run]))
+        m.openAgentList(); m.dismissCard()
+        XCTAssertEqual(m.compactDot, .working)
+        XCTAssertFalse(m.sourceGroups.contains { $0.id == "Codex" })
+        m.apply(IslandSnapshot(kind: "idle", agents: [fail]))
+        XCTAssertNil(m.compactDot, "seen failure alone: idle, no dot")
+    }
+
+    /// An unseen failure stays red while a new run of the same app is going (red outranks working).
+    func testRedDotOutranksANewRunOfTheSameApp() throws {
+        let old = IslandAgent(id: "codex:f", name: "Codex", app: "Codex", title: "Old", status: "error", last_seen_at: 100)
+        let new = IslandAgent(id: "codex:n", name: "Codex", app: "Codex", title: "New", status: "running", last_seen_at: 100)
+        let model = IslandModel(); model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "idle", agents: [old, new]))
+        XCTAssertEqual(model.compactDot, .failed)
+        let r = ImageRenderer(content: SamanthaIslandBar(model: model).environment(\.colorScheme, .dark))
+        r.scale = 2
+        let img = try XCTUnwrap(r.cgImage)
+        let ctx = try XCTUnwrap(CGContext(data: nil, width: img.width, height: img.height, bitsPerComponent: 8, bytesPerRow: img.width * 4,
+                                          space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+        ctx.draw(img, in: CGRect(x: 0, y: 0, width: img.width, height: img.height))
+        let px = ctx.data!.bindMemory(to: UInt8.self, capacity: img.width * img.height * 4)
+        let d = IslandBarLayout.compactDotRect(shape: model.shapeRect)
+        let o = (Int(d.midY * 2) * img.width + Int(d.midX * 2)) * 4
+        XCTAssertGreaterThan(Int(px[o]), 200, "red"); XCTAssertLessThan(Int(px[o + 1]), 120); XCTAssertLessThan(Int(px[o + 2]), 110)
     }
 }

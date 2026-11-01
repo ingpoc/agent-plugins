@@ -49,16 +49,6 @@ final class IslandGateRefreshCompatibilityTests: XCTestCase {
         XCTAssertTrue(gate.isUnlocked)
         guard case .unlocked = gate.state else { return XCTFail("legacy token must remain a permanent unlock") }
     }
-    func testWallRequestAlsoIncludesDeviceIDInItsSignedBody() async throws {
-        IslandGateURLProtocol.handler = { request in
-            XCTAssertEqual(request.url?.path, "/v1/wall")
-            let body = try self.assertDeviceBodyAndSignature(request, action: "wall")
-            XCTAssertEqual(body["show"] as? Bool, true)
-            return (200, Data(#"{"show":true}"#.utf8))
-        }
-        defer { IslandGateURLProtocol.handler = nil }
-        try await IslandGateURLProtocol.client().setWallVisibility(true, device: device)
-    }
     func testValidStoredLegacyEntitlementSurvivesOtherRefreshFailures() async throws {
         let responses: [(Int, String)] = [
             (400, #"{"error":"invalid_request"}"#), (401, #"{"error":"bad_signature"}"#),

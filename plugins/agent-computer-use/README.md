@@ -33,7 +33,7 @@ Cursor MCP loads `.cursor-plugin/mcp.json` (`${CURSOR_PLUGIN_ROOT}/bin/agent-com
 
 ## Dynamic Island (island-post)
 
-CUAService (the Agent Computer Use menu bar app) hosts the island from launch, Samantha or not. Menu: **Show Dynamic Island** (default on), **ACU Settings…** (⌘,: the one ACU Settings window — island, Samantha voice, AI agents, Computer Use permissions; also `macos-cua settings [pane]`), Samantha on/off.
+CUAService (the Agent Computer Use menu bar app) hosts the island from launch, Samantha or not. Menu: **Show Island in Menu Bar** (default on), **Settings…** (⌘,: the one ACU Settings window — island, Samantha voice, AI agents, Computer Use permissions; also `macos-cua settings [pane]`), Samantha on/off.
 
 ### Deep link
 

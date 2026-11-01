@@ -1,0 +1,540 @@
+{"d": 0, "role": "AXWindow", "subrole": "AXStandardWindow", "title": "Claude"}
+{"d": 1, "role": "AXGroup"}
+{"d": 2, "role": "AXGroup"}
+{"d": 3, "role": "AXGroup"}
+{"d": 4, "role": "AXGroup"}
+{"d": 5, "role": "AXGroup"}
+{"d": 6, "role": "AXGroup"}
+{"d": 7, "role": "AXWebArea"}
+{"d": 8, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 6, "role": "AXGroup"}
+{"d": 7, "role": "AXGroup"}
+{"d": 8, "role": "AXWebArea"}
+{"d": 9, "role": "AXGroup"}
+{"d": 10, "role": "AXGroup"}
+{"d": 11, "role": "AXGroup"}
+{"d": 12, "role": "AXHeading"}
+{"d": 13, "role": "AXStaticText"}
+{"d": 12, "role": "AXGroup"}
+{"d": 13, "description": "Sidebar", "role": "AXGroup", "subrole": "AXLandmarkComplementary"}
+{"d": 14, "description": "Hide sidebar", "role": "AXButton"}
+{"d": 14, "description": "Back", "role": "AXButton"}
+{"d": 14, "description": "Forward", "role": "AXButton"}
+{"d": 14, "description": "Mode", "role": "AXRadioGroup"}
+{"d": 15, "description": "Chat and Cowork", "role": "AXRadioButton", "value": "1"}
+{"d": 15, "description": "Code", "role": "AXRadioButton"}
+{"d": 14, "role": "AXGroup"}
+{"d": 15, "role": "AXHeading"}
+{"d": 16, "role": "AXStaticText"}
+{"d": 15, "role": "AXGroup"}
+{"d": 16, "role": "AXGroup"}
+{"d": 17, "role": "AXButton", "title": "New"}
+{"d": 17, "role": "AXButton", "title": "Search"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXButton", "title": "Projects"}
+{"d": 18, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 17, "role": "AXButton", "title": "Artifacts"}
+{"d": 17, "role": "AXButton", "title": "Customize"}
+{"d": 17, "role": "AXHeading"}
+{"d": 18, "role": "AXButton", "title": "Dispatch"}
+{"d": 17, "role": "AXHeading"}
+{"d": 18, "role": "AXButton", "title": "Pinned"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "Chat 1", "role": "AXButton"}
+{"d": 21, "description": "Toggle chats for Chat 1", "role": "AXButton"}
+{"d": 21, "role": "AXGroup"}
+{"d": 22, "role": "AXStaticText"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "description": "More options for Chat 1", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "Chat 2", "role": "AXButton"}
+{"d": 21, "description": "Toggle chats for Chat 2", "role": "AXButton"}
+{"d": 21, "role": "AXGroup"}
+{"d": 22, "role": "AXStaticText"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "description": "More options for Chat 2", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXHeading"}
+{"d": 18, "role": "AXButton", "title": "Chats and tasks"}
+{"d": 17, "description": "Filter and group recents", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle History of lighthouses essay"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for History of lighthouses essay", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 3"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 3", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 4"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 4", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 5"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 5", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 6"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 6", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 3"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 3", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 7"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 7", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 8"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 8", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 9"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 9", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 10"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 10", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 11"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 11", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Mark as unread Chat 12"}
+{"d": 20, "description": "Mark as unread", "role": "AXButton"}
+{"d": 21, "description": "Done", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 12", "role": "AXPopUpButton"}
+{"d": 18, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Idle Chat 13"}
+{"d": 20, "description": "Idle", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 13", "role": "AXPopUpButton"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Something went wrong Chat 14"}
+{"d": 20, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 14", "role": "AXPopUpButton"}
+{"d": 18, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Mark as unread Chat 15"}
+{"d": 20, "description": "Mark as unread", "role": "AXButton"}
+{"d": 21, "description": "Done", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 15", "role": "AXPopUpButton"}
+{"d": 18, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Mark as unread Chat 16"}
+{"d": 20, "description": "Mark as unread", "role": "AXButton"}
+{"d": 21, "description": "Done", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 16", "role": "AXPopUpButton"}
+{"d": 18, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Mark as unread Chat 16"}
+{"d": 20, "description": "Mark as unread", "role": "AXButton"}
+{"d": 21, "description": "Done", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 16", "role": "AXPopUpButton"}
+{"d": 18, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Something went wrong Chat 17"}
+{"d": 20, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 17", "role": "AXPopUpButton"}
+{"d": 18, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Mark as unread Chat 17"}
+{"d": 20, "description": "Mark as unread", "role": "AXButton"}
+{"d": 21, "description": "Done", "role": "AXImage"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 17", "role": "AXPopUpButton"}
+{"d": 18, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXButton", "title": "Something went wrong Chat 18"}
+{"d": 20, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXStaticText"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "More options for Chat 18", "role": "AXPopUpButton"}
+{"d": 18, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 17, "role": "AXButton", "title": "View all"}
+{"d": 17, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 15, "role": "AXGroup"}
+{"d": 16, "role": "AXGroup"}
+{"d": 17, "role": "AXPopUpButton", "title": "User Free"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXLink"}
+{"d": 14, "description": "Resize sidebar", "role": "AXSplitter"}
+{"d": 13, "role": "AXGroup", "subrole": "AXLandmarkMain"}
+{"d": 14, "role": "AXGroup"}
+{"d": 15, "description": "Primary pane", "role": "AXGroup", "subrole": "AXLandmarkRegion"}
+{"d": 16, "role": "AXGroup"}
+{"d": 17, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "description": "Page tools", "role": "AXToolbar"}
+{"d": 21, "role": "AXHeading"}
+{"d": 22, "description": "History of lighthouses essay, rename chat", "role": "AXButton"}
+{"d": 23, "role": "AXGroup"}
+{"d": 24, "role": "AXStaticText"}
+{"d": 21, "description": "More options for History of lighthouses essay", "role": "AXPopUpButton"}
+{"d": 21, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 21, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 21, "role": "AXGroup"}
+{"d": 22, "description": "Pop out chat", "role": "AXButton"}
+{"d": 19, "role": "AXGroup"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 22, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 21, "description": "Chat messages", "role": "AXGroup", "subrole": "AXApplicationGroup"}
+{"d": 22, "role": "AXGroup"}
+{"d": 23, "role": "AXStaticText"}
+{"d": 22, "role": "AXGroup"}
+{"d": 23, "role": "AXGroup"}
+{"d": 24, "description": "Message 1 of 2", "role": "AXGroup", "subrole": "AXDocumentArticle"}
+{"d": 25, "role": "AXHeading"}
+{"d": 26, "role": "AXStaticText"}
+{"d": 25, "role": "AXGroup"}
+{"d": 26, "role": "AXGroup"}
+{"d": 27, "role": "AXGroup"}
+{"d": 28, "role": "AXGroup"}
+{"d": 29, "role": "AXStaticText"}
+{"d": 25, "description": "Message actions", "role": "AXToolbar"}
+{"d": 26, "role": "AXGroup", "subrole": "AXTimeGroup"}
+{"d": 27, "role": "AXStaticText"}
+{"d": 26, "description": "Retry", "role": "AXButton"}
+{"d": 26, "description": "Edit", "role": "AXButton"}
+{"d": 26, "description": "Copy", "role": "AXButton"}
+{"d": 26, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 25, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 23, "role": "AXGroup"}
+{"d": 24, "description": "Message 2 of 2", "role": "AXGroup", "subrole": "AXDocumentArticle"}
+{"d": 25, "role": "AXGroup"}
+{"d": 26, "role": "AXHeading"}
+{"d": 27, "role": "AXStaticText"}
+{"d": 26, "role": "AXGroup"}
+{"d": 27, "role": "AXGroup"}
+{"d": 28, "role": "AXGroup"}
+{"d": 29, "role": "AXStaticText"}
+{"d": 27, "role": "AXButton", "title": "Make doc changes (batch)"}
+{"d": 26, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXStaticText"}
+{"d": 26, "role": "AXGroup"}
+{"d": 27, "role": "AXGroup"}
+{"d": 28, "description": "View A History of Lighthouses", "role": "AXButton"}
+{"d": 29, "role": "AXStaticText"}
+{"d": 29, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 27, "role": "AXStaticText"}
+{"d": 27, "role": "AXStaticText"}
+{"d": 27, "role": "AXStaticText"}
+{"d": 26, "role": "AXGroup"}
+{"d": 27, "role": "AXStaticText"}
+{"d": 26, "description": "Message actions", "role": "AXToolbar"}
+{"d": 27, "description": "Copy", "role": "AXButton"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "description": "Read aloud", "role": "AXButton"}
+{"d": 27, "description": "Good response", "role": "AXCheckBox", "subrole": "AXToggleButton"}
+{"d": 27, "description": "Bad response", "role": "AXCheckBox", "subrole": "AXToggleButton"}
+{"d": 27, "description": "Retry", "role": "AXButton"}
+{"d": 27, "role": "AXGroup", "subrole": "AXTimeGroup"}
+{"d": 28, "role": "AXStaticText"}
+{"d": 21, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 22, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 21, "role": "AXGroup"}
+{"d": 22, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 22, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 23, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 22, "role": "AXGroup", "subrole": "AXFieldset"}
+{"d": 23, "role": "AXGroup"}
+{"d": 24, "role": "AXGroup"}
+{"d": 25, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 25, "role": "AXGroup"}
+{"d": 26, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 25, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 25, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 26, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 25, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 23, "role": "AXGroup"}
+{"d": 24, "role": "AXGroup"}
+{"d": 25, "role": "AXGroup"}
+{"d": 26, "role": "AXGroup"}
+{"d": 27, "role": "AXGroup"}
+{"d": 28, "role": "AXGroup"}
+{"d": 29, "role": "AXTextArea"}
+{"d": 30, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 29, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 28, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 27, "role": "AXGroup"}
+{"d": 28, "role": "AXGroup"}
+{"d": 29, "description": "Add files, connectors, and more", "role": "AXPopUpButton"}
+{"d": 27, "role": "AXGroup"}
+{"d": 28, "role": "AXGroup"}
+{"d": 29, "role": "AXGroup"}
+{"d": 30, "description": "Dictate", "role": "AXGroup", "subrole": "AXApplicationGroup"}
+{"d": 31, "description": "Dictate", "role": "AXButton"}
+{"d": 31, "description": "Microphone", "role": "AXPopUpButton"}
+{"d": 28, "description": "Use voice mode", "role": "AXButton"}
+{"d": 25, "role": "AXGroup"}
+{"d": 26, "role": "AXGroup", "subrole": "AXDocumentNote"}
+{"d": 27, "role": "AXLink"}
+{"d": 28, "role": "AXStaticText"}
+{"d": 26, "role": "AXGroup"}
+{"d": 27, "role": "AXGroup"}
+{"d": 28, "description": "Model: Sonnet 5.5 Medium", "role": "AXPopUpButton"}
+{"d": 29, "role": "AXStaticText"}
+{"d": 29, "role": "AXStaticText"}
+{"d": 29, "role": "AXStaticText"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "description": "Resize file viewer", "role": "AXSplitter"}
+{"d": 18, "role": "AXGroup"}
+{"d": 19, "description": "Artifact panel: A History of Lighthouses", "role": "AXGroup", "subrole": "AXLandmarkRegion"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "description": "A History of Lighthouses controls", "role": "AXToolbar"}
+{"d": 22, "role": "AXHeading"}
+{"d": 23, "role": "AXPopUpButton", "title": "A History of Lighthouses"}
+{"d": 24, "role": "AXGroup"}
+{"d": 25, "role": "AXStaticText"}
+{"d": 22, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 22, "description": "Export", "role": "AXPopUpButton"}
+{"d": 22, "description": "Show all comments", "role": "AXCheckBox", "subrole": "AXToggleButton"}
+{"d": 22, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 22, "description": "Expand", "role": "AXButton"}
+{"d": 22, "description": "Close", "role": "AXButton"}
+{"d": 20, "role": "AXGroup"}
+{"d": 21, "role": "AXGroup"}
+{"d": 22, "role": "AXGroup"}
+{"d": 23, "role": "AXGroup"}
+{"d": 24, "role": "AXGroup"}
+{"d": 25, "role": "AXWebArea"}
+{"d": 26, "role": "AXGroup"}
+{"d": 27, "role": "AXGroup", "subrole": "AXLandmarkMain"}
+{"d": 28, "role": "AXGroup"}
+{"d": 29, "role": "AXGroup"}
+{"d": 30, "role": "AXWebArea"}
+{"d": 31, "role": "AXGroup"}
+{"d": 32, "role": "AXGroup"}
+{"d": 33, "role": "AXGroup"}
+{"d": 34, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 34, "role": "AXGroup", "subrole": "AXLandmarkMain"}
+{"d": 35, "role": "AXGroup"}
+{"d": 36, "role": "AXGroup"}
+{"d": 37, "description": "Document actions", "role": "AXToolbar"}
+{"d": 38, "description": "Tab 1, tabs", "role": "AXPopUpButton"}
+{"d": 38, "role": "AXGroup"}
+{"d": 39, "description": "Font", "role": "AXPopUpButton"}
+{"d": 38, "role": "AXGroup"}
+{"d": 39, "description": "Make page wide", "role": "AXButton"}
+{"d": 38, "role": "AXGroup"}
+{"d": 39, "role": "AXGroup"}
+{"d": 40, "description": "Table", "role": "AXButton"}
+{"d": 39, "role": "AXGroup"}
+{"d": 40, "description": "Image", "role": "AXButton"}
+{"d": 39, "role": "AXGroup"}
+{"d": 40, "description": "Checklist", "role": "AXButton"}
+{"d": 39, "role": "AXGroup"}
+{"d": 40, "description": "Insert", "role": "AXPopUpButton"}
+{"d": 36, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 36, "role": "AXGroup"}
+{"d": 37, "role": "AXGroup"}
+{"d": 38, "role": "AXGroup"}
+{"d": 39, "role": "AXGroup"}
+{"d": 40, "role": "AXGroup"}
+{"d": 41, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 42, "role": "AXStaticText"}
+{"d": 41, "role": "AXGroup"}
+{"d": 42, "role": "AXWebArea"}
+{"d": 43, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 44, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 44, "role": "AXGroup", "subrole": "AXApplicationAlert"}
+{"d": 43, "role": "AXGroup", "subrole": "AXDocumentArticle"}
+{"d": 44, "role": "AXTextArea"}
+{"d": 45, "role": "AXHeading"}
+{"d": 46, "description": "Collapse section, A History of Lighthouses", "role": "AXButton"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXHeading"}
+{"d": 46, "description": "Collapse section, Fires on the Coast", "role": "AXButton"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 46, "role": "AXGroup", "subrole": "AXEmphasisStyleGroup"}
+{"d": 47, "role": "AXStaticText"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 46, "role": "AXGroup", "subrole": "AXEmphasisStyleGroup"}
+{"d": 47, "role": "AXStaticText"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 46, "role": "AXGroup", "subrole": "AXEmphasisStyleGroup"}
+{"d": 47, "role": "AXStaticText"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 46, "role": "AXGroup", "subrole": "AXEmphasisStyleGroup"}
+{"d": 47, "role": "AXStaticText"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXHeading"}
+{"d": 46, "description": "Collapse section, Rome and the Middle Ages", "role": "AXButton"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXHeading"}
+{"d": 46, "description": "Collapse section, Building on Rocks in the Sea", "role": "AXButton"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXHeading"}
+{"d": 46, "description": "Collapse section, Better Light", "role": "AXButton"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXHeading"}
+{"d": 46, "description": "Collapse section, Keepers", "role": "AXButton"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXHeading"}
+{"d": 46, "description": "Collapse section, Automation and Decline", "role": "AXButton"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXHeading"}
+{"d": 46, "description": "Collapse section, What Remains", "role": "AXButton"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 45, "role": "AXGroup"}
+{"d": 46, "role": "AXStaticText"}
+{"d": 32, "role": "AXGroup"}
+{"d": 33, "role": "AXGroup"}
+{"d": 34, "role": "AXGroup"}
+{"d": 35, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 35, "description": "Notifications", "role": "AXGroup", "subrole": "AXLandmarkRegion"}
+{"d": 32, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 33, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 33, "role": "AXGroup", "subrole": "AXApplicationAlert"}
+{"d": 27, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 28, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 29, "role": "AXGroup", "subrole": "AXApplicationAlert"}
+{"d": 29, "role": "AXGroup", "subrole": "AXApplicationAlert"}
+{"d": 29, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 27, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 18, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 19, "role": "AXStaticText"}
+{"d": 18, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 18, "role": "AXGroup"}
+{"d": 15, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 11, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 10, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 10, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 10, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 10, "role": "AXGroup"}
+{"d": 11, "role": "AXGroup"}
+{"d": 12, "role": "AXGroup"}
+{"d": 13, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 13, "description": "Notifications", "role": "AXGroup", "subrole": "AXLandmarkRegion"}
+{"d": 10, "role": "AXGroup", "subrole": "AXEmptyGroup"}
+{"d": 11, "role": "AXGroup", "subrole": "AXApplicationStatus"}
+{"d": 1, "role": "AXButton", "subrole": "AXCloseButton"}
+{"d": 1, "role": "AXButton", "subrole": "AXFullScreenButton"}
+{"d": 2, "role": "AXGroup"}
+{"d": 3, "role": "AXGroup"}
+{"d": 1, "role": "AXButton", "subrole": "AXMinimizeButton"}

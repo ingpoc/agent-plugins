@@ -386,6 +386,17 @@ enum IslandCircles {
 
 // MARK: - Source circles (left of the pill): one circle per source, max 3 + "+N"
 
+enum IslandCompactDot: Equatable {
+    case failed, needsYou, working
+    var color: Color {
+        switch self {
+        case .failed: return IslandPalette.red        // #FF453A
+        case .needsYou: return IslandPalette.amber
+        case .working: return IslandPalette.accent    // #64D2FF
+        }
+    }
+}
+
 struct IslandSourceGroup: Equatable, Identifiable {
     var id: String            // source/agent name ("Grok Bot"), or "overflow"
     var app: String = ""
@@ -394,13 +405,28 @@ struct IslandSourceGroup: Equatable, Identifiable {
     var expired = false
     var overflow = 0
     var processCount = 0
+    /// Only finished rows (no run, ask or failure): the circle carries the green check badge.
+    var done = false
+    /// At least one row of this source is running.
+    var running = false
 }
 
 enum IslandSourceGroups {
     static let maxCircles = 3
 
     /// `hidePending`: the card the pill itself shows — its row adds no circle/badge (one amber mark).
-    static func groups(agents: [IslandAgent], expired: [IslandExpired], hidePending: String?) -> [IslandSourceGroup] {
+    /// `seenFailures`: failures the user already opened the island on — no red mark on their circle.
+    /// A finished row keeps its circle (green check) this long after it finished, then the circle leaves.
+    static let doneHold: TimeInterval = 10
+
+    /// True while a done row still earns a circle. `last_seen_at == 0` = a local observer row (Claude
+    /// desktop) that holds itself for `doneHold` and disappears on its own.
+    static func doneVisible(_ a: IslandAgent, now: Date) -> Bool {
+        a.last_seen_at == 0 || now.timeIntervalSince1970 - a.last_seen_at < doneHold
+    }
+
+    static func groups(agents: [IslandAgent], expired: [IslandExpired], hidePending: String?,
+                       seenFailures: [String: String] = [:], now: Date = Date()) -> [IslandSourceGroup] {
         var order: [String] = []
         var map: [String: IslandSourceGroup] = [:]
         func touch(_ name: String, _ app: String) {
@@ -411,9 +437,20 @@ enum IslandSourceGroups {
             if let h = hidePending, a.id == "pending:" + h { continue }
             let name = a.name.isEmpty ? a.app : a.name
             guard !name.isEmpty else { continue }
+            let failure = a.status == "error" || a.status == "stale"
+            // A seen failure adds no circle (it would read as "working"); a done row only for `doneHold`.
+            if failure, !a.needs_you, seenFailures[a.id] == IslandModel.failureSignature(a) { continue }
+            if a.status == "done", !doneVisible(a, now: now) { continue }
             touch(name, a.app)
             if a.needs_you || a.status == "needs_you" { map[name]!.needsYou += 1 }
-            if a.status == "error" || a.status == "stale" { map[name]!.failed = true }
+            if failure { map[name]!.failed = true }
+            if a.status == "running" { map[name]!.running = true }
+            if a.status == "done" { map[name]!.done = true }
+        }
+        // Same order as the pill dot: an unseen failure keeps its red cross even while the source runs again.
+        for name in order where map[name]!.done {
+            let g = map[name]!
+            if g.running || g.needsYou > 0 || g.failed { map[name]!.done = false }
         }
         for e in expired {
             let name = e.agent.isEmpty ? e.app : e.agent
@@ -556,7 +593,7 @@ final class IslandModel: ObservableObject {
     }
     var reduceMotion: Bool = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     var resolveConfirm: ((Bool) -> Void)?
-    /// Island context menu → ACU Settings… (General pane).
+    /// Island context menu → Settings… (General pane).
     var onOpenSettings: (() -> Void)?
     var onAction: ((IslandCardAction) -> Void)?
     /// Called when the shape/circle geometry changes so the panel can update hit-testing.
@@ -629,17 +666,69 @@ final class IslandModel: ObservableObject {
 
     var showAgentCircle: Bool { IslandAgentBadge.showsCircle(rowCount: agents.count + expired.count) && !(idleActivity == "samantha" && isIdlePresentation) }
 
-    var compactAgentAttention: IslandAgentRow? {
-        let candidate = agents.enumerated().filter {
-            !IslandAgentRows.isProcessObservation($0.element)
-                && (["needs_you", "error", "stale"].contains($0.element.status) || $0.element.needs_you)
-        }.min {
-            let a = IslandAgentRows.priority($0.element), b = IslandAgentRows.priority($1.element)
-            return a == b ? $0.offset < $1.offset : a < b
+    /// Failures the user already saw by expanding the island (id → status|last_seen_at). The compact
+    /// pill stops showing them; a newer failure on the same row (new last_seen_at) shows again.
+    private(set) var seenFailures: [String: String] = [:]
+    nonisolated static func failureSignature(_ a: IslandAgent) -> String { "\(a.status)|\(a.last_seen_at)" }
+    private func markFailuresSeen() {
+        let ids = Set(agents.map(\.id))
+        seenFailures = seenFailures.filter { ids.contains($0.key) }
+        for a in agents where ["error", "stale"].contains(a.status) && !a.needs_you {
+            seenFailures[a.id] = Self.failureSignature(a)
         }
-        guard let agent = candidate?.element else { return nil }
-        let parentName = agent.parent_id.flatMap { id in agents.first { $0.id == id }?.name }
-        return IslandAgentRow(agent: agent, depth: 0, parentName: parentName)
+    }
+
+    /// Any task row running (process observations excluded): the compact pill shows the working dot.
+    var anyAgentRunning: Bool {
+        agents.contains { $0.status == "running" && !IslandAgentRows.isProcessObservation($0) }
+    }
+
+    /// The compact pill's 6 pt right-hand dot (Guru, 2026-11-01): red for an unseen failure, then amber
+    /// for needs-you, then blue for working; none at idle or done. A seen failure clears its red.
+    var compactDot: IslandCompactDot? {
+        let tasks = agents.filter { !IslandAgentRows.isProcessObservation($0) }
+        if tasks.contains(where: { a in
+            !a.needs_you && (a.status == "error" || a.status == "stale") && seenFailures[a.id] != Self.failureSignature(a)
+        }) { return .failed }
+        if tasks.contains(where: { $0.needs_you || $0.status == "needs_you" }) { return .needsYou }
+        if anyAgentRunning { return .working }
+        return nil
+    }
+
+    /// VoiceOver for the detail-free compact pill, in dot order: "Codex failed, Claude needs you, 2 Cursor working".
+    var compactPillLabel: String {
+        let tasks = agents.filter { !IslandAgentRows.isProcessObservation($0) }
+        func name(_ a: IslandAgent) -> String { a.name.isEmpty ? a.app : a.name }
+        func parent(_ a: IslandAgent) -> String {
+            guard let p = a.parent_id, let row = agents.first(where: { $0.id == p }) else { return "" }
+            return ", child of \(name(row))"
+        }
+        var parts: [String] = []
+        for a in tasks where !a.needs_you && (a.status == "error" || a.status == "stale")
+            && seenFailures[a.id] != Self.failureSignature(a) {
+            parts.append(name(a) + (a.status == "stale" ? " stopped updating" : " failed") + parent(a))
+        }
+        for a in tasks where a.needs_you || a.status == "needs_you" { parts.append(name(a) + " needs you" + parent(a)) }
+        var running: [String: Int] = [:]; var order: [String] = []
+        for a in tasks where a.status == "running" && !a.needs_you {
+            if running[name(a)] == nil { order.append(name(a)) }
+            running[name(a), default: 0] += 1
+        }
+        for n in order { parts.append((running[n]! > 1 ? "\(running[n]!) " : "") + n + " working") }
+        return parts.joined(separator: ", ")
+    }
+
+    private var doneExpiryWork: DispatchWorkItem?
+    /// Re-compose when the next done circle's hold ends (hub done rows live 3 min; the circle 10 s).
+    private func scheduleDoneExpiry(now: Date) {
+        let next = agents.filter { $0.status == "done" && $0.last_seen_at > 0 }
+            .map { $0.last_seen_at + IslandSourceGroups.doneHold - now.timeIntervalSince1970 }
+            .filter { $0 > 0 }.min()
+        doneExpiryWork?.cancel(); doneExpiryWork = nil
+        guard let next else { return }
+        let work = DispatchWorkItem { [weak self] in self?.refresh(now: Date()) }
+        doneExpiryWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + next + 0.05, execute: work)
     }
 
     var destructiveApprovalMissingScope: Bool {
@@ -1206,9 +1295,6 @@ final class IslandModel: ObservableObject {
     private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
         if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
         if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
-        if [.idle, .doneSettled].contains(state), compactAgentAttention != nil {
-            return max(state.compactWidth, IslandBarLayout.agentAttentionWidth)
-        }
         return state.compactWidth
     }
 
@@ -1229,8 +1315,10 @@ final class IslandModel: ObservableObject {
         let nextCircles = idleNow && idleActivity == "samantha" ? []
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
         if nextCircles != circles { circles = nextCircles }
-        let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil)
+        let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil,
+                                               seenFailures: seenFailures, now: now)
         if groups != sourceGroups { sourceGroups = groups }
+        scheduleDoneExpiry(now: now)
         // Final-60 s countdown for the pill's card.
         var remaining: Int?
         if let e = agentApproval?.expiresDate {
@@ -1283,6 +1371,7 @@ final class IslandModel: ObservableObject {
         }
         if open != wasOpen {
             cardOpen = open
+            if open, userOpened { markFailuresSeen() }
             if open, let a = agentApproval, cardMode == .samantha {
                 IslandEventLog.log("opened", id: a.id, source: a.agent, kind: a.kind,
                                    ["via": isSticky && !userOpened ? "auto" : openVia])

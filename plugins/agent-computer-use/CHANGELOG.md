@@ -2,6 +2,17 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.69 (unreleased: not tagged; waiting for Guru's OK)
+
+- Claude desktop: an open chat shows as Working while Claude replies and Done after. A plain chat's sidebar row stays "Idle <title>" while it streams, so the watcher now reads the composer's "Stop response" button (which sits below the old depth-30 walk limit) and the "Currently streaming message" message group, and names the row from the chat header. A new chat that Claude renames mid-reply no longer flashes Done. The "Chat and Cowork" tab is read from its AXValue. Message subtrees are pruned and only their accessible names are read.
+- Claude Code: a sign-in or billing failure (`authentication_failed`, `billing_error`) now ages out after 2 minutes instead of holding "Claude · Failed" for 30 minutes, and it no longer hides a running Claude desktop chat.
+- Opening the island marks the failures it shows as seen; a new failure shows again.
+- Compact pill: no text and no icons, just the 74×24 black pill plus one solid 6 pt dot, 9 pt in from the right end and vertically centred (no glow, ring or animation). The dot is red (#FF453A) for an unseen failure, then amber for needs-you, then #64D2FF for working; idle and done have no dot. Details show only in the expanded island. VoiceOver reads the full state from the pill ("Codex failed, Claude needs you, Cursor working").
+- Agent circles get one 12 pt badge at the top-right, in the same order: a red cross for failed, an amber "!" for needs-you (it replaces the count), and a green check for done. The check holds 10 s, then the circle fades out over 200 ms; VoiceOver reads "<Agent> finished". A seen failure clears its red cross and red dot, and the circle too unless that agent has a new run.
+- The menu bar and island menus say "Settings…" instead of "ACU Settings…".
+- Fix: "Account details…" (the "Your island is on" window) no longer swings up and down or clips "Shown on the Agent Plugins site" behind Done. The window opens at its content size, and the header wave's endless animation is now scoped to the wave, so it can't catch the window's resize.
+- Menu bar: removed "Show Dynamic Island" (⌃⌘I), since it only expanded the island. The global hotkey still works. Removed "Show me on the site" from the account submenu: you answer the site question once, before unlock, and that answer is final. The unlocked card and Settings now show the choice without a toggle.
+
 ## 0.2.68 (2026-11-01)
 
 - Unlock the island by entering your handle once and following Gurusharan for a free three-day trial. Repost the launch post to keep it permanently, with no post to write or link to paste.

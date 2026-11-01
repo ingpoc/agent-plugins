@@ -110,10 +110,6 @@ struct IslandGateEntitlementResponse: Decodable {
     let entitlement: String?
 }
 
-struct IslandGateWallResponse: Decodable {
-    let show: Bool?
-}
-
 struct IslandGateFailure: Error, Decodable, Equatable {
     let code: String
     var follow: Bool?
@@ -213,11 +209,6 @@ final class IslandGateClient {
     func refreshEntitlement(device: IslandGateDevice) async throws -> IslandGateEntitlementResponse {
         let body = try JSONSerialization.data(withJSONObject: ["device_id": device.id])
         return try await request("v1/entitlement/refresh", method: "POST", body: body, device: device, action: "refresh", mode: .background, onWaking: nil, as: IslandGateEntitlementResponse.self)
-    }
-
-    func setWallVisibility(_ show: Bool, device: IslandGateDevice) async throws {
-        let payload = try JSONSerialization.data(withJSONObject: ["device_id": device.id, "show": show])
-        _ = try await request("v1/wall", method: "POST", body: payload, device: device, action: "wall", mode: .background, onWaking: nil, as: IslandGateWallResponse.self)
     }
 
     private func request<T: Decodable>(

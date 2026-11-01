@@ -14,6 +14,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 CACHE = Path.home() / ".cache/macos-cua/claude-hook"
+ACCOUNT_ERRORS = frozenset({"authentication_failed", "billing_error"})
+ACCOUNT_ERROR_TTL_S = 120
 EVENTS = (
     "SessionStart", "UserPromptSubmit", "Notification", "PermissionRequest",
     "Stop", "StopFailure", "SessionEnd",
@@ -158,10 +160,12 @@ def hook(payload: dict, initiator: str | None = None) -> None:
             or "Turn failed",
         )
         title = read_cache(session_id).get("session_title") or "Claude Code"
-        post(
-            session_id, "--kind", "error", "--title", title,
-            "--detail", detail, initiator=initiator,
-        )
+        args = ["--kind", "error", "--title", title, "--detail", detail]
+        # Account failures (signed out, no subscription) are not a task outcome: age out in
+        # 2 min instead of holding the Claude slot as "Failed" for the 30-min error default.
+        if error_type in ACCOUNT_ERRORS:
+            args.extend(("--ttl", str(ACCOUNT_ERROR_TTL_S)))
+        post(session_id, *args, initiator=initiator)
     elif event == "SessionEnd":
         post(session_id, "--kind", "clear", initiator=initiator)
         try:
