@@ -4,7 +4,7 @@ Cursor Origin is the forge of record:
 
 <https://cursor.com/codebase/gurusharan/agent-plugins>
 
-`main` changes only through an Origin pull request. The required check is `scripts/check.py` (suite `ci`), posted by the Mini reporter. That check runs `scripts/check.py`, which runs the plugin test suites. Direct pushes to `main` are rejected. No review approval is required.
+`main` changes only through an Origin pull request. The required check is `scripts/check.py` (suite `ci`), posted by the Mini reporter. That check runs `scripts/check.py` with `AGENT_PLUGINS_CHECK_BASE` set to the PR base, so it tests only the plugins the PR touches (tooling or unmapped paths run everything) in parallel; GitHub Actions runs the full suite on every main push and nightly. A newer push cancels the running check. Install the local pre-push gate once per clone with `scripts/install-hooks.sh`. Direct pushes to `main` are rejected. No review approval is required.
 
 A Codex review of a pull request saves its findings on Origin. With `F` set to your checkout of the Origin `post-review-findings` helper (`orn-origin-work/bin/post-review-findings`), run `codex exec -s read-only --output-schema <("$F" --print-schema) -o verdict.json "<review prompt asking for file and line per finding>"`, then `"$F" --repo gurusharan/agent-plugins --pr <n> --findings verdict.json`.
 It posts one comment review with an inline comment per finding that has a file and line, skips findings already posted, and exits 1 when the post fails. It posts as the Origin CLI user until orn-review is installed on this repository.
