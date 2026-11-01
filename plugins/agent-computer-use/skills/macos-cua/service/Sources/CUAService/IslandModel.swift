@@ -1342,6 +1342,11 @@ final class IslandModel: ObservableObject {
 
     /// A click anywhere on the pill/card background (window coords inside the shape) — logged, then toggles.
     func click(at p: CGPoint) {
+        let leadSlot = CGRect(x: IslandBarLayout.slotInset, y: (IslandBarLayout.compactHeight - 16) / 2, width: 16, height: 16)
+        if !cardOpen, permissionWarning != nil, presentation != .peek, credentialRequest == nil, !trayTargeted, leadSlot.contains(p) {
+            onPermissionWarningTap?()
+            return
+        }
         IslandEventLog.log("clicked", id: agentApproval?.id ?? "", source: agentApproval?.agent ?? "",
                            kind: agentApproval?.kind ?? presentation.family,
                            ["x": Double(p.x), "y": Double(p.y), "state": cardOpen ? "card" : "compact"])

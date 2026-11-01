@@ -11,8 +11,38 @@ struct IslandGateAccount: Codable, Equatable {
 }
 
 struct IslandGateConfig: Decodable {
-    struct X: Decodable { let handle: String; let profile_url: URL; let intent_url: URL; let preset_text: String; var follow_url: URL? = nil }
-    struct LinkedIn: Decodable { let share_url: URL; let preset_text: String; let follow_url: URL? }
+    struct X: Decodable { let handle: String; let profile_url: URL; let intent_url: URL; let preset_text: String; var follow_url: URL? = nil; var launch_post_id: String? = nil; var repost_url: URL? = nil
+        private enum CodingKeys: String, CodingKey { case handle, profile_url, intent_url, preset_text, follow_url, launch_post_id, repost_url }
+        init(handle: String, profile_url: URL, intent_url: URL, preset_text: String, follow_url: URL? = nil, launch_post_id: String? = nil, repost_url: URL? = nil) {
+            self.handle = handle; self.profile_url = profile_url; self.intent_url = intent_url; self.preset_text = preset_text
+            self.follow_url = follow_url; self.launch_post_id = launch_post_id; self.repost_url = repost_url
+        }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            handle = try c.decode(String.self, forKey: .handle)
+            profile_url = try c.decodeIfPresent(URL.self, forKey: .profile_url) ?? URL(string: "https://x.com/\(handle)")!
+            intent_url = try c.decodeIfPresent(URL.self, forKey: .intent_url) ?? URL(string: "https://x.com/intent/post")!
+            preset_text = try c.decode(String.self, forKey: .preset_text)
+            follow_url = try c.decodeIfPresent(URL.self, forKey: .follow_url)
+            launch_post_id = try c.decodeIfPresent(String.self, forKey: .launch_post_id)
+            repost_url = try c.decodeIfPresent(URL.self, forKey: .repost_url)
+        }
+    }
+    struct LinkedIn: Decodable { let share_url: URL; let preset_text: String; let follow_url: URL?; var launch_post_url: URL? = nil; var repost_url: URL? = nil
+        private enum CodingKeys: String, CodingKey { case share_url, preset_text, follow_url, launch_post_url, repost_url }
+        init(share_url: URL, preset_text: String, follow_url: URL?, launch_post_url: URL? = nil, repost_url: URL? = nil) {
+            self.share_url = share_url; self.preset_text = preset_text; self.follow_url = follow_url
+            self.launch_post_url = launch_post_url; self.repost_url = repost_url
+        }
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            share_url = try c.decodeIfPresent(URL.self, forKey: .share_url) ?? URL(string: "https://www.linkedin.com/sharing/share-offsite/")!
+            preset_text = try c.decode(String.self, forKey: .preset_text)
+            follow_url = try c.decodeIfPresent(URL.self, forKey: .follow_url)
+            launch_post_url = try c.decodeIfPresent(URL.self, forKey: .launch_post_url)
+            repost_url = try c.decodeIfPresent(URL.self, forKey: .repost_url)
+        }
+    }
     struct Match: Decodable { let tag: String?; let ref_x: String?; let ref_li: String? }
     let x: X
     let linkedin: LinkedIn
@@ -20,12 +50,27 @@ struct IslandGateConfig: Decodable {
     let grace_days: Int?
     let poll_seconds: Int?
     let check_eta_text: String?
+    let trial_hours: Int?
+    let trial_eta_text: String?
+
+    private enum CodingKeys: String, CodingKey { case x, linkedin, match, grace_days, poll_seconds, check_eta_text, trial_hours, trial_eta_text }
+    init(x: X, linkedin: LinkedIn, match: Match?, grace_days: Int?, poll_seconds: Int?, check_eta_text: String?, trial_hours: Int? = nil, trial_eta_text: String? = nil) {
+        self.x = x; self.linkedin = linkedin; self.match = match; self.grace_days = grace_days
+        self.poll_seconds = poll_seconds; self.check_eta_text = check_eta_text; self.trial_hours = trial_hours; self.trial_eta_text = trial_eta_text
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        x = try c.decode(X.self, forKey: .x); linkedin = try c.decode(LinkedIn.self, forKey: .linkedin)
+        match = try c.decodeIfPresent(Match.self, forKey: .match); grace_days = try c.decodeIfPresent(Int.self, forKey: .grace_days)
+        poll_seconds = try c.decodeIfPresent(Int.self, forKey: .poll_seconds); check_eta_text = try c.decodeIfPresent(String.self, forKey: .check_eta_text)
+        trial_hours = try c.decodeIfPresent(Int.self, forKey: .trial_hours); trial_eta_text = try c.decodeIfPresent(String.self, forKey: .trial_eta_text)
+    }
 }
 
 extension IslandGateConfig {
     static let bundled: IslandGateConfig = {
-        let xText = "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-x #AgentComputerUse"
-        let linkedInText = "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by Gurusharan Gupta https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-li #AgentComputerUse"
+        let xText = "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by @gurusharan https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-x #AgentComputerUse"
+        let linkedInText = "Just unlocked the Dynamic Island in Agent Computer Use. My agents' runs now show live at the top of my Mac. Free, by Gurusharan Gupta https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-li #AgentComputerUse"
         let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_.!~*'()"))
         func encoded(_ value: String) -> String { value.addingPercentEncoding(withAllowedCharacters: allowed)! }
         return IslandGateConfig(
@@ -36,6 +81,7 @@ extension IslandGateConfig {
 
     var linkedInFollowURL: URL? {
         guard let url = linkedin.follow_url, url.scheme?.lowercased() == "https", let host = url.host,
+              host.lowercased().range(of: #"^(?:linkedin\.com|www\.linkedin\.com|[a-z]{2}\.linkedin\.com)$"#, options: .regularExpression) != nil,
               !host.lowercased().contains("placeholder"), !host.lowercased().contains("replace"),
               !url.path.lowercased().contains("placeholder"), !url.path.lowercased().contains("replace_with"),
               !url.path.isEmpty, url.path != "/" else { return nil }
@@ -55,6 +101,7 @@ struct IslandGateClaimResponse: Decodable {
     var poll_after: Int?
     var reason: String?
     var entitlement: String?
+    var trial_ends_at: String?
     var rebind_available_at: String?
     var device_name: String?
 }
@@ -83,8 +130,7 @@ struct IslandGateFailure: Error, Decodable, Equatable {
     var message: String { Self.friendlyMessage(for: code) }
     static func friendlyMessage(for code: String) -> String {
         switch code {
-        case "invalid_handle": return "Enter a valid X handle (letters, numbers, and underscores only)."
-        case "post_url_invalid": return "Paste a public post link starting with https://, or leave it blank."
+        case "invalid_handle": return "Enter a valid X handle or LinkedIn profile name."
         case "post_url_used": return "That post has already been used. Share a new one and try again."
         case "post_not_found": return "We couldn't find that post. Check the link or leave it blank so we can search."
         case "post_author_mismatch": return "That post wasn't published by the handle you entered."
@@ -165,12 +211,12 @@ final class IslandGateClient {
     }
 
     func refreshEntitlement(device: IslandGateDevice) async throws -> IslandGateEntitlementResponse {
-        let empty = Data("{}".utf8)
-        return try await request("v1/entitlement/refresh", method: "POST", body: empty, device: device, action: "refresh", mode: .background, onWaking: nil, as: IslandGateEntitlementResponse.self)
+        let body = try JSONSerialization.data(withJSONObject: ["device_id": device.id])
+        return try await request("v1/entitlement/refresh", method: "POST", body: body, device: device, action: "refresh", mode: .background, onWaking: nil, as: IslandGateEntitlementResponse.self)
     }
 
     func setWallVisibility(_ show: Bool, device: IslandGateDevice) async throws {
-        let payload = try JSONSerialization.data(withJSONObject: ["show": show])
+        let payload = try JSONSerialization.data(withJSONObject: ["device_id": device.id, "show": show])
         _ = try await request("v1/wall", method: "POST", body: payload, device: device, action: "wall", mode: .background, onWaking: nil, as: IslandGateWallResponse.self)
     }
 

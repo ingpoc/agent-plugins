@@ -18,11 +18,13 @@ export function issueEntitlement(
     prov: "x" | "linkedin";
     handle: string;
     device_id: string;
+    tier?: "trial";
+    exp?: number;
   },
   now = Math.floor(Date.now() / 1000),
 ): string {
   const payload = Buffer.from(
-    JSON.stringify({ v: 1, ...claims, iat: now, exp: now + 14 * 86400 }),
+    JSON.stringify({ v: 1, ...claims, iat: now, exp: claims.tier === "trial" ? Math.min(claims.exp ?? now, now + 14 * 86400) : now + 14 * 86400 }),
   ).toString("base64url");
   const signature = sign(null, Buffer.from(payload), {
     key: Buffer.from(privateKey, "base64"),

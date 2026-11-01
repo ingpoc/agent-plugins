@@ -6,6 +6,7 @@ import EventKit
 import Intents
 import os
 import ServiceManagement
+import UserNotifications
 
 /// THE choke point for every macOS consent prompt ACU can cause (TCC, Automation, Login Item,
 /// Keychain "Always Allow"). Product rule: every approval happens once, from a Grant click in
@@ -139,4 +140,23 @@ enum PermissionBroker {
         guard let desc = NSAppleEventDescriptor(bundleIdentifier: bundleID).aeDesc else { return }
         _ = AEDeterminePermissionToAutomateTarget(desc, typeWildCard, typeWildCard, true)
     }
+    nonisolated static func cancelTrialNotice(accountID: String, fixture: Bool) {
+        guard !fixture, !IslandGateSafety.restricted else { return }
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["acu-trial-ends-\(accountID)"])
+    }
+
+    nonisolated static func scheduleTrialNotice(accountID: String, trialEnds: Date, fixture: Bool, now: Date = Date()) {
+        guard !fixture, !IslandGateSafety.restricted,
+              let fireDate = IslandGateTrialNoticeSchedule.fireDate(trialEnds: trialEnds, now: now) else { return }
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard IslandGateTrialNoticeSchedule.isAlreadyAuthorized(settings.authorizationStatus) else { return }
+            let content = UNMutableNotificationContent()
+            content.title = "Your island trial ends tomorrow"
+            content.body = "Repost to keep the island on."
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, fireDate.timeIntervalSinceNow), repeats: false)
+            center.add(UNNotificationRequest(identifier: "acu-trial-ends-\(accountID)", content: content, trigger: trigger))
+        }
+    }
+
 }

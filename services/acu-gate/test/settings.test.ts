@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { settings, config } from "../src/settings.ts";
+import { settings, config, matchesPreset } from "../src/settings.ts";
+import { issueEntitlement } from "../src/crypto.ts";
+import { normalizeHandle } from "../src/handles.ts";
 
 test("settings requires production secrets", () => {
   assert.throws(() => settings({ PUBLIC_BASE_URL: "https://x.test" }), /ENTITLEMENT_PRIVATE_KEY/);
@@ -11,12 +13,73 @@ test("config exposes poll interval and presets", () => {
   assert.equal(value.poll_seconds, 60);
   assert.equal(value.check_eta_text, "usually within the hour");
   assert.match(value.x.intent_url, /intent\/post/);
-  assert.equal(new URL(value.x.follow_url).searchParams.get("screen_name"), value.x.handle);
+  const follow = new URL(value.x.follow_url);
+  assert.equal(follow.origin, "https://x.com");
+  assert.equal(follow.pathname, `/${value.x.handle}`);
+  assert.equal(follow.search, "");
   const share = new URL(value.linkedin.share_url);
   assert.equal(share.pathname, "/feed/");
   assert.equal(share.searchParams.get("shareActive"), "true");
   assert.equal(share.searchParams.get("text"), value.linkedin.preset_text);
   assert.equal(value.grace_days, 14);
+  assert.equal(value.x.launch_post_id, null);
+  assert.equal(value.x.repost_url, null);
+  assert.equal(value.linkedin.launch_post_url, null);
+  assert.equal(value.linkedin.repost_url, null);
+});
+
+test("malformed launch overrides fail settings and config with provider-specific safe errors", () => {
+  for (const [name, value, message] of [
+    ["GATE_X_LAUNCH_POST_ID", "not-an-id", /Invalid x launch post configuration/],
+    ["GATE_X_LAUNCH_POST_ID", "", /Invalid x launch post configuration/],
+    ["GATE_LINKEDIN_LAUNCH_POST_URL", "https://example.com/post", /Invalid linkedin launch post configuration/],
+    ["GATE_LINKEDIN_LAUNCH_POST_URL", "", /Invalid linkedin launch post configuration/],
+  ] as const) {
+    assert.throws(() => config({ [name]: value }), message);
+    assert.throws(() => settings({ DEV: "1", PUBLIC_BASE_URL: "http://127.0.0.1:1", [name]: value }), message);
+  }
+});
+
+test("preset matching supports provider-specific references from both domains", () => {
+  assert.equal(
+    matchesPreset("https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-x", "x"),
+    true,
+  );
+  assert.equal(
+    matchesPreset("https://ingpoc-agent-plugins.nicewasp128.chatgpt.site/?ref=acu-li", "linkedin"),
+    true,
+  );
+  assert.equal(
+    matchesPreset("https://ingpoc-agent-plugins.rpg-ramashram.chatgpt.site/?ref=acu-li", "x"),
+    false,
+  );
+});
+
+test("handle normalization accepts LinkedIn vanity and profile URLs with 3 to 100 characters", () => {
+  assert.equal(normalizeHandle("linkedin", "Neon-User"), "neon-user");
+  assert.equal(normalizeHandle("linkedin", "https://www.linkedin.com/in/Neon-User/"), "neon-user");
+  assert.equal(normalizeHandle("linkedin", `https://in.linkedin.com/in/${"a".repeat(100)}`), "a".repeat(100));
+  assert.throws(() => normalizeHandle("linkedin", "ab"), /invalid handle/);
+  assert.throws(() => normalizeHandle("linkedin", "a".repeat(101)), /invalid handle/);
+  assert.equal(normalizeHandle("x", "@Neon_User"), "neon_user");
+});
+
+test("trial entitlements carry trial tier and fixed expiry; regular entitlements retain grace", () => {
+  const key = settings({ DEV: "1", PUBLIC_BASE_URL: "http://127.0.0.1:1" }).ENTITLEMENT_PRIVATE_KEY!;
+  const now = 1_800_000_000;
+  const decode = (token: string) => JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
+  const trial = decode(issueEntitlement(key, {
+    acct: "acct", prov: "linkedin", handle: "fan", device_id: "device",
+    tier: "trial", exp: now + 72 * 3600,
+  }, now));
+  assert.equal(trial.tier, "trial");
+  assert.equal(trial.exp, now + 72 * 3600);
+  assert.equal(trial.iat, now);
+  const regular = decode(issueEntitlement(key, {
+    acct: "acct", prov: "x", handle: "fan", device_id: "device",
+  }, now));
+  assert.equal(regular.tier, undefined);
+  assert.equal(regular.exp, now + 14 * 86400);
 });
 
 test("dev settings synthesize admin token", () => {

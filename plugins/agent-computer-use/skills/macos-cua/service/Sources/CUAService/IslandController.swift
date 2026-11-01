@@ -11,6 +11,12 @@ final class IslandController {
     var onVoiceStateChanged: ((String) -> Void)?
     // ServiceDelegate supplies the production gate; standalone panel tests own their visibility policy.
     var panelAllowed: Bool { (gate?.isUnlocked ?? true) && store.bool(IslandSettingsSchema.showIsland) }
+    var gateLiveStatus: IslandGateLiveStatus {
+        let frame = menuBarPanel.actualFrame.map { rect in
+            IslandGateLiveStatus.Frame(x: Double(rect.minX), y: Double(rect.minY), width: Double(rect.width), height: Double(rect.height))
+        }
+        return IslandGateLiveStatus(state: gate?.stateName ?? "unmanaged", panel_visible: menuBarPanel.actualVisible, panel_frame: frame)
+    }
     private var gateway: URL
     /// Voice helper control token (set by ServiceDelegate; empty = helper not launched by us).
     var controlToken: () -> String = { "" }
@@ -105,6 +111,9 @@ final class IslandController {
         wireActivities()
         model.onAckExpired = { [weak self] ids in self?.hub.ackExpired(ids: ids) }
         self.gate?.onChange.append { [weak self] in self?.updatePanelVisibility() }
+        hub.onGateLiveStatus = { [weak self] in
+            self?.gateLiveStatus ?? IslandGateLiveStatus(state: "unavailable", panel_visible: false, panel_frame: nil)
+        }
         applySettings(store)
         store.addObserver { [weak self] store in self?.applySettings(store) }
     }
@@ -160,7 +169,7 @@ final class IslandController {
         if let o = activationObserver { NSWorkspace.shared.notificationCenter.removeObserver(o); activationObserver = nil }
         if let o = promptGateObserver { NSWorkspace.shared.notificationCenter.removeObserver(o); promptGateObserver = nil }
         stopClock()
-        menuBarPanel.hide()
+        menuBarPanel.hide(reason: "service_stopped")
     }
 
     private func updatePanelVisibility() {
@@ -168,7 +177,7 @@ final class IslandController {
         if panelAllowed {
             menuBarPanel.show(on: SamanthaMenuBarIslandPanel.menuBarScreen())
         } else {
-            menuBarPanel.hide()
+            menuBarPanel.hide(reason: (gate?.isUnlocked ?? true) ? "setting_off" : "gate_locked")
         }
     }
 

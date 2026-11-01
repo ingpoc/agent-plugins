@@ -198,7 +198,7 @@ test("LinkedIn pending then admin verify unlocks", async (t) => {
   const slug = "li-user";
   const postUrl = "https://www.linkedin.com/posts/abc";
   const created = await h.claim("linkedin", `https://www.linkedin.com/in/${slug}`, device(), postUrl);
-  assert.equal(created.data.status, "pending_verification");
+  assert.equal(created.data.status, "trial");
   const ok = await h.request(`/v1/admin/claims/${created.data.claim_id}/verify`, {
     admin: true,
     data: {
@@ -545,6 +545,6 @@ test("batch post_ok handles LinkedIn and rejects false without changing the clai
   assert.equal(response.data.results[0].status, "unlocked");
   assert.equal(response.data.results[1].error, "post_not_ok");
   const polled = await h.poll(String(rejected.data.claim_id), rejected.device);
-  assert.equal(polled.data.status, "pending_verification");
+  assert.equal(polled.data.status, "trial");
   assert.notEqual(polled.data.checks.post, "confirmed");
 });

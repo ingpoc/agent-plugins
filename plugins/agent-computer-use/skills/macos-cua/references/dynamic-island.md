@@ -126,4 +126,13 @@ stop without moving the secret to another channel.
 
 Meta lines: `<model> · <effort>[ · fast]` from the source, then the age (running) or `done <age>` (done). Codex app threads show the app's effort labels (low → light, xhigh → extra high); terminal threads show the CLI value. A field the source does not have is left out, never guessed.
 
-Claude desktop sidebar activity is observed with AX notifications (no polling). Only status-labelled sidebar buttons and the model popup are read; conversation text and values are excluded. Done/error peeks require an active state observed during this watch. Model/effort is shown only for a selected, sole working chat; missing selection metadata leaves it blank.
+Claude desktop activity is observed with AX notifications. Status-labelled buttons are recognized inside sidebar containers or next to matching “More options” buttons. The model popup and composer Stop/Stop response button labels are also observed. Conversation text and AX values are excluded; text, article, heading and composer text-input subtrees are skipped. Model/effort is shown only for a selected, sole working chat; missing selection metadata leaves it blank.
+
+When a working row finishes or its Stop button disappears, the island retains a done row for about ten seconds. Claude launch events re-enable AXManualAccessibility with bounded retries while waiting for windows. `acu status --json` includes `claude_desktop` attachment, last-read time, row counts by status, model-picker presence, manual-accessibility attempts/error, and chat-tab activity. Diagnostics contain counts and timestamps, not conversation labels.
+
+
+### Gate diagnostics
+
+`acu status --json` keeps the persisted entitlement under `island`. When the running service responds over its existing owner-only Unix socket, `island.live` adds the current gate state, actual `panel_visible`, and the actual NSWindow `panel_frame` (x/y/width/height in AppKit screen coordinates; null before a panel is created). An unreachable or older service leaves the stored status unchanged and omits `live`. The local read has a bounded deadline and never opens a URL or starts the service.
+
+Unified logging category `gate` records state names and panel visibility reasons (`gate_locked`, `setting_off`, `env_hidden`, or `allowed` when shown). Tokens, handles and error messages are excluded. A verified, unexpired entitlement continues enabling the island during non-revoking refresh failures; explicit revoked, moved-device and missing-binding responses still remove access. Signed expiration remains authoritative.

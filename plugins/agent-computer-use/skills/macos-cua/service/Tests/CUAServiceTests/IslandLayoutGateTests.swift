@@ -53,6 +53,16 @@ final class IslandLayoutGateTests: XCTestCase {
             m.apply(IslandSnapshot(kind: "confirm", title: "Allow saved sign-in?", detail: String(repeating: "W", count: 160), app: "Comet"))
             m.toggleCard()
         }
+        add("permission-warning-idle") { m in m.permissionWarning = "Needs access: Accessibility" }
+        add("permission-warning-done") { m in
+            m.apply(IslandSnapshot(kind: "done", title: "Complete", app: "Calendar"))
+            m.apply(IslandSnapshot(kind: "done", title: "Complete", app: "Calendar"), now: now.addingTimeInterval(10))
+            m.permissionWarning = "Needs access: Accessibility"
+        }
+        add("permission-warning-active") { m in
+            m.apply(IslandSnapshot(kind: "acting", title: "Running", app: "Calendar"))
+            m.permissionWarning = "Needs access: Accessibility"
+        }
         // HUD
         add("hud-volume") { $0.showHUD(.init(kind: .volume, value: 0.6875)) }
         add("hud-volume-max") { $0.showHUD(.init(kind: .volume, value: 1)) }
@@ -135,6 +145,79 @@ final class IslandLayoutGateTests: XCTestCase {
         XCTAssertEqual(checked.count, states.count * 2, "every state in light and dark")
         XCTAssertGreaterThanOrEqual(states.count, 23)
         XCTAssertTrue(issues.isEmpty, "layout gate:\n" + issues.joined(separator: "\n"))
+    }
+
+    func testPermissionWarningKeepsLeadSlotAndIslandCentering() {
+        for state in [IslandPresentation.idle, .doneSettled, .acting] {
+            let model = IslandModel()
+            if state == .doneSettled { model.apply(IslandSnapshot(kind: "done", title: "Complete"), now: Date().addingTimeInterval(-5)) }
+            if state == .acting { model.apply(IslandSnapshot(kind: "acting", title: "Running", app: "Calendar")) }
+            let before = model.shapeRect
+            model.permissionWarning = "Needs access: Accessibility"
+            XCTAssertEqual(model.shapeRect, before)
+            XCTAssertEqual(model.shapeRect.midX, IslandBarLayout.windowSize.width / 2)
+            XCTAssertEqual(IslandBarLayout.leadingSlot, CGSize(width: 16, height: 16))
+        }
+    }
+
+    func testPermissionWarningIsAccessibleButtonInExistingLeadSlot() {
+        IslandLayoutRecorder.enabled = true
+        defer { IslandLayoutRecorder.enabled = false; IslandLayoutRecorder.shared.reset() }
+        let model = IslandModel()
+        model.permissionWarning = "Needs access: Accessibility"
+        IslandLayoutRecorder.shared.reset()
+        for scale: CGFloat in [1, 2] {
+            IslandLayoutRecorder.shared.reset()
+            let renderer = ImageRenderer(content: SamanthaIslandBar(model: model).environment(\.colorScheme, .dark))
+            renderer.scale = scale
+            _ = renderer.cgImage
+            let items = IslandLayoutRecorder.shared.snapshot().0
+            let lead = items.first { $0.id == "lead" && $0.container == "shape" }
+            XCTAssertEqual(lead?.frame.width, IslandBarLayout.leadingSlot.width, "scale \(scale)x")
+            XCTAssertEqual(lead?.frame.height, IslandBarLayout.leadingSlot.height, "scale \(scale)x")
+            XCTAssertFalse(items.contains { $0.id == "permission-warning" }, "warning must not add a geometry slot")
+        }
+    }
+
+    func testPermissionBadgeInvokesExistingPermissionFixAction() {
+        var opened = false
+        let model = IslandModel()
+        model.permissionWarning = "Needs access: Accessibility"
+        model.onPermissionWarningTap = { opened = true }
+        model.click(at: CGPoint(x: IslandBarLayout.slotInset + 8, y: IslandBarLayout.compactHeight / 2))
+        XCTAssertTrue(opened)
+        XCTAssertFalse(model.cardOpen)
+        opened = false
+        model.click(at: CGPoint(x: 40, y: IslandBarLayout.compactHeight / 2))
+        XCTAssertFalse(opened, "the rest of the pill retains its normal action")
+    }
+
+    func testPermissionGlyphRemainsLegibleAtOneAndTwoTimesScale() throws {
+        let model = IslandModel()
+        for warning in [false, true] {
+            model.permissionWarning = warning ? "Accessibility" : nil
+            for scale: CGFloat in [1, 2] {
+                let renderer = ImageRenderer(content: SamanthaIslandBar(model: model).environment(\.colorScheme, .dark))
+                renderer.scale = scale
+                let bitmap = NSBitmapImageRep(cgImage: try XCTUnwrap(renderer.cgImage))
+                var amberPixels = 0
+                for y in 0..<bitmap.pixelsHigh {
+                    for x in 0..<bitmap.pixelsWide {
+                        if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB),
+                           color.redComponent > 0.6, color.greenComponent > 0.2,
+                           color.greenComponent < 0.85, color.blueComponent < 0.25 {
+                            amberPixels += 1
+                        }
+                    }
+                }
+                if warning { XCTAssertGreaterThanOrEqual(amberPixels, Int(10 * scale * scale), "warning must fill the existing 16 pt glyph slot") }
+                else { XCTAssertEqual(amberPixels, 0) }
+                if let directory = ProcessInfo.processInfo.environment["CUA_DELTA6_SHOTS_DIR"] {
+                    let url = URL(fileURLWithPath: directory).appendingPathComponent("island-\(warning ? "permission" : "idle")-\(Int(scale))x.png")
+                    try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: url)
+                }
+            }
+        }
     }
 
     /// Calendar card: the time column and the event column (dot, title, room, countdown) never intersect,

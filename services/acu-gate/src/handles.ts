@@ -12,10 +12,10 @@ export function normalizeHandle(provider: Provider, raw: string): string {
     return handle.toLowerCase();
   }
   const match = raw.match(
-    /^https:\/\/(www\.)?linkedin\.com\/in\/([A-Za-z0-9_-]+)\/?$/i,
+    /^https:\/\/(?:www\.|[a-z]{2}\.)?linkedin\.com\/in\/([A-Za-z0-9-]+)\/?$/i,
   );
-  const slug = match ? match[2] : raw;
-  if (!/^[A-Za-z0-9_-]{1,100}$/.test(slug))
+  const slug = match ? match[1] : raw;
+  if (!/^[A-Za-z0-9-]{3,100}$/.test(slug))
     throw new GateError(400, "invalid_handle");
   return slug.toLowerCase();
 }

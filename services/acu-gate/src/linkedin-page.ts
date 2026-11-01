@@ -1,19 +1,12 @@
 import { GateError } from "./errors.ts";
 import { limitedBody } from "./http-utils.ts";
-import { preset } from "./settings.ts";
+import { matchesPreset } from "./settings.ts";
 import { linkedInPostKey } from "./handles.ts";
 
 export type PageFetch = (
   url: string,
 ) => Promise<{ status: number; body: string }>;
 
-function matchesText(text: string) {
-  const ref = preset.match.ref_links[1];
-  return (
-    text.toLowerCase().includes(preset.match.hashtag.toLowerCase()) ||
-    text.includes(ref)
-  );
-}
 
 /** fetchLinkedInPublicPost tries one bounded public fetch for auto-pass. */
 export async function fetchLinkedInPublicPost(
@@ -39,7 +32,7 @@ export async function fetchLinkedInPublicPost(
   const result = await pageFetch(postUrl);
   if (result.status !== 200) return { ok: false as const, postKey: key };
   const body = result.body.slice(0, 512 * 1024);
-  if (!matchesText(body)) return { ok: false as const, postKey: key };
+  if (!matchesPreset(body, "linkedin")) return { ok: false as const, postKey: key };
   const slugPattern = `/in/${profileSlug}`;
   const authorLink =
     body.includes(`href="${slugPattern}"`) ||
@@ -51,7 +44,7 @@ export async function fetchLinkedInPublicPost(
 
 /** verifyLinkedInCometPost checks admin comet evidence text. */
 export function verifyLinkedInCometPost(postText: string) {
-  if (!matchesText(postText)) throw new GateError(422, "post_missing_tag");
+  if (!matchesPreset(postText, "linkedin")) throw new GateError(422, "post_missing_tag");
 }
 
 /** defaultPageFetch production fetch with SSRF bounds. */

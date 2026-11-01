@@ -522,19 +522,23 @@ struct IslandPulseBorder: View {
 
 // MARK: - Island
 
-/// Small amber "!" on the pill's lower-right corner while a required consent is missing.
+/// Amber permission warning rendered in the existing app glyph slot.
 struct IslandPermissionBadge: View {
-    static let size: CGFloat = 14
     let label: String
+    let action: (() -> Void)?
+    var size: CGFloat = 16
     var body: some View {
-        Circle().fill(Color(nsColor: .systemOrange))
-            .overlay(Image(systemName: "exclamationmark").font(.system(size: 8, weight: .heavy)).foregroundStyle(.black))
-            .overlay(Circle().strokeBorder(Color.black, lineWidth: 1.5))
-            .frame(width: Self.size, height: Self.size)
-            .help("\(label) permission is off. Click to fix.")
-            .accessibilityElement()
-            .accessibilityLabel("\(label) permission is off")
-            .accessibilityAddTraits(.isButton)
+        Button(action: { action?() }) {
+            Image(systemName: "exclamationmark")
+                .font(.system(size: size * 11 / 16, weight: .black))
+                .foregroundStyle(Color(nsColor: .systemOrange))
+                .frame(width: size, height: size)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(width: size, height: size)
+        .help("Agent Computer Use needs a permission. Click to fix.")
+        .accessibilityLabel("Agent Computer Use needs a permission. Click to fix.")
     }
 }
 
@@ -627,12 +631,6 @@ struct SamanthaIslandBar: View {
                     .offset(x: sr.minX, y: sr.minY)
                     .transition(IslandMotion.popTransition(reduce: reduceMotion, anchor: .leading))
                     .id("secondary-\(sec.rawValue)")
-            }
-            if let warn = model.permissionWarning, !model.cardOpen {
-                IslandPermissionBadge(label: warn)
-                    .onTapGesture { model.onPermissionWarningTap?() }
-                    .offset(x: rect.maxX - IslandPermissionBadge.size / 2 - 2, y: rect.maxY - IslandPermissionBadge.size / 2 - 2)
-                    .transition(.opacity)
             }
             let rects = IslandBarLayout.circleRects(shape: model.circleAnchor, count: model.circleCount)
             ForEach(Array(zip(model.circles, rects)), id: \.0.id) { item, r in
@@ -773,6 +771,11 @@ struct SamanthaIslandBar: View {
             if model.credentialRequest == nil && !(model.cardOpen && model.cardMode == .agents) && !model.trayTargeted && model.presentation != .peek
                 && !(model.cardOpen && [.calendar, .tray].contains(model.presentation)) {
                 leadMorph
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityHidden(open || model.permissionWarning == nil)
+                    .accessibilityLabel(permissionWarningAccessibilityLabel)
+                    .accessibilityAddTraits(!open && model.permissionWarning != nil ? .isButton : [])
+                    .accessibilityAction { model.onPermissionWarningTap?() }
                     // Lead is drawn through a scale effect: register its on-screen slot from the layout constants.
                     .layoutRect(open ? "card-art" : "lead", .glyph,
                                 open ? CGRect(x: rect.minX + IslandBarLayout.cardPadding, y: rect.minY + IslandBarLayout.cardPadding, width: 56, height: 56)
@@ -787,6 +790,11 @@ struct SamanthaIslandBar: View {
     /// Compact (§4): leading = who/what, trailing = live state, centre empty — drawn by
     /// `leadMorph` / `trailMorph` so they can travel into the card.
     private var open: Bool { model.cardOpen }
+    private var permissionWarningAccessibilityLabel: String {
+        guard let warning = model.permissionWarning else { return "" }
+        _ = warning
+        return "Agent Computer Use needs a permission. Click to fix."
+    }
 
     private var leadMorph: some View {
         let art = model.card.art
@@ -826,47 +834,51 @@ struct SamanthaIslandBar: View {
 
     @ViewBuilder
     private func lead(size: CGFloat) -> some View {
-        switch model.presentation {
-        case .idle, .doneSettled:
-            SamanthaOrb(size: size, dim: true)
-        case .reconnecting:
-            SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)
-        case .listening:
-            SamanthaSymbol(name: "mic.fill", size: size)
-        case .speaking:
-            SamanthaSymbol(name: "speaker.wave.2.fill", color: IslandPalette.accent, size: size)
-        case .thinking:
-            SamanthaOrb(size: size)
-        case .acting, .actingSteps:
-            let a = model.drivingApp.isEmpty ? model.app : model.drivingApp
-            if a.isEmpty { SamanthaOrb(size: size) } else { SamanthaAppIcon(appName: a, size: size, radius: size / 4) }
-        case .needsYou:
-            SamanthaSymbol(name: "hand.raised.fill", color: IslandPalette.amber, size: size)
-        case .error:
-            SamanthaSymbol(name: model.title == "Action not confirmed" ? "questionmark.circle.fill" : "xmark.circle.fill",
-                            color: model.title == "Action not confirmed" ? IslandPalette.amber : IslandPalette.red, size: size)
-        case .done:
-            SamanthaSymbol(name: "checkmark.circle.fill", color: IslandPalette.green, size: size)
-        case .nowPlaying:
-            NowPlayingArtwork(info: model.nowPlaying, size: size, flip: model.mediaStyle.artworkFlip && !reduceMotion)
-        case .agentApproval:
-            if model.duoWithMedia {
-                // Duo: music keeps the lead; the choice sits in the trail.
-                NowPlayingArtwork(info: model.nowPlaying, size: size, flip: false)
-            } else {
-                // One amber mark only (in the trail): the source icon here carries no dot.
-                SamanthaAppIcon(appName: model.agentApproval?.app ?? "", size: size, radius: size / 4)
+        if !model.cardOpen, let warning = model.permissionWarning {
+            IslandPermissionBadge(label: warning, action: model.onPermissionWarningTap, size: size)
+        } else {
+            switch model.presentation {
+            case .idle, .doneSettled:
+                SamanthaOrb(size: size, dim: true)
+            case .reconnecting:
+                SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)
+            case .listening:
+                SamanthaSymbol(name: "mic.fill", size: size)
+            case .speaking:
+                SamanthaSymbol(name: "speaker.wave.2.fill", color: IslandPalette.accent, size: size)
+            case .thinking:
+                SamanthaOrb(size: size)
+            case .acting, .actingSteps:
+                let a = model.drivingApp.isEmpty ? model.app : model.drivingApp
+                if a.isEmpty { SamanthaOrb(size: size) } else { SamanthaAppIcon(appName: a, size: size, radius: size / 4) }
+            case .needsYou:
+                SamanthaSymbol(name: "hand.raised.fill", color: IslandPalette.amber, size: size)
+            case .error:
+                SamanthaSymbol(name: model.title == "Action not confirmed" ? "questionmark.circle.fill" : "xmark.circle.fill",
+                                color: model.title == "Action not confirmed" ? IslandPalette.amber : IslandPalette.red, size: size)
+            case .done:
+                SamanthaSymbol(name: "checkmark.circle.fill", color: IslandPalette.green, size: size)
+            case .nowPlaying:
+                NowPlayingArtwork(info: model.nowPlaying, size: size, flip: model.mediaStyle.artworkFlip && !reduceMotion)
+            case .agentApproval:
+                if model.duoWithMedia {
+                    // Duo: music keeps the lead; the choice sits in the trail.
+                    NowPlayingArtwork(info: model.nowPlaying, size: size, flip: false)
+                } else {
+                    // One amber mark only (in the trail): the source icon here carries no dot.
+                    SamanthaAppIcon(appName: model.agentApproval?.app ?? "", size: size, radius: size / 4)
+                }
+            case .expired:
+                IslandHollowRing(size: size).padding(size * 0.12)
+            case .hud:
+                if let h = model.hud { IslandHUDGlyph(state: h, size: size) } else { Color.clear.frame(width: size, height: size) }
+            case .peek:
+                if let p = model.peek { IslandPeekIcon(item: p, size: size) } else { Color.clear.frame(width: size, height: size) }
+            case .calendar:
+                IslandCalendarGlyph(event: model.calendarNext, size: size, lead: model.calendarLead)
+            case .tray:
+                SamanthaSymbol(name: "tray.full.fill", size: size)
             }
-        case .expired:
-            IslandHollowRing(size: size).padding(size * 0.12)
-        case .hud:
-            if let h = model.hud { IslandHUDGlyph(state: h, size: size) } else { Color.clear.frame(width: size, height: size) }
-        case .peek:
-            if let p = model.peek { IslandPeekIcon(item: p, size: size) } else { Color.clear.frame(width: size, height: size) }
-        case .calendar:
-            IslandCalendarGlyph(event: model.calendarNext, size: size, lead: model.calendarLead)
-        case .tray:
-            SamanthaSymbol(name: "tray.full.fill", size: size)
         }
     }
 

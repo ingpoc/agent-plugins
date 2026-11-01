@@ -24,6 +24,8 @@ See `.env.example`. Production on Render uses the **free** web plan: the service
 
 Secrets on Render: `PUBLIC_BASE_URL`, `DATABASE_URL`, `ENTITLEMENT_PRIVATE_KEY`, `ADMIN_TOKEN`, optional `GITHUB_TOKEN`, `TRUST_PROXY_HOPS=1`.
 
+Launch-trial configuration: set `GATE_X_LAUNCH_POST_ID` to the X launch post ID and `GATE_LINKEDIN_LAUNCH_POST_URL` to the LinkedIn launch post URL. Both are unset in the shipped presets. These identify the launch posts used by the trial claim flow.
+
 ## Mini: base URL and admin token
 
 | What | Where on the Mac mini |
@@ -43,19 +45,37 @@ Failed auth returns `401` with `{"error":"not_found",…}` (intentionally vague)
 
 Validation failures on verify often return `422` with codes such as `post_missing_tag`, `post_author_mismatch`, `post_not_found`, `post_too_old`. Missing rows return `404` with `{"error":"not_found",…}`.
 
-### Recommended routine order
+### Recommended launch-trial workflow
+
+The app accepts a handle for both X and LinkedIn. For LinkedIn, the handle may be a vanity name or profile URL; users do not paste a launch-post link. X trials start when the follow is confirmed. LinkedIn trials start when the claim is created. Both trial paths allow access to become permanent after the required post and follow/repost checks are confirmed; when all required evidence is already confirmed, the claim unlocks directly without creating a trial. A repost received before the X follow is retained, and the claim unlocks directly when the follow later confirms.
+
+Before a provider's launch post is configured, its trial entitlement rolls forward on poll and refresh, including after the previous trial end time. While the launch is still unconfigured, an unconverted trial can also continue polling after its original 30-day claim expiry; each prelaunch check renews the claim's eligibility for another 30 days. This keeps prelaunch users active while the launch post is unavailable.
+
+Once a launch post is configured, the service persists that provider's first-seen time in `gate_settings` as `<provider>_launch_first_seen_at`. This history is immutable: removing the launch setting later does not restore rolling prelaunch access. Unconverted trial access then ends at the later of the existing trial end and 72 hours after that persisted first-seen time. The first-seen deadline survives restarts and is tracked separately for X and LinkedIn, so restarting the service does not restart the 72-hour period. An existing prelaunch claim stays eligible for at least 30 days after that same persisted first-seen time; a newer claim retains its own 30-day TTL. Converted trials remain permanent. Trials are limited to one per account and one per device across both providers.
+
+1. **`GET /v1/admin/claims`** — inspect outstanding follow or repost work; filter with `needs=follow|repost` and `provider=x|linkedin`.
+2. **`POST /v1/admin/followers`** — push @gurusharan’s X follower snapshot.
+3. **`POST /v1/admin/reposts`** — push the X launch-post reposter snapshot for pending claims.
+4. **`POST /v1/admin/claims/{id}/verify`** — record a confirmed repost when verifying an individual claim.
+5. **`GET /v1/admin/stats`** — optional dashboard read after a pass.
+
+The CLI equivalents are `node scripts/gate-admin.mjs pending [--needs follow|repost] [--provider x|linkedin]`, `push-followers <file.json>`, `push-reposters <file.json>`, and `verify <id> --repost [--source comet]`.
+
+`POST /v1/admin/reposts` accepts `{ "provider": "x", "post_id": "…", "reposters": [{ "id": "…", "handle": "…" }], "source": "x_plugin" }`. The post ID must match `x.launch_post_id`. For LinkedIn, use individual claim verification with `repost_confirmed: true` and `source: "comet"`; X individual repost verification requires `source: "x_plugin"`.
+
+### Existing claim verification routine
 
 1. **`GET /v1/admin/claims`** — pending work list (`status=pending_verification`, optional `provider`, `limit`).
-2. **`POST /v1/admin/followers`** — push Guru’s X follower snapshot; confirms follow on matching claims and may unlock when the post is already confirmed.
-3. **`POST /v1/admin/claims/verify-batch`** — batch post verification (Comet/oEmbed evidence) for remaining X/LinkedIn claims.
-4. **`POST /v1/admin/claims/{id}/reject`** — reject stale or bad claims (e.g. after 72h or spam).
+2. **`POST /v1/admin/followers`** — push @gurusharan’s X follower snapshot; confirms follow on matching claims.
+3. **`POST /v1/admin/claims/verify-batch`** — batch post verification (Comet/oEmbed evidence) for remaining claims.
+4. **`POST /v1/admin/claims/{id}/reject`** — reject stale or bad claims.
 5. **`GET /v1/admin/stats`** — optional dashboard read after a pass.
 
 Use **`POST /v1/admin/accounts/{id}/revoke`** or **`POST /v1/admin/accounts/{id}/reset-rebind`** only for manual ops, not each cycle.
 
 ### `GET /v1/admin/claims`
 
-Query: `status` (default `pending_verification`), optional `provider=x|linkedin`, `limit` (max 500, default 200).
+Query: `status` (default `pending_verification`), optional `needs=follow|repost`, `provider=x|linkedin`, `limit` (max 500, default 200).
 
 `post_ok: true` substitutes for matching post text when a valid post URL is supplied (X requires `source: "comet"`); `false` rejects with `post_not_ok`, and omission retains text matching.
 
@@ -243,4 +263,23 @@ Clears `last_rebind_at` so the account can rebind after cooldown rules with a fr
 
 ## Honest limits
 
-Handle entry is not cryptographic identity proof. Mitigations: fresh posts, one-use URLs, one Mac per account, rebind with cooldown. Follow checks use the pushed follower snapshot only at verification time. LinkedIn often needs Comet. Routine cadence drives latency; claims expire after 72 hours.
+Handle entry is not cryptographic identity proof. A fixed public key and client-supplied device ID prevent simple identity reuse, but a modified client can generate fresh signing keys for new claims. The service does not attest hardware identity, so this does not prove one physical Mac per trial. Fresh posts, one-use URLs, one account per accepted device key, and rebind cooldown reduce abuse but do not eliminate it. Follow checks use the pushed follower snapshot only at verification time. LinkedIn often needs Comet. Routine cadence drives latency; ordinary claims expire after 30 days.
+
+### Trial entitlements and compatibility
+
+`POST /v1/claims` accepts `{provider, handle}` plus the existing signed device fields, without `post_url`. Legacy post URLs and preset posts using the previous site domain still verify. Claim IDs remain eligible for conversion for 30 days. Existing permanent unlock rows and bindings are preserved by the additive `002_trials.sql` migration.
+
+Active claim creation and polls return `status: "trial"`, `trial_ends_at`, `checks`, `poll_after: 300`, and the normal signed entitlement with `tier: "trial"`. The token expires at the stored trial end. `POST /v1/entitlement/refresh` rolls that end forward while the provider has no launch post. Once configured, refresh respects the persisted launch window and returns HTTP 410 with `error: "trial_expired"` after it ends. Permanent unlock refresh is unchanged. A repost can still convert a pending claim after its trial ends.
+
+`GET /v1/config` exposes the launch targets, derived repost URLs, `trial_hours: 72`, and `trial_eta_text`, while retaining the legacy post and share fields. `GET /v1/admin/claims` adds `trial_ends_at` to each row. A complete follower snapshot reports missing active trial handles in `trial_unfollowed`; it does not revoke their trial.
+
+Active trial devices can also use the signed wall-preference route. Their choice is retained when the trial converts; public wall listings still require a permanent unlock.
+
+
+### Security invariants
+
+Migration `003_device_keys.sql` adds the trial public key and a unique index, backfills a durable signing-key/device-ID registry from existing claims and bindings, and retains every consumed trial row. Legacy duplicate-key trial records are preserved; only the earliest receives the indexed key. A claim signed by a key already registered to another device ID returns `409 device_conflict`. Generating fresh keys on a modified client remains outside this software-only identity guarantee.
+
+Follower and reposter snapshots validate each ID/handle pair before applying it. Established X IDs are immutable, and durable unique identity pairs prevent simultaneous pushes from assigning one ID to different handles. Handle-only legacy follower entries cannot match an established account ID. Authenticated admin requests have a 120-request burst with refill at 120/minute per IP; snapshots cap entries at 5,000 (the existing raw-body byte cap also applies), and each follow/repost pass processes at most 500 claims still needing that check. Repeat pushes can process the remaining claims.
+
+Rebinding compares the observed device ID, bound time and last rebind time inside the same atomic transaction that consumes the post and changes the binding. A losing transaction rolls back and re-evaluates current cooldown and post-use state before retrying.
