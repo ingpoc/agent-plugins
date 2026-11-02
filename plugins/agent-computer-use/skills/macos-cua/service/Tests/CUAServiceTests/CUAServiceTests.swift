@@ -18,7 +18,7 @@ final class JSONRPCCodecTests: XCTestCase {
         XCTAssertEqual(Int(UInt32(littleEndian: length)), frame.count - 4)
     }
 
-    func testDecodeRequest() {
+    func testDecodeRequest() throws {
         let json = """
         {"jsonrpc":"2.0","method":"list_apps","params":{},"id":1}
         """.data(using: .utf8)!
@@ -26,15 +26,15 @@ final class JSONRPCCodecTests: XCTestCase {
         var buffer = Data(bytes: &length, count: 4)
         buffer.append(json)
 
-        let request = FrameCodec.decode(from: &buffer)
+        let request = try FrameCodec.decode(from: &buffer)
         XCTAssertNotNil(request)
         XCTAssertEqual(request?.method, "list_apps")
         XCTAssertEqual(request?.jsonrpc, "2.0")
     }
 
-    func testDecodeIncompleteBuffer() {
+    func testDecodeIncompleteBuffer() throws {
         var buffer = Data([0x10, 0x00, 0x00, 0x00]) // says 16 bytes but empty
-        let request = FrameCodec.decode(from: &buffer)
+        let request = try FrameCodec.decode(from: &buffer)
         XCTAssertNil(request)
         XCTAssertEqual(buffer.count, 4) // buffer unchanged
     }

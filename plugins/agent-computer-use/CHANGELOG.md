@@ -2,6 +2,12 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.70 (unreleased)
+
+- Restrict the computer-use RPC socket to its owner and verify each client's kernel-reported user identity.
+- Reject malformed and oversized requests, expire incomplete requests, and bound connections and concurrent requests while preserving healthy persistent clients.
+- Refuse unsafe socket paths and stop startup if the RPC listener cannot be secured.
+
 ## 0.2.69 (unreleased: not tagged; waiting for Guru's OK)
 
 - Claude desktop: an open chat shows as Working while Claude replies and Done after. A plain chat's sidebar row stays "Idle <title>" while it streams, so the watcher now reads the composer's "Stop response" button (which sits below the old depth-30 walk limit) and the "Currently streaming message" message group, and names the row from the chat header. A new chat that Claude renames mid-reply no longer flashes Done. The "Chat and Cowork" tab is read from its AXValue. Message subtrees are pruned and only their accessible names are read.

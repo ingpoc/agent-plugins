@@ -89,7 +89,13 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
             }
             return await router.handle(request)
         }
-        server?.start()
+        do {
+            try server?.start()
+        } catch {
+            logger.critical("RPC listener failed to start: \(error)")
+            NSApplication.shared.terminate(nil)
+            return
+        }
         logger.info("CUAService ready", metadata: ["socket": "\(socketPath)"])
     }
 
