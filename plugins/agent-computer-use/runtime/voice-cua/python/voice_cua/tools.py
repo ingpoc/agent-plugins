@@ -486,7 +486,7 @@ def _cua_act(args: dict[str, Any]) -> dict[str, Any]:
         }
     step = str(args.get("step_label") or args.get("label") or args.get("key") or "act")
     # Retry identity = the action, not how it is verified (a new expect is still the same step).
-    step_fp = fingerprint("cua_act", args, ignore=_STEP_IGNORE)
+    step_fp = _action_fingerprint(args)
     capped = _retry_capped(step_fp)
     if capped is not None:
         return capped
@@ -529,7 +529,7 @@ FAIL_HINTS = {
     "expect_unverified": ("It ran but isn't confirmed: read the settled state in this result (no cua_state); don't repeat it.", False),
     "user_denied": ("User said no: don't retry.", False),
 }
-CAP_HINT = "Stopped after 2 tries: tell the user what blocked it, or take a different approach."
+CAP_HINT = "Stopped retrying this action: tell the user what blocked it, or take a different approach."
 
 
 def _describe_steps(args: dict[str, Any], step: str) -> str:
@@ -543,6 +543,24 @@ def _nav_note(navigate: Any) -> str:
     if not isinstance(navigate, list) or not navigate:
         return ""
     return f" First: {_describe_steps({'steps': navigate}, 'navigate')}."
+
+
+def _action_fingerprint(args: dict[str, Any]) -> str:
+    """Treat equivalent spellings of a keyboard shortcut as the same action."""
+    def clean(value: Any) -> Any:
+        if isinstance(value, list):
+            return [clean(item) for item in value]
+        if isinstance(value, dict):
+            result = {k: clean(v) for k, v in value.items()}
+            key = result.get("key")
+            if isinstance(key, str) and "+" in key:
+                aliases = {"command": "cmd", "control": "ctrl", "option": "alt"}
+                parts = [aliases.get(p.strip().lower(), p.strip().lower()) for p in key.split("+")]
+                if all(parts):
+                    result["key"] = "+".join(sorted(parts))
+            return result
+        return value
+    return fingerprint("cua_act", clean(args), ignore=_STEP_IGNORE)
 
 
 def _retry_capped(step_fp: str) -> dict[str, Any] | None:
@@ -562,10 +580,10 @@ def _note_failure(step_fp: str, out: dict[str, Any]) -> None:
     error_type = str(out.get("error_type") or "")
     if not error_type and str(out.get("error") or "") == "user denied":
         error_type = "user_denied"
+    hint, retryable = FAIL_HINTS.get(error_type, ("Try one different approach, then tell the user.", True))
     with _STEP_LOCK:
         count = _STEP_FAILS.get(step_fp, (0, 0.0))[0] + 1
-        _STEP_FAILS[step_fp] = (count, time.monotonic())
-    hint, retryable = FAIL_HINTS.get(error_type, ("Try one different approach, then tell the user.", True))
+        _STEP_FAILS[step_fp] = (MAX_STEP_TRIES if not retryable else count, time.monotonic())
     if count >= MAX_STEP_TRIES:
         hint, retryable = CAP_HINT, False
     out["hint"] = hint
@@ -593,8 +611,10 @@ def _show_details(args: dict[str, Any]) -> dict[str, Any]:
     return {"ok": True, "shown": True}
 
 
-def note_ledger_user(text: str) -> None:
+def note_user_turn(text: str) -> None:
     global _LEDGER_HELPER
+    with _STEP_LOCK:
+        _STEP_FAILS.clear()
     if _LEDGER_HELPER is None:
         from voice_cua.ledger_helper import LedgerHelper
         _LEDGER_HELPER = LedgerHelper()

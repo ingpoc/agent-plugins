@@ -263,6 +263,23 @@ class RetryCapTests(_Fresh):
         out = tools.dispatch("cua_act", {"app": "Notes", "op": "type_text", "text": "hi", "expect": "hi"})
         self.assertFalse(out["retryable"])
 
+    def test_unverified_shortcut_is_not_dispatched_twice_with_aliases(self) -> None:
+        self.backend.act.return_value = {"ok": False, "dispatched": True, "error_type": "expect_unverified"}
+        first = {"app": "Finder", "steps": [{"op": "key", "key": "CMD+SHIFT+5"}], "expect": "recording toolbar"}
+        second = {"app": "Finder", "steps": [{"op": "key", "key": "shift+command+5"}], "expect": "toolbar"}
+        self.assertFalse(tools.dispatch("cua_act", first)["retryable"])
+        self.assertEqual(tools.dispatch("cua_act", second)["error_type"], "retry_cap")
+        self.backend.act.assert_called_once()
+
+    def test_new_user_request_can_retry_unverified_action(self) -> None:
+        self.backend.act.return_value = {"ok": False, "error_type": "expect_unverified"}
+        args = {"app": "Finder", "op": "key", "key": "CMD+SHIFT+5", "expect": "toolbar"}
+        tools.dispatch("cua_act", args)
+        self.assertEqual(tools.dispatch("cua_act", args)["error_type"], "retry_cap")
+        tools.note_user_turn("Please try again")
+        tools.dispatch("cua_act", args)
+        self.assertEqual(self.backend.act.call_count, 2)
+
     def test_success_resets_budget(self) -> None:
         args = {"app": "Notes", "op": "click", "label": "Foo", "expect": "x"}
         self.backend.act.return_value = {"ok": False, "error_type": "action_failed"}

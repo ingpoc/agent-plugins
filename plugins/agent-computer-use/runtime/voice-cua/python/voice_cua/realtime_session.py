@@ -1702,9 +1702,9 @@ class RealtimeSession:
 
     def _note_user_turn(self, text: str) -> None:
         from voice_cua.workflow_store import begin_engagement
-        from voice_cua.tools import note_ledger_user
+        from voice_cua.tools import note_user_turn
         begin_engagement()
-        note_ledger_user(text)
+        note_user_turn(text)
         self._turn_open = True
         self._turn_text = text
         self._turn_tools = 0

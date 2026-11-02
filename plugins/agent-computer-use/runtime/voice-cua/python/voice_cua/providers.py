@@ -331,8 +331,8 @@ class LiveProvider(VoiceProvider):
         from voice_cua.workflow_store import begin_engagement
 
         begin_engagement()
-        from voice_cua.tools import note_ledger_user
-        note_ledger_user(text)
+        from voice_cua.tools import note_user_turn
+        note_user_turn(text)
         self._remember("user", text)
         with self._lock:
             backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
