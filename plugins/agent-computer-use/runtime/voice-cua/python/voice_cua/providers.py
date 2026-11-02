@@ -147,8 +147,8 @@ LIVE_INSTRUCTIONS = (
     "request, delegate the change; never say work was cancelled until the backend confirms it.\n"
     "Delegation policy:\n"
     "Backend tools:\n- Mac apps (Calculator, Finder, TextEdit, Music, Calendar, Settings), Comet browsing, and "
-    "saved credential lookup without revealing secrets.\n"
-    "Generate <|SpawnThinking|> when the user asks for computer, app, website or credential work, a "
+    "saved credential lookup without revealing secrets, and Context Ledger decisions.\n"
+    "Generate <|SpawnThinking|> when the user asks for computer, app, website, decision-memory or credential work, a "
     "correction changes work already requested, or the request needs careful reasoning beyond a simple reply.\n"
     "Do not generate <|SpawnThinking|> for greetings, small talk, a brief clarification, a repeated result, "
     "or an answer from the conversation or a still-current result.\n"
@@ -331,6 +331,8 @@ class LiveProvider(VoiceProvider):
         from voice_cua.workflow_store import begin_engagement
 
         begin_engagement()
+        from voice_cua.tools import note_ledger_user
+        note_ledger_user(text)
         self._remember("user", text)
         with self._lock:
             backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))

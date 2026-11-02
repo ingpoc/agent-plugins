@@ -10,6 +10,10 @@ The computer-use RPC endpoint uses an owner-only directory (0700), socket (0600)
 
 Requests are limited to 8 MiB, with a 10-second deadline for a new connection's first request or an incomplete frame. Healthy persistent connections may remain idle, and complete requests may run longer. The listener admits at most 64 connections and eight concurrent requests per connection; malformed frames and excess requests close that connection. These limits bound resource use rather than guaranteeing protection from a malicious process running as your user.
 
+## Samantha and Context Ledger
+
+When the local Context Ledger plugin is installed and bound, Samantha can use a separate low-cost helper to find applicable project decisions and capture a durable user decision. She loads the tools when needed, checks for a relevant existing decision before saving, and treats retrieved records as evidence. Capture currently requires the user to name the project in the latest complete statement; unsupported or unclear scope is refused. Temporary or private decisions are not captured. A lost save response is reported as unknown and blocked from automatic retry until investigated. The helper requires an OpenAI API credential and incurs a separate model call; missing access returns unavailable.
+
 ## Overview
 
 **Purpose.** Lets an agent see and operate native macOS apps. The `agent-computer-use` MCP server exposes three tools: read-only `sessions` (local agent sessions: Codex threads with model, effort, state, repo and tokens, plus harness processes), `state` (a compact Accessibility snapshot of one app) and `act` (a batch of actions that presses Accessibility elements first and falls back to pointer and keyboard input, then returns a verified delta). The `macos-cua` skill tells the agent how to use them. Optional: Samantha, ACU's own voice runtime (`runtime/voice-cua/`, GPT-Live-1 by default or Grok Voice 3.0) that drives the same tools by voice.

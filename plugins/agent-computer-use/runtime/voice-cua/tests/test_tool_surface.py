@@ -66,7 +66,7 @@ class LazyGroupTests(unittest.TestCase):
         loaded = names(groups={"secrets"})
         self.assertTrue(set(tools.TOOL_GROUPS["secrets"]) <= loaded)
         self.assertIn("more_tools", loaded)  # workflows remain available
-        self.assertNotIn("more_tools", names(groups={"secrets", "workflows"}))
+        self.assertNotIn("more_tools", names(groups={"secrets", "workflows", "ledger"}))
 
     def test_workflow_group_exposes_create_update_and_delete(self) -> None:
         loaded = names(groups={"workflows"})

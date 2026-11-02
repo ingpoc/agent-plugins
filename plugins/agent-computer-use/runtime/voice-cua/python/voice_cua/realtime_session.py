@@ -1476,6 +1476,8 @@ class RealtimeSession:
         from voice_cua.session_hub import unregister
 
         unregister(self)
+        from voice_cua.tools import _close_ledger_helper
+        _close_ledger_helper()
         comet_remove_listener(self._on_comet_change)
         self._cancel_planned_reconnect()
         hide_agent_cursor()
@@ -1700,7 +1702,9 @@ class RealtimeSession:
 
     def _note_user_turn(self, text: str) -> None:
         from voice_cua.workflow_store import begin_engagement
+        from voice_cua.tools import note_ledger_user
         begin_engagement()
+        note_ledger_user(text)
         self._turn_open = True
         self._turn_text = text
         self._turn_tools = 0
