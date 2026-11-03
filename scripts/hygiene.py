@@ -9,6 +9,8 @@ Commands:
   prune     remove only manifest [prune].paths entries past retention (needs --yes)
   render    regenerate the AGENTS.md block and the Cursor rule from the manifest
   selftest  prove the helpers and the render path on temporary fixtures
+  sweep     classify stale git worktrees, branches, remotes and stray clones;
+            dry-run by default (--apply executes; --include-unmerged for risky deletes)
 
 Policy owner: ~/.agents/machine.toml
 Rules:        ~/.agents/HYGIENE.md
@@ -63,11 +65,15 @@ def paths(m: dict) -> dict[str, Path]:
 
 # ---------------------------------------------------------------- helpers
 
-def run(cmd: list[str], cwd: Path | None = None, timeout: int = 30) -> subprocess.CompletedProcess | None:
+def run(
+    cmd: list[str], cwd: Path | None = None, timeout: int = 30,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess | None:
     try:
+        merged_env = {**os.environ, **env} if env else None
         return subprocess.run(
             cmd, cwd=str(cwd) if cwd else None, capture_output=True,
-            text=True, timeout=timeout, check=False,
+            text=True, timeout=timeout, check=False, env=merged_env,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -900,6 +906,1063 @@ def selftest() -> int:
     return 1 if failures else 0
 
 
+# ---------------------------------------------------------------- sweep
+
+_REMOTE_PRIORITY = ("origin-cursor", "origin", "github")
+_PR_LOOKUP_CACHE: dict[tuple[str, str], dict | None] = {}
+_GH_TOKEN_ONCE: str | None | bool = False  # False = unset; None = lookup failed
+
+
+def _parse_older_than(raw: str) -> float:
+    m = re.fullmatch(r"(\d+)([dhw])", raw.strip())
+    if not m:
+        raise argparse.ArgumentTypeError(f"invalid --older-than {raw!r}; use <int>d|h|w")
+    n, unit = int(m.group(1)), m.group(2)
+    if unit == "d":
+        return float(n)
+    if unit == "h":
+        return n / 24.0
+    return n * 7.0
+
+
+def _remote_sort_key(name: str) -> tuple[int, int | str]:
+    if name in _REMOTE_PRIORITY:
+        return (0, _REMOTE_PRIORITY.index(name))
+    return (1, name)
+
+
+def _slug_from_norm_url(norm: str) -> str | None:
+    if norm.startswith("https://"):
+        path = norm[len("https://"):]
+    elif norm.startswith("http://"):
+        path = norm[len("http://"):]
+    else:
+        return None
+    parts = [p for p in path.split("/") if p]
+    # parts[0] is the host (github.com / origin.cursor.com).
+    if len(parts) >= 3:
+        return f"{parts[1]}/{parts[2]}"
+    return None
+
+
+def _forge_for_url(raw: str) -> str:
+    low = raw.lower()
+    if "origin.cursor.com" in low:
+        return "origin"
+    if "github.com" in low:
+        return "github"
+    return "other"
+
+
+def _gh_token_for_sweep() -> str | None:
+    global _GH_TOKEN_ONCE
+    if _GH_TOKEN_ONCE is not False:
+        return _GH_TOKEN_ONCE  # type: ignore[return-value]
+    proc = run(["gh", "auth", "token", "-u", "ingpoc"], timeout=30)
+    if proc is None or proc.returncode != 0:
+        _GH_TOKEN_ONCE = None
+        return None
+    _GH_TOKEN_ONCE = proc.stdout.strip()
+    return _GH_TOKEN_ONCE
+
+
+def _github_ci_from_rollup(rollup: list | None) -> str:
+    if not rollup:
+        return "none"
+    fail = {"FAILURE", "ERROR", "CANCELLED", "TIMED_OUT"}
+    pend = {"PENDING", "IN_PROGRESS", "QUEUED", "EXPECTED"}
+    saw_fail = saw_pend = saw_ok = False
+    for check in rollup:
+        if not isinstance(check, dict):
+            continue
+        state = str(check.get("state") or "").upper()
+        concl = str(check.get("conclusion") or "").upper()
+        if concl in fail or state in fail:
+            saw_fail = True
+        elif concl in pend or state in pend or not concl:
+            saw_pend = True
+        elif concl:
+            saw_ok = True
+    if saw_fail:
+        return "failure"
+    if saw_pend:
+        return "pending"
+    if saw_ok:
+        return "success"
+    return "none"
+
+
+def open_prs(repo_path: Path, forge: str, slug: str) -> dict | None:  # noqa: ARG001
+    """Return branch -> {url, created, ci} or None if lookup failed."""
+    key = (forge, slug)
+    if key in _PR_LOOKUP_CACHE:
+        return _PR_LOOKUP_CACHE[key]
+    if forge == "other":
+        _PR_LOOKUP_CACHE[key] = {}
+        return {}
+    out: dict[str, dict] = {}
+    if forge == "github":
+        token = _gh_token_for_sweep()
+        if not token:
+            _PR_LOOKUP_CACHE[key] = None
+            return None
+        proc = run(
+            ["gh", "pr", "list", "-R", slug, "--state", "open",
+             "--json", "number,headRefName,createdAt,url,statusCheckRollup", "-L", "500"],
+            timeout=120,
+            env={"GH_TOKEN": token},
+        )
+        if proc is None or proc.returncode != 0:
+            _PR_LOOKUP_CACHE[key] = None
+            return None
+        try:
+            rows = json.loads(proc.stdout or "[]")
+        except json.JSONDecodeError:
+            _PR_LOOKUP_CACHE[key] = None
+            return None
+        if not isinstance(rows, list):
+            _PR_LOOKUP_CACHE[key] = None
+            return None
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            branch = row.get("headRefName")
+            if not isinstance(branch, str):
+                continue
+            out[branch] = {
+                "url": str(row.get("url") or ""),
+                "created": str(row.get("createdAt") or ""),
+                "ci": _github_ci_from_rollup(row.get("statusCheckRollup")),
+            }
+        _PR_LOOKUP_CACHE[key] = out
+        return out
+    if forge == "origin":
+        for state in ("open", "draft"):
+            proc = run(
+                ["origin", "pr", "list", "-R", slug, f"--state={state}",
+                 "--json", "number,headRef,headRefName,createdAt,url,ciState", "-L", "200"],
+                timeout=120,
+            )
+            if proc is None or proc.returncode != 0:
+                _PR_LOOKUP_CACHE[key] = None
+                return None
+            try:
+                rows = json.loads(proc.stdout or "[]")
+            except json.JSONDecodeError:
+                _PR_LOOKUP_CACHE[key] = None
+                return None
+            if not isinstance(rows, list):
+                _PR_LOOKUP_CACHE[key] = None
+                return None
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                branch = row.get("headRef") or row.get("headRefName")
+                if not isinstance(branch, str):
+                    continue
+                ci_raw = row.get("ciState")
+                ci = _origin_ci_summary(ci_raw)
+                out[branch] = {
+                    "url": str(row.get("url") or ""),
+                    "created": str(row.get("createdAt") or ""),
+                    "ci": ci or "none",
+                }
+        _PR_LOOKUP_CACHE[key] = out
+        return out
+    _PR_LOOKUP_CACHE[key] = {}
+    return {}
+
+
+def _sweep_trash() -> Path:
+    return Path(os.path.expanduser("~")) / ".Trash"
+
+
+def _sweep_backup_root(m: dict) -> Path:
+    day = time.strftime("%Y%m%d")
+    return paths(m)["archive"] / "git-bundles" / day
+
+
+def _sanitize_stem(text: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]", "_", text)
+
+
+def _remote_names(repo: Path) -> list[str]:
+    out = git(repo, "remote")
+    if not out:
+        return []
+    return [x.strip() for x in out.splitlines() if x.strip()]
+
+
+def _remote_raw_url(repo: Path, name: str) -> str | None:
+    proc = run(["git", "-C", str(repo), "config", "--get", f"remote.{name}.url"], timeout=30)
+    if proc is None or proc.returncode != 0:
+        return None
+    return proc.stdout.strip()
+
+
+def _committer_unix(repo: Path, ref: str) -> float | None:
+    out = git(repo, "log", "-1", "--format=%ct", ref)
+    if not out:
+        out = git(repo, "for-each-ref", "--format=%(committerdate:unix)", ref)
+    if not out:
+        return None
+    try:
+        return float(out.strip().splitlines()[0])
+    except (ValueError, IndexError):
+        return None
+
+
+def _merged(repo: Path, tip: str, base: str) -> bool | None:
+    if git(repo, "merge-base", "--is-ancestor", tip, base) is not None:
+        return True
+    cherry = git(repo, "cherry", base, tip)
+    if cherry is not None:
+        lines = [ln for ln in cherry.splitlines() if ln.strip()]
+        if lines and all(ln.startswith("-") for ln in lines):
+            return True
+    proc = run(["git", "-C", str(repo), "diff", "--quiet", f"{base}...{tip}"], timeout=60)
+    if proc is not None and proc.returncode == 0:
+        return True
+    if proc is not None and proc.returncode == 1:
+        return False
+    return None
+
+
+def _resolve_base(repo: Path) -> tuple[str | None, str | None]:
+    local = None
+    for name in ("main", "master"):
+        ref = f"refs/heads/{name}"
+        if git(repo, "show-ref", "--verify", ref) is not None:
+            local = ref
+            break
+    remotes = sorted(_remote_names(repo), key=_remote_sort_key)
+    if local:
+        for rname in remotes:
+            bname = local.split("/", 2)[-1]
+            rref = f"refs/remotes/{rname}/{bname}"
+            if git(repo, "show-ref", "--verify", rref) is None:
+                continue
+            head = git(repo, "rev-parse", local)
+            if head and git(repo, "merge-base", "--is-ancestor", head.strip(), rref) is not None:
+                return rref, None
+        return local, None
+    for rname in remotes:
+        for bname in ("main", "master"):
+            rref = f"refs/remotes/{rname}/{bname}"
+            if git(repo, "show-ref", "--verify", rref) is not None:
+                return rref, None
+    return None, "no main"
+
+
+def _path_set_diff(repo: Path, mb: str, tip: str) -> set[str] | None:
+    out = git(repo, "diff", "--name-only", "--no-renames", f"{mb}..{tip}")
+    if out is None:
+        return None
+    return {ln for ln in out.splitlines() if ln.strip()}
+
+
+def _is_superseded(
+    repo: Path, base: str, tip: str, extra_paths: set[str] | None = None,
+) -> bool | None:
+    mb = git(repo, "merge-base", base, tip)
+    if not mb:
+        return None
+    mb = mb.strip()
+    branch_paths = _path_set_diff(repo, mb, tip)
+    if branch_paths is None:
+        return None
+    if extra_paths:
+        branch_paths = set(branch_paths) | extra_paths
+    main_paths = _path_set_diff(repo, mb, base)
+    if main_paths is None:
+        return None
+    if not branch_paths:
+        return False
+    return branch_paths <= main_paths
+
+
+def _pr_age_days(created_iso: str) -> int:
+    from datetime import datetime, timezone  # noqa: PLC0415
+
+    try:
+        ts = created_iso.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        delta = datetime.now(dt.tzinfo) - dt
+        return max(0, int(delta.total_seconds() // 86400))
+    except (ValueError, TypeError):
+        return 0
+
+
+def _move_to_trash(src: Path, stem: str) -> Path | None:
+    trash = _sweep_trash()
+    trash.mkdir(exist_ok=True)
+    day = time.strftime("%Y%m%d")
+    base = trash / f"{stem}-{day}"
+    dst = base
+    n = 2
+    while dst.exists():
+        dst = Path(f"{base}-{n}")
+        n += 1
+    proc = run(["mv", str(src), str(dst)], timeout=120)
+    if proc is None or proc.returncode != 0:
+        return None
+    return dst
+
+
+def _untracked_list(repo: Path, cwd: Path | None = None) -> list[str]:
+    root = cwd or repo
+    proc = run(
+        ["git", "-C", str(root), "ls-files", "--others", "--exclude-standard", "-z"],
+        timeout=60,
+    )
+    if proc is None or proc.returncode != 0:
+        return []
+    raw = proc.stdout or ""
+    return [p for p in raw.split("\0") if p]
+
+
+def _backup_bundle(repo: Path, bundle: Path, ref: str, cwd: Path | None = None) -> bool:
+    root = cwd or repo
+    proc = run(["git", "-C", str(root), "bundle", "create", str(bundle), ref], timeout=300)
+    if proc is None or proc.returncode != 0:
+        return False
+    return git(root, "bundle", "verify", str(bundle), timeout=120) is not None
+
+
+def _backup_patch(repo: Path, patch: Path, base: str, tip: str, cwd: Path | None = None) -> bool:
+    root = cwd or repo
+    proc = run(
+        ["git", "-C", str(root), "format-patch", "--stdout", f"{base}..{tip}"],
+        timeout=120,
+    )
+    if proc is None or proc.returncode != 0:
+        return False
+    try:
+        patch.write_bytes(proc.stdout.encode("utf-8"))
+        return True
+    except OSError:
+        return False
+
+
+def _backup_wt_patch(wt: Path, patch: Path) -> bool:
+    proc = run(["git", "-C", str(wt), "diff", "HEAD", "--binary"], timeout=120)
+    if proc is None or proc.returncode != 0:
+        return False
+    try:
+        patch.write_bytes(proc.stdout.encode("utf-8"))
+        return True
+    except OSError:
+        return False
+
+
+def _backup_untracked_tar(wt: Path, archive: Path, rel_paths: list[str]) -> bool:
+    if not rel_paths:
+        return True
+    listfile = archive.parent / f".{archive.name}.list"
+    try:
+        listfile.write_text("\0".join(rel_paths) + "\0", encoding="utf-8")
+        proc = run(
+            ["tar", "-czf", str(archive), "--null", "-T", str(listfile), "-C", str(wt)],
+            timeout=300,
+        )
+        return proc is not None and proc.returncode == 0
+    except OSError:
+        return False
+    finally:
+        try:
+            listfile.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+SWEEP_REMOTES = ("origin-cursor", "origin", "github")
+
+
+def _origin_ci_cache_roots() -> list[Path]:
+    """The Origin CI cache is always protected (bin/agent-plugins-origin-ci)."""
+    return [Path(os.path.expanduser("~/Library/Caches/agent-plugins-origin-ci")).resolve()]
+
+
+def _origin_ci_summary(ci_raw: object) -> str:
+    """Collapse Origin's ciState (string or {checkRunGroups:[{checkRuns:[...]}]})."""
+    if ci_raw is None:
+        return "none"
+    if isinstance(ci_raw, str):
+        return ci_raw.lower() or "none"
+    if not isinstance(ci_raw, dict):
+        return "none"
+    runs = [
+        cr for grp in ci_raw.get("checkRunGroups") or [] if isinstance(grp, dict)
+        for cr in grp.get("checkRuns") or [] if isinstance(cr, dict)
+    ]
+    if not runs:
+        return "none"
+    concl = [str(cr.get("conclusion") or "").lower() for cr in runs]
+    if any(c in ("failure", "error", "cancelled", "timed_out", "action_required") for c in concl):
+        return "failure"
+    if any(str(cr.get("status") or "").lower() != "completed" or not c for cr, c in zip(runs, concl)):
+        return "pending"
+    return "success"
+
+
+def _git_porcelain_status(path: Path) -> str | None:
+    proc = run(
+        ["git", "--no-optional-locks", "-C", str(path), "status", "--porcelain", "--untracked-files=all"],
+        timeout=60,
+        env={"GIT_OPTIONAL_LOCKS": "0"},
+    )
+    if proc is None or proc.returncode != 0:
+        return None
+    return proc.stdout or ""
+
+
+def _format_sweep_action(action: str, apply: bool) -> str:
+    if apply or action in ("keep", "report", "skip"):
+        return action
+    if action.startswith("failed:"):
+        return action
+    return f"would-{action}"
+
+
+def sweep(
+    m: dict,
+    older_than_days: float,
+    apply: bool,
+    include_unmerged: bool,
+    as_json: bool,
+) -> int:
+    global _PR_LOOKUP_CACHE, _GH_TOKEN_ONCE
+    _PR_LOOKUP_CACHE = {}
+    _GH_TOKEN_ONCE = False
+
+    checkout_root = paths(m)["checkout_root"]
+    exception_checkouts = {expand(x) for x in m.get("exceptions", {}).get("checkouts", [])}
+    wt_exceptions = {expand(x) for x in m.get("exceptions", {}).get("worktrees", [])}
+    wt_exception_roots = [expand(x) for x in m.get("exceptions", {}).get("worktree_roots", [])]
+    harness_roots = [expand(x) for x in m.get("harness_owned", {}).get("roots", [])]
+    local_only_by_repo: dict[Path, set[str]] = {}
+    for entry in m.get("exceptions", {}).get("local_only", []):
+        if isinstance(entry, dict) and isinstance(entry.get("repo"), str) and isinstance(entry.get("heads"), dict):
+            local_only_by_repo[expand(entry["repo"])] = set(entry["heads"])
+
+    clones = scan_clones(m)
+    canonical_remotes: set[str] = set()
+    for clone in clones:
+        if clone.parent != checkout_root:
+            continue
+        for rname in _remote_names(clone):
+            raw = _remote_raw_url(clone, rname)
+            if raw:
+                canonical_remotes.add(norm_remote(raw))
+
+    scanned_repos: list[Path] = []
+    stray_clones: list[Path] = []
+    for clone in clones:
+        if clone in exception_checkouts:
+            continue
+        if clone.parent == checkout_root:
+            scanned_repos.append(clone)
+            continue
+        urls = set()
+        for rname in _remote_names(clone):
+            raw = _remote_raw_url(clone, rname)
+            if raw:
+                urls.add(norm_remote(raw))
+        if urls & canonical_remotes:
+            stray_clones.append(clone)
+        else:
+            scanned_repos.append(clone)
+
+    scanned_repos = sorted(set(scanned_repos), key=str)
+    stray_clones = sorted(set(stray_clones), key=str)
+
+    rows: list[dict] = []
+    gate_fail = False
+    state_changed = False
+    now = time.time()
+    global_pr_cache: dict[tuple[str, str], dict | None] = {}
+    seen_remote_norm: set[str] = set()
+
+    def push_row(row: dict) -> None:
+        rows.append(row)
+
+    for clone in clones:
+        if clone in exception_checkouts:
+            push_row({
+                "repo": clone.name, "item": str(clone), "kind": "clone", "class": "protected",
+                "action": "keep", "backup": "", "detail": "exception checkout",
+            })
+
+    # --- stray clones ---
+    for clone in stray_clones:
+        repo_label = clone.name
+        age_ts = clone.stat().st_mtime
+        idx = clone / ".git" / "index"
+        if idx.is_file():
+            age_ts = max(age_ts, idx.stat().st_mtime)
+        heads_out = git(clone, "for-each-ref", "--format=%(objectname)", "refs/heads")
+        if heads_out:
+            for sha in heads_out.splitlines():
+                ts = _committer_unix(clone, sha.strip())
+                if ts:
+                    age_ts = max(age_ts, ts)
+        age_d = (now - age_ts) / 86400.0
+        status = _git_porcelain_status(clone)
+        stash = git(clone, "stash", "list")
+        clean = status is not None and stash is not None and not status.strip() and not stash.strip()
+        all_contained = True
+        if heads_out:
+            for sha in heads_out.splitlines():
+                sha = sha.strip()
+                if not git(clone, "branch", "-r", "--contains", sha):
+                    all_contained = False
+                    break
+        if age_d < older_than_days:
+            cls = "recent"
+        elif clean and all_contained:
+            cls = "merged"
+        else:
+            cls = "old-unmerged"
+        action = "keep"
+        if cls == "merged":
+            action = "delete"
+        elif cls == "old-unmerged":
+            action = "delete" if include_unmerged else "report"
+        push_row({
+            "repo": repo_label, "item": str(clone), "kind": "clone", "class": cls,
+            "action": action, "backup": "", "detail": "",
+        })
+
+    def wt_removal_planned(cls: str) -> bool:
+        if cls == "merged":
+            return True
+        if cls == "superseded":
+            return True
+        return cls == "old-unmerged" and include_unmerged
+
+    def classify_tip(
+        repo: Path, tip: str, age_d: float, dirty: bool, dirty_paths: set[str] | None,
+        branch_name: str, prs_any: set[str], pr_data: dict | None,
+    ) -> tuple[str, str, str, dict]:
+        extra: dict = {}
+        if branch_name in prs_any and pr_data and branch_name in pr_data:
+            pr = pr_data[branch_name]
+            age_pr = _pr_age_days(pr.get("created", ""))
+            detail = f"PR {pr.get('url', '')} age {age_pr}d ci {pr.get('ci', 'none')}"
+            extra = {"pr_url": pr.get("url", ""), "pr_age_days": age_pr, "ci": pr.get("ci", "none")}
+            return "merge-candidate", "report", detail, extra
+        mval = _merged(repo, tip, base_sha)
+        if mval is None:
+            return "unknown", "skip", "git failed", extra
+        if mval and not dirty:
+            return "merged", "delete", "", extra
+        if age_d < older_than_days:
+            return "recent", "keep", "", extra
+        if mval and dirty:
+            return "old-unmerged", "delete" if include_unmerged else "report", "dirty", extra
+        sup = _is_superseded(repo, base_sha, tip, dirty_paths)
+        if sup is True:
+            return "superseded", "delete", "", extra
+        if sup is False:
+            return "old-unmerged", "delete" if include_unmerged else "report", "", extra
+        return "unknown", "skip", "git failed", extra
+
+    # --- per scanned repo ---
+    for repo in scanned_repos:
+        repo_label = repo.name
+        base, base_err = _resolve_base(repo)
+        pr_data_by_forge: dict[str, dict | None] = {}
+        prs_any: set[str] = set()
+
+        remote_groups: dict[str, list[tuple[str, str]]] = {}
+        for rname in _remote_names(repo):
+            raw = _remote_raw_url(repo, rname)
+            if not raw:
+                continue
+            remote_groups.setdefault(norm_remote(raw), []).append((rname, raw))
+        # Only our own remotes (origin-cursor, origin, github and their URL aliases);
+        # third-party remotes such as `upstream` are never swept.
+        remote_groups = {
+            k: v for k, v in remote_groups.items()
+            if any(n in SWEEP_REMOTES for n, _ in v)
+            and _forge_for_url(v[0][1]) in ("origin", "github")
+        }
+
+        for _norm, pairs in remote_groups.items():
+            pairs_sorted = sorted(pairs, key=lambda x: _remote_sort_key(x[0]))
+            raw = pairs_sorted[0][1]
+            forge = _forge_for_url(raw)
+            slug = _slug_from_norm_url(_norm)
+            if slug and forge in ("origin", "github"):
+                key = (forge, slug)
+                if key not in global_pr_cache:
+                    global_pr_cache[key] = open_prs(repo, forge, slug)
+                pr_data_by_forge[forge] = global_pr_cache[key]
+                if global_pr_cache[key]:
+                    prs_any |= set(global_pr_cache[key])
+
+        if base_err:
+            for kind in ("worktree", "branch", "remote"):
+                push_row({
+                    "repo": repo_label, "item": "*", "kind": kind, "class": "unknown",
+                    "action": "skip", "backup": "", "detail": base_err,
+                })
+            continue
+
+        assert base is not None
+        base_sha = git(repo, "rev-parse", base)
+        if not base_sha:
+            push_row({
+                "repo": repo_label, "item": "*", "kind": "branch", "class": "unknown",
+                "action": "skip", "backup": "", "detail": "no main",
+            })
+            continue
+        base_sha = base_sha.strip()
+
+        wt_out = git(repo, "worktree", "list", "--porcelain") or ""
+        wt_blocks: list[dict] = []
+        block: dict = {}
+        for line in wt_out.splitlines():
+            if line.startswith("worktree "):
+                if block:
+                    wt_blocks.append(block)
+                block = {"path": line.split(" ", 1)[1].strip()}
+            elif line.startswith("branch "):
+                block["branch"] = line.split(" ", 1)[1].strip()
+            elif line == "locked":
+                block["locked"] = True
+        if block:
+            wt_blocks.append(block)
+
+        wt_meta: list[dict] = []
+        for wb in wt_blocks:
+            wt_path = Path(wb["path"]).resolve()
+            if wt_path == repo.resolve():
+                continue
+            branch_ref = wb.get("branch", "")
+            branch_name = branch_ref.replace("refs/heads/", "") if branch_ref else ""
+            head = git(wt_path, "rev-parse", "HEAD") if wt_path.is_dir() else None
+            missing = not wt_path.is_dir()
+            protected = (
+                wt_path in wt_exceptions
+                or any(wt_path == r or r in wt_path.parents for r in _origin_ci_cache_roots())
+                or any(wt_path == r or r in wt_path.parents for r in wt_exception_roots)
+                or any(wt_path == r or r in wt_path.parents for r in harness_roots)
+                or wb.get("locked")
+            )
+            dirty_paths: set[str] = set()
+            status = _git_porcelain_status(wt_path) if not missing else ""
+            status_failed = status is None
+            dirty = status_failed or (bool(status and status.strip()) if not missing else False)
+            if dirty and status:
+                for ln in status.splitlines():
+                    if len(ln) >= 4:
+                        path_part = ln[3:].strip()
+                        if " -> " in path_part:
+                            path_part = path_part.split(" -> ", 1)[1]
+                        dirty_paths.add(path_part)
+            age_ts = wt_path.stat().st_mtime if wt_path.exists() else 0
+            if head:
+                ts = _committer_unix(wt_path, head.strip())
+                if ts:
+                    age_ts = max(age_ts, ts)
+            for dp in dirty_paths:
+                p = wt_path / dp
+                if p.exists():
+                    age_ts = max(age_ts, p.stat().st_mtime)
+            age_d = (now - age_ts) / 86400.0 if age_ts else 0
+            cls, detail, action, extra = "unknown", "", "skip", {}
+            if missing:
+                cls, detail, action = "merged", "missing dir", "worktree-prune"
+            elif protected:
+                cls, action = "protected", "keep"
+            elif status_failed:
+                cls, detail, action = "unknown", "status failed", "skip"
+            elif head:
+                pr_union = {}
+                for pdata in pr_data_by_forge.values():
+                    if pdata:
+                        pr_union.update(pdata)
+                cls, action, detail, extra = classify_tip(
+                    repo, head.strip(), age_d, dirty, dirty_paths, branch_name, prs_any, pr_union,
+                )
+                if dirty and cls == "old-unmerged":
+                    detail = "dirty"
+            row = {
+                "repo": repo_label, "item": str(wt_path), "kind": "worktree",
+                "class": cls, "action": action, "backup": "", "detail": detail, **extra,
+                "_path": wt_path, "_branch": branch_name, "_head": head, "_dirty": dirty,
+            }
+            wt_meta.append(row)
+            push_row({k: v for k, v in row.items() if not k.startswith("_")})
+
+        main_head = (git(repo, "symbolic-ref", "--short", "-q", "HEAD") or "").strip()
+        kept_wt_branches = {main_head} - {""}
+        kept_wt_branches |= {
+            r["_branch"] for r in wt_meta
+            if r["_branch"] and not wt_removal_planned(r["class"])
+        }
+        local_only = local_only_by_repo.get(repo, set())
+
+        heads_out = git(repo, "for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads")
+        if heads_out:
+            for line in heads_out.splitlines():
+                parts = line.split(maxsplit=1)
+                if len(parts) != 2:
+                    continue
+                bname, tip = parts
+                if bname in ("main", "master") or bname in local_only or bname in kept_wt_branches:
+                    push_row({
+                        "repo": repo_label, "item": bname, "kind": "branch", "class": "protected",
+                        "action": "keep", "backup": "", "detail": "",
+                    })
+                    continue
+                ts = _committer_unix(repo, tip)
+                age_d = (now - ts) / 86400.0 if ts else 0
+                pr_union = {}
+                for pdata in pr_data_by_forge.values():
+                    if pdata:
+                        pr_union.update(pdata)
+                cls, action, detail, extra = classify_tip(
+                    repo, tip, age_d, False, None, bname, prs_any, pr_union,
+                )
+                push_row({
+                    "repo": repo_label, "item": bname, "kind": "branch",
+                    "class": cls, "action": action, "backup": "", "detail": detail,
+                    "_tip": tip, **extra,
+                })
+
+        for norm, pairs in remote_groups.items():
+            if norm in seen_remote_norm:
+                continue
+            seen_remote_norm.add(norm)
+            pairs_sorted = sorted(pairs, key=lambda x: _remote_sort_key(x[0]))
+            primary = pairs_sorted[0][0]
+            raw = pairs_sorted[0][1]
+            forge = _forge_for_url(raw)
+            slug = _slug_from_norm_url(norm)
+            pr_heads: dict | None = {}
+            if slug and forge in ("origin", "github"):
+                pr_heads = pr_data_by_forge.get(forge)
+                if forge not in pr_data_by_forge and slug:
+                    pr_heads = open_prs(repo, forge, slug)
+            refs = git(
+                repo, "for-each-ref",
+                "--format=%(refname:strip=3) %(objectname) %(committerdate:unix)",
+                f"refs/remotes/{primary}",
+            )
+            if refs is None:
+                continue
+            for line in refs.splitlines():
+                parts = line.split()
+                if len(parts) < 2 or parts[0] == "HEAD":
+                    continue
+                bname, tip = parts[0], parts[1]
+                if bname in ("main", "master") or bname in local_only or bname in kept_wt_branches:
+                    push_row({
+                        "repo": repo_label, "item": f"{primary}/{bname}", "kind": "remote",
+                        "class": "protected", "action": "keep", "backup": "", "detail": "",
+                    })
+                    continue
+                if pr_heads is None and forge in ("origin", "github"):
+                    detail = "origin-pr-unknown" if forge == "origin" else "github-pr-unknown"
+                    push_row({
+                        "repo": repo_label, "item": f"{primary}/{bname}", "kind": "remote",
+                        "class": "unknown", "action": "skip", "backup": "", "detail": detail,
+                    })
+                    continue
+                try:
+                    age_d = (now - float(parts[2])) / 86400.0 if len(parts) > 2 else 0
+                except ValueError:
+                    age_d = 0
+                # An open PR for this head on any of the repo's forges keeps every copy.
+                pr_any_forge = {
+                    b: v for pdata in pr_data_by_forge.values() if pdata for b, v in pdata.items()
+                }
+                if (pr_heads and bname in pr_heads) or bname in pr_any_forge:
+                    pr = (pr_heads or {}).get(bname) or pr_any_forge[bname]
+                    age_pr = _pr_age_days(pr.get("created", ""))
+                    detail = f"PR {pr.get('url', '')} age {age_pr}d ci {pr.get('ci', 'none')}"
+                    push_row({
+                        "repo": repo_label, "item": f"{primary}/{bname}", "kind": "remote",
+                        "class": "merge-candidate", "action": "report", "backup": "", "detail": detail,
+                        "pr_url": pr.get("url", ""), "pr_age_days": age_pr, "ci": pr.get("ci", "none"),
+                    })
+                    continue
+                cls, action, detail, extra = classify_tip(
+                    repo, tip, age_d, False, None, bname, set(), None,
+                )
+                push_row({
+                    "repo": repo_label, "item": f"{primary}/{bname}", "kind": "remote",
+                    "class": cls, "action": action, "backup": "", "detail": detail, **extra,
+                    "_primary": primary, "_norm": norm, "_groups": pairs_sorted,
+                    "_forge": forge, "_slug": slug, "_tip": tip,
+                })
+
+    # normalize row keys for output (drop internal keys)
+    def public_row(r: dict) -> dict:
+        return {k: v for k, v in r.items() if not str(k).startswith("_")}
+
+    def needs_backup(r: dict) -> bool:
+        return r["class"] in ("old-unmerged", "superseded") or (
+            r["kind"] == "clone" and r["class"] in ("merged", "old-unmerged")
+        )
+
+    backup_root = _sweep_backup_root(m)
+
+    def do_backup(repo: Path, stem: str, ref: str, base_ref: str, wt: Path | None = None) -> str:
+        backup_root.mkdir(parents=True, exist_ok=True)
+        bundle = backup_root / f"{stem}.bundle"
+        if not _backup_bundle(repo, bundle, ref, cwd=wt):
+            return ""
+        if wt:
+            patch = backup_root / f"{stem}.patch"
+            if not _backup_wt_patch(wt, patch):
+                return ""
+            untracked = _untracked_list(repo, wt)
+            if untracked:
+                tgz = backup_root / f"{stem}.untracked.tgz"
+                if not _backup_untracked_tar(wt, tgz, untracked):
+                    return ""
+        else:
+            patch = backup_root / f"{stem}.patch"
+            if not _backup_patch(repo, patch, base_ref, ref):
+                return ""
+        return str(bundle)
+
+    def do_clone_backup(clone: Path, stem: str) -> str:
+        backup_root.mkdir(parents=True, exist_ok=True)
+        bundle = backup_root / f"{stem}.bundle"
+        proc = run(["git", "-C", str(clone), "bundle", "create", str(bundle), "--all"], timeout=300)
+        if proc is None or proc.returncode != 0 or git(clone, "bundle", "verify", str(bundle)) is None:
+            return ""
+        patch = backup_root / f"{stem}.patch"
+        proc = run(["git", "-C", str(clone), "diff", "HEAD", "--binary"], timeout=120)
+        if proc is None or proc.returncode != 0:
+            return ""
+        try:
+            patch.write_bytes(proc.stdout.encode("utf-8"))
+        except OSError:
+            return ""
+        untracked = _untracked_list(clone)
+        if untracked:
+            tgz = backup_root / f"{stem}.untracked.tgz"
+            if not _backup_untracked_tar(clone, tgz, untracked):
+                return ""
+        return str(bundle)
+
+    if apply:
+        by_repo: dict[str, list[dict]] = {}
+        for r in rows:
+            by_repo.setdefault(r["repo"], []).append(r)
+
+        for r in rows:
+            if r["kind"] != "clone" or r["class"] not in ("merged", "old-unmerged"):
+                continue
+            if r["action"] != "delete":
+                continue
+            clone = Path(r["item"])
+            stem = _sanitize_stem(f"{clone.name}-clone-{clone.name}")
+            bundle = do_clone_backup(clone, stem)
+            if not bundle:
+                r["action"] = "failed: backup"
+                gate_fail = True
+                continue
+            r["backup"] = bundle
+            dst = _move_to_trash(clone, f"{clone.name}-{clone.name}")
+            if dst is None:
+                r["action"] = "failed: move"
+                gate_fail = True
+            else:
+                r["action"] = "delete"
+                state_changed = True
+
+        for repo in scanned_repos:
+            repo_label = repo.name
+            repo_rows = [r for r in rows if r["repo"] == repo_label and r["kind"] == "worktree"]
+            missing_prune = any(r.get("detail") == "missing dir" for r in repo_rows)
+            base, _ = _resolve_base(repo)
+            base_sha = git(repo, "rev-parse", base).strip() if base else ""
+            for r in repo_rows:
+                if r["action"] != "delete" and r["action"] != "worktree-prune":
+                    continue
+                wt = Path(r["item"])
+                if r["action"] == "worktree-prune":
+                    continue
+                if not wt.is_dir():
+                    continue
+                stem = _sanitize_stem(f"{repo_label}-worktree-{wt.name}")
+                if needs_backup(r):
+                    bpath = do_backup(repo, stem, "HEAD", base_sha, wt=wt)
+                    if not bpath:
+                        r["action"] = "failed: backup"
+                        gate_fail = True
+                        continue
+                    r["backup"] = bpath
+                if _move_to_trash(wt, f"{repo_label}-{wt.name}") is None:
+                    r["action"] = "failed: move"
+                    gate_fail = True
+                else:
+                    r["action"] = "delete"
+                    state_changed = True
+            if missing_prune or any(
+                r["kind"] == "worktree" and r["action"] == "delete" for r in repo_rows
+            ):
+                if git(repo, "worktree", "prune") is not None:
+                    for r in repo_rows:
+                        if r["action"] == "worktree-prune":
+                            r["action"] = "worktree-prune"
+                            state_changed = True
+
+            for r in rows:
+                if r["repo"] != repo_label or r["kind"] != "branch":
+                    continue
+                if r["action"] != "delete":
+                    continue
+                bname = r["item"]
+                tip = r.get("_tip") or git(repo, "rev-parse", f"refs/heads/{bname}")
+                if not tip:
+                    r["action"] = "failed: delete"
+                    gate_fail = True
+                    continue
+                stem = _sanitize_stem(f"{repo_label}-branch-{bname}")
+                if needs_backup(r):
+                    bpath = do_backup(repo, stem, f"refs/heads/{bname}", base_sha)
+                    if not bpath:
+                        r["action"] = "failed: backup"
+                        gate_fail = True
+                        continue
+                    r["backup"] = bpath
+                if git(repo, "branch", "-D", bname) is None:
+                    r["action"] = "failed: delete"
+                    gate_fail = True
+                else:
+                    r["action"] = "delete"
+                    state_changed = True
+
+            for r in rows:
+                if r["repo"] != repo_label or r["kind"] != "remote":
+                    continue
+                if r["action"] != "delete":
+                    continue
+                item = r["item"]
+                primary, bname = item.split("/", 1)
+                tip = r.get("_tip", "")
+                groups = r.get("_groups") or []
+                forge = r.get("_forge", "other")
+                slug = r.get("_slug")
+                remote = primary
+                ls = run(["git", "-C", str(repo), "ls-remote", remote, f"refs/heads/{bname}"], timeout=60)
+                if ls is not None and ls.returncode == 0 and not (ls.stdout or "").strip():
+                    for rname, _ in groups:
+                        ref = f"refs/remotes/{rname}/{bname}"
+                        if git(repo, "show-ref", "--verify", ref) is not None:
+                            run(["git", "-C", str(repo), "update-ref", "-d", ref], timeout=30)
+                    r["action"] = "pruned-tracking"
+                    state_changed = True
+                    continue
+                if ls is None or ls.returncode != 0:
+                    r["action"] = "failed: delete"
+                    gate_fail = True
+                    continue
+                remote_sha = (ls.stdout or "").split()[0] if (ls.stdout or "").strip() else ""
+                local_sha = tip
+                if remote_sha and local_sha and remote_sha != local_sha:
+                    r["class"] = "unknown"
+                    r["detail"] = "remote moved"
+                    r["action"] = "skip"
+                    continue
+                stem = _sanitize_stem(f"{repo_label}-remote-{bname}")
+                if needs_backup(r):
+                    bpath = do_backup(repo, stem, f"refs/remotes/{primary}/{bname}", base_sha)
+                    if not bpath:
+                        r["action"] = "failed: backup"
+                        gate_fail = True
+                        continue
+                    r["backup"] = bpath
+                pushed = git(repo, "push", remote, "--delete", bname) is not None
+                if not pushed and forge == "github" and slug:
+                    token = _gh_token_for_sweep()
+                    if token:
+                        proc = run(
+                            ["gh", "api", "-X", "DELETE", f"repos/{slug}/git/refs/heads/{bname}"],
+                            timeout=60,
+                            env={"GH_TOKEN": token},
+                        )
+                        pushed = proc is not None and proc.returncode == 0
+                if not pushed:
+                    r["action"] = "failed: delete"
+                    gate_fail = True
+                    continue
+                for rname, _ in groups:
+                    ref = f"refs/remotes/{rname}/{bname}"
+                    if git(repo, "show-ref", "--verify", ref) is not None:
+                        run(["git", "-C", str(repo), "update-ref", "-d", ref], timeout=30)
+                r["action"] = "delete"
+                state_changed = True
+
+    out_rows = sorted(
+        [public_row(r) for r in rows],
+        key=lambda x: (x["repo"], x["kind"], x["item"]),
+    )
+    for r in out_rows:
+        r["action"] = _format_sweep_action(r["action"], apply)
+
+    class_counts: dict[str, int] = {}
+    action_counts: dict[str, int] = {}
+    for r in out_rows:
+        class_counts[r["class"]] = class_counts.get(r["class"], 0) + 1
+        action_counts[r["action"]] = action_counts.get(r["action"], 0) + 1
+
+    check_report = run_checks(m)
+    check_fail = check_report.count("FAIL")
+    if check_fail:
+        names = ",".join(x["check"] for x in check_report.rows if x["status"] == "FAIL")
+        print(f"sweep: final check FAIL: {names}", file=sys.stderr)
+
+    exit_code = 0
+    if gate_fail or check_fail:
+        exit_code = 3
+    elif any(
+        r["class"] in ("merge-candidate", "unknown")
+        or (r["class"] == "old-unmerged" and r["action"] in ("report", "would-report"))
+        for r in out_rows
+    ):
+        exit_code = 2
+
+    if state_changed:
+        job = start_map(m)
+        finish_map(job, m, check_report.rows)
+    else:
+        pass
+
+    if as_json:
+        print(json.dumps({
+            "rows": out_rows,
+            "summary": {
+                "classes": class_counts,
+                "actions": action_counts,
+                "check_fail": check_fail,
+                "exit": exit_code,
+            },
+        }))
+    else:
+        for r in out_rows:
+            print("\t".join([
+                r["repo"], r["item"], r["class"], r["action"], r.get("backup", ""),
+                r.get("detail", ""),
+            ]).rstrip("\t"))
+        cc = " ".join(f"{k}={v}" for k, v in sorted(class_counts.items()))
+        ac = " ".join(f"{k}={v}" for k, v in sorted(action_counts.items()))
+        print(
+            f"sweep: {len(out_rows)} items; class counts {cc}; actions {ac}; "
+            f"check FAIL={check_fail}; exit {exit_code}"
+        )
+    return exit_code
+
+
 # ---------------------------------------------------------------- map page
 
 MAP_JOIN_SECONDS = 120
@@ -978,10 +2041,21 @@ def main(argv: list[str]) -> int:
     prune_p.add_argument("--yes", action="store_true")
     sub.add_parser("render", help="regenerate instruction block and Cursor rule")
     sub.add_parser("selftest")
+    sweep_p = sub.add_parser("sweep", help="classify stale worktrees, branches, remotes and clones")
+    sweep_p.add_argument("--older-than", type=_parse_older_than, default=7.0,
+                         help="age threshold as <int>d|h|w (default 7d)")
+    sweep_p.add_argument("--apply", action="store_true", help="execute deletions and backups")
+    sweep_p.add_argument("--include-unmerged", action="store_true",
+                         help="backup and delete old-unmerged items")
+    sweep_p.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
     if args.cmd == "selftest":
         return selftest()
+    if args.cmd == "sweep":
+        m = load_manifest()
+        older = args.older_than if isinstance(args.older_than, float) else float(args.older_than)
+        return sweep(m, older, args.apply, args.include_unmerged, args.json)
     m = load_manifest()
     if args.cmd == "render":
         return render(m)
