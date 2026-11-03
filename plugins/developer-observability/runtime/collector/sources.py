@@ -83,7 +83,7 @@ def _stat(stats, source):
 
 
 def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None,
-           metric=None, condition=None, mirror=False, test=False, version=None):
+           metric=None, condition=None, mirror=False, test=False, version=None, alias=False):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -94,7 +94,8 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
         item['last_event_at'] = iso(ts)
     return {'project': project, 'source': source, 'kind': kind, 'step': step, 'error': bool(error), 'ts': ts,
             'duration_ms': duration_ms, 'metric': metric, 'message': message, 'ref': where, 'session': session,
-            'condition': condition, 'mirror': bool(mirror), 'test': bool(test), 'version': version}
+            'condition': condition, 'mirror': bool(mirror), 'test': bool(test), 'version': version,
+            'alias': bool(alias)}
 
 
 def _lines(path, max_bytes):
@@ -201,8 +202,23 @@ _SESSION = re.compile(r'\bsession_id=(\w+)')
 _ERROR_TEXT = (re.compile(r"'message': '([^']*)'"), re.compile(r'\berror=(.+)$'), re.compile(r'(?i)\berror: (.+)$'))
 
 
+def _known_phases(path, max_bytes):
+    phases = set()
+    for _line, text in _lines(path, max_bytes):
+        if 'phase=' in text and (match := _PHASE.search(text)) and len(match.group(1)) >= 6:
+            phases.add(match.group(1).lower())
+    return sorted(phases, key=len, reverse=True)
+
+
+def _prose_phase(line, phases):
+    """'mic preflight failed: …' names the mic_preflight phase in words; return that phase, longest first."""
+    words = '_' + re.sub(r'[^a-z0-9]+', '_', line.lower()) + '_'
+    return next((phase for phase in phases if f'_{phase}_' in words), None)
+
+
 def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
     _stat(stats, source)
+    phases = _known_phases(path, max_bytes)
     # Lines without their own timestamp or session inherit the previous one (else the file's mtime).
     last_ts, session = None, None
     mtime = Path(path).stat().st_mtime
@@ -217,7 +233,8 @@ def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
             session = own.group(1)
         phase = _PHASE.search(line)
         word = _WORD.search(line)
-        step = phase.group(1) if phase else word.group(1) if word else 'log'
+        named = None if phase or not error else _prose_phase(line, phases)
+        step = phase.group(1) if phase else named or (word.group(1) if word else 'log')
         duration = metric = None
         for name, value in _NAMED_MS.findall(line):
             if name == 'elapsed' or (name == 'step' and (error or END_PHASE.search(step))):
@@ -234,7 +251,7 @@ def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
         message = f'cause: {cause}' if cause else scrub(text)
         yield _event(stats, project=project, source=source, kind='log_error' if error else 'log', step=step,
                      error=error, ts=ts, duration_ms=duration, metric=metric, message=message, where=ref(path, number),
-                     session=session, condition=cause)
+                     session=session, condition=cause, alias=named is not None)
 
 
 def iter_junit(path, project, source, stats):

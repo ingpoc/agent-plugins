@@ -1,6 +1,6 @@
 """Turn normalized events into findings: root-cause failure clusters, latency hotspots and redundancy.
 
-Accuracy rules (0.1.5):
+Accuracy rules (0.1.5, 0.1.6):
 - one occurrence per (session, cause) however many sources or kinds logged it (mirrors and double logging);
 - mirror kinds (island HUD) and test sessions never count as failures (tests: unless include_tests);
 - latency only from real step durations, against a threshold, with p50/p95;
@@ -99,7 +99,8 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
     newest = stamped or events
     lead = Counter((e['kind'], e['step']) for e in events if e['step']).most_common(1)
     step = lead[0][0][1] if lead else (events[0]['step'] or events[0]['kind'])
-    message = next((e['message'] for e in reversed(newest) if e['message']), '')
+    plain = [e for e in newest if not e.get('alias')] or newest
+    message = next((e['message'] for e in reversed(plain) if e['message']), '')
     times = [iso(e['ts']) for e in stamped[-64:]]
     sources = Counter(e['source'] for e in events)
     finding = {
@@ -128,40 +129,51 @@ def _occurrences(items):
     """Within a source, a session counts the largest number any one kind/step logged for this cause
     (startup step + realtime_error for the same failure = 1). Across sources, the largest source wins
     (voice.log repeating the activity log adds nothing)."""
-    best = (0, Counter())
+    best = (0, Counter(), None)
     by_source = defaultdict(list)
     for e in items:
         by_source[e['source']].append(e)
     for rows in by_source.values():
         per_session, version_of = defaultdict(Counter), {}
         for e in rows:
-            per_session[e['session']][(e['kind'], e['step'])] += 1
+            per_session[e['session']][(e['kind'], e['step'], signature(e['message']))] += 1
             version_of.setdefault(e['session'], e['version'])
         by_version = Counter()
         for session, counts in per_session.items():
             by_version[version_of.get(session) or 'unknown'] += max(counts.values())
         total = sum(by_version.values())
         if total > best[0]:
-            best = (total, by_version)
+            best = (total, by_version, rows)
     return best
 
 
 def failures(ctx, events):
     """Root-cause clusters: (project, cause signature). Each session counts its occurrences once,
     taking the largest count any single source/kind logged for it, so mirrors are not double counted."""
-    clusters = defaultdict(list)
-    for e in events:
-        if e['error'] and not e['mirror']:
-            # A tool's failure stays with that tool; other kinds (startup step, realtime_error, log line) share a cause.
-            tool = e['step'] if 'tool' in e['kind'] else ''
-            clusters[(e['project'], signature(e['message']) or f"{e['kind']}/{e['step']}", tool)].append(e)
+    clusters, phase_home = defaultdict(list), {}
+    errors = [e for e in events if e['error'] and not e['mirror']]
+    for e in errors:
+        if e.get('alias'):
+            continue
+        # A tool's failure stays with that tool; other kinds (startup step, realtime_error, log line) share a cause.
+        tool = e['step'] if 'tool' in e['kind'] else ''
+        key = (e['project'], signature(e['message']) or f"{e['kind']}/{e['step']}", tool)
+        clusters[key].append(e)
+        if e['step'] and e['session'] is not None:
+            phase_home.setdefault((e['project'], e['session'], e['step']), key)
+    for e in errors:
+        if e.get('alias'):
+            # Prose lines ('mic preflight failed: …') join the structured failure of that phase in the same session.
+            home = phase_home.get((e['project'], e['session'], e['step']))
+            clusters[home or (e['project'], signature(e['message']) or f"{e['kind']}/{e['step']}", '')].append(e)
     out = []
     for parts, items in clusters.items():
-        occurrences, by_version = _occurrences(items)
+        occurrences, by_version, counted = _occurrences(items)
         logged = Counter()
         for e in items:
             logged[f"{e['source'].split(':')[-1]} {_label(e)}"] += 1
-        lead = Counter(_label(e) for e in items if e['step']).most_common(1)
+        # Name the cluster after the source that was counted, so a log echo never renames the failure.
+        lead = Counter(_label(e) for e in counted or items if e['step']).most_common(1)
         label = lead[0][0] if lead else _label(items[0])
         condition = next((e['condition'] for e in items if e['condition']), None)
         cause = f' ({condition})' if condition else ''

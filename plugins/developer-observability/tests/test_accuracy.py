@@ -1,6 +1,7 @@
-"""0.1.5 accuracy: one cluster per root cause, mirrors and tests excluded, real latency only, version-aware status, no cap."""
+"""0.1.5/0.1.6 accuracy: one cluster per root cause, mirrors and tests excluded, real latency only, version-aware status, no cap."""
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -107,6 +108,30 @@ class AccuracyTests(unittest.TestCase):
                 break
             page = api.issues('many', cursor=page['next_cursor'], limit=25)
         self.assertEqual(len(set(seen)), 130)
+
+    def test_6_filtered_counts_match_the_rows_listed(self):
+        tmp = Path(tempfile.mkdtemp(prefix='devobs-acc-'))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        collect(SPECS, tmp / 'out', NOW)
+        api = ObservabilityAPI(tmp / 'runtime', {'voice': {'owners': ['owner:voice']}}, None, collected=tmp / 'out')
+        everything = api.issues('voice', limit=25)
+        self.assertGreater(everything['by_kind'].get('latency_hotspot', 0), 0)
+        for query in ({'kind': 'latency_hotspot'}, {'kind': 'failure'}, {'status': 'recovered'}, {'status': 'active', 'kind': 'failure'}):
+            page = api.issues('voice', limit=25, **query)
+            listed = page['issues']
+            self.assertEqual(page['total'], len(listed), query)
+            self.assertEqual(sum(page['by_status'].values()), page['total'], query)
+            self.assertEqual(sum(page['by_source'].values()), page['total'], query)
+            self.assertEqual(page['active'], sum(i['status'] == 'active' for i in listed), query)
+        self.assertLess(api.issues('voice', kind='latency_hotspot')['total'], everything['total'])
+
+    def test_1_voice_log_prose_joins_the_phase_cluster(self):
+        findings, _ = run()
+        self.assertFalse([f for f in findings if f['kind'] == 'failure' and re.search(
+            r'querying device|voice-cua stack', f['latest_evidence']['first_error_line'], re.I)], [f['headline'] for f in findings])
+        mic = failures(findings, 'startup/mic_preflight failed')[0]
+        self.assertEqual(mic['failed_attempt_count'], 2)
+        self.assertTrue(any(k.startswith('voice.log') for k in mic['logged_as']), mic['logged_as'])
 
     def test_7_test_sessions_excluded_by_default(self):
         default, stats = run()

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6 (2026-11-03)
+
+- `observability_issues`: `active`, `by_status` and `by_source` are computed over the filtered rows (status and kind), so `total == sum(by_status) == sum(by_source)` for every query. `by_kind` stays the breakdown before the kind filter.
+- Text-log prose that names a phase in words (`mic preflight failed: …`, `voice-cua stack: mic preflight failed`) joins the structured failure of that phase in the same session instead of forming its own findings; the cluster keeps the counted source's name and message.
+
 ## 0.1.5 (2026-11-03)
 
 Collector accuracy, so a finding shows whether a fix worked:

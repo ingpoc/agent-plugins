@@ -336,13 +336,8 @@ class ObservabilityAPI:
         self._project(project_id)
         if status not in ('all', 'active', 'recovered', 'stale'):
             raise ValueError('invalid_status')
-        project_rows = [f for f in data['findings'] if self._matches(f, project_id)]
-        by_status, by_source = {}, {}
-        for f in project_rows:
-            by_status[f.get('status', 'unknown')] = by_status.get(f.get('status', 'unknown'), 0) + 1
-            origin = 'collector' if str(f.get('finding_key', '')).startswith('col-') else 'primary'
-            by_source[origin] = by_source.get(origin, 0) + 1
-        rows = [self._summary(f) for f in project_rows if status == 'all' or f.get('status') == status]
+        rows = [self._summary(f) for f in data['findings'] if self._matches(f, project_id)
+                and (status == 'all' or f.get('status') == status)]
         by_kind = {}
         for row in rows:
             by_kind[row['kind']] = by_kind.get(row['kind'], 0) + 1
@@ -352,6 +347,12 @@ class ObservabilityAPI:
         top_failures = [{key: r[key] for key in ('issue_id', 'step_id', 'headline', 'failed_attempts', 'last_seen')} for r in top]
         if kind != 'all':
             rows = [row for row in rows if row['kind'] == kind]
+        # Counts describe exactly the rows this query pages through: total == sum(by_status) == sum(by_source).
+        by_status, by_source = {}, {}
+        for row in rows:
+            by_status[row['status']] = by_status.get(row['status'], 0) + 1
+            origin = 'collector' if str(row['issue_id']).startswith('col-') else 'primary'
+            by_source[origin] = by_source.get(origin, 0) + 1
         rows.sort(key=lambda f: (f.get('last_seen') or '', f['issue_id']), reverse=True)
         page, next_cursor = self._page(rows, cursor, revision, f'{project_id}:{status}:{kind}', limit)
         return {**self._envelope(data, revision, project_id), 'issues': page, 'total': len(rows),

@@ -5,3 +5,7 @@ ws error: Handshake status 403 Forbidden -+-+- {'date': 'Wed, 21 Oct 2026 10:55:
 2026-11-01T13:46:52Z [startup] phase=realtime_ws_error status=fail session_id=a1 elapsed_ms=1889 step_ms=1702 error=Handshake status 403 Forbidden -+-+- {'date': 'Wed, 21 Oct 2026 10:55:02 GMT', 'cf-ray': '9a02-BOM'}
 ws error: Handshake status 403 Forbidden -+-+- {'date': 'Wed, 21 Oct 2026 10:55:02 GMT', 'cf-ray': '9a02-BOM'}
 2026-11-04T11:46:44Z [startup] phase=mic_preflight status=fail session_id=t1 error=fixture probe broke
+2026-11-01T13:47:40Z [startup] phase=mic_preflight_begin status=ok session_id=a1 elapsed_ms=24 step_ms=0
+mic preflight failed: Error querying device -1
+2026-11-01T13:47:41Z [startup] phase=mic_preflight status=fail session_id=a1 elapsed_ms=2391 step_ms=0 error=mic open failed
+voice-cua stack: mic preflight failed

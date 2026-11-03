@@ -1,2 +1,2 @@
 """Portable, stdlib-only findings collector: local logs, test results and git state -> findings.json."""
-VERSION = '0.1.5'
+VERSION = '0.1.6'
