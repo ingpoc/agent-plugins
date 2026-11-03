@@ -16,8 +16,8 @@ ownership.
    re-read; never report "no issues" from an empty state.
 2. `observability_issues` → `by_kind` (failure, latency_hotspot, redundancy)
    `slowest` (top p95 steps) and `top_failures` answer "top failures and slowest steps" in
-   one call; filter with `kind`. `total`/`active`/`by_status`/`by_source` count every
-   finding (pages, not caps). Failures may carry `before_after` (latest version) and
+   one call; filter with `kind`. `total`/`active`/`by_status`/`by_source` count exactly the
+   filtered rows (pages, not caps); `by_kind` is the pre-kind-filter breakdown. Failures may carry `before_after` (latest version) and
    `logged_as`; `recovered` means none on the latest version. Test sessions are
    excluded unless `observability_collect(include_tests=true)`. Use its full issue ID with
    `observability_inspect_issue`. Request more bounded evidence only as needed.
