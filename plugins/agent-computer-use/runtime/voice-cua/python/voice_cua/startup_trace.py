@@ -45,10 +45,20 @@ class StartupTimer:
         self._last = now
 
 
+def _acu_version() -> str:
+    try:
+        from voice_cua import __version__
+
+        return str(__version__)
+    except Exception:  # noqa: BLE001 — telemetry must never stop startup
+        return "unknown"
+
+
 def begin() -> StartupTimer:
     global _timer
     _timer = StartupTimer()
-    _timer.mark("stack_begin")
+    # Version on the first row of every session, so logs split by ACU release (historic vs current).
+    _timer.mark("stack_begin", version=_acu_version())
     return _timer
 
 

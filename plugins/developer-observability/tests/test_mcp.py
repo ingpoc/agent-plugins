@@ -35,7 +35,9 @@ class MCPTests(unittest.TestCase):
                     'findings': [{'finding_key': 'k1', 'owner_ref': 'owner:a', 'headline': 'h', 'status': 'active',
                                   'latest_evidence': {'first_error_line': 'private detail'}}]}))
             config = base/'config.json'
+            # Collector output stays in the temp dir: never merge the machine's real collected findings.
             config.write_text(json.dumps({'runtime': str(base), 'decider_script': None,
+                                          'collector': {'out': str(base/'collected')},
                                           'projects': {'a': {'owners': ['owner:a']}}}))
             params = StdioServerParameters(command=sys.executable, args=[str(ROOT/'runtime/server.py')],
                                            env={**os.environ, 'OBSERVABILITY_CONFIG':str(config)})

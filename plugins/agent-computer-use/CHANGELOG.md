@@ -2,6 +2,13 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.84
+
+- One failed tool shows one island error: when `cua_act` or a Comet tool already put its own error on the Dynamic Island, the generic "Failed · …" summary is no longer published a second time (it doubled `island_error_raw` rows and replaced the specific copy).
+- A risk-gate confirmation request is not a failure: the island shows "Needs your OK" instead of "Missed that, retrying", and the activity log records `tool_needs_confirmation` instead of `tool_error`.
+- Every Samantha session's first `stack_begin` row records the ACU `version`, so logs can be split by release.
+- A Mac with no input device fails the mic preflight fast: no TCC helper or stream open, one `mic_preflight` row with status `skip` and cause `no_input_device`, and the session continues text-only.
+
 ## 0.2.83
 
 - Samantha can use Context Ledger decisions through a lazily loaded, project-scoped local helper: relevance checks, owner-decision and sensitivity gates, duplicate lookup, grounded IDs and uncertain-write protection. When Ledger access is unavailable she says so instead of guessing a website.

@@ -260,6 +260,11 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "") -> None
     ok = bool(result.get("ok"))
     err = str(result.get("error") or "")
     error_type = str(result.get("error_type") or "")
+    if not ok and (result.get("needs_confirmation") or error_type.startswith("needs_confirm")):
+        # Risk gate asked the user first: an expected step, not a failed tool.
+        log_event("tool_needs_confirmation", **_current_tool_ids(), tool=name, app=app or None,
+                  classification="needs_confirmation")
+        return
     if not error_type:
         error_type = "user_denied" if err == "user denied" else ("act_miss" if not ok else "")
     log_event(
