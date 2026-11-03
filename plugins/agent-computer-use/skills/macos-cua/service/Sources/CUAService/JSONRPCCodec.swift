@@ -89,6 +89,9 @@ struct RPCError: Codable {
 
 /// Length-prefixed frame codec: 4-byte LE length + UTF-8 JSON body.
 enum FrameCodec {
+    static let maximumRequestBytes = 8 * 1024 * 1024
+
+    enum FrameError: Error { case invalidLength }
     static func encode(_ response: JSONRPCResponse) throws -> Data {
         let body = try JSONEncoder().encode(response)
         var length = UInt32(body.count).littleEndian
@@ -97,16 +100,17 @@ enum FrameCodec {
         return frame
     }
 
-    static func decode(from buffer: inout Data) -> JSONRPCRequest? {
+    static func decode(from buffer: inout Data) throws -> JSONRPCRequest? {
         guard buffer.count >= 4 else { return nil }
         let length = buffer.withUnsafeBytes {
             $0.loadUnaligned(as: UInt32.self)
         }
         let frameLen = Int(UInt32(littleEndian: length))
+        guard frameLen > 0, frameLen <= maximumRequestBytes else { throw FrameError.invalidLength }
         guard buffer.count >= 4 + frameLen else { return nil }
         let body = buffer.subdata(in: 4..<(4 + frameLen))
         buffer.removeSubrange(0..<(4 + frameLen))
-        return try? JSONDecoder().decode(JSONRPCRequest.self, from: body)
+        return try JSONDecoder().decode(JSONRPCRequest.self, from: body)
     }
 }
 

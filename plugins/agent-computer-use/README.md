@@ -4,6 +4,12 @@ Native macOS computer use through a two-tool MCP facade over compact AX-first ma
 
 Portable [Agent Plugin](https://agent-plugins.org/specification). Install: [`AGENTS.md`](AGENTS.md). Collection routing: repo-root `AGENTS.md`.
 
+## Local RPC security
+
+The computer-use RPC endpoint uses an owner-only directory (0700), socket (0600), and kernel peer credentials to accept only the service user's connections. Startup refuses a non-socket or symlink at the endpoint and fails if the listener cannot be secured. This boundary separates macOS users; processes running as the same user retain access.
+
+Requests are limited to 8 MiB, with a 10-second deadline for a new connection's first request or an incomplete frame. Healthy persistent connections may remain idle, and complete requests may run longer. The listener admits at most 64 connections and eight concurrent requests per connection; malformed frames and excess requests close that connection. These limits bound resource use rather than guaranteeing protection from a malicious process running as your user.
+
 ## Overview
 
 **Purpose.** Lets an agent see and operate native macOS apps. The `agent-computer-use` MCP server exposes three tools: read-only `sessions` (local agent sessions: Codex threads with model, effort, state, repo and tokens, plus harness processes), `state` (a compact Accessibility snapshot of one app) and `act` (a batch of actions that presses Accessibility elements first and falls back to pointer and keyboard input, then returns a verified delta). The `macos-cua` skill tells the agent how to use them. Optional: Samantha, ACU's own voice runtime (`runtime/voice-cua/`, GPT-Live-1 by default or Grok Voice 3.0) that drives the same tools by voice.

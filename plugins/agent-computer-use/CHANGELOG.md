@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.82
+
+- Harden the local computer-use RPC boundary: the socket is restricted to its owner and each client's kernel-reported user identity is checked; malformed and oversized requests are rejected, incomplete requests expire, and connections and concurrent requests are bounded without dropping healthy persistent clients; unsafe socket paths are refused, and startup stops if the listener cannot be secured.
+
 ## 0.2.81
 
 - Reverts 0.2.80 (never released): inside-pill app icons are back to the accepted 0.2.79 behaviour, each app clearing 2 s after its own last call with a 200 ms fade, newest first, 3 then "+N" (Guru, 2026-11-03 14:49 IST: "2 second fade is good enough"). Code is identical to 0.2.79; the number only moves because the release policy forbids going backwards.
