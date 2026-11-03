@@ -67,12 +67,9 @@ class PluginIslandTests(unittest.TestCase):
         plugin_island.tool_started("cua_state", {"app": " Calculator "})
         plugin_island.tool_finished("cua_state", {"app": "Calculator"})
         self.assertEqual(self.fake.calls, [
-            ("started", "acu", "Samantha", "samantha:acu", 120.0, "Calculator"),
-            ("finished", "acu", "Samantha", "samantha:acu", "Calculator"),
+            ("started", "acu", "Samantha", "samantha:acu:app:Calculator", 120.0, "Calculator"),
+            ("finished", "acu", "Samantha", "samantha:acu:app:Calculator", "Calculator"),
         ])
-        # Her next app replaces the icon on the same row; no history.
-        plugin_island.tool_started("cua_state", {"app": "Finder"})
-        self.assertEqual(self.fake.calls[-1][3], "samantha:acu")
 
     def test_comet_tools_never_send_an_operated_app(self) -> None:
         self.assertEqual(plugin_island.target_app("comet_click", {"app": "Comet"}), "")

@@ -129,9 +129,8 @@ enum IslandOperatedAppItem: Equatable, Identifiable {
     }
 }
 
-/// Mac apps ACU is operating on RIGHT NOW, for any agent (Guru, 2026-11-03 13:27 and 14:37 IST): each ACU
-/// session posts one row whose `target_app` is its current app, so sequential use shows one icon and
-/// parallel sessions show one each. No history. "+N" is only a safety cap past 3 concurrent apps.
+/// Mac apps ACU is operating on, for any agent (Guru, 2026-11-03 13:27 IST): the real app icons sit
+/// INSIDE the pill on its right, newest first, 3 + "+N"; each clears 2 s after its last call.
 enum IslandOperatedApps {
     static let maxIcons = 3
 

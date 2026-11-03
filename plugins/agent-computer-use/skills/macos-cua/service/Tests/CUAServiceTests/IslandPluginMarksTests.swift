@@ -497,36 +497,21 @@ final class IslandPluginMarksTests: XCTestCase {
         return u
     }
 
-    /// Guru 14:37 IST: only apps in use right now. One ACU session = one row = one current app.
-    func testSequentialUseNeverShowsMoreThanOneIcon() {
+    func testHubCarriesTheOperatedAppOnAcuRowsOnly() {
         let hub = IslandHub(store: store)
         let now = Date()
-        for (i, app) in ["Calculator", "Finder", "TextEdit"].enumerated() {
-            var body = pluginBody(plugin: "acu", id: "plugin:acu:Grok Bot:41", agent: "Grok Bot", app: "Agent Computer Use", ttl: 2)
-            body["target_app"] = app
-            XCTAssertEqual(post(hub, body, now: now.addingTimeInterval(Double(i) * 0.5)).status, 200)
-            let names = IslandOperatedApps.names(hub.compose(now: now.addingTimeInterval(Double(i) * 0.5 + 0.1)).plugins)
-            XCTAssertEqual(names, [app], "the old app leaves as the new one arrives")
-        }
-        // 2 s after the last call the icon clears.
-        XCTAssertTrue(hub.compose(now: now.addingTimeInterval(1.0 + 2.2)).plugins.isEmpty)
-    }
-
-    func testParallelSessionsShowEachCurrentApp() {
-        let hub = IslandHub(store: store)
-        let now = Date()
-        var a = pluginBody(plugin: "acu", id: "plugin:acu:Grok Bot:41", agent: "Grok Bot", app: "Agent Computer Use", ttl: 2)
-        a["target_app"] = "Calculator"
-        var b = pluginBody(plugin: "acu", id: "plugin:acu:Codex:42", agent: "Codex", app: "Agent Computer Use", ttl: 2)
-        b["target_app"] = "Finder"
-        XCTAssertEqual(post(hub, a, now: now).status, 200)
-        XCTAssertEqual(post(hub, b, now: now.addingTimeInterval(0.2)).status, 200)
-        XCTAssertEqual(IslandOperatedApps.names(hub.compose(now: now.addingTimeInterval(0.5)).plugins), ["Finder", "Calculator"])
-        // Comet rows never carry an operated app.
-        var c = pluginBody(plugin: "comet-control", id: "plugin:comet-control:x", agent: "Codex", app: "comet-control", ttl: 2)
-        c["target_app"] = "Comet"
-        XCTAssertEqual(post(hub, c, now: now.addingTimeInterval(0.3)).status, 200)
-        XCTAssertEqual(IslandOperatedApps.names(hub.compose(now: now.addingTimeInterval(0.5)).plugins).count, 2)
+        var body = pluginBody(plugin: "acu", id: "plugin:acu:k:app:Calculator", agent: "Grok Bot", app: "Agent Computer Use", ttl: 2)
+        body["target_app"] = "  Calculator "
+        XCTAssertEqual(post(hub, body, now: now).status, 200)
+        var finder = pluginBody(plugin: "acu", id: "plugin:acu:k:app:Finder", agent: "Grok Bot", app: "Agent Computer Use", ttl: 2)
+        finder["target_app"] = "Finder"
+        XCTAssertEqual(post(hub, finder, now: now.addingTimeInterval(0.5)).status, 200)
+        let snap = hub.compose(now: now.addingTimeInterval(1))
+        XCTAssertEqual(Set(snap.plugins.compactMap(\.target_app)), ["Calculator", "Finder"])
+        XCTAssertEqual(IslandOperatedApps.names(snap.plugins), ["Finder", "Calculator"], "newest first")
+        // Each app row clears on its own TTL: 2 s after the Calculator call, only Finder is left.
+        XCTAssertEqual(IslandOperatedApps.names(hub.compose(now: now.addingTimeInterval(2.2)).plugins), ["Finder"])
+        XCTAssertTrue(hub.compose(now: now.addingTimeInterval(2.7)).plugins.isEmpty)
     }
 
     func testOperatedAppsNewestFirstUniqueAcuOnlyCappedAtThreePlusN() {

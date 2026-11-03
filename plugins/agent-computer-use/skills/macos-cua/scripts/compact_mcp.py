@@ -96,14 +96,11 @@ def _target_app(arguments: Any) -> str:
 
 
 def _activity_key(activity: Any, app: str = "") -> tuple[str, str]:
-    """One row per agent session (process): its one CURRENT app rides `target_app` (Guru 14:37 IST).
-
-    A call on a new app replaces the old icon at once; nothing piles up. `app` is unused in the key.
-    """
-    del app
+    """One row per agent process and operated app: each app clears 2 s after its own last call."""
     agent = _agent_name()
     shown = activity.normalize_agent(agent) if hasattr(activity, "normalize_agent") else agent
-    return agent, f"{shown}:{os.getpid()}"
+    key = f"{shown}:{os.getpid()}"
+    return agent, f"{key}:app:{app}" if app else key
 
 
 def _app_kwargs(app: str) -> dict[str, str]:
