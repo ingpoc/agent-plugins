@@ -248,39 +248,49 @@ struct SamanthaThinkingDots: View {
     }
 }
 
-/// 12 pt ring, 2 pt stroke on a white 15 % track: spinning 90° accent arc
-/// (1.2 s/turn) when total is unknown, or filled to `fraction`.
-/// Controlled-target mark (Apple for ACU, Comet for comet-control) inside a spinning ring, drawn in the
-/// compact lead slot; the ring is SamanthaProgressRing's indeterminate arc, scaled to the slot.
+/// Controlled-target mark (Apple for ACU, Comet for comet-control): the target on a white tile like the
+/// plugin icons (>= 12 pt so it reads at 1x), inside a spinning ring. Drawn over the compact lead slot.
 struct IslandPluginTargetMark: View {
     let target: IslandPluginTarget
-    let size: CGFloat
+    var size: CGFloat = IslandPluginTargetMark.ringDiameter
     var reduceMotion = false
     @State private var spin = false
 
+    static let ringDiameter: CGFloat = 20
+    static let ringLine: CGFloat = 1.5
+    static let tileSize: CGFloat = 12
+    static func tileRadius(_ tile: CGFloat) -> CGFloat { tile * 0.26 }
+
     var body: some View {
-        let line = max(1, size / 8)
+        let tile = max(Self.tileSize, size * 0.6)
         ZStack {
-            Circle().stroke(IslandPalette.track, lineWidth: line)
+            Circle().stroke(IslandPalette.track, lineWidth: Self.ringLine)
             Circle().trim(from: 0, to: 0.25)
-                .stroke(IslandPalette.accent, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                .stroke(IslandPalette.accent, style: StrokeStyle(lineWidth: Self.ringLine, lineCap: .round))
                 .rotationEffect(.degrees(spin ? 360 : 0))
                 .onAppear {
                     guard !reduceMotion else { return }
                     withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { spin = true }
                 }
+            RoundedRectangle(cornerRadius: Self.tileRadius(tile), style: .continuous)
+                .fill(Color.white)
+                .frame(width: tile, height: tile)
             switch target {
             case .symbol(let name):
-                SamanthaSymbol(name: name, size: size * 0.5)
+                SamanthaSymbol(name: name, color: .black, size: tile * 0.78)
+                    .offset(y: -tile * 0.03)
             case .app(let name):
-                SamanthaAppIcon(appName: name, size: size * 0.55, radius: size * 0.12)
+                SamanthaAppIcon(appName: name, size: tile * 0.86, radius: Self.tileRadius(tile * 0.86))
             }
         }
         .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Controlling \(target.accessibilityName)")
     }
 }
 
+/// 12 pt ring, 2 pt stroke on a white 15 % track: spinning 90° accent arc
+/// (1.2 s/turn) when total is unknown, or filled to `fraction`.
 struct SamanthaProgressRing: View {
     var fraction: Double?
     var reduceMotion = false
@@ -639,6 +649,17 @@ struct SamanthaIslandBar: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
+            if !model.cardOpen, [.idle, .doneSettled].contains(model.presentation), model.permissionWarning == nil,
+               let target = model.pluginTarget {
+                // Controlled target (Apple / Comet) on its white tile in a 20 pt spinning ring, centred on the
+                // 16 pt lead slot at real size (not the 56 → 16 lead morph), so the 12 pt tile reads at 1x.
+                let d = IslandPluginTargetMark.ringDiameter
+                IslandPluginTargetMark(target: target, reduceMotion: reduceMotion)
+                    .offset(x: rect.minX + IslandBarLayout.slotInset + 8 - d / 2,
+                            y: rect.minY + (IslandBarLayout.compactHeight - d) / 2)
+                    .allowsHitTesting(false)
+                    .transition(.opacity.animation(.easeOut(duration: 0.2)))
+            }
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
@@ -667,7 +688,7 @@ struct SamanthaIslandBar: View {
             ForEach(Array(zip(model.circles, rects)), id: \.0.id) { item, r in
                 SamanthaAppCircle(item: item)
                     .offset(x: r.minX, y: r.minY)
-                    .transition(circleTransition)
+                    .transition(item.isPlugin ? pluginCircleTransition : circleTransition)
             }
         }
         .frame(width: IslandBarLayout.windowSize.width, height: IslandBarLayout.windowSize.height, alignment: .topLeading)
@@ -721,6 +742,10 @@ struct SamanthaIslandBar: View {
     private var widthAnimation: Animation { IslandMotion.width(reduce: reduceMotion) }
 
     private var circleTransition: AnyTransition { IslandMotion.popTransition(reduce: reduceMotion) }
+    /// A plugin circle fades out over 200 ms when its use ends (2 s after the last call).
+    private var pluginCircleTransition: AnyTransition {
+        .asymmetric(insertion: circleTransition, removal: .opacity.animation(.easeOut(duration: 0.2)))
+    }
 
     private var glyphSwap: AnyTransition {
         if reduceMotion { return .opacity }
@@ -870,13 +895,9 @@ struct SamanthaIslandBar: View {
         } else {
             switch model.presentation {
             case .idle, .doneSettled:
-                // No orb or icon here (Guru, 2026-11-01): the pill holds only the 6 pt right-hand dot,
-                // unless a plugin is controlling a target (Guru, 2026-11-03): its mark + a spinning ring.
-                if let target = model.pluginTarget {
-                    IslandPluginTargetMark(target: target, size: size, reduceMotion: reduceMotion)
-                } else {
-                    Color.clear.frame(width: size, height: size)
-                }
+                // No orb or icon here (Guru, 2026-11-01): the pill holds only the 6 pt right-hand dot. A
+                // plugin's controlled target (Guru, 2026-11-03) is drawn unscaled over this slot (targetMark).
+                Color.clear.frame(width: size, height: size)
             case .reconnecting:
                 SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)
             case .listening:

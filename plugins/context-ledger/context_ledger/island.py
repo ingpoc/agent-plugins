@@ -45,17 +45,37 @@ def activity() -> Any:
     return module
 
 
-def note_call(arguments: dict) -> None:
-    """Pulse one context-ledger row for the calling actor. Never raises."""
+def _actor(arguments: Any) -> str:
+    actor = arguments.get("actor") if isinstance(arguments, dict) else None
+    actor = actor.strip() if isinstance(actor, str) else ""
+    return actor or "agent"
+
+
+def _note(arguments: Any, finished: bool) -> None:
     if not enabled():
         return
     try:
-        actor = arguments.get("actor") if isinstance(arguments, dict) else None
-        actor = actor.strip() if isinstance(actor, str) else ""
-        actor = actor or "agent"
         module = activity()
         if module is None:
             return
-        module.pulse("context-ledger", actor, key=actor, hold_s=10.0)
+        actor = _actor(arguments)
+        key = module.normalize_agent(actor)
+        if finished:
+            module.call_finished("context-ledger", actor, key=key)
+        else:
+            module.call_started("context-ledger", actor, key=key, in_flight_s=60.0)
     except Exception:
         FAILURES["count"] += 1
+
+
+def note_started(arguments: Any) -> None:
+    """The ledger call began: hold this actor's context-ledger mark. Never raises."""
+    _note(arguments, finished=False)
+
+
+def note_finished(arguments: Any) -> None:
+    """The ledger call ended (ok or failed): the mark drops 2 s later. Never raises."""
+    _note(arguments, finished=True)
+
+
+note_call = note_started

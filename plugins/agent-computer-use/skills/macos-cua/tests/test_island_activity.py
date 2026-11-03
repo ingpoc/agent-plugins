@@ -232,6 +232,56 @@ class PulseAndEndTests(ActivityTestCase):
         self.assertEqual(self.server.bodies, [])
 
 
+class NameTests(unittest.TestCase):
+    def test_one_shared_normaliser_maps_spellings_to_one_name(self) -> None:
+        cases = {
+            "grok-bot": "Grok Bot", "Grok Bot": "Grok Bot", "  grok_bot ": "Grok Bot",
+            "grok.bot": "Grok Bot", "smallcase-manager": "Smallcase Manager", "codex": "Codex",
+            "GPT-5": "GPT 5", "Claude Code": "Claude Code", "": "Agent", "   ": "Agent", None: "Agent",
+        }
+        for raw, shown in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(activity.normalize_agent(raw), shown)
+        self.assertEqual(len(activity.normalize_agent("x" * 100)), activity.NAME_MAX_CHARS)
+
+    def test_rows_use_the_normaliser_and_title_case_labels(self) -> None:
+        self.assertEqual(activity.row("acu", "grok-bot", "k", 10)["name"], "Grok Bot")
+        self.assertEqual(activity.row("acu", "a", "k", 10)["title"], "Using Agent Computer Use")
+        self.assertEqual(activity.row("comet-control", "a", "k", 10)["title"], "Using Comet Control")
+        self.assertEqual(activity.row("context-ledger", "a", "k", 10)["title"], "Using Context Ledger")
+
+
+class CallTests(ActivityTestCase):
+    def test_started_holds_and_finished_drops_two_seconds_later(self) -> None:
+        self.assertTrue(activity.call_started("acu", "grok-bot", "k"))
+        self.assertTrue(activity.call_finished("acu", "grok-bot", "k"))
+        self.assertEqual([b["ttl_s"] for b in self.server.bodies], [activity.IN_FLIGHT_S, 2.0])
+        self.assertEqual({b["name"] for b in self.server.bodies}, {"Grok Bot"})
+        self.assertEqual(activity.CLEAR_AFTER_S, 2.0)
+
+    def test_finished_is_never_throttled_after_started(self) -> None:
+        activity.call_started("context-ledger", "Codex", "k", in_flight_s=60.0)
+        activity.call_finished("context-ledger", "Codex", "k")
+        activity.call_started("context-ledger", "Codex", "k", in_flight_s=60.0)
+        activity.call_finished("context-ledger", "Codex", "k")
+        self.assertEqual([b["ttl_s"] for b in self.server.bodies], [60.0, 2.0, 60.0, 2.0])
+
+    def test_a_pulse_inside_the_window_never_reposts_a_longer_hold(self) -> None:
+        activity.call_finished("acu", "Codex", "k")
+        activity.pulse("acu", "Codex", "k", hold_s=30.0)
+        self.assertEqual([b["ttl_s"] for b in self.server.bodies], [2.0])
+
+    def test_unknown_plugin_and_linger(self) -> None:
+        self.assertFalse(activity.call_started("nope", "a", "k"))
+        self.assertFalse(activity.call_finished("nope", "a", "k"))
+        self.assertEqual(self.server.bodies, [])
+        body = activity.row("comet-control", "a", "s1", 600)
+        lingered = activity.linger(body)
+        self.assertEqual(lingered["ttl_s"], 2.0)
+        self.assertEqual(body["ttl_s"], 600.0)
+        self.assertEqual({k: v for k, v in lingered.items() if k != "ttl_s"},
+                         {k: v for k, v in body.items() if k != "ttl_s"})
+
 
 if __name__ == "__main__":
     unittest.main()

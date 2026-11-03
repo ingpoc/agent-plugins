@@ -559,7 +559,9 @@ final class IslandHub {
             // Roster spec: done rows fade after 3 min, error rows stay 30 min (or until cleared).
             let defaultTTL: TimeInterval = kind == "done" ? 180 : kind == "error" ? 1800
                 : source == .agentRoster ? 3600 : 600
-            let ttl = min(3600, max(5, (j["ttl_s"] as? NSNumber)?.doubleValue ?? defaultTTL))
+            // Plugin rows may hold for as little as 1 s: the circle drops 2 s after the last call.
+            let isPlugin = (j["plugin"] as? String).map { Self.pluginMarks.contains($0) } ?? false
+            let ttl = min(3600, max(isPlugin ? 1 : 5, (j["ttl_s"] as? NSNumber)?.doubleValue ?? defaultTTL))
             let controls = ((j["controls"] as? [Any]) ?? []).compactMap { ($0 as? String)?.lowercased() }
                 .filter { Self.allowedControls.contains($0) }
             let started = entries[id].map { $0.agent.status == "running" && kind == "running" ? $0.started : now } ?? now

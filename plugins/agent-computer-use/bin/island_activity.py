@@ -5,7 +5,11 @@ Any plugin an agent is using publishes a running row carrying its plugin mark
 ("acu", "comet-control", "context-ledger"); the island shows it as a circle on
 the right of the compact pill, tied to the calling agent's name. The hub drops a
 plugin row when its ttl_s lapses — it never goes stale — so the ttl *is* the
-hold: a caller pulses while the use continues and clears when it ends.
+hold: ``call_started`` holds the row while a call runs and ``call_finished``
+leaves it CLEAR_AFTER_S (2 s) after the last call, success or failure.
+
+Agent names go through ``normalize_agent`` (the one shared normaliser), so
+"grok-bot" and "Grok Bot" are one name across every plugin.
 """
 from __future__ import annotations
 
@@ -13,6 +17,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import socket
 import stat
 import time
@@ -23,14 +28,16 @@ PUBLISH_PATH = "/api/island/publish"
 ISLAND_SOURCE = "agent"
 ROW_ID_MAX_CHARS = 80
 NAME_MAX_CHARS = 48
-MIN_TTL = 5.0
+MIN_TTL = 2.0
+CLEAR_AFTER_S = 2.0
+IN_FLIGHT_S = 120.0
 MAX_TTL = 3600.0
 THROTTLE_SECONDS = 5.0
 DISABLED_VALUES = frozenset({"0", "false", "off", "no"})
 
 # plugin -> (island app name = icon, short label)
 MARKS: dict[str, tuple[str, str]] = {
-    "acu": ("Agent Computer Use", "ACU"),
+    "acu": ("Agent Computer Use", "Agent Computer Use"),
     "comet-control": ("comet-control", "Comet Control"),
     "context-ledger": ("context-ledger", "Context Ledger"),
 }
@@ -55,6 +62,22 @@ def _text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
+_NAME_SPLIT = re.compile(r"[\s._-]+")
+
+
+def normalize_agent(name: Any) -> str:
+    """One display name per agent across plugins: "grok-bot", "grok_bot", "Grok Bot" -> "Grok Bot".
+
+    Split on whitespace, "-", "_" and "."; an all-lowercase word gets a capital first letter, a word
+    with any capital (or no letters) is kept; joined with single spaces. Blank -> "Agent".
+    """
+    if not isinstance(name, str):
+        return "Agent"
+    words = [w for w in _NAME_SPLIT.split(name.strip()) if w]
+    shown = " ".join(w[:1].upper() + w[1:] if w.islower() else w for w in words)
+    return shown[:NAME_MAX_CHARS].rstrip() or "Agent"
+
+
 def _ttl(value: Any) -> float:
     try:
         number = float(value)
@@ -76,7 +99,7 @@ def row(plugin: str, agent: str, key: str, ttl_s: float) -> dict:
     mark = MARKS.get(plugin)
     if mark is None:
         raise ValueError(f"unknown plugin: {plugin}")
-    name = (_text(agent) or "Agent")[:NAME_MAX_CHARS]
+    name = normalize_agent(agent)
     return {
         "source": ISLAND_SOURCE,
         "id": row_id(plugin, key),
@@ -151,20 +174,49 @@ def pulse(plugin: str, agent: str, key: str, hold_s: float = 10.0) -> bool:
         now = time.time()
         window = min(THROTTLE_SECONDS, hold_s / 2)
         recent = _RECENT.get(rid)
-        if recent is not None and now - recent[0] < window and recent[1] == agent:
+        if recent is not None and now - recent[0] < window and recent[1] == normalize_agent(agent):
             return True
         posted = start(plugin, agent, key, ttl_s=hold_s)
         if posted:
-            _RECENT[rid] = (now, agent)
+            _RECENT[rid] = (now, normalize_agent(agent))
         return posted
     except Exception:
         return False
 
 
+def _post_now(plugin: str, agent: str, key: str, ttl_s: float) -> bool:
+    if plugin not in MARKS:
+        return False
+    try:
+        posted = start(plugin, agent, key, ttl_s=ttl_s)
+        if posted:
+            _RECENT[row_id(plugin, key)] = (time.time(), normalize_agent(agent))
+        return posted
+    except Exception:
+        return False
+
+
+def call_started(plugin: str, agent: str, key: str, in_flight_s: float = IN_FLIGHT_S) -> bool:
+    """Hold the row while one call runs (unthrottled). Never raises."""
+    return _post_now(plugin, agent, key, in_flight_s)
+
+
+def call_finished(plugin: str, agent: str, key: str) -> bool:
+    """The call ended (ok or failed): the hub drops the row CLEAR_AFTER_S later. Never raises."""
+    return _post_now(plugin, agent, key, CLEAR_AFTER_S)
+
+
+def linger(body: dict) -> dict:
+    """Copy of a running row body that the hub drops CLEAR_AFTER_S from now."""
+    out = dict(body)
+    out["ttl_s"] = CLEAR_AFTER_S
+    return out
+
+
 def _cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="plugin activity for the ACU island")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("start", "end", "pulse"):
+    for name in ("start", "end", "pulse", "started", "finished"):
         child = sub.add_parser(name)
         child.add_argument("--plugin", required=True)
         child.add_argument("--agent", default="")
@@ -177,6 +229,10 @@ def _cli(argv: list[str] | None = None) -> int:
         result = start(args.plugin, args.agent, args.key, ttl_s=args.ttl)
     elif args.command == "end":
         result = end(args.plugin, args.key)
+    elif args.command == "started":
+        result = call_started(args.plugin, args.agent, args.key)
+    elif args.command == "finished":
+        result = call_finished(args.plugin, args.agent, args.key)
     else:
         result = pulse(args.plugin, args.agent, args.key, hold_s=args.hold)
     print(json.dumps({"ok": bool(result)}), flush=True)

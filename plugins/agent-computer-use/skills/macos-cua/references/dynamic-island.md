@@ -74,29 +74,35 @@ A plugin an agent is using shows as a circle on the **right of the compact
 pill**, after Samantha's app circles. The left side stays the agent harness
 (source) circles; a plugin is never drawn there.
 
-- Bodies come from the shared `bin/island_activity.py`: `start(plugin, agent,
-  key, ttl_s)`, `end(plugin, key)`, and `pulse(plugin, agent, key, hold_s)` for a
-  heartbeat. A post is source `agent` with keys `id` (`plugin:<plugin>:<key>`),
-  `kind` (`running`/`clear`), `name` (the agent, max 48 chars), `app` (the
-  plugin's island app name), `title` (`Using <plugin>`), `meta`, `plugin`, and
-  `ttl_s`.
+- Bodies come from the shared `bin/island_activity.py`: `call_started(plugin,
+  agent, key)` holds the row while a call runs, `call_finished(...)` leaves it 2 s
+  (`CLEAR_AFTER_S`) after the last call, ok or failed; `start`/`end`/`pulse`/
+  `linger` for long-lived uses. A post is source `agent` with keys `id`
+  (`plugin:<plugin>:<key>`), `kind` (`running`/`clear`), `name` (the agent),
+  `app` (the plugin's island app name), `title` (`Using <Plugin Name>`), `meta`,
+  `plugin`, and `ttl_s` (plugin rows may go down to 1 s; other rows keep 5 s).
+- Agent names go through the one shared `normalize_agent` (split on space, `-`,
+  `_`, `.`; lowercase words capitalised): "grok-bot" and "Grok Bot" are one name.
 - Allowed `plugin` values: `acu`, `comet-control`, `context-ledger`. Any other
   value is ignored and the row stays a normal agent row. One circle per plugin,
   agents grouped. The right mark is the plugin's own: ACU's app icon, else
   `<plugins>/<id>/assets/logo.svg` (`~/.agents/plugins`, `ACU_PLUGIN_LOGO_ROOT`).
-- Inside the pill (idle/done-settled lead slot): what the plugin controls, in a
-  spinning ring — Apple mark for `acu` (the Mac), Comet for `comet-control`;
+- Inside the pill (over the idle/done-settled lead slot, drawn at real size): what
+  the plugin controls on a 12 pt white tile in a 20 pt spinning ring — Apple mark for `acu` (the Mac), Comet for `comet-control`;
   `context-ledger` controls nothing and has no inside mark (Guru 12:05 IST). The
   most recently seen controlling use wins.
 - Placement: right circles hang off the pill's right edge, **outside** the
   pill; the inside mark uses the existing left lead slot. The 6 pt compact
   status dot at a 9 pt inset from the right end is untouched.
-- Tooltip: `<plugin display> · <agents>`. VoiceOver: `<plugin display> in use by
-  <agents>` (for example "Comet Control in use by Claude and Codex"). The circle
-  names the agent using it; tapping it does nothing.
-- TTL drop: the hub removes a plugin row when `ttl_s` lapses. Plugin rows never
-  go stale and never show "updates stopped", so the ttl is the hold — pulse
-  while the use continues, or `end` to clear it at once.
+- Names in title case: Agent Computer Use, Comet Control, Context Ledger.
+  Tooltip: `<Plugin Name> · <agents>`. "Using <Plugin Name>" appears only in
+  VoiceOver (`Using Comet Control: Claude and Codex`) and in the expanded
+  island's row per use, never in the compact pill. Tapping a circle does nothing.
+- Dot: a plugin in use lights the blue #64D2FF working dot; red and amber still
+  win.
+- Drop: the hub removes a plugin row when `ttl_s` lapses (1 s sweep); the
+  circle fades out over 200 ms. Plugin rows never go stale and never show
+  "updates stopped".
 - `ACU_ISLAND_ACTIVITY=0` turns the signal off; tests are off by default via
   `scripts/check.py`.
 

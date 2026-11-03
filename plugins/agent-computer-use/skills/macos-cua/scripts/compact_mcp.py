@@ -89,16 +89,34 @@ def _activity() -> Any:
     return module
 
 
-def _pulse_activity() -> None:
+def _activity_key(activity: Any) -> tuple[str, str]:
+    agent = _agent_name()
+    shown = activity.normalize_agent(agent) if hasattr(activity, "normalize_agent") else agent
+    return agent, f"{shown}:{os.getpid()}"
+
+
+def _begin_activity() -> None:
+    """ACU mark holds while an act/state call runs."""
     activity = _activity()
     if activity is None:
         return
-    agent = _agent_name()
-    key = f"{agent}:{os.getpid()}"
     try:
-        if activity.pulse("acu", agent, key=key, hold_s=30.0):
+        agent, key = _activity_key(activity)
+        if activity.call_started("acu", agent, key=key, in_flight_s=120.0):
             _PULSED["on"] = True
             _PULSED["key"] = key
+    except Exception:
+        _ACTIVITY_FAILURES["count"] += 1
+
+
+def _finish_activity() -> None:
+    """The call ended (ok, failed or raised): the mark drops 2 s after this, never later."""
+    activity = _activity()
+    if activity is None:
+        return
+    try:
+        agent, key = _activity_key(activity)
+        activity.call_finished("acu", agent, key=key)
     except Exception:
         _ACTIVITY_FAILURES["count"] += 1
 
@@ -368,12 +386,16 @@ def call_tool(name: str, arguments: dict[str, Any] | None, *, modern: bool) -> d
     handler = HANDLERS.get(name)
     if handler is None:
         raise KeyError(name)
-    if name in ("act", "state"):
-        _pulse_activity()
+    tracked = name in ("act", "state")
+    if tracked:
+        _begin_activity()
     try:
         payload = handler(arguments or {})
     except Exception as exc:
         payload = {"ok": False, "error": str(exc)}
+    finally:
+        if tracked:
+            _finish_activity()
     failed = isinstance(payload, dict) and (
         payload.get("ok") is False or payload.get("error")
     )

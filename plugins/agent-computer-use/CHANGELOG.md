@@ -5,7 +5,8 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 ## 0.2.79 (unreleased; numbered past the in-flight 0.2.70–0.2.78 Samantha work)
 
 - Plugin activity on the Dynamic Island (Guru, 2026-11-03): one shared signal, `bin/island_activity.py` (`start`/`end`/`pulse` over the owner-only `island.sock`, body field `plugin`). Rows with `plugin` are not agent rows: the plugin's own mark sits on the RIGHT of the pill (ACU icon, comet-control and context-ledger logos; tooltip and VoiceOver name the agent), and the controlled target sits INSIDE the pill's lead slot in a spinning ring (Apple mark for ACU, Comet for comet-control; none for context-ledger). Left stays the agent-harness circles; the 6 pt compact dot is unchanged. The hub drops plugin rows at their TTL (never "updates stopped").
-- The ACU MCP reports `act`/`state` use per calling agent (30 s hold, cleared at MCP exit).
+- The ACU MCP reports `act`/`state` use per calling agent: held while the call runs, dropped 2 s after the last call (a failed call never holds it longer), cleared at MCP exit.
+- UI & UX review: the inside target sits on a 12 pt white tile in a 20 pt ring; a plugin in use lights the blue working dot (red and amber still win); names in title case ("Agent Computer Use"), "Using …" only in VoiceOver and the expanded row (one row per use); plugin circles fade out over 200 ms; one shared agent-name normaliser (`normalize_agent`) so "grok-bot" and "Grok Bot" are one name.
 
 ## 0.2.69 (unreleased: not tagged; waiting for Guru's OK)
 

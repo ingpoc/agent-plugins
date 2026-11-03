@@ -19,11 +19,21 @@ class FakeActivity:
         self.fail = fail
         self.calls: list[tuple[str, tuple, dict]] = []
 
-    def pulse(self, *args, **kwargs):
-        self.calls.append(("pulse", args, kwargs))
+    @staticmethod
+    def normalize_agent(name):
+        return " ".join(w[:1].upper() + w[1:] for w in str(name).replace("-", " ").split()) or "Agent"
+
+    def _record(self, kind, args, kwargs):
+        self.calls.append((kind, args, kwargs))
         if self.fail:
             raise RuntimeError("island down")
         return True
+
+    def call_started(self, *args, **kwargs):
+        return self._record("started", args, kwargs)
+
+    def call_finished(self, *args, **kwargs):
+        return self._record("finished", args, kwargs)
 
 
 class IslandNoteTests(unittest.TestCase):
@@ -35,17 +45,27 @@ class IslandNoteTests(unittest.TestCase):
         island.FAILURES["count"] = 0
         os.environ.pop("CONTEXT_LEDGER_ISLAND", None)
 
-    def test_pulse_carries_the_actor(self) -> None:
-        island.note_call({"actor": "  codex  "})
+    def test_started_and_finished_carry_the_actor(self) -> None:
+        island.note_started({"actor": "  codex  "})
+        island.note_finished({"actor": "codex"})
         self.assertEqual(
             self.fake.calls,
-            [("pulse", ("context-ledger", "codex"), {"key": "codex", "hold_s": 10.0})],
+            [
+                ("started", ("context-ledger", "codex"), {"key": "Codex", "in_flight_s": 60.0}),
+                ("finished", ("context-ledger", "codex"), {"key": "Codex"}),
+            ],
         )
+        self.assertIs(island.note_call, island.note_started)
+
+    def test_spellings_of_one_agent_share_one_row(self) -> None:
+        island.note_started({"actor": "grok-bot"})
+        island.note_started({"actor": "Grok Bot"})
+        self.assertEqual({c[2]["key"] for c in self.fake.calls}, {"Grok Bot"})
 
     def test_missing_actor_falls_back_to_agent(self) -> None:
-        island.note_call({})
+        island.note_started({})
         self.assertEqual(self.fake.calls[0][1], ("context-ledger", "agent"))
-        self.assertEqual(self.fake.calls[0][2]["key"], "agent")
+        self.assertEqual(self.fake.calls[0][2]["key"], "Agent")
 
     def test_disabled_environment_skips_the_signal(self) -> None:
         for value in ("0", "false", "OFF", " no "):
@@ -59,6 +79,9 @@ class IslandNoteTests(unittest.TestCase):
         with mock.patch.object(island, "_ACTIVITY", FakeActivity(fail=True)):
             island.note_call({"actor": "codex"})
         self.assertEqual(island.FAILURES["count"], 1)
+        with mock.patch.object(island, "_ACTIVITY", FakeActivity(fail=True)):
+            island.note_finished({"actor": "codex"})
+        self.assertEqual(island.FAILURES["count"], 2)
 
     def test_missing_module_is_a_silent_no_op(self) -> None:
         with mock.patch.object(island, "_ACTIVITY", None):
@@ -85,11 +108,24 @@ class ServerCallTests(unittest.TestCase):
         self.assertFalse(result.is_error)
         self.assertEqual(result.structured_content, {"ok": True, "data": {"value": 7}})
 
-    def test_call_pulses_before_running_the_tool(self) -> None:
+    def test_call_starts_before_and_finishes_after_the_tool(self) -> None:
         fake = FakeActivity()
+        seen: list[int] = []
         with mock.patch.object(island, "_ACTIVITY", fake):
-            server._call(lambda _arguments: {"value": 7}, {"actor": "codex"})
-        self.assertEqual(fake.calls[0][1], ("context-ledger", "codex"))
+            server._call(lambda _arguments: seen.append(len(fake.calls)) or {"value": 7}, {"actor": "codex"})
+        self.assertEqual(seen, [1])
+        self.assertEqual([c[0] for c in fake.calls], ["started", "finished"])
+
+    def test_a_failing_tool_still_finishes(self) -> None:
+        fake = FakeActivity()
+
+        def boom(_arguments):
+            raise RuntimeError("x")
+
+        with mock.patch.object(island, "_ACTIVITY", fake):
+            result = server._call(boom, {"actor": "codex"})
+        self.assertTrue(result.is_error)
+        self.assertEqual([c[0] for c in fake.calls], ["started", "finished"])
 
 
 if __name__ == "__main__":

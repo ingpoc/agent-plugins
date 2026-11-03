@@ -164,20 +164,80 @@ final class IslandPluginMarksTests: XCTestCase {
     }
 
     func testPluginLabelStringsTieTheCircleToItsAgent() {
-        XCTAssertEqual(IslandPluginLabel.display("Agent Computer Use"), "ACU")
+        // Title case everywhere; "Using …" only in VoiceOver and the expanded row (UI & UX, 2026-11-03).
+        XCTAssertEqual(IslandPluginLabel.display("Agent Computer Use"), "Agent Computer Use")
         XCTAssertEqual(IslandPluginLabel.display("comet-control"), "Comet Control")
         XCTAssertEqual(IslandPluginLabel.display("context-ledger"), "Context Ledger")
         XCTAssertEqual(IslandPluginLabel.display("Unknown"), "Unknown")
         XCTAssertEqual(IslandPluginLabel.tooltip(name: "comet-control", agents: ["Claude", "Codex"]),
                        "Comet Control · Claude, Codex")
         XCTAssertEqual(IslandPluginLabel.voiceOver(name: "comet-control", agents: ["Claude", "Codex"]),
-                       "Comet Control in use by Claude and Codex")
+                       "Using Comet Control: Claude and Codex")
         XCTAssertEqual(IslandPluginLabel.voiceOver(name: "Agent Computer Use", agents: ["A", "B", "C"]),
-                       "ACU in use by A, B and C")
+                       "Using Agent Computer Use: A, B and C")
         XCTAssertEqual(IslandPluginLabel.tooltip(name: "context-ledger", agents: ["Codex"]),
                        "Context Ledger · Codex")
-        XCTAssertEqual(IslandPluginLabel.voiceOver(name: "context-ledger", agents: ["Codex"]),
-                       "Context Ledger in use by Codex")
+        XCTAssertEqual(IslandPluginLabel.voiceOver(name: "context-ledger", agents: []), "Using Context Ledger")
+        XCTAssertEqual(IslandPluginLabel.rowTitle(name: "comet-control"), "Using Comet Control")
+        for name in ["Agent Computer Use", "comet-control", "context-ledger"] {
+            XCTAssertFalse(IslandPluginLabel.tooltip(name: name, agents: ["Codex"]).hasPrefix("Using"))
+        }
+    }
+
+    func testPluginInUseLightsTheWorkingDotButRedAndAmberWin() {
+        let model = IslandModel()
+        model.idleActivity = "agents"
+        model.apply(IslandSnapshot(kind: "idle"))
+        XCTAssertNil(model.compactDot)
+        model.apply(IslandSnapshot(kind: "idle", plugins: [use("comet-control", "Comet", "Codex")]))
+        XCTAssertEqual(model.compactDot, .working)
+        XCTAssertTrue(model.compactPillLabel.contains("Using Comet Control: Codex"))
+        let ask = IslandAgent(id: "agent:a", name: "Claude", app: "Claude", title: "Ask", status: "needs_you",
+                              needs_you: true, last_seen_at: 100)
+        model.apply(IslandSnapshot(kind: "idle", agents: [ask], plugins: [use("acu", "Agent Computer Use", "Codex")]))
+        XCTAssertEqual(model.compactDot, .needsYou)
+        let failed = IslandAgent(id: "agent:f", name: "Codex", app: "Codex", title: "Build", status: "error",
+                                 last_seen_at: 100)
+        model.apply(IslandSnapshot(kind: "idle", agents: [failed, ask], plugins: [use("acu", "Agent Computer Use", "Codex")]))
+        XCTAssertEqual(model.compactDot, .failed)
+    }
+
+    func testExpandedListShowsOneUsingRowPerPluginUse() {
+        let model = IslandModel()
+        model.idleActivity = "agents"
+        model.apply(IslandSnapshot(kind: "idle", plugins: [
+            use("comet-control", "comet-control", "Smallcase Manager"), use("acu", "Agent Computer Use", "Grok Bot"),
+        ]))
+        let rows = model.listRows.filter { $0.id.hasPrefix("plugin:") }
+        XCTAssertEqual(rows.map(\.title), ["Using Agent Computer Use", "Using Comet Control"])
+        XCTAssertEqual(rows.map(\.name), ["Grok Bot", "Smallcase Manager"])
+        XCTAssertEqual(rows.map(\.app), ["Agent Computer Use", "comet-control"])
+        XCTAssertTrue(model.sourceGroups.isEmpty, "plugin rows never become left harness circles")
+    }
+
+    func testPluginRowMayHoldForTwoSecondsAndDropsAfter() {
+        let hub = IslandHub(store: store)
+        let now = Date()
+        _ = post(hub, pluginBody(plugin: "acu", id: "plugin:acu:k", agent: "Codex", app: "Agent Computer Use", ttl: 2),
+                 now: now)
+        XCTAssertEqual(hub.compose(now: now.addingTimeInterval(1.9)).plugins.count, 1, "held 2 s, not raised to 5")
+        hub.expire(now: now.addingTimeInterval(2.0))
+        XCTAssertTrue(hub.compose(now: now.addingTimeInterval(2.0)).plugins.isEmpty)
+        // A normal agent row keeps its 5 s floor.
+        _ = post(hub, ["source": "agent", "id": "r", "kind": "running", "name": "Codex", "app": "Codex",
+                       "title": "t", "ttl_s": 2], now: now)
+        XCTAssertEqual(hub.compose(now: now.addingTimeInterval(4)).agents.filter { $0.status == "running" }.count, 1)
+    }
+
+    func testTargetMarkTileReadsAtOneX() {
+        XCTAssertGreaterThanOrEqual(IslandPluginTargetMark.tileSize, 12)
+        XCTAssertGreaterThan(IslandPluginTargetMark.ringDiameter - 2 * IslandPluginTargetMark.ringLine,
+                             IslandPluginTargetMark.tileSize)
+        XCTAssertLessThanOrEqual(IslandPluginTargetMark.ringDiameter, IslandBarLayout.compactHeight)
+        // The tile's rounded corners clear the ring's inner edge.
+        let t = IslandPluginTargetMark.tileSize, r = IslandPluginTargetMark.tileRadius(t)
+        let corner = (t / 2 - r) * 2.squareRoot() + r
+        XCTAssertLessThan(corner, IslandPluginTargetMark.ringDiameter / 2 - IslandPluginTargetMark.ringLine)
     }
 
     // MARK: - Model
@@ -220,7 +280,7 @@ final class IslandPluginMarksTests: XCTestCase {
 
     private func save(_ model: IslandModel, _ name: String, dir: String) async throws {
         try await Task.sleep(nanoseconds: 800_000_000)  // let transitions settle
-        let rect = model.shapeRect.insetBy(dx: model.cardOpen ? -40 : -100, dy: -6).offsetBy(dx: 0, dy: 3)
+        let rect = model.shapeRect.insetBy(dx: model.cardOpen ? -40 : -140, dy: -6).offsetBy(dx: 0, dy: 3)
         let view = SamanthaIslandBar(model: model).environment(\.colorScheme, .dark)
             .background(Color(white: 0.18))
         let r = ImageRenderer(content: view)
@@ -247,38 +307,32 @@ final class IslandPluginMarksTests: XCTestCase {
         let plugins = URL(fileURLWithPath: #filePath).deletingLastPathComponent()  // CUAServiceTests
             .appendingPathComponent("../../../../../../").standardized
         setenv("ACU_PLUGIN_LOGO_ROOT", plugins.path, 1)
-        var codex = IslandAgent(id: "agent:codex-1", name: "Codex", app: "Codex",
-                                title: "Implement plugin marks", status: "running", last_seen_at: 100)
-        codex.elapsed_s = 42
-        let uses = [
-            use("acu", "Agent Computer Use", "Codex"),
-            use("comet-control", "Comet", "Claude"),
-            use("comet-control", "Comet", "Codex"),
-            use("context-ledger", "Context Ledger", "Codex"),
-        ]
-
-        let active = IslandModel()
-        active.idleActivity = "duo"
-        active.apply(IslandSnapshot(kind: "idle", agents: [codex], plugins: uses))
-        try await save(active, "plugin-marks-active", dir: dir)
-
-        let cleared = IslandModel()
-        cleared.idleActivity = "duo"
-        cleared.apply(IslandSnapshot(kind: "idle", agents: [codex]))
-        try await save(cleared, "plugin-marks-cleared", dir: dir)
-
-        // One case per plugin: centre (lead slot) = controlled target + ring, right = plugin mark.
-        let cases: [(String, IslandPluginUse)] = [
-            ("plugin-acu", use("acu", "Agent Computer Use", "Codex")),
-            ("plugin-comet-control", use("comet-control", "Comet", "Codex")),
-            ("plugin-context-ledger", use("context-ledger", "Context Ledger", "Codex")),
-        ]
-        for (name, u) in cases {
+        func agent(_ name: String, _ app: String) -> IslandAgent {
+            var a = IslandAgent(id: "agent:\(name)", name: name, app: app, title: "Task", status: "running", last_seen_at: 100)
+            a.elapsed_s = 42
+            return a
+        }
+        let codex = agent("Codex", "Codex")
+        func render(_ name: String, agents: [IslandAgent], uses: [IslandPluginUse], apps: [String] = []) async throws {
             let m = IslandModel()
             m.idleActivity = "duo"
-            m.apply(IslandSnapshot(kind: "idle", agents: [codex], plugins: [u]))
+            m.apply(IslandSnapshot(kind: "idle", active_apps: apps, agents: agents, plugins: uses))
             try await save(m, name, dir: dir)
         }
+        var acu = use("acu", "Agent Computer Use", "Codex"); acu.last_seen_at = 200
+        let comet = use("comet-control", "comet-control", "Codex")
+        try await render("plugin-acu", agents: [codex], uses: [acu])
+        try await render("plugin-comet-control", agents: [codex], uses: [comet])
+        try await render("plugin-context-ledger", agents: [codex], uses: [use("context-ledger", "context-ledger", "Codex")])
+        // Both controlling plugins at once: the newer use (ACU) owns the inside mark.
+        try await render("plugin-both-active", agents: [codex], uses: [acu, comet])
+        // 4+ agents across all three plugins + one Samantha app: left and right both collapse to "+N".
+        let four = [agent("Codex", "Codex"), agent("Claude", "Claude"), agent("Cursor", "Cursor"), agent("Grok Bot", "Grok Bot")]
+        try await render("plugin-overflow-4-agents", agents: four, uses: [
+            acu, use("acu", "Agent Computer Use", "Claude"), comet, use("comet-control", "comet-control", "Cursor"),
+            use("context-ledger", "context-ledger", "Grok Bot"),
+        ], apps: ["Finder"])
+        try await render("plugin-marks-cleared", agents: [codex], uses: [])
     }
 
     /// Replays island posts recorded from real plugin use (one JSON line per post: {"t", "body"}) through
@@ -304,7 +358,21 @@ final class IslandPluginMarksTests: XCTestCase {
             m.apply(hub.compose(now: now))
             let kind = body["kind"] as? String ?? "?"
             let plugin = (body["id"] as? String ?? "").split(separator: ":").dropFirst().first.map(String.init) ?? "row"
-            try await save(m, String(format: "recorded-%02d-%@-%@", i + 1, plugin, kind), dir: dir)
+            let ttl = (body["ttl_s"] as? Double) ?? 0
+            let label = kind == "running" && ttl <= 2 ? "finished" : kind
+            try await save(m, String(format: "recorded-%02d-%@-%@", i + 1, plugin, label), dir: dir)
+            // After a "finished" post (ttl 2 s), and when no post lands inside that window, render the drop.
+            let nextT = lines.dropFirst(i + 1).lazy.compactMap { l -> Double? in
+                (try? JSONSerialization.jsonObject(with: Data(l.utf8)) as? [String: Any])?["t"] as? Double
+            }.first
+            if label == "finished", nextT.map({ $0 >= t + 2.1 }) ?? true {
+                let later = Date(timeIntervalSince1970: t + 2.1)
+                hub.expire(now: later)
+                let gone = IslandModel()
+                gone.idleActivity = "duo"
+                gone.apply(hub.compose(now: later))
+                try await save(gone, String(format: "recorded-%02d-%@-cleared-2s", i + 1, plugin), dir: dir)
+            }
         }
     }
 

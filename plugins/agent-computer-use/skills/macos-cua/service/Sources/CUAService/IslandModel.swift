@@ -381,6 +381,8 @@ enum IslandCircleItem: Equatable, Identifiable {
         case .overflow: return "overflow"
         }
     }
+
+    var isPlugin: Bool { if case .plugin = self { return true } else { return false } }
 }
 
 /// What a plugin controls, drawn inside the pill's lead slot with a spinning ring while in use
@@ -416,7 +418,7 @@ enum IslandPluginTarget: Equatable {
 /// Display copy for a plugin circle: the plugin name, tied to the agent(s) using it.
 enum IslandPluginLabel {
     static let displayNames: [String: String] = [
-        "Agent Computer Use": "ACU",
+        "Agent Computer Use": "Agent Computer Use",
         "comet-control": "Comet Control",
         "context-ledger": "Context Ledger",
     ]
@@ -439,14 +441,17 @@ enum IslandPluginLabel {
         return who.isEmpty ? display(name) : "\(display(name)) · \(who)"
     }
 
-    /// "<display> in use by <agents joined with ", " and final " and ">"
+    /// "Using <display>": VoiceOver and the expanded row only, never the compact pill (UI & UX, 2026-11-03).
+    static func rowTitle(name: String) -> String { "Using \(display(name))" }
+
+    /// "Using <display>: <agents joined with ", " and final " and ">"
     static func voiceOver(name: String, agents: [String]) -> String {
-        guard !agents.isEmpty else { return "\(display(name)) in use" }
+        guard !agents.isEmpty else { return rowTitle(name: name) }
         let who: String
         if agents.count == 1 { who = agents[0] }
         else if agents.count == 2 { who = agents[0] + " and " + agents[1] }
         else { who = agents.dropLast().joined(separator: ", ") + " and " + agents[agents.count - 1] }
-        return "\(display(name)) in use by \(who)"
+        return "\(rowTitle(name: name)): \(who)"
     }
 }
 
@@ -815,7 +820,8 @@ final class IslandModel: ObservableObject {
             !a.needs_you && (a.status == "error" || a.status == "stale") && seenFailures[a.id] != Self.failureSignature(a)
         }) { return .failed }
         if tasks.contains(where: { $0.needs_you || $0.status == "needs_you" }) { return .needsYou }
-        if anyAgentRunning { return .working }
+        // A plugin in use lights the blue working dot too; red and amber above still win.
+        if anyAgentRunning || !pluginUses.isEmpty { return .working }
         return nil
     }
 
@@ -839,6 +845,9 @@ final class IslandModel: ObservableObject {
             running[name(a), default: 0] += 1
         }
         for n in order { parts.append((running[n]! > 1 ? "\(running[n]!) " : "") + n + " working") }
+        for case .plugin(let n, let who) in IslandCircles.pluginItems(pluginUses) {
+            parts.append(IslandPluginLabel.voiceOver(name: n, agents: who))
+        }
         return parts.joined(separator: ", ")
     }
 
@@ -1676,10 +1685,22 @@ final class IslandModel: ObservableObject {
         if isChoiceCard, cardOpen { beginTextEntry(focusField: agentApproval?.allow_text == true) }
     }
 
-    /// Agent list rows: live agents, then timed-out cards (hollow red ring).
+    /// Agent list rows: live agents, plugins in use ("Using Comet Control"), then timed-out cards (hollow red ring).
     var listRows: [IslandAgent] {
-        IslandAgentRows.taskAgents(agents) + expired.reversed().map {
+        IslandAgentRows.taskAgents(agents) + pluginListRows + expired.reversed().map {
             IslandAgent(id: "expired:" + $0.id, name: $0.agent, app: $0.app, title: $0.title, status: "expired")
+        }
+    }
+
+    /// One expanded row per plugin use, in the circles' order: the agent's name, the plugin mark, "Using <plugin>".
+    var pluginListRows: [IslandAgent] {
+        func rank(_ u: IslandPluginUse) -> Int {
+            IslandCircles.pluginOrder.firstIndex(of: IslandPluginLabel.markName(plugin: u.plugin, app: u.app)) ?? Int.max
+        }
+        return pluginUses.sorted { (rank($0), $0.agent) < (rank($1), $1.agent) }.map { u in
+            let mark = IslandPluginLabel.markName(plugin: u.plugin, app: u.app)
+            return IslandAgent(id: "plugin:\(u.plugin)|\(u.agent)", name: u.agent, app: mark,
+                               title: IslandPluginLabel.rowTitle(name: mark), status: "running")
         }
     }
 

@@ -23,7 +23,7 @@ Never dual-drive Browser Use CLI and `send` (optional bridge: [browser-use.md](r
 3. **Act-first.** Batch mutations + `expect`; request only the relevant `page_context.sections`. Reuse verified results instead of observing after every action. Check `response.success` and each `expect_ok`; a failed `send` also exits nonzero. Screenshots only for visual claims. Act within 2 observes. ≤1 observe/30s while waiting OS/CUA. Watchable clicks keep the labeled cursor visible through CDP (`cursor_visible_during_click`); no park between chained acts — park only silent/closeout.
 4. Closeout once; require `verified_absent: true`.
 
-Every active lease shows on the ACU Dynamic Island (Comet icon + your agent label) until closeout or TTL expiry. The broker posts it; agents only pass a clear `--label` at `start` ([island.md](references/island.md)).
+Every active lease shows on the ACU Dynamic Island (Comet Control mark on the right, Comet inside, your agent label) until closeout or TTL expiry. The broker posts it; agents only pass a clear `--label` at `start` ([island.md](references/island.md)).
 
 ## Boundaries
 

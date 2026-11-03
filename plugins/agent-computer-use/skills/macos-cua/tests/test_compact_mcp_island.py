@@ -25,17 +25,24 @@ class FakeActivity:
         self.fail = fail
         self.calls: list[tuple[str, tuple, dict]] = []
 
-    def pulse(self, *args, **kwargs):
-        self.calls.append(("pulse", args, kwargs))
+    @staticmethod
+    def normalize_agent(name):
+        return " ".join(w[:1].upper() + w[1:] for w in str(name).replace("-", " ").split()) or "Agent"
+
+    def _record(self, kind, args, kwargs):
+        self.calls.append((kind, args, kwargs))
         if self.fail:
             raise RuntimeError("island down")
         return True
 
+    def call_started(self, *args, **kwargs):
+        return self._record("started", args, kwargs)
+
+    def call_finished(self, *args, **kwargs):
+        return self._record("finished", args, kwargs)
+
     def end(self, *args, **kwargs):
-        self.calls.append(("end", args, kwargs))
-        if self.fail:
-            raise RuntimeError("island down")
-        return True
+        return self._record("end", args, kwargs)
 
 
 class CompactMcpIslandTests(unittest.TestCase):
@@ -67,17 +74,37 @@ class CompactMcpIslandTests(unittest.TestCase):
         self.assertEqual(compact_mcp._CLIENT["name"], "Cursor Agent")
         self.assertEqual(compact_mcp._agent_name(), "Cursor Agent")
 
-    def test_act_pulses_acu_activity_for_the_agent(self) -> None:
+    def _expected(self, agent: str, shown: str) -> list:
+        key = f"{shown}:{os.getpid()}"
+        return [
+            ("started", ("acu", agent), {"key": key, "in_flight_s": 120.0}),
+            ("finished", ("acu", agent), {"key": key}),
+        ]
+
+    def test_act_holds_while_running_then_finishes(self) -> None:
         compact_mcp._CLIENT["name"] = "Cursor"
-        patcher = mock.patch.dict(compact_mcp.HANDLERS, {"act": lambda _args: {"ok": True}})
-        with patcher:
+        with mock.patch.dict(compact_mcp.HANDLERS, {"act": lambda _args: {"ok": True}}):
             result = self._act()
         self.assertTrue(result["structuredContent"]["ok"])
-        agent = "Cursor"
-        self.assertEqual(
-            self.fake.calls,
-            [("pulse", ("acu", agent), {"key": f"{agent}:{os.getpid()}", "hold_s": 30.0})],
-        )
+        self.assertEqual(self.fake.calls, self._expected("Cursor", "Cursor"))
+
+    def test_failed_payload_still_finishes_at_once(self) -> None:
+        compact_mcp._CLIENT["name"] = "grok-bot"
+        with mock.patch.dict(compact_mcp.HANDLERS, {"act": lambda _args: {"ok": False, "error": "x"}}):
+            result = self._act()
+        self.assertTrue(result["isError"])
+        self.assertEqual(self.fake.calls, self._expected("grok-bot", "Grok Bot"))
+
+    def test_raising_handler_still_finishes_at_once(self) -> None:
+        compact_mcp._CLIENT["name"] = "Cursor"
+
+        def boom(_args):
+            raise RuntimeError("stale client")
+
+        with mock.patch.dict(compact_mcp.HANDLERS, {"state": boom}):
+            result = compact_mcp.call_tool("state", {"app": "Finder"}, modern=False)
+        self.assertTrue(result["isError"])
+        self.assertEqual([c[0] for c in self.fake.calls], ["started", "finished"])
 
     def test_sessions_never_pulses(self) -> None:
         with mock.patch.dict(compact_mcp.HANDLERS, {"sessions": lambda _args: {"ok": True}}):
@@ -93,7 +120,8 @@ class CompactMcpIslandTests(unittest.TestCase):
         finally:
             os.environ.pop("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", None)
         self.assertEqual(self.fake.calls[0][1], ("acu", "grokbot.cursor"))
-        self.assertEqual(self.fake.calls[0][2]["hold_s"], 30.0)
+        self.assertEqual(self.fake.calls[0][2]["in_flight_s"], 120.0)
+        self.assertEqual(self.fake.calls[1][0], "finished")
 
     def test_eof_ends_the_row_once(self) -> None:
         with mock.patch.dict(compact_mcp.HANDLERS, {"act": lambda _args: {"ok": True}}):
@@ -118,7 +146,7 @@ class CompactMcpIslandTests(unittest.TestCase):
         ):
             result = self._act()
         self.assertEqual(result["structuredContent"], {"ok": True, "value": 1})
-        self.assertEqual(compact_mcp._ACTIVITY_FAILURES["count"], 1)
+        self.assertEqual(compact_mcp._ACTIVITY_FAILURES["count"], 2)  # started + finished
         self.assertFalse(compact_mcp._PULSED["on"])
 
 

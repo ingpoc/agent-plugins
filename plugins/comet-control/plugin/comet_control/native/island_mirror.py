@@ -28,9 +28,10 @@ ISLAND_APP = "comet-control"
 ROW_TITLE = "Using Comet Control"
 ROW_META = "comet-control"
 PLUGIN_NAME = "comet-control"
-POLL_SECONDS = 5.0
+POLL_SECONDS = 1.0
 HEARTBEAT_SECONDS = 20.0
-TTL_GRACE_SECONDS = 15.0
+TTL_GRACE_SECONDS = 2.0
+LINGER_SECONDS = 2.0
 MIN_TTL = 30.0
 MAX_TTL = 3600.0
 MISS_LIMIT = 3
@@ -164,6 +165,15 @@ def _clear_body(rid: str) -> dict:
     return {"source": ISLAND_SOURCE, "id": rid, "kind": "clear"}
 
 
+def _linger_body(body: dict, activity=None) -> dict:
+    """The released lease's row, held LINGER_SECONDS more so the circle drops 2 s after release."""
+    if activity is not None and hasattr(activity, "linger"):
+        return activity.linger(body)
+    out = dict(body)
+    out["ttl_s"] = LINGER_SECONDS
+    return out
+
+
 class IslandMirror:
     """Polls the broker lease list and keeps one island row per active lease."""
 
@@ -243,19 +253,25 @@ class IslandMirror:
                 posted_ok += 1
         cleared_ok = 0
         for rid in clears:
-            if self.publish(_clear_body(rid)):
-                self.posted.pop(rid, None)
-                self.last_body.pop(rid, None)
+            if self._release(rid):
                 cleared_ok += 1
         if set(self.posted) != before:
             self.save_state()
         return {"active": len(active), "posted": posted_ok, "cleared": cleared_ok, "error": False}
 
+    def _release(self, rid: str) -> bool:
+        """Lease gone: linger its row 2 s (orphan ids from the state file are cleared outright)."""
+        last = self.last_body.get(rid)
+        body = _linger_body(last, self.activity) if last is not None else _clear_body(rid)
+        if not self.publish(body):
+            return False
+        self.posted.pop(rid, None)
+        self.last_body.pop(rid, None)
+        return True
+
     def shutdown(self) -> None:
         for rid in sorted(self.posted):
-            if self.publish(_clear_body(rid)):
-                self.last_body.pop(rid, None)
-                self.posted.pop(rid, None)
+            self._release(rid)
         self.save_state()
 
     def run(self, stop: threading.Event, interval: float = POLL_SECONDS) -> None:

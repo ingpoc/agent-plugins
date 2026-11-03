@@ -134,7 +134,7 @@ class RowBodyTests(unittest.TestCase):
                 "title": "Using Comet Control",
                 "meta": "comet-control",
                 "plugin": "comet-control",
-                "ttl_s": 75.0,
+                "ttl_s": 62.0,  # lease left (60 s) + 2 s
             },
         )
 
@@ -324,9 +324,11 @@ class TickTests(MirrorTestCase):
         leases.clear()
         closed = instance.tick()
         self.assertEqual(closed, {"active": 0, "posted": 0, "cleared": 1, "error": False})
-        self.assertEqual(
-            recorded.calls[-1], {"source": "agent", "id": "plugin:comet-control:s1", "kind": "clear"}
-        )
+        # Released: the same row lingers 2 s, then the hub drops it (no instant clear).
+        self.assertEqual(recorded.calls[-1]["id"], "plugin:comet-control:s1")
+        self.assertEqual(recorded.calls[-1]["kind"], "running")
+        self.assertEqual(recorded.calls[-1]["ttl_s"], 2.0)
+        self.assertEqual(recorded.calls[-1]["name"], "Claude Code")
         self.assertEqual(instance.posted, {})
 
     def test_heartbeat_reposts_an_unchanged_body(self) -> None:
@@ -375,12 +377,12 @@ class TickTests(MirrorTestCase):
         final = instance.tick()
         self.assertEqual(final, {"active": 0, "posted": 0, "cleared": 1, "error": False})
         self.assertEqual(instance.posted, {})
-        self.assertEqual(recorded.calls[-1]["kind"], "clear")
+        self.assertEqual((recorded.calls[-1]["kind"], recorded.calls[-1]["ttl_s"]), ("running", 2.0))
 
     def test_a_failed_clear_is_retried_on_the_next_tick(self) -> None:
         clock = Clock()
         leases = [{"session_id": "s1", "expires_at": 1_060_000}]
-        recorded = Recorder(refuse=lambda body: body["kind"] == "clear")
+        recorded = Recorder(refuse=lambda body: body.get("ttl_s") == 2.0)
         instance = mirror.IslandMirror(lambda: leases, recorded, self.state, clock)
         instance.tick()
 
@@ -393,7 +395,24 @@ class TickTests(MirrorTestCase):
         retried = instance.tick()
         self.assertEqual(retried, {"active": 0, "posted": 0, "cleared": 1, "error": False})
         self.assertEqual(instance.posted, {})
-        self.assertEqual(recorded.kinds(), ["running", "clear", "clear"])
+        self.assertEqual([c.get("ttl_s") for c in recorded.calls], [62.0, 2.0, 2.0])
+
+
+class TimingTests(unittest.TestCase):
+    def test_release_is_seen_within_a_second_and_expiry_holds_two_seconds(self) -> None:
+        self.assertEqual(mirror.POLL_SECONDS, 1.0)
+        self.assertEqual(mirror.TTL_GRACE_SECONDS, 2.0)
+        self.assertEqual(mirror.LINGER_SECONDS, 2.0)
+        self.assertLess(mirror.HEARTBEAT_SECONDS, mirror.MIN_TTL)  # broker-crash expiry is the row ttl
+
+    def test_linger_prefers_the_shared_module(self) -> None:
+        class Shared:
+            @staticmethod
+            def linger(body):
+                return {**body, "ttl_s": 2.0, "via": "shared"}
+
+        self.assertEqual(mirror._linger_body({"id": "x", "ttl_s": 600.0}, Shared())["via"], "shared")
+        self.assertEqual(mirror._linger_body({"id": "x", "ttl_s": 600.0})["ttl_s"], 2.0)
 
 
 class StateTests(MirrorTestCase):
@@ -432,7 +451,7 @@ class StateTests(MirrorTestCase):
         self.assertEqual(recorded.calls[0]["id"], "comet-lease:legacy")
         self.assertEqual(recorded.calls[0]["kind"], "clear")
 
-    def test_shutdown_clears_every_posted_row(self) -> None:
+    def test_shutdown_lingers_known_rows_and_clears_orphans(self) -> None:
         clock = Clock()
         leases = [
             {"session_id": "s1", "expires_at": 1_060_000},
@@ -444,7 +463,7 @@ class StateTests(MirrorTestCase):
         instance.shutdown()
 
         self.assertEqual(instance.posted, {})
-        self.assertEqual(recorded.kinds()[-2:], ["clear", "clear"])
+        self.assertEqual([(c["kind"], c["ttl_s"]) for c in recorded.calls[-2:]], [("running", 2.0)] * 2)
         self.assertEqual(
             {call["id"] for call in recorded.calls[-2:]}, {"plugin:comet-control:s1", "plugin:comet-control:s2"}
         )
