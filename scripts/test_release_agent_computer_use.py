@@ -112,7 +112,7 @@ class ReleaseTests(unittest.TestCase):
 
     def run_release(self, directory, *, source_exit=0, sign_only=False):
         args = argparse.Namespace(report=Path(directory)/'receipt.json',
-                                  verify_installed=True,sign_only=sign_only)
+                                  verify_installed=True,sign_only=sign_only,hygiene_override=False)
         identity = {'version':'0.2.32','sha256':'fingerprint'}
         contract = Mock();contract.package_identity.return_value = identity
         def output(command, **kwargs):
@@ -125,6 +125,7 @@ class ReleaseTests(unittest.TestCase):
             calls.append(command)
             return Mock(returncode=source_exit if command[-1:] == ['scripts/check.py'] else 0)
         with patch.object(release,'output',side_effect=output), \
+             patch.object(release,'hygiene_gate',return_value={'checked':False}), \
              patch.object(release,'frozen'), \
              patch.object(release,'policy',return_value={'version':'0.2.32'}), \
              patch.object(release,'contract_module',return_value=contract), \
@@ -159,6 +160,58 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(receipt['identity']['sha256'],'fingerprint')
         self.assertTrue(all(s['ok'] for s in receipt['steps']))
         self.assertTrue(any(c[:3] == ['xcrun','stapler','validate'] for c in calls))
+
+
+class HygieneGateTests(unittest.TestCase):
+    ROWS = [
+        {'check':'worktree-placement','status':'FAIL','items':[
+            '/Users/u/Library/Caches/agent-plugins-origin-ci/wt',
+            '/Users/u/code/wt/agent-plugins-old']},
+        {'check':'local-only-work','status':'FAIL','items':[
+            '/Users/u/code/agent-plugins:codex/x: 2 local-only commit(s)',
+            '/Users/u/code/agent-plugins-site:main: 4 local-only commit(s)']},
+        {'check':'duplicate-clones','status':'PASS','items':['/Users/u/code/agent-plugins']},
+        {'check':'worktree-age','status':'FAIL','items':['/Users/u/code/agent-plugins']},
+    ]
+
+    def test_only_gated_fails_naming_an_agent_plugins_checkout_count(self):
+        found = release.hygiene_failures(self.ROWS)
+        self.assertEqual(len(found),1)
+        self.assertIn('local-only-work: /Users/u/code/agent-plugins:codex/x',found[0])
+
+    def tool(self, directory, rows):
+        tool = Path(directory)/'hygiene.py'
+        tool.write_text('import json,sys\nprint(json.dumps(%r))\n' % (rows,))
+        return tool
+
+    def test_gate_blocks_without_override_and_records_override(self):
+        with tempfile.TemporaryDirectory() as td, \
+             patch.dict(os.environ,{'AGENT_PLUGINS_HYGIENE':str(self.tool(td,self.ROWS))}):
+            with self.assertRaisesRegex(RuntimeError,'hygiene check fails for agent-plugins'):
+                release.hygiene_gate(False)
+            result = release.hygiene_gate(True)
+        self.assertTrue(result['override'])
+        self.assertEqual(len(result['failures']),1)
+
+    def test_clean_machine_passes(self):
+        with tempfile.TemporaryDirectory() as td, \
+             patch.dict(os.environ,{'AGENT_PLUGINS_HYGIENE':str(self.tool(td,self.ROWS[2:3]))}):
+            self.assertEqual(release.hygiene_gate(False)['failures'],[])
+
+    def test_failed_hygiene_stops_before_source_checks(self):
+        args = argparse.Namespace(verify_installed=True,sign_only=False,hygiene_override=False)
+        with tempfile.TemporaryDirectory() as td:
+            args.report = Path(td)/'receipt.json'
+            with patch.object(release,'output',return_value='a'*40), \
+                 patch.object(release,'frozen'), \
+                 patch.object(release,'policy',return_value={}), \
+                 patch.object(release,'hygiene_gate',side_effect=RuntimeError('hygiene check fails')), \
+                 patch.object(release.subprocess,'run') as run:
+                code = release.release(args)
+            receipt = json.loads(args.report.read_text())
+        self.assertEqual(code,1)
+        self.assertEqual(receipt['steps'],[])
+        run.assert_not_called()
 
 
 if __name__ == '__main__':
