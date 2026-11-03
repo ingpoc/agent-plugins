@@ -15,6 +15,9 @@ enum IslandMotion {
 
     static func open(cardOpen: Bool, reduce: Bool) -> Animation { reduce ? crossfade : (cardOpen ? openSpring : closeSpring) }
     static func width(reduce: Bool) -> Animation { reduce ? crossfade : widthCurve }
+    /// Operated app icons added or removed: a ~250 ms spring on the pill width (crossfade with Reduce Motion).
+    static let operatedSpring = Animation.spring(response: 0.25, dampingFraction: 0.9)
+    static func operatedWidth(reduce: Bool) -> Animation { reduce ? crossfade : operatedSpring }
     static func pop(reduce: Bool) -> Animation { reduce ? crossfade : openSpring }
     static func target(_ on: Bool, reduce: Bool) -> Animation { reduce ? crossfade : (on ? openSpring : closeSpring) }
     /// Scale-in transitions become plain fades.

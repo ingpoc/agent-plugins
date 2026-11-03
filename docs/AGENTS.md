@@ -13,6 +13,7 @@ GitHub <https://github.com/ingpoc/agent-plugins> is an outbound mirror. A merge 
 
 Install still uses the GitHub URL. Marketplace registration is unchanged. Plugin versions stay put unless installed package contents change.
 
+Develop → maintain → release → sync → refresh, for every harness: [`dev-lifecycle.md`](dev-lifecycle.md).
 ACU release and installed/live proof: [`release-agent-computer-use.md`](release-agent-computer-use.md).
 The source policy is part of the existing required `scripts/check.py` check.
 Use its single release command; a source-only green check is not release proof.

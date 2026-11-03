@@ -68,6 +68,71 @@ Use **⌃⌘I** to navigate the open island with arrow keys or Tab. Navigation
 covers every actionable roster row in display order and scrolls focused rows
 into view. VoiceOver labels include the task, state, and parent relationship.
 
+## Plugin marks (right side)
+
+A plugin an agent is using shows as a circle on the **right of the compact
+pill**, after Samantha's app circles. The left side stays the agent harness
+(source) circles; a plugin is never drawn there.
+
+- Bodies come from the shared `bin/island_activity.py`: `call_started(plugin,
+  agent, key)` holds the row while a call runs, `call_finished(...)` leaves it 2 s
+  (`CLEAR_AFTER_S`) after the last call, ok or failed; `start`/`end`/`pulse`/
+  `linger` for long-lived uses. A post is source `agent` with keys `id`
+  (`plugin:<plugin>:<key>`), `kind` (`running`/`clear`), `name` (the agent),
+  `app` (the plugin's island app name), `title` (`Using <Plugin Name>`), `meta`,
+  `plugin`, and `ttl_s` (plugin rows may go down to 1 s; other rows keep 5 s).
+- Agent names go through the one shared `normalize_agent` (split on space, `-`,
+  `_`, `.`; lowercase words capitalised): "grok-bot" and "Grok Bot" are one name.
+- Allowed `plugin` values: `acu`, `comet-control`, `context-ledger`. Any other
+  value is ignored and the row stays a normal agent row. One circle per plugin,
+  agents grouped. The right mark is the plugin's own: ACU's app icon, else
+  `<plugins>/<id>/assets/logo.svg` (`~/.agents/plugins`, `ACU_PLUGIN_LOGO_ROOT`).
+- Inside the pill (over the idle/done-settled lead slot, drawn at real size): what
+  the plugin controls on a 12 pt white tile in a 20 pt spinning ring — Apple mark for `acu` (the Mac), Comet for `comet-control`;
+  `context-ledger` controls nothing and has no inside mark (Guru 12:05 IST). The
+  most recently seen controlling use wins the ring; VoiceOver names every
+  target, newest first ("Controlling Comet and Mac").
+- Placement: right circles hang off the pill's right edge, **outside** the
+  pill; the inside mark uses the existing left lead slot. The 6 pt compact
+  status dot at a 9 pt inset from the right end is untouched.
+- Names in title case: Agent Computer Use, Comet Control, Context Ledger.
+  Tooltip: `<Plugin Name> · <agents>`. "Using <Plugin Name>" appears only in
+  VoiceOver (`Using Comet Control: Claude and Codex`) and in the expanded
+  island's row per use, never in the compact pill. Tapping a circle does nothing.
+- Dot: a plugin in use lights the blue #64D2FF working dot; red and amber still
+  win.
+- Samantha, same language (Guru 2026-11-03 13:10 IST): voice-cua's
+  `plugin_island.py` posts her `cua_*` tools as `acu` and `comet_*` tools as
+  `comet-control` through `island_activity.py` (agent "Samantha"). While she
+  acts: her circle on the left, the target ring inside (the progress ring and
+  driven-app lead icon give way), the 6 pt blue dot as the trail, the plugin mark
+  on the right. Comet is no longer a right-side app circle.
+- Operated Mac apps, any agent (Guru 2026-11-03 13:27 IST): each ACU `act` /
+  `state` call sends its `app` as `target_app` on its own row (key
+  `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
+  The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
+  app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
+  Fixed gaps (UI & UX): ring, 8 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
+  9 pt inset. The compact pill hugs exactly that in every state, Samantha's
+  included (71 pt for one, 111 for three, 131 for 3 + N); "+N" is SF Pro
+  Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
+  (TextEdit; detected generically by `AppIconResolver.isBlank`) draws on the
+  target mark's white rounded tile with a dark glyph. Width changes from icons
+  spring over ~250 ms straight to the fitted width (no 160 ms squeeze to 74 pt;
+  crossfade with Reduce Motion); icons fade in and out over 200 ms.
+- Left is harness-only: a row posted under a plugin identity (ACU, Agent
+  Computer Use, Comet Control, Context Ledger) maps to its calling harness (the
+  `acu_exec` initiator) or is dropped; Samantha's circle wears her waveform
+  glyph, never ACU's app icon. VoiceOver adds
+  "Operating Calculator, Finder and TextEdit". An app shown inside is never
+  drawn again as an outside app circle (Samantha's included). Plugin marks stay
+  outside on the right.
+- Drop: the hub removes a plugin row when `ttl_s` lapses (1 s sweep); the
+  circle fades out over 200 ms. Plugin rows never go stale and never show
+  "updates stopped".
+- `ACU_ISLAND_ACTIVITY=0` turns the signal off; tests are off by default via
+  `scripts/check.py`.
+
 ## Status, approvals, and choices
 
 Use the packaged `bin/island-post` command. Reuse one stable task ID to update

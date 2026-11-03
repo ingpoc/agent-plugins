@@ -2,11 +2,21 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
-## 0.2.70 (unreleased)
+## 0.2.82
 
-- Restrict the computer-use RPC socket to its owner and verify each client's kernel-reported user identity.
-- Reject malformed and oversized requests, expire incomplete requests, and bound connections and concurrent requests while preserving healthy persistent clients.
-- Refuse unsafe socket paths and stop startup if the RPC listener cannot be secured.
+- Harden the local computer-use RPC boundary: the socket is restricted to its owner and each client's kernel-reported user identity is checked; malformed and oversized requests are rejected, incomplete requests expire, and connections and concurrent requests are bounded without dropping healthy persistent clients; unsafe socket paths are refused, and startup stops if the listener cannot be secured.
+
+## 0.2.81
+
+- Reverts 0.2.80 (never released): inside-pill app icons are back to the accepted 0.2.79 behaviour, each app clearing 2 s after its own last call with a 200 ms fade, newest first, 3 then "+N" (Guru, 2026-11-03 14:49 IST: "2 second fade is good enough"). Code is identical to 0.2.79; the number only moves because the release policy forbids going backwards.
+
+## 0.2.79 (2026-11-03)
+
+- Plugin activity on the Dynamic Island (Guru, 2026-11-03): one shared signal, `bin/island_activity.py` (`start`/`end`/`pulse` over the owner-only `island.sock`, body field `plugin`). Rows with `plugin` are not agent rows: the plugin's own mark sits on the RIGHT of the pill (ACU icon, comet-control and context-ledger logos; tooltip and VoiceOver name the agent), and the controlled target sits INSIDE the pill's lead slot in a spinning ring (Apple mark for ACU, Comet for comet-control; none for context-ledger). Left stays the agent-harness circles; the 6 pt compact dot is unchanged. The hub drops plugin rows at their TTL (never "updates stopped").
+- The ACU MCP reports `act`/`state` use per calling agent: held while the call runs, dropped 2 s after the last call (a failed call never holds it longer), cleared at MCP exit.
+- Samantha uses the same island language: her ACU and Comet tool calls post through `island_activity.py` as "Samantha", so she gets a left agent circle, the target ring inside the pill, the blue dot and the right plugin mark, dropped 2 s after her last call. Comet is no longer a separate right-side app circle for her.
+- Operated Mac apps INSIDE the pill (Guru, 2026-11-03 13:27 IST): for any agent, each ACU `act`/`state` call sends its app (`target_app`, one row per app), and the island draws the real app icons (Calculator, Finder, TextEdit…) inside the pill on its right, newest first, 3 then "+N", just left of the status dot, with the Apple ring still inside on the left; the pill grows to fit them. Each app clears 2 s after its own last call with a 200 ms fade. Samantha's `cua_*` calls do the same, and an app shown inside is no longer repeated as an outside circle. Plugin marks stay outside. UI & UX fixes: the compact pill hugs ring · 8 · icons (4 apart) · 6 · dot · 9 in every state (no Samantha acting/conversation width), near-white icons sit on a white tile with a dark glyph, "+N" is Semibold 11 at white 62 % in a fixed 16 pt slot, and icon changes spring the width over ~250 ms (Reduce Motion: crossfade) with 200 ms icon fades, straight to the fitted width (no squeeze). The left side is harness-only: plugin identities map to their calling harness or drop, and Samantha's circle wears her own glyph instead of ACU's icon.
+- UI & UX review: the inside target sits on a 12 pt white tile in a 20 pt ring; a plugin in use lights the blue working dot (red and amber still win); names in title case ("Agent Computer Use"), "Using …" only in VoiceOver and the expanded row (one row per use); plugin circles fade out over 200 ms; one shared agent-name normaliser (`normalize_agent`) so "grok-bot" and "Grok Bot" are one name.
 
 ## 0.2.69 (unreleased: not tagged; waiting for Guru's OK)
 

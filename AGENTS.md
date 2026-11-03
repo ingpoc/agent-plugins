@@ -34,6 +34,7 @@ Forge: [Cursor Origin](https://cursor.com/codebase/gurusharan/agent-plugins); Gi
 | Change context-ledger MCP manifests or the serve launcher | `plugins/context-ledger/tests/test_manifests.py` and `tests/test_contract.py` (stdio shape, resolver, keychain, shell files reject or-true) |
 | Checks, CI, pre-push | `scripts/check.py` (CI: path-filtered, parallel, full nightly on GitHub); local gate `scripts/install-hooks.sh` → `.githooks/pre-push` → `scripts/prepush.py` |
 | Claim a plugin fix is done | Live-verify the installed client copy (MCP/CLI). Update the standing canvas from that run. `scripts/check.py` is not that proof. |
+| Develop, maintain, release, sync or refresh anything in this repo (every harness) | [`docs/dev-lifecycle.md`](docs/dev-lifecycle.md). Hygiene green first; one worktree under `worktree_root` per task; installs only from main or an open PR; ingpoc only via `GH_TOKEN` on the one release command |
 | Marketplace index stale after Origin main moves | `scripts/refresh_cursor_marketplace_index.sh`, run by the Origin mirror job. Team Auto Refresh does not cover the user-scoped registration. Recovery is remove, then add with no `--git-ref`. |
 
 ## Plugins

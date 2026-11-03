@@ -2,6 +2,10 @@
 
 Built from commit history (`git log -- plugins/comet-control`). Dates are commit dates.
 
+## Unreleased
+
+- Every active lease shows on the ACU Dynamic Island: the comet-control mark on the right of the pill and Comet inside it with a spinning ring, tied to the lease's agent label, dropped 2 s after closeout, TTL reap, broker stop or Comet loss (release seen within 1 s). The broker mirrors the token-free `sessions` inventory to ACU's owner-only `island.sock` (source `agent`), heartbeats with the lease's remaining TTL, and clears orphans from `run/island-rows.json` on restart. `COMET_CONTROL_ISLAND=0` turns it off.
+
 ## 0.1.23 (2026-10-30)
 
 - In-page input only: comet-control never moves the Mac's real mouse or sends real keys. Without the debugger, type, key and click run as DOM events in the leased tab, and the in-page cursor overlay draws each one.
