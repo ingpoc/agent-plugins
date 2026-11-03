@@ -48,7 +48,7 @@ enum AppIconResolver {
         "Terminal": "terminal", "Notes": "note.text", "Calculator": "plus.forwardslash.minus",
         "Mail": "envelope", "Calendar": "calendar", "Messages": "message", "Music": "music.note",
         "Preview": "photo", "System Settings": "gearshape", "Cursor": "cursorarrow.rays", "Codex": "terminal", "Grok Bot": "sparkles",
-        "Samantha": "waveform",
+        "Samantha": "waveform", "context-ledger": "books.vertical", "comet-control": "globe",
     ]
 
     static let fallbackSymbol = "app.dashed"
@@ -68,11 +68,27 @@ enum AppIconResolver {
     /// https://developer.apple.com/documentation/appkit/nsworkspace/icon(forfile:)
     nonisolated static let cachedSide = 128
 
+    enum OperatedStyle: Equatable {
+        case icon
+        case tile(String)
+    }
+
+    /// In-pill operated icons: a real, non-blank app icon draws as is; a near-white icon (TextEdit and
+    /// any similar, detected by `isBlank`) or a missing one gets the white tile with a dark glyph.
+    static func operatedStyle(_ name: String) -> OperatedStyle {
+        switch resolve(name) {
+        case .image: return .icon
+        case .symbol(let symbol): return .tile(symbol)
+        }
+    }
+
     static func resolve(_ name: String) -> Resolved {
         if let hit = cache[name] { return hit }
         let result: Resolved
         if ownIconNames.contains(name), let own = ownIcon() {
             result = .image(small(own))
+        } else if let url = pluginLogoURL(name), let logo = NSImage(contentsOf: url) {
+            result = .image(small(logo))
         } else if let url = appURL(for: name),
            case let icon = NSWorkspace.shared.icon(forFile: url.path),
            !isBlank(icon) {
@@ -103,6 +119,17 @@ enum AppIconResolver {
         return out
     }
 
+    /// Plugin marks (right of the pill) wear the plugin's own logo from its installed package.
+    static let pluginLogoNames: Set<String> = ["comet-control", "context-ledger"]
+    static func pluginLogoURL(_ name: String) -> URL? {
+        guard pluginLogoNames.contains(name) else { return nil }
+        let root = ProcessInfo.processInfo.environment["ACU_PLUGIN_LOGO_ROOT"]
+            .map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".agents/plugins")
+        let url = root.appendingPathComponent(name).appendingPathComponent("assets/logo.svg")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+
     /// Only real .app bundles — never a guessed path (that yields the blank document icon).
     static func appURL(for name: String) -> URL? {
         let fm = FileManager.default
@@ -111,6 +138,9 @@ enum AppIconResolver {
             var dir: ObjCBool = false
             return fm.fileExists(atPath: url.path, isDirectory: &dir) && dir.boolValue ? url : nil
         }
+        // An operated app may arrive as a bundle id ("com.apple.calculator").
+        if name.contains("."), !name.contains(" "),
+           let url = isApp(NSWorkspace.shared.urlForApplication(withBundleIdentifier: name)) { return url }
         // Known apps by bundle id first: the Codex app installs as ChatGPT.app (com.openai.codex).
         // https://developer.apple.com/documentation/appkit/nsworkspace/urlforapplication(withbundleidentifier:)
         if let id = bundleIDs[name], let url = isApp(NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)) {
@@ -235,6 +265,49 @@ struct SamanthaThinkingDots: View {
     }
 }
 
+/// Controlled-target mark (Apple for ACU, Comet for comet-control): the target on a white tile like the
+/// plugin icons (>= 12 pt so it reads at 1x), inside a spinning ring. Drawn over the compact lead slot.
+struct IslandPluginTargetMark: View {
+    let target: IslandPluginTarget
+    /// Every target in use (newest first) for VoiceOver; defaults to just `target`.
+    var allTargets: [IslandPluginTarget] = []
+    var size: CGFloat = IslandPluginTargetMark.ringDiameter
+    var reduceMotion = false
+    @State private var spin = false
+
+    static let ringDiameter: CGFloat = 20
+    static let ringLine: CGFloat = 1.5
+    static let tileSize: CGFloat = 12
+    static func tileRadius(_ tile: CGFloat) -> CGFloat { tile * 0.26 }
+
+    var body: some View {
+        let tile = max(Self.tileSize, size * 0.6)
+        ZStack {
+            Circle().stroke(IslandPalette.track, lineWidth: Self.ringLine)
+            Circle().trim(from: 0, to: 0.25)
+                .stroke(IslandPalette.accent, style: StrokeStyle(lineWidth: Self.ringLine, lineCap: .round))
+                .rotationEffect(.degrees(spin ? 360 : 0))
+                .onAppear {
+                    guard !reduceMotion else { return }
+                    withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { spin = true }
+                }
+            RoundedRectangle(cornerRadius: Self.tileRadius(tile), style: .continuous)
+                .fill(Color.white)
+                .frame(width: tile, height: tile)
+            switch target {
+            case .symbol(let name):
+                SamanthaSymbol(name: name, color: .black, size: tile * 0.78)
+                    .offset(y: -tile * 0.03)
+            case .app(let name):
+                SamanthaAppIcon(appName: name, size: tile * 0.86, radius: Self.tileRadius(tile * 0.86))
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(IslandPluginTarget.accessibilityLabel(allTargets.isEmpty ? [target] : allTargets))
+    }
+}
+
 /// 12 pt ring, 2 pt stroke on a white 15 % track: spinning 90° accent arc
 /// (1.2 s/turn) when total is unknown, or filled to `fraction`.
 struct SamanthaProgressRing: View {
@@ -355,6 +428,42 @@ struct SamanthaAgentBadgeIcon: View {
 
 // MARK: - Circles
 
+/// One operated app inside the pill: the same real-icon component as the app circles, at 16 pt.
+struct IslandOperatedAppIcon: View {
+    let item: IslandOperatedAppItem
+
+    var body: some View {
+        Group {
+            switch item {
+            case .app(let name):
+                switch AppIconResolver.operatedStyle(name) {
+                case .icon:
+                    SamanthaAppIcon(appName: name, size: IslandBarLayout.operatedIcon, radius: IslandBarLayout.operatedIcon / 4)
+                case .tile(let symbol):
+                    // Near-white or missing icon: the target mark's white rounded tile with a dark glyph.
+                    let s = IslandBarLayout.operatedIcon
+                    RoundedRectangle(cornerRadius: IslandPluginTargetMark.tileRadius(s), style: .continuous)
+                        .fill(Color.white)
+                        .overlay(Image(systemName: symbol)
+                            .font(.system(size: s * 0.6, weight: .semibold))
+                            .foregroundStyle(Color.black.opacity(0.82)))
+                        .frame(width: s, height: s)
+                }
+            case .overflow(let n):
+                // SF Pro Semibold 11 at white 62 %, in a fixed 16 pt slot: the dot never moves for +1 vs +2.
+                Text("+\(n)")
+                    .font(.system(size: 11, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.white.opacity(0.62))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .fixedSize(horizontal: n >= 10, vertical: false)
+            }
+        }
+        .frame(width: IslandBarLayout.operatedIcon, height: IslandBarLayout.operatedIcon)
+    }
+}
+
 struct SamanthaAppCircle: View {
     let item: IslandCircleItem
 
@@ -366,6 +475,10 @@ struct SamanthaAppCircle: View {
                 SamanthaAppIcon(appName: name)
                 Circle().strokeBorder(driving ? IslandPalette.accent : IslandPalette.keyLine,
                                       lineWidth: driving ? 1.5 : 1)
+            case .plugin(let name, _):
+                // A plugin mark looks like an app circle: never dimmed, never driving, tap does nothing.
+                SamanthaAppIcon(appName: name)
+                Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
             case .overflow(let n):
                 Text("+\(n)")
                     .font(.system(size: 11, weight: .semibold))
@@ -380,6 +493,7 @@ struct SamanthaAppCircle: View {
         .onTapGesture {
             if case .app(let name, _, _) = item { AppIconResolver.activate(name) }
         }
+        .modifier(HelpIfPresent(text: pluginTooltip))
         .accessibilityLabel(accessibility)
     }
 
@@ -388,11 +502,29 @@ struct SamanthaAppCircle: View {
         return false
     }
 
+    /// The plugin mark names the agent using it; other circles have no hover text.
+    private var pluginTooltip: String? {
+        if case .plugin(let name, let agents) = item {
+            return IslandPluginLabel.tooltip(name: name, agents: agents)
+        }
+        return nil
+    }
+
     private var accessibility: String {
         switch item {
         case .app(let name, _, _): return name
+        case .plugin(let name, let agents): return IslandPluginLabel.voiceOver(name: name, agents: agents)
         case .overflow(let n): return "\(n) more apps"
         }
+    }
+}
+
+/// Applies `.help` only when there is text, so plain circles gain no empty tooltip.
+private struct HelpIfPresent: ViewModifier {
+    let text: String?
+
+    func body(content: Content) -> some View {
+        if let text { content.help(text) } else { content }
     }
 }
 
@@ -410,7 +542,14 @@ struct SamanthaSourceCircle: View {
             } else if group.processCount > 0 {
                 Image(systemName: "cpu").font(.system(size: 14, weight: .medium)).foregroundStyle(IslandInk.secondaryColor)
             } else {
-                SamanthaAppIcon(appName: group.app.isEmpty ? group.id : group.app)
+                switch IslandSourceGroups.leftIdentity(group) {
+                case .samanthaGlyph:
+                    Image(systemName: "waveform")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(IslandInk.metaColor)
+                case .app(let name):
+                    SamanthaAppIcon(appName: name)
+                }
             }
             Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
         }
@@ -572,6 +711,37 @@ struct SamanthaIslandBar: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
+            if model.showsTargetMark, let target = model.pluginTarget {
+                // Controlled target (Apple / Comet) on its white tile in a 20 pt spinning ring, centred on the
+                // 16 pt lead slot at real size (not the 56 → 16 lead morph), so the 12 pt tile reads at 1x.
+                let d = IslandPluginTargetMark.ringDiameter
+                IslandPluginTargetMark(target: target, allTargets: model.pluginTargets, reduceMotion: reduceMotion)
+                    .offset(x: rect.minX + IslandBarLayout.slotInset + 8 - d / 2,
+                            y: rect.minY + (IslandBarLayout.compactHeight - d) / 2)
+                    .allowsHitTesting(false)
+                    .transition(.opacity.animation(.easeOut(duration: 0.2)))
+            }
+            if model.showsOperatedApps {
+                // Mac apps ACU is operating, inside the pill just left of the dot (real icons via NSWorkspace).
+                let items = model.operatedApps
+                let rs = IslandBarLayout.operatedAppRects(shape: rect, count: items.count)
+                ForEach(Array(zip(items, rs)), id: \.0.id) { item, r in
+                    IslandOperatedAppIcon(item: item)
+                        .offset(x: r.minX, y: r.minY)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                }
+                if let first = rs.first, let last = rs.last {
+                    // VoiceOver: one element naming every operated app ("Operating Calculator, Finder and TextEdit").
+                    Color.clear
+                        .frame(width: last.maxX - first.minX, height: first.height)
+                        .offset(x: first.minX, y: first.minY)
+                        .allowsHitTesting(false)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(model.operatedAppsLabel)
+                }
+            }
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
@@ -600,7 +770,7 @@ struct SamanthaIslandBar: View {
             ForEach(Array(zip(model.circles, rects)), id: \.0.id) { item, r in
                 SamanthaAppCircle(item: item)
                     .offset(x: r.minX, y: r.minY)
-                    .transition(circleTransition)
+                    .transition(item.isPlugin ? pluginCircleTransition : circleTransition)
             }
         }
         .frame(width: IslandBarLayout.windowSize.width, height: IslandBarLayout.windowSize.height, alignment: .topLeading)
@@ -609,8 +779,10 @@ struct SamanthaIslandBar: View {
         .opacity(model.idleHidden ? 0 : 1)
         .animation(.easeInOut(duration: 0.2), value: model.idleHidden)
         .animation(openAnimation, value: model.cardOpen)
-        .animation(widthAnimation, value: model.drawnWidth)
+        .animation(model.widthFromOperatedApps ? IslandMotion.operatedWidth(reduce: reduceMotion) : widthAnimation,
+                   value: model.drawnWidth)
         .animation(widthAnimation, value: model.circles)
+        .animation(IslandMotion.operatedWidth(reduce: reduceMotion), value: model.operatedApps)
         .animation(widthAnimation, value: model.sourceGroups)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.agentApproval?.id)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.secondary)
@@ -654,6 +826,10 @@ struct SamanthaIslandBar: View {
     private var widthAnimation: Animation { IslandMotion.width(reduce: reduceMotion) }
 
     private var circleTransition: AnyTransition { IslandMotion.popTransition(reduce: reduceMotion) }
+    /// A plugin circle fades out over 200 ms when its use ends (2 s after the last call).
+    private var pluginCircleTransition: AnyTransition {
+        .asymmetric(insertion: circleTransition, removal: .opacity.animation(.easeOut(duration: 0.2)))
+    }
 
     private var glyphSwap: AnyTransition {
         if reduceMotion { return .opacity }
@@ -803,7 +979,8 @@ struct SamanthaIslandBar: View {
         } else {
             switch model.presentation {
             case .idle, .doneSettled:
-                // No orb or icon here (Guru, 2026-11-01): the pill holds only the 6 pt right-hand dot.
+                // No orb or icon here (Guru, 2026-11-01): the pill holds only the 6 pt right-hand dot. A
+                // plugin's controlled target (Guru, 2026-11-03) is drawn unscaled over this slot (targetMark).
                 Color.clear.frame(width: size, height: size)
             case .reconnecting:
                 SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)
@@ -815,7 +992,9 @@ struct SamanthaIslandBar: View {
                 SamanthaOrb(size: size)
             case .acting, .actingSteps:
                 let a = model.drivingApp.isEmpty ? model.app : model.drivingApp
-                if a.isEmpty { SamanthaOrb(size: size) } else { SamanthaAppIcon(appName: a, size: size, radius: size / 4) }
+                // Driving through a plugin: the target ring (targetMark) takes this slot, same as for any agent.
+                if model.pluginTarget != nil { Color.clear.frame(width: size, height: size) }
+                else if a.isEmpty { SamanthaOrb(size: size) } else { SamanthaAppIcon(appName: a, size: size, radius: size / 4) }
             case .needsYou:
                 SamanthaSymbol(name: "hand.raised.fill", color: IslandPalette.amber, size: size)
             case .error:
@@ -881,7 +1060,17 @@ struct SamanthaIslandBar: View {
         case .listening: SamanthaBars(levels: model.bars5)
         case .thinking, .reconnecting: SamanthaThinkingDots(reduceMotion: reduceMotion)
         case .speaking: SamanthaBars(levels: model.bars5, mirrored: true)
-        case .acting: SamanthaProgressRing(fraction: nil, reduceMotion: reduceMotion)
+        case .acting:
+            if model.pluginTarget != nil {
+                // Same language as the idle pill: the ring is the target mark, the trail is the 6 pt blue dot.
+                Circle().fill(IslandPalette.accent).frame(width: IslandBarLayout.compactDotDiameter,
+                                                          height: IslandBarLayout.compactDotDiameter)
+                    .padding(.trailing, 1)
+                    .frame(width: 20, height: 16, alignment: .trailing)
+                    .accessibilityHidden(true)
+            } else {
+                SamanthaProgressRing(fraction: nil, reduceMotion: reduceMotion)
+            }
         case .actingSteps: SamanthaProgressRing(fraction: stepFraction)
         case .needsYou:
             SamanthaSignalDot(color: IslandPalette.amber, pulse: true, reduceMotion: reduceMotion, differentiate: model.systemDifferentiate).frame(width: 20, height: 16)

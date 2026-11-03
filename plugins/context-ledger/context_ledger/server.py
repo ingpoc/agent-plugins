@@ -14,7 +14,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp_types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import BaseModel, Field, ValidationError
 
-from context_ledger import __version__
+from context_ledger import __version__, island
 from context_ledger.contracts import (
     MAX_REQUEST_LINE,
     LedgerError,
@@ -62,6 +62,7 @@ def _plain(value: Any) -> Any:
 
 
 def _call(fn, arguments: dict[str, Any], *, structured: bool = True) -> CallToolResult | dict[str, Any]:
+    island.note_started(arguments)
     try:
         data = fn(arguments)
         payload = ok(data)
@@ -81,6 +82,8 @@ def _call(fn, arguments: dict[str, Any], *, structured: bool = True) -> CallTool
             " -> ".join(locations) or "unknown",
         )
         return _result(fail_dict(LedgerError("INTERNAL")), is_error=True, structured=structured)
+    finally:
+        island.note_finished(arguments)
 
 
 _UI_URI = "ui://context-ledger/ledger-v2.html"
