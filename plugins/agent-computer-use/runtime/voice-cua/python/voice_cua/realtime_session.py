@@ -1,7 +1,7 @@
-"""Realtime WebSocket session: voice + local tool dispatch.
+"""Provider-adapted voice session: audio + local tool dispatch.
 
-Connects to OpenAI Realtime, registers function tools, executes them locally
-via voice_cua.tools.dispatch, never echoes secrets to the model.
+Provider adapters expose the internal Realtime-shaped event stream; GPT Live 1
+is the active OpenAI transport. Function tools execute locally through dispatch.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from voice_cua import SYSTEM_INSTRUCTIONS, session_instructions
-from voice_cua.activity_log import log_event, log_usage, tool_context
+from voice_cua.activity_log import log_event, log_task_outcome, log_usage, tool_context
 from voice_cua.activity_log import log_exception as _log_exception
 from voice_cua.cua_bridge import hide_agent_cursor
 from voice_cua.comet_bridge import comet_add_listener, comet_end, comet_is_active, comet_remove_listener
@@ -47,6 +47,27 @@ REALTIME_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
 # then starts a second delegation for the same request within a fraction of a second. The
 # first recovery answer waits this long; a newer response for the same turn supersedes it.
 RECOVERY_SETTLE_S = 2.0
+_TASK_ACTION_EVIDENCE = {
+    "cua_act": "app_readback",
+    "comet_act": "browser_inventory",
+    "system_volume": "app_readback",
+}
+
+
+def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, str] | None:
+    evidence = {
+        _TASK_ACTION_EVIDENCE[row["tool"]]
+        for row in results
+        if row.get("tool") in _TASK_ACTION_EVIDENCE
+    }
+    if not evidence:
+        return None
+    evidence_class = next(iter(evidence)) if len(evidence) == 1 else "combined"
+    if status == "cancelled" or any(row.get("cancelled") is True for row in results):
+        return "cancelled", evidence_class
+    if status == "completed" and all(row.get("ok") is True and row.get("verified") is True for row in results):
+        return "verified_success", evidence_class
+    return "unverified", evidence_class
 
 
 def _has_sound(b64: str, floor: int = 600) -> bool:
@@ -258,6 +279,8 @@ class RealtimeSession:
         self._response_condition = threading.Condition(self._response_lock)
         self._active_response_ids: set[str] = set()
         self._response_request_ids: dict[str, str] = {}
+        self._response_task_run_ids: dict[str, str] = {}
+        self._task_runs: dict[str, list[dict[str, Any]]] = {}
         self._response_transcripts: dict[str, str] = {}
         self._text_waiters: dict[str, dict[str, Any]] = {}
         self._text_only = not enable_audio
@@ -838,7 +861,7 @@ class RealtimeSession:
                 log_event("user_transcript", chars=len(heard), text=heard[:240],
                           item_id=str(event.get("item_id") or ""))
                 self._last_user_text = heard
-                self._note_user_turn(heard)
+                self._note_user_turn(heard, defer_response=True)
                 print(f"You: {heard}", flush=True)
                 # Card title = the final utterance (compact view never shows text).
                 if not (self._audio and self._audio.has_playback()):
@@ -871,6 +894,8 @@ class RealtimeSession:
                     self._current_response_id = response_id
                     if request_id:
                         self._response_request_ids[response_id] = request_id
+                        self._response_task_run_ids[response_id] = request_id
+                        self._task_runs.setdefault(request_id, [])
                         self._cancel_settle(request_id)
                     self._cancelled_response_ids.discard(response_id)
                 self._response_condition.notify_all()
@@ -1136,6 +1161,10 @@ class RealtimeSession:
             return
         if call_id in self._pending_calls:
             return
+        request_id = request_id or self._request_for_response(response_id)
+        with self._response_lock:
+            task_run_id = (self._response_task_run_ids.get(response_id)
+                           or (request_id if request_id in self._task_runs else ""))
         self._pending_calls[call_id] = {"name": name, "request_id": request_id}
         try:
             arguments = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
@@ -1166,6 +1195,7 @@ class RealtimeSession:
                     result = {"ok": False, "error": "non-dict tool result"}
                 for bad in ("value", "secret", "password", "api_key", "token"):
                     result.pop(bad, None)
+                self._record_task_action(task_run_id, name, result)
                 rkind, rtitle, rdetail = summarize_result(name, result, fallback=detail)
                 island_publish(rkind, title=rtitle, detail=rdetail, app=app)
                 stale = self._deliver_tool_result(
@@ -1194,6 +1224,18 @@ class RealtimeSession:
                 self._inflight_tools = max(0, self._inflight_tools - 1)
 
         threading.Thread(target=work, daemon=True).start()
+
+    def _record_task_action(self, run_id: str, name: str, result: dict[str, Any]) -> None:
+        if not run_id or name not in _TASK_ACTION_EVIDENCE:
+            return
+        with self._response_lock:
+            if run_id in self._task_runs:
+                self._task_runs[run_id].append({
+                    "tool": name,
+                    "ok": result.get("ok") is True,
+                    "verified": result.get("verified") is True,
+                    "cancelled": result.get("cancelled") is True,
+                })
 
     @staticmethod
     def stale_result_note(name: str, result: dict[str, Any]) -> str:
@@ -1476,6 +1518,8 @@ class RealtimeSession:
         from voice_cua.session_hub import unregister
 
         unregister(self)
+        from voice_cua.tools import _close_ledger_helper
+        _close_ledger_helper()
         comet_remove_listener(self._on_comet_change)
         self._cancel_planned_reconnect()
         hide_agent_cursor()
@@ -1559,6 +1603,7 @@ class RealtimeSession:
             if self._current_response_id == response_id:
                 self._current_response_id = ""
             self._response_request_ids.pop(response_id, None)
+            self._response_task_run_ids.pop(response_id, None)
             self._response_transcripts.pop(response_id, None)
             self._response_condition.notify_all()
 
@@ -1580,6 +1625,16 @@ class RealtimeSession:
             for item in response.get("output") or []
         ):
             return
+        response_id = str(response.get("id") or "")
+        request_id = self._request_id(response) or self._request_for_response(response_id)
+        with self._response_lock:
+            task_run_id = (self._response_task_run_ids.get(response_id)
+                           or (request_id if request_id in self._task_runs else ""))
+            task_results = self._task_runs.pop(task_run_id, []) if task_run_id else []
+        task_outcome = _task_outcome(task_results, status=status)
+        if task_run_id and task_outcome:
+            log_task_outcome(check_id="tool_task", outcome=task_outcome[0],
+                             evidence_class=task_outcome[1], run_id=task_run_id)
         self._turn_open = False
         self._turn_closed_at = len(getattr(self.provider, "history", None) or [])
         text_bits: list[str] = []
@@ -1600,7 +1655,6 @@ class RealtimeSession:
                     chunk = str(part.get("transcript") or "").strip()
                     if chunk:
                         text_bits.append(chunk)
-        response_id = str(response.get("id") or "")
         with self._response_lock:
             transcript = self._response_transcripts.get(response_id, "")
         reply = _normalize_reply(" ".join(text_bits).strip() or transcript.strip())
@@ -1608,7 +1662,6 @@ class RealtimeSession:
             log_event("assistant_reply", text=reply[:240], source="backend", response_id=response_id or None)
             print(f"Samantha: {reply}", flush=True)
         mark("response_done", status="ok" if reply else "empty")
-        request_id = self._request_id(response) or self._request_for_response(response_id)
         if request_id:
             error = "" if status == "completed" else f"response {status or 'failed'}"
             if request_id == self._settle_request and not error:
@@ -1698,13 +1751,20 @@ class RealtimeSession:
                      "succeeded. If it is already done, just tell me the outcome.")
         return " ".join(parts)
 
-    def _note_user_turn(self, text: str) -> None:
+    def _note_user_turn(self, text: str, *, request_id: str = "", defer_response: bool = False) -> str:
         from voice_cua.workflow_store import begin_engagement
+        from voice_cua.tools import note_user_turn
         begin_engagement()
+        note_user_turn(text)
         self._turn_open = True
         self._turn_text = text
         self._turn_tools = 0
+        task_request_id = request_id or ("" if defer_response else uuid.uuid4().hex)
+        with self._response_lock:
+            if task_request_id:
+                self._task_runs[task_request_id] = []
         self._turn_recovered = False
+        return task_request_id
 
     def _plan_drop_recovery(self) -> dict[str, Any] | None:
         """At an unrequested drop: what the next session must redeliver or replay (once)."""
@@ -1783,7 +1843,7 @@ class RealtimeSession:
 
     def send_text(self, text: str, *, request_id: str = "", replay: bool = False) -> None:
         if not replay:
-            self._note_user_turn(text)
+            request_id = self._note_user_turn(text, request_id=request_id)
         self._send({
             "type": "conversation.item.create",
             "item": {

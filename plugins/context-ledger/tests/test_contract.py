@@ -175,12 +175,12 @@ class PackageTests(unittest.TestCase):
         self.assertIn("read/write-capable Context Ledger subagent", text)
         self.assertIn("references/lookup-subagent.md", text)
         text = (ROOT / "skills/context-ledger/references/lookup-subagent.md").read_text(encoding="utf-8")
-        self.assertIn("answer these four yourself before adding anything", text)
+        self.assertIn("the parent must answer all four checks for that candidate, not for a batch", text)
         for question in (
-            "Is this a decision or a lesson?",
-            "Which future task will apply it?",
-            "Would a `find` for what that task would type return it?",
-            "Is it already recorded, and does it carry its `scope`?",
+            "**Future task:** When would an agent retrieve this?",
+            "**Changed choice:** What would the agent decide differently, and why?",
+            "**Unique value:** What does this add beyond existing records, code or documentation?",
+            "**Lifetime and scope:** Is it durable, temporary, superseded or limited to one task?",
         ):
             self.assertIn(question, text)
 
@@ -373,8 +373,8 @@ class PackageTests(unittest.TestCase):
     def test_plugin_version(self) -> None:
         plugin = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
         init = (ROOT / "context_ledger/__init__.py").read_text(encoding="utf-8")
-        self.assertEqual(plugin["version"], "0.1.36")
-        self.assertIn('__version__ = "0.1.36"', init)
+        self.assertEqual(plugin["version"], "0.1.37")
+        self.assertIn('__version__ = "0.1.37"', init)
         skill = (ROOT / "skills/context-ledger/SKILL.md").read_text(encoding="utf-8")
         self.assertIn("description: Use only for critical, recurring, research or debugging tasks, or to save an owner override", skill)
         self.assertIn("Simple tasks skip it. Short timeout, fail open.", skill)
@@ -390,7 +390,7 @@ class PackageTests(unittest.TestCase):
         self.assertNotIn("supported: Ubuntu", readme)
         self.assertIn("Release-blocked until run", agents)
         page = (ROOT / "ui/ledger-v2.html").read_text(encoding="utf-8")
-        self.assertIn('version:"0.1.36"', page)
+        self.assertIn('version:"0.1.37"', page)
         self.assertIn("ui/initialize", page)
         self.assertNotIn("<script src", page)
         self.assertNotIn("https://", page)

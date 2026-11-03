@@ -46,7 +46,21 @@ class _Fresh(unittest.TestCase):
 
 class LazyGroupTests(unittest.TestCase):
     def test_base_surface_has_no_secrets_or_confirm(self) -> None:
-        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "comet_act", "comet_end", "system_volume"})
+        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "system_volume"})
+
+    def test_comet_actions_are_only_offered_during_a_lease(self) -> None:
+        idle = {tool["name"] for tool in tools.tool_definitions(comet_active=False)}
+        active = {tool["name"] for tool in tools.tool_definitions(comet_active=True)}
+        self.assertIn("comet_begin", idle)
+        self.assertNotIn("comet_act", idle)
+        self.assertNotIn("comet_end", idle)
+        self.assertTrue({"comet_begin", "comet_act", "comet_end"}.issubset(active))
+
+    def test_comet_schema_distinguishes_page_text_from_compact_context(self) -> None:
+        active = {tool["name"]: tool for tool in tools.tool_definitions(comet_active=True)}
+        description = active["comet_act"]["description"]
+        self.assertIn("text for visible page text", description)
+        self.assertIn("page_context for compact orientation", description)
 
     def test_comet_act_without_lease_has_no_action_side_effects(self) -> None:
         with patch.object(tools, "comet_is_active", return_value=False), \
@@ -66,7 +80,7 @@ class LazyGroupTests(unittest.TestCase):
         loaded = names(groups={"secrets"})
         self.assertTrue(set(tools.TOOL_GROUPS["secrets"]) <= loaded)
         self.assertIn("more_tools", loaded)  # workflows remain available
-        self.assertNotIn("more_tools", names(groups={"secrets", "workflows"}))
+        self.assertNotIn("more_tools", names(groups={"secrets", "workflows", "ledger"}))
 
     def test_workflow_group_exposes_create_update_and_delete(self) -> None:
         loaded = names(groups={"workflows"})
@@ -262,6 +276,23 @@ class RetryCapTests(_Fresh):
         self.backend.act.return_value = {"ok": False, "error_type": "expect_unverified"}
         out = tools.dispatch("cua_act", {"app": "Notes", "op": "type_text", "text": "hi", "expect": "hi"})
         self.assertFalse(out["retryable"])
+
+    def test_unverified_shortcut_is_not_dispatched_twice_with_aliases(self) -> None:
+        self.backend.act.return_value = {"ok": False, "dispatched": True, "error_type": "expect_unverified"}
+        first = {"app": "Finder", "steps": [{"op": "key", "key": "CMD+SHIFT+5"}], "expect": "recording toolbar"}
+        second = {"app": "Finder", "steps": [{"op": "key", "key": "shift+command+5"}], "expect": "toolbar"}
+        self.assertFalse(tools.dispatch("cua_act", first)["retryable"])
+        self.assertEqual(tools.dispatch("cua_act", second)["error_type"], "retry_cap")
+        self.backend.act.assert_called_once()
+
+    def test_new_user_request_can_retry_unverified_action(self) -> None:
+        self.backend.act.return_value = {"ok": False, "error_type": "expect_unverified"}
+        args = {"app": "Finder", "op": "key", "key": "CMD+SHIFT+5", "expect": "toolbar"}
+        tools.dispatch("cua_act", args)
+        self.assertEqual(tools.dispatch("cua_act", args)["error_type"], "retry_cap")
+        tools.note_user_turn("Please try again")
+        tools.dispatch("cua_act", args)
+        self.assertEqual(self.backend.act.call_count, 2)
 
     def test_success_resets_budget(self) -> None:
         args = {"app": "Notes", "op": "click", "label": "Foo", "expect": "x"}

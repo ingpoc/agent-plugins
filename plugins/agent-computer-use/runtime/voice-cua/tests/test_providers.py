@@ -60,8 +60,6 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual(provider_for("grok-voice-latest"), "xai")
         self.assertIsInstance(make_provider("gpt-realtime-2.1"), LiveProvider)
         self.assertEqual(make_provider("gpt-realtime-2.1").model, "gpt-live-1")
-        self.assertIsInstance(make_provider("grok-voice-latest"), XAIProvider)
-        self.assertIsInstance(make_provider("gpt-live-1"), LiveProvider)
 
     def test_live_tier_defaults_and_bad_ids_fall_back(self) -> None:
         p = make_provider("gpt-live-1", {"live_bulk_model": "nope", "live_intelligence_model": "gpt-6-astra"})
@@ -123,8 +121,11 @@ class LiveTests(_Rows):
         self.assertEqual(start["type"], "session.start")
         s = start["session"]
         self.assertEqual(s["model"], "gpt-live-1")
-        self.assertIn("Generate <|SpawnThinking|> when", s["instructions"])
-        self.assertIn("Do not generate <|SpawnThinking|>", s["instructions"])
+        self.assertIn("Do not delegate to the backend", s["instructions"])
+        self.assertIn("simple arithmetic (for example, 12 + 12 = 24)", s["instructions"])
+        self.assertIn("Delegate to the backend when", s["instructions"])
+        self.assertIn("never generate <|SpawnThinking|> or create a Responses delegation", s["instructions"])
+        self.assertIn("without adding a greeting or acknowledgment", s["instructions"])
         d = s["delegation"]
         self.assertEqual(d["type"], "responses")
         self.assertEqual(d["responses"]["model"], "gpt-6-luna")
@@ -298,6 +299,47 @@ class LiveTests(_Rows):
                               "event": {"type": "response.completed", "response": {"id": "r2", "status": "completed"}}})
         self.assertEqual(final["response"]["metadata"]["voice_cua_request_id"], "req1")
         self.assertEqual(final["response"]["output"][0]["content"][0]["text"], "Opened Notes.")
+
+    def test_spoken_turn_maps_to_live_delegation_by_timeline(self) -> None:
+        p, _ = _live()
+        p.heard._on_flush = lambda _text: None
+        p.inbound({"type": "session.input_transcript.delta", "delta": "Open Calculator",
+                   "start_ms": 1000, "end_ms": 1400})
+        request_id, _ = p._pending_spoken_request
+        p.inbound({"type": "session.delegation.created", "offset_ms": 1500,
+                   "delegation": {"id": "d_spoken", "target": "responses"}})
+        (created,) = p._backend_event("d_spoken", {
+            "type": "response.created", "response": {"id": "r_spoken"}
+        })
+        p.heard.flush()
+        self.assertEqual(created["response"]["metadata"]["voice_cua_request_id"], request_id)
+        self.assertEqual(p._current_request("d_spoken"), request_id)
+
+    def test_delegation_before_spoken_timeline_keeps_old_turn_then_matches_new_turn(self) -> None:
+        p, _ = _live()
+        p.outbound({"type": "response.create", "response": {"metadata": {"voice_cua_request_id": "a" * 32}}})
+        p.inbound({"type": "session.delegation.created", "offset_ms": 900,
+                   "delegation": {"id": "d_old", "target": "responses"}})
+        p.heard._on_flush = lambda _text: None
+        p.inbound({"type": "session.input_transcript.delta", "delta": "Open Calculator",
+                   "start_ms": 1000, "end_ms": 1400})
+        p.inbound({"type": "session.delegation.created", "offset_ms": 950,
+                   "delegation": {"id": "d_unmatched", "target": "responses"}})
+        (created,) = p._backend_event("d_unmatched", {
+            "type": "response.created", "response": {"id": "r_unmatched"}
+        })
+        old = "a" * 32
+        new_delegation = p.inbound({"type": "session.delegation.created", "offset_ms": 1500,
+                                    "delegation": {"id": "d_spoken", "target": "responses"}})
+        (spoken,) = p._backend_event("d_spoken", {
+            "type": "response.created", "response": {"id": "r_spoken"}
+        })
+        p.heard.flush()
+        self.assertEqual(created["response"]["metadata"]["voice_cua_request_id"], old)
+        self.assertEqual(new_delegation, [])
+        self.assertEqual(spoken["response"]["metadata"]["voice_cua_request_id"],
+                         p._delegation_request["d_spoken"])
+        self.assertNotEqual(p._delegation_request["d_spoken"], old)
 
     def test_stale_result_after_reconnect_becomes_context_note(self) -> None:
         p, _ = _live()
