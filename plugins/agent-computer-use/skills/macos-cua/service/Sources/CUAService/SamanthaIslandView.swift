@@ -651,8 +651,7 @@ struct SamanthaIslandBar: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
-            if !model.cardOpen, [.idle, .doneSettled].contains(model.presentation), model.permissionWarning == nil,
-               let target = model.pluginTarget {
+            if model.showsTargetMark, let target = model.pluginTarget {
                 // Controlled target (Apple / Comet) on its white tile in a 20 pt spinning ring, centred on the
                 // 16 pt lead slot at real size (not the 56 → 16 lead morph), so the 12 pt tile reads at 1x.
                 let d = IslandPluginTargetMark.ringDiameter
@@ -910,7 +909,9 @@ struct SamanthaIslandBar: View {
                 SamanthaOrb(size: size)
             case .acting, .actingSteps:
                 let a = model.drivingApp.isEmpty ? model.app : model.drivingApp
-                if a.isEmpty { SamanthaOrb(size: size) } else { SamanthaAppIcon(appName: a, size: size, radius: size / 4) }
+                // Driving through a plugin: the target ring (targetMark) takes this slot, same as for any agent.
+                if model.pluginTarget != nil { Color.clear.frame(width: size, height: size) }
+                else if a.isEmpty { SamanthaOrb(size: size) } else { SamanthaAppIcon(appName: a, size: size, radius: size / 4) }
             case .needsYou:
                 SamanthaSymbol(name: "hand.raised.fill", color: IslandPalette.amber, size: size)
             case .error:
@@ -976,7 +977,17 @@ struct SamanthaIslandBar: View {
         case .listening: SamanthaBars(levels: model.bars5)
         case .thinking, .reconnecting: SamanthaThinkingDots(reduceMotion: reduceMotion)
         case .speaking: SamanthaBars(levels: model.bars5, mirrored: true)
-        case .acting: SamanthaProgressRing(fraction: nil, reduceMotion: reduceMotion)
+        case .acting:
+            if model.pluginTarget != nil {
+                // Same language as the idle pill: the ring is the target mark, the trail is the 6 pt blue dot.
+                Circle().fill(IslandPalette.accent).frame(width: IslandBarLayout.compactDotDiameter,
+                                                          height: IslandBarLayout.compactDotDiameter)
+                    .padding(.trailing, 1)
+                    .frame(width: 20, height: 16, alignment: .trailing)
+                    .accessibilityHidden(true)
+            } else {
+                SamanthaProgressRing(fraction: nil, reduceMotion: reduceMotion)
+            }
         case .actingSteps: SamanthaProgressRing(fraction: stepFraction)
         case .needsYou:
             SamanthaSignalDot(color: IslandPalette.amber, pulse: true, reduceMotion: reduceMotion, differentiate: model.systemDifferentiate).frame(width: 20, height: 16)

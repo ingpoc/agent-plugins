@@ -555,6 +555,25 @@ struct IslandSourceGroup: Equatable, Identifiable {
 
 enum IslandSourceGroups {
     static let maxCircles = 3
+    static let samantha = "Samantha"
+
+    /// Adds Samantha's circle while she uses a plugin: after urgent (needs-you / failed) circles, before
+    /// the rest, keeping the 3 + "+N" cap (a pushed-out circle's urgency rides the "+N").
+    static func withSamantha(_ groups: [IslandSourceGroup], active: Bool) -> [IslandSourceGroup] {
+        guard active, !groups.contains(where: { $0.id == samantha }) else { return groups }
+        var pure = groups.filter { $0.id != "overflow" }
+        var overflow = groups.first(where: { $0.id == "overflow" }) ?? IslandSourceGroup(id: "overflow")
+        let at = pure.firstIndex { !($0.needsYou > 0 || $0.failed || $0.expired) } ?? pure.count
+        pure.insert(IslandSourceGroup(id: samantha, app: samantha, running: true), at: at)
+        for g in pure.dropFirst(maxCircles) {
+            overflow.overflow += 1
+            overflow.needsYou += g.needsYou
+            overflow.failed = overflow.failed || g.failed
+            overflow.expired = overflow.expired || g.expired
+        }
+        pure = Array(pure.prefix(maxCircles))
+        return overflow.overflow > 0 ? pure + [overflow] : pure
+    }
 
     /// `hidePending`: the card the pill itself shows — its row adds no circle/badge (one amber mark).
     /// `seenFailures`: failures the user already opened the island on — no red mark on their circle.
@@ -808,7 +827,20 @@ final class IslandModel: ObservableObject {
     var agentAllowed: (IslandAgent) -> Bool = { _ in true }
     var approvalAllowed: (IslandAgentApproval) -> Bool = { _ in true }
 
-    var showAgentCircle: Bool { IslandAgentBadge.showsCircle(rowCount: agents.count + expired.count) && !(idleActivity == "samantha" && isIdlePresentation) }
+    var showAgentCircle: Bool {
+        IslandAgentBadge.showsCircle(rowCount: agents.count + expired.count + (samanthaUsesPlugin ? 1 : 0))
+            && !(idleActivity == "samantha" && isIdlePresentation)
+    }
+
+    /// Samantha is using a plugin (ACU / Comet Control): she gets the same left agent circle as any
+    /// other agent (Guru, 2026-11-03 13:10 IST), from her island_activity rows.
+    var samanthaUsesPlugin: Bool { pluginUses.contains { $0.agent == IslandSourceGroups.samantha } }
+
+    /// The controlled-target ring shows over the lead slot at rest and while Samantha acts.
+    var showsTargetMark: Bool {
+        !cardOpen && permissionWarning == nil && pluginTarget != nil
+            && [.idle, .doneSettled, .acting, .actingSteps].contains(presentation)
+    }
 
     /// Failures the user already saw by expanding the island (id → status|last_seen_at). The compact
     /// pill stops showing them; a newer failure on the same row (new last_seen_at) shows again.
@@ -1484,8 +1516,10 @@ final class IslandModel: ObservableObject {
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
         let nextCircles = IslandCircles.merge(apps: appItems, plugins: IslandCircles.pluginItems(pluginUses))
         if nextCircles != circles { circles = nextCircles }
-        let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil,
-                                               seenFailures: seenFailures, now: now)
+        let groups = IslandSourceGroups.withSamantha(
+            IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil,
+                                      seenFailures: seenFailures, now: now),
+            active: samanthaUsesPlugin)
         if groups != sourceGroups { sourceGroups = groups }
         scheduleDoneExpiry(now: now)
         // Final-60 s countdown for the pill's card.

@@ -333,6 +333,18 @@ final class IslandPluginMarksTests: XCTestCase {
             use("context-ledger", "context-ledger", "Grok Bot"),
         ], apps: ["Finder"])
         try await render("plugin-marks-cleared", agents: [codex], uses: [])
+        // Samantha, same language: her circle left, the target ring centre, the plugin mark right.
+        func samantha(_ name: String, _ snap: IslandSnapshot) async throws {
+            let m = IslandModel()
+            m.idleActivity = "duo"
+            m.apply(snap)
+            try await save(m, name, dir: dir)
+        }
+        try await samantha("samantha-acu-acting", IslandSnapshot(kind: "acting", title: "Opening Finder", app: "Finder",
+            active_apps: ["Finder"], plugins: [use("acu", "Agent Computer Use", "Samantha")]))
+        try await samantha("samantha-comet-acting", IslandSnapshot(kind: "acting", title: "Reading page",
+            plugins: [use("comet-control", "comet-control", "Samantha")]))
+        try await samantha("samantha-cleared", IslandSnapshot(kind: "idle"))
     }
 
     /// Replays island posts recorded from real plugin use (one JSON line per post: {"t", "body"}) through
@@ -420,6 +432,46 @@ final class IslandPluginMarksTests: XCTestCase {
         var ledger = use("context-ledger", "context-ledger", "Codex"); ledger.last_seen_at = 400
         XCTAssertEqual(IslandPluginTarget.accessibilityLabel(IslandPluginTarget.all([acu, ledger])), "Controlling Mac")
         XCTAssertEqual(IslandPluginTarget.accessibilityLabel([]), "")
+    }
+
+    func testSamanthaActingUsesTheSameThreeZones() {
+        // Samantha drives Finder through ACU: left = her circle, centre = Mac ring, right = Finder + ACU mark.
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "acting", title: "Opening Finder", app: "Finder", active_apps: ["Finder"],
+                                   plugins: [use("acu", "Agent Computer Use", "Samantha")]))
+        XCTAssertEqual(model.presentation, .acting)
+        XCTAssertTrue(model.showsTargetMark)
+        XCTAssertEqual(model.pluginTarget, .symbol("apple.logo"))
+        XCTAssertEqual(model.sourceGroups.first?.id, "Samantha")
+        XCTAssertTrue(model.showAgentCircle)
+        XCTAssertEqual(model.circles.last, .plugin(name: "Agent Computer Use", agents: ["Samantha"]))
+        XCTAssertTrue(model.circles.contains { if case .app("Finder", _, _) = $0 { return true } else { return false } })
+        XCTAssertEqual(model.compactPillLabel.contains("Using Agent Computer Use: Samantha"), true)
+
+        // Comet through Comet Control: Comet is the centre target, never a separate right-side app circle.
+        model.apply(IslandSnapshot(kind: "acting", title: "Reading page",
+                                   plugins: [use("comet-control", "comet-control", "Samantha")]))
+        XCTAssertEqual(model.pluginTarget, .app("Comet"))
+        XCTAssertEqual(model.circles, [.plugin(name: "comet-control", agents: ["Samantha"])])
+
+        // 2 s after her last call the hub drops the row: her circle, the ring and the mark all go.
+        model.apply(IslandSnapshot(kind: "done", title: "Done"))
+        XCTAssertFalse(model.showsTargetMark)
+        XCTAssertFalse(model.sourceGroups.contains { $0.id == "Samantha" })
+        XCTAssertTrue(model.circles.allSatisfy { !$0.isPlugin })
+    }
+
+    func testSamanthaCircleKeepsUrgentFirstAndTheCap() {
+        let ask = IslandSourceGroup(id: "Claude", app: "Claude", needsYou: 1)
+        let a = IslandSourceGroup(id: "Codex", app: "Codex", running: true)
+        let b = IslandSourceGroup(id: "Cursor", app: "Cursor", running: true)
+        let out = IslandSourceGroups.withSamantha([ask, a, b], active: true)
+        XCTAssertEqual(out.map(\.id), ["Claude", "Samantha", "Codex", "overflow"])
+        XCTAssertEqual(out.last?.overflow, 1)
+        XCTAssertEqual(IslandSourceGroups.withSamantha([ask, a], active: false).map(\.id), ["Claude", "Codex"])
+        let already = IslandSourceGroup(id: "Samantha", app: "Samantha", running: true)
+        XCTAssertEqual(IslandSourceGroups.withSamantha([already], active: true).map(\.id), ["Samantha"])
     }
 
     func testTargetMarkPerPluginAndMostRecentWins() {

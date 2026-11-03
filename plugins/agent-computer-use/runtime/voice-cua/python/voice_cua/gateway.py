@@ -17,6 +17,7 @@ from voice_cua.auth import openai_status
 from voice_cua.inventory import build_inventory, find_by_label
 from voice_cua.island_state import ISLAND
 from voice_cua.activity_log import log_event
+from voice_cua import plugin_island
 from voice_cua.island_facade import describe_tool, summarize_result
 from voice_cua.tools import dispatch, tool_definitions
 from voice_cua.voice_settings import load_settings
@@ -194,8 +195,13 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(arguments, dict):
                 arguments = {}
             kind, title, detail, app = describe_tool(name, arguments)
+            app = plugin_island.island_app(name, app)
             ISLAND.publish(kind, title=title, detail=detail, app=app, step=name)
-            result = dispatch(name, arguments)
+            plugin_island.tool_started(name)
+            try:
+                result = dispatch(name, arguments)
+            finally:
+                plugin_island.tool_finished(name)
             rkind, rtitle, rdetail = summarize_result(name, result, fallback=detail)
             ISLAND.publish(rkind, title=rtitle, detail=rdetail, app=app)
             self._json(200, {"ok": True, "name": name, "result": result})

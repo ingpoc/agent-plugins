@@ -101,6 +101,13 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   island's row per use, never in the compact pill. Tapping a circle does nothing.
 - Dot: a plugin in use lights the blue #64D2FF working dot; red and amber still
   win.
+- Samantha, same language (Guru 2026-11-03 13:10 IST): voice-cua's
+  `plugin_island.py` posts her `cua_*` tools as `acu` and `comet_*` tools as
+  `comet-control` through `island_activity.py` (agent "Samantha"). While she
+  acts: her circle on the left, the target ring inside (the progress ring and
+  driven-app lead icon give way), the 6 pt blue dot as the trail, the plugin mark
+  on the right. Her right-side app circles (the Mac apps she drives, e.g.
+  Finder) stay — a different concept; Comet is no longer one of them.
 - Drop: the hub removes a plugin row when `ttl_s` lapses (1 s sweep); the
   circle fades out over 200 ms. Plugin rows never go stale and never show
   "updates stopped".

@@ -24,6 +24,7 @@ from voice_cua.activity_log import log_event, log_usage, tool_context
 from voice_cua.activity_log import log_exception as _log_exception
 from voice_cua.cua_bridge import hide_agent_cursor
 from voice_cua.comet_bridge import comet_add_listener, comet_end, comet_is_active, comet_remove_listener
+from voice_cua import plugin_island
 from voice_cua.island_facade import describe_tool, island_publish, island_voice_meter, summarize_result
 from voice_cua.startup_trace import mark
 from voice_cua.tools import dispatch, reset_session_state, tool_definitions
@@ -1150,13 +1151,17 @@ class RealtimeSession:
         def work() -> None:
             try:
                 kind, title, detail, app = describe_tool(name, arguments)
+                app = plugin_island.island_app(name, app)
                 island_publish(kind, title=title, detail=detail, app=app, step=name)
+                plugin_island.tool_started(name)
                 with tool_context(call_id=call_id, response_id=response_id):
                     try:
                         result = dispatch(name, arguments)
                     except Exception as exc:  # noqa: BLE001 — always answer the tool call
                         result = {"ok": False, "error": str(exc)[:200]}
                         _log_exception(name, exc)
+                    finally:
+                        plugin_island.tool_finished(name)
                 if not isinstance(result, dict):
                     result = {"ok": False, "error": "non-dict tool result"}
                 for bad in ("value", "secret", "password", "api_key", "token"):
