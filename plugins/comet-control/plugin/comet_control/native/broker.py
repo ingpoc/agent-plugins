@@ -621,6 +621,21 @@ def _visual_lock_module():
     return _VISUAL_LOCK_MODULE
 
 
+def _start_island_mirror():
+    """Mirror active leases onto the ACU Dynamic Island; never block the broker."""
+    try:
+        path = Path(__file__).resolve().with_name("island_mirror.py")
+        spec = importlib.util.spec_from_file_location("comet_control_island_mirror", path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"cannot load {path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module.start_in_thread(SOCKET_PATH, SOCKET_PATH.parent / "island-rows.json")
+    except Exception as exc:
+        print(f"island mirror disabled: {type(exc).__name__}", file=sys.stderr)
+        return None
+
+
 def _active_cua_claim() -> dict[str, Any] | None:
     global _cua_claim_public
     with cua_claim_lock:
@@ -983,6 +998,7 @@ def main() -> int:
         if socket_error:
             print(socket_error[-1], file=sys.stderr)
         return 1
+    island = _start_island_mirror()
     try:
         extension_server()
         return 0
@@ -990,6 +1006,12 @@ def main() -> int:
         print(f"Could not bind Comet extension broker: {exc}", file=sys.stderr)
         return 1
     finally:
+        if island:
+            try:
+                island[1].set()
+                island[0].shutdown()
+            except Exception as exc:
+                print(f"island mirror shutdown failed: {type(exc).__name__}", file=sys.stderr)
         _remove_owned_socket()
 
 

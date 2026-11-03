@@ -23,6 +23,8 @@ Never dual-drive Browser Use CLI and `send` (optional bridge: [browser-use.md](r
 3. **Act-first.** Batch mutations + `expect`; request only the relevant `page_context.sections`. Reuse verified results instead of observing after every action. Check `response.success` and each `expect_ok`; a failed `send` also exits nonzero. Screenshots only for visual claims. Act within 2 observes. ≤1 observe/30s while waiting OS/CUA. Watchable clicks keep the labeled cursor visible through CDP (`cursor_visible_during_click`); no park between chained acts — park only silent/closeout.
 4. Closeout once; require `verified_absent: true`.
 
+Every active lease shows on the ACU Dynamic Island (Comet icon + your agent label) until closeout or TTL expiry. The broker posts it; agents only pass a clear `--label` at `start` ([island.md](references/island.md)).
+
 ## Boundaries
 
 - Comet only; never Chrome profiles. One session/driver/window per campaign.
@@ -45,6 +47,7 @@ Never dual-drive Browser Use CLI and `send` (optional bridge: [browser-use.md](r
 | Dialogs / CDP / click_at_xy | [advanced-capabilities.md](references/advanced-capabilities.md) |
 | Debugger blocked by policy (in-page input, userScripts) | [debugger-blocked.md](references/debugger-blocked.md) |
 | CUA / OAuth | [native-coexistence.md](references/native-coexistence.md) · [multi-agent.md](references/multi-agent.md) |
+| Lease row on the Dynamic Island | [island.md](references/island.md) |
 | Google Accounts window | [google-accountchooser-ax.md](references/google-accountchooser-ax.md) |
 | Razorpay Bank popup (Success/Failure) | [razorpay-bank-popup.md](references/razorpay-bank-popup.md) |
 | Diagnosis / install | [optimize.md](references/optimize.md) · [extension-install.md](references/extension-install.md) |
