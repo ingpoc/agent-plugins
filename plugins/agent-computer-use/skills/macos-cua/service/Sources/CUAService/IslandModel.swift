@@ -616,6 +616,35 @@ enum IslandSourceGroups {
     static let maxCircles = 3
     static let samantha = "Samantha"
 
+    /// Plugin identities never become LEFT harness circles (UI & UX, 2026-11-03): the left side is
+    /// harness-only. A row posted under one maps to its calling harness (the acu_exec initiator), else drops.
+    static let pluginIdentities: Set<String> = [
+        "acu", "agent computer use", "agent-computer-use", "comet-control", "comet control", "context-ledger", "context ledger",
+    ]
+    static func isPluginIdentity(_ name: String) -> Bool {
+        pluginIdentities.contains(name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
+    /// The harness a left circle stands for: itself, or for a plugin identity its calling harness (nil = drop).
+    static func harness(of a: IslandAgent) -> (name: String, app: String)? {
+        let name = a.name.isEmpty ? a.app : a.name
+        guard !name.isEmpty else { return nil }
+        if isPluginIdentity(name) || isPluginIdentity(a.app) {
+            guard let bot = a.initiator?.bot, !bot.isEmpty, !isPluginIdentity(bot) else { return nil }
+            return (bot, bot)
+        }
+        return (name, a.app)
+    }
+
+    /// Samantha's left circle wears her own glyph, never ACU's app icon.
+    enum LeftIdentity: Equatable {
+        case samanthaGlyph
+        case app(String)
+    }
+    static func leftIdentity(_ g: IslandSourceGroup) -> LeftIdentity {
+        g.id == samantha ? .samanthaGlyph : .app(g.app.isEmpty ? g.id : g.app)
+    }
+
     /// Adds Samantha's circle while she uses a plugin: after urgent (needs-you / failed) circles, before
     /// the rest, keeping the 3 + "+N" cap (a pushed-out circle's urgency rides the "+N").
     static func withSamantha(_ groups: [IslandSourceGroup], active: Bool) -> [IslandSourceGroup] {
@@ -655,13 +684,12 @@ enum IslandSourceGroups {
         }
         for a in IslandAgentRows.taskAgents(agents) {
             if let h = hidePending, a.id == "pending:" + h { continue }
-            let name = a.name.isEmpty ? a.app : a.name
-            guard !name.isEmpty else { continue }
+            guard let (name, app) = harness(of: a) else { continue }
             let failure = a.status == "error" || a.status == "stale"
             // A seen failure adds no circle (it would read as "working"); a done row only for `doneHold`.
             if failure, !a.needs_you, seenFailures[a.id] == IslandModel.failureSignature(a) { continue }
             if a.status == "done", !doneVisible(a, now: now) { continue }
-            touch(name, a.app)
+            touch(name, app)
             if a.needs_you || a.status == "needs_you" { map[name]!.needsYou += 1 }
             if failure { map[name]!.failed = true }
             if a.status == "running" { map[name]!.running = true }
@@ -1650,7 +1678,9 @@ final class IslandModel: ObservableObject {
         if next != presentation {
             let familyChanged = next.motionFamily != presentation.motionFamily
             presentation = next
-            if familyChanged, !(reduceMotion || systemReduceMotion), !open {
+            // No squeeze when operated app icons come or go: straight to the fitted width on one spring.
+            let operatedInvolved = showsOperatedApps || operatedSlotsAtLastWidth > 0
+            if familyChanged, !(reduceMotion || systemReduceMotion), !open, !operatedInvolved {
                 // Alcove content swap: pinch to 74, then grow to the new width.
                 pinching = true
                 widthFromOperatedApps = false

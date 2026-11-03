@@ -569,6 +569,9 @@ final class IslandPluginMarksTests: XCTestCase {
         func settle() async throws { try await Task.sleep(nanoseconds: 300_000_000) }
         model.apply(IslandSnapshot(kind: "acting", title: "Reading Finder", app: "Finder", active_apps: ["Finder"],
                                    plugins: [op("Finder", "Samantha", 300)]))
+        // No 160 ms squeeze to 74 pt: idle -> fitted width at once, on the operated-apps spring.
+        XCTAssertEqual(model.drawnWidth, 71)
+        XCTAssertTrue(model.widthFromOperatedApps)
         try await settle()
         XCTAssertEqual(model.presentation, .acting)
         XCTAssertEqual(model.drawnWidth, IslandBarLayout.operatedAppsPillWidth(count: 1))
@@ -580,6 +583,27 @@ final class IslandPluginMarksTests: XCTestCase {
         model.apply(IslandSnapshot(kind: "idle"))
         try await settle()
         XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth)
+    }
+
+    func testLeftSideIsHarnessOnlyPluginIdentitiesMapOrDrop() {
+        func row(_ name: String, _ app: String, bot: String? = nil) -> IslandAgent {
+            var a = IslandAgent(id: "agent:\(name):\(bot ?? "")", name: name, app: app, title: "Task", status: "running", last_seen_at: 100)
+            if let bot { a.initiator = IslandInitiator(agent: "ACU", bot: bot, chain: [bot]) }
+            return a
+        }
+        let groups = IslandSourceGroups.groups(agents: [
+            row("Codex", "Codex"),
+            row("Agent Computer Use", "Agent Computer Use", bot: "Grok Bot"),   // maps to its calling harness
+            row("ACU", "ACU"),                                                  // no harness: dropped
+            row("Comet Control", "comet-control"),                              // dropped
+            row("Worker", "context-ledger"),                                    // plugin app identity: dropped
+        ], expired: [], hidePending: nil)
+        XCTAssertEqual(groups.map(\.id), ["Codex", "Grok Bot"])
+        XCTAssertTrue(groups.allSatisfy { !IslandSourceGroups.isPluginIdentity($0.id) && !IslandSourceGroups.isPluginIdentity($0.app) })
+        // Samantha's circle wears her own glyph, never the ACU app icon.
+        let sam = IslandSourceGroup(id: "Samantha", app: "Samantha", running: true)
+        XCTAssertEqual(IslandSourceGroups.leftIdentity(sam), .samanthaGlyph)
+        XCTAssertEqual(IslandSourceGroups.leftIdentity(IslandSourceGroup(id: "Codex", app: "Codex")), .app("Codex"))
     }
 
     func testIconChangesUseTheSpringAndNearWhiteIconsUseTheTile() {

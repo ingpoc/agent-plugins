@@ -542,7 +542,14 @@ struct SamanthaSourceCircle: View {
             } else if group.processCount > 0 {
                 Image(systemName: "cpu").font(.system(size: 14, weight: .medium)).foregroundStyle(IslandInk.secondaryColor)
             } else {
-                SamanthaAppIcon(appName: group.app.isEmpty ? group.id : group.app)
+                switch IslandSourceGroups.leftIdentity(group) {
+                case .samanthaGlyph:
+                    Image(systemName: "waveform")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(IslandInk.metaColor)
+                case .app(let name):
+                    SamanthaAppIcon(appName: name)
+                }
             }
             Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
         }

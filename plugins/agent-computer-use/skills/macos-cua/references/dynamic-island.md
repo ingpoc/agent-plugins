@@ -118,8 +118,12 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
   (TextEdit; detected generically by `AppIconResolver.isBlank`) draws on the
   target mark's white rounded tile with a dark glyph. Width changes from icons
-  spring over ~250 ms (crossfade with Reduce Motion); icons fade in and out
-  over 200 ms. VoiceOver adds
+  spring over ~250 ms straight to the fitted width (no 160 ms squeeze to 74 pt;
+  crossfade with Reduce Motion); icons fade in and out over 200 ms.
+- Left is harness-only: a row posted under a plugin identity (ACU, Agent
+  Computer Use, Comet Control, Context Ledger) maps to its calling harness (the
+  `acu_exec` initiator) or is dropped; Samantha's circle wears her waveform
+  glyph, never ACU's app icon. VoiceOver adds
   "Operating Calculator, Finder and TextEdit". An app shown inside is never
   drawn again as an outside app circle (Samantha's included). Plugin marks stay
   outside on the right.
