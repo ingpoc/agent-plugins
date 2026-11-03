@@ -38,7 +38,15 @@ from voice_cua import SYSTEM_INSTRUCTIONS  # noqa: E402
 from voice_cua import comet_bridge  # noqa: E402
 from voice_cua.audio_io import MicStreamer  # noqa: E402
 from voice_cua.comet_bridge import CometLease, redact_actions, redact_url  # noqa: E402
-from voice_cua.realtime_session import RealtimeSession  # noqa: E402
+from voice_cua.realtime_session import RealtimeSession, _task_outcome  # noqa: E402
+
+
+class TerminalOutcomeTests(unittest.TestCase):
+    def test_verified_action_requires_completed_response(self) -> None:
+        results = [{"tool": "cua_act", "ok": True, "verified": True}]
+        for status in ("failed", "incomplete"):
+            with self.subTest(status=status):
+                self.assertEqual(_task_outcome(results, status=status), ("unverified", "app_readback"))
 
 
 class FakeWS:
@@ -50,6 +58,82 @@ class FakeWS:
         if self.fail:
             raise ConnectionError("Connection is already closed.")
         self.events.append(json.loads(raw))
+
+
+class TaskOutcomeTests(unittest.TestCase):
+    def test_tool_result_is_correlated_through_final_response(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        request_id, response_id = "b" * 32, "response-1"
+        with patch("voice_cua.workflow_store.begin_engagement"), patch("voice_cua.tools.note_user_turn"):
+            run_id = session._note_user_turn("Calculate 8 times 8", request_id=request_id)
+        with patch("voice_cua.realtime_session.island_publish"):
+            session._dispatch_event({
+                "type": "response.created",
+                "response": {"id": response_id, "metadata": {"voice_cua_request_id": request_id}},
+            })
+        with patch("voice_cua.realtime_session.dispatch", return_value={"ok": True, "verified": True}), patch(
+            "voice_cua.realtime_session.describe_tool", return_value=("acting", "Acting", "", "Calculator")
+        ), patch("voice_cua.realtime_session.island_publish"), patch(
+            "voice_cua.realtime_session.log_event"
+        ), patch.object(session, "_deliver_tool_result", return_value=False), patch.object(
+            session, "_sync_tool_groups"
+        ), patch.object(session, "_wait_for_responses_idle", return_value=False):
+            session._run_tool("call-1", "cua_act", "{}", request_id=request_id, response_id=response_id)
+            self.assertTrue(_wait(lambda: "call-1" not in session._pending_calls))
+        with patch("voice_cua.realtime_session.log_task_outcome") as log, patch(
+            "voice_cua.realtime_session.mark"
+        ):
+            session._note_response_done({"id": response_id, "status": "completed", "output": []})
+        log.assert_called_once_with(
+            check_id="tool_task",
+            outcome="verified_success",
+            evidence_class="app_readback",
+            run_id=run_id,
+        )
+        self.assertNotIn(run_id, session._task_runs)
+
+    def test_old_response_cannot_clear_a_new_turn_outcome(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        old_run, new_run = "a" * 32, "b" * 32
+        session._task_runs[old_run] = [{"tool": "cua_act", "ok": True, "verified": True}]
+        session._task_runs[new_run] = []
+        session._response_task_run_ids.update({"old-response": old_run, "new-response": new_run})
+        with patch("voice_cua.realtime_session.log_task_outcome") as log, patch(
+            "voice_cua.realtime_session.mark"
+        ):
+            session._note_response_done({"id": "old-response", "status": "completed", "output": []})
+        log.assert_called_once_with(
+            check_id="tool_task",
+            outcome="verified_success",
+            evidence_class="app_readback",
+            run_id=old_run,
+        )
+        self.assertEqual(session._task_runs[new_run], [])
+        self.assertEqual(session._response_task_run_ids["new-response"], new_run)
+
+    def test_typed_prompt_sends_the_task_correlation_id(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        with patch("voice_cua.workflow_store.begin_engagement"), patch(
+            "voice_cua.tools.note_user_turn"
+        ), patch("voice_cua.realtime_session.island_publish"):
+            session.send_text("Open Calculator")
+        create = next(e for e in session.ws.events if e["type"] == "response.create")
+        request_id = create["response"]["metadata"]["voice_cua_request_id"]
+        self.assertRegex(request_id, r"^[0-9a-f]{32}$")
+        self.assertIn(request_id, session._task_runs)
+
+    def test_success_without_postcondition_stays_unverified(self) -> None:
+        self.assertEqual(
+            _task_outcome([{"tool": "cua_act", "ok": False, "verified": False}], status="completed"),
+            ("unverified", "app_readback"),
+        )
+
+    def test_user_cancellation_is_not_counted_as_success(self) -> None:
+        self.assertEqual(
+            _task_outcome([{"tool": "comet_act", "ok": False, "cancelled": True}], status="cancelled"),
+            ("cancelled", "browser_inventory"),
+        )
 
 
 def _wait(pred, timeout: float = 2.0) -> bool:

@@ -2,6 +2,14 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.83
+
+- Samantha can use Context Ledger decisions through a lazily loaded, project-scoped local helper: relevance checks, owner-decision and sensitivity gates, duplicate lookup, grounded IDs and uncertain-write protection. When Ledger access is unavailable she says so instead of guessing a website.
+- An unverified computer action is not replayed, including equivalent spellings of a keyboard shortcut; a non-retryable failure stops retries at once, and a new user turn allows recovery.
+- Tool-task outcomes are logged without prompt text; only explicit ACU verification counts as success. Native actions get precise postcondition guidance.
+- `comet_act` and `comet_end` stay out of Samantha's idle tool schema until a Comet lease begins; full page text reads are distinct from compact `page_context`.
+- GPT-Live answers greetings, simple arithmetic and exact-format requests itself, without a backend delegation or preamble.
+
 ## 0.2.82
 
 - Harden the local computer-use RPC boundary: the socket is restricted to its owner and each client's kernel-reported user identity is checked; malformed and oversized requests are rejected, incomplete requests expire, and connections and concurrent requests are bounded without dropping healthy persistent clients; unsafe socket paths are refused, and startup stops if the listener cannot be secured.
