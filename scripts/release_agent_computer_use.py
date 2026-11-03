@@ -199,6 +199,43 @@ def voice_smoke(plugin, version):
     raise RuntimeError('fresh spoken input, successful action and completed response were not proven')
 
 
+HYGIENE_GATES = ('worktree-placement','duplicate-clones','local-only-work')
+
+
+def hygiene_failures(report_rows):
+    """FAIL items of the placement/clone/local-only checks that name an agent-plugins checkout."""
+    found = []
+    for row in report_rows:
+        if row.get('check') not in HYGIENE_GATES or row.get('status') != 'FAIL':
+            continue
+        for item in row.get('items',[]):
+            text = item if isinstance(item,str) else json.dumps(item)
+            path = Path(text.split(':',1)[0].strip())
+            if 'agent-plugins' in path.parts:
+                found.append(f"{row['check']}: {text[:200]}")
+    return found
+
+
+def hygiene_gate(override, report=None):
+    """Fail fast on machine hygiene before building; docs/dev-lifecycle.md, Enforcement."""
+    tool = Path(os.environ.get('AGENT_PLUGINS_HYGIENE') or Path.home()/'.agents/bin/hygiene.py')
+    if not tool.is_file():
+        return {'checked':False,'reason':f'{tool} missing','override':override}
+    proc = subprocess.run([sys.executable,str(tool),'check','--json'],capture_output=True,text=True,timeout=300)
+    try:
+        rows = json.loads(proc.stdout)
+    except ValueError as exc:
+        raise RuntimeError(f'hygiene check returned no JSON ({proc.returncode})') from exc
+    failures = hygiene_failures(rows)
+    result = {'checked':True,'failures':failures,'override':override}
+    if report is not None:
+        report['hygiene'] = result
+    if failures and not override:
+        raise RuntimeError('hygiene check fails for agent-plugins; clean up first '
+                           '(or pass --hygiene-override and say why):\n  ' + '\n  '.join(failures))
+    return result
+
+
 @contextmanager
 def exclusive_release(path):
     path.parent.mkdir(parents=True,exist_ok=True)
@@ -230,6 +267,8 @@ def release(args, root=ROOT):
         frozen(root,head)
         report.update({'commit':head,'branch':output(['git','branch','--show-current'],root=root),
                        'worktrees':output(['git','worktree','list','--porcelain'],root=root), **policy(root,base=os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or 'refs/remotes/origin/main')})
+        report['hygiene'] = hygiene_gate(getattr(args,'hygiene_override',False),report)
+        save()
         module = contract_module(root)
         identity = module.package_identity(root/PACKAGE)
         report['identity'] = identity
@@ -299,6 +338,7 @@ def main(argv=None):
     parser.add_argument('--check',action='store_true',help='Source policy only; safe in CI.')
     parser.add_argument('--verify-installed',action='store_true',help='Reuse the existing app; refresh and verify the Codex package without rebuilding or restarting.')
     parser.add_argument('--sign-only',action='store_true',help='Local signed validation; never produces distribution-ready evidence.')
+    parser.add_argument('--hygiene-override',action='store_true',help='Release despite hygiene FAILs for agent-plugins; recorded in the report.')
     parser.add_argument('--report',type=Path,default=Path.home()/'.agents/artifacts/acu-release.json')
     args = parser.parse_args(argv)
     if args.check:

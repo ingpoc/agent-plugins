@@ -13,6 +13,13 @@ Guru 2026-11-03 15:12 IST: "it has to be followed by all harness". Applies to ev
 - Every open PR has a live owner. Branches and worktrees untouched for 7+ days go to the owner with last commit and status.
 - After a merge, in the same turn: `git worktree remove`, `git branch -d`, and delete the branch on Origin (the mirror follows). Abandoned work: make a verified `git bundle` under `<archive>/<date>-<topic>/` first, then retire it through the hygiene deletion gate. Retiring needs Guru's OK.
 
+## Enforcement
+Rules that machines check, so the 2026-11-03 cleanup does not recur:
+- **Pre-push placement** (`scripts/placement.py`, run by `.githooks/pre-push`): a push must come from `<checkout_root>/agent-plugins` or a worktree of it under `<worktree_root>/agent-plugins/` (or a harness root in `[exceptions].worktree_roots`). A second clone or a stray worktree is blocked. `AGENT_PLUGINS_ALLOW_PLACEMENT=1` pushes once anyway; say why in the PR. A no-op in CI or without `~/.agents/machine.toml`. Install with `scripts/install-hooks.sh`.
+- **Release hygiene gate**: `release_agent_computer_use.py` runs `hygiene check --json` first and stops if `worktree-placement`, `duplicate-clones` or `local-only-work` FAILs for an agent-plugins checkout. `--hygiene-override` releases anyway and records the failures in the report's `hygiene` field.
+- **Branch deletion mirroring**: the Origin sync job (`agent-plugins-origin-sync`, outside this repo) deletes a GitHub branch once Origin has deleted it, it is not an open or draft PR head, and its commits are in Origin main. Unmerged GitHub-only branches are reported as `KEEP`, never deleted.
+- **After every merge**: remove the worktree, `git branch -d`, delete the Origin branch (section 2). Retiring unmerged work still needs a verified bundle and Guru's OK.
+
 ## 3. Release
 1. Bump the SemVer in every manifest and `Info.plist` together. `check.py` release-policy enforces this; versions never go backwards, so a revert ships as the next number.
 2. Open the PR, get CI green, do a normal `origin pr merge` (no admin, no force-push).
