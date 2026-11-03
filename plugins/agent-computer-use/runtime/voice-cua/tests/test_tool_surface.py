@@ -46,7 +46,21 @@ class _Fresh(unittest.TestCase):
 
 class LazyGroupTests(unittest.TestCase):
     def test_base_surface_has_no_secrets_or_confirm(self) -> None:
-        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "comet_act", "comet_end", "system_volume"})
+        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "system_volume"})
+
+    def test_comet_actions_are_only_offered_during_a_lease(self) -> None:
+        idle = {tool["name"] for tool in tools.tool_definitions(comet_active=False)}
+        active = {tool["name"] for tool in tools.tool_definitions(comet_active=True)}
+        self.assertIn("comet_begin", idle)
+        self.assertNotIn("comet_act", idle)
+        self.assertNotIn("comet_end", idle)
+        self.assertTrue({"comet_begin", "comet_act", "comet_end"}.issubset(active))
+
+    def test_comet_schema_distinguishes_page_text_from_compact_context(self) -> None:
+        active = {tool["name"]: tool for tool in tools.tool_definitions(comet_active=True)}
+        description = active["comet_act"]["description"]
+        self.assertIn("text for visible page text", description)
+        self.assertIn("page_context for compact orientation", description)
 
     def test_comet_act_without_lease_has_no_action_side_effects(self) -> None:
         with patch.object(tools, "comet_is_active", return_value=False), \

@@ -16,6 +16,9 @@ Computer-use rules (same as Agent Computer Use MCP):
 - cua_act drives apps: label clicks, keys, batched steps, expect for proof.
 - Every mutating cua_act needs expect. ok:true means the settled AX state verified
   completion. Reuse its returned state; do not add cua_state when verified:true.
+- Choose a precise postcondition: use {value:{label,equals}} for an exact control value,
+  or a short, distinctive text substring for visible text. Avoid broad text checks that
+  can match intermediate or unchanged content.
 - If result has dispatched:true but ok:false, the input may have landed. Do not
   repeat blindly and never say done; inspect returned state, then use at most one
   cua_state only if needed. allow_unverified:true permits dispatch only when no AX
@@ -60,8 +63,9 @@ Workflows: match the trigger index below by meaning. For a match, load more_tool
 Routing (two drivers — pick by target, never both on one surface):
 - Native macOS apps (Calculator, Finder, TextEdit, Music, Settings…) → cua_state / cua_act.
 - Any website, URL, web page or web service (Netflix, YouTube, Gmail, Amazon…) →
-  Comet Control: comet_begin {url} → comet_act (goto, page_context to read
-  title/text, click_text/click_selector, fill_selector to type, wait_for_*).
+  Comet Control: comet_begin {url} → comet_act to read before answering; use
+  text for visible page text and page_context for compact orientation.
+  Also supports goto, click_text/click_selector, fill_selector and wait_for_*.
   Never cua_act on Comet or a browser window; use CUA in Comet only for an
   authenticated native-dialog handoff.
 - Comet windows for the user's requests (purpose user_task, the default) are NEVER

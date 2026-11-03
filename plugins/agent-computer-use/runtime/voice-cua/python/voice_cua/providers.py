@@ -32,6 +32,7 @@ import os
 import re
 import threading
 import time
+import uuid
 from typing import Any, Callable
 
 from voice_cua.activity_log import log_event
@@ -143,16 +144,18 @@ LIVE_INSTRUCTIONS = (
     "short sentences. Say what was done, not what could be done. Never end with offers like 'anything else?'.\n"
     "Backchannel policy: Brief acknowledgments only ('On it.'). Greetings, small talk and 'can you hear me' "
     "get a short spoken reply and no delegation.\n"
+    "Honor exact output-format requests without adding a greeting or acknowledgment.\n"
     "Interruption policy: Stop speaking when interrupted and listen. If the user changes or cancels the "
     "request, delegate the change; never say work was cancelled until the backend confirms it.\n"
     "Delegation policy:\n"
     "Backend tools:\n- Mac apps (Calculator, Finder, TextEdit, Music, Calendar, Settings), Comet browsing, and "
     "saved credential lookup without revealing secrets, and Context Ledger decisions.\n"
-    "Generate <|SpawnThinking|> when the user asks for computer, app, website, decision-memory or credential work, a "
-    "correction changes work already requested, or the request needs careful reasoning beyond a simple reply.\n"
-    "Do not generate <|SpawnThinking|> for greetings, small talk, a brief clarification, a repeated result, "
-    "or an answer from the conversation or a still-current result.\n"
-    "Generate <|SpawnThinking|> before answering when the answer depends on backend work. Do not guess "
+    "Do not delegate to the backend for greetings, small talk, brief clarifications, repeated results, "
+    "simple arithmetic (for example, 12 + 12 = 24), or answers from the conversation or a still-current result. "
+    "Answer these directly in Live, in the requested format; never generate <|SpawnThinking|> or create a Responses delegation.\n"
+    "Delegate to the backend when the user asks for computer, app, website, decision-memory or credential work, a "
+    "correction changes work already requested, or the answer depends on backend work or needs careful reasoning "
+    "beyond a simple reply. Generate <|SpawnThinking|> before answering when the answer depends on backend work. Do not guess "
     "the result while waiting. Never claim an "
     "action happened until the backend reports it. Unclear or partial speech, or a vague 'that thing'/'it' the last "
     "exchange didn't name: ask one short question (which one?) instead of delegating a guess. When the backend asks to confirm a risky action (send, buy, delete, "
@@ -377,6 +380,7 @@ class LiveProvider(VoiceProvider):
             self._pending_calls: dict[str, set[str]] = {}  # delegation -> outstanding call ids
             self._last_delegation = ""
             self._pending_request = ""  # voice_cua_request_id of the last typed request
+            self._pending_spoken_request: tuple[str, int] | None = None
             self._skip_next_create = False
             self._delegation_request: dict[str, str] = {}
             # Turn ids: every typed request (response.create carrying voice_cua_request_id,
@@ -563,6 +567,7 @@ class LiveProvider(VoiceProvider):
                 self._remember("user", text)  # typed turns seed restarts like spoken ones
                 with self._lock:
                     self._pending_spoken_update = ""  # this newer explicit request supersedes queued speech
+                    self._pending_spoken_request = None
                     self._user_item_queued = True  # the next response.create opens a turn
                 return [{"type": "response.item.create", "item": {
                     "type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}}]
@@ -585,6 +590,7 @@ class LiveProvider(VoiceProvider):
                     self._pending_request = request_id
                     self._turn_seq += 1
                     self._turn_request = request_id
+                    self._pending_spoken_request = None
                     if outstanding:
                         # The queued message rides on the waiting delegation's continuation:
                         # that delegation now answers this turn.
@@ -711,6 +717,7 @@ class LiveProvider(VoiceProvider):
             with self._lock:
                 # Live streams silence too; only audible frames define a reply burst.
                 if audible:
+                    self._pending_spoken_request = None
                     if not self._out_seq or now - self._last_out > 1.5:
                         self._out_seq += 1
                     self._last_out = now
@@ -720,9 +727,17 @@ class LiveProvider(VoiceProvider):
         if et == "session.input_transcript.delta":
             self.said.flush()
             fresh = self.heard.add(str(event.get("delta") or ""))
+            start_ms = event.get("start_ms")
+            if fresh and isinstance(start_ms, int) and not isinstance(start_ms, bool):
+                with self._lock:
+                    backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
+                    if not backend_busy and not self._pending_request:
+                        self._pending_spoken_request = (uuid.uuid4().hex, start_ms)
             return [{"type": "input_audio_buffer.speech_started"}] if fresh or self._new_user_burst() else []
         if et == "session.output_transcript.delta":
             self.heard.flush()
+            with self._lock:
+                self._pending_spoken_request = None
             self.said.add(str(event.get("delta") or ""))
             return []
         if et in {"session.usage.updated", "session.closed"}:
@@ -742,10 +757,11 @@ class LiveProvider(VoiceProvider):
             return []
         if et == "session.delegation.created":
             delegation = str((event.get("delegation") or {}).get("id") or event.get("delegation_id") or "")
+            offset_ms = event.get("offset_ms")
             with self._lock:
                 self._last_delegation = delegation or self._last_delegation
                 if delegation:
-                    self._claim_delegation(delegation)
+                    self._claim_delegation(delegation, offset_ms=offset_ms)
             log_event("live_delegation", delegation_id=delegation[:64] or None,
                       target=str((event.get("delegation") or {}).get("target") or event.get("target") or ""))
             return []
@@ -880,14 +896,27 @@ class LiveProvider(VoiceProvider):
             return [{"type": "response.done", "response": done}]
         return []
 
-    def _claim_delegation(self, delegation: str) -> None:
+    def _claim_delegation(self, delegation: str, *, offset_ms: Any = None) -> None:
         """Bind a new delegation to the turn current at its creation (caller holds the lock)."""
         if delegation in self._delegation_turn:
             return
         self._pending_spoken_update = ""  # a new delegation already carries the newer conversation
+        request_id = ""
+        if (self._pending_spoken_request and isinstance(offset_ms, int)
+                and not isinstance(offset_ms, bool)
+                and offset_ms >= self._pending_spoken_request[1]):
+            request_id, _ = self._pending_spoken_request
+            self._pending_spoken_request = None
+            self._turn_seq += 1
+            self._turn_request = request_id
+            self._pending_request = request_id
+        else:
+            # A delegation before a pending transcript's timeline belongs to the current
+            # turn (often a tool continuation); typed turns wait here until claimed.
+            request_id = self._pending_request or self._turn_request
         self._delegation_turn[delegation] = self._turn_seq
-        if self._turn_request:
-            self._delegation_request[delegation] = self._turn_request
+        if request_id:
+            self._delegation_request[delegation] = request_id
             self._pending_request = ""
         if len(self._delegation_turn) > 256:
             old = next(iter(self._delegation_turn))

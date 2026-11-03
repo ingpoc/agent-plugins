@@ -218,12 +218,13 @@ class ToolsTests(unittest.TestCase):
             self.assertNotIn("cursor", n.lower())
             self.assertNotIn("grok", n.lower())
 
-    def test_comet_tools_are_offered_before_and_during_a_lease(self) -> None:
+    def test_comet_actions_are_offered_only_during_a_lease(self) -> None:
         idle = {tool["name"] for tool in tool_definitions(comet_active=False)}
         active = {tool["name"] for tool in tool_definitions(comet_active=True)}
-        browser_tools = {"comet_begin", "comet_act", "comet_end"}
-        self.assertTrue(browser_tools.issubset(idle))
-        self.assertTrue(browser_tools.issubset(active))
+        self.assertIn("comet_begin", idle)
+        self.assertNotIn("comet_act", idle)
+        self.assertNotIn("comet_end", idle)
+        self.assertTrue({"comet_begin", "comet_act", "comet_end"}.issubset(active))
 
     def test_comet_browser_tasks_use_fresh_isolated_leases(self) -> None:
         bridge = CometLease()
