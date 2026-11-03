@@ -252,6 +252,8 @@ struct SamanthaThinkingDots: View {
 /// plugin icons (>= 12 pt so it reads at 1x), inside a spinning ring. Drawn over the compact lead slot.
 struct IslandPluginTargetMark: View {
     let target: IslandPluginTarget
+    /// Every target in use (newest first) for VoiceOver; defaults to just `target`.
+    var allTargets: [IslandPluginTarget] = []
     var size: CGFloat = IslandPluginTargetMark.ringDiameter
     var reduceMotion = false
     @State private var spin = false
@@ -285,7 +287,7 @@ struct IslandPluginTargetMark: View {
         }
         .frame(width: size, height: size)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Controlling \(target.accessibilityName)")
+        .accessibilityLabel(IslandPluginTarget.accessibilityLabel(allTargets.isEmpty ? [target] : allTargets))
     }
 }
 
@@ -654,7 +656,7 @@ struct SamanthaIslandBar: View {
                 // Controlled target (Apple / Comet) on its white tile in a 20 pt spinning ring, centred on the
                 // 16 pt lead slot at real size (not the 56 → 16 lead morph), so the 12 pt tile reads at 1x.
                 let d = IslandPluginTargetMark.ringDiameter
-                IslandPluginTargetMark(target: target, reduceMotion: reduceMotion)
+                IslandPluginTargetMark(target: target, allTargets: model.pluginTargets, reduceMotion: reduceMotion)
                     .offset(x: rect.minX + IslandBarLayout.slotInset + 8 - d / 2,
                             y: rect.minY + (IslandBarLayout.compactHeight - d) / 2)
                     .allowsHitTesting(false)

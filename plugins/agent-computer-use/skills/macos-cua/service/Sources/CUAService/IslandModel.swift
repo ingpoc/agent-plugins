@@ -401,10 +401,25 @@ enum IslandPluginTarget: Equatable {
     }
 
     /// The most recently seen use that controls a target wins.
-    static func current(_ uses: [IslandPluginUse]) -> IslandPluginTarget? {
-        uses.filter { of(plugin: $0.plugin) != nil }
-            .max { $0.last_seen_at < $1.last_seen_at }
-            .flatMap { of(plugin: $0.plugin) }
+    static func current(_ uses: [IslandPluginUse]) -> IslandPluginTarget? { all(uses).first }
+
+    /// Every controlled target in use, most recently active first, each once.
+    static func all(_ uses: [IslandPluginUse]) -> [IslandPluginTarget] {
+        var out: [IslandPluginTarget] = []
+        for u in uses.sorted(by: { $0.last_seen_at > $1.last_seen_at }) {
+            if let t = of(plugin: u.plugin), !out.contains(t) { out.append(t) }
+        }
+        return out
+    }
+
+    /// VoiceOver for the ring: names every target, newest first ("Controlling Comet and Mac").
+    static func accessibilityLabel(_ targets: [IslandPluginTarget]) -> String {
+        let names = targets.map(\.accessibilityName)
+        switch names.count {
+        case 0: return ""
+        case 1: return "Controlling \(names[0])"
+        default: return "Controlling " + names.dropLast().joined(separator: ", ") + " and " + names[names.count - 1]
+        }
     }
 
     var accessibilityName: String {
@@ -918,6 +933,8 @@ final class IslandModel: ObservableObject {
 
     /// Lead-slot mark for the controlled target (nil: none in use, or only Context Ledger).
     var pluginTarget: IslandPluginTarget? { IslandPluginTarget.current(pluginUses) }
+    /// All targets in use (newest first): the ring shows the first, VoiceOver names them all.
+    var pluginTargets: [IslandPluginTarget] { IslandPluginTarget.all(pluginUses) }
 
     var circleApps: [String] {
         circles.compactMap { if case .app(let n, _, _) = $0 { return n } else { return nil } }

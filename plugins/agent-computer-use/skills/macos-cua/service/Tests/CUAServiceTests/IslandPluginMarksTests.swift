@@ -376,6 +376,52 @@ final class IslandPluginMarksTests: XCTestCase {
         }
     }
 
+    func testRightCirclesCapAtThreeThenCollapseToPlusN() {
+        // 4 right-side circles: 3 known plugin marks + one more app in use -> 3 shown + "+1".
+        let four = IslandCircles.pluginItems([
+            use("acu", "Agent Computer Use", "Codex"), use("comet-control", "comet-control", "Claude"),
+            use("context-ledger", "context-ledger", "Cursor"), use("other", "Other Plugin", "Grok Bot"),
+        ])
+        XCTAssertEqual(four.count, 4)
+        XCTAssertEqual(IslandCircles.merge(apps: [], plugins: four), Array(four.prefix(3)) + [.overflow(1)])
+        // Samantha's app circle sits nearest the pill and pushes two plugin marks into "+2".
+        let finder = IslandCircleItem.app(name: "Finder", dimmed: false, driving: false)
+        XCTAssertEqual(IslandCircles.merge(apps: [finder], plugins: four), [finder] + Array(four.prefix(2)) + [.overflow(2)])
+        // Exactly 3 never shows "+N".
+        XCTAssertEqual(IslandCircles.merge(apps: [], plugins: Array(four.prefix(3))), Array(four.prefix(3)))
+        // Through the model: the right side is capped the same way.
+        let model = IslandModel()
+        model.idleActivity = "agents"
+        model.apply(IslandSnapshot(kind: "idle", plugins: [
+            use("acu", "Agent Computer Use", "Codex"), use("comet-control", "comet-control", "Claude"),
+            use("context-ledger", "context-ledger", "Cursor"), use("other", "Other Plugin", "Grok Bot"),
+            use("more", "More Plugin", "Codex"),
+        ]))
+        XCTAssertEqual(model.circles.count, 4)
+        XCTAssertEqual(model.circles.last, .overflow(2))
+        XCTAssertEqual(model.circleCount, 5)
+    }
+
+    func testBothTargetsRingShowsNewestAndVoiceOverNamesBoth() {
+        var acu = use("acu", "Agent Computer Use", "Codex"); acu.last_seen_at = 100
+        var comet = use("comet-control", "comet-control", "Claude"); comet.last_seen_at = 200
+        let model = IslandModel()
+        model.idleActivity = "agents"
+        model.apply(IslandSnapshot(kind: "idle", plugins: [acu, comet]))
+        XCTAssertEqual(model.pluginTarget, .app("Comet"))
+        XCTAssertEqual(model.pluginTargets, [.app("Comet"), .symbol("apple.logo")])
+        XCTAssertEqual(IslandPluginTarget.accessibilityLabel(model.pluginTargets), "Controlling Comet and Mac")
+        // ACU becomes the most recent: the ring switches to the Mac, VoiceOver still names both.
+        acu.last_seen_at = 300
+        model.apply(IslandSnapshot(kind: "idle", plugins: [acu, comet]))
+        XCTAssertEqual(model.pluginTarget, .symbol("apple.logo"))
+        XCTAssertEqual(IslandPluginTarget.accessibilityLabel(model.pluginTargets), "Controlling Mac and Comet")
+        // One target, or a Context Ledger use alongside, names only the controlled target.
+        var ledger = use("context-ledger", "context-ledger", "Codex"); ledger.last_seen_at = 400
+        XCTAssertEqual(IslandPluginTarget.accessibilityLabel(IslandPluginTarget.all([acu, ledger])), "Controlling Mac")
+        XCTAssertEqual(IslandPluginTarget.accessibilityLabel([]), "")
+    }
+
     func testTargetMarkPerPluginAndMostRecentWins() {
         XCTAssertEqual(IslandPluginTarget.of(plugin: "acu"), .symbol("apple.logo"))
         XCTAssertEqual(IslandPluginTarget.of(plugin: "comet-control"), .app("Comet"))

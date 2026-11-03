@@ -90,7 +90,8 @@ pill**, after Samantha's app circles. The left side stays the agent harness
 - Inside the pill (over the idle/done-settled lead slot, drawn at real size): what
   the plugin controls on a 12 pt white tile in a 20 pt spinning ring — Apple mark for `acu` (the Mac), Comet for `comet-control`;
   `context-ledger` controls nothing and has no inside mark (Guru 12:05 IST). The
-  most recently seen controlling use wins.
+  most recently seen controlling use wins the ring; VoiceOver names every
+  target, newest first ("Controlling Comet and Mac").
 - Placement: right circles hang off the pill's right edge, **outside** the
   pill; the inside mark uses the existing left lead slot. The 6 pt compact
   status dot at a 9 pt inset from the right end is untouched.
