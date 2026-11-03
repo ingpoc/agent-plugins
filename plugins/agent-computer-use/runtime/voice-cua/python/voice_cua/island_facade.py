@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import urllib.error
 import urllib.request
 
@@ -14,6 +15,15 @@ from voice_cua.island_state import ISLAND, IslandKind
 DEFAULT_GATEWAY = "http://127.0.0.1:8765"
 # Apps Samantha has used this session, oldest → newest (island shows newest nearest the pill).
 _ACTIVE_APPS: list[str] = []
+# Errors published on this thread. A tool that already put its own error on the island
+# (cua_act, Comet) must not get a second "Failed · …" from the generic result summary:
+# one failure, one island error, one island_error_raw row.
+_TLS = threading.local()
+
+
+def errors_published() -> int:
+    """Island errors published so far on the calling thread (compare before/after a dispatch)."""
+    return int(getattr(_TLS, "errors", 0))
 
 
 def _short(text: str, limit: int) -> str:
@@ -99,6 +109,9 @@ def summarize_result(name: str, result: object, *, fallback: str = "") -> tuple[
     """
     if not isinstance(result, dict):
         return ("error", "Failed", "no result")
+    if result.get("needs_confirmation") or str(result.get("error_type") or "").startswith("needs_confirm"):
+        # A confirm request, not a failure: the confirm card follows.
+        return ("acting", "Needs your OK", _short(fallback or name.replace("_", " "), 60))
     if result.get("ok"):
         detail = _first_non_empty(
             str(result.get("summary") or ""),
@@ -177,6 +190,8 @@ def island_publish(
     active_apps: list[str] | None = None,
     expanded: bool = False,
 ) -> None:
+    if kind == "error":
+        _TLS.errors = errors_published() + 1
     if kind == "idle":
         _ACTIVE_APPS.clear()
     elif app.strip():

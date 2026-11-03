@@ -121,10 +121,31 @@ def audio_available() -> bool:
     return sd is not None
 
 
+MIC_NO_INPUT_DEVICE = 2  # mic_preflight(): no input device at all (environment, not a fault)
+
+
+def has_input_device() -> bool:
+    """True when PortAudio reports a default input device (False on a Mac with no mic)."""
+    if sd is None:
+        return False
+    try:
+        sd.query_devices(kind="input")
+        return True
+    except Exception:  # noqa: BLE001 — PortAudio raises "Error querying device -1" with no input
+        return False
+
+
 def mic_preflight() -> int:
-    """Open/close mic once so macOS TCC runs when Samantha turns on, not mid-session."""
+    """Open/close mic once so macOS TCC runs when Samantha turns on, not mid-session.
+
+    Returns 0 ok, 1 failed, ``MIC_NO_INPUT_DEVICE`` when there is no input device: that check
+    runs first and costs no TCC helper or stream open, so a mic-less Mac fails fast, once.
+    """
     if os.environ.get("VOICE_CUA_NO_AUDIO", "").strip().lower() in {"1", "true", "yes"}:
         return 0
+    if sd is not None and not has_input_device():
+        print("mic preflight: no input device (text only)", file=sys.stderr, flush=True)
+        return MIC_NO_INPUT_DEVICE
     if sys.platform == "darwin" and not _mic_authorized():
         print("mic preflight failed: microphone needs access (ACU onboarding › Microphone)", file=sys.stderr, flush=True)
         return 1

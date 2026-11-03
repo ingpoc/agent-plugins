@@ -25,7 +25,8 @@ from voice_cua.activity_log import log_exception as _log_exception
 from voice_cua.cua_bridge import hide_agent_cursor
 from voice_cua.comet_bridge import comet_add_listener, comet_end, comet_is_active, comet_remove_listener
 from voice_cua import plugin_island
-from voice_cua.island_facade import describe_tool, island_publish, island_voice_meter, summarize_result
+from voice_cua.island_facade import (describe_tool, errors_published, island_publish, island_voice_meter,
+                                     summarize_result)
 from voice_cua.startup_trace import mark
 from voice_cua.tools import dispatch, reset_session_state, tool_definitions
 from voice_cua.providers import VoiceProvider, make_provider
@@ -628,7 +629,7 @@ class RealtimeSession:
                 mark("audio_ready", status="ok", detail="mic sender restarted")
                 print("Audio I/O active — speak now (mic restarted).", flush=True)
             return
-        from voice_cua.audio_io import RealtimeAudio, audio_available, wait_mic_preflight
+        from voice_cua.audio_io import MIC_NO_INPUT_DEVICE, RealtimeAudio, audio_available, wait_mic_preflight
 
         if not audio_available():
             self._audio_enabled = False
@@ -637,6 +638,13 @@ class RealtimeSession:
             return
 
         pre = wait_mic_preflight(timeout=30.0)
+        if pre == MIC_NO_INPUT_DEVICE:
+            # Environment, not a fault (e.g. a Mac mini with no mic): one skip row, text-only session.
+            self._audio_enabled = False
+            detail = "No input device · type instead"
+            mark("mic_preflight", status="skip", detail=detail, cause="no_input_device")
+            island_publish("error", title="Mic unavailable", detail=detail)
+            return
         if pre != 0:
             self._audio_enabled = False
             detail = "Allow microphone"
@@ -1183,6 +1191,7 @@ class RealtimeSession:
                 app = plugin_island.island_app(name, app)
                 island_publish(kind, title=title, detail=detail, app=app, step=name)
                 plugin_island.tool_started(name, arguments)
+                errors_before = errors_published()
                 with tool_context(call_id=call_id, response_id=response_id):
                     try:
                         result = dispatch(name, arguments)
@@ -1197,7 +1206,8 @@ class RealtimeSession:
                     result.pop(bad, None)
                 self._record_task_action(task_run_id, name, result)
                 rkind, rtitle, rdetail = summarize_result(name, result, fallback=detail)
-                island_publish(rkind, title=rtitle, detail=rdetail, app=app)
+                if not (rkind == "error" and errors_published() > errors_before):
+                    island_publish(rkind, title=rtitle, detail=rdetail, app=app)
                 stale = self._deliver_tool_result(
                     call_id, name, result, epoch=epoch, arguments=arguments
                 )
