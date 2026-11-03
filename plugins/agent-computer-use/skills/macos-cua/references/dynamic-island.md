@@ -80,11 +80,17 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   `kind` (`running`/`clear`), `name` (the agent, max 48 chars), `app` (the
   plugin's island app name), `title` (`Using <plugin>`), `meta`, `plugin`, and
   `ttl_s`.
-- Allowed `plugin` values: `acu` (`Agent Computer Use`), `comet-control`
-  (`Comet`), `context-ledger` (`Context Ledger`). Any other value is ignored and
-  the row stays a normal agent row. One circle per plugin app, agents grouped.
-- Placement: circles hang off the pill's right edge, **outside** the pill, so
-  the 6 pt compact status dot at a 9 pt inset from the right end is untouched.
+- Allowed `plugin` values: `acu`, `comet-control`, `context-ledger`. Any other
+  value is ignored and the row stays a normal agent row. One circle per plugin,
+  agents grouped. The right mark is the plugin's own: ACU's app icon, else
+  `<plugins>/<id>/assets/logo.svg` (`~/.agents/plugins`, `ACU_PLUGIN_LOGO_ROOT`).
+- Inside the pill (idle/done-settled lead slot): what the plugin controls, in a
+  spinning ring — Apple mark for `acu` (the Mac), Comet for `comet-control`;
+  `context-ledger` controls nothing and has no inside mark (Guru 12:05 IST). The
+  most recently seen controlling use wins.
+- Placement: right circles hang off the pill's right edge, **outside** the
+  pill; the inside mark uses the existing left lead slot. The 6 pt compact
+  status dot at a 9 pt inset from the right end is untouched.
 - Tooltip: `<plugin display> · <agents>`. VoiceOver: `<plugin display> in use by
   <agents>` (for example "Comet Control in use by Claude and Codex"). The circle
   names the agent using it; tapping it does nothing.

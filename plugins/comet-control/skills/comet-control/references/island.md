@@ -4,8 +4,8 @@ The Comet Control broker mirrors every active lease onto the Agent Computer Use 
 
 ## What shows
 
-- One circle per lease on the right of the pill, after Samantha's app circles. The left side stays the agent harness circles; Comet is never drawn there.
-- Icon `Comet`; tooltip `Comet Control · <agentLabel>`; VoiceOver `Comet Control in use by <agentLabel>`.
+- Right of the pill: the comet-control logo circle (after Samantha's app circles). Inside the pill's lead slot: Comet's icon in a spinning ring (what the plugin controls). The left side stays the agent harness circles.
+- Tooltip `Comet Control · <agentLabel>`; VoiceOver `Comet Control in use by <agentLabel>`.
 - Pass a short human `--label` (the lease `agentLabel`) at `start` (for example `smallcase-manager` or `Grok Bot · bookings`), max 48 chars. Never put secrets, URLs with tokens, or user data in it.
 - Agents using Comet group into one circle: two labelled leases show one Comet circle naming both agents.
 
