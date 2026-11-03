@@ -187,8 +187,10 @@ class HygieneGateTests(unittest.TestCase):
     def test_gate_blocks_without_override_and_records_override(self):
         with tempfile.TemporaryDirectory() as td, \
              patch.dict(os.environ,{'AGENT_PLUGINS_HYGIENE':str(self.tool(td,self.ROWS))}):
+            report = {}
             with self.assertRaisesRegex(RuntimeError,'hygiene check fails for agent-plugins'):
-                release.hygiene_gate(False)
+                release.hygiene_gate(False,report)
+            self.assertEqual(len(report['hygiene']['failures']),1)
             result = release.hygiene_gate(True)
         self.assertTrue(result['override'])
         self.assertEqual(len(result['failures']),1)

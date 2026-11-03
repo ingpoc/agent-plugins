@@ -216,7 +216,7 @@ def hygiene_failures(report_rows):
     return found
 
 
-def hygiene_gate(override):
+def hygiene_gate(override, report=None):
     """Fail fast on machine hygiene before building; docs/dev-lifecycle.md, Enforcement."""
     tool = Path(os.environ.get('AGENT_PLUGINS_HYGIENE') or Path.home()/'.agents/bin/hygiene.py')
     if not tool.is_file():
@@ -228,6 +228,8 @@ def hygiene_gate(override):
         raise RuntimeError(f'hygiene check returned no JSON ({proc.returncode})') from exc
     failures = hygiene_failures(rows)
     result = {'checked':True,'failures':failures,'override':override}
+    if report is not None:
+        report['hygiene'] = result
     if failures and not override:
         raise RuntimeError('hygiene check fails for agent-plugins; clean up first '
                            '(or pass --hygiene-override and say why):\n  ' + '\n  '.join(failures))
@@ -265,7 +267,7 @@ def release(args, root=ROOT):
         frozen(root,head)
         report.update({'commit':head,'branch':output(['git','branch','--show-current'],root=root),
                        'worktrees':output(['git','worktree','list','--porcelain'],root=root), **policy(root,base=os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or 'refs/remotes/origin/main')})
-        report['hygiene'] = hygiene_gate(getattr(args,'hygiene_override',False))
+        report['hygiene'] = hygiene_gate(getattr(args,'hygiene_override',False),report)
         save()
         module = contract_module(root)
         identity = module.package_identity(root/PACKAGE)
