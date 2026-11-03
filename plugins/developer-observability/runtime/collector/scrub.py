@@ -25,5 +25,22 @@ def scrub(text, limit: int = 160) -> str:
     return '' if line == 'unknown' else line
 
 
+_KEEP_CODE = re.compile(r'\b(status|code|http|exit|errno)([ =:]*)(\d{1,4})\b')
+
+
 def signature(text) -> str:
-    return re.sub(r'\s+', ' ', re.sub(r'\d+', '#', scrub(text, 120).lower())).strip()
+    """Normalized message: digits become '#', except status/exit codes, which identify the cause."""
+    text = str(text or '')
+    # Payload dumps after the reason (response headers, dicts) vary per occurrence; the reason is the cause.
+    for marker in (' -+-+- ', ' {', ' ['):
+        cut = text.find(marker)
+        if cut > 0:
+            text = text[:cut]
+    line = scrub(text, 120).lower()
+    out, last = [], 0
+    for match in _KEEP_CODE.finditer(line):
+        out.append(re.sub(r'\d+', '#', line[last:match.start()]))
+        out.append(match.group(0))
+        last = match.end()
+    out.append(re.sub(r'\d+', '#', line[last:]))
+    return re.sub(r'\s+', ' ', ''.join(out)).strip()

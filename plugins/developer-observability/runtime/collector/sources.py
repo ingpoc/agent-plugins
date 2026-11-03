@@ -12,8 +12,19 @@ import xml.etree.ElementTree as ET
 
 from .scrub import DENY_KEYS, TEXT_KINDS, scrub
 
-DURATION_KEYS = ('step_ms', 'latency_ms', 'duration_ms', 'speech_to_playback_ms', 'took_ms')
+# Real step durations, in priority order. `step_ms` is a gap since the previous row, so it only
+# counts for successful rows that are not an end, close, failure or idle phase (see END_PHASE).
+DURATION_KEYS = ('speech_to_playback_ms', 'latency_ms', 'duration_ms', 'took_ms', 'backend_ms')
+END_PHASE = re.compile(r'(close|closed|exit|done|error|fail|gave_up|updated|reconnect|stop|idle|expired)')
 ERROR_STATUS = {'fail', 'failed', 'error', 'err'}
+# Kinds that re-display errors already logged elsewhere (the island HUD): counted as mirrors, not failures.
+MIRROR_KINDS = {'island_error_raw'}
+# Environment conditions, not code failures: their own category.
+CAUSES = (('no input device', 'no_input_device'),)
+# Test fixtures: canned replies answered within a few ms, and explicit self-test sessions.
+CANNED_REPLIES = {'RIGHT', 'WRONG'}
+INSTANT_MS = 2
+TEST_PURPOSES = {'self_test', 'test', 'fixture'}
 SKIP_DIRS = {'.git', 'node_modules', '.build', '__pycache__', '.venv'}
 _ISO = re.compile(r'^\[?(\d{4}-\d\d-\d\dT[\d:.]+(?:Z|[+-]\d\d:?\d\d)?)')
 _LOG_ERROR = re.compile(r'(?i)\b(error|exception|traceback|fatal|failed|failure)\b')
@@ -71,15 +82,19 @@ def _stat(stats, source):
     return stats.setdefault(source, {'events': 0, 'errors': 0, 'durations': 0, 'skipped': 0, 'last_event_at': None})
 
 
-def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None):
+def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None,
+           metric=None, condition=None, mirror=False, test=False, version=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
     item['durations'] += duration_ms is not None
+    item['mirrors'] = item.get('mirrors', 0) + bool(mirror)
+    item['test_events'] = item.get('test_events', 0) + bool(test)
     if ts is not None and (item['last_event_at'] is None or iso(ts) > item['last_event_at']):
         item['last_event_at'] = iso(ts)
     return {'project': project, 'source': source, 'kind': kind, 'step': step, 'error': bool(error), 'ts': ts,
-            'duration_ms': duration_ms, 'message': message, 'ref': where, 'session': session}
+            'duration_ms': duration_ms, 'metric': metric, 'message': message, 'ref': where, 'session': session,
+            'condition': condition, 'mirror': bool(mirror), 'test': bool(test), 'version': version}
 
 
 def _lines(path, max_bytes):
@@ -97,8 +112,16 @@ def _lines(path, max_bytes):
             yield number, raw.decode('utf-8', errors='replace')
 
 
-def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
-    _stat(stats, source)
+def _cause(*texts):
+    for text in texts:
+        low = str(text or '').lower()
+        for needle, cause in CAUSES:
+            if needle in low:
+                return cause
+    return None
+
+
+def _jsonl_rows(path, max_bytes, stats, source):
     for number, line in _lines(path, max_bytes):
         if not line.strip():
             continue
@@ -109,6 +132,40 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         if not isinstance(obj, dict):
             stats[source]['skipped'] += 1
             continue
+        yield number, obj
+
+
+def _sessions(path, max_bytes):
+    """First pass: per-session version and test flags. Rows without a session belong to the last one seen."""
+    info, current = {}, None
+    for _line, obj in _jsonl_rows(path, max_bytes, {None: {'skipped': 0}}, None):
+        session = obj.get('session_id') or obj.get('session')
+        current = session if isinstance(session, str) else current
+        if current is None:
+            continue
+        entry = info.setdefault(current, {'version': None, 'purpose_test': False, 'canned': False, 'instant': False})
+        if entry['version'] is None and isinstance(obj.get('version'), str):
+            entry['version'] = obj['version'][:40]
+        if obj.get('purpose') in TEST_PURPOSES:
+            entry['purpose_test'] = True
+        # Replies are compared against two canned words only; their text is never stored.
+        if obj.get('kind') == 'assistant_reply' and obj.get('text') in CANNED_REPLIES:
+            entry['canned'] = True
+        step = _number(obj.get('step_ms'))
+        if obj.get('phase') == 'response_done' and step is not None and step <= INSTANT_MS:
+            entry['instant'] = True
+    return info
+
+
+def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
+    _stat(stats, source)
+    sessions = _sessions(path, max_bytes)
+    current = None
+    for number, obj in _jsonl_rows(path, max_bytes, stats, source):
+        own = obj.get('session_id') or obj.get('session')
+        current = own if isinstance(own, str) else current
+        flags = sessions.get(current, {})
+        test = bool(flags.get('purpose_test') or (flags.get('canned') and flags.get('instant')))
         obj = {key: value for key, value in obj.items() if key not in DENY_KEYS}
         kind = _first_str(obj, ('kind', 'event', 'type', 'name')) or 'event'
         step = _first_str(obj, ('phase', 'tool', 'step', 'stage')) or ''
@@ -116,46 +173,68 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         err = obj.get('error')
         error = (status in ERROR_STATUS or 'error' in kind or 'fail' in kind or bool(isinstance(err, (str, dict)) and err)
                  or obj.get('ok') is False)
-        duration = next((_number(obj[key]) for key in DURATION_KEYS if _number(obj.get(key)) is not None), None)
+        if kind == 'tool_error' and str(obj.get('error_type', '')).startswith('needs_confirm'):
+            kind, error = 'tool_needs_confirmation', False
+        mirror = kind in MIRROR_KINDS
+        error = error and not mirror
+        text = err.get('message') if isinstance(err, dict) else None
+        raw_message = text if isinstance(text, str) else _first_str(obj, ('error', 'detail', 'message', 'reason', 'msg'))
+        cause = obj.get('cause') if isinstance(obj.get('cause'), str) else _cause(obj.get('detail'), obj.get('error'))
+        condition = cause if cause and (error or status == 'skip') else None
+        metric = next((key for key in DURATION_KEYS if _number(obj.get(key)) is not None), None)
+        duration = obj[metric] if metric else None
         if duration is None and _number(obj.get('duration_s')) is not None:
-            duration = obj['duration_s'] * 1000
+            duration, metric = obj['duration_s'] * 1000, 'duration_s'
+        if (duration is None and _number(obj.get('step_ms')) is not None and not error and status in ('ok', '')
+                and not END_PHASE.search(step or kind)):
+            duration, metric = obj['step_ms'], 'step_ms'
         ts = next((parse_ts(obj[key]) for key in ('ts', 'time', 'timestamp') if key in obj), None)
-        message = ''
-        if kind not in TEXT_KINDS:
-            text = err.get('message') if isinstance(err, dict) else None
-            message = scrub(text if isinstance(text, str) else _first_str(obj, ('error', 'detail', 'message', 'reason', 'msg')))
-        session = _first_str(obj, ('session_id', 'session'))
+        message = '' if kind in TEXT_KINDS else scrub(raw_message)
+        if condition:
+            message, error = f'cause: {condition}', True
         yield _event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
-                     duration_ms=duration, message=message, where=ref(path, number), session=session)
+                     duration_ms=duration, metric=metric, message=message, where=ref(path, number), session=current,
+                     condition=condition, mirror=mirror, test=test, version=flags.get('version'))
+
+
+_SESSION = re.compile(r'\bsession_id=(\w+)')
+_ERROR_TEXT = (re.compile(r"'message': '([^']*)'"), re.compile(r'\berror=(.+)$'), re.compile(r'(?i)\berror: (.+)$'))
 
 
 def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
     _stat(stats, source)
-    # Lines without their own timestamp inherit the previous one, else the file's mtime.
-    last_ts = None
+    # Lines without their own timestamp or session inherit the previous one (else the file's mtime).
+    last_ts, session = None, None
     mtime = Path(path).stat().st_mtime
     for number, line in _lines(path, max_bytes):
-        error = bool(_LOG_ERROR.search(line))
+        line = line.rstrip('\n')
+        error = bool(_LOG_ERROR.search(line)) and 'status=ok' not in line
         match = _ISO.match(line)
         stamp = parse_ts(match.group(1)) if match else None
         last_ts = stamp if stamp is not None else last_ts
         ts = last_ts if last_ts is not None else mtime
+        if own := _SESSION.search(line):
+            session = own.group(1)
         phase = _PHASE.search(line)
         word = _WORD.search(line)
         step = phase.group(1) if phase else word.group(1) if word else 'log'
-        duration = None
+        duration = metric = None
         for name, value in _NAMED_MS.findall(line):
-            if name == 'elapsed':
+            if name == 'elapsed' or (name == 'step' and (error or END_PHASE.search(step))):
                 continue
-            duration, step = float(value), f'{step}/{name}'
+            duration, metric = float(value), f'{name}_ms'
             break
         if duration is None and not _NAMED_MS.search(line):
             plain = _PLAIN_MS.search(line)
-            duration = float(plain.group(1)) if plain else None
+            duration, metric = (float(plain.group(1)), 'ms') if plain else (None, None)
         if not error and duration is None:
             continue
+        text = next((m.group(1) for pattern in _ERROR_TEXT if (m := pattern.search(line))), line) if error else ''
+        cause = _cause(line) if error else None
+        message = f'cause: {cause}' if cause else scrub(text)
         yield _event(stats, project=project, source=source, kind='log_error' if error else 'log', step=step,
-                     error=error, ts=ts, duration_ms=duration, message=scrub(line), where=ref(path, number))
+                     error=error, ts=ts, duration_ms=duration, metric=metric, message=message, where=ref(path, number),
+                     session=session, condition=cause)
 
 
 def iter_junit(path, project, source, stats):
@@ -177,7 +256,7 @@ def iter_junit(path, project, source, stats):
         message = scrub((bad.get('message') or bad.text or '') if bad is not None else '')
         yield _event(stats, project=project, source=source, kind='test',
                      step=f"{case.get('classname', '')}.{case.get('name', '')}", error=bad is not None, ts=ts,
-                     duration_ms=duration, message=message, where=ref(path, 0))
+                     duration_ms=duration, metric='test_ms', message=message, where=ref(path, 0))
 
 
 def iter_checklog(run_dir, project, source, stats):
@@ -198,7 +277,7 @@ def iter_checklog(run_dir, project, source, stats):
                          error=True, ts=ts, duration_ms=None, message=scrub(match.group(3)), where=where)
         elif match := _CHECK_TEST.match(line):
             yield _event(stats, project=project, source=source, kind='check_test', step=match.group(1),
-                         error=match.group(3) != '0', ts=ts, duration_ms=float(match.group(2)) * 1000,
+                         error=match.group(3) != '0', ts=ts, duration_ms=float(match.group(2)) * 1000, metric='test_ms',
                          message='', where=where)
 
 

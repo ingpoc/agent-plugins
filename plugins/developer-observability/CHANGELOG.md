@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.5 (2026-11-03)
+
+Collector accuracy, so a finding shows whether a fix worked:
+
+- One root-cause cluster per cause: the same failure logged as a startup step, a `realtime_error` and two voice.log lines counts once per session (largest source wins). Payload dumps after the reason (headers, dicts) no longer split clusters; status codes still do (403 ≠ 429).
+- `island_error_raw` is a mirror, not a failure (counted as `mirrors` in collector stats); `tool_error` with `needs_confirmation` is not an error.
+- Latency only from real durations (`speech_to_playback_ms`, `latency_ms`, `duration_ms`, ok `step_ms` of non-terminal phases). Close/exit/done/error/idle spans are excluded. Hotspots report p50/p95/n against `collector.latency_threshold_ms` (default 1 s; tests/CI use `collector.test_latency_threshold_ms`, default 60 s); no per-project cap.
+- Status: `active` = seen in the last `collector.active_window_h` (default 24 h). When sessions carry a `version`, failures get `by_version` and `before_after`, and a failure with none on the latest version is `recovered`. Causes such as `no_input_device` become their own `environment_condition` finding.
+- No silent cap: every finding is written, ranked (`rank`) and paginated. `collect` returns `total`/`active`/`by_status`; `observability_issues` adds `active`, `by_status` and `by_source` (collector/primary).
+- Test sessions (`purpose=self_test`, canned RIGHT/WRONG replies with ≤ 2 ms responses) are excluded by default across sources; `--include-tests`, `include_tests` (MCP) or `collector.include_tests` include them.
+- Duplicate-call redundancy uses `tool_start` only (companion `comet_call` rows doubled every call).
+
 ## 0.1.4 (2026-11-03)
 
 - Portable collector bundled in `runtime/collector/` (stdlib only, OS-neutral): JSONL logs, text logs, JUnit XML, agent-plugins `check.py` CI logs, git state and `hygiene --json` reports.
