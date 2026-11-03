@@ -281,6 +281,33 @@ final class IslandPluginMarksTests: XCTestCase {
         }
     }
 
+    /// Replays island posts recorded from real plugin use (one JSON line per post: {"t", "body"}) through
+    /// the real hub and renders the island after each post (2x). Env-gated:
+    /// ISLAND_RECORDED_POSTS=<jsonl> CUA_ISLAND_RENDER_DIR=<dir> swift test --filter testRenderRecordedPosts
+    func testRenderRecordedPosts() async throws {
+        let env = ProcessInfo.processInfo.environment
+        guard let dir = env["CUA_ISLAND_RENDER_DIR"], let path = env["ISLAND_RECORDED_POSTS"] else {
+            throw XCTSkip("set ISLAND_RECORDED_POSTS and CUA_ISLAND_RENDER_DIR to replay")
+        }
+        let plugins = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../../../").standardized
+        setenv("ACU_PLUGIN_LOGO_ROOT", plugins.path, 1)
+        let hub = IslandHub(store: store)
+        let lines = try String(contentsOfFile: path, encoding: .utf8).split(separator: "\n")
+        for (i, line) in lines.enumerated() {
+            guard let obj = try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+                  let body = obj["body"] as? [String: Any], let t = obj["t"] as? Double else { continue }
+            let now = Date(timeIntervalSince1970: t)
+            XCTAssertEqual(post(hub, body, now: now).status, 200, "post \(i)")
+            let m = IslandModel()
+            m.idleActivity = "duo"
+            m.apply(hub.compose(now: now))
+            let kind = body["kind"] as? String ?? "?"
+            let plugin = (body["id"] as? String ?? "").split(separator: ":").dropFirst().first.map(String.init) ?? "row"
+            try await save(m, String(format: "recorded-%02d-%@-%@", i + 1, plugin, kind), dir: dir)
+        }
+    }
+
     func testTargetMarkPerPluginAndMostRecentWins() {
         XCTAssertEqual(IslandPluginTarget.of(plugin: "acu"), .symbol("apple.logo"))
         XCTAssertEqual(IslandPluginTarget.of(plugin: "comet-control"), .app("Comet"))
