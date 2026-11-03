@@ -9,8 +9,11 @@ checks the files each pushed range changes:
   changed .py; `bash -n` and `shellcheck -S error` on changed .sh
 - typecheck: `python -m py_compile` on changed .py (no type checker is configured)
 - contract: `scripts/check.py --validate-only` (manifests and catalogs)
-- placement: the pushing checkout is the canonical one or a worktree under
-  `worktree_root` (scripts/placement.py; override AGENT_PLUGINS_ALLOW_PLACEMENT=1)
+- rules (scripts/push_gate.py, before the file checks): placement (canonical
+  checkout or a worktree under `worktree_root`; AGENT_PLUGINS_ALLOW_PLACEMENT=1),
+  branch-name (`<owner>/<slug>`; AGENT_PLUGINS_ALLOW_BRANCH_NAME=1) and main-push
+  (main only from the canonical checkout; AGENT_PLUGINS_ALLOW_MAIN_PUSH=1). A new
+  branch prints a reminder to open its PR in the same turn.
 
 The test suites stay in CI (the Origin check `scripts/check.py`). A missing
 optional tool (ruff, shellcheck) is reported and skipped, never a silent pass of
@@ -130,14 +133,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.files is not None:
         return run([f for f in args.files if (ROOT / f).is_file()], [])
-    ranges = pushed_ranges(sys.stdin.read())
+    data = sys.stdin.read()
+    sys.path.insert(0, str(ROOT / "scripts"))
+    from push_gate import gate  # noqa: PLC0415 - sibling script, not a package
+
+    if gate(ROOT, data):
+        return 1
+    ranges = pushed_ranges(data)
     if not ranges:
         return 0
-    sys.path.insert(0, str(ROOT / "scripts"))
-    from placement import gate  # noqa: PLC0415 - sibling script, not a package
-
-    if gate(ROOT):
-        return 1
     return run(changed_files(ranges), ranges)
 
 

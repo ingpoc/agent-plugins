@@ -277,6 +277,86 @@ def check_worktrees(m: dict, r: Report) -> None:
     r.add("worktree-count", "WARN" if crowded else "PASS", "more than three per repo", crowded)
 
 
+def agent_plugins_checkouts(m: dict) -> list[Path]:
+    """agent-plugins clones (any remote ending /agent-plugins) and their linked worktrees, minus exceptions."""
+    exc = m.get("exceptions", {})
+    skip = {expand(x) for x in [*exc.get("checkouts", []), *exc.get("worktrees", [])]}
+    found: set[Path] = set()
+    for repo in scan_clones(m):
+        urls = (git(repo, "config", "--get-regexp", r"^remote\..*\.url$") or "").split()[1::2]
+        if repo in skip or not any(norm_remote(u).endswith("/agent-plugins") for u in urls):
+            continue
+        found.add(repo)
+        out = git(repo, "worktree", "list", "--porcelain") or ""
+        found.update(Path(line.split(" ", 1)[1]) for line in out.splitlines() if line.startswith("worktree "))
+    return sorted(found - skip, key=str)
+
+
+def check_hooks_path(m: dict, r: Report) -> None:
+    """Every agent-plugins checkout runs .githooks/pre-push, whichever harness pushes."""
+    checkouts = agent_plugins_checkouts(m)
+    if not checkouts:
+        r.add("hooks-path", "PASS", "no agent-plugins checkouts")
+        return
+    bad = []
+    for path in checkouts:
+        value = (git(path, "config", "core.hooksPath") or "").strip()
+        if value == ".githooks" or (value and expand(value) == (path / ".githooks").resolve()):
+            continue
+        bad.append(f"{path}: core.hooksPath={value or '<unset>'}; fix: git -C {path} config core.hooksPath "
+                   ".githooks (scripts/install-hooks.sh)")
+    if bad:
+        r.add("hooks-path", "FAIL", "agent-plugins checkouts without the pre-push gate", bad)
+    else:
+        r.add("hooks-path", "PASS", f"{len(checkouts)} agent-plugins checkout(s) use .githooks")
+
+
+def open_pr_heads(slug: str) -> set[str] | None:
+    """Head branches of open and draft Origin PRs; None when the origin CLI can't answer."""
+    heads: set[str] = set()
+    for state in ("open", "draft"):
+        proc = run(["origin", "pr", "list", "-R", slug, "--state", state, "--json", "headRef", "-L", "200"],
+                   timeout=20)
+        if proc is None or proc.returncode != 0:
+            return None
+        try:
+            heads.update(item["headRef"] for item in json.loads(proc.stdout or "[]"))
+        except (ValueError, KeyError, TypeError):
+            return None
+    return heads
+
+
+def check_unpr_branches(m: dict, r: Report, now: float | None = None) -> None:
+    """Pushed origin-cursor branches older than 24h with no open or draft PR (refs from last fetch)."""
+    now = time.time() if now is None else now
+    canonical = paths(m)["checkout_root"] / "agent-plugins"
+    if not is_clone(canonical):
+        r.add("branch-without-pr", "PASS", "no canonical agent-plugins checkout")
+        return
+    url = (git(canonical, "remote", "get-url", "origin-cursor") or "").strip()
+    if not url:
+        r.add("branch-without-pr", "UNKNOWN", "no origin-cursor remote")
+        return
+    slug = "/".join(norm_remote(url).split("/")[-2:])
+    out = git(canonical, "for-each-ref", "--format=%(refname:strip=3) %(committerdate:unix)",
+              "refs/remotes/origin-cursor") or ""
+    stale: dict[str, float] = {}
+    for line in out.splitlines():
+        name, _, ts = line.rpartition(" ")
+        if name and name not in ("HEAD", "main") and ts.isdigit() and now - int(ts) > 86400:
+            stale[name] = now - int(ts)
+    detail = "pushed origin-cursor branches older than 24h with no open or draft PR (refs from last fetch)"
+    if not stale:
+        r.add("branch-without-pr", "PASS", "no pushed branch older than 24h without a PR")
+        return
+    heads = open_pr_heads(slug)
+    if heads is None:
+        r.add("branch-without-pr", "UNKNOWN", "could not list Origin PRs (origin CLI)", sorted(stale))
+        return
+    missing = [f"{b} ({age / 3600:.0f}h, no open PR)" for b, age in sorted(stale.items()) if b not in heads]
+    r.add("branch-without-pr", "WARN" if missing else "PASS", detail, missing)
+
+
 def verified_bundle_heads(repo: Path, archive_root: Path, entry: dict) -> tuple[dict[str, str] | None, str | None]:
     bundle_value = entry.get("bundle")
     expected_sha = entry.get("bundle_sha256")
@@ -588,6 +668,8 @@ def run_checks(m: dict) -> Report:
     check_roots(m, r)
     check_duplicate_clones(m, r)
     check_worktrees(m, r)
+    check_hooks_path(m, r)
+    check_unpr_branches(m, r)
     check_local_only_work(m, r)
     check_skill_dupes(m, r)
     check_skill_links(m, r)
