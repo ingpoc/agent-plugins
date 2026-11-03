@@ -1,0 +1,12 @@
+2026-11-03T10:00:00Z [voice] phase=turn speech_to_playback_ms=800 ok
+2026-11-03T10:01:00Z [voice] phase=turn speech_to_playback_ms=1100 ok
+2026-11-03T10:02:00Z [voice] phase=turn speech_to_playback_ms=1400 ok
+2026-11-03T10:03:00Z [voice] phase=turn speech_to_playback_ms=1700 ok
+2026-11-03T10:04:00Z [voice] phase=turn speech_to_playback_ms=2000 ok
+2026-11-03T10:05:00Z [voice] phase=turn speech_to_playback_ms=2300 ok
+2026-11-03T10:06:00Z [voice] phase=turn speech_to_playback_ms=2600 ok
+2026-11-03T10:07:00Z [voice] phase=turn speech_to_playback_ms=2900 ok
+2026-11-03T10:20:00Z [voice] ERROR realtime: Handshake status 503
+2026-11-03T10:21:00Z [voice] ERROR realtime: Handshake status 503
+[voice] request served in 12 ms
+plain line without signal

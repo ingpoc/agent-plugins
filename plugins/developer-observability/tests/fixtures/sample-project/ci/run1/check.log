@@ -1,0 +1,4 @@
+test scripts/test_a.py (1.5s, exit 0)
+test scripts/test_b.py (3.2s, exit 1)
+/repo/Tests/AppTests.swift:10: error: -[AppTests.GateTests testColdStart] : XCTAssertFalse failed - waking shown
+failed: test scripts/test_b.py (exit 1)

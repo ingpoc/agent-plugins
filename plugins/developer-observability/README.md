@@ -20,13 +20,18 @@ The default config reads `~/.local/share/developer-observability/data/findings.j
 
 ## Where the data comes from
 
-The plugin reads a prepared `findings.json`; it does not collect telemetry itself. Today the producer is the Kindle telemetry snapshot service (its source adapters, SigNoz and launchd jobs live in that project). When `~/Library/Application Support/KindleSnapshot/runtime/findings.json` exists, the default config points at it. Without a producer, `observability_projects` returns an empty state with that hint instead of an error. A portable collector is a planned follow-up.
+The plugin reads a prepared `findings.json`. Two producers can feed it, and the read side merges them:
+
+- the bundled portable collector (`runtime/collector/`, stdlib only, any OS): `observability_collect` or `bin/developer-observability collect --project-dir <dir>` scans JSONL and text logs, JUnit XML, agent-plugins `check.py` logs, git state and `hygiene --json` reports, and writes failure, latency-hotspot (p50/p95) and redundancy findings with `file:line` evidence to `~/.local/share/developer-observability/collected/findings.json`. Extra sources go in config `collector.sources` (`[{"type": "jsonl", "path": "...", "project": "..."}]`); `collector.known_sources: false` skips the built-in Samantha and agent-plugins CI paths. Transcript and audio fields are never stored; tokens, emails and home paths are scrubbed.
+- an external producer such as the Kindle telemetry snapshot service (its source adapters, SigNoz and launchd jobs live in that project). When `~/Library/Application Support/KindleSnapshot/runtime/findings.json` exists, the default config points at it.
+
+Without either, `observability_projects` returns an empty state with a hint instead of an error.
 
 Optional, detected when present, never required:
 
 | Service | Used for | When absent |
 | --- | --- | --- |
-| findings producer (`findings.json`) | all data | empty state with a hint |
+| findings producer (`findings.json`) | data from that producer | the bundled collector's findings only, else an empty state with a hint |
 | local Decider script | `observability_decide`, recommendation `propose` | `decider_unavailable` error, no fallback answer |
 | SigNoz | nothing in this plugin (producer side only) | no effect |
 

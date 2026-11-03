@@ -1,0 +1,313 @@
+"""Source adapters. Each yields normalized events; nothing here stores raw lines, audio or transcripts."""
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import time
+from datetime import datetime, timezone
+import xml.etree.ElementTree as ET
+
+from .scrub import DENY_KEYS, TEXT_KINDS, scrub
+
+DURATION_KEYS = ('step_ms', 'latency_ms', 'duration_ms', 'speech_to_playback_ms', 'took_ms')
+ERROR_STATUS = {'fail', 'failed', 'error', 'err'}
+SKIP_DIRS = {'.git', 'node_modules', '.build', '__pycache__', '.venv'}
+_ISO = re.compile(r'^\[?(\d{4}-\d\d-\d\dT[\d:.]+(?:Z|[+-]\d\d:?\d\d)?)')
+_LOG_ERROR = re.compile(r'(?i)\b(error|exception|traceback|fatal|failed|failure)\b')
+_PHASE = re.compile(r'\bphase=(\S+)')
+_WORD = re.compile(r'\b([a-z_]+):')
+_NAMED_MS = re.compile(r'\b(\w+?)_ms=(\d+(?:\.\d+)?)')
+_PLAIN_MS = re.compile(r'(\d+(?:\.\d+)?)\s?ms\b')
+_CHECK_FAILED = re.compile(r'^failed: test (.+?) \(exit (\d+)\)')
+_XCTEST = re.compile(r'error: -\[([\w.]+) (\w+)\] : (.*)')
+_CHECK_TEST = re.compile(r'^test (.+?) \(([\d.]+)s, exit (\d+)\)')
+
+
+def ref(path, line) -> str:
+    text = str(path)
+    home = str(Path.home())
+    if text.startswith(home):
+        text = '~' + text[len(home):]
+    return f'{text}:{line}'
+
+
+def iso(ts):
+    if ts is None:
+        return None
+    return datetime.fromtimestamp(ts, timezone.utc).isoformat(timespec='microseconds').replace('+00:00', 'Z')
+
+
+def parse_ts(value):
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return value / 1000 if value > 1e12 else float(value)
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.timestamp()
+    return None
+
+
+def _number(value):
+    return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def _first_str(obj, keys):
+    for key in keys:
+        if isinstance(obj.get(key), str) and obj[key]:
+            return obj[key]
+    return None
+
+
+def _stat(stats, source):
+    return stats.setdefault(source, {'events': 0, 'errors': 0, 'durations': 0, 'skipped': 0, 'last_event_at': None})
+
+
+def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None):
+    item = _stat(stats, source)
+    item['events'] += 1
+    item['errors'] += bool(error)
+    item['durations'] += duration_ms is not None
+    if ts is not None and (item['last_event_at'] is None or iso(ts) > item['last_event_at']):
+        item['last_event_at'] = iso(ts)
+    return {'project': project, 'source': source, 'kind': kind, 'step': step, 'error': bool(error), 'ts': ts,
+            'duration_ms': duration_ms, 'message': message, 'ref': where, 'session': session}
+
+
+def _lines(path, max_bytes):
+    path = Path(path)
+    size = path.stat().st_size
+    with path.open('rb') as handle:
+        start = 0
+        if size > max_bytes:
+            start = size - max_bytes
+            handle.seek(start)
+            handle.readline()
+        number = 0
+        for raw in handle:
+            number += 1
+            yield number, raw.decode('utf-8', errors='replace')
+
+
+def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
+    _stat(stats, source)
+    for number, line in _lines(path, max_bytes):
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except ValueError:
+            obj = None
+        if not isinstance(obj, dict):
+            stats[source]['skipped'] += 1
+            continue
+        obj = {key: value for key, value in obj.items() if key not in DENY_KEYS}
+        kind = _first_str(obj, ('kind', 'event', 'type', 'name')) or 'event'
+        step = _first_str(obj, ('phase', 'tool', 'step', 'stage')) or ''
+        status = str(obj.get('status', '')).lower()
+        err = obj.get('error')
+        error = (status in ERROR_STATUS or 'error' in kind or 'fail' in kind or bool(isinstance(err, (str, dict)) and err)
+                 or obj.get('ok') is False)
+        duration = next((_number(obj[key]) for key in DURATION_KEYS if _number(obj.get(key)) is not None), None)
+        if duration is None and _number(obj.get('duration_s')) is not None:
+            duration = obj['duration_s'] * 1000
+        ts = next((parse_ts(obj[key]) for key in ('ts', 'time', 'timestamp') if key in obj), None)
+        message = ''
+        if kind not in TEXT_KINDS:
+            text = err.get('message') if isinstance(err, dict) else None
+            message = scrub(text if isinstance(text, str) else _first_str(obj, ('error', 'detail', 'message', 'reason', 'msg')))
+        session = _first_str(obj, ('session_id', 'session'))
+        yield _event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
+                     duration_ms=duration, message=message, where=ref(path, number), session=session)
+
+
+def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
+    _stat(stats, source)
+    # Lines without their own timestamp inherit the previous one, else the file's mtime.
+    last_ts = None
+    mtime = Path(path).stat().st_mtime
+    for number, line in _lines(path, max_bytes):
+        error = bool(_LOG_ERROR.search(line))
+        match = _ISO.match(line)
+        stamp = parse_ts(match.group(1)) if match else None
+        last_ts = stamp if stamp is not None else last_ts
+        ts = last_ts if last_ts is not None else mtime
+        phase = _PHASE.search(line)
+        word = _WORD.search(line)
+        step = phase.group(1) if phase else word.group(1) if word else 'log'
+        duration = None
+        for name, value in _NAMED_MS.findall(line):
+            if name == 'elapsed':
+                continue
+            duration, step = float(value), f'{step}/{name}'
+            break
+        if duration is None and not _NAMED_MS.search(line):
+            plain = _PLAIN_MS.search(line)
+            duration = float(plain.group(1)) if plain else None
+        if not error and duration is None:
+            continue
+        yield _event(stats, project=project, source=source, kind='log_error' if error else 'log', step=step,
+                     error=error, ts=ts, duration_ms=duration, message=scrub(line), where=ref(path, number))
+
+
+def iter_junit(path, project, source, stats):
+    _stat(stats, source)
+    try:
+        root = ET.parse(path).getroot()
+    except (ET.ParseError, OSError):
+        stats[source]['skipped'] += 1
+        return
+    ts = Path(path).stat().st_mtime
+    for case in root.iter('testcase'):
+        bad = case.find('failure')
+        if bad is None:
+            bad = case.find('error')
+        try:
+            duration = float(case.get('time')) * 1000 if case.get('time') else None
+        except ValueError:
+            duration = None
+        message = scrub((bad.get('message') or bad.text or '') if bad is not None else '')
+        yield _event(stats, project=project, source=source, kind='test',
+                     step=f"{case.get('classname', '')}.{case.get('name', '')}", error=bad is not None, ts=ts,
+                     duration_ms=duration, message=message, where=ref(path, 0))
+
+
+def iter_checklog(run_dir, project, source, stats):
+    _stat(stats, source)
+    log = Path(run_dir) / 'check.log'
+    if not log.is_file():
+        stats[source]['skipped'] += 1
+        return
+    ts = log.stat().st_mtime
+    for number, line in _lines(log, 64_000_000):
+        line = line.strip()
+        where = ref(log, number)
+        if match := _CHECK_FAILED.match(line):
+            yield _event(stats, project=project, source=source, kind='check_failed', step=match.group(1), error=True,
+                         ts=ts, duration_ms=None, message=scrub(line), where=where)
+        elif match := _XCTEST.search(line):
+            yield _event(stats, project=project, source=source, kind='test', step=f'{match.group(1)}.{match.group(2)}',
+                         error=True, ts=ts, duration_ms=None, message=scrub(match.group(3)), where=where)
+        elif match := _CHECK_TEST.match(line):
+            yield _event(stats, project=project, source=source, kind='check_test', step=match.group(1),
+                         error=match.group(3) != '0', ts=ts, duration_ms=float(match.group(2)) * 1000,
+                         message='', where=where)
+
+
+def _git(repo, *args):
+    try:
+        result = subprocess.run(['git', '-C', str(repo), *args], capture_output=True, text=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout if result.returncode == 0 else None
+
+
+def iter_git(repo, project, source, stats):
+    _stat(stats, source)
+    now = time.time()
+    status = _git(repo, 'status', '--porcelain')
+    if status is None:
+        stats[source]['skipped'] += 1
+        return
+    dirty = len([line for line in status.splitlines() if line.strip()])
+    if dirty:
+        yield _event(stats, project=project, source=source, kind='git_state', step='dirty_worktree', error=True, ts=now,
+                     duration_ms=None, message=f'{dirty} uncommitted file(s)', where=ref(repo, 0))
+    ahead = _git(repo, 'rev-list', '--count', '@{u}..HEAD')
+    if ahead and ahead.strip().isdigit() and int(ahead) > 0:
+        yield _event(stats, project=project, source=source, kind='git_state', step='unpushed_commits', error=True, ts=now,
+                     duration_ms=None, message=f'{int(ahead)} local-only commit(s)', where=ref(repo, 0))
+
+
+def iter_hygiene(json_path, project, source, stats):
+    _stat(stats, source)
+    try:
+        data = json.loads(Path(json_path).read_text())
+    except (OSError, ValueError):
+        stats[source]['skipped'] += 1
+        return
+    items = (data.get('checks') or data.get('results') or []) if isinstance(data, dict) else data
+    ts = Path(json_path).stat().st_mtime
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict):
+            continue
+        state = str(item.get('status') or item.get('state') or '').upper()
+        if state == 'FAIL':
+            yield _event(stats, project=project, source=source, kind='hygiene', step=str(item.get('name') or item.get('id')),
+                         error=True, ts=ts, duration_ms=None,
+                         message=scrub(item.get('detail') or item.get('summary') or ''), where=ref(json_path, 0))
+
+
+def _walk(root, depth=4):
+    root = Path(root)
+    for current, dirs, files in os.walk(root):
+        rel = Path(current).relative_to(root)
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS) if len(rel.parts) < depth else []
+        for name in sorted(files):
+            yield Path(current) / name
+
+
+def _is_junit(path):
+    try:
+        for _event_name, element in ET.iterparse(path, events=('start',)):
+            return element.tag in ('testsuite', 'testsuites')
+    except (ET.ParseError, OSError):
+        return False
+    return False
+
+
+def discover_project(directory, stats, project=None):
+    directory = Path(directory).expanduser()
+    project = project or directory.name
+    for path in _walk(directory):
+        rel = path.relative_to(directory).as_posix()
+        source = f'{project}:{rel}'
+        if path.suffix == '.jsonl':
+            yield from iter_jsonl(path, project, source, stats)
+        elif path.suffix == '.log':
+            yield from iter_textlog(path, project, source, stats)
+        elif path.suffix == '.xml' and _is_junit(path):
+            yield from iter_junit(path, project, source, stats)
+    if (directory / '.git').exists():
+        yield from iter_git(directory, project, f'{project}:git', stats)
+
+
+def known_sources():
+    home = Path.home()
+    specs = []
+    for name, kind in (('samantha-activity.jsonl', 'jsonl'), ('voice.log', 'textlog')):
+        path = home / '.cache/macos-cua' / name
+        if path.is_file():
+            specs.append({'type': kind, 'path': str(path), 'project': 'samantha'})
+    runs = home / 'Library/Logs/agent-plugins-origin-ci/runs'
+    if runs.is_dir():
+        newest = sorted((p for p in runs.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)[:20]
+        specs.extend({'type': 'checklog', 'path': str(p), 'project': 'agent-plugins', 'source': 'agent-plugins:origin-ci'}
+                     for p in newest)
+    return specs
+
+
+ADAPTERS = {'jsonl': iter_jsonl, 'textlog': iter_textlog, 'junit': iter_junit, 'checklog': iter_checklog,
+            'git': iter_git, 'hygiene': iter_hygiene}
+
+
+def iter_spec(spec, stats):
+    kind, path, project = spec.get('type'), Path(str(spec.get('path', ''))).expanduser(), spec.get('project')
+    if kind == 'project_dir':
+        yield from discover_project(path, stats, project)
+        return
+    if kind not in ADAPTERS or not project:
+        raise ValueError(f'invalid source spec type {kind!r}')
+    source = spec.get('source') or f'{project}:{path.name}'
+    if not path.exists():
+        _stat(stats, source)['skipped'] += 1
+        return
+    yield from ADAPTERS[kind](path, project, source, stats)

@@ -11,9 +11,12 @@ ownership.
 1. `observability_projects` → select a returned project ID; inspect freshness,
    source coverage and unassigned counts. Attribution follows configured maps
    and, when enabled, projects discovered from the findings. If
-   `data_source.status` is `no_findings`, say no producer has written
-   `findings.json` yet; do not report "no issues".
-2. `observability_issues` → use its full issue ID with
+   `data_source.status` is `no_findings`, or `freshness`/`sources.collector`
+   is old, call `observability_collect` once (optionally `project_dir`) and
+   re-read; never report "no issues" from an empty state.
+2. `observability_issues` → `by_kind` (failure, latency_hotspot, redundancy)
+   `slowest` (top p95 steps) and `top_failures` answer "top failures and slowest steps" in
+   one call; filter with `kind`. Use its full issue ID with
    `observability_inspect_issue`. Request more bounded evidence only as needed.
    A cursor is scoped to snapshot/project/query; on change, restart the query.
 3. Separate observed failure, rule-based investigation lead, reported recovery

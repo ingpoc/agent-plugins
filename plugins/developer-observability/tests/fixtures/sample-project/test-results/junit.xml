@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<testsuite name="sample" tests="4">
+  <testcase classname="app.Parser" name="test_ok" time="0.12"/>
+  <testcase classname="app.Parser" name="test_slow" time="2.5"/>
+  <testcase classname="app.Parser" name="test_bad_input" time="0.3"><failure message="AssertionError: expected 3 got 4">trace</failure></testcase>
+  <testcase classname="app.Net" name="test_timeout" time="5.0"><error message="TimeoutError after 5 s"/></testcase>
+</testsuite>

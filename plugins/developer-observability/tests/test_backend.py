@@ -232,7 +232,7 @@ class APITests(unittest.TestCase):
         result = self.api.projects()
         self.assertEqual(result['data_source']['status'], 'no_findings')
         self.assertIn('findings.json', result['data_source']['hint'])
-        self.assertIn('follow-up', result['data_source']['hint'])
+        self.assertIn('observability_collect', result['data_source']['hint'])
         self.assertEqual(result['data_source']['hint'], NO_FINDINGS_HINT)
         self.assertEqual({p['project_id']: p['issue_count'] for p in result['projects']}, {'a': 0, 'b': 0, 'ledger': 0})
         self.assertEqual(result['optional_services']['findings_producer'], 'absent')
