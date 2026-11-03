@@ -68,6 +68,20 @@ enum AppIconResolver {
     /// https://developer.apple.com/documentation/appkit/nsworkspace/icon(forfile:)
     nonisolated static let cachedSide = 128
 
+    enum OperatedStyle: Equatable {
+        case icon
+        case tile(String)
+    }
+
+    /// In-pill operated icons: a real, non-blank app icon draws as is; a near-white icon (TextEdit and
+    /// any similar, detected by `isBlank`) or a missing one gets the white tile with a dark glyph.
+    static func operatedStyle(_ name: String) -> OperatedStyle {
+        switch resolve(name) {
+        case .image: return .icon
+        case .symbol(let symbol): return .tile(symbol)
+        }
+    }
+
     static func resolve(_ name: String) -> Resolved {
         if let hit = cache[name] { return hit }
         let result: Resolved
@@ -422,14 +436,28 @@ struct IslandOperatedAppIcon: View {
         Group {
             switch item {
             case .app(let name):
-                SamanthaAppIcon(appName: name, size: IslandBarLayout.operatedIcon, radius: IslandBarLayout.operatedIcon / 4)
+                switch AppIconResolver.operatedStyle(name) {
+                case .icon:
+                    SamanthaAppIcon(appName: name, size: IslandBarLayout.operatedIcon, radius: IslandBarLayout.operatedIcon / 4)
+                case .tile(let symbol):
+                    // Near-white or missing icon: the target mark's white rounded tile with a dark glyph.
+                    let s = IslandBarLayout.operatedIcon
+                    RoundedRectangle(cornerRadius: IslandPluginTargetMark.tileRadius(s), style: .continuous)
+                        .fill(Color.white)
+                        .overlay(Image(systemName: symbol)
+                            .font(.system(size: s * 0.6, weight: .semibold))
+                            .foregroundStyle(Color.black.opacity(0.82)))
+                        .frame(width: s, height: s)
+                }
             case .overflow(let n):
+                // SF Pro Semibold 11 at white 62 %, in a fixed 16 pt slot: the dot never moves for +1 vs +2.
                 Text("+\(n)")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 11, weight: .semibold))
                     .monospacedDigit()
-                    .foregroundStyle(IslandInk.secondaryColor)
+                    .foregroundStyle(Color.white.opacity(0.62))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.6)
+                    .fixedSize(horizontal: n >= 10, vertical: false)
             }
         }
         .frame(width: IslandBarLayout.operatedIcon, height: IslandBarLayout.operatedIcon)
@@ -695,7 +723,16 @@ struct SamanthaIslandBar: View {
                         .offset(x: r.minX, y: r.minY)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
-                        .transition(pluginCircleTransition)
+                        .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                }
+                if let first = rs.first, let last = rs.last {
+                    // VoiceOver: one element naming every operated app ("Operating Calculator, Finder and TextEdit").
+                    Color.clear
+                        .frame(width: last.maxX - first.minX, height: first.height)
+                        .offset(x: first.minX, y: first.minY)
+                        .allowsHitTesting(false)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(model.operatedAppsLabel)
                 }
             }
             if model.showAgentCircle {
@@ -735,9 +772,10 @@ struct SamanthaIslandBar: View {
         .opacity(model.idleHidden ? 0 : 1)
         .animation(.easeInOut(duration: 0.2), value: model.idleHidden)
         .animation(openAnimation, value: model.cardOpen)
-        .animation(widthAnimation, value: model.drawnWidth)
+        .animation(model.widthFromOperatedApps ? IslandMotion.operatedWidth(reduce: reduceMotion) : widthAnimation,
+                   value: model.drawnWidth)
         .animation(widthAnimation, value: model.circles)
-        .animation(widthAnimation, value: model.operatedApps)
+        .animation(IslandMotion.operatedWidth(reduce: reduceMotion), value: model.operatedApps)
         .animation(widthAnimation, value: model.sourceGroups)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.agentApproval?.id)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.secondary)

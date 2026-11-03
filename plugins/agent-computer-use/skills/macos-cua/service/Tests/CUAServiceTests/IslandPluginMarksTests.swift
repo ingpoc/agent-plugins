@@ -354,6 +354,9 @@ final class IslandPluginMarksTests: XCTestCase {
             op("Calculator", "Codex", 300), op("com.apple.finder", "Grok Bot", 310), op("TextEdit", "Codex", 320)])
         try await render("operated-4-apps-plus-n", agents: [codex], uses: [
             op("Calculator", "Codex", 300), op("Finder", "Grok Bot", 310), op("TextEdit", "Codex", 320), op("Notes", "Cursor", 330)])
+        try await render("operated-5-apps-plus-2", agents: [codex], uses: [
+            op("Calculator", "Codex", 300), op("Finder", "Grok Bot", 310), op("TextEdit", "Codex", 320), op("Notes", "Cursor", 330),
+            op("Preview", "Codex", 340)])
         try await samantha("operated-samantha-acting", IslandSnapshot(kind: "acting", title: "Opening Calculator", app: "Calculator",
             active_apps: ["Calculator"], plugins: [op("Calculator", "Samantha", 300)]))
         try await render("operated-cleared", agents: [codex], uses: [])
@@ -533,14 +536,66 @@ final class IslandPluginMarksTests: XCTestCase {
             XCTAssertEqual(rects.count, count)
             for r in rects {
                 XCTAssertTrue(shape.contains(r), "icon inside the pill (\(count))")
-                XCTAssertLessThanOrEqual(r.maxX + IslandBarLayout.operatedDotGap, dot.minX + 0.001, "clear of the dot")
-                XCTAssertGreaterThanOrEqual(r.minX, ringMaxX + 4 - 0.001, "clear of the target ring")
                 XCTAssertEqual(r.midY, dot.midY, accuracy: 0.001)
+                XCTAssertEqual(r.width, 16)
             }
             XCTAssertEqual(dot.maxX, shape.maxX - 9, "the dot keeps its 9 pt inset")
         }
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 1), 65)  // fits the 74 pt idle pill
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 4), 119) // 3 icons + "+N"
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 1), 71)  // 6 ring 20 · 8 · 16 · 6 · 6 · 9
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 3), 111)
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 4), 131) // 3 icons + the 16 pt "+N" slot
+    }
+
+    /// UI & UX fix 2: ring · 8 · icon · 4 · icon … · 6 · dot · 9, identical for 1…4 slots.
+    func testOperatedGapsAreFixedInEveryCount() {
+        for count in 1...4 {
+            let shape = IslandBarLayout.shapeRect(compactWidth: IslandBarLayout.operatedAppsPillWidth(count: count), card: false)
+            let ringMaxX = shape.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
+            let dot = IslandBarLayout.compactDotRect(shape: shape)
+            let rects = IslandBarLayout.operatedAppRects(shape: shape, count: count)
+            XCTAssertEqual(rects[0].minX - ringMaxX, 8, accuracy: 0.001, "ring to first icon (\(count))")
+            for (a, b) in zip(rects, rects.dropFirst()) { XCTAssertEqual(b.minX - a.maxX, 4, accuracy: 0.001) }
+            XCTAssertEqual(dot.minX - rects[count - 1].maxX, 6, accuracy: 0.001, "last icon or +N to dot (\(count))")
+            XCTAssertEqual(shape.maxX - dot.maxX, 9, accuracy: 0.001)
+        }
+    }
+
+    /// UI & UX fix 1: the compact pill hugs its content in Samantha's states too (no 136 pt acting,
+    /// no conversation width, no expanded width carried over).
+    func testSamanthaCompactPillHugsOperatedApps() async throws {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        // A presentation family change pinches to 74 then grows (160 ms); wait it out.
+        func settle() async throws { try await Task.sleep(nanoseconds: 300_000_000) }
+        model.apply(IslandSnapshot(kind: "acting", title: "Reading Finder", app: "Finder", active_apps: ["Finder"],
+                                   plugins: [op("Finder", "Samantha", 300)]))
+        try await settle()
+        XCTAssertEqual(model.presentation, .acting)
+        XCTAssertEqual(model.drawnWidth, IslandBarLayout.operatedAppsPillWidth(count: 1))
+        XCTAssertEqual(model.shapeRect.width, 71, "no 136 pt acting width")
+        model.apply(IslandSnapshot(kind: "idle", plugins: [op("Finder", "Samantha", 300), op("TextEdit", "Samantha", 310),
+                                                          op("Calculator", "Samantha", 320)]))
+        try await settle()
+        XCTAssertEqual(model.shapeRect.width, 111)
+        model.apply(IslandSnapshot(kind: "idle"))
+        try await settle()
+        XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth)
+    }
+
+    func testIconChangesUseTheSpringAndNearWhiteIconsUseTheTile() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "idle", plugins: [op("Finder", "Codex", 300)]))
+        model.apply(IslandSnapshot(kind: "idle", plugins: [op("Finder", "Codex", 300), op("Calculator", "Codex", 310)]))
+        XCTAssertTrue(model.widthFromOperatedApps, "adding an icon springs the width")
+        XCTAssertEqual(IslandMotion.operatedWidth(reduce: true), IslandMotion.crossfade, "Reduce Motion: no spring")
+        XCTAssertTrue(model.accessibilityText.contains("Operating Calculator and Finder"))
+        // Generic near-white detection: an all-white image is blank, a coloured one is not.
+        let white = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { r in NSColor.white.setFill(); r.fill(); return true }
+        let blue = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { r in NSColor.systemBlue.setFill(); r.fill(); return true }
+        XCTAssertTrue(AppIconResolver.isBlank(white))
+        XCTAssertFalse(AppIconResolver.isBlank(blue))
+        if case .tile = AppIconResolver.operatedStyle("No Such App 0279") {} else { XCTFail("a missing icon gets the tile") }
     }
 
     func testModelShowsOperatedAppsInsideAndGrowsThePill() {

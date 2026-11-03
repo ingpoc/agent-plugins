@@ -897,6 +897,7 @@ final class IslandModel: ObservableObject {
 
     /// The controlled-target ring shows over the lead slot at rest and while Samantha acts.
     var operatedApps: [IslandOperatedAppItem] { IslandOperatedApps.items(pluginUses) }
+    var operatedAppsLabel: String { IslandOperatedApps.accessibilityLabel(IslandOperatedApps.names(pluginUses)) }
 
     /// Operated app icons share the target ring's states, minus the step bar (it fills the centre).
     var showsOperatedApps: Bool {
@@ -1564,14 +1565,27 @@ final class IslandModel: ObservableObject {
     }
 
     private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
-        if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
-        if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
         let apps = operatedApps.count
         if apps > 0, Self.operatedAppStates.contains(state) {
-            // The pill grows to fit the icons; the dot keeps its 9 pt inset.
-            return max(state.compactWidth, IslandBarLayout.operatedAppsPillWidth(count: apps))
+            // UI & UX: the compact pill hugs ring · 8 · icons · 6 · dot · 9 in every state. Nothing from
+            // Samantha's conversation or expanded widths carries over.
+            return IslandBarLayout.operatedAppsPillWidth(count: apps)
         }
+        if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
+        if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
         return state.compactWidth
+    }
+
+    /// The last width change came from operated app icons being added or removed (spring, not the curve).
+    @Published private(set) var widthFromOperatedApps = false
+    private var operatedSlotsAtLastWidth = 0
+
+    private func setDrawnWidth(_ width: CGFloat) {
+        let slots = showsOperatedApps ? operatedApps.count : 0
+        let changed = width != drawnWidth
+        if changed { widthFromOperatedApps = slots != operatedSlotsAtLastWidth }
+        operatedSlotsAtLastWidth = slots
+        if changed { drawnWidth = width }
     }
 
     private func refresh(now: Date) {
@@ -1639,20 +1653,23 @@ final class IslandModel: ObservableObject {
             if familyChanged, !(reduceMotion || systemReduceMotion), !open {
                 // Alcove content swap: pinch to 74, then grow to the new width.
                 pinching = true
+                widthFromOperatedApps = false
                 drawnWidth = IslandBarLayout.idleWidth
                 pinchTask?.cancel()
                 pinchTask = Task { @MainActor [weak self] in
                     try? await Task.sleep(nanoseconds: 160_000_000)
                     guard let self, !Task.isCancelled else { return }
                     self.pinching = false
+                    self.widthFromOperatedApps = false
+                    self.operatedSlotsAtLastWidth = self.showsOperatedApps ? self.operatedApps.count : 0
                     self.drawnWidth = self.compactWidth(for: self.presentation, now: Date())
                     self.onGeometryChange?()
                 }
             } else if !pinching {
-                drawnWidth = compactWidth(for: next, now: now)
+                setDrawnWidth(compactWidth(for: next, now: now))
             }
         } else if !pinching {
-            drawnWidth = compactWidth(for: next, now: now)
+            setDrawnWidth(compactWidth(for: next, now: now))
         }
         if open != wasOpen {
             cardOpen = open
@@ -2023,6 +2040,7 @@ final class IslandModel: ObservableObject {
         if !title.isEmpty { parts.append(title) }
         if !detail.isEmpty { parts.append(detail) }
         if !circleApps.isEmpty { parts.append("Apps: " + circleApps.joined(separator: ", ")) }
+        if showsOperatedApps { parts.append(operatedAppsLabel) }
         let taskCount = IslandAgentRows.taskAgents(agents).count
         if taskCount > 0 { parts.append("\(taskCount) other agents") }
         if let r = cardRemaining { parts.append("\(r) seconds left") }

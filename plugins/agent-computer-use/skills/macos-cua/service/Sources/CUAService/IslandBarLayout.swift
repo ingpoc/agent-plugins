@@ -110,13 +110,14 @@ enum IslandBarLayout {
                width: compactDotDiameter, height: compactDotDiameter)
     }
 
-    /// Operated app icons INSIDE the pill: 16 pt, 2 pt apart, right-aligned 4 pt left of the status dot
-    /// (the dot keeps its 9 pt inset), newest first left to right, "+N" last. The pill grows to fit them
-    /// clear of the 20 pt target ring on the left (its right edge is 26 pt in; icons start 30 pt in).
+    /// Operated app icons INSIDE the pill (UI & UX fixed gaps): ring · 8 · icon · 4 · icon … · 6 · dot · 9.
+    /// The 20 pt target ring's right edge is 26 pt in, so the first icon starts 34 pt in; "+N" takes a
+    /// fixed 16 pt slot. The pill hugs this content exactly, so the gaps are the same in every state.
     static let operatedIcon: CGFloat = 16
-    static let operatedGap: CGFloat = 2
-    static let operatedDotGap: CGFloat = 4
-    static let operatedRingClearance: CGFloat = 30
+    static let operatedGap: CGFloat = 4
+    static let operatedDotGap: CGFloat = 6
+    static let operatedRingGap: CGFloat = 8
+    static let operatedRingClearance: CGFloat = slotInset + 8 + 10 + operatedRingGap
     static func operatedAppsStripWidth(count: Int) -> CGFloat {
         count <= 0 ? 0 : CGFloat(count) * operatedIcon + CGFloat(count - 1) * operatedGap
     }

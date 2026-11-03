@@ -111,10 +111,15 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   `state` call sends its `app` as `target_app` on its own row (key
   `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
   The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
-  app circles) sit INSIDE the pill on its right: 16 pt, 2 pt apart, newest
-  first, 3 then "+N", ending 4 pt left of the 6 pt dot, which keeps its 9 pt
-  inset. The pill grows to fit them (65 pt for one, 119 pt for 3 + N) clear of
-  the Apple ring on the left; they fade out over 200 ms. VoiceOver adds
+  app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
+  Fixed gaps (UI & UX): ring, 8 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
+  9 pt inset. The compact pill hugs exactly that in every state, Samantha's
+  included (71 pt for one, 111 for three, 131 for 3 + N); "+N" is SF Pro
+  Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
+  (TextEdit; detected generically by `AppIconResolver.isBlank`) draws on the
+  target mark's white rounded tile with a dark glyph. Width changes from icons
+  spring over ~250 ms (crossfade with Reduce Motion); icons fade in and out
+  over 200 ms. VoiceOver adds
   "Operating Calculator, Finder and TextEdit". An app shown inside is never
   drawn again as an outside app circle (Samantha's included). Plugin marks stay
   outside on the right.
