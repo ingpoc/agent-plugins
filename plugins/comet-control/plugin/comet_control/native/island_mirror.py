@@ -81,7 +81,6 @@ def activity_module():
     return _ACTIVITY
 
 
-
 def row_id(session_id: str) -> str:
     direct = ROW_PREFIX + session_id
     if len(direct) <= ROW_ID_MAX_CHARS:

@@ -110,7 +110,11 @@ def _test_runner_without_fixture() -> bool:
     if os.environ.get("ACU_ISLAND_SOCKET"):
         return False
     entry = os.path.basename(sys.argv[0] or "")
-    return entry == "run_strict.py" or (entry == "__main__.py" and "unittest" in sys.modules)
+    return (
+        entry == "run_strict.py"
+        or "unittest" in entry
+        or (entry == "__main__.py" and "unittest" in sys.modules)
+    )
 
 
 def publish(body: dict, path: Path | None = None, timeout: float = 3.0) -> bool:
