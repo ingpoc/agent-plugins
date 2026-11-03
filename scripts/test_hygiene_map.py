@@ -326,5 +326,16 @@ class HygieneMapTest(unittest.TestCase):
         self.assertTrue(tree["label"].startswith("Mac Mini"))
 
 
+    def test_force_rewrites_and_precomputed_base_matches(self) -> None:
+        hm.publish(self.fx.manifest, ROWS, out=self.out, home=self.fx.home)
+        before = self.out.stat().st_mtime_ns
+        self.assertEqual(hm.publish(self.fx.manifest, ROWS, out=self.out, home=self.fx.home), "unchanged")
+        self.assertEqual(hm.publish(self.fx.manifest, ROWS, out=self.out, home=self.fx.home, force=True), "written")
+        self.assertNotEqual(self.out.stat().st_mtime_ns, before)
+        base = hm.git_snapshot(self.fx.manifest, self.fx.home)
+        self.assertEqual(hm.snapshot_hash(hm.snapshot(self.fx.manifest, ROWS, self.fx.home, base=base)),
+                         hm.snapshot_hash(self.snap()))
+
+
 if __name__ == "__main__":
     unittest.main()

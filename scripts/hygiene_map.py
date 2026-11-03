@@ -10,8 +10,9 @@ path, branch, merged, dirty count, local-only commits, age, owner and the
 plain-English reason for every failing or warning check. All CSS, JS and data
 are inline; the page makes no network requests.
 
-`~/.agents/bin/hygiene.py check` calls `publish_safe(manifest, rows)` after every
-run (skip with `--no-map`). It builds a normalized snapshot (clones, worktrees,
+`hygiene check` (scripts/hygiene.py, every mode) refreshes the map after each
+run (skip with `--no-map`); `hygiene map` forces a rewrite and opens it. It
+computes git_snapshot() on a thread while the checks run, then builds a normalized snapshot (clones, worktrees,
 local / Origin / GitHub branches, installed plugin versions per harness versus
 Origin main, hygiene status per check), hashes it, and rewrites
 `~/.agents/hygiene/map.html` only when the hash changed. The write is atomic
@@ -22,8 +23,9 @@ Branch lists come from the canonical clone's remote-tracking refs (as of its
 last fetch); this module never talks to the network.
 
 Fail open: any error logs one line to stderr and leaves the hygiene result alone.
-Installed copy: `~/.agents/bin/hygiene_map.py` (source: agent-plugins
-`scripts/hygiene_map.py`). Manual run: `hygiene check --json | python3 hygiene_map.py`.
+Installed copy: `~/.agents/bin/hygiene_map.py` next to `hygiene.py` (source:
+agent-plugins `scripts/`, installed by `scripts/install-hygiene.sh`). The stdin
+mode still works: `hygiene check --json --no-map | python3 hygiene_map.py`.
 """
 
 from __future__ import annotations
@@ -37,6 +39,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -44,6 +47,9 @@ REPO = "agent-plugins"
 DEFAULT_OUT = Path("~/.agents/hygiene/map.html")
 IST = timezone(timedelta(hours=5, minutes=30), "IST")
 GIT_TIMEOUT = 10
+# Read-only scan: --no-optional-locks keeps `git status` from taking index.lock,
+# so a running agent's git never trips over the map.
+GIT = ("git", "--no-optional-locks")
 SKIP_DIRS = {
     ".git", "node_modules", "Library", ".Trash", ".cache", "venv", ".venv",
     "dist", "build", "target", ".next", ".turbo", "__pycache__",
@@ -78,7 +84,7 @@ def expand(value: str | Path) -> Path:
 
 def git(path: Path, *args: str) -> str | None:
     try:
-        proc = subprocess.run(["git", "-C", str(path), *args], capture_output=True,
+        proc = subprocess.run([*GIT, "-C", str(path), *args], capture_output=True,
                               text=True, timeout=GIT_TIMEOUT, check=False)
     except (OSError, subprocess.SubprocessError):
         return None
@@ -201,7 +207,7 @@ def merged(repo: Path, sha: str, main_sha: str | None) -> bool | None:
     if not main_sha:
         return None
     try:
-        proc = subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", sha, main_sha],
+        proc = subprocess.run([*GIT, "-C", str(repo), "merge-base", "--is-ancestor", sha, main_sha],
                               capture_output=True, timeout=GIT_TIMEOUT, check=False)
     except (OSError, subprocess.SubprocessError):
         return None
@@ -228,6 +234,7 @@ def vkey(v: str) -> tuple:
 MAIN_NAMES = ("main", "master")
 REMOTE_PREF = ("origin-cursor", "origin")
 MAX_BRANCH_PROBES = 200  # cap per clone on `rev-list --count` calls
+SCAN_WORKERS = 8
 
 
 def repo_name(clone: Path, urls: dict[str, str]) -> str:
@@ -349,13 +356,21 @@ def machine_snapshot(m: dict, home: Path, now: float | None = None) -> list[dict
     if not roots and "checkout_root" in p:
         roots = [expand(p["checkout_root"])]
     clones = walk_clones(roots, int(scan.get("depth", 4)))
-    return [scan_clone(c, m, home, now) for c in clones]
+    if len(clones) < 2:
+        return [scan_clone(c, m, home, now) for c in clones]
+    # git is I/O bound; scanning clones side by side keeps `hygiene check` fast.
+    with ThreadPoolExecutor(max_workers=min(SCAN_WORKERS, len(clones))) as pool:
+        return list(pool.map(lambda c: scan_clone(c, m, home, now), clones))
 
 
 # ---------------------------------------------------------------- snapshot
 
-def snapshot(m: dict, rows: list[dict], home: Path | None = None) -> dict:
-    """Normalized, sorted, timestamp-free view of agent-plugins state."""
+def git_snapshot(m: dict, home: Path | None = None) -> dict:
+    """The git and filesystem half of the snapshot; needs no hygiene rows.
+
+    `hygiene check` computes this on a thread while its own checks run, then
+    hands it to publish(base=...).
+    """
     home = expand(home or Path.home())
     p = m.get("paths", {})
     canonical = expand(p.get("checkout_root", "~")) / REPO
@@ -456,7 +471,6 @@ def snapshot(m: dict, rows: list[dict], home: Path | None = None) -> dict:
             per[harness] = sorted(versions, key=vkey)
         plugin_rows.append({"plugin": name, "main": main_versions.get(name), "installed": per})
 
-    counts = {s: sum(1 for r in rows if r.get("status") == s) for s in STATUSES}
     return {
         "repo": REPO,
         "canonical": tilde(canonical, home),
@@ -466,6 +480,16 @@ def snapshot(m: dict, rows: list[dict], home: Path | None = None) -> dict:
         "local_branches": sorted(local_rows, key=lambda r: (r["clone"], r["name"])),
         "remote_branches": sorted(remote_rows, key=lambda r: (r["where"], r["name"])),
         "plugins": plugin_rows,
+        "machine": machine_snapshot(m, home),
+    }
+
+
+def snapshot(m: dict, rows: list[dict], home: Path | None = None, base: dict | None = None) -> dict:
+    """Normalized, sorted, timestamp-free view: git state plus hygiene status."""
+    home = expand(home or Path.home())
+    counts = {s: sum(1 for r in rows if r.get("status") == s) for s in STATUSES}
+    return {
+        **(base if base is not None else git_snapshot(m, home)),
         "hygiene": {
             "counts": counts,
             # Details carry sizes and free space, which change every run; only
@@ -474,7 +498,6 @@ def snapshot(m: dict, rows: list[dict], home: Path | None = None) -> dict:
             # Which path or branch each check flags (counts and sizes stripped).
             "items": hygiene_items(rows, home),
         },
-        "machine": machine_snapshot(m, home),
     }
 
 
@@ -910,29 +933,34 @@ def atomic_write(path: Path, text: str) -> None:
         raise
 
 
+def default_out(home: Path | None = None) -> Path:
+    return expand(home or Path.home()) / ".agents" / "hygiene" / "map.html"
+
+
 def publish(m: dict, rows: list[dict], out: Path | None = None, home: Path | None = None,
-            now: datetime | None = None) -> str:
-    """Write the map if the snapshot changed. Returns 'written' or 'unchanged'."""
+            now: datetime | None = None, force: bool = False, base: dict | None = None) -> str:
+    """Write the map if the snapshot changed (or force). Returns 'written' or 'unchanged'."""
     home = expand(home or Path.home())
     out = Path(out) if out else home / ".agents" / "hygiene" / "map.html"
     hash_path = out.with_name(out.stem + ".sha256")
-    snap = snapshot(m, rows, home)
+    snap = snapshot(m, rows, home, base=base)
     digest = snapshot_hash(snap)
     try:
         old = hash_path.read_text().strip()
     except OSError:
         old = ""
-    if old == digest and out.is_file():
+    if old == digest and out.is_file() and not force:
         return "unchanged"
     atomic_write(out, render_html(snap, rows, now or datetime.now(IST), home=home))
     atomic_write(hash_path, digest + "\n")
     return "written"
 
 
-def publish_safe(m: dict, rows: list[dict], out: Path | None = None, home: Path | None = None) -> str | None:
+def publish_safe(m: dict, rows: list[dict], out: Path | None = None, home: Path | None = None,
+                 force: bool = False, base: dict | None = None) -> str | None:
     """publish() that never raises; one stderr line on failure."""
     try:
-        result = publish(m, rows, out=out, home=home)
+        result = publish(m, rows, out=out, home=home, force=force, base=base)
     except Exception as exc:  # fail open: the hygiene result must not change
         msg = str(exc).splitlines()[0] if str(exc) else ""
         print(f"hygiene: map not updated: {type(exc).__name__}: {msg}"[:300], file=sys.stderr)
