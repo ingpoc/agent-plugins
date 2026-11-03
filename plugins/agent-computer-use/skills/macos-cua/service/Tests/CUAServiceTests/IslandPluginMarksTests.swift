@@ -345,6 +345,18 @@ final class IslandPluginMarksTests: XCTestCase {
         try await samantha("samantha-comet-acting", IslandSnapshot(kind: "acting", title: "Reading page",
             plugins: [use("comet-control", "comet-control", "Samantha")]))
         try await samantha("samantha-cleared", IslandSnapshot(kind: "idle"))
+        // Operated Mac apps INSIDE the pill, left of the dot; the Apple ring stays inside on the left.
+        func op(_ app: String, _ agent: String, _ t: Double) -> IslandPluginUse {
+            var u = use("acu", "Agent Computer Use", agent); u.target_app = app; u.last_seen_at = t; return u
+        }
+        try await render("operated-1-calculator", agents: [codex], uses: [op("Calculator", "Codex", 300)])
+        try await render("operated-3-apps", agents: [codex], uses: [
+            op("Calculator", "Codex", 300), op("com.apple.finder", "Grok Bot", 310), op("TextEdit", "Codex", 320)])
+        try await render("operated-4-apps-plus-n", agents: [codex], uses: [
+            op("Calculator", "Codex", 300), op("Finder", "Grok Bot", 310), op("TextEdit", "Codex", 320), op("Notes", "Cursor", 330)])
+        try await samantha("operated-samantha-acting", IslandSnapshot(kind: "acting", title: "Opening Calculator", app: "Calculator",
+            active_apps: ["Calculator"], plugins: [op("Calculator", "Samantha", 300)]))
+        try await render("operated-cleared", agents: [codex], uses: [])
     }
 
     /// Replays island posts recorded from real plugin use (one JSON line per post: {"t", "body"}) through
@@ -472,6 +484,92 @@ final class IslandPluginMarksTests: XCTestCase {
         XCTAssertEqual(IslandSourceGroups.withSamantha([ask, a], active: false).map(\.id), ["Claude", "Codex"])
         let already = IslandSourceGroup(id: "Samantha", app: "Samantha", running: true)
         XCTAssertEqual(IslandSourceGroups.withSamantha([already], active: true).map(\.id), ["Samantha"])
+    }
+
+    // MARK: - Operated Mac apps inside the pill (Guru, 2026-11-03 13:27 IST)
+
+    private func op(_ app: String, _ agent: String, _ t: Double, plugin: String = "acu") -> IslandPluginUse {
+        var u = use(plugin, plugin == "acu" ? "Agent Computer Use" : plugin, agent)
+        u.target_app = app; u.last_seen_at = t
+        return u
+    }
+
+    func testHubCarriesTheOperatedAppOnAcuRowsOnly() {
+        let hub = IslandHub(store: store)
+        let now = Date()
+        var body = pluginBody(plugin: "acu", id: "plugin:acu:k:app:Calculator", agent: "Grok Bot", app: "Agent Computer Use", ttl: 2)
+        body["target_app"] = "  Calculator "
+        XCTAssertEqual(post(hub, body, now: now).status, 200)
+        var finder = pluginBody(plugin: "acu", id: "plugin:acu:k:app:Finder", agent: "Grok Bot", app: "Agent Computer Use", ttl: 2)
+        finder["target_app"] = "Finder"
+        XCTAssertEqual(post(hub, finder, now: now.addingTimeInterval(0.5)).status, 200)
+        let snap = hub.compose(now: now.addingTimeInterval(1))
+        XCTAssertEqual(Set(snap.plugins.compactMap(\.target_app)), ["Calculator", "Finder"])
+        XCTAssertEqual(IslandOperatedApps.names(snap.plugins), ["Finder", "Calculator"], "newest first")
+        // Each app row clears on its own TTL: 2 s after the Calculator call, only Finder is left.
+        XCTAssertEqual(IslandOperatedApps.names(hub.compose(now: now.addingTimeInterval(2.2)).plugins), ["Finder"])
+        XCTAssertTrue(hub.compose(now: now.addingTimeInterval(2.7)).plugins.isEmpty)
+    }
+
+    func testOperatedAppsNewestFirstUniqueAcuOnlyCappedAtThreePlusN() {
+        let uses = [op("Calculator", "Codex", 100), op("Finder", "Grok Bot", 300), op("Calculator", "Cursor", 200),
+                    op("Comet", "Codex", 400, plugin: "comet-control"), use("acu", "Agent Computer Use", "Codex")]
+        XCTAssertEqual(IslandOperatedApps.names(uses), ["Finder", "Calculator"])
+        let five = ["A", "B", "C", "D", "E"].enumerated().map { op($0.element, "Codex", Double(10 - $0.offset)) }
+        XCTAssertEqual(IslandOperatedApps.items(five), [.app("A"), .app("B"), .app("C"), .overflow(2)])
+        XCTAssertEqual(IslandOperatedApps.accessibilityLabel(["Calculator", "Finder", "TextEdit"]),
+                       "Operating Calculator, Finder and TextEdit")
+        XCTAssertEqual(IslandOperatedApps.displayName("com.apple.calculator"), "Calculator")
+        XCTAssertEqual(IslandOperatedApps.displayName("TextEdit"), "TextEdit")
+    }
+
+    func testOperatedAppIconsSitInsideClearOfTheRingAndTheDot() {
+        for count in 1...4 {
+            let width = max(IslandBarLayout.idleWidth, IslandBarLayout.operatedAppsPillWidth(count: count))
+            let shape = IslandBarLayout.shapeRect(compactWidth: width, card: false)
+            let dot = IslandBarLayout.compactDotRect(shape: shape)
+            let ringMaxX = shape.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
+            let rects = IslandBarLayout.operatedAppRects(shape: shape, count: count)
+            XCTAssertEqual(rects.count, count)
+            for r in rects {
+                XCTAssertTrue(shape.contains(r), "icon inside the pill (\(count))")
+                XCTAssertLessThanOrEqual(r.maxX + IslandBarLayout.operatedDotGap, dot.minX + 0.001, "clear of the dot")
+                XCTAssertGreaterThanOrEqual(r.minX, ringMaxX + 4 - 0.001, "clear of the target ring")
+                XCTAssertEqual(r.midY, dot.midY, accuracy: 0.001)
+            }
+            XCTAssertEqual(dot.maxX, shape.maxX - 9, "the dot keeps its 9 pt inset")
+        }
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 1), 65)  // fits the 74 pt idle pill
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 4), 119) // 3 icons + "+N"
+    }
+
+    func testModelShowsOperatedAppsInsideAndGrowsThePill() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task", status: "running", last_seen_at: 100)
+        model.apply(IslandSnapshot(kind: "idle", agents: [codex], plugins: [
+            op("Calculator", "Grok Bot", 300), op("Finder", "Grok Bot", 310), op("TextEdit", "Grok Bot", 320)]))
+        XCTAssertTrue(model.showsOperatedApps)
+        XCTAssertTrue(model.showsTargetMark, "the Apple ring stays inside on the left")
+        XCTAssertEqual(model.operatedApps, [.app("TextEdit"), .app("Finder"), .app("Calculator")])
+        XCTAssertEqual(model.drawnWidth, IslandBarLayout.operatedAppsPillWidth(count: 3))
+        XCTAssertEqual(model.circles, [.plugin(name: "Agent Computer Use", agents: ["Grok Bot"])], "plugin mark stays outside")
+        XCTAssertEqual(model.listRows.filter { $0.id.hasPrefix("plugin:") }.count, 1, "one expanded row per plugin and agent")
+        XCTAssertTrue(model.compactPillLabel.contains("Operating TextEdit, Finder and Calculator"))
+        // Dropped 2 s after the last call: icons go and the pill returns to its idle width.
+        model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
+        XCTAssertFalse(model.showsOperatedApps)
+        XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth)
+    }
+
+    func testSamanthaOperatedAppMovesInsideNotOutside() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "acting", title: "Opening Calculator", app: "Calculator", active_apps: ["Calculator"],
+                                   plugins: [op("Calculator", "Samantha", 300)]))
+        XCTAssertEqual(model.operatedApps, [.app("Calculator")])
+        XCTAssertFalse(model.circles.contains { if case .app("Calculator", _, _) = $0 { return true } else { return false } },
+                       "an app shown inside is never drawn again outside")
     }
 
     func testTargetMarkPerPluginAndMostRecentWins() {

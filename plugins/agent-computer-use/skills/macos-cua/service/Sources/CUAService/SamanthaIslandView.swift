@@ -124,6 +124,9 @@ enum AppIconResolver {
             var dir: ObjCBool = false
             return fm.fileExists(atPath: url.path, isDirectory: &dir) && dir.boolValue ? url : nil
         }
+        // An operated app may arrive as a bundle id ("com.apple.calculator").
+        if name.contains("."), !name.contains(" "),
+           let url = isApp(NSWorkspace.shared.urlForApplication(withBundleIdentifier: name)) { return url }
         // Known apps by bundle id first: the Codex app installs as ChatGPT.app (com.openai.codex).
         // https://developer.apple.com/documentation/appkit/nsworkspace/urlforapplication(withbundleidentifier:)
         if let id = bundleIDs[name], let url = isApp(NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)) {
@@ -411,6 +414,28 @@ struct SamanthaAgentBadgeIcon: View {
 
 // MARK: - Circles
 
+/// One operated app inside the pill: the same real-icon component as the app circles, at 16 pt.
+struct IslandOperatedAppIcon: View {
+    let item: IslandOperatedAppItem
+
+    var body: some View {
+        Group {
+            switch item {
+            case .app(let name):
+                SamanthaAppIcon(appName: name, size: IslandBarLayout.operatedIcon, radius: IslandBarLayout.operatedIcon / 4)
+            case .overflow(let n):
+                Text("+\(n)")
+                    .font(.system(size: 10, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(IslandInk.secondaryColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .frame(width: IslandBarLayout.operatedIcon, height: IslandBarLayout.operatedIcon)
+    }
+}
+
 struct SamanthaAppCircle: View {
     let item: IslandCircleItem
 
@@ -661,6 +686,18 @@ struct SamanthaIslandBar: View {
                     .allowsHitTesting(false)
                     .transition(.opacity.animation(.easeOut(duration: 0.2)))
             }
+            if model.showsOperatedApps {
+                // Mac apps ACU is operating, inside the pill just left of the dot (real icons via NSWorkspace).
+                let items = model.operatedApps
+                let rs = IslandBarLayout.operatedAppRects(shape: rect, count: items.count)
+                ForEach(Array(zip(items, rs)), id: \.0.id) { item, r in
+                    IslandOperatedAppIcon(item: item)
+                        .offset(x: r.minX, y: r.minY)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                        .transition(pluginCircleTransition)
+                }
+            }
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
@@ -700,6 +737,7 @@ struct SamanthaIslandBar: View {
         .animation(openAnimation, value: model.cardOpen)
         .animation(widthAnimation, value: model.drawnWidth)
         .animation(widthAnimation, value: model.circles)
+        .animation(widthAnimation, value: model.operatedApps)
         .animation(widthAnimation, value: model.sourceGroups)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.agentApproval?.id)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.secondary)

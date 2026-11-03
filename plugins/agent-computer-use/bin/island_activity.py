@@ -94,8 +94,15 @@ def row_id(plugin: str, key: str) -> str:
     return f"plugin:{plugin}:{digest}"
 
 
-def row(plugin: str, agent: str, key: str, ttl_s: float) -> dict:
-    """Running row body for one plugin use. ValueError for an unknown plugin."""
+TARGET_APP_MAX_CHARS = 128
+
+
+def row(plugin: str, agent: str, key: str, ttl_s: float, target_app: str | None = None) -> dict:
+    """Running row body for one plugin use. ValueError for an unknown plugin.
+
+    target_app: the Mac app an ACU call operated on (name or bundle id); the island draws its
+    real icon inside the pill. Other plugins never send one.
+    """
     mark = MARKS.get(plugin)
     if mark is None:
         raise ValueError(f"unknown plugin: {plugin}")
@@ -110,6 +117,7 @@ def row(plugin: str, agent: str, key: str, ttl_s: float) -> dict:
         "meta": plugin,
         "plugin": plugin,
         "ttl_s": _ttl(ttl_s),
+        **({"target_app": app} if (app := _text(target_app)[:TARGET_APP_MAX_CHARS]) and plugin == "acu" else {}),
     }
 
 
@@ -143,9 +151,9 @@ def publish(body: dict, path: Path | None = None, timeout: float = 3.0) -> bool:
     return isinstance(reply, dict) and reply.get("status") == 200
 
 
-def start(plugin: str, agent: str, key: str, ttl_s: float = 600.0) -> bool:
+def start(plugin: str, agent: str, key: str, ttl_s: float = 600.0, target_app: str | None = None) -> bool:
     try:
-        return publish(row(plugin, agent, key, ttl_s))
+        return publish(row(plugin, agent, key, ttl_s, target_app=target_app))
     except Exception:
         return False
 
@@ -184,11 +192,11 @@ def pulse(plugin: str, agent: str, key: str, hold_s: float = 10.0) -> bool:
         return False
 
 
-def _post_now(plugin: str, agent: str, key: str, ttl_s: float) -> bool:
+def _post_now(plugin: str, agent: str, key: str, ttl_s: float, target_app: str | None = None) -> bool:
     if plugin not in MARKS:
         return False
     try:
-        posted = start(plugin, agent, key, ttl_s=ttl_s)
+        posted = start(plugin, agent, key, ttl_s=ttl_s, target_app=target_app)
         if posted:
             _RECENT[row_id(plugin, key)] = (time.time(), normalize_agent(agent))
         return posted
@@ -196,14 +204,21 @@ def _post_now(plugin: str, agent: str, key: str, ttl_s: float) -> bool:
         return False
 
 
-def call_started(plugin: str, agent: str, key: str, in_flight_s: float = IN_FLIGHT_S) -> bool:
+def call_started(plugin: str, agent: str, key: str, in_flight_s: float = IN_FLIGHT_S,
+                 target_app: str | None = None) -> bool:
     """Hold the row while one call runs (unthrottled). Never raises."""
-    return _post_now(plugin, agent, key, in_flight_s)
+    return _post_now(plugin, agent, key, in_flight_s, target_app=target_app)
 
 
-def call_finished(plugin: str, agent: str, key: str) -> bool:
+def call_finished(plugin: str, agent: str, key: str, target_app: str | None = None) -> bool:
     """The call ended (ok or failed): the hub drops the row CLEAR_AFTER_S later. Never raises."""
-    return _post_now(plugin, agent, key, CLEAR_AFTER_S)
+    return _post_now(plugin, agent, key, CLEAR_AFTER_S, target_app=target_app)
+
+
+def app_key(key: str, target_app: str | None) -> str:
+    """One row per operated app, so each app clears 2 s after its own last call."""
+    app = _text(target_app)[:TARGET_APP_MAX_CHARS]
+    return f"{key}:app:{app}" if app else key
 
 
 def linger(body: dict) -> dict:
@@ -223,6 +238,7 @@ def _cli(argv: list[str] | None = None) -> int:
         child.add_argument("--key", required=True)
         child.add_argument("--ttl", type=float, default=600.0)
         child.add_argument("--hold", type=float, default=10.0)
+        child.add_argument("--target-app", default="")
     args = parser.parse_args(argv)
 
     if args.command == "start":
@@ -230,9 +246,9 @@ def _cli(argv: list[str] | None = None) -> int:
     elif args.command == "end":
         result = end(args.plugin, args.key)
     elif args.command == "started":
-        result = call_started(args.plugin, args.agent, args.key)
+        result = call_started(args.plugin, args.agent, args.key, target_app=args.target_app)
     elif args.command == "finished":
-        result = call_finished(args.plugin, args.agent, args.key)
+        result = call_finished(args.plugin, args.agent, args.key, target_app=args.target_app)
     else:
         result = pulse(args.plugin, args.agent, args.key, hold_s=args.hold)
     print(json.dumps({"ok": bool(result)}), flush=True)

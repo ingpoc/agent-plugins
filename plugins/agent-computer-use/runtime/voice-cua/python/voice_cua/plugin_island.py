@@ -64,7 +64,15 @@ def enabled() -> bool:
     return os.environ.get("VOICE_CUA_PLUGIN_ISLAND", "").strip().lower() not in DISABLED_VALUES
 
 
-def _note(name: str, finished: bool) -> None:
+def target_app(name: str, arguments: Any) -> str:
+    """The Mac app a cua_* call operates on, drawn inside the pill like any agent's (13:27 IST)."""
+    if plugin_for_tool(name) != "acu" or not isinstance(arguments, dict):
+        return ""
+    app = arguments.get("app")
+    return app.strip()[:128] if isinstance(app, str) else ""
+
+
+def _note(name: str, finished: bool, arguments: Any = None) -> None:
     plugin = plugin_for_tool(name)
     if plugin is None or not enabled():
         return
@@ -72,21 +80,23 @@ def _note(name: str, finished: bool) -> None:
         module = activity()
         if module is None:
             return
-        key = f"{KEY}:{plugin}"
+        app = target_app(name, arguments)
+        key = f"{KEY}:{plugin}:app:{app}" if app else f"{KEY}:{plugin}"
+        extra = {"target_app": app} if app else {}
         if finished:
-            module.call_finished(plugin, AGENT, key)
+            module.call_finished(plugin, AGENT, key, **extra)
         else:
-            module.call_started(plugin, AGENT, key, in_flight_s=120.0)
+            module.call_started(plugin, AGENT, key, in_flight_s=120.0, **extra)
     except Exception:
         FAILURES["count"] += 1
 
 
-def tool_started(name: str) -> None:
-    _note(name, finished=False)
+def tool_started(name: str, arguments: Any = None) -> None:
+    _note(name, finished=False, arguments=arguments)
 
 
-def tool_finished(name: str) -> None:
-    _note(name, finished=True)
+def tool_finished(name: str, arguments: Any = None) -> None:
+    _note(name, finished=True, arguments=arguments)
 
 
 def island_app(name: str, app: str) -> str:

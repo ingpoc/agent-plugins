@@ -68,6 +68,8 @@ struct IslandAgent: Codable, Equatable, Identifiable {
     /// Plugin mark this row belongs to ("acu", "comet-control", "context-ledger"); nil = a normal row.
     /// Plugin rows are drawn as right-side circles, never as agent rows.
     var plugin: String? = nil
+    /// The Mac app an ACU call operated on (name or bundle id); plugin rows only.
+    var target_app: String? = nil
 
     init(id: String = "", name: String = "", app: String = "", title: String = "", status: String = "",
          needs_you: Bool = false, elapsed_s: Double = 0, parent_id: String? = nil, controls: [String] = [],
@@ -97,6 +99,7 @@ struct IslandAgent: Codable, Equatable, Identifiable {
         link = try c.decodeIfPresent(String.self, forKey: .link)
         tooltip = try c.decodeIfPresent(String.self, forKey: .tooltip)
         plugin = try c.decodeIfPresent(String.self, forKey: .plugin)
+        target_app = try c.decodeIfPresent(String.self, forKey: .target_app)
     }
 }
 
@@ -107,8 +110,64 @@ struct IslandPluginUse: Codable, Equatable, Identifiable {
     var app: String
     var agent: String
     var last_seen_at: Double
+    /// The Mac app an ACU call operated on (name or bundle id), drawn inside the pill.
+    var target_app: String? = nil
 
-    var id: String { plugin + "|" + agent }
+    var id: String { plugin + "|" + agent + "|" + (target_app ?? "") }
+}
+
+/// One operated Mac app inside the pill (left of the status dot), or the "+N" past the cap.
+enum IslandOperatedAppItem: Equatable, Identifiable {
+    case app(String)
+    case overflow(Int)
+
+    var id: String {
+        switch self {
+        case .app(let name): return "app:" + name
+        case .overflow: return "overflow"
+        }
+    }
+}
+
+/// Mac apps ACU is operating on, for any agent (Guru, 2026-11-03 13:27 IST): the real app icons sit
+/// INSIDE the pill on its right, newest first, 3 + "+N"; each clears 2 s after its last call.
+enum IslandOperatedApps {
+    static let maxIcons = 3
+
+    /// Display names, newest first, each once. Only ACU rows carry an operated app.
+    static func names(_ uses: [IslandPluginUse]) -> [String] {
+        var out: [String] = []
+        for u in uses.sorted(by: { $0.last_seen_at > $1.last_seen_at }) where u.plugin == "acu" {
+            let raw = (u.target_app ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !raw.isEmpty else { continue }
+            let name = displayName(raw)
+            if !out.contains(name) { out.append(name) }
+        }
+        return out
+    }
+
+    static func items(_ uses: [IslandPluginUse]) -> [IslandOperatedAppItem] {
+        let all = names(uses)
+        guard all.count > maxIcons else { return all.map { .app($0) } }
+        return all.prefix(maxIcons).map { .app($0) } + [.overflow(all.count - maxIcons)]
+    }
+
+    /// "com.apple.calculator" -> "Calculator" via the installed bundle; a plain name is kept.
+    static func displayName(_ raw: String) -> String {
+        guard raw.contains("."), !raw.contains(" "),
+              let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: raw) else { return raw }
+        let shown = FileManager.default.displayName(atPath: url.path)
+        return shown.hasSuffix(".app") ? String(shown.dropLast(4)) : shown
+    }
+
+    /// VoiceOver: "Operating Calculator, Finder and TextEdit".
+    static func accessibilityLabel(_ names: [String]) -> String {
+        switch names.count {
+        case 0: return ""
+        case 1: return "Operating \(names[0])"
+        default: return "Operating " + names.dropLast().joined(separator: ", ") + " and " + names[names.count - 1]
+        }
+    }
 }
 
 struct IslandChoiceOption: Codable, Equatable, Hashable {
@@ -837,6 +896,16 @@ final class IslandModel: ObservableObject {
     var samanthaUsesPlugin: Bool { pluginUses.contains { $0.agent == IslandSourceGroups.samantha } }
 
     /// The controlled-target ring shows over the lead slot at rest and while Samantha acts.
+    var operatedApps: [IslandOperatedAppItem] { IslandOperatedApps.items(pluginUses) }
+
+    /// Operated app icons share the target ring's states, minus the step bar (it fills the centre).
+    var showsOperatedApps: Bool {
+        !cardOpen && permissionWarning == nil && !operatedApps.isEmpty
+            && Self.operatedAppStates.contains(presentation)
+    }
+
+    static let operatedAppStates: [IslandPresentation] = [.idle, .doneSettled, .acting]
+
     var showsTargetMark: Bool {
         !cardOpen && permissionWarning == nil && pluginTarget != nil
             && [.idle, .doneSettled, .acting, .actingSteps].contains(presentation)
@@ -892,6 +961,8 @@ final class IslandModel: ObservableObject {
             running[name(a), default: 0] += 1
         }
         for n in order { parts.append((running[n]! > 1 ? "\(running[n]!) " : "") + n + " working") }
+        let operated = IslandOperatedApps.names(pluginUses)
+        if !operated.isEmpty { parts.append(IslandOperatedApps.accessibilityLabel(operated)) }
         for case .plugin(let n, let who) in IslandCircles.pluginItems(pluginUses) {
             parts.append(IslandPluginLabel.voiceOver(name: n, agents: who))
         }
@@ -1495,6 +1566,11 @@ final class IslandModel: ObservableObject {
     private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
         if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
         if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
+        let apps = operatedApps.count
+        if apps > 0, Self.operatedAppStates.contains(state) {
+            // The pill grows to fit the icons; the dot keeps its 9 pt inset.
+            return max(state.compactWidth, IslandBarLayout.operatedAppsPillWidth(count: apps))
+        }
         return state.compactWidth
     }
 
@@ -1514,7 +1590,13 @@ final class IslandModel: ObservableObject {
         let idleNow = next == .idle || next == .doneSettled
         let appItems = idleNow && idleActivity == "samantha" ? []
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
-        let nextCircles = IslandCircles.merge(apps: appItems, plugins: IslandCircles.pluginItems(pluginUses))
+        // An app ACU is operating shows inside the pill, never again as an outside circle.
+        let inside = Set(IslandOperatedApps.names(pluginUses))
+        let outsideApps = appItems.filter { item in
+            if case .app(let name, _, _) = item { return !inside.contains(name) }
+            return true
+        }
+        let nextCircles = IslandCircles.merge(apps: outsideApps, plugins: IslandCircles.pluginItems(pluginUses))
         if nextCircles != circles { circles = nextCircles }
         let groups = IslandSourceGroups.withSamantha(
             IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil,
@@ -1748,7 +1830,11 @@ final class IslandModel: ObservableObject {
         func rank(_ u: IslandPluginUse) -> Int {
             IslandCircles.pluginOrder.firstIndex(of: IslandPluginLabel.markName(plugin: u.plugin, app: u.app)) ?? Int.max
         }
-        return pluginUses.sorted { (rank($0), $0.agent) < (rank($1), $1.agent) }.map { u in
+        var seen = Set<String>()
+        // One row per plugin and agent, however many apps that agent's ACU calls operated.
+        let unique = pluginUses.sorted { (rank($0), $0.agent) < (rank($1), $1.agent) }
+            .filter { seen.insert($0.plugin + "|" + $0.agent).inserted }
+        return unique.map { u in
             let mark = IslandPluginLabel.markName(plugin: u.plugin, app: u.app)
             return IslandAgent(id: "plugin:\(u.plugin)|\(u.agent)", name: u.agent, app: mark,
                                title: IslandPluginLabel.rowTitle(name: mark), status: "running")

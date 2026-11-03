@@ -141,9 +141,10 @@ final class IslandHub {
         for e in live where e.agent.plugin != nil {
             guard let plugin = e.agent.plugin else { continue }
             s.plugins.append(IslandPluginUse(plugin: plugin, app: e.agent.app, agent: e.agent.name,
-                                             last_seen_at: e.updated.timeIntervalSince1970))
+                                             last_seen_at: e.updated.timeIntervalSince1970,
+                                             target_app: e.agent.target_app))
         }
-        s.plugins.sort { ($0.plugin, $0.agent) < ($1.plugin, $1.agent) }
+        s.plugins.sort { ($0.plugin, $0.agent, $0.target_app ?? "") < ($1.plugin, $1.agent, $1.target_app ?? "") }
         let stale = entries.values.filter { isStale($0, now: now) && Self.canRetainStale($0.agent) }
             .sorted { $0.updated > $1.updated }
         s.agents += stale.filter { $0.agent.plugin == nil }.map { e in
@@ -578,7 +579,12 @@ final class IslandHub {
                !meta.isEmpty { shown.local_detail = String(meta.prefix(60)) }
             if kind == "error", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !tech.isEmpty { shown.tooltip = String(tech.prefix(200)) }
-            if let p = j["plugin"] as? String, Self.pluginMarks.contains(p) { shown.plugin = p }
+            if let p = j["plugin"] as? String, Self.pluginMarks.contains(p) {
+                shown.plugin = p
+                if let t = (j["target_app"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
+                    shown.target_app = String(t.prefix(128))
+                }
+            }
             entries[id] = Entry(source: source, agent: shown, updated: now, ttl: ttl, started: started)
             if (kind == "done" || kind == "error"), shown.plugin == nil,
                (previousStatus == nil || previousStatus == "running"),

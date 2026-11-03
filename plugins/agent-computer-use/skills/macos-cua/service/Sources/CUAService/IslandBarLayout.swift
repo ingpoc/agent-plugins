@@ -110,6 +110,28 @@ enum IslandBarLayout {
                width: compactDotDiameter, height: compactDotDiameter)
     }
 
+    /// Operated app icons INSIDE the pill: 16 pt, 2 pt apart, right-aligned 4 pt left of the status dot
+    /// (the dot keeps its 9 pt inset), newest first left to right, "+N" last. The pill grows to fit them
+    /// clear of the 20 pt target ring on the left (its right edge is 26 pt in; icons start 30 pt in).
+    static let operatedIcon: CGFloat = 16
+    static let operatedGap: CGFloat = 2
+    static let operatedDotGap: CGFloat = 4
+    static let operatedRingClearance: CGFloat = 30
+    static func operatedAppsStripWidth(count: Int) -> CGFloat {
+        count <= 0 ? 0 : CGFloat(count) * operatedIcon + CGFloat(count - 1) * operatedGap
+    }
+    static func operatedAppsPillWidth(count: Int) -> CGFloat {
+        operatedRingClearance + operatedAppsStripWidth(count: count) + operatedDotGap + compactDotDiameter + 9
+    }
+    static func operatedAppRects(shape: CGRect, count: Int) -> [CGRect] {
+        let dot = compactDotRect(shape: shape)
+        let start = dot.minX - operatedDotGap - operatedAppsStripWidth(count: count)
+        return (0..<max(0, count)).map { i in
+            CGRect(x: start + CGFloat(i) * (operatedIcon + operatedGap), y: shape.minY + (compactHeight - operatedIcon) / 2,
+                   width: operatedIcon, height: operatedIcon)
+        }
+    }
+
     static func agentRects(shape: CGRect, count: Int) -> [CGRect] {
         (0..<max(0, count)).map { i in
             CGRect(x: shape.minX - circleGap - circleDiameter - CGFloat(i) * (circleDiameter + circleSpacing),

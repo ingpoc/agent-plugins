@@ -106,8 +106,18 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   `comet-control` through `island_activity.py` (agent "Samantha"). While she
   acts: her circle on the left, the target ring inside (the progress ring and
   driven-app lead icon give way), the 6 pt blue dot as the trail, the plugin mark
-  on the right. Her right-side app circles (the Mac apps she drives, e.g.
-  Finder) stay — a different concept; Comet is no longer one of them.
+  on the right. Comet is no longer a right-side app circle.
+- Operated Mac apps, any agent (Guru 2026-11-03 13:27 IST): each ACU `act` /
+  `state` call sends its `app` as `target_app` on its own row (key
+  `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
+  The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
+  app circles) sit INSIDE the pill on its right: 16 pt, 2 pt apart, newest
+  first, 3 then "+N", ending 4 pt left of the 6 pt dot, which keeps its 9 pt
+  inset. The pill grows to fit them (65 pt for one, 119 pt for 3 + N) clear of
+  the Apple ring on the left; they fade out over 200 ms. VoiceOver adds
+  "Operating Calculator, Finder and TextEdit". An app shown inside is never
+  drawn again as an outside app circle (Samantha's included). Plugin marks stay
+  outside on the right.
 - Drop: the hub removes a plugin row when `ttl_s` lapses (1 s sweep); the
   circle fades out over 200 ms. Plugin rows never go stale and never show
   "updates stopped".

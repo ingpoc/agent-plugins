@@ -197,11 +197,11 @@ class Handler(BaseHTTPRequestHandler):
             kind, title, detail, app = describe_tool(name, arguments)
             app = plugin_island.island_app(name, app)
             ISLAND.publish(kind, title=title, detail=detail, app=app, step=name)
-            plugin_island.tool_started(name)
+            plugin_island.tool_started(name, arguments)
             try:
                 result = dispatch(name, arguments)
             finally:
-                plugin_island.tool_finished(name)
+                plugin_island.tool_finished(name, arguments)
             rkind, rtitle, rdetail = summarize_result(name, result, fallback=detail)
             ISLAND.publish(rkind, title=rtitle, detail=rdetail, app=app)
             self._json(200, {"ok": True, "name": name, "result": result})

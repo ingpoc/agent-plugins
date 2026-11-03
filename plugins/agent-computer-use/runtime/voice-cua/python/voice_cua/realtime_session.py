@@ -1153,7 +1153,7 @@ class RealtimeSession:
                 kind, title, detail, app = describe_tool(name, arguments)
                 app = plugin_island.island_app(name, app)
                 island_publish(kind, title=title, detail=detail, app=app, step=name)
-                plugin_island.tool_started(name)
+                plugin_island.tool_started(name, arguments)
                 with tool_context(call_id=call_id, response_id=response_id):
                     try:
                         result = dispatch(name, arguments)
@@ -1161,7 +1161,7 @@ class RealtimeSession:
                         result = {"ok": False, "error": str(exc)[:200]}
                         _log_exception(name, exc)
                     finally:
-                        plugin_island.tool_finished(name)
+                        plugin_island.tool_finished(name, arguments)
                 if not isinstance(result, dict):
                     result = {"ok": False, "error": "non-dict tool result"}
                 for bad in ("value", "secret", "password", "api_key", "token"):

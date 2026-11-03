@@ -45,7 +45,7 @@ _CLIENT: dict[str, str] = {"name": ""}
 _ACTIVITY_UNSET = object()
 _ACTIVITY: Any = _ACTIVITY_UNSET
 _ACTIVITY_FAILURES: dict[str, int] = {"count": 0}
-_PULSED: dict[str, Any] = {"on": False, "key": ""}
+_PULSED: dict[str, Any] = {"on": False, "key": "", "keys": []}
 
 
 def _backend() -> CUABackend:
@@ -89,34 +89,48 @@ def _activity() -> Any:
     return module
 
 
-def _activity_key(activity: Any) -> tuple[str, str]:
+def _target_app(arguments: Any) -> str:
+    """The Mac app an act/state call operates on (name or bundle id), for the in-pill icon."""
+    app = arguments.get("app") if isinstance(arguments, dict) else None
+    return app.strip()[:128] if isinstance(app, str) else ""
+
+
+def _activity_key(activity: Any, app: str = "") -> tuple[str, str]:
+    """One row per agent process and operated app: each app clears 2 s after its own last call."""
     agent = _agent_name()
     shown = activity.normalize_agent(agent) if hasattr(activity, "normalize_agent") else agent
-    return agent, f"{shown}:{os.getpid()}"
+    key = f"{shown}:{os.getpid()}"
+    return agent, f"{key}:app:{app}" if app else key
 
 
-def _begin_activity() -> None:
-    """ACU mark holds while an act/state call runs."""
+def _app_kwargs(app: str) -> dict[str, str]:
+    return {"target_app": app} if app else {}
+
+
+def _begin_activity(app: str = "") -> None:
+    """ACU mark (and the operated app's icon) holds while an act/state call runs."""
     activity = _activity()
     if activity is None:
         return
     try:
-        agent, key = _activity_key(activity)
-        if activity.call_started("acu", agent, key=key, in_flight_s=120.0):
+        agent, key = _activity_key(activity, app)
+        if activity.call_started("acu", agent, key=key, in_flight_s=120.0, **_app_kwargs(app)):
             _PULSED["on"] = True
             _PULSED["key"] = key
+            if key not in _PULSED["keys"]:
+                _PULSED["keys"].append(key)
     except Exception:
         _ACTIVITY_FAILURES["count"] += 1
 
 
-def _finish_activity() -> None:
+def _finish_activity(app: str = "") -> None:
     """The call ended (ok, failed or raised): the mark drops 2 s after this, never later."""
     activity = _activity()
     if activity is None:
         return
     try:
-        agent, key = _activity_key(activity)
-        activity.call_finished("acu", agent, key=key)
+        agent, key = _activity_key(activity, app)
+        activity.call_finished("acu", agent, key=key, **_app_kwargs(app))
     except Exception:
         _ACTIVITY_FAILURES["count"] += 1
 
@@ -127,12 +141,14 @@ def _end_activity() -> None:
     activity = _activity()
     try:
         if activity is not None:
-            activity.end("acu", str(_PULSED["key"]))
+            for key in list(_PULSED["keys"]) or [str(_PULSED["key"])]:
+                activity.end("acu", str(key))
     except Exception:
         _ACTIVITY_FAILURES["count"] += 1
     finally:
         _PULSED["on"] = False
         _PULSED["key"] = ""
+        _PULSED["keys"] = []
 
 
 def plugin_version() -> str:
@@ -387,15 +403,16 @@ def call_tool(name: str, arguments: dict[str, Any] | None, *, modern: bool) -> d
     if handler is None:
         raise KeyError(name)
     tracked = name in ("act", "state")
+    app = _target_app(arguments) if tracked else ""
     if tracked:
-        _begin_activity()
+        _begin_activity(app)
     try:
         payload = handler(arguments or {})
     except Exception as exc:
         payload = {"ok": False, "error": str(exc)}
     finally:
         if tracked:
-            _finish_activity()
+            _finish_activity(app)
     failed = isinstance(payload, dict) and (
         payload.get("ok") is False or payload.get("error")
     )

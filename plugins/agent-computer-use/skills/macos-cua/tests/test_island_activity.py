@@ -123,6 +123,18 @@ class RowTests(ActivityTestCase):
         with self.assertRaises(ValueError):
             activity.row("unknown-plugin", "a", "k", 10)
 
+    def test_acu_rows_carry_the_operated_app_others_never(self) -> None:
+        self.assertEqual(activity.row("acu", "a", "k", 5, target_app="  Calculator ")["target_app"], "Calculator")
+        self.assertNotIn("target_app", activity.row("acu", "a", "k", 5))
+        self.assertNotIn("target_app", activity.row("acu", "a", "k", 5, target_app="   "))
+        self.assertNotIn("target_app", activity.row("comet-control", "a", "k", 5, target_app="Comet"))
+        self.assertEqual(len(activity.row("acu", "a", "k", 5, target_app="x" * 300)["target_app"]), 128)
+
+    def test_app_key_gives_each_app_its_own_row(self) -> None:
+        self.assertEqual(activity.app_key("Grok Bot:1", "TextEdit"), "Grok Bot:1:app:TextEdit")
+        self.assertEqual(activity.app_key("Grok Bot:1", ""), "Grok Bot:1")
+        self.assertEqual(activity.app_key("Grok Bot:1", None), "Grok Bot:1")
+
     def test_ids_stay_readable_or_hash_long_keys(self) -> None:
         self.assertEqual(activity.row_id("acu", "k1"), "plugin:acu:k1")
         long_key = "b" * 200

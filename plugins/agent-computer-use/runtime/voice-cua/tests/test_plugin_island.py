@@ -19,14 +19,14 @@ class FakeActivity:
         self.fail = fail
         self.calls: list[tuple] = []
 
-    def call_started(self, plugin, agent, key, in_flight_s=120.0):
-        self.calls.append(("started", plugin, agent, key, in_flight_s))
+    def call_started(self, plugin, agent, key, in_flight_s=120.0, **extra):
+        self.calls.append(("started", plugin, agent, key, in_flight_s, *extra.values()))
         if self.fail:
             raise RuntimeError("island down")
         return True
 
-    def call_finished(self, plugin, agent, key):
-        self.calls.append(("finished", plugin, agent, key))
+    def call_finished(self, plugin, agent, key, **extra):
+        self.calls.append(("finished", plugin, agent, key, *extra.values()))
         if self.fail:
             raise RuntimeError("island down")
         return True
@@ -62,6 +62,18 @@ class PluginIslandTests(unittest.TestCase):
         self.assertEqual(plugin_island.island_app("comet_click", "Comet"), "")
         # A Mac app Samantha drives through ACU keeps its own right-side app circle.
         self.assertEqual(plugin_island.island_app("cua_act", "Finder"), "Finder")
+
+    def test_operated_mac_app_rides_its_own_acu_row(self) -> None:
+        plugin_island.tool_started("cua_state", {"app": " Calculator "})
+        plugin_island.tool_finished("cua_state", {"app": "Calculator"})
+        self.assertEqual(self.fake.calls, [
+            ("started", "acu", "Samantha", "samantha:acu:app:Calculator", 120.0, "Calculator"),
+            ("finished", "acu", "Samantha", "samantha:acu:app:Calculator", "Calculator"),
+        ])
+
+    def test_comet_tools_never_send_an_operated_app(self) -> None:
+        self.assertEqual(plugin_island.target_app("comet_click", {"app": "Comet"}), "")
+        self.assertEqual(plugin_island.target_app("cua_act", "not a dict"), "")
 
     def test_other_tools_never_post(self) -> None:
         plugin_island.tool_started("secrets_get")

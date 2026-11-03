@@ -50,6 +50,7 @@ class CompactMcpIslandTests(unittest.TestCase):
         compact_mcp._CLIENT["name"] = ""
         compact_mcp._PULSED["on"] = False
         compact_mcp._PULSED["key"] = ""
+        compact_mcp._PULSED["keys"] = []
         compact_mcp._ACTIVITY_FAILURES["count"] = 0
         os.environ.pop("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", None)
         self.fake = FakeActivity()
@@ -74,11 +75,11 @@ class CompactMcpIslandTests(unittest.TestCase):
         self.assertEqual(compact_mcp._CLIENT["name"], "Cursor Agent")
         self.assertEqual(compact_mcp._agent_name(), "Cursor Agent")
 
-    def _expected(self, agent: str, shown: str) -> list:
-        key = f"{shown}:{os.getpid()}"
+    def _expected(self, agent: str, shown: str, app: str = "Finder") -> list:
+        key = f"{shown}:{os.getpid()}:app:{app}"
         return [
-            ("started", ("acu", agent), {"key": key, "in_flight_s": 120.0}),
-            ("finished", ("acu", agent), {"key": key}),
+            ("started", ("acu", agent), {"key": key, "in_flight_s": 120.0, "target_app": app}),
+            ("finished", ("acu", agent), {"key": key, "target_app": app}),
         ]
 
     def test_act_holds_while_running_then_finishes(self) -> None:
@@ -122,6 +123,36 @@ class CompactMcpIslandTests(unittest.TestCase):
         self.assertEqual(self.fake.calls[0][1], ("acu", "grokbot.cursor"))
         self.assertEqual(self.fake.calls[0][2]["in_flight_s"], 120.0)
         self.assertEqual(self.fake.calls[1][0], "finished")
+
+    def test_each_operated_app_gets_its_own_row(self) -> None:
+        compact_mcp._CLIENT["name"] = "grok-bot"
+        with mock.patch.dict(compact_mcp.HANDLERS, {"state": lambda _args: {"ok": True}}):
+            for app in ("Calculator", "com.apple.finder", "TextEdit"):
+                compact_mcp.call_tool("state", {"app": app}, modern=False)
+        started = [c for c in self.fake.calls if c[0] == "started"]
+        self.assertEqual([c[2]["target_app"] for c in started], ["Calculator", "com.apple.finder", "TextEdit"])
+        self.assertEqual(len({c[2]["key"] for c in started}), 3)
+        self.assertEqual(len(compact_mcp._PULSED["keys"]), 3)
+
+    def test_no_app_argument_sends_no_target_app(self) -> None:
+        compact_mcp._CLIENT["name"] = "Cursor"
+        with mock.patch.dict(compact_mcp.HANDLERS, {"state": lambda _args: {"ok": True}}):
+            compact_mcp.call_tool("state", {}, modern=False)
+        self.assertEqual(self.fake.calls[0][2], {"key": f"Cursor:{os.getpid()}", "in_flight_s": 120.0})
+
+    def test_eof_ends_every_app_row(self) -> None:
+        with mock.patch.dict(compact_mcp.HANDLERS, {"state": lambda _args: {"ok": True}}):
+            compact_mcp.call_tool("state", {"app": "Calculator"}, modern=False)
+            compact_mcp.call_tool("state", {"app": "TextEdit"}, modern=False)
+        keys = list(compact_mcp._PULSED["keys"])
+
+        class FakeBinary:
+            def __init__(self) -> None:
+                self.buffer = io.BytesIO(b"")
+
+        with mock.patch.object(sys, "stdin", FakeBinary()), mock.patch.object(sys, "stdout", FakeBinary()):
+            compact_mcp.serve()
+        self.assertEqual([c for c in self.fake.calls if c[0] == "end"], [("end", ("acu", k), {}) for k in keys])
 
     def test_eof_ends_the_row_once(self) -> None:
         with mock.patch.dict(compact_mcp.HANDLERS, {"act": lambda _args: {"ok": True}}):
