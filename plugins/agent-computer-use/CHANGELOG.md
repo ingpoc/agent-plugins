@@ -2,9 +2,9 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
-## 0.2.80
+## 0.2.81
 
-- Inside-pill app icons show only the apps in use right now (Guru, 2026-11-03 14:37 IST). Each ACU session (one MCP process, or Samantha) keeps one row whose `target_app` is its current app: moving to a new app swaps the icon (200 ms fade out, 200 ms fade in), so sequential use never shows more than one icon; parallel sessions on different apps show one each. Icons clear 2 s after the session's last `act`/`state` call. The per-app recent-history rows (`island_activity.app_key`) are gone; "+N" stays only as a safety cap past 3 concurrent apps.
+- Reverts 0.2.80 (never released): inside-pill app icons are back to the accepted 0.2.79 behaviour, each app clearing 2 s after its own last call with a 200 ms fade, newest first, 3 then "+N" (Guru, 2026-11-03 14:49 IST: "2 second fade is good enough"). Code is identical to 0.2.79; the number only moves because the release policy forbids going backwards.
 
 ## 0.2.79 (2026-11-03)
 

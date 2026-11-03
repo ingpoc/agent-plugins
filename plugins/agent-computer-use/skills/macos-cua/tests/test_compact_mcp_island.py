@@ -76,7 +76,7 @@ class CompactMcpIslandTests(unittest.TestCase):
         self.assertEqual(compact_mcp._agent_name(), "Cursor Agent")
 
     def _expected(self, agent: str, shown: str, app: str = "Finder") -> list:
-        key = f"{shown}:{os.getpid()}"
+        key = f"{shown}:{os.getpid()}:app:{app}"
         return [
             ("started", ("acu", agent), {"key": key, "in_flight_s": 120.0, "target_app": app}),
             ("finished", ("acu", agent), {"key": key, "target_app": app}),
@@ -124,15 +124,15 @@ class CompactMcpIslandTests(unittest.TestCase):
         self.assertEqual(self.fake.calls[0][2]["in_flight_s"], 120.0)
         self.assertEqual(self.fake.calls[1][0], "finished")
 
-    def test_sequential_apps_share_one_row_with_the_current_app(self) -> None:
+    def test_each_operated_app_gets_its_own_row(self) -> None:
         compact_mcp._CLIENT["name"] = "grok-bot"
         with mock.patch.dict(compact_mcp.HANDLERS, {"state": lambda _args: {"ok": True}}):
             for app in ("Calculator", "com.apple.finder", "TextEdit"):
                 compact_mcp.call_tool("state", {"app": app}, modern=False)
         started = [c for c in self.fake.calls if c[0] == "started"]
         self.assertEqual([c[2]["target_app"] for c in started], ["Calculator", "com.apple.finder", "TextEdit"])
-        self.assertEqual(len({c[2]["key"] for c in started}), 1, "one session = one row = one icon")
-        self.assertEqual(len(compact_mcp._PULSED["keys"]), 1)
+        self.assertEqual(len({c[2]["key"] for c in started}), 3)
+        self.assertEqual(len(compact_mcp._PULSED["keys"]), 3)
 
     def test_no_app_argument_sends_no_target_app(self) -> None:
         compact_mcp._CLIENT["name"] = "Cursor"
@@ -140,7 +140,7 @@ class CompactMcpIslandTests(unittest.TestCase):
             compact_mcp.call_tool("state", {}, modern=False)
         self.assertEqual(self.fake.calls[0][2], {"key": f"Cursor:{os.getpid()}", "in_flight_s": 120.0})
 
-    def test_eof_ends_the_session_row(self) -> None:
+    def test_eof_ends_every_app_row(self) -> None:
         with mock.patch.dict(compact_mcp.HANDLERS, {"state": lambda _args: {"ok": True}}):
             compact_mcp.call_tool("state", {"app": "Calculator"}, modern=False)
             compact_mcp.call_tool("state", {"app": "TextEdit"}, modern=False)
