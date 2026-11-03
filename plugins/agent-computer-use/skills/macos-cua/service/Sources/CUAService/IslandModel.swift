@@ -65,6 +65,9 @@ struct IslandAgent: Codable, Equatable, Identifiable {
     var link: String? = nil
     /// Hover text: "repo · branch" and tokens, only the parts that are known.
     var tooltip: String? = nil
+    /// Plugin mark this row belongs to ("acu", "comet-control", "context-ledger"); nil = a normal row.
+    /// Plugin rows are drawn as right-side circles, never as agent rows.
+    var plugin: String? = nil
 
     init(id: String = "", name: String = "", app: String = "", title: String = "", status: String = "",
          needs_you: Bool = false, elapsed_s: Double = 0, parent_id: String? = nil, controls: [String] = [],
@@ -93,7 +96,19 @@ struct IslandAgent: Codable, Equatable, Identifiable {
         last_seen_at = try c.decodeIfPresent(Double.self, forKey: .last_seen_at) ?? 0
         link = try c.decodeIfPresent(String.self, forKey: .link)
         tooltip = try c.decodeIfPresent(String.self, forKey: .tooltip)
+        plugin = try c.decodeIfPresent(String.self, forKey: .plugin)
     }
+}
+
+/// One plugin in use by one agent. The hub publishes these as right-side circles that hang off the
+/// pill; the agent's name rides the tooltip and VoiceOver label so the circle stays tied to it.
+struct IslandPluginUse: Codable, Equatable, Identifiable {
+    var plugin: String
+    var app: String
+    var agent: String
+    var last_seen_at: Double
+
+    var id: String { plugin + "|" + agent }
 }
 
 struct IslandChoiceOption: Codable, Equatable, Hashable {
@@ -181,18 +196,21 @@ struct IslandSnapshot: Codable, Equatable {
     var pending_count: Int = 0
     /// Timed-out cards not yet acknowledged (newest last).
     var expired: [IslandExpired] = []
+    /// Plugins in use (ACU, Comet Control, Context Ledger): right-side circles, agent-tied.
+    var plugins: [IslandPluginUse] = []
 
     init(
         kind: String = "idle", title: String = "", detail: String = "", app: String = "", step: String = "",
         confirm_id: String = "", confirm_prompt: String = "", active_apps: [String] = [], expanded: Bool = false,
         step_index: Int = 0, step_total: Int = 0, agents: [IslandAgent] = [], agent_approval: IslandAgentApproval? = nil,
-        voice_side: String = "idle", voice_level: Double = 0, voice_levels: [Double] = []
+        voice_side: String = "idle", voice_level: Double = 0, voice_levels: [Double] = [], plugins: [IslandPluginUse] = []
     ) {
         self.kind = kind; self.title = title; self.detail = detail; self.app = app; self.step = step
         self.confirm_id = confirm_id; self.confirm_prompt = confirm_prompt; self.active_apps = active_apps
         self.expanded = expanded; self.step_index = step_index; self.step_total = step_total
         self.agents = agents; self.agent_approval = agent_approval
         self.voice_side = voice_side; self.voice_level = voice_level; self.voice_levels = voice_levels
+        self.plugins = plugins
     }
 
     /// Lenient SSE decode — missing fields fall back to defaults, unknown keys ignored.
@@ -217,6 +235,7 @@ struct IslandSnapshot: Codable, Equatable {
         voice_levels = try c.decodeIfPresent([Double].self, forKey: .voice_levels) ?? []
         pending_count = try c.decodeIfPresent(Int.self, forKey: .pending_count) ?? 0
         expired = (try? c.decodeIfPresent([IslandExpired].self, forKey: .expired)) ?? []
+        plugins = (try? c.decodeIfPresent([IslandPluginUse].self, forKey: .plugins)) ?? []
     }
 
     /// True when rendering the other snapshot would look identical —
@@ -228,6 +247,7 @@ struct IslandSnapshot: Codable, Equatable {
             && step_index == other.step_index && step_total == other.step_total
             && agents == other.agents && agent_approval == other.agent_approval
             && pending_count == other.pending_count && expired == other.expired
+            && plugins == other.plugins
     }
 }
 
@@ -350,19 +370,91 @@ enum IslandPresentation: Equatable {
 
 enum IslandCircleItem: Equatable, Identifiable {
     case app(name: String, dimmed: Bool, driving: Bool)
+    /// A plugin in use, drawn on the right of the pill after Samantha's app circles.
+    case plugin(name: String, agents: [String])
     case overflow(Int)
 
     var id: String {
         switch self {
         case .app(let name, _, _): return "app:\(name)"
+        case .plugin(let name, _): return "plugin:\(name)"
         case .overflow: return "overflow"
         }
+    }
+}
+
+/// What a plugin controls, drawn inside the pill's lead slot with a spinning ring while in use
+/// (Guru, 2026-11-03 12:04 IST): ACU drives the Mac (Apple mark), comet-control drives Comet.
+/// Context Ledger controls nothing, so it has no centre mark (Guru 12:05 IST).
+enum IslandPluginTarget: Equatable {
+    case symbol(String)
+    case app(String)
+
+    static func of(plugin: String) -> IslandPluginTarget? {
+        switch plugin {
+        case "acu": return .symbol("apple.logo")
+        case "comet-control": return .app("Comet")
+        default: return nil
+        }
+    }
+
+    /// The most recently seen use that controls a target wins.
+    static func current(_ uses: [IslandPluginUse]) -> IslandPluginTarget? {
+        uses.filter { of(plugin: $0.plugin) != nil }
+            .max { $0.last_seen_at < $1.last_seen_at }
+            .flatMap { of(plugin: $0.plugin) }
+    }
+
+    var accessibilityName: String {
+        switch self {
+        case .symbol: return "Mac"
+        case .app(let name): return name
+        }
+    }
+}
+
+/// Display copy for a plugin circle: the plugin name, tied to the agent(s) using it.
+enum IslandPluginLabel {
+    static let displayNames: [String: String] = [
+        "Agent Computer Use": "ACU",
+        "comet-control": "Comet Control",
+        "context-ledger": "Context Ledger",
+    ]
+
+    static func display(_ name: String) -> String { displayNames[name] ?? name }
+
+    /// The plugin's own mark on the right (Guru 12:04 IST): ACU's app icon, else the plugin's logo
+    /// (AppIconResolver loads `<plugins>/<id>/assets/logo.svg`).
+    static func markName(plugin: String, app: String) -> String {
+        switch plugin {
+        case "acu": return "Agent Computer Use"
+        case "comet-control", "context-ledger": return plugin
+        default: return app
+        }
+    }
+
+    /// "<display> · <agents joined by ", ">"
+    static func tooltip(name: String, agents: [String]) -> String {
+        let who = agents.joined(separator: ", ")
+        return who.isEmpty ? display(name) : "\(display(name)) · \(who)"
+    }
+
+    /// "<display> in use by <agents joined with ", " and final " and ">"
+    static func voiceOver(name: String, agents: [String]) -> String {
+        guard !agents.isEmpty else { return "\(display(name)) in use" }
+        let who: String
+        if agents.count == 1 { who = agents[0] }
+        else if agents.count == 2 { who = agents[0] + " and " + agents[1] }
+        else { who = agents.dropLast().joined(separator: ", ") + " and " + agents[agents.count - 1] }
+        return "\(display(name)) in use by \(who)"
     }
 }
 
 enum IslandCircles {
     static let dimAfter: TimeInterval = 10
     static let removeAfter: TimeInterval = 60
+    /// Fixed plugin order (ACU, Comet, Context Ledger), then any other app alphabetically.
+    static let pluginOrder = ["Agent Computer Use", "comet-control", "context-ledger"]
 
     /// `apps` arrive oldest → newest; display is newest first (nearest the pill).
     /// Apps idle > 60 s drop out, > 10 s dim to 55 %; the driven app never does.
@@ -379,6 +471,36 @@ enum IslandCircles {
             .app(name: $0.0, dimmed: $0.1, driving: $0.0 == driving)
         }
         let extra = IslandBarLayout.overflowCount(count: live.count)
+        if extra > 0 { out.append(.overflow(extra)) }
+        return out
+    }
+
+    /// One circle per app in use, agents sorted unique. Fixed order for the three known plugins,
+    /// then any other app alphabetically; an app in use by no named agent still gets a circle.
+    static func pluginItems(_ uses: [IslandPluginUse]) -> [IslandCircleItem] {
+        var agents: [String: Set<String>] = [:]
+        for use in uses {
+            agents[IslandPluginLabel.markName(plugin: use.plugin, app: use.app), default: []].insert(use.agent.isEmpty ? "Agent" : use.agent)
+        }
+        let rest = agents.keys.filter { !pluginOrder.contains($0) }.sorted()
+        return (pluginOrder + rest).compactMap { app in
+            guard let names = agents[app] else { return nil }
+            return .plugin(name: app, agents: names.sorted())
+        }
+    }
+
+    /// Right-side circles: Samantha's app circles nearest the pill, then plugin circles, capped at
+    /// `maxCircles`, with one "+N" for everything past the cap. An app list's own overflow is folded
+    /// into the merged count so a plain app list comes out unchanged.
+    static func merge(apps: [IslandCircleItem], plugins: [IslandCircleItem]) -> [IslandCircleItem] {
+        var appTotal = 0
+        var pureApps: [IslandCircleItem] = []
+        for item in apps {
+            if case .overflow(let extra) = item { appTotal += extra } else { appTotal += 1; pureApps.append(item) }
+        }
+        let all = pureApps + plugins
+        var out = Array(all.prefix(IslandBarLayout.maxCircles))
+        let extra = IslandBarLayout.overflowCount(count: appTotal + plugins.count)
         if extra > 0 { out.append(.overflow(extra)) }
         return out
     }
@@ -544,6 +666,8 @@ final class IslandModel: ObservableObject {
     @Published private(set) var stepIndex = 0
     @Published private(set) var stepTotal = 0
     @Published private(set) var agents: [IslandAgent] = []
+    /// Plugins in use, drawn as right-side circles (agent-tied through tooltip/VoiceOver).
+    @Published private(set) var pluginUses: [IslandPluginUse] = []
     @Published private(set) var agentApproval: IslandAgentApproval?
     @Published private(set) var destructiveApprovalArmedID: String?
     @Published private(set) var circles: [IslandCircleItem] = []
@@ -743,10 +867,12 @@ final class IslandModel: ObservableObject {
     /// "none": nothing while idle; "agents": only when agents are live.
     var idleHidden: Bool {
         guard isIdlePresentation, !cardOpen, !isSticky else { return false }
-        return idleActivity == "none" || (idleActivity == "agents" && agents.isEmpty && sourceGroups.isEmpty)
+        return idleActivity == "none"
+            || (idleActivity == "agents" && agents.isEmpty && sourceGroups.isEmpty && pluginUses.isEmpty)
     }
 
     private var rawAgents: [IslandAgent] = []
+    private var rawPlugins: [IslandPluginUse] = []
     /// Error rows the user clicked open: cleared until the source posts a new state.
     private(set) var openedErrors: Set<String> = []
     private func notOpenedError(_ a: IslandAgent) -> Bool { !(a.status == "error" && openedErrors.contains(a.id)) }
@@ -758,9 +884,20 @@ final class IslandModel: ObservableObject {
     func reapplyFilters() {
         let a = rawAgents.filter(agentAllowed).filter(notOpenedError)
         if a != agents { agents = a }
+        let p = allowedPlugins(rawPlugins)
+        if p != pluginUses { pluginUses = p }
         let ap = rawApproval.flatMap { approvalAllowed($0) ? $0 : nil }
         if ap != agentApproval { agentApproval = ap }
         refresh(now: Date())
+    }
+
+    /// Plugin rows arrive from source `agent`, so they honour the Agent Roster source setting the
+    /// same way agent rows do (the hub also refuses a disabled source at publish time).
+    private func allowedPlugins(_ uses: [IslandPluginUse]) -> [IslandPluginUse] {
+        uses.filter { use in
+            agentAllowed(IslandAgent(id: "agent:plugin:\(use.plugin):\(use.agent)", name: use.agent,
+                                     app: use.app, status: "running"))
+        }
     }
 
     var circleCount: Int {
@@ -770,10 +907,12 @@ final class IslandModel: ObservableObject {
         }
     }
 
+    /// Lead-slot mark for the controlled target (nil: none in use, or only Context Ledger).
+    var pluginTarget: IslandPluginTarget? { IslandPluginTarget.current(pluginUses) }
+
     var circleApps: [String] {
         circles.compactMap { if case .app(let n, _, _) = $0 { return n } else { return nil } }
     }
-
     var shapeRect: CGRect {
         if trayTargeted && !cardOpen {
             let s = IslandBarLayout.dropTargetSize
@@ -834,11 +973,14 @@ final class IslandModel: ObservableObject {
         stepIndex = snap.step_index
         stepTotal = snap.step_total
         rawAgents = snap.agents
+        rawPlugins = snap.plugins
         rawApproval = snap.agent_approval
         openedErrors = openedErrors.filter { id in snap.agents.contains { $0.id == id && $0.status == "error" } }
         let nextAgents = snap.agents.filter(agentAllowed).filter(notOpenedError)
         if nextAgents != agents { agentsAt = now }
         agents = nextAgents
+        let nextPlugins = allowedPlugins(snap.plugins)
+        if nextPlugins != pluginUses { pluginUses = nextPlugins }
         reconcileRowFailures(with: nextAgents)
         let prevID = agentApproval?.id
         agentApproval = snap.agent_approval.flatMap { approvalAllowed($0) ? $0 : nil }
@@ -1312,8 +1454,9 @@ final class IslandModel: ObservableObject {
         let resting = Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
                                         notice: noticeActive, live: live, conversation: conversation)
         let idleNow = next == .idle || next == .doneSettled
-        let nextCircles = idleNow && idleActivity == "samantha" ? []
+        let appItems = idleNow && idleActivity == "samantha" ? []
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
+        let nextCircles = IslandCircles.merge(apps: appItems, plugins: IslandCircles.pluginItems(pluginUses))
         if nextCircles != circles { circles = nextCircles }
         let groups = IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil,
                                                seenFailures: seenFailures, now: now)

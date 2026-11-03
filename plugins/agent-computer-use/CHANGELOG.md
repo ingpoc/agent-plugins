@@ -2,6 +2,11 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.79 (unreleased; numbered past the in-flight 0.2.70–0.2.78 Samantha work)
+
+- Plugin activity on the Dynamic Island (Guru, 2026-11-03): one shared signal, `bin/island_activity.py` (`start`/`end`/`pulse` over the owner-only `island.sock`, body field `plugin`). Rows with `plugin` are not agent rows: the plugin's own mark sits on the RIGHT of the pill (ACU icon, comet-control and context-ledger logos; tooltip and VoiceOver name the agent), and the controlled target sits INSIDE the pill's lead slot in a spinning ring (Apple mark for ACU, Comet for comet-control; none for context-ledger). Left stays the agent-harness circles; the 6 pt compact dot is unchanged. The hub drops plugin rows at their TTL (never "updates stopped").
+- The ACU MCP reports `act`/`state` use per calling agent (30 s hold, cleared at MCP exit).
+
 ## 0.2.69 (unreleased: not tagged; waiting for Guru's OK)
 
 - Claude desktop: an open chat shows as Working while Claude replies and Done after. A plain chat's sidebar row stays "Idle <title>" while it streams, so the watcher now reads the composer's "Stop response" button (which sits below the old depth-30 walk limit) and the "Currently streaming message" message group, and names the row from the chat header. A new chat that Claude renames mid-reply no longer flashes Done. The "Chat and Cowork" tab is read from its AXValue. Message subtrees are pruned and only their accessible names are read.

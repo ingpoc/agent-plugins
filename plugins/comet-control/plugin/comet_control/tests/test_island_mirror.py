@@ -130,8 +130,8 @@ class RowBodyTests(unittest.TestCase):
                 "id": "plugin:comet-control:s1",
                 "kind": "running",
                 "name": "Codex",
-                "app": "Comet",
-                "title": "Using Comet",
+                "app": "comet-control",
+                "title": "Using Comet Control",
                 "meta": "comet-control",
                 "plugin": "comet-control",
                 "ttl_s": 75.0,
@@ -201,8 +201,8 @@ class _Activity:
             "id": f"plugin:{plugin}:{key}",
             "kind": "running",
             "name": agent,
-            "app": "Comet",
-            "title": "Using Comet",
+            "app": "comet-control",
+            "title": "Using Comet Control",
             "meta": plugin,
             "plugin": plugin,
             "ttl_s": float(ttl_s),
@@ -245,7 +245,7 @@ class ActivityModuleTests(unittest.TestCase):
             )
             self.assertEqual(row["id"], "plugin:comet-control:s1")
             self.assertEqual(row["name"], "Codex")
-            self.assertEqual(row["app"], "Comet")
+            self.assertEqual(row["app"], "comet-control")
             self.assertEqual(row["plugin"], "comet-control")
 
             instance = mirror.IslandMirror(
@@ -484,8 +484,8 @@ class IslandPublishTests(MirrorTestCase):
         "id": "plugin:comet-control:s1",
         "kind": "running",
         "name": "Codex",
-        "app": "Comet",
-        "title": "Using Comet",
+        "app": "comet-control",
+        "title": "Using Comet Control",
         "meta": "comet-control",
         "plugin": "comet-control",
         "ttl_s": 75.0,

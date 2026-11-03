@@ -24,8 +24,8 @@ from typing import Callable
 ISLAND_SOURCE = "agent"
 ROW_PREFIX = "plugin:comet-control:"
 OLD_ROW_PREFIX = "comet-lease:"
-ISLAND_APP = "Comet"
-ROW_TITLE = "Using Comet"
+ISLAND_APP = "comet-control"
+ROW_TITLE = "Using Comet Control"
 ROW_META = "comet-control"
 PLUGIN_NAME = "comet-control"
 POLL_SECONDS = 5.0

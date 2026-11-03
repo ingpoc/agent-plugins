@@ -48,7 +48,7 @@ enum AppIconResolver {
         "Terminal": "terminal", "Notes": "note.text", "Calculator": "plus.forwardslash.minus",
         "Mail": "envelope", "Calendar": "calendar", "Messages": "message", "Music": "music.note",
         "Preview": "photo", "System Settings": "gearshape", "Cursor": "cursorarrow.rays", "Codex": "terminal", "Grok Bot": "sparkles",
-        "Samantha": "waveform", "Context Ledger": "books.vertical",
+        "Samantha": "waveform", "context-ledger": "books.vertical", "comet-control": "globe",
     ]
 
     static let fallbackSymbol = "app.dashed"
@@ -73,6 +73,8 @@ enum AppIconResolver {
         let result: Resolved
         if ownIconNames.contains(name), let own = ownIcon() {
             result = .image(small(own))
+        } else if let url = pluginLogoURL(name), let logo = NSImage(contentsOf: url) {
+            result = .image(small(logo))
         } else if let url = appURL(for: name),
            case let icon = NSWorkspace.shared.icon(forFile: url.path),
            !isBlank(icon) {
@@ -101,6 +103,17 @@ enum AppIconResolver {
         let out = NSImage(size: pt)
         out.addRepresentation(rep)
         return out
+    }
+
+    /// Plugin marks (right of the pill) wear the plugin's own logo from its installed package.
+    static let pluginLogoNames: Set<String> = ["comet-control", "context-ledger"]
+    static func pluginLogoURL(_ name: String) -> URL? {
+        guard pluginLogoNames.contains(name) else { return nil }
+        let root = ProcessInfo.processInfo.environment["ACU_PLUGIN_LOGO_ROOT"]
+            .map { URL(fileURLWithPath: $0) }
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".agents/plugins")
+        let url = root.appendingPathComponent(name).appendingPathComponent("assets/logo.svg")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
     /// Only real .app bundles — never a guessed path (that yields the blank document icon).
@@ -237,6 +250,37 @@ struct SamanthaThinkingDots: View {
 
 /// 12 pt ring, 2 pt stroke on a white 15 % track: spinning 90° accent arc
 /// (1.2 s/turn) when total is unknown, or filled to `fraction`.
+/// Controlled-target mark (Apple for ACU, Comet for comet-control) inside a spinning ring, drawn in the
+/// compact lead slot; the ring is SamanthaProgressRing's indeterminate arc, scaled to the slot.
+struct IslandPluginTargetMark: View {
+    let target: IslandPluginTarget
+    let size: CGFloat
+    var reduceMotion = false
+    @State private var spin = false
+
+    var body: some View {
+        let line = max(1, size / 8)
+        ZStack {
+            Circle().stroke(IslandPalette.track, lineWidth: line)
+            Circle().trim(from: 0, to: 0.25)
+                .stroke(IslandPalette.accent, style: StrokeStyle(lineWidth: line, lineCap: .round))
+                .rotationEffect(.degrees(spin ? 360 : 0))
+                .onAppear {
+                    guard !reduceMotion else { return }
+                    withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { spin = true }
+                }
+            switch target {
+            case .symbol(let name):
+                SamanthaSymbol(name: name, size: size * 0.5)
+            case .app(let name):
+                SamanthaAppIcon(appName: name, size: size * 0.55, radius: size * 0.12)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityLabel("Controlling \(target.accessibilityName)")
+    }
+}
+
 struct SamanthaProgressRing: View {
     var fraction: Double?
     var reduceMotion = false
@@ -366,6 +410,10 @@ struct SamanthaAppCircle: View {
                 SamanthaAppIcon(appName: name)
                 Circle().strokeBorder(driving ? IslandPalette.accent : IslandPalette.keyLine,
                                       lineWidth: driving ? 1.5 : 1)
+            case .plugin(let name, _):
+                // A plugin mark looks like an app circle: never dimmed, never driving, tap does nothing.
+                SamanthaAppIcon(appName: name)
+                Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
             case .overflow(let n):
                 Text("+\(n)")
                     .font(.system(size: 11, weight: .semibold))
@@ -380,6 +428,7 @@ struct SamanthaAppCircle: View {
         .onTapGesture {
             if case .app(let name, _, _) = item { AppIconResolver.activate(name) }
         }
+        .modifier(HelpIfPresent(text: pluginTooltip))
         .accessibilityLabel(accessibility)
     }
 
@@ -388,11 +437,29 @@ struct SamanthaAppCircle: View {
         return false
     }
 
+    /// The plugin mark names the agent using it; other circles have no hover text.
+    private var pluginTooltip: String? {
+        if case .plugin(let name, let agents) = item {
+            return IslandPluginLabel.tooltip(name: name, agents: agents)
+        }
+        return nil
+    }
+
     private var accessibility: String {
         switch item {
         case .app(let name, _, _): return name
+        case .plugin(let name, let agents): return IslandPluginLabel.voiceOver(name: name, agents: agents)
         case .overflow(let n): return "\(n) more apps"
         }
+    }
+}
+
+/// Applies `.help` only when there is text, so plain circles gain no empty tooltip.
+private struct HelpIfPresent: ViewModifier {
+    let text: String?
+
+    func body(content: Content) -> some View {
+        if let text { content.help(text) } else { content }
     }
 }
 
@@ -803,8 +870,13 @@ struct SamanthaIslandBar: View {
         } else {
             switch model.presentation {
             case .idle, .doneSettled:
-                // No orb or icon here (Guru, 2026-11-01): the pill holds only the 6 pt right-hand dot.
-                Color.clear.frame(width: size, height: size)
+                // No orb or icon here (Guru, 2026-11-01): the pill holds only the 6 pt right-hand dot,
+                // unless a plugin is controlling a target (Guru, 2026-11-03): its mark + a spinning ring.
+                if let target = model.pluginTarget {
+                    IslandPluginTargetMark(target: target, size: size, reduceMotion: reduceMotion)
+                } else {
+                    Color.clear.frame(width: size, height: size)
+                }
             case .reconnecting:
                 SamanthaSymbol(name: "wifi.slash", color: IslandPalette.amber, size: size)
             case .listening:

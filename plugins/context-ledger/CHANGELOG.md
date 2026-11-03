@@ -1,5 +1,9 @@
 # Changelog
 
+
+## Unreleased
+
+- Each ledger call shows a context-ledger mark on the right of the ACU Dynamic Island for the calling actor, held 10 s (needs ACU with `bin/island_activity.py`; `CONTEXT_LEDGER_ISLAND=0` turns it off).
 ## 0.1.36
 
 - Narrow the skill trigger: use the ledger only for critical, recurring, research or debugging tasks, or to save an owner override. Simple tasks skip lookup, capture and closeout; every ledger call has a short timeout and fails open. The optional loop gate and the skill gate are now the same gate.

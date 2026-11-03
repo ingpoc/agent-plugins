@@ -4,7 +4,7 @@ Built from commit history (`git log -- plugins/comet-control`). Dates are commit
 
 ## Unreleased
 
-- Every active lease shows on the ACU Dynamic Island: a Comet icon row named by the lease's agent label, cleared on closeout, TTL reap, broker stop or Comet loss. The broker mirrors the token-free `sessions` inventory to ACU's owner-only `island.sock` (source `agent`), heartbeats with the lease's remaining TTL, and clears orphans from `run/island-rows.json` on restart. `COMET_CONTROL_ISLAND=0` turns it off.
+- Every active lease shows on the ACU Dynamic Island: the comet-control mark on the right of the pill and Comet inside it with a spinning ring, tied to the lease's agent label, cleared on closeout, TTL reap, broker stop or Comet loss. The broker mirrors the token-free `sessions` inventory to ACU's owner-only `island.sock` (source `agent`), heartbeats with the lease's remaining TTL, and clears orphans from `run/island-rows.json` on restart. `COMET_CONTROL_ISLAND=0` turns it off.
 
 ## 0.1.23 (2026-10-30)
 

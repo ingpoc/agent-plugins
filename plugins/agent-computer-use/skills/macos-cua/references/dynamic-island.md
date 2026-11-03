@@ -68,6 +68,32 @@ Use **⌃⌘I** to navigate the open island with arrow keys or Tab. Navigation
 covers every actionable roster row in display order and scrolls focused rows
 into view. VoiceOver labels include the task, state, and parent relationship.
 
+## Plugin marks (right side)
+
+A plugin an agent is using shows as a circle on the **right of the compact
+pill**, after Samantha's app circles. The left side stays the agent harness
+(source) circles; a plugin is never drawn there.
+
+- Bodies come from the shared `bin/island_activity.py`: `start(plugin, agent,
+  key, ttl_s)`, `end(plugin, key)`, and `pulse(plugin, agent, key, hold_s)` for a
+  heartbeat. A post is source `agent` with keys `id` (`plugin:<plugin>:<key>`),
+  `kind` (`running`/`clear`), `name` (the agent, max 48 chars), `app` (the
+  plugin's island app name), `title` (`Using <plugin>`), `meta`, `plugin`, and
+  `ttl_s`.
+- Allowed `plugin` values: `acu` (`Agent Computer Use`), `comet-control`
+  (`Comet`), `context-ledger` (`Context Ledger`). Any other value is ignored and
+  the row stays a normal agent row. One circle per plugin app, agents grouped.
+- Placement: circles hang off the pill's right edge, **outside** the pill, so
+  the 6 pt compact status dot at a 9 pt inset from the right end is untouched.
+- Tooltip: `<plugin display> · <agents>`. VoiceOver: `<plugin display> in use by
+  <agents>` (for example "Comet Control in use by Claude and Codex"). The circle
+  names the agent using it; tapping it does nothing.
+- TTL drop: the hub removes a plugin row when `ttl_s` lapses. Plugin rows never
+  go stale and never show "updates stopped", so the ttl is the hold — pulse
+  while the use continues, or `end` to clear it at once.
+- `ACU_ISLAND_ACTIVITY=0` turns the signal off; tests are off by default via
+  `scripts/check.py`.
+
 ## Status, approvals, and choices
 
 Use the packaged `bin/island-post` command. Reuse one stable task ID to update

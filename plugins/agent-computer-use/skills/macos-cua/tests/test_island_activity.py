@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import fcntl
 import hashlib
 import importlib.util
 import json
@@ -77,44 +76,24 @@ class FakeSocketServer:
         shutil.rmtree(self.directory, ignore_errors=True)
 
 
-def wait_for(predicate, timeout: float = 3.0) -> bool:
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        if predicate():
-            return True
-        time.sleep(0.01)
-    return predicate()
-
-
 class ActivityTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self.directory = Path(tempfile.mkdtemp(dir="/tmp"))
-        self.state = self.directory / "state"
         self.server = FakeSocketServer()
         self.env = mock.patch.dict(
             os.environ,
             {
                 "ACU_ISLAND_SOCKET": str(self.server.path),
-                "ACU_ISLAND_ACTIVITY_DIR": str(self.state),
+                "ACU_ISLAND_ACTIVITY": "1",
             },
         )
         self.env.start()
-        os.environ.pop("ACU_ISLAND_ACTIVITY", None)
         activity._RECENT.clear()
 
     def tearDown(self) -> None:
         self.env.stop()
         self.server.close()
         shutil.rmtree(self.directory, ignore_errors=True)
-
-    def hold_path(self, rid: str) -> Path:
-        return activity._hold_path(rid)
-
-    def write_hold(self, rid: str, until: float) -> Path:
-        self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
-        path = self.hold_path(rid)
-        path.write_text(json.dumps({"id": rid, "until": until}), encoding="utf-8")
-        return path
 
 
 class RowTests(ActivityTestCase):
@@ -203,115 +182,55 @@ class EnableAndPublishTests(ActivityTestCase):
 
 
 class PulseAndEndTests(ActivityTestCase):
-    def test_end_clears_the_row_and_removes_the_hold_file(self) -> None:
-        with mock.patch.object(activity, "ensure_reaper"):
-            self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=10.0))
+    def test_end_publishes_only_the_clear(self) -> None:
+        self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=10.0))
         rid = activity.row_id("acu", "k")
-        self.assertTrue(self.hold_path(rid).exists())
+        before = len(self.server.bodies)
 
         self.assertTrue(activity.end("acu", "k"))
-        self.assertFalse(self.hold_path(rid).exists())
+        self.assertEqual(len(self.server.bodies), before + 1)
         self.assertEqual(self.server.bodies[-1], {"source": "agent", "id": rid, "kind": "clear"})
 
-    def test_pulse_writes_a_private_hold_file_and_throttles_the_socket(self) -> None:
-        with mock.patch.object(activity, "ensure_reaper"):
-            self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=10.0))
-        rid = activity.row_id("acu", "k")
-        path = self.hold_path(rid)
-        self.assertTrue(path.exists())
-        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
-        self.assertEqual(self.state.stat().st_mode & 0o777, 0o700)
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        self.assertEqual(payload["id"], rid)
-        self.assertGreater(payload["until"], time.time())
+    def test_pulse_posts_a_running_row_with_the_hold_as_its_ttl(self) -> None:
+        with mock.patch.object(activity, "publish", wraps=activity.publish) as published:
+            self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=8.0))
+        body = published.call_args.args[0]
+        self.assertEqual(body["kind"], "running")
+        self.assertEqual(body["plugin"], "acu")
+        self.assertEqual(body["id"], "plugin:acu:k")
+        self.assertEqual(body["ttl_s"], 8.0)
+        self.assertEqual(body["name"], "Codex")
+        self.assertEqual(self.server.bodies[-1]["ttl_s"], 8.0)
+
+    def test_pulse_throttles_the_socket_inside_the_window(self) -> None:
+        self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=10.0))  # window = min(5, 5) = 5 s
         posted = len(self.server.bodies)
-
-        path.write_text(json.dumps({"id": rid, "until": 0}), encoding="utf-8")
-        with mock.patch.object(activity, "ensure_reaper"):
-            self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=10.0))
+        self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=10.0))
         self.assertEqual(len(self.server.bodies), posted)
-        self.assertGreater(
-            json.loads(path.read_text(encoding="utf-8"))["until"], time.time()
-        )
 
-        with mock.patch.object(activity, "ensure_reaper"):
-            self.assertTrue(activity.pulse("acu", "Claude", "k", hold_s=10.0))
+        # A different agent on the same row is never throttled.
+        self.assertTrue(activity.pulse("acu", "Claude", "k", hold_s=10.0))
         self.assertEqual(len(self.server.bodies), posted + 1)
         self.assertEqual(self.server.bodies[-1]["name"], "Claude")
 
+    def test_throttle_window_is_half_the_hold_below_five_seconds(self) -> None:
+        clock = [1000.0]
+        with mock.patch.object(activity.time, "time", side_effect=lambda: clock[0]):
+            self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=4.0))  # window = 2 s
+            posted = len(self.server.bodies)
 
-class ReapTests(ActivityTestCase):
-    def test_reap_clears_expired_holds_and_keeps_unexpired(self) -> None:
-        expired = activity.row_id("acu", "expired")
-        live = activity.row_id("acu", "live")
-        self.write_hold(expired, time.time() - 1.0)
-        live_path = self.write_hold(live, time.time() + 600.0)
+            clock[0] += 1.9
+            self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=4.0))
+            self.assertEqual(len(self.server.bodies), posted, "inside the 2 s window")
 
-        results: list[int] = []
-        thread = threading.Thread(
-            target=lambda: results.append(activity.reap(poll=0.01, idle_exit=0.05)),
-            daemon=True,
-        )
-        thread.start()
-        try:
-            self.assertTrue(
-                wait_for(
-                    lambda: any(
-                        body.get("id") == expired and body.get("kind") == "clear"
-                        for body in self.server.bodies
-                    )
-                )
-            )
-            self.assertFalse(self.hold_path(expired).exists())
-            self.assertTrue(live_path.exists())
-            self.assertFalse(
-                any(
-                    body.get("id") == live and body.get("kind") == "clear"
-                    for body in self.server.bodies
-                )
-            )
-        finally:
-            for path in self.state.glob("*.json"):
-                path.unlink()
-            thread.join(timeout=3)
-        self.assertFalse(thread.is_alive())
-        self.assertEqual(results, [0])
+            clock[0] += 0.1
+            self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=4.0))
+            self.assertEqual(len(self.server.bodies), posted + 1, "the window elapsed")
 
-    def test_reap_exits_when_another_reaper_holds_the_lock(self) -> None:
-        self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
-        lock = self.state / "reaper.lock"
-        fd = os.open(lock, os.O_RDWR | os.O_CREAT, 0o600)
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        try:
-            self.assertEqual(activity.reap(poll=0.01, idle_exit=0.01), 0)
-        finally:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-            os.close(fd)
+    def test_unknown_plugin_never_posts(self) -> None:
+        self.assertFalse(activity.pulse("unknown-plugin", "Codex", "k", hold_s=10.0))
         self.assertEqual(self.server.bodies, [])
 
-
-class ReaperSpawnTests(ActivityTestCase):
-    def test_locked_reaper_blocks_a_second_spawn(self) -> None:
-        self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
-        lock = self.state / "reaper.lock"
-        fd = os.open(lock, os.O_RDWR | os.O_CREAT, 0o600)
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        try:
-            with mock.patch("subprocess.Popen") as popen:
-                activity.ensure_reaper()
-            popen.assert_not_called()
-        finally:
-            fcntl.flock(fd, fcntl.LOCK_UN)
-            os.close(fd)
-
-    def test_free_lock_spawns_one_detached_reaper(self) -> None:
-        with mock.patch("subprocess.Popen") as popen:
-            activity.ensure_reaper()
-        popen.assert_called_once()
-        command = popen.call_args.args[0]
-        self.assertEqual(Path(command[1]).name, "island_activity.py")
-        self.assertEqual(command[2], "reap")
-        self.assertTrue(popen.call_args.kwargs["start_new_session"])
 
 
 if __name__ == "__main__":

@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
 """One shared "plugin activity" signal for the ACU Dynamic Island.
 
-Any plugin an agent is using publishes a running row (the plugin's island icon
-plus the calling agent's name) and clears it when the use ends. The hub keeps a
-running row whose ttl lapses as "updates stopped", so every activity is ended by
-an explicit clear; ttl_s is only the fallback. Hold files let a reaper clear
-rows that a killed harness never ended.
+Any plugin an agent is using publishes a running row carrying its plugin mark
+("acu", "comet-control", "context-ledger"); the island shows it as a circle on
+the right of the compact pill, tied to the calling agent's name. The hub drops a
+plugin row when its ttl_s lapses — it never goes stale — so the ttl *is* the
+hold: a caller pulses while the use continues and clears when it ends.
 """
 from __future__ import annotations
 
 import argparse
-import fcntl
 import hashlib
 import json
 import os
 import socket
 import stat
-import subprocess
-import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -29,18 +26,17 @@ NAME_MAX_CHARS = 48
 MIN_TTL = 5.0
 MAX_TTL = 3600.0
 THROTTLE_SECONDS = 5.0
-HOLD_GRACE_SECONDS = 60.0
 DISABLED_VALUES = frozenset({"0", "false", "off", "no"})
 
 # plugin -> (island app name = icon, short label)
 MARKS: dict[str, tuple[str, str]] = {
     "acu": ("Agent Computer Use", "ACU"),
-    "comet-control": ("Comet", "Comet"),
-    "context-ledger": ("Context Ledger", "Context Ledger"),
+    "comet-control": ("comet-control", "Comet Control"),
+    "context-ledger": ("context-ledger", "Context Ledger"),
 }
 
 # Row id -> (posted_at, agent) for this process only; keeps a chatty caller to
-# one island post per five seconds.
+# one island post per throttle window.
 _RECENT: dict[str, tuple[float, str]] = {}
 
 
@@ -49,13 +45,6 @@ def socket_path() -> Path:
     if env:
         return Path(env).expanduser()
     return Path.home() / "Library/Application Support/CUAService/island.sock"
-
-
-def state_dir() -> Path:
-    env = os.environ.get("ACU_ISLAND_ACTIVITY_DIR")
-    if env:
-        return Path(env).expanduser()
-    return Path.home() / ".cache/acu-island-activity"
 
 
 def enabled() -> bool:
@@ -105,21 +94,9 @@ def clear_body(plugin: str, key: str) -> dict:
     return {"source": ISLAND_SOURCE, "id": row_id(plugin, key), "kind": "clear"}
 
 
-def _test_runner_without_fixture() -> bool:
-    """A unit-test process that pointed nowhere must not touch the live island."""
-    if os.environ.get("ACU_ISLAND_SOCKET"):
-        return False
-    entry = os.path.basename(sys.argv[0] or "")
-    return (
-        entry == "run_strict.py"
-        or "unittest" in entry
-        or (entry == "__main__.py" and "unittest" in sys.modules)
-    )
-
-
 def publish(body: dict, path: Path | None = None, timeout: float = 3.0) -> bool:
     """Post one row body to the CUAService island socket. Never raises."""
-    if not enabled() or _test_runner_without_fixture():
+    if not enabled():
         return False
     try:
         target = Path(path) if path is not None else socket_path()
@@ -150,178 +127,38 @@ def start(plugin: str, agent: str, key: str, ttl_s: float = 600.0) -> bool:
         return False
 
 
-def _hold_path(rid: str) -> Path:
-    return state_dir() / (hashlib.sha256(rid.encode("utf-8")).hexdigest()[:32] + ".json")
-
-
-def _write_hold(rid: str, until: float) -> None:
-    directory = state_dir()
-    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-    try:
-        os.chmod(directory, 0o700)
-    except OSError:
-        pass
-    target = _hold_path(rid)
-    tmp = directory / (target.name + f".{os.getpid()}.tmp")
-    payload = json.dumps({"id": rid, "until": until}, sort_keys=True)
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    try:
-        os.write(fd, payload.encode("utf-8"))
-    finally:
-        os.close(fd)
-    os.replace(tmp, target)
-
-
-def _delete_hold(rid: str) -> None:
-    try:
-        _hold_path(rid).unlink()
-    except OSError:
-        pass
-
-
 def end(plugin: str, key: str) -> bool:
     try:
         rid = row_id(plugin, key)
     except Exception:
         return False
     try:
-        ok = publish({"source": ISLAND_SOURCE, "id": rid, "kind": "clear"})
+        return publish({"source": ISLAND_SOURCE, "id": rid, "kind": "clear"})
     except Exception:
-        ok = False
-    _delete_hold(rid)
-    return ok
+        return False
 
 
 def pulse(plugin: str, agent: str, key: str, hold_s: float = 10.0) -> bool:
-    """Heartbeat one in-flight use: post at most every 5 s, always hold the row."""
-    if plugin not in MARKS or _test_runner_without_fixture():
+    """Heartbeat one in-flight use: post at most once per throttle window, ttl = hold_s.
+
+    The hub drops the row at ttl_s (plugin rows never go stale), so a caller that
+    stops pulsing simply disappears after hold_s. True when the signal is live.
+    """
+    if plugin not in MARKS:
         return False
     try:
         rid = row_id(plugin, key)
         now = time.time()
+        window = min(THROTTLE_SECONDS, hold_s / 2)
         recent = _RECENT.get(rid)
-        if recent is not None and now - recent[0] < THROTTLE_SECONDS and recent[1] == agent:
-            posted = True
-        else:
-            posted = start(plugin, agent, key, ttl_s=hold_s + 20)
-            if posted:
-                _RECENT[rid] = (now, agent)
-        _write_hold(rid, now + hold_s)
-        ensure_reaper()
+        if recent is not None and now - recent[0] < window and recent[1] == agent:
+            return True
+        posted = start(plugin, agent, key, ttl_s=hold_s)
+        if posted:
+            _RECENT[rid] = (now, agent)
         return posted
     except Exception:
         return False
-
-
-def _acquire_lock(path: Path) -> int | None:
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
-    except OSError:
-        return None
-    try:
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
-        os.close(fd)
-        return None
-    return fd
-
-
-def _release_lock(fd: int) -> None:
-    try:
-        fcntl.flock(fd, fcntl.LOCK_UN)
-    except OSError:
-        pass
-    try:
-        os.close(fd)
-    except OSError:
-        pass
-
-
-def ensure_reaper() -> None:
-    """Spawn one detached reaper when no other process owns the lock."""
-    try:
-        lock = state_dir() / "reaper.lock"
-        fd = _acquire_lock(lock)
-        if fd is None:
-            return
-        _release_lock(fd)
-        subprocess.Popen(
-            [sys.executable, os.path.abspath(__file__), "reap"],
-            start_new_session=True,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            close_fds=True,
-        )
-    except Exception:
-        return
-
-
-def _hold_files() -> list[Path]:
-    try:
-        return sorted(state_dir().glob("*.json"))
-    except OSError:
-        return []
-
-
-def _read_hold(path: Path) -> dict | None:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    return payload if isinstance(payload, dict) else None
-
-
-def reap(poll: float = 1.0, idle_exit: float = 30.0) -> int:
-    """Clear hold files whose use ended; exit after the list stays empty."""
-    lock = state_dir() / "reaper.lock"
-    fd = _acquire_lock(lock)
-    if fd is None:
-        return 0
-    try:
-        idle_since: float | None = None
-        while True:
-            now = time.time()
-            holds = _hold_files()
-            if not holds:
-                if idle_since is None:
-                    idle_since = now
-                if now - idle_since >= idle_exit:
-                    _release_lock(fd)
-                    fd = None
-                    if not _hold_files():
-                        return 0
-                    fd = _acquire_lock(lock)
-                    if fd is None:
-                        return 0
-                    idle_since = None
-            else:
-                idle_since = None
-                for path in holds:
-                    record = _read_hold(path)
-                    until = record.get("until") if record is not None else None
-                    if record is None or not isinstance(until, (int, float)) or isinstance(until, bool):
-                        try:
-                            path.unlink()
-                        except OSError:
-                            pass
-                        continue
-                    if float(until) > now:
-                        continue
-                    rid = record.get("id")
-                    cleared = False
-                    if isinstance(rid, str) and rid:
-                        cleared = publish({"source": ISLAND_SOURCE, "id": rid, "kind": "clear"})
-                    if cleared or now > float(until) + HOLD_GRACE_SECONDS:
-                        try:
-                            path.unlink()
-                        except OSError:
-                            pass
-            time.sleep(poll)
-    finally:
-        if fd is not None:
-            _release_lock(fd)
 
 
 def _cli(argv: list[str] | None = None) -> int:
@@ -334,18 +171,14 @@ def _cli(argv: list[str] | None = None) -> int:
         child.add_argument("--key", required=True)
         child.add_argument("--ttl", type=float, default=600.0)
         child.add_argument("--hold", type=float, default=10.0)
-    sub.add_parser("reap")
     args = parser.parse_args(argv)
 
     if args.command == "start":
         result = start(args.plugin, args.agent, args.key, ttl_s=args.ttl)
     elif args.command == "end":
         result = end(args.plugin, args.key)
-    elif args.command == "pulse":
-        result = pulse(args.plugin, args.agent, args.key, hold_s=args.hold)
     else:
-        reap()
-        result = True
+        result = pulse(args.plugin, args.agent, args.key, hold_s=args.hold)
     print(json.dumps({"ok": bool(result)}), flush=True)
     return 0
 

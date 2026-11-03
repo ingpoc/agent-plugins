@@ -78,6 +78,8 @@ final class IslandHub {
     private(set) var pendingControls: [String: String] = [:]
     private var controlWaiters: [String: [UUID: CheckedContinuation<Void, Never>]] = [:]
     nonisolated static let allowedControls: Set<String> = ["stop", "retry"]
+    /// Plugin marks the hub publishes as right-side circles instead of agent rows.
+    nonisolated static let pluginMarks: Set<String> = ["acu", "comet-control", "context-ledger"]
 
     init(store: IslandSettingsStore) {
         self.store = store
@@ -120,7 +122,7 @@ final class IslandHub {
         var s = samantha ?? IslandSnapshot(kind: "idle")
         let live = entries.values.filter { !isStale($0, now: now) }
             .sorted { $0.updated > $1.updated }
-        s.agents += live.map { e in
+        s.agents += live.filter { $0.agent.plugin == nil }.map { e in
             var a = e.agent
             if a.status == "running", e.started != .distantPast { a.elapsed_s = max(0, now.timeIntervalSince(e.started)) }
             // Posted `meta` ("Grok 4.7 · high") gets the live age: "Grok 4.7 · high · 1m".
@@ -134,9 +136,17 @@ final class IslandHub {
             a.last_seen_at = e.updated.timeIntervalSince1970
             return a
         }
+        // Plugin rows are not agent rows: they become right-side circles and are dropped at TTL.
+        s.plugins = []
+        for e in live where e.agent.plugin != nil {
+            guard let plugin = e.agent.plugin else { continue }
+            s.plugins.append(IslandPluginUse(plugin: plugin, app: e.agent.app, agent: e.agent.name,
+                                             last_seen_at: e.updated.timeIntervalSince1970))
+        }
+        s.plugins.sort { ($0.plugin, $0.agent) < ($1.plugin, $1.agent) }
         let stale = entries.values.filter { isStale($0, now: now) && Self.canRetainStale($0.agent) }
             .sorted { $0.updated > $1.updated }
-        s.agents += stale.map { e in
+        s.agents += stale.filter { $0.agent.plugin == nil }.map { e in
             var a = e.agent
             a.status = "stale"
             a.needs_you = false
@@ -224,7 +234,9 @@ final class IslandHub {
     }
 
     private static func canRetainStale(_ agent: IslandAgent) -> Bool {
-        agent.status == "running" || agent.status == "needs_you"
+        // Plugin rows are held only by their TTL: never "updates stopped".
+        guard agent.plugin == nil else { return false }
+        return agent.status == "running" || agent.status == "needs_you"
     }
 
     @discardableResult
@@ -564,8 +576,10 @@ final class IslandHub {
                !meta.isEmpty { shown.local_detail = String(meta.prefix(60)) }
             if kind == "error", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !tech.isEmpty { shown.tooltip = String(tech.prefix(200)) }
+            if let p = j["plugin"] as? String, Self.pluginMarks.contains(p) { shown.plugin = p }
             entries[id] = Entry(source: source, agent: shown, updated: now, ttl: ttl, started: started)
-            if (kind == "done" || kind == "error"), (previousStatus == nil || previousStatus == "running"),
+            if (kind == "done" || kind == "error"), shown.plugin == nil,
+               (previousStatus == nil || previousStatus == "running"),
                store.cap(source).rank >= AttentionCap.critical.rank,
                store.bool(IslandSettingsSchema.agentPeeks) {
                 onPeek?(IslandPeekItem(id: id, source: source.title, app: app,

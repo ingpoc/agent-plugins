@@ -933,6 +933,8 @@ def plugin_jobs(plugin: Path) -> list[Job] | None:
     env["PYTHONPATH"] = str(plugin)
     env["PYTHONNOUSERSITE"] = "1"
     env["AGENT_PLUGINS_COLLECTION"] = str(ROOT)
+    # Tests never post to a live island; island tests that need publishing opt back in.
+    env["ACU_ISLAND_ACTIVITY"] = "0"
     python = _python_for(plugin, env)
     jobs: list[Job] = []
     for run in check_inventory.python_runs(ROOT, {plugin.name}):
