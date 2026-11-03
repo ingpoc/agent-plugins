@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -125,12 +127,13 @@ class RowBodyTests(unittest.TestCase):
             row,
             {
                 "source": "agent",
-                "id": "comet-lease:s1",
+                "id": "plugin:comet-control:s1",
                 "kind": "running",
                 "name": "Codex",
                 "app": "Comet",
                 "title": "Using Comet",
                 "meta": "comet-control",
+                "plugin": "comet-control",
                 "ttl_s": 75.0,
             },
         )
@@ -174,7 +177,7 @@ class RowBodyTests(unittest.TestCase):
 class RowIdTests(unittest.TestCase):
     def test_short_ids_stay_readable_and_long_ids_are_hashed(self) -> None:
         short = "a" * 40
-        self.assertEqual(mirror.row_id(short), "comet-lease:" + short)
+        self.assertEqual(mirror.row_id(short), "plugin:comet-control:" + short)
 
         long_session = "b" * 200
         hashed = mirror.row_id(long_session)
@@ -184,27 +187,109 @@ class RowIdTests(unittest.TestCase):
         self.assertNotIn(long_session, hashed)
 
 
+FAKE_ACTIVITY_SOURCE = '''
+MARKER = "fake"
+
+
+class _Activity:
+    def __init__(self):
+        self.published = []
+
+    def row(self, plugin, agent, key, ttl_s):
+        return {
+            "source": "agent",
+            "id": f"plugin:{plugin}:{key}",
+            "kind": "running",
+            "name": agent,
+            "app": "Comet",
+            "title": "Using Comet",
+            "meta": plugin,
+            "plugin": plugin,
+            "ttl_s": float(ttl_s),
+        }
+
+    def publish(self, body):
+        self.published.append(dict(body))
+        return True
+
+
+activity = _Activity()
+'''
+
+
+class ActivityModuleTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.directory = Path(tempfile.mkdtemp(dir="/tmp"))
+        self.state = self.directory / "island-rows.json"
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.directory, ignore_errors=True)
+
+    def _fake_path(self) -> Path:
+        path = self.directory / "fake_activity.py"
+        path.write_text(FAKE_ACTIVITY_SOURCE, encoding="utf-8")
+        return path
+
+    def test_rows_and_publishing_use_the_shared_activity_module(self) -> None:
+        path = self._fake_path()
+        with mock.patch.dict(
+            os.environ, {"COMET_CONTROL_ISLAND_ACTIVITY": str(path)}
+        ), mock.patch.object(mirror, "_ACTIVITY", mirror._ACTIVITY_UNSET):
+            module = mirror.activity_module()
+            self.assertIsNotNone(module)
+            self.assertEqual(module.MARKER, "fake")
+            row = mirror.row_for_lease(
+                {"session_id": "s1", "agent_label": "Codex", "expires_at": 1_060_000},
+                1_000_000,
+                activity=module.activity,
+            )
+            self.assertEqual(row["id"], "plugin:comet-control:s1")
+            self.assertEqual(row["name"], "Codex")
+            self.assertEqual(row["app"], "Comet")
+            self.assertEqual(row["plugin"], "comet-control")
+
+            instance = mirror.IslandMirror(
+                lambda: [],
+                module.activity.publish,
+                self.state,
+                Clock(),
+                activity=module.activity,
+            )
+            self.assertTrue(instance.publish({"probe": 1}))
+            self.assertEqual(module.activity.published, [{"probe": 1}])
+
+    def test_missing_module_leaves_the_mirror_off(self) -> None:
+        missing = self.directory / "missing_activity.py"
+        with mock.patch.dict(
+            os.environ, {"COMET_CONTROL_ISLAND_ACTIVITY": str(missing)}
+        ), mock.patch.object(
+            mirror, "_ACTIVITY", mirror._ACTIVITY_UNSET
+        ), contextlib.redirect_stderr(io.StringIO()):
+            self.assertIsNone(mirror.activity_module())
+            self.assertIsNone(mirror.start_in_thread(self.directory / "broker.sock", self.state))
+
+
 class PlanTests(unittest.TestCase):
     def test_heartbeat_posts_only_when_due(self) -> None:
         now_s = 500.0
         leases = [{"session_id": "a", "expires_at": 500_000}]
         fresh = mirror.plan(leases, {}, 500_000, now_s)
-        self.assertEqual([body["id"] for body in fresh[0]], ["comet-lease:a"])
+        self.assertEqual([body["id"] for body in fresh[0]], ["plugin:comet-control:a"])
         self.assertEqual(fresh[1], [])
 
-        quiet = mirror.plan(leases, {"comet-lease:a": now_s - 19.0}, 500_000, now_s)
+        quiet = mirror.plan(leases, {"plugin:comet-control:a": now_s - 19.0}, 500_000, now_s)
         self.assertEqual(quiet, ([], []))
 
-        due = mirror.plan(leases, {"comet-lease:a": now_s - mirror.HEARTBEAT_SECONDS}, 500_000, now_s)
-        self.assertEqual([body["id"] for body in due[0]], ["comet-lease:a"])
+        due = mirror.plan(leases, {"plugin:comet-control:a": now_s - mirror.HEARTBEAT_SECONDS}, 500_000, now_s)
+        self.assertEqual([body["id"] for body in due[0]], ["plugin:comet-control:a"])
 
     def test_stale_posted_ids_are_cleared(self) -> None:
         now_s = 500.0
-        posted = {"comet-lease:a": now_s, "comet-lease:b": now_s, "comet-lease:c": now_s}
+        posted = {"plugin:comet-control:a": now_s, "plugin:comet-control:b": now_s, "plugin:comet-control:c": now_s}
         leases = [{"session_id": "a", "expires_at": 500_000}]
         posts, clears = mirror.plan(leases, posted, 500_000, now_s)
         self.assertEqual(posts, [])
-        self.assertEqual(clears, ["comet-lease:b", "comet-lease:c"])
+        self.assertEqual(clears, ["plugin:comet-control:b", "plugin:comet-control:c"])
 
 
 class MirrorTestCase(unittest.TestCase):
@@ -240,7 +325,7 @@ class TickTests(MirrorTestCase):
         closed = instance.tick()
         self.assertEqual(closed, {"active": 0, "posted": 0, "cleared": 1, "error": False})
         self.assertEqual(
-            recorded.calls[-1], {"source": "agent", "id": "comet-lease:s1", "kind": "clear"}
+            recorded.calls[-1], {"source": "agent", "id": "plugin:comet-control:s1", "kind": "clear"}
         )
         self.assertEqual(instance.posted, {})
 
@@ -284,7 +369,7 @@ class TickTests(MirrorTestCase):
             self.assertEqual(
                 instance.tick(), {"active": 1, "posted": 0, "cleared": 0, "error": True}
             )
-            self.assertIn("comet-lease:s1", instance.posted)
+            self.assertIn("plugin:comet-control:s1", instance.posted)
         self.assertEqual(recorded.kinds(), ["running"])
 
         final = instance.tick()
@@ -302,7 +387,7 @@ class TickTests(MirrorTestCase):
         leases.clear()
         failed = instance.tick()
         self.assertEqual(failed, {"active": 0, "posted": 0, "cleared": 0, "error": False})
-        self.assertIn("comet-lease:s1", instance.posted)
+        self.assertIn("plugin:comet-control:s1", instance.posted)
 
         recorded.refuse = lambda _body: False
         retried = instance.tick()
@@ -321,13 +406,13 @@ class StateTests(MirrorTestCase):
 
         self.assertTrue(self.state.exists())
         self.assertEqual(self.state.stat().st_mode & 0o777, 0o600)
-        self.assertEqual(json.loads(self.state.read_text()), {"rows": ["comet-lease:s1"]})
+        self.assertEqual(json.loads(self.state.read_text()), {"rows": ["plugin:comet-control:s1"]})
 
         second_recorder = Recorder()
         second = mirror.IslandMirror(lambda: [], second_recorder, self.state, clock)
-        self.assertIn("comet-lease:s1", second.posted)
+        self.assertIn("plugin:comet-control:s1", second.posted)
         self.assertEqual(second.tick()["cleared"], 1)
-        self.assertEqual(second_recorder.calls[0]["id"], "comet-lease:s1")
+        self.assertEqual(second_recorder.calls[0]["id"], "plugin:comet-control:s1")
         self.assertEqual(second_recorder.calls[0]["kind"], "clear")
         self.assertEqual(second.posted, {})
         self.assertEqual(json.loads(self.state.read_text()), {"rows": []})
@@ -337,6 +422,15 @@ class StateTests(MirrorTestCase):
         self.state.write_text("{not json")
         instance = mirror.IslandMirror(lambda: [], Recorder(), self.state)
         self.assertEqual(instance.posted, {})
+
+    def test_old_comet_lease_ids_are_still_cleared(self) -> None:
+        self.state.write_text(json.dumps({"rows": ["comet-lease:legacy"]}), encoding="utf-8")
+        recorded = Recorder()
+        instance = mirror.IslandMirror(lambda: [], recorded, self.state, Clock())
+        self.assertIn("comet-lease:legacy", instance.posted)
+        self.assertEqual(instance.tick()["cleared"], 1)
+        self.assertEqual(recorded.calls[0]["id"], "comet-lease:legacy")
+        self.assertEqual(recorded.calls[0]["kind"], "clear")
 
     def test_shutdown_clears_every_posted_row(self) -> None:
         clock = Clock()
@@ -352,7 +446,7 @@ class StateTests(MirrorTestCase):
         self.assertEqual(instance.posted, {})
         self.assertEqual(recorded.kinds()[-2:], ["clear", "clear"])
         self.assertEqual(
-            {call["id"] for call in recorded.calls[-2:]}, {"comet-lease:s1", "comet-lease:s2"}
+            {call["id"] for call in recorded.calls[-2:]}, {"plugin:comet-control:s1", "plugin:comet-control:s2"}
         )
         self.assertEqual(json.loads(self.state.read_text()), {"rows": []})
 
@@ -387,17 +481,18 @@ class EnvironmentTests(unittest.TestCase):
 class IslandPublishTests(MirrorTestCase):
     BODY = {
         "source": "agent",
-        "id": "comet-lease:s1",
+        "id": "plugin:comet-control:s1",
         "kind": "running",
         "name": "Codex",
         "app": "Comet",
         "title": "Using Comet",
         "meta": "comet-control",
+        "plugin": "comet-control",
         "ttl_s": 75.0,
     }
 
     def test_wire_request_is_one_exact_publish_line_and_200_is_true(self) -> None:
-        server = FakeSocketServer(lambda _raw: {"status": 200, "body": {"id": "comet-lease:s1"}})
+        server = FakeSocketServer(lambda _raw: {"status": 200, "body": {"id": "plugin:comet-control:s1"}})
         try:
             self.assertTrue(mirror.island_publish(self.BODY, path=server.path))
         finally:

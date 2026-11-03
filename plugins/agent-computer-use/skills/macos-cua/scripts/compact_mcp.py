@@ -13,7 +13,9 @@ compat for older Cursor senders.
 """
 from __future__ import annotations
 
+import importlib.util
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -39,6 +41,11 @@ from compact_backend import (
 )
 
 _BACKEND: Any = None
+_CLIENT: dict[str, str] = {"name": ""}
+_ACTIVITY_UNSET = object()
+_ACTIVITY: Any = _ACTIVITY_UNSET
+_ACTIVITY_FAILURES: dict[str, int] = {"count": 0}
+_PULSED: dict[str, Any] = {"on": False, "key": ""}
 
 
 def _backend() -> CUABackend:
@@ -46,6 +53,68 @@ def _backend() -> CUABackend:
     if _BACKEND is None:
         _BACKEND = CUABackend()
     return _BACKEND
+
+
+def _remember_client(params: dict[str, Any]) -> None:
+    info = params.get("clientInfo")
+    name = info.get("name") if isinstance(info, dict) else None
+    _CLIENT["name"] = name.strip()[:48] if isinstance(name, str) else ""
+
+
+def _agent_name() -> str:
+    origin = os.environ.get("CODEX_INTERNAL_ORIGINATOR_OVERRIDE", "").strip()
+    if origin:
+        prefix = "acu_exec."
+        if origin.startswith(prefix):
+            origin = origin[len(prefix):].strip()
+        return origin or "Agent"
+    return _CLIENT["name"].strip() or "Agent"
+
+
+def _activity() -> Any:
+    global _ACTIVITY
+    if _ACTIVITY is not _ACTIVITY_UNSET:
+        return _ACTIVITY
+    module: Any = None
+    try:
+        path = PLUGIN_ROOT / "bin" / "island_activity.py"
+        spec = importlib.util.spec_from_file_location("acu_island_activity", path)
+        if spec is not None and spec.loader is not None:
+            loaded = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(loaded)
+            module = loaded
+    except Exception:
+        module = None
+    _ACTIVITY = module
+    return module
+
+
+def _pulse_activity() -> None:
+    activity = _activity()
+    if activity is None:
+        return
+    agent = _agent_name()
+    key = f"{agent}:{os.getpid()}"
+    try:
+        if activity.pulse("acu", agent, key=key, hold_s=30.0):
+            _PULSED["on"] = True
+            _PULSED["key"] = key
+    except Exception:
+        _ACTIVITY_FAILURES["count"] += 1
+
+
+def _end_activity() -> None:
+    if not _PULSED["on"]:
+        return
+    activity = _activity()
+    try:
+        if activity is not None:
+            activity.end("acu", str(_PULSED["key"]))
+    except Exception:
+        _ACTIVITY_FAILURES["count"] += 1
+    finally:
+        _PULSED["on"] = False
+        _PULSED["key"] = ""
 
 
 def plugin_version() -> str:
@@ -299,6 +368,8 @@ def call_tool(name: str, arguments: dict[str, Any] | None, *, modern: bool) -> d
     handler = HANDLERS.get(name)
     if handler is None:
         raise KeyError(name)
+    if name in ("act", "state"):
+        _pulse_activity()
     try:
         payload = handler(arguments or {})
     except Exception as exc:
@@ -351,6 +422,7 @@ def handle_rpc(message: dict[str, Any]) -> dict[str, Any] | None:
         return None
     modern = META_VERSION in _params_meta(params)
     if method == "initialize":
+        _remember_client(params)
         return _rpc_result(rpc_id, initialize_result(params))
     if modern:
         guard = _modern_guard(params, rpc_id)
@@ -420,6 +492,7 @@ def serve() -> int:
             )
             continue
         if incoming == "eof" or message is None:
+            _end_activity()
             return 0
         reply = handle_rpc(message)
         if reply is not None:

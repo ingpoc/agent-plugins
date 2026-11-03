@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import signal
@@ -21,10 +22,12 @@ from pathlib import Path
 from typing import Callable
 
 ISLAND_SOURCE = "agent"
-ROW_PREFIX = "comet-lease:"
+ROW_PREFIX = "plugin:comet-control:"
+OLD_ROW_PREFIX = "comet-lease:"
 ISLAND_APP = "Comet"
 ROW_TITLE = "Using Comet"
 ROW_META = "comet-control"
+PLUGIN_NAME = "comet-control"
 POLL_SECONDS = 5.0
 HEARTBEAT_SECONDS = 20.0
 TTL_GRACE_SECONDS = 15.0
@@ -48,6 +51,35 @@ def island_socket_path() -> Path:
 
 def enabled() -> bool:
     return os.environ.get("COMET_CONTROL_ISLAND", "").strip().lower() not in DISABLED_VALUES
+
+
+_ACTIVITY_UNSET = object()
+_ACTIVITY: object = _ACTIVITY_UNSET
+
+
+def activity_module():
+    """ACU's shared plugin-activity module; None when it is not installed."""
+    global _ACTIVITY
+    if _ACTIVITY is not _ACTIVITY_UNSET:
+        return _ACTIVITY
+    env = os.environ.get("COMET_CONTROL_ISLAND_ACTIVITY")
+    path = (
+        Path(env).expanduser()
+        if env
+        else Path.home() / ".agents/plugins/agent-computer-use/bin/island_activity.py"
+    )
+    try:
+        spec = importlib.util.spec_from_file_location("comet_control_island_activity", path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError("no loader")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _ACTIVITY = module
+    except Exception as exc:
+        print(f"island activity unavailable: {type(exc).__name__}", file=sys.stderr)
+        _ACTIVITY = None
+    return _ACTIVITY
+
 
 
 def row_id(session_id: str) -> str:
@@ -74,13 +106,16 @@ def _ttl_seconds(lease: dict, now_ms: int) -> float:
     return round(min(MAX_TTL, max(MIN_TTL, ttl)), 1)
 
 
-def row_for_lease(lease: dict, now_ms: int) -> dict | None:
+def row_for_lease(lease: dict, now_ms: int, activity=None) -> dict | None:
     """Running row body for one lease, or None when it has no usable identity."""
     if not isinstance(lease, dict):
         return None
     session_id = lease.get("session_id")
     if not isinstance(session_id, str) or not session_id:
         return None
+    ttl = _ttl_seconds(lease, now_ms)
+    if activity is not None:
+        return activity.row(PLUGIN_NAME, _label(lease), session_id, ttl)
     return {
         "source": ISLAND_SOURCE,
         "id": row_id(session_id),
@@ -89,14 +124,15 @@ def row_for_lease(lease: dict, now_ms: int) -> dict | None:
         "app": ISLAND_APP,
         "title": ROW_TITLE,
         "meta": ROW_META,
-        "ttl_s": _ttl_seconds(lease, now_ms),
+        "plugin": PLUGIN_NAME,
+        "ttl_s": ttl,
     }
 
 
-def _active_rows(leases: list[dict], now_ms: int) -> dict[str, dict]:
+def _active_rows(leases: list[dict], now_ms: int, activity=None) -> dict[str, dict]:
     active: dict[str, dict] = {}
     for lease in leases:
-        body = row_for_lease(lease, now_ms)
+        body = row_for_lease(lease, now_ms, activity)
         if body is not None:
             active[body["id"]] = body
     return active
@@ -107,9 +143,10 @@ def plan(
     posted: dict[str, float],
     now_ms: int,
     now_s: float,
+    activity=None,
 ) -> tuple[list[dict], list[str]]:
     """Split one poll into row posts (new or heartbeat-due) and stale ids to clear."""
-    active = _active_rows(leases, now_ms)
+    active = _active_rows(leases, now_ms, activity)
     posts = [
         body
         for rid, body in active.items()
@@ -137,11 +174,13 @@ class IslandMirror:
         publish: Callable[[dict], bool],
         state_path: Path,
         clock: Callable[[], float] = time.time,
+        activity=None,
     ) -> None:
         self.fetch_sessions = fetch_sessions
         self.publish = publish
         self.state_path = Path(state_path)
         self.clock = clock
+        self.activity = activity
         self.posted: dict[str, float] = {}
         self.last_body: dict[str, dict] = {}
         self.misses = 0
@@ -159,7 +198,9 @@ class IslandMirror:
         if not isinstance(rows, list):
             return
         for rid in rows:
-            if isinstance(rid, str) and rid.startswith(ROW_PREFIX):
+            if isinstance(rid, str) and (
+                rid.startswith(ROW_PREFIX) or rid.startswith(OLD_ROW_PREFIX)
+            ):
                 self.posted[rid] = 0.0
 
     def save_state(self) -> None:
@@ -186,8 +227,8 @@ class IslandMirror:
             leases = []
         now_s = self.clock()
         now_ms = int(now_s * 1000)
-        active = _active_rows(leases, now_ms)
-        posts, clears = plan(leases, self.posted, now_ms, now_s)
+        active = _active_rows(leases, now_ms, self.activity)
+        posts, clears = plan(leases, self.posted, now_ms, now_s, self.activity)
         planned = {body["id"] for body in posts}
         for rid, body in active.items():
             if rid in planned:
@@ -291,7 +332,15 @@ def start_in_thread(
 ) -> tuple[IslandMirror, threading.Event] | None:
     if not enabled():
         return None
-    mirror = IslandMirror(lambda: broker_sessions(broker_socket), island_publish, state_path)
+    activity = activity_module()
+    if activity is None:
+        return None
+    mirror = IslandMirror(
+        lambda: broker_sessions(broker_socket),
+        activity.publish,
+        state_path,
+        activity=activity,
+    )
     stop = threading.Event()
     threading.Thread(
         target=mirror.run, args=(stop,), name="comet-island-mirror", daemon=True
@@ -308,10 +357,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     broker_socket = Path(args.socket).expanduser()
+    activity = activity_module()
+    if activity is None:
+        print(json.dumps({"error": "acu island_activity missing"}), flush=True)
+        return 0
     mirror = IslandMirror(
         lambda: broker_sessions(broker_socket),
-        island_publish,
+        activity.publish,
         Path(args.state).expanduser(),
+        activity=activity,
     )
     if args.once:
         print(json.dumps(mirror.tick(), sort_keys=True), flush=True)

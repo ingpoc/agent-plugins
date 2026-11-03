@@ -48,7 +48,7 @@ enum AppIconResolver {
         "Terminal": "terminal", "Notes": "note.text", "Calculator": "plus.forwardslash.minus",
         "Mail": "envelope", "Calendar": "calendar", "Messages": "message", "Music": "music.note",
         "Preview": "photo", "System Settings": "gearshape", "Cursor": "cursorarrow.rays", "Codex": "terminal", "Grok Bot": "sparkles",
-        "Samantha": "waveform",
+        "Samantha": "waveform", "Context Ledger": "books.vertical",
     ]
 
     static let fallbackSymbol = "app.dashed"
