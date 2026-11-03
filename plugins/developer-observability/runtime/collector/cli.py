@@ -14,7 +14,7 @@ RUNTIME = Path(__file__).resolve().parents[1]
 if str(RUNTIME) not in sys.path:
     sys.path.insert(0, str(RUNTIME))
 
-from collector.analyze import build  # noqa: E402
+from collector.analyze import ACTIVE_WINDOW_H, HOTSPOT_MS, TEST_HOTSPOT_MS, build  # noqa: E402
 from collector.sources import iter_spec, known_sources, ref  # noqa: E402
 
 DEFAULT_OUT = '~/.local/share/developer-observability/collected'
@@ -70,7 +70,20 @@ def _write(out, document):
     return out / 'findings.json'
 
 
-def collect(specs, out, now=None):
+def analysis_settings(config, include_tests=None):
+    settings = collector_settings(config)
+    def number(key, default):
+        value = settings.get(key)
+        return value if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0 else default
+    return {'include_tests': bool(settings.get('include_tests', False)) if include_tests is None else bool(include_tests),
+            'window_h': number('active_window_h', ACTIVE_WINDOW_H),
+            'threshold_ms': number('latency_threshold_ms', HOTSPOT_MS),
+            'test_threshold_ms': number('test_latency_threshold_ms', TEST_HOTSPOT_MS)}
+
+
+def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H, threshold_ms=HOTSPOT_MS,
+            test_threshold_ms=TEST_HOTSPOT_MS):
+    """Write every finding (ranked, never capped) and return counts that match what the read side lists."""
     started = time.perf_counter()
     stats = {}
 
@@ -79,12 +92,17 @@ def collect(specs, out, now=None):
             yield from iter_spec(spec, stats)
 
     collected = list(events())
-    document = build(collected, stats, now)
+    document = build(collected, stats, now, include_tests, window_h, threshold_ms, test_threshold_ms)
     path = _write(Path(out).expanduser(), document)
     findings = document['findings']
-    return {'out': ref(path, 0)[:-2], 'findings': len(findings),
+    return {'out': ref(path, 0)[:-2], 'findings': len(findings), 'total': len(findings),
+            'active': sum(f['status'] == 'active' for f in findings),
+            'by_status': dict(Counter(f['status'] for f in findings)),
             'by_kind': dict(Counter(f['kind'] for f in findings)),
             'by_project': dict(Counter(f['latest_evidence']['project'] for f in findings)),
+            'excluded_test_events': sum(item.get('excluded_test', 0) for item in stats.values()),
+            'mirrored_events': sum(item.get('mirrors', 0) for item in stats.values()),
+            'include_tests': include_tests,
             'events': len(collected), 'sources': len(stats),
             'runtime_ms': int((time.perf_counter() - started) * 1000), 'peak_rss_mb': _peak_rss_mb(),
             'generated_at': document['generated_at']}
@@ -104,6 +122,7 @@ def main(argv=None) -> int:
     parser.add_argument('--project-dir', action='append', default=[])
     parser.add_argument('--no-known', action='store_true', help='skip the known local sources')
     parser.add_argument('--config', help='read-only; never written')
+    parser.add_argument('--include-tests', action='store_true', help='count test-fixture and self-test sessions as real use')
     parser.add_argument('--json', action='store_true')
     args = parser.parse_args(argv)
     config = load_config(args.config)
@@ -113,7 +132,7 @@ def main(argv=None) -> int:
         print(f'developer-observability collect: {error}', file=sys.stderr)
         return 2
     specs += [{'type': 'project_dir', 'path': d} for d in args.project_dir]
-    summary = collect(specs, out_dir(config, args.out))
+    summary = collect(specs, out_dir(config, args.out), **analysis_settings(config, True if args.include_tests else None))
     if args.json:
         print(json.dumps(summary))
     else:

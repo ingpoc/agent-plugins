@@ -274,13 +274,31 @@ class ObservabilityAPI:
                 return None
             out = {k: value[k] for k in keys if isinstance(value.get(k), (int, float)) and not isinstance(value.get(k), bool)}
             return out or None
-        if latency := numbers(finding.get('latency'), ('p50_ms', 'p95_ms', 'max_ms', 'n', 'total_ms')):
+        if latency := numbers(finding.get('latency'), ('p50_ms', 'p95_ms', 'max_ms', 'n', 'total_ms', 'threshold_ms')):
             fields['latency'] = latency
         if redundancy := numbers(finding.get('redundancy'), ('occurrences', 'bursts', 'wasted_ms')):
             pattern = finding['redundancy'].get('pattern')
             if isinstance(pattern, str):
                 redundancy['pattern'] = redact(pattern, 20)
             fields['redundancy'] = redundancy
+        def counts(value, size, width):
+            if not isinstance(value, dict):
+                return None
+            out = {redact(str(k), width): v for k, v in list(value.items())[:size]
+                   if isinstance(v, int) and not isinstance(v, bool)}
+            return out or None
+        if by_version := counts(finding.get('by_version'), 8, 40):
+            fields['by_version'] = by_version
+        change = finding.get('before_after')
+        if isinstance(change, dict) and isinstance(change.get('version'), str) and all(
+                isinstance(change.get(k), int) and not isinstance(change.get(k), bool) for k in ('before', 'after')):
+            fields['before_after'] = {'version': redact(change['version'], 40), 'before': change['before'], 'after': change['after']}
+        if logged_as := counts(finding.get('logged_as'), 6, 80):
+            fields['logged_as'] = logged_as
+        if isinstance(finding.get('condition'), str):
+            fields['condition'] = redact(finding['condition'], 40)
+        if isinstance(finding.get('rank'), int) and not isinstance(finding.get('rank'), bool):
+            fields['rank'] = finding['rank']
         return fields
 
     @staticmethod
@@ -312,13 +330,19 @@ class ObservabilityAPI:
         if not self._findings_present():
             self.project_map = dict(self.configured)
             self._project(project_id)
-            return {**self._empty(project_id), 'issues': [], 'total': 0, 'next_cursor': None, 'by_kind': {}, 'slowest': [], 'top_failures': []}
+            return {**self._empty(project_id), 'issues': [], 'total': 0, 'active': 0, 'next_cursor': None, 'by_kind': {},
+                    'by_status': {}, 'by_source': {}, 'slowest': [], 'top_failures': []}
         data, revision = self._read()
         self._project(project_id)
         if status not in ('all', 'active', 'recovered', 'stale'):
             raise ValueError('invalid_status')
-        rows = [self._summary(f) for f in data['findings'] if self._matches(f, project_id)
-                and (status == 'all' or f.get('status') == status)]
+        project_rows = [f for f in data['findings'] if self._matches(f, project_id)]
+        by_status, by_source = {}, {}
+        for f in project_rows:
+            by_status[f.get('status', 'unknown')] = by_status.get(f.get('status', 'unknown'), 0) + 1
+            origin = 'collector' if str(f.get('finding_key', '')).startswith('col-') else 'primary'
+            by_source[origin] = by_source.get(origin, 0) + 1
+        rows = [self._summary(f) for f in project_rows if status == 'all' or f.get('status') == status]
         by_kind = {}
         for row in rows:
             by_kind[row['kind']] = by_kind.get(row['kind'], 0) + 1
@@ -330,8 +354,9 @@ class ObservabilityAPI:
             rows = [row for row in rows if row['kind'] == kind]
         rows.sort(key=lambda f: (f.get('last_seen') or '', f['issue_id']), reverse=True)
         page, next_cursor = self._page(rows, cursor, revision, f'{project_id}:{status}:{kind}', limit)
-        return {**self._envelope(data, revision, project_id), 'issues': page, 'total': len(rows), 'next_cursor': next_cursor,
-                'by_kind': by_kind, 'slowest': slowest, 'top_failures': top_failures}
+        return {**self._envelope(data, revision, project_id), 'issues': page, 'total': len(rows),
+                'active': by_status.get('active', 0), 'next_cursor': next_cursor, 'by_kind': by_kind,
+                'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures}
 
     def inspect(self, project_id, issue_id, cursor=None, limit=10):
         data, revision = self._read()

@@ -1,0 +1,59 @@
+{"kind": "stack_begin", "session_id": "a1", "version": "1.0", "ts": 1793540800.0}
+{"kind": "startup", "phase": "realtime_ws_error", "status": "fail", "session_id": "a1", "step_ms": 1700, "error": "Handshake status 403 Forbidden -+-+- {'date': 'Wed, 21 Oct 2026 10:55:00 GMT', 'cf-ray': '9a00-BOM'}", "ts": 1793540810.0}
+{"kind": "realtime_error", "error": "Handshake status 403 Forbidden -+-+- {'date': 'Wed, 21 Oct 2026 10:55:00 GMT', 'cf-ray': '9a00-BOM'}", "error_type": "websocket", "ts": 1793540810.001}
+{"kind": "startup", "phase": "realtime_ws_error", "status": "fail", "session_id": "a1", "step_ms": 1701, "error": "Handshake status 403 Forbidden -+-+- {'date': 'Wed, 21 Oct 2026 10:55:01 GMT', 'cf-ray': '9a01-BOM'}", "ts": 1793540811.0}
+{"kind": "realtime_error", "error": "Handshake status 403 Forbidden -+-+- {'date': 'Wed, 21 Oct 2026 10:55:01 GMT', 'cf-ray': '9a01-BOM'}", "error_type": "websocket", "ts": 1793540811.001}
+{"kind": "startup", "phase": "realtime_ws_error", "status": "fail", "session_id": "a1", "step_ms": 1702, "error": "Handshake status 403 Forbidden -+-+- {'date': 'Wed, 21 Oct 2026 10:55:02 GMT', 'cf-ray': '9a02-BOM'}", "ts": 1793540812.0}
+{"kind": "realtime_error", "error": "Handshake status 403 Forbidden -+-+- {'date': 'Wed, 21 Oct 2026 10:55:02 GMT', 'cf-ray': '9a02-BOM'}", "error_type": "websocket", "ts": 1793540812.001}
+{"kind": "island_error_raw", "session_id": "a1", "raw": "Failed \u00b7 expect_unverified", "ts": 1793540820.0}
+{"kind": "island_error_raw", "session_id": "a1", "raw": "Failed \u00b7 expect_unverified", "ts": 1793540821.0}
+{"kind": "island_error_raw", "session_id": "a1", "raw": "Failed \u00b7 expect_unverified", "ts": 1793540822.0}
+{"kind": "island_error_raw", "session_id": "a1", "raw": "Failed \u00b7 expect_unverified", "ts": 1793540823.0}
+{"kind": "startup", "phase": "realtime_ws_close", "status": "ok", "session_id": "a1", "step_ms": 230000, "ts": 1793540830.0}
+{"kind": "startup", "phase": "response_done", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540840.0}
+{"kind": "startup", "phase": "stack_exit", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540850.0}
+{"kind": "startup", "phase": "realtime_ws_close", "status": "ok", "session_id": "a1", "step_ms": 230000, "ts": 1793540831.0}
+{"kind": "startup", "phase": "response_done", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540841.0}
+{"kind": "startup", "phase": "stack_exit", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540851.0}
+{"kind": "startup", "phase": "realtime_ws_close", "status": "ok", "session_id": "a1", "step_ms": 230000, "ts": 1793540832.0}
+{"kind": "startup", "phase": "response_done", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540842.0}
+{"kind": "startup", "phase": "stack_exit", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540852.0}
+{"kind": "startup", "phase": "realtime_ws_close", "status": "ok", "session_id": "a1", "step_ms": 230000, "ts": 1793540833.0}
+{"kind": "startup", "phase": "response_done", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540843.0}
+{"kind": "startup", "phase": "stack_exit", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540853.0}
+{"kind": "startup", "phase": "realtime_ws_close", "status": "ok", "session_id": "a1", "step_ms": 230000, "ts": 1793540834.0}
+{"kind": "startup", "phase": "response_done", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540844.0}
+{"kind": "startup", "phase": "stack_exit", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540854.0}
+{"kind": "startup", "phase": "realtime_ws_close", "status": "ok", "session_id": "a1", "step_ms": 230000, "ts": 1793540835.0}
+{"kind": "startup", "phase": "response_done", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540845.0}
+{"kind": "startup", "phase": "stack_exit", "status": "ok", "session_id": "a1", "step_ms": 76000, "ts": 1793540855.0}
+{"kind": "startup", "phase": "mic_preflight", "status": "fail", "session_id": "a1", "error": "mic open failed", "ts": 1793540860.0}
+{"kind": "tool_error", "tool": "cua_act", "error_type": "action_failed", "error": "element not found 12", "session_id": "a1", "ts": 1793540870.0}
+{"kind": "startup", "phase": "mic_preflight", "status": "fail", "session_id": "a1", "error": "mic open failed", "ts": 1793540861.0}
+{"kind": "tool_error", "tool": "cua_act", "error_type": "action_failed", "error": "element not found 12", "session_id": "a1", "ts": 1793540871.0}
+{"kind": "tool_error", "tool": "cua_act", "error_type": "needs_confirmation", "error": "confirmation required", "session_id": "a1", "ts": 1793540880.0}
+{"kind": "stack_begin", "session_id": "b1", "version": "1.1", "ts": 1793796400.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 900, "ts": 1793796500.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 1200, "ts": 1793796501.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 1500, "ts": 1793796502.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 1800, "ts": 1793796503.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 2100, "ts": 1793796504.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 2400, "ts": 1793796505.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 2700, "ts": 1793796506.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 3000, "ts": 1793796507.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 6000, "ts": 1793796508.0}
+{"kind": "voice_latency", "session_id": "b1", "speech_to_playback_ms": 7000, "ts": 1793796509.0}
+{"kind": "startup", "phase": "realtime_ws_open", "status": "ok", "session_id": "b1", "step_ms": 300, "ts": 1793796520.0}
+{"kind": "startup", "phase": "realtime_ws_open", "status": "ok", "session_id": "b1", "step_ms": 301, "ts": 1793796521.0}
+{"kind": "startup", "phase": "realtime_ws_open", "status": "ok", "session_id": "b1", "step_ms": 302, "ts": 1793796522.0}
+{"kind": "startup", "phase": "realtime_ws_open", "status": "ok", "session_id": "b1", "step_ms": 303, "ts": 1793796523.0}
+{"kind": "startup", "phase": "realtime_ws_open", "status": "ok", "session_id": "b1", "step_ms": 304, "ts": 1793796524.0}
+{"kind": "startup", "phase": "realtime_ws_open", "status": "ok", "session_id": "b1", "step_ms": 305, "ts": 1793796525.0}
+{"kind": "startup", "phase": "mic_preflight", "status": "fail", "session_id": "b1", "error": "mic open failed", "detail": "No input device available", "ts": 1793796530.0}
+{"kind": "tool_error", "tool": "cua_act", "error_type": "action_failed", "error": "element not found 40", "session_id": "b1", "ts": 1793796540.0}
+{"kind": "stack_begin", "session_id": "t1", "version": "1.1", "ts": 1793792800.0}
+{"kind": "startup", "phase": "mic_preflight", "status": "fail", "session_id": "t1", "error": "mic open failed", "ts": 1793792801.0}
+{"kind": "assistant_reply", "text": "RIGHT", "ts": 1793792802.0}
+{"kind": "startup", "phase": "response_done", "status": "ok", "session_id": "t1", "step_ms": 1, "ts": 1793792803.0}
+{"kind": "comet_call", "tool": "comet_act", "purpose": "self_test", "session_id": "c1", "ts": 1793792810.0}
+{"kind": "tool_error", "tool": "comet_act", "error_type": "action_failed", "error": "self test page missing", "session_id": "c1", "ts": 1793792811.0}

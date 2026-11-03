@@ -71,7 +71,7 @@ class CollectorTests(unittest.TestCase):
         self.assertTrue(any('tool_error/cua_act failed 5x' in h for h in heads), heads)
         hot = [f for f in doc['findings'] if f['kind'] == 'latency_hotspot']
         self.assertTrue(all(f['latency']['n'] >= 5 and f['latency']['p95_ms'] >= 1000 for f in hot))
-        self.assertIn('startup/ws_connect', ' '.join(f['headline'] for f in hot))
+        self.assertIn('ws_connect step slow', ' '.join(f['headline'] for f in hot))
         self.assertFalse(any('comet_act' in f['headline'] for f in hot), 'tool_result p95 < 1 s is not a hotspot')
         patterns = {f['redundancy']['pattern'] for f in doc['findings'] if f['kind'] == 'redundancy'}
         self.assertEqual(patterns, {'burst', 'retry', 'duplicate_call'})
