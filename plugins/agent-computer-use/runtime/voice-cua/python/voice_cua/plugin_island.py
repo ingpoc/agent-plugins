@@ -81,7 +81,7 @@ def _note(name: str, finished: bool, arguments: Any = None) -> None:
         if module is None:
             return
         app = target_app(name, arguments)
-        key = f"{KEY}:{plugin}:app:{app}" if app else f"{KEY}:{plugin}"
+        key = f"{KEY}:{plugin}"  # one row: her current app rides target_app, never a history
         extra = {"target_app": app} if app else {}
         if finished:
             module.call_finished(plugin, AGENT, key, **extra)

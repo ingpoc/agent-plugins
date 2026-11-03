@@ -107,11 +107,15 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   acts: her circle on the left, the target ring inside (the progress ring and
   driven-app lead icon give way), the 6 pt blue dot as the trail, the plugin mark
   on the right. Comet is no longer a right-side app circle.
-- Operated Mac apps, any agent (Guru 2026-11-03 13:27 IST): each ACU `act` /
-  `state` call sends its `app` as `target_app` on its own row (key
-  `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
-  The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
-  app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
+- Operated Mac apps, any agent (Guru 2026-11-03 13:27 and 14:37 IST): only the
+  apps in use RIGHT NOW. Each ACU session (MCP process; Samantha's `samantha:acu`)
+  posts one row, key `<agent>:<pid>`, whose `target_app` is its current app. A
+  call on a new app replaces the icon at once (old fades out, new fades in,
+  200 ms), so sequential use never shows more than one icon; parallel sessions
+  on different apps show one each. An icon clears 2 s after its session's last
+  `act`/`state` call. No recent-history list. The real app icons (NSWorkspace,
+  the same `SamanthaAppIcon` component as the app circles) sit INSIDE the pill
+  on its right, newest first; "+N" is only a safety cap past 3 concurrent apps.
   Fixed gaps (UI & UX): ring, 8 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
   9 pt inset. The compact pill hugs exactly that in every state, Samantha's
   included (71 pt for one, 111 for three, 131 for 3 + N); "+N" is SF Pro

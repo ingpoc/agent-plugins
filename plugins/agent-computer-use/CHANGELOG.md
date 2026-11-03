@@ -2,7 +2,11 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
-## 0.2.79 (unreleased; numbered past the in-flight 0.2.70–0.2.78 Samantha work)
+## 0.2.80
+
+- Inside-pill app icons show only the apps in use right now (Guru, 2026-11-03 14:37 IST). Each ACU session (one MCP process, or Samantha) keeps one row whose `target_app` is its current app: moving to a new app swaps the icon (200 ms fade out, 200 ms fade in), so sequential use never shows more than one icon; parallel sessions on different apps show one each. Icons clear 2 s after the session's last `act`/`state` call. The per-app recent-history rows (`island_activity.app_key`) are gone; "+N" stays only as a safety cap past 3 concurrent apps.
+
+## 0.2.79 (2026-11-03)
 
 - Plugin activity on the Dynamic Island (Guru, 2026-11-03): one shared signal, `bin/island_activity.py` (`start`/`end`/`pulse` over the owner-only `island.sock`, body field `plugin`). Rows with `plugin` are not agent rows: the plugin's own mark sits on the RIGHT of the pill (ACU icon, comet-control and context-ledger logos; tooltip and VoiceOver name the agent), and the controlled target sits INSIDE the pill's lead slot in a spinning ring (Apple mark for ACU, Comet for comet-control; none for context-ledger). Left stays the agent-harness circles; the 6 pt compact dot is unchanged. The hub drops plugin rows at their TTL (never "updates stopped").
 - The ACU MCP reports `act`/`state` use per calling agent: held while the call runs, dropped 2 s after the last call (a failed call never holds it longer), cleared at MCP exit.

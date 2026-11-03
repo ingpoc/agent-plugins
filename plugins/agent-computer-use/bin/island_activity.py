@@ -215,11 +215,6 @@ def call_finished(plugin: str, agent: str, key: str, target_app: str | None = No
     return _post_now(plugin, agent, key, CLEAR_AFTER_S, target_app=target_app)
 
 
-def app_key(key: str, target_app: str | None) -> str:
-    """One row per operated app, so each app clears 2 s after its own last call."""
-    app = _text(target_app)[:TARGET_APP_MAX_CHARS]
-    return f"{key}:app:{app}" if app else key
-
 
 def linger(body: dict) -> dict:
     """Copy of a running row body that the hub drops CLEAR_AFTER_S from now."""
