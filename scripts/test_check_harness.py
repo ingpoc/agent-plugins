@@ -515,5 +515,17 @@ class PrePushTests(unittest.TestCase):
             yield Path(path).relative_to(ROOT).as_posix()
 
 
+class PythonSelectionTests(unittest.TestCase):
+    def test_developer_observability_uses_installed_runtime_or_collection_python(self):
+        with tempfile_cm() as home:
+            runtime = home / ".local/share/developer-observability/runtime/bin/python3"
+            runtime.parent.mkdir(parents=True)
+            runtime.touch()
+            with mock.patch.object(check.Path, "home", return_value=home):
+                self.assertEqual(check._python_for(ROOT / "plugins/developer-observability", {}), str(runtime))
+            runtime.unlink()
+            with mock.patch.object(check.Path, "home", return_value=home):
+                self.assertEqual(check._python_for(ROOT / "plugins/developer-observability", {}), check.sys.executable)
+
 if __name__ == "__main__":
     unittest.main()

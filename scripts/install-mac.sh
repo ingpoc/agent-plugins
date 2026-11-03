@@ -219,8 +219,8 @@ fi
 # .claude-plugin marketplace.json); scripts/test_install_mac.py keeps this table in sync.
 catalog() {
     case "$1" in
-        claude) printf '%s\n' 'agent-computer-use context-ledger' ;;
-        codex|cursor|grok) printf '%s\n' 'agent-computer-use comet-control context-ledger' ;;
+        claude) printf '%s\n' 'agent-computer-use context-ledger developer-observability' ;;
+        codex|cursor|grok) printf '%s\n' 'agent-computer-use comet-control context-ledger developer-observability' ;;
         *) printf '\n' ;;
     esac
 }

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<title>developer-observability</title>
+<rect x="100" y="100" width="824" height="824" rx="180" fill="#0f172a"/>
+<polyline points="220,600 360,600 430,420 520,760 600,300 670,600 804,600" fill="none" stroke="#38bdf8" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="600" cy="300" r="34" fill="#f97316"/>
+</svg>

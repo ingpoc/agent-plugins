@@ -44,6 +44,7 @@ Forge: [Cursor Origin](https://cursor.com/codebase/gurusharan/agent-plugins); Gi
 | `agent-computer-use` | `plugins/agent-computer-use/` | `plugins/agent-computer-use/AGENTS.md` |
 | `comet-control` | `plugins/comet-control/` | `plugins/comet-control/AGENTS.md` |
 | `context-ledger` | `plugins/context-ledger/` | `plugins/context-ledger/AGENTS.md` |
+| `developer-observability` | `plugins/developer-observability/` | `plugins/developer-observability/AGENTS.md` |
 
 ## Agent install (every client)
 
