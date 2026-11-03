@@ -138,5 +138,19 @@ class NoMicFailsFastTests(unittest.TestCase):
         self.assertEqual(publish.call_count, 1)
 
 
+class StackBeginCarriesVersionTests(unittest.TestCase):
+    def test_stack_begin_row_has_acu_version(self) -> None:
+        from voice_cua import __version__, startup_trace
+
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "activity.jsonl"
+            with patch.dict(os.environ, {"VOICE_CUA_ACTIVITY_LOG": str(log), "VOICE_CUA_STARTUP_ID": ""}):
+                with patch.object(startup_trace, "_timer", None):
+                    startup_trace.begin()
+            rows = [json.loads(line) for line in log.read_text().splitlines()]
+        self.assertEqual(rows[0]["phase"], "stack_begin")
+        self.assertEqual(rows[0]["version"], __version__)
+
+
 if __name__ == "__main__":
     unittest.main()
