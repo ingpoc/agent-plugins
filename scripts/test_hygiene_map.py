@@ -160,8 +160,11 @@ class HygieneMapTest(unittest.TestCase):
         hm.publish(self.fx.manifest, ROWS, out=self.out, home=self.fx.home, now=now)
         page = self.out.read_text()
         self.assertIn("Last updated Tue 03 Nov 2026, 12:07 IST", page)
-        for bad in ("http://", "https://", "<script", "<link", "src=", "@import"):
+        for bad in ("http://", "https://", "<link", "src=", "@import", "fetch(", "XMLHttpRequest", "<iframe"):
             self.assertNotIn(bad, page)
+        # Exactly one inline data block and one inline script, nothing loaded from elsewhere.
+        self.assertEqual(page.count("<script"), 2)
+        self.assertIn('<script type="application/json" id="hm-data">', page)
         self.assertIn("1 misplaced &lt;x&gt;", page)
         self.assertIn("codex/task", page)
         self.assertIn("123.4 GiB free", page)
@@ -199,6 +202,128 @@ class HygieneMapTest(unittest.TestCase):
         m = {"paths": {"checkout_root": str(self.root / "nowhere")}, "scan": {"roots": [], "depth": 2}}
         self.assertEqual(hm.publish(m, [], out=self.out, home=self.fx.home), "written")
         self.assertIn("Origin main", self.out.read_text())
+
+
+    # ------------------------------------------------------------ machine tree
+
+    def tree(self, rows=ROWS) -> dict:
+        snap = self.snap(rows)
+        return hm.build_tree(snap, rows, self.fx.home, "mini")
+
+    @staticmethod
+    def find(node: dict, **want) -> dict | None:
+        if all(node.get(k) == v for k, v in want.items()):
+            return node
+        for c in node["children"]:
+            hit = HygieneMapTest.find(c, **want)
+            if hit:
+                return hit
+        return None
+
+    def add_other_repo(self) -> Path:
+        """~/code/other: a second repo with a merged branch and an unpushed one."""
+        bare = self.root / "remote" / "other.git"
+        bare.parent.mkdir()
+        sh(self.root, "init", "-q", "--bare", "-b", "main", str(bare))
+        other = self.fx.home / "code" / "other"
+        sh(self.root, "clone", "-q", str(bare), str(other))
+        sh(other, "commit", "-q", "--allow-empty", "-m", "base")
+        sh(other, "push", "-q", "origin", "main")
+        sh(other, "branch", "done")
+        sh(other, "checkout", "-q", "-b", "feature")
+        sh(other, "commit", "-q", "--allow-empty", "-m", "unpushed")
+        sh(other, "checkout", "-q", "main")
+        return other
+
+    def test_tree_root_is_the_mac_with_repos_worktrees_and_branches(self) -> None:
+        self.add_other_repo()
+        t = self.tree()
+        self.assertEqual(t["kind"], "machine")
+        self.assertEqual(t["label"], "Mac Mini (mini)")
+        repos = [c for c in t["children"] if c["kind"] == "repo"]
+        self.assertEqual([r["label"] for r in repos], ["agent-plugins", "other"])
+        ap = repos[0]
+        self.assertEqual(ap["path"], "~/apps/agent-plugins")
+        groups = {c["label"].split(" (")[0]: c for c in ap["children"]}
+        self.assertIn("Worktrees", groups)
+        self.assertIn("Branches", groups)
+        self.assertIn("Plugins vs Origin main", groups)
+        self.assertEqual(t["children"][-1]["label"], "Machine checks")
+
+    def test_status_colours_from_git_state(self) -> None:
+        self.add_other_repo()
+        t = self.tree(rows=[])
+        task = self.find(t, kind="worktree", path="~/code/worktrees/agent-plugins/task")
+        self.assertEqual(task["status"], "fail")
+        self.assertEqual(task["dirty"], 2)
+        self.assertEqual(task["local_only"], 1)
+        self.assertEqual({r["check"] for r in task["reasons"]}, {"uncommitted-changes", "local-only-commits"})
+        self.assertTrue(all(r["text"] for r in task["reasons"]))
+        feature = self.find(t, kind="branch", label="feature")
+        self.assertEqual((feature["status"], feature["merged"], feature["local_only"]), ("fail", False, 1))
+        done = self.find(t, kind="branch", label="done")
+        self.assertEqual((done["status"], done["merged"]), ("stale", True))
+        main = self.find(t, kind="branch", path="~/code/other", label="main")
+        self.assertEqual(main["status"], "ok")
+        other = self.find(t, kind="repo", label="other")
+        # ~/code is a scan root but not the checkout root: amber, with the reason.
+        self.assertEqual(other["status"], "warn")
+        self.assertEqual([r["check"] for r in other["reasons"]], ["outside-root"])
+
+    def test_hygiene_items_land_on_their_nodes_with_plain_reasons(self) -> None:
+        home = str(self.fx.home)
+        rows = [
+            {"check": "worktree-age", "status": "WARN", "detail": "old",
+             "items": [f"{home}/code/worktrees/agent-plugins/task (53d)"]},
+            {"check": "local-only-work", "status": "FAIL", "detail": "x",
+             "items": [f"{home}/apps/agent-plugins:codex/task: 1 local-only commit(s), head abc"]},
+            {"check": "prune-ready", "status": "WARN", "detail": "1 path",
+             "items": [f"{home}/.agents/tmp/old.txt (9d > 7d)"]},
+        ]
+        t = self.tree(rows)
+        task = self.find(t, kind="worktree", path="~/code/worktrees/agent-plugins/task")
+        age = next(r for r in task["reasons"] if r["check"] == "worktree-age")
+        self.assertEqual(age["level"], "warn")
+        self.assertIn("older than the warning window", age["text"])
+        br = self.find(t, kind="branch", label="codex/task")
+        self.assertIn("local-only-work", {r["check"] for r in br["reasons"]})
+        checks = t["children"][-1]
+        prune = next(c for c in checks["children"] if c["label"] == "prune-ready")
+        self.assertEqual(prune["status"], "stale")
+        self.assertEqual(prune["children"][0]["label"], "~/.agents/tmp/old.txt")
+        self.assertEqual(prune["children"][0]["status"], "stale")
+
+    def test_item_keys_ignore_counts_but_hash_tracks_paths(self) -> None:
+        h = self.fx.home
+        self.assertEqual(hm.item_key(f"{h}/x: 9 dirty file(s) remain", h), "~/x")
+        self.assertEqual(hm.item_key(f"{h}/x (53d)", h), "~/x")
+        self.assertEqual(hm.item_key(f"{h}/x:feat/y: 2 local-only commit(s)", h), "~/x:feat/y")
+        rows = [{"check": "worktree-age", "status": "WARN", "detail": "", "items": [f"{h}/x (53d)"]}]
+        a = hm.snapshot_hash(self.snap(rows))
+        rows[0]["items"] = [f"{h}/x (54d)"]
+        self.assertEqual(a, hm.snapshot_hash(self.snap(rows)))
+        rows[0]["items"] = [f"{h}/y (54d)"]
+        self.assertNotEqual(a, hm.snapshot_hash(self.snap(rows)))
+
+    def test_embedded_data_cannot_close_the_script(self) -> None:
+        blob = hm.script_json({"label": "</script><b>&"})
+        self.assertNotIn("<", blob)
+        self.assertNotIn("&", blob)
+        self.assertEqual(json.loads(blob)["label"], "</script><b>&")
+        rows = [{"check": "home-scratch", "status": "WARN", "detail": "</script>", "items": ["/tmp/</script>"]}]
+        hm.publish(self.fx.manifest, rows, out=self.out, home=self.fx.home)
+        page = self.out.read_text()
+        self.assertEqual(page.count("</script>"), 2)
+
+    def test_page_has_summary_filters_legend_and_panel(self) -> None:
+        hm.publish(self.fx.manifest, ROWS, out=self.out, home=self.fx.home)
+        page = self.out.read_text()
+        for needle in ('id="q"', 'id="prob"', "Show only problems", 'id="side"', 'class="legend"',
+                       "Stale: safe to sweep", "pass</span>", "warn</span>", "fail</span>"):
+            self.assertIn(needle, page)
+        data = page.split('id="hm-data">', 1)[1].split("</script>", 1)[0]
+        tree = json.loads(data)["tree"]
+        self.assertTrue(tree["label"].startswith("Mac Mini"))
 
 
 if __name__ == "__main__":
