@@ -6,7 +6,7 @@ Guru 2026-11-03 15:12 IST: "it has to be followed by all harness". Applies to ev
 1. Docs first: update the plugin `SKILL.md`, `references/` or `AGENTS.md` in the same PR as the code change. The PR body states the user-visible rule.
 2. Hygiene green: `python3 ~/.agents/bin/hygiene.py check --json`. Any FAIL item you own (your branch, worktree or local-only commit) must be fixed or reported first. Never delete someone else's item.
 3. One task = one branch = one worktree: `git -C <checkout_root>/agent-plugins fetch origin-cursor && git worktree add <worktree_root>/agent-plugins/<task> -b <harness>/<task> origin-cursor/main`. Not `~/code/wt`, not a second clone. The canonical checkout is `<checkout_root>/agent-plugins`.
-4. Local gate: `scripts/check.py`, and the pre-push hook runs on push. Tests that touch the live island run with `ACU_ISLAND_ACTIVITY=0`.
+4. Local gate: `scripts/check.py` (never two full runs at once on the Mini, and not while the CI reporter is running one: the Swift suite flakes under parallel load), and the pre-push hook runs on push. Tests that touch the live island run with `ACU_ISLAND_ACTIVITY=0`.
 
 ## 2. Maintain
 - Whatever is installed on the Mini (the app, `~/.agents/plugins/*` or harness caches) must come from Origin main or an open PR head, through `scripts/release_agent_computer_use.py`. Never hand-patch hashed plugin dirs.
