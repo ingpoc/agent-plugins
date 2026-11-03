@@ -1,0 +1,18 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "developer-observability",
+  "version": "0.1.3",
+  "description": "Project-scoped build and runtime findings, redacted evidence and investigation leads over a local findings.json, with an optional local Decider and an MCP Apps dashboard.",
+  "author": {
+    "name": "ingpoc",
+    "url": "https://github.com/ingpoc"
+  },
+  "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/developer-observability",
+  "repository": "https://github.com/ingpoc/agent-plugins",
+  "license": "MIT",
+  "keywords": [
+    "observability",
+    "build failures",
+    "mcp apps"
+  ]
+}

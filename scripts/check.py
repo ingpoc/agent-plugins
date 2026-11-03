@@ -750,7 +750,10 @@ def _missing_comet_deps() -> list[str]:
 
 
 def _python_for(plugin: Path, env: dict[str, str]) -> str:
-    """Use the locked context-ledger runtime when this interpreter has no mcp."""
+    """Prefer an installed plugin runtime; otherwise use the collection interpreter."""
+    if plugin.name == "developer-observability":
+        runtime = Path.home() / ".local/share/developer-observability/runtime/bin/python3"
+        return str(runtime) if runtime.is_file() else sys.executable
     if plugin.name != "context-ledger":
         return sys.executable
     probe = subprocess.run(

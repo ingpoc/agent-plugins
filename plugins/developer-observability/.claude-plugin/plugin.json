@@ -1,0 +1,11 @@
+{
+  "name": "developer-observability",
+  "version": "0.1.3",
+  "description": "Project-scoped build and runtime findings, redacted evidence and investigation leads over a local findings.json, with an optional local Decider and an MCP Apps dashboard.",
+  "author": {
+    "name": "ingpoc"
+  },
+  "repository": "https://github.com/ingpoc/agent-plugins",
+  "license": "MIT",
+  "mcpServers": "./.claude-plugin/mcp.json"
+}

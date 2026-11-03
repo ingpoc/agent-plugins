@@ -28,13 +28,21 @@ plugins/context-ledger/
 ├── skills/context-ledger/
 ├── context_ledger/
 └── bin/
+plugins/developer-observability/
+├── AGENTS.md
+├── README.md
+├── plugin.json
+├── mcp.json
+├── skills/developer-observability/
+├── runtime/
+└── bin/
 ```
 
-Catalog: `.cursor-plugin/marketplace.json` (and the Codex/Grok twins) lists all three. Cursor clients that already added this marketplace only show previously **Added** plugins until the marketplace is removed and re-added (or updated) so the catalog re-indexes — a new row in `marketplace.json` alone is not enough.
+Catalog: `.cursor-plugin/marketplace.json` (and the Codex/Grok twins) lists all four. Cursor clients that already added this marketplace only show previously **Added** plugins until the marketplace is removed and re-added (or updated) so the catalog re-indexes — a new row in `marketplace.json` alone is not enough.
 
 ## Install
 
-Three plugins, all macOS only: `agent-computer-use`, `comet-control`, `context-ledger`. Swap the name in the commands below.
+Four plugins: `agent-computer-use`, `comet-control` and `context-ledger` (macOS only), and `developer-observability` (macOS or Linux). Swap the name in the commands below.
 
 | Client | Install | Update |
 | --- | --- | --- |
@@ -51,6 +59,8 @@ Three plugins, all macOS only: `agent-computer-use`, `comet-control`, `context-l
 - **Microphone**, only if you use the Samantha voice runtime (GPT-Live-1 or Grok Voice 3.0).
 
 `comet-control` also needs [Perplexity Comet](https://www.perplexity.ai/comet) and its unpacked extension. It works only inside the leased Comet window, with its own in-page cursor; it never moves the Mac's mouse or keyboard. See [`plugins/comet-control/README.md`](plugins/comet-control/README.md).
+
+`developer-observability` needs one install step after the plugin is added: `python3 runtime/install.py` from the installed plugin folder (pinned venv plus a default config). It reads a prepared `findings.json` from a findings producer; see [`plugins/developer-observability/README.md`](plugins/developer-observability/README.md).
 
 ## Add another plugin
 

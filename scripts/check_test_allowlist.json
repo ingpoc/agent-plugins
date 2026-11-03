@@ -94,6 +94,14 @@
       "id": "test_request_scope.RequestScopeTests.test_select_uses_explicit_fleet_scope_instead_of_binding_project",
       "when": "platform != darwin",
       "reason": "installed NaturalLanguage embedding is macOS-only; the Mini check runs it"
+    },
+    {
+      "id": "test_drift.DriftTests.test_vendored_backend_matches_upstream",
+      "reason": "drift check needs the upstream findings producer checkout (OBSERVABILITY_UPSTREAM_ROOT or config backend_root); absent on CI and for other developers"
+    },
+    {
+      "id": "test_mcp.MCPTests.test_bundle_reproducible",
+      "reason": "UI rebuild needs node_modules (npm ci); the shipped bundle is still exercised over stdio"
     }
   ],
   "harness_skips": [

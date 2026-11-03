@@ -50,6 +50,22 @@
         "context-ledger",
         "context ledger"
       ]
+    },
+    {
+      "name": "developer-observability",
+      "source": {
+        "type": "local",
+        "path": "./plugins/developer-observability"
+      },
+      "description": "Project-scoped build and runtime findings, redacted evidence and investigation leads over a local findings.json, with an optional local Decider and an MCP Apps dashboard.",
+      "category": "productivity",
+      "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/developer-observability",
+      "keywords": [
+        "developer-observability",
+        "developer observability",
+        "build failures",
+        "mcp apps"
+      ]
     }
   ]
 }

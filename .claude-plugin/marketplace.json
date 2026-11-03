@@ -13,6 +13,11 @@
       "name": "agent-computer-use",
       "source": "./plugins/agent-computer-use",
       "description": "Native macOS computer use through CUAService, with optional Samantha voice control (GPT-Live-1 or Grok Voice 3.0)."
+    },
+    {
+      "name": "developer-observability",
+      "source": "./plugins/developer-observability",
+      "description": "Project-scoped build and runtime findings, redacted evidence and investigation leads over a local findings.json, with an optional local Decider and an MCP Apps dashboard."
     }
   ]
 }

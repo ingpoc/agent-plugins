@@ -4,7 +4,7 @@
     "name": "ingpoc"
   },
   "metadata": {
-    "description": "Portable Agent Plugins from ingpoc: macOS computer use, Comet browser control, and a local decision ledger."
+    "description": "Portable Agent Plugins from ingpoc: macOS computer use, Comet browser control, a local decision ledger, and developer observability."
   },
   "plugins": [
     {
@@ -58,6 +58,25 @@
       "keywords": [
         "context-ledger",
         "context ledger"
+      ],
+      "category": "productivity",
+      "logo": "assets/logo.svg"
+    },
+    {
+      "name": "developer-observability",
+      "source": "./plugins/developer-observability",
+      "description": "Project-scoped build and runtime findings, redacted evidence and investigation leads over a local findings.json, with an optional local Decider and an MCP Apps dashboard.",
+      "author": {
+        "name": "ingpoc"
+      },
+      "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/developer-observability",
+      "repository": "https://github.com/ingpoc/agent-plugins",
+      "license": "MIT",
+      "keywords": [
+        "developer-observability",
+        "developer observability",
+        "build failures",
+        "mcp apps"
       ],
       "category": "productivity",
       "logo": "assets/logo.svg"
