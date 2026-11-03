@@ -22,8 +22,10 @@ from . import recommendations
 NO_FINDINGS_HINT = (
     'No findings.json yet. This plugin reads a prepared findings.json written by a findings producer '
     '(today the Kindle telemetry snapshot service) into the configured data directory (`runtime` in '
-    '~/.config/developer-observability/config.json). A portable collector is a planned follow-up; '
-    'until then projects and issues stay empty.')
+    '~/.config/developer-observability/config.json). Run `observability_collect` (or '
+    '`bin/developer-observability collect --project-dir <dir>`) to produce findings with the bundled '
+    'portable collector.')
+KINDS = ('all', 'failure', 'latency_hotspot', 'redundancy')
 LIMITS = ['Project attribution follows configured owner/label mappings; labels may be provisional.',
           'Snapshot freshness describes generation time; source liveness is separate.',
           'Telemetry is incomplete. No observed failure does not prove success.',
@@ -35,16 +37,27 @@ def _slug(value):
 
 
 class ObservabilityAPI:
-    def __init__(self, runtime: Path, projects: dict, decider: Path | None, discover: bool = False):
+    def __init__(self, runtime: Path, projects: dict, decider: Path | None, discover: bool = False, collected=None):
         self.runtime, self.decider, self.discover = Path(runtime), decider, discover
+        # Local edit: the bundled portable collector writes its own findings.json, merged on read.
+        self.collected = Path(collected) if collected else None
         self.configured = dict(projects)
         self.project_map = dict(projects)
+        self.aliases = {}
+
+    def _paths(self):
+        paths = [self.runtime / 'findings.json']
+        if self.collected is not None:
+            paths.append(self.collected / 'findings.json')
+        return paths
 
     def _findings_present(self):
-        return (self.runtime / 'findings.json').is_file()
+        return any(path.is_file() for path in self._paths())
 
     def optional_services(self):
-        return {'findings_producer': 'present' if self._findings_present() else 'absent',
+        collector = self.collected is not None and (self.collected / 'findings.json').is_file()
+        return {'findings_producer': 'present' if (self.runtime / 'findings.json').is_file() else 'absent',
+                'collector': 'present' if collector else 'absent',
                 'decider': 'present' if self.decider and Path(self.decider).is_file() else 'absent',
                 'signoz': 'not_used_by_read_side'}
 
@@ -75,18 +88,50 @@ class ObservabilityAPI:
                         found[key]['owners'].append(owner)
         return found
 
-    def _read(self):
-        path = self.runtime / 'findings.json'
+    @staticmethod
+    def _load(path):
         if not path.is_file():
-            raise ValueError('backend_unavailable: no findings.json')
+            return None, b''
         if path.stat().st_size > 16_000_000:
             raise ValueError('backend_unavailable: prepared findings missing or oversized')
         raw = path.read_bytes()
         data = json.loads(raw)
-        if not isinstance(data.get('findings'), list):
+        if not isinstance(data, dict) or not isinstance(data.get('findings'), list):
             raise ValueError('backend_unavailable: invalid prepared findings')
+        return data, raw
+
+    def _read(self):
+        paths = self._paths()
+        primary, primary_raw = self._load(paths[0])
+        collected, collected_raw = self._load(paths[1]) if len(paths) > 1 else (None, b'')
+        if primary is None and collected is None:
+            raise ValueError('backend_unavailable: no findings.json')
+        data = primary if primary is not None else collected
+        if primary is not None and collected is not None:
+            keys = {f.get('finding_key') for f in primary['findings'] if isinstance(f, dict)}
+            data = {**primary, 'findings': primary['findings'] + [
+                f for f in collected['findings'] if isinstance(f, dict) and f.get('finding_key') not in keys]}
+            for field in ('coverage', 'coverage_details'):
+                if isinstance(primary.get(field), dict) and isinstance(collected.get(field), dict):
+                    data[field] = {**primary[field], **collected[field]}
+            stamps = [d.get('generated_at') for d in (primary, collected) if isinstance(d.get('generated_at'), str)]
+            data['generated_at'] = max(stamps) if stamps else None
+        data['sources'] = {'primary': primary.get('generated_at') if primary else None,
+                           'collector': collected.get('generated_at') if collected else None}
+        aliases = data.get('attribution_aliases')
+        self.aliases = {k: v for k, v in aliases.items() if isinstance(k, str) and isinstance(v, str)} \
+            if isinstance(aliases, dict) else {}
         self.project_map = {**self._discovered(data), **self.configured}
-        return data, hashlib.sha256(raw).hexdigest()
+        return data, hashlib.sha256(primary_raw + b'\0' + collected_raw).hexdigest()
+
+    def _fallback_project(self, label):
+        """Local edit: worktree-style labels (`<project>-<task>`) and explicit aliases resolve to a project."""
+        if not isinstance(label, str) or not label:
+            return None
+        if self.aliases.get(label) in self.project_map:
+            return self.aliases[label]
+        prefixes = [key for key in self.project_map if label.startswith(key + '-')]
+        return max(prefixes, key=len) if prefixes else None
 
     def _empty(self, project_id=None):
         return {'schema_version': 1, 'project_id': project_id, 'snapshot_id': None, 'generated_at': None,
@@ -130,7 +175,9 @@ class ObservabilityAPI:
             return owners == [project_id]
         label = finding.get('latest_evidence', {}).get('project')
         labels = [key for key, entry in self.project_map.items() if label in entry.get('labels', [])]
-        return labels == [project_id]
+        if labels:
+            return labels == [project_id]
+        return self._fallback_project(label) == project_id
 
     def _envelope(self, data, revision, project_id=None):
         stamp = data.get('generated_at')
@@ -159,6 +206,8 @@ class ObservabilityAPI:
                 'coverage_gaps': [redact(str(x), 200) for x in data.get('coverage_gaps', [])],
                 'coverage_details': coverage_details,
                 'coverage_gap_scope': redact(str(data.get('coverage_gap_scope', 'unknown')), 200),
+                'sources': {key: self._safe_time(value) for key, value in (data.get('sources') or {}).items()
+                            if key in ('primary', 'collector')},
                 'limits': list(LIMITS)}
 
     def projects(self):
@@ -213,7 +262,26 @@ class ObservabilityAPI:
                 'owner_locator': redact(investigation.get('owner_locator', 'unknown'), 120),
                 'workflow_id': redact(finding.get('workflow_id', 'unknown'), 80),
                 'step_id': redact(finding.get('step_id', 'unknown'), 100),
-                'first_seen': ObservabilityAPI._safe_time(finding.get('first_seen')) or 'unknown'}
+                'first_seen': ObservabilityAPI._safe_time(finding.get('first_seen')) or 'unknown',
+                **ObservabilityAPI._collector_fields(finding)}
+
+    @staticmethod
+    def _collector_fields(finding):
+        """Local edit: finding kind plus bounded numeric latency/redundancy stats from the collector."""
+        fields = {'kind': finding.get('kind') if finding.get('kind') in KINDS[1:] else 'failure'}
+        def numbers(value, keys):
+            if not isinstance(value, dict):
+                return None
+            out = {k: value[k] for k in keys if isinstance(value.get(k), (int, float)) and not isinstance(value.get(k), bool)}
+            return out or None
+        if latency := numbers(finding.get('latency'), ('p50_ms', 'p95_ms', 'max_ms', 'n', 'total_ms')):
+            fields['latency'] = latency
+        if redundancy := numbers(finding.get('redundancy'), ('occurrences', 'bursts', 'wasted_ms')):
+            pattern = finding['redundancy'].get('pattern')
+            if isinstance(pattern, str):
+                redundancy['pattern'] = redact(pattern, 20)
+            fields['redundancy'] = redundancy
+        return fields
 
     @staticmethod
     def _page(items, cursor, revision, scope, limit):
@@ -238,20 +306,32 @@ class ObservabilityAPI:
         next_cursor = base64.urlsafe_b64encode(json.dumps([revision, scope, end]).encode()).decode() if end < len(items) else None
         return items[offset:end], next_cursor
 
-    def issues(self, project_id, status='all', cursor=None, limit=20):
+    def issues(self, project_id, status='all', cursor=None, limit=20, kind='all'):
+        if kind not in KINDS:
+            raise ValueError('invalid_kind: use all, failure, latency_hotspot or redundancy')
         if not self._findings_present():
             self.project_map = dict(self.configured)
             self._project(project_id)
-            return {**self._empty(project_id), 'issues': [], 'total': 0, 'next_cursor': None}
+            return {**self._empty(project_id), 'issues': [], 'total': 0, 'next_cursor': None, 'by_kind': {}, 'slowest': [], 'top_failures': []}
         data, revision = self._read()
         self._project(project_id)
         if status not in ('all', 'active', 'recovered', 'stale'):
             raise ValueError('invalid_status')
         rows = [self._summary(f) for f in data['findings'] if self._matches(f, project_id)
                 and (status == 'all' or f.get('status') == status)]
+        by_kind = {}
+        for row in rows:
+            by_kind[row['kind']] = by_kind.get(row['kind'], 0) + 1
+        slowest = sorted((r for r in rows if 'latency' in r), key=lambda r: r['latency'].get('p95_ms', 0), reverse=True)[:5]
+        slowest = [{key: r[key] for key in ('issue_id', 'step_id', 'headline', 'latency')} for r in slowest]
+        top = sorted((r for r in rows if r['kind'] == 'failure'), key=lambda r: r.get('failed_attempts') or 0, reverse=True)[:5]
+        top_failures = [{key: r[key] for key in ('issue_id', 'step_id', 'headline', 'failed_attempts', 'last_seen')} for r in top]
+        if kind != 'all':
+            rows = [row for row in rows if row['kind'] == kind]
         rows.sort(key=lambda f: (f.get('last_seen') or '', f['issue_id']), reverse=True)
-        page, next_cursor = self._page(rows, cursor, revision, f'{project_id}:{status}', limit)
-        return {**self._envelope(data, revision, project_id), 'issues': page, 'total': len(rows), 'next_cursor': next_cursor}
+        page, next_cursor = self._page(rows, cursor, revision, f'{project_id}:{status}:{kind}', limit)
+        return {**self._envelope(data, revision, project_id), 'issues': page, 'total': len(rows), 'next_cursor': next_cursor,
+                'by_kind': by_kind, 'slowest': slowest, 'top_failures': top_failures}
 
     def inspect(self, project_id, issue_id, cursor=None, limit=10):
         data, revision = self._read()

@@ -2,8 +2,11 @@
 
 Install this portable package through the client's marketplace. The collection
 root is not a plugin. The package is self-contained: the read-side backend is
-vendored in `runtime/backend/` and reads a prepared `findings.json`. It is not a
-collector.
+vendored in `runtime/backend/` and reads a prepared `findings.json`. A small
+stdlib collector (`runtime/collector/`, `observability_collect`,
+`bin/developer-observability collect`) writes its own
+`~/.local/share/developer-observability/collected/findings.json`, merged on read;
+it never writes another producer's file.
 
 1. Run `python3 runtime/install.py` (Python 3.11+) from the installed plugin
    folder. It installs pinned requirements in
@@ -23,9 +26,9 @@ collector.
 4. Manifests: root `mcp.json` (sh resolver over `${PLUGIN_ROOT}`,
    `${CURSOR_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_ROOT}`, failing with
    `PLUGIN_ROOT_UNRESOLVED`), `.cursor-plugin/`, `.claude-plugin/`, and Grok's
-   `.mcp.json`. No manifest sets `cwd`. Verify six tools, a real
+   `.mcp.json`. No manifest sets `cwd`. Verify seven tools, a real
    `observability_projects`, a scoped issue and the `ui://` resource through the
-   installed client. Without a producer the projects call returns
+   installed client. Without any findings the projects call returns
    `data_source.status = no_findings` and a hint; that is not a failure of the
    plugin, and it is not data. Never mark data available from health alone.
 5. The dashboard uses MCP Apps (`io.modelcontextprotocol/ui`,

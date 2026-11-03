@@ -1,0 +1,41 @@
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 1000, "elapsed_ms": 99999, "ts": 1793700000.0, "session_id": "s1"}
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 1250, "elapsed_ms": 99999, "ts": 1793700030.0, "session_id": "s1"}
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 1500, "elapsed_ms": 99999, "ts": 1793700060.0, "session_id": "s1"}
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 1750, "elapsed_ms": 99999, "ts": 1793700090.0, "session_id": "s1"}
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 2000, "elapsed_ms": 99999, "ts": 1793700120.0, "session_id": "s1"}
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 2250, "elapsed_ms": 99999, "ts": 1793700150.0, "session_id": "s1"}
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 2500, "elapsed_ms": 99999, "ts": 1793700180.0, "session_id": "s1"}
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 2750, "elapsed_ms": 99999, "ts": 1793700210.0, "session_id": "s1"}
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 3000, "elapsed_ms": 99999, "ts": 1793700240.0, "session_id": "s1"}
+{"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 3250, "elapsed_ms": 99999, "ts": 1793700270.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "ts": 1793700400.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "ts": 1793700403.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "ts": 1793700406.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "ts": 1793700409.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "ts": 1793700412.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "ts": 1793700415.0, "session_id": "s1"}
+{"kind": "tool_result", "tool": "comet_act", "latency_ms": 200, "ts": 1793700401.0, "session_id": "s1"}
+{"kind": "tool_result", "tool": "comet_act", "latency_ms": 210, "ts": 1793700404.0, "session_id": "s1"}
+{"kind": "tool_result", "tool": "comet_act", "latency_ms": 220, "ts": 1793700407.0, "session_id": "s1"}
+{"kind": "tool_result", "tool": "comet_act", "latency_ms": 230, "ts": 1793700410.0, "session_id": "s1"}
+{"kind": "tool_result", "tool": "comet_act", "latency_ms": 240, "ts": 1793700413.0, "session_id": "s1"}
+{"kind": "tool_result", "tool": "comet_act", "latency_ms": 250, "ts": 1793700416.0, "session_id": "s1"}
+{"kind": "tool_error", "tool": "cua_act", "error": "element not found 12", "ts": 1793700500.0, "session_id": "s1"}
+{"kind": "tool_error", "tool": "cua_act", "error": "element not found 12", "ts": 1793700500.3, "session_id": "s1"}
+{"kind": "tool_error", "tool": "cua_act", "error": "element not found 12", "ts": 1793700500.6, "session_id": "s1"}
+{"kind": "tool_error", "tool": "cua_act", "error": "element not found 13", "ts": 1793700900.0, "session_id": "s2"}
+{"kind": "tool_error", "tool": "cua_act", "error": "element not found 13", "ts": 1793700960.0, "session_id": "s2"}
+{"kind": "reconnecting", "detail": "socket closed", "ts": 1793701000.0, "session_id": "s2"}
+{"kind": "reconnecting", "detail": "socket closed", "ts": 1793701020.0, "session_id": "s2"}
+{"kind": "reconnecting", "detail": "socket closed", "ts": 1793701040.0, "session_id": "s2"}
+{"kind": "reconnecting", "detail": "socket closed", "ts": 1793701060.0, "session_id": "s2"}
+{"kind": "reconnecting", "detail": "socket closed", "ts": 1793701080.0, "session_id": "s2"}
+{"kind": "realtime_error", "status": "error", "detail": "auth failed", "ts": 1793701200.0}
+{"kind": "assistant_reply", "text": "secret user words", "ts": 1793701210.0}
+{"kind": "user_transcript", "detail": "hello private", "ts": 1793701220.0}
+{"kind": "usage", "detail": "quota note", "ts": 1793701230.0}
+{"kind": "heartbeat", "status": "ok", "ts": 1793701300.0}
+{"kind": "heartbeat", "status": "ok", "ts": 1793701360.0}
+{"kind": "heartbeat", "status": "ok", "ts": 1793701420.0}
+{"kind": "heartbeat", "status": "ok", "ts": 1793701480.0}
+not json
