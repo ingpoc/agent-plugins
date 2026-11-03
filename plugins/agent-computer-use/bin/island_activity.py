@@ -190,7 +190,7 @@ def end(plugin: str, key: str) -> bool:
 
 def pulse(plugin: str, agent: str, key: str, hold_s: float = 10.0) -> bool:
     """Heartbeat one in-flight use: post at most every 5 s, always hold the row."""
-    if plugin not in MARKS:
+    if plugin not in MARKS or _test_runner_without_fixture():
         return False
     try:
         rid = row_id(plugin, key)
