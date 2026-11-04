@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.7 (2026-11-04)
+
+Found by replaying Samantha session ca44bfcb (2026-11-03 23:44–23:47 IST):
+
+- Root-cause rollup: errors of one subsystem (tool family such as `ledger_*`, or a `<family>_*error` kind) in the same session and turn within 30 s become one finding. The root is the internal error (for example `ledger_helper_error`), else the first error; the other errors are attached as `effects` (`count`, `incidents`, `calls`, `retries`, `kinds`) and the tool calls of that incident are not reported again as redundancy. One ledger save failure was 5 findings; it is now 1.
+- Duplicate calls: a `tool_start` is a duplicate only when the tool and its normalized arguments match (arguments from the row or its `*_call` companion). A repeat with different or unknown arguments is a `retry`.
+- Failure ownership: tool and app errors are `app_error`. `collector_failure` is only the collector's own parse or IO errors (unparsed rows, missing or unreadable sources), one finding per source.
+- Stable ids: finding ids are hashes of project, kind and the normalized signature, never timestamps, rows or counts; ids match across runs (tested).
+- New `turn_latency` finding: each session's slowest turns over 10 s (top 3, with the tools and error count of each turn).
+- New `island_layout` finding from the `island_layout` activity event (schema 1): a visible overlay with `expected_inside_island` outside the island rectangle (2 pt tolerance), or any visible rectangle off its screen. One finding per overlay kind and violation.
+- `observability_issues`: `limit` accepts 1–100; larger values clamp to 100 with `limit_note`. Error hints name the real fix (`invalid_limit` no longer suggests checking the backend or Decider).
+
 ## 0.1.6 (2026-11-03)
 
 - `observability_issues`: `active`, `by_status` and `by_source` are computed over the filtered rows (status and kind), so `total == sum(by_status) == sum(by_source)` for every query. `by_kind` stays the breakdown before the kind filter.

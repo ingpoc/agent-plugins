@@ -1,4 +1,4 @@
-"""0.1.5/0.1.6 accuracy: one cluster per root cause, mirrors and tests excluded, real latency only, version-aware status, no cap."""
+"""0.1.5/0.1.6 accuracy (0.1.7: tests/test_accuracy_017.py): one cluster per root cause, mirrors and tests excluded, real latency only, version-aware status, no cap."""
 import json
 import os
 import re
