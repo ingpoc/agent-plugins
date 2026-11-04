@@ -47,10 +47,18 @@ final class StatusBarController: NSObject {
     private var samanthaRow: MenuSwitchRowView?
     private var showIslandItem: NSMenuItem?
 
-    init(gate: IslandGate? = nil) {
+    /// The bar that owns `item`. `.system` in the app; tests pass a private `NSStatusBar()` so
+    /// nothing reaches the real menu bar.
+    private let bar: NSStatusBar
+
+    init(gate: IslandGate? = nil, bar: NSStatusBar = NSStatusBar.system) {
         self.gate = gate ?? .shared
+        self.bar = bar
         super.init()
     }
+
+    /// The one status item this controller owns (nil before `install` and after `uninstall`).
+    var statusItem: NSStatusItem? { item }
 
     func wire(voice: VoiceSupervisor, island: IslandController) {
         island.onVoiceStateChanged = { [weak self] kind in
@@ -73,9 +81,11 @@ final class StatusBarController: NSObject {
         }
     }
 
+    /// Idempotent: one owned item, reused on every later call (reconnects, toggles, reloads).
+    /// This is the only status-item creation site in CUAService (a test enforces it).
     func install() {
         guard item == nil else { return }
-        let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        let status = bar.statusItem(withLength: NSStatusItem.squareLength)
         if let button = status.button {
             button.image = Self.loadIcon()   // template: tinted like the other menu bar icons
             button.toolTip = "Agent Computer Use"
@@ -85,6 +95,14 @@ final class StatusBarController: NSObject {
         item = status
         setActive(false)
         setVoiceRunning(false)
+    }
+
+    /// Removes the owned item (terminate, or a test). Safe to call twice.
+    func uninstall() {
+        guard let status = item else { return }
+        status.menu = nil
+        bar.removeStatusItem(status)
+        item = nil
     }
 
     /// The status-bar menu (kept separate from NSStatusBar so tests can inspect and render it).

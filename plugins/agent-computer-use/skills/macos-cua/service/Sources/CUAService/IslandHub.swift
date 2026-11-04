@@ -120,6 +120,7 @@ final class IslandHub {
 
     func compose(now: Date = Date()) -> IslandSnapshot {
         var s = samantha ?? IslandSnapshot(kind: "idle")
+        s.samantha_on = samanthaActive  // CUAService's own session state; Samantha's posts can't set it
         let live = entries.values.filter { !isStale($0, now: now) }
             .sorted { $0.updated > $1.updated }
         s.agents += live.filter { $0.agent.plugin == nil }.map { e in

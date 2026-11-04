@@ -16,14 +16,22 @@ from voice_cua.gateway import DEFAULT_HOST, DEFAULT_PORT, serve
 
 
 def _ensure_output_streams() -> None:
-    """PyInstaller's macOS app bootloader has no inherited console."""
+    """PyInstaller's macOS app bootloader has no inherited console. voice.log rotates at 50 MB."""
     if sys.stdout is not None and sys.stderr is not None:
+        from voice_cua.log_rotation import install_voice_log_rotation
+
+        install_voice_log_rotation()
         return
     log_path = os.path.expanduser("~/.cache/macos-cua/voice.log")
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
     stream = open(log_path, "a", encoding="utf-8", buffering=1)  # noqa: SIM115
-    sys.stdout = stream
-    sys.stderr = stream
+    os.dup2(stream.fileno(), 1)
+    os.dup2(stream.fileno(), 2)
+    from voice_cua.log_rotation import install_voice_log_rotation
+
+    if not install_voice_log_rotation():
+        sys.stdout = stream
+        sys.stderr = stream
 
 
 def _wait_for_health(host: str, port: int, *, timeout: float = 15.0) -> bool:

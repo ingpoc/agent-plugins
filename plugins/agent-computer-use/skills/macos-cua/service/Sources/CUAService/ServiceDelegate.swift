@@ -129,6 +129,7 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
         islandController?.stopStreaming()
         islandController?.shutdown()
         cursorOverlay?.hide()
+        statusBar?.uninstall()   // no ghost ACU icon left behind by a SIGTERM'd instance
         server?.stop()
         try? FileManager.default.removeItem(atPath: socketPath)
         logger.info("CUAService stopped")

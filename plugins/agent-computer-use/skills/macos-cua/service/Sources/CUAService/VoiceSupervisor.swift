@@ -108,16 +108,10 @@ final class VoiceSupervisor {
         }
         proc.environment = env
 
-        if let handle = try? FileHandle(forWritingTo: logURL) {
-            handle.seekToEndOfFile()
+        // O_APPEND (shared with CUAService's own lines); voice_cua rotates it from inside at 50 MB.
+        if let handle = CUALogRotation.appendHandle(logURL) {
             proc.standardOutput = handle
             proc.standardError = handle
-        } else {
-            FileManager.default.createFile(atPath: logURL.path, contents: nil)
-            if let handle = try? FileHandle(forWritingTo: logURL) {
-                proc.standardOutput = handle
-                proc.standardError = handle
-            }
         }
 
         proc.terminationHandler = { [weak self] terminated in
@@ -428,14 +422,7 @@ final class VoiceSupervisor {
 
     private func appendLog(_ line: String) {
         guard let data = line.data(using: .utf8) else { return }
-        if FileManager.default.fileExists(atPath: logURL.path),
-           let handle = try? FileHandle(forWritingTo: logURL) {
-            handle.seekToEndOfFile()
-            handle.write(data)
-            try? handle.close()
-        } else {
-            try? data.write(to: logURL)
-        }
+        CUALogRotation.append(data, to: logURL)
     }
 
     private func logStartup(phase: String, status: String = "ok", detail: String = "") {

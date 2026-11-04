@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from voice_cua import log_rotation
+
 _DEFAULT = Path.home() / ".cache/macos-cua/samantha-activity.jsonl"
 _lock = threading.Lock()
 _SECRET_KEYS = frozenset({"value", "secret", "password", "api_key", "token"})
@@ -35,17 +37,10 @@ def current_session_id() -> str:
 
 
 def _append_row(entry: dict[str, Any]) -> None:
-    """Atomic append: the whole line goes out in ONE O_APPEND write(2)."""
+    """Atomic append: the whole line goes out in ONE O_APPEND write(2), rotating at 50 MB (log_rotation)."""
     line = json.dumps(entry, ensure_ascii=False, default=str) + "\n"
-    path = log_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    data = line.encode("utf-8")
     with _lock:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-        try:
-            os.write(fd, data)
-        finally:
-            os.close(fd)
+        log_rotation.append(log_path(), line.encode("utf-8"))
 
 
 def log_event(kind: str, **fields: Any) -> None:

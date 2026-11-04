@@ -26,6 +26,8 @@ struct CUAServiceCLI: ParsableCommand {
         }
         let logger = Logger(label: "cua-service")
         logger.info("Starting CUAService", metadata: ["socket": "\(socketPath)"])
+        // One menu-bar instance per user, before any socket, status item or island (two ACU icons, 2026-11-04).
+        guard CUAServiceSingleInstance.claim(log: { logger.info("\($0)") }) else { return }
 
         let lockPath = socketPath + ".lock"
         try FileManager.default.createDirectory(

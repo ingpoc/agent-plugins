@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9 (2026-11-04)
+
+- Reads Samantha's rotated logs. agent-computer-use 0.2.86 rotates `samantha-activity.jsonl` and `voice.log` at 50 MB and keeps 5 gzipped copies (`samantha-activity.1.jsonl.gz` … `.5`, `voice.1.log.gz` …). The built-in Samantha sources now include those copies, oldest first, and a plain `.N` a crash left before its gzip. They are read under the live file's source id, so coverage and issue IDs stay one source per log. `.gz` files are streamed with `gzip`.
+
 ## 0.1.8 (2026-11-04)
 
 Automatic clearing and storage visibility (Guru 2026-11-04 11:39 IST):
