@@ -65,6 +65,60 @@ final class IslandHarnessMotionTests: XCTestCase {
         print(String(format: "harness clearance to Codex: 25%% %.2f pt, 50%% %.2f pt, 75%% %.2f pt", clear[25]!, clear[50]!, clear[75]!))
     }
 
+    /// Shared exit (UI & UX final, 2026-11-04 12:40 IST): circle 1 → 0.6 and 1 → 0 with `.easeIn(0.15)` in
+    /// place, then the slot closes with `.smooth(0.3)` from 0.10 s (0.40 s total). No neighbour overlaps the
+    /// leaving circle while it is above 10 % opacity.
+    func testExitCircleLeavesBeforeTheSlotClosesOnIt() {
+        XCTAssertEqual(IslandMotion.harnessExitTotal, 0.40, accuracy: 1e-9)
+        XCTAssertEqual(IslandMotion.harnessExitDuration, 0.15)
+        XCTAssertEqual(IslandMotion.harnessExitSlotDelay, 0.10)
+        XCTAssertEqual(IslandMotion.harnessExitSlotDuration, 0.3)
+        XCTAssertEqual(IslandMotion.harnessExitCircle, Animation.easeIn(duration: 0.15))
+        XCTAssertEqual(IslandMotion.harnessExitSlot, Animation.smooth(duration: 0.3).delay(0.10))
+        XCTAssertNil(IslandMotion.harnessExitSlide(reduce: true), "Reduce Motion: neighbours snap")
+        XCTAssertEqual(IslandMotion.harnessExitFade(reduce: false), Animation.easeIn(duration: 0.15))
+        XCTAssertEqual(IslandMotion.harnessExitFade(reduce: true), IslandMotion.crossfade, "Reduce Motion: 0.15 s fade")
+        if #available(macOS 14.0, *) {
+            for t in stride(from: 0.0, through: 0.3, by: 0.01) {
+                XCTAssertEqual(IslandMotion.smooth(t, duration: 0.3), Spring(duration: 0.3, bounce: 0).value(target: 1.0, time: t), accuracy: 1e-3)
+                XCTAssertEqual(IslandMotion.easeIn(t / 0.3), UnitCurve.easeIn.value(at: t / 0.3), accuracy: 1e-3)
+            }
+        }
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "listening", title: "Listening", agents: [codex], samantha_on: true))
+        let rs = IslandBarLayout.agentRects(shape: model.shapeRect, count: 2)
+        let sam = rs[0], codexStart = rs[1]
+        let seq = model.harnessExitSeq
+        model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
+        XCTAssertEqual(model.harnessExitSeq, seq + 1, "a circle left: neighbours take the delayed exit slide")
+        let codexEnd = IslandBarLayout.agentRects(shape: model.shapeRect, count: 1)[0]
+        XCTAssertEqual(codexEnd.minX - codexStart.minX, IslandMotion.harnessSlot, accuracy: 0.001)
+        var minVisibleClear = CGFloat.infinity
+        for i in 0...400 {
+            let t = Double(i) / 1000
+            let e = IslandMotion.harnessExit(final: sam, at: t)
+            let codexMaxX = codexStart.maxX + IslandMotion.harnessSlot * e.slotClosed
+            XCTAssertEqual(e.frame.midX, sam.midX, accuracy: 0.001, "scales in place")
+            if e.opacity > 0.1 {
+                minVisibleClear = min(minVisibleClear, e.frame.minX - codexMaxX)
+                XCTAssertGreaterThanOrEqual(e.frame.minX - codexMaxX, 0, "no overlap above 10 % opacity at \(t) s")
+            }
+        }
+        let end = IslandMotion.harnessExit(final: sam, at: 0.15)
+        XCTAssertEqual(end.opacity, 0, accuracy: 1e-6)
+        XCTAssertEqual(end.frame.width, sam.width * 0.6, accuracy: 0.001)
+        XCTAssertEqual(IslandMotion.harnessExit(final: sam, at: 0.10).slotClosed, 0, "slot waits 0.10 s")
+        var report: [String] = []
+        for f in [0.0, 0.25, 0.5, 0.75, 1.0] {
+            let e = IslandMotion.harnessExit(final: sam, at: 0.40 * f)
+            let codexMaxX = codexStart.maxX + IslandMotion.harnessSlot * e.slotClosed
+            report.append(String(format: "%.0f%% t=%.0fms opacity=%.2f scale=%.2f closed=%.2f clear=%.2fpt",
+                                 f * 100, f * 400, e.opacity, e.frame.width / sam.width, e.slotClosed, e.frame.minX - codexMaxX))
+        }
+        print("harness exit: min clear above 10% opacity \(String(format: "%.2f", minVisibleClear)) pt; " + report.joined(separator: " | "))
+    }
+
     func testScaleAnchorIsTheDrawnCircleCentre() {
         // Circles are offset inside the window-sized ZStack; their layout frame is 24×24 at the origin.
         let r = CGRect(x: 262, y: 3, width: 24, height: 24)
@@ -101,13 +155,13 @@ final class IslandHarnessMotionTests: XCTestCase {
             .appendingPathComponent("../../../../../../").standardized
         setenv("ACU_PLUGIN_LOGO_ROOT", plugins.path, 1)
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        for (label, on, reduce) in [("on", true, false), ("off", false, false), ("on-reduce", true, true)] {
+        for (label, on, reduce) in [("on", true, false), ("off", false, false), ("on-reduce", true, true), ("off-reduce", false, true)] {
             let model = IslandModel()
             model.idleActivity = "duo"
             let offSnap = IslandSnapshot(kind: "idle", agents: [codex])
             let onSnap = IslandSnapshot(kind: "listening", title: "Listening", agents: [codex], samantha_on: true)
-            model.apply(on ? offSnap : onSnap)
             model.systemReduceMotion = reduce
+            model.apply(on ? offSnap : onSnap)
             let root = SamanthaIslandBar(model: model)
                 .environment(\.colorScheme, .dark)
                 .background(Color(white: 0.18))
@@ -122,7 +176,7 @@ final class IslandHarnessMotionTests: XCTestCase {
             defer { win.orderOut(nil); win.close() }
             func spin(_ s: Double) { RunLoop.main.run(until: Date().addingTimeInterval(s)) }
             spin(1.0)
-            let total = reduce ? 0.15 : 0.35
+            let total = reduce ? 0.15 : (on ? 0.35 : IslandMotion.harnessExitTotal)
             var frames: [(Double, NSBitmapImageRep)] = []
             let t0 = CACurrentMediaTime()
             model.apply(on ? onSnap : offSnap)

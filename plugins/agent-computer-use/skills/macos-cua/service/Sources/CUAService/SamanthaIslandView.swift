@@ -748,31 +748,40 @@ struct SamanthaIslandBar: View {
                         .accessibilityLabel(model.operatedAppsLabel)
                 }
             }
-            if model.showAgentCircle {
-                let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
-                let slots = Array(zip(model.sourceGroups, rs).enumerated())
-                ForEach(slots.map { HarnessSlot(id: $0.element.0.id, index: $0.offset, group: $0.element.0, rect: $0.element.1) }) { slot in
-                    let g = slot.group, r = slot.rect
-                    // One layer (backing, rim, badges) scaled from its own centre, never clipped.
-                    SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate)
-                        .compositingGroup()
-                        // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(IslandAgentAccessibility.circleLabel(groups: model.sourceGroups, agents: model.agents))
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityAction { model.openAgentList() }
-                        .accessibilityHidden(g.id != model.sourceGroups.first?.id)
-                        .onTapGesture { model.openAgentList() }
-                        .offset(x: r.minX, y: r.minY)
-                        // Reduce Motion: neighbours snap to their slots even when the pill width animates in
-                        // the same update; only the transition's own 0.15 s fade runs (IslandMotion.harness*).
-                        .transaction { if reduceMotion { $0.animation = nil } }
-                        // Shared harness enter/leave (IslandMotion.harness*): leaving reverses entering.
-                        .transition(IslandMotion.harnessTransition(reduce: reduceMotion, rect: r,
-                                                                 trailingGap: IslandMotion.harnessTrailingGap(rects: rs, index: slot.index, shape: rect)))
-                        .zIndex(IslandMotion.harnessDrawOrder(id: g.id, slot: slot.index, previous: model.previousSourceGroupIDs))
+            // Harness circles in their own window-size layer: when one leaves (harnessExitSeq), its removal runs
+            // on the shared exit (.easeIn 0.15 s; Reduce Motion 0.15 s fade) whatever else animates in that
+            // update, while the neighbours wait for the slot curve (IslandMotion.harnessExit*).
+            ZStack(alignment: .topLeading) {
+                if model.showAgentCircle {
+                    let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
+                    let slots = Array(zip(model.sourceGroups, rs).enumerated())
+                    ForEach(slots.map { HarnessSlot(id: $0.element.0.id, index: $0.offset, group: $0.element.0, rect: $0.element.1) }) { slot in
+                        let g = slot.group, r = slot.rect
+                        // One layer (backing, rim, badges) scaled from its own centre, never clipped.
+                        SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate)
+                            .compositingGroup()
+                            // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(IslandAgentAccessibility.circleLabel(groups: model.sourceGroups, agents: model.agents))
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityAction { model.openAgentList() }
+                            .accessibilityHidden(g.id != model.sourceGroups.first?.id)
+                            .onTapGesture { model.openAgentList() }
+                            .offset(x: r.minX, y: r.minY)
+                            // A circle left: neighbours wait 0.10 s, then close the slot (IslandMotion.harnessExitSlot).
+                            .animation(IslandMotion.harnessExitSlide(reduce: reduceMotion), value: model.harnessExitSeq)
+                            // Reduce Motion: neighbours snap to their slots even when the pill width animates in
+                            // the same update; only the transition's own 0.15 s fade runs (IslandMotion.harness*).
+                            .transaction { if reduceMotion { $0.animation = nil } }
+                            // Shared harness enter/leave (IslandMotion.harness*).
+                            .transition(IslandMotion.harnessTransition(reduce: reduceMotion, rect: r,
+                                                                     trailingGap: IslandMotion.harnessTrailingGap(rects: rs, index: slot.index, shape: rect)))
+                            .zIndex(IslandMotion.harnessDrawOrder(id: g.id, slot: slot.index, previous: model.previousSourceGroupIDs))
+                    }
                 }
             }
+            .frame(width: IslandBarLayout.windowSize.width, height: IslandBarLayout.windowSize.height, alignment: .topLeading)
+            .animation(IslandMotion.harnessExitFade(reduce: reduceMotion), value: model.harnessExitSeq)
             if let sec = model.secondary, let sr = model.secondaryRect {
                 IslandSecondaryPill(model: model, activity: sec, reduceMotion: reduceMotion)
                     .onTapGesture { model.tapSecondary() }
@@ -788,6 +797,10 @@ struct SamanthaIslandBar: View {
                     .transition(item.isPlugin ? pluginCircleTransition : circleTransition)
             }
         }
+        // Reduce Motion: an update that adds or removes a harness circle snaps the layout, pill width included
+        // (innermost, so it wins over the width crossfade); only the circle's own 0.15 s fade runs. Without
+        // Reduce Motion the value never changes, so this never applies.
+        .animation(nil, value: reduceMotion ? model.harnessChangeSeq : 0)
         .frame(width: IslandBarLayout.windowSize.width, height: IslandBarLayout.windowSize.height, alignment: .topLeading)
         .coordinateSpace(name: IslandLayoutRecorder.space)
         .background(layoutContainers(rect))

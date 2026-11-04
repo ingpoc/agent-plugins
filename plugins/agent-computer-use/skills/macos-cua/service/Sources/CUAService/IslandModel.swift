@@ -895,8 +895,19 @@ final class IslandModel: ObservableObject {
     var onAckExpired: (([String]) -> Void)?
     /// One circle per source (left of the pill).
     @Published private(set) var sourceGroups: [IslandSourceGroup] = [] {
-        didSet { if oldValue.map(\.id) != sourceGroups.map(\.id) { previousSourceGroupIDs = oldValue.map(\.id) } }
+        didSet {
+            let old = oldValue.map(\.id), now = sourceGroups.map(\.id)
+            guard old != now else { return }
+            previousSourceGroupIDs = old
+            harnessChangeSeq &+= 1
+            if !Set(old).subtracting(now).isEmpty { harnessExitSeq &+= 1 }
+        }
     }
+    /// Bumped whenever a harness circle leaves, so the neighbours slide on the delayed exit slot curve
+    /// (`IslandMotion.harnessExitSlot`) instead of the entry curve.
+    private(set) var harnessExitSeq = 0
+    /// Bumped on any harness enter / leave; under Reduce Motion that whole update snaps (pill included).
+    private(set) var harnessChangeSeq = 0
     /// The harness order before the last change, so a circle entering or leaving draws above the neighbours
     /// it pushes (`IslandMotion.harnessDrawOrder`).
     private(set) var previousSourceGroupIDs: [String] = []

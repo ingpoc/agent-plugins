@@ -26,22 +26,59 @@ enum IslandMotion {
         reduce ? .opacity : .scale(scale: 0.6, anchor: anchor).combined(with: .opacity)
     }
     /// Harness circles on the left (Codex, Cursor, Grok, Samantha, "+N"): ONE shared motion for every
-    /// harness, Samantha included (UI & UX, 2026-11-04 11:57 / 12:24 IST).
-    /// - Curve and duration: `widthCurve`, `.smooth(duration: 0.35)`, the same transaction that slides the
-    ///   neighbours, so the entering slot (circle + 4 pt) opens while they slide.
-    /// - Enter: scale 0.6 → 1 and opacity 0 → 1, the whole circle as one layer, kept centred in its own
-    ///   opening slot (`harnessFrame`); leave is the exact reverse and the slot closes. Drawn above the
-    ///   neighbours that slide (`harnessDrawOrder`).
+    /// harness, Samantha included (UI & UX, 2026-11-04 11:57 / 12:24 / 12:40 IST).
+    /// - Enter: `widthCurve` (`.smooth(duration: 0.35)`), the same transaction that slides the neighbours out
+    ///   one slot (circle + 4 pt); scale 0.6 → 1 and opacity 0 → 1 as one layer, kept inside its own opening
+    ///   slot (`harnessFrame`), drawn above the neighbours it pushes (`harnessDrawOrder`).
+    /// - Exit: the circle scales 1 → 0.6 and fades 1 → 0 in place with `.easeIn(duration: 0.15)`
+    ///   (`harnessExitCircle`); the slot then closes with `.smooth(duration: 0.3)` starting 0.10 s after the
+    ///   circle (`harnessExitSlot`, 0.40 s in all), so no neighbour reaches it while it is above 10 % opacity.
     /// - Reduce Motion: no slide, no scale; the layout snaps and only the entering / leaving circle fades
     ///   over 0.15 s (`crossfade`).
     static func harness(reduce: Bool) -> Animation? { reduce ? nil : widthCurve }
     static let harnessEnterScale: CGFloat = 0.6
     static let harnessSlot: CGFloat = IslandBarLayout.circleDiameter + IslandBarLayout.circleSpacing
+    static let harnessExitDuration: Double = 0.15
+    static let harnessExitSlotDelay: Double = 0.10
+    static let harnessExitSlotDuration: Double = 0.3
+    /// The whole exit, circle then slot (0.10 + 0.3).
+    static var harnessExitTotal: Double { harnessExitSlotDelay + harnessExitSlotDuration }
+    static let harnessExitCircle = Animation.easeIn(duration: harnessExitDuration)
+    static let harnessExitSlot = Animation.smooth(duration: harnessExitSlotDuration).delay(harnessExitSlotDelay)
+    /// The leaving circle's own removal: `.easeIn(0.15)`, or the 0.15 s fade under Reduce Motion.
+    static func harnessExitFade(reduce: Bool) -> Animation { reduce ? crossfade : harnessExitCircle }
+    /// Neighbour slide when a circle leaves (nil under Reduce Motion: snap).
+    static func harnessExitSlide(reduce: Bool) -> Animation? { reduce ? nil : harnessExitSlot }
     static func harnessTransition(reduce: Bool, rect: CGRect,
                                   trailingGap: CGFloat = IslandBarLayout.circleSpacing) -> AnyTransition {
         if reduce { return AnyTransition.opacity.animation(crossfade) }
-        return .modifier(active: HarnessSlotEffect(progress: 0, rect: rect, trailingGap: trailingGap),
-                         identity: HarnessSlotEffect(progress: 1, rect: rect, trailingGap: trailingGap))
+        let enter = AnyTransition.modifier(active: HarnessSlotEffect(progress: 0, rect: rect, trailingGap: trailingGap),
+                                           identity: HarnessSlotEffect(progress: 1, rect: rect, trailingGap: trailingGap))
+        let exit = AnyTransition.modifier(active: HarnessExitEffect(gone: 1, rect: rect),
+                                          identity: HarnessExitEffect(gone: 0, rect: rect))
+        return .asymmetric(insertion: enter, removal: exit)
+    }
+    /// Exit timeline, `t` seconds after the circle starts leaving: its drawn frame (scaled in place about its
+    /// own centre) and opacity, and how far the slot has closed (0 open … 1 closed). Mirrors the SwiftUI
+    /// animations above, so the geometry test checks the same numbers the view runs.
+    static func harnessExit(final r: CGRect, at t: Double) -> (frame: CGRect, opacity: Double, slotClosed: CGFloat) {
+        let p = easeIn(min(max(t / harnessExitDuration, 0), 1))
+        let d = r.width * (1 - (1 - harnessEnterScale) * p)
+        let frame = CGRect(x: r.midX - d / 2, y: r.midY - d / 2, width: d, height: d)
+        let ts = t - harnessExitSlotDelay
+        return (frame, 1 - p, ts <= 0 ? 0 : CGFloat(smooth(ts, duration: harnessExitSlotDuration)))
+    }
+    /// `.easeIn`: cubic Bézier (0.42, 0, 1, 1), progress at time fraction `x`.
+    static func easeIn(_ x: Double) -> Double {
+        func bez(_ u: Double, _ a: Double, _ b: Double) -> Double { 3 * a * u * (1 - u) * (1 - u) + 3 * b * u * u * (1 - u) + u * u * u }
+        var lo = 0.0, hi = 1.0
+        for _ in 0..<40 { let m = (lo + hi) / 2; if bez(m, 0.42, 1) < x { lo = m } else { hi = m } }
+        return bez((lo + hi) / 2, 0, 1)
+    }
+    /// `.smooth(duration:)`: a critically damped spring (bounce 0), value at `t` seconds.
+    static func smooth(_ t: Double, duration: Double) -> Double {
+        let w = 2 * Double.pi / duration
+        return 1 - (1 + w * t) * exp(-w * t)
     }
     /// Where a circle whose slot is `progress` open (0 closed … 1 open) is drawn. The slot opens between the
     /// neighbour that slides out (`harnessSlot × progress`, same curve) and what sits `trailingGap` to its
@@ -99,6 +136,22 @@ struct HarnessSlotEffect: ViewModifier, Animatable {
 
 /// The island silhouette as one animatable path inside a FIXED-size container: the spring interpolates
 /// `rect` / `radius` at render time (no per-frame relayout of the content, which keeps its own pinned frames).
+/// Exit of one harness circle: scale 1 → 0.6 and opacity 1 → 0 in place, as one layer.
+struct HarnessExitEffect: ViewModifier, Animatable {
+    var gone: CGFloat
+    let rect: CGRect
+    var animatableData: CGFloat {
+        get { gone }
+        set { gone = newValue }
+    }
+    func body(content: Content) -> some View {
+        content
+            .compositingGroup()
+            .scaleEffect(1 - (1 - IslandMotion.harnessEnterScale) * gone, anchor: IslandMotion.harnessAnchor(rect))
+            .opacity(Double(1 - gone))
+    }
+}
+
 struct IslandShapePath: InsettableShape {
     var rect: CGRect
     var radius: CGFloat
