@@ -266,8 +266,9 @@ struct SamanthaThinkingDots: View {
     }
 }
 
-/// Controlled-target mark (Apple for ACU, Comet for comet-control): the target on a white tile like the
-/// plugin icons (>= 12 pt so it reads at 1x), inside a spinning ring. Drawn over the compact lead slot.
+/// Controlled-target mark (Apple for ACU, Comet for comet-control): the target's BARE logo glyph (no white
+/// tile; `IslandTargetGlyphView`, Guru 15:27/15:29 IST "that is the design language"), >= 12 pt so it reads at
+/// 1x, inside a spinning ring. Drawn over the compact lead slot.
 struct IslandPluginTargetMark: View {
     let target: IslandPluginTarget
     /// Every target in use (newest first) for VoiceOver; defaults to just `target`.
@@ -278,11 +279,12 @@ struct IslandPluginTargetMark: View {
 
     static let ringDiameter: CGFloat = 20
     static let ringLine: CGFloat = 1.5
-    static let tileSize: CGFloat = 12
+    static let glyphSize: CGFloat = IslandTargetGlyph.size
+    /// Corner radius for the operated-app white tile (near-white app icons only; never the target).
     static func tileRadius(_ tile: CGFloat) -> CGFloat { tile * 0.26 }
 
     var body: some View {
-        let tile = max(Self.tileSize, size * 0.6)
+        let glyph = max(Self.glyphSize, size * 0.6)
         ZStack {
             Circle().stroke(IslandPalette.track, lineWidth: Self.ringLine)
             Circle().trim(from: 0, to: 0.25)
@@ -292,16 +294,7 @@ struct IslandPluginTargetMark: View {
                     guard !reduceMotion else { return }
                     withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { spin = true }
                 }
-            RoundedRectangle(cornerRadius: Self.tileRadius(tile), style: .continuous)
-                .fill(Color.white)
-                .frame(width: tile, height: tile)
-            switch target {
-            case .symbol(let name):
-                SamanthaSymbol(name: name, color: .black, size: tile * 0.78)
-                    .offset(y: -tile * 0.03)
-            case .app(let name):
-                SamanthaAppIcon(appName: name, size: tile * 0.86, radius: Self.tileRadius(tile * 0.86))
-            }
+            IslandTargetGlyphView(target: target, size: glyph)
         }
         .frame(width: size, height: size)
         .accessibilityElement(children: .ignore)

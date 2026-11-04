@@ -125,8 +125,11 @@ enum IslandBarLayout {
     /// Right edge of the 20 pt ring centred on the 16 pt lead slot: 8 + 8 + 10.
     static let ringRight: CGFloat = slotInset + 8 + 10
     static var operatedRingClearance: CGFloat { ringRight + operatedRingGap }
-    /// A controlled target with no apps and no voice (e.g. comet-control reading a page): ring · 8 · dot · 9.
-    static let targetOnlyDotGap: CGFloat = 8
+    /// A controlled target with no apps and no voice (e.g. comet-control reading a page): ring · 20 · dot · 9,
+    /// 61 pt (Guru 2026-11-04 15:26 IST, "the dynamic island is squeezed": "Use the same 20 pt gap between the
+    /// ring and the dot"; 0.2.86 had 8 pt, 49 pt). Whatever follows the ring, apps, voice slot or the dot,
+    /// starts the same 20 pt after it.
+    static var targetOnlyDotGap: CGFloat { operatedRingGap }
     static var targetOnlyPillWidth: CGFloat { ringRight + targetOnlyDotGap + compactDotDiameter + 9 }
     /// Samantha's voice slot (Guru 14:17 IST, "A plus C's shape cue"; UI & UX spec): one fixed-width slot whose
     /// width depends only on what it shows, never on loudness. Meter: 5 bars × 3 pt, 2 pt gap = 23 pt.

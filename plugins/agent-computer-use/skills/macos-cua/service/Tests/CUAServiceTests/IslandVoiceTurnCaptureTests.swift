@@ -76,6 +76,14 @@ final class IslandVoiceTurnCaptureTests: XCTestCase {
                                               ("ledger-leaves", speaking)]),
             ("barge-in", calc, [("speaking-controlled", voice("speaking", apps: calc)), ("barge-in-listening", voice("listening", apps: calc)),
                                 ("speaking", speaking), ("barge-in-listening", on)]),
+            // Guru 15:26 / 15:27 IST: a ringed target with no apps (ring · 20 · dot) and the bare logo in the ring.
+            ("targets", ["Finder"], [
+                ("comet-only", IslandSnapshot(kind: "acting", title: "Reading page", plugins: [plugin("comet-control", 400)], samantha_on: true)),
+                ("apple-only", IslandSnapshot(kind: "acting", title: "Using the Mac", plugins: [acu("", 300)], samantha_on: true)),
+                ("apple-finder", IslandSnapshot(kind: "acting", title: "Using Finder", app: "Finder", active_apps: ["Finder"],
+                                                plugins: [acu("Finder", 300)], samantha_on: true)),
+                ("comet-speaking", voice("speaking", apps: [], extra: [plugin("comet-control", 400)])),
+            ]),
         ]
     }
 

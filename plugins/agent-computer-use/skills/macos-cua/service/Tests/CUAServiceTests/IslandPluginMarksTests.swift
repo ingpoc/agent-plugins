@@ -229,15 +229,12 @@ final class IslandPluginMarksTests: XCTestCase {
         XCTAssertEqual(hub.compose(now: now.addingTimeInterval(4)).agents.filter { $0.status == "running" }.count, 1)
     }
 
-    func testTargetMarkTileReadsAtOneX() {
-        XCTAssertGreaterThanOrEqual(IslandPluginTargetMark.tileSize, 12)
-        XCTAssertGreaterThan(IslandPluginTargetMark.ringDiameter - 2 * IslandPluginTargetMark.ringLine,
-                             IslandPluginTargetMark.tileSize)
+    func testTargetGlyphReadsAtOneXInsideTheRing() {
+        XCTAssertGreaterThanOrEqual(IslandPluginTargetMark.glyphSize, 12)
         XCTAssertLessThanOrEqual(IslandPluginTargetMark.ringDiameter, IslandBarLayout.compactHeight)
-        // The tile's rounded corners clear the ring's inner edge.
-        let t = IslandPluginTargetMark.tileSize, r = IslandPluginTargetMark.tileRadius(t)
-        let corner = (t / 2 - r) * 2.squareRoot() + r
-        XCTAssertLessThan(corner, IslandPluginTargetMark.ringDiameter / 2 - IslandPluginTargetMark.ringLine)
+        // The glyph box's corners clear the ring's inner edge (bare glyph, no tile: Guru 15:27 IST).
+        let g = IslandPluginTargetMark.glyphSize
+        XCTAssertLessThan(g / 2 * 2.squareRoot(), IslandPluginTargetMark.ringDiameter / 2 - IslandPluginTargetMark.ringLine / 2 + 0.5)
     }
 
     // MARK: - Model
@@ -821,9 +818,9 @@ final class IslandPluginMarksTests: XCTestCase {
     }
 
     /// Regression (UI & UX, 2026-11-04 11:57 IST): a comet-control row with no apps stretched to ~120 pt.
-    /// With no apps it hugs ring · 8 · dot · 9; with one app ring · 20 · icon · 6 · dot · 9.
+    /// With no apps it hugs ring · 20 · dot · 9 (Guru 15:26 IST); with one app ring · 20 · icon · 6 · dot · 9.
     func testControlledTargetPillHugsWithNoAppsAndWithOneApp() async throws {
-        XCTAssertEqual(IslandBarLayout.targetOnlyPillWidth, 49)
+        XCTAssertEqual(IslandBarLayout.targetOnlyPillWidth, 61)
         var checked: [String] = []
         for plugin in ["comet-control", "acu"] {
             for kind in ["acting", "idle"] {
@@ -834,9 +831,9 @@ final class IslandPluginMarksTests: XCTestCase {
                 try await Task.sleep(nanoseconds: 300_000_000)
                 guard model.showsTargetMark else { continue }
                 checked.append("\(plugin) \(kind)")
-                XCTAssertEqual(model.shapeRect.width, 49, "\(plugin) \(kind) with no apps hugs ring · 8 · dot")
+                XCTAssertEqual(model.shapeRect.width, 61, "\(plugin) \(kind) with no apps hugs ring · 20 · dot")
                 let ringMaxX = model.shapeRect.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
-                XCTAssertEqual(IslandBarLayout.compactDotRect(shape: model.shapeRect).minX - ringMaxX, 8, accuracy: 0.001)
+                XCTAssertEqual(IslandBarLayout.compactDotRect(shape: model.shapeRect).minX - ringMaxX, 20, accuracy: 0.001)
                 model.apply(IslandSnapshot(kind: kind, title: kind == "acting" ? "Reading page" : "",
                                            plugins: [op("Finder", "Samantha", 310, plugin: plugin)], samantha_on: true))
                 try await Task.sleep(nanoseconds: 300_000_000)
