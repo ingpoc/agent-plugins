@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.90
+
+- Owner preferences and decisions: automatic capture (user_decision, tool:/project: scope, rule = decision point, same scope+rule supersedes) and exact recall before a decision point.
+
 ## 0.2.86 (2026-11-04)
 
 - Samantha's mark is her own wave (Guru picked B at 11:54 IST; UI & UX spec): one tapered sound wave, 2 pt round-cap stroke (at least 1.5 pt), 60 % of the circle wide, vertically centred, #BF5AF2 → #FF6482 left to right, in the same 24 pt circle and rim as every harness. It replaces the plain waveform glyph.

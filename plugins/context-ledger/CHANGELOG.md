@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.38
+
+- Owner preferences and decisions: automatic capture (user_decision, tool:/project: scope, rule = decision point, same scope+rule supersedes) and exact recall before a decision point.
+
 ## 0.1.37
 
 - Make helper routing harness-neutral: explicitly select the lowest-cost capable model for retained ledger operations, keep relevance and deletion judgments with the parent, and escalate only unresolved judgments. Report unavailable cheaper-model selection without claiming measured savings.
