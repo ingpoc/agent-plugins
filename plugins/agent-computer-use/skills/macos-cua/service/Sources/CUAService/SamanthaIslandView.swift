@@ -529,6 +529,13 @@ private struct HelpIfPresent: ViewModifier {
 }
 
 /// One circle per source (max 3 + "+N"): urgent groups sort first and retain state markers.
+/// One harness circle's slot in the left ForEach (see `IslandMotion.harnessSlotID`).
+struct HarnessSlot: Identifiable {
+    let id: String
+    let group: IslandSourceGroup
+    let rect: CGRect
+}
+
 struct SamanthaSourceCircle: View {
     let group: IslandSourceGroup
     var differentiate = false
@@ -742,8 +749,13 @@ struct SamanthaIslandBar: View {
             }
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
-                ForEach(Array(zip(model.sourceGroups, rs)), id: \.0.id) { g, r in
+                let slots = Array(zip(model.sourceGroups, rs).enumerated())
+                ForEach(slots.map { HarnessSlot(id: IslandMotion.harnessSlotID($0.element.0.id, slot: $0.offset, reduce: reduceMotion),
+                                                group: $0.element.0, rect: $0.element.1) }) { slot in
+                    let g = slot.group, r = slot.rect
+                    // One layer (backing, rim, badges) scaled from its own centre, never clipped.
                     SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate)
+                        .compositingGroup()
                         // https://developer.apple.com/documentation/swiftui/view/accessibilityelement(children:)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(IslandAgentAccessibility.circleLabel(groups: model.sourceGroups, agents: model.agents))
@@ -752,8 +764,8 @@ struct SamanthaIslandBar: View {
                         .accessibilityHidden(g.id != model.sourceGroups.first?.id)
                         .onTapGesture { model.openAgentList() }
                         .offset(x: r.minX, y: r.minY)
-                        // A: the circle leaves with a 200 ms fade (after the done hold).
-                        .transition(.asymmetric(insertion: circleTransition, removal: .opacity.animation(.easeOut(duration: 0.2))))
+                        // Shared harness enter/leave (IslandMotion.harness*): leaving reverses entering.
+                        .transition(IslandMotion.harnessTransition(reduce: reduceMotion, rect: r))
                 }
             }
             if let sec = model.secondary, let sr = model.secondaryRect {
@@ -781,7 +793,7 @@ struct SamanthaIslandBar: View {
                    value: model.drawnWidth)
         .animation(widthAnimation, value: model.circles)
         .animation(IslandMotion.operatedWidth(reduce: reduceMotion), value: model.operatedApps)
-        .animation(widthAnimation, value: model.sourceGroups)
+        .animation(IslandMotion.harness(reduce: reduceMotion), value: model.sourceGroups)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.agentApproval?.id)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.secondary)
         .animation(IslandMotion.target(model.trayTargeted, reduce: reduceMotion), value: model.trayTargeted)

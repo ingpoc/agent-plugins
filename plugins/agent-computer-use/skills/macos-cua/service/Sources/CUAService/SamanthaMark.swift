@@ -1,62 +1,33 @@
 import SwiftUI
 
-/// Samantha's own harness mark (Guru, 2026-11-04 11:09 IST: "the style of samantha should be distinct").
-/// She is a voice agent, so every variant is built from voice: her own violet-to-rose colour (not the
-/// cyan working dot, nor a status colour), on the island's black circle. Never a white plugin tile
-/// (comet-control, context-ledger) and never ACU's app icon. Vector only, so it is crisp at 1x and 2x.
-enum SamanthaMarkVariant: String, CaseIterable {
-    /// A: a violet-to-rose voice orb with three white voice bars.
-    case orb
-    /// B: one continuous sound wave, a gradient ribbon across the black circle.
-    case wave
-    /// C: a white rounded "S" inside a violet-to-rose gradient ring.
-    case monogram
-
-    /// Review default until Guru picks; `ACU_SAMANTHA_MARK=orb|wave|monogram` previews another.
-    nonisolated(unsafe) static var current: SamanthaMarkVariant =
-        ProcessInfo.processInfo.environment["ACU_SAMANTHA_MARK"].flatMap(SamanthaMarkVariant.init(rawValue:)) ?? .orb
-}
-
+/// Samantha's own harness mark (Guru, 2026-11-04 11:09 IST: "the style of samantha should be distinct";
+/// 11:54 IST picked B, the wave). She is a voice agent, so her mark is a voice: one tapered sound wave in
+/// her own violet-to-rose, on the island's black circle. Never a white plugin tile (comet-control,
+/// context-ledger) and never ACU's app icon. Vector, so it is crisp at 1x and 2x.
 enum SamanthaMarkPalette {
-    static let violet = Color(red: 0xA0 / 255, green: 0x6B / 255, blue: 0xFF / 255)  // #A06BFF
-    static let rose = Color(red: 0xFF / 255, green: 0x6F / 255, blue: 0xB5 / 255)    // #FF6FB5
+    static let violet = Color(red: 0xBF / 255, green: 0x5A / 255, blue: 0xF2 / 255)  // #BF5AF2
+    static let rose = Color(red: 0xFF / 255, green: 0x64 / 255, blue: 0x82 / 255)    // #FF6482
+    /// Left to right across the wave (UI & UX, 2026-11-04 11:57 IST).
     static var gradient: LinearGradient {
-        LinearGradient(colors: [violet, rose], startPoint: .topLeading, endPoint: .bottomTrailing)
+        LinearGradient(colors: [violet, rose], startPoint: .leading, endPoint: .trailing)
     }
 }
 
 /// Drawn inside the 24 pt harness circle (`SamanthaSourceCircle` keeps the black fill, key line and badges).
+/// UI & UX spec (2026-11-04 11:57 IST): stroke ≥ 1.5 pt at 1x (2 pt in the 24 pt circle) with round caps,
+/// spanning 60% of the diameter, vertically centred.
 struct SamanthaMark: View {
-    var variant: SamanthaMarkVariant = .current
     var diameter: CGFloat = IslandBarLayout.circleDiameter
+    static func strokeWidth(diameter: CGFloat) -> CGFloat { max(1.5, diameter / 12) }
+    static let spanFraction: CGFloat = 0.6
+    static let heightFraction: CGFloat = 0.42
 
     var body: some View {
-        switch variant {
-        case .orb:
-            ZStack {
-                Circle().fill(SamanthaMarkPalette.gradient)
-                    .frame(width: diameter * 0.75, height: diameter * 0.75)
-                HStack(spacing: diameter / 16) {
-                    ForEach(Array([0.22, 0.4, 0.28].enumerated()), id: \.offset) { _, h in
-                        Capsule().fill(Color.white)
-                            .frame(width: diameter / 12, height: diameter * h)
-                    }
-                }
-            }
-        case .wave:
-            SamanthaWaveShape()
-                .stroke(SamanthaMarkPalette.gradient, style: StrokeStyle(lineWidth: diameter / 12, lineCap: .round, lineJoin: .round))
-                .frame(width: diameter * 0.62, height: diameter * 0.42)
-        case .monogram:
-            ZStack {
-                Circle().strokeBorder(SamanthaMarkPalette.gradient, lineWidth: diameter / 14)
-                    .frame(width: diameter - 2, height: diameter - 2)
-                Text("S")
-                    .font(.system(size: diameter * 0.5, weight: .heavy, design: .rounded))
-                    .foregroundStyle(Color.white)
-                    .offset(y: -diameter / 48)
-            }
-        }
+        SamanthaWaveShape()
+            .stroke(SamanthaMarkPalette.gradient,
+                    style: StrokeStyle(lineWidth: Self.strokeWidth(diameter: diameter), lineCap: .round, lineJoin: .round))
+            .frame(width: diameter * Self.spanFraction, height: diameter * Self.heightFraction)
+            .frame(width: diameter, height: diameter)   // centred in the circle
     }
 }
 

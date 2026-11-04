@@ -25,6 +25,28 @@ enum IslandMotion {
     static func popTransition(reduce: Bool, anchor: UnitPoint = .center) -> AnyTransition {
         reduce ? .opacity : .scale(scale: 0.6, anchor: anchor).combined(with: .opacity)
     }
+    /// Harness circles on the left (Codex, Cursor, Grok, Samantha, "+N"): ONE shared motion for every
+    /// harness, Samantha included (UI & UX, 2026-11-04 11:57 IST).
+    /// - Curve and duration: `widthCurve`, `.smooth(duration: 0.35)`, the same transaction that moves the
+    ///   neighbours, so the entering slot (circle + 4 pt) opens while they slide; Reduce Motion: `crossfade`.
+    /// - Enter: scale 0.6 → 1 and opacity 0 → 1 about the circle's own centre; leave is the exact reverse.
+    /// - Reduce Motion: opacity only, and moved neighbours cross-fade in place instead of sliding.
+    static func harness(reduce: Bool) -> Animation { width(reduce: reduce) }
+    static let harnessEnterScale: CGFloat = 0.6
+    static func harnessTransition(reduce: Bool, rect: CGRect) -> AnyTransition {
+        reduce ? .opacity : .scale(scale: harnessEnterScale, anchor: harnessAnchor(rect)).combined(with: .opacity)
+    }
+    /// Circles are placed with `.offset` inside the window-sized ZStack, so their layout frame sits at the
+    /// origin; the scale anchor must be the drawn circle's centre in that frame's unit space.
+    static func harnessAnchor(_ r: CGRect) -> UnitPoint {
+        guard r.width > 0, r.height > 0 else { return .center }
+        return UnitPoint(x: r.midX / r.width, y: r.midY / r.height)
+    }
+    /// ForEach identity: stable per group so neighbours slide; under Reduce Motion a moved neighbour gets a
+    /// new identity so it cross-fades at its new slot instead of sliding.
+    static func harnessSlotID(_ groupID: String, slot: Int, reduce: Bool) -> String {
+        reduce ? "\(groupID)@\(slot)" : groupID
+    }
     static var systemReduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 }
 

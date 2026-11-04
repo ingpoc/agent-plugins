@@ -110,18 +110,23 @@ enum IslandBarLayout {
                width: compactDotDiameter, height: compactDotDiameter)
     }
 
-    /// Operated app icons INSIDE the pill (UI & UX fixed gaps): ring · 20 · icon · 4 · icon … · 6 · dot · 9.
-    /// The 20 pt target ring's right edge is 26 pt in, so the first icon starts 46 pt in; "+N" takes a
-    /// fixed 16 pt slot. The pill hugs this content exactly, so the gaps are the same in every state.
-    /// One rule for every controlled target (Apple ring for ACU, Comet for comet-control, any other plugin
-    /// target): the 20 pt gap keeps what is controlled apart from the apps in use (Guru, 2026-11-04 10:22 IST).
+    /// Operated app icons INSIDE the pill (UI & UX fixed gaps): ring · 16 · icon · 4 · icon … · 6 · dot · 9.
+    /// The 20 pt target ring's right edge is 26 pt in, so the first icon starts 42 pt in; "+N" takes a
+    /// fixed 16 pt slot after the third icon. The pill hugs this content exactly, so the gaps are the same
+    /// in every state. One rule for every controlled target (Apple ring for ACU, Comet for comet-control,
+    /// any other plugin target): the gap keeps what is controlling apart from the apps in use.
     static let operatedIcon: CGFloat = 16
     static let operatedGap: CGFloat = 4
     static let operatedDotGap: CGFloat = 6
-    /// 20 pt (Guru, 2026-11-04 11:08 IST: "the space between apple logo and the apps being used should be more").
-    /// A var only so review renders can compare 16 / 20 / 24 pt; nothing else writes it.
-    nonisolated(unsafe) static var operatedRingGap: CGFloat = 20
+    /// 16 pt, no divider (Guru 2026-11-04 11:08 IST "should be more" than 0.2.85's 12; UI & UX picked 16 at
+    /// 11:57 IST after the 16 / 20 / 24 study: a clear controlling-vs-used break without wasting width).
+    /// A var only so review renders can compare gaps; nothing else writes it.
+    nonisolated(unsafe) static var operatedRingGap: CGFloat = 16
     static var operatedRingClearance: CGFloat { slotInset + 8 + 10 + operatedRingGap }
+    /// A controlled target with no apps in use (e.g. comet-control reading a page): the pill hugs
+    /// ring · 8 · dot · 9 (v5 hug rule) and never stretches to a text width (UI & UX, 2026-11-04 11:57 IST).
+    static let targetOnlyDotGap: CGFloat = 8
+    static var targetOnlyPillWidth: CGFloat { slotInset + 8 + 10 + targetOnlyDotGap + compactDotDiameter + 9 }
     static func operatedAppsStripWidth(count: Int) -> CGFloat {
         count <= 0 ? 0 : CGFloat(count) * operatedIcon + CGFloat(count - 1) * operatedGap
     }

@@ -1616,6 +1616,9 @@ final class IslandModel: ObservableObject {
             // Samantha's conversation or expanded widths carries over.
             return IslandBarLayout.operatedAppsPillWidth(count: apps)
         }
+        if apps == 0, pluginTarget != nil, !cardOpen, permissionWarning == nil, Self.operatedAppStates.contains(state) {
+            return IslandBarLayout.targetOnlyPillWidth
+        }
         if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
         if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
         return state.compactWidth
