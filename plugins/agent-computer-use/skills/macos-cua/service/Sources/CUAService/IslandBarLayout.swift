@@ -111,24 +111,25 @@ enum IslandBarLayout {
     }
 
     /// Inside the pill, ONE rule for every compact state (Guru, 2026-11-04 13:30 IST), voice states included:
-    /// ringed target · 20 · app icons (4 apart) · 6 · voice slot · 6 · dot · 9. The 20 pt target ring's right
-    /// edge is 26 pt in, so the first icon starts 46 pt in; "+N" takes a fixed 16 pt slot after the third icon.
+    /// ringed target · 24 · app icons (4 apart) · 6 · voice slot · 6 · dot · 9. The 20 pt target ring's right
+    /// edge is 26 pt in, so the first icon starts 50 pt in; "+N" takes a fixed 16 pt slot after the third icon.
     /// The pill hugs this content exactly, so the gaps are the same in every state. Any controlled target
     /// (Apple ring for ACU, Comet for comet-control) gets the gap; only ACU carries app icons. Without a
     /// controlled target nothing changes (voice keeps its lead glyph and trailing meter).
     static let operatedIcon: CGFloat = 16
     static let operatedGap: CGFloat = 4
     static let operatedDotGap: CGFloat = 6
-    /// 20 pt, no divider (Guru 2026-11-04 13:30 IST "instead of 16 pt put 20 pt"; 0.2.86 had 16, 0.2.85 12).
+    /// 24 pt, no divider: the ONE target gap, ring to apps and ring to voice slot / dot alike (Guru 2026-11-04
+    /// 15:52 IST "increse from 20 to 24pt"; 13:30 IST had 20, 0.2.86 16, 0.2.85 12).
     /// A var only so review renders can compare gaps; nothing else writes it.
-    nonisolated(unsafe) static var operatedRingGap: CGFloat = 20
+    nonisolated(unsafe) static var operatedRingGap: CGFloat = 24
     /// Right edge of the 20 pt ring centred on the 16 pt lead slot: 8 + 8 + 10.
     static let ringRight: CGFloat = slotInset + 8 + 10
     static var operatedRingClearance: CGFloat { ringRight + operatedRingGap }
-    /// A controlled target with no apps and no voice (e.g. comet-control reading a page): ring · 20 · dot · 9,
-    /// 61 pt (Guru 2026-11-04 15:26 IST, "the dynamic island is squeezed": "Use the same 20 pt gap between the
-    /// ring and the dot"; 0.2.86 had 8 pt, 49 pt). Whatever follows the ring, apps, voice slot or the dot,
-    /// starts the same 20 pt after it.
+    /// A controlled target with no apps and no voice (e.g. comet-control reading a page): ring · 24 · dot · 9,
+    /// 65 pt (Guru 2026-11-04 15:26 IST, "the dynamic island is squeezed": "Use the same gap between the ring
+    /// and the dot"; 15:52 IST 24 pt; 0.2.86 had 8 pt, 49 pt). Whatever follows the ring, apps, voice slot or
+    /// the dot, starts the same `operatedRingGap` after it.
     static var targetOnlyDotGap: CGFloat { operatedRingGap }
     static var targetOnlyPillWidth: CGFloat { ringRight + targetOnlyDotGap + compactDotDiameter + 9 }
     /// Samantha's voice slot (Guru 14:17 IST, "A plus C's shape cue"; UI & UX spec): one fixed-width slot whose
@@ -185,7 +186,7 @@ enum IslandBarLayout {
                    width: operatedIcon, height: operatedIcon)
         }
     }
-    /// The voice slot: after ring · 20 · apps · 8 when something is controlled, else 9 pt in from the left.
+    /// The voice slot: after ring · 24 · apps · 8 when something is controlled, else 9 pt in from the left.
     static func voiceSlotRect(shape: CGRect, apps: Int, controlled: Bool, content: IslandVoiceSlotContent) -> CGRect {
         let x = controlled
             ? shape.minX + operatedRingClearance + (apps > 0 ? operatedAppsStripWidth(count: apps) + appsVoiceGap : 0)

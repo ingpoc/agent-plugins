@@ -783,7 +783,7 @@ struct SamanthaIslandBar: View {
                     }
                 }
                 if let voice = model.voiceSlotContent {
-                    // Samantha's voice slot (Guru 14:17 IST): after ring · 20 · apps · 8 when something is controlled,
+                    // Samantha's voice slot (Guru 14:17 IST): after ring · 24 · apps · 8 when something is controlled,
                     // else 9 pt in; then 6 · dot · 9. The meter never lights the dot (Nov 1 dot rules).
                     let v = IslandBarLayout.voiceSlotRect(shape: rect, apps: model.showsOperatedApps ? model.operatedApps.count : 0,
                                                           controlled: model.showsTargetMark, content: voice)

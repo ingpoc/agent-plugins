@@ -113,18 +113,20 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
   The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
   app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
-  **Locked zone rule** (Guru 2026-11-04 13:30 / 15:26 IST): inside the pill, left to
-  right, the ringed target, 20 pt, the app icons (16 pt, 4 apart), 8 pt, the voice
+  **Locked zone rule** (Guru 2026-11-04 13:30 / 15:26 / 15:52 IST): inside the pill, left to
+  right, the ringed target, 24 pt, the app icons (16 pt, 4 apart), 8 pt, the voice
   slot, 6 pt, the 6 pt dot, 9 pt inset. Whatever comes first after the ring (apps, the
-  voice slot or the dot) starts the same 20 pt after it ("Use the same 20 pt gap
-  between the ring and the dot"; 0.2.86 used 8 pt with no apps, which read as
-  squeezed). Harness circles sit outside left; only plugin marks sit outside right.
+  voice slot or the dot) starts the same 24 pt after it, one shared constant
+  (`IslandBarLayout.operatedRingGap`; "Use the same gap between the ring and the
+  dot", then "increse from 20 to 24pt"; 0.2.86 used 8 pt with no apps, which read
+  as squeezed). Harness circles sit outside left; only plugin marks sit outside right.
   The gap is one shared `IslandBarLayout` path for every controlled target, the
   Apple ring for ACU and the Comet ring for comet-control alike ("same design
-  language should follow for all"; 12 pt in 0.2.85, 16 pt in 0.2.86). Widths: a
-  target alone hugs ring · 20 · dot · 9 = 61 pt (never the 136 pt acting width);
-  a target with the voice slot and no apps ring · 20 · slot · 6 · dot · 9 = 90 pt
-  speaking/listening, 81 pt thinking.
+  language should follow for all"; 12 pt in 0.2.85, 16 pt in 0.2.86, 20 pt until
+  15:52 IST). Widths: a target alone hugs ring · 24 · dot · 9 = 65 pt (never the
+  136 pt acting width); a target with the voice slot and no apps ring · 24 · slot ·
+  6 · dot · 9 = 94 pt speaking/listening, 85 pt thinking; with apps 87 / 127 / 147 pt
+  for 1 / 3 / 3 + N (118 / 158 pt with the meter).
   **Target glyph rule** (Guru 2026-11-04 15:27 / 15:29 IST, "that is the design
   language"): every controlled target, current or future, draws its BARE logo glyph
   in the ring on the black pill, never on a white tile or squircle. One path,
@@ -134,7 +136,7 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   plate and white specks, crops to the mark), else the app's SF Symbol in white.
   `IslandTargetGlyphTests` renders every target in its ring and fails on a tile.
   The compact pill hugs exactly that in
-  every state, Samantha's included (83 pt for one, 123 for three, 143 for 3 + N); "+N" is SF Pro
+  every state, Samantha's included (87 pt for one, 127 for three, 147 for 3 + N); "+N" is SF Pro
   Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
   among the operated APPS (TextEdit; detected generically by
   `AppIconResolver.isBlank`) draws on a white rounded tile with a dark glyph; that
