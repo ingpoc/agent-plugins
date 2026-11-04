@@ -166,6 +166,25 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         XCTAssertEqual(Set(widths), [expectedWidth], "no 87 / 111 / other intermediate pill widths")
     }
 
+    func testVoiceWidthShrinkWaitsFourHundredMillisecondsAfterDoneHold() async {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.reduceMotion = true
+        let now = Date()
+        let heldWidth = IslandBarLayout.controlledPillWidth(apps: 1, voice: .listening)
+        model.apply(Self.voice("listening", apps: ["Calculator"]), now: now)
+        model.apply(Self.voice("done", apps: ["Calculator"]), now: now.addingTimeInterval(0.5))
+        model.apply(Self.voice("idle", apps: [], staleApps: false), now: now.addingTimeInterval(2.6))
+
+        XCTAssertEqual(IslandModel.widthShrinkDebounce, 0.4)
+        XCTAssertNil(model.voiceSlotContent)
+        XCTAssertEqual(model.drawnWidth, heldWidth, "the reserved width stays while the shrink is pending")
+        try? await Task.sleep(nanoseconds: 250_000_000)
+        XCTAssertEqual(model.drawnWidth, heldWidth, "not before 400 ms")
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth, "shrinks after stable idle content")
+    }
+
     func testSpeakingWithoutAudioReturnsToIdle() {
         let model = IslandModel()
         model.idleActivity = "duo"
