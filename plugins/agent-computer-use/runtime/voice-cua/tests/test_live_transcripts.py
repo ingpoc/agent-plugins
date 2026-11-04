@@ -49,6 +49,44 @@ class LiveInboundTranscriptTests(unittest.TestCase):
         self.assertEqual(dict(events)["assistant_reply"]["text"], "Opening it now.")
 
 
+class InterleavedTranscriptTests(unittest.TestCase):
+    def test_user_talking_over_a_reply_keeps_one_row_per_utterance(self):
+        """0.2.85: interleaved deltas logged one word per row ("I chose the" / "Guru" / "profile," ...)."""
+        events = []
+        with patch.object(providers, "log_event", lambda kind, **kw: events.append((kind, kw))), \
+                patch("voice_cua.island_facade.island_publish", lambda *a, **k: None), \
+                patch("voice_cua.tools.note_user_turn", lambda text: None), \
+                patch("voice_cua.workflow_store.begin_engagement", lambda: None):
+            live = providers.LiveProvider()
+            live.said = providers.TranscriptBurst(live._on_said, gap_s=60)
+            live.heard = providers.TranscriptBurst(live._on_heard, gap_s=60)
+            pairs = [("I chose the", "Are"), (" Guru", " you"), (" profile,", " busy"), (" and Netflix is", " now?")]
+            for said, heard in pairs:
+                live.inbound({"type": "session.output_transcript.delta", "delta": said})
+                live.inbound({"type": "session.input_transcript.delta", "delta": heard})
+            live.said.flush()
+            live.heard.flush()
+        replies = [kw["text"] for kind, kw in events if kind == "assistant_reply"]
+        users = [kw["text"] for kind, kw in events if kind == "user_transcript"]
+        self.assertEqual(replies, ["I chose the Guru profile, and Netflix is"])
+        self.assertEqual(users, ["Are you busy now?"])
+
+    def test_a_new_reply_still_closes_the_users_utterance(self):
+        events = []
+        with patch.object(providers, "log_event", lambda kind, **kw: events.append((kind, kw))), \
+                patch("voice_cua.island_facade.island_publish", lambda *a, **k: None), \
+                patch("voice_cua.tools.note_user_turn", lambda text: None), \
+                patch("voice_cua.workflow_store.begin_engagement", lambda: None):
+            live = providers.LiveProvider()
+            live.said = providers.TranscriptBurst(live._on_said, gap_s=60)
+            live.heard = providers.TranscriptBurst(live._on_heard, gap_s=60)
+            live.inbound({"type": "session.input_transcript.delta", "delta": "Open Netflix"})
+            live.inbound({"type": "session.output_transcript.delta", "delta": "On it."})
+            kinds = [kind for kind, _ in events if kind in ("user_transcript", "assistant_reply")]
+            self.assertEqual(kinds, ["user_transcript"], "the user's turn is logged before the reply starts")
+            live.said.flush()
+
+
 class LiveCloseTests(unittest.TestCase):
     def test_finalize_sends_session_close_and_waits_for_closed(self):
         live = providers.LiveProvider()

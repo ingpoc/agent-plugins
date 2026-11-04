@@ -25,6 +25,14 @@ BENIGN_ERROR_PATTERNS = (
 
 # (pattern, copy) — first match wins; "{target}" is the app / control if known.
 ERROR_COPY: tuple[tuple[re.Pattern[str], str], ...] = (
+    # Known causes first, so the generic patterns below never swallow them (0.2.85).
+    (re.compile(r"ledger.*(invalid.argument|rejected)|ledger_invalid_argument|owner decision not found|project scope|"
+                r"capture requires|capture_gate", re.I), "Ledger needs clearer details"),
+    (re.compile(r"ledger.*outcome unknown|ledger_outcome_unknown|outcome unknown", re.I), "Ledger save unconfirmed"),
+    (re.compile(r"ledger.*busy", re.I), "Ledger busy, try again"),
+    (re.compile(r"ledger.*unavailable|ledger_unavailable", re.I), "Ledger unavailable"),
+    (re.compile(r"comet_not_frontmost|not frontmost|bring it to the front", re.I), "Couldn't bring Comet to front"),
+    (re.compile(r"needs_confirm|needs confirmation|confirmation required|needs your ok", re.I), "Needs your OK"),
     (re.compile(r"\bmic\b|microphone|sounddevice|input device", re.I), "Can't hear you, check mic"),
     (re.compile(r"websocket|connection (reset|closed|lost|refused)|reconnect|ping timeout|session (expired|not found)", re.I),
      "Connection dropped, reconnecting"),
@@ -41,7 +49,8 @@ ERROR_COPY: tuple[tuple[re.Pattern[str], str], ...] = (
 FALLBACK_ERROR = "Something went wrong"
 
 HUMAN_COPY = frozenset(
-    {FALLBACK_ERROR, "Action not confirmed", "Action stopped after failures", "Can't hear you, check mic", "Connection dropped, reconnecting", "Stopped — you said no", "Comet isn't available",
+    {FALLBACK_ERROR, "Ledger needs clearer details", "Ledger save unconfirmed", "Ledger busy, try again",
+     "Ledger unavailable", "Couldn't bring Comet to front", "Needs your OK", "Action not confirmed", "Action stopped after failures", "Can't hear you, check mic", "Connection dropped, reconnecting", "Stopped — you said no", "Comet isn't available",
      "That took too long", "Voice hiccup, still here"}
 )
 

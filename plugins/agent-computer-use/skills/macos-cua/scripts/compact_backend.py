@@ -475,6 +475,26 @@ class CUABackend:
             params.update({"x": float(step["x"]), "y": float(step["y"])})
         return {"method": "click", "params": params}
 
+    def focus(self, app: str) -> dict[str, Any]:
+        """Raise and activate ``app`` (AX raise through CUAService; never moves the real mouse)."""
+        try:
+            return self._rpc(lambda client: self._focus_app(client, app))
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:200]}
+
+    def frontmost_app(self) -> str | None:
+        """Name of the active regular app per CUAService ``list_apps``; None when unknown."""
+        try:
+            apps = self._rpc(lambda client: client.call("list_apps", {}))
+        except Exception:
+            return None
+        if isinstance(apps, dict):
+            apps = apps.get("apps")
+        for item in apps if isinstance(apps, list) else []:
+            if isinstance(item, dict) and item.get("isActive") is True:
+                return str(item.get("name") or "") or None
+        return None
+
     def hide_agent_cursor(self) -> dict[str, Any]:
         def _run(client):
             return client.hide_agent_cursor()

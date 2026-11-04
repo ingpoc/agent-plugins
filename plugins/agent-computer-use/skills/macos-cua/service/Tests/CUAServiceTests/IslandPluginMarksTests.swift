@@ -541,19 +541,19 @@ final class IslandPluginMarksTests: XCTestCase {
             }
             XCTAssertEqual(dot.maxX, shape.maxX - 9, "the dot keeps its 9 pt inset")
         }
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 1), 71)  // 6 ring 20 · 8 · 16 · 6 · 6 · 9
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 3), 111)
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 4), 131) // 3 icons + the 16 pt "+N" slot
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 1), 75)  // 6 ring 20 · 12 · 16 · 6 · 6 · 9
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 3), 115)
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 4), 135) // 3 icons + the 16 pt "+N" slot
     }
 
-    /// UI & UX fix 2: ring · 8 · icon · 4 · icon … · 6 · dot · 9, identical for 1…4 slots.
+    /// UI & UX fix 2: ring · 12 · icon · 4 · icon … · 6 · dot · 9, identical for 1…4 slots.
     func testOperatedGapsAreFixedInEveryCount() {
         for count in 1...4 {
             let shape = IslandBarLayout.shapeRect(compactWidth: IslandBarLayout.operatedAppsPillWidth(count: count), card: false)
             let ringMaxX = shape.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
             let dot = IslandBarLayout.compactDotRect(shape: shape)
             let rects = IslandBarLayout.operatedAppRects(shape: shape, count: count)
-            XCTAssertEqual(rects[0].minX - ringMaxX, 8, accuracy: 0.001, "ring to first icon (\(count))")
+            XCTAssertEqual(rects[0].minX - ringMaxX, 12, accuracy: 0.001, "ring to first icon (\(count))")
             for (a, b) in zip(rects, rects.dropFirst()) { XCTAssertEqual(b.minX - a.maxX, 4, accuracy: 0.001) }
             XCTAssertEqual(dot.minX - rects[count - 1].maxX, 6, accuracy: 0.001, "last icon or +N to dot (\(count))")
             XCTAssertEqual(shape.maxX - dot.maxX, 9, accuracy: 0.001)
@@ -570,16 +570,16 @@ final class IslandPluginMarksTests: XCTestCase {
         model.apply(IslandSnapshot(kind: "acting", title: "Reading Finder", app: "Finder", active_apps: ["Finder"],
                                    plugins: [op("Finder", "Samantha", 300)]))
         // No 160 ms squeeze to 74 pt: idle -> fitted width at once, on the operated-apps spring.
-        XCTAssertEqual(model.drawnWidth, 71)
+        XCTAssertEqual(model.drawnWidth, 75)
         XCTAssertTrue(model.widthFromOperatedApps)
         try await settle()
         XCTAssertEqual(model.presentation, .acting)
         XCTAssertEqual(model.drawnWidth, IslandBarLayout.operatedAppsPillWidth(count: 1))
-        XCTAssertEqual(model.shapeRect.width, 71, "no 136 pt acting width")
+        XCTAssertEqual(model.shapeRect.width, 75, "no 136 pt acting width")
         model.apply(IslandSnapshot(kind: "idle", plugins: [op("Finder", "Samantha", 300), op("TextEdit", "Samantha", 310),
                                                           op("Calculator", "Samantha", 320)]))
         try await settle()
-        XCTAssertEqual(model.shapeRect.width, 111)
+        XCTAssertEqual(model.shapeRect.width, 115)
         model.apply(IslandSnapshot(kind: "idle"))
         try await settle()
         XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth)
@@ -649,6 +649,59 @@ final class IslandPluginMarksTests: XCTestCase {
         XCTAssertEqual(model.operatedApps, [.app("Calculator")])
         XCTAssertFalse(model.circles.contains { if case .app("Calculator", _, _) = $0 { return true } else { return false } },
                        "an app shown inside is never drawn again outside")
+    }
+
+    func testCometTargetInTheRingIsNeverAnOutsideAppCircle() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        var comet = use("comet-control", "Comet Control", "Samantha"); comet.last_seen_at = 300
+        model.apply(IslandSnapshot(kind: "acting", title: "Opening netflix.com", app: "Comet", active_apps: ["Comet"],
+                                   plugins: [comet]))
+        XCTAssertEqual(IslandPluginTarget.current(model.pluginUses), .app("Comet"), "Comet sits in the ring inside the pill")
+        XCTAssertFalse(model.circles.contains { if case .app("Comet", _, _) = $0 { return true } else { return false } },
+                       "a Comet app circle is never drawn outside while Comet is the ring target")
+        XCTAssertTrue(model.circles.contains { if case .plugin = $0 { return true } else { return false } },
+                      "the Comet Control plugin mark stays outside on the right")
+    }
+
+    func testEveryControlledTargetGetsTheSameGapBeforeItsApps() {
+        // One shared rule for ACU (Apple ring) and comet-control (Comet ring): ring · 12 pt gap · apps.
+        for plugin in ["acu", "comet-control"] {
+            let model = IslandModel()
+            model.idleActivity = "duo"
+            let codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task", status: "running", last_seen_at: 100)
+            model.apply(IslandSnapshot(kind: "idle", agents: [codex], plugins: [op("Finder", "Codex", 300, plugin: plugin)]))
+            XCTAssertEqual(model.operatedApps, [.app("Finder")], plugin)
+            XCTAssertTrue(model.showsTargetMark, plugin)
+            XCTAssertEqual(model.drawnWidth, max(IslandBarLayout.idleWidth, IslandBarLayout.operatedAppsPillWidth(count: 1)), plugin)
+            let shape = IslandBarLayout.shapeRect(compactWidth: IslandBarLayout.operatedAppsPillWidth(count: 1), card: false)
+            let ringMaxX = shape.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
+            let icon = IslandBarLayout.operatedAppRects(shape: shape, count: 1)[0]
+            XCTAssertGreaterThanOrEqual(icon.minX - ringMaxX, 12, "clear gap between the \(plugin) ring and its apps")
+            // No apps in use: the pill collapses back.
+            model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
+            XCTAssertFalse(model.showsOperatedApps, plugin)
+        }
+        // The Comet target is never repeated as an in-use app icon.
+        XCTAssertEqual(IslandOperatedApps.names([op("Comet", "Codex", 1, plugin: "comet-control")]), [])
+        XCTAssertEqual(IslandOperatedApps.names([op("Finder", "Codex", 1, plugin: "context-ledger")]), [], "no target, no icons")
+    }
+
+    func testSamanthaIsAHarnessCircleOutsideOnTheLeft() {
+        // Guru, 2026-11-04 10:23 IST: Samantha is a harness, so her circle sits outside on the left, never inside.
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "acting", title: "Opening Finder", app: "Finder",
+                                   plugins: [op("Finder", "Samantha", 300)]))
+        XCTAssertEqual(model.sourceGroups.first?.id, "Samantha", "a left-side harness circle")
+        XCTAssertTrue(model.showAgentCircle)
+        XCTAssertEqual(model.pluginTarget, .symbol("apple.logo"), "inside the ring is the controlled target, not Samantha")
+        XCTAssertEqual(model.operatedApps, [.app("Finder")])
+        XCTAssertFalse(model.circles.contains { if case .app("Samantha", _, _) = $0 { return true } else { return false } })
+        let shape = IslandBarLayout.shapeRect(compactWidth: model.drawnWidth, card: false)
+        for rect in IslandBarLayout.agentRects(shape: shape, count: model.sourceGroups.count) {
+            XCTAssertLessThanOrEqual(rect.maxX, shape.minX, "harness circles are outside the pill on the left")
+        }
     }
 
     func testTargetMarkPerPluginAndMostRecentWins() {

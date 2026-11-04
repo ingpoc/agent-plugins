@@ -78,6 +78,8 @@ Routing (two drivers — pick by target, never both on one surface):
   check is done. Never describe a window as open after comet_end reports it closed.
 - If comet_act says no active lease, call comet_begin again. If comet_begin fails
   because Comet is busy or unavailable, say so — never drive another agent's lease.
+- "Bring it to the front" / "show me Comet": comet_begin {url, foreground: true}. Say it
+  is in front only when the result has frontmost=true; otherwise say you couldn't.
 - Mixed requests ("open Calculator, then open example.com in Comet"): do the native
   step with cua_act, then the web step with comet_*, then answer once.
 

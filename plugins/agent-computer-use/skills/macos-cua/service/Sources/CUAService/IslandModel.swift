@@ -134,13 +134,16 @@ enum IslandOperatedAppItem: Equatable, Identifiable {
 enum IslandOperatedApps {
     static let maxIcons = 3
 
-    /// Display names, newest first, each once. Only ACU rows carry an operated app.
+    /// Display names, newest first, each once. Any plugin with a controlled target (ACU's Mac ring,
+    /// comet-control's Comet, …) may carry in-use apps; the target app itself is never repeated as an icon.
     static func names(_ uses: [IslandPluginUse]) -> [String] {
         var out: [String] = []
-        for u in uses.sorted(by: { $0.last_seen_at > $1.last_seen_at }) where u.plugin == "acu" {
+        for u in uses.sorted(by: { $0.last_seen_at > $1.last_seen_at }) {
+            guard let target = IslandPluginTarget.of(plugin: u.plugin) else { continue }
             let raw = (u.target_app ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !raw.isEmpty else { continue }
             let name = displayName(raw)
+            if case .app(let targetName) = target, targetName == name { continue }
             if !out.contains(name) { out.append(name) }
         }
         return out
@@ -1632,8 +1635,10 @@ final class IslandModel: ObservableObject {
         let idleNow = next == .idle || next == .doneSettled
         let appItems = idleNow && idleActivity == "samantha" ? []
             : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
-        // An app ACU is operating shows inside the pill, never again as an outside circle.
+        // An app ACU is operating shows inside the pill, never again as an outside circle. The same
+        // holds for a plugin target drawn in the ring (Comet for comet-control): no stray Comet circle.
         let inside = Set(IslandOperatedApps.names(pluginUses))
+            .union(IslandPluginTarget.all(pluginUses).compactMap { if case .app(let name) = $0 { return name } else { return nil } })
         let outsideApps = appItems.filter { item in
             if case .app(let name, _, _) = item { return !inside.contains(name) }
             return true
