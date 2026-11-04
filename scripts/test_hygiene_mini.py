@@ -96,6 +96,54 @@ class ClassifierTest(unittest.TestCase):
         docs.mkdir()
         self.assertEqual(self.classify(docs)[0], "personal")
 
+    def test_macos_app_containers_never_entered(self) -> None:
+        lib = self.home / "Library"
+        for r in mini.MACOS_PRIVATE:
+            (self.home / r / "com.other.app").mkdir(parents=True)
+        (lib / "Caches").mkdir()
+        self.assertNotIn("Library/Group Containers", mini.DRILL)
+        for r in mini.MACOS_PRIVATE:
+            for p in (self.home / r, self.home / r / "com.other.app"):
+                self.assertTrue(mini.macos_private(p, self.home))
+                self.assertEqual(mini.classify(p, self.m, self.home, self.now, None),
+                                 ("macos-protected", mini.MACOS_PRIVATE_REASON))
+        self.assertFalse(mini.macos_private(lib / "Caches", self.home))
+        self.assertFalse(mini.macos_private(lib, self.home))
+        real_scandir, real_lstat, real_run = os.scandir, os.lstat, mini.subprocess.run
+        touched = []
+
+        def guard(p):
+            if mini.macos_private(p, self.home):
+                touched.append(str(p))
+
+        def scandir(p="."):
+            guard(p)
+            return real_scandir(p)
+
+        def lstat(p, *a, **k):
+            guard(p)
+            return real_lstat(p, *a, **k)
+
+        def run(cmd, *a, **k):
+            for c in cmd[1:]:
+                guard(c)
+            return real_run(cmd, *a, **k)
+
+        from unittest import mock
+        with mock.patch.object(mini.os, "scandir", scandir), mock.patch.object(mini.os, "lstat", lstat), \
+                mock.patch.object(mini.subprocess, "run", run):
+            lib_rows = mini.du_children(lib, self.home)
+            home_rows = mini.du_children(self.home, self.home)
+            mini.probe(lib, self.now, home=self.home)
+            for r in mini.MACOS_PRIVATE:
+                self.assertEqual(mini.du_children(self.home / r, self.home), [])
+        self.assertEqual(touched, [])
+        by = {Path(e["path"]).name: e for e in lib_rows}
+        self.assertIsNone(by["Containers"]["kb"])
+        self.assertIsNone(by["Group Containers"]["kb"])
+        self.assertIsNotNone(by["Caches"]["kb"])
+        self.assertIsNotNone({Path(e["path"]).name: e for e in home_rows}["Library"]["kb"])
+
     def test_unprobed_is_unknown(self) -> None:
         self.assertEqual(mini.classify(self.home / "x", self.m, self.home, self.now, None)[0], "unknown")
 

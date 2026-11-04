@@ -26,15 +26,19 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCAN_VERSION = 1
+SCAN_VERSION = 2
 MAX_AGE_S = 6 * 3600
 BIG_KB = 300 * 1024
 IDLE_DAYS = 30
 LIVE_S = 24 * 3600
 PROBE_BUDGET_S = 3.0
 DU_TIMEOUT = 600
-DRILL = ("Library/Application Support", "Library/Caches", "Library/Group Containers",
+DRILL = ("Library/Application Support", "Library/Caches",
          ".local/share", "Documents/remote-claude")
+# Other apps' sandboxed data. macOS app-data protection prompts ("python tried to access data
+# from other apps") on any scandir/stat/du inside these, so the scan never enters them.
+MACOS_PRIVATE = ("Library/Containers", "Library/Group Containers")
+MACOS_PRIVATE_REASON = "protected by macOS, size not scanned"
 PERSONAL = ("Pictures", "Personal", "Documents/Personal")
 LOCK_NAMES = {"lock", "LOCK", "SingletonLock", "SingletonSocket", "SingletonCookie", ".lock"}
 LOCK_SUFFIXES = (".lock", ".pid", ".sock", ".socket", "-lock")
@@ -110,7 +114,19 @@ def _under(p: Path, root: Path) -> bool:
 
 # ---------------------------------------------------------------- classifier
 
-def probe(path: Path, now: float, budget_s: float = PROBE_BUDGET_S) -> dict:
+def macos_private(path, home: Path) -> bool:
+    """True for ~/Library/Containers, ~/Library/Group Containers, or anything inside them."""
+    p, home = expand(path), expand(home)
+    return any(_under(p, home / r) for r in MACOS_PRIVATE)
+
+
+def _holds_private(path, home: Path) -> bool:
+    p, home = expand(path), expand(home)
+    return any(_under(home / r, p) and home / r != p for r in MACOS_PRIVATE)
+
+
+def probe(path: Path, now: float, budget_s: float = PROBE_BUDGET_S,
+          home: Path | None = None) -> dict:
     """Walk a tree (no symlink follow) for live markers and the newest mtime.
     Stops at the first live marker or when the time budget runs out."""
     t0 = time.monotonic()
@@ -120,6 +136,8 @@ def probe(path: Path, now: float, budget_s: float = PROBE_BUDGET_S) -> dict:
         if time.monotonic() - t0 > budget_s:
             return {"newest": newest, "live": None, "complete": False}
         d = stack.pop()
+        if macos_private(d, home or Path.home()):
+            continue
         try:
             st = os.lstat(d)
         except OSError:
@@ -168,6 +186,8 @@ def classify(path, m: dict, home: Path, now: float, pr: dict | None,
     why = personal_reason(p, home)
     if why:
         return "personal", why
+    if macos_private(p, home):
+        return "macos-protected", MACOS_PRIVATE_REASON
     for root in protected_paths(m):
         if _under(p, root):
             return "protected", f"protected in machine.toml: {tilde(root, home)}"
@@ -189,12 +209,38 @@ def classify(path, m: dict, home: Path, now: float, pr: dict | None,
 
 # ---------------------------------------------------------------- scan
 
-def du_children(parent: Path) -> list[dict]:
+def _du_sum(paths: list[str]) -> int:
+    total = 0
+    for i in range(0, len(paths), 200):
+        try:
+            r = subprocess.run(["du", "-skx", *paths[i:i + 200]], capture_output=True, text=True,
+                               timeout=DU_TIMEOUT)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        total += sum(int(kb) for kb, _, _ in (ln.partition("\t") for ln in r.stdout.splitlines())
+                     if kb.isdigit())
+    return total
+
+
+def du_children(parent: Path, home: Path | None = None) -> list[dict]:
+    """Sizes of parent's children. Never enters MACOS_PRIVATE: those get kb None, and a
+    folder holding them (~/Library) is sized from its other children."""
+    home = expand(home or Path.home())
+    if macos_private(parent, home):
+        return []
     try:
         kids = [str(c) for c in parent.iterdir() if not c.is_symlink()]
     except OSError:
         return []
-    out = []
+    out = [{"path": k, "kb": None, "note": MACOS_PRIVATE_REASON} for k in kids if macos_private(k, home)]
+    for k in [k for k in kids if _holds_private(k, home)]:
+        try:
+            sub = [str(c) for c in Path(k).iterdir()
+                   if not c.is_symlink() and not macos_private(c, home)]
+        except OSError:
+            sub = []
+        out.append({"path": k, "kb": _du_sum(sub), "note": "excludes app containers (" + MACOS_PRIVATE_REASON + ")"})
+    kids = [k for k in kids if not macos_private(k, home) and not _holds_private(k, home)]
     for i in range(0, len(kids), 200):
         try:
             r = subprocess.run(["du", "-skx", *kids[i:i + 200]], capture_output=True, text=True,
@@ -205,7 +251,7 @@ def du_children(parent: Path) -> list[dict]:
             kb, _, path = line.partition("\t")
             if kb.isdigit():
                 out.append({"path": path, "kb": int(kb)})
-    return sorted(out, key=lambda x: -x["kb"])
+    return sorted(out, key=lambda x: -(x["kb"] or 0))
 
 
 def last_used(app: Path) -> str | None:
@@ -244,10 +290,10 @@ def scan(home: Path | None = None, now: float | None = None) -> dict:
     now = now or time.time()
     parents = [home] + [home / d for d in DRILL]
     with ThreadPoolExecutor(6) as ex:
-        sizes = dict(zip([str(p) for p in parents], ex.map(du_children, parents)))
+        sizes = dict(zip([str(p) for p in parents], ex.map(lambda p: du_children(p, home), parents)))
         apps_f = ex.submit(scan_apps, home)
-        big = {e["path"] for lst in sizes.values() for e in lst if e["kb"] >= BIG_KB}
-        probes = dict(zip(big, ex.map(lambda p: probe(Path(p), now), big)))
+        big = {e["path"] for lst in sizes.values() for e in lst if (e["kb"] or 0) >= BIG_KB and not macos_private(e["path"], home)}
+        probes = dict(zip(big, ex.map(lambda p: probe(Path(p), now, home=home), big)))
         apps = apps_f.result()
     return {"version": SCAN_VERSION, "scanned_at": now, "home": str(home),
             "sizes": sizes, "probes": probes, "apps": apps}
@@ -381,16 +427,16 @@ def build(m: dict, home: Path, rescan: bool = False, now: float | None = None) -
     for parent, entries in data.get("sizes", {}).items():
         rows = []
         for e in entries:
-            if e["kb"] < BIG_KB:
+            if e["kb"] is not None and e["kb"] < BIG_KB:
                 continue
             cls, why = classify(e["path"], m, home, now, probes.get(e["path"]))
-            row = {"path": tilde(e["path"], home), "kb": e["kb"], "desc": describe(e["path"]),
+            row = {"path": tilde(e["path"], home), "kb": e["kb"], "desc": describe(e["path"]) + (f" ({e['note']})" if e.get("note") and e["kb"] is not None else ""),
                    "class": cls, "reason": why}
             rows.append(row)
             seen[row["path"]] = row
         tab["sections"].append({"parent": tilde(parent, home), "rows": rows})
     tab["candidates"] = sorted((r for r in seen.values() if r["class"] == "candidate"),
-                               key=lambda r: -r["kb"])
+                               key=lambda r: -(r["kb"] or 0))
     return tab
 
 
@@ -414,7 +460,7 @@ CSS = """
 .brow{display:grid;grid-template-columns:minmax(220px,360px) 90px 1fr;gap:8px;align-items:center;font-size:13px;padding:2px 0}
 .brow .b{height:12px;background:var(--acc);border-radius:3px;min-width:2px}.brow .d{grid-column:1/-1;color:var(--mut);font-size:12px;margin:-2px 0 4px}
 table.mt{border-collapse:collapse;font-size:13px;width:100%;max-width:1100px}table.mt td,table.mt th{border-top:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}
-.c-candidate{color:var(--warn);font-weight:600}.c-live,.c-protected,.c-personal{color:var(--ok)}.c-broken{color:var(--fail);font-weight:600}
+.c-candidate{color:var(--warn);font-weight:600}.c-live,.c-protected,.c-macos-protected,.c-personal{color:var(--ok)}.c-broken{color:var(--fail);font-weight:600}
 """
 
 JS = r"""
@@ -451,10 +497,10 @@ def render_tab(tab: dict, esc) -> str:
         h.append(f'<h2>{"Home folders" if s["parent"] == "~" else esc(s["parent"])} (over 300 MB)</h2>')
         if not rows:
             h.append('<p class="hint">Nothing over 300 MB.</p>')
-        top = max([r["kb"] for r in rows] or [1])
+        top = max([r["kb"] or 0 for r in rows] + [1])
         for r in rows:
             h.append(f'<div class="brow"><code>{esc(r["path"])}</code><span>{gib(r["kb"])}</span>'
-                     f'<div class="b" style="width:{r["kb"] * 100 / top:.1f}%"></div>'
+                     f'<div class="b" style="width:{(r["kb"] or 0) * 100 / top:.1f}%"></div>'
                      f'<div class="d">{esc(r["desc"] or "")}{" · " if r["desc"] else ""}'
                      f'<span class="c-{esc(r["class"])}">{esc(r["class"])}</span>: {esc(r["reason"])}</div></div>')
     c = tab.get("candidates", [])
