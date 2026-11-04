@@ -941,7 +941,10 @@ final class IslandModel: ObservableObject {
             if !Set(old).subtracting(now).isEmpty { harnessExitSeq &+= 1 }
         }
     }
-    private(set) var sourceGroupSlots: [String: Int] = [:]
+    @Published private(set) var sourceGroupSlots: [String: Int] = [:]
+    /// Keep a departing circle's slot unavailable until its exit transition finishes.
+    private var retiringSourceGroupSlots: [String: Int] = [:]
+    private var sourceGroupSlotReleaseWork: DispatchWorkItem?
     /// Bumped whenever a harness circle leaves, so the neighbours slide on the delayed exit slot curve
     /// (`IslandMotion.harnessExitSlot`) instead of the entry curve.
     private(set) var harnessExitSeq = 0
@@ -1000,7 +1003,7 @@ final class IslandModel: ObservableObject {
     var operatedApps: [IslandOperatedAppItem] { IslandOperatedApps.items(pluginUses) }
     var operatedAppsLabel: String { IslandOperatedApps.accessibilityLabel(IslandOperatedApps.names(pluginUses)) }
 
-    /// Operated app icons share the target ring's states, minus the step bar (it fills the centre).
+    /// Operated app icons share the target ring's states, including multi-step acting with its progress ring.
     var showsOperatedApps: Bool {
         !cardOpen && permissionWarning == nil && !operatedApps.isEmpty
             && Self.operatedAppStates.contains(presentation)
@@ -1008,7 +1011,7 @@ final class IslandModel: ObservableObject {
 
     /// ONE layout rule for every compact Samantha state (Guru, 2026-11-04): idle, working AND her voice
     /// states all draw ring · 24 · apps · [voice] · dot from the same IslandBarLayout functions.
-    static let operatedAppStates: [IslandPresentation] = [.idle, .doneSettled, .acting, .listening, .thinking, .speaking, .done]
+    static let operatedAppStates: [IslandPresentation] = [.idle, .doneSettled, .acting, .actingSteps, .listening, .thinking, .speaking, .done]
     /// States whose Samantha glyph + meter move into the voice slot (after the apps, before the dot)
     /// while something is controlled.
     static let voiceSlotStates: [IslandPresentation] = [.listening, .thinking, .speaking, .acting, .actingSteps, .done]
@@ -1201,7 +1204,13 @@ final class IslandModel: ObservableObject {
 
     private func updateVoiceTurn(kind: String, previous: String, now: Date) {
         switch kind {
-        case "listening", "thinking", "speaking":
+        case "listening":
+            voiceTurnActive = true
+            if now >= voiceHoldUntil {
+                voiceHoldUntil = .distantPast
+                voiceHoldWork?.cancel(); voiceHoldWork = nil
+            }
+        case "thinking", "speaking":
             voiceTurnActive = true
             voiceHoldUntil = .distantPast
             voiceHoldWork?.cancel(); voiceHoldWork = nil
@@ -1247,7 +1256,7 @@ final class IslandModel: ObservableObject {
     }
 
     private func endVoiceHold(deadline: Date, now: Date) {
-        guard deadline > .distantPast, voiceHoldUntil == deadline, now >= deadline else { return }
+        guard voiceHoldUntil == deadline, now >= deadline else { return }
         voiceTurnActive = false
         voiceHoldUntil = .distantPast
         voiceHoldWork?.cancel(); voiceHoldWork = nil
@@ -1865,6 +1874,31 @@ final class IslandModel: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.widthShrinkDebounce, execute: work)
     }
 
+    private func scheduleSourceGroupSlotRelease() {
+        sourceGroupSlotReleaseWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.sourceGroupSlotReleaseWork = nil
+            self.retiringSourceGroupSlots.removeAll()
+
+            let limit = IslandSourceGroups.maxCircles
+            var slots = self.sourceGroupSlots
+            var used = Set(slots.values.filter { $0 < limit })
+            for id in self.sourceGroups.map(\.id) {
+                guard let slot = slots[id], slot >= limit,
+                      let available = (0..<limit).first(where: { !used.contains($0) }) else { continue }
+                slots[id] = available
+                used.insert(available)
+            }
+            if slots != self.sourceGroupSlots {
+                self.sourceGroupSlots = slots
+                self.harnessChangeSeq &+= 1
+            }
+        }
+        sourceGroupSlotReleaseWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + IslandMotion.harnessExitDuration, execute: work)
+    }
+
     private func refresh(now: Date) {
         if let n = noticeUntil, now >= n { noticeUntil = nil; notice = nil }
         if voiceOverEnabled(), ["error", "done"].contains(kind), peekUntil != nil, dismissedPeekKind != kind {
@@ -1887,16 +1921,20 @@ final class IslandModel: ObservableObject {
                                       seenFailures: seenFailures, now: now),
             active: samanthaHasCircle)
         let groups = freshGroups
-        if groups.isEmpty {
-            sourceGroupSlots.removeAll()
-        } else {
-            let liveIDs = Set(groups.map(\.id))
-            sourceGroupSlots = sourceGroupSlots.filter { liveIDs.contains($0.key) }
-            var nextSlot = (sourceGroupSlots.values.max() ?? -1) + 1
-            for group in groups where sourceGroupSlots[group.id] == nil {
-                sourceGroupSlots[group.id] = nextSlot
-                nextSlot += 1
-            }
+        let liveIDs = Set(groups.map(\.id))
+        let departed = sourceGroupSlots.filter { !liveIDs.contains($0.key) }
+        retiringSourceGroupSlots.merge(departed) { _, new in new }
+        var nextSlots = sourceGroupSlots.filter { liveIDs.contains($0.key) }
+        var releaseSlots = !departed.isEmpty
+        for group in groups where nextSlots[group.id] == nil {
+            let slot = retiringSourceGroupSlots.removeValue(forKey: group.id)
+                ?? ((Array(nextSlots.values) + Array(retiringSourceGroupSlots.values)).max() ?? -1) + 1
+            nextSlots[group.id] = slot
+            if slot >= IslandSourceGroups.maxCircles { releaseSlots = true }
+        }
+        if nextSlots != sourceGroupSlots { sourceGroupSlots = nextSlots }
+        if releaseSlots {
+            scheduleSourceGroupSlotRelease()
         }
         if groups != sourceGroups { sourceGroups = groups }
         scheduleDoneExpiry(now: now)

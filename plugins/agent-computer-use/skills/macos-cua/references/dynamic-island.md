@@ -124,12 +124,16 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   Without a target, the voice slot begins 9 pt from the left and the dot ends 9 pt
   from the right; their clear gap is at least 8 pt, and the pill grows if needed.
   Idle, listening, thinking and speaking share that slot edge and dot position.
+  Multi-step acting keeps the operated apps and voice slot in the same layout.
   The voice slot and dot stay as a group; app order is newest first. Harness
   circles sit left; plugin marks stay right.
   The voice slot is reserved from listening through done plus 2 s. Done is shown
   as the harness badge, not as a 16 pt pill glyph. Growth is immediate; shrink
-  waits for 400 ms of stable content. Targets and app activity remain visible
-  until the voice turn ends. Speaking with no audio returns to idle after 3 s.
+  waits for 400 ms of stable content. Playback completion may publish listening
+  without cancelling the done hold; direct idle without a done hold clears the
+  turn. Targets and app activity remain visible until the voice turn ends.
+  Harness slots stay reserved through the 150 ms exit transition, then overflow
+  slots settle into freed positions. Speaking with no audio returns to idle after 3 s.
   **Target glyph rule** (Guru 2026-11-04 15:27 / 15:29 IST, "that is the design
   language"): every controlled target, current or future, draws its BARE logo glyph
   in the ring on the black pill, never on a white tile or squircle. One path,

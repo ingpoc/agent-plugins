@@ -100,6 +100,20 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         }
     }
 
+    func testMultiStepActingKeepsOperatedAppsAndVoiceSlotInsideThePill() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let now = Date()
+        model.apply(Self.voice("listening", apps: ["Calculator"]), now: now)
+        model.apply(IslandSnapshot(kind: "acting", title: "Using Calculator", app: "Calculator", step_total: 2,
+                                   plugins: Self.uses(["Calculator"]), samantha_on: true),
+                    now: now.addingTimeInterval(0.2))
+
+        XCTAssertEqual(model.presentation, .actingSteps)
+        XCTAssertTrue(model.showsOperatedApps)
+        assertZones(model, apps: 1, voice: .thinking, "multi-step acting")
+    }
+
     func testVoiceStatesStayAtSeventyFourAndKeepTheVoiceSlotReserved() async {
         let model = IslandModel()
         model.idleActivity = "duo"
@@ -135,6 +149,36 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         XCTAssertTrue(model.showsTargetMark, "the target remains during done + 2 s")
         XCTAssertEqual(IslandOperatedApps.names(model.pluginUses), ["Calculator"])
         model.apply(IslandSnapshot(kind: "idle", title: "Ready", plugins: [], samantha_on: true), now: now.addingTimeInterval(3.1))
+        XCTAssertFalse(model.showsTargetMark)
+        XCTAssertTrue(model.operatedApps.isEmpty)
+        XCTAssertNil(model.voiceSlotContent)
+    }
+
+    func testListeningPlaybackCompletionPreservesDoneHoldUntilItExpires() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let now = Date()
+        let calculator = Self.acu("com.apple.calculator", 300)
+        model.apply(Self.voice("listening", apps: [], plugins: [calculator]), now: now)
+        model.apply(IslandSnapshot(kind: "done", title: "Done", samantha_on: true), now: now.addingTimeInterval(0.5))
+        model.apply(IslandSnapshot(kind: "listening", title: "Listening", samantha_on: true), now: now.addingTimeInterval(1))
+        model.apply(IslandSnapshot(kind: "idle", title: "Ready", samantha_on: true), now: now.addingTimeInterval(2.4))
+
+        XCTAssertTrue(model.showsTargetMark, "playback completion must not cancel the done + 2 s target hold")
+        XCTAssertEqual(IslandOperatedApps.names(model.pluginUses), ["Calculator"])
+        model.apply(IslandSnapshot(kind: "idle", title: "Ready", samantha_on: true), now: now.addingTimeInterval(2.6))
+        XCTAssertFalse(model.showsTargetMark)
+        XCTAssertTrue(model.operatedApps.isEmpty)
+    }
+
+    func testIdleWithoutDoneClearsTheVoiceTurnAndRetainedTarget() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let now = Date()
+        let calculator = Self.acu("com.apple.calculator", 300)
+        model.apply(Self.voice("listening", apps: [], plugins: [calculator]), now: now)
+        model.apply(IslandSnapshot(kind: "idle", title: "Ready", samantha_on: true), now: now.addingTimeInterval(0.5))
+
         XCTAssertFalse(model.showsTargetMark)
         XCTAssertTrue(model.operatedApps.isEmpty)
         XCTAssertNil(model.voiceSlotContent)

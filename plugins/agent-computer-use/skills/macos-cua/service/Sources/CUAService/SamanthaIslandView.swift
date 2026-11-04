@@ -958,6 +958,7 @@ struct SamanthaIslandBar: View {
         .animation(widthAnimation, value: model.circles)
         .animation(IslandMotion.operatedWidth(reduce: reduceMotion), value: model.operatedApps)
         .animation(IslandMotion.harness(reduce: reduceMotion), value: model.sourceGroups)
+        .animation(IslandMotion.harness(reduce: reduceMotion), value: model.sourceGroupSlots)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.agentApproval?.id)
         .animation(IslandMotion.pop(reduce: reduceMotion), value: model.secondary)
         .animation(IslandMotion.target(model.trayTargeted, reduce: reduceMotion), value: model.trayTargeted)
