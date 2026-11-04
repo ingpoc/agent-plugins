@@ -143,9 +143,14 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   leaves when the session stops. Harness motion (`IslandMotion.harness*`, one
   path for every harness): `.smooth(duration: 0.35)` (`widthCurve`), the same
   transaction that slides the neighbours one slot (circle + 4 pt); enter is scale
-  0.6 → 1 plus opacity 0 → 1 about the circle's own centre, the whole circle
-  (backing, rim, badges) as one layer, leave is the exact reverse and the slot
-  closes; Reduce Motion is a 0.15 s cross-fade with no slide or scale. Her mark is
+  0.6 → 1 plus opacity 0 → 1, the whole circle (backing, rim, badges) as one
+  layer (`HarnessSlotEffect`), kept inside its own opening slot: the free space
+  between the sliding neighbour and the pill is shared 4 : 6 as at rest
+  (`IslandMotion.harnessFrame`), so it never sits under the pill and lands
+  exactly on its slot. It draws above the neighbours it pushes
+  (`harnessDrawOrder`, also while leaving). Leave is the exact reverse and the
+  slot closes. Reduce Motion: the layout snaps at once (no slide, no scale) and
+  only the entering or leaving circle fades over 0.15 s. Her mark is
   her own (Guru 11:09 IST: "the style of samantha should be distinct"; 11:54 IST
   picked the wave): `SamanthaMark`, one tapered sound wave, 2 pt round-cap stroke,
   60 % of the circle wide, vertically centred, gradient #BF5AF2 → #FF6482 left to

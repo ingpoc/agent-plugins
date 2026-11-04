@@ -26,15 +26,47 @@ enum IslandMotion {
         reduce ? .opacity : .scale(scale: 0.6, anchor: anchor).combined(with: .opacity)
     }
     /// Harness circles on the left (Codex, Cursor, Grok, Samantha, "+N"): ONE shared motion for every
-    /// harness, Samantha included (UI & UX, 2026-11-04 11:57 IST).
-    /// - Curve and duration: `widthCurve`, `.smooth(duration: 0.35)`, the same transaction that moves the
-    ///   neighbours, so the entering slot (circle + 4 pt) opens while they slide; Reduce Motion: `crossfade`.
-    /// - Enter: scale 0.6 → 1 and opacity 0 → 1 about the circle's own centre; leave is the exact reverse.
-    /// - Reduce Motion: opacity only, and moved neighbours cross-fade in place instead of sliding.
-    static func harness(reduce: Bool) -> Animation { width(reduce: reduce) }
+    /// harness, Samantha included (UI & UX, 2026-11-04 11:57 / 12:24 IST).
+    /// - Curve and duration: `widthCurve`, `.smooth(duration: 0.35)`, the same transaction that slides the
+    ///   neighbours, so the entering slot (circle + 4 pt) opens while they slide.
+    /// - Enter: scale 0.6 → 1 and opacity 0 → 1, the whole circle as one layer, kept centred in its own
+    ///   opening slot (`harnessFrame`); leave is the exact reverse and the slot closes. Drawn above the
+    ///   neighbours that slide (`harnessDrawOrder`).
+    /// - Reduce Motion: no slide, no scale; the layout snaps and only the entering / leaving circle fades
+    ///   over 0.15 s (`crossfade`).
+    static func harness(reduce: Bool) -> Animation? { reduce ? nil : widthCurve }
     static let harnessEnterScale: CGFloat = 0.6
-    static func harnessTransition(reduce: Bool, rect: CGRect) -> AnyTransition {
-        reduce ? .opacity : .scale(scale: harnessEnterScale, anchor: harnessAnchor(rect)).combined(with: .opacity)
+    static let harnessSlot: CGFloat = IslandBarLayout.circleDiameter + IslandBarLayout.circleSpacing
+    static func harnessTransition(reduce: Bool, rect: CGRect,
+                                  trailingGap: CGFloat = IslandBarLayout.circleSpacing) -> AnyTransition {
+        if reduce { return AnyTransition.opacity.animation(crossfade) }
+        return .modifier(active: HarnessSlotEffect(progress: 0, rect: rect, trailingGap: trailingGap),
+                         identity: HarnessSlotEffect(progress: 1, rect: rect, trailingGap: trailingGap))
+    }
+    /// Where a circle whose slot is `progress` open (0 closed … 1 open) is drawn. The slot opens between the
+    /// neighbour that slides out (`harnessSlot × progress`, same curve) and what sits `trailingGap` to its
+    /// right (pill or circle); the circle takes the free space in the same ratio as at rest
+    /// (`circleSpacing` : `trailingGap`), so it lands exactly on `r` and never sits under either side once
+    /// the opened slot is wider than the circle. Never under the right-hand side, even at the very start.
+    static func harnessFrame(final r: CGRect, progress v: CGFloat,
+                             trailingGap g: CGFloat = IslandBarLayout.circleSpacing) -> CGRect {
+        let d = r.width * (harnessEnterScale + (1 - harnessEnterScale) * v)
+        let lead = IslandBarLayout.circleSpacing
+        let left = r.minX - lead + harnessSlot * (1 - v)       // the sliding neighbour's trailing edge
+        let right = r.maxX + g                                 // pill / next circle, fixed
+        let free = right - left - d
+        let midX = min(left + free * lead / (lead + g) + d / 2, right - d / 2)
+        return CGRect(x: midX - d / 2, y: r.midY - d / 2, width: d, height: d)
+    }
+    /// What sits right of harness slot `index`: the pill for the first circle, the previous circle otherwise.
+    static func harnessTrailingGap(rects: [CGRect], index: Int, shape: CGRect) -> CGFloat {
+        index == 0 ? shape.minX - rects[0].maxX : rects[index - 1].minX - rects[index].maxX
+    }
+    /// Draw order: nearer the pill is on top, and a circle that stays ranks by the farther-out of its old and
+    /// new slot. The circle entering or leaving is always nearer the pill than the neighbours its slot pushes,
+    /// and a leaving circle keeps its last rank, so it stays above them on turn-on AND turn-off.
+    static func harnessDrawOrder(id: String, slot index: Int, previous: [String]) -> Double {
+        -Double(max(index, previous.firstIndex(of: id) ?? index))
     }
     /// Circles are placed with `.offset` inside the window-sized ZStack, so their layout frame sits at the
     /// origin; the scale anchor must be the drawn circle's centre in that frame's unit space.
@@ -42,12 +74,27 @@ enum IslandMotion {
         guard r.width > 0, r.height > 0 else { return .center }
         return UnitPoint(x: r.midX / r.width, y: r.midY / r.height)
     }
-    /// ForEach identity: stable per group so neighbours slide; under Reduce Motion a moved neighbour gets a
-    /// new identity so it cross-fades at its new slot instead of sliding.
-    static func harnessSlotID(_ groupID: String, slot: Int, reduce: Bool) -> String {
-        reduce ? "\(groupID)@\(slot)" : groupID
-    }
     static var systemReduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+}
+
+/// Enter / leave of one harness circle as ONE animatable value, so scale, opacity and position stay locked
+/// to the slot that is opening or closing on the same curve.
+struct HarnessSlotEffect: ViewModifier, Animatable {
+    var progress: CGFloat
+    let rect: CGRect
+    var trailingGap: CGFloat = IslandBarLayout.circleSpacing
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+    func body(content: Content) -> some View {
+        let f = IslandMotion.harnessFrame(final: rect, progress: progress, trailingGap: trailingGap)
+        content
+            .compositingGroup()
+            .scaleEffect(f.width / rect.width, anchor: IslandMotion.harnessAnchor(rect))
+            .opacity(Double(progress))
+            .offset(x: f.midX - rect.midX)
+    }
 }
 
 /// The island silhouette as one animatable path inside a FIXED-size container: the spring interpolates

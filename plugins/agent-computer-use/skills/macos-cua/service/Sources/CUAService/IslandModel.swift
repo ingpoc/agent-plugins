@@ -894,7 +894,12 @@ final class IslandModel: ObservableObject {
     /// Agent list opened then closed: acknowledge these timed-out notices.
     var onAckExpired: (([String]) -> Void)?
     /// One circle per source (left of the pill).
-    @Published private(set) var sourceGroups: [IslandSourceGroup] = []
+    @Published private(set) var sourceGroups: [IslandSourceGroup] = [] {
+        didSet { if oldValue.map(\.id) != sourceGroups.map(\.id) { previousSourceGroupIDs = oldValue.map(\.id) } }
+    }
+    /// The harness order before the last change, so a circle entering or leaving draws above the neighbours
+    /// it pushes (`IslandMotion.harnessDrawOrder`).
+    private(set) var previousSourceGroupIDs: [String] = []
     /// Seconds left on the pill's card in its final 60 s (nil otherwise) — amber ring + pulse.
     @Published private(set) var cardRemaining: Int?
     // Choice card state (lives here so keys, drafts and tests share it)

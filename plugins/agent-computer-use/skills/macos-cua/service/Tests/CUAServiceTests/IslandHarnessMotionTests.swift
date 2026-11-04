@@ -9,10 +9,60 @@ import XCTest
 final class IslandHarnessMotionTests: XCTestCase {
     private let codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task", status: "running", last_seen_at: 100)
 
-    func testHarnessMotionIsTheSharedWidthCurveAndCrossfadeUnderReduceMotion() {
+    func testHarnessMotionIsTheSharedWidthCurveAndSnapsUnderReduceMotion() {
         XCTAssertEqual(IslandMotion.harness(reduce: false), IslandMotion.widthCurve)
-        XCTAssertEqual(IslandMotion.harness(reduce: true), IslandMotion.crossfade)
+        XCTAssertNil(IslandMotion.harness(reduce: true), "Reduce Motion: the layout snaps, nothing slides")
         XCTAssertEqual(IslandMotion.harnessEnterScale, 0.6)
+    }
+
+    /// Value of the shared curve (`.smooth(duration: 0.35)`, a critically damped spring) at `fraction` of 0.35 s.
+    private func curve(_ fraction: Double) -> CGFloat {
+        CGFloat(Spring(duration: 0.35, bounce: 0).value(target: 1.0, time: 0.35 * fraction))
+    }
+
+    /// Frame geometry of a turn-on / turn-off, one Codex neighbour (UI & UX, 2026-11-04 12:24 IST): on the
+    /// shared curve the circle never sits under the pill, never overlaps Codex from the 25 % frame on, clears
+    /// it by ≥ 2 pt from 50 %, lands exactly on its slot, and draws above the neighbour it pushes. (At 25 % the
+    /// opened slot is 19.0 pt for an 18.9 pt circle, so ≥ 2 pt there needs a smaller start scale.)
+    func testEnteringCircleStaysInItsOpeningSlotAndAboveItsNeighbour() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "listening", title: "Listening", agents: [codex], samantha_on: true))
+        let final = IslandBarLayout.agentRects(shape: model.shapeRect, count: 2)
+        XCTAssertEqual(model.sourceGroups.first?.id, IslandSourceGroups.samantha, "Samantha nearest the pill")
+        let sam = final[0], codexFinal = final[1], pillMinX = model.shapeRect.minX
+        let gap = IslandMotion.harnessTrailingGap(rects: final, index: 0, shape: model.shapeRect)
+        XCTAssertEqual(gap, 6, accuracy: 0.001)
+        var clear: [Int: CGFloat] = [:]
+        for step in 0...20 {
+            let f = Double(step) / 20, v = curve(f)
+            let s = IslandMotion.harnessFrame(final: sam, progress: v, trailingGap: gap)
+            let codexMaxX = codexFinal.maxX + IslandMotion.harnessSlot * (1 - v)   // Codex slides on the same curve
+            XCTAssertEqual(s.width, sam.width * (0.6 + 0.4 * v), accuracy: 0.001)
+            XCTAssertEqual(s.midY, sam.midY, accuracy: 0.001)
+            XCTAssertLessThanOrEqual(s.maxX, pillMinX + 0.001, "never under the pill (\(f))")
+            clear[step * 5] = s.minX - codexMaxX
+            if f >= 0.25 { XCTAssertGreaterThanOrEqual(s.minX - codexMaxX, 0, "no overlap with Codex at \(f)") }
+            if f >= 0.5 { XCTAssertGreaterThanOrEqual(s.minX - codexMaxX, 2, "≥ 2 pt clear at \(f)") }
+        }
+        XCTAssertEqual(clear[100]!, IslandBarLayout.circleSpacing, accuracy: 0.2, "spring ~settled at 0.35 s")
+        let landed = IslandMotion.harnessFrame(final: sam, progress: 1, trailingGap: gap)
+        XCTAssertEqual(landed.minX, sam.minX, accuracy: 0.001)
+        XCTAssertEqual(landed.width, sam.width, accuracy: 0.001)
+        let mid = IslandMotion.harnessFrame(final: final[1], progress: 1, trailingGap: IslandBarLayout.circleSpacing)
+        XCTAssertEqual(mid.minX, final[1].minX, accuracy: 0.001, "lands exactly for a circle after another circle too")
+        // Turn-on: Samantha enters at 0, Codex moves 0 → 1.
+        let on = model.previousSourceGroupIDs
+        let samOn = IslandMotion.harnessDrawOrder(id: IslandSourceGroups.samantha, slot: 0, previous: on)
+        let codexOn = IslandMotion.harnessDrawOrder(id: model.sourceGroups[1].id, slot: 1, previous: on)
+        XCTAssertGreaterThan(samOn, codexOn, "entering circle above the neighbour it pushes")
+        // Turn-off: Samantha leaves, keeping her last rank (slot 0); Codex moves 1 → 0.
+        model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
+        let off = model.previousSourceGroupIDs
+        XCTAssertEqual(off.first, IslandSourceGroups.samantha)
+        let codexOff = IslandMotion.harnessDrawOrder(id: model.sourceGroups[0].id, slot: 0, previous: off)
+        XCTAssertGreaterThan(samOn, codexOff, "leaving circle stays above the neighbour sliding back")
+        print(String(format: "harness clearance to Codex: 25%% %.2f pt, 50%% %.2f pt, 75%% %.2f pt", clear[25]!, clear[50]!, clear[75]!))
     }
 
     func testScaleAnchorIsTheDrawnCircleCentre() {
@@ -21,13 +71,6 @@ final class IslandHarnessMotionTests: XCTestCase {
         let a = IslandMotion.harnessAnchor(r)
         XCTAssertEqual(a.x * r.width, r.midX, accuracy: 0.001)
         XCTAssertEqual(a.y * r.height, r.midY, accuracy: 0.001)
-    }
-
-    func testNeighboursKeepIdentityToSlideButCrossfadeUnderReduceMotion() {
-        XCTAssertEqual(IslandMotion.harnessSlotID("Codex", slot: 0, reduce: false),
-                       IslandMotion.harnessSlotID("Codex", slot: 1, reduce: false), "same view, so it slides")
-        XCTAssertNotEqual(IslandMotion.harnessSlotID("Codex", slot: 0, reduce: true),
-                          IslandMotion.harnessSlotID("Codex", slot: 1, reduce: true), "new view, so it cross-fades")
     }
 
     func testTurningSamanthaOnOpensASlotAndMovesTheNeighbourByOneSlot() {

@@ -529,9 +529,10 @@ private struct HelpIfPresent: ViewModifier {
 }
 
 /// One circle per source (max 3 + "+N"): urgent groups sort first and retain state markers.
-/// One harness circle's slot in the left ForEach (see `IslandMotion.harnessSlotID`).
+/// One harness circle's slot in the left ForEach (stable id, so neighbours slide and never duplicate).
 struct HarnessSlot: Identifiable {
     let id: String
+    let index: Int
     let group: IslandSourceGroup
     let rect: CGRect
 }
@@ -750,8 +751,7 @@ struct SamanthaIslandBar: View {
             if model.showAgentCircle {
                 let rs = IslandBarLayout.agentRects(shape: rect, count: model.sourceGroups.count)
                 let slots = Array(zip(model.sourceGroups, rs).enumerated())
-                ForEach(slots.map { HarnessSlot(id: IslandMotion.harnessSlotID($0.element.0.id, slot: $0.offset, reduce: reduceMotion),
-                                                group: $0.element.0, rect: $0.element.1) }) { slot in
+                ForEach(slots.map { HarnessSlot(id: $0.element.0.id, index: $0.offset, group: $0.element.0, rect: $0.element.1) }) { slot in
                     let g = slot.group, r = slot.rect
                     // One layer (backing, rim, badges) scaled from its own centre, never clipped.
                     SamanthaSourceCircle(group: g, differentiate: model.systemDifferentiate)
@@ -764,8 +764,13 @@ struct SamanthaIslandBar: View {
                         .accessibilityHidden(g.id != model.sourceGroups.first?.id)
                         .onTapGesture { model.openAgentList() }
                         .offset(x: r.minX, y: r.minY)
+                        // Reduce Motion: neighbours snap to their slots even when the pill width animates in
+                        // the same update; only the transition's own 0.15 s fade runs (IslandMotion.harness*).
+                        .transaction { if reduceMotion { $0.animation = nil } }
                         // Shared harness enter/leave (IslandMotion.harness*): leaving reverses entering.
-                        .transition(IslandMotion.harnessTransition(reduce: reduceMotion, rect: r))
+                        .transition(IslandMotion.harnessTransition(reduce: reduceMotion, rect: r,
+                                                                 trailingGap: IslandMotion.harnessTrailingGap(rects: rs, index: slot.index, shape: rect)))
+                        .zIndex(IslandMotion.harnessDrawOrder(id: g.id, slot: slot.index, previous: model.previousSourceGroupIDs))
                 }
             }
             if let sec = model.secondary, let sr = model.secondaryRect {
