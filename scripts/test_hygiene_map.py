@@ -250,6 +250,18 @@ class HygieneMapTest(unittest.TestCase):
         self.assertIn("Plugins vs Origin main", groups)
         self.assertEqual(t["children"][-1]["label"], "Machine checks")
 
+    def test_service_checkout_is_named_not_an_extra_clone(self) -> None:
+        svc = self.fx.apps / "ci-clone"
+        sh(self.fx.apps, "clone", "-q", "-o", "origin-cursor", str(self.fx.origin), "ci-clone")
+        self.fx.manifest["exceptions"]["checkouts"] = [str(svc)]
+        self.fx.manifest["exceptions"]["checkout_labels"] = {str(svc): "Origin CI runner"}
+        ap = next(c for c in self.tree()["children"] if c["label"] == "agent-plugins")
+        self.assertEqual(ap["path"], "~/apps/agent-plugins")
+        labels = [c["label"] for c in ap["children"]]
+        self.assertIn("Service checkouts (1)", labels)
+        self.assertFalse(any(x.startswith("Extra clones") for x in labels))
+        self.assertIsNotNone(self.find(ap, label="Origin CI runner (~/apps/ci-clone)", role="service checkout"))
+
     def test_status_colours_from_git_state(self) -> None:
         self.add_other_repo()
         t = self.tree(rows=[])

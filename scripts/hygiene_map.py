@@ -164,6 +164,17 @@ def owner_of(path: str, branch: str) -> str:
     return "unknown"
 
 
+def service_label(path: Path, m: dict) -> str | None:
+    """Name of an approved service checkout (exceptions.checkouts), else None."""
+    ex = m.get("exceptions", {})
+    labels = {expand(k): v for k, v in ex.get("checkout_labels", {}).items()}
+    if expand(path) in labels:
+        return labels[expand(path)]
+    if any(expand(x) == expand(path) for x in ex.get("checkouts", [])):
+        return "Service checkout"
+    return None
+
+
 def placement(path: Path, m: dict) -> str:
     p = m.get("paths", {})
     ok = [expand(p[k]) for k in ("checkout_root", "worktree_root") if k in p]
@@ -342,6 +353,7 @@ def scan_clone(clone: Path, m: dict, home: Path, now: float) -> dict:
         "remotes": sorted(norm_remote(u) for u in set(urls.values())),
         "main_ref": mref.removeprefix("refs/remotes/").removeprefix("refs/heads/") if mref else None,
         "place": placement(clone, m),
+        "service": service_label(clone, m),
         "worktrees": sorted(worktrees, key=lambda w: (w["kind"] != "clone", w["path"])),
         "branches": branches,
     }
@@ -663,10 +675,20 @@ def build_tree(snap: dict, rows: list[dict], home: Path, host: str) -> dict:
         by_repo.setdefault(c["repo"], []).append(c)
     for name in sorted(by_repo, key=str.lower):
         cl = by_repo[name]
-        primary = min(cl, key=lambda c: (c["place"] != "ok", c["path"].count("/"), c["path"]))
+        primary = min(cl, key=lambda c: (bool(c.get("service")), c["place"] != "ok",
+                                         c["path"].count("/"), c["path"]))
         rn = clone_node(primary, name, True)
         rn["kind"] = "repo"
-        extras = [c for c in cl if c is not primary]
+        services = [c for c in cl if c is not primary and c.get("service")]
+        extras = [c for c in cl if c is not primary and not c.get("service")]
+        if services:
+            g = node("group", f"Service checkouts ({len(services)})")
+            for c in services:
+                sn = clone_node(c, f'{c["service"]} ({c["path"]})', False)
+                sn["role"] = "service checkout"
+                sn["reasons"] = [x for x in sn["reasons"] if x["check"] != "outside-root"]
+                g["children"].append(settle(sn))
+            rn["children"].append(settle(g))
         if extras:
             g = node("group", f"Extra clones ({len(extras)})")
             g["children"] = [clone_node(c, c["path"], False) for c in extras]
