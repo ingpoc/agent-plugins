@@ -229,6 +229,22 @@ final class IslandTests: XCTestCase {
         XCTAssertEqual(m.detail, "", "raw text is logged, not shown")
     }
 
+    func testKnownCausesGetSpecificCopyNotTheGenericError() {
+        let cases: [(String, String)] = [
+            ("Failed · Owner decision not found in recent user statements", "Ledger needs clearer details"),
+            ("Failed · Capture requires an explicit project scope", "Ledger needs clearer details"),
+            ("Context Ledger rejected the request (invalid argument: INVALID_ARGUMENT); nothing was saved", "Ledger needs clearer details"),
+            ("Failed · Context Ledger helper unavailable; nothing was saved", "Ledger unavailable"),
+            ("Ledger save outcome unknown; do not retry without checking", "Ledger save unconfirmed"),
+            ("comet_not_frontmost", "Couldn't bring Comet to front"),
+            ("confirmation required", "Needs your OK"),
+        ]
+        for (raw, copy) in cases {
+            XCTAssertEqual(IslandCopy.humanError(raw), copy, raw)
+            XCTAssertLessThanOrEqual(copy.count, IslandCopy.maxError)
+        }
+    }
+
     // MARK: - States, precedence, auto-peek (§4, §6)
 
     func testPresentationAndPrecedence() {

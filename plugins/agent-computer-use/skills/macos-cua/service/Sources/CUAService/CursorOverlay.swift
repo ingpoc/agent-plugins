@@ -198,6 +198,7 @@ final class CursorOverlay: @unchecked Sendable {
         if !panel.isVisible {
             panel.setFrameOrigin(origin)
             orderPanel(above: windowID)
+            logLayout(trigger: "overlay_show")
             return (quartz, 0)
         }
 
@@ -205,6 +206,7 @@ final class CursorOverlay: @unchecked Sendable {
         if abs(current.x - origin.x) < 0.5 && abs(current.y - origin.y) < 0.5 {
             panel.setFrameOrigin(origin)
             orderPanel(above: windowID)
+            logLayout(trigger: "overlay_move")
             return (quartz, 0)
         }
 
@@ -249,7 +251,18 @@ final class CursorOverlay: @unchecked Sendable {
         trailView.segments = []
         let wasVisible = panel.isVisible
         panel.orderOut(nil)
-        if wasVisible { record("hide", ["reason": reason]) }
+        if wasVisible { record("hide", ["reason": reason]); logLayout(trigger: "overlay_hide") }
+    }
+
+    /// The cursor art around its tip, as an `island_layout` overlay (global top-left points).
+    private func logLayout(trigger: String) {
+        guard let panel else { return }
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+        let tip = CGPoint(x: panel.frame.minX + Self.hotspot.x, y: panel.frame.minY + Self.hotspot.y)
+        let art = CGRect(x: tip.x - Self.artHotspot.x, y: tip.y - (90 - Self.artHotspot.y), width: 210, height: 90)
+        IslandLayoutLogger.shared.cursorOverlay(trigger: trigger,
+                                                rect: IslandLayoutEvent.topLeft(art, primaryHeight: primaryHeight),
+                                                visible: panel.isVisible)
     }
 
     // MARK: - Idle auto-hide
@@ -581,6 +594,7 @@ final class CursorOverlay: @unchecked Sendable {
         // Last frame snaps exactly onto the target.
         let origin = landed ? animTarget : sample(elapsed)
         panel.setFrameOrigin(origin)
+        logLayout(trigger: "overlay_move")
         if style == .cometSwoop {
             // Trail in panel-local space: screen origin -> local tip.
             let hs = Self.hotspot

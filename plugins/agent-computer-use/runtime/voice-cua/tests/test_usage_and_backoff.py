@@ -84,14 +84,15 @@ class UsageRowTests(_LogCase):
         row = json.loads(raw)
         self.assertEqual(
             list(row),
-            ["kind", "ts", "session_id", "response_id", "call_id", "latency_ms", *USAGE_FIELDS],
+            ["kind", "ts", "ts_iso", "session_id", "response_id", "call_id", "latency_ms", *USAGE_FIELDS],
         )
         self.assertEqual(row["kind"], "usage")
         self.assertEqual(row["session_id"], "abcd1234")
         self.assertEqual(row["response_id"], "resp_fake123")
         self.assertEqual(row["call_id"], "call_fake9")
         self.assertEqual(row["latency_ms"], 812)
-        self.assertIsNotNone(datetime.fromisoformat(row["ts"]).utcoffset())
+        self.assertIsInstance(row["ts"], float, "usage ts is numeric like every other row")
+        self.assertIsNotNone(datetime.fromisoformat(row["ts_iso"]).utcoffset())
         self.assertEqual(
             {k: row[k] for k in USAGE_FIELDS},
             {
@@ -115,14 +116,14 @@ class UsageRowTests(_LogCase):
             },
         })
         self.assertEqual(
-            set(row) - {"ts"},
+            set(row) - {"ts", "ts_iso"},
             {"kind", "session_id", "response_id", "input_tokens", "input_text_tokens"},
         )
 
     def test_no_usage_still_logs_ids_only(self) -> None:
         row = usage_row({"id": "resp_3"})
-        self.assertEqual(set(row), {"kind", "ts", "session_id", "response_id"})
-        self.assertEqual(set(usage_row(None)), {"kind", "ts", "session_id"})
+        self.assertEqual(set(row), {"kind", "ts", "ts_iso", "session_id", "response_id"})
+        self.assertEqual(set(usage_row(None)), {"kind", "ts", "ts_iso", "session_id"})
 
     def test_response_done_appends_one_usage_row(self) -> None:
         session = make_session()

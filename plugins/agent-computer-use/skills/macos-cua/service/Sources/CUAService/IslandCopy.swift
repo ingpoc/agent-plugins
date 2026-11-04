@@ -19,6 +19,14 @@ enum IslandCopy {
 
     /// (lower-cased needles, copy) — first match wins. `{target}` = app/control.
     private static let errorTable: [([String], String)] = [
+        // Known causes first (0.2.85), so the generic needles below never swallow them.
+        (["ledger rejected", "ledger_invalid_argument", "owner decision not found", "project scope",
+          "capture requires", "capture_gate"], "Ledger needs clearer details"),
+        (["outcome unknown", "ledger_outcome_unknown"], "Ledger save unconfirmed"),
+        (["ledger helper busy", "ledger busy"], "Ledger busy, try again"),
+        (["ledger helper unavailable", "ledger unavailable", "ledger_unavailable"], "Ledger unavailable"),
+        (["comet_not_frontmost", "not frontmost"], "Couldn't bring Comet to front"),
+        (["needs_confirm", "needs confirmation", "confirmation required", "needs your ok"], "Needs your OK"),
         (["mic unavailable", "microphone", "sounddevice", "input device"], "Can't hear you, check mic"),
         (["websocket", "connection reset", "connection closed", "connection lost", "connection refused",
           "reconnect", "ping timeout", "session expired", "session not found"], "Connection dropped, reconnecting"),
@@ -34,7 +42,8 @@ enum IslandCopy {
     ]
 
     private static let humanCopy: Set<String> = [
-        fallbackError, "Action not confirmed", "Action stopped after failures", "Can't hear you, check mic", "Connection dropped, reconnecting",
+        fallbackError, "Ledger needs clearer details", "Ledger save unconfirmed", "Ledger busy, try again", "Ledger unavailable",
+        "Couldn't bring Comet to front", "Needs your OK", "Action not confirmed", "Action stopped after failures", "Can't hear you, check mic", "Connection dropped, reconnecting",
         "Stopped — you said no", "Comet isn't available", "That took too long", "Voice hiccup, still here",
     ]
 

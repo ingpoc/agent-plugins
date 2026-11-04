@@ -44,6 +44,14 @@ enum SamanthaActivityLog {
         }
     }
 
+    /// Voice supervisor session id (set at supervisor_begin) so island rows join Samantha's session.
+    nonisolated(unsafe) static var currentSessionId = ""
+
+    /// One `island_layout` row (rectangles only; built by IslandLayoutLogger).
+    static func islandLayout(_ payload: [String: Any]) {
+        appendJSON(payload, to: activityURL)
+    }
+
     private static func appendJSON(_ obj: [String: Any], to url: URL) {
         guard JSONSerialization.isValidJSONObject(obj),
               let data = try? JSONSerialization.data(withJSONObject: obj),

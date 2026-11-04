@@ -173,6 +173,7 @@ final class SamanthaMenuBarIslandPanel {
         guard let panel else { return }
         let changed = panel.isVisible != visible
         if visible { panel.orderFrontRegardless() } else { panel.orderOut(nil) }
+        if changed { logLayout(trigger: visible ? "show" : "hide") }
         if changed {
             Self.gateLog.info("Island panel visible=\(visible, privacy: .public) reason=\(reason, privacy: .public)")
         }
@@ -262,8 +263,25 @@ final class SamanthaMenuBarIslandPanel {
             }
             panel.setFrame(frame, display: true)
             updateTrackingGeometry(force: true)
+            logLayout(trigger: "move")
         }
         panel.level = Self.menuBarPanelLevel
+    }
+
+    /// `island_layout` row: island + overlay rectangles in global top-left points (change-only, coalesced).
+    private func logLayout(trigger: String) {
+        guard let panel, let model else { return }
+        let primaryHeight = NSScreen.screens.first?.frame.height ?? panel.frame.maxY
+        let screen = panel.screen ?? Self.menuBarScreen()
+        let shape = model.shapeRect
+        let origin = CGPoint(x: panel.frame.minX, y: primaryHeight - panel.frame.maxY)
+        let island = shape.offsetBy(dx: origin.x, dy: origin.y)
+        let number = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
+        IslandLayoutLogger.shared.island(
+            trigger: trigger, screenId: number.map { "\($0.uint32Value)" } ?? "unknown",
+            screen: IslandLayoutEvent.topLeft(screen.frame, primaryHeight: primaryHeight), scale: screen.backingScaleFactor,
+            island: island, visible: panel.isVisible,
+            overlays: panel.isVisible ? IslandLayoutLogger.overlays(model: model, shape: shape, origin: origin) : [])
     }
 
     /// Island screen per Settings → Display on (main/menu-bar display by default).
@@ -305,6 +323,7 @@ final class SamanthaMenuBarIslandPanel {
         let rects = model.hitRects
         guard force || rects != trackedRects else { return }
         trackedRects = rects
+        logLayout(trigger: "resize")
         for child in trackingWindows { panel.removeChildWindow(child); child.orderOut(nil) }
         trackingWindows.removeAll()
         if let host = panel.contentView as? IslandHostingView<SamanthaIslandBar> {

@@ -44,6 +44,7 @@ final class VoiceSupervisor {
         }
         stopping = false
         startupSessionId = UUID().uuidString.prefix(8).lowercased()
+        SamanthaActivityLog.currentSessionId = startupSessionId
         startupStartedAt = Date()
         logStartup(phase: "supervisor_begin", detail: "port=\(gatewayPort)")
         guard await ensureMicrophoneAccess() else {

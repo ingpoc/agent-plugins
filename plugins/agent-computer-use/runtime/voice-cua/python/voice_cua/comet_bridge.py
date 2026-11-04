@@ -616,6 +616,16 @@ def comet_is_active() -> bool:
     return _LEASE.active()
 
 
+def comet_tab_id() -> str | None:
+    """Opaque id of the leased Comet window/tab (hash of the lease session id); None without a lease."""
+    session = getattr(_LEASE, "_session_id", "") or ""
+    if not session:
+        return None
+    import hashlib
+
+    return hashlib.sha256(session.encode("utf-8")).hexdigest()[:12]
+
+
 def comet_purpose() -> str:
     return _LEASE.purpose()
 

@@ -112,9 +112,14 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
   The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
   app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
-  Fixed gaps (UI & UX): ring, 8 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
-  9 pt inset. The compact pill hugs exactly that in every state, Samantha's
-  included (71 pt for one, 111 for three, 131 for 3 + N); "+N" is SF Pro
+  Fixed gaps (UI & UX): ring, 12 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
+  9 pt inset. The 12 pt gap after the ring (0.2.85, Guru 2026-11-04 10:22 IST:
+  "there has to be some gap ... so its clear whats being used") is the same for
+  every controlled target, the Apple ring for ACU and the Comet ring for
+  comet-control alike (one shared `IslandBarLayout` path; "same design language
+  should follow for all"). It exists only while apps are in use: with none, the
+  pill collapses back to its idle width. The compact pill hugs exactly that in
+  every state, Samantha's included (75 pt for one, 115 for three, 135 for 3 + N); "+N" is SF Pro
   Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
   (TextEdit; detected generically by `AppIconResolver.isBlank`) draws on the
   target mark's white rounded tile with a dark glyph. Width changes from icons
@@ -127,11 +132,41 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   "Operating Calculator, Finder and TextEdit". An app shown inside is never
   drawn again as an outside app circle (Samantha's included). Plugin marks stay
   outside on the right.
+- Samantha is a harness (Guru 2026-11-04 10:23 IST): her circle sits on the
+  LEFT, outside the pill, with the other harness circles; never inside. The
+  target gap applies only to what sits inside; plugin marks stay outside right.
+  A controlled target (Comet) is never also shown as an app icon inside.
 - Drop: the hub removes a plugin row when `ttl_s` lapses (1 s sweep); the
   circle fades out over 200 ms. Plugin rows never go stale and never show
   "updates stopped".
 - `ACU_ISLAND_ACTIVITY=0` turns the signal off; tests are off by default via
   `scripts/check.py`.
+
+## Island layout log (`island_layout`, schema 1, 0.2.85+)
+
+0.2.85 is the first ACU version that logs the island's geometry, so
+developer-observability can flag a mark drawn outside the island. CUAService
+appends one row to `~/.cache/macos-cua/samantha-activity.jsonl`:
+
+```json
+{"ts":"2026-11-04T10:30:00.123+05:30","ts_epoch":1793770800.123,"event":"island_layout","kind":"island_layout",
+ "source":"cuaservice","schema":1,"session_id":"70899191","turn_id":null,"version":"0.2.85","trigger":"show",
+ "screen":{"id":"1","x":0,"y":0,"w":1512,"h":982,"scale":2},
+ "island":{"x":718,"y":6,"w":75,"h":24,"visible":true},
+ "overlays":[{"kind":"comet_circle","id":"comet_circle","x":724,"y":8,"w":20,"h":20,"visible":true,"expected_inside_island":true}]}
+```
+
+- Rectangles only, in global points with the origin at the top-left of the
+  primary screen; numbers only. No titles, app names, URLs or text.
+- `trigger`: `show`, `hide`, `move`, `resize` (island panel) and `overlay_show`,
+  `overlay_move`, `overlay_hide` (the agent cursor, `agent_cursor`).
+- Overlay kinds (ids add `_<i>` where there can be several): `target_ring` /
+  `comet_circle` and `app_icon` (inside, `expected_inside_island: true`);
+  `plugin_mark`, `app_circle`, `overflow_circle`, `harness_circle`,
+  `agent_cursor` (outside, false). Tolerance for "inside" is 2 pt.
+- Written on change only; `move`, `resize` and `overlay_move` coalesce to at
+  most one row per 250 ms, the latest frame winning.
+- `ACU_ISLAND_LAYOUT_LOG=0` turns it off; tests write to a temp file.
 
 ## Status, approvals, and choices
 

@@ -110,13 +110,15 @@ enum IslandBarLayout {
                width: compactDotDiameter, height: compactDotDiameter)
     }
 
-    /// Operated app icons INSIDE the pill (UI & UX fixed gaps): ring · 8 · icon · 4 · icon … · 6 · dot · 9.
-    /// The 20 pt target ring's right edge is 26 pt in, so the first icon starts 34 pt in; "+N" takes a
+    /// Operated app icons INSIDE the pill (UI & UX fixed gaps): ring · 12 · icon · 4 · icon … · 6 · dot · 9.
+    /// The 20 pt target ring's right edge is 26 pt in, so the first icon starts 38 pt in; "+N" takes a
     /// fixed 16 pt slot. The pill hugs this content exactly, so the gaps are the same in every state.
+    /// One rule for every controlled target (Apple ring for ACU, Comet for comet-control, any other plugin
+    /// target): the 12 pt gap keeps what is controlled apart from the apps in use (Guru, 2026-11-04 10:22 IST).
     static let operatedIcon: CGFloat = 16
     static let operatedGap: CGFloat = 4
     static let operatedDotGap: CGFloat = 6
-    static let operatedRingGap: CGFloat = 8
+    static let operatedRingGap: CGFloat = 12
     static let operatedRingClearance: CGFloat = slotInset + 8 + 10 + operatedRingGap
     static func operatedAppsStripWidth(count: Int) -> CGFloat {
         count <= 0 ? 0 : CGFloat(count) * operatedIcon + CGFloat(count - 1) * operatedGap

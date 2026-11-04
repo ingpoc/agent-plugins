@@ -116,9 +116,12 @@ def usage_row(
     """
     response = response if isinstance(response, dict) else {}
     usage = response.get("usage")
+    now = time.time()
+    # Numeric epoch ts like every other row (0.2.85); the readable local time rides along as ts_iso.
     row: dict[str, Any] = {
         "kind": "usage",
-        "ts": datetime.now().astimezone().isoformat(timespec="milliseconds"),
+        "ts": now,
+        "ts_iso": datetime.fromtimestamp(now).astimezone().isoformat(timespec="milliseconds"),
         "session_id": current_session_id(),
     }
     for key in _LABEL_KEYS:
@@ -149,7 +152,34 @@ def log_usage(
     labels: dict[str, Any] | None = None,
 ) -> None:
     """Append one ``usage`` row (token counts + ids only — never text or transcripts)."""
-    _append_row(usage_row(response, latency_ms=latency_ms, labels=labels))
+    row = usage_row(response, latency_ms=latency_ms, labels=labels)
+    with _usage_lock:
+        totals = _usage_totals.setdefault(row["session_id"], {"responses": 0})
+        totals["responses"] += 1
+        for field in _TOTAL_FIELDS:
+            if isinstance(row.get(field), int):
+                totals[field] = totals.get(field, 0) + row[field]
+    _append_row(row)
+
+
+_TOTAL_FIELDS = ("input_tokens", "output_tokens", "cached_tokens", "reasoning_tokens", "total_tokens")
+_usage_lock = threading.Lock()
+_usage_totals: dict[str, dict[str, int]] = {}
+
+
+def log_usage_final(*, reason: str = "session_close", **extra: Any) -> None:
+    """One closing ``usage`` row per session: final=True plus the session's token totals (numbers only)."""
+    session = current_session_id()
+    with _usage_lock:
+        totals = dict(_usage_totals.pop(session, {"responses": 0}))
+    now = time.time()
+    row: dict[str, Any] = {"kind": "usage", "ts": now,
+                           "ts_iso": datetime.fromtimestamp(now).astimezone().isoformat(timespec="milliseconds"),
+                           "session_id": session, "final": True, "reason": reason[:40], **totals}
+    for key, value in extra.items():
+        if value is not None and key not in _SECRET_KEYS:
+            row[key] = value
+    _append_row(row)
 
 
 # Per-thread tool-call context: realtime_session runs each tool in its own

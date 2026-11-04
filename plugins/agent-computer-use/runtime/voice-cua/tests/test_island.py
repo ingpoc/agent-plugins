@@ -324,6 +324,19 @@ class IslandCopyContractTests(unittest.TestCase):
         self.assertEqual(human_error("label not found", target="Calculator"), "Couldn't click Calculator")
         self.assertEqual(human_error("websocket connection closed"), "Connection dropped, reconnecting")
         self.assertEqual(human_error("KeyError: 'x' at line 3"), "Something went wrong")
+        # 0.2.85: known causes get specific copy, never the generic error.
+        for raw, copy in (
+            ("Failed · Owner decision not found in recent user statements", "Ledger needs clearer details"),
+            ("Failed · Capture requires an explicit project scope", "Ledger needs clearer details"),
+            ("Context Ledger rejected the request (invalid argument: INVALID_ARGUMENT); nothing was saved",
+             "Ledger needs clearer details"),
+            ("Failed · Context Ledger helper unavailable; nothing was saved", "Ledger unavailable"),
+            ("Ledger save outcome unknown; do not retry without checking", "Ledger save unconfirmed"),
+            ("comet_not_frontmost", "Couldn't bring Comet to front"),
+            ("confirmation required", "Needs your OK"),
+        ):
+            self.assertEqual(human_error(raw), copy, raw)
+            self.assertLessEqual(len(copy), 32)
 
     def test_bus_maps_errors_and_drops_benign(self):
         from voice_cua.island_state import IslandBus

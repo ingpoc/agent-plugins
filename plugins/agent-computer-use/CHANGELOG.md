@@ -2,6 +2,15 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.85
+
+- Dynamic Island gap (Guru 2026-11-04 10:22 IST): a 12 pt gap (was 8) separates the ringed target from the app icons inside, so it is clear what is controlled and which apps are in use. One shared layout for every controlled target (Apple ring for ACU, Comet for comet-control); the pill springs wider when apps appear and collapses when none are in use (75/115/135 pt for 1/3/3+N apps). Samantha stays a harness circle outside on the left, and Comet is never a stray circle outside the island.
+- `island_layout` rows (schema 1): CUAService logs the island, its inside marks, outside circles and the agent cursor as rectangles only, on change, moves coalesced to one per 250 ms. 0.2.85 is the first version that emits them.
+- Context Ledger: an invalid argument is reported as a rejection ("Ledger needs clearer details", `ledger_invalid_argument`, nothing saved), not as "unavailable"; project names are normalised (`Netflix` → `netflix`), personal notes go to `personal`, quotes may span recent utterances, and rejection or revocation in a later utterance still blocks the save.
+- "Bring Comet to the front": `comet_begin {foreground: true}` raises Comet through CUAService (no real mouse) and verifies it is frontmost; Samantha says it is in front only when verified, otherwise "Couldn't bring Comet to front".
+- Specific island error copy for Ledger rejections, unconfirmed saves, a busy Ledger, Comet not frontmost and confirmations, instead of "Something went wrong".
+- Logging: assistant replies no longer split one word per row when user and assistant transcripts interleave; a final `usage` row (final=true, session totals) on session close; numeric `ts` on usage rows (`ts_iso` alongside); phases after go-live are `session_phase`, not `startup`; `comet_call` rows carry opaque `target_id` and `tab_id` hashes (no content).
+
 ## 0.2.84
 
 - One failed tool shows one island error: when `cua_act` or a Comet tool already put its own error on the Dynamic Island, the generic "Failed · …" summary is no longer published a second time (it doubled `island_error_raw` rows and replaced the specific copy).

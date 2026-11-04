@@ -288,6 +288,11 @@ class TranscriptBurst:
             self._timer.start()
         return fresh
 
+    def pending(self) -> bool:
+        """True while an utterance is buffered (not yet flushed)."""
+        with self._lock:
+            return bool(self._parts)
+
     def flush(self) -> None:
         with self._lock:
             text, self._parts = "".join(self._parts).strip(), []
@@ -725,7 +730,7 @@ class LiveProvider(VoiceProvider):
             return [{"type": "response.output_audio.delta", "response_id": rid, "item_id": rid,
                      "delta": event.get("delta") or ""}]
         if et == "session.input_transcript.delta":
-            self.said.flush()
+            # Buffer per response: the user talking over a reply must not cut it into one row per word.
             fresh = self.heard.add(str(event.get("delta") or ""))
             start_ms = event.get("start_ms")
             if fresh and isinstance(start_ms, int) and not isinstance(start_ms, bool):
@@ -735,7 +740,8 @@ class LiveProvider(VoiceProvider):
                         self._pending_spoken_request = (uuid.uuid4().hex, start_ms)
             return [{"type": "input_audio_buffer.speech_started"}] if fresh or self._new_user_burst() else []
         if et == "session.output_transcript.delta":
-            self.heard.flush()
+            if not self.said.pending():
+                self.heard.flush()  # a new reply closes the user's utterance; mid-reply deltas do not
             with self._lock:
                 self._pending_spoken_request = None
             self.said.add(str(event.get("delta") or ""))

@@ -18,6 +18,33 @@ class LedgerUnavailable(RuntimeError):
     pass
 
 
+class LedgerInvalidArgument(LedgerUnavailable):
+    """The ledger server is healthy but rejected the arguments (nothing was saved)."""
+
+    def __init__(self, code: str = 'INVALID_ARGUMENT', message: str = '') -> None:
+        super().__init__(f'ledger rejected request: {code}')
+        self.code = str(code or 'INVALID_ARGUMENT')[:40]
+        self.message = str(message or '')[:160]
+
+
+_INVALID_CODES = frozenset({'INVALID_ARGUMENT', 'VALIDATION_ERROR', 'INVALID_PARAMS', 'SCOPE_DENIED'})
+_JSONRPC_INVALID = frozenset({-32602, -32600})
+
+
+def _rejection(result: dict[str, Any]) -> LedgerInvalidArgument | None:
+    """A tool result with isError and an argument-level error code, else None."""
+    try:
+        content = result.get('content') or []
+        payload = json.loads(content[0]['text']) if content and content[0].get('type') == 'text' else {}
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError):
+        payload = {}
+    error = payload.get('error') if isinstance(payload, dict) else None
+    code = str(error.get('code') or '') if isinstance(error, dict) else ''
+    if code.upper() in _INVALID_CODES or 'INVALID' in code.upper():
+        return LedgerInvalidArgument(code, str(error.get('message') or ''))
+    return None
+
+
 class LedgerTransport:
     def __init__(self, package: Path | None = None, data: Path | None = None):
         self.package = package or Path.home() / '.agents/plugins/context-ledger'
@@ -89,7 +116,12 @@ class LedgerTransport:
                     raise LedgerUnavailable('invalid ledger response')
                 line.extend(chunk)
             response = json.loads(line)
-            if response.get('id') != request_id or 'error' in response:
+            if response.get('id') != request_id:
+                raise LedgerUnavailable('ledger request failed')
+            if 'error' in response:
+                error = response.get('error') or {}
+                if isinstance(error, dict) and error.get('code') in _JSONRPC_INVALID:
+                    raise LedgerInvalidArgument('INVALID_PARAMS', str(error.get('message') or ''))
                 raise LedgerUnavailable('ledger request failed')
             return response.get('result', {})
         finally:
@@ -104,6 +136,9 @@ class LedgerTransport:
                     self._start()
                 result = self._exchange('tools/call', {'name': name, 'arguments': arguments})
                 if result.get('isError'):
+                    rejected = _rejection(result)
+                    if rejected is not None:
+                        raise rejected
                     raise LedgerUnavailable('ledger refused request')
                 content = result.get('content', [])
                 if len(content) != 1 or content[0].get('type') != 'text':
@@ -112,6 +147,9 @@ class LedgerTransport:
                 if not isinstance(payload, dict):
                     raise LedgerUnavailable('invalid ledger result')
                 return payload
+            except LedgerInvalidArgument:
+                # The server is healthy and only rejected these arguments: keep the process.
+                raise
             except (OSError, ValueError, TypeError, KeyError, LedgerUnavailable) as exc:
                 self.close()
                 raise LedgerUnavailable('ledger unavailable') from exc

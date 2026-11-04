@@ -1547,6 +1547,7 @@ class RealtimeSession:
             except Exception:  # noqa: BLE001 — close is best effort
                 pass
         self.ws = None
+        self._log_final_usage()
         if self._audio:
             try:
                 log_event("mic_stats", **self._audio.mic_stats())
@@ -1554,6 +1555,20 @@ class RealtimeSession:
                 pass
             self._audio.stop()
             self._audio = None
+
+    def _log_final_usage(self) -> None:
+        """One closing usage row per session (final=True, session token totals, live voice seconds)."""
+        if getattr(self, "_final_usage_logged", False):
+            return
+        self._final_usage_logged = True
+        try:
+            from voice_cua.activity_log import log_usage_final
+
+            seconds = getattr(self.provider, "voice_seconds", None)
+            log_usage_final(reason="session_close", provider=getattr(self.provider, "name", None),
+                            voice_seconds=seconds if isinstance(seconds, int) and not isinstance(seconds, bool) else None)
+        except Exception:  # noqa: BLE001 — telemetry never blocks shutdown
+            pass
 
     def send_text_and_wait(self, text: str, *, timeout: float = 90.0) -> dict[str, Any]:
         started = time.monotonic()
