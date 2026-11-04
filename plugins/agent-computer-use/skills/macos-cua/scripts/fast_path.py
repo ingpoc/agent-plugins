@@ -987,10 +987,11 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
     )
     add(
         "single menubar owner for Voice CUA",
-        "NSStatusBar.system.statusItem" in status
+        "bar.statusItem(withLength:" in status
+        and "bar: NSStatusBar = NSStatusBar.system" in status
         and "Samantha" in status
         and "NSStatusItem" not in island
-        and "NSStatusBar.system.statusItem" not in island,
+        and "statusItem(withLength:" not in island,
         "Phase 4: only CUAService monitor icon in menu bar; IslandApp is notch-only",
     )
     add(

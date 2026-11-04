@@ -51,7 +51,7 @@ final class StatusBarController: NSObject {
     /// nothing reaches the real menu bar.
     private let bar: NSStatusBar
 
-    init(gate: IslandGate? = nil, bar: NSStatusBar = .system) {
+    init(gate: IslandGate? = nil, bar: NSStatusBar = NSStatusBar.system) {
         self.gate = gate ?? .shared
         self.bar = bar
         super.init()
