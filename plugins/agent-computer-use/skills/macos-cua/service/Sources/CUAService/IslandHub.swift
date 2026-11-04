@@ -79,7 +79,7 @@ final class IslandHub {
     private var controlWaiters: [String: [UUID: CheckedContinuation<Void, Never>]] = [:]
     nonisolated static let allowedControls: Set<String> = ["stop", "retry"]
     /// Plugin marks the hub publishes as right-side circles instead of agent rows.
-    nonisolated static let pluginMarks: Set<String> = ["acu", "comet-control", "context-ledger"]
+    nonisolated static let pluginMarks: Set<String> = ["acu", "comet-control", "context-ledger", "developer-observability"]
 
     init(store: IslandSettingsStore) {
         self.store = store

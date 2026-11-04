@@ -40,6 +40,7 @@ MARKS: dict[str, tuple[str, str]] = {
     "acu": ("Agent Computer Use", "Agent Computer Use"),
     "comet-control": ("comet-control", "Comet Control"),
     "context-ledger": ("context-ledger", "Context Ledger"),
+    "developer-observability": ("developer-observability", "Developer Observability"),
 }
 
 # Row id -> (posted_at, agent) for this process only; keeps a chatty caller to

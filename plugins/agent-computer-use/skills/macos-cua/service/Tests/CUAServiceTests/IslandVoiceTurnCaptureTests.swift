@@ -42,6 +42,43 @@ final class IslandVoiceTurnCaptureTests: XCTestCase {
         ]
     }
 
+    static func plugin(_ id: String, _ t: Double) -> IslandPluginUse {
+        IslandPluginUse(plugin: id, app: id, agent: "Samantha", last_seen_at: t)
+    }
+
+    static func voice(_ kind: String, apps: [String], extra: [IslandPluginUse] = []) -> IslandSnapshot {
+        IslandSnapshot(kind: kind, title: kind.capitalized, active_apps: apps, voice_side: kind == "speaking" ? "assistant" : "user",
+                       voice_level: 0.7, voice_levels: bars,
+                       plugins: apps.enumerated().map { acu($0.element, 300 + Double($0.offset)) } + extra, samantha_on: true)
+    }
+
+    /// Transition strips (Guru 13:31 IST): each starts from the first snapshot.
+    static func transitions() -> [(String, [String], [(String, IslandSnapshot)])] {
+        let on = IslandSnapshot(kind: "listening", title: "Listening", voice_side: "user", voice_level: 0.7, voice_levels: bars, samantha_on: true)
+        let thinking = IslandSnapshot(kind: "thinking", title: "Thinking", samantha_on: true)
+        let speaking = IslandSnapshot(kind: "speaking", title: "Speaking", voice_side: "assistant", voice_level: 0.8, voice_levels: bars, samantha_on: true)
+        let idleOn = IslandSnapshot(kind: "idle", title: "Resting", samantha_on: true)
+        let calc = ["Calculator"], three = ["Calculator", "TextEdit", "Notes"]
+        let acting = IslandSnapshot(kind: "acting", title: "Using Calculator", app: "Calculator", active_apps: calc,
+                                    plugins: [acu("Calculator", 300)], samantha_on: true)
+        let ledger = plugin("context-ledger", 400)
+        return [
+            ("samantha-on-off", [], [("off", IslandSnapshot(kind: "idle")), ("on-listening", on), ("off", IslandSnapshot(kind: "idle"))]),
+            ("voice-cycle", [], [("listening", on), ("thinking", thinking), ("speaking", speaking), ("idle", idleOn)]),
+            ("speaking-acting", calc, [("speaking", speaking), ("acting", acting), ("speaking-controlled", voice("speaking", apps: calc)),
+                                        ("speaking-row-dropped", speaking)]),
+            ("app-added-removed", three, [("speaking-1", voice("speaking", apps: calc)), ("speaking-3", voice("speaking", apps: three)),
+                                           ("speaking-1", voice("speaking", apps: calc))]),
+            ("plugin-marks-in-voice", calc, [("speaking-acu", voice("speaking", apps: calc)),
+                                              ("ledger-joins", voice("speaking", apps: calc, extra: [ledger])),
+                                              ("acu-leaves", IslandSnapshot(kind: "speaking", title: "Speaking", voice_side: "assistant", voice_level: 0.8,
+                                                                            voice_levels: bars, plugins: [ledger], samantha_on: true)),
+                                              ("ledger-leaves", speaking)]),
+            ("barge-in", calc, [("speaking-controlled", voice("speaking", apps: calc)), ("barge-in-listening", voice("listening", apps: calc)),
+                                ("speaking", speaking), ("barge-in-listening", on)]),
+        ]
+    }
+
     func testCaptureVoiceTurnFrames() async throws {
         guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_TURN_DIR"] else {
             throw XCTSkip("set CUA_ISLAND_TURN_DIR to capture")
@@ -51,13 +88,19 @@ final class IslandVoiceTurnCaptureTests: XCTestCase {
         setenv("ACU_PLUGIN_LOGO_ROOT", plugins.path, 1)
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         var manifest: [[String: Any]] = []
-        for (scenario, apps, reduce) in [("turn-1app", ["Calculator"], false), ("turn-3apps", ["Calculator", "TextEdit", "Notes"], false),
-                                         ("turn-1app-reduce", ["Calculator"], true)] {
+        var plan: [(String, Bool, [(String, IslandSnapshot)])] = [
+            ("turn-1app", false, Self.turn(apps: ["Calculator"])), ("turn-3apps", false, Self.turn(apps: ["Calculator", "TextEdit", "Notes"])),
+            ("turn-1app-reduce", true, Self.turn(apps: ["Calculator"]))]
+        for (name, _, steps) in Self.transitions() {
+            plan.append(("transitions-\(name)", false, steps))
+            plan.append(("transitions-\(name)-reduce", true, steps))
+        }
+        if let only = ProcessInfo.processInfo.environment["CUA_ISLAND_TURN_ONLY"] { plan = plan.filter { $0.0.hasPrefix(only) } }
+        for (scenario, reduce, steps) in plan {
             let model = IslandModel()
             model.idleActivity = "duo"
             model.systemReduceMotion = reduce
-            let steps = Self.turn(apps: apps)
-            model.apply(IslandSnapshot(kind: "idle", title: "Resting", samantha_on: true))
+            model.apply(scenario.hasPrefix("turn") ? IslandSnapshot(kind: "idle", title: "Resting", samantha_on: true) : steps[0].1)
             let root = SamanthaIslandBar(model: model).environment(\.colorScheme, .dark).background(Color(white: 0.18))
             let host = NSHostingView(rootView: root)
             let size = IslandBarLayout.windowSize

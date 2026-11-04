@@ -2,6 +2,15 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.87 (2026-11-04)
+
+- Controlled app inside the island in every state, voice included (Guru 2026-11-04: "why do i see app icon still on the right side of the island"). One shared rule: inside the pill, left to right, the controlled target with its ring (Apple for ACU, Comet for comet-control), the gap, the app icons (ACU only), then Samantha's voice slot (only while she listens, thinks, speaks or finishes), then the dot. Harness circles (Samantha included) stay outside on the left; only plugin marks go outside on the right. The `.app` outside-circle path is gone.
+- Root cause: voice_cua kept `_ACTIVE_APPS` until idle and re-sent it with every listening/thinking/speaking post; CUAService turned those apps into outside-right circles once the ACU row dropped, while voice states were excluded from the ring, operated apps and hug width. Voice posts now carry no stale apps, and the model keeps the ring, apps and hug width in every compact Samantha state.
+- 13:26:54 flash fixed: Samantha registers the plugin use before posting `acting`, so the app never shows for one frame without its ring.
+- Ring-to-apps gap: 20 pt (Guru 13:30 IST, "instead of 16 pt put 20 pt"), giving 83 / 123 / 143 pt pills for 1 / 3 / 3 + N apps; the voice slot (the current lead glyph and meter, 40 pt, one replaceable view) adds 6 + 40 pt.
+- Transitions: plugin marks enter after the pill settles (0.30 s, 0.15 s under Reduce Motion) and leave in 0.1 s, and inside elements are clipped to the animated pill, so no frame puts a mark over a shrinking pill or an inside element outside it. Mid-frame zone tests cover Samantha on/off, the voice cycle, a turn with ACU, speaking while ACU acts, apps added or removed mid-voice, plugin marks during voice and barge-in, with and without Reduce Motion.
+- developer-observability has its own designed mark outside on the right (trace waterfall: three 2 pt round-cap bars, 1.5 pt apart, #248A3D) and is a known plugin for island activity.
+
 ## 0.2.86 (2026-11-04)
 
 - Samantha's mark is her own wave (Guru picked B at 11:54 IST; UI & UX spec): one tapered sound wave, 2 pt round-cap stroke (at least 1.5 pt), 60 % of the circle wide, vertically centred, #BF5AF2 → #FF6482 left to right, in the same 24 pt circle and rim as every harness. It replaces the plain waveform glyph.

@@ -178,6 +178,9 @@ def island_voice_meter(
     ISLAND.set_voice_meter(side, level, levels)
 
 
+VOICE_KINDS = frozenset({"listening", "thinking", "speaking", "reconnecting"})
+
+
 def island_publish(
     kind: IslandKind,
     *,
@@ -199,7 +202,9 @@ def island_publish(
         if name in _ACTIVE_APPS:
             _ACTIVE_APPS.remove(name)
         _ACTIVE_APPS.append(name)  # most recent last
-    apps = active_apps if active_apps is not None else list(_ACTIVE_APPS)
+    # Voice states carry no apps: an app Samantha operated is drawn inside the pill from the ACU plugin
+    # use while it is in use, never re-posted on later listening / thinking / speaking posts (0.2.87).
+    apps = active_apps if active_apps is not None else ([] if kind in VOICE_KINDS else list(_ACTIVE_APPS))
     body = {
         "kind": kind,
         "title": title,

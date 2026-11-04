@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.1.9'
+VERSION = '0.1.10'
 PLACEHOLDERS = ('${PLUGIN_ROOT}', '${CURSOR_PLUGIN_ROOT}', '${CLAUDE_PLUGIN_ROOT}')
 
 

@@ -53,7 +53,7 @@ enum IslandBarLayout {
     static let artGlyph: CGFloat = 30
     static let agentRowHeight: CGFloat = 40
 
-    // Circles (apps on the right, other agents on the left)
+    // Circles: plugin marks on the right, harnesses on the left (app icons are never outside)
     static let circleDiameter: CGFloat = 24
     static let circleIcon: CGFloat = 16
     static let circleGap: CGFloat = 6
@@ -87,7 +87,7 @@ enum IslandBarLayout {
         CGRect(x: shape.maxX + duoGap, y: shape.minY, width: width, height: compactHeight)
     }
 
-    /// App circles right of the shape, top-aligned with it (y = gap) in both states.
+    /// Plugin-mark circles right of the shape, top-aligned with it (y = gap) in both states.
     static func circleRects(shape: CGRect, count: Int) -> [CGRect] {
         (0..<circleSlots(count: count)).map { i in
             CGRect(x: shape.maxX + circleGap + CGFloat(i) * (circleDiameter + circleSpacing),
@@ -110,36 +110,52 @@ enum IslandBarLayout {
                width: compactDotDiameter, height: compactDotDiameter)
     }
 
-    /// Operated app icons INSIDE the pill (UI & UX fixed gaps): ring · 16 · icon · 4 · icon … · 6 · dot · 9.
-    /// The 20 pt target ring's right edge is 26 pt in, so the first icon starts 42 pt in; "+N" takes a
-    /// fixed 16 pt slot after the third icon. The pill hugs this content exactly, so the gaps are the same
-    /// in every state. One rule for every controlled target (Apple ring for ACU, Comet for comet-control,
-    /// any other plugin target): the gap keeps what is controlling apart from the apps in use.
+    /// Inside the pill, ONE rule for every compact state (Guru, 2026-11-04 13:30 IST), voice states included:
+    /// ringed target · 20 · app icons (4 apart) · 6 · voice slot · 6 · dot · 9. The 20 pt target ring's right
+    /// edge is 26 pt in, so the first icon starts 46 pt in; "+N" takes a fixed 16 pt slot after the third icon.
+    /// The pill hugs this content exactly, so the gaps are the same in every state. Any controlled target
+    /// (Apple ring for ACU, Comet for comet-control) gets the gap; only ACU carries app icons. Without a
+    /// controlled target nothing changes (voice keeps its lead glyph and trailing meter).
     static let operatedIcon: CGFloat = 16
     static let operatedGap: CGFloat = 4
     static let operatedDotGap: CGFloat = 6
-    /// 16 pt, no divider (Guru 2026-11-04 11:08 IST "should be more" than 0.2.85's 12; UI & UX picked 16 at
-    /// 11:57 IST after the 16 / 20 / 24 study: a clear controlling-vs-used break without wasting width).
+    /// 20 pt, no divider (Guru 2026-11-04 13:30 IST "instead of 16 pt put 20 pt"; 0.2.86 had 16, 0.2.85 12).
     /// A var only so review renders can compare gaps; nothing else writes it.
-    nonisolated(unsafe) static var operatedRingGap: CGFloat = 16
-    static var operatedRingClearance: CGFloat { slotInset + 8 + 10 + operatedRingGap }
-    /// A controlled target with no apps in use (e.g. comet-control reading a page): the pill hugs
-    /// ring · 8 · dot · 9 (v5 hug rule) and never stretches to a text width (UI & UX, 2026-11-04 11:57 IST).
+    nonisolated(unsafe) static var operatedRingGap: CGFloat = 20
+    /// Right edge of the 20 pt ring centred on the 16 pt lead slot: 8 + 8 + 10.
+    static let ringRight: CGFloat = slotInset + 8 + 10
+    static var operatedRingClearance: CGFloat { ringRight + operatedRingGap }
+    /// A controlled target with no apps and no voice (e.g. comet-control reading a page): ring · 8 · dot · 9.
     static let targetOnlyDotGap: CGFloat = 8
-    static var targetOnlyPillWidth: CGFloat { slotInset + 8 + 10 + targetOnlyDotGap + compactDotDiameter + 9 }
+    static var targetOnlyPillWidth: CGFloat { ringRight + targetOnlyDotGap + compactDotDiameter + 9 }
+    /// Samantha's voice element inside a controlled pill: today's lead glyph (16) · 4 · today's 20 pt trail
+    /// (meter / thinking dots). A replaceable slot: UI & UX may swap the view, only this width is layout.
+    nonisolated(unsafe) static var voiceSlotWidth: CGFloat = 16 + 4 + 20
     static func operatedAppsStripWidth(count: Int) -> CGFloat {
         count <= 0 ? 0 : CGFloat(count) * operatedIcon + CGFloat(count - 1) * operatedGap
     }
-    static func operatedAppsPillWidth(count: Int) -> CGFloat {
-        operatedRingClearance + operatedAppsStripWidth(count: count) + operatedDotGap + compactDotDiameter + 9
+    static func operatedAppsPillWidth(count: Int) -> CGFloat { controlledPillWidth(apps: count, voice: false) }
+    /// The hug width of a pill with a controlled target, `apps` icon slots ("+N" counts as one) and an
+    /// optional voice slot. The one width rule for every compact state.
+    static func controlledPillWidth(apps: Int, voice: Bool) -> CGFloat {
+        if apps <= 0 && !voice { return targetOnlyPillWidth }
+        var w = operatedRingClearance
+        if apps > 0 { w += operatedAppsStripWidth(count: apps) }
+        if voice { w += (apps > 0 ? operatedDotGap : 0) + voiceSlotWidth }
+        return w + operatedDotGap + compactDotDiameter + 9
     }
+    /// App icons, left-anchored after the ring gap (they never move while the pill grows on their right).
     static func operatedAppRects(shape: CGRect, count: Int) -> [CGRect] {
-        let dot = compactDotRect(shape: shape)
-        let start = dot.minX - operatedDotGap - operatedAppsStripWidth(count: count)
+        let start = shape.minX + operatedRingClearance
         return (0..<max(0, count)).map { i in
             CGRect(x: start + CGFloat(i) * (operatedIcon + operatedGap), y: shape.minY + (compactHeight - operatedIcon) / 2,
                    width: operatedIcon, height: operatedIcon)
         }
+    }
+    /// The voice slot: after the apps (or straight after the ring gap), 6 pt before the dot.
+    static func voiceSlotRect(shape: CGRect, apps: Int) -> CGRect {
+        let x = shape.minX + operatedRingClearance + (apps > 0 ? operatedAppsStripWidth(count: apps) + operatedDotGap : 0)
+        return CGRect(x: x, y: shape.minY + (compactHeight - 16) / 2, width: voiceSlotWidth, height: 16)
     }
 
     static func agentRects(shape: CGRect, count: Int) -> [CGRect] {

@@ -49,6 +49,7 @@ enum AppIconResolver {
         "Mail": "envelope", "Calendar": "calendar", "Messages": "message", "Music": "music.note",
         "Preview": "photo", "System Settings": "gearshape", "Cursor": "cursorarrow.rays", "Codex": "terminal", "Grok Bot": "sparkles",
         "Samantha": "waveform", "context-ledger": "books.vertical", "comet-control": "globe",
+        "developer-observability": "chart.bar.doc.horizontal",
     ]
 
     static let fallbackSymbol = "app.dashed"
@@ -464,6 +465,43 @@ struct IslandOperatedAppIcon: View {
     }
 }
 
+/// developer-observability's designed mark (UI & UX plugin-marks spec for 0.2.87, 2026-11-04 12:50 IST):
+/// a trace waterfall on the 16 pt inner tile, three 2 pt bars with round caps, 1.5 pt apart (a 9 pt group,
+/// vertically centred), spanning x 3–9, 5.5–12 and 8–13, flat #248A3D. Same circle and rim as every mark.
+struct IslandDevObsMark: View {
+    static let plugin = "developer-observability"
+    static let color = Color(red: 0x24 / 255.0, green: 0x8A / 255.0, blue: 0x3D / 255.0)
+    /// (x from, x to) of each bar in the tile's 16 pt space, caps included.
+    static let bars: [(CGFloat, CGFloat)] = [(3, 9), (5.5, 12), (8, 13)]
+    static let barHeight: CGFloat = 2
+    static let barGap: CGFloat = 1.5
+    var size: CGFloat = IslandBarLayout.circleIcon
+
+    /// Bar rects in the tile's 16 pt space (y snapped to whole points: 3.5 → 3.5 is a 1x half-pixel, so the
+    /// group starts at y 3.5 and is drawn on 2 px @2x boundaries).
+    static func barRects() -> [CGRect] {
+        let group = 3 * barHeight + 2 * barGap
+        let top = (16 - group) / 2
+        return bars.enumerated().map { i, b in
+            CGRect(x: b.0, y: top + CGFloat(i) * (barHeight + barGap), width: b.1 - b.0, height: barHeight)
+        }
+    }
+
+    var body: some View {
+        let k = size / 16
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 4 * k, style: .continuous).fill(Color.white)
+            ForEach(Array(Self.barRects().enumerated()), id: \.offset) { _, r in
+                Capsule().fill(Self.color)
+                    .frame(width: r.width * k, height: r.height * k)
+                    .offset(x: r.minX * k, y: r.minY * k)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
 struct SamanthaAppCircle: View {
     let item: IslandCircleItem
 
@@ -477,7 +515,7 @@ struct SamanthaAppCircle: View {
                                       lineWidth: driving ? 1.5 : 1)
             case .plugin(let name, _):
                 // A plugin mark looks like an app circle: never dimmed, never driving, tap does nothing.
-                SamanthaAppIcon(appName: name)
+                if name == IslandDevObsMark.plugin { IslandDevObsMark() } else { SamanthaAppIcon(appName: name) }
                 Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
             case .overflow(let n):
                 Text("+\(n)")
@@ -717,37 +755,61 @@ struct SamanthaIslandBar: View {
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
-            if model.showsTargetMark, let target = model.pluginTarget {
-                // Controlled target (Apple / Comet) on its white tile in a 20 pt spinning ring, centred on the
-                // 16 pt lead slot at real size (not the 56 → 16 lead morph), so the 12 pt tile reads at 1x.
-                let d = IslandPluginTargetMark.ringDiameter
-                IslandPluginTargetMark(target: target, allTargets: model.pluginTargets, reduceMotion: reduceMotion)
-                    .offset(x: rect.minX + IslandBarLayout.slotInset + 8 - d / 2,
-                            y: rect.minY + (IslandBarLayout.compactHeight - d) / 2)
-                    .allowsHitTesting(false)
-                    .transition(.opacity.animation(.easeOut(duration: 0.2)))
-            }
-            if model.showsOperatedApps {
-                // Mac apps ACU is operating, inside the pill just left of the dot (real icons via NSWorkspace).
-                let items = model.operatedApps
-                let rs = IslandBarLayout.operatedAppRects(shape: rect, count: items.count)
-                ForEach(Array(zip(items, rs)), id: \.0.id) { item, r in
-                    IslandOperatedAppIcon(item: item)
-                        .offset(x: r.minX, y: r.minY)
+            // Inside zone: ring · apps · voice slot · dot, in one window-size layer clipped to the animated pill
+            // path, so no inside element is ever drawn outside the pill in any frame of a width change.
+            ZStack(alignment: .topLeading) {
+                if model.showsTargetMark, let target = model.pluginTarget {
+                    // Controlled target (Apple / Comet) on its white tile in a 20 pt spinning ring, centred on the
+                    // 16 pt lead slot at real size (not the 56 → 16 lead morph), so the 12 pt tile reads at 1x.
+                    let d = IslandPluginTargetMark.ringDiameter
+                    IslandPluginTargetMark(target: target, allTargets: model.pluginTargets, reduceMotion: reduceMotion)
+                        .offset(x: rect.minX + IslandBarLayout.slotInset + 8 - d / 2,
+                                y: rect.minY + (IslandBarLayout.compactHeight - d) / 2)
+                        .allowsHitTesting(false)
+                        .transition(.opacity.animation(.easeOut(duration: 0.2)))
+                }
+                if model.showsOperatedApps {
+                    // Mac apps ACU is operating, inside the pill just left of the dot (real icons via NSWorkspace).
+                    let items = model.operatedApps
+                    let rs = IslandBarLayout.operatedAppRects(shape: rect, count: items.count)
+                    ForEach(Array(zip(items, rs)), id: \.0.id) { item, r in
+                        IslandOperatedAppIcon(item: item)
+                            .offset(x: r.minX, y: r.minY)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                            .transition(.opacity.animation(.easeInOut(duration: 0.2)))
+                    }
+                    if let first = rs.first, let last = rs.last {
+                        // VoiceOver: one element naming every operated app ("Operating Calculator, Finder and TextEdit").
+                        Color.clear
+                            .frame(width: last.maxX - first.minX, height: first.height)
+                            .offset(x: first.minX, y: first.minY)
+                            .allowsHitTesting(false)
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(model.operatedAppsLabel)
+                    }
+                }
+                if model.showsVoiceSlot {
+                    // Samantha's voice element moves into the voice slot (after the apps, before the dot) while
+                    // something is controlled. Same glyph and meter as the 136 pt pill; a swappable view.
+                    let v = IslandBarLayout.voiceSlotRect(shape: rect, apps: model.showsOperatedApps ? model.operatedApps.count : 0)
+                    voiceSlot
+                        .frame(width: v.width, height: v.height, alignment: .leading)
+                        .id("voice-slot-\(model.presentation.motionFamily)")
+                        .offset(x: v.minX, y: v.minY)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                         .transition(.opacity.animation(.easeInOut(duration: 0.2)))
-                }
-                if let first = rs.first, let last = rs.last {
-                    // VoiceOver: one element naming every operated app ("Operating Calculator, Finder and TextEdit").
-                    Color.clear
-                        .frame(width: last.maxX - first.minX, height: first.height)
-                        .offset(x: first.minX, y: first.minY)
+                    let d = IslandBarLayout.compactDotRect(shape: rect)
+                    Circle().fill((model.compactDot ?? .working).color)
+                        .frame(width: d.width, height: d.height)
+                        .offset(x: d.minX, y: d.minY)
                         .allowsHitTesting(false)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(model.operatedAppsLabel)
+                        .accessibilityHidden(true)
                 }
             }
+            .frame(width: IslandBarLayout.windowSize.width, height: IslandBarLayout.windowSize.height, alignment: .topLeading)
+            .clipShape(IslandShapePath(rect: rect, radius: model.shapeRadius))
             // Harness circles in their own window-size layer: when one leaves (harnessExitSeq), its removal runs
             // on the shared exit (.easeIn 0.15 s; Reduce Motion 0.15 s fade) whatever else animates in that
             // update, while the neighbours wait for the slot curve (IslandMotion.harnessExit*).
@@ -855,8 +917,11 @@ struct SamanthaIslandBar: View {
 
     private var circleTransition: AnyTransition { IslandMotion.popTransition(reduce: reduceMotion) }
     /// A plugin circle fades out over 200 ms when its use ends (2 s after the last call).
+    /// It enters only once the pill's width has (nearly) settled, so a mark never pops in over a pill that is
+    /// still shrinking toward its slot (0.2.86: the ACU mark appeared on the 136 pt pill's right end).
     private var pluginCircleTransition: AnyTransition {
-        .asymmetric(insertion: circleTransition, removal: .opacity.animation(.easeOut(duration: 0.2)))
+        .asymmetric(insertion: circleTransition.animation(IslandMotion.pluginMarkEnter(reduce: reduceMotion)),
+                    removal: .opacity.animation(IslandMotion.pluginMarkExit))
     }
 
     private var glyphSwap: AnyTransition {
@@ -968,7 +1033,7 @@ struct SamanthaIslandBar: View {
         let art = model.card.art
         let lead56 = lead(size: 56).id("lead-\(model.presentation.motionFamily)").transition(glyphSwap)
         return ZStack {
-            lead56.opacity(open ? 0 : 1)
+            lead56.opacity(open || model.showsVoiceSlot ? 0 : 1)
             self.art(art).opacity(open ? 1 : 0)
         }
         .frame(width: 56, height: 56)
@@ -986,7 +1051,7 @@ struct SamanthaIslandBar: View {
             compactTrail.id("trail-\(model.presentation.motionFamily)").transition(glyphSwap)
                 .modifier(TrailProbe(on: !open, id: "trail"))
                 // Trailing-aligned: content wider than the slot (e.g. "8m •") grows inward, never past the 8 pt inset.
-                .frame(width: compactW, height: 16, alignment: .trailing).opacity(open ? 0 : 1)
+                .frame(width: compactW, height: 16, alignment: .trailing).opacity(open || model.showsVoiceSlot ? 0 : 1)
             trail.modifier(TrailProbe(on: open, id: "card-trail")).frame(width: 20, height: 16).opacity(open ? 1 : 0)
         }
         .frame(width: open ? 20 : compactW, height: 16, alignment: .topTrailing)
@@ -994,6 +1059,17 @@ struct SamanthaIslandBar: View {
                 y: open ? IslandBarLayout.cardTrailOrigin.y : (IslandBarLayout.compactHeight - 16) / 2)
         .animation(.easeInOut(duration: 0.2), value: model.presentation)
         .allowsHitTesting(false)
+    }
+
+    /// The voice slot (IslandBarLayout.voiceSlotWidth): today's compact lead glyph · 4 · today's 20 pt trail.
+    /// UI & UX may replace this view; only its width is layout. Done shows its check only (no app glyph:
+    /// the app is already inside).
+    @ViewBuilder
+    private var voiceSlot: some View {
+        HStack(spacing: 4) {
+            lead(size: 16).frame(width: 16, height: 16)
+            if model.presentation == .done { Color.clear.frame(width: 20, height: 16) } else { trail.frame(width: 20, height: 16) }
+        }
     }
 
     private var hasTrail: Bool {

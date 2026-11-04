@@ -19,6 +19,14 @@ enum IslandMotion {
     static let operatedSpring = Animation.spring(response: 0.25, dampingFraction: 0.9)
     static func operatedWidth(reduce: Bool) -> Animation { reduce ? crossfade : operatedSpring }
     static func pop(reduce: Bool) -> Animation { reduce ? crossfade : openSpring }
+    /// Plugin marks (outside right) enter after the width move: 0.30 s delay (0.15 s under Reduce Motion,
+    /// where the width crossfades in 0.15 s), then the usual pop / fade. They leave with a 0.1 s fade, gone
+    /// before a growing pill can reach the 6 pt gap.
+    static let pluginMarkEnterDelay: Double = 0.30
+    static func pluginMarkEnter(reduce: Bool) -> Animation {
+        reduce ? crossfade.delay(0.15) : openSpring.delay(pluginMarkEnterDelay)
+    }
+    static let pluginMarkExit = Animation.easeOut(duration: 0.1)
     static func target(_ on: Bool, reduce: Bool) -> Animation { reduce ? crossfade : (on ? openSpring : closeSpring) }
     /// Scale-in transitions become plain fades.
     static func usesScale(reduce: Bool) -> Bool { !reduce }

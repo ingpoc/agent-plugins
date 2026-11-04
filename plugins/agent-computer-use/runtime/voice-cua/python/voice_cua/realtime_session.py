@@ -1189,8 +1189,10 @@ class RealtimeSession:
             try:
                 kind, title, detail, app = describe_tool(name, arguments)
                 app = plugin_island.island_app(name, app)
-                island_publish(kind, title=title, detail=detail, app=app, step=name)
+                # Plugin use first: the hub row (ring + app inside) must exist before the acting post, or
+                # the island flashes the app outside for one post (0.2.86, 13:26:54 IST).
                 plugin_island.tool_started(name, arguments)
+                island_publish(kind, title=title, detail=detail, app=app, step=name)
                 errors_before = errors_published()
                 with tool_context(call_id=call_id, response_id=response_id):
                     try:

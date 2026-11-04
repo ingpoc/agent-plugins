@@ -373,6 +373,24 @@ class IslandCopyContractTests(unittest.TestCase):
         self.assertEqual(f._ACTIVE_APPS, ["Comet", "Calculator"])
         f._ACTIVE_APPS.clear()
 
+    def test_voice_posts_carry_no_stale_apps(self):
+        """0.2.87: after a cua_act, listening / thinking / speaking posts must not re-send the app (the
+        island drew it as an outside-right circle). Acting posts still carry the recency list."""
+        from voice_cua import island_facade as f
+
+        f._ACTIVE_APPS.clear()
+        sent = []
+        with patch.object(f, "use_remote", return_value=False), \
+                patch.object(f.ISLAND, "publish", side_effect=lambda kind, **kw: sent.append((kind, kw["active_apps"]))):
+            f.island_publish("acting", title="Using Calculator", app="Calculator")
+            f.island_publish("done", title="Done", app="Calculator")
+            for kind in ["speaking", "listening", "thinking", "reconnecting"]:
+                f.island_publish(kind, title=kind)
+        self.assertEqual(sent[0], ("acting", ["Calculator"]))
+        self.assertEqual(sent[1], ("done", ["Calculator"]))
+        self.assertEqual([apps for _, apps in sent[2:]], [[], [], [], []])
+        f._ACTIVE_APPS.clear()
+
 
 class ParentWatchTests(unittest.TestCase):
     """CUAService restart must not orphan the voice helper (old code, mic open)."""

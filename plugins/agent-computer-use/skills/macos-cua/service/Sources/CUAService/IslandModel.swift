@@ -65,7 +65,7 @@ struct IslandAgent: Codable, Equatable, Identifiable {
     var link: String? = nil
     /// Hover text: "repo · branch" and tokens, only the parts that are known.
     var tooltip: String? = nil
-    /// Plugin mark this row belongs to ("acu", "comet-control", "context-ledger"); nil = a normal row.
+    /// Plugin mark this row belongs to ("acu", "comet-control", "context-ledger", "developer-observability"); nil = a normal row.
     /// Plugin rows are drawn as right-side circles, never as agent rows.
     var plugin: String? = nil
     /// The Mac app an ACU call operated on (name or bundle id); plugin rows only.
@@ -504,6 +504,7 @@ enum IslandPluginLabel {
         "Agent Computer Use": "Agent Computer Use",
         "comet-control": "Comet Control",
         "context-ledger": "Context Ledger",
+        "developer-observability": "Developer Observability",
     ]
 
     static func display(_ name: String) -> String { displayNames[name] ?? name }
@@ -513,7 +514,7 @@ enum IslandPluginLabel {
     static func markName(plugin: String, app: String) -> String {
         switch plugin {
         case "acu": return "Agent Computer Use"
-        case "comet-control", "context-ledger": return plugin
+        case "comet-control", "context-ledger", "developer-observability": return plugin
         default: return app
         }
     }
@@ -542,7 +543,7 @@ enum IslandCircles {
     static let dimAfter: TimeInterval = 10
     static let removeAfter: TimeInterval = 60
     /// Fixed plugin order (ACU, Comet, Context Ledger), then any other app alphabetically.
-    static let pluginOrder = ["Agent Computer Use", "comet-control", "context-ledger"]
+    static let pluginOrder = ["Agent Computer Use", "comet-control", "context-ledger", "developer-observability"]
 
     /// `apps` arrive oldest → newest; display is newest first (nearest the pill).
     /// Apps idle > 60 s drop out, > 10 s dim to 55 %; the driven app never does.
@@ -629,6 +630,7 @@ enum IslandSourceGroups {
     /// harness-only. A row posted under one maps to its calling harness (the acu_exec initiator), else drops.
     static let pluginIdentities: Set<String> = [
         "acu", "agent computer use", "agent-computer-use", "comet-control", "comet control", "context-ledger", "context ledger",
+        "developer-observability", "developer observability",
     ]
     static func isPluginIdentity(_ name: String) -> Bool {
         pluginIdentities.contains(name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
@@ -965,12 +967,20 @@ final class IslandModel: ObservableObject {
             && Self.operatedAppStates.contains(presentation)
     }
 
-    static let operatedAppStates: [IslandPresentation] = [.idle, .doneSettled, .acting]
+    /// ONE layout rule for every compact Samantha state (Guru, 2026-11-04): idle, working AND her voice
+    /// states all draw ring · 20 · apps · [voice] · dot from the same IslandBarLayout functions.
+    static let operatedAppStates: [IslandPresentation] = [.idle, .doneSettled, .acting, .listening, .thinking, .speaking, .done]
+    /// States whose Samantha glyph + meter move into the voice slot (after the apps, before the dot)
+    /// while something is controlled.
+    static let voiceSlotStates: [IslandPresentation] = [.listening, .thinking, .speaking, .done]
 
     var showsTargetMark: Bool {
         !cardOpen && permissionWarning == nil && pluginTarget != nil
-            && [.idle, .doneSettled, .acting, .actingSteps].contains(presentation)
+            && (Self.operatedAppStates.contains(presentation) || presentation == .actingSteps)
     }
+
+    /// Something is controlled in a voice state: the voice glyph and meter sit in the voice slot.
+    var showsVoiceSlot: Bool { showsTargetMark && Self.voiceSlotStates.contains(presentation) }
 
     /// Failures the user already saw by expanding the island (id → status|last_seen_at). The compact
     /// pill stops showing them; a newer failure on the same row (new last_seen_at) shows again.
@@ -1626,14 +1636,10 @@ final class IslandModel: ObservableObject {
     }
 
     private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
-        let apps = operatedApps.count
-        if apps > 0, Self.operatedAppStates.contains(state) {
-            // UI & UX: the compact pill hugs ring · 8 · icons · 6 · dot · 9 in every state. Nothing from
-            // Samantha's conversation or expanded widths carries over.
-            return IslandBarLayout.operatedAppsPillWidth(count: apps)
-        }
-        if apps == 0, pluginTarget != nil, !cardOpen, permissionWarning == nil, Self.operatedAppStates.contains(state) {
-            return IslandBarLayout.targetOnlyPillWidth
+        if pluginTarget != nil, !cardOpen, permissionWarning == nil, Self.operatedAppStates.contains(state) {
+            // One rule in every compact state, voice included: the pill hugs ring · 20 · icons · [voice] ·
+            // dot · 9. Nothing from Samantha's conversation width carries over.
+            return IslandBarLayout.controlledPillWidth(apps: operatedApps.count, voice: Self.voiceSlotStates.contains(state))
         }
         if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
         if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
@@ -1643,12 +1649,14 @@ final class IslandModel: ObservableObject {
     /// The last width change came from operated app icons being added or removed (spring, not the curve).
     @Published private(set) var widthFromOperatedApps = false
     private var operatedSlotsAtLastWidth = 0
+    private var controlledAtLastWidth = false
 
     private func setDrawnWidth(_ width: CGFloat) {
         let slots = showsOperatedApps ? operatedApps.count : 0
         let changed = width != drawnWidth
         if changed { widthFromOperatedApps = slots != operatedSlotsAtLastWidth }
         operatedSlotsAtLastWidth = slots
+        controlledAtLastWidth = showsTargetMark
         if changed { drawnWidth = width }
     }
 
@@ -1665,18 +1673,9 @@ final class IslandModel: ObservableObject {
         if next == .doneSettled, voiceOverEnabled(), peekUntil == .distantFuture { next = .done }
         let resting = Self.presentation(kind: kind, stepTotal: stepTotal, approval: agentApproval, since: kindSince, now: now,
                                         notice: noticeActive, live: live, conversation: conversation)
-        let idleNow = next == .idle || next == .doneSettled
-        let appItems = idleNow && idleActivity == "samantha" ? []
-            : IslandCircles.items(apps: apps, lastActive: lastActive, driving: drivingApp, now: now)
-        // An app ACU is operating shows inside the pill, never again as an outside circle. The same
-        // holds for a plugin target drawn in the ring (Comet for comet-control): no stray Comet circle.
-        let inside = Set(IslandOperatedApps.names(pluginUses))
-            .union(IslandPluginTarget.all(pluginUses).compactMap { if case .app(let name) = $0 { return name } else { return nil } })
-        let outsideApps = appItems.filter { item in
-            if case .app(let name, _, _) = item { return !inside.contains(name) }
-            return true
-        }
-        let nextCircles = IslandCircles.merge(apps: outsideApps, plugins: IslandCircles.pluginItems(pluginUses))
+        // Outside right holds ONLY plugin marks (Guru, 2026-11-04). App icons are never outside: an app
+        // ACU operates is drawn inside after the ring, from the plugin use, in every state.
+        let nextCircles = IslandCircles.merge(apps: [], plugins: IslandCircles.pluginItems(pluginUses))
         if nextCircles != circles { circles = nextCircles }
         let groups = IslandSourceGroups.withSamantha(
             IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil,
@@ -1717,7 +1716,9 @@ final class IslandModel: ObservableObject {
             let familyChanged = next.motionFamily != presentation.motionFamily
             presentation = next
             // No squeeze when operated app icons come or go: straight to the fitted width on one spring.
-            let operatedInvolved = showsOperatedApps || operatedSlotsAtLastWidth > 0
+            // Nor while a controlled target is (or was) in the pill: the ring, apps and voice slot are
+        // left-anchored, so a pinch to 74 would clip them mid-turn.
+        let operatedInvolved = showsOperatedApps || operatedSlotsAtLastWidth > 0 || showsTargetMark || controlledAtLastWidth
             if familyChanged, !(reduceMotion || systemReduceMotion), !open, !operatedInvolved {
                 // Alcove content swap: pinch to 74, then grow to the new width.
                 pinching = true
@@ -1730,6 +1731,7 @@ final class IslandModel: ObservableObject {
                     self.pinching = false
                     self.widthFromOperatedApps = false
                     self.operatedSlotsAtLastWidth = self.showsOperatedApps ? self.operatedApps.count : 0
+                    self.controlledAtLastWidth = self.showsTargetMark
                     self.drawnWidth = self.compactWidth(for: self.presentation, now: Date())
                     self.onGeometryChange?()
                 }
