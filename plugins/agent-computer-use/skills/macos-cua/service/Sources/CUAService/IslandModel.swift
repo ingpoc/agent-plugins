@@ -68,6 +68,8 @@ struct IslandAgent: Codable, Equatable, Identifiable {
     /// Plugin mark this row belongs to ("acu", "comet-control", "context-ledger", "developer-observability"); nil = a normal row.
     /// Plugin rows are drawn as right-side circles, never as agent rows.
     var plugin: String? = nil
+    /// Optional marketplace display label for plugin marks.
+    var plugin_label: String? = nil
     /// The Mac app an ACU call operated on (name or bundle id); plugin rows only.
     var target_app: String? = nil
 
@@ -99,6 +101,7 @@ struct IslandAgent: Codable, Equatable, Identifiable {
         link = try c.decodeIfPresent(String.self, forKey: .link)
         tooltip = try c.decodeIfPresent(String.self, forKey: .tooltip)
         plugin = try c.decodeIfPresent(String.self, forKey: .plugin)
+        plugin_label = try c.decodeIfPresent(String.self, forKey: .plugin_label)
         target_app = try c.decodeIfPresent(String.self, forKey: .target_app)
     }
 }
@@ -110,6 +113,7 @@ struct IslandPluginUse: Codable, Equatable, Identifiable {
     var app: String
     var agent: String
     var last_seen_at: Double
+    var plugin_label: String? = nil
     /// The Mac app an ACU call operated on (name or bundle id), drawn inside the pill.
     var target_app: String? = nil
 
@@ -134,16 +138,14 @@ enum IslandOperatedAppItem: Equatable, Identifiable {
 enum IslandOperatedApps {
     static let maxIcons = 3
 
-    /// Display names, newest first, each once. Any plugin with a controlled target (ACU's Mac ring,
-    /// comet-control's Comet, …) may carry in-use apps; the target app itself is never repeated as an icon.
+/// ACU's operated app icons, newest first, each once. Other controlled targets keep their ring without app icons.
     static func names(_ uses: [IslandPluginUse]) -> [String] {
         var out: [String] = []
         for u in uses.sorted(by: { $0.last_seen_at > $1.last_seen_at }) {
-            guard let target = IslandPluginTarget.of(plugin: u.plugin) else { continue }
+            guard u.plugin == "acu" else { continue }
             let raw = (u.target_app ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !raw.isEmpty else { continue }
             let name = displayName(raw)
-            if case .app(let targetName) = target, targetName == name { continue }
             if !out.contains(name) { out.append(name) }
         }
         return out
@@ -439,13 +441,13 @@ enum IslandPresentation: Equatable {
 enum IslandCircleItem: Equatable, Identifiable {
     case app(name: String, dimmed: Bool, driving: Bool)
     /// A plugin in use, drawn on the right of the pill after Samantha's app circles.
-    case plugin(name: String, agents: [String])
+    case plugin(name: String, agents: [String], pluginLabel: String? = nil)
     case overflow(Int)
 
     var id: String {
         switch self {
         case .app(let name, _, _): return "app:\(name)"
-        case .plugin(let name, _): return "plugin:\(name)"
+        case .plugin(let name, _, _): return "plugin:\(name)"
         case .overflow: return "overflow"
         }
     }
@@ -507,35 +509,51 @@ enum IslandPluginLabel {
         "developer-observability": "Developer Observability",
     ]
 
-    static func display(_ name: String) -> String { displayNames[name] ?? name }
+    static func isValidID(_ plugin: String) -> Bool {
+        let bytes = Array(plugin.utf8)
+        func alphanumeric(_ byte: UInt8) -> Bool { (48...57).contains(byte) || (97...122).contains(byte) }
+        guard let first = bytes.first, bytes.count <= 48, alphanumeric(first) else { return false }
+        return bytes.dropFirst().allSatisfy { alphanumeric($0) || $0 == 45 }
+    }
+
+    static func display(_ name: String, pluginLabel: String? = nil) -> String {
+        if let known = displayNames[name] { return known }
+        if let label = pluginLabel?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty {
+            return String(label.prefix(48))
+        }
+        return name.split(separator: "-").map { $0.prefix(1).uppercased() + String($0.dropFirst()) }.joined(separator: " ")
+    }
+
+    static func pluginID(forMarkName name: String) -> String { name == "Agent Computer Use" ? "acu" : name }
 
     /// The plugin's own mark on the right (Guru 12:04 IST): ACU's app icon, else the plugin's logo
     /// (AppIconResolver loads `<plugins>/<id>/assets/logo.svg`).
-    static func markName(plugin: String, app: String) -> String {
+    static func markName(plugin: String, app _: String) -> String {
         switch plugin {
         case "acu": return "Agent Computer Use"
         case "comet-control", "context-ledger", "developer-observability": return plugin
-        default: return app
+        default: return plugin
         }
     }
 
     /// "<display> · <agents joined by ", ">"
-    static func tooltip(name: String, agents: [String]) -> String {
+    static func tooltip(name: String, agents: [String], pluginLabel: String? = nil) -> String {
         let who = agents.joined(separator: ", ")
-        return who.isEmpty ? display(name) : "\(display(name)) · \(who)"
+        let shown = display(name, pluginLabel: pluginLabel)
+        return who.isEmpty ? shown : "\(shown) · \(who)"
     }
 
     /// "Using <display>": VoiceOver and the expanded row only, never the compact pill (UI & UX, 2026-11-03).
-    static func rowTitle(name: String) -> String { "Using \(display(name))" }
+    static func rowTitle(name: String, pluginLabel: String? = nil) -> String { "Using \(display(name, pluginLabel: pluginLabel))" }
 
     /// "Using <display>: <agents joined with ", " and final " and ">"
-    static func voiceOver(name: String, agents: [String]) -> String {
-        guard !agents.isEmpty else { return rowTitle(name: name) }
+    static func voiceOver(name: String, agents: [String], pluginLabel: String? = nil) -> String {
+        guard !agents.isEmpty else { return rowTitle(name: name, pluginLabel: pluginLabel) }
         let who: String
         if agents.count == 1 { who = agents[0] }
         else if agents.count == 2 { who = agents[0] + " and " + agents[1] }
         else { who = agents.dropLast().joined(separator: ", ") + " and " + agents[agents.count - 1] }
-        return "\(rowTitle(name: name)): \(who)"
+        return "\(rowTitle(name: name, pluginLabel: pluginLabel)): \(who)"
     }
 }
 
@@ -568,13 +586,20 @@ enum IslandCircles {
     /// then any other app alphabetically; an app in use by no named agent still gets a circle.
     static func pluginItems(_ uses: [IslandPluginUse]) -> [IslandCircleItem] {
         var agents: [String: Set<String>] = [:]
+        var labels: [String: (seen: Double, label: String)] = [:]
         for use in uses {
-            agents[IslandPluginLabel.markName(plugin: use.plugin, app: use.app), default: []].insert(use.agent.isEmpty ? "Agent" : use.agent)
+            let mark = IslandPluginLabel.markName(plugin: use.plugin, app: use.app)
+            agents[mark, default: []].insert(use.agent.isEmpty ? "Agent" : use.agent)
+            if IslandPluginLabel.displayNames[mark] == nil,
+               let label = use.plugin_label?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty,
+               (labels[mark]?.seen ?? -.infinity) <= use.last_seen_at {
+                labels[mark] = (use.last_seen_at, String(label.prefix(48)))
+            }
         }
         let rest = agents.keys.filter { !pluginOrder.contains($0) }.sorted()
         return (pluginOrder + rest).compactMap { app in
             guard let names = agents[app] else { return nil }
-            return .plugin(name: app, agents: names.sorted())
+            return .plugin(name: app, agents: names.sorted(), pluginLabel: labels[app]?.label)
         }
     }
 
@@ -1053,8 +1078,8 @@ final class IslandModel: ObservableObject {
         for n in order { parts.append((running[n]! > 1 ? "\(running[n]!) " : "") + n + " working") }
         let operated = IslandOperatedApps.names(pluginUses)
         if !operated.isEmpty { parts.append(IslandOperatedApps.accessibilityLabel(operated)) }
-        for case .plugin(let n, let who) in IslandCircles.pluginItems(pluginUses) {
-            parts.append(IslandPluginLabel.voiceOver(name: n, agents: who))
+        for case .plugin(let n, let who, let label) in IslandCircles.pluginItems(pluginUses) {
+            parts.append(IslandPluginLabel.voiceOver(name: n, agents: who, pluginLabel: label))
         }
         return parts.joined(separator: ", ")
     }
@@ -1970,7 +1995,7 @@ final class IslandModel: ObservableObject {
         return unique.map { u in
             let mark = IslandPluginLabel.markName(plugin: u.plugin, app: u.app)
             return IslandAgent(id: "plugin:\(u.plugin)|\(u.agent)", name: u.agent, app: mark,
-                               title: IslandPluginLabel.rowTitle(name: mark), status: "running")
+                               title: IslandPluginLabel.rowTitle(name: mark, pluginLabel: u.plugin_label), status: "running")
         }
     }
 

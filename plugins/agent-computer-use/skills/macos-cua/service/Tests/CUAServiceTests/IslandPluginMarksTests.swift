@@ -62,15 +62,14 @@ final class IslandPluginMarksTests: XCTestCase {
         XCTAssertEqual(snap.plugins.first?.last_seen_at ?? -1, now.timeIntervalSince1970, accuracy: 0.001)
     }
 
-    func testUnknownPluginStaysANormalAgentRow() {
+    func testGenericPluginBecomesAPluginMark() {
         let hub = IslandHub(store: store)
         let now = Date()
         _ = post(hub, pluginBody(plugin: "not-a-mark", id: "plugin:other:k", agent: "Codex", app: "Some App"), now: now)
 
         let snap = hub.compose(now: now)
-        XCTAssertTrue(snap.plugins.isEmpty)
-        XCTAssertEqual(snap.agents.count, 1)
-        XCTAssertNil(snap.agents.first?.plugin)
+        XCTAssertEqual(snap.plugins.map(\.plugin), ["not-a-mark"])
+        XCTAssertTrue(snap.agents.isEmpty)
     }
 
     func testPluginRowDropsAtTTLAndIsNeverStale() {
@@ -117,8 +116,8 @@ final class IslandPluginMarksTests: XCTestCase {
             .plugin(name: "Agent Computer Use", agents: ["Codex"]),
             .plugin(name: "comet-control", agents: ["Claude", "Codex"]),
             .plugin(name: "context-ledger", agents: ["Zed"]),
-            .plugin(name: "Alpha", agents: ["A"]),
-            .plugin(name: "Zed App", agents: ["Grok"]),
+            .plugin(name: "alpha", agents: ["A"]),
+            .plugin(name: "other", agents: ["Grok"]),
         ])
     }
 
@@ -724,21 +723,17 @@ final class IslandPluginMarksTests: XCTestCase {
                       "the Comet Control plugin mark stays outside on the right")
     }
 
-    func testEveryControlledTargetGetsTheSameGapBeforeItsApps() {
-        // One shared rule for ACU (Apple ring) and comet-control (Comet ring): ring · 12 pt gap · apps.
+    func testOnlyAcuCarriesOperatedAppsInsideControlledTargets() {
         for plugin in ["acu", "comet-control"] {
             let model = IslandModel()
             model.idleActivity = "duo"
             let codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task", status: "running", last_seen_at: 100)
             model.apply(IslandSnapshot(kind: "idle", agents: [codex], plugins: [op("Finder", "Codex", 300, plugin: plugin)]))
-            XCTAssertEqual(model.operatedApps, [.app("Finder")], plugin)
+            let apps: [IslandOperatedAppItem] = plugin == "acu" ? [.app("Finder")] : []
+            XCTAssertEqual(model.operatedApps, apps, plugin)
             XCTAssertTrue(model.showsTargetMark, plugin)
-            XCTAssertEqual(model.drawnWidth, max(IslandBarLayout.idleWidth, IslandBarLayout.operatedAppsPillWidth(count: 1)), plugin)
-            let shape = IslandBarLayout.shapeRect(compactWidth: IslandBarLayout.operatedAppsPillWidth(count: 1), card: false)
-            let ringMaxX = shape.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
-            let icon = IslandBarLayout.operatedAppRects(shape: shape, count: 1)[0]
-            XCTAssertGreaterThanOrEqual(icon.minX - ringMaxX, 16, "clear gap between the \(plugin) ring and its apps")
-            // No apps in use: the pill collapses back.
+            let width = plugin == "acu" ? IslandBarLayout.operatedAppsPillWidth(count: 1) : IslandBarLayout.targetOnlyPillWidth
+            XCTAssertEqual(model.drawnWidth, width, plugin)
             model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
             XCTAssertFalse(model.showsOperatedApps, plugin)
         }
@@ -820,8 +815,7 @@ final class IslandPluginMarksTests: XCTestCase {
         XCTAssertEqual(IslandBarLayout.operatedDotGap, 6)
     }
 
-    /// Regression (UI & UX, 2026-11-04 11:57 IST): a comet-control row with no apps stretched to ~120 pt.
-    /// With no apps it hugs ring · 8 · dot · 9; with one app ring · 20 · icon · 6 · dot · 9.
+    /// Regression: controlled targets hug the ring; only ACU's target_app adds an inside icon.
     func testControlledTargetPillHugsWithNoAppsAndWithOneApp() async throws {
         XCTAssertEqual(IslandBarLayout.targetOnlyPillWidth, 49)
         var checked: [String] = []
@@ -840,7 +834,8 @@ final class IslandPluginMarksTests: XCTestCase {
                 model.apply(IslandSnapshot(kind: kind, title: kind == "acting" ? "Reading page" : "",
                                            plugins: [op("Finder", "Samantha", 310, plugin: plugin)], samantha_on: true))
                 try await Task.sleep(nanoseconds: 300_000_000)
-                XCTAssertEqual(model.shapeRect.width, 83, "\(plugin) \(kind) with one app")
+                let expectedWidth = plugin == "acu" ? 83 : IslandBarLayout.targetOnlyPillWidth
+                XCTAssertEqual(model.shapeRect.width, expectedWidth, "\(plugin) \(kind) with one app")
             }
         }
         XCTAssertTrue(checked.contains("comet-control acting"), "the regressed row is covered: \(checked)")

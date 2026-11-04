@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.88 (2026-11-04)
+
+- Accept valid marketplace plugin IDs for right-side island marks, with manifest icons, monograms, and optional display labels; add Claude Code, Cursor, and Codex MCP hook support.
+
 ## 0.2.87 (2026-11-04)
 
 - Controlled app inside the island in every state, voice included (Guru 2026-11-04: "why do i see app icon still on the right side of the island"). One shared rule: inside the pill, left to right, the controlled target with its ring (Apple for ACU, Comet for comet-control), the gap, the app icons (ACU only), then Samantha's voice slot (only while she listens, thinks, speaks or finishes), then the dot. Harness circles (Samantha included) stay outside on the left; only plugin marks go outside on the right. The `.app` outside-circle path is gone.

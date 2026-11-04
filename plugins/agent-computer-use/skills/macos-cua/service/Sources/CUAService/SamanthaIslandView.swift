@@ -101,6 +101,15 @@ enum AppIconResolver {
         return result
     }
 
+    static func pluginImage(_ name: String) -> NSImage? {
+        let key = "plugin-logo:" + name
+        if case .image(let image)? = cache[key] { return image }
+        guard let url = pluginLogoURL(name), let logo = NSImage(contentsOf: url) else { return nil }
+        let image = small(logo)
+        cache[key] = .image(image)
+        return image
+    }
+
     /// One `cachedSide`-pixel bitmap of `image` (point size half that, for Retina).
     nonisolated static func small(_ image: NSImage, side: Int = cachedSide) -> NSImage {
         guard let rep = NSBitmapImageRep(
@@ -120,15 +129,31 @@ enum AppIconResolver {
         return out
     }
 
-    /// Plugin marks (right of the pill) wear the plugin's own logo from its installed package.
-    static let pluginLogoNames: Set<String> = ["comet-control", "context-ledger"]
-    static func pluginLogoURL(_ name: String) -> URL? {
-        guard pluginLogoNames.contains(name) else { return nil }
-        let root = ProcessInfo.processInfo.environment["ACU_PLUGIN_LOGO_ROOT"]
-            .map { URL(fileURLWithPath: $0) }
+    /// Plugin marks use only files inside the installed package; manifest URLs are intentionally ignored.
+    static func pluginLogoURL(_ name: String, root: URL? = nil) -> URL? {
+        guard IslandPluginLabel.isValidID(name) else { return nil }
+        let plugins = root
+            ?? ProcessInfo.processInfo.environment["ACU_PLUGIN_LOGO_ROOT"].map { URL(fileURLWithPath: $0) }
             ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".agents/plugins")
-        let url = root.appendingPathComponent(name).appendingPathComponent("assets/logo.svg")
-        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+        let package = plugins.appendingPathComponent(name).standardizedFileURL
+        func asset(_ path: String) -> URL? {
+            let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !trimmed.hasPrefix("/"), !trimmed.hasPrefix("~"), !trimmed.contains("://") else { return nil }
+            let url = package.appendingPathComponent(trimmed).standardizedFileURL
+            guard url.path.hasPrefix(package.path + "/"), FileManager.default.fileExists(atPath: url.path) else { return nil }
+            return url
+        }
+        if let logo = asset("assets/logo.svg") { return logo }
+        let manifest = [package.appendingPathComponent("plugin.json"),
+                        package.appendingPathComponent(".cursor-plugin/plugin.json")]
+        for file in manifest {
+            guard let data = try? Data(contentsOf: file),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+            for key in ["logo", "icon"] {
+                if let path = json[key] as? String, let url = asset(path) { return url }
+            }
+        }
+        return nil
     }
 
     /// Only real .app bundles — never a guessed path (that yields the blank document icon).
@@ -192,6 +217,51 @@ enum AppIconResolver {
     }
 }
 
+@MainActor
+enum IslandPluginMarkTier: Equatable {
+    case designed, manifestIcon, monogram
+
+    static func resolve(plugin: String, iconLookup: ((String) -> Bool)? = nil) -> Self {
+        if plugin == "acu" || plugin == IslandDevObsMark.plugin { return .designed }
+        let hasIcon = iconLookup?(plugin) ?? (AppIconResolver.pluginImage(plugin) != nil)
+        return hasIcon ? .manifestIcon : .monogram
+    }
+}
+
+@MainActor
+struct IslandPluginMonogram: View {
+    let plugin: String
+    let displayName: String
+
+    private static let palette: [Color] = [
+        Color(red: 0.25, green: 0.35, blue: 0.73), Color(red: 0.13, green: 0.48, blue: 0.49),
+        Color(red: 0.55, green: 0.30, blue: 0.63), Color(red: 0.69, green: 0.34, blue: 0.22),
+        Color(red: 0.22, green: 0.47, blue: 0.72), Color(red: 0.50, green: 0.43, blue: 0.20),
+        Color(red: 0.29, green: 0.48, blue: 0.32), Color(red: 0.60, green: 0.30, blue: 0.42),
+    ]
+
+    static func letters(for displayName: String) -> String {
+        let words = displayName.split(whereSeparator: \.isWhitespace)
+        if words.count > 1 { return words.prefix(2).map { String($0.prefix(1)) }.joined().uppercased() }
+        return String((words.first ?? "?").prefix(2)).uppercased()
+    }
+
+    static func paletteIndex(for plugin: String) -> Int {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in plugin.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return Int(hash % UInt64(palette.count))
+    }
+
+    var body: some View {
+        Circle().fill(Self.palette[Self.paletteIndex(for: plugin)])
+            .overlay(Text(Self.letters(for: displayName))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.white))
+    }
+}
 
 // MARK: - Glyphs (§3) — drawn on black, 16 pt, no grey discs
 
@@ -513,9 +583,24 @@ struct SamanthaAppCircle: View {
                 SamanthaAppIcon(appName: name)
                 Circle().strokeBorder(driving ? IslandPalette.accent : IslandPalette.keyLine,
                                       lineWidth: driving ? 1.5 : 1)
-            case .plugin(let name, _):
+            case .plugin(let name, _, let pluginLabel):
                 // A plugin mark looks like an app circle: never dimmed, never driving, tap does nothing.
-                if name == IslandDevObsMark.plugin { IslandDevObsMark() } else { SamanthaAppIcon(appName: name) }
+                let plugin = IslandPluginLabel.pluginID(forMarkName: name)
+                let displayName = IslandPluginLabel.display(name, pluginLabel: pluginLabel)
+                switch IslandPluginMarkTier.resolve(plugin: plugin) {
+                case .designed:
+                    if plugin == IslandDevObsMark.plugin { IslandDevObsMark() }
+                    else { SamanthaAppIcon(appName: "Agent Computer Use") }
+                case .manifestIcon:
+                    if let image = AppIconResolver.pluginImage(plugin) {
+                        Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+                            .frame(width: IslandBarLayout.circleIcon, height: IslandBarLayout.circleIcon)
+                    } else {
+                        IslandPluginMonogram(plugin: plugin, displayName: displayName)
+                    }
+                case .monogram:
+                    IslandPluginMonogram(plugin: plugin, displayName: displayName)
+                }
                 Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
             case .overflow(let n):
                 Text("+\(n)")
@@ -542,8 +627,8 @@ struct SamanthaAppCircle: View {
 
     /// The plugin mark names the agent using it; other circles have no hover text.
     private var pluginTooltip: String? {
-        if case .plugin(let name, let agents) = item {
-            return IslandPluginLabel.tooltip(name: name, agents: agents)
+        if case .plugin(let name, let agents, let pluginLabel) = item {
+            return IslandPluginLabel.tooltip(name: name, agents: agents, pluginLabel: pluginLabel)
         }
         return nil
     }
@@ -551,7 +636,7 @@ struct SamanthaAppCircle: View {
     private var accessibility: String {
         switch item {
         case .app(let name, _, _): return name
-        case .plugin(let name, let agents): return IslandPluginLabel.voiceOver(name: name, agents: agents)
+        case .plugin(let name, let agents, let pluginLabel): return IslandPluginLabel.voiceOver(name: name, agents: agents, pluginLabel: pluginLabel)
         case .overflow(let n): return "\(n) more apps"
         }
     }

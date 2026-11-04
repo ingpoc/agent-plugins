@@ -136,7 +136,7 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
     // MARK: - developer-observability mark (Guru 13:33 IST): outside right, nothing inside
 
     func testDeveloperObservabilityIsAPluginMarkOutsideRightOnly() async {
-        XCTAssertTrue(IslandHub.pluginMarks.contains("developer-observability"))
+        XCTAssertTrue(IslandPluginLabel.isValidID("developer-observability"))
         XCTAssertEqual(IslandPluginLabel.display("developer-observability"), "Developer Observability")
         XCTAssertEqual(IslandPluginLabel.rowTitle(name: "developer-observability"), "Using Developer Observability")
         XCTAssertTrue(IslandSourceGroups.isPluginIdentity("Developer Observability"), "never a left harness circle")
