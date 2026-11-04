@@ -61,3 +61,5 @@ Helper response:
 ```json
 {"task_id":"...","written":["..."],"feedback":[{"id":"...","confidence":{"score":0.8,"successes":4,"failures":1,"inconclusive":1,"sample_count":5}}],"candidate":{"disposition":"skipped","reason":"..."}}
 ```
+
+Owner preferences and decisions pass the capture gate: the same decision point is the future task, the stated choice is the value and unique owner preference, and it is durable unless one-off. Save `user_decision` with exact scope and rule; never save one-offs, temporary authorizations or secrets.

@@ -101,3 +101,15 @@ class PromptLint(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_context_ledger_preferences_guidance():
+    root = SKILL.parents[3]
+    for relative in (
+        "plugins/context-ledger/skills/context-ledger/SKILL.md",
+        "plugins/comet-control/skills/comet-control/SKILL.md",
+        "plugins/agent-computer-use/skills/macos-cua/SKILL.md",
+    ):
+        text = (root / relative).read_text().lower()
+        assert "decision point" in text and "scope" in text and "rule" in text
+        assert "without asking" in text and "user_decision" in text

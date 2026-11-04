@@ -798,7 +798,7 @@ def validate_find_input(value: Any) -> dict[str, Any]:
     obj = require_keys(
         value,
         {"query"},
-        {"entities", "constraints", "include_superseded", "limit", "offset", "task_id", "actor", "caller_scope"},
+        {"entities", "constraints", "include_superseded", "limit", "offset", "task_id", "actor", "caller_scope", "scope", "rule"},
     )
     include = obj.get("include_superseded", False)
     if type(include) is not bool:
@@ -807,7 +807,11 @@ def validate_find_input(value: Any) -> dict[str, Any]:
     if type(limit) is int and limit > 3:
         raise LedgerError("INVALID_ARGUMENT", message="find limit max is 3")
     offset = obj.get("offset", 0)
+    if obj.get("rule") is not None and (not obj.get("scope") or not re.fullmatch(r"[a-z0-9_]{1,64}", str(obj["rule"]))):
+        raise LedgerError("INVALID_ARGUMENT", message="rule requires scope and a decision point slug")
     return {
+        "scope": parse_applicability_scope(obj["scope"]) if obj.get("scope") is not None else None,
+        "rule": obj.get("rule"),
         "query": require_str(obj["query"], 240, allow_empty=True),
         "entities": [nfc(item) for item in _str_list(obj.get("entities") or [], 128, 4)],
         "constraints": _str_list(obj.get("constraints") or [], 160, 4),

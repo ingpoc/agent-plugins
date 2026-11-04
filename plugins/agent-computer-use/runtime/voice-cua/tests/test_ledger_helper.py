@@ -15,7 +15,15 @@ class LedgerHelperTests(unittest.TestCase):
     def test_activity_log_is_redirected_to_a_temp_path(self):
         from voice_cua.activity_log import log_path
         self.assertFalse(str(log_path()).startswith(str(Path.home() / ".cache/macos-cua")))
-        self.assertTrue(str(log_path()).startswith(_ACTIVITY_DIR.name))
+        original = os.environ.get("VOICE_CUA_ACTIVITY_LOG")
+        try:
+            os.environ["VOICE_CUA_ACTIVITY_LOG"] = str(Path(_ACTIVITY_DIR.name) / "activity.jsonl")
+            self.assertTrue(str(log_path()).startswith(_ACTIVITY_DIR.name))
+        finally:
+            if original is None:
+                os.environ.pop("VOICE_CUA_ACTIVITY_LOG", None)
+            else:
+                os.environ["VOICE_CUA_ACTIVITY_LOG"] = original
 
     def setUp(self):
         self.transport = Mock()

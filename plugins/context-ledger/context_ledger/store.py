@@ -662,6 +662,22 @@ class Store:
                 request_hash=req_hash,
                 mcp=mcp,
             )
+            trace = parsed["body"].get("trace") or {}
+            if tool == "save" and trace.get("type") == "user_decision" and trace.get("rule"):
+                rows = conn.execute("select decision_id from current_records where scope_id=? and decision_id!=?", (self.binding["scope_id"], decision_id)).fetchall()
+                for row in rows:
+                    old = self._get_record(conn, row["decision_id"], mcp=mcp)
+                    if not old or old["lifecycle"] != "active":
+                        continue
+                    old_body = old["body"]
+                    old_trace = old_body.get("trace") or {}
+                    if old_body.get("scope") != parsed["body"].get("scope") or old_trace.get("type") != "user_decision" or old_trace.get("rule") != trace["rule"]:
+                        continue
+                    supersession = {**event, "event_id": new_uuid(), "decision_id": old["decision_id"],
+                        "revision": old["revision"] + 1, "expected_revision": old["revision"],
+                        "event_type": "superseded", "request_id": new_uuid(),
+                        "payload": {"replacement_id": decision_id, "reason": "Owner preference updated"}}
+                    self._append_event_row(conn, supersession, ingest_kind="local", request_hash=None, mcp=mcp)
             return receipt
 
     def append_event(self, arguments: dict[str, Any], *, mcp: bool, tool: str = "append_event") -> dict[str, Any]:
@@ -985,12 +1001,12 @@ class Store:
         self._ensure_reachable()
         parsed = validate_find_input(arguments)
         qterms = ranking.query_terms(parsed["query"])
-        if not qterms:
+        if not qterms and not parsed["scope"]:
             raise LedgerError(
                 "INVALID_ARGUMENT",
                 message="find needs query words; stop-words alone match nothing",
             )
-        if mcp and ab_arm(self.ab_today()) == "off":
+        if mcp and not parsed["scope"] and ab_arm(self.ab_today()) == "off":
             with self._tx() as conn:
                 self._log_access(conn, tool="find", caller=parsed["actor"], task_id=parsed["task_id"],
                                  query=parsed["query"], ids=[], nbytes=0, started=started)
@@ -1010,7 +1026,7 @@ class Store:
             ).fetchall()
             recs: dict[str, dict[str, Any]] = {}
             append_order: dict[str, int] = {}
-            allowed = allowed_scopes(parsed["caller_scope"]) if parsed["caller_scope"] else {"fleet"}
+            allowed = allowed_scopes(parsed["caller_scope"]) if parsed["caller_scope"] else ({parsed["scope"]} if parsed["scope"] else {"fleet"})
             now = now_ts()
             for row in rows:
                 rec = self._get_record(conn, row["decision_id"], mcp=True)
@@ -1022,6 +1038,8 @@ class Store:
                 # to "fleet", so an absent scope reads as fleet here too: a missing field must never
                 # hide an otherwise-retrievable record from every caller.
                 if allowed is not None and (rec["body"].get("scope") or "fleet") not in allowed:
+                    continue
+                if parsed["scope"] and ((rec["body"].get("scope") or "fleet") != parsed["scope"] or rec["lifecycle"] != "active" or (parsed["rule"] is not None and (rec["body"].get("trace") or {}).get("rule") != parsed["rule"])):
                     continue
                 recs[row["decision_id"]] = rec
                 append_order[row["decision_id"]] = int(row["last_seq"] or 0)
@@ -1038,7 +1056,7 @@ class Store:
                     continue
                 body = rec["body"]
                 bm25, cov, matched = text_of[did]
-                text_ok = bool(qterms) and ranking.relevant(cov, matched, len(qterms))
+                text_ok = bool(parsed["scope"]) or (bool(qterms) and ranking.relevant(cov, matched, len(qterms)))
                 if not text_ok:
                     continue
                 rtype = ranking.record_type(body)
@@ -1087,7 +1105,7 @@ class Store:
                 hit["tier"] = self._tier(conn, rec, rec["decision_id"] in demoted)
                 if rec["decision_id"] in demoted:
                     hit["flag"] = "not_helped here"
-                rel = self._related(conn, rec, recs, text_of, shown, qterms)
+                rel = [] if parsed["scope"] else self._related(conn, rec, recs, text_of, shown, qterms)
                 if rel:
                     hit["related"] = rel
                     shown |= {r["id"] for r in rel}

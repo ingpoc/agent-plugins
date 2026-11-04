@@ -195,10 +195,16 @@ class ActivityTests(ViewerBase):
 class StatsTests(ViewerBase):
     def test_stats_without_the_report_script_still_answer(self) -> None:
         os.environ["LEDGER_STATS_SCRIPT"] = str(Path(self._tmp.name) / "missing.py")
+        previous_date = os.environ.get("LEDGER_AB_DATE")
+        os.environ["LEDGER_AB_DATE"] = "2026-10-19"
         try:
             s = self.view.stats({})
         finally:
             os.environ.pop("LEDGER_STATS_SCRIPT")
+            if previous_date is None:
+                os.environ.pop("LEDGER_AB_DATE", None)
+            else:
+                os.environ["LEDGER_AB_DATE"] = previous_date
         self.assertIsNone(s["ab"])
         self.assertEqual(s["today_arm"], "on")
         self.assertEqual(sum(s["tiers"].values()), 31)

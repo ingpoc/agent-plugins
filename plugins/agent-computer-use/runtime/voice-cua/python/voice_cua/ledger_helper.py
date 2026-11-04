@@ -114,9 +114,34 @@ class LedgerHelper:
                         return result
         raise LedgerUnavailable('helper returned no decision')
 
-    def run(self, *, operation: str, situation: str, need: str, project: str | None = None, capture_gate: dict[str, str] | None = None) -> dict[str, Any]:
+    def run(self, *, operation: str, situation: str = "", need: str = "", project: str | None = None, capture_gate: dict[str, str] | None = None, scope: str = "", rule: str = "", value: str = "", owner_quote: str = "") -> dict[str, Any]:
         if self._closed.is_set():
             return {'ok': False, 'error': 'Ledger helper session closed'}
+        if operation in {'recall', 'preference'}:
+            if not all(isinstance(item, str) for item in (scope, rule, value, owner_quote)) or not re.fullmatch(r'(?:fleet|(?:tool|project):[a-z0-9][a-z0-9._-]{0,63})', scope) or (rule and not re.fullmatch(r'[a-z0-9_]{1,64}', rule)) or (operation == 'preference' and not rule):
+                return _invalid('Invalid scope or decision point')
+            try:
+                if operation == 'recall':
+                    args = {'query': '', 'scope': scope, 'actor': 'samantha'}
+                    if rule:
+                        args['rule'] = rule
+                    return {'ok': True, **self.transport.call('find', args)}
+                source = self._quote_source(owner_quote)
+                if not _norm_text(value) or source is None or (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
+                    return _invalid('Value and owner quote must occur in a recent user statement')
+                recent = self._recent()[source:]
+                if any(_REJECTS.search(u) or re.search(r"\b(?:do not|dont|don.t|never|not)\b", u, re.I) or re.search(r"\b(?:just this once|only once|one[ -]off|only this time|just for (?:today|now)|temporar(?:y|ily)|password|passcode|secret|api[ -]?key|token|otp)\b", u, re.I) for u in recent) or re.search(r'(?:sk-[A-Za-z0-9]{12,}|[A-Za-z0-9+/=_-]{32,})', value):
+                    return _invalid('Temporary or sensitive choice cannot be saved')
+                result = self.transport.call('save', {'request_id': str(uuid.uuid4()), 'type': 'user_decision',
+                    'decision': value, 'why': 'Owner stated this preference', 'scope': scope, 'rule': rule,
+                    'entities': [scope.split(':', 1)[-1], rule], 'actor': 'samantha'})
+                if result.get('ok') is not True or not (result.get('data') or {}).get('decision_id'):
+                    raise LedgerUnavailable('missing save receipt')
+                return {'ok': True, 'status': 'saved', **result['data']}
+            except LedgerInvalidArgument as exc:
+                return _invalid(f'Context Ledger rejected the request: {exc.message or exc.code}')
+            except Exception:
+                return {'ok': False, 'error': 'Context Ledger unavailable or save outcome unknown', 'error_type': 'ledger_unavailable' if operation == 'recall' else 'ledger_outcome_unknown'}
         if operation not in {'lookup', 'capture'} or not situation.strip() or not need.strip():
             return _invalid('invalid request')
         raw_project = project if isinstance(project, str) else ''
