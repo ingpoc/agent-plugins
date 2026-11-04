@@ -205,6 +205,7 @@ class ToolsTests(unittest.TestCase):
             names,
             {
                 "cua_state",
+                "ledger_task",
                 "cua_act",
                 "more_tools",
                 "show_details",

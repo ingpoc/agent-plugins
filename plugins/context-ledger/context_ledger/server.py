@@ -130,6 +130,8 @@ def build_server(store: Store) -> MCPServer:
         actor: str | None = None,
         task_id: str | None = None,
         caller_scope: dict | None = None,
+        scope: str | None = None,
+        rule: str | None = None,
     ) -> CallToolResult:
         args: dict[str, Any] = {
             "query": query,
@@ -145,6 +147,10 @@ def build_server(store: Store) -> MCPServer:
             args["task_id"] = task_id
         if caller_scope is not None:
             args["caller_scope"] = caller_scope
+        if scope is not None:
+            args["scope"] = scope
+        if rule is not None:
+            args["rule"] = rule
         return _call(lambda a: store.find(a, mcp=True), args, structured=False)
 
     @server.tool(

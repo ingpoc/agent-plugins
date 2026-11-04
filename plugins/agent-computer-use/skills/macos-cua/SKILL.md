@@ -74,3 +74,7 @@ Comet **other-window** popups (Google chooser, Razorpay Bank) bind by window tit
 | WhatsApp | `$whatsapp` |
 
 Maintainer-only (not the agent loop): `references/lifecycle.md`, `references/cua-driver-mcp.md`, `references/computer-parity.md`, `references/entry-contract.json`.
+
+## Preferences (Context Ledger)
+
+Before a site/app decision point, recall the exact `scope` and `rule` and apply the active value without asking. On an owner choice or correction, save `user_decision` with `scope=tool:<site-or-app>` and `rule=<decision_point>`; exclude one-offs, temporary authorizations and secrets.

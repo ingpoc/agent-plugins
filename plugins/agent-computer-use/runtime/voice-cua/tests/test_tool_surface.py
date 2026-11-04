@@ -46,7 +46,7 @@ class _Fresh(unittest.TestCase):
 
 class LazyGroupTests(unittest.TestCase):
     def test_base_surface_has_no_secrets_or_confirm(self) -> None:
-        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "system_volume"})
+        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "system_volume", "ledger_task"})
 
     def test_comet_actions_are_only_offered_during_a_lease(self) -> None:
         idle = {tool["name"] for tool in tools.tool_definitions(comet_active=False)}

@@ -54,3 +54,7 @@ Every active lease shows on the ACU Dynamic Island (Comet Control mark on the ri
 | Author a product wrapper skill | [wrapper-skills.md](references/wrapper-skills.md) |
 | Optional Browser Use | [browser-use.md](references/browser-use.md) |
 | Copy→Keychain / architecture | [secure-copy-keychain.md](references/secure-copy-keychain.md) · [agent-handbook.md](references/agent-handbook.md) |
+
+## Preferences (Context Ledger)
+
+Before a site/app decision point, recall the exact `scope` and `rule` and apply the active value without asking. On an owner choice or correction, save `user_decision` with `scope=tool:<site-or-app>` and `rule=<decision_point>`; exclude one-offs, temporary authorizations and secrets.

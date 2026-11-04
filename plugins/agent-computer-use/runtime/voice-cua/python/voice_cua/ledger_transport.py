@@ -128,7 +128,7 @@ class LedgerTransport:
             selector.close()
 
     def call(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-        if name not in {'find', 'record'}:
+        if name not in {'find', 'record', 'save'}:
             raise ValueError('unsupported ledger operation')
         with self._lock:
             try:
