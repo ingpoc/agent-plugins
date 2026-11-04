@@ -14,11 +14,16 @@ ownership.
    `data_source.status` is `no_findings`, or `freshness`/`sources.collector`
    is old, call `observability_collect` once (optionally `project_dir`) and
    re-read; never report "no issues" from an empty state.
-2. `observability_issues` → `by_kind` (failure, latency_hotspot, redundancy)
+2. `observability_issues` (`limit` 1–100; more clamps to 100 with `limit_note`) → `by_kind`
+   (failure, latency_hotspot, redundancy, turn_latency, island_layout),
    `slowest` (top p95 steps) and `top_failures` answer "top failures and slowest steps" in
    one call; filter with `kind`. `total`/`active`/`by_status`/`by_source` count exactly the
    filtered rows (pages, not caps); `by_kind` is the pre-kind-filter breakdown. Failures may carry `before_after` (latest version) and
-   `logged_as`; `recovered` means none on the latest version. Test sessions are
+   `logged_as`; `recovered` means none on the latest version. A failure's `effects` are the
+   downstream errors and retried calls of the same incident (one root cause, one finding).
+   `error_class` `app_error` is the app's or tool's error; `collector_failure` is only the
+   collector failing to read a source. Redundancy `duplicate_call` means same tool and same
+   arguments; `retry` means different or unknown arguments. Issue IDs are stable across runs. Test sessions are
    excluded unless `observability_collect(include_tests=true)`. Use its full issue ID with
    `observability_inspect_issue`. Request more bounded evidence only as needed.
    A cursor is scoped to snapshot/project/query; on change, restart the query.

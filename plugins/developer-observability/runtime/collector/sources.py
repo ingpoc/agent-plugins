@@ -1,6 +1,7 @@
 """Source adapters. Each yields normalized events; nothing here stores raw lines, audio or transcripts."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -19,6 +20,10 @@ END_PHASE = re.compile(r'(close|closed|exit|done|error|fail|gave_up|updated|reco
 ERROR_STATUS = {'fail', 'failed', 'error', 'err'}
 # Kinds that re-display errors already logged elsewhere (the island HUD): counted as mirrors, not failures.
 MIRROR_KINDS = {'island_error_raw'}
+# Row metadata: never part of a tool call's argument fingerprint.
+ARG_META = {'ts', 'time', 'timestamp', 'kind', 'event', 'type', 'name', 'session_id', 'session', 'tool', 'phase',
+            'step', 'stage', 'status', 'ok', 'source', 'call_id', 'response_id', 'item_id', 'delegation_id', 'id',
+            'elapsed_ms', 'step_ms', 'provider', 'version', 'purpose', 'schema'}
 # Environment conditions, not code failures: their own category.
 CAUSES = (('no input device', 'no_input_device'),)
 # Test fixtures: canned replies answered within a few ms, and explicit self-test sessions.
@@ -83,7 +88,8 @@ def _stat(stats, source):
 
 
 def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None,
-           metric=None, condition=None, mirror=False, test=False, version=None, alias=False):
+           metric=None, condition=None, mirror=False, test=False, version=None, alias=False, turn=None,
+           args=None, layout=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -95,7 +101,60 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
     return {'project': project, 'source': source, 'kind': kind, 'step': step, 'error': bool(error), 'ts': ts,
             'duration_ms': duration_ms, 'metric': metric, 'message': message, 'ref': where, 'session': session,
             'condition': condition, 'mirror': bool(mirror), 'test': bool(test), 'version': version,
-            'alias': bool(alias)}
+            'alias': bool(alias), 'turn': turn, 'args': args, 'layout': layout}
+
+
+def _normalize(value):
+    """Case- and whitespace-insensitive call arguments; structure is preserved."""
+    if isinstance(value, str):
+        return ' '.join(value.split()).lower()
+    if isinstance(value, (list, tuple)):
+        return [_normalize(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _normalize(item) for key, item in value.items()}
+    return value
+
+
+def _args_fingerprint(obj):
+    """A short, stable hash of the call's arguments; row metadata and denied keys never count."""
+    payload = {key: value for key, value in obj.items() if key not in ARG_META and key not in DENY_KEYS}
+    if not payload:
+        return None
+    normalized = _normalize(payload)
+    return hashlib.sha256(json.dumps(normalized, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+
+def _coord(value):
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+
+def _rect(value):
+    if not isinstance(value, dict):
+        return None
+    x, y, w, h = (_coord(value.get(key)) for key in ('x', 'y', 'w', 'h'))
+    if None in (x, y, w, h):
+        return None
+    return {'id': str(value.get('id', '')), 'x': x, 'y': y, 'w': w, 'h': h}
+
+
+def _layout(obj):
+    """Island HUD geometry (schema 1); None means the row cannot be trusted and is a parse failure."""
+    raw_screen, raw_island, raw_overlays = obj.get('screen'), obj.get('island'), obj.get('overlays')
+    screen, island = _rect(raw_screen), _rect(raw_island)
+    if screen is None or island is None or not isinstance(raw_overlays, list):
+        return None
+    island['visible'] = bool(raw_island.get('visible'))
+    overlays = []
+    for raw in raw_overlays:
+        rect = _rect(raw)
+        if rect is None or not isinstance(raw.get('kind'), str):
+            return None
+        rect['kind'] = raw['kind'][:40]
+        rect['visible'] = bool(raw.get('visible'))
+        rect['expected_inside_island'] = bool(raw.get('expected_inside_island'))
+        overlays.append(rect)
+    trigger = obj.get('trigger') if isinstance(obj.get('trigger'), str) else ''
+    return {'trigger': trigger[:20], 'screen': screen, 'island': island, 'overlays': overlays}
 
 
 def _lines(path, max_bytes):
@@ -193,9 +252,20 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         message = '' if kind in TEXT_KINDS else scrub(raw_message)
         if condition:
             message, error = f'cause: {condition}', True
+        turn_id = obj.get('turn_id')
+        turn = str(turn_id)[:40] if ((isinstance(turn_id, int) and not isinstance(turn_id, bool))
+                                    or (isinstance(turn_id, str) and turn_id)) else None
+        args = _args_fingerprint(obj) if kind == 'tool_start' or kind.endswith('_call') else None
+        layout = None
+        if kind == 'island_layout':
+            layout = _layout(obj)
+            if layout is None:
+                stats[source]['skipped'] += 1
+                continue
         yield _event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
                      duration_ms=duration, metric=metric, message=message, where=ref(path, number), session=current,
-                     condition=condition, mirror=mirror, test=test, version=flags.get('version'))
+                     condition=condition, mirror=mirror, test=test, version=flags.get('version'), turn=turn,
+                     args=args, layout=layout)
 
 
 _SESSION = re.compile(r'\bsession_id=(\w+)')
@@ -395,6 +465,11 @@ ADAPTERS = {'jsonl': iter_jsonl, 'textlog': iter_textlog, 'junit': iter_junit, '
             'git': iter_git, 'hygiene': iter_hygiene}
 
 
+def _io_error(stats, source):
+    item = _stat(stats, source)
+    item['io_errors'] = item.get('io_errors', 0) + 1
+
+
 def iter_spec(spec, stats):
     kind, path, project = spec.get('type'), Path(str(spec.get('path', ''))).expanduser(), spec.get('project')
     if kind == 'project_dir':
@@ -404,6 +479,9 @@ def iter_spec(spec, stats):
         raise ValueError(f'invalid source spec type {kind!r}')
     source = spec.get('source') or f'{project}:{path.name}'
     if not path.exists():
-        _stat(stats, source)['skipped'] += 1
+        _io_error(stats, source)
         return
-    yield from ADAPTERS[kind](path, project, source, stats)
+    try:
+        yield from ADAPTERS[kind](path, project, source, stats)
+    except OSError:
+        _io_error(stats, source)

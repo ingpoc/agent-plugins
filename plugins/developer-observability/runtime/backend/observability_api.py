@@ -25,7 +25,19 @@ NO_FINDINGS_HINT = (
     '~/.config/developer-observability/config.json). Run `observability_collect` (or '
     '`bin/developer-observability collect --project-dir <dir>`) to produce findings with the bundled '
     'portable collector.')
-KINDS = ('all', 'failure', 'latency_hotspot', 'redundancy')
+KINDS = ('all', 'failure', 'latency_hotspot', 'redundancy', 'turn_latency', 'island_layout')
+# Local edit (0.1.7): issue pages accept up to 100 rows; larger requests clamp instead of failing.
+MAX_ISSUES_LIMIT = 100
+# Local edit (0.1.7): error hints name the real fix, not backend or Decider health.
+NEXT_STEPS = {
+    'invalid_limit': 'Pass limit as an integer: 1–100 for observability_issues (larger values are clamped to 100), '
+                     '1–10 for observability_inspect_issue.',
+    'invalid_status': 'Use status all, active, recovered or stale.',
+    'invalid_kind': 'Use kind all, failure, latency_hotspot, redundancy, turn_latency or island_layout.',
+    'unknown_project': 'Call observability_projects and use a returned project_id.',
+    'snapshot_changed': 'Restart the query without a cursor.',
+    'issue_not_in_project': 'Use a full issue_id returned by observability_issues for this project.',
+}
 LIMITS = ['Project attribution follows configured owner/label mappings; labels may be provisional.',
           'Snapshot freshness describes generation time; source liveness is separate.',
           'Telemetry is incomplete. No observed failure does not prove success.',
@@ -295,6 +307,44 @@ class ObservabilityAPI:
             fields['before_after'] = {'version': redact(change['version'], 40), 'before': change['before'], 'after': change['after']}
         if logged_as := counts(finding.get('logged_as'), 6, 80):
             fields['logged_as'] = logged_as
+        # Local edit (0.1.7): bounded downstream-effect counts for rolled-up failures.
+        effects = finding.get('effects')
+        if isinstance(effects, dict):
+            summary = numbers(effects, ('count', 'incidents', 'calls', 'retries')) or {}
+            if kinds := counts(effects.get('kinds'), 6, 80):
+                summary['kinds'] = kinds
+            if summary:
+                fields['effects'] = summary
+        # Local edit (0.1.7): bounded slow-turn summary.
+        turn = finding.get('turn_latency')
+        if isinstance(turn, dict):
+            summary = numbers(turn, ('max_ms', 'slow_turns', 'threshold_ms')) or {}
+            if isinstance(turn.get('session'), str):
+                summary['session'] = redact(turn['session'], 40)
+            turns = turn.get('turns')
+            if isinstance(turns, list):
+                summary['turns'] = [{
+                    'turn': redact(str(item.get('turn', '')), 40),
+                    'ms': item.get('ms') if isinstance(item.get('ms'), (int, float)) and not isinstance(item.get('ms'), bool) else None,
+                    'tools': [redact(str(tool), 40) for tool in item['tools'][:5]] if isinstance(item.get('tools'), list) else [],
+                    'errors': item.get('errors') if isinstance(item.get('errors'), int) and not isinstance(item.get('errors'), bool) else 0,
+                } for item in turns[:3] if isinstance(item, dict)]
+            if summary:
+                fields['turn_latency'] = summary
+        # Local edit (0.1.7): bounded island-layout violation summary.
+        layout = finding.get('island_layout')
+        if isinstance(layout, dict):
+            summary = {}
+            if isinstance(layout.get('overlay_kind'), str):
+                summary['overlay_kind'] = redact(layout['overlay_kind'], 40)
+            if isinstance(layout.get('violation'), str):
+                summary['violation'] = redact(layout['violation'], 20)
+            if isinstance(layout.get('max_overflow_pt'), (int, float)) and not isinstance(layout.get('max_overflow_pt'), bool):
+                summary['max_overflow_pt'] = layout['max_overflow_pt']
+            if triggers := counts(layout.get('triggers'), 8, 20):
+                summary['triggers'] = triggers
+            if summary:
+                fields['island_layout'] = summary
         if isinstance(finding.get('condition'), str):
             fields['condition'] = redact(finding['condition'], 40)
         if isinstance(finding.get('rank'), int) and not isinstance(finding.get('rank'), bool):
@@ -303,8 +353,9 @@ class ObservabilityAPI:
 
     @staticmethod
     def _page(items, cursor, revision, scope, limit):
-        if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 25:
-            raise ValueError('invalid_limit: use 1–25')
+        # Local edit (0.1.7): the page size cap moved to issues(); larger values already clamped.
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+            raise ValueError('invalid_limit: use an integer 1–100')
         offset = 0
         if cursor:
             try:
@@ -325,13 +376,21 @@ class ObservabilityAPI:
         return items[offset:end], next_cursor
 
     def issues(self, project_id, status='all', cursor=None, limit=20, kind='all'):
+        # Local edit (0.1.7): validate the page size first, even for a project with no findings, and clamp.
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+            raise ValueError('invalid_limit: use an integer 1–100')
+        limit_note = None
+        if limit > MAX_ISSUES_LIMIT:
+            limit = MAX_ISSUES_LIMIT
+            limit_note = 'limit clamped to 100 (the maximum)'
         if kind not in KINDS:
-            raise ValueError('invalid_kind: use all, failure, latency_hotspot or redundancy')
+            raise ValueError('invalid_kind: use all, failure, latency_hotspot, redundancy, turn_latency or island_layout')
         if not self._findings_present():
             self.project_map = dict(self.configured)
             self._project(project_id)
             return {**self._empty(project_id), 'issues': [], 'total': 0, 'active': 0, 'next_cursor': None, 'by_kind': {},
-                    'by_status': {}, 'by_source': {}, 'slowest': [], 'top_failures': []}
+                    'by_status': {}, 'by_source': {}, 'slowest': [], 'top_failures': [], 'limit': limit,
+                    **({'limit_note': limit_note} if limit_note else {})}
         data, revision = self._read()
         self._project(project_id)
         if status not in ('all', 'active', 'recovered', 'stale'):
@@ -357,16 +416,18 @@ class ObservabilityAPI:
         page, next_cursor = self._page(rows, cursor, revision, f'{project_id}:{status}:{kind}', limit)
         return {**self._envelope(data, revision, project_id), 'issues': page, 'total': len(rows),
                 'active': by_status.get('active', 0), 'next_cursor': next_cursor, 'by_kind': by_kind,
-                'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures}
+                'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures,
+                'limit': limit, **({'limit_note': limit_note} if limit_note else {})}
 
     def inspect(self, project_id, issue_id, cursor=None, limit=10):
+        # Local edit (0.1.7): evidence pages are 1–10; validate before reading.
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 10:
+            raise ValueError('invalid_limit: evidence pages are 1–10')
         data, revision = self._read()
         self._project(project_id)
         finding = next((f for f in data['findings'] if f['finding_key'] == issue_id and self._matches(f, project_id)), None)
         if finding is None:
             raise ValueError('issue_not_in_project: use a full issue_id returned by observability_issues')
-        if limit > 10:
-            raise ValueError('invalid_limit: evidence pages are capped at 10')
         events = finding.get('evidence_event_ids', [])
         page, next_cursor = self._page(events, cursor, revision, f'{project_id}:{issue_id}', limit)
         evidence = finding.get('latest_evidence', {})

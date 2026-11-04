@@ -8,12 +8,12 @@
 {"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 2750, "elapsed_ms": 99999, "ts": 1793700210.0, "session_id": "s1"}
 {"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 3000, "elapsed_ms": 99999, "ts": 1793700240.0, "session_id": "s1"}
 {"kind": "startup", "phase": "ws_connect", "status": "ok", "step_ms": 3250, "elapsed_ms": 99999, "ts": 1793700270.0, "session_id": "s1"}
-{"kind": "tool_start", "tool": "comet_act", "ts": 1793700400.0, "session_id": "s1"}
-{"kind": "tool_start", "tool": "comet_act", "ts": 1793700403.0, "session_id": "s1"}
-{"kind": "tool_start", "tool": "comet_act", "ts": 1793700406.0, "session_id": "s1"}
-{"kind": "tool_start", "tool": "comet_act", "ts": 1793700409.0, "session_id": "s1"}
-{"kind": "tool_start", "tool": "comet_act", "ts": 1793700412.0, "session_id": "s1"}
-{"kind": "tool_start", "tool": "comet_act", "ts": 1793700415.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "args": {"selector": "#buy"}, "ts": 1793700400.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "args": {"selector": "#buy"}, "ts": 1793700403.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "args": {"selector": "#buy"}, "ts": 1793700406.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "args": {"selector": "#buy"}, "ts": 1793700409.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "args": {"selector": "#buy"}, "ts": 1793700412.0, "session_id": "s1"}
+{"kind": "tool_start", "tool": "comet_act", "args": {"selector": "#buy"}, "ts": 1793700415.0, "session_id": "s1"}
 {"kind": "tool_result", "tool": "comet_act", "latency_ms": 200, "ts": 1793700401.0, "session_id": "s1"}
 {"kind": "tool_result", "tool": "comet_act", "latency_ms": 210, "ts": 1793700404.0, "session_id": "s1"}
 {"kind": "tool_result", "tool": "comet_act", "latency_ms": 220, "ts": 1793700407.0, "session_id": "s1"}

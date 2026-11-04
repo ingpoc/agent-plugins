@@ -119,9 +119,13 @@ class APITests(unittest.TestCase):
         for cursor in ['garbage', 'e30=', 'WzFd']:
             with self.assertRaises(ValueError):
                 self.api.issues('a', cursor=cursor)
-        for limit in [0, 26, True]:
+        for limit in [0, -1, '5', True]:
             with self.assertRaises(ValueError):
                 self.api.issues('a', limit=limit)
+        # 0.1.7: up to 100 is valid; more clamps to 100 with a note instead of invalid_limit.
+        self.assertEqual(self.api.issues('a', limit=26)['limit'], 26)
+        clamped = self.api.issues('a', limit=500)
+        self.assertEqual((clamped['limit'], 'limit_note' in clamped), (100, True))
 
     def test_read_no_writes_or_model_and_freshness(self):
         path = self.root/'findings.json'
