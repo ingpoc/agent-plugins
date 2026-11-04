@@ -163,7 +163,7 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
     }
 
     func testDeveloperObservabilityMarkMatchesTheSpec() {
-        // UI & UX spec: bars 2 pt tall, 1.5 pt apart (a 9 pt group, centred), x 3–9, 5.5–12, 8–13, #248A3D.
+        // UI & UX spec: bars 2 pt tall, 1.5 pt apart (a 9 pt group, centred), x 3–9, 5.5–12, 8–13; #30D158 bare on black since Guru 16:06 IST (was #248A3D on a white tile).
         let r = IslandDevObsMark.barRects()
         XCTAssertEqual(r.map(\.minX), [3, 5.5, 8])
         XCTAssertEqual(r.map(\.maxX), [9, 12, 13])
@@ -172,9 +172,9 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         XCTAssertEqual(r[2].maxY - r[0].minY, 9, accuracy: 1e-9)
         XCTAssertEqual((r[0].minY + r[2].maxY) / 2, 8, accuracy: 1e-9, "vertically centred in the 16 pt tile")
         let c = NSColor(IslandDevObsMark.color).usingColorSpace(.sRGB)!
-        XCTAssertEqual(Int((c.redComponent * 255).rounded()), 0x24)
-        XCTAssertEqual(Int((c.greenComponent * 255).rounded()), 0x8A)
-        XCTAssertEqual(Int((c.blueComponent * 255).rounded()), 0x3D)
+        XCTAssertEqual(Int((c.redComponent * 255).rounded()), 0x30)
+        XCTAssertEqual(Int((c.greenComponent * 255).rounded()), 0xD1)
+        XCTAssertEqual(Int((c.blueComponent * 255).rounded()), 0x58)
     }
 
     // MARK: - Transitions: every sampled frame keeps the locked zones

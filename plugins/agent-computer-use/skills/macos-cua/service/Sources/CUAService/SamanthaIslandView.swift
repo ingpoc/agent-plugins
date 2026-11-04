@@ -460,10 +460,11 @@ struct IslandOperatedAppIcon: View {
 
 /// developer-observability's designed mark (UI & UX plugin-marks spec for 0.2.87, 2026-11-04 12:50 IST):
 /// a trace waterfall on the 16 pt inner tile, three 2 pt bars with round caps, 1.5 pt apart (a 9 pt group,
-/// vertically centred), spanning x 3–9, 5.5–12 and 8–13, flat #248A3D. Same circle and rim as every mark.
+/// vertically centred), spanning x 3–9, 5.5–12 and 8–13, flat #30D158, bare on the black circle (no tile). Same circle and rim as every mark.
 struct IslandDevObsMark: View {
     static let plugin = "developer-observability"
-    static let color = Color(red: 0x24 / 255.0, green: 0x8A / 255.0, blue: 0x3D / 255.0)
+    /// #30D158 (system green, dark): readable bare on the black circle (Guru 16:06 IST, no white tile; was #248A3D on white).
+    static let color = Color(red: 0x30 / 255.0, green: 0xD1 / 255.0, blue: 0x58 / 255.0)
     /// (x from, x to) of each bar in the tile's 16 pt space, caps included.
     static let bars: [(CGFloat, CGFloat)] = [(3, 9), (5.5, 12), (8, 13)]
     static let barHeight: CGFloat = 2
@@ -483,7 +484,6 @@ struct IslandDevObsMark: View {
     var body: some View {
         let k = size / 16
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 4 * k, style: .continuous).fill(Color.white)
             ForEach(Array(Self.barRects().enumerated()), id: \.offset) { _, r in
                 Capsule().fill(Self.color)
                     .frame(width: r.width * k, height: r.height * k)
@@ -508,7 +508,8 @@ struct SamanthaAppCircle: View {
                                       lineWidth: driving ? 1.5 : 1)
             case .plugin(let name, _):
                 // A plugin mark looks like an app circle: never dimmed, never driving, tap does nothing.
-                if name == IslandDevObsMark.plugin { IslandDevObsMark() } else { SamanthaAppIcon(appName: name) }
+                // Bare glyph on the black circle, never a white tile (Guru 16:06 IST; one path for every plugin).
+                IslandPluginMarkGlyphView(name: name)
                 Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
             case .overflow(let n):
                 Text("+\(n)")

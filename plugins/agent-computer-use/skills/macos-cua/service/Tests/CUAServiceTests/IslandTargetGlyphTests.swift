@@ -26,11 +26,11 @@ final class IslandTargetGlyphTests: XCTestCase {
     }
 
     /// Share of the centred glyph box that is near-white: a tile fills most of it, a bare glyph does not.
-    private func lightShare<V: View>(_ view: V) -> Double {
-        let side = IslandPluginTargetMark.ringDiameter
+    private func lightShare<V: View>(_ view: V, side: CGFloat = IslandPluginTargetMark.ringDiameter,
+                                     box boxPt: CGFloat = IslandPluginTargetMark.glyphSize) -> Double {
         let (px, w, h) = pixels(view, side: side)
         guard w > 0 else { return 1 }
-        let box = Int((IslandPluginTargetMark.glyphSize * scale).rounded())
+        let box = Int((boxPt * scale).rounded())
         let x0 = (w - box) / 2, y0 = (h - box) / 2
         var light = 0
         for y in y0..<(y0 + box) {
@@ -43,6 +43,8 @@ final class IslandTargetGlyphTests: XCTestCase {
     }
 
     private static let tileLimit = 0.5
+    /// Plugin logos carry dark strokes on their plate, so the old tile reads lighter-than-half less often: 0.3.
+    private static let markTileLimit = 0.3
 
     /// The detector itself: the 0.2.87-and-earlier white tile is flagged, so the bare-glyph checks are real.
     func testDetectorFlagsAWhiteTile() {
@@ -94,5 +96,70 @@ final class IslandTargetGlyphTests: XCTestCase {
         // A plate with no coloured mark has nothing to lift.
         ctx.setFillColor(CGColor(red: 0.04, green: 0.04, blue: 0.05, alpha: 1)); ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
         XCTAssertNil(IslandTargetGlyph.bareGlyph(try XCTUnwrap(ctx.makeImage()), side: side))
+    }
+
+    /// Outside-right plugin marks (Guru 16:06 IST): bare glyph on the black circle, never a white tile, for every
+    /// plugin mark, current or future, through `IslandPluginMarkGlyphView`. Logos load from this checkout.
+    func testEveryPluginMarkIsBareOnTheBlackCircle() {
+        let plugins = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../../../").standardized
+        setenv("ACU_PLUGIN_LOGO_ROOT", plugins.path, 1)
+        defer { unsetenv("ACU_PLUGIN_LOGO_ROOT") }
+        // The pre-16:06 drawing (the plugin logo, white plate and all) is what the detector must catch.
+        XCTAssertNotNil(AppIconResolver.pluginLogoURL("comet-control"), "logo found in the checkout")
+        let old = lightShare(SamanthaAppIcon(appName: "comet-control"), side: IslandBarLayout.circleDiameter, box: IslandPluginMarkGlyph.size)
+        XCTAssertGreaterThan(old, Self.markTileLimit, "the old tiled logo is flagged (\(old))")
+        for name in ["Agent Computer Use", "comet-control", "context-ledger", "developer-observability", "future-plugin-\(UUID().uuidString)"] {
+            let share = lightShare(IslandPluginMarkGlyphView(name: name), side: IslandBarLayout.circleDiameter, box: IslandPluginMarkGlyph.size)
+            XCTAssertLessThan(share, Self.markTileLimit, "\(name): plugin mark must be bare on the black circle (\(share))")
+        }
+    }
+
+    /// `bareMark` lifts a logo off a light plate: plate gone, dark strokes white, the blue accent kept.
+    func testBareMarkLiftsALogoOffALightPlate() throws {
+        let side = 128
+        let space = CGColorSpace(name: CGColorSpace.sRGB)!
+        let ctx = CGContext(data: nil, width: side, height: side, bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        ctx.setFillColor(CGColor(red: 0.93, green: 0.94, blue: 0.96, alpha: 1))   // light plate
+        ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
+        ctx.setFillColor(CGColor(red: 0.07, green: 0.07, blue: 0.08, alpha: 1))   // dark stroke
+        ctx.fill(CGRect(x: 40, y: 70, width: 48, height: 10))
+        ctx.setFillColor(CGColor(red: 0.18, green: 0.48, blue: 0.96, alpha: 1))   // blue accent
+        ctx.fill(CGRect(x: 40, y: 50, width: 48, height: 10))
+        let g = try XCTUnwrap(IslandPluginMarkGlyph.bareMark(try XCTUnwrap(ctx.makeImage()), side: side))
+        XCTAssertEqual(Double(g.width), 48, accuracy: 2, "cropped to the glyph")
+        var px = [UInt8](repeating: 0, count: g.width * g.height * 4)
+        let c = CGContext(data: &px, width: g.width, height: g.height, bitsPerComponent: 8, bytesPerRow: g.width * 4,
+                          space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        c.draw(g, in: CGRect(x: 0, y: 0, width: g.width, height: g.height))
+        func at(_ x: Int, _ y: Int) -> [UInt8] { let i = (y * g.width + x) * 4; return Array(px[i..<(i + 4)]) }
+        let mid = g.width / 2
+        // Rows are top-down: the dark stroke (drawn higher) comes first, then the plate gap, then the blue bar.
+        let top = at(mid, g.height / 2 - 12), gap = at(mid, g.height / 2), bottom = at(mid, g.height / 2 + 12)
+        XCTAssertGreaterThan(top[0], 240, "dark stroke now white: \(top)"); XCTAssertGreaterThan(top[3], 240)
+        XCTAssertLessThan(gap[3], 10, "plate gone: \(gap)")
+        XCTAssertGreaterThan(bottom[2], bottom[0], "blue kept: \(bottom)"); XCTAssertGreaterThan(bottom[3], 240)
+    }
+
+    /// Guru 16:05 IST approved the live Comet + listening frame as the reference: the voice slot and the dot travel
+    /// together at the right end, the slot 6 pt before the dot (measured 6 pt in that frame), and the 24 pt gap sits
+    /// between the ring and that group. The same 6 pt holds with nothing controlled and for every voice content,
+    /// Samantha's speaking gradient bars included.
+    func testVoiceSlotSitsSixPointsBeforeTheDotInEveryState() {
+        let L = IslandBarLayout.self
+        XCTAssertEqual(L.voiceDotGap, 6)
+        for content in [IslandVoiceSlotContent.listening, .thinking, .speaking, .done] {
+            for (controlled, apps) in [(false, 0), (true, 0), (true, 1), (true, 4)] {
+                if content == .done && !controlled { continue }
+                let w = controlled ? L.controlledPillWidth(apps: apps, voice: content) : L.voicePillWidth(content)
+                let shape = L.shapeRect(compactWidth: w, card: false)
+                let v = L.voiceSlotRect(shape: shape, apps: apps, controlled: controlled, content: content)
+                XCTAssertEqual(L.compactDotRect(shape: shape).minX - v.maxX, 6, accuracy: 0.001, "\(content) controlled=\(controlled) apps=\(apps)")
+                if controlled && apps == 0 {
+                    XCTAssertEqual(v.minX - (shape.minX + L.ringRight), 24, accuracy: 0.001, "ring · 24 · voice group")
+                }
+            }
+        }
     }
 }

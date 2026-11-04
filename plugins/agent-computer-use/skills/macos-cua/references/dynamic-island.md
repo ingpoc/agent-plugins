@@ -86,7 +86,9 @@ pill**, after Samantha's app circles. The left side stays the agent harness
 - Allowed `plugin` values: `acu`, `comet-control`, `context-ledger`. Any other
   value is ignored and the row stays a normal agent row. One circle per plugin,
   agents grouped. The right mark is the plugin's own: ACU's app icon, else
-  `<plugins>/<id>/assets/logo.svg` (`~/.agents/plugins`, `ACU_PLUGIN_LOGO_ROOT`).
+  `<plugins>/<id>/assets/logo.svg` (`~/.agents/plugins`, `ACU_PLUGIN_LOGO_ROOT`),
+  drawn as its BARE glyph on the black circle, never on a white tile (Guru
+  2026-11-04 16:06 IST, see the no-tile rule below).
 - Inside the pill (over the idle/done-settled lead slot, drawn at real size): what
   the plugin controls, as its bare logo glyph (12 pt box) in a 20 pt spinning ring — the white Apple logo for `acu` (the Mac),
   the Comet mark lifted from Comet's own icon for `comet-control`;
@@ -115,7 +117,12 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
   **Locked zone rule** (Guru 2026-11-04 13:30 / 15:26 / 15:52 IST): inside the pill, left to
   right, the ringed target, 24 pt, the app icons (16 pt, 4 apart), 8 pt, the voice
-  slot, 6 pt, the 6 pt dot, 9 pt inset. Whatever comes first after the ring (apps, the
+  slot, 6 pt, the 6 pt dot, 9 pt inset. The voice slot and the dot travel together
+  as one group at the right end, the slot 6 pt before the dot in every voice state
+  (listening, thinking, Samantha speaking) with or without a target: Guru approved
+  the live Comet + listening frame as the reference at 16:05 IST ("it makes sense,
+  where comet icon is on the left and listening has moved along with dot"; 6 pt
+  measured in that frame). Whatever comes first after the ring (apps, the
   voice slot or the dot) starts the same 24 pt after it, one shared constant
   (`IslandBarLayout.operatedRingGap`; "Use the same gap between the ring and the
   dot", then "increse from 20 to 24pt"; 0.2.86 used 8 pt with no apps, which read
@@ -134,7 +141,19 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   app target (Comet) as the coloured mark lifted from the app's real installed
   icon (`IslandTargetGlyph.bareGlyph`: keeps the coloured pixels, drops the dark
   plate and white specks, crops to the mark), else the app's SF Symbol in white.
-  `IslandTargetGlyphTests` renders every target in its ring and fails on a tile.
+  **No-tile rule for plugin marks** (Guru 2026-11-04 16:06 IST: "the plugin icon is
+  coming in the white square bar, rather have the icon, since currently is not
+  visible properly"): every outside-right plugin mark, current or future (ACU,
+  Comet Control, Context Ledger, developer-observability, and the manifest-icon and
+  monogram fallbacks), is its bare glyph on the black 24 pt circle, never a white
+  tile. One path, `IslandPluginMarkGlyphView`: the plugin's logo or icon with its
+  plate lifted off (`IslandPluginMarkGlyph.bareMark`: the plate colour is the
+  median of a ring inside the icon; dark neutral strokes turn white for contrast
+  on black, colours stay, lifted to at least 55 % brightness); developer-
+  observability's vector trace-waterfall in #30D158 (was #248A3D on white); else
+  the plugin's SF Symbol in white.
+  `IslandTargetGlyphTests` renders every target in its ring and every plugin mark
+  on its circle and fails on a tile.
   The compact pill hugs exactly that in
   every state, Samantha's included (87 pt for one, 127 for three, 147 for 3 + N); "+N" is SF Pro
   Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon

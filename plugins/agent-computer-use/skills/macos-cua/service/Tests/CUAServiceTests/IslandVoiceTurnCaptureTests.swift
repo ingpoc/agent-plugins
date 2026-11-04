@@ -83,6 +83,9 @@ final class IslandVoiceTurnCaptureTests: XCTestCase {
                 ("apple-finder", IslandSnapshot(kind: "acting", title: "Using Finder", app: "Finder", active_apps: ["Finder"],
                                                 plugins: [acu("Finder", 300)], samantha_on: true)),
                 ("comet-speaking", voice("speaking", apps: [], extra: [plugin("comet-control", 400)])),
+                // Guru 16:00 / 16:01 IST: slot · 24 · dot in every voice state.
+                ("listening", on), ("thinking", thinking), ("speaking", speaking),
+                ("speaking-calculator", voice("speaking", apps: calc)),
             ]),
         ]
     }
