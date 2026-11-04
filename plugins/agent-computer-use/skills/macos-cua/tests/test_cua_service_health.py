@@ -167,6 +167,32 @@ class CUAServiceHealthTests(unittest.TestCase):
         spawn.assert_called_once()
         self.assertTrue(result["spawned"])
 
+    def test_default_socket_starts_the_app_through_launchservices_never_the_binary(self):
+        # Two ACU menu bar icons (2026-11-04): executing the binary made a second instance. The default
+        # socket's service is started with `open -g -b <bundle id>` (no -n), which attaches to a running app.
+        binary = self.tmp / "CUAService.app" / "Contents" / "MacOS" / "CUAService"
+        binary.parent.mkdir(parents=True)
+        binary.write_text("#!/bin/sh\n")
+        binary.chmod(0o755)
+        with mock.patch.object(cua_client, "SERVICE_BIN", binary), \
+                mock.patch.object(cua_client.subprocess, "Popen") as popen:
+            cua_client.CUAClient(str(self.sock_path))._ensure_service()
+        popen.assert_called_once()
+        cmd = popen.call_args.args[0]
+        self.assertEqual(cmd, ["open", "-g", "-b", cua_client.SERVICE_BUNDLE_ID])
+        self.assertNotIn("-n", cmd)
+        self.assertNotIn(str(binary), cmd)
+
+    def test_custom_socket_still_runs_an_isolated_binary(self):
+        binary = self.tmp / "bin" / "CUAService"
+        binary.parent.mkdir()
+        binary.write_text("#!/bin/sh\n")
+        other = str(self.tmp / "other.sock")
+        with mock.patch.object(cua_client, "SERVICE_BIN", binary), \
+                mock.patch.object(cua_client.subprocess, "Popen") as popen:
+            cua_client.CUAClient(other)._ensure_service()
+        self.assertEqual(popen.call_args.args[0], [str(binary), "--socket-path", other])
+
     def test_owner_pids_only_matches_the_default_socket_install(self):
         bin_ = str(cua_client.SERVICE_BIN)
         out = (

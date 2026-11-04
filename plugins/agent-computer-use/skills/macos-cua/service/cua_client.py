@@ -32,6 +32,7 @@ APP_PATH = Path("/Applications/Agent Computer Use.app")
 LEGACY_APP_PATH = Path("~/.cache/macos-cua/CUAService.app").expanduser()
 SERVICE_APP = APP_PATH if APP_PATH.exists() else LEGACY_APP_PATH
 SERVICE_BIN = SERVICE_APP / "Contents" / "MacOS" / "CUAService"
+SERVICE_BUNDLE_ID = "com.ingpoc.cua-service"
 RELAUNCH_LOCK = DEFAULT_SOCKET.parent / "cua-service.relaunch.lock"
 RELAUNCH_STAMP = DEFAULT_SOCKET.parent / "cua-service.relaunch.stamp"
 RELAUNCH_COOLDOWN_S = 30.0
@@ -225,7 +226,23 @@ class CUAClient:
         return data
 
     def _ensure_service(self) -> None:
-        """Spawn CUAService if not running."""
+        """Start CUAService if not running.
+
+        The default socket belongs to the menu-bar app: start it through LaunchServices (`open -b`, never
+        `-n`), which attaches to a running instance instead of starting a second one. Executing the binary
+        directly made a second CUAService with its own menu bar icon whenever the socket was missing
+        (Guru, 2026-11-04 11:18 IST). Only an explicit non-default socket (isolated dev/test service) runs
+        the binary directly.
+        """
+        if Path(self.socket_path) == DEFAULT_SOCKET:
+            if SERVICE_APP.exists():
+                subprocess.Popen(
+                    ["open", "-g", "-b", SERVICE_BUNDLE_ID],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    stdin=subprocess.DEVNULL,
+                )
+            return
         if SERVICE_BIN.exists():
             subprocess.Popen(
                 [str(SERVICE_BIN), "--socket-path", self.socket_path],

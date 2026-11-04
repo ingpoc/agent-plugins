@@ -6,6 +6,7 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 
 - Samantha's harness circle appears on the left as soon as her session is on, through the same circle path and pop transition as every other harness, and leaves when it stops.
 - Samantha gets her own violet-to-rose voice mark instead of the plain waveform glyph; three variants (orb, wave, monogram) for Guru to pick.
+- One CUAService per user (two ACU menu bar icons, 2026-11-04): a second launch of the installed app hands off and exits before any socket, status item or island (a running copy of the same bundle id, or an exclusive lock in `~/Library/Application Support/CUAService/instance.lock` that survives a wiped `~/.cache`). MCP clients start the default service through LaunchServices (`open -g -b com.ingpoc.cua-service`), never by executing the binary.
 - The gap between the ringed target (Apple, Comet) and the first in-use app grows from 12 to 20 pt (83/123/143 pt pills for 1/3/3+N apps); 16 and 24 pt rendered for comparison.
 
 ## 0.2.85
