@@ -38,9 +38,10 @@ class MCPTests(unittest.TestCase):
             # Collector output stays in the temp dir: never merge the machine's real collected findings.
             config.write_text(json.dumps({'runtime': str(base), 'decider_script': None,
                                           'collector': {'out': str(base/'collected')},
+                                          'retention': {'cache_dirs': [str(base/'cache')], 'trash_dir': str(base/'trash')},
                                           'projects': {'a': {'owners': ['owner:a']}}}))
             params = StdioServerParameters(command=sys.executable, args=[str(ROOT/'runtime/server.py')],
-                                           env={**os.environ, 'OBSERVABILITY_CONFIG':str(config)})
+                                           env={**os.environ, 'OBSERVABILITY_CONFIG':str(config), 'OBSERVABILITY_HOME': str(base)})
             async with stdio_client(params) as (read, write):
                 async with ClientSession(read, write, extensions={'io.modelcontextprotocol/ui': {'mimeTypes':['text/html;profile=mcp-app']}}) as client:
                     if modern:
@@ -51,7 +52,8 @@ class MCPTests(unittest.TestCase):
                         await client.initialize()
                         self.assertEqual(client.protocol_version, '2025-11-25')
                     tools = (await client.list_tools()).tools
-                    self.assertEqual(len(tools), 7)
+                    self.assertEqual(len(tools), 8)
+                    self.assertIn('observability_storage', [t.name for t in tools])
                     self.assertIn("observability_collect", [t.name for t in tools])
                     dashboard = next(t for t in tools if t.name == 'observability_dashboard')
                     self.assertEqual(dashboard.meta['ui']['resourceUri'], 'ui://developer-observability/dashboard')

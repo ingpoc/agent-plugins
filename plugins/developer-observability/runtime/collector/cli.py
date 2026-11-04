@@ -16,6 +16,7 @@ if str(RUNTIME) not in sys.path:
 
 from collector.analyze import ACTIVE_WINDOW_H, HOTSPOT_MS, TEST_HOTSPOT_MS, build  # noqa: E402
 from collector.sources import iter_spec, known_sources, ref  # noqa: E402
+from collector import retention  # noqa: E402
 
 DEFAULT_OUT = '~/.local/share/developer-observability/collected'
 DEFAULT_CONFIG = '~/.config/developer-observability/config.json'
@@ -82,8 +83,10 @@ def analysis_settings(config, include_tests=None):
 
 
 def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H, threshold_ms=HOTSPOT_MS,
-            test_threshold_ms=TEST_HOTSPOT_MS):
-    """Write every finding (ranked, never capped) and return counts that match what the read side lists."""
+            test_threshold_ms=TEST_HOTSPOT_MS, config=None, home=None):
+    """Write every finding (ranked, never capped) and return counts that match what the read side lists.
+
+    0.1.8: with a config, prune expired plugin-owned files afterwards and add `storage` findings."""
     started = time.perf_counter()
     stats = {}
 
@@ -93,6 +96,14 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
 
     collected = list(events())
     document = build(collected, stats, now, include_tests, window_h, threshold_ms, test_threshold_ms)
+    pruned = storage = None
+    if config is not None:
+        pruned = retention.prune(config, out, now=now, home=home)
+        storage = retention.report(config, out, home=home)
+        document['storage'] = storage
+        document['findings'].extend(retention.storage_findings(storage, document['generated_at']))
+        for rank, finding in enumerate(document['findings'], 1):
+            finding['rank'] = rank
     path = _write(Path(out).expanduser(), document)
     findings = document['findings']
     return {'out': ref(path, 0)[:-2], 'findings': len(findings), 'total': len(findings),
@@ -105,7 +116,17 @@ def collect(specs, out, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H,
             'include_tests': include_tests,
             'events': len(collected), 'sources': len(stats),
             'runtime_ms': int((time.perf_counter() - started) * 1000), 'peak_rss_mb': _peak_rss_mb(),
-            'generated_at': document['generated_at']}
+            'generated_at': document['generated_at'],
+            **({'pruned': {k: pruned[k] for k in ('moved', 'bytes', 'capped') if k in pruned},
+                'storage_bytes': storage['total_bytes'],
+                'storage_over_threshold': [r['path'] for r in storage['paths'] if r['over_threshold']]}
+               if storage is not None else {})}
+
+
+def storage(config, out, dry_run=True, home=None):
+    """Storage report plus a prune pass (dry run by default) without collecting."""
+    return {'prune': retention.prune(config, out, dry_run=dry_run, home=home),
+            'storage': retention.report(config, out, home=home)}
 
 
 def parse_source(text):
@@ -124,15 +145,22 @@ def main(argv=None) -> int:
     parser.add_argument('--config', help='read-only; never written')
     parser.add_argument('--include-tests', action='store_true', help='count test-fixture and self-test sessions as real use')
     parser.add_argument('--json', action='store_true')
+    parser.add_argument('--no-prune', action='store_true', help='skip 0.1.8 retention and storage findings')
+    parser.add_argument('--storage', action='store_true', help='report storage and a dry-run prune; no collect')
+    parser.add_argument('--prune', action='store_true', help='with --storage: actually move expired files')
     args = parser.parse_args(argv)
     config = load_config(args.config)
+    if args.storage:
+        print(json.dumps(storage(config, out_dir(config, args.out), dry_run=not args.prune)))
+        return 0
     try:
         specs = configured_specs(config, not args.no_known) + [parse_source(s) for s in args.source]
     except ValueError as error:
         print(f'developer-observability collect: {error}', file=sys.stderr)
         return 2
     specs += [{'type': 'project_dir', 'path': d} for d in args.project_dir]
-    summary = collect(specs, out_dir(config, args.out), **analysis_settings(config, True if args.include_tests else None))
+    summary = collect(specs, out_dir(config, args.out), **analysis_settings(config, True if args.include_tests else None),
+                      config=None if args.no_prune else config)
     if args.json:
         print(json.dumps(summary))
     else:

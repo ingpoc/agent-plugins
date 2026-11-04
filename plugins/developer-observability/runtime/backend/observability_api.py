@@ -25,7 +25,7 @@ NO_FINDINGS_HINT = (
     '~/.config/developer-observability/config.json). Run `observability_collect` (or '
     '`bin/developer-observability collect --project-dir <dir>`) to produce findings with the bundled '
     'portable collector.')
-KINDS = ('all', 'failure', 'latency_hotspot', 'redundancy', 'turn_latency', 'island_layout')
+KINDS = ('all', 'failure', 'latency_hotspot', 'redundancy', 'turn_latency', 'island_layout', 'storage')
 # Local edit (0.1.7): issue pages accept up to 100 rows; larger requests clamp instead of failing.
 MAX_ISSUES_LIMIT = 100
 # Local edit (0.1.7): error hints name the real fix, not backend or Decider health.
@@ -33,7 +33,7 @@ NEXT_STEPS = {
     'invalid_limit': 'Pass limit as an integer: 1–100 for observability_issues (larger values are clamped to 100), '
                      '1–10 for observability_inspect_issue.',
     'invalid_status': 'Use status all, active, recovered or stale.',
-    'invalid_kind': 'Use kind all, failure, latency_hotspot, redundancy, turn_latency or island_layout.',
+    'invalid_kind': 'Use kind all, failure, latency_hotspot, redundancy, turn_latency, island_layout or storage.',
     'unknown_project': 'Call observability_projects and use a returned project_id.',
     'snapshot_changed': 'Restart the query without a cursor.',
     'issue_not_in_project': 'Use a full issue_id returned by observability_issues for this project.',
@@ -345,6 +345,13 @@ class ObservabilityAPI:
                 summary['triggers'] = triggers
             if summary:
                 fields['island_layout'] = summary
+        # Local edit (0.1.8): bounded storage-size summary.
+        store = finding.get('storage')
+        if isinstance(store, dict) and isinstance(store.get('path'), str):
+            fields['storage'] = {'path': redact(store['path'], 80)}
+            for key in ('bytes', 'warn_bytes'):
+                if isinstance(store.get(key), int) and not isinstance(store.get(key), bool):
+                    fields['storage'][key] = store[key]
         if isinstance(finding.get('condition'), str):
             fields['condition'] = redact(finding['condition'], 40)
         if isinstance(finding.get('rank'), int) and not isinstance(finding.get('rank'), bool):
@@ -384,7 +391,7 @@ class ObservabilityAPI:
             limit = MAX_ISSUES_LIMIT
             limit_note = 'limit clamped to 100 (the maximum)'
         if kind not in KINDS:
-            raise ValueError('invalid_kind: use all, failure, latency_hotspot, redundancy, turn_latency or island_layout')
+            raise ValueError('invalid_kind: use all, failure, latency_hotspot, redundancy, turn_latency, island_layout or storage')
         if not self._findings_present():
             self.project_map = dict(self.configured)
             self._project(project_id)
