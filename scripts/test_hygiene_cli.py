@@ -40,7 +40,7 @@ class CliTest(unittest.TestCase):
         for r in ROWS:
             report.add(r["check"], r["status"], r["detail"], r["items"])
         self.patches = [
-            mock.patch.dict(os.environ, {"HOME": str(self.fx.home)}),
+            mock.patch.dict(os.environ, {"HOME": str(self.fx.home), "HYGIENE_MINI_BACKGROUND": "0"}),
             mock.patch.object(hy, "load_manifest", return_value=self.fx.manifest),
             mock.patch.object(hy, "run_checks", return_value=report),
             # The plain report header carries the wall clock; pin it so outputs compare.
@@ -91,7 +91,7 @@ class CliTest(unittest.TestCase):
                     got = self.run_cli(*[a for a in argv if a != "--no-map"])
                     self.assertEqual(got[:2], (code, out), argv)
                     self.assertEqual(got[2].count("hygiene: map not updated"), 1, got[2])
-                    self.assertEqual(got[2].count("\n"), 1)
+                    self.assertEqual(got[2].count("\n"), 1, got[2])
 
     def test_map_command_forces_rewrite_and_opens(self) -> None:
         self.run_cli("check")
@@ -135,7 +135,7 @@ class InstallTest(unittest.TestCase):
             for _ in range(2):
                 proc = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, check=False)
                 self.assertEqual(proc.returncode, 0, proc.stderr + proc.stdout)
-            for name in ("hygiene.py", "hygiene_map.py"):
+            for name in ("hygiene.py", "hygiene_map.py", "hygiene_mini.py"):
                 self.assertEqual((bin_dir / name).read_bytes(), (HERE / name).read_bytes())
                 self.assertTrue(os.access(bin_dir / name, os.X_OK))
             backups = sorted(p.name for p in bin_dir.glob("hygiene.py.bak-*"))

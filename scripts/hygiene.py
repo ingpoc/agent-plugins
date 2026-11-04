@@ -947,7 +947,8 @@ def finish_map(job: dict | None, m: dict, rows: list[dict], force: bool = False)
             exc = job["error"]
             map_warn(f"{type(exc).__name__}: {str(exc).splitlines()[0] if str(exc) else ''}")
             return None
-        return job["hm"].publish_safe(m, rows, force=force, base=job["base"])
+        return job["hm"].publish_safe(m, rows, force=force, base=job["base"],
+                                      mini_rescan=job.get("mini_rescan", False))
     except Exception as exc:  # noqa: BLE001
         map_warn(f"{type(exc).__name__}: {exc}")
         return None
@@ -972,6 +973,8 @@ def main(argv: list[str]) -> int:
     check_p.add_argument("--json", action="store_true")
     check_p.add_argument("--strict", action="store_true", help="exit 1 on FAIL")
     check_p.add_argument("--no-map", action="store_true", help="do not refresh ~/.agents/hygiene/map.html")
+    check_p.add_argument("--mini-rescan", action="store_true",
+                         help="rescan Mac Mini folder sizes now instead of using the 6 h cache")
     map_p = sub.add_parser("map", help="run the checks, rewrite the map page and open it")
     map_p.add_argument("--no-open", action="store_true", help="write the page but do not open it")
     prune_p = sub.add_parser("prune", help="remove manifest-disposable paths")
@@ -998,6 +1001,8 @@ def main(argv: list[str]) -> int:
             open_map(path)
         return 0
     job = None if args.no_map else start_map(m)
+    if job is not None:
+        job["mini_rescan"] = args.mini_rescan
     report = run_checks(m)
     if args.json:
         print(json.dumps(report.rows, indent=2))
