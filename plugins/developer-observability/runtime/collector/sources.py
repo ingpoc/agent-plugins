@@ -1,6 +1,7 @@
 """Source adapters. Each yields normalized events; nothing here stores raw lines, audio or transcripts."""
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import os
@@ -159,6 +160,14 @@ def _layout(obj):
 
 def _lines(path, max_bytes):
     path = Path(path)
+    if path.suffix == '.gz':
+        # A rotated Samantha log (agent-computer-use 0.2.86: <name>.N.<ext>.gz, at most 50 MB uncompressed).
+        with gzip.open(path, 'rb') as handle:
+            number = 0
+            for raw in handle:
+                number += 1
+                yield number, raw.decode('utf-8', errors='replace')
+        return
     size = path.stat().st_size
     with path.open('rb') as handle:
         start = 0
@@ -446,11 +455,31 @@ def discover_project(directory, stats, project=None):
         yield from iter_git(directory, project, f'{project}:git', stats)
 
 
+ROTATED_KEEP = 5
+
+
+def rotated_logs(path):
+    """Existing rotated copies of ``path``, oldest first: ``stem.5.ext.gz`` … ``stem.1.ext.gz``."""
+    path = Path(path)
+    stem, ext = path.stem, path.suffix
+    out = []
+    for i in range(ROTATED_KEEP, 0, -1):
+        for name in (f'{stem}.{i}{ext}.gz', f'{stem}.{i}{ext}'):
+            candidate = path.with_name(name)
+            if candidate.is_file():
+                out.append(candidate)
+    return out
+
+
 def known_sources():
     home = Path.home()
     specs = []
     for name, kind in (('samantha-activity.jsonl', 'jsonl'), ('voice.log', 'textlog')):
         path = home / '.cache/macos-cua' / name
+        # Rotated copies first, oldest to newest (agent-computer-use 0.2.86 keeps .1 … .5, gzipped; a plain
+        # .N is a copy a crash left before its gzip), then the live file. One source id for all of them.
+        for rotated in rotated_logs(path):
+            specs.append({'type': kind, 'path': str(rotated), 'project': 'samantha', 'source': f'samantha:{name}'})
         if path.is_file():
             specs.append({'type': kind, 'path': str(path), 'project': 'samantha'})
     runs = home / 'Library/Logs/agent-plugins-origin-ci/runs'

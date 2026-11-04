@@ -1,13 +1,22 @@
 """Scoped and fail-closed Ledger reads; capture remains disabled."""
+import os
 import sys
 import unittest
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'python'))
+# Test hygiene (0.2.86): these tests must never write rows into the real ~/.cache/macos-cua activity log.
+_ACTIVITY_DIR = tempfile.TemporaryDirectory(prefix="voice-cua-test-ledger-")
+os.environ["VOICE_CUA_ACTIVITY_LOG"] = str(Path(_ACTIVITY_DIR.name) / "activity.jsonl")
 from voice_cua.ledger_helper import LedgerHelper
 
 class LedgerHelperTests(unittest.TestCase):
+    def test_activity_log_is_redirected_to_a_temp_path(self):
+        from voice_cua.activity_log import log_path
+        self.assertFalse(str(log_path()).startswith(str(Path.home() / ".cache/macos-cua")))
+        self.assertTrue(str(log_path()).startswith(_ACTIVITY_DIR.name))
+
     def setUp(self):
         self.transport = Mock()
         self.match = {'decision_id': 'known', 'decision': 'A', 'why': 'B'}

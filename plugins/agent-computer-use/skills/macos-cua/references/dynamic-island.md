@@ -112,15 +112,17 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
   The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
   app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
-  Fixed gaps (UI & UX): ring, 20 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
+  Fixed gaps (UI & UX): ring, 16 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
   9 pt inset. The gap after the ring (12 pt in 0.2.85, Guru 2026-11-04 10:22 IST:
-  "there has to be some gap ... so its clear whats being used"; 20 pt proposed
-  after 11:08 IST "should be more", 16 / 24 pt rendered for comparison) is the same for
+  "there has to be some gap ... so its clear whats being used"; after 11:08 IST
+  "should be more" UI & UX picked 16 pt with no divider at 11:57 IST from a
+  12 / 16 / 20 study: a clear break without wasting width) is the same for
   every controlled target, the Apple ring for ACU and the Comet ring for
   comet-control alike (one shared `IslandBarLayout` path; "same design language
-  should follow for all"). It exists only while apps are in use: with none, the
-  pill collapses back to its idle width. The compact pill hugs exactly that in
-  every state, Samantha's included (83 pt for one, 123 for three, 143 for 3 + N); "+N" is SF Pro
+  should follow for all"). It exists only while apps are in use. With a controlled
+  target but no apps (comet-control reading a page) the pill hugs ring · 8 · dot · 9,
+  49 pt, and never stretches to the 136 pt acting width. The compact pill hugs exactly that in
+  every state, Samantha's included (79 pt for one, 119 for three, 139 for 3 + N); "+N" is SF Pro
   Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
   (TextEdit; detected generically by `AppIconResolver.isBlank`) draws on the
   target mark's white rounded tile with a dark glyph. Width changes from icons
@@ -129,7 +131,7 @@ pill**, after Samantha's app circles. The left side stays the agent harness
 - Left is harness-only: a row posted under a plugin identity (ACU, Agent
   Computer Use, Comet Control, Context Ledger) maps to its calling harness (the
   `acu_exec` initiator) or is dropped; Samantha's circle wears her waveform
-  glyph, never ACU's app icon. VoiceOver adds
+  wave mark, never ACU's app icon. VoiceOver adds
   "Operating Calculator, Finder and TextEdit". An app shown inside is never
   drawn again as an outside app circle (Samantha's included). Plugin marks stay
   outside on the right.
@@ -137,12 +139,18 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   LEFT, outside the pill, with the other harness circles; never inside. It
   appears as soon as her session is on (hub `samantha_on`, set from CUAService's
   own session state, never from her posts), through the same source-group list,
-  `ForEach` and pop transition as Codex, Cursor or Grok (Guru 11:09 IST), and
-  leaves when the session stops. Her mark is her own (Guru 11:09 IST: "the style
-  of samantha should be distinct"): a violet-to-rose voice identity
-  (`SamanthaMark`, variants `orb`, `wave`, `monogram`; `ACU_SAMANTHA_MARK`
-  previews one until a variant is picked), never a white plugin tile or ACU's
-  app icon. The
+  `ForEach` and transition as Codex, Cursor or Grok (Guru 11:09 IST), and
+  leaves when the session stops. Harness motion (`IslandMotion.harness*`, one
+  path for every harness): `.smooth(duration: 0.35)` (`widthCurve`), the same
+  transaction that slides the neighbours one slot (circle + 4 pt); enter is scale
+  0.6 → 1 plus opacity 0 → 1 about the circle's own centre, the whole circle
+  (backing, rim, badges) as one layer, leave is the exact reverse and the slot
+  closes; Reduce Motion is a 0.15 s cross-fade with no slide or scale. Her mark is
+  her own (Guru 11:09 IST: "the style of samantha should be distinct"; 11:54 IST
+  picked the wave): `SamanthaMark`, one tapered sound wave, 2 pt round-cap stroke,
+  60 % of the circle wide, vertically centred, gradient #BF5AF2 → #FF6482 left to
+  right, in the same 24 pt circle and rim as every harness. Never a white plugin
+  tile or ACU's app icon. The
   target gap applies only to what sits inside; plugin marks stay outside right.
   A controlled target (Comet) is never also shown as an app icon inside.
 - Drop: the hub removes a plugin row when `ttl_s` lapses (1 s sweep); the

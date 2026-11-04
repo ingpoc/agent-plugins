@@ -2,13 +2,15 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
-## 0.2.86 (in review; not released until Guru picks a mark and gap)
+## 0.2.86 (2026-11-04)
 
-- Samantha's harness circle appears on the left as soon as her session is on, through the same circle path and pop transition as every other harness, and leaves when it stops.
-- Samantha gets her own violet-to-rose voice mark instead of the plain waveform glyph; three variants (orb, wave, monogram) for Guru to pick.
-- One CUAService per user (two ACU menu bar icons, 2026-11-04): a second launch of the installed app hands off and exits before any socket, status item or island (a running copy of the same bundle id, or an exclusive lock in `~/Library/Application Support/CUAService/instance.lock` that survives a wiped `~/.cache`). MCP clients start the default service through LaunchServices (`open -g -b com.ingpoc.cua-service`), never by executing the binary.
-- The gap between the ringed target (Apple, Comet) and the first in-use app grows from 12 to 20 pt (83/123/143 pt pills for 1/3/3+N apps); 16 and 24 pt rendered for comparison.
-- One menu-bar item per process: `StatusBarController` owns a single status item, reuses it on every `install`, and removes it on terminate (`uninstall`), so a SIGTERM'd instance leaves no ghost icon. A test enforces one creation site.
+- Samantha's mark is her own wave (Guru picked B at 11:54 IST; UI & UX spec): one tapered sound wave, 2 pt round-cap stroke, 60 % of the circle wide, vertically centred, #BF5AF2 → #FF6482 left to right, in the same 24 pt circle and rim as every harness. It replaces the plain waveform glyph.
+- Turning Samantha on shows her harness circle on the left at once, through the same circle list and motion as every harness. One shared harness motion (`IslandMotion.harness*`): `.smooth(duration: 0.35)`, with the neighbours sliding one slot in the same transaction. A circle enters with scale 0.6 → 1 and opacity 0 → 1 about its own centre, as one layer, and leaves as the exact reverse while the slot closes. With Reduce Motion it is a 0.15 s cross-fade with no slide. This also fixes a scale anchor that sat at the window origin instead of the circle.
+- Ring-to-apps gap: 16 pt, no divider, for the Apple and Comet rings alike (UI & UX, from a 12 / 16 / 20 study), giving 79 / 119 / 139 pt pills for 1 / 3 / 3 + N apps. A controlled target with no apps in use (comet-control reading a page) now hugs ring · 8 · dot · 9 (49 pt) instead of stretching to 136 pt.
+- Log rotation by the writer: `samantha-activity.jsonl` and `voice.log` roll over at 50 MB, keeping `.1` … `.5` gzipped and deleting older copies. The Python (voice_cua) and Swift (CUAService) writers share one lock-and-rename protocol, so rows are never lost or written into a rotated copy. voice.log is now opened `O_APPEND` by both sides, and voice_cua rotates its own stdout and stderr. Sockets, locks and other files in `~/.cache/macos-cua` are never touched. developer-observability 0.1.9 reads the rotated copies.
+- Test hygiene: the ledger test modules write their activity rows to a temp path, never to the real Samantha log.
+- One CUAService per user (two ACU menu bar icons, 2026-11-04). A second launch of the installed app hands off and exits before any socket, status item or island exists. It detects a running copy of the same bundle id, or an exclusive lock in `~/Library/Application Support/CUAService/instance.lock` that survives a wiped `~/.cache`. MCP clients start the default service through LaunchServices (`open -g -b com.ingpoc.cua-service`), never by executing the binary.
+- One menu-bar item per process: `StatusBarController` owns a single status item, reuses it on every `install` and removes it on terminate, so a SIGTERM'd instance leaves no ghost icon. A test enforces one creation site.
 
 ## 0.2.85
 

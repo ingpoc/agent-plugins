@@ -647,10 +647,13 @@ def lint_source(skill: Path | None = None) -> list[dict[str, Any]]:
         "dispatch acceptance must not become a Samantha completion claim",
     )
     activity = (root / "service" / "Sources" / "CUAService" / "SamanthaActivityLog.swift").read_text()
+    rotation = (root / "service" / "Sources" / "CUAService" / "CUALogRotation.swift").read_text()
     add(
         "Samantha activity JSONL uses cross-process atomic append",
-        "O_APPEND" in activity and "Darwin.write" in activity,
-        "Swift seek-to-end raced Python append and produced malformed JSONL",
+        "CUALogRotation.append" in activity and "seekToEndOfFile" not in activity
+        and "O_APPEND" in rotation and "Darwin.write" in rotation
+        and "LOCK_SH" in rotation and "LOCK_EX" in rotation,
+        "Swift seek-to-end raced Python append and produced malformed JSONL; 0.2.86 rotation shares one lock protocol",
     )
     client = (root / "service" / "cua_client.py").read_text()
     add(
