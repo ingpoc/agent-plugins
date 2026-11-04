@@ -391,6 +391,22 @@ class IslandCopyContractTests(unittest.TestCase):
         self.assertEqual([apps for _, apps in sent[2:]], [[], [], [], []])
         f._ACTIVE_APPS.clear()
 
+    def test_voice_state_transitions_are_timestamped_once(self):
+        from datetime import datetime
+        from voice_cua import island_facade as f
+
+        logged = []
+        f._VOICE_STATE = "idle"
+        with patch.object(f, "use_remote", return_value=False), \
+                patch.object(f.ISLAND, "publish"), \
+                patch("voice_cua.activity_log.log_event", side_effect=lambda *a, **kw: logged.append((a, kw))):
+            for kind in ["listening", "listening", "thinking", "speaking", "idle"]:
+                f.island_publish(kind, title=kind)
+        self.assertEqual([fields["state"] for _, fields in logged], ["listening", "thinking", "speaking", "idle"])
+        for _, fields in logged:
+            stamp = datetime.fromisoformat(fields["ts_iso"])
+            self.assertIsNotNone(stamp.utcoffset())
+
 
 class ParentWatchTests(unittest.TestCase):
     """CUAService restart must not orphan the voice helper (old code, mic open)."""

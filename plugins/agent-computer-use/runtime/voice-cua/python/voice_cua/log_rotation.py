@@ -24,6 +24,7 @@ import gzip
 import os
 import shutil
 import threading
+from datetime import datetime
 from pathlib import Path
 
 MAX_BYTES = 50 * 1024 * 1024
@@ -155,24 +156,36 @@ class RotatingStdStreams:
     def __init__(self, path: Path, stream, limit: int | None = None) -> None:
         self.path, self._stream, self._limit = path, stream, limit
         self._lock = threading.Lock()
+        self._pending = ""
 
     def __getattr__(self, name):
         return getattr(self._stream, name)
 
     def write(self, text: str) -> int:
         with self._lock:
-            n = self._stream.write(text)
-            self._stream.flush()
-            try:
-                full = os.fstat(self._stream.fileno()).st_size >= (self._limit or max_bytes())
-            except (OSError, ValueError):
-                full = False
-            if full:
-                self._rotate()
-            return n
+            self._pending += text
+            while "\n" in self._pending:
+                line, self._pending = self._pending.split("\n", 1)
+                self._write_line(line + "\n")
+            return len(text)
 
     def flush(self) -> None:
+        with self._lock:
+            if self._pending:
+                self._write_line(self._pending)
+                self._pending = ""
+            self._stream.flush()
+
+    def _write_line(self, line: str) -> None:
+        stamp = datetime.now().astimezone().isoformat(timespec="milliseconds")
+        self._stream.write(f"{stamp} {line}")
         self._stream.flush()
+        try:
+            full = os.fstat(self._stream.fileno()).st_size >= (self._limit or max_bytes())
+        except (OSError, ValueError):
+            full = False
+        if full:
+            self._rotate()
 
     def _rotate(self) -> None:
         limit = self._limit or max_bytes()

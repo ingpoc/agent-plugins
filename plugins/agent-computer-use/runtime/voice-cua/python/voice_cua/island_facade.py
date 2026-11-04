@@ -7,6 +7,7 @@ import os
 import threading
 import urllib.error
 import urllib.request
+from datetime import datetime
 
 import re
 
@@ -19,6 +20,22 @@ _ACTIVE_APPS: list[str] = []
 # (cua_act, Comet) must not get a second "Failed · …" from the generic result summary:
 # one failure, one island error, one island_error_raw row.
 _TLS = threading.local()
+_VOICE_STATE = "idle"
+_VOICE_STATE_LOCK = threading.Lock()
+
+
+def _log_voice_transition(kind: str) -> None:
+    global _VOICE_STATE
+    if kind not in {"listening", "thinking", "speaking", "idle"}:
+        return
+    with _VOICE_STATE_LOCK:
+        if kind == _VOICE_STATE:
+            return
+        _VOICE_STATE = kind
+    from voice_cua.activity_log import log_event
+
+    log_event("island_voice_state", state=kind,
+              ts_iso=datetime.now().astimezone().isoformat(timespec="milliseconds"))
 
 
 def errors_published() -> int:
@@ -193,6 +210,7 @@ def island_publish(
     active_apps: list[str] | None = None,
     expanded: bool = False,
 ) -> None:
+    _log_voice_transition(str(kind))
     if kind == "error":
         _TLS.errors = errors_published() + 1
     if kind == "idle":
