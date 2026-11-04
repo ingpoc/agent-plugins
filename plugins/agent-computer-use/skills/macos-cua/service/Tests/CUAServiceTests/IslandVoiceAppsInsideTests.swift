@@ -5,7 +5,7 @@ import XCTest
 
 /// 0.2.87 (Guru, 2026-11-04 13:27 IST "why do i see app icon still on the right side of the island"): ONE layout
 /// rule in every compact state, Samantha's voice states included. Outside left: harness circles. Inside: ringed
-/// target · 20 · app icons · 6 · voice slot · 6 · dot · 9. Outside right: plugin marks only, never an app.
+/// target · 24 · app icons · 6 · voice slot · 6 · dot · 9. Outside right: plugin marks only, never an app.
 @MainActor
 final class IslandVoiceAppsInsideTests: XCTestCase {
     static func acu(_ app: String, _ t: Double, agent: String = "Samantha") -> IslandPluginUse {
@@ -54,23 +54,23 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         XCTAssertEqual(ov.filter { $0.kind == "app_icon" }.count, apps, "\(label): \(apps) app icons inside", file: file, line: line)
         XCTAssertEqual(m.voiceSlotContent, voice, "\(label): voice slot", file: file, line: line)
         XCTAssertEqual(shape.width, IslandBarLayout.controlledPillWidth(apps: apps, voice: voice), "\(label): hug width", file: file, line: line)
-        // ring · 20 · apps (4) · 8 · voice · 6 · dot · 9 (no voice: apps · 6 · dot)
+        // ring · 24 · apps (4) · 8 · voice · 6 · dot · 9 (no voice: apps · 6 · dot; nothing after the ring: ring · 24 · dot)
         let ringMaxX = shape.minX + IslandBarLayout.ringRight
         let icons = IslandBarLayout.operatedAppRects(shape: shape, count: apps)
         let dot = IslandBarLayout.compactDotRect(shape: shape)
         var cursor = ringMaxX
         if let first = icons.first {
-            XCTAssertEqual(first.minX - ringMaxX, 20, accuracy: 0.001, "\(label): 20 pt ring gap", file: file, line: line)
+            XCTAssertEqual(first.minX - ringMaxX, 24, accuracy: 0.001, "\(label): 24 pt ring gap", file: file, line: line)
             cursor = icons.last!.maxX
         }
         if let voice {
             let v = IslandBarLayout.voiceSlotRect(shape: shape, apps: apps, controlled: true, content: voice)
-            XCTAssertEqual(v.minX - cursor, apps > 0 ? 8 : 20, accuracy: 0.001, "\(label): voice slot after apps", file: file, line: line)
+            XCTAssertEqual(v.minX - cursor, apps > 0 ? 8 : 24, accuracy: 0.001, "\(label): voice slot after apps", file: file, line: line)
             XCTAssertEqual(v.width, IslandBarLayout.voiceSlotWidth(voice), "\(label): slot width", file: file, line: line)
             XCTAssertTrue(ov.contains { $0.kind == "voice_slot" && $0.expectedInsideIsland }, "\(label): voice slot logged inside", file: file, line: line)
             cursor = v.maxX
         }
-        XCTAssertEqual(dot.minX - cursor, 6, accuracy: 0.001, "\(label): dot after content", file: file, line: line)
+        XCTAssertEqual(dot.minX - cursor, apps == 0 && voice == nil ? IslandBarLayout.operatedRingGap : 6, accuracy: 0.001, "\(label): dot after content", file: file, line: line)
         XCTAssertEqual(shape.maxX - dot.maxX, 9, accuracy: 0.001, file: file, line: line)
     }
 
@@ -163,7 +163,7 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
     }
 
     func testDeveloperObservabilityMarkMatchesTheSpec() {
-        // UI & UX spec: bars 2 pt tall, 1.5 pt apart (a 9 pt group, centred), x 3–9, 5.5–12, 8–13, #248A3D.
+        // UI & UX spec: bars 2 pt tall, 1.5 pt apart (a 9 pt group, centred), x 3–9, 5.5–12, 8–13; #30D158 bare on black since Guru 16:06 IST (was #248A3D on a white tile).
         let r = IslandDevObsMark.barRects()
         XCTAssertEqual(r.map(\.minX), [3, 5.5, 8])
         XCTAssertEqual(r.map(\.maxX), [9, 12, 13])
@@ -172,9 +172,9 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         XCTAssertEqual(r[2].maxY - r[0].minY, 9, accuracy: 1e-9)
         XCTAssertEqual((r[0].minY + r[2].maxY) / 2, 8, accuracy: 1e-9, "vertically centred in the 16 pt tile")
         let c = NSColor(IslandDevObsMark.color).usingColorSpace(.sRGB)!
-        XCTAssertEqual(Int((c.redComponent * 255).rounded()), 0x24)
-        XCTAssertEqual(Int((c.greenComponent * 255).rounded()), 0x8A)
-        XCTAssertEqual(Int((c.blueComponent * 255).rounded()), 0x3D)
+        XCTAssertEqual(Int((c.redComponent * 255).rounded()), 0x30)
+        XCTAssertEqual(Int((c.greenComponent * 255).rounded()), 0xD1)
+        XCTAssertEqual(Int((c.blueComponent * 255).rounded()), 0x58)
     }
 
     // MARK: - Transitions: every sampled frame keeps the locked zones

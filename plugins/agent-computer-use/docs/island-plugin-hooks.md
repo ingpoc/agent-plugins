@@ -2,6 +2,8 @@
 
 These hooks report MCP calls to marketplace plugins as right-side marks on the ACU Dynamic Island. They do not add an app icon inside the pill or change its width. Only `acu` and `comet-control` control the existing inside ring. The hook skips `acu`, `agent-computer-use`, `comet-control`, `context-ledger`, and `developer-observability`, which already post their own activity.
 
+Marks are bare glyphs on the black circle, never a white tile: the plugin's `assets/logo.svg` or manifest `logo`/`icon` (package-relative files only), lifted off its plate; otherwise white monogram letters from the display label.
+
 Replace `/absolute/path/to/agent-computer-use` below with the installed `agent-computer-use` plugin directory. These are examples to add to the harness config; this plugin does not write user config. The hook accepts normalized plugin IDs matching `^[a-z0-9][a-z0-9-]{0,47}$`: it lowercases the MCP server name, changes spaces and underscores to hyphens, and removes one leading `plugin-` or `user-` prefix. Other names are ignored.
 
 The hook reads JSON from stdin, retains only the harness, normalized server ID, and session ID (or process ID), and never logs or stores the input payload. Island posts honor `ACU_ISLAND_ACTIVITY=0`.

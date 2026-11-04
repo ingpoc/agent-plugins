@@ -255,11 +255,13 @@ struct IslandPluginMonogram: View {
         return Int(hash % UInt64(palette.count))
     }
 
+    /// Bare on the black circle (Guru 16:06 IST): white letters, no tile or colour disc. `palette` stays the
+    /// plugin's stable identity colour for surfaces that draw one.
     var body: some View {
-        Circle().fill(Self.palette[Self.paletteIndex(for: plugin)])
-            .overlay(Text(Self.letters(for: displayName))
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color.white))
+        Text(Self.letters(for: displayName))
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(Color.white)
+            .frame(width: IslandPluginMarkGlyph.size, height: IslandPluginMarkGlyph.size)
     }
 }
 
@@ -336,8 +338,9 @@ struct SamanthaThinkingDots: View {
     }
 }
 
-/// Controlled-target mark (Apple for ACU, Comet for comet-control): the target on a white tile like the
-/// plugin icons (>= 12 pt so it reads at 1x), inside a spinning ring. Drawn over the compact lead slot.
+/// Controlled-target mark (Apple for ACU, Comet for comet-control): the target's BARE logo glyph (no white
+/// tile; `IslandTargetGlyphView`, Guru 15:27/15:29 IST "that is the design language"), >= 12 pt so it reads at
+/// 1x, inside a spinning ring. Drawn over the compact lead slot.
 struct IslandPluginTargetMark: View {
     let target: IslandPluginTarget
     /// Every target in use (newest first) for VoiceOver; defaults to just `target`.
@@ -348,11 +351,12 @@ struct IslandPluginTargetMark: View {
 
     static let ringDiameter: CGFloat = 20
     static let ringLine: CGFloat = 1.5
-    static let tileSize: CGFloat = 12
+    static let glyphSize: CGFloat = IslandTargetGlyph.size
+    /// Corner radius for the operated-app white tile (near-white app icons only; never the target).
     static func tileRadius(_ tile: CGFloat) -> CGFloat { tile * 0.26 }
 
     var body: some View {
-        let tile = max(Self.tileSize, size * 0.6)
+        let glyph = max(Self.glyphSize, size * 0.6)
         ZStack {
             Circle().stroke(IslandPalette.track, lineWidth: Self.ringLine)
             Circle().trim(from: 0, to: 0.25)
@@ -362,16 +366,7 @@ struct IslandPluginTargetMark: View {
                     guard !reduceMotion else { return }
                     withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) { spin = true }
                 }
-            RoundedRectangle(cornerRadius: Self.tileRadius(tile), style: .continuous)
-                .fill(Color.white)
-                .frame(width: tile, height: tile)
-            switch target {
-            case .symbol(let name):
-                SamanthaSymbol(name: name, color: .black, size: tile * 0.78)
-                    .offset(y: -tile * 0.03)
-            case .app(let name):
-                SamanthaAppIcon(appName: name, size: tile * 0.86, radius: Self.tileRadius(tile * 0.86))
-            }
+            IslandTargetGlyphView(target: target, size: glyph)
         }
         .frame(width: size, height: size)
         .accessibilityElement(children: .ignore)
@@ -537,10 +532,11 @@ struct IslandOperatedAppIcon: View {
 
 /// developer-observability's designed mark (UI & UX plugin-marks spec for 0.2.87, 2026-11-04 12:50 IST):
 /// a trace waterfall on the 16 pt inner tile, three 2 pt bars with round caps, 1.5 pt apart (a 9 pt group,
-/// vertically centred), spanning x 3–9, 5.5–12 and 8–13, flat #248A3D. Same circle and rim as every mark.
+/// vertically centred), spanning x 3–9, 5.5–12 and 8–13, flat #30D158, bare on the black circle (no tile). Same circle and rim as every mark.
 struct IslandDevObsMark: View {
     static let plugin = "developer-observability"
-    static let color = Color(red: 0x24 / 255.0, green: 0x8A / 255.0, blue: 0x3D / 255.0)
+    /// #30D158 (system green, dark): readable bare on the black circle (Guru 16:06 IST, no white tile; was #248A3D on white).
+    static let color = Color(red: 0x30 / 255.0, green: 0xD1 / 255.0, blue: 0x58 / 255.0)
     /// (x from, x to) of each bar in the tile's 16 pt space, caps included.
     static let bars: [(CGFloat, CGFloat)] = [(3, 9), (5.5, 12), (8, 13)]
     static let barHeight: CGFloat = 2
@@ -560,7 +556,6 @@ struct IslandDevObsMark: View {
     var body: some View {
         let k = size / 16
         ZStack(alignment: .topLeading) {
-            RoundedRectangle(cornerRadius: 4 * k, style: .continuous).fill(Color.white)
             ForEach(Array(Self.barRects().enumerated()), id: \.offset) { _, r in
                 Capsule().fill(Self.color)
                     .frame(width: r.width * k, height: r.height * k)
@@ -585,16 +580,16 @@ struct SamanthaAppCircle: View {
                                       lineWidth: driving ? 1.5 : 1)
             case .plugin(let name, _, let pluginLabel):
                 // A plugin mark looks like an app circle: never dimmed, never driving, tap does nothing.
+                // Bare glyph on the black circle, never a white tile (Guru 16:06 IST): every tier goes through
+                // IslandPluginMarkGlyphView, or the bare monogram when no logo resolves.
                 let plugin = IslandPluginLabel.pluginID(forMarkName: name)
                 let displayName = IslandPluginLabel.display(name, pluginLabel: pluginLabel)
                 switch IslandPluginMarkTier.resolve(plugin: plugin) {
                 case .designed:
-                    if plugin == IslandDevObsMark.plugin { IslandDevObsMark() }
-                    else { SamanthaAppIcon(appName: "Agent Computer Use") }
+                    IslandPluginMarkGlyphView(name: plugin == IslandDevObsMark.plugin ? plugin : "Agent Computer Use")
                 case .manifestIcon:
-                    if let image = AppIconResolver.pluginImage(plugin) {
-                        Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
-                            .frame(width: IslandBarLayout.circleIcon, height: IslandBarLayout.circleIcon)
+                    if case .image = IslandPluginMarkGlyph.resolve(plugin) {
+                        IslandPluginMarkGlyphView(name: plugin)
                     } else {
                         IslandPluginMonogram(plugin: plugin, displayName: displayName)
                     }
@@ -875,7 +870,7 @@ struct SamanthaIslandBar: View {
                     }
                 }
                 if let voice = model.voiceSlotContent {
-                    // Samantha's voice slot (Guru 14:17 IST): after ring · 20 · apps · 8 when something is controlled,
+                    // Samantha's voice slot (Guru 14:17 IST): after ring · 24 · apps · 8 when something is controlled,
                     // else 9 pt in; then 6 · dot · 9. The meter never lights the dot (Nov 1 dot rules).
                     let v = IslandBarLayout.voiceSlotRect(shape: rect, apps: model.showsOperatedApps ? model.operatedApps.count : 0,
                                                           controlled: model.showsTargetMark, content: voice)

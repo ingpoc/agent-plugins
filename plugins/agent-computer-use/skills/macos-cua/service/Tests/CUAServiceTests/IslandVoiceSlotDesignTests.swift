@@ -26,12 +26,12 @@ final class IslandVoiceSlotDesignTests: XCTestCase {
         // Nothing controlled: 9 · slot · 6 · dot · 9.
         XCTAssertEqual(L.voicePillWidth(.listening), 9 + 23 + 6 + 6 + 9)
         XCTAssertEqual(L.voicePillWidth(.thinking), 9 + 14 + 6 + 6 + 9)
-        // ACU: ring (26) · 20 · apps · 8 · slot · 6 · dot · 9.
-        XCTAssertEqual(L.controlledPillWidth(apps: 1, voice: .speaking), 26 + 20 + 16 + 8 + 23 + 6 + 6 + 9)
-        XCTAssertEqual(L.controlledPillWidth(apps: 3, voice: .speaking), 26 + 20 + 56 + 8 + 23 + 6 + 6 + 9)
-        XCTAssertEqual(L.controlledPillWidth(apps: 4, voice: .thinking), 26 + 20 + 76 + 8 + 14 + 6 + 6 + 9, "3 icons + the +N slot")
-        XCTAssertEqual(L.controlledPillWidth(apps: 0, voice: .listening), 26 + 20 + 23 + 6 + 6 + 9, "Comet: ring · 20 · slot")
-        XCTAssertEqual(L.controlledPillWidth(apps: 1, voice: nil), 26 + 20 + 16 + 6 + 6 + 9, "no voice: unchanged")
+        // ACU: ring (26) · 24 · apps · 8 · slot · 6 · dot · 9.
+        XCTAssertEqual(L.controlledPillWidth(apps: 1, voice: .speaking), 26 + 24 + 16 + 8 + 23 + 6 + 6 + 9)
+        XCTAssertEqual(L.controlledPillWidth(apps: 3, voice: .speaking), 26 + 24 + 56 + 8 + 23 + 6 + 6 + 9)
+        XCTAssertEqual(L.controlledPillWidth(apps: 4, voice: .thinking), 26 + 24 + 76 + 8 + 14 + 6 + 6 + 9, "3 icons + the +N slot")
+        XCTAssertEqual(L.controlledPillWidth(apps: 0, voice: .listening), 26 + 24 + 23 + 6 + 6 + 9, "Comet: ring · 24 · slot")
+        XCTAssertEqual(L.controlledPillWidth(apps: 1, voice: nil), 26 + 24 + 16 + 6 + 6 + 9, "no voice: unchanged")
     }
 
     func testBarsAreThreePointsTwoApartAndThreeToFourteenTall() {
@@ -151,7 +151,7 @@ final class IslandVoiceSlotDesignTests: XCTestCase {
         let shape = m.shapeRect
         let icons = L.operatedAppRects(shape: shape, count: 4)
         let v = L.voiceSlotRect(shape: shape, apps: 4, controlled: true, content: .speaking)
-        XCTAssertEqual(icons.first!.minX - (shape.minX + L.ringRight), 20, accuracy: 0.001)
+        XCTAssertEqual(icons.first!.minX - (shape.minX + L.ringRight), 24, accuracy: 0.001)
         XCTAssertEqual(v.minX - icons.last!.maxX, 8, accuracy: 0.001)
         XCTAssertEqual(L.compactDotRect(shape: shape).minX - v.maxX, 6, accuracy: 0.001)
         XCTAssertEqual(shape.width, L.controlledPillWidth(apps: 4, voice: .speaking))

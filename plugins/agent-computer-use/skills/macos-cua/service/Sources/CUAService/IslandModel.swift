@@ -996,7 +996,7 @@ final class IslandModel: ObservableObject {
     }
 
     /// ONE layout rule for every compact Samantha state (Guru, 2026-11-04): idle, working AND her voice
-    /// states all draw ring · 20 · apps · [voice] · dot from the same IslandBarLayout functions.
+    /// states all draw ring · 24 · apps · [voice] · dot from the same IslandBarLayout functions.
     static let operatedAppStates: [IslandPresentation] = [.idle, .doneSettled, .acting, .listening, .thinking, .speaking, .done]
     /// States whose Samantha glyph + meter move into the voice slot (after the apps, before the dot)
     /// while something is controlled.
@@ -1699,7 +1699,7 @@ final class IslandModel: ObservableObject {
 
     private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
         if pluginTarget != nil, !cardOpen, permissionWarning == nil, Self.operatedAppStates.contains(state) {
-            // One rule in every compact state, voice included: the pill hugs ring · 20 · icons · [voice] ·
+            // One rule in every compact state, voice included: the pill hugs ring · 24 · icons · [voice] ·
             // dot · 9. Nothing from Samantha's conversation width carries over.
             return IslandBarLayout.controlledPillWidth(apps: operatedApps.count, voice: Self.voiceSlotContent(for: state, controlled: true))
         }

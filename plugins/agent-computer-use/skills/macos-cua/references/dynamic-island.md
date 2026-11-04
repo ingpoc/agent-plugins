@@ -86,9 +86,12 @@ pill**, after Samantha's app circles. The left side stays the agent harness
 - Allowed `plugin` values: `acu`, `comet-control`, `context-ledger`. Any other
   value is ignored and the row stays a normal agent row. One circle per plugin,
   agents grouped. The right mark is the plugin's own: ACU's app icon, else
-  `<plugins>/<id>/assets/logo.svg` (`~/.agents/plugins`, `ACU_PLUGIN_LOGO_ROOT`).
+  `<plugins>/<id>/assets/logo.svg` (`~/.agents/plugins`, `ACU_PLUGIN_LOGO_ROOT`),
+  drawn as its BARE glyph on the black circle, never on a white tile (Guru
+  2026-11-04 16:06 IST, see the no-tile rule below).
 - Inside the pill (over the idle/done-settled lead slot, drawn at real size): what
-  the plugin controls on a 12 pt white tile in a 20 pt spinning ring — Apple mark for `acu` (the Mac), Comet for `comet-control`;
+  the plugin controls, as its bare logo glyph (12 pt box) in a 20 pt spinning ring — the white Apple logo for `acu` (the Mac),
+  the Comet mark lifted from Comet's own icon for `comet-control`;
   `context-ledger` controls nothing and has no inside mark (Guru 12:05 IST). The
   most recently seen controlling use wins the ring; VoiceOver names every
   target, newest first ("Controlling Comet and Mac").
@@ -112,20 +115,51 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
   The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
   app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
-  Fixed gaps (UI & UX): ring, 16 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
-  9 pt inset. The gap after the ring (12 pt in 0.2.85, Guru 2026-11-04 10:22 IST:
-  "there has to be some gap ... so its clear whats being used"; after 11:08 IST
-  "should be more" UI & UX picked 16 pt with no divider at 11:57 IST from a
-  12 / 16 / 20 study: a clear break without wasting width) is the same for
-  every controlled target, the Apple ring for ACU and the Comet ring for
-  comet-control alike (one shared `IslandBarLayout` path; "same design language
-  should follow for all"). It exists only while apps are in use. With a controlled
-  target but no apps (comet-control reading a page) the pill hugs ring · 8 · dot · 9,
-  49 pt, and never stretches to the 136 pt acting width. The compact pill hugs exactly that in
-  every state, Samantha's included (79 pt for one, 119 for three, 139 for 3 + N); "+N" is SF Pro
+  **Locked zone rule** (Guru 2026-11-04 13:30 / 15:26 / 15:52 IST): inside the pill, left to
+  right, the ringed target, 24 pt, the app icons (16 pt, 4 apart), 8 pt, the voice
+  slot, 6 pt, the 6 pt dot, 9 pt inset. The voice slot and the dot travel together
+  as one group at the right end, the slot 6 pt before the dot in every voice state
+  (listening, thinking, Samantha speaking) with or without a target: Guru approved
+  the live Comet + listening frame as the reference at 16:05 IST ("it makes sense,
+  where comet icon is on the left and listening has moved along with dot"; 6 pt
+  measured in that frame). Whatever comes first after the ring (apps, the
+  voice slot or the dot) starts the same 24 pt after it, one shared constant
+  (`IslandBarLayout.operatedRingGap`; "Use the same gap between the ring and the
+  dot", then "increse from 20 to 24pt"; 0.2.86 used 8 pt with no apps, which read
+  as squeezed). Harness circles sit outside left; only plugin marks sit outside right.
+  The gap is one shared `IslandBarLayout` path for every controlled target, the
+  Apple ring for ACU and the Comet ring for comet-control alike ("same design
+  language should follow for all"; 12 pt in 0.2.85, 16 pt in 0.2.86, 20 pt until
+  15:52 IST). Widths: a target alone hugs ring · 24 · dot · 9 = 65 pt (never the
+  136 pt acting width); a target with the voice slot and no apps ring · 24 · slot ·
+  6 · dot · 9 = 94 pt speaking/listening, 85 pt thinking; with apps 87 / 127 / 147 pt
+  for 1 / 3 / 3 + N (118 / 158 pt with the meter).
+  **Target glyph rule** (Guru 2026-11-04 15:27 / 15:29 IST, "that is the design
+  language"): every controlled target, current or future, draws its BARE logo glyph
+  in the ring on the black pill, never on a white tile or squircle. One path,
+  `IslandTargetGlyphView`: an SF Symbol target (ACU's `apple.logo`) in white; an
+  app target (Comet) as the coloured mark lifted from the app's real installed
+  icon (`IslandTargetGlyph.bareGlyph`: keeps the coloured pixels, drops the dark
+  plate and white specks, crops to the mark), else the app's SF Symbol in white.
+  **No-tile rule for plugin marks** (Guru 2026-11-04 16:06 IST: "the plugin icon is
+  coming in the white square bar, rather have the icon, since currently is not
+  visible properly"): every outside-right plugin mark, current or future (ACU,
+  Comet Control, Context Ledger, developer-observability, and the manifest-icon and
+  monogram fallbacks), is its bare glyph on the black 24 pt circle, never a white
+  tile. One path, `IslandPluginMarkGlyphView`: the plugin's logo or icon with its
+  plate lifted off (`IslandPluginMarkGlyph.bareMark`: the plate colour is the
+  median of a ring inside the icon; dark neutral strokes turn white for contrast
+  on black, colours stay, lifted to at least 55 % brightness); developer-
+  observability's vector trace-waterfall in #30D158 (was #248A3D on white); else
+  the plugin's SF Symbol in white.
+  `IslandTargetGlyphTests` renders every target in its ring and every plugin mark
+  on its circle and fails on a tile.
+  The compact pill hugs exactly that in
+  every state, Samantha's included (87 pt for one, 127 for three, 147 for 3 + N); "+N" is SF Pro
   Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
-  (TextEdit; detected generically by `AppIconResolver.isBlank`) draws on the
-  target mark's white rounded tile with a dark glyph. Width changes from icons
+  among the operated APPS (TextEdit; detected generically by
+  `AppIconResolver.isBlank`) draws on a white rounded tile with a dark glyph; that
+  tile is for app icons only, never for the ringed target. Width changes from icons
   spring over ~250 ms straight to the fitted width (no 160 ms squeeze to 74 pt;
   crossfade with Reduce Motion); icons fade in and out over 200 ms.
 - Left is harness-only: a row posted under a plugin identity (ACU, Agent
