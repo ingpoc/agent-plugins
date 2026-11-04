@@ -115,25 +115,21 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
   The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
   app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
-  **Locked zone rule** (Guru 2026-11-04 13:30 / 15:26 / 15:52 IST): inside the pill, left to
-  right, the ringed target, 24 pt, the app icons (16 pt, 4 apart), 8 pt, the voice
-  slot, 6 pt, the 6 pt dot, 9 pt inset. The voice slot and the dot travel together
-  as one group at the right end, the slot 6 pt before the dot in every voice state
-  (listening, thinking, Samantha speaking) with or without a target: Guru approved
-  the live Comet + listening frame as the reference at 16:05 IST ("it makes sense,
-  where comet icon is on the left and listening has moved along with dot"; 6 pt
-  measured in that frame). Whatever comes first after the ring (apps, the
-  voice slot or the dot) starts the same 24 pt after it, one shared constant
-  (`IslandBarLayout.operatedRingGap`; "Use the same gap between the ring and the
-  dot", then "increse from 20 to 24pt"; 0.2.86 used 8 pt with no apps, which read
-  as squeezed). Harness circles sit outside left; only plugin marks sit outside right.
-  The gap is one shared `IslandBarLayout` path for every controlled target, the
-  Apple ring for ACU and the Comet ring for comet-control alike ("same design
-  language should follow for all"; 12 pt in 0.2.85, 16 pt in 0.2.86, 20 pt until
-  15:52 IST). Widths: a target alone hugs ring · 24 · dot · 9 = 65 pt (never the
-  136 pt acting width); a target with the voice slot and no apps ring · 24 · slot ·
-  6 · dot · 9 = 94 pt speaking/listening, 85 pt thinking; with apps 87 / 127 / 147 pt
-  for 1 / 3 / 3 + N (118 / 158 pt with the meter).
+  **Locked zone rule** (0.2.89): inside the pill, the ring outer edge, 24 pt,
+  app icons (16 pt, 4 apart), 8 pt, the voice slot, 6 pt, the 6 pt dot. Measure
+  the ring gap from the outside of its 1.5 pt stroke. The width is
+  `max(74, content)` rounded up to an even whole point; the origin and circle
+  glyphs snap to backing pixels. Loudness never changes width. With a target and
+  no apps, the ring-to-next-content gap stays 24 pt. The target-only pill is 74 pt.
+  Without a target, the voice slot begins 9 pt from the left and the dot ends 9 pt
+  from the right; their clear gap is at least 8 pt, and the pill grows if needed.
+  Idle, listening, thinking and speaking share that slot edge and dot position.
+  The voice slot and dot stay as a group; app order is newest first. Harness
+  circles sit left; plugin marks stay right.
+  The voice slot is reserved from listening through done plus 2 s. Done is shown
+  as the harness badge, not as a 16 pt pill glyph. Growth is immediate; shrink
+  waits for 400 ms of stable content. Targets and app activity remain visible
+  until the voice turn ends. Speaking with no audio returns to idle after 3 s.
   **Target glyph rule** (Guru 2026-11-04 15:27 / 15:29 IST, "that is the design
   language"): every controlled target, current or future, draws its BARE logo glyph
   in the ring on the black pill, never on a white tile or squircle. One path,
@@ -147,21 +143,18 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   Comet Control, Context Ledger, developer-observability, and the manifest-icon and
   monogram fallbacks), is its bare glyph on the black 24 pt circle, never a white
   tile. One path, `IslandPluginMarkGlyphView`: the plugin's logo or icon with its
-  plate lifted off (`IslandPluginMarkGlyph.bareMark`: the plate colour is the
-  median of a ring inside the icon; dark neutral strokes turn white for contrast
-  on black, colours stay, lifted to at least 55 % brightness); developer-
-  observability's vector trace-waterfall in #30D158 (was #248A3D on white); else
-  the plugin's SF Symbol in white.
+  plate lifted off; dark neutral strokes turn white for contrast on black, and
+  brand colours remain only when they reach 4.5:1. Every mark fills a 15 pt
+  optical box, has full opacity, and centers its visible pixels within 0.5 pt.
+  Developer-observability uses three 2.5 pt round bars in #30D158; harness app
+  icons use the same bare 15 pt glyph box.
   `IslandTargetGlyphTests` renders every target in its ring and every plugin mark
   on its circle and fails on a tile.
-  The compact pill hugs exactly that in
-  every state, Samantha's included (87 pt for one, 127 for three, 147 for 3 + N); "+N" is SF Pro
-  Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
-  among the operated APPS (TextEdit; detected generically by
-  `AppIconResolver.isBlank`) draws on a white rounded tile with a dark glyph; that
-  tile is for app icons only, never for the ringed target. Width changes from icons
-  spring over ~250 ms straight to the fitted width (no 160 ms squeeze to 74 pt;
-  crossfade with Reduce Motion); icons fade in and out over 200 ms.
+  The compact pill is at least 74 pt and grows to fit all content; its width is
+  even and does not follow loudness. "+N" is SF Pro Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
+  among operated apps (TextEdit; detected by `AppIconResolver.isBlank`) uses a
+  white rounded tile with a dark glyph. Content growth is immediate; width shrink
+  waits for 400 ms of stable content. Icon changes at the same width are logged.
 - Left is harness-only: a row posted under a plugin identity (ACU, Agent
   Computer Use, Comet Control, Context Ledger) maps to its calling harness (the
   `acu_exec` initiator) or is dropped; Samantha's circle wears her waveform
@@ -174,24 +167,12 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   appears as soon as her session is on (hub `samantha_on`, set from CUAService's
   own session state, never from her posts), through the same source-group list,
   `ForEach` and transition as Codex, Cursor or Grok (Guru 11:09 IST), and
-  leaves when the session stops. Harness motion (`IslandMotion.harness*`, one
-  path for every harness): `.smooth(duration: 0.35)` (`widthCurve`), the same
-  transaction that slides the neighbours one slot (circle + 4 pt); enter is scale
-  0.6 → 1 plus opacity 0 → 1, the whole circle (backing, rim, badges) as one
-  layer (`HarnessSlotEffect`), kept inside its own opening slot: the free space
-  between the sliding neighbour and the pill is shared 4 : 6 as at rest
-  (`IslandMotion.harnessFrame`), so it never sits under the pill and lands
-  exactly on its slot. It draws above the neighbours it pushes
-  (`harnessDrawOrder`, also while leaving). Exit (shared by every harness,
-  UI & UX 2026-11-04 12:40 IST): the circle scales 1 → 0.6 and fades 1 → 0 in
-  place with `.easeIn(duration: 0.15)`, then the slot closes with
-  `.smooth(duration: 0.3)` starting 0.10 s after it (0.40 s in all); no
-  neighbour overlaps it while it is above 10 % opacity (min 2.54 pt). The
-  circles live in their own layer so the removal always runs on that exit,
-  whatever else animates in the same update (`harnessExitSeq`). Reduce Motion:
-  any update that adds or removes a harness circle snaps the layout, pill width
-  included (no slide, no scale), and only the entering or leaving circle fades
-  over 0.15 s. Her mark is
+  leaves when the session stops. Existing harness circles keep their x position
+  when another joins or leaves; new circles join at the outermost left slot.
+  Only the leaving circle scales and fades in place before its slot closes.
+  The pill edge, plugin marks and harness circles move in the same animation;
+  circles never overlap the pill or one another. Reduce Motion fades only the
+  entering or leaving circle. Her mark is
   her own (Guru 11:09 IST: "the style of samantha should be distinct"; 11:54 IST
   picked the wave): `SamanthaMark`, one tapered sound wave, 2 pt round-cap stroke,
   60 % of the circle wide, vertically centred, gradient #BF5AF2 → #FF6482 left to
@@ -205,31 +186,20 @@ pill**, after Samantha's app circles. The left side stays the agent harness
 - `ACU_ISLAND_ACTIVITY=0` turns the signal off; tests are off by default via
   `scripts/check.py`.
 
-## Island layout log (`island_layout`, schema 1, 0.2.85+)
+## Island layout and voice-state logs
 
-0.2.85 is the first ACU version that logs the island's geometry, so
-developer-observability can flag a mark drawn outside the island. CUAService
-appends one row to `~/.cache/macos-cua/samantha-activity.jsonl`:
+`island_layout` rows in `~/.cache/macos-cua/samantha-activity.jsonl` keep stable
+keys for the snapped island origin and size, ring outer rect, dot rect, voice-slot
+rect and content (`listening`, `thinking`, `speaking`, `none`), and every glyph's
+kind, identity, rect and alpha. Status and app identity are included so same-width
+status changes and app-icon swaps produce rows. Rectangles use global points, and
+the origin is recorded after backing-pixel snapping. These fields let a collector
+check the 74 pt minimum, the 24 pt ring gap and overlaps. Layout rows coalesce at
+most once per 250 ms. `ACU_ISLAND_LAYOUT_LOG=0` turns layout logging off.
 
-```json
-{"ts":"2026-11-04T10:30:00.123+05:30","ts_epoch":1793770800.123,"event":"island_layout","kind":"island_layout",
- "source":"cuaservice","schema":1,"session_id":"70899191","turn_id":null,"version":"0.2.85","trigger":"show",
- "screen":{"id":"1","x":0,"y":0,"w":1512,"h":982,"scale":2},
- "island":{"x":718,"y":6,"w":75,"h":24,"visible":true},
- "overlays":[{"kind":"comet_circle","id":"comet_circle","x":724,"y":8,"w":20,"h":20,"visible":true,"expected_inside_island":true}]}
-```
-
-- Rectangles only, in global points with the origin at the top-left of the
-  primary screen; numbers only. No titles, app names, URLs or text.
-- `trigger`: `show`, `hide`, `move`, `resize` (island panel) and `overlay_show`,
-  `overlay_move`, `overlay_hide` (the agent cursor, `agent_cursor`).
-- Overlay kinds (ids add `_<i>` where there can be several): `target_ring` /
-  `comet_circle` and `app_icon` (inside, `expected_inside_island: true`);
-  `plugin_mark`, `app_circle`, `overflow_circle`, `harness_circle`,
-  `agent_cursor` (outside, false). Tolerance for "inside" is 2 pt.
-- Written on change only; `move`, `resize` and `overlay_move` coalesce to at
-  most one row per 250 ms, the latest frame winning.
-- `ACU_ISLAND_LAYOUT_LOG=0` turns it off; tests write to a temp file.
+Voice state transitions also append `island_voice_state` JSONL events beside
+`island_layout`. Every `voice.log` line has an ISO 8601 timestamp with UTC offset.
+Tests write to a temporary activity log.
 
 ## Status, approvals, and choices
 

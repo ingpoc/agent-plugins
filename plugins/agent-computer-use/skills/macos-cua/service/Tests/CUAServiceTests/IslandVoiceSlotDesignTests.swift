@@ -22,16 +22,15 @@ final class IslandVoiceSlotDesignTests: XCTestCase {
         XCTAssertEqual(L.voiceMeterWidth, 23, "5 bars × 3 pt + 4 × 2 pt")
         XCTAssertEqual(L.voiceSlotWidth(.listening), 23)
         XCTAssertEqual(L.voiceSlotWidth(.speaking), 23)
-        XCTAssertEqual(L.voiceSlotWidth(.thinking), 14)
-        // Nothing controlled: 9 · slot · 6 · dot · 9.
-        XCTAssertEqual(L.voicePillWidth(.listening), 9 + 23 + 6 + 6 + 9)
-        XCTAssertEqual(L.voicePillWidth(.thinking), 9 + 14 + 6 + 6 + 9)
-        // ACU: ring (26) · 24 · apps · 8 · slot · 6 · dot · 9.
-        XCTAssertEqual(L.controlledPillWidth(apps: 1, voice: .speaking), 26 + 24 + 16 + 8 + 23 + 6 + 6 + 9)
-        XCTAssertEqual(L.controlledPillWidth(apps: 3, voice: .speaking), 26 + 24 + 56 + 8 + 23 + 6 + 6 + 9)
-        XCTAssertEqual(L.controlledPillWidth(apps: 4, voice: .thinking), 26 + 24 + 76 + 8 + 14 + 6 + 6 + 9, "3 icons + the +N slot")
-        XCTAssertEqual(L.controlledPillWidth(apps: 0, voice: .listening), 26 + 24 + 23 + 6 + 6 + 9, "Comet: ring · 24 · slot")
-        XCTAssertEqual(L.controlledPillWidth(apps: 1, voice: nil), 26 + 24 + 16 + 6 + 6 + 9, "no voice: unchanged")
+        XCTAssertEqual(L.voiceSlotWidth(.thinking), 23, "thinking reserves the meter width")
+        XCTAssertEqual(L.voicePillWidth(.listening), 74)
+        XCTAssertEqual(L.voicePillWidth(.thinking), 74)
+        XCTAssertEqual(L.controlledPillWidth(apps: 1, voice: .speaking), 126)
+        XCTAssertEqual(L.controlledPillWidth(apps: 3, voice: .speaking), 166)
+        XCTAssertEqual(L.controlledPillWidth(apps: 4, voice: .thinking), 186, "3 icons + the +N slot")
+        XCTAssertEqual(L.controlledPillWidth(apps: 0, voice: .listening), 102, "Comet keeps the voice slot and its 6 pt gap")
+        XCTAssertEqual(L.controlledPillWidth(apps: 1, voice: nil), 94)
+        XCTAssertEqual(L.targetOnlyPillWidth, 74)
     }
 
     func testBarsAreThreePointsTwoApartAndThreeToFourteenTall() {
@@ -123,7 +122,7 @@ final class IslandVoiceSlotDesignTests: XCTestCase {
         }
     }
 
-    func testWidthChangesOnlyWithTheSlotContentOnTheSpring() async {
+    func testVoiceContentChangesKeepTheMinimumWidth() async {
         let m = IslandModel()
         m.idleActivity = "duo"
         m.apply(voice("listening"))
@@ -131,14 +130,50 @@ final class IslandVoiceSlotDesignTests: XCTestCase {
         XCTAssertEqual(m.shapeRect.width, L.voicePillWidth(.listening))
         m.apply(voice("thinking"))
         XCTAssertEqual(m.drawnWidth, L.voicePillWidth(.thinking), "no pinch: straight to the new hug width")
-        XCTAssertTrue(m.widthFromOperatedApps, "on the 250 ms spring")
+        XCTAssertFalse(m.widthFromOperatedApps)
         await settle()
         m.apply(voice("speaking"))
         XCTAssertEqual(m.drawnWidth, L.voicePillWidth(.speaking))
-        XCTAssertTrue(m.widthFromOperatedApps)
+        XCTAssertFalse(m.widthFromOperatedApps)
         await settle()
         m.apply(voice("listening"))
         XCTAssertEqual(m.drawnWidth, L.voicePillWidth(.listening), "same slot width: no width change")
+    }
+
+    func testVoiceStatesKeepWidthDotAndSlotAnchorsAtSeventyFour() async {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        var expected: (CGFloat, CGFloat, CGFloat)?
+        for (kind, content) in [("idle", IslandVoiceSlotContent.none), ("listening", .listening),
+                                 ("thinking", .thinking), ("speaking", .speaking)] {
+            let shape = L.shapeRect(compactWidth: L.voicePillWidth(content), card: false)
+            let slot = L.voiceSlotRect(shape: shape, apps: 0, controlled: false, content: content)
+            let dot = L.compactDotRect(shape: shape)
+            XCTAssertEqual(shape.width, 74, kind)
+            let current = (shape.width, dot.minX, slot.minX)
+            if let expected {
+                XCTAssertEqual(current.0, expected.0)
+                XCTAssertEqual(current.1, expected.1)
+                XCTAssertEqual(current.2, expected.2)
+            } else { expected = current }
+        }
+        XCTAssertEqual(expected?.1, L.shapeRect(compactWidth: 74, card: false).minX + 59)
+        XCTAssertEqual(expected?.2, L.shapeRect(compactWidth: 74, card: false).minX + 9)
+    }
+
+    func testCompactWidthsAreEvenAndWindowOriginsSnapToBackingPixels() {
+        for rawWidth in [CGFloat(74), 75, 87, 109, 118, 119, 126, 167] {
+            let width = L.snappedCompactWidth(rawWidth)
+            XCTAssertEqual(width, width.rounded(.down))
+            XCTAssertEqual(Int(width) % 2, 0)
+        }
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        let strip = CGRect(x: 720.5, y: 952, width: 71, height: 30)
+        for scale in [CGFloat(1), 2] {
+            let frame = L.windowFrame(bar: strip, screen: screen, scale: scale)
+            XCTAssertEqual(frame.minX * scale, (frame.minX * scale).rounded(), accuracy: 0.001)
+            XCTAssertEqual(frame.minY * scale, (frame.minY * scale).rounded(), accuracy: 0.001)
+        }
     }
 
     func testWithAcuTheSlotFollowsRingGapAppsAndEight() async {
@@ -151,9 +186,44 @@ final class IslandVoiceSlotDesignTests: XCTestCase {
         let shape = m.shapeRect
         let icons = L.operatedAppRects(shape: shape, count: 4)
         let v = L.voiceSlotRect(shape: shape, apps: 4, controlled: true, content: .speaking)
-        XCTAssertEqual(icons.first!.minX - (shape.minX + L.ringRight), 24, accuracy: 0.001)
+        XCTAssertEqual(icons.first!.minX - L.targetRingOuterRect(shape: shape).maxX, 24, accuracy: 0.5)
         XCTAssertEqual(v.minX - icons.last!.maxX, 8, accuracy: 0.001)
-        XCTAssertEqual(L.compactDotRect(shape: shape).minX - v.maxX, 6, accuracy: 0.001)
+        XCTAssertEqual(L.compactDotRect(shape: shape).minX - v.maxX, 6, accuracy: 1)
         XCTAssertEqual(shape.width, L.controlledPillWidth(apps: 4, voice: .speaking))
+    }
+
+    func testOuterRingToDotIsTwentyFourPointsAtOneXAndTwoX() throws {
+        for scale in [CGFloat(1), 2] {
+            let width = L.targetOnlyPillWidth
+            let shape = CGRect(origin: .zero, size: CGSize(width: width, height: L.compactHeight))
+            let outer = L.targetRingOuterRect(shape: shape, scale: scale)
+            let dot = L.targetOnlyDotRect(shape: shape, scale: scale)
+            XCTAssertEqual(dot.minX - outer.maxX, 24, accuracy: 0.5, "scale \(scale)")
+            let ring = IslandPluginTargetMark(target: .symbol("apple.logo"), allTargets: [.symbol("apple.logo")], reduceMotion: true)
+            let rendered = ZStack(alignment: .topLeading) {
+                Capsule().fill(Color.black).frame(width: width, height: L.compactHeight)
+                ring.offset(x: L.targetRingFrame(shape: shape, scale: scale).minX,
+                            y: L.targetRingFrame(shape: shape, scale: scale).minY)
+                Circle().fill(IslandPalette.accent).frame(width: dot.width, height: dot.height)
+                    .offset(x: dot.minX, y: dot.minY)
+            }.frame(width: width, height: L.compactHeight).environment(\.displayScale, scale)
+            let image = try XCTUnwrap(IslandCaptureHarness.render(rendered, scale: scale))
+            XCTAssertEqual(image.width, Int(width * scale), "ring and dot capture at scale \(scale)")
+            var pixels = [UInt8](repeating: 0, count: image.width * image.height * 4)
+            let context = CGContext(data: &pixels, width: image.width, height: image.height, bitsPerComponent: 8,
+                                    bytesPerRow: image.width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+            let y = min(image.height - 1, Int((shape.midY * scale).rounded()))
+            func visibleX(in range: Range<Int>) -> [Int] {
+                range.filter { x in
+                    let i = (y * image.width + x) * 4
+                    return max(pixels[i], max(pixels[i + 1], pixels[i + 2])) > 12
+                }
+            }
+            let ringX = try XCTUnwrap(visibleX(in: Int((outer.maxX - 2) * scale)..<Int((outer.maxX + 1) * scale)).max())
+            let dotX = try XCTUnwrap(visibleX(in: Int((dot.minX - 1) * scale)..<Int((dot.maxX + 1) * scale)).min())
+            XCTAssertEqual(CGFloat(dotX - ringX - 1) / scale, 24, accuracy: 0.5, "captured ring edge to dot at scale \(scale)")
+        }
     }
 }

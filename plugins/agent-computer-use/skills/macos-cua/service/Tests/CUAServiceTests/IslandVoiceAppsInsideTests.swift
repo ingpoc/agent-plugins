@@ -5,7 +5,7 @@ import XCTest
 
 /// 0.2.87 (Guru, 2026-11-04 13:27 IST "why do i see app icon still on the right side of the island"): ONE layout
 /// rule in every compact state, Samantha's voice states included. Outside left: harness circles. Inside: ringed
-/// target · 24 · app icons · 6 · voice slot · 6 · dot · 9. Outside right: plugin marks only, never an app.
+/// target outer edge · 24 · app icons · 8 · voice slot · 6 · dot · 9. Outside right: plugin marks only.
 @MainActor
 final class IslandVoiceAppsInsideTests: XCTestCase {
     static func acu(_ app: String, _ t: Double, agent: String = "Samantha") -> IslandPluginUse {
@@ -55,22 +55,24 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         XCTAssertEqual(m.voiceSlotContent, voice, "\(label): voice slot", file: file, line: line)
         XCTAssertEqual(shape.width, IslandBarLayout.controlledPillWidth(apps: apps, voice: voice), "\(label): hug width", file: file, line: line)
         // ring · 24 · apps (4) · 8 · voice · 6 · dot · 9 (no voice: apps · 6 · dot; nothing after the ring: ring · 24 · dot)
-        let ringMaxX = shape.minX + IslandBarLayout.ringRight
+        let ringMaxX = IslandBarLayout.targetRingOuterRect(shape: shape).maxX
         let icons = IslandBarLayout.operatedAppRects(shape: shape, count: apps)
-        let dot = IslandBarLayout.compactDotRect(shape: shape)
+        let dot = apps == 0 && voice == nil
+            ? IslandBarLayout.targetOnlyDotRect(shape: shape)
+            : IslandBarLayout.compactDotRect(shape: shape)
         var cursor = ringMaxX
         if let first = icons.first {
-            XCTAssertEqual(first.minX - ringMaxX, 24, accuracy: 0.001, "\(label): 24 pt ring gap", file: file, line: line)
+            XCTAssertEqual(first.minX - ringMaxX, 24, accuracy: 0.5, "\(label): 24 pt ring gap", file: file, line: line)
             cursor = icons.last!.maxX
         }
         if let voice {
             let v = IslandBarLayout.voiceSlotRect(shape: shape, apps: apps, controlled: true, content: voice)
-            XCTAssertEqual(v.minX - cursor, apps > 0 ? 8 : 24, accuracy: 0.001, "\(label): voice slot after apps", file: file, line: line)
+            XCTAssertEqual(v.minX - cursor, apps > 0 ? 8 : 24, accuracy: 0.5, "\(label): voice slot after apps", file: file, line: line)
             XCTAssertEqual(v.width, IslandBarLayout.voiceSlotWidth(voice), "\(label): slot width", file: file, line: line)
             XCTAssertTrue(ov.contains { $0.kind == "voice_slot" && $0.expectedInsideIsland }, "\(label): voice slot logged inside", file: file, line: line)
             cursor = v.maxX
         }
-        XCTAssertEqual(dot.minX - cursor, apps == 0 && voice == nil ? IslandBarLayout.operatedRingGap : 6, accuracy: 0.001, "\(label): dot after content", file: file, line: line)
+        XCTAssertEqual(dot.minX - cursor, apps == 0 && voice == nil ? IslandBarLayout.operatedRingGap : 6, accuracy: 1, "\(label): dot after content", file: file, line: line)
         XCTAssertEqual(shape.maxX - dot.maxX, 9, accuracy: 0.001, file: file, line: line)
     }
 
@@ -78,7 +80,7 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
 
     func testVoiceStatesWithOneOrThreeAppsKeepRingAndAppsInside() async {
         for apps in [["Calculator"], Self.apps3] {
-            for kind in ["listening", "thinking", "speaking", "done"] {
+            for kind in ["listening", "thinking", "speaking"] {
                 let m = IslandModel()
                 m.idleActivity = "duo"
                 m.apply(Self.voice(kind, apps: apps))
@@ -96,6 +98,94 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
                 assertZones(m, apps: apps.count, voice: nil, "\(kind) + \(apps.count) app(s)")
             }
         }
+    }
+
+    func testVoiceStatesStayAtSeventyFourAndKeepTheVoiceSlotReserved() async {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        var expected: (CGFloat, CGFloat, CGFloat)?
+        for kind in ["listening", "thinking", "speaking", "done", "idle"] {
+            model.apply(Self.voice(kind, apps: []))
+            let shape = model.shapeRect
+            let slot = IslandBarLayout.voiceSlotRect(shape: shape, apps: 0, controlled: false,
+                                                     content: model.voiceSlotContent ?? .none)
+            let dot = IslandBarLayout.compactDotRect(shape: shape)
+            XCTAssertEqual(shape.width, 74, kind)
+            XCTAssertNotNil(model.voiceSlotContent, "voice slot remains reserved through \(kind)")
+            let current = (shape.width, dot.minX, slot.minX)
+            if let expected {
+                XCTAssertEqual(current.0, expected.0)
+                XCTAssertEqual(current.1, expected.1)
+                XCTAssertEqual(current.2, expected.2)
+            } else { expected = current }
+        }
+    }
+
+    func testTargetAndAppStayUntilTwoSecondVoiceHoldEnds() async {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let now = Date()
+        let calculator = Self.acu("com.apple.calculator", 300)
+        model.apply(Self.voice("listening", apps: [], plugins: [calculator]), now: now)
+        model.apply(IslandSnapshot(kind: "acting", title: "Using Calculator", plugins: [], samantha_on: true), now: now.addingTimeInterval(0.5))
+        XCTAssertTrue(model.showsTargetMark)
+        XCTAssertEqual(IslandOperatedApps.names(model.pluginUses), ["Calculator"])
+        model.apply(IslandSnapshot(kind: "done", title: "Done", plugins: [], samantha_on: true), now: now.addingTimeInterval(1))
+        model.apply(IslandSnapshot(kind: "idle", title: "Ready", plugins: [], samantha_on: true), now: now.addingTimeInterval(2.9))
+        XCTAssertTrue(model.showsTargetMark, "the target remains during done + 2 s")
+        XCTAssertEqual(IslandOperatedApps.names(model.pluginUses), ["Calculator"])
+        model.apply(IslandSnapshot(kind: "idle", title: "Ready", plugins: [], samantha_on: true), now: now.addingTimeInterval(3.1))
+        XCTAssertFalse(model.showsTargetMark)
+        XCTAssertTrue(model.operatedApps.isEmpty)
+        XCTAssertNil(model.voiceSlotContent)
+    }
+
+    func testVoiceTurnKeepsOneGeometryThroughActingDoneAndTheHold() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let now = Date()
+        let snapshots: [(String, IslandSnapshot)] = [
+            ("listening", Self.voice("listening", apps: ["Calculator"])),
+            ("thinking", Self.voice("thinking", apps: ["Calculator"])),
+            ("acting", IslandSnapshot(kind: "acting", title: "Using Calculator", app: "Calculator",
+                                      active_apps: ["Calculator"], plugins: Self.uses(["Calculator"]), samantha_on: true)),
+            ("done", Self.voice("done", apps: ["Calculator"])),
+            ("idle", Self.voice("idle", apps: ["Calculator"])),
+        ]
+        let expectedWidth = IslandBarLayout.controlledPillWidth(apps: 1, voice: .listening)
+        var widths: [CGFloat] = []
+        for (index, (kind, snapshot)) in snapshots.enumerated() {
+            model.apply(snapshot, now: now.addingTimeInterval(Double(index) * 0.25))
+            widths.append(model.drawnWidth)
+            XCTAssertEqual(model.drawnWidth, expectedWidth, "locked ring/app/voice geometry at \(kind)")
+            if kind == "done" || kind == "idle" {
+                XCTAssertEqual(model.voiceSlotContent, IslandVoiceSlotContent.none,
+                               "done is an empty reserved slot, not a done glyph")
+            }
+        }
+        XCTAssertEqual(Set(widths), [expectedWidth], "no 87 / 111 / other intermediate pill widths")
+    }
+
+    func testSpeakingWithoutAudioReturnsToIdle() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let now = Date()
+        model.apply(IslandSnapshot(kind: "speaking", title: "Speaking", voice_side: "assistant",
+                                   voice_level: 0, samantha_on: true), now: now)
+        XCTAssertEqual(model.voiceSlotContent, .speaking)
+        model.expireSpeakingIfSilent(now: now.addingTimeInterval(IslandModel.speakingSilenceTimeout + 0.1))
+        XCTAssertEqual(model.presentation, .idle)
+        XCTAssertNil(model.voiceSlotContent)
+    }
+
+    func testThreeOperatedAppsRenderInsideThePill() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(Self.voice("speaking", apps: Self.apps3))
+        let rendered = IslandCaptureHarness.render(SamanthaIslandBar(model: model).environment(\.displayScale, 1), scale: 1)
+        XCTAssertEqual(rendered?.width, Int(IslandBarLayout.windowSize.width))
+        XCTAssertEqual(overlays(model).filter { $0.kind == "app_icon" }.count, 3)
+        XCTAssertEqual(model.shapeRect.width, IslandBarLayout.controlledPillWidth(apps: 3, voice: .speaking))
     }
 
     /// The exact 0.2.86 bug: speaking after the ACU row dropped, with voice_cua's stale active_apps.
@@ -165,16 +255,54 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
     func testDeveloperObservabilityMarkMatchesTheSpec() {
         // UI & UX spec: bars 2 pt tall, 1.5 pt apart (a 9 pt group, centred), x 3–9, 5.5–12, 8–13; #30D158 bare on black since Guru 16:06 IST (was #248A3D on a white tile).
         let r = IslandDevObsMark.barRects()
-        XCTAssertEqual(r.map(\.minX), [3, 5.5, 8])
-        XCTAssertEqual(r.map(\.maxX), [9, 12, 13])
-        XCTAssertEqual(r.map(\.height), [2, 2, 2])
-        XCTAssertEqual(r[1].minY - r[0].maxY, 1.5, accuracy: 1e-9)
-        XCTAssertEqual(r[2].maxY - r[0].minY, 9, accuracy: 1e-9)
-        XCTAssertEqual((r[0].minY + r[2].maxY) / 2, 8, accuracy: 1e-9, "vertically centred in the 16 pt tile")
+        XCTAssertEqual(r.map(\.minX), [0, 3, 6])
+        XCTAssertEqual(r.map(\.maxX), [9, 12, 15])
+        XCTAssertEqual(r.map(\.height), [2.5, 2.5, 2.5])
+        XCTAssertEqual(r[1].minY - r[0].maxY, 1.25, accuracy: 1e-9)
+        XCTAssertEqual(r[2].maxY - r[0].minY, 10, accuracy: 1e-9)
+        XCTAssertEqual((r[0].minY + r[2].maxY) / 2, 7.5, accuracy: 1e-9, "centred in the 15 pt optical box")
         let c = NSColor(IslandDevObsMark.color).usingColorSpace(.sRGB)!
         XCTAssertEqual(Int((c.redComponent * 255).rounded()), 0x30)
         XCTAssertEqual(Int((c.greenComponent * 255).rounded()), 0xD1)
         XCTAssertEqual(Int((c.blueComponent * 255).rounded()), 0x58)
+    }
+
+    func testPluginAndHarnessCirclesKeepTheirGapThroughPillShrink() async throws {
+        let codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task",
+                                status: "running", last_seen_at: 100)
+        let ledger = Self.plugin("context-ledger", 400)
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let base = Date().timeIntervalSince1970
+        let initialUses = Self.apps3.enumerated().map { Self.acu($0.element, base + Double($0.offset) * 0.01) }
+        var initialLedger = ledger; initialLedger.last_seen_at = base
+        model.apply(IslandSnapshot(kind: "acting", title: "Using Notes", app: "Notes", active_apps: Self.apps3,
+                                   agents: [codex], plugins: initialUses + [initialLedger], samantha_on: true))
+        let from = model.drawnWidth
+        var currentLedger = ledger; currentLedger.last_seen_at = base + 0.5
+        model.apply(IslandSnapshot(kind: "acting", title: "Using Calculator", app: "Calculator", active_apps: ["Calculator"],
+                                   agents: [codex], plugins: [Self.acu("Calculator", base + 0.5), currentLedger],
+                                   samantha_on: true))
+        try await Task.sleep(nanoseconds: 450_000_000)
+        let to = model.drawnWidth
+        XCTAssertGreaterThan(from, to)
+        for step in 0...25 {
+            let t = Double(step) / 25 * 0.25
+            let progress = CGFloat(Spring(response: 0.25, dampingRatio: 0.9).value(target: 1.0, time: t))
+            let width = from + (to - from) * progress
+            let shape = IslandBarLayout.shapeRect(compactWidth: width, card: false)
+            let marks = IslandBarLayout.circleRects(shape: shape, count: model.circles.count)
+            XCTAssertEqual(marks[0].minX - shape.maxX, IslandBarLayout.circleGap, accuracy: 0.001)
+            XCTAssertGreaterThan(marks[0].minX, IslandBarLayout.compactDotRect(shape: shape).maxX,
+                                 "plugin mark clears the dot at shrink frame \(step)")
+            let slots = model.sourceGroups.compactMap { model.sourceGroupSlots[$0.id] }
+            let harnesses = IslandBarLayout.agentRects(shape: shape, slots: slots)
+            XCTAssertEqual(shape.minX - harnesses[0].maxX, IslandBarLayout.circleGap, accuracy: 0.001)
+            for pair in zip(harnesses, harnesses.dropFirst()) {
+                XCTAssertGreaterThanOrEqual(pair.0.minX - pair.1.maxX, IslandBarLayout.circleSpacing - 0.001,
+                                            "harness circles do not overlap at shrink frame \(step)")
+            }
+        }
     }
 
     // MARK: - Transitions: every sampled frame keeps the locked zones
@@ -215,7 +343,7 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         let c1 = v1.flatMap { IslandVoiceSlotContent(rawValue: String($0.id.dropFirst("voice_slot_".count))) }
         let levels = m.voiceBars.map { _ in 1.0 }
         func contentRight(_ c: IslandVoiceSlotContent, morph: Double, speaker: Double) -> CGFloat {
-            c == .done ? IslandBarLayout.voiceCheckWidth : IslandVoiceSlotDrawing.contentMaxX(levels: levels, morph: morph, speaker: speaker)
+            c == .none ? 0 : IslandVoiceSlotDrawing.contentMaxX(levels: levels, morph: morph, speaker: speaker)
         }
         for i in 0...60 {
             let t = Double(i) / 100
@@ -224,11 +352,10 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
                 var rights: [CGFloat] = []
                 if c0 == c1 {
                     rights = [contentRight(c1, morph: IslandVoiceSlotDrawing.pose(c1).morph, speaker: IslandVoiceSlotDrawing.pose(c1).speaker)]
-                } else if c0 == .done || c1 == .done {
-                    // Check ↔ meter is a view swap: the old view leaves in `slotSwapRemove`, the new one
-                    // waits `slotSwapInsertDelay` (the pill is already moving its dot) and fades in.
-                    if t < IslandVoiceSlotDrawing.slotSwapRemove * 0.9 { rights.append(contentRight(c0, morph: IslandVoiceSlotDrawing.pose(c0).morph, speaker: 0)) }
-                    if t >= IslandVoiceSlotDrawing.slotSwapInsertDelay + 0.01 { rights.append(contentRight(c1, morph: IslandVoiceSlotDrawing.pose(c1).morph, speaker: 0)) }
+                } else if c1 == .none {
+                    rights = []
+                } else if c0 == .none {
+                    rights = [contentRight(c1, morph: IslandVoiceSlotDrawing.pose(c1).morph, speaker: 0)]
                 } else if reduce {
                     let f = IslandVoiceSlotDrawing.reducedFade(elapsed: t)
                     if f.out > 0.1 { rights.append(contentRight(c0, morph: IslandVoiceSlotDrawing.pose(c0).morph, speaker: 0)) }

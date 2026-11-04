@@ -2,6 +2,31 @@ import AppKit
 import CoreGraphics
 import SwiftUI
 
+private enum IslandGlyphRaster {
+    static func centeredSquare(_ pixels: [UInt8], side: Int, bytesPerRow: Int,
+                               minX: Int, minY: Int, maxX: Int, maxY: Int,
+                               colorSpace: CGColorSpace) -> CGImage? {
+        guard minX >= 0, minY >= 0, maxX < side, maxY < side, maxX >= minX, maxY >= minY,
+              pixels.count >= side * bytesPerRow else { return nil }
+        let width = maxX - minX + 1, height = maxY - minY + 1, edge = max(width, height)
+        var square = [UInt8](repeating: 0, count: edge * edge * 4)
+        let left = (edge - width) / 2, top = (edge - height) / 2
+        for y in 0..<height {
+            for x in 0..<width {
+                let from = (minY + y) * bytesPerRow + (minX + x) * 4
+                let to = ((top + y) * edge + left + x) * 4
+                square[to..<(to + 4)] = pixels[from..<(from + 4)]
+            }
+        }
+        return square.withUnsafeMutableBytes { bytes in
+            guard let context = CGContext(data: bytes.baseAddress, width: edge, height: edge, bitsPerComponent: 8,
+                                          bytesPerRow: edge * 4, space: colorSpace,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+            return context.makeImage()
+        }
+    }
+}
+
 /// The controlled target inside the ring (Guru 2026-11-04 15:27 IST: "have the icon rather than icon inside
 /// white square, comet sign is not visible then" / "similarly for apple logo"; 15:29 IST: "that is the design
 /// language"). Every controlled target, current or future, draws its BARE logo glyph in the ring on the black
@@ -65,20 +90,15 @@ enum IslandTargetGlyph {
                 px[i + 3] = UInt8(na.rounded())
                 px[i] = UInt8((r * na / 255).rounded()); px[i + 1] = UInt8((g * na / 255).rounded())
                 px[i + 2] = UInt8((b * na / 255).rounded())
-                if na > 24 {
+                if na > 96 {
                     kept += 1
                     minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
                 }
             }
         }
-        guard kept * 100 >= side * side, let full = ctx.makeImage() else { return nil }
-        let w = maxX - minX + 1, h = maxY - minY + 1, edge = max(w, h)
-        // Bitmap rows run top-down, the same as `cropping(to:)`.
-        guard let crop = full.cropping(to: CGRect(x: minX, y: minY, width: w, height: h)),
-              let sq = CGContext(data: nil, width: edge, height: edge, bitsPerComponent: 8, bytesPerRow: 0,
-                                 space: space, bitmapInfo: info) else { return nil }
-        sq.draw(crop, in: CGRect(x: (edge - w) / 2, y: (edge - h) / 2, width: w, height: h))
-        return sq.makeImage()
+        guard kept * 100 >= side * side else { return nil }
+        return IslandGlyphRaster.centeredSquare(px, side: side, bytesPerRow: bpr, minX: minX, minY: minY,
+                                                 maxX: maxX, maxY: maxY, colorSpace: space)
     }
 }
 
@@ -90,14 +110,18 @@ enum IslandTargetGlyph {
 /// stay. developer-observability keeps its vector trace-waterfall mark, also bare.
 enum IslandPluginMarkGlyph {
     /// Glyph box inside the 24 pt circle.
-    static let size: CGFloat = 16
+    static let size: CGFloat = IslandBarLayout.circleGlyph
 
     @MainActor private static var cache: [String: IslandTargetGlyph.Resolved] = [:]
 
     @MainActor static func resolve(_ name: String) -> IslandTargetGlyph.Resolved {
         if let hit = cache[name] { return hit }
         var source: NSImage?
-        if AppIconResolver.ownIconNames.contains(name) || name == "Agent Computer Use" { source = AppIconResolver.ownIcon() }
+        if name == "acu" || name == "Agent Computer Use",
+           let url = AppIconResolver.pluginLogoURL("agent-computer-use") { source = NSImage(contentsOf: url) }
+        if source == nil, AppIconResolver.ownIconNames.contains(name) || name == "Agent Computer Use" {
+            source = AppIconResolver.ownIcon()
+        }
         if source == nil, let url = AppIconResolver.pluginLogoURL(name) { source = NSImage(contentsOf: url) }
         if source == nil, let url = AppIconResolver.appURL(for: name) { source = NSWorkspace.shared.icon(forFile: url.path) }
         var result = IslandTargetGlyph.Resolved.symbol(AppIconResolver.symbols[name] ?? AppIconResolver.fallbackSymbol)
@@ -130,46 +154,69 @@ enum IslandPluginMarkGlyph {
             return (Double(px[i]) / a, Double(px[i + 1]) / a, Double(px[i + 2]) / a, a / 255)
         }
         // Plate: median colour on a ring at 40 % of the side from the centre.
-        var ring: [(Double, Double, Double)] = []
+        var ring: [Int: [(Double, Double, Double)]] = [:]
         let c = Double(side) / 2, r = Double(side) * 0.40
         for k in 0..<72 {
             let t = Double(k) / 72 * 2 * .pi
             let x = Int(c + r * cos(t)), y = Int(c + r * sin(t))
             let v = rgb(y * bpr + x * 4)
-            if v.3 > 0.9 { ring.append((v.0, v.1, v.2)) }
+            if v.3 > 0.9 { ring[y, default: []].append((v.0, v.1, v.2)) }
         }
-        guard ring.count >= 12 else { return nil }
+        guard ring.values.reduce(0, { $0 + $1.count }) >= 12 else { return nil }
         func median(_ a: [Double]) -> Double { a.sorted()[a.count / 2] }
-        let plate = (median(ring.map(\.0)), median(ring.map(\.1)), median(ring.map(\.2)))
+        let samples = ring.values.flatMap { $0 }
+        let base = (median(samples.map(\.0)), median(samples.map(\.1)), median(samples.map(\.2)))
+        let rows = ring.mapValues { colors in
+            let plate = colors.filter { color in
+                max(abs(color.0 - base.0), abs(color.1 - base.1), abs(color.2 - base.2)) < 0.25
+            }
+            let source = plate.isEmpty ? colors : plate
+            return (median(source.map(\.0)), median(source.map(\.1)), median(source.map(\.2)))
+        }
+        let sampledRows = rows.keys.sorted()
+        let plates = (0..<side).map { y -> (Double, Double, Double) in
+            let hiIndex = sampledRows.firstIndex(where: { $0 >= y }) ?? sampledRows.count - 1
+            let hi = sampledRows[hiIndex], lo = sampledRows[max(0, hiIndex - 1)]
+            guard let lower = rows[lo], let upper = rows[hi], hi != lo else { return rows[hi]! }
+            let t = Double(y - lo) / Double(hi - lo)
+            return (lower.0 + (upper.0 - lower.0) * t,
+                    lower.1 + (upper.1 - lower.1) * t,
+                    lower.2 + (upper.2 - lower.2) * t)
+        }
         var minX = side, minY = side, maxX = -1, maxY = -1, kept = 0
         for y in 0..<side {
             for x in 0..<side {
                 let i = y * bpr + x * 4
                 let v = rgb(i)
                 guard v.3 > 0 else { continue }
+                let plate = plates[y]
                 let d = max(abs(v.0 - plate.0), abs(v.1 - plate.1), abs(v.2 - plate.2))
-                let k = min(1, max(0, (d - 0.12) / 0.2))
                 let hi = max(v.0, v.1, v.2), chroma = hi - min(v.0, v.1, v.2)
-                // Neutral → white; coloured → its own colour, lifted to at least 55 % brightness for black.
+                let plateLight = (base.0 + base.1 + base.2) / 3 > 0.65 && hi > 0.65 && chroma < 0.18
+                let plateDark = (base.0 + base.1 + base.2) / 3 < 0.35 && hi < 0.35 && chroma < 0.18
+                let k = plateLight || plateDark ? 0 : min(1, max(0, (d - 0.12) / 0.2))
+                // Neutral or low-contrast strokes → white; only readable brand colour remains coloured.
                 let colour: (Double, Double, Double)
-                if chroma < 0.18 { colour = (1, 1, 1) }
-                else { let lift = hi < 0.55 ? 0.55 / max(hi, 0.01) : 1; colour = (min(1, v.0 * lift), min(1, v.1 * lift), min(1, v.2 * lift)) }
+                if chroma < 0.18 || !contrastOnBlack(red: v.0, green: v.1, blue: v.2) { colour = (1, 1, 1) }
+                else { colour = (v.0, v.1, v.2) }
                 let na = v.3 * k
                 px[i] = UInt8((colour.0 * na * 255).rounded()); px[i + 1] = UInt8((colour.1 * na * 255).rounded())
                 px[i + 2] = UInt8((colour.2 * na * 255).rounded()); px[i + 3] = UInt8((na * 255).rounded())
-                if na > 0.1 {
+                if na > 0.38 {
                     kept += 1
                     minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
                 }
             }
         }
-        guard kept * 200 >= side * side, let full = ctx.makeImage() else { return nil }
-        let w = maxX - minX + 1, h = maxY - minY + 1, edge = max(w, h)
-        guard let crop = full.cropping(to: CGRect(x: minX, y: minY, width: w, height: h)),
-              let sq = CGContext(data: nil, width: edge, height: edge, bitsPerComponent: 8, bytesPerRow: 0,
-                                 space: space, bitmapInfo: info) else { return nil }
-        sq.draw(crop, in: CGRect(x: (edge - w) / 2, y: (edge - h) / 2, width: w, height: h))
-        return sq.makeImage()
+        guard kept * 200 >= side * side else { return nil }
+        return IslandGlyphRaster.centeredSquare(px, side: side, bytesPerRow: bpr, minX: minX, minY: minY,
+                                                 maxX: maxX, maxY: maxY, colorSpace: space)
+    }
+
+    nonisolated private static func contrastOnBlack(red: Double, green: Double, blue: Double) -> Bool {
+        func linear(_ c: Double) -> Double { c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+        let luminance = 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+        return (luminance + 0.05) / 0.05 >= 4.5
     }
 }
 
@@ -185,11 +232,11 @@ struct IslandPluginMarkGlyphView: View {
             switch IslandPluginMarkGlyph.resolve(name) {
             case .image(let image):
                 Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
-                    .frame(width: size * 0.8, height: size * 0.8)
+                    .frame(width: size, height: size)
                     .frame(width: size, height: size)
             case .symbol(let symbol):
                 Image(systemName: symbol)
-                    .font(.system(size: size * 0.7, weight: .semibold))
+                    .font(.system(size: size, weight: .semibold))
                     .foregroundStyle(Color.white)
                     .frame(width: size, height: size)
             }

@@ -899,6 +899,14 @@ final class IslandModel: ObservableObject {
     private var lastMeter = Date.distantPast
     private var lastMeter24 = Date.distantPast
     private var pinchTask: Task<Void, Never>?
+    private var shrinkWidthWork: DispatchWorkItem?
+    private var requestedWidth: CGFloat?
+    private var speakingExpiryWork: DispatchWorkItem?
+    private var voiceHoldWork: DispatchWorkItem?
+    private var lastSpeakingAudioAt: Date?
+    private var voiceTurnActive = false
+    private var voiceHoldUntil = Date.distantPast
+    private var heldPluginUses: [IslandPluginUse] = []
     private var pinching = false
     private var expandedFlag = false
     // Choice Quick Peek / arrival
@@ -933,6 +941,7 @@ final class IslandModel: ObservableObject {
             if !Set(old).subtracting(now).isEmpty { harnessExitSeq &+= 1 }
         }
     }
+    private(set) var sourceGroupSlots: [String: Int] = [:]
     /// Bumped whenever a harness circle leaves, so the neighbours slide on the delayed exit slot curve
     /// (`IslandMotion.harnessExitSlot`) instead of the entry curve.
     private(set) var harnessExitSeq = 0
@@ -957,6 +966,8 @@ final class IslandModel: ObservableObject {
     nonisolated static let leaveGrace: TimeInterval = 0.3
     nonisolated(unsafe) static var peekDone: TimeInterval = 4
     nonisolated(unsafe) static var doneSettle: TimeInterval = 4
+    nonisolated static let voiceTurnHold: TimeInterval = 2
+    nonisolated static let speakingSilenceTimeout: TimeInterval = 3
 
     /// Settings → Idle Activity: "none" hides the idle pill, "samantha" hides agent circles when idle,
     /// "agents"/"duo" show everything.
@@ -1000,28 +1011,30 @@ final class IslandModel: ObservableObject {
     static let operatedAppStates: [IslandPresentation] = [.idle, .doneSettled, .acting, .listening, .thinking, .speaking, .done]
     /// States whose Samantha glyph + meter move into the voice slot (after the apps, before the dot)
     /// while something is controlled.
-    static let voiceSlotStates: [IslandPresentation] = [.listening, .thinking, .speaking, .done]
+    static let voiceSlotStates: [IslandPresentation] = [.listening, .thinking, .speaking, .acting, .actingSteps, .done]
 
     var showsTargetMark: Bool {
         !cardOpen && permissionWarning == nil && pluginTarget != nil
             && (Self.operatedAppStates.contains(presentation) || presentation == .actingSteps)
     }
 
-    /// Samantha's voice slot (Guru 14:17 IST): listening / thinking / speaking always, done only while
-    /// something is controlled. No mic or wave glyph; the slot is the whole voice element.
-    nonisolated static func voiceSlotContent(for state: IslandPresentation, controlled: Bool) -> IslandVoiceSlotContent? {
+    /// The reserved slot stays in place throughout a voice turn; done is represented by the harness badge.
+    nonisolated static func voiceSlotContent(for state: IslandPresentation, controlled: Bool,
+                                             voiceTurnActive: Bool = false) -> IslandVoiceSlotContent? {
         switch state {
+        case .idle, .doneSettled: return voiceTurnActive ? IslandVoiceSlotContent.none : nil
         case .listening: return .listening
         case .thinking: return .thinking
         case .speaking: return .speaking
-        case .done: return controlled ? .done : nil
+        case .acting, .actingSteps: return voiceTurnActive ? .thinking : nil
+        case .done: return voiceTurnActive ? IslandVoiceSlotContent.none : nil
         default: return nil
         }
     }
 
     var voiceSlotContent: IslandVoiceSlotContent? {
         guard !cardOpen, permissionWarning == nil else { return nil }
-        return Self.voiceSlotContent(for: presentation, controlled: showsTargetMark)
+        return Self.voiceSlotContent(for: presentation, controlled: showsTargetMark, voiceTurnActive: voiceTurnActive)
     }
 
     var showsVoiceSlot: Bool { voiceSlotContent != nil }
@@ -1174,13 +1187,98 @@ final class IslandModel: ObservableObject {
     /// App circles hang off the right-most pill.
     var circleAnchor: CGRect { secondaryRect ?? shapeRect }
 
-    var hitRects: [CGRect] {
+    func hitRects(scale: CGFloat = 1) -> [CGRect] {
         if idleHidden { return [] }
-        var r = IslandBarLayout.hitRects(shape: shapeRect, circleCount: 0,
-                                         agentCount: showAgentCircle ? sourceGroups.count : 0)
+        var r = [IslandBarLayout.pillTarget(shape: shapeRect)]
+        if showAgentCircle {
+            r += IslandBarLayout.agentRects(shape: shapeRect, slots: sourceGroups.compactMap { sourceGroupSlots[$0.id] }, scale: scale)
+                .map { $0.insetBy(dx: -2, dy: -2) }
+        }
         if let s = secondaryRect { r.append(s.insetBy(dx: -2, dy: -3)) }
-        r += IslandBarLayout.circleRects(shape: circleAnchor, count: circleCount).map { $0.insetBy(dx: -2, dy: -2) }
+        r += IslandBarLayout.circleRects(shape: circleAnchor, count: circleCount, scale: scale).map { $0.insetBy(dx: -2, dy: -2) }
         return r
+    }
+
+    private func updateVoiceTurn(kind: String, previous: String, now: Date) {
+        switch kind {
+        case "listening", "thinking", "speaking":
+            voiceTurnActive = true
+            voiceHoldUntil = .distantPast
+            voiceHoldWork?.cancel(); voiceHoldWork = nil
+        case "acting", "driving", "secrets":
+            break
+        case "done":
+            if previous != kind, voiceTurnActive {
+                voiceHoldUntil = now.addingTimeInterval(Self.voiceTurnHold)
+                scheduleVoiceHoldExpiry()
+            }
+        case "idle":
+            if now >= voiceHoldUntil { endVoiceHold(deadline: voiceHoldUntil, now: now) }
+        default:
+            voiceTurnActive = false
+            voiceHoldUntil = .distantPast
+            voiceHoldWork?.cancel(); voiceHoldWork = nil
+        }
+
+        if kind == "speaking", previous != kind {
+            lastSpeakingAudioAt = nil
+            scheduleSpeakingExpiry(now: now)
+        } else if kind != "speaking" {
+            speakingExpiryWork?.cancel(); speakingExpiryWork = nil
+            lastSpeakingAudioAt = nil
+        }
+    }
+
+    private func voiceTurnRetainsTargets(now: Date) -> Bool {
+        voiceTurnActive && (["listening", "thinking", "speaking", "acting", "driving", "secrets", "done"].contains(kind)
+                            || now < voiceHoldUntil)
+    }
+
+    private func scheduleVoiceHoldExpiry() {
+        voiceHoldWork?.cancel()
+        let deadline = voiceHoldUntil
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.endVoiceHold(deadline: deadline, now: Date())
+            self.refresh(now: Date())
+        }
+        voiceHoldWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(0, deadline.timeIntervalSinceNow), execute: work)
+    }
+
+    private func endVoiceHold(deadline: Date, now: Date) {
+        guard deadline > .distantPast, voiceHoldUntil == deadline, now >= deadline else { return }
+        voiceTurnActive = false
+        voiceHoldUntil = .distantPast
+        voiceHoldWork?.cancel(); voiceHoldWork = nil
+        if rawPlugins.isEmpty { pluginUses = []; heldPluginUses = [] }
+    }
+
+    private func scheduleSpeakingExpiry(now: Date) {
+        speakingExpiryWork?.cancel()
+        let last = lastSpeakingAudioAt ?? kindSince
+        let delay = max(0, Self.speakingSilenceTimeout - now.timeIntervalSince(last))
+        let work = DispatchWorkItem { [weak self] in self?.expireSpeakingIfSilent(now: Date()) }
+        speakingExpiryWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    func expireSpeakingIfSilent(now: Date) {
+        guard kind == "speaking" else { return }
+        let last = lastSpeakingAudioAt ?? kindSince
+        guard now.timeIntervalSince(last) >= Self.speakingSilenceTimeout else {
+            scheduleSpeakingExpiry(now: now)
+            return
+        }
+        speakingExpiryWork?.cancel(); speakingExpiryWork = nil
+        kind = "idle"
+        kindSince = now
+        conversationUntil = .distantPast
+        endVoiceHold(deadline: voiceHoldUntil, now: now)
+        voiceTurnActive = false
+        voiceHoldUntil = .distantPast
+        if rawPlugins.isEmpty { pluginUses = []; heldPluginUses = [] }
+        refresh(now: now)
     }
 
     // MARK: Apply
@@ -1205,6 +1303,7 @@ final class IslandModel: ObservableObject {
         let shownKind = samanthaEnabled || ["confirm", "needs_you", "idle"].contains(snap.kind) ? snap.kind : "idle"
         if shownKind != kind { kindSince = now; dismissedPeekKind = nil }
         kind = shownKind
+        updateVoiceTurn(kind: shownKind, previous: previousKind, now: now)
         if shownKind != previousKind && forceCompact { forceCompact = false }
         if !samanthaEnabled || shownKind == "idle" {
             conversationUntil = .distantPast
@@ -1224,7 +1323,16 @@ final class IslandModel: ObservableObject {
         if nextAgents != agents { agentsAt = now }
         agents = nextAgents
         let nextPlugins = allowedPlugins(snap.plugins)
-        if nextPlugins != pluginUses { pluginUses = nextPlugins }
+        if voiceTurnRetainsTargets(now: now) {
+            let currentIDs = Set(nextPlugins.map(\.id))
+            let retained = heldPluginUses.filter { !currentIDs.contains($0.id) }
+            let merged = nextPlugins + retained
+            if merged != pluginUses { pluginUses = merged }
+            heldPluginUses = merged
+        } else {
+            if nextPlugins != pluginUses { pluginUses = nextPlugins }
+            heldPluginUses = nextPlugins
+        }
         if snap.samantha_on != samanthaOn { samanthaOn = snap.samantha_on }
         reconcileRowFailures(with: nextAgents)
         let prevID = agentApproval?.id
@@ -1370,6 +1478,9 @@ final class IslandModel: ObservableObject {
         guard force || dt >= Self.meterInterval(reduceMotion: reduceMotion || systemReduceMotion) else { return }
         lastMeter = now
         let level = max(0, min(1, snap.voice_level))
+        if kind == "speaking", snap.voice_side == "assistant", level > 0 {
+            lastSpeakingAudioAt = now
+        }
         if samanthaEnabled, level > 0, ["user", "assistant"].contains(snap.voice_side) {
             let wasQuiet = now >= conversationUntil
             conversationUntil = now.addingTimeInterval(Self.conversationQuiet)
@@ -1699,34 +1810,59 @@ final class IslandModel: ObservableObject {
 
     private func compactWidth(for state: IslandPresentation, now: Date) -> CGFloat {
         if pluginTarget != nil, !cardOpen, permissionWarning == nil, Self.operatedAppStates.contains(state) {
-            // One rule in every compact state, voice included: the pill hugs ring · 24 · icons · [voice] ·
-            // dot · 9. Nothing from Samantha's conversation width carries over.
-            return IslandBarLayout.controlledPillWidth(apps: operatedApps.count, voice: Self.voiceSlotContent(for: state, controlled: true))
+            return IslandBarLayout.controlledPillWidth(
+                apps: operatedApps.count,
+                voice: Self.voiceSlotContent(for: state, controlled: true, voiceTurnActive: voiceTurnActive)
+            )
         }
-        if !cardOpen, permissionWarning == nil, let voice = Self.voiceSlotContent(for: state, controlled: false) {
-            // Nothing controlled: the pill hugs 9 · voice slot · 6 · dot · 9; loudness never changes it.
+        if !cardOpen, permissionWarning == nil,
+           let voice = Self.voiceSlotContent(for: state, controlled: false, voiceTurnActive: voiceTurnActive) {
             return IslandBarLayout.voicePillWidth(voice)
         }
         if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
-        if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
-        return state.compactWidth
+        if state == .peek, let peek { return IslandBarLayout.snappedCompactWidth(IslandPeekRules.compactWidth(peek, now: now)) }
+        return IslandBarLayout.snappedCompactWidth(state.compactWidth)
     }
 
     /// The last width change came from operated app icons being added or removed (spring, not the curve).
     @Published private(set) var widthFromOperatedApps = false
+    nonisolated static let widthShrinkDebounce: TimeInterval = 0.4
     private var operatedSlotsAtLastWidth = 0
     private var controlledAtLastWidth = false
     private var voiceAtLastWidth: IslandVoiceSlotContent?
 
     private func setDrawnWidth(_ width: CGFloat) {
+        let width = IslandBarLayout.snappedCompactWidth(width)
         let slots = showsOperatedApps ? operatedApps.count : 0
-        let changed = width != drawnWidth
         let voice = voiceSlotContent
+        let changed = width != drawnWidth
         if changed { widthFromOperatedApps = slots != operatedSlotsAtLastWidth || voice != voiceAtLastWidth }
         operatedSlotsAtLastWidth = slots
         voiceAtLastWidth = voice
         controlledAtLastWidth = showsTargetMark
-        if changed { drawnWidth = width }
+        if width == drawnWidth {
+            requestedWidth = nil
+            shrinkWidthWork?.cancel(); shrinkWidthWork = nil
+            return
+        }
+        if width > drawnWidth {
+            requestedWidth = nil
+            shrinkWidthWork?.cancel(); shrinkWidthWork = nil
+            drawnWidth = width
+            return
+        }
+        guard requestedWidth != width else { return }
+        shrinkWidthWork?.cancel(); shrinkWidthWork = nil
+        requestedWidth = width
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.requestedWidth == width else { return }
+            self.requestedWidth = nil
+            self.shrinkWidthWork = nil
+            self.drawnWidth = width
+            self.onGeometryChange?()
+        }
+        shrinkWidthWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.widthShrinkDebounce, execute: work)
     }
 
     private func refresh(now: Date) {
@@ -1746,10 +1882,22 @@ final class IslandModel: ObservableObject {
         // ACU operates is drawn inside after the ring, from the plugin use, in every state.
         let nextCircles = IslandCircles.merge(apps: [], plugins: IslandCircles.pluginItems(pluginUses))
         if nextCircles != circles { circles = nextCircles }
-        let groups = IslandSourceGroups.withSamantha(
+        let freshGroups = IslandSourceGroups.withSamantha(
             IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil,
                                       seenFailures: seenFailures, now: now),
             active: samanthaHasCircle)
+        let groups = freshGroups
+        if groups.isEmpty {
+            sourceGroupSlots.removeAll()
+        } else {
+            let liveIDs = Set(groups.map(\.id))
+            sourceGroupSlots = sourceGroupSlots.filter { liveIDs.contains($0.key) }
+            var nextSlot = (sourceGroupSlots.values.max() ?? -1) + 1
+            for group in groups where sourceGroupSlots[group.id] == nil {
+                sourceGroupSlots[group.id] = nextSlot
+                nextSlot += 1
+            }
+        }
         if groups != sourceGroups { sourceGroups = groups }
         scheduleDoneExpiry(now: now)
         // Final-60 s countdown for the pill's card.

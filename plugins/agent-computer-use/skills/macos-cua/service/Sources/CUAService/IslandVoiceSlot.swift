@@ -26,7 +26,7 @@ enum IslandVoiceSlotDrawing {
     /// (morph: 0 bars … 1 dots, speaker: 0 Guru … 1 Samantha) for a resting slot.
     static func pose(_ c: IslandVoiceSlotContent) -> (morph: Double, speaker: Double) {
         switch c {
-        case .listening, .done: return (0, 0)
+        case .listening, .none: return (0, 0)
         case .thinking: return (1, 0)
         case .speaking: return (0, 1)
         }
@@ -110,15 +110,6 @@ enum IslandVoiceSlotDrawing {
         (max(0, 1 - elapsed / reducedFadeOut), min(1, max(0, (elapsed - reducedFadeInDelay) / reducedFadeIn)))
     }
 
-    /// Check (done) ↔ meter / dots is a view swap with the same rule: out in 50 ms, in after 100 ms.
-    static let slotSwapRemove: TimeInterval = 0.05
-    static let slotSwapInsertDelay: TimeInterval = 0.1
-    static let slotSwapFadeIn: TimeInterval = 0.15
-    static var slotSwapTransition: AnyTransition {
-        .asymmetric(insertion: .opacity.animation(.easeInOut(duration: slotSwapFadeIn).delay(slotSwapInsertDelay)),
-                    removal: .opacity.animation(.linear(duration: slotSwapRemove)))
-    }
-
     /// Right edge of the drawn content (for the mid-frame "never touches the dot" check).
     static func contentMaxX(levels: [Double], morph: Double, speaker: Double) -> CGFloat {
         marks(levels: levels, morph: morph, speaker: speaker, dots: [1, 1, 1])
@@ -126,7 +117,7 @@ enum IslandVoiceSlotDrawing {
     }
 }
 
-/// The swappable voice slot view (meter / thinking dots). Done is drawn by the caller (its check glyph).
+/// The swappable voice slot view (meter / thinking dots); `.none` keeps the reserved slot blank.
 struct IslandVoiceSlotView: View {
     let content: IslandVoiceSlotContent
     let levels: [Double]
@@ -136,6 +127,9 @@ struct IslandVoiceSlotView: View {
     @State private var shown: IslandVoiceSlotContent?
 
     var body: some View {
+        if content == .none {
+            Color.clear.frame(width: IslandBarLayout.voiceSlotReservedWidth, height: IslandBarLayout.voiceSlotHeight)
+        } else {
         TimelineView(.periodic(from: .now, by: reduceMotion ? 0.1 : 1.0 / 30)) { ctx in
             let t = ctx.date.timeIntervalSinceReferenceDate
             let elapsed = ctx.date.timeIntervalSince(changedAt)
@@ -166,6 +160,7 @@ struct IslandVoiceSlotView: View {
             changedAt = Date()
         }
         .accessibilityHidden(true)
+        }
     }
 
     private func draw(_ g: inout GraphicsContext, _ marks: [IslandVoiceSlotDrawing.Mark], alpha: Double) {

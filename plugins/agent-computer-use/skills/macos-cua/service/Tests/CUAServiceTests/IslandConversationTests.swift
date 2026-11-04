@@ -14,7 +14,7 @@ final class IslandConversationTests: XCTestCase {
         var dips = 0
         for kind in ["thinking", "speaking", "listening", "acting"] {
             m.apply(IslandSnapshot(kind: kind, title: kind))
-            if let voice = IslandModel.voiceSlotContent(for: m.presentation, controlled: false) {
+            if let voice = m.voiceSlotContent {
                 if m.drawnWidth != IslandBarLayout.voicePillWidth(voice) { dips += 1 }
             } else if m.drawnWidth == IslandBarLayout.idleWidth { dips += 1 }
             try await Task.sleep(nanoseconds: 220_000_000)

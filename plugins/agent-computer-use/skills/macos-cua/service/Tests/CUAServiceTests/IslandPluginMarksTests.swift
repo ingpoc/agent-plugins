@@ -367,8 +367,6 @@ final class IslandPluginMarksTests: XCTestCase {
         let plugins = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("../../../../../../").standardized
         setenv("ACU_PLUGIN_LOGO_ROOT", plugins.path, 1)
-        let savedGap = IslandBarLayout.operatedRingGap
-        defer { IslandBarLayout.operatedRingGap = savedGap }
         var codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task", status: "running", last_seen_at: 100)
         codex.elapsed_s = 42
         func shot(_ name: String, _ snap: IslandSnapshot, sub: String) async throws {
@@ -383,19 +381,15 @@ final class IslandPluginMarksTests: XCTestCase {
         func uses(_ n: Int, _ plugin: String, _ agent: String) -> [IslandPluginUse] {
             (0..<n).map { op(apps[$0], agent, 300 + Double($0) * 10, plugin: plugin) }
         }
-        // Gap study: 0.2.85 (12) vs 0.2.86 (16) vs 20 (Guru's pick, 0.2.87), Apple and Comet rings, 1 / 3 / 3+N apps.
-        for gap in [12, 16, 20] as [CGFloat] {
-            IslandBarLayout.operatedRingGap = gap
-            for (target, plugin) in [("apple", "acu"), ("comet", "comet-control")] {
-                for (label, n) in [("1", 1), ("3", 3), ("3+N", 5)] {
-                    try await shot("\(target)-\(label)", IslandSnapshot(kind: "idle", agents: [codex], plugins: uses(n, plugin, "Codex")),
-                                   sub: "gap-\(Int(gap))")
-                }
+        // Fixed 24 pt gap: Apple and Comet rings, 1 / 3 / 3+N apps.
+        for (target, plugin) in [("apple", "acu"), ("comet", "comet-control")] {
+            for (label, n) in [("1", 1), ("3", 3), ("3+N", 5)] {
+                try await shot("\(target)-\(label)", IslandSnapshot(kind: "idle", agents: [codex], plugins: uses(n, plugin, "Codex")),
+                               sub: "gap-24")
             }
-            try await shot("samantha-acting", IslandSnapshot(kind: "acting", title: "Opening Calculator", app: "Calculator",
-                active_apps: ["Calculator"], plugins: uses(1, "acu", "Samantha"), samantha_on: true), sub: "gap-\(Int(gap))")
         }
-        IslandBarLayout.operatedRingGap = savedGap
+        try await shot("samantha-acting", IslandSnapshot(kind: "acting", title: "Opening Calculator", app: "Calculator",
+            active_apps: ["Calculator"], plugins: uses(1, "acu", "Samantha"), samantha_on: true), sub: "gap-24")
         try await shot("comet-no-app-acting", IslandSnapshot(kind: "acting", title: "Reading page",
             plugins: [use("comet-control", "comet-control", "Samantha")], samantha_on: true), sub: "comet-no-app")
         try await shot("comet-no-app-idle", IslandSnapshot(kind: "idle", agents: [codex],
@@ -587,7 +581,7 @@ final class IslandPluginMarksTests: XCTestCase {
             let width = max(IslandBarLayout.idleWidth, IslandBarLayout.operatedAppsPillWidth(count: count))
             let shape = IslandBarLayout.shapeRect(compactWidth: width, card: false)
             let dot = IslandBarLayout.compactDotRect(shape: shape)
-            let ringMaxX = shape.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
+            let ringMaxX = IslandBarLayout.targetRingOuterRect(shape: shape).maxX
             let rects = IslandBarLayout.operatedAppRects(shape: shape, count: count)
             XCTAssertEqual(rects.count, count)
             for r in rects {
@@ -597,21 +591,21 @@ final class IslandPluginMarksTests: XCTestCase {
             }
             XCTAssertEqual(dot.maxX, shape.maxX - 9, "the dot keeps its 9 pt inset")
         }
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 1), 87)  // 26 (ring edge) · 24 · 16 · 6 · 6 · 9
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 3), 127)
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 4), 147) // 3 icons + the 16 pt "+N" slot
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 1), 94)
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 3), 134)
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 4), 154) // 3 icons + the 16 pt "+N" slot
     }
 
     /// Ring · 24 · icon · 4 · icon … · 6 · dot · 9, identical for 1…4 slots (Guru 2026-11-04 13:30 IST: 20 pt; 15:52 IST: 24 pt).
     func testOperatedGapsAreFixedInEveryCount() {
         for count in 1...4 {
             let shape = IslandBarLayout.shapeRect(compactWidth: IslandBarLayout.operatedAppsPillWidth(count: count), card: false)
-            let ringMaxX = shape.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
+            let ringMaxX = IslandBarLayout.targetRingOuterRect(shape: shape).maxX
             let dot = IslandBarLayout.compactDotRect(shape: shape)
             let rects = IslandBarLayout.operatedAppRects(shape: shape, count: count)
-            XCTAssertEqual(rects[0].minX - ringMaxX, 24, accuracy: 0.001, "ring to first icon (\(count))")
+            XCTAssertEqual(rects[0].minX - ringMaxX, 24, accuracy: 0.5, "ring to first icon (\(count))")
             for (a, b) in zip(rects, rects.dropFirst()) { XCTAssertEqual(b.minX - a.maxX, 4, accuracy: 0.001) }
-            XCTAssertEqual(dot.minX - rects[count - 1].maxX, 6, accuracy: 0.001, "last icon or +N to dot (\(count))")
+            XCTAssertEqual(dot.minX - rects[count - 1].maxX, 6, accuracy: 1, "last icon or +N to dot (\(count))")
             XCTAssertEqual(shape.maxX - dot.maxX, 9, accuracy: 0.001)
         }
     }
@@ -622,20 +616,20 @@ final class IslandPluginMarksTests: XCTestCase {
         let model = IslandModel()
         model.idleActivity = "duo"
         // A presentation family change pinches to 74 then grows (160 ms); wait it out.
-        func settle() async throws { try await Task.sleep(nanoseconds: 300_000_000) }
+        func settle() async throws { try await Task.sleep(nanoseconds: 450_000_000) }
         model.apply(IslandSnapshot(kind: "acting", title: "Reading Finder", app: "Finder", active_apps: ["Finder"],
                                    plugins: [op("Finder", "Samantha", 300)]))
         // No 160 ms squeeze to 74 pt: idle -> fitted width at once, on the operated-apps spring.
-        XCTAssertEqual(model.drawnWidth, 87)
+        XCTAssertEqual(model.drawnWidth, 94)
         XCTAssertTrue(model.widthFromOperatedApps)
         try await settle()
         XCTAssertEqual(model.presentation, .acting)
         XCTAssertEqual(model.drawnWidth, IslandBarLayout.operatedAppsPillWidth(count: 1))
-        XCTAssertEqual(model.shapeRect.width, 87, "no 136 pt acting width")
+        XCTAssertEqual(model.shapeRect.width, 94, "no 136 pt acting width")
         model.apply(IslandSnapshot(kind: "idle", plugins: [op("Finder", "Samantha", 300), op("TextEdit", "Samantha", 310),
                                                           op("Calculator", "Samantha", 320)]))
         try await settle()
-        XCTAssertEqual(model.shapeRect.width, 127)
+        XCTAssertEqual(model.shapeRect.width, 134)
         model.apply(IslandSnapshot(kind: "idle"))
         try await settle()
         XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth)
@@ -678,7 +672,7 @@ final class IslandPluginMarksTests: XCTestCase {
         if case .tile = AppIconResolver.operatedStyle("No Such App 0279") {} else { XCTFail("a missing icon gets the tile") }
     }
 
-    func testModelShowsOperatedAppsInsideAndGrowsThePill() {
+    func testModelShowsOperatedAppsInsideAndGrowsThePill() async throws {
         let model = IslandModel()
         model.idleActivity = "duo"
         let codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task", status: "running", last_seen_at: 100)
@@ -694,6 +688,7 @@ final class IslandPluginMarksTests: XCTestCase {
         // Dropped 2 s after the last call: icons go and the pill returns to its idle width.
         model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
         XCTAssertFalse(model.showsOperatedApps)
+        try await Task.sleep(nanoseconds: 450_000_000)
         XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth)
     }
 
@@ -808,17 +803,17 @@ final class IslandPluginMarksTests: XCTestCase {
         // Guru, 2026-11-04 15:52 IST ("increse from 20 to 24pt"), no divider; one gap after the ring whatever follows
         // (apps, voice slot or dot); 4 between apps, 6 to the dot, 9 inset.
         XCTAssertEqual(IslandBarLayout.operatedRingGap, 24)
-        XCTAssertEqual(IslandBarLayout.operatedRingClearance, 50)
+        XCTAssertEqual(IslandBarLayout.operatedRingClearance, 56.5)
         XCTAssertEqual(IslandBarLayout.operatedGap, 4)
         XCTAssertEqual(IslandBarLayout.operatedDotGap, 6)
-        XCTAssertEqual(IslandBarLayout.targetOnlyDotGap, IslandBarLayout.operatedRingGap, "one shared target gap")
+        XCTAssertEqual(IslandBarLayout.targetOnlyTrailingInset, 11.5)
     }
 
     /// Regression (UI & UX, 2026-11-04 11:57 IST): a comet-control row with no apps stretched to ~120 pt.
     /// With no apps it hugs ring · 24 · dot · 9 (Guru 15:26/15:52 IST); only ACU's target_app adds an inside
-    /// icon (ring · 24 · icon · 6 · dot · 9 = 87); other targets keep hugging the ring.
+    /// icon (ring · 24 · icon · 6 · dot · 9 = 94); other targets keep hugging the ring.
     func testControlledTargetPillHugsWithNoAppsAndWithOneApp() async throws {
-        XCTAssertEqual(IslandBarLayout.targetOnlyPillWidth, 65)
+        XCTAssertEqual(IslandBarLayout.targetOnlyPillWidth, 74)
         var checked: [String] = []
         for plugin in ["comet-control", "acu"] {
             for kind in ["acting", "idle"] {
@@ -829,13 +824,16 @@ final class IslandPluginMarksTests: XCTestCase {
                 try await Task.sleep(nanoseconds: 300_000_000)
                 guard model.showsTargetMark else { continue }
                 checked.append("\(plugin) \(kind)")
-                XCTAssertEqual(model.shapeRect.width, 65, "\(plugin) \(kind) with no apps hugs ring · 24 · dot")
-                let ringMaxX = model.shapeRect.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
-                XCTAssertEqual(IslandBarLayout.compactDotRect(shape: model.shapeRect).minX - ringMaxX, 24, accuracy: 0.001)
+                XCTAssertEqual(model.shapeRect.width, 74, "\(plugin) \(kind) with no apps uses the minimum pill")
+                let outer = IslandBarLayout.targetRingOuterRect(shape: model.shapeRect)
+                let dot = IslandBarLayout.targetOnlyDotRect(shape: model.shapeRect)
+                XCTAssertEqual(outer.minX - model.shapeRect.minX, 11, accuracy: 0.5)
+                XCTAssertEqual(dot.minX - outer.maxX, 24, accuracy: 0.5)
+                XCTAssertEqual(model.shapeRect.maxX - dot.maxX, 11.5, accuracy: 0.5)
                 model.apply(IslandSnapshot(kind: kind, title: kind == "acting" ? "Reading page" : "",
                                            plugins: [op("Finder", "Samantha", 310, plugin: plugin)], samantha_on: true))
                 try await Task.sleep(nanoseconds: 300_000_000)
-                let expectedWidth = plugin == "acu" ? 87 : IslandBarLayout.targetOnlyPillWidth
+                let expectedWidth = plugin == "acu" ? 94 : IslandBarLayout.targetOnlyPillWidth
                 XCTAssertEqual(model.shapeRect.width, expectedWidth, "\(plugin) \(kind) with one app")
             }
         }

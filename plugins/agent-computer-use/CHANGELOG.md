@@ -2,6 +2,15 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.89 (2026-11-04)
+
+- Correct compact island geometry: 74 pt minimum, even whole-point width, snapped origin, and the 24 pt ring-outer-edge gap; keep the no-target voice slot and dot aligned across voice states.
+- Crop plugin and app marks to opaque glyph pixels, center them, remove background plates, and keep the developer-observability waterfall centered. Plugin and harness circles stay bare.
+- Keep harness slots stable during joins and exits; keep voice width reserved through done plus 2 s, grow immediately, and debounce shrink by 400 ms.
+- Retain target and app activity through a voice turn; clear speaking without audio after 3 s.
+- Extend `island_layout` geometry/status/app identity fields and add timestamped voice state transition events.
+- Add scale-1/2 capture checks, multi-app rendering, shrink-overlap and harness stability coverage, plus timestamp and transition tests.
+
 ## 0.2.88 (2026-11-04)
 
 - Accept valid marketplace plugin IDs for right-side island marks, with manifest icons, monograms, and optional display labels; add Claude Code, Cursor, and Codex MCP hook support.

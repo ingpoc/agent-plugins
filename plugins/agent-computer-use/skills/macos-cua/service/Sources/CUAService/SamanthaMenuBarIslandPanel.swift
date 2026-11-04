@@ -69,7 +69,11 @@ final class SamanthaMenuBarIslandPanel {
             guard let self, self.model?.textEntryActive != true else { return }
             self.endTextEntry()
         }
-        model.onGeometryChange = { [weak self] in self?.updateTrackingGeometry(); self?.syncLeaveWatch() }
+        model.onGeometryChange = { [weak self] in
+            self?.updateTrackingGeometry()
+            self?.logLayout(trigger: "state")
+            self?.syncLeaveWatch()
+        }
         model.onPeekVisible = { [weak self] on in
             self?.peekPrivate = on; self?.applyCaptureSharing(); self?.syncLeaveWatch()
         }
@@ -256,7 +260,8 @@ final class SamanthaMenuBarIslandPanel {
         let target = screen ?? Self.menuBarScreen()
         let bar = MenuBarWindowAnchor.strip(on: target)?.appKit
         let frame = IslandBarLayout.windowFrame(bar: bar, screen: target.frame,
-                                                auxLeft: target.auxiliaryTopLeftArea, auxRight: target.auxiliaryTopRightArea)
+                                                auxLeft: target.auxiliaryTopLeftArea, auxRight: target.auxiliaryTopRightArea,
+                                                scale: target.backingScaleFactor)
         if IslandBarLayout.needsFrameCorrection(current: panel.frame, expected: frame) {
             if logCorrection {
                 Self.log.info("Island frame correction old=\(NSStringFromRect(panel.frame), privacy: .public) new=\(NSStringFromRect(frame), privacy: .public) strip=\(bar.map(NSStringFromRect) ?? "nil", privacy: .public) screen=\(NSStringFromRect(target.frame), privacy: .public)")
@@ -281,7 +286,9 @@ final class SamanthaMenuBarIslandPanel {
             trigger: trigger, screenId: number.map { "\($0.uint32Value)" } ?? "unknown",
             screen: IslandLayoutEvent.topLeft(screen.frame, primaryHeight: primaryHeight), scale: screen.backingScaleFactor,
             island: island, visible: panel.isVisible,
-            overlays: panel.isVisible ? IslandLayoutLogger.overlays(model: model, shape: shape, origin: origin) : [])
+            overlays: panel.isVisible ? IslandLayoutLogger.overlays(model: model, shape: shape, origin: origin,
+                                                                     scale: screen.backingScaleFactor) : [],
+            details: IslandLayoutLogger.details(model: model, shape: shape, origin: origin, scale: screen.backingScaleFactor))
     }
 
     /// Island screen per Settings → Display on (main/menu-bar display by default).
@@ -320,7 +327,7 @@ final class SamanthaMenuBarIslandPanel {
 
     private func updateTrackingGeometry(force: Bool = false) {
         guard let panel, let model, panel.isVisible else { return }
-        let rects = model.hitRects
+        let rects = model.hitRects(scale: panel.backingScaleFactor)
         guard force || rects != trackedRects else { return }
         trackedRects = rects
         logLayout(trigger: "resize")
@@ -440,7 +447,7 @@ final class SamanthaMenuBarIslandPanel {
     func applyPointer(_ p: CGPoint, via: String = "exit") {
         guard let model else { return }
         let dragNear = trackFileDrag(p, model: model)
-        let overAny = dragNear || model.hitRects.contains { $0.contains(p) }
+        let overAny = dragNear || model.hitRects(scale: panel?.backingScaleFactor ?? 1).contains { $0.contains(p) }
         if let panel, panel.ignoresMouseEvents == overAny { panel.ignoresMouseEvents = !overAny }
         // Hover follows the same whole-pill target as clicks (incl. the band above it).
         let overShape = !model.idleHidden && IslandBarLayout.pillTarget(shape: model.shapeRect).contains(p)
@@ -515,7 +522,7 @@ final class SamanthaMenuBarIslandPanel {
     ///    (timer lost to a rebuild) → leave now.
     func watchStep(_ p: CGPoint, now: Date) {
         guard let model else { return }
-        let over = model.hitRects.contains { $0.contains(p) }
+        let over = model.hitRects(scale: panel?.backingScaleFactor ?? 1).contains { $0.contains(p) }
         let overShape = !model.idleHidden && IslandBarLayout.pillTarget(shape: model.shapeRect).contains(p)
         if over != insideShape || overShape != model.hovering {
             if !over && insideShape { IslandEventLog.log("exit-lost", ["via": "watchdog"]) }
@@ -540,7 +547,7 @@ final class SamanthaMenuBarIslandPanel {
     private func pointerOverHitRects() -> Bool {
         guard let panel, let model, panel.isVisible else { return false }
         let p = Self.windowPoint(screen: Self.pointerLocation(), frame: panel.frame)
-        return model.hitRects.contains { $0.contains(p) }
+        return model.hitRects(scale: panel.backingScaleFactor).contains { $0.contains(p) }
     }
 
     /// Same band as Window Server Menubar (24) + 1 so the island paints over the strip.
