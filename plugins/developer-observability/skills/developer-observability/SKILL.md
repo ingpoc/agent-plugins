@@ -15,7 +15,7 @@ ownership.
    is old, call `observability_collect` once (optionally `project_dir`) and
    re-read; never report "no issues" from an empty state.
 2. `observability_issues` (`limit` 1–100; more clamps to 100 with `limit_note`) → `by_kind`
-   (failure, latency_hotspot, redundancy, turn_latency, island_layout),
+   (failure, latency_hotspot, redundancy, turn_latency, island_layout, storage),
    `slowest` (top p95 steps) and `top_failures` answer "top failures and slowest steps" in
    one call; filter with `kind`. `total`/`active`/`by_status`/`by_source` count exactly the
    filtered rows (pages, not caps); `by_kind` is the pre-kind-filter breakdown. Failures may carry `before_after` (latest version) and
@@ -37,7 +37,12 @@ ownership.
    a typed choice question and the optional local Decider (`decider_unavailable`
    otherwise). Report service confidence and uncertainty;
    failures remain failures, never a fallback. No action is executed.
-6. `observability_dashboard` opens the embedded view in MCP Apps hosts.
+6. `observability_storage` (`dry_run` default true) reports disk use of every
+   observability path (Samantha log sizes and `*signoz*` VMs included) and the
+   prune plan. Collect already prunes after each run: expired plugin-owned files
+   go to `~/.Trash/developer-observability-pruned/`; `~/.cache/macos-cua` and
+   Samantha logs are never touched. `storage` findings flag paths over 1 GiB.
+7. `observability_dashboard` opens the embedded view in MCP Apps hosts.
 
 Fixes belong in the owning project. Run its real acceptance check and compare
 findings afterward. No observed error, successful tool or closed investigation

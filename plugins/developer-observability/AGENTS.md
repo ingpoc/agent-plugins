@@ -39,7 +39,7 @@ Build UI only after edits: `npm ci --ignore-scripts && npm run build`.
 The prebuilt self-contained `ui/dashboard.html` ships; runtime needs no Node or
 CDN. Tests: `python3 -m unittest discover -s tests` with the plugin runtime;
 `tests/test_drift.py` compares the vendored backend with the upstream producer
-checkout (`OBSERVABILITY_UPSTREAM_ROOT` or config `backend_root`) and skips
+checkout (`OBSERVABILITY_UPSTREAM_ROOT` or the legacy config `backend_root`, test-only and never read at runtime) and skips
 when it is absent. Re-vendor when it fails: copy the four upstream files,
 reapply the marked edits, update `runtime/backend/VENDORED.json`. Package
 validation is owned by collection `scripts/check.py`. `tests/serve_host.py` is

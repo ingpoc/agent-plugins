@@ -9,6 +9,7 @@ evidence preparation and Decider validation stay with their owners.
 | `observability_projects` | Configured IDs, attribution basis, source coverage, freshness and unassigned count |
 | `observability_issues` | Scoped bounded issue list; stable IDs and snapshot-bound pagination |
 | `observability_inspect_issue` | Observed failure, rule-based lead, bounded redacted evidence and outcome provenance |
+| `observability_storage` | Disk use of observability paths and the 0.1.8 prune plan (dry run by default) |
 | `observability_recommendation` | Read existing Ledger pilot; explicit propose reuses owner locking/validation |
 | `observability_decide` | One bounded typed choice; fresh snapshot, unchanged confidence/uncertainty, no action |
 | `observability_dashboard` | Same projections in one negotiated MCP Apps view; structured fallback |
