@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.8 (2026-11-04)
+
+Automatic clearing and storage visibility (Guru 2026-11-04 11:39 IST):
+
+- New `runtime/collector/retention.py` (stdlib only). It runs at the end of every `observability_collect`, and on demand through the new `observability_storage` tool (`dry_run`, default true) or `bin/developer-observability collect --storage [--prune]`.
+- What it clears: the collector's own outputs keep the live `findings.json` and drop snapshots and scratch older than 7 days; plugin caches (`~/.cache/observability`) drop files older than 7 days, while backups and configs (`*.bak*`, `config*.json`, `*.toml`) are kept for 30 days; configured `retention.trace_paths` (none by default) keep 7 days.
+- How it clears: expired files are moved to `~/.Trash/developer-observability-pruned/<stamp>/`, never `rm`'d. A run stops moving once that folder holds `max_trash_bytes` (2 GiB), and the result reports `capped`. Space comes back when the Trash is emptied.
+- Hard exclusions, which are never moved or written: every `[protected].paths` entry in `~/.agents/machine.toml` (read on each run and skipped quietly when the file or list is missing), `~/.cache/macos-cua` and other ACU-owned dirs, Samantha's `samantha-activity*.jsonl` and `voice.log` (Samantha/ACU rotates them), the runtime venv and `~/.config/developer-observability`. Tests cover each exclusion.
+- Storage report: disk use of collector outputs, the runtime venv, plugin caches, trace dirs, the pruned-trash folder, Samantha log sizes (stat only) and any Apple container VM named `*signoz*`. A path over `retention.warn_bytes` (1 GiB) becomes a `storage` finding (`observability_issues kind=storage`).
+- Settings live in config `retention` (`enabled`, `days`, `backup_days`, `cache_dirs`, `trace_paths`, `trash_dir`, `max_trash_bytes`, `warn_bytes`), and each has a default.
+- `backend_root` (the legacy kindle-project checkout) is not used at runtime. The plugin runs only on its vendored backend. Only the optional drift test reads the key, and it skips when the path is missing.
+
 ## 0.1.7 (2026-11-04)
 
 Found by replaying Samantha session ca44bfcb (2026-11-03 23:44–23:47 IST):
