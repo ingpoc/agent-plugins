@@ -845,6 +845,8 @@ final class IslandModel: ObservableObject {
     /// 5 compact bars and the 24-bar card meter, 0…1, refreshed ≤ 10 Hz.
     @Published private(set) var bars5: [Double] = Array(repeating: 0, count: 5)
     @Published private(set) var meter24: [Double] = Array(repeating: 0, count: 24)
+    /// The voice slot's 5 bars: the same levels, smoothed over ~80 ms (`voiceMeterSmoothing`).
+    @Published private(set) var voiceBars: [Double] = Array(repeating: 0, count: 5)
 
     enum CardMode: Equatable { case samantha, agents }
 
@@ -870,6 +872,7 @@ final class IslandModel: ObservableObject {
     private var dismissedPeekKind: String?
     var voiceOverEnabled: () -> Bool = { NSWorkspace.shared.isVoiceOverEnabled }
     private var lastMeter = Date.distantPast
+    private var lastMeter24 = Date.distantPast
     private var pinchTask: Task<Void, Never>?
     private var pinching = false
     private var expandedFlag = false
@@ -979,8 +982,24 @@ final class IslandModel: ObservableObject {
             && (Self.operatedAppStates.contains(presentation) || presentation == .actingSteps)
     }
 
-    /// Something is controlled in a voice state: the voice glyph and meter sit in the voice slot.
-    var showsVoiceSlot: Bool { showsTargetMark && Self.voiceSlotStates.contains(presentation) }
+    /// Samantha's voice slot (Guru 14:17 IST): listening / thinking / speaking always, done only while
+    /// something is controlled. No mic or wave glyph; the slot is the whole voice element.
+    nonisolated static func voiceSlotContent(for state: IslandPresentation, controlled: Bool) -> IslandVoiceSlotContent? {
+        switch state {
+        case .listening: return .listening
+        case .thinking: return .thinking
+        case .speaking: return .speaking
+        case .done: return controlled ? .done : nil
+        default: return nil
+        }
+    }
+
+    var voiceSlotContent: IslandVoiceSlotContent? {
+        guard !cardOpen, permissionWarning == nil else { return nil }
+        return Self.voiceSlotContent(for: presentation, controlled: showsTargetMark)
+    }
+
+    var showsVoiceSlot: Bool { voiceSlotContent != nil }
 
     /// Failures the user already saw by expanding the island (id → status|last_seen_at). The compact
     /// pill stops showing them; a newer failure on the same row (new last_seen_at) shows again.
@@ -1309,8 +1328,21 @@ final class IslandModel: ObservableObject {
     }
 
     /// Voice meters: never a visual "state" change, throttled to 10 Hz.
+    /// Voice slot meter: ~30 Hz, 10 Hz with Reduce Motion (UI & UX 14:17 IST).
+    nonisolated static func meterInterval(reduceMotion: Bool) -> TimeInterval { reduceMotion ? 0.1 : 1.0 / 30 }
+    nonisolated static let voiceMeterSmoothing: TimeInterval = 0.08
+    /// One-pole low-pass: after `dt` the bar has moved 1 − e^(−dt/80 ms) of the way to the new level.
+    nonisolated static func smoothBars(_ prev: [Double], _ next: [Double], dt: TimeInterval) -> [Double] {
+        let a = dt <= 0 ? 1 : 1 - exp(-dt / voiceMeterSmoothing)
+        return next.indices.map { i in
+            let p = i < prev.count ? prev[i] : 0
+            return max(0, min(1, p + a * (next[i] - p)))
+        }
+    }
+
     func applyMeter(_ snap: IslandSnapshot, now: Date = Date(), force: Bool = false) {
-        guard force || now.timeIntervalSince(lastMeter) >= 0.1 else { return }
+        let dt = now.timeIntervalSince(lastMeter)
+        guard force || dt >= Self.meterInterval(reduceMotion: reduceMotion || systemReduceMotion) else { return }
         lastMeter = now
         let level = max(0, min(1, snap.voice_level))
         if samanthaEnabled, level > 0, ["user", "assistant"].contains(snap.voice_side) {
@@ -1319,7 +1351,12 @@ final class IslandModel: ObservableObject {
             if wasQuiet { refresh(now: now) }
         }
         bars5 = Self.resample(snap.voice_levels, to: 5, fallback: level)
-        meter24 = Array((meter24 + [level]).suffix(24))
+        voiceBars = Self.smoothBars(voiceBars, bars5, dt: min(0.5, max(0, dt)))
+        // The card's 24-sample history keeps its 10 Hz time base.
+        if force || now.timeIntervalSince(lastMeter24) >= 0.1 {
+            lastMeter24 = now
+            meter24 = Array((meter24 + [level]).suffix(24))
+        }
     }
 
     nonisolated static func resample(_ levels: [Double], to n: Int, fallback: Double) -> [Double] {
@@ -1639,7 +1676,11 @@ final class IslandModel: ObservableObject {
         if pluginTarget != nil, !cardOpen, permissionWarning == nil, Self.operatedAppStates.contains(state) {
             // One rule in every compact state, voice included: the pill hugs ring · 20 · icons · [voice] ·
             // dot · 9. Nothing from Samantha's conversation width carries over.
-            return IslandBarLayout.controlledPillWidth(apps: operatedApps.count, voice: Self.voiceSlotStates.contains(state))
+            return IslandBarLayout.controlledPillWidth(apps: operatedApps.count, voice: Self.voiceSlotContent(for: state, controlled: true))
+        }
+        if !cardOpen, permissionWarning == nil, let voice = Self.voiceSlotContent(for: state, controlled: false) {
+            // Nothing controlled: the pill hugs 9 · voice slot · 6 · dot · 9; loudness never changes it.
+            return IslandBarLayout.voicePillWidth(voice)
         }
         if state.isConversation, now < conversationUntil { return IslandBarLayout.standardWidth }
         if state == .peek, let peek { return IslandPeekRules.compactWidth(peek, now: now) }
@@ -1650,12 +1691,15 @@ final class IslandModel: ObservableObject {
     @Published private(set) var widthFromOperatedApps = false
     private var operatedSlotsAtLastWidth = 0
     private var controlledAtLastWidth = false
+    private var voiceAtLastWidth: IslandVoiceSlotContent?
 
     private func setDrawnWidth(_ width: CGFloat) {
         let slots = showsOperatedApps ? operatedApps.count : 0
         let changed = width != drawnWidth
-        if changed { widthFromOperatedApps = slots != operatedSlotsAtLastWidth }
+        let voice = voiceSlotContent
+        if changed { widthFromOperatedApps = slots != operatedSlotsAtLastWidth || voice != voiceAtLastWidth }
         operatedSlotsAtLastWidth = slots
+        voiceAtLastWidth = voice
         controlledAtLastWidth = showsTargetMark
         if changed { drawnWidth = width }
     }
@@ -1719,6 +1763,7 @@ final class IslandModel: ObservableObject {
             // Nor while a controlled target is (or was) in the pill: the ring, apps and voice slot are
         // left-anchored, so a pinch to 74 would clip them mid-turn.
         let operatedInvolved = showsOperatedApps || operatedSlotsAtLastWidth > 0 || showsTargetMark || controlledAtLastWidth
+                || voiceSlotContent != nil || voiceAtLastWidth != nil
             if familyChanged, !(reduceMotion || systemReduceMotion), !open, !operatedInvolved {
                 // Alcove content swap: pinch to 74, then grow to the new width.
                 pinching = true
@@ -1732,6 +1777,7 @@ final class IslandModel: ObservableObject {
                     self.widthFromOperatedApps = false
                     self.operatedSlotsAtLastWidth = self.showsOperatedApps ? self.operatedApps.count : 0
                     self.controlledAtLastWidth = self.showsTargetMark
+                    self.voiceAtLastWidth = self.voiceSlotContent
                     self.drawnWidth = self.compactWidth(for: self.presentation, now: Date())
                     self.onGeometryChange?()
                 }

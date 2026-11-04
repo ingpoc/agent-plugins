@@ -7,7 +7,19 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 - Controlled app inside the island in every state, voice included (Guru 2026-11-04: "why do i see app icon still on the right side of the island"). One shared rule: inside the pill, left to right, the controlled target with its ring (Apple for ACU, Comet for comet-control), the gap, the app icons (ACU only), then Samantha's voice slot (only while she listens, thinks, speaks or finishes), then the dot. Harness circles (Samantha included) stay outside on the left; only plugin marks go outside on the right. The `.app` outside-circle path is gone.
 - Root cause: voice_cua kept `_ACTIVE_APPS` until idle and re-sent it with every listening/thinking/speaking post; CUAService turned those apps into outside-right circles once the ACU row dropped, while voice states were excluded from the ring, operated apps and hug width. Voice posts now carry no stale apps, and the model keeps the ring, apps and hug width in every compact Samantha state.
 - 13:26:54 flash fixed: Samantha registers the plugin use before posting `acting`, so the app never shows for one frame without its ring.
-- Ring-to-apps gap: 20 pt (Guru 13:30 IST, "instead of 16 pt put 20 pt"), giving 83 / 123 / 143 pt pills for 1 / 3 / 3 + N apps; the voice slot (the current lead glyph and meter, 40 pt, one replaceable view) adds 6 + 40 pt.
+- Ring-to-apps gap: 20 pt (Guru 13:30 IST, "instead of 16 pt put 20 pt"), giving 83 / 123 / 143 pt pills for 1 / 3 / 3 + N apps.
+- Samantha's voice slot (Guru 14:17 IST, "A plus C's shape cue"; UI & UX spec). There is no mic or wave glyph and no wide empty meter; the slot is the whole voice element:
+  - Meter: 5 bars, 3 pt wide with a 2 pt gap, in a fixed 23 pt slot. Heights run 3–14 pt from the audio level, smoothed over about 80 ms at ~30 Hz (10 Hz with Reduce Motion).
+  - When Guru speaks, white bars grow up from the baseline. When Samantha speaks, the bars are centred and symmetric in her #BF5AF2 → #FF6482 gradient.
+  - Thinking: 3 dots, 3.5 pt across and 6 pt apart, in a 14 pt slot, pulsing 100 / 60 / 35 % on a 0.9 s loop (static 62 % with Reduce Motion).
+- Pill width:
+  - With nothing controlled, the pill hugs 9 · slot · 6 · dot · 9: 53 pt for the meter, 44 pt while thinking.
+  - With ACU active: ring · 20 · apps (newest first, 3, then +N) · 8 · slot · 6 · dot · 9.
+  - Loudness never changes the width. The width changes only when the slot's content changes, on the 250 ms spring and with no 74 pt pinch. The meter never lights the dot (Nov 1 rules).
+- Voice slot transitions:
+  - Listening → thinking: the bars ease into dots over 200 ms. Thinking → speaking: the dots grow into bars over 200 ms. Speaking → listening: a 150 ms colour crossfade.
+  - Reduce Motion uses a crossfade instead of the morph. The old pose leaves within 50 ms; the new one fades in from 80 ms.
+  - The check ↔ meter swap works the same way: out in 50 ms, in after 100 ms, so slot content never touches the moving dot in any frame.
 - Transitions: plugin marks enter after the pill settles (0.30 s, 0.15 s under Reduce Motion) and leave in 0.1 s, and inside elements are clipped to the animated pill, so no frame puts a mark over a shrinking pill or an inside element outside it. Mid-frame zone tests cover Samantha on/off, the voice cycle, a turn with ACU, speaking while ACU acts, apps added or removed mid-voice, plugin marks during voice and barge-in, with and without Reduce Motion.
 - developer-observability has its own designed mark outside on the right (trace waterfall: three 2 pt round-cap bars, 1.5 pt apart, #248A3D) and is a known plugin for island activity.
 

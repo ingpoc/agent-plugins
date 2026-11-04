@@ -86,7 +86,9 @@ final class IslandHarnessMotionTests: XCTestCase {
         }
         let model = IslandModel()
         model.idleActivity = "duo"
-        model.apply(IslandSnapshot(kind: "listening", title: "Listening", agents: [codex], samantha_on: true))
+        // Samantha resting (same pill width as idle, so only the harness slot moves; her voice states hug
+        // the voice slot since 0.2.87 and would add a pill-width change to this measurement).
+        model.apply(IslandSnapshot(kind: "idle", title: "Resting", agents: [codex], samantha_on: true))
         let rs = IslandBarLayout.agentRects(shape: model.shapeRect, count: 2)
         let sam = rs[0], codexStart = rs[1]
         let seq = model.harnessExitSeq

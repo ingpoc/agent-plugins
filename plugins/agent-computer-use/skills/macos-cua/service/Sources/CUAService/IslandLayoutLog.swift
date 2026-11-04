@@ -198,6 +198,12 @@ extension IslandLayoutLogger {
                                                expectedInsideIsland: true))
             }
         }
+        if let voice = model.voiceSlotContent {
+            let apps = model.showsOperatedApps ? model.operatedApps.count : 0
+            let r = IslandBarLayout.voiceSlotRect(shape: shape, apps: apps, controlled: model.showsTargetMark, content: voice)
+            out.append(IslandLayoutOverlay(kind: "voice_slot", id: "voice_slot_\(voice.rawValue)", rect: global(r), visible: true,
+                                           expectedInsideIsland: true))
+        }
         if !model.cardOpen {
             let circles = IslandBarLayout.circleRects(shape: shape, count: model.circles.count)
             for (i, (item, r)) in zip(model.circles, circles).enumerated() {

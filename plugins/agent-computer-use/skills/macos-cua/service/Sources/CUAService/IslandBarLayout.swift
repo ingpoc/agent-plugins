@@ -128,21 +128,51 @@ enum IslandBarLayout {
     /// A controlled target with no apps and no voice (e.g. comet-control reading a page): ring · 8 · dot · 9.
     static let targetOnlyDotGap: CGFloat = 8
     static var targetOnlyPillWidth: CGFloat { ringRight + targetOnlyDotGap + compactDotDiameter + 9 }
-    /// Samantha's voice element inside a controlled pill: today's lead glyph (16) · 4 · today's 20 pt trail
-    /// (meter / thinking dots). A replaceable slot: UI & UX may swap the view, only this width is layout.
-    nonisolated(unsafe) static var voiceSlotWidth: CGFloat = 16 + 4 + 20
+    /// Samantha's voice slot (Guru 14:17 IST, "A plus C's shape cue"; UI & UX spec): one fixed-width slot whose
+    /// width depends only on what it shows, never on loudness. Meter: 5 bars × 3 pt, 2 pt gap = 23 pt.
+    /// Thinking: 3 dots in 14 pt. Done (controlled only): the 16 pt check.
+    static let voiceMeterBars = 5
+    static let voiceMeterBarWidth: CGFloat = 3
+    static let voiceMeterBarGap: CGFloat = 2
+    static let voiceMeterMinHeight: CGFloat = 3
+    static let voiceMeterMaxHeight: CGFloat = 14
+    static var voiceMeterWidth: CGFloat { CGFloat(voiceMeterBars) * voiceMeterBarWidth + CGFloat(voiceMeterBars - 1) * voiceMeterBarGap }
+    static let voiceDotsWidth: CGFloat = 14
+    static let voiceDotDiameter: CGFloat = 3.5
+    static let voiceDotSpacing: CGFloat = 6
+    static let voiceCheckWidth: CGFloat = 16
+    static let voiceSlotHeight: CGFloat = 16
+    /// Left inset of the voice slot when nothing is controlled.
+    static let voiceLeadInset: CGFloat = 9
+    /// Apps → voice slot.
+    static let appsVoiceGap: CGFloat = 8
+    /// Voice slot → dot (the dot's space is always kept, lit or not).
+    static let voiceDotGap: CGFloat = 6
+    static func voiceSlotWidth(_ c: IslandVoiceSlotContent) -> CGFloat {
+        switch c {
+        case .listening, .speaking: return voiceMeterWidth
+        case .thinking: return voiceDotsWidth
+        case .done: return voiceCheckWidth
+        }
+    }
+    /// Nothing controlled: 9 · slot · 6 · dot · 9 (53 pt with the meter, 44 pt thinking).
+    static func voicePillWidth(_ c: IslandVoiceSlotContent) -> CGFloat {
+        voiceLeadInset + voiceSlotWidth(c) + voiceDotGap + compactDotDiameter + 9
+    }
     static func operatedAppsStripWidth(count: Int) -> CGFloat {
         count <= 0 ? 0 : CGFloat(count) * operatedIcon + CGFloat(count - 1) * operatedGap
     }
-    static func operatedAppsPillWidth(count: Int) -> CGFloat { controlledPillWidth(apps: count, voice: false) }
+    static func operatedAppsPillWidth(count: Int) -> CGFloat { controlledPillWidth(apps: count, voice: nil) }
     /// The hug width of a pill with a controlled target, `apps` icon slots ("+N" counts as one) and an
     /// optional voice slot. The one width rule for every compact state.
-    static func controlledPillWidth(apps: Int, voice: Bool) -> CGFloat {
-        if apps <= 0 && !voice { return targetOnlyPillWidth }
+    static func controlledPillWidth(apps: Int, voice: IslandVoiceSlotContent?) -> CGFloat {
+        guard let voice else {
+            if apps <= 0 { return targetOnlyPillWidth }
+            return operatedRingClearance + operatedAppsStripWidth(count: apps) + operatedDotGap + compactDotDiameter + 9
+        }
         var w = operatedRingClearance
-        if apps > 0 { w += operatedAppsStripWidth(count: apps) }
-        if voice { w += (apps > 0 ? operatedDotGap : 0) + voiceSlotWidth }
-        return w + operatedDotGap + compactDotDiameter + 9
+        if apps > 0 { w += operatedAppsStripWidth(count: apps) + appsVoiceGap }
+        return w + voiceSlotWidth(voice) + voiceDotGap + compactDotDiameter + 9
     }
     /// App icons, left-anchored after the ring gap (they never move while the pill grows on their right).
     static func operatedAppRects(shape: CGRect, count: Int) -> [CGRect] {
@@ -152,10 +182,12 @@ enum IslandBarLayout {
                    width: operatedIcon, height: operatedIcon)
         }
     }
-    /// The voice slot: after the apps (or straight after the ring gap), 6 pt before the dot.
-    static func voiceSlotRect(shape: CGRect, apps: Int) -> CGRect {
-        let x = shape.minX + operatedRingClearance + (apps > 0 ? operatedAppsStripWidth(count: apps) + operatedDotGap : 0)
-        return CGRect(x: x, y: shape.minY + (compactHeight - 16) / 2, width: voiceSlotWidth, height: 16)
+    /// The voice slot: after ring · 20 · apps · 8 when something is controlled, else 9 pt in from the left.
+    static func voiceSlotRect(shape: CGRect, apps: Int, controlled: Bool, content: IslandVoiceSlotContent) -> CGRect {
+        let x = controlled
+            ? shape.minX + operatedRingClearance + (apps > 0 ? operatedAppsStripWidth(count: apps) + appsVoiceGap : 0)
+            : shape.minX + voiceLeadInset
+        return CGRect(x: x, y: shape.minY + (compactHeight - voiceSlotHeight) / 2, width: voiceSlotWidth(content), height: voiceSlotHeight)
     }
 
     static func agentRects(shape: CGRect, count: Int) -> [CGRect] {
@@ -270,4 +302,9 @@ enum IslandChoiceLayout {
 extension NSScreen {
     /// True on built-in displays with a camera housing (macOS 12+ safe area).
     var islandHasNotch: Bool { safeAreaInsets.top > 0 }
+}
+
+/// What Samantha's voice slot shows. Only this decides the slot's width.
+enum IslandVoiceSlotContent: String, Equatable, Sendable {
+    case listening, thinking, speaking, done
 }

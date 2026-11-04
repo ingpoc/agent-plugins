@@ -789,23 +789,26 @@ struct SamanthaIslandBar: View {
                             .accessibilityLabel(model.operatedAppsLabel)
                     }
                 }
-                if model.showsVoiceSlot {
-                    // Samantha's voice element moves into the voice slot (after the apps, before the dot) while
-                    // something is controlled. Same glyph and meter as the 136 pt pill; a swappable view.
-                    let v = IslandBarLayout.voiceSlotRect(shape: rect, apps: model.showsOperatedApps ? model.operatedApps.count : 0)
-                    voiceSlot
-                        .frame(width: v.width, height: v.height, alignment: .leading)
-                        .id("voice-slot-\(model.presentation.motionFamily)")
+                if let voice = model.voiceSlotContent {
+                    // Samantha's voice slot (Guru 14:17 IST): after ring · 20 · apps · 8 when something is controlled,
+                    // else 9 pt in; then 6 · dot · 9. The meter never lights the dot (Nov 1 dot rules).
+                    let v = IslandBarLayout.voiceSlotRect(shape: rect, apps: model.showsOperatedApps ? model.operatedApps.count : 0,
+                                                          controlled: model.showsTargetMark, content: voice)
+                    voiceSlot(voice)
+                        .id(voice == .done ? "voice-slot-done" : "voice-slot-voice")
                         .offset(x: v.minX, y: v.minY)
+                        .layoutRect("voice-slot", .glyph, v)
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
-                        .transition(.opacity.animation(.easeInOut(duration: 0.2)))
-                    let d = IslandBarLayout.compactDotRect(shape: rect)
-                    Circle().fill((model.compactDot ?? .working).color)
-                        .frame(width: d.width, height: d.height)
-                        .offset(x: d.minX, y: d.minY)
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
+                        .transition(IslandVoiceSlotDrawing.slotSwapTransition)
+                    if let dot = model.compactDot {
+                        let d = IslandBarLayout.compactDotRect(shape: rect)
+                        Circle().fill(dot.color)
+                            .frame(width: d.width, height: d.height)
+                            .offset(x: d.minX, y: d.minY)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
                 }
             }
             .frame(width: IslandBarLayout.windowSize.width, height: IslandBarLayout.windowSize.height, alignment: .topLeading)
@@ -1002,7 +1005,8 @@ struct SamanthaIslandBar: View {
             // Lead and trail are persistent views: they travel (and scale) between the compact
             // slots and the card grid on the same open/close spring — never a cross-fade between two copies.
             if model.credentialRequest == nil && !(model.cardOpen && model.cardMode == .agents) && !model.trayTargeted && model.presentation != .peek
-                && !(model.cardOpen && [.calendar, .tray].contains(model.presentation)) {
+                && !(model.cardOpen && [.calendar, .tray].contains(model.presentation)) && !model.showsVoiceSlot {
+                // (The voice slot replaces the lead glyph and trail meter in Samantha's compact voice states.)
                 leadMorph
                     .accessibilityElement(children: .ignore)
                     .accessibilityHidden(open || model.permissionWarning == nil)
@@ -1061,14 +1065,14 @@ struct SamanthaIslandBar: View {
         .allowsHitTesting(false)
     }
 
-    /// The voice slot (IslandBarLayout.voiceSlotWidth): today's compact lead glyph · 4 · today's 20 pt trail.
-    /// UI & UX may replace this view; only its width is layout. Done shows its check only (no app glyph:
-    /// the app is already inside).
+    /// The voice slot: one swappable view; only `IslandBarLayout.voiceSlotWidth(_:)` is layout.
+    /// Done (controlled only) keeps its check; listening / thinking / speaking are IslandVoiceSlotView.
     @ViewBuilder
-    private var voiceSlot: some View {
-        HStack(spacing: 4) {
-            lead(size: 16).frame(width: 16, height: 16)
-            if model.presentation == .done { Color.clear.frame(width: 20, height: 16) } else { trail.frame(width: 20, height: 16) }
+    private func voiceSlot(_ voice: IslandVoiceSlotContent) -> some View {
+        if voice == .done {
+            lead(size: 16).frame(width: IslandBarLayout.voiceCheckWidth, height: IslandBarLayout.voiceSlotHeight)
+        } else {
+            IslandVoiceSlotView(content: voice, levels: model.voiceBars, reduceMotion: reduceMotion)
         }
     }
 
