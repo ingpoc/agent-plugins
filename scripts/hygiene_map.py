@@ -864,8 +864,28 @@ def script_json(data) -> str:
     return blob.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
 
 
+def mini_tab(m: dict, home: Path, rescan: bool = False) -> dict | None:
+    """Mac Mini tab data from the sibling hygiene_mini module; None if unavailable."""
+    try:
+        import hygiene_mini  # noqa: PLC0415 - optional sibling, fail open
+        return hygiene_mini.build(m, home, rescan=rescan)
+    except Exception as exc:  # noqa: BLE001
+        print(f"hygiene: Mac Mini tab skipped: {type(exc).__name__}: {exc}"[:300], file=sys.stderr)
+        return None
+
+
+def mini_html(tab: dict | None) -> tuple[str, str, str]:
+    """(css, tab body, js) for the Mac Mini tab."""
+    try:
+        import hygiene_mini  # noqa: PLC0415
+    except Exception:  # noqa: BLE001
+        return "", '<p class="hint">hygiene_mini.py is not installed next to hygiene_map.py.</p>', ""
+    body = hygiene_mini.render_tab(tab, esc) if tab else '<p class="hint">Mac Mini scan unavailable.</p>'
+    return hygiene_mini.CSS, body, hygiene_mini.JS
+
+
 def render_html(snap: dict, rows: list[dict], generated_at: datetime, home: Path | None = None,
-                host: str | None = None) -> str:
+                host: str | None = None, mini: dict | None = None) -> str:
     home = expand(home or Path.home())
     if host is None:
         import platform
@@ -874,6 +894,7 @@ def render_html(snap: dict, rows: list[dict], generated_at: datetime, home: Path
     c = snap["hygiene"]["counts"]
     tree = build_tree(snap, rows, home, host)
     disk = free_disk(rows)
+    mini_css, mini_body, mini_js = mini_html(mini)
     legend = [("ok", "OK: clean, merged"), ("warn", "Warn: old, too many worktrees, outside root"),
               ("fail", "Fail: misplaced, local-only commits, uncommitted"), ("stale", "Stale: safe to sweep")]
     order = {"FAIL": 0, "WARN": 1, "UNKNOWN": 2, "PASS": 3}
@@ -885,7 +906,7 @@ def render_html(snap: dict, rows: list[dict], generated_at: datetime, home: Path
     out = [
         '<!doctype html><html lang="en"><head><meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width,initial-scale=1">',
-        f"<title>Hygiene map: {esc(host or 'Mac Mini')} ({esc(when)})</title><style>{CSS}</style></head><body>",
+        f"<title>Hygiene map: {esc(host or 'Mac Mini')} ({esc(when)})</title><style>{CSS}{mini_css}</style></head><body>",
         "<header>",
         f'<div><h1>Hygiene map: Mac Mini</h1><div class="sub">Last updated {esc(when)} · rewritten by '
         "<code>hygiene check</code> only when the snapshot changes</div></div>",
@@ -897,6 +918,9 @@ def render_html(snap: dict, rows: list[dict], generated_at: datetime, home: Path
         f'<div class="stat"><code>{esc(snap["origin_main"] or "unknown")}</code><span>agent-plugins Origin main</span></div>',
         '<div class="legend">' + "".join(f'<span><i class="d-{k}"></i>{esc(t)}</span>' for k, t in legend) + "</div>",
         "</header>",
+        '<nav class="tabs"><button class="on" data-t="tab-tree">Repos &amp; worktrees</button>'
+        '<button data-t="tab-mini">Mac Mini</button></nav>',
+        '<div class="tabp" id="tab-tree">',
         '<div class="tools"><input id="q" type="search" placeholder="Search repo, path, branch, owner…" autocomplete="off">',
         '<label class="cb"><input id="prob" type="checkbox"> Show only problems</label>',
         "".join(f'<span class="chip" data-s="{k}" title="Show or hide {k} nodes"><i class="dot d-{k}"></i>{k}</span>'
@@ -907,8 +931,10 @@ def render_html(snap: dict, rows: list[dict], generated_at: datetime, home: Path
         '<details class="all" style="padding:0 18px 18px"><summary>All hygiene checks '
         f'({c["PASS"]} pass, {c["WARN"]} warn, {c["FAIL"]} fail, {c["UNKNOWN"]} unknown)</summary>'
         f'<table>{"".join(trs)}</table></details>',
+        "</div>",
+        f'<div class="tabp" id="tab-mini" hidden><div id="mini">{mini_body}</div></div>',
         f'<script type="application/json" id="hm-data">{script_json({"tree": tree})}</script>',
-        f"<script>{JS}</script></body></html>\n",
+        f"<script>{JS}{mini_js}</script></body></html>\n",
     ]
     return "\n".join(out)
 
@@ -938,29 +964,35 @@ def default_out(home: Path | None = None) -> Path:
 
 
 def publish(m: dict, rows: list[dict], out: Path | None = None, home: Path | None = None,
-            now: datetime | None = None, force: bool = False, base: dict | None = None) -> str:
+            now: datetime | None = None, force: bool = False, base: dict | None = None,
+            mini_rescan: bool = False) -> str:
     """Write the map if the snapshot changed (or force). Returns 'written' or 'unchanged'."""
     home = expand(home or Path.home())
     out = Path(out) if out else home / ".agents" / "hygiene" / "map.html"
     hash_path = out.with_name(out.stem + ".sha256")
     snap = snapshot(m, rows, home, base=base)
+    mini = mini_tab(m, home, rescan=mini_rescan)
     digest = snapshot_hash(snap)
+    if mini and mini.get("scanned_at"):  # no scan yet: the git snapshot alone gates writes
+        import hygiene_mini  # noqa: PLC0415
+        digest = hashlib.sha256((digest + json.dumps(hygiene_mini.digest_part(mini), sort_keys=True))
+                                .encode()).hexdigest()
     try:
         old = hash_path.read_text().strip()
     except OSError:
         old = ""
     if old == digest and out.is_file() and not force:
         return "unchanged"
-    atomic_write(out, render_html(snap, rows, now or datetime.now(IST), home=home))
+    atomic_write(out, render_html(snap, rows, now or datetime.now(IST), home=home, mini=mini))
     atomic_write(hash_path, digest + "\n")
     return "written"
 
 
 def publish_safe(m: dict, rows: list[dict], out: Path | None = None, home: Path | None = None,
-                 force: bool = False, base: dict | None = None) -> str | None:
+                 force: bool = False, base: dict | None = None, mini_rescan: bool = False) -> str | None:
     """publish() that never raises; one stderr line on failure."""
     try:
-        result = publish(m, rows, out=out, home=home, force=force, base=base)
+        result = publish(m, rows, out=out, home=home, force=force, base=base, mini_rescan=mini_rescan)
     except Exception as exc:  # fail open: the hygiene result must not change
         msg = str(exc).splitlines()[0] if str(exc) else ""
         print(f"hygiene: map not updated: {type(exc).__name__}: {msg}"[:300], file=sys.stderr)

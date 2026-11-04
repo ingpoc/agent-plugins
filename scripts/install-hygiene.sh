@@ -3,6 +3,7 @@
 #
 #   scripts/hygiene.py      -> ~/.agents/bin/hygiene.py      (the `hygiene` CLI)
 #   scripts/hygiene_map.py  -> ~/.agents/bin/hygiene_map.py  (map page, imported by it)
+#   scripts/hygiene_mini.py -> ~/.agents/bin/hygiene_mini.py (Mac Mini tab, imported by the map)
 #   ~/.local/bin/hygiene    -> symlink to ~/.agents/bin/hygiene.py (created if missing)
 #
 # An installed hygiene.py that differs from the repo copy is first kept as
@@ -16,7 +17,7 @@ link_dir="${HYGIENE_LINK_DIR:-$HOME/.local/bin}"
 stamp="$(date +%Y%m%d)"
 mkdir -p "$bin"
 
-for name in hygiene.py hygiene_map.py; do
+for name in hygiene.py hygiene_map.py hygiene_mini.py; do
   if [[ -f "$bin/$name" ]] && ! cmp -s "$src/$name" "$bin/$name"; then
     backup="$bin/$name.bak-$stamp"
     if [[ ! -e "$backup" ]]; then
