@@ -112,14 +112,15 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   `<agent>:<pid>:app:<app>`), so every app clears 2 s after its own last call.
   The real app icons (NSWorkspace, the same `SamanthaAppIcon` component as the
   app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
-  Fixed gaps (UI & UX): ring, 12 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
-  9 pt inset. The 12 pt gap after the ring (0.2.85, Guru 2026-11-04 10:22 IST:
-  "there has to be some gap ... so its clear whats being used") is the same for
+  Fixed gaps (UI & UX): ring, 20 pt, 16 pt icons 4 pt apart, 6 pt, the 6 pt dot,
+  9 pt inset. The gap after the ring (12 pt in 0.2.85, Guru 2026-11-04 10:22 IST:
+  "there has to be some gap ... so its clear whats being used"; 20 pt proposed
+  after 11:08 IST "should be more", 16 / 24 pt rendered for comparison) is the same for
   every controlled target, the Apple ring for ACU and the Comet ring for
   comet-control alike (one shared `IslandBarLayout` path; "same design language
   should follow for all"). It exists only while apps are in use: with none, the
   pill collapses back to its idle width. The compact pill hugs exactly that in
-  every state, Samantha's included (75 pt for one, 115 for three, 135 for 3 + N); "+N" is SF Pro
+  every state, Samantha's included (83 pt for one, 123 for three, 143 for 3 + N); "+N" is SF Pro
   Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
   (TextEdit; detected generically by `AppIconResolver.isBlank`) draws on the
   target mark's white rounded tile with a dark glyph. Width changes from icons
@@ -133,7 +134,15 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   drawn again as an outside app circle (Samantha's included). Plugin marks stay
   outside on the right.
 - Samantha is a harness (Guru 2026-11-04 10:23 IST): her circle sits on the
-  LEFT, outside the pill, with the other harness circles; never inside. The
+  LEFT, outside the pill, with the other harness circles; never inside. It
+  appears as soon as her session is on (hub `samantha_on`, set from CUAService's
+  own session state, never from her posts), through the same source-group list,
+  `ForEach` and pop transition as Codex, Cursor or Grok (Guru 11:09 IST), and
+  leaves when the session stops. Her mark is her own (Guru 11:09 IST: "the style
+  of samantha should be distinct"): a violet-to-rose voice identity
+  (`SamanthaMark`, variants `orb`, `wave`, `monogram`; `ACU_SAMANTHA_MARK`
+  previews one until a variant is picked), never a white plugin tile or ACU's
+  app icon. The
   target gap applies only to what sits inside; plugin marks stay outside right.
   A controlled target (Comet) is never also shown as an app icon inside.
 - Drop: the hub removes a plugin row when `ttl_s` lapses (1 s sweep); the

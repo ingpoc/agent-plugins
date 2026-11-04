@@ -362,6 +362,75 @@ final class IslandPluginMarksTests: XCTestCase {
         try await render("operated-cleared", agents: [codex], uses: [])
     }
 
+    /// Review renders for Guru's pick (2026-11-04 11:08 IST): ring gap 16 / 20 / 24 pt and the Samantha
+    /// mark variants, fixture data only. CUA_ISLAND_REVIEW_DIR=<dir> swift test --filter testRenderSamanthaReview
+    func testRenderSamanthaReview() async throws {
+        guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_REVIEW_DIR"] else {
+            throw XCTSkip("set CUA_ISLAND_REVIEW_DIR to render")
+        }
+        let plugins = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../../../").standardized
+        setenv("ACU_PLUGIN_LOGO_ROOT", plugins.path, 1)
+        let savedGap = IslandBarLayout.operatedRingGap
+        let savedMark = SamanthaMarkVariant.current
+        defer { IslandBarLayout.operatedRingGap = savedGap; SamanthaMarkVariant.current = savedMark }
+        var codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task", status: "running", last_seen_at: 100)
+        codex.elapsed_s = 42
+        func op(_ app: String, _ agent: String, _ t: Double) -> IslandPluginUse {
+            var u = use("acu", "Agent Computer Use", agent); u.target_app = app; u.last_seen_at = t; return u
+        }
+        func shot(_ name: String, _ snap: IslandSnapshot, sub: String) async throws {
+            let d = (dir as NSString).appendingPathComponent(sub)
+            try FileManager.default.createDirectory(atPath: d, withIntermediateDirectories: true)
+            let m = IslandModel()
+            m.idleActivity = "duo"
+            m.apply(snap)
+            try await save(m, name, dir: d)
+        }
+        func scenarios(_ sub: String) async throws {
+            try await shot("operated-1-calculator", IslandSnapshot(kind: "idle", agents: [codex],
+                plugins: [op("Calculator", "Codex", 300)]), sub: sub)
+            try await shot("operated-3-apps", IslandSnapshot(kind: "idle", agents: [codex],
+                plugins: [op("Calculator", "Codex", 300), op("com.apple.finder", "Grok Bot", 310), op("TextEdit", "Codex", 320)]), sub: sub)
+            try await shot("operated-samantha-acting", IslandSnapshot(kind: "acting", title: "Opening Calculator", app: "Calculator",
+                active_apps: ["Calculator"], plugins: [op("Calculator", "Samantha", 300)], samantha_on: true), sub: sub)
+            try await shot("samantha-comet-acting", IslandSnapshot(kind: "acting", title: "Reading page",
+                plugins: [use("comet-control", "comet-control", "Samantha")], samantha_on: true), sub: sub)
+        }
+        SamanthaMarkVariant.current = .orb
+        for gap in [16, 20, 24] as [CGFloat] {
+            IslandBarLayout.operatedRingGap = gap
+            try await scenarios("gap-\(Int(gap))")
+        }
+        IslandBarLayout.operatedRingGap = 20
+        for v in SamanthaMarkVariant.allCases {
+            SamanthaMarkVariant.current = v
+            try await shot("samantha-on-listening", IslandSnapshot(kind: "listening", title: "Listening", agents: [codex],
+                samantha_on: true), sub: "variant-\(v.rawValue)")
+            try await shot("operated-samantha-acting", IslandSnapshot(kind: "acting", title: "Opening Calculator", app: "Calculator",
+                active_apps: ["Calculator"], plugins: [op("Calculator", "Samantha", 300)], samantha_on: true), sub: "variant-\(v.rawValue)")
+            for scale in [1, 2, 4] as [CGFloat] {
+                let mark = ZStack {
+                    Circle().fill(Color.black)
+                    SamanthaMark(variant: v)
+                    Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
+                }.frame(width: 24, height: 24).padding(4).background(Color(white: 0.18))
+                let r = ImageRenderer(content: mark)
+                r.scale = scale
+                if let img = r.cgImage {
+                    let d = (dir as NSString).appendingPathComponent("variant-\(v.rawValue)")
+                    try NSBitmapImageRep(cgImage: img).representation(using: .png, properties: [:])?
+                        .write(to: URL(fileURLWithPath: d).appendingPathComponent("mark-\(Int(scale))x.png"))
+                }
+            }
+        }
+        // Turn-on: off, then on (her circle joins the left through the shared harness ForEach/transition).
+        SamanthaMarkVariant.current = .orb
+        try await shot("turn-on-0-off", IslandSnapshot(kind: "idle", agents: [codex]), sub: "turn-on")
+        try await shot("turn-on-9-on", IslandSnapshot(kind: "listening", title: "Listening", agents: [codex], samantha_on: true), sub: "turn-on")
+        try await shot("turn-on-old-0285", IslandSnapshot(kind: "listening", title: "Listening", agents: [codex]), sub: "turn-on")
+    }
+
     /// Replays island posts recorded from real plugin use (one JSON line per post: {"t", "body"}) through
     /// the real hub and renders the island after each post (2x). Env-gated:
     /// ISLAND_RECORDED_POSTS=<jsonl> CUA_ISLAND_RENDER_DIR=<dir> swift test --filter testRenderRecordedPosts
@@ -541,9 +610,9 @@ final class IslandPluginMarksTests: XCTestCase {
             }
             XCTAssertEqual(dot.maxX, shape.maxX - 9, "the dot keeps its 9 pt inset")
         }
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 1), 75)  // 6 ring 20 · 12 · 16 · 6 · 6 · 9
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 3), 115)
-        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 4), 135) // 3 icons + the 16 pt "+N" slot
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 1), 83)  // 6 ring 20 · 20 · 16 · 6 · 6 · 9
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 3), 123)
+        XCTAssertEqual(IslandBarLayout.operatedAppsPillWidth(count: 4), 143) // 3 icons + the 16 pt "+N" slot
     }
 
     /// UI & UX fix 2: ring · 12 · icon · 4 · icon … · 6 · dot · 9, identical for 1…4 slots.
@@ -553,7 +622,7 @@ final class IslandPluginMarksTests: XCTestCase {
             let ringMaxX = shape.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
             let dot = IslandBarLayout.compactDotRect(shape: shape)
             let rects = IslandBarLayout.operatedAppRects(shape: shape, count: count)
-            XCTAssertEqual(rects[0].minX - ringMaxX, 12, accuracy: 0.001, "ring to first icon (\(count))")
+            XCTAssertEqual(rects[0].minX - ringMaxX, 20, accuracy: 0.001, "ring to first icon (\(count))")
             for (a, b) in zip(rects, rects.dropFirst()) { XCTAssertEqual(b.minX - a.maxX, 4, accuracy: 0.001) }
             XCTAssertEqual(dot.minX - rects[count - 1].maxX, 6, accuracy: 0.001, "last icon or +N to dot (\(count))")
             XCTAssertEqual(shape.maxX - dot.maxX, 9, accuracy: 0.001)
@@ -570,16 +639,16 @@ final class IslandPluginMarksTests: XCTestCase {
         model.apply(IslandSnapshot(kind: "acting", title: "Reading Finder", app: "Finder", active_apps: ["Finder"],
                                    plugins: [op("Finder", "Samantha", 300)]))
         // No 160 ms squeeze to 74 pt: idle -> fitted width at once, on the operated-apps spring.
-        XCTAssertEqual(model.drawnWidth, 75)
+        XCTAssertEqual(model.drawnWidth, 83)
         XCTAssertTrue(model.widthFromOperatedApps)
         try await settle()
         XCTAssertEqual(model.presentation, .acting)
         XCTAssertEqual(model.drawnWidth, IslandBarLayout.operatedAppsPillWidth(count: 1))
-        XCTAssertEqual(model.shapeRect.width, 75, "no 136 pt acting width")
+        XCTAssertEqual(model.shapeRect.width, 83, "no 136 pt acting width")
         model.apply(IslandSnapshot(kind: "idle", plugins: [op("Finder", "Samantha", 300), op("TextEdit", "Samantha", 310),
                                                           op("Calculator", "Samantha", 320)]))
         try await settle()
-        XCTAssertEqual(model.shapeRect.width, 115)
+        XCTAssertEqual(model.shapeRect.width, 123)
         model.apply(IslandSnapshot(kind: "idle"))
         try await settle()
         XCTAssertEqual(model.drawnWidth, IslandBarLayout.idleWidth)
@@ -677,7 +746,7 @@ final class IslandPluginMarksTests: XCTestCase {
             let shape = IslandBarLayout.shapeRect(compactWidth: IslandBarLayout.operatedAppsPillWidth(count: 1), card: false)
             let ringMaxX = shape.minX + IslandBarLayout.slotInset + 8 + IslandPluginTargetMark.ringDiameter / 2
             let icon = IslandBarLayout.operatedAppRects(shape: shape, count: 1)[0]
-            XCTAssertGreaterThanOrEqual(icon.minX - ringMaxX, 12, "clear gap between the \(plugin) ring and its apps")
+            XCTAssertGreaterThanOrEqual(icon.minX - ringMaxX, 20, "clear gap between the \(plugin) ring and its apps")
             // No apps in use: the pill collapses back.
             model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
             XCTAssertFalse(model.showsOperatedApps, plugin)
@@ -715,4 +784,69 @@ final class IslandPluginMarksTests: XCTestCase {
         XCTAssertNil(IslandPluginTarget.current([ledger]))
         XCTAssertNil(IslandPluginTarget.current([]))
     }
+
+    // MARK: 0.2.86 review: Samantha on = a harness circle on the left, her own mark, the 20 pt gap
+
+    func testTurningSamanthaOnAddsHerHarnessCircleOnTheLeftLikeAnyHarness() {
+        // Guru, 2026-11-04 11:09 IST: "when i turn on samantha it should show up on the left side".
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "idle"))
+        XCTAssertFalse(model.sourceGroups.contains { $0.id == "Samantha" }, "off: no circle")
+        model.apply(IslandSnapshot(kind: "listening", title: "Listening", samantha_on: true))
+        XCTAssertEqual(model.sourceGroups.map(\.id), ["Samantha"], "on: her circle joins the same source-group list")
+        XCTAssertTrue(model.showAgentCircle, "drawn by the shared harness-circle ForEach and transition")
+        XCTAssertEqual(IslandSourceGroups.leftIdentity(model.sourceGroups[0]), .samanthaGlyph)
+        let shape = IslandBarLayout.shapeRect(compactWidth: model.drawnWidth, card: false)
+        for rect in IslandBarLayout.agentRects(shape: shape, count: model.sourceGroups.count) {
+            XCTAssertLessThanOrEqual(rect.maxX, shape.minX, "outside the pill on the left")
+        }
+        // Resting ("idle" while the session stays on) keeps her circle; turning off removes it.
+        model.apply(IslandSnapshot(kind: "idle", title: "Resting", samantha_on: true))
+        XCTAssertEqual(model.sourceGroups.map(\.id), ["Samantha"])
+        model.apply(IslandSnapshot(kind: "idle"))
+        XCTAssertTrue(model.sourceGroups.isEmpty)
+    }
+
+    func testSamanthaJoinsOtherHarnessesInTheSameOrderAndCap() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        func agent(_ name: String) -> IslandAgent {
+            IslandAgent(id: "agent:\(name)", name: name, app: name, title: "Task", status: "running", last_seen_at: 100)
+        }
+        model.apply(IslandSnapshot(kind: "listening", agents: [agent("Codex"), agent("Cursor")], samantha_on: true))
+        XCTAssertEqual(model.sourceGroups.map(\.id), ["Samantha", "Codex", "Cursor"])
+        model.apply(IslandSnapshot(kind: "listening", agents: [agent("Codex"), agent("Cursor"), agent("Grok Bot")], samantha_on: true))
+        XCTAssertEqual(model.sourceGroups.count, 4, "3 + \"+N\", the same cap as every harness")
+        XCTAssertEqual(model.sourceGroups.last?.id, "overflow")
+    }
+
+    func testRingGapIsTwentyPointsForEveryTarget() {
+        XCTAssertEqual(IslandBarLayout.operatedRingGap, 20)
+        XCTAssertEqual(IslandBarLayout.operatedRingClearance, 46)
+    }
+
+    func testSamanthaMarkVariantsAreDistinctAndDrawn() throws {
+        func pixels(_ v: SamanthaMarkVariant) throws -> [UInt8] {
+            let view = ZStack { Circle().fill(Color.black); SamanthaMark(variant: v) }.frame(width: 24, height: 24)
+            let r = ImageRenderer(content: view)
+            r.scale = 2
+            let img = try XCTUnwrap(r.cgImage)
+            let cs = CGColorSpace(name: CGColorSpace.sRGB)!
+            let ctx = try XCTUnwrap(CGContext(data: nil, width: 48, height: 48, bitsPerComponent: 8, bytesPerRow: 48 * 4,
+                                              space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue))
+            ctx.draw(img, in: CGRect(x: 0, y: 0, width: 48, height: 48))
+            return Array(UnsafeBufferPointer(start: ctx.data!.assumingMemoryBound(to: UInt8.self), count: 48 * 48 * 4))
+        }
+        var seen: [[UInt8]] = []
+        for v in SamanthaMarkVariant.allCases {
+            let p = try pixels(v)
+            // Colour of her own: some clearly violet/rose pixels (red and blue well above green).
+            let tinted = stride(from: 0, to: p.count, by: 4).filter { Int(p[$0]) > Int(p[$0 + 1]) + 60 && Int(p[$0 + 2]) > Int(p[$0 + 1]) + 40 }
+            XCTAssertGreaterThan(tinted.count, 20, "\(v) carries Samantha's violet-rose")
+            XCTAssertFalse(seen.contains(p), "\(v) differs from the other variants")
+            seen.append(p)
+        }
+    }
+
 }

@@ -38,6 +38,16 @@ final class IslandHubTests: XCTestCase {
 
     // MARK: - Hub (transport-independent)
 
+    func testHubSetsSamanthaOnFromItsOwnSessionStateOnly() {
+        let hub = IslandHub(store: store)
+        hub.ingestSamantha(IslandSnapshot(kind: "listening", samantha_on: true))
+        hub.samanthaActive = false
+        XCTAssertFalse(hub.compose().samantha_on, "a post cannot turn her circle on")
+        hub.samanthaActive = true
+        XCTAssertTrue(hub.compose().samantha_on)
+    }
+
+
     func testTokenRequiredAndChecked() throws {
         let hub = IslandHub(store: store)
         let body: [String: Any] = ["source": "grok-bot", "kind": "running", "title": "Booking table"]

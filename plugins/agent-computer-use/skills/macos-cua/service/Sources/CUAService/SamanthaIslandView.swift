@@ -544,9 +544,7 @@ struct SamanthaSourceCircle: View {
             } else {
                 switch IslandSourceGroups.leftIdentity(group) {
                 case .samanthaGlyph:
-                    Image(systemName: "waveform")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(IslandInk.metaColor)
+                    SamanthaMark()
                 case .app(let name):
                     SamanthaAppIcon(appName: name)
                 }

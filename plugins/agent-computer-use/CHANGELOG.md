@@ -2,6 +2,12 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.86 (in review; not released until Guru picks a mark and gap)
+
+- Samantha's harness circle appears on the left as soon as her session is on, through the same circle path and pop transition as every other harness, and leaves when it stops.
+- Samantha gets her own violet-to-rose voice mark instead of the plain waveform glyph; three variants (orb, wave, monogram) for Guru to pick.
+- The gap between the ringed target (Apple, Comet) and the first in-use app grows from 12 to 20 pt (83/123/143 pt pills for 1/3/3+N apps); 16 and 24 pt rendered for comparison.
+
 ## 0.2.85
 
 - Dynamic Island gap (Guru 2026-11-04 10:22 IST): a 12 pt gap (was 8) separates the ringed target from the app icons inside, so it is clear what is controlled and which apps are in use. One shared layout for every controlled target (Apple ring for ACU, Comet for comet-control); the pill springs wider when apps appear and collapses when none are in use (75/115/135 pt for 1/3/3+N apps). Samantha stays a harness circle outside on the left, and Comet is never a stray circle outside the island.

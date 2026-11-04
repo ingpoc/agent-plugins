@@ -260,12 +260,16 @@ struct IslandSnapshot: Codable, Equatable {
     var expired: [IslandExpired] = []
     /// Plugins in use (ACU, Comet Control, Context Ledger): right-side circles, agent-tied.
     var plugins: [IslandPluginUse] = []
+    /// Samantha's voice session is on (set by the hub from CUAService's own session state, never by her posts):
+    /// her harness circle joins the left side like any other harness (Guru, 2026-11-04 11:09 IST).
+    var samantha_on: Bool = false
 
     init(
         kind: String = "idle", title: String = "", detail: String = "", app: String = "", step: String = "",
         confirm_id: String = "", confirm_prompt: String = "", active_apps: [String] = [], expanded: Bool = false,
         step_index: Int = 0, step_total: Int = 0, agents: [IslandAgent] = [], agent_approval: IslandAgentApproval? = nil,
-        voice_side: String = "idle", voice_level: Double = 0, voice_levels: [Double] = [], plugins: [IslandPluginUse] = []
+        voice_side: String = "idle", voice_level: Double = 0, voice_levels: [Double] = [], plugins: [IslandPluginUse] = [],
+        samantha_on: Bool = false
     ) {
         self.kind = kind; self.title = title; self.detail = detail; self.app = app; self.step = step
         self.confirm_id = confirm_id; self.confirm_prompt = confirm_prompt; self.active_apps = active_apps
@@ -273,6 +277,7 @@ struct IslandSnapshot: Codable, Equatable {
         self.agents = agents; self.agent_approval = agent_approval
         self.voice_side = voice_side; self.voice_level = voice_level; self.voice_levels = voice_levels
         self.plugins = plugins
+        self.samantha_on = samantha_on
     }
 
     /// Lenient SSE decode — missing fields fall back to defaults, unknown keys ignored.
@@ -298,6 +303,7 @@ struct IslandSnapshot: Codable, Equatable {
         pending_count = try c.decodeIfPresent(Int.self, forKey: .pending_count) ?? 0
         expired = (try? c.decodeIfPresent([IslandExpired].self, forKey: .expired)) ?? []
         plugins = (try? c.decodeIfPresent([IslandPluginUse].self, forKey: .plugins)) ?? []
+        samantha_on = try c.decodeIfPresent(Bool.self, forKey: .samantha_on) ?? false
     }
 
     /// True when rendering the other snapshot would look identical —
@@ -918,13 +924,20 @@ final class IslandModel: ObservableObject {
     var approvalAllowed: (IslandAgentApproval) -> Bool = { _ in true }
 
     var showAgentCircle: Bool {
-        IslandAgentBadge.showsCircle(rowCount: agents.count + expired.count + (samanthaUsesPlugin ? 1 : 0))
+        IslandAgentBadge.showsCircle(rowCount: agents.count + expired.count + (samanthaHasCircle ? 1 : 0))
             && !(idleActivity == "samantha" && isIdlePresentation)
     }
 
     /// Samantha is using a plugin (ACU / Comet Control): she gets the same left agent circle as any
     /// other agent (Guru, 2026-11-03 13:10 IST), from her island_activity rows.
     var samanthaUsesPlugin: Bool { pluginUses.contains { $0.agent == IslandSourceGroups.samantha } }
+
+    /// Samantha's voice session is on (hub `samantha_on`).
+    @Published private(set) var samanthaOn = false
+
+    /// Samantha is a harness: while her session is on (or she uses a plugin) her circle sits on the LEFT,
+    /// outside the pill, and joins and leaves through the same circle transition as Codex, Cursor or Grok.
+    var samanthaHasCircle: Bool { samanthaOn || samanthaUsesPlugin }
 
     /// The controlled-target ring shows over the lead slot at rest and while Samantha acts.
     var operatedApps: [IslandOperatedAppItem] { IslandOperatedApps.items(pluginUses) }
@@ -1142,6 +1155,7 @@ final class IslandModel: ObservableObject {
         agents = nextAgents
         let nextPlugins = allowedPlugins(snap.plugins)
         if nextPlugins != pluginUses { pluginUses = nextPlugins }
+        if snap.samantha_on != samanthaOn { samanthaOn = snap.samantha_on }
         reconcileRowFailures(with: nextAgents)
         let prevID = agentApproval?.id
         agentApproval = snap.agent_approval.flatMap { approvalAllowed($0) ? $0 : nil }
@@ -1648,7 +1662,7 @@ final class IslandModel: ObservableObject {
         let groups = IslandSourceGroups.withSamantha(
             IslandSourceGroups.groups(agents: agents, expired: expired, hidePending: nil,
                                       seenFailures: seenFailures, now: now),
-            active: samanthaUsesPlugin)
+            active: samanthaHasCircle)
         if groups != sourceGroups { sourceGroups = groups }
         scheduleDoneExpiry(now: now)
         // Final-60 s countdown for the pill's card.
