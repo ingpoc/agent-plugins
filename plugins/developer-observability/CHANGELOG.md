@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.13 (2026-11-06)
+
+- Expose task outcomes in session timelines and add opt-in, bounded error and Context Ledger diagnostics.
+
 ## 0.1.12 (2026-11-06)
 
 - Add bounded session stage timing and privacy-safe ledger metadata.

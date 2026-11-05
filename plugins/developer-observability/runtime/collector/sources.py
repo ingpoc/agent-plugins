@@ -12,7 +12,7 @@ import time
 from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 
-from .scrub import DENY_KEYS, TEXT_KINDS, scrub
+from .scrub import DENY_KEYS, TEXT_KINDS, scrub, scrub_detail
 
 # Real step durations, in priority order. `step_ms` is a gap since the previous row, so it only
 # counts for successful rows that are not an end, close, failure or idle phase (see END_PHASE).
@@ -91,7 +91,10 @@ def _stat(stats, source):
 def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None,
            metric=None, condition=None, mirror=False, test=False, version=None, alias=False, turn=None,
            args=None, layout=None, session_attribution=None, version_attribution=None, ledger_operation=None,
-           ledger_error_category=None, call_ref=None, response_ref=None, outcome=None):
+           ledger_error_category=None, ledger_result_status=None, ledger_decision_count=None,
+           task_outcome=None, task_check_id=None, task_evidence_class=None, task_tools=None,
+           call_ref=None, response_ref=None, run_ref=None, error_details=None, ledger_result_detail=None,
+           outcome=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -106,7 +109,11 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
             'alias': bool(alias), 'turn': turn, 'args': args, 'layout': layout,
             'session_attribution': session_attribution, 'version_attribution': version_attribution,
             'ledger_operation': ledger_operation, 'ledger_error_category': ledger_error_category,
-            'call_ref': call_ref, 'response_ref': response_ref, 'outcome': outcome}
+            'ledger_result_status': ledger_result_status, 'ledger_decision_count': ledger_decision_count,
+            'task_outcome': task_outcome, 'task_check_id': task_check_id,
+            'task_evidence_class': task_evidence_class, 'task_tools': task_tools,
+            'call_ref': call_ref, 'response_ref': response_ref, 'run_ref': run_ref,
+            'error_details': error_details, 'ledger_result_detail': ledger_result_detail, 'outcome': outcome}
 
 
 def _normalize(value):
@@ -245,9 +252,11 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         else:
             version, version_attribution = None, 'unknown'
         test = bool(flags.get('purpose_test') or (flags.get('canned') and flags.get('instant')))
+        error_details = scrub_detail(obj.get('error_details'))
+        ledger_result_detail = scrub_detail(obj.get('ledger_result_detail'))
         obj = {key: value for key, value in obj.items() if key not in DENY_KEYS}
         kind = _first_str(obj, ('kind', 'event', 'type', 'name')) or 'event'
-        step = _first_str(obj, ('phase', 'tool', 'step', 'stage')) or ''
+        step = 'task_outcome' if kind == 'task_outcome' else (_first_str(obj, ('phase', 'tool', 'step', 'stage')) or '')
         status = str(obj.get('status', '')).lower()
         err = obj.get('error')
         error = (status in ERROR_STATUS or 'error' in kind or 'fail' in kind or bool(isinstance(err, (str, dict)) and err)
@@ -285,6 +294,18 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         operation = operation if operation in ('lookup', 'capture', 'recall', 'preference', 'unknown') else None
         category = obj.get('ledger_error_category') if step == 'ledger_task' else None
         category = category if category in ('invalid_argument', 'invalid_query_terms', 'unavailable', 'outcome_unknown', 'other') else None
+        ledger_status = obj.get('ledger_result_status') if step == 'ledger_task' else None
+        ledger_status = ledger_status[:32] if isinstance(ledger_status, str) else None
+        decision_count = obj.get('ledger_decision_count') if step == 'ledger_task' else None
+        decision_count = decision_count if type(decision_count) is int and 0 <= decision_count <= 3 else None
+        task_outcome = obj.get('outcome') if kind == 'task_outcome' else None
+        task_outcome = task_outcome if task_outcome in ('verified_success', 'verified_incomplete', 'unverified', 'cancelled') else None
+        task_check_id = obj.get('check_id') if kind == 'task_outcome' else None
+        task_check_id = task_check_id[:48] if isinstance(task_check_id, str) and re.fullmatch(r'[a-z][a-z0-9]*(?:_[a-z0-9]+)*', task_check_id) else None
+        task_evidence_class = obj.get('evidence_class') if kind == 'task_outcome' else None
+        task_evidence_class = task_evidence_class if task_evidence_class in ('app_readback', 'browser_inventory', 'local_login', 'combined') else None
+        task_tools = obj.get('tools') if kind == 'task_outcome' else None
+        task_tools = sorted({tool for tool in task_tools if isinstance(tool, str) and tool in ('cua_act', 'comet_act', 'system_volume')})[:3] if isinstance(task_tools, list) else None
         def opaque_id(key):
             value = obj.get(key)
             return hashlib.sha256(value.encode()).hexdigest()[:24] if isinstance(value, str) and 0 < len(value) <= 128 else None
@@ -293,7 +314,12 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      condition=condition, mirror=mirror, test=test, version=version, turn=turn,
                      args=args, layout=layout, session_attribution='event' if current else 'unknown',
                      version_attribution=version_attribution, ledger_operation=operation,
-                     ledger_error_category=category, call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'),
+                     ledger_error_category=category, ledger_result_status=ledger_status,
+                     ledger_decision_count=decision_count, task_outcome=task_outcome,
+                     task_check_id=task_check_id, task_evidence_class=task_evidence_class,
+                     task_tools=task_tools, error_details=error_details or None,
+                     ledger_result_detail=ledger_result_detail or None,
+                     call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=opaque_id('run_id'),
                      outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown'))
 
 

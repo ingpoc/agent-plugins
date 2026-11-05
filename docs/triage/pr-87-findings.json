@@ -475,13 +475,15 @@
       "title": "Session telemetry cannot confirm the task result",
       "source": "Agent reported",
       "status": "investigation",
-      "observed": "The latest candidate Samantha session includes a successful Comet action and completed responses, but the trace has no task label, action result, or independent app postcondition. The user's Netflix test therefore cannot be assessed from telemetry.",
-      "recommendation": "Add privacy-safe run correlation from a user-confirmed test to its session and installed build, tool outcome, and independent UI postcondition. Keep transcripts and page content out, and report unknown when proof is unavailable.",
-      "verification": "Fresh snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5 shows a 37-event session on ACU 0.2.95 with one successful comet_act and completed voice responses. The session is the latest candidate matching the browser path, but its link to the user's Netflix test is inferred; no Netflix result is captured.",
+      "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
+      "recommendation": "Correlate explicit task outcomes to sessions using opaque run/response references; show Ledger result status and count in the concise timeline; offer bounded, credential-redacted Ledger result and error details only when the agent requests include_diagnostics=true. Keep transcripts and real session details out of the public report.",
+      "verification": "The source timeline test passes for task outcome, tool names, and opaque run/response correlation; it also verifies that Ledger results and multi-line errors are hidden by default and visible only with include_diagnostics=true, with credential redaction. The repo package gate passed for both changed plugins (83 test processes, including all 593 ACU Swift tests). Installed verification is still pending, so the historical Netflix result remains unknown.",
       "details": {
-        "Evidence gap": "The bounded timeline exposes stage names, durations, outcomes and opaque references. It does not expose the user task label, browser action details or final app state. Candidate session: sref_3be882a84bf77eafe3dc0becd04d5057.",
-        "Acceptance": "A controlled installed-build browser task must have an explicit safe run/session/build link, an operation category, a tool outcome, and an independently observed app postcondition. Do not record request text, page content, preferences or decisions.",
-        "Attribution limit": "The user said they tested with Netflix. The session match is based on recency and its Comet action; there is no explicit run ID joining them."
+        "Evidence gap": "The earlier snapshot's session match was only a candidate. Without explicit task correlation, success rows did not establish the user's Netflix outcome. Ledger result status/details and bounded error stacks were not available through the agent tools.",
+        "Acceptance": "On an installed build, an explicit test run must link to its session and build, expose task outcome/tool names and an independent app postcondition, and show Ledger result/error details only on diagnostic opt-in. The task result remains unknown without the independent postcondition.",
+        "Attribution limit": "The user said they tested with Netflix. The session match is based on recency and its Comet action; there is no explicit run ID joining them.",
+        "Privacy boundary": "The agent may inspect actual Ledger results and recorded error details through local opt-in diagnostics. Keep request text, transcripts, and actual session/result data out of the public PR report; credential values remain redacted.",
+        "Implementation progress": "ACU 0.2.96 emits task outcomes with opaque-correlation inputs and stores bounded, credential-redacted Ledger results and errors locally. Developer Observability 0.1.13 summarizes outcomes by default and exposes the details only on diagnostic opt-in. Source/package checks pass; installed/live verification remains open."
       },
       "evidence": [],
       "verification_refs": [

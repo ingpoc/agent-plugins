@@ -39,9 +39,11 @@ class LedgerObservabilityTests(unittest.TestCase):
             self.assertEqual((row['call_id'], row['response_id'], row['ledger_operation']),
                              ('call-1', 'response-1', 'lookup'))
         self.assertEqual(rows[1]['ledger_error_category'], 'invalid_query_terms')
-        self.assertNotIn('PRIVATE_', json.dumps(rows))
+        self.assertIn('PRIVATE_QUERY', rows[1]['error_details'])
+        for argument in ('PRIVATE_VALUE', 'PRIVATE_LABEL', 'PRIVATE_APP', 'PRIVATE_HINT'):
+            self.assertNotIn(argument, json.dumps(rows))
 
-    def test_unexpected_operation_and_exception_do_not_log_private_text(self):
+    def test_unexpected_operation_is_suppressed_but_error_context_is_recorded(self):
         rows = []
         with patch.object(activity_log, '_append_row', side_effect=rows.append):
             activity_log.log_tool_start('ledger_task', {'operation':'PRIVATE_OPERATION'})
@@ -49,7 +51,10 @@ class LedgerObservabilityTests(unittest.TestCase):
             activity_log.log_exception('ledger_task', ValueError('PRIVATE_EXCEPTION'), app='PRIVATE_APP')
         self.assertEqual(rows[0]['ledger_operation'], 'unknown')
         self.assertEqual(rows[1]['ledger_error_category'], 'other')
-        self.assertNotIn('PRIVATE_', json.dumps(rows))
+        self.assertIn('PRIVATE_ERROR', rows[1]['error_details'])
+        self.assertIn('PRIVATE_EXCEPTION', rows[2]['error_details'])
+        self.assertNotIn('PRIVATE_OPERATION', json.dumps(rows))
+        self.assertNotIn('PRIVATE_APP', json.dumps(rows))
 
 
 if __name__ == '__main__':

@@ -139,12 +139,37 @@ class PrivacyAndInjectionTests(unittest.TestCase):
         from voice_cua import activity_log
         with patch.object(activity_log, "log_event") as logged:
             activity_log.log_task_outcome(check_id="browser_first_request", outcome="verified_incomplete",
-                                          evidence_class="browser_inventory", run_id="a1234567")
+                                          evidence_class="browser_inventory", run_id="a1234567",
+                                          response_id="resp_test-123", tools=["comet_act"])
             self.assertEqual(logged.call_args.args[0], "task_outcome")
+            self.assertEqual(logged.call_args.kwargs["response_id"], "resp_test-123")
+            self.assertEqual(logged.call_args.kwargs["tools"], ["comet_act"])
             with self.assertRaises(ValueError):
                 activity_log.log_task_outcome(check_id="free form user data", outcome="failed",
                                               evidence_class="transcript", run_id="a1234567")
             self.assertEqual(logged.call_count, 1)
+
+    def test_opt_in_diagnostics_capture_ledger_result_and_redacted_error_context(self):
+        from voice_cua import activity_log
+        with patch.object(activity_log, "log_event") as logged:
+            activity_log.log_tool_result("ledger_task", {
+                "ok": True, "status": "found",
+                "decisions": [{"decision_id": "d-1", "summary": "Use short responses", "scope": "voice"}],
+                "query": "must not be logged",
+            }, operation="lookup")
+            ledger = logged.call_args.kwargs
+            self.assertEqual(ledger["ledger_result_status"], "found")
+            self.assertIn("Use short responses", ledger["ledger_result_detail"])
+            self.assertNotIn("must not be logged", ledger["ledger_result_detail"])
+
+            activity_log.log_tool_result("cua_act", {
+                "ok": False, "error": "RuntimeError: failed with Bearer test-secret-value",
+                "traceback": "Traceback (most recent call last):\n  File 'fixture.py', line 4\nRuntimeError: failed\n{\"client_secret\":\"synthetic-password-value\"}",
+            })
+            error = logged.call_args.kwargs
+            self.assertIn("Traceback", error["error_details"])
+            self.assertNotIn("test-secret-value", error["error_details"])
+            self.assertNotIn("synthetic-password-value", error["error_details"])
 
     def test_platform_secret_listing_uses_inventory_without_reading_values(self):
         with patch("voice_cua.inventory.load_catalog", return_value={"keys": []}), \

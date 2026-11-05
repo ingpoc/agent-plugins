@@ -18,9 +18,17 @@ class SessionTimelineTests(unittest.TestCase):
             rows = [
                 {'ts':'2026-11-06T10:00:00Z', 'session_id':'private-session', 'kind':'startup',
                  'phase':'audio_ready', 'step_ms':250, 'version':'0.2.94', 'detail':'private input'},
-                {'ts':'2026-11-06T10:00:01Z', 'session_id':'private-session', 'kind':'tool_error',
-                 'tool':'ledger_task', 'ledger_operation':'recall', 'ledger_error_category':'invalid_argument',
-                 'call_id':'private-call', 'response_id':'private-response', 'error':'private preference'},
+                {'ts':'2026-11-06T10:00:01Z', 'session_id':'private-session', 'kind':'tool_result',
+                 'tool':'ledger_task', 'ledger_operation':'recall', 'ledger_result_status':'found',
+                 'ledger_decision_count':1, 'ledger_result_detail':'{"status":"found","decisions":[{"summary":"Use concise answers"}]}',
+                 'call_id':'private-call', 'response_id':'private-response', 'ok':True},
+                {'ts':'2026-11-06T10:00:02Z', 'session_id':'private-session', 'kind':'task_outcome',
+                 'check_id':'browser_first_request', 'outcome':'verified_success', 'evidence_class':'browser_inventory',
+                 'run_id':'a1234567', 'response_id':'resp_private', 'tools':['comet_act']},
+                {'ts':'2026-11-06T10:00:03Z', 'session_id':'private-session', 'kind':'tool_error',
+                 'tool':'cua_act', 'error_type':'RuntimeError', 'error':'fixture failure',
+                 'error_details':'Traceback (most recent call last):\n  File "fixture.py", line 4\nRuntimeError: Bearer synthetic-secret-value',
+                 'call_id':'private-call', 'response_id':'private-response', 'ok':False},
                 {'ts':'2026-11-06T10:00:02Z', 'kind':'startup', 'phase':'audio_ready', 'step_ms':999},
             ]
             source.write_text('\n'.join(json.dumps(r) for r in rows) + '\n')
@@ -32,12 +40,29 @@ class SessionTimelineTests(unittest.TestCase):
             self.assertEqual(len(listing), 1)
             ref = listing[0]['session_ref']
             result = api.sessions('a', ref)
-            self.assertEqual([e['stage'] for e in result['timeline']], ['audio_ready', 'ledger_task'])
+            self.assertEqual([e['stage'] for e in result['timeline']], ['audio_ready', 'ledger_task', 'task_outcome'])
             self.assertEqual(result['timeline'][0]['duration_ms'], 250)
             self.assertEqual(result['timeline'][1]['ledger_operation'], 'recall')
-            self.assertEqual(result['timeline'][1]['ledger_error_category'], 'invalid_argument')
+            self.assertEqual(result['timeline'][1]['ledger_result_status'], 'found')
+            self.assertEqual(result['timeline'][1]['ledger_decision_count'], 1)
+            self.assertTrue(result['timeline'][1]['diagnostics_available'])
+            self.assertEqual(result['timeline'][2]['task_outcome'], 'verified_success')
+            self.assertEqual(result['timeline'][2]['task_tools'], ['comet_act'])
+            self.assertRegex(result['timeline'][2]['run_ref'], r'^[0-9a-f]{24}$')
+            self.assertRegex(result['timeline'][2]['response_ref'], r'^[0-9a-f]{24}$')
+            self.assertNotEqual(result['timeline'][2]['response_ref'], 'resp_private')
+            self.assertIn('diagnostics', api.sessions('a', ref, include_diagnostics=True)['timeline'][1])
+            issue_id = data['findings'][0]['finding_key']
+            default_issue = api.inspect('a', issue_id)
+            detail_issue = api.inspect('a', issue_id, include_diagnostics=True)
+            default_event = default_issue['evidence']['timeline'][0]
+            detail_event = detail_issue['evidence']['timeline'][0]
+            self.assertTrue(default_event['diagnostics_available'])
+            self.assertNotIn('diagnostics', default_event)
+            self.assertIn('Traceback', detail_event['diagnostics']['error_details'])
+            self.assertNotIn('synthetic-secret-value', json.dumps(detail_issue))
             serialized = json.dumps(result)
-            for private in ('private-session', 'private-call', 'private-response', 'private preference', 'private input'):
+            for private in ('private-session', 'private-call', 'private-response', 'private input', 'Use concise answers', 'resp_private'):
                 self.assertNotIn(private, serialized)
             with self.assertRaises(ValueError):
                 api.sessions('b', ref)

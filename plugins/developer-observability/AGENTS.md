@@ -46,5 +46,7 @@ validation is owned by collection `scripts/check.py`. `tests/serve_host.py` is
 an optional loopback acceptance host, not a production service.
 
 No credential collection, repair execution, collector restart or arbitrary log
-reader is exposed. Raw evidence is a bounded redacted projection, never full
-source transcripts. No MCP tool authenticates repair acceptance.
+reader is exposed. Default evidence is concise; `include_diagnostics=true`
+returns bounded, credential-redacted recorded errors and Context Ledger results.
+Transcripts and prompts are never collected. No MCP tool authenticates repair
+acceptance.

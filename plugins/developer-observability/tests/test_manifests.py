@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '0.1.12'
+VERSION = '0.1.13'
 PLACEHOLDERS = ('${PLUGIN_ROOT}', '${CURSOR_PLUGIN_ROOT}', '${CLAUDE_PLUGIN_ROOT}')
 
 
@@ -24,6 +24,7 @@ class ManifestTests(unittest.TestCase):
             self.assertEqual(entry['command'], 'sh', rel)
             self.assertNotIn('${', entry['args'][1], rel)
             self.assertNotIn('|| true', entry['args'][1], rel)
+            self.assertIn(f'ver={VERSION}', entry['args'][1], rel)
         self.assertEqual(server('.claude-plugin/mcp.json')['command'], '${CLAUDE_PLUGIN_ROOT}/bin/developer-observability')
         for rel in ('plugin.json', '.cursor-plugin/plugin.json', '.claude-plugin/plugin.json',
                     '.grok-plugin/plugin.json', 'package.json'):

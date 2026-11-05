@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.96 (2026-11-06)
+
+- Correlate explicit task outcomes and capture bounded, credential-redacted Ledger and error diagnostics locally.
+
 ## 0.2.95 (2026-11-06)
 
 - Emit privacy-safe ledger operation and failure categories for diagnostics.

@@ -34,7 +34,14 @@ ownership.
    Layout occurrences use relative geometry and omit absolute screen positions.
    For a linked run, call `observability_sessions(project_id)` and pass an
    opaque returned `session_ref` to see bounded stage timings and outcomes.
-   Only explicitly identified sessions appear; missing timings remain unknown.
+   Task outcomes include their check, evidence class, correlated response/run refs,
+   and tool names. Ledger status and result count are visible in the summary.
+   When the result or cause matters, call `observability_sessions(...,
+   include_diagnostics=true)` or `observability_inspect_issue(...,
+   include_diagnostics=true)` to expand bounded, credential-redacted Ledger
+   results and error details. Keep this opt-in data local; never copy real session
+   results into public issue reports. Only explicitly identified sessions appear;
+   missing timings remain unknown.
 4. `observability_recommendation` reads the Context Ledger pilot. Explicit
    `operation: propose` may call Decider and persist an investigation; unsupported
    projects fail instead of inventing model recommendations. Their issue details

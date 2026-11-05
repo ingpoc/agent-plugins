@@ -1661,7 +1661,9 @@ class RealtimeSession:
         task_outcome = _task_outcome(task_results, status=status)
         if task_run_id and task_outcome:
             log_task_outcome(check_id="tool_task", outcome=task_outcome[0],
-                             evidence_class=task_outcome[1], run_id=task_run_id)
+                             evidence_class=task_outcome[1], run_id=task_run_id,
+                             response_id=response_id,
+                             tools=sorted({row["tool"] for row in task_results if row.get("tool") in _TASK_ACTION_EVIDENCE}))
         self._turn_open = False
         self._turn_closed_at = len(getattr(self.provider, "history", None) or [])
         text_bits: list[str] = []

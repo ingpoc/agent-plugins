@@ -89,6 +89,8 @@ class TaskOutcomeTests(unittest.TestCase):
             outcome="verified_success",
             evidence_class="app_readback",
             run_id=run_id,
+            response_id=response_id,
+            tools=["cua_act"],
         )
         self.assertNotIn(run_id, session._task_runs)
 
@@ -107,6 +109,8 @@ class TaskOutcomeTests(unittest.TestCase):
             outcome="verified_success",
             evidence_class="app_readback",
             run_id=old_run,
+            response_id="old-response",
+            tools=["cua_act"],
         )
         self.assertEqual(session._task_runs[new_run], [])
         self.assertEqual(session._response_task_run_ids["new-response"], new_run)

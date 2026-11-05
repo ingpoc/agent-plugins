@@ -39,7 +39,8 @@ TURN_SLOW_MS = 10_000
 TURN_TOP_N = 3
 TURN_METRICS = ('speech_to_playback_ms', 'turn_ms')
 SESSION_STAGES = frozenset({'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready',
-                            'stack_begin', 'response_done', 'ledger_task', 'comet_act', 'voice_latency', 'usage'})
+                            'stack_begin', 'response_done', 'ledger_task', 'task_outcome', 'comet_act',
+                            'voice_latency', 'usage'})
 LAYOUT_TOLERANCE_PT = 2
 
 
@@ -199,7 +200,16 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
                             'safe_evidence': {'tool': e['step'], 'version': e.get('version'),
                                               'version_attribution': e.get('version_attribution', 'unknown'),
                                               'session_attribution': e.get('session_attribution', 'unknown'),
-                                              'first_error_line': scrub(e.get('message'), 120) or None}}
+                                              'first_error_line': scrub(e.get('message'), 120) or None,
+                                              'error_details': e.get('error_details'),
+                                              'ledger_result_detail': e.get('ledger_result_detail'),
+                                              'ledger_result_status': e.get('ledger_result_status'),
+                                              'ledger_decision_count': e.get('ledger_decision_count'),
+                                              'task_outcome': e.get('task_outcome'),
+                                              'task_check_id': e.get('task_check_id'),
+                                              'task_evidence_class': e.get('task_evidence_class'),
+                                              'task_tools': e.get('task_tools'), 'run_ref': e.get('run_ref'),
+                                              'response_ref': e.get('response_ref')}}
                            for e in list(reversed(plain))[:20]],
         'event_timeline_total': len(plain), 'event_timeline_truncated': len(plain) > 20,
     }
@@ -557,6 +567,12 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                      'version_attribution': event.get('version_attribution') or 'unknown',
                      'ledger_operation': event.get('ledger_operation'),
                      'ledger_error_category': event.get('ledger_error_category'),
+                     'ledger_result_status': event.get('ledger_result_status'),
+                     'ledger_decision_count': event.get('ledger_decision_count'),
+                     'ledger_result_detail': event.get('ledger_result_detail'),
+                     'task_outcome': event.get('task_outcome'), 'task_check_id': event.get('task_check_id'),
+                     'task_evidence_class': event.get('task_evidence_class'), 'task_tools': event.get('task_tools'),
+                     'error_details': event.get('error_details'), 'run_ref': event.get('run_ref'),
                      'call_ref': event.get('call_ref'), 'response_ref': event.get('response_ref')}
                     for event, stage in rows[-64:]]
         session_timelines.append({'project': project, 'session_ref': session_ref,

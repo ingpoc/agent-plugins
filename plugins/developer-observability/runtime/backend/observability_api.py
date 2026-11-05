@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 from .contract import safe_session_ref
 from .finding_text import redact
 from . import recommendations
+from collector.scrub import scrub_detail
 
 
 NO_FINDINGS_HINT = (
@@ -448,8 +449,10 @@ class ObservabilityAPI:
                 'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures,
                 'limit': limit, **({'limit_note': limit_note} if limit_note else {})}
 
-    def sessions(self, project_id, session_ref=None):
+    def sessions(self, project_id, session_ref=None, include_diagnostics=False):
         """List recent opaque session references or inspect one bounded stage timeline."""
+        if type(include_diagnostics) is not bool:
+            raise ValueError('invalid_diagnostics: pass true or false')
         data, revision = self._read()
         self._project(project_id)
         if session_ref is not None and not safe_session_ref(session_ref):
@@ -468,7 +471,7 @@ class ObservabilityAPI:
         if row is None:
             raise ValueError('session_not_in_project: select a reference returned by observability_sessions')
         stages = {'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready', 'stack_begin',
-                  'response_done', 'ledger_task', 'comet_act', 'voice_latency', 'usage'}
+                  'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'voice_latency', 'usage'}
         metrics = {'speech_to_playback_ms', 'latency_ms', 'duration_ms', 'took_ms', 'backend_ms', 'duration_s', 'step_ms'}
         timeline = []
         for event in row.get('events', [])[:64] if isinstance(row.get('events'), list) else []:
@@ -486,17 +489,38 @@ class ObservabilityAPI:
                     item['ledger_operation'] = event['ledger_operation']
                 if event.get('ledger_error_category') in ('invalid_argument', 'invalid_query_terms', 'unavailable', 'outcome_unknown', 'other'):
                     item['ledger_error_category'] = event['ledger_error_category']
-            for key in ('call_ref', 'response_ref'):
+                if isinstance(event.get('ledger_result_status'), str):
+                    item['ledger_result_status'] = redact(event['ledger_result_status'], 32)
+                if type(event.get('ledger_decision_count')) is int and 0 <= event['ledger_decision_count'] <= 3:
+                    item['ledger_decision_count'] = event['ledger_decision_count']
+            if event['stage'] == 'task_outcome':
+                if event.get('task_outcome') in ('verified_success', 'verified_incomplete', 'unverified', 'cancelled'):
+                    item['task_outcome'] = event['task_outcome']
+                if isinstance(event.get('task_check_id'), str) and re.fullmatch(r'[a-z][a-z0-9]*(?:_[a-z0-9]+)*', event['task_check_id']):
+                    item['task_check_id'] = event['task_check_id'][:48]
+                if event.get('task_evidence_class') in ('app_readback', 'browser_inventory', 'local_login', 'combined'):
+                    item['task_evidence_class'] = event['task_evidence_class']
+                tools = event.get('task_tools')
+                if isinstance(tools, list):
+                    item['task_tools'] = sorted({tool for tool in tools if isinstance(tool, str) and tool in ('cua_act', 'comet_act', 'system_volume')})
+            for key in ('call_ref', 'response_ref', 'run_ref'):
                 if isinstance(event.get(key), str) and re.fullmatch(r'[0-9a-f]{24}', event[key]):
                     item[key] = event[key]
+            details = {key: scrub_detail(event.get(key)) for key in ('error_details', 'ledger_result_detail')
+                       if isinstance(event.get(key), str) and event.get(key)}
+            item['diagnostics_available'] = bool(details)
+            if include_diagnostics and details:
+                item['diagnostics'] = details
             timeline.append(item)
         return {**self._envelope(data, revision, project_id), 'session_ref': session_ref, 'timeline': timeline,
                 'total': row.get('total'), 'truncated': row.get('truncated') is True}
 
-    def inspect(self, project_id, issue_id, cursor=None, limit=10):
+    def inspect(self, project_id, issue_id, cursor=None, limit=10, include_diagnostics=False):
         # Local edit (0.1.7): evidence pages are 1–10; validate before reading.
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 10:
             raise ValueError('invalid_limit: evidence pages are 1–10')
+        if type(include_diagnostics) is not bool:
+            raise ValueError('invalid_diagnostics: pass true or false')
         data, revision = self._read()
         self._project(project_id)
         finding = next((f for f in data['findings'] if f['finding_key'] == issue_id and self._matches(f, project_id)), None)
@@ -513,7 +537,8 @@ class ObservabilityAPI:
         timeline = []
         safe_evidence_fields = ('tool', 'program', 'error_type', 'exit_code', 'failing_test', 'version', 'first_error_line',
                                 'version_attribution', 'session_attribution',
-                                'latest_attempt', 'samantha_label', 'app')
+                                'latest_attempt', 'samantha_label', 'app', 'ledger_operation', 'ledger_result_status',
+                                'task_outcome', 'task_check_id', 'task_evidence_class', 'run_ref', 'response_ref')
         connection_fields = ('close_code', 'connected_s', 'stopping', 'reconnect_requested',
                              'close_frame_received', 'last_server_event_type', 'last_server_event_s',
                              'last_client_wire_type', 'last_client_wire_s', 'last_mic_append_s')
@@ -532,6 +557,16 @@ class ObservabilityAPI:
                     'evidence': {key: redact(str(safe[key]), 120) for key in safe_evidence_fields
                                  if safe.get(key) is not None},
                 }
+                if type(safe.get('ledger_decision_count')) is int and 0 <= safe['ledger_decision_count'] <= 3:
+                    timeline_item['evidence']['ledger_decision_count'] = safe['ledger_decision_count']
+                task_tools = safe.get('task_tools')
+                if isinstance(task_tools, list):
+                    timeline_item['evidence']['task_tools'] = sorted({tool for tool in task_tools if isinstance(tool, str) and tool in ('cua_act', 'comet_act', 'system_volume')})
+                diagnostics = {key: scrub_detail(safe.get(key)) for key in ('error_details', 'ledger_result_detail')
+                               if isinstance(safe.get(key), str) and safe.get(key)}
+                timeline_item['diagnostics_available'] = bool(diagnostics)
+                if include_diagnostics and diagnostics:
+                    timeline_item['diagnostics'] = diagnostics
                 if session_ref := safe_session_ref(safe.get('session_ref')):
                     timeline_item['evidence']['session_ref'] = session_ref
                 for id_field, ref_field in (('attempt_id', 'attempt_ref'), ('invocation_id', 'invocation_ref')):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -18,6 +19,19 @@ from voice_cua import log_rotation
 _DEFAULT = Path.home() / ".cache/macos-cua/samantha-activity.jsonl"
 _lock = threading.Lock()
 _SECRET_KEYS = frozenset({"value", "secret", "password", "api_key", "token"})
+_DIAGNOSTIC_SECRET = re.compile(
+    r"(?i)([A-Z0-9_]*(?:bearer|token|password|secret|api[_-]?key|authorization|cookie)(?![A-Z0-9_]))"
+    r"([\"']?\s*[=:]\s*|\s+)(?!\[redacted\])(?:\"[^\"]*\"|'[^']*'|\S+)"
+)
+_DIAGNOSTIC_TOKEN = re.compile(r"\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9]{8,}|xox[abpr]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{12,}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9._-]+)")
+_DIAGNOSTIC_EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+_LEDGER_DETAIL_KEYS = frozenset({
+    "ok", "status", "decision_id", "revision", "decision_ids", "decisions", "data", "matches",
+    "match_count", "summary", "decision", "situation", "action", "rationale", "applicability",
+    "scope", "rule", "entities", "sensitivity", "constraints", "reason", "changed_choice",
+    "supersedes", "superseded_by", "source", "tags", "created_at", "updated_at", "record_type",
+})
+_TASK_OUTCOME_TOOLS = frozenset({"cua_act", "comet_act", "system_volume"})
 _process_session_id = uuid.uuid4().hex[:8]  # fallback when startup_trace never ran
 
 
@@ -201,6 +215,63 @@ def _current_tool_ids() -> dict[str, Any]:
     return dict(getattr(_tool_ctx, "ids", None) or {})
 
 
+def _diagnostic_text(value: Any, *, limit: int = 4096) -> str:
+    if not isinstance(value, str):
+        value = json.dumps(value, ensure_ascii=False, default=str)
+    value = value.replace(str(Path.home()), "~")
+    value = _DIAGNOSTIC_SECRET.sub(lambda match: match.group(1) + match.group(2) + "[redacted]", value)
+    value = _DIAGNOSTIC_TOKEN.sub("[redacted]", value)
+    value = _DIAGNOSTIC_EMAIL.sub("[email]", value)
+    if len(value) > limit:
+        half = limit // 2
+        value = value[:half] + "\n…[diagnostic truncated]…\n" + value[-half:]
+    return value
+
+
+def _ledger_detail_value(value: Any, depth: int = 0) -> Any:
+    if depth > 5:
+        return "[depth limit]"
+    if isinstance(value, dict):
+        return {key: _ledger_detail_value(item, depth + 1) for key, item in value.items()
+                if key in _LEDGER_DETAIL_KEYS and key not in _SECRET_KEYS}
+    if isinstance(value, list):
+        return [_ledger_detail_value(item, depth + 1) for item in value[:3]]
+    if isinstance(value, str):
+        return _diagnostic_text(value, limit=500)
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    return None
+
+
+def _ledger_result_detail(result: dict[str, Any]) -> str | None:
+    detail = _ledger_detail_value(result)
+    if not isinstance(detail, dict) or not detail:
+        return None
+    return _diagnostic_text(json.dumps(detail, ensure_ascii=False, separators=(",", ":")), limit=4096)
+
+
+def _tool_error_details(name: str, result: dict[str, Any], error_type: str = "") -> str | None:
+    fields = [f"tool: {name}"]
+    if error_type:
+        fields.append(f"error_type: {error_type}")
+    for key in ("error", "message", "detail", "trace", "traceback", "stack"):
+        value = result.get(key)
+        if isinstance(value, str) and value:
+            fields.append(f"{key}: {value}")
+        elif isinstance(value, dict):
+            for subkey in ("type", "code", "message", "detail", "trace", "stack"):
+                detail = value.get(subkey)
+                if isinstance(detail, str) and detail:
+                    fields.append(f"{key}.{subkey}: {detail}")
+    failure = result.get("failure")
+    if isinstance(failure, dict):
+        for key in ("failed_step", "message", "detail", "trace"):
+            value = failure.get(key)
+            if isinstance(value, str) and value:
+                fields.append(f"failure.{key}: {value}")
+    return _diagnostic_text("\n".join(fields)) if len(fields) > 1 else None
+
+
 _encoder: Any = False  # False = not probed yet; None = tiktoken unavailable
 
 
@@ -303,6 +374,11 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
                      "ledger_outcome_unknown": "outcome_unknown"}.get(error_type, "other"))
         if category == "invalid_argument" and "find needs query words" in err:
             category = "invalid_query_terms"
+    diagnostic = _tool_error_details(name, result, error_type) if not ok else None
+    decisions = result.get("decisions")
+    decision_count = min(len(decisions), 3) if isinstance(decisions, list) else (1 if result.get("decision_id") else 0)
+    ledger_status = result.get("status")
+    ledger_status = ledger_status if isinstance(ledger_status, str) and ledger_status in {"found", "none", "saved", "skipped", "cancelled"} else "other"
     log_event(
         "tool_result" if ok else "tool_error",
         **_current_tool_ids(),
@@ -314,24 +390,29 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
         verified=result.get("verified") if not ledger and "verified" in result else None,
         dispatched=result.get("dispatched") if not ledger and "dispatched" in result else None,
         completion=result.get("completion") if not ledger else None,
-        error=err[:240] if err and not ledger else None,
+        error=_diagnostic_text(err, limit=240) if err and not ledger else None,
         error_type=(error_type or None) if not ledger else (error_type if error_type in {"ledger_invalid_argument", "ledger_unavailable", "ledger_outcome_unknown"} else ("other" if not ok else None)),
-        hint=(str(result.get("hint") or "")[:160] or None) if not ledger else None,
+        hint=(_diagnostic_text(str(result.get("hint") or ""), limit=160) or None) if not ledger else None,
         failed_step=(result.get("failure") or {}).get("failed_step") if not ledger and isinstance(result.get("failure"), dict) else None,
+        error_details=diagnostic,
+        ledger_result_status=ledger_status if ledger else None,
+        ledger_decision_count=decision_count if ledger else None,
+        ledger_result_detail=_ledger_result_detail(result) if ledger else None,
         **result_size(result),
     )
 
 
 def log_exception(name: str, exc: BaseException, *, app: str = "") -> None:
+    details = _diagnostic_text(f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}")
     log_event(
         "tool_error",
         **_current_tool_ids(),
         tool=name,
         app=(app or None) if name != "ledger_task" else None,
         ok=False,
-        error=str(exc)[:240] if name != "ledger_task" else None,
+        error=_diagnostic_text(str(exc), limit=240) if name != "ledger_task" else None,
         error_type=type(exc).__name__,
-        trace=traceback.format_exc()[-400:] if name != "ledger_task" else None,
+        error_details=details,
     )
 
 
@@ -349,13 +430,19 @@ def tail_events(*, limit: int = 80) -> list[dict[str, Any]]:
     return out
 
 
-def log_task_outcome(*, check_id: str, outcome: str, evidence_class: str, run_id: str) -> None:
+def log_task_outcome(*, check_id: str, outcome: str, evidence_class: str, run_id: str,
+                     response_id: str = "", tools: list[str] | tuple[str, ...] = ()) -> None:
     """Emit only externally verified check outcomes, never inferred model completion."""
     import re
     if (len(check_id) > 48 or not re.fullmatch(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*", check_id)
             or outcome not in {"verified_success", "verified_incomplete", "unverified", "cancelled"}
             or evidence_class not in {"app_readback", "browser_inventory", "local_login", "combined"}
-            or not re.fullmatch(r"[0-9a-f]{8,64}", run_id)):
+            or not re.fullmatch(r"[0-9a-f]{8,64}", run_id)
+            or not isinstance(response_id, str)
+            or (response_id and (len(response_id) > 160 or not re.fullmatch(r"[A-Za-z0-9_-]+", response_id)))
+            or not isinstance(tools, (list, tuple))
+            or any(tool not in _TASK_OUTCOME_TOOLS for tool in tools)):
         raise ValueError("invalid task outcome metadata")
     log_event("task_outcome", check_id=check_id, outcome=outcome,
-              evidence_class=evidence_class, run_id=run_id)
+              evidence_class=evidence_class, run_id=run_id, response_id=response_id or None,
+              tools=sorted(set(tools)) or None)
