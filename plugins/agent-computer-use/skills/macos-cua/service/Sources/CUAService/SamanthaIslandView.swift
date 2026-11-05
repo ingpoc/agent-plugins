@@ -143,6 +143,7 @@ enum AppIconResolver {
             guard url.path.hasPrefix(package.path + "/"), FileManager.default.fileExists(atPath: url.path) else { return nil }
             return url
         }
+        if name == "comet-control", let icon = asset("plugin/comet_control/extension/images/icon.svg") { return icon }
         if let logo = asset("assets/logo.svg") { return logo }
         let manifest = [package.appendingPathComponent("plugin.json"),
                         package.appendingPathComponent(".cursor-plugin/plugin.json")]
@@ -264,13 +265,18 @@ struct IslandPluginCircleIcon: View {
 
     var body: some View {
         if let image = AppIconResolver.pluginImage(plugin == "acu" ? "agent-computer-use" : plugin) {
+            let artworkScale: CGFloat = plugin == "comet-control" ? 0.8 : (["acu", "context-ledger"].contains(plugin) ? 1.24 : 1)
+            ZStack {
+                Circle().fill(Color(red: 0.03, green: 0.09, blue: 0.12))
             Image(nsImage: image)
                 .resizable()
                 .interpolation(.high)
                 .scaledToFill()
                 .frame(width: size, height: size)
-                .scaleEffect(["acu", "context-ledger"].contains(plugin) ? 1.24 : 1)
-                .clipShape(Circle())
+                .scaleEffect(artworkScale)
+            }
+            .frame(width: size, height: size)
+            .clipShape(Circle())
         } else {
             IslandPluginMonogram(plugin: plugin, displayName: displayName)
                 .frame(width: size, height: size)
