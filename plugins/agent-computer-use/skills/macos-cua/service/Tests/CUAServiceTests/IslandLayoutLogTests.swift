@@ -18,9 +18,10 @@ final class IslandLayoutLogTests: XCTestCase {
         logger.schedule = { [unowned self] _, block in self.scheduled.append(block) }
     }
 
-    private func post(_ trigger: String, x: CGFloat = 600, width: CGFloat = 75, overlays: [IslandLayoutOverlay] = []) {
+    private func post(_ trigger: String, x: CGFloat = 600, width: CGFloat = 75, overlays: [IslandLayoutOverlay] = [],
+                      details: IslandLayoutDetails? = nil) {
         logger.island(trigger: trigger, screenId: "1", screen: CGRect(x: 0, y: 0, width: 1512, height: 982), scale: 2,
-                      island: CGRect(x: x, y: 6, width: width, height: 24), visible: true, overlays: overlays)
+                      island: CGRect(x: x, y: 6, width: width, height: 24), visible: true, overlays: overlays, details: details)
     }
 
     func testPayloadShapeIsRectanglesOnly() throws {
@@ -30,7 +31,8 @@ final class IslandLayoutLogTests: XCTestCase {
         XCTAssertEqual(rows.count, 1)
         let row = rows[0]
         XCTAssertEqual(Set(row.keys), ["ts", "ts_epoch", "event", "kind", "source", "schema", "session_id", "turn_id",
-                                       "version", "trigger", "screen", "island", "overlays"])
+                                       "version", "trigger", "screen", "island", "overlays", "island_origin", "ring_outer_rect",
+                                       "dot_rect", "voice_slot", "glyphs", "status", "app_identity"])
         XCTAssertEqual(row["event"] as? String, "island_layout")
         XCTAssertEqual(row["schema"] as? Int, 1)
         XCTAssertTrue(row["turn_id"] is NSNull)
@@ -39,6 +41,12 @@ final class IslandLayoutLogTests: XCTestCase {
         XCTAssertEqual(Set(island.keys), ["x", "y", "w", "h", "visible"])
         let screen = try XCTUnwrap(row["screen"] as? [String: Any])
         XCTAssertEqual(Set(screen.keys), ["id", "x", "y", "w", "h", "scale"])
+        XCTAssertEqual(row["island_origin"] as? [String: Double], ["x": 600, "y": 6])
+        XCTAssertTrue(row["ring_outer_rect"] is NSNull)
+        XCTAssertTrue(row["dot_rect"] is NSNull)
+        XCTAssertEqual((row["voice_slot"] as? [String: Any])?["contents"] as? String, "none")
+        XCTAssertEqual(row["status"] as? String, "unknown")
+        XCTAssertEqual(row["app_identity"] as? [String], [])
         let overlay = try XCTUnwrap((row["overlays"] as? [[String: Any]])?.first)
         XCTAssertEqual(Set(overlay.keys), ["kind", "id", "x", "y", "w", "h", "visible", "expected_inside_island"])
         XCTAssertEqual(overlay["expected_inside_island"] as? Bool, true)
@@ -58,6 +66,39 @@ final class IslandLayoutLogTests: XCTestCase {
         now += 1
         post("resize", width: 115)
         XCTAssertEqual(rows.count, 2)
+    }
+
+    func testStatusAndAppSwapsEmitAtTheSameWidth() {
+        func details(status: String, apps: [String]) -> IslandLayoutDetails {
+            IslandLayoutDetails(origin: CGPoint(x: 600, y: 6), ringOuterRect: nil, dotRect: nil,
+                                voiceSlotRect: nil, voiceContents: "none", glyphs: [], status: status, appIdentity: apps)
+        }
+        post("show", details: details(status: "acting", apps: ["com.apple.calculator"]))
+        now += 1
+        post("state", details: details(status: "done", apps: ["com.apple.calculator"]))
+        now += 1
+        post("state", details: details(status: "done", apps: ["com.apple.finder"]))
+        XCTAssertEqual(rows.count, 3, "status and app identity changes are logged even when geometry is unchanged")
+        XCTAssertEqual(rows[1]["status"] as? String, "done")
+        XCTAssertEqual(rows[2]["app_identity"] as? [String], ["com.apple.finder"])
+    }
+
+    func testLayoutDetailsContainSnappedRingDotVoiceAndGlyphGeometry() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        var use = IslandPluginUse(plugin: "acu", app: "Agent Computer Use", agent: "Samantha", last_seen_at: 10)
+        use.target_app = "com.apple.calculator"
+        model.apply(IslandSnapshot(kind: "listening", plugins: [use], samantha_on: true))
+        let shape = model.shapeRect
+        let details = IslandLayoutLogger.details(model: model, shape: shape, origin: CGPoint(x: 601, y: 7), scale: 2)
+        XCTAssertNotNil(details.ringOuterRect)
+        XCTAssertNotNil(details.dotRect)
+        XCTAssertNotNil(details.voiceSlotRect)
+        XCTAssertEqual(details.voiceContents, "listening")
+        XCTAssertEqual(details.status, "listening")
+        XCTAssertEqual(details.appIdentity, ["com.apple.calculator"])
+        XCTAssertEqual(Set(details.glyphs.map(\.kind)), ["target", "app", "plugin", "harness"])
+        XCTAssertTrue(details.glyphs.allSatisfy { $0.alpha == 1 })
     }
 
     func testMovesCoalesceToOnePer250msWithTheLatestFrame() {

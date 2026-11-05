@@ -308,7 +308,7 @@ final class IslandReviewTests: XCTestCase {
         XCTAssertEqual(s.pending_count, 3)
         XCTAssertEqual(m.sourceGroups.map(\.id), ["Agent Roster", "Grok Bot", "Cursor"], "the pill's own ask still counts (amber badge)")
         XCTAssertEqual(m.sourceGroups.map(\.needsYou), [1, 1, 1])
-        XCTAssertEqual(m.hitRects.count, 4, "pill + 3 source circles")
+        XCTAssertEqual(m.hitRects().count, 4, "pill + 3 source circles")
         XCTAssertEqual(m.sourceGroups.first { $0.id == "Grok Bot" }?.app, "Grok Bot", "Grok Bot's own icon, not Comet")
         XCTAssertEqual(s.agents.first { $0.name == "Grok Bot" }?.app, "Grok Bot")
         m.toggleCard(byClick: false)

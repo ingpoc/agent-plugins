@@ -5,6 +5,45 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 ## 0.2.90
 
 - Owner preferences and decisions: automatic capture (user_decision, tool:/project: scope, rule = decision point, same scope+rule supersedes) and exact recall before a decision point.
+## 0.2.89 (2026-11-04)
+
+- Correct compact island geometry: 74 pt minimum, even whole-point width, snapped origin, and the 24 pt ring-outer-edge gap; keep the no-target voice slot and dot aligned across voice states.
+- Crop plugin and app marks to opaque glyph pixels, center them, remove background plates, and keep the developer-observability waterfall centered. Plugin and harness circles stay bare.
+- Keep harness slots stable during joins and exits; keep voice width reserved through done plus 2 s, grow immediately, and debounce shrink by 400 ms.
+- Retain target and app activity through a voice turn; clear speaking without audio after 3 s.
+- Keep multi-step ACU app/voice layout intact, preserve done holds through playback completion, clear no-done turns on idle, and reuse harness slots after exit transitions.
+- Extend `island_layout` geometry/status/app identity fields and add timestamped voice state transition events.
+- Add scale-1/2 capture checks, multi-app rendering, shrink-overlap and harness stability coverage, plus timestamp and transition tests.
+
+## 0.2.88 (2026-11-04)
+
+- Accept valid marketplace plugin IDs for right-side island marks, with manifest icons, monograms, and optional display labels; add Claude Code, Cursor, and Codex MCP hook support.
+- Fallback marks are bare on the black circle like every plugin mark (Guru 16:06 IST): a manifest icon goes through `IslandPluginMarkGlyphView` (lifted off its plate), and the monogram is white letters with no colour disc or tile. `IslandTargetGlyphTests` covers both.
+
+## 0.2.87 (2026-11-04)
+
+- Controlled app inside the island in every state, voice included (Guru 2026-11-04: "why do i see app icon still on the right side of the island"). One shared rule: inside the pill, left to right, the controlled target with its ring (Apple for ACU, Comet for comet-control), the gap, the app icons (ACU only), then Samantha's voice slot (only while she listens, thinks, speaks or finishes), then the dot. Harness circles (Samantha included) stay outside on the left; only plugin marks go outside on the right. The `.app` outside-circle path is gone.
+- Root cause: voice_cua kept `_ACTIVE_APPS` until idle and re-sent it with every listening/thinking/speaking post; CUAService turned those apps into outside-right circles once the ACU row dropped, while voice states were excluded from the ring, operated apps and hug width. Voice posts now carry no stale apps, and the model keeps the ring, apps and hug width in every compact Samantha state.
+- 13:26:54 flash fixed: Samantha registers the plugin use before posting `acting`, so the app never shows for one frame without its ring.
+- Target gap: 24 pt (Guru 13:30 IST "instead of 16 pt put 20 pt", then 15:52 IST "increse from 20 to 24pt"), one shared constant for ring to apps and ring to voice slot / dot, giving 87 / 127 / 147 pt pills for 1 / 3 / 3 + N apps.
+- Samantha's voice slot (Guru 14:17 IST, "A plus C's shape cue"; UI & UX spec). There is no mic or wave glyph and no wide empty meter; the slot is the whole voice element:
+  - Meter: 5 bars, 3 pt wide with a 2 pt gap, in a fixed 23 pt slot. Heights run 3–14 pt from the audio level, smoothed over about 80 ms at ~30 Hz (10 Hz with Reduce Motion).
+  - When Guru speaks, white bars grow up from the baseline. When Samantha speaks, the bars are centred and symmetric in her #BF5AF2 → #FF6482 gradient.
+  - Thinking: 3 dots, 3.5 pt across and 6 pt apart, in a 14 pt slot, pulsing 100 / 60 / 35 % on a 0.9 s loop (static 62 % with Reduce Motion).
+- Pill width:
+  - With nothing controlled, the pill hugs 9 · slot · 6 · dot · 9: 53 pt for the meter, 44 pt while thinking.
+  - With ACU active: ring · 24 · apps (newest first, 3, then +N) · 8 · slot · 6 · dot · 9.
+  - Loudness never changes the width. The width changes only when the slot's content changes, on the 250 ms spring and with no 74 pt pinch. The meter never lights the dot (Nov 1 rules).
+- Voice slot transitions:
+  - Listening → thinking: the bars ease into dots over 200 ms. Thinking → speaking: the dots grow into bars over 200 ms. Speaking → listening: a 150 ms colour crossfade.
+  - Reduce Motion uses a crossfade instead of the morph. The old pose leaves within 50 ms; the new one fades in from 80 ms.
+  - The check ↔ meter swap works the same way: out in 50 ms, in after 100 ms, so slot content never touches the moving dot in any frame.
+- Transitions: plugin marks enter after the pill settles (0.30 s, 0.15 s under Reduce Motion) and leave in 0.1 s, and inside elements are clipped to the animated pill, so no frame puts a mark over a shrinking pill or an inside element outside it. Mid-frame zone tests cover Samantha on/off, the voice cycle, a turn with ACU, speaking while ACU acts, apps added or removed mid-voice, plugin marks during voice and barge-in, with and without Reduce Motion.
+- Not squeezed (Guru 15:26 IST, "the dynamic island is squeezed": "Use the same 20 pt gap between the ring and the dot", then 15:52 IST 24 pt): a ringed target with no apps (Comet reading a page, or ACU with no app) now hugs ring · 24 · dot · 9 = 65 pt instead of ring · 8 · dot · 9 = 49 pt. Whatever follows the ring (apps, voice slot or dot) starts the same 24 pt after it, through `IslandBarLayout` (`targetOnlyDotGap` = `operatedRingGap`); a target with the voice slot and no apps is ring · 24 · slot (94 pt speaking, 85 pt thinking).
+- Bare logo in the ring (Guru 15:27 IST: "have the icon rather than icon inside white square, comet sign is not visible then"; "similarly for apple logo"; 15:29 IST "that is the design language"): every controlled target draws its bare glyph in the ring, no white tile. One path, `IslandTargetGlyphView`: ACU's white `apple.logo`; Comet's coloured mark lifted from its real installed icon (`IslandTargetGlyph.bareGlyph`), else the app's SF Symbol in white. `IslandTargetGlyphTests` fails if any target, current or future, renders on a tile.
+- Voice group (Guru 16:05 IST, approved live reference "comet icon is on the left and listening has moved along with dot"): the voice slot stays 6 pt before the dot in every voice state, Samantha speaking included, with or without a target; the 24 pt gap sits between the ring and that group.
+- Plugin marks bare (Guru 16:06 IST: "the plugin icon is coming in the white square bar, rather have the icon"): every outside-right plugin mark is its bare glyph on the black circle through one path, `IslandPluginMarkGlyphView` (`bareMark` lifts the logo off its plate, dark strokes turn white, colours stay); developer-observability's mark is #30D158 with no tile. `IslandTargetGlyphTests` fails on a tiled plugin mark.
+- developer-observability has its own designed mark outside on the right (trace waterfall: three 2 pt round-cap bars, 1.5 pt apart, #30D158 bare on black) and is a known plugin for island activity.
 
 ## 0.2.86 (2026-11-04)
 

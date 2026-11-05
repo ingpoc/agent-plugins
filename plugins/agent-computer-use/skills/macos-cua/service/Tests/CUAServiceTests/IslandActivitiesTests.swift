@@ -156,7 +156,7 @@ final class IslandActivitiesTests: XCTestCase {
         XCTAssertEqual(m.secondary, .calendar)
         XCTAssertNotNil(m.secondaryRect)
         XCTAssertEqual(m.secondaryRect?.width, 44)
-        XCTAssertTrue(m.hitRects.contains { $0.contains(m.secondaryRect!) })
+        XCTAssertTrue(m.hitRects().contains { $0.contains(m.secondaryRect!) })
         m.tapSecondary()
         XCTAssertEqual(m.presentation, .calendar)
         XCTAssertEqual(m.secondary, .media)

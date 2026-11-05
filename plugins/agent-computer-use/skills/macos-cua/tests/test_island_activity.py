@@ -10,6 +10,8 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -18,6 +20,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT.parents[1] / "bin" / "island_activity.py"
+HOOK_SCRIPT = SCRIPT.with_name("island_hook.py")
 SPEC = importlib.util.spec_from_file_location("island_activity_under_test", SCRIPT)
 assert SPEC and SPEC.loader
 activity = importlib.util.module_from_spec(SPEC)
@@ -120,8 +123,25 @@ class RowTests(ActivityTestCase):
         self.assertEqual(len(activity.row("acu", "x" * 100, "k", 1)["name"]), 48)
         self.assertEqual(activity.row("acu", "a", "k", 1)["ttl_s"], activity.MIN_TTL)
         self.assertEqual(activity.row("acu", "a", "k", 999_999)["ttl_s"], activity.MAX_TTL)
-        with self.assertRaises(ValueError):
-            activity.row("unknown-plugin", "a", "k", 10)
+        row = activity.row("my-plugin", "a", "k", 10)
+        self.assertEqual((row["app"], row["title"]), ("my-plugin", "Using My Plugin"))
+
+    def test_generic_plugin_labels_are_trimmed_and_bounded(self) -> None:
+        row = activity.row("acme-notes", "a", "k", 10, label="  Acme Notes  ")
+        self.assertEqual(row["plugin_label"], "Acme Notes")
+        self.assertEqual(row["title"], "Using Acme Notes")
+        self.assertEqual(len(activity.row("acme-notes", "a", "k", 10, label="x" * 60)["plugin_label"]), 48)
+        self.assertNotIn("plugin_label", activity.row("acme-notes", "a", "k", 10, label="   "))
+
+    def test_invalid_plugin_ids_are_rejected(self) -> None:
+        for plugin in ("../x", "", "UPPER", "x" * 60):
+            with self.subTest(plugin=plugin):
+                with self.assertRaises(ValueError):
+                    activity.row(plugin, "a", "k", 10)
+                self.assertFalse(activity.start(plugin, "a", "k"))
+                self.assertFalse(activity.call_started(plugin, "a", "k"))
+                self.assertFalse(activity.call_finished(plugin, "a", "k"))
+                self.assertFalse(activity.pulse(plugin, "a", "k"))
 
     def test_acu_rows_carry_the_operated_app_others_never(self) -> None:
         self.assertEqual(activity.row("acu", "a", "k", 5, target_app="  Calculator ")["target_app"], "Calculator")
@@ -239,9 +259,11 @@ class PulseAndEndTests(ActivityTestCase):
             self.assertTrue(activity.pulse("acu", "Codex", "k", hold_s=4.0))
             self.assertEqual(len(self.server.bodies), posted + 1, "the window elapsed")
 
-    def test_unknown_plugin_never_posts(self) -> None:
-        self.assertFalse(activity.pulse("unknown-plugin", "Codex", "k", hold_s=10.0))
-        self.assertEqual(self.server.bodies, [])
+    def test_generic_plugin_pulses_but_invalid_id_never_posts(self) -> None:
+        self.assertTrue(activity.pulse("unknown-plugin", "Codex", "k", hold_s=10.0))
+        self.assertEqual(self.server.bodies[0]["plugin"], "unknown-plugin")
+        self.assertFalse(activity.pulse("../x", "Codex", "bad", hold_s=10.0))
+        self.assertEqual(len(self.server.bodies), 1)
 
 
 class NameTests(unittest.TestCase):
@@ -284,15 +306,68 @@ class CallTests(ActivityTestCase):
         self.assertEqual([b["ttl_s"] for b in self.server.bodies], [2.0])
 
     def test_unknown_plugin_and_linger(self) -> None:
-        self.assertFalse(activity.call_started("nope", "a", "k"))
-        self.assertFalse(activity.call_finished("nope", "a", "k"))
-        self.assertEqual(self.server.bodies, [])
+        self.assertTrue(activity.call_started("market-plugin", "a", "k", label="Market Plugin"))
+        self.assertTrue(activity.call_finished("market-plugin", "a", "k", label="Market Plugin"))
+        self.assertEqual([body["plugin"] for body in self.server.bodies], ["market-plugin"] * 2)
+        self.assertEqual([body["plugin_label"] for body in self.server.bodies], ["Market Plugin"] * 2)
         body = activity.row("comet-control", "a", "s1", 600)
         lingered = activity.linger(body)
         self.assertEqual(lingered["ttl_s"], 2.0)
         self.assertEqual(body["ttl_s"], 600.0)
         self.assertEqual({k: v for k, v in lingered.items() if k != "ttl_s"},
                          {k: v for k, v in body.items() if k != "ttl_s"})
+
+
+class HookTests(ActivityTestCase):
+    def run_hook(self, harness: str, event: str, payload: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(HOOK_SCRIPT), harness, event], input=payload,
+            text=True, capture_output=True, timeout=5, env=os.environ.copy(), check=False,
+        )
+
+    def test_claude_cursor_and_codex_payloads_post_generic_plugins(self) -> None:
+        cases = [
+            ("claude-code", "start", {"tool_name": "mcp__plugin-acme_notes__search", "session_id": "s1"},
+             "acme-notes", "Claude Code"),
+            ("cursor", "start", {"server": "user-marketplace_notes", "tool_name": "search", "session_id": "s2"},
+             "marketplace-notes", "Cursor"),
+            ("cursor", "finish", {"mcp_server": "plugin-mcp_server_notes", "session_id": "s3"},
+             "mcp-server-notes", "Cursor"),
+            ("cursor", "start", {"tool_name": "mcp__cursor_tools__invoke", "session_id": "s4"},
+             "cursor-tools", "Cursor"),
+            ("cursor", "start", {"server": "pid_backed_plugin"}, "pid-backed-plugin", "Cursor"),
+            ("cursor", "finish", {"server": "pid_backed_plugin"}, "pid-backed-plugin", "Cursor"),
+            ("codex", "finish", {"tool_name": "mcp__another_plugin__read", "session_id": "s3"},
+             "another-plugin", "Codex"),
+            ("cursor", "finish", {"mcp_server_name": "cursor-plugin", "tool_name": "read"},
+             "cursor-plugin", "Cursor"),
+        ]
+        for harness, event, payload, plugin, display in cases:
+            with self.subTest(harness=harness, plugin=plugin):
+                result = self.run_hook(harness, event, json.dumps(payload))
+                self.assertEqual(result.returncode, 0)
+                self.assertEqual(result.stderr, "")
+                matching = [body for body in self.server.bodies if body.get("plugin") == plugin]
+                self.assertTrue(matching)
+                self.assertEqual(matching[-1]["name"], display)
+                self.assertIn(f"{harness}:{plugin}:", matching[-1]["id"])
+        pid_rows = [body for body in self.server.bodies if body["plugin"] == "pid-backed-plugin"]
+        self.assertEqual(len(pid_rows), 2)
+        self.assertEqual(pid_rows[0]["id"], pid_rows[1]["id"], "start and finish share the harness parent PID")
+
+    def test_hooks_skip_plugins_that_post_themselves(self) -> None:
+        for plugin in ("acu", "agent-computer-use", "comet-control", "context-ledger", "developer-observability"):
+            result = self.run_hook("claude-code", "start", json.dumps({"tool_name": f"mcp__{plugin}__tool"}))
+            self.assertEqual(result.returncode, 0)
+        self.assertEqual(self.server.bodies, [])
+
+    def test_only_cursor_start_prints_allow_and_garbage_still_exits_zero(self) -> None:
+        cursor_start = self.run_hook("cursor", "start", "not json")
+        self.assertEqual((cursor_start.returncode, cursor_start.stdout), (0, '{"permission":"allow"}\n'))
+        for harness, event in (("cursor", "finish"), ("claude-code", "start"), ("codex", "finish")):
+            result = self.run_hook(harness, event, "not json")
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
 
 
 if __name__ == "__main__":

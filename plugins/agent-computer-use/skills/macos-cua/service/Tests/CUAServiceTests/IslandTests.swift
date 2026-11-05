@@ -17,11 +17,11 @@ final class IslandTests: XCTestCase {
 
     // MARK: - Geometry (§1): fixed window, three compact widths, one card
 
-    func testCompactWidthsAreOnly74_136_200() {
+    func testCompactWidthsAreOnly50_136_200() {
         let all: [IslandPresentation] = [.idle, .listening, .thinking, .speaking, .acting, .actingSteps,
                                          .needsYou, .error, .done, .doneSettled, .agentApproval, .reconnecting]
-        XCTAssertEqual(Set(all.map(\.compactWidth)), [74, 136, 200])
-        XCTAssertEqual(IslandPresentation.idle.compactWidth, 74)
+        XCTAssertEqual(Set(all.map(\.compactWidth)), [50, 136, 200])
+        XCTAssertEqual(IslandPresentation.idle.compactWidth, 50)
         XCTAssertEqual(IslandPresentation.actingSteps.compactWidth, 200)
         XCTAssertEqual(IslandPresentation.listening.compactWidth, 136)
         XCTAssertEqual(IslandBarLayout.cardSize, CGSize(width: 340, height: 176))

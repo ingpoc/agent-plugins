@@ -40,7 +40,9 @@ MARKS: dict[str, tuple[str, str]] = {
     "acu": ("Agent Computer Use", "Agent Computer Use"),
     "comet-control": ("comet-control", "Comet Control"),
     "context-ledger": ("context-ledger", "Context Ledger"),
+    "developer-observability": ("developer-observability", "Developer Observability"),
 }
+PLUGIN_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")
 
 # Row id -> (posted_at, agent) for this process only; keeps a chatty caller to
 # one island post per throttle window.
@@ -60,6 +62,18 @@ def enabled() -> bool:
 
 def _text(value: Any) -> str:
     return value.strip() if isinstance(value, str) else ""
+
+
+def _plugin_label(value: Any) -> str | None:
+    return _text(value)[:48] or None
+
+
+def _plugin_display(plugin: str, label: Any = None) -> str:
+    if plugin in MARKS:
+        return MARKS[plugin][1]
+    if shown := _plugin_label(label):
+        return shown
+    return " ".join(word[:1].upper() + word[1:] for word in plugin.split("-") if word)
 
 
 _NAME_SPLIT = re.compile(r"[\s._-]+")
@@ -97,15 +111,16 @@ def row_id(plugin: str, key: str) -> str:
 TARGET_APP_MAX_CHARS = 128
 
 
-def row(plugin: str, agent: str, key: str, ttl_s: float, target_app: str | None = None) -> dict:
-    """Running row body for one plugin use. ValueError for an unknown plugin.
+def row(plugin: str, agent: str, key: str, ttl_s: float, target_app: str | None = None,
+        label: str | None = None) -> dict:
+    """Running row body for one plugin use. ValueError for an invalid plugin id.
 
     target_app: the Mac app an ACU call operated on (name or bundle id); the island draws its
     real icon inside the pill. Other plugins never send one.
     """
-    mark = MARKS.get(plugin)
-    if mark is None:
-        raise ValueError(f"unknown plugin: {plugin}")
+    if not isinstance(plugin, str) or PLUGIN_ID.fullmatch(plugin) is None:
+        raise ValueError(f"invalid plugin id: {plugin}")
+    mark = MARKS.get(plugin, (plugin, _plugin_display(plugin, label)))
     name = normalize_agent(agent)
     return {
         "source": ISLAND_SOURCE,
@@ -118,6 +133,7 @@ def row(plugin: str, agent: str, key: str, ttl_s: float, target_app: str | None 
         "plugin": plugin,
         "ttl_s": _ttl(ttl_s),
         **({"target_app": app} if (app := _text(target_app)[:TARGET_APP_MAX_CHARS]) and plugin == "acu" else {}),
+        **({"plugin_label": shown} if (shown := _plugin_label(label)) else {}),
     }
 
 
@@ -151,9 +167,10 @@ def publish(body: dict, path: Path | None = None, timeout: float = 3.0) -> bool:
     return isinstance(reply, dict) and reply.get("status") == 200
 
 
-def start(plugin: str, agent: str, key: str, ttl_s: float = 600.0, target_app: str | None = None) -> bool:
+def start(plugin: str, agent: str, key: str, ttl_s: float = 600.0, target_app: str | None = None,
+          label: str | None = None) -> bool:
     try:
-        return publish(row(plugin, agent, key, ttl_s, target_app=target_app))
+        return publish(row(plugin, agent, key, ttl_s, target_app=target_app, label=label))
     except Exception:
         return False
 
@@ -169,13 +186,13 @@ def end(plugin: str, key: str) -> bool:
         return False
 
 
-def pulse(plugin: str, agent: str, key: str, hold_s: float = 10.0) -> bool:
+def pulse(plugin: str, agent: str, key: str, hold_s: float = 10.0, label: str | None = None) -> bool:
     """Heartbeat one in-flight use: post at most once per throttle window, ttl = hold_s.
 
     The hub drops the row at ttl_s (plugin rows never go stale), so a caller that
     stops pulsing simply disappears after hold_s. True when the signal is live.
     """
-    if plugin not in MARKS:
+    if not isinstance(plugin, str) or PLUGIN_ID.fullmatch(plugin) is None:
         return False
     try:
         rid = row_id(plugin, key)
@@ -184,7 +201,7 @@ def pulse(plugin: str, agent: str, key: str, hold_s: float = 10.0) -> bool:
         recent = _RECENT.get(rid)
         if recent is not None and now - recent[0] < window and recent[1] == normalize_agent(agent):
             return True
-        posted = start(plugin, agent, key, ttl_s=hold_s)
+        posted = start(plugin, agent, key, ttl_s=hold_s, label=label)
         if posted:
             _RECENT[rid] = (now, normalize_agent(agent))
         return posted
@@ -192,11 +209,12 @@ def pulse(plugin: str, agent: str, key: str, hold_s: float = 10.0) -> bool:
         return False
 
 
-def _post_now(plugin: str, agent: str, key: str, ttl_s: float, target_app: str | None = None) -> bool:
-    if plugin not in MARKS:
+def _post_now(plugin: str, agent: str, key: str, ttl_s: float, target_app: str | None = None,
+              label: str | None = None) -> bool:
+    if not isinstance(plugin, str) or PLUGIN_ID.fullmatch(plugin) is None:
         return False
     try:
-        posted = start(plugin, agent, key, ttl_s=ttl_s, target_app=target_app)
+        posted = start(plugin, agent, key, ttl_s=ttl_s, target_app=target_app, label=label)
         if posted:
             _RECENT[row_id(plugin, key)] = (time.time(), normalize_agent(agent))
         return posted
@@ -205,14 +223,15 @@ def _post_now(plugin: str, agent: str, key: str, ttl_s: float, target_app: str |
 
 
 def call_started(plugin: str, agent: str, key: str, in_flight_s: float = IN_FLIGHT_S,
-                 target_app: str | None = None) -> bool:
+                 target_app: str | None = None, label: str | None = None) -> bool:
     """Hold the row while one call runs (unthrottled). Never raises."""
-    return _post_now(plugin, agent, key, in_flight_s, target_app=target_app)
+    return _post_now(plugin, agent, key, in_flight_s, target_app=target_app, label=label)
 
 
-def call_finished(plugin: str, agent: str, key: str, target_app: str | None = None) -> bool:
+def call_finished(plugin: str, agent: str, key: str, target_app: str | None = None,
+                  label: str | None = None) -> bool:
     """The call ended (ok or failed): the hub drops the row CLEAR_AFTER_S later. Never raises."""
-    return _post_now(plugin, agent, key, CLEAR_AFTER_S, target_app=target_app)
+    return _post_now(plugin, agent, key, CLEAR_AFTER_S, target_app=target_app, label=label)
 
 
 def app_key(key: str, target_app: str | None) -> str:

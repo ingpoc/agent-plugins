@@ -63,6 +63,7 @@ Comet **other-window** popups (Google chooser, Razorpay Bank) bind by window tit
 | When | File |
 | --- | --- |
 | Shared Dynamic Island task/subagent roster, status, approval/choice, or secure credential save from any installed harness | [`references/dynamic-island.md`](references/dynamic-island.md) |
+| Generic marketplace-plugin MCP activity hooks | [island-plugin-hooks](../../docs/island-plugin-hooks.md) |
 | Samantha voice/browser runtime verification and Kindle findings | [verify-samantha](../../runtime/voice-cua/verify/SKILL.md) |
 | Act-first loop / input delivery / Mini local-exec | [`references/fast-workflow.md`](references/fast-workflow.md) |
 | MCP / CUAService architecture | [`references/architecture.md`](references/architecture.md) |

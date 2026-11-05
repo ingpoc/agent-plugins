@@ -78,8 +78,6 @@ final class IslandHub {
     private(set) var pendingControls: [String: String] = [:]
     private var controlWaiters: [String: [UUID: CheckedContinuation<Void, Never>]] = [:]
     nonisolated static let allowedControls: Set<String> = ["stop", "retry"]
-    /// Plugin marks the hub publishes as right-side circles instead of agent rows.
-    nonisolated static let pluginMarks: Set<String> = ["acu", "comet-control", "context-ledger"]
 
     init(store: IslandSettingsStore) {
         self.store = store
@@ -143,6 +141,7 @@ final class IslandHub {
             guard let plugin = e.agent.plugin else { continue }
             s.plugins.append(IslandPluginUse(plugin: plugin, app: e.agent.app, agent: e.agent.name,
                                              last_seen_at: e.updated.timeIntervalSince1970,
+                                             plugin_label: e.agent.plugin_label,
                                              target_app: e.agent.target_app))
         }
         s.plugins.sort { ($0.plugin, $0.agent, $0.target_app ?? "") < ($1.plugin, $1.agent, $1.target_app ?? "") }
@@ -454,6 +453,19 @@ final class IslandHub {
 
     private func publishSamantha(_ body: Data) -> Response {
         guard var snap = try? JSONDecoder().decode(IslandSnapshot.self, from: body) else { return .err(400, "bad snapshot") }
+        guard snap.plugins.allSatisfy({ IslandPluginLabel.isValidID($0.plugin) }) else {
+            return .err(400, "plugin must match ^[a-z0-9][a-z0-9-]{0,47}$")
+        }
+        snap.plugins = snap.plugins.map { use in
+            var use = use
+            if let label = use.plugin_label?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty {
+                use.plugin_label = String(label.prefix(48))
+            } else {
+                use.plugin_label = nil
+            }
+            if use.plugin != "acu" { use.target_app = nil }
+            return use
+        }
         snap.agents = []          // Samantha can't speak for other sources
         snap.agent_approval = nil
         ingestSamantha(snap)
@@ -476,6 +488,15 @@ final class IslandHub {
         let title = j["title"] as? String ?? ""
         let detail = String((j["detail"] as? String ?? "").prefix(200))
         let app = String((j["app"] as? String ?? source.defaultApp).prefix(40))
+        let plugin: String?
+        if j.keys.contains("plugin") {
+            guard let value = j["plugin"] as? String, IslandPluginLabel.isValidID(value) else {
+                return .err(400, "plugin must match ^[a-z0-9][a-z0-9-]{0,47}$")
+            }
+            plugin = value
+        } else {
+            plugin = nil
+        }
         switch kind {
         case "clear":
             entries[id] = nil
@@ -562,7 +583,7 @@ final class IslandHub {
             let defaultTTL: TimeInterval = kind == "done" ? 180 : kind == "error" ? 1800
                 : source == .agentRoster ? 3600 : 600
             // Plugin rows may hold for as little as 1 s: the circle drops 2 s after the last call.
-            let isPlugin = (j["plugin"] as? String).map { Self.pluginMarks.contains($0) } ?? false
+            let isPlugin = plugin != nil
             let ttl = min(3600, max(isPlugin ? 1 : 5, (j["ttl_s"] as? NSNumber)?.doubleValue ?? defaultTTL))
             let controls = ((j["controls"] as? [Any]) ?? []).compactMap { ($0 as? String)?.lowercased() }
                 .filter { Self.allowedControls.contains($0) }
@@ -580,9 +601,12 @@ final class IslandHub {
                !meta.isEmpty { shown.local_detail = String(meta.prefix(60)) }
             if kind == "error", let tech = (j["error"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                !tech.isEmpty { shown.tooltip = String(tech.prefix(200)) }
-            if let p = j["plugin"] as? String, Self.pluginMarks.contains(p) {
+            if let p = plugin {
                 shown.plugin = p
-                if let t = (j["target_app"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
+                if let label = (j["plugin_label"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty {
+                    shown.plugin_label = String(label.prefix(48))
+                }
+                if p == "acu", let t = (j["target_app"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
                     shown.target_app = String(t.prefix(128))
                 }
             }
