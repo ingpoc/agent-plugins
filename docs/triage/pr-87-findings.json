@@ -193,10 +193,10 @@
       "id": "AGENT-02",
       "title": "Samantha's Context Ledger task errors and retries",
       "source": "Agent reported",
-      "status": "verified_fixed",
+      "status": "awaiting_verification",
       "observed": "Agent telemetry reports repeated ledger_task failures. The latest Samantha activity also contains tool errors and repeated calls with different or unknown arguments.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "Installed ACU 0.2.95 candidate session shows two ledger_task lookup calls succeeding with no ledger error or retry in the 37-event timeline, after the earlier ACU 0.2.94 failure. Existing focused source tests cover the rejected-query/no-retry path. Marked fixed for ledger task errors and retries; preference retrieval relevance remains open under USER-02.",
+      "verification": "The latest candidate ACU 0.2.95 session contains two successful ledger_task lookups and no ledger error/retry event. The session is not explicitly linked to the user's Netflix task, and query/result details are unavailable, so this does not prove the task succeeded or fully validate the retry fix. Focused source tests cover the rejected-query/no-retry path; installed acceptance remains awaiting verification.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
@@ -210,7 +210,7 @@
         "Installed verification": "Release report /tmp/acu-pr87-verify.json: source checks, signature, live-client, live-cursor, live-fd, and fresh MCP independent readback passed. Microphone preflight returned no input device; voice smoke was not reached.",
         "Initial install attempt": "Build, install, sync and signature passed; the first runtime contract call returned a missing-file error. An immediate independent runtime contract check passed; the installed verification then reached microphone preflight.",
         "Latest test evidence": "Snapshot a388ea974760123cd5a6d1f87851e8243b1cad33061a41c75f06a03d19225cd3: issue col-6a58cb9cddd82ad5 has one new failure in 0.2.94 at 19:05:38 UTC. The first-error excerpt refers to the grouped history, so its exact applicability to the new failure is unknown.",
-        "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations completed successfully, with no ledger error or retry event in this session. ACU version attribution is session-inferred. This validates the tool error/retry path at the installed version, not the returned preference content."
+        "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations completed successfully, with no ledger error/retry event in the selected session. Build attribution is session-inferred and the exact Netflix task is not explicitly linked."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — 18 tests passed, including concrete query composition and non-retryable invalid requests.",
