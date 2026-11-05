@@ -185,7 +185,7 @@
       "status": "investigation",
       "observed": "Agent telemetry reports repeated ledger_task failures. The latest Samantha activity also contains tool errors and repeated calls with different or unknown arguments.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "Source fix is in progress for ACU 0.2.94: lookup now searches concrete need plus situation within Context Ledger's 240-character limit, and invalid arguments are non-retryable. Focused ledger suite passed 31 tests. The fix is not installed yet, so live Samantha lookup, preference recall, and retry behavior remain unverified.",
+      "verification": "Source fix is pushed in PR #87 at head 4d7e8ea. Lookup now searches concrete need plus situation within Context Ledger's 240-character limit, and invalid arguments are non-retryable. The focused ledger suite passed 31 tests; pre-push format, lint, py_compile, and manifest validation passed. ACU 0.2.94 is not installed yet, so live Samantha lookup/retrieval and retry behavior remain unverified.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
@@ -193,8 +193,9 @@
         "Observability snapshot": "9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918, generated 2026-11-05T17:48:42Z. The latest Context Ledger `find needs query words` error was from ACU 0.2.92; 7 retry records span Nov 4–5 and are not linked to a PR test session.",
         "Source fix": "Use `need` before `situation` in the Context Ledger query, cap at 240 characters, and return `ledger_invalid_argument` as non-retryable. Tool and system instructions now require stopping instead of repeating with reworded arguments.",
         "Source verification": "`python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_ledger_*.py' -v` — 31 passed. The new tests failed before the source change and passed after it.",
-        "Installed/live verification": "Pending PR update, ACU 0.2.94 install, and a harmless lookup/retrieval check. No user ledger data was read or written.",
-        "Initial release gate attempt": "`python3 scripts/check.py` stopped before tests because the ACU 0.2.94 root/Cursor manifests were not aligned with the Claude/Grok manifests (still 0.2.93). Both manifests are now aligned at 0.2.94; the full gate will be rerun."
+        "Installed/live verification": "Pending ACU 0.2.94 installation and a harmless lookup/retrieval check. No user ledger data was read or written.",
+        "Initial release gate attempt": "`python3 scripts/check.py` stopped before tests because the ACU 0.2.94 root/Cursor manifests were not aligned with the Claude/Grok manifests (still 0.2.93). Both manifests are now aligned at 0.2.94; the full gate will be rerun.",
+        "PR state": "PR #87 head 4d7e8ea. Pre-push gate passed: diff check, ruff, py_compile, and `scripts/check.py --validate-only`."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — 18 tests passed, including concrete query composition and non-retryable invalid requests.",
