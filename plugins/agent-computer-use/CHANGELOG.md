@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.95 (2026-11-06)
+
+- Emit privacy-safe ledger operation and failure categories for diagnostics.
+
 ## 0.2.94 (2026-11-05)
 
 - Include the lookup need in Context Ledger searches and stop on rejected arguments.

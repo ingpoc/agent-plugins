@@ -30,6 +30,8 @@ KINDS = ('all', 'failure', 'latency_hotspot', 'redundancy', 'turn_latency', 'isl
 MAX_ISSUES_LIMIT = 100
 # Local edit (0.1.7): error hints name the real fix, not backend or Decider health.
 NEXT_STEPS = {
+    'invalid_session_ref': 'Select a session_ref returned by observability_sessions for this project.',
+    'session_not_in_project': 'Refresh observability_sessions for this project and select a returned session_ref.',
     'invalid_limit': 'Pass limit as an integer: 1–100 for observability_issues (larger values are clamped to 100), '
                      '1–10 for observability_inspect_issue.',
     'invalid_status': 'Use status all, active, recovered or stale.',
@@ -123,6 +125,7 @@ class ObservabilityAPI:
             keys = {f.get('finding_key') for f in primary['findings'] if isinstance(f, dict)}
             data = {**primary, 'findings': primary['findings'] + [
                 f for f in collected['findings'] if isinstance(f, dict) and f.get('finding_key') not in keys]}
+            data['session_timelines'] = collected.get('session_timelines', [])
             for field in ('coverage', 'coverage_details'):
                 if isinstance(primary.get(field), dict) and isinstance(collected.get(field), dict):
                     data[field] = {**primary[field], **collected[field]}
@@ -444,6 +447,51 @@ class ObservabilityAPI:
                 'active': by_status.get('active', 0), 'next_cursor': next_cursor, 'by_kind': by_kind,
                 'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures,
                 'limit': limit, **({'limit_note': limit_note} if limit_note else {})}
+
+    def sessions(self, project_id, session_ref=None):
+        """List recent opaque session references or inspect one bounded stage timeline."""
+        data, revision = self._read()
+        self._project(project_id)
+        if session_ref is not None and not safe_session_ref(session_ref):
+            raise ValueError('invalid_session_ref: select a reference returned by observability_sessions')
+        entries = data.get('session_timelines', [])
+        entries = entries if isinstance(entries, list) else []
+        rows = [r for r in entries[:50] if isinstance(r, dict) and safe_session_ref(r.get('session_ref'))
+                and self._matches({'owner_ref': 'owner:' + str(r.get('project', '')),
+                                   'latest_evidence': {'project': r.get('project')}}, project_id)]
+        if session_ref is None:
+            return {**self._envelope(data, revision, project_id), 'sessions': [
+                {'session_ref': r['session_ref'], 'last_seen': self._safe_time(r.get('last_seen')) or 'unknown',
+                 'total': r.get('total') if type(r.get('total')) is int and r['total'] >= 0 else None,
+                 'truncated': r.get('truncated') is True} for r in rows]}
+        row = next((r for r in rows if r['session_ref'] == session_ref), None)
+        if row is None:
+            raise ValueError('session_not_in_project: select a reference returned by observability_sessions')
+        stages = {'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready', 'stack_begin',
+                  'response_done', 'ledger_task', 'comet_act', 'voice_latency', 'usage'}
+        metrics = {'speech_to_playback_ms', 'latency_ms', 'duration_ms', 'took_ms', 'backend_ms', 'duration_s', 'step_ms'}
+        timeline = []
+        for event in row.get('events', [])[:64] if isinstance(row.get('events'), list) else []:
+            if not isinstance(event, dict) or event.get('stage') not in stages:
+                continue
+            duration = event.get('duration_ms')
+            item = {'timestamp': self._safe_time(event.get('timestamp')) or 'unknown',
+                             'stage': event['stage'], 'duration_ms': duration if type(duration) in (int, float) and 0 <= duration <= 86400000 else None,
+                             'metric': event.get('metric') if event.get('metric') in metrics else None,
+                             'outcome': event.get('outcome') if event.get('outcome') in ('success', 'failure', 'unknown') else 'unknown',
+                             'version': redact(str(event['version']), 40) if event.get('version') else 'unknown',
+                             'version_attribution': event.get('version_attribution') if event.get('version_attribution') in ('event', 'session_inferred', 'unknown') else 'unknown'}
+            if event['stage'] == 'ledger_task':
+                if event.get('ledger_operation') in ('lookup', 'capture', 'recall', 'preference', 'unknown'):
+                    item['ledger_operation'] = event['ledger_operation']
+                if event.get('ledger_error_category') in ('invalid_argument', 'invalid_query_terms', 'unavailable', 'outcome_unknown', 'other'):
+                    item['ledger_error_category'] = event['ledger_error_category']
+            for key in ('call_ref', 'response_ref'):
+                if isinstance(event.get(key), str) and re.fullmatch(r'[0-9a-f]{24}', event[key]):
+                    item[key] = event[key]
+            timeline.append(item)
+        return {**self._envelope(data, revision, project_id), 'session_ref': session_ref, 'timeline': timeline,
+                'total': row.get('total'), 'truncated': row.get('truncated') is True}
 
     def inspect(self, project_id, issue_id, cursor=None, limit=10):
         # Local edit (0.1.7): evidence pages are 1–10; validate before reading.

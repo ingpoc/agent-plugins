@@ -52,7 +52,8 @@ class MCPTests(unittest.TestCase):
                         await client.initialize()
                         self.assertEqual(client.protocol_version, '2025-11-25')
                     tools = (await client.list_tools()).tools
-                    self.assertEqual(len(tools), 8)
+                    self.assertEqual(len(tools), 9)
+                    self.assertIn('observability_sessions', [t.name for t in tools])
                     self.assertIn('observability_storage', [t.name for t in tools])
                     self.assertIn("observability_collect", [t.name for t in tools])
                     dashboard = next(t for t in tools if t.name == 'observability_dashboard')

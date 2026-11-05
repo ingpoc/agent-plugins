@@ -253,9 +253,9 @@ class LedgerHelper:
                 self._cache.clear()
                 return {'ok': True, 'status': 'saved', 'decision_id': saved['data']['decision_id'], 'revision': saved['data'].get('revision')}
             except LedgerInvalidArgument as exc:
-                from voice_cua.activity_log import log_event
-                log_event('ledger_helper_error', stage='capture' if write_started else 'lookup',
-                          error_class='LedgerInvalidArgument', error_code=exc.code)
+                from voice_cua.activity_log import _current_tool_ids, log_event
+                log_event('ledger_helper_error', **_current_tool_ids(), stage='capture' if write_started else 'lookup',
+                          error_class='LedgerInvalidArgument', error_code=exc.code if exc.code in {'INVALID_ARGUMENT', 'VALIDATION_ERROR', 'INVALID_PARAMS', 'SCOPE_DENIED'} else 'other')
                 if write_started:
                     # Rejected before anything was stored: the pending marker is not an unknown outcome.
                     self._uncertain.discard(request_id)
@@ -266,11 +266,11 @@ class LedgerHelper:
                 detail = exc.message or exc.code
                 return _invalid(f'Context Ledger rejected the request (invalid argument: {detail[:80]}); nothing was saved')
             except Exception as exc:
-                from voice_cua.activity_log import log_event
+                from voice_cua.activity_log import _current_tool_ids, log_event
                 cause = exc.__cause__
-                log_event('ledger_helper_error', stage='capture' if write_started else 'lookup',
+                log_event('ledger_helper_error', **_current_tool_ids(), stage='capture' if write_started else 'lookup',
                           error_class=type(exc).__name__, cause_class=type(cause).__name__ if cause else None,
-                          cause=str(cause or exc)[:80] or None, http_status=exc.code if isinstance(exc, urllib.error.HTTPError) else None)
+                          http_status=exc.code if isinstance(exc, urllib.error.HTTPError) else None)
                 if write_started:
                     return {'ok': False, 'error': 'Ledger save outcome unknown; do not retry without checking', 'error_type': 'ledger_outcome_unknown'}
                 return {'ok': False, 'error': 'Context Ledger helper unavailable; nothing was saved', 'error_type': 'ledger_unavailable'}

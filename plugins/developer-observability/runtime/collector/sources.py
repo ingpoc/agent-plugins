@@ -90,7 +90,8 @@ def _stat(stats, source):
 
 def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None,
            metric=None, condition=None, mirror=False, test=False, version=None, alias=False, turn=None,
-           args=None, layout=None, session_attribution=None, version_attribution=None):
+           args=None, layout=None, session_attribution=None, version_attribution=None, ledger_operation=None,
+           ledger_error_category=None, call_ref=None, response_ref=None, outcome=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -103,7 +104,9 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
             'duration_ms': duration_ms, 'metric': metric, 'message': message, 'ref': where, 'session': session,
             'condition': condition, 'mirror': bool(mirror), 'test': bool(test), 'version': version,
             'alias': bool(alias), 'turn': turn, 'args': args, 'layout': layout,
-            'session_attribution': session_attribution, 'version_attribution': version_attribution}
+            'session_attribution': session_attribution, 'version_attribution': version_attribution,
+            'ledger_operation': ledger_operation, 'ledger_error_category': ledger_error_category,
+            'call_ref': call_ref, 'response_ref': response_ref, 'outcome': outcome}
 
 
 def _normalize(value):
@@ -278,11 +281,20 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
             if layout is None:
                 stats[source]['skipped'] += 1
                 continue
+        operation = obj.get('ledger_operation') if step == 'ledger_task' else None
+        operation = operation if operation in ('lookup', 'capture', 'recall', 'preference', 'unknown') else None
+        category = obj.get('ledger_error_category') if step == 'ledger_task' else None
+        category = category if category in ('invalid_argument', 'invalid_query_terms', 'unavailable', 'outcome_unknown', 'other') else None
+        def opaque_id(key):
+            value = obj.get(key)
+            return hashlib.sha256(value.encode()).hexdigest()[:24] if isinstance(value, str) and 0 < len(value) <= 128 else None
         yield _event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
                      duration_ms=duration, metric=metric, message=message, where=ref(path, number), session=current,
                      condition=condition, mirror=mirror, test=test, version=version, turn=turn,
                      args=args, layout=layout, session_attribution='event' if current else 'unknown',
-                     version_attribution=version_attribution)
+                     version_attribution=version_attribution, ledger_operation=operation,
+                     ledger_error_category=category, call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'),
+                     outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown'))
 
 
 _SESSION = re.compile(r'\bsession_id=(\w+)')

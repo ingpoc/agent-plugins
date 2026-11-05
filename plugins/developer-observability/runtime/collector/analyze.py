@@ -38,6 +38,8 @@ ROLLUP_LEAD_S = 5
 TURN_SLOW_MS = 10_000
 TURN_TOP_N = 3
 TURN_METRICS = ('speech_to_playback_ms', 'turn_ms')
+SESSION_STAGES = frozenset({'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready',
+                            'stack_begin', 'response_done', 'ledger_task', 'comet_act', 'voice_latency', 'usage'})
 LAYOUT_TOLERANCE_PT = 2
 
 
@@ -536,9 +538,34 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
     for source, count in excluded.items():
         stats.setdefault(source, {})['excluded_test'] = count
     stamp = iso(now)
+    session_groups = defaultdict(list)
+    for event in events:
+        if not event.get('session') or event.get('session_attribution') != 'event' or event.get('ts') is None:
+            continue
+        stage = event.get('step') if event.get('step') in SESSION_STAGES else event.get('kind')
+        if stage not in SESSION_STAGES:
+            continue
+        session_groups[(event['project'], event['session'])].append((event, stage))
+    session_timelines = []
+    for (project, session), rows in session_groups.items():
+        rows.sort(key=lambda row: row[0]['ts'])
+        session_ref = 'sref_' + hashlib.sha256((project + '\0' + session).encode()).hexdigest()[:32]
+        timeline = [{'timestamp': iso(event['ts']), 'stage': stage,
+                     'duration_ms': event.get('duration_ms'), 'metric': event.get('metric'),
+                     'outcome': event.get('outcome') or ('failure' if event['error'] else 'unknown'),
+                     'version': event.get('version'),
+                     'version_attribution': event.get('version_attribution') or 'unknown',
+                     'ledger_operation': event.get('ledger_operation'),
+                     'ledger_error_category': event.get('ledger_error_category'),
+                     'call_ref': event.get('call_ref'), 'response_ref': event.get('response_ref')}
+                    for event, stage in rows[-64:]]
+        session_timelines.append({'project': project, 'session_ref': session_ref,
+                                  'last_seen': iso(rows[-1][0]['ts']), 'events': timeline,
+                                  'total': len(rows), 'truncated': len(rows) > 64})
+    session_timelines.sort(key=lambda row: row['last_seen'], reverse=True)
     return {
         'schema_version': 1, 'generated_at': stamp, 'producer': 'developer-observability-collector',
-        'collector_version': VERSION, 'findings': findings,
+        'collector_version': VERSION, 'findings': findings, 'session_timelines': session_timelines[:50],
         'settings': {'include_tests': include_tests, 'active_window_h': window_h, 'latency_threshold_ms': threshold_ms,
                      'test_latency_threshold_ms': test_threshold_ms, 'turn_latency_threshold_ms': TURN_SLOW_MS},
         'latest_versions': dict(ctx.latest),

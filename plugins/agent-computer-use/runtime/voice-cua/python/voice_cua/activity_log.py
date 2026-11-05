@@ -266,19 +266,23 @@ def plan_shape(arguments: dict[str, Any], *, tool: str = "cua_act") -> list[str]
 
 
 def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
-    app = str(arguments.get("app") or "")
+    app = str(arguments.get("app") or "") if name != "ledger_task" else ""
+    operation = arguments.get("operation") if name == "ledger_task" else None
+    ledger_operation = operation if operation in ("lookup", "capture", "recall", "preference") else "unknown"
     log_event(
         "tool_start",
+        **_current_tool_ids(),
         tool=name,
         app=app or None,
-        step=str(arguments.get("step_label") or arguments.get("label") or "") or None,
+        step=(str(arguments.get("step_label") or arguments.get("label") or "") or None) if name != "ledger_task" else None,
+        ledger_operation=ledger_operation if name == "ledger_task" else None,
         has_expect=bool(arguments.get("expect")) or None,
         allow_unverified=arguments.get("allow_unverified") is True or None,
         plan=plan_shape(arguments, tool=name) if name in ("cua_act", "cua_state") else None,
     )
 
 
-def log_tool_result(name: str, result: dict[str, Any], *, app: str = "") -> None:
+def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operation: Any = None) -> None:
     if result.get("cancelled") is True and result.get("error_type") == "user_cancelled":
         log_event("tool_cancelled", **_current_tool_ids(), tool=name, classification="user_cancelled")
         return
@@ -287,24 +291,33 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "") -> None
     error_type = str(result.get("error_type") or "")
     if not ok and (result.get("needs_confirmation") or error_type.startswith("needs_confirm")):
         # Risk gate asked the user first: an expected step, not a failed tool.
-        log_event("tool_needs_confirmation", **_current_tool_ids(), tool=name, app=app or None,
+        log_event("tool_needs_confirmation", **_current_tool_ids(), tool=name, app=(app or None) if name != "ledger_task" else None,
                   classification="needs_confirmation")
         return
     if not error_type:
         error_type = "user_denied" if err == "user denied" else ("act_miss" if not ok else "")
+    ledger = name == "ledger_task"
+    category = None
+    if ledger and not ok:
+        category = ({"ledger_invalid_argument": "invalid_argument", "ledger_unavailable": "unavailable",
+                     "ledger_outcome_unknown": "outcome_unknown"}.get(error_type, "other"))
+        if category == "invalid_argument" and "find needs query words" in err:
+            category = "invalid_query_terms"
     log_event(
         "tool_result" if ok else "tool_error",
         **_current_tool_ids(),
         tool=name,
-        app=app or None,
+        app=(app or None) if not ledger else None,
+        ledger_operation=(operation if operation in ("lookup", "capture", "recall", "preference") else "unknown") if ledger else None,
+        ledger_error_category=category,
         ok=ok,
-        verified=result.get("verified") if "verified" in result else None,
-        dispatched=result.get("dispatched") if "dispatched" in result else None,
-        completion=result.get("completion"),
-        error=err[:240] if err else None,
-        error_type=error_type or None,
-        hint=str(result.get("hint") or "")[:160] or None,
-        failed_step=(result.get("failure") or {}).get("failed_step") if isinstance(result.get("failure"), dict) else None,
+        verified=result.get("verified") if not ledger and "verified" in result else None,
+        dispatched=result.get("dispatched") if not ledger and "dispatched" in result else None,
+        completion=result.get("completion") if not ledger else None,
+        error=err[:240] if err and not ledger else None,
+        error_type=(error_type or None) if not ledger else (error_type if error_type in {"ledger_invalid_argument", "ledger_unavailable", "ledger_outcome_unknown"} else ("other" if not ok else None)),
+        hint=(str(result.get("hint") or "")[:160] or None) if not ledger else None,
+        failed_step=(result.get("failure") or {}).get("failed_step") if not ledger and isinstance(result.get("failure"), dict) else None,
         **result_size(result),
     )
 
@@ -314,11 +327,11 @@ def log_exception(name: str, exc: BaseException, *, app: str = "") -> None:
         "tool_error",
         **_current_tool_ids(),
         tool=name,
-        app=app or None,
+        app=(app or None) if name != "ledger_task" else None,
         ok=False,
-        error=str(exc)[:240],
+        error=str(exc)[:240] if name != "ledger_task" else None,
         error_type=type(exc).__name__,
-        trace=traceback.format_exc()[-400:],
+        trace=traceback.format_exc()[-400:] if name != "ledger_task" else None,
     )
 
 

@@ -32,6 +32,9 @@ ownership.
    Inspect occurrence timelines for the specific time, version and attribution;
    a missing latest message is unknown, not the previous occurrence's error.
    Layout occurrences use relative geometry and omit absolute screen positions.
+   For a linked run, call `observability_sessions(project_id)` and pass an
+   opaque returned `session_ref` to see bounded stage timings and outcomes.
+   Only explicitly identified sessions appear; missing timings remain unknown.
 4. `observability_recommendation` reads the Context Ledger pilot. Explicit
    `operation: propose` may call Decider and persist an investigation; unsupported
    projects fail instead of inventing model recommendations. Their issue details

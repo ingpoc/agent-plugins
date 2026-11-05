@@ -471,7 +471,8 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         result = fn(args)
         if not result.get("cancelled") and (name != "system_volume" or args.get("direction", "read") != "read"):
             workflow_store.note_failure(name, result if isinstance(result, dict) else {"ok": False})
-        log_tool_result(name, result if isinstance(result, dict) else {"ok": False}, app=app)
+        log_tool_result(name, result if isinstance(result, dict) else {"ok": False}, app=app,
+                        operation=args.get("operation") if name == "ledger_task" else None)
         return result
     except Exception as exc:  # noqa: BLE001 — surface to model
         log_exception(name, exc, app=app)

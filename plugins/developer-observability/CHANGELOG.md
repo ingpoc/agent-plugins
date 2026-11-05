@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.12 (2026-11-06)
+
+- Add bounded session stage timing and privacy-safe ledger metadata.
+
 ## 0.1.11 (2026-11-06)
 
 - Preserve occurrence-level evidence, attribution and bounded layout diagnostics.

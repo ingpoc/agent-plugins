@@ -342,11 +342,13 @@
       "source": "Agent reported",
       "status": "investigation",
       "observed": "Slow sessions need a timeline of stage latencies to locate delays.",
-      "recommendation": "Source has slow-turn and latency metrics, but a complete stage timeline remains pending; validate it in a live session.",
-      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "recommendation": "Expose a bounded session timeline with stage durations, outcomes and build attribution; use unknown when a stage is not instrumented.",
+      "verification": "Source implementation and tests pass; candidate collector produced a session timeline from local data. Installed-client verification remains pending.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
-        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
+        "Current implementation": "Developer Observability 0.1.12 adds observability_sessions with opaque session selection and bounded stage records. Only emitted durations are available.",
+        "Verification": "Combined focused suite: 107 passed, 2 skipped. Candidate collector ran against local sources; installed client and controlled live session remain pending."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
@@ -358,11 +360,13 @@
       "source": "Agent reported",
       "status": "investigation",
       "observed": "Ledger diagnostics need operation metadata without exposing preference or decision content.",
-      "recommendation": "Samantha producer metadata remains pending; capture only privacy-safe operation metadata and verify it in a live session.",
-      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "recommendation": "Emit allowlisted ledger operation, failure category and correlation IDs without recording query, preference or raw error content.",
+      "verification": "Source implementation and privacy tests pass. Samantha 0.2.95 and Developer Observability 0.1.12 have not yet been installed and verified together.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
-        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
+        "Current implementation": "Samantha emits allowlisted operation and category with call/response IDs; collector hashes IDs and only exposes allowlisted values.",
+        "Verification": "Combined focused suite: 107 passed, 2 skipped. A fresh installed Samantha interaction is required to prove end-to-end capture."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
