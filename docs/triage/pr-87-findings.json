@@ -185,7 +185,7 @@
       "status": "investigation",
       "observed": "Agent telemetry reports repeated ledger_task failures. The latest Samantha activity also contains tool errors and repeated calls with different or unknown arguments.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "Source fix is pushed in PR #87 at head 4d7e8ea. Lookup now searches concrete need plus situation within Context Ledger's 240-character limit, and invalid arguments are non-retryable. The focused ledger suite passed 31 tests; pre-push format, lint, py_compile, and manifest validation passed. ACU 0.2.94 is not installed yet, so live Samantha lookup/retrieval and retry behavior remain unverified.",
+      "verification": "ACU 0.2.94 from PR commit f4cd93b is installed. Source checks, signature, live client, Cursor, FD, and fresh MCP independent readback passed. Microphone preflight failed: no input device, so Samantha voice lookup and retry behavior remain unverified.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
@@ -195,7 +195,9 @@
         "Source verification": "`python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_ledger_*.py' -v` — 31 passed. The new tests failed before the source change and passed after it.",
         "Installed/live verification": "Pending ACU 0.2.94 installation and a harmless lookup/retrieval check. No user ledger data was read or written.",
         "Initial release gate attempt": "`python3 scripts/check.py` stopped before tests because the ACU 0.2.94 root/Cursor manifests were not aligned with the Claude/Grok manifests (still 0.2.93). Both manifests are now aligned at 0.2.94; the full gate will be rerun.",
-        "PR state": "PR #87 head 4d7e8ea. Pre-push gate passed: diff check, ruff, py_compile, and `scripts/check.py --validate-only`."
+        "PR state": "PR #87 head 4d7e8ea. Pre-push gate passed: diff check, ruff, py_compile, and `scripts/check.py --validate-only`.",
+        "Installed verification": "Release report /tmp/acu-pr87-verify.json: source checks, signature, live-client, live-cursor, live-fd, and fresh MCP independent readback passed. Microphone preflight returned no input device; voice smoke was not reached.",
+        "Initial install attempt": "Build, install, sync and signature passed; the first runtime contract call returned a missing-file error. An immediate independent runtime contract check passed; the installed verification then reached microphone preflight."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — 18 tests passed, including concrete query composition and non-retryable invalid requests.",
