@@ -287,6 +287,86 @@
         "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandVoiceAppsInsideTests.swift — 16 tests passed for in-pill geometry and transitions.",
         "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — voice_slot overflow 3x (max 30 pt) and island_layout failures 8x, latest 0.2.92."
       ]
+    },
+    {
+      "id": "OBS-05",
+      "title": "Per-occurrence error evidence",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Error clusters need individual error evidence to distinguish occurrences.",
+      "recommendation": "Commit 8feeffe adds occurrence evidence and source tests; verify individual errors in the installed client.",
+      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "details": {
+        "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+      },
+      "verification_refs": [
+        "Commit 8feeffe — Developer Observability source and tests."
+      ]
+    },
+    {
+      "id": "OBS-06",
+      "title": "Reliable session and build attribution",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Diagnostic events need trustworthy session and build attribution, including explicit uncertainty.",
+      "recommendation": "Commit 8feeffe adds attribution and inference safeguards with source tests; verify attribution in an installed session.",
+      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "details": {
+        "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+      },
+      "verification_refs": [
+        "Commit 8feeffe — Developer Observability source and tests."
+      ]
+    },
+    {
+      "id": "OBS-07",
+      "title": "Layout geometry details",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Layout failures need geometry details to diagnose the affected bounds.",
+      "recommendation": "Commit 8feeffe exposes layout occurrence details with source tests; verify details against a controlled installed layout event.",
+      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "details": {
+        "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+      },
+      "verification_refs": [
+        "Commit 8feeffe — Developer Observability source and tests."
+      ]
+    },
+    {
+      "id": "OBS-08",
+      "title": "Session stage latency timeline",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Slow sessions need a timeline of stage latencies to locate delays.",
+      "recommendation": "Source has slow-turn and latency metrics, but a complete stage timeline remains pending; validate it in a live session.",
+      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "details": {
+        "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+      },
+      "verification_refs": [
+        "Commit 8feeffe — Developer Observability source and tests."
+      ]
+    },
+    {
+      "id": "OBS-09",
+      "title": "Privacy-safe ledger operation metadata",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Ledger diagnostics need operation metadata without exposing preference or decision content.",
+      "recommendation": "Samantha producer metadata remains pending; capture only privacy-safe operation metadata and verify it in a live session.",
+      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "details": {
+        "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+      },
+      "verification_refs": [
+        "Commit 8feeffe — Developer Observability source and tests."
+      ]
     }
   ]
 }
