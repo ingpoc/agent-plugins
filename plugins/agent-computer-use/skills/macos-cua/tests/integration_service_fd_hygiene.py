@@ -61,11 +61,10 @@ class LiveServiceFdHygieneTests(unittest.TestCase):
             finally:
                 client.close()
         time.sleep(0.5)  # let NIO reap closed child channels
-        # Background work (the island's 5 s local-process scan briefly holds pipe and
-        # file fds) can overlap one sample; a leak never shrinks, so take the lowest
-        # of a few samples.
+        # The island's 5 s local-process scan can briefly hold pipe and file fds.
+        # Sample beyond that window; leaked descriptors do not shrink.
         after = _fd_count(self.pid)
-        for _ in range(6):
+        for _ in range(12):
             if after <= before + FD_SLACK:
                 break
             time.sleep(0.5)
@@ -73,8 +72,7 @@ class LiveServiceFdHygieneTests(unittest.TestCase):
         self.assertLessEqual(
             after, before + FD_SLACK,
             f"{CYCLES} disconnects grew the service from {before} to {after} "
-            f"fds: peer close is not releasing the child channel "
-            f"(allowRemoteHalfClosure without an inputClosed handler)")
+            f"fds beyond the background-scan window")
 
     def test_a_fresh_connection_still_answers_after_the_cycles(self):
         """The wedge looked like 'connects, then Socket closed'."""
