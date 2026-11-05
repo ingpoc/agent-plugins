@@ -15,7 +15,7 @@
       "status": "untested",
       "observed": "After Samantha was closed, the menu-bar space remained and Codex did not move toward the Dynamic Island.",
       "recommendation": "Clear Samantha-owned activity, then compact the surviving plugin circles after the exit fade so Codex takes the nearest slot.",
-      "verification": "On the installed PR build, enable Samantha beside Codex, close Samantha by toggle and Quit, then check that her activity disappears and Codex moves into the nearest slot after the 150 ms fade.",
+      "verification": "ACU 0.2.93 from PR head 776a1d5 is installed. The release checks did not exercise closing Samantha or observe Codex reflow, so that live behavior remains untested. Enable Samantha beside Codex, close by toggle and Quit, and inspect the 150 ms exit fade.",
       "evidence": [
         {
           "src": "assets/samantha-toggle-enabled.png",
@@ -30,8 +30,9 @@
       ],
       "details": {
         "Source change": "IslandHub clears Samantha-owned plugin rows and releases pending controls. IslandModel compacts surviving source-group slots after the 150 ms exit fade.",
-        "Source verification": "The repository gate passed, including the full 593-test Swift suite. Installed close/reflow acceptance remains pending.",
-        "Attribution": "User report; attached crops show toggle states, not a measured transition."
+        "Source verification": "The repository gate passed, including the full Swift suite. Installed close/reflow acceptance remains pending.",
+        "Attribution": "User report; attached crops show toggle states, not a measured transition.",
+        "Installed verification": "The latest head was built and installed; client, Cursor, and FD integration checks passed. Samantha close/reflow was not part of those checks."
       }
     },
     {
@@ -70,7 +71,7 @@
       "status": "verified_fixed",
       "observed": "Earlier captures show square-like package marks inset inside circles. The requested design keeps the circle size and uses the package artwork edge to edge; the Comet pointer also needs room inside its circle.",
       "recommendation": "Scale each package logo to fill the existing 24 pt frame and clip it to a circle. Keep the Comet glyph small enough to read clearly without adding a smaller square.",
-      "verification": "Installed ACU 0.2.92 at PR head 126a3ac: ACU, Comet Control, Context Ledger, and Developer Observability were visually checked in circular frames; the Comet pointer was reduced and temporary activity rows were cleared. The current uninstalled change only restores idle pill width.",
+      "verification": "Four circles and the reduced Comet mark were visually checked on installed ACU 0.2.92 at PR head 126a3ac. ACU 0.2.93 at PR head 776a1d5 was rebuilt and installed; its icon-rendering source is unchanged and current client/Cursor integrations passed. No new cropped icon screenshot was captured after this reinstall.",
       "verification_refs": [
         "assets/acu-circle.png — installed PR #87 head 126a3ac",
         "assets/comet-after.png — installed PR #87 head 126a3ac",
@@ -107,8 +108,8 @@
       "details": {
         "Source change": "IslandPluginCircleIcon resolves the package artwork, scales it to fill the 24 pt circle, then clips it. Comet Control uses a smaller pointer glyph.",
         "Scope": "Four plugin marks were checked: Agent Computer Use, Comet Control, Context Ledger, and Developer Observability.",
-        "Build identity": "Installed ACU 0.2.92, PR #87 head 126a3ac. The report labels before and after captures by installed head.",
-        "Current risk": "The newer idle-width change has not been installed yet; it does not touch icon rendering."
+        "Build identity": "Current install: ACU 0.2.93 from PR head 776a1d5. Icon-rendering source is unchanged from the prior live-checked 0.2.92 build.",
+        "Current risk": "The cropped live icon evidence is from 0.2.92. The latest reinstall did not change icon code, but a fresh 0.2.93 crop was not captured."
       }
     },
     {
@@ -118,11 +119,11 @@
       "status": "untested",
       "observed": "The default island size appeared smaller after the idle width changed from 74 pt to 50 pt.",
       "recommendation": "Restore the original 74 pt idle width while keeping the 24 pt height and content-driven active widths unchanged.",
-      "verification": "Install the updated PR head, start with no active plugin activity, and confirm the idle pill measures 74 × 24 pt. Then activate and clear a plugin row and confirm the active layout remains content-driven.",
+      "verification": "ACU 0.2.93 from PR head 776a1d5 is installed and its source suite passed (111 test processes). The exact 74 × 24 pt idle size and active content-driven layout were not measured in the live menu bar, so visual acceptance remains untested.",
       "details": {
         "Source change": "IslandBarLayout.idleWidth is restored from 50 pt to 74 pt; the focused IslandTests width check now expects 74 pt.",
-        "Source verification": "The focused 74 pt compact-width test and full repository gate passed, including all 593 Swift tests. ACU 0.2.93 is not installed yet.",
-        "Installed verification": "Pending installation of the updated PR head."
+        "Source verification": "The focused 74 pt width test and latest repository gate passed (111 test processes).",
+        "Installed verification": "ACU 0.2.93 from PR head 776a1d5 was built and installed. A point measurement or fresh menu-bar crop is still pending."
       },
       "evidence": [
         {
@@ -136,20 +137,25 @@
       "id": "AGENT-01",
       "title": "The disconnect check fails during the full release gate",
       "source": "Agent reported",
-      "status": "failing",
-      "observed": "Installed ACU 0.2.93 full release run failed after 80 disconnects: 53 to 60 file descriptors, above the allowed maximum of 57. The test passes alone; evidence now points to a baseline taken before delayed startup work settles, but that is not yet proven by a full rerun.",
-      "recommendation": "Warm the service with a harmless RPC, wait for its documented 5-second island scan, then measure disconnect growth with the existing +4 descriptor limit. Do not raise the limit.",
-      "verification": "Keep this finding open until the full installed release gate passes with the warmed baseline. If it still fails, capture sanitized descriptor types at baseline and after the scan window.",
+      "status": "verified_fixed",
+      "observed": "The prior full release gate counted startup descriptors as disconnect growth (53 to 60, above the +4 limit). After warming the service and waiting for the documented scan, the latest installed 0.2.93 full gate passed the live-fd step without changing the limit.",
+      "recommendation": "Keep the service warm before the FD baseline and retain the +4 limit. No service-channel leak has been established.",
+      "verification": "Verified fixed on PR head 776a1d5: the latest installed release run passed live-fd (2 tests, 6.737 seconds) after the warm baseline. The overall release then stopped at microphone preflight; voice was not reached.",
       "details": {
         "Previous full run": "The descriptor count grew from 55 to 63 against an allowed maximum of 59. The isolated disconnect repeat passed 2 tests.",
         "Root cause": "Unknown. A descriptor leak is a hypothesis, not an established cause.",
         "Release status": "The previous installed 0.2.92 full release gate failed while an isolated repeat passed. The updated 0.2.93 installed release gate is still pending.",
-        "Current installed full run": "ACU 0.2.93 source checks passed (111 test processes), and client and Cursor integrations passed. live-fd failed at 53 to 60 descriptors (maximum 57). Microphone and voice stages were not reached.",
+        "Current installed full run": "ACU 0.2.93 built and synced from PR head 776a1d5. Source checks passed (111 test processes); build/install, signature, client, Cursor, and live-fd all passed. Microphone preflight then failed because no input device was available; voice was not reached.",
         "Current isolated repeat": "The updated local test warmed the installed ACU 0.2.93 service, waited 5.5 seconds, and passed both tests in 6.616 seconds with ACU_ISLAND_ACTIVITY=0.",
-        "Source review": "SwiftNIO's local source defaults allowRemoteHalfClosure to false. SocketServer's RPC handler releases the connection count in channelInactive and handlerRemoved. The test's old half-close diagnosis is stale; no socket leak is confirmed.",
-        "Release test correction": "Live integration steps receive ACU_ISLAND_ACTIVITY=0 per repo policy. This alone did not remove the full-run failure.",
-        "Baseline evidence": "After the full run, the service held 60 lsof rows consistently across a 10-second idle sample. The full test began at 53 and ended at 60; delayed initialization is a plausible explanation, not yet confirmed."
-      }
+        "Source review": "SwiftNIO local source defaults allowRemoteHalfClosure to false. SocketServer releases the connection count in channelInactive and handlerRemoved. The earlier half-close diagnosis is stale; no socket leak is confirmed.",
+        "Release test correction": "Live integration steps receive ACU_ISLAND_ACTIVITY=0 per repository policy. This alone did not clear the earlier full-run failure.",
+        "Baseline evidence": "After the previous failure, the service held 60 lsof rows steadily for 10 seconds. The earlier 53-to-60 delta was consistent with delayed startup work; the warmed full-gate pass confirms the check no longer flags it.",
+        "Warm-baseline validation": "The test now makes a harmless list_apps call and waits 5.5 seconds before measuring, then runs 80 disconnect cycles. It retains the original +4 descriptor limit. The installed live-fd step passed in the full run."
+      },
+      "verification_refs": [
+        "plugins/agent-computer-use/skills/macos-cua/tests/integration_service_fd_hygiene.py — installed ACU 0.2.93 at PR head 776a1d5; live-fd passed 2 tests in 6.737 seconds.",
+        "scripts/release_agent_computer_use.py — latest full signed install run passed source, build/install, signature, client, Cursor, and live-fd stages; microphone preflight blocked voice."
+      ]
     },
     {
       "id": "AGENT-02",
@@ -176,7 +182,8 @@
       "details": {
         "Latest metrics": "Speech-to-playback p95 14.8 s (p50 2.4 s, n=74); audio_ready p95 5.9 s (p50 249 ms, n=10); usage p95 4.5 s (p50 2.0 s, n=92).",
         "Threshold note": "The collector's 1.0 s threshold is an investigation signal, not a user-facing SLA. One aggregate speech-to-playback maximum is a 1,086.6 s outlier and needs run-level correlation.",
-        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Source coverage is partial; no metric is linked to a current acceptance run."
+        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Source coverage is partial; no metric is linked to a current acceptance run.",
+        "Latest acceptance attempt": "ACU 0.2.93 microphone preflight returned no input device (text-only mode). The release script stopped before voice smoke, so no current-run audio latency was measured."
       }
     },
     {
