@@ -2,6 +2,12 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.92 (2026-11-05)
+
+- Remove Samantha-owned plugin activity and compact surviving harness circles after her exit fade.
+- Fill the existing outside plugin circles with circularly clipped package artwork for ACU, Comet Control, Context Ledger, and Developer Observability.
+- Use Context Ledger proactively for relevant preference recall and durable owner preferences; normalize scope/rule formatting and clarify supersession limits.
+
 ## 0.2.90
 
 - Owner preferences and decisions: automatic capture (user_decision, tool:/project: scope, rule = decision point, same scope+rule supersedes) and exact recall before a decision point.

@@ -48,7 +48,6 @@ final class IslandGenericPluginMarksTests: XCTestCase {
         XCTAssertEqual(IslandOperatedApps.names(snapshot.plugins), [])
         XCTAssertEqual(IslandPluginLabel.markName(plugin: "acme-notes", app: "Notes"), "acme-notes")
         XCTAssertEqual(IslandPluginLabel.display("acme-notes", pluginLabel: snapshot.plugins.first?.plugin_label), "Acme Notes")
-        XCTAssertEqual(IslandPluginMarkTier.resolve(plugin: "acme-notes", iconLookup: { _ in false }), .monogram)
         XCTAssertEqual(IslandPluginMonogram.letters(for: "Acme Notes"), "AN")
         XCTAssertEqual(IslandPluginMonogram.paletteIndex(for: "acme-notes"), 3)
         XCTAssertEqual(IslandPluginLabel.display("my-plugin"), "My Plugin")
@@ -105,12 +104,12 @@ final class IslandGenericPluginMarksTests: XCTestCase {
         XCTAssertEqual(hub.samantha?.plugins.first?.plugin_label?.count, 48)
     }
 
-    func testKnownPluginMarkTiersAndManifestPathLookup() throws {
-        XCTAssertEqual(IslandPluginMarkTier.resolve(plugin: "acu", iconLookup: { _ in false }), .designed)
-        XCTAssertEqual(IslandPluginMarkTier.resolve(plugin: "developer-observability", iconLookup: { _ in false }), .designed)
-        XCTAssertEqual(IslandPluginMarkTier.resolve(plugin: "comet-control", iconLookup: { _ in true }), .manifestIcon)
-        XCTAssertEqual(IslandPluginMarkTier.resolve(plugin: "context-ledger", iconLookup: { _ in true }), .manifestIcon)
-        XCTAssertEqual(IslandPluginMarkTier.resolve(plugin: "new-plugin", iconLookup: { _ in false }), .monogram)
+    func testKnownPluginArtworkAndManifestPathLookup() throws {
+        var pluginRoot = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { pluginRoot.deleteLastPathComponent() }
+        for plugin in ["agent-computer-use", "comet-control", "context-ledger", "developer-observability"] {
+            XCTAssertNotNil(AppIconResolver.pluginLogoURL(plugin, root: pluginRoot), "\(plugin) package logo")
+        }
         var comet = IslandPluginUse(plugin: "comet-control", app: "comet-control", agent: "Cursor", last_seen_at: 1)
         comet.target_app = "Finder"
         XCTAssertEqual(IslandPluginTarget.of(plugin: comet.plugin), .app("Comet"))

@@ -1883,15 +1883,8 @@ final class IslandModel: ObservableObject {
             self.sourceGroupSlotReleaseWork = nil
             self.retiringSourceGroupSlots.removeAll()
 
-            let limit = IslandSourceGroups.maxCircles
-            var slots = self.sourceGroupSlots
-            var used = Set(slots.values.filter { $0 < limit })
-            for id in self.sourceGroups.map(\.id) {
-                guard let slot = slots[id], slot >= limit,
-                      let available = (0..<limit).first(where: { !used.contains($0) }) else { continue }
-                slots[id] = available
-                used.insert(available)
-            }
+            let ids = self.sourceGroupSlots.sorted { $0.value < $1.value }.map(\.key)
+            let slots = Dictionary(uniqueKeysWithValues: ids.enumerated().map { ($0.element, $0.offset) })
             if slots != self.sourceGroupSlots {
                 self.sourceGroupSlots = slots
                 self.harnessChangeSeq &+= 1

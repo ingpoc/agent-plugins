@@ -141,19 +141,13 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   app target (Comet) as the coloured mark lifted from the app's real installed
   icon (`IslandTargetGlyph.bareGlyph`: keeps the coloured pixels, drops the dark
   plate and white specks, crops to the mark), else the app's SF Symbol in white.
-  **No-tile rule for plugin marks** (Guru 2026-11-04 16:06 IST: "the plugin icon is
-  coming in the white square bar, rather have the icon, since currently is not
-  visible properly"): every outside-right plugin mark, current or future (ACU,
-  Comet Control, Context Ledger, developer-observability, and the manifest-icon and
-  monogram fallbacks), is its bare glyph on the black 24 pt circle, never a white
-  tile. One path, `IslandPluginMarkGlyphView`: the plugin's logo or icon with its
-  plate lifted off; dark neutral strokes turn white for contrast on black, and
-  brand colours remain only when they reach 4.5:1. Every mark fills a 15 pt
-  optical box, has full opacity, and centers its visible pixels within 0.5 pt.
-  Developer-observability uses three 2.5 pt round bars in #30D158; harness app
-  icons use the same bare 15 pt glyph box.
-  `IslandTargetGlyphTests` renders every target in its ring and every plugin mark
-  on its circle and fails on a tile.
+  **Plugin circle artwork**: ACU, Comet Control, Context Ledger, and
+  Developer Observability use their package artwork, scaled to fill and clipped
+  directly to the existing 24 pt circle. The artwork itself is the circle icon;
+  do not inset a square tile or reduce it to a small glyph. Keep the outer keyline
+  and use the monogram only when package artwork cannot be resolved.
+  `IslandTargetGlyphTests` checks the four package assets and verifies that a
+  square image is clipped at the circle corners.
   The compact pill is at least 74 pt and grows to fit all content; its width is
   even and does not follow loudness. "+N" is SF Pro Semibold 11 at white 62 % in a fixed 16 pt slot. A near-white or missing icon
   among operated apps (TextEdit; detected by `AppIconResolver.isBlank`) uses a
@@ -171,8 +165,10 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   appears as soon as her session is on (hub `samantha_on`, set from CUAService's
   own session state, never from her posts), through the same source-group list,
   `ForEach` and transition as Codex, Cursor or Grok (Guru 11:09 IST), and
-  leaves when the session stops. Existing harness circles keep their slot relative to the pill
-  when another joins or leaves; new circles join at the outermost left slot.
+  leaves when the session stops. A departing circle keeps its slot through the
+  exit fade; after the fade, surviving circles compact in their prior order so
+  Codex moves into the closest slot when Samantha closes. New circles join at
+  the outermost left slot.
   Only the leaving circle scales and fades in place before its slot closes.
   The pill edge, plugin marks and harness circles move in the same animation;
   circles never overlap the pill or one another. Reduce Motion fades only the

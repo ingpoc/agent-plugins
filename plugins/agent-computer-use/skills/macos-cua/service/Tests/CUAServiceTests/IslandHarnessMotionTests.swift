@@ -4,7 +4,6 @@ import XCTest
 @MainActor
 final class IslandHarnessMotionTests: XCTestCase {
     private let codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task", status: "running", last_seen_at: 100)
-    private let samantha = IslandAgent(id: "agent:Samantha", name: "Samantha", app: "Samantha", title: "Voice", status: "running", last_seen_at: 100)
 
     private func apply(_ names: [String], to model: IslandModel, now: Date) {
         let agents = names.map {
@@ -18,20 +17,15 @@ final class IslandHarnessMotionTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 250_000_000)
     }
 
-    func testHarnessEnterAndExitKeepTheCircleInItsAssignedSlot() {
+    func testSamanthaExitReclaimsClosestHarnessSlotForCodex() async {
         let model = IslandModel()
         model.idleActivity = "duo"
-        model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
-        let codexSlot = try! XCTUnwrap(model.sourceGroupSlots["Codex"])
-        let codexBefore = IslandBarLayout.agentRects(shape: model.shapeRect, slots: [codexSlot])[0]
-        let initialGap = model.shapeRect.minX - codexBefore.maxX
-
-        model.apply(IslandSnapshot(kind: "listening", agents: [codex, samantha]))
+        model.apply(IslandSnapshot(kind: "listening", agents: [codex], samantha_on: true))
         let samanthaSlot = try! XCTUnwrap(model.sourceGroupSlots[IslandSourceGroups.samantha])
-        let codexAfter = IslandBarLayout.agentRects(shape: model.shapeRect, slots: [codexSlot])[0]
+        let codexSlot = try! XCTUnwrap(model.sourceGroupSlots["Codex"])
         let samanthaRect = IslandBarLayout.agentRects(shape: model.shapeRect, slots: [samanthaSlot])[0]
-        XCTAssertEqual(model.shapeRect.minX - codexAfter.maxX, initialGap, accuracy: 0.001)
-        XCTAssertGreaterThan(samanthaSlot, codexSlot, "a new circle joins at the outermost left slot")
+        XCTAssertEqual(samanthaSlot, 0, "Samantha enters closest to the pill on a fresh shared session")
+        XCTAssertEqual(codexSlot, 1, "Codex moves outward while Samantha is nearest the pill")
 
         for step in 0...20 {
             let progress = CGFloat(step) / 20
@@ -39,22 +33,24 @@ final class IslandHarnessMotionTests: XCTestCase {
                 + (1 - IslandMotion.harnessEnterScale) * progress)
             let frame = CGRect(x: samanthaRect.midX - diameter / 2, y: samanthaRect.midY - diameter / 2,
                                width: diameter, height: diameter)
-            XCTAssertGreaterThanOrEqual(codexAfter.minX - frame.maxX, IslandBarLayout.circleSpacing - 0.001,
+            let codexAfter = IslandBarLayout.agentRects(shape: model.shapeRect, slots: [codexSlot])[0]
+            XCTAssertGreaterThanOrEqual(frame.minX - codexAfter.maxX, IslandBarLayout.circleSpacing - 0.001,
                                         "no overlap while entering at step \(step)")
         }
 
-        model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
-        let codexAfterRemoval = IslandBarLayout.agentRects(shape: model.shapeRect, slots: [codexSlot])[0]
-        XCTAssertEqual(model.shapeRect.minX - codexAfterRemoval.maxX, initialGap, accuracy: 0.001,
-                       "removing a source keeps the remaining circle in its slot")
+        model.apply(IslandSnapshot(kind: "idle", agents: [codex], samantha_on: false))
+        XCTAssertEqual(model.sourceGroupSlots["Codex"], codexSlot, "Codex stays clear during Samantha's exit fade")
         for step in 0...20 {
             let progress = CGFloat(step) / 20
             let diameter = samanthaRect.width * (1 - (1 - IslandMotion.harnessEnterScale) * progress)
             let frame = CGRect(x: samanthaRect.midX - diameter / 2, y: samanthaRect.midY - diameter / 2,
                                width: diameter, height: diameter)
-            XCTAssertGreaterThanOrEqual(codexAfterRemoval.minX - frame.maxX, IslandBarLayout.circleSpacing - 0.001,
+            let codexAfterRemoval = IslandBarLayout.agentRects(shape: model.shapeRect, slots: [codexSlot])[0]
+            XCTAssertGreaterThanOrEqual(frame.minX - codexAfterRemoval.maxX, IslandBarLayout.circleSpacing - 0.001,
                                         "no overlap while leaving at step \(step)")
         }
+        await waitForHarnessExit()
+        XCTAssertEqual(model.sourceGroupSlots["Codex"], 0, "Codex moves into Samantha's freed slot")
     }
 
     func testHarnessTransitionScalesAndFadesWithoutChangingItsSlot() {
@@ -118,7 +114,7 @@ final class IslandHarnessMotionTests: XCTestCase {
             await waitForHarnessExit()
             let settled = model.sourceGroupSlots
             XCTAssertEqual(Set(settled.values), Set(0..<IslandSourceGroups.maxCircles), "slots stay on-panel after cycle \(cycle)")
-            for (id, slot) in stable { XCTAssertEqual(settled[id], slot, "existing circle stays in place after cycle") }
+            XCTAssertEqual(settled.count, IslandSourceGroups.maxCircles)
         }
     }
 }

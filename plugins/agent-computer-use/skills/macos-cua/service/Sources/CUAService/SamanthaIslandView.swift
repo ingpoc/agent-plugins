@@ -219,17 +219,6 @@ enum AppIconResolver {
 }
 
 @MainActor
-enum IslandPluginMarkTier: Equatable {
-    case designed, manifestIcon, monogram
-
-    static func resolve(plugin: String, iconLookup: ((String) -> Bool)? = nil) -> Self {
-        if plugin == "acu" || plugin == IslandDevObsMark.plugin { return .designed }
-        let hasIcon = iconLookup?(plugin) ?? (AppIconResolver.pluginImage(plugin) != nil)
-        return hasIcon ? .manifestIcon : .monogram
-    }
-}
-
-@MainActor
 struct IslandPluginMonogram: View {
     let plugin: String
     let displayName: String
@@ -265,6 +254,27 @@ struct IslandPluginMonogram: View {
             .foregroundStyle(Color.white)
             .frame(width: IslandBarLayout.circleGlyph, height: IslandBarLayout.circleGlyph)
             .offset(x: text.count > 1 ? 1 : 0)
+    }
+}
+
+@MainActor
+struct IslandPluginCircleIcon: View {
+    let plugin: String
+    let displayName: String
+    var size: CGFloat = IslandBarLayout.circleDiameter
+
+    var body: some View {
+        if let image = AppIconResolver.pluginImage(plugin == "acu" ? "agent-computer-use" : plugin) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFill()
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+        } else {
+            IslandPluginMonogram(plugin: plugin, displayName: displayName)
+                .frame(width: size, height: size)
+        }
     }
 }
 
@@ -526,42 +536,8 @@ struct IslandOperatedAppIcon: View {
     }
 }
 
-/// developer-observability's waterfall glyph: 15 × 10 pt, three 2.5 pt round bars, centred on black.
-struct IslandDevObsMark: View {
-    static let plugin = "developer-observability"
-    /// #30D158 clears 4.5:1 contrast on black.
-    static let color = Color(red: 0x30 / 255.0, green: 0xD1 / 255.0, blue: 0x58 / 255.0)
-    static let bars: [(CGFloat, CGFloat)] = [(0, 9), (3, 12), (6, 15)]
-    static let barHeight: CGFloat = 2.5
-    static let barGap: CGFloat = 1.25
-    var size: CGFloat = IslandBarLayout.circleGlyph
-
-    /// Bar rects in a 15 pt box, centred vertically.
-    static func barRects() -> [CGRect] {
-        let group = 3 * barHeight + 2 * barGap
-        let top = (15 - group) / 2
-        return bars.enumerated().map { i, b in
-            CGRect(x: b.0, y: top + CGFloat(i) * (barHeight + barGap), width: b.1 - b.0, height: barHeight)
-        }
-    }
-
-    var body: some View {
-        let k = size / 15
-        ZStack(alignment: .topLeading) {
-            ForEach(Array(Self.barRects().enumerated()), id: \.offset) { _, r in
-                Capsule().fill(Self.color)
-                    .frame(width: r.width * k, height: r.height * k)
-                    .offset(x: r.minX * k, y: r.minY * k)
-            }
-        }
-        .frame(width: size, height: size, alignment: .topLeading)
-        .accessibilityHidden(true)
-    }
-}
-
 struct SamanthaAppCircle: View {
     let item: IslandCircleItem
-    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         ZStack {
@@ -572,29 +548,10 @@ struct SamanthaAppCircle: View {
                 Circle().strokeBorder(driving ? IslandPalette.accent : IslandPalette.keyLine,
                                       lineWidth: driving ? 1.5 : 1)
             case .plugin(let name, _, let pluginLabel):
-                // A plugin mark looks like an app circle: never dimmed, never driving, tap does nothing.
-                // Bare glyph on the black circle, never a white tile (Guru 16:06 IST): every tier goes through
-                // IslandPluginMarkGlyphView, or the bare monogram when no logo resolves.
+                // Package artwork fills the existing circle; missing logos use a monogram.
                 let plugin = IslandPluginLabel.pluginID(forMarkName: name)
                 let displayName = IslandPluginLabel.display(name, pluginLabel: pluginLabel)
-                let glyph = IslandBarLayout.centeredGlyphRect(in: CGRect(origin: .zero, size: CGSize(width: IslandBarLayout.circleDiameter, height: IslandBarLayout.circleDiameter)),
-                                                              size: IslandBarLayout.circleGlyph, scale: displayScale)
-                Group {
-                    switch IslandPluginMarkTier.resolve(plugin: plugin) {
-                    case .designed:
-                        IslandPluginMarkGlyphView(name: plugin == IslandDevObsMark.plugin ? plugin : "Agent Computer Use")
-                    case .manifestIcon:
-                        if case .image = IslandPluginMarkGlyph.resolve(plugin) {
-                            IslandPluginMarkGlyphView(name: plugin)
-                        } else {
-                            IslandPluginMonogram(plugin: plugin, displayName: displayName)
-                        }
-                    case .monogram:
-                        IslandPluginMonogram(plugin: plugin, displayName: displayName)
-                    }
-                }
-                .offset(x: glyph.minX - (IslandBarLayout.circleDiameter - IslandBarLayout.circleGlyph) / 2,
-                        y: glyph.minY - (IslandBarLayout.circleDiameter - IslandBarLayout.circleGlyph) / 2)
+                IslandPluginCircleIcon(plugin: plugin, displayName: displayName)
                 Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
             case .overflow(let n):
                 Text("+\(n)")

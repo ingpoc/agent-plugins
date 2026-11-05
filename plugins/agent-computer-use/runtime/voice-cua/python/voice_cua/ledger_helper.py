@@ -33,6 +33,16 @@ def normalize_project(project: Any) -> str:
     return text[:64]
 
 
+def _normalize_scope_rule(scope: str, rule: str) -> tuple[str, str]:
+    scope = scope.strip().casefold()
+    if scope != 'fleet':
+        kind, sep, value = scope.partition(':')
+        if sep and kind in {'tool', 'project'}:
+            scope = f'{kind}:{normalize_project(value)}'
+    rule = re.sub(r'[^a-z0-9]+', '_', rule.strip().casefold()).strip('_')[:64]
+    return scope, rule
+
+
 def _norm_text(text: str) -> str:
     """Casefolded words only, so quotes match across punctuation, quotes and spacing."""
     return ' '.join(re.findall(r'[\w]+', str(text or '').casefold()))
@@ -118,8 +128,11 @@ class LedgerHelper:
         if self._closed.is_set():
             return {'ok': False, 'error': 'Ledger helper session closed'}
         if operation in {'recall', 'preference'}:
-            if not all(isinstance(item, str) for item in (scope, rule, value, owner_quote)) or not re.fullmatch(r'(?:fleet|(?:tool|project):[a-z0-9][a-z0-9._-]{0,63})', scope) or (rule and not re.fullmatch(r'[a-z0-9_]{1,64}', rule)) or (operation == 'preference' and not rule):
-                return _invalid('Invalid scope or decision point')
+            if not all(isinstance(item, str) for item in (scope, rule, value, owner_quote)):
+                return _invalid('Scope, rule, value, and owner_quote must be text')
+            scope, rule = _normalize_scope_rule(scope, rule)
+            if not re.fullmatch(r'(?:fleet|(?:tool|project):[a-z0-9][a-z0-9._-]{0,63})', scope) or (rule and not re.fullmatch(r'[a-z0-9_]{1,64}', rule)) or (operation == 'preference' and not rule):
+                return _invalid('Use scope fleet, tool:<lowercase-id>, or project:<lowercase-id>; rule must be lowercase_snake_case')
             try:
                 if operation == 'recall':
                     args = {'query': '', 'scope': scope, 'actor': 'samantha'}

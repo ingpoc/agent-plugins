@@ -32,7 +32,22 @@ def test_preferences_and_recall_without_helper(tmp_path):
     assert replay.run(operation='recall', scope='tool:gmail', rule='account_select')['data']['matches'][0]['decision'] == 'Work'
     decide.assert_not_called()
     assert 'ledger_task' in {tool['name'] for tool in tool_definitions()}
-    assert 'apply the saved value without asking' in SYSTEM_INSTRUCTIONS
+    assert 'proactively' in SYSTEM_INSTRUCTIONS
+    assert 'same scope and rule' in SYSTEM_INSTRUCTIONS
+    assert 'do not wait for the user to ask' in SYSTEM_INSTRUCTIONS
+
+
+def test_preference_normalizes_scope_and_rule_before_lookup_or_save(tmp_path):
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
+    helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
+    quote = 'Please use Work for my email account'
+    helper.note_user(quote)
+    result = helper.run(operation='preference', scope=' Tool:Gmail ', rule='Account Select',
+                        value='Work', owner_quote=quote)
+    assert result['status'] == 'saved'
+    args = transport.call.call_args.args[1]
+    assert (args['scope'], args['rule']) == ('tool:gmail', 'account_select')
 
 
 def test_preference_rejects_one_off_and_unquoted_value(tmp_path):

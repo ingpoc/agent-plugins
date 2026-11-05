@@ -315,21 +315,6 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         XCTAssertEqual(m.circles.map(\.id), ["plugin:Agent Computer Use", "plugin:developer-observability"])
     }
 
-    func testDeveloperObservabilityMarkMatchesTheSpec() {
-        // UI & UX spec: bars 2 pt tall, 1.5 pt apart (a 9 pt group, centred), x 3–9, 5.5–12, 8–13; #30D158 bare on black since Guru 16:06 IST (was #248A3D on a white tile).
-        let r = IslandDevObsMark.barRects()
-        XCTAssertEqual(r.map(\.minX), [0, 3, 6])
-        XCTAssertEqual(r.map(\.maxX), [9, 12, 15])
-        XCTAssertEqual(r.map(\.height), [2.5, 2.5, 2.5])
-        XCTAssertEqual(r[1].minY - r[0].maxY, 1.25, accuracy: 1e-9)
-        XCTAssertEqual(r[2].maxY - r[0].minY, 10, accuracy: 1e-9)
-        XCTAssertEqual((r[0].minY + r[2].maxY) / 2, 7.5, accuracy: 1e-9, "centred in the 15 pt optical box")
-        let c = NSColor(IslandDevObsMark.color).usingColorSpace(.sRGB)!
-        XCTAssertEqual(Int((c.redComponent * 255).rounded()), 0x30)
-        XCTAssertEqual(Int((c.greenComponent * 255).rounded()), 0xD1)
-        XCTAssertEqual(Int((c.blueComponent * 255).rounded()), 0x58)
-    }
-
     func testPluginAndHarnessCirclesKeepTheirGapThroughPillShrink() async throws {
         let codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task",
                                 status: "running", last_seen_at: 100)

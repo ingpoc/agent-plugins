@@ -101,6 +101,20 @@ final class IslandPluginMarksTests: XCTestCase {
         XCTAssertTrue(hub.compose(now: now.addingTimeInterval(1)).plugins.isEmpty)
     }
 
+    func testStoppingSamanthaClearsHerPluginRowsAndKeepsOtherAgents() {
+        let hub = IslandHub(store: store)
+        let now = Date()
+        _ = post(hub, pluginBody(plugin: "context-ledger", id: "plugin:context-ledger:samantha",
+                                 agent: "Samantha", app: "Context Ledger"), now: now)
+        _ = post(hub, pluginBody(plugin: "comet-control", id: "plugin:comet-control:codex",
+                                 agent: "Codex", app: "Comet Control"), now: now)
+        XCTAssertEqual(Set(hub.compose(now: now).plugins.map(\.agent)), ["Codex", "Samantha"])
+
+        hub.clearSamantha()
+
+        XCTAssertEqual(hub.compose(now: now).plugins.map(\.agent), ["Codex"])
+    }
+
     // MARK: - Circles
 
     func testPluginItemsGroupInFixedOrderThenAlphabetically() {

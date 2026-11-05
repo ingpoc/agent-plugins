@@ -311,6 +311,14 @@ final class IslandHub {
 
     func clearSamantha() {
         samantha = nil
+        let owned = entries.compactMap { id, entry in
+            entry.agent.name == IslandSourceGroups.samantha && entry.agent.plugin != nil ? id : nil
+        }
+        for id in owned {
+            entries[id] = nil
+            pendingControls[id] = nil
+            for waiter in (controlWaiters.removeValue(forKey: id) ?? [:]).values { waiter.resume() }
+        }
         changed()
     }
 
