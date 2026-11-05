@@ -278,8 +278,9 @@ def release(args, root=ROOT):
             step = {'name':name,'ok':False,'log':str(log)}
             report['steps'].append(step);save()
             started = time.monotonic()
+            env = {**os.environ, 'ACU_ISLAND_ACTIVITY':'0'} if name.startswith('live-') else None
             with log.open('w') as stream:
-                result = subprocess.run(command,cwd=root,stdout=stream,stderr=subprocess.STDOUT,timeout=timeout)
+                result = subprocess.run(command,cwd=root,stdout=stream,stderr=subprocess.STDOUT,timeout=timeout,env=env)
             step.update({'exit_code':result.returncode,'seconds':round(time.monotonic()-started,3)})
             if result.returncode:
                 raise RuntimeError(f'{name} failed; see {log}')
