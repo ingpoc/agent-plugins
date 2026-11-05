@@ -110,6 +110,8 @@ final class IslandGenericPluginMarksTests: XCTestCase {
         for plugin in ["agent-computer-use", "comet-control", "context-ledger", "developer-observability"] {
             XCTAssertNotNil(AppIconResolver.pluginLogoURL(plugin, root: pluginRoot), "\(plugin) package logo")
         }
+        XCTAssertEqual(AppIconResolver.pluginLogoURL("comet-control", root: pluginRoot),
+                       pluginRoot.appendingPathComponent("comet-control/assets/logo.svg"))
         var comet = IslandPluginUse(plugin: "comet-control", app: "comet-control", agent: "Cursor", last_seen_at: 1)
         comet.target_app = "Finder"
         XCTAssertEqual(IslandPluginTarget.of(plugin: comet.plugin), .app("Comet"))

@@ -143,7 +143,6 @@ enum AppIconResolver {
             guard url.path.hasPrefix(package.path + "/"), FileManager.default.fileExists(atPath: url.path) else { return nil }
             return url
         }
-        if name == "comet-control", let glyph = asset("plugin/comet_control/extension/images/icon.svg") { return glyph }
         if let logo = asset("assets/logo.svg") { return logo }
         let manifest = [package.appendingPathComponent("plugin.json"),
                         package.appendingPathComponent(".cursor-plugin/plugin.json")]
@@ -270,6 +269,7 @@ struct IslandPluginCircleIcon: View {
                 .interpolation(.high)
                 .scaledToFill()
                 .frame(width: size, height: size)
+                .scaleEffect(["acu", "context-ledger"].contains(plugin) ? 1.24 : 1)
                 .clipShape(Circle())
         } else {
             IslandPluginMonogram(plugin: plugin, displayName: displayName)
