@@ -125,6 +125,7 @@ class ReleaseTests(unittest.TestCase):
             calls.append(command)
             return Mock(returncode=source_exit if command[-1:] == ['scripts/check.py'] else 0)
         with patch.object(release,'output',side_effect=output), \
+             patch.object(release,'APP',Path(directory)/'app'), \
              patch.object(release,'hygiene_gate',return_value={'checked':False}), \
              patch.object(release,'frozen'), \
              patch.object(release,'policy',return_value={'version':'0.2.32'}), \
@@ -158,6 +159,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue(receipt['release_ready'])
         self.assertEqual(receipt['commit'],'a'*40)
         self.assertEqual(receipt['identity']['sha256'],'fingerprint')
+        self.assertIsNone(receipt['microphone_preflight']['ok'])
         self.assertTrue(all(s['ok'] for s in receipt['steps']))
         self.assertTrue(any(c[:3] == ['xcrun','stapler','validate'] for c in calls))
 

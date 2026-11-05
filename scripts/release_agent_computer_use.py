@@ -272,6 +272,17 @@ def release(args, root=ROOT):
         module = contract_module(root)
         identity = module.package_identity(root/PACKAGE)
         report['identity'] = identity
+        microphone = APP/'Contents/Helpers/voice-cua.app/Contents/MacOS/voice-cua'
+        if microphone.is_file():
+            try:
+                probe = subprocess.run([str(microphone),'--preflight-mic'],capture_output=True,text=True,timeout=30)
+                report['microphone_preflight'] = {'ok':probe.returncode == 0, 'exit_code':probe.returncode,
+                    'detail':(probe.stderr or probe.stdout).strip()[:300], 'source':'existing installed app'}
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                report['microphone_preflight'] = {'ok':False,'detail':str(exc)[:300], 'source':'existing installed app'}
+        else:
+            report['microphone_preflight'] = {'ok':None,'detail':'No installed helper available for preflight'}
+        save()
         def run(name, command, timeout=1800):
             frozen(root,head)
             log = report_path.parent/(report_path.stem+'-'+name+'.log')
@@ -308,7 +319,10 @@ def release(args, root=ROOT):
         if not args.sign_only:
             run('notarization',['xcrun','stapler','validate',str(APP)],60)
         report['notarization'] = 'not_verified_signed_only' if args.sign_only else 'staple_verified'
+        report['stage'] = 'runtime-contract'
+        save()
         module.check(root/PACKAGE, APP)
+        report.pop('stage', None)
         for name, relative in [('client','service/Tests/CUAServiceTests/integration_cua_client.py'),
                 ('cursor','tests/integration_macos_cua_cursor.py'),('fd','tests/integration_service_fd_hygiene.py')]:
             run('live-'+name,[sys.executable,'scripts/run_strict.py','--allowlist','scripts/check_test_allowlist.json',
@@ -327,6 +341,8 @@ def release(args, root=ROOT):
         return 0
     except Exception as exc:
         report['error'] = str(exc)
+        if isinstance(exc, OSError) and exc.filename:
+            report['error_path'] = str(exc.filename)
         print(str(exc),file=sys.stderr)
         return 1
     finally:
