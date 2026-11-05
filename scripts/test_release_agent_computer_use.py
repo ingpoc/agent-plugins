@@ -35,7 +35,7 @@ class PolicyTests(unittest.TestCase):
         for relative in ('plugin.json','.cursor-plugin/plugin.json'):
             (self.package/relative).write_text(json.dumps({'version':value}))
         (self.package/'skills/macos-cua/service/Resources/Info.plist').write_bytes(
-            plistlib.dumps({'CFBundleShortVersionString':value}))
+            plistlib.dumps({'CFBundleShortVersionString':value, 'CFBundleVersion':value}))
 
     def tracked(self, relative):
         p = self.package/relative;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('new content')
