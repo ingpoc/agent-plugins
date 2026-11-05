@@ -137,18 +137,18 @@
       "title": "The disconnect check fails during the full release gate",
       "source": "Agent reported",
       "status": "failing",
-      "observed": "Installed ACU 0.2.93 full release run failed after 80 disconnects: 53 to 60 file descriptors, above the limit of 57. The same test passed alone; root cause remains unconfirmed.",
-      "recommendation": "Keep the descriptor limit and wait beyond the known 5-second island scan before judging persistent growth. Require the full installed gate to pass before closing this finding.",
-      "verification": "Run the complete installed release gate with the extended sampling window. If it still fails, compare per-path descriptor snapshots before changing service code or the limit.",
+      "observed": "Installed ACU 0.2.93 full release run failed after 80 disconnects: 53 to 60 file descriptors, above the allowed maximum of 57. The test passes alone; evidence now points to a baseline taken before delayed startup work settles, but that is not yet proven by a full rerun.",
+      "recommendation": "Warm the service with a harmless RPC, wait for its documented 5-second island scan, then measure disconnect growth with the existing +4 descriptor limit. Do not raise the limit.",
+      "verification": "Keep this finding open until the full installed release gate passes with the warmed baseline. If it still fails, capture sanitized descriptor types at baseline and after the scan window.",
       "details": {
         "Previous full run": "The descriptor count grew from 55 to 63 against an allowed maximum of 59. The isolated disconnect repeat passed 2 tests.",
         "Root cause": "Unknown. A descriptor leak is a hypothesis, not an established cause.",
         "Release status": "The previous installed 0.2.92 full release gate failed while an isolated repeat passed. The updated 0.2.93 installed release gate is still pending.",
-        "Current installed full run": "ACU 0.2.93 source checks passed (111 test processes), and client and Cursor integrations passed. live-fd failed at 53 to 60 descriptors (maximum 57). MCP, microphone, and voice stages were not reached.",
-        "Current isolated repeat": "ACU 0.2.93 live-fd passed 2 tests in 1.016 seconds with ACU_ISLAND_ACTIVITY=0.",
-        "Source review": "SocketServer disables half-close; RPC channelInactive and handlerRemoved release the connection count. The test's embedded half-close diagnosis is stale, so the descriptor root cause remains unknown.",
-        "Release test correction": "Live integration steps now receive ACU_ISLAND_ACTIVITY=0, as required by the repo lifecycle. That setting alone did not clear the full-run failure.",
-        "Sampling correction": "The test now samples for 6 seconds to cover the documented 5-second island process scan. The isolated test passes; a full-gate rerun is pending."
+        "Current installed full run": "ACU 0.2.93 source checks passed (111 test processes), and client and Cursor integrations passed. live-fd failed at 53 to 60 descriptors (maximum 57). Microphone and voice stages were not reached.",
+        "Current isolated repeat": "The updated local test warmed the installed ACU 0.2.93 service, waited 5.5 seconds, and passed both tests in 6.616 seconds with ACU_ISLAND_ACTIVITY=0.",
+        "Source review": "SwiftNIO's local source defaults allowRemoteHalfClosure to false. SocketServer's RPC handler releases the connection count in channelInactive and handlerRemoved. The test's old half-close diagnosis is stale; no socket leak is confirmed.",
+        "Release test correction": "Live integration steps receive ACU_ISLAND_ACTIVITY=0 per repo policy. This alone did not remove the full-run failure.",
+        "Baseline evidence": "After the full run, the service held 60 lsof rows consistently across a 10-second idle sample. The full test began at 53 and ended at 60; delayed initialization is a plausible explanation, not yet confirmed."
       }
     },
     {

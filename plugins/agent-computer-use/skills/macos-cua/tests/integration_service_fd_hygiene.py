@@ -51,6 +51,14 @@ class LiveServiceFdHygieneTests(unittest.TestCase):
         self.pid = pids[0]
 
     def test_client_disconnects_do_not_leak_service_fds(self):
+        warmup = cua_client.CUAClient()
+        try:
+            warmup.connect(timeout=5)
+            self.assertIsInstance(warmup.call("list_apps", retry=False), list)
+        finally:
+            warmup.close()
+        # Let the 5 s island process scan finish before taking the leak baseline.
+        time.sleep(5.5)
         before = _fd_count(self.pid)
         for _ in range(CYCLES):
             client = cua_client.CUAClient()
@@ -61,10 +69,9 @@ class LiveServiceFdHygieneTests(unittest.TestCase):
             finally:
                 client.close()
         time.sleep(0.5)  # let NIO reap closed child channels
-        # The island's 5 s local-process scan can briefly hold pipe and file fds.
-        # Sample beyond that window; leaked descriptors do not shrink.
+        # The island's local-process scan can briefly hold pipe and file fds.
         after = _fd_count(self.pid)
-        for _ in range(12):
+        for _ in range(6):
             if after <= before + FD_SLACK:
                 break
             time.sleep(0.5)
