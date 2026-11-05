@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'python'))
 _ACTIVITY_DIR = tempfile.TemporaryDirectory(prefix="voice-cua-test-ledger-")
 os.environ["VOICE_CUA_ACTIVITY_LOG"] = str(Path(_ACTIVITY_DIR.name) / "activity.jsonl")
 from voice_cua.ledger_helper import LedgerHelper
+from voice_cua.ledger_transport import LedgerInvalidArgument
 
 class LedgerHelperTests(unittest.TestCase):
     def test_activity_log_is_redirected_to_a_temp_path(self):
@@ -40,6 +41,20 @@ class LedgerHelperTests(unittest.TestCase):
             self.assertEqual(r['decisions'], [self.match])
         self.assertEqual(self.transport.call.call_count, 1)
         self.assertEqual(self.transport.call.call_args.args[1]['caller_scope'], {'project': 'agent-plugins', 'tools': []})
+
+    def test_lookup_query_uses_need_before_generic_situation_and_respects_limit(self):
+        self.helper.run(operation='lookup', situation='how do I do it', need='saved email account preference')
+        args = self.transport.call.call_args.args[1]
+        self.assertEqual(args['query'], 'saved email account preference how do I do it')
+
+        self.helper.run(operation='lookup', situation='account ' * 30, need='preference ' * 20)
+        self.assertLessEqual(len(self.transport.call.call_args.args[1]['query']), 240)
+
+    def test_invalid_ledger_find_is_not_retryable(self):
+        self.transport.call.side_effect = LedgerInvalidArgument(message='stop-words alone match nothing')
+        result = self.helper.run(operation='lookup', situation='how do I do it', need='preference')
+        self.assertEqual(result['error_type'], 'ledger_invalid_argument')
+        self.assertFalse(result['retryable'])
 
     def test_empty_find_never_invents_a_match(self):
         self.transport.call.return_value = {'ok': True, 'data': {'matches': []}}

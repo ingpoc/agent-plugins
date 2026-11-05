@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.94 (2026-11-05)
+
+- Include the lookup need in Context Ledger searches and stop on rejected arguments.
+
 ## 0.2.93 (2026-11-05)
 
 - Restore the compact idle island pill to its original 74 pt width.

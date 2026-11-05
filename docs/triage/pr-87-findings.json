@@ -15,7 +15,7 @@
       "status": "untested",
       "observed": "After Samantha was closed, the menu-bar space remained and Codex did not move toward the Dynamic Island.",
       "recommendation": "Clear Samantha-owned activity, then compact the surviving plugin circles after the exit fade so Codex takes the nearest slot.",
-      "verification": "ACU 0.2.93 from PR head 776a1d5 is installed. The release checks did not exercise closing Samantha or observe Codex reflow, so that live behavior remains untested. Enable Samantha beside Codex, close by toggle and Quit, and inspect the 150 ms exit fade.",
+      "verification": "The source motion test passed on this worktree: `IslandHarnessMotionTests.testSamanthaExitReclaimsClosestHarnessSlotForCodex` (1 test). It verifies Codex takes Samantha's released harness slot after the exit fade model step. The installed menu-bar close/reflow behavior has not yet been exercised.",
       "evidence": [
         {
           "src": "assets/samantha-toggle-enabled.png",
@@ -30,10 +30,14 @@
       ],
       "details": {
         "Source change": "IslandHub clears Samantha-owned plugin rows and releases pending controls. IslandModel compacts surviving source-group slots after the 150 ms exit fade.",
-        "Source verification": "The repository gate passed, including the full Swift suite. Installed close/reflow acceptance remains pending.",
+        "Source verification": "`ACU_ISLAND_ACTIVITY=0 swift test --filter 'CUAServiceTests.IslandHarnessMotionTests/testSamanthaExitReclaimsClosestHarnessSlotForCodex'` — 1 passed. The test waits 250 ms and asserts Codex moves to the freed slot.",
         "Attribution": "User report; attached crops show toggle states, not a measured transition.",
-        "Installed verification": "The latest head was built and installed; client, Cursor, and FD integration checks passed. Samantha close/reflow was not part of those checks."
-      }
+        "Installed verification": "The latest head was built and installed; client, Cursor, and FD integration checks passed. Samantha close/reflow was not part of those checks.",
+        "Installed/live verification": "Pending ACU 0.2.94 installation and a real Samantha close/reflow observation. The screenshots remain toggle-state crops, not transition evidence."
+      },
+      "verification_refs": [
+        "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandHarnessMotionTests.swift — testSamanthaExitReclaimsClosestHarnessSlotForCodex passed (source test)."
+      ]
     },
     {
       "id": "USER-02",
@@ -42,12 +46,18 @@
       "status": "untested",
       "observed": "Samantha did not apply a relevant saved preference unless asked to consult Context Ledger.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "After installing the PR build, ask a related, harmless task without mentioning Context Ledger. Confirm the matching saved preference is applied and that Samantha reports any ledger error clearly.",
+      "verification": "The 31-test focused ledger suite passed. It confirms the voice system instructions direct proactive recall and the helper can return an exact scoped preference. No real user preference was read, and Samantha's installed voice/model behavior has not been exercised.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
-        "Source verification": "Ledger tests passed. User-specific preference recall has not been verified on the installed build.",
-        "Input privacy": "No preference value or original prompt is stored in this report."
-      }
+        "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
+        "Input privacy": "No preference value or original prompt is stored in this report.",
+        "Privacy boundary": "No personal ledger rows were read or written; tests use an in-memory transport.",
+        "Installed/live verification": "Pending an installed Samantha session where a real non-sensitive saved preference is used without naming Context Ledger."
+      },
+      "verification_refs": [
+        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
+        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — scoped lookups return only returned matching decision IDs; focused suite passes 31 tests."
+      ]
     },
     {
       "id": "USER-03",
@@ -56,13 +66,20 @@
       "status": "untested",
       "observed": "Durable preferences and important decisions should be captured when they are stated, then reused at the right time without reminders.",
       "recommendation": "Capture durable preferences in their exact scope and rule. Use the decision capture path for critical decisions, and confirm a save only after the ledger returns a receipt.",
-      "verification": "On the installed PR build, state one genuine non-sensitive preference, confirm the save receipt, then ask a related question later without a reminder. Check that it is recalled and used correctly.",
+      "verification": "The 31-test focused ledger suite passed. It verifies durable preference saves are grounded in a recent owner quote and require a receipt, and critical decision capture fails closed on missing gates. No personal ledger data was written; installed voice behavior remains untested.",
       "details": {
         "Source change": "The PR adds guidance for proactive preference capture and retrieval through the existing ledger_task tool.",
         "Supersession rule": "Updating a preference supersedes only an active user_decision with the same exact scope and rule. General captures do not auto-supersede; the current tool does not create an explicit supersedes link.",
-        "Source verification": "Ledger tests passed. Save, later readback, and correct application remain unverified live.",
-        "Input privacy": "The report does not include a preference value or decision content."
-      }
+        "Source verification": "Preference writes include exact scope+rule and return `saved` only with a decision ID. Critical capture checks require durable/model-safe status, a user quote, future trigger, changed choice, and receipt.",
+        "Input privacy": "The report does not include a preference value or decision content.",
+        "Supersession behavior": "Context Ledger's same-scope+rule user_decision behavior is the intended preference supersession path. General captures are explicitly not treated as superseding.",
+        "Privacy boundary": "Tests use mocks and temporary state; no personal ledger rows were read or written.",
+        "Installed/live verification": "Pending a real non-sensitive preference/decision test on the installed Samantha build."
+      },
+      "verification_refs": [
+        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — exact scope/rule/value preference save and recall pass.",
+        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — owner quote, durable capture gates, receipt, duplicate, and uncertain-write checks pass; focused suite passes 31 tests."
+      ]
     },
     {
       "id": "USER-04",
@@ -119,11 +136,12 @@
       "status": "untested",
       "observed": "The default island size appeared smaller after the idle width changed from 74 pt to 50 pt.",
       "recommendation": "Restore the original 74 pt idle width while keeping the 24 pt height and content-driven active widths unchanged.",
-      "verification": "ACU 0.2.93 from PR head 776a1d5 is installed and its source suite passed (111 test processes). The exact 74 × 24 pt idle size and active content-driven layout were not measured in the live menu bar, so visual acceptance remains untested.",
+      "verification": "The source geometry suite passed 13 tests, including the 74 pt idle baseline and voice-state width assertions. The installed menu-bar pill width has not yet been measured.",
       "details": {
         "Source change": "IslandBarLayout.idleWidth is restored from 50 pt to 74 pt; the focused IslandTests width check now expects 74 pt.",
-        "Source verification": "The focused 74 pt width test and latest repository gate passed (111 test processes).",
-        "Installed verification": "ACU 0.2.93 from PR head 776a1d5 was built and installed. A point measurement or fresh menu-bar crop is still pending."
+        "Source verification": "`ACU_ISLAND_ACTIVITY=0 swift test --filter 'CUAServiceTests.IslandVoiceSlotDesignTests'` — 13 passed. IslandBarLayout.idleWidth is 74 pt.",
+        "Installed verification": "ACU 0.2.93 from PR head 776a1d5 was built and installed. A point measurement or fresh menu-bar crop is still pending.",
+        "Installed/live verification": "Pending ACU 0.2.94 installation and a measured menu-bar screenshot."
       },
       "evidence": [
         {
@@ -131,6 +149,9 @@
           "alt": "Cropped user screenshot of the idle Dynamic Island pill",
           "caption": "User-provided crop; it shows the reported appearance but does not measure point width."
         }
+      ],
+      "verification_refs": [
+        "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandVoiceSlotDesignTests.swift — 13 tests passed; includes the 74 pt compact width assertions."
       ]
     },
     {
@@ -163,13 +184,22 @@
       "source": "Agent reported",
       "status": "investigation",
       "observed": "Agent telemetry reports repeated ledger_task failures. The latest Samantha activity also contains tool errors and repeated calls with different or unknown arguments.",
-      "recommendation": "Trace one harmless read and one preference recall through ledger_task, validate the arguments at the tool boundary, and keep retries bounded with a clear error result.",
-      "verification": "On the installed PR build, complete a harmless read and a preference recall. Confirm the tool arguments are valid, calls are not repeated unnecessarily, and a failed call does not claim a successful preference read.",
+      "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
+      "verification": "Source fix is in progress for ACU 0.2.94: lookup now searches concrete need plus situation within Context Ledger's 240-character limit, and invalid arguments are non-retryable. Focused ledger suite passed 31 tests. The fix is not installed yet, so live Samantha lookup, preference recall, and retry behavior remain unverified.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
-        "Attribution limit": "The tool arguments were not captured and these events are not linked to the user's preference test. Root cause and recovery are unconfirmed."
-      }
+        "Attribution limit": "The tool arguments were not captured and these events are not linked to the user's preference test. Root cause and recovery are unconfirmed.",
+        "Observability snapshot": "9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918, generated 2026-11-05T17:48:42Z. The latest Context Ledger `find needs query words` error was from ACU 0.2.92; 7 retry records span Nov 4–5 and are not linked to a PR test session.",
+        "Source fix": "Use `need` before `situation` in the Context Ledger query, cap at 240 characters, and return `ledger_invalid_argument` as non-retryable. Tool and system instructions now require stopping instead of repeating with reworded arguments.",
+        "Source verification": "`python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p 'test_ledger_*.py' -v` — 31 passed. The new tests failed before the source change and passed after it.",
+        "Installed/live verification": "Pending PR update, ACU 0.2.94 install, and a harmless lookup/retrieval check. No user ledger data was read or written.",
+        "Initial release gate attempt": "`python3 scripts/check.py` stopped before tests because the ACU 0.2.94 root/Cursor manifests were not aligned with the Claude/Grok manifests (still 0.2.93). Both manifests are now aligned at 0.2.94; the full gate will be rerun."
+      },
+      "verification_refs": [
+        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — 18 tests passed, including concrete query composition and non-retryable invalid requests.",
+        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — verifies proactive recall/save instructions and ledger tool guidance."
+      ]
     },
     {
       "id": "OBS-01",
@@ -178,13 +208,19 @@
       "status": "investigation",
       "observed": "Developer Observability reports several slow voice and audio stages. These are leads, not confirmed user-facing latency defects.",
       "recommendation": "Trace a fresh, short voice interaction end to end and optimize only the stage that remains slow in a linked run.",
-      "verification": "Record voice start, audio-ready, first playback, and completion timings for one fresh installed-build session. Compare them to an agreed product target before calling the result fixed.",
+      "verification": "Fresh snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 reports speech-to-playback p95 14.8 s (p50 2.4 s, n=74, collector threshold 1.0 s). These aggregate observations are not linked to a controlled PR-build task, and the collector threshold is not an agreed product target.",
       "details": {
         "Latest metrics": "Speech-to-playback p95 14.8 s (p50 2.4 s, n=74); audio_ready p95 5.9 s (p50 249 ms, n=10); usage p95 4.5 s (p50 2.0 s, n=92).",
         "Threshold note": "The collector's 1.0 s threshold is an investigation signal, not a user-facing SLA. One aggregate speech-to-playback maximum is a 1,086.6 s outlier and needs run-level correlation.",
         "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Source coverage is partial; no metric is linked to a current acceptance run.",
-        "Latest acceptance attempt": "ACU 0.2.93 microphone preflight returned no input device (text-only mode). The release script stopped before voice smoke, so no current-run audio latency was measured."
-      }
+        "Latest acceptance attempt": "ACU 0.2.93 microphone preflight returned no input device (text-only mode). The release script stopped before voice smoke, so no current-run audio latency was measured.",
+        "Telemetry provenance": "Latest latency event is 2026-11-05T11:27:49Z. The aggregate includes multiple sessions and does not identify an accepted PR build or a user-facing target.",
+        "Decision": "No latency optimization was made without a linked stage trace and agreed target.",
+        "Installed/live verification": "A fresh voice session needs a working microphone; the prior release preflight found no input device."
+      },
+      "verification_refs": [
+        "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-4b548ad9ff94ce26`, speech-to-playback p95 14.842 s, p50 2.379 s, n=74; acceptance not assessed."
+      ]
     },
     {
       "id": "OBS-02",
@@ -193,12 +229,18 @@
       "status": "investigation",
       "observed": "Telemetry shows connection and microphone-preflight delays, alongside no-input-device failures that may be environmental.",
       "recommendation": "Measure a fresh startup with a known available microphone and separate device preflight from the connection and audio-ready stages.",
-      "verification": "Repeat startup on the installed build with a confirmed microphone. Link stage timings and any failure to the same run before changing startup behavior.",
+      "verification": "Fresh snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 reports audio_ready p95 5.9 s (p50 249 ms, n=10), mic_preflight p95 2.9 s (p50 0, n=19), and realtime websocket open p95 1.9 s (p50 1.3 s, n=23). These are not measurements from one controlled current-build startup.",
       "details": {
         "Latest metrics": "realtime_ws_open p95 1.9 s (p50 1.3 s, n=23); mic_preflight p95 2.9 s (p50 0 ms, n=19); audio_ready p95 5.9 s (p50 249 ms, n=10).",
         "Environment signal": "The collector also recorded 9 no_input_device preflight failures. This does not establish a Samantha startup regression.",
-        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Product latency targets and current-build reproduction are not established."
-      }
+        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Product latency targets and current-build reproduction are not established.",
+        "Telemetry provenance": "The latest audio_ready sample mentions an iPhone microphone resampling from 48 kHz to 24 kHz. The event is not sufficient to attribute the delay to the app or device.",
+        "Decision": "No startup optimization was made without a controlled installed-build run and confirmed input device.",
+        "Installed/live verification": "Pending microphone preflight and linked stage timings on one current-build run."
+      },
+      "verification_refs": [
+        "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-a38ca20708a7afc7`, `col-564ee538dc6b73d0`, and `col-1a7d1a5e67d26ce4`; acceptance not assessed."
+      ]
     },
     {
       "id": "OBS-03",
@@ -207,11 +249,17 @@
       "status": "investigation",
       "observed": "Four recorded Comet-assisted turns took 13.6–16.8 seconds. They are not linked to the latest installed build.",
       "recommendation": "Repeat one representative browser task and trace Samantha and Comet timings together before selecting a fix.",
-      "verification": "Use one fresh browser task with correlated Samantha and Comet timing. Confirm the outcome independently and compare only against an agreed target.",
+      "verification": "Fresh snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 includes a 14.9 s turn whose slowest tool was `comet_act`. It is not linked to a controlled current-build browser task or an agreed latency target.",
       "details": {
         "Telemetry evidence": "Four historical turns exceeded 10 seconds; the slowest was 16.8 seconds. Session identifiers are omitted.",
-        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. These events do not establish current-build performance or a root cause."
-      }
+        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. These events do not establish current-build performance or a root cause.",
+        "Telemetry provenance": "Latest observed Comet-assisted turn ended at 2026-11-05T11:25:53Z. Samantha and Comet stage timings are not joined to a controlled acceptance task.",
+        "Decision": "No Comet or Samantha optimization was made without a repeatable task, correlated timings, and target.",
+        "Installed/live verification": "Pending one fresh browser task with independent outcome verification."
+      },
+      "verification_refs": [
+        "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-ac4bbcffb50cc0cd`, 14.9 s Comet-assisted turn; acceptance not assessed."
+      ]
     },
     {
       "id": "OBS-04",
@@ -220,12 +268,19 @@
       "status": "investigation",
       "observed": "Samantha telemetry reports voice_slot outside the island on three events and eight island_layout failures. The records are not linked to a fresh close or resize test.",
       "recommendation": "Repeat voice, close, and resize checks on the installed PR build, then compare the linked layout measurements with the source result.",
-      "verification": "Record the installed version, run identity, and measured controls/circle bounds. Confirm every control stays inside the island through open, resize, and close.",
+      "verification": "The source layout suite passed 16 tests covering voice transitions and controls/apps staying inside the pill. Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 shows the reported overflow/layout events came from ACU 0.2.89, 0.2.91, and 0.2.92; no fresh 0.2.94 live voice run exists.",
       "details": {
         "Latest telemetry": "Three voice_slot boundary events reported a maximum of 30.0 pt; eight island_layout failures were recorded.",
         "Attribution limit": "The observability snapshot does not link these records to the user's close/reflow report or a controlled resize run. Root cause is unconfirmed.",
-        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Samantha source coverage is partial."
-      }
+        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Samantha source coverage is partial.",
+        "Source verification": "`ACU_ISLAND_ACTIVITY=0 swift test --filter 'CUAServiceTests.IslandVoiceAppsInsideTests'` — 16 passed, including every voice transition geometry and voice controls/apps inside the pill.",
+        "Telemetry provenance": "The 3 voice_slot overflow rows are versioned 0.2.91 (1) and 0.2.92 (2); 8 island_layout failures are versioned 0.2.89 (2), 0.2.91 (1), and 0.2.92 (5). These rows are not linked to a controlled close/resize run.",
+        "Installed/live verification": "Pending a fresh installed-build voice, resize, and close run with measured control and circle bounds. Microphone availability is not established."
+      },
+      "verification_refs": [
+        "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandVoiceAppsInsideTests.swift — 16 tests passed for in-pill geometry and transitions.",
+        "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — voice_slot overflow 3x (max 30 pt) and island_layout failures 8x, latest 0.2.92."
+      ]
     }
   ]
 }

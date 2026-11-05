@@ -35,6 +35,12 @@ def test_preferences_and_recall_without_helper(tmp_path):
     assert 'proactively' in SYSTEM_INSTRUCTIONS
     assert 'same scope and rule' in SYSTEM_INSTRUCTIONS
     assert 'do not wait for the user to ask' in SYSTEM_INSTRUCTIONS
+    ledger_tool = next(tool for tool in tool_definitions() if tool['name'] == 'ledger_task')
+    assert 'search uses both need and situation' in ledger_tool['description']
+    assert 'non-retryable' in ledger_tool['description']
+    skill = (Path(__file__).resolve().parents[3] / 'skills/macos-cua/SKILL.md').read_text()
+    assert 'the helper searches both `need` and `situation`' in skill
+    assert '`ledger_invalid_argument` is non-retryable' in skill
 
 
 def test_preference_normalizes_scope_and_rule_before_lookup_or_save(tmp_path):

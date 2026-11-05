@@ -60,7 +60,7 @@ def _project_named(project: str, text: str) -> bool:
 
 
 def _invalid(error: str) -> dict[str, Any]:
-    return {'ok': False, 'error': error, 'error_type': 'ledger_invalid_argument', 'retryable': True}
+    return {'ok': False, 'error': error, 'error_type': 'ledger_invalid_argument', 'retryable': False}
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -190,7 +190,8 @@ class LedgerHelper:
             write_started = False
             try:
                 if cache_key not in self._cache or time.monotonic() - self._cache[cache_key][0] > 30:
-                    found = self.transport.call('find', {'query': situation, 'actor': 'samantha',
+                    query = ' '.join(f'{need} {situation}'.split())[:240]
+                    found = self.transport.call('find', {'query': query, 'actor': 'samantha',
                         'task_id': task_id, 'caller_scope': scope, 'limit': 3})
                     if not found.get('ok'):
                         raise LedgerUnavailable('lookup failed')
