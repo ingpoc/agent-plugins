@@ -295,10 +295,12 @@
       "status": "investigation",
       "observed": "Error clusters need individual error evidence to distinguish occurrences.",
       "recommendation": "Commit 8feeffe adds occurrence evidence and source tests; verify individual errors in the installed client.",
-      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
-        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
+        "Installed build check": "PR code commit e514102: Developer Observability 0.1.12 installed via Codex personal marketplace; installed package matches source. Fresh MCP process listed observability_sessions, collected current data, returned 24 Samantha sessions and 48 stages for the latest session, and inspected the ledger issue. ACU 0.2.95 installed; source, signature, client, Cursor, FD and microphone checks passed. Voice smoke did not prove fresh input or completed action.",
+        "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
@@ -311,10 +313,12 @@
       "status": "investigation",
       "observed": "Diagnostic events need trustworthy session and build attribution, including explicit uncertainty.",
       "recommendation": "Commit 8feeffe adds attribution and inference safeguards with source tests; verify attribution in an installed session.",
-      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
-        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
+        "Installed build check": "PR code commit e514102: Developer Observability 0.1.12 installed via Codex personal marketplace; installed package matches source. Fresh MCP process listed observability_sessions, collected current data, returned 24 Samantha sessions and 48 stages for the latest session, and inspected the ledger issue. ACU 0.2.95 installed; source, signature, client, Cursor, FD and microphone checks passed. Voice smoke did not prove fresh input or completed action.",
+        "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
@@ -327,10 +331,12 @@
       "status": "investigation",
       "observed": "Layout failures need geometry details to diagnose the affected bounds.",
       "recommendation": "Commit 8feeffe exposes layout occurrence details with source tests; verify details against a controlled installed layout event.",
-      "verification": "Installed-client verification and live acceptance are pending. Source changes or tests alone do not establish a fix.",
+      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
-        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence."
+        "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
+        "Installed build check": "PR code commit e514102: Developer Observability 0.1.12 installed via Codex personal marketplace; installed package matches source. Fresh MCP process listed observability_sessions, collected current data, returned 24 Samantha sessions and 48 stages for the latest session, and inspected the ledger issue. ACU 0.2.95 installed; source, signature, client, Cursor, FD and microphone checks passed. Voice smoke did not prove fresh input or completed action.",
+        "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
@@ -343,12 +349,14 @@
       "status": "investigation",
       "observed": "Slow sessions need a timeline of stage latencies to locate delays.",
       "recommendation": "Expose a bounded session timeline with stage durations, outcomes and build attribution; use unknown when a stage is not instrumented.",
-      "verification": "Source implementation and tests pass; candidate collector produced a session timeline from local data. Installed-client verification remains pending.",
+      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
         "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
         "Current implementation": "Developer Observability 0.1.12 adds observability_sessions with opaque session selection and bounded stage records. Only emitted durations are available.",
-        "Verification": "Combined focused suite: 107 passed, 2 skipped. Candidate collector ran against local sources; installed client and controlled live session remain pending."
+        "Verification": "Combined focused suite: 107 passed, 2 skipped. Candidate collector ran against local sources; installed client and controlled live session remain pending.",
+        "Installed build check": "PR code commit e514102: Developer Observability 0.1.12 installed via Codex personal marketplace; installed package matches source. Fresh MCP process listed observability_sessions, collected current data, returned 24 Samantha sessions and 48 stages for the latest session, and inspected the ledger issue. ACU 0.2.95 installed; source, signature, client, Cursor, FD and microphone checks passed. Voice smoke did not prove fresh input or completed action.",
+        "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
@@ -361,12 +369,14 @@
       "status": "investigation",
       "observed": "Ledger diagnostics need operation metadata without exposing preference or decision content.",
       "recommendation": "Emit allowlisted ledger operation, failure category and correlation IDs without recording query, preference or raw error content.",
-      "verification": "Source implementation and privacy tests pass. Samantha 0.2.95 and Developer Observability 0.1.12 have not yet been installed and verified together.",
+      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
         "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
         "Current implementation": "Samantha emits allowlisted operation and category with call/response IDs; collector hashes IDs and only exposes allowlisted values.",
-        "Verification": "Combined focused suite: 107 passed, 2 skipped. A fresh installed Samantha interaction is required to prove end-to-end capture."
+        "Verification": "Combined focused suite: 107 passed, 2 skipped. A fresh installed Samantha interaction is required to prove end-to-end capture.",
+        "Installed build check": "PR code commit e514102: Developer Observability 0.1.12 installed via Codex personal marketplace; installed package matches source. Fresh MCP process listed observability_sessions, collected current data, returned 24 Samantha sessions and 48 stages for the latest session, and inspected the ledger issue. ACU 0.2.95 installed; source, signature, client, Cursor, FD and microphone checks passed. Voice smoke did not prove fresh input or completed action.",
+        "Remaining acceptance": "A fresh Samantha ledger interaction is required to verify the new producer fields end to end."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
