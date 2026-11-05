@@ -43,20 +43,31 @@
       "id": "USER-02",
       "title": "Samantha did not retrieve a relevant Context Ledger preference automatically",
       "source": "User reported",
-      "status": "untested",
+      "status": "awaiting_verification",
       "observed": "Samantha did not apply a relevant saved preference unless asked to consult Context Ledger.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "The 31-test focused ledger suite passed. It confirms the voice system instructions direct proactive recall and the helper can return an exact scoped preference. No real user preference was read, and Samantha's installed voice/model behavior has not been exercised.",
+      "verification": "The latest candidate session has two successful Context Ledger lookups, but no query or returned preference content. It cannot establish whether Samantha retrieved or used the relevant preference. Session link to the user's Netflix test is inferred; awaiting direct outcome verification.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
         "Input privacy": "No preference value or original prompt is stored in this report.",
         "Privacy boundary": "No personal ledger rows were read or written; tests use an in-memory transport.",
-        "Installed/live verification": "Pending an installed Samantha session where a real non-sensitive saved preference is used without naming Context Ledger."
+        "Installed/live verification": "Pending an installed Samantha session where a real non-sensitive saved preference is used without naming Context Ledger.",
+        "Latest live evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations succeeded. Query and result content are not captured, so preference relevance remains unknown."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — scoped lookups return only returned matching decision IDs; focused suite passes 31 tests."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Context Ledger preference retrieval in latest candidate session",
+          "outcome": "Two lookup events succeeded, but telemetry contains no query or returned preference; cannot verify whether the relevant preference was retrieved or used.",
+          "build": "ACU 0.2.95 (session_inferred)",
+          "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
+          "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
+          "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        }
       ]
     },
     {
@@ -182,10 +193,10 @@
       "id": "AGENT-02",
       "title": "Samantha's Context Ledger task errors and retries",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "verified_fixed",
       "observed": "Agent telemetry reports repeated ledger_task failures. The latest Samantha activity also contains tool errors and repeated calls with different or unknown arguments.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "Developer Observability recorded one new ledger_task error attributed to ACU 0.2.94 at 2026-11-05 19:05:38 UTC. The issue remains under investigation; the collector provides a historical first error excerpt and does not expose the new event's arguments or exact message.",
+      "verification": "Installed ACU 0.2.95 candidate session shows two ledger_task lookup calls succeeding with no ledger error or retry in the 37-event timeline, after the earlier ACU 0.2.94 failure. Existing focused source tests cover the rejected-query/no-retry path. Marked fixed for ledger task errors and retries; preference retrieval relevance remains open under USER-02.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
@@ -198,11 +209,22 @@
         "PR state": "PR #87 head 4d7e8ea. Pre-push gate passed: diff check, ruff, py_compile, and `scripts/check.py --validate-only`.",
         "Installed verification": "Release report /tmp/acu-pr87-verify.json: source checks, signature, live-client, live-cursor, live-fd, and fresh MCP independent readback passed. Microphone preflight returned no input device; voice smoke was not reached.",
         "Initial install attempt": "Build, install, sync and signature passed; the first runtime contract call returned a missing-file error. An immediate independent runtime contract check passed; the installed verification then reached microphone preflight.",
-        "Latest test evidence": "Snapshot a388ea974760123cd5a6d1f87851e8243b1cad33061a41c75f06a03d19225cd3: issue col-6a58cb9cddd82ad5 has one new failure in 0.2.94 at 19:05:38 UTC. The first-error excerpt refers to the grouped history, so its exact applicability to the new failure is unknown."
+        "Latest test evidence": "Snapshot a388ea974760123cd5a6d1f87851e8243b1cad33061a41c75f06a03d19225cd3: issue col-6a58cb9cddd82ad5 has one new failure in 0.2.94 at 19:05:38 UTC. The first-error excerpt refers to the grouped history, so its exact applicability to the new failure is unknown.",
+        "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations completed successfully, with no ledger error or retry event in this session. ACU version attribution is session-inferred. This validates the tool error/retry path at the installed version, not the returned preference content."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — 18 tests passed, including concrete query composition and non-retryable invalid requests.",
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — verifies proactive recall/save instructions and ledger tool guidance."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Installed Context Ledger lookup error/retry validation",
+          "outcome": "Two ledger lookups succeeded and no error/retry event appeared in the candidate session. This validates the installed lookup path; exact query/result is unavailable and user preference relevance is not proven.",
+          "build": "ACU 0.2.95 (session_inferred)",
+          "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
+          "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
+          "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        }
       ]
     },
     {
@@ -212,18 +234,29 @@
       "status": "investigation",
       "observed": "Developer Observability reports several slow voice and audio stages. These are leads, not confirmed user-facing latency defects.",
       "recommendation": "Trace a fresh, short voice interaction end to end and optimize only the stage that remains slow in a linked run.",
-      "verification": "Fresh snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 reports speech-to-playback p95 14.8 s (p50 2.4 s, n=74, collector threshold 1.0 s). These aggregate observations are not linked to a controlled PR-build task, and the collector threshold is not an agreed product target.",
+      "verification": "Fresh snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5 reports speech-to-playback p95 13.7 s (p50 2.4 s, n=92). The candidate session has individual samples of 1.497–3.237 s, but its link to the reported task is inferred and the collector threshold is not a product SLA. Aggregate tail latency remains open.",
       "details": {
-        "Latest metrics": "Speech-to-playback p95 14.8 s (p50 2.4 s, n=74); audio_ready p95 5.9 s (p50 249 ms, n=10); usage p95 4.5 s (p50 2.0 s, n=92).",
+        "Latest metrics": "Speech-to-playback p95 13.7 s (p50 2.4 s, n=92); audio_ready p95 5.9 s (p50 249 ms, n=12); usage p95 4.6 s (p50 2.1 s, n=114).",
         "Threshold note": "The collector's 1.0 s threshold is an investigation signal, not a user-facing SLA. One aggregate speech-to-playback maximum is a 1,086.6 s outlier and needs run-level correlation.",
         "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Source coverage is partial; no metric is linked to a current acceptance run.",
         "Latest acceptance attempt": "ACU 0.2.93 microphone preflight returned no input device (text-only mode). The release script stopped before voice smoke, so no current-run audio latency was measured.",
         "Telemetry provenance": "Latest latency event is 2026-11-05T11:27:49Z. The aggregate includes multiple sessions and does not identify an accepted PR build or a user-facing target.",
         "Decision": "No latency optimization was made without a linked stage trace and agreed target.",
-        "Installed/live verification": "A fresh voice session needs a working microphone; the prior release preflight found no input device."
+        "Installed/live verification": "A fresh voice session needs a working microphone; the prior release preflight found no input device.",
+        "Latest candidate session": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: observed speech-to-playback samples ranged 1.497–3.237 s. The exact Netflix task is not linked."
       },
       "verification_refs": [
         "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-4b548ad9ff94ce26`, speech-to-playback p95 14.842 s, p50 2.379 s, n=74; acceptance not assessed."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Latest candidate voice latency sample",
+          "outcome": "Speech-to-playback samples ranged 1.497–3.237 s in the candidate session; aggregate p95 remains 13.7 s across 92 events. No agreed user-facing target or explicit task link.",
+          "build": "ACU 0.2.95 (session_inferred)",
+          "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
+          "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
+          "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        }
       ]
     },
     {
@@ -233,7 +266,7 @@
       "status": "investigation",
       "observed": "Telemetry shows connection and microphone-preflight delays, alongside no-input-device failures that may be environmental.",
       "recommendation": "Measure a fresh startup with a known available microphone and separate device preflight from the connection and audio-ready stages.",
-      "verification": "Fresh snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 reports audio_ready p95 5.9 s (p50 249 ms, n=10), mic_preflight p95 2.9 s (p50 0, n=19), and realtime websocket open p95 1.9 s (p50 1.3 s, n=23). These are not measurements from one controlled current-build startup.",
+      "verification": "Fresh snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5 reports websocket-open p95 1.9 s (p50 1.3 s, n=25) and audio_ready p95 5.9 s (p50 249 ms, n=12). The candidate session shows mic_preflight success, websocket open 969 ms, and audio_ready 149 ms, but the candidate task link is inferred and one run does not resolve the aggregate tails.",
       "details": {
         "Latest metrics": "realtime_ws_open p95 1.9 s (p50 1.3 s, n=23); mic_preflight p95 2.9 s (p50 0 ms, n=19); audio_ready p95 5.9 s (p50 249 ms, n=10).",
         "Environment signal": "The collector also recorded 9 no_input_device preflight failures. This does not establish a Samantha startup regression.",
@@ -241,10 +274,21 @@
         "Telemetry provenance": "The latest audio_ready sample mentions an iPhone microphone resampling from 48 kHz to 24 kHz. The event is not sufficient to attribute the delay to the app or device.",
         "Decision": "No startup optimization was made without a controlled installed-build run and confirmed input device.",
         "Installed/live verification": "Pending microphone preflight and linked stage timings on one current-build run.",
-        "Latest startup evidence": "Snapshot a388ea974760123cd5a6d1f87851e8243b1cad33061a41c75f06a03d19225cd3 includes a new audio_ready sample at 2026-11-05 19:03:06 UTC. The aggregate p50 is 272 ms and p95 5.9 s across 11 samples; the new sample's individual duration is not available in the issue summary."
+        "Latest startup evidence": "Snapshot a388ea974760123cd5a6d1f87851e8243b1cad33061a41c75f06a03d19225cd3 includes a new audio_ready sample at 2026-11-05 19:03:06 UTC. The aggregate p50 is 272 ms and p95 5.9 s across 11 samples; the new sample's individual duration is not available in the issue summary.",
+        "Latest candidate startup": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: mic_preflight succeeded, websocket open took 969 ms and audio_ready took 149 ms. Version and test linkage are session-inferred."
       },
       "verification_refs": [
         "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-a38ca20708a7afc7`, `col-564ee538dc6b73d0`, and `col-1a7d1a5e67d26ce4`; acceptance not assessed."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Latest candidate startup stages",
+          "outcome": "mic_preflight succeeded; websocket open was 969 ms and audio_ready was 149 ms. Aggregate p95s remain elevated and this single candidate session does not establish a product latency target.",
+          "build": "ACU 0.2.95 (session_inferred)",
+          "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
+          "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
+          "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        }
       ]
     },
     {
@@ -254,16 +298,27 @@
       "status": "investigation",
       "observed": "Four recorded Comet-assisted turns took 13.6–16.8 seconds. They are not linked to the latest installed build.",
       "recommendation": "Repeat one representative browser task and trace Samantha and Comet timings together before selecting a fix.",
-      "verification": "Fresh snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 includes a 14.9 s turn whose slowest tool was `comet_act`. It is not linked to a controlled current-build browser task or an agreed latency target.",
+      "verification": "The latest candidate session has one successful comet_act event, but its duration and action/result are unknown. This does not establish Netflix success or browser-turn latency; historical slow Comet-assisted turns remain unresolved.",
       "details": {
         "Telemetry evidence": "Four historical turns exceeded 10 seconds; the slowest was 16.8 seconds. Session identifiers are omitted.",
         "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. These events do not establish current-build performance or a root cause.",
         "Telemetry provenance": "Latest observed Comet-assisted turn ended at 2026-11-05T11:25:53Z. Samantha and Comet stage timings are not joined to a controlled acceptance task.",
         "Decision": "No Comet or Samantha optimization was made without a repeatable task, correlated timings, and target.",
-        "Installed/live verification": "Pending one fresh browser task with independent outcome verification."
+        "Installed/live verification": "Pending one fresh browser task with independent outcome verification.",
+        "Latest candidate browser evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: one comet_act success, with no duration or result in the bounded timeline. The link to the user-reported Netflix test is inferred."
       },
       "verification_refs": [
         "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-ac4bbcffb50cc0cd`, 14.9 s Comet-assisted turn; acceptance not assessed."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Latest candidate Comet browser stage",
+          "outcome": "One comet_act event succeeded, but duration and action/result were not emitted. Cannot assess Netflix task success or browser-turn latency.",
+          "build": "ACU 0.2.95 (session_inferred)",
+          "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
+          "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
+          "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        }
       ]
     },
     {
@@ -313,15 +368,26 @@
       "status": "investigation",
       "observed": "Diagnostic events need trustworthy session and build attribution, including explicit uncertainty.",
       "recommendation": "Commit 8feeffe adds attribution and inference safeguards with source tests; verify attribution in an installed session.",
-      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
+      "verification": "The latest candidate live session is selectable by opaque session ref and reports ACU 0.2.95 with session_inferred attribution. That is useful but not direct event-level build attribution, and the user's task/result is not explicitly joined; this finding remains under investigation.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
         "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
         "Installed build check": "PR code commit e514102: Developer Observability 0.1.12 installed via Codex personal marketplace; installed package matches source. Fresh MCP process listed observability_sessions, collected current data, returned 24 Samantha sessions and 48 stages for the latest session, and inspected the ledger issue. ACU 0.2.95 installed; source, signature, client, Cursor, FD and microphone checks passed. Voice smoke did not prove fresh input or completed action.",
-        "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed."
+        "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed.",
+        "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: opaque session ref is available; build attribution is session_inferred. The candidate link to the Netflix test is not explicit."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Installed session and build attribution",
+          "outcome": "The session has an opaque reference and reports ACU 0.2.95 as session_inferred. Direct event-level build and task-result linkage remain absent.",
+          "build": "ACU 0.2.95 (session_inferred)",
+          "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
+          "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
+          "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        }
       ]
     },
     {
@@ -346,40 +412,90 @@
       "id": "OBS-08",
       "title": "Session stage latency timeline",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "verified_fixed",
       "observed": "Slow sessions need a timeline of stage latencies to locate delays.",
       "recommendation": "Expose a bounded session timeline with stage durations, outcomes and build attribution; use unknown when a stage is not instrumented.",
-      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
+      "verification": "Installed live session sref_3be882a84bf77eafe3dc0becd04d5057 returned a bounded 37-event stage timeline with durations and outcomes where emitted, plus explicit unknowns, across voice, Comet, Ledger and response stages. The session build is inferred; missing task/result linkage is tracked separately under OBS-10.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
         "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
         "Current implementation": "Developer Observability 0.1.12 adds observability_sessions with opaque session selection and bounded stage records. Only emitted durations are available.",
         "Verification": "Combined focused suite: 107 passed, 2 skipped. Candidate collector ran against local sources; installed client and controlled live session remain pending.",
         "Installed build check": "PR code commit e514102: Developer Observability 0.1.12 installed via Codex personal marketplace; installed package matches source. Fresh MCP process listed observability_sessions, collected current data, returned 24 Samantha sessions and 48 stages for the latest session, and inspected the ledger issue. ACU 0.2.95 installed; source, signature, client, Cursor, FD and microphone checks passed. Voice smoke did not prove fresh input or completed action.",
-        "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed."
+        "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed.",
+        "Latest live validation": "Developer Observability 0.1.12 returned the installed-session timeline from snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5. The stage timeline is verified; task/result attribution is not part of this finding."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Installed session stage timeline",
+          "outcome": "A 37-event bounded timeline returned stage names, available durations/outcomes, unknowns, voice/comet/ledger/response stages and session attribution. Timeline feature verified; task/result linkage remains open separately.",
+          "build": "ACU 0.2.95 (session_inferred)",
+          "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
+          "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
+          "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        }
       ]
     },
     {
       "id": "OBS-09",
       "title": "Privacy-safe ledger operation metadata",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "verified_fixed",
       "observed": "Ledger diagnostics need operation metadata without exposing preference or decision content.",
       "recommendation": "Emit allowlisted ledger operation, failure category and correlation IDs without recording query, preference or raw error content.",
-      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
+      "verification": "In installed live session sref_3be882a84bf77eafe3dc0becd04d5057, two ledger lookup events exposed the allowlisted operation, successful outcome and opaque call/response references without exposing query or preference content. Privacy-safe ledger metadata is verified; preference relevance remains open under USER-02.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
         "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
         "Current implementation": "Samantha emits allowlisted operation and category with call/response IDs; collector hashes IDs and only exposes allowlisted values.",
         "Verification": "Combined focused suite: 107 passed, 2 skipped. A fresh installed Samantha interaction is required to prove end-to-end capture.",
         "Installed build check": "PR code commit e514102: Developer Observability 0.1.12 installed via Codex personal marketplace; installed package matches source. Fresh MCP process listed observability_sessions, collected current data, returned 24 Samantha sessions and 48 stages for the latest session, and inspected the ledger issue. ACU 0.2.95 installed; source, signature, client, Cursor, FD and microphone checks passed. Voice smoke did not prove fresh input or completed action.",
-        "Remaining acceptance": "A fresh Samantha ledger interaction is required to verify the new producer fields end to end."
+        "Remaining acceptance": "A fresh Samantha ledger interaction is required to verify the new producer fields end to end.",
+        "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two lookup events report operation=lookup, success and opaque call/response refs. No query or preference values appeared in the observability output."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Installed privacy-safe ledger metadata",
+          "outcome": "Two live lookup events exposed allowlisted operation, success and opaque correlation refs without query or preference content. Metadata capture verified; retrieved preference relevance remains unknown.",
+          "build": "ACU 0.2.95 (session_inferred)",
+          "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
+          "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
+          "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        }
+      ]
+    },
+    {
+      "id": "OBS-10",
+      "title": "Session telemetry cannot confirm the task result",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "The latest candidate Samantha session includes a successful Comet action and completed responses, but the trace has no task label, action result, or independent app postcondition. The user's Netflix test therefore cannot be assessed from telemetry.",
+      "recommendation": "Add privacy-safe run correlation from a user-confirmed test to its session and installed build, tool outcome, and independent UI postcondition. Keep transcripts and page content out, and report unknown when proof is unavailable.",
+      "verification": "Fresh snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5 shows a 37-event session on ACU 0.2.95 with one successful comet_act and completed voice responses. The session is the latest candidate matching the browser path, but its link to the user's Netflix test is inferred; no Netflix result is captured.",
+      "details": {
+        "Evidence gap": "The bounded timeline exposes stage names, durations, outcomes and opaque references. It does not expose the user task label, browser action details or final app state. Candidate session: sref_3be882a84bf77eafe3dc0becd04d5057.",
+        "Acceptance": "A controlled installed-build browser task must have an explicit safe run/session/build link, an operation category, a tool outcome, and an independently observed app postcondition. Do not record request text, page content, preferences or decisions.",
+        "Attribution limit": "The user said they tested with Netflix. The session match is based on recency and its Comet action; there is no explicit run ID joining them."
+      },
+      "evidence": [],
+      "verification_refs": [
+        "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; session sref_3be882a84bf77eafe3dc0becd04d5057 (candidate correlation only)."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Netflix test outcome attribution",
+          "outcome": "Latest candidate session contains a successful Comet action and completed responses, but no task label, action result, or app postcondition. The Netflix outcome remains unknown.",
+          "build": "ACU 0.2.95 (session_inferred)",
+          "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
+          "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
+          "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        }
       ]
     }
   ]
