@@ -26,6 +26,17 @@ PACKAGE = 'plugins/agent-computer-use'
 APP = Path('/Applications/Agent Computer Use.app')
 
 
+def microphone_readiness():
+    try:
+        import sounddevice
+        device = sounddevice.default.device[0]
+    except Exception:
+        return 'unknown'
+    if not isinstance(device, int):
+        return 'unknown'
+    return 'unavailable' if device < 0 else 'available'
+
+
 def output(command, *, root=ROOT):
     return subprocess.check_output(command, cwd=root, text=True).strip()
 
@@ -268,7 +279,10 @@ def release(args, root=ROOT):
         report.update({'commit':head,'branch':output(['git','branch','--show-current'],root=root),
                        'worktrees':output(['git','worktree','list','--porcelain'],root=root), **policy(root,base=os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or 'refs/remotes/origin/main')})
         report['hygiene'] = hygiene_gate(getattr(args,'hygiene_override',False),report)
+        report['microphone_readiness'] = microphone_readiness()
         save()
+        if report['microphone_readiness'] == 'unavailable':
+            raise RuntimeError('no default microphone input device; connect or enable one before release')
         module = contract_module(root)
         identity = module.package_identity(root/PACKAGE)
         report['identity'] = identity

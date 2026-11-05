@@ -6,6 +6,7 @@ from pathlib import Path
 import plistlib
 import subprocess
 import tempfile
+import types
 import unittest
 from unittest.mock import Mock, patch
 
@@ -110,7 +111,7 @@ class ReleaseTests(unittest.TestCase):
             with release.exclusive_release(path):
                 pass
 
-    def run_release(self, directory, *, source_exit=0, sign_only=False):
+    def run_release(self, directory, *, source_exit=0, sign_only=False, readiness='available'):
         args = argparse.Namespace(report=Path(directory)/'receipt.json',
                                   verify_installed=True,sign_only=sign_only,hygiene_override=False)
         identity = {'version':'0.2.32','sha256':'fingerprint'}
@@ -126,6 +127,7 @@ class ReleaseTests(unittest.TestCase):
             return Mock(returncode=source_exit if command[-1:] == ['scripts/check.py'] else 0)
         with patch.object(release,'output',side_effect=output), \
              patch.object(release,'hygiene_gate',return_value={'checked':False}), \
+             patch.object(release,'microphone_readiness',return_value=readiness), \
              patch.object(release,'frozen'), \
              patch.object(release,'policy',return_value={'version':'0.2.32'}), \
              patch.object(release,'contract_module',return_value=contract), \
@@ -142,6 +144,30 @@ class ReleaseTests(unittest.TestCase):
         self.assertFalse(receipt['release_ready'])
         self.assertEqual(len(calls),1)
         self.assertEqual(receipt['steps'][0]['exit_code'],1)
+
+    def test_missing_microphone_stops_before_checks_or_install(self):
+        with tempfile.TemporaryDirectory() as td:
+            code,receipt,calls = self.run_release(td,readiness='unavailable')
+        self.assertEqual(code,1)
+        self.assertEqual(receipt['microphone_readiness'],'unavailable')
+        self.assertIn('no default microphone',receipt['error'])
+        self.assertEqual(calls,[])
+
+    def test_unknown_readiness_still_requires_installed_microphone_check(self):
+        with tempfile.TemporaryDirectory() as td:
+            code,receipt,calls = self.run_release(td,readiness='unknown')
+        self.assertEqual(code,0)
+        self.assertEqual(receipt['microphone_readiness'],'unknown')
+        self.assertTrue(any(c[-1:] == ['--preflight-mic'] for c in calls))
+
+    def test_device_lookup_does_not_open_a_stream(self):
+        device = types.SimpleNamespace(default=types.SimpleNamespace(device=(-1, 0)))
+        with patch.dict('sys.modules', {'sounddevice':device}):
+            self.assertEqual(release.microphone_readiness(),'unavailable')
+            device.default.device = (1, 0)
+            self.assertEqual(release.microphone_readiness(),'available')
+            device.default.device = (None, 0)
+            self.assertEqual(release.microphone_readiness(),'unknown')
 
     def test_signed_only_never_claims_distribution_readiness(self):
         with tempfile.TemporaryDirectory() as td:
