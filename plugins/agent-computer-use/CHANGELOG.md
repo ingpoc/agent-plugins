@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.93 (2026-11-05)
+
+- Restore the compact idle island pill to its original 74 pt width.
+
 ## 0.2.92 (2026-11-05)
 
 - Remove Samantha-owned plugin activity and compact surviving harness circles after her exit fade.

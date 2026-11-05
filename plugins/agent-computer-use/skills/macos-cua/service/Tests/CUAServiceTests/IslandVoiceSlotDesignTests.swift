@@ -19,7 +19,7 @@ final class IslandVoiceSlotDesignTests: XCTestCase {
     }
 
     func testSlotAndPillWidthsFollowTheSpec() {
-        XCTAssertLessThan(L.idleWidth, L.voicePillWidth(.listening), "idle does not reserve the voice meter")
+        XCTAssertEqual(L.idleWidth, L.activeMinimumWidth, "idle keeps the original 74 pt compact width")
         XCTAssertEqual(L.voiceMeterWidth, 23, "5 bars × 3 pt + 4 × 2 pt")
         XCTAssertEqual(L.voiceSlotWidth(.listening), 23)
         XCTAssertEqual(L.voiceSlotWidth(.speaking), 23)

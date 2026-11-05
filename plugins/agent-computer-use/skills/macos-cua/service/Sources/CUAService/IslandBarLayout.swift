@@ -16,7 +16,7 @@ enum IslandBarLayout {
     static let topInset: CGFloat = 3
     static let compactHeight: CGFloat = 24
     static let compactRadius: CGFloat = 12
-    static let idleWidth: CGFloat = 50
+    static let idleWidth: CGFloat = 74
     static let activeMinimumWidth: CGFloat = 74
     static let standardWidth: CGFloat = 136
     static let wideWidth: CGFloat = 200

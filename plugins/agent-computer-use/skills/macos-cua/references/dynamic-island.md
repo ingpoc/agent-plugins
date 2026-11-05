@@ -117,7 +117,7 @@ pill**, after Samantha's app circles. The left side stays the agent harness
   app circles) sit INSIDE the pill on its right, newest first, 3 then "+N".
   **Locked zone rule** (0.2.89): inside the pill, the ring outer edge, 24 pt,
   app icons (16 pt, 4 apart), 8 pt, the voice slot, 6 pt, the 6 pt dot. Measure
-  the ring gap from the outside of its 1.5 pt stroke. Idle without a target or voice uses 50 pt; voice and target layouts use at least 74 pt. Width is
+  the ring gap from the outside of its 1.5 pt stroke. Idle without a target or voice uses 74 pt; voice and target layouts use at least 74 pt. Width is
   rounded up to an even whole point; the origin and circle
   glyphs snap to backing pixels. Loudness never changes width. With a target and
   no apps, the ring-to-next-content gap stays 24 pt. The target-only pill is 74 pt.

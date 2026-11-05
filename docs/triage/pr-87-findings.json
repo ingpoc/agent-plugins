@@ -1,0 +1,219 @@
+{
+  "title": "Samantha issues and recommended fixes",
+  "tracking": {
+    "pull_request": {
+      "label": "PR #87 · Fix Samantha island and preference behavior",
+      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/87"
+    },
+    "worktree": "codex-samantha-issues-20261105"
+  },
+  "findings": [
+    {
+      "id": "USER-01",
+      "title": "Closing Samantha leaves menu-bar space; Codex does not move closer",
+      "source": "User reported",
+      "status": "untested",
+      "observed": "After Samantha was closed, the menu-bar space remained and Codex did not move toward the Dynamic Island.",
+      "recommendation": "Clear Samantha-owned activity, then compact the surviving plugin circles after the exit fade so Codex takes the nearest slot.",
+      "verification": "On the installed PR build, enable Samantha beside Codex, close Samantha by toggle and Quit, then check that her activity disappears and Codex moves into the nearest slot after the 150 ms fade.",
+      "evidence": [
+        {
+          "src": "assets/samantha-toggle-enabled.png",
+          "alt": "Cropped Agent Computer Use menu with Samantha enabled",
+          "caption": "Enabled state only; this crop does not show the close transition or resulting spacing."
+        },
+        {
+          "src": "assets/samantha-toggle-disabled.png",
+          "alt": "Cropped Agent Computer Use menu with Samantha disabled",
+          "caption": "Disabled state only; this crop does not establish whether Codex reflowed."
+        }
+      ],
+      "details": {
+        "Source change": "IslandHub clears Samantha-owned plugin rows and releases pending controls. IslandModel compacts surviving source-group slots after the 150 ms exit fade.",
+        "Source verification": "The repository gate passed, including the full 593-test Swift suite. Installed close/reflow acceptance remains pending.",
+        "Attribution": "User report; attached crops show toggle states, not a measured transition."
+      }
+    },
+    {
+      "id": "USER-02",
+      "title": "Samantha did not retrieve a relevant Context Ledger preference automatically",
+      "source": "User reported",
+      "status": "untested",
+      "observed": "Samantha did not apply a relevant saved preference unless asked to consult Context Ledger.",
+      "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
+      "verification": "After installing the PR build, ask a related, harmless task without mentioning Context Ledger. Confirm the matching saved preference is applied and that Samantha reports any ledger error clearly.",
+      "details": {
+        "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
+        "Source verification": "Ledger tests passed. User-specific preference recall has not been verified on the installed build.",
+        "Input privacy": "No preference value or original prompt is stored in this report."
+      }
+    },
+    {
+      "id": "USER-03",
+      "title": "Samantha should save durable preferences and critical decisions",
+      "source": "User reported",
+      "status": "untested",
+      "observed": "Durable preferences and important decisions should be captured when they are stated, then reused at the right time without reminders.",
+      "recommendation": "Capture durable preferences in their exact scope and rule. Use the decision capture path for critical decisions, and confirm a save only after the ledger returns a receipt.",
+      "verification": "On the installed PR build, state one genuine non-sensitive preference, confirm the save receipt, then ask a related question later without a reminder. Check that it is recalled and used correctly.",
+      "details": {
+        "Source change": "The PR adds guidance for proactive preference capture and retrieval through the existing ledger_task tool.",
+        "Supersession rule": "Updating a preference supersedes only an active user_decision with the same exact scope and rule. General captures do not auto-supersede; the current tool does not create an explicit supersedes link.",
+        "Source verification": "Ledger tests passed. Save, later readback, and correct application remain unverified live.",
+        "Input privacy": "The report does not include a preference value or decision content."
+      }
+    },
+    {
+      "id": "USER-04",
+      "title": "Plugin artwork should fill the existing circles; the Comet mark should be smaller",
+      "source": "User reported",
+      "status": "verified_fixed",
+      "observed": "Earlier captures show square-like package marks inset inside circles. The requested design keeps the circle size and uses the package artwork edge to edge; the Comet pointer also needs room inside its circle.",
+      "recommendation": "Scale each package logo to fill the existing 24 pt frame and clip it to a circle. Keep the Comet glyph small enough to read clearly without adding a smaller square.",
+      "verification": "Installed ACU 0.2.92 at PR head 126a3ac: ACU, Comet Control, Context Ledger, and Developer Observability were visually checked in circular frames; the Comet pointer was reduced and temporary activity rows were cleared. The current uninstalled change only restores idle pill width.",
+      "verification_refs": [
+        "assets/acu-circle.png — installed PR #87 head 126a3ac",
+        "assets/comet-after.png — installed PR #87 head 126a3ac",
+        "assets/context-ledger-circle.png — installed PR #87 head 126a3ac",
+        "assets/developer-observability-circle.png — installed PR #87 head 126a3ac"
+      ],
+      "evidence": [
+        {
+          "src": "assets/comet-before.png",
+          "alt": "Earlier Comet Control mark inset inside the circular menu-bar frame",
+          "caption": "Before · installed PR #87 head 415e95b. The mark appears as a small square inside the circle."
+        },
+        {
+          "src": "assets/acu-circle.png",
+          "alt": "Agent Computer Use artwork in the circular menu-bar frame",
+          "caption": "After · installed PR #87 head 126a3ac. The package artwork fills the circle."
+        },
+        {
+          "src": "assets/comet-after.png",
+          "alt": "Comet Control pointer resized inside the circular menu-bar frame",
+          "caption": "After · installed PR #87 head 126a3ac. The cyan pointer is smaller within the same circle."
+        },
+        {
+          "src": "assets/context-ledger-circle.png",
+          "alt": "Context Ledger artwork in the circular menu-bar frame",
+          "caption": "After · installed PR #87 head 126a3ac."
+        },
+        {
+          "src": "assets/developer-observability-circle.png",
+          "alt": "Developer Observability artwork in the circular menu-bar frame",
+          "caption": "After · installed PR #87 head 126a3ac."
+        }
+      ],
+      "details": {
+        "Source change": "IslandPluginCircleIcon resolves the package artwork, scales it to fill the 24 pt circle, then clips it. Comet Control uses a smaller pointer glyph.",
+        "Scope": "Four plugin marks were checked: Agent Computer Use, Comet Control, Context Ledger, and Developer Observability.",
+        "Build identity": "Installed ACU 0.2.92, PR #87 head 126a3ac. The report labels before and after captures by installed head.",
+        "Current risk": "The newer idle-width change has not been installed yet; it does not touch icon rendering."
+      }
+    },
+    {
+      "id": "USER-05",
+      "title": "The default idle Dynamic Island pill is narrower than before",
+      "source": "User reported",
+      "status": "untested",
+      "observed": "The default island size appeared smaller after the idle width changed from 74 pt to 50 pt.",
+      "recommendation": "Restore the original 74 pt idle width while keeping the 24 pt height and content-driven active widths unchanged.",
+      "verification": "Install the updated PR head, start with no active plugin activity, and confirm the idle pill measures 74 × 24 pt. Then activate and clear a plugin row and confirm the active layout remains content-driven.",
+      "details": {
+        "Source change": "IslandBarLayout.idleWidth is restored from 50 pt to 74 pt; the focused IslandTests width check now expects 74 pt.",
+        "Source verification": "The focused 74 pt compact-width test and full repository gate passed, including all 593 Swift tests. ACU 0.2.93 is not installed yet.",
+        "Installed verification": "Pending installation of the updated PR head."
+      },
+      "evidence": [
+        {
+          "src": "assets/idle-pill-reported.png",
+          "alt": "Cropped user screenshot of the idle Dynamic Island pill",
+          "caption": "User-provided crop; it shows the reported appearance but does not measure point width."
+        }
+      ]
+    },
+    {
+      "id": "AGENT-01",
+      "title": "The disconnect check fails during the full release gate",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "A full installed release run exceeded the file descriptor limit, while an isolated repeat passed. The release result is still unreliable.",
+      "recommendation": "Find whether descriptor ownership or concurrent background activity causes the count to rise, fix the cause or the measurement, then rerun the complete installed release gate.",
+      "verification": "Keep release acceptance open until the full gate passes on the installed PR build without exceeding its descriptor limit. Preserve the full-run and isolated-repeat results.",
+      "details": {
+        "Previous full run": "The descriptor count grew from 55 to 63 against an allowed maximum of 59. The isolated disconnect repeat passed 2 tests.",
+        "Root cause": "Unknown. A descriptor leak is a hypothesis, not an established cause.",
+        "Release status": "The previous installed 0.2.92 full release gate failed while an isolated repeat passed. The updated 0.2.93 installed release gate is still pending."
+      }
+    },
+    {
+      "id": "AGENT-02",
+      "title": "Samantha's Context Ledger task errors and retries",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Agent telemetry reports repeated ledger_task failures. The latest Samantha activity also contains tool errors and repeated calls with different or unknown arguments.",
+      "recommendation": "Trace one harmless read and one preference recall through ledger_task, validate the arguments at the tool boundary, and keep retries bounded with a clear error result.",
+      "verification": "On the installed PR build, complete a harmless read and a preference recall. Confirm the tool arguments are valid, calls are not repeated unnecessarily, and a failed call does not claim a successful preference read.",
+      "details": {
+        "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
+        "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
+        "Attribution limit": "The tool arguments were not captured and these events are not linked to the user's preference test. Root cause and recovery are unconfirmed."
+      }
+    },
+    {
+      "id": "OBS-01",
+      "title": "Voice response and audio delays",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Developer Observability reports several slow voice and audio stages. These are leads, not confirmed user-facing latency defects.",
+      "recommendation": "Trace a fresh, short voice interaction end to end and optimize only the stage that remains slow in a linked run.",
+      "verification": "Record voice start, audio-ready, first playback, and completion timings for one fresh installed-build session. Compare them to an agreed product target before calling the result fixed.",
+      "details": {
+        "Latest metrics": "Speech-to-playback p95 14.8 s (p50 2.4 s, n=74); audio_ready p95 5.9 s (p50 249 ms, n=10); usage p95 4.5 s (p50 2.0 s, n=92).",
+        "Threshold note": "The collector's 1.0 s threshold is an investigation signal, not a user-facing SLA. One aggregate speech-to-playback maximum is a 1,086.6 s outlier and needs run-level correlation.",
+        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Source coverage is partial; no metric is linked to a current acceptance run."
+      }
+    },
+    {
+      "id": "OBS-02",
+      "title": "Samantha startup timing needs a clean measurement",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Telemetry shows connection and microphone-preflight delays, alongside no-input-device failures that may be environmental.",
+      "recommendation": "Measure a fresh startup with a known available microphone and separate device preflight from the connection and audio-ready stages.",
+      "verification": "Repeat startup on the installed build with a confirmed microphone. Link stage timings and any failure to the same run before changing startup behavior.",
+      "details": {
+        "Latest metrics": "realtime_ws_open p95 1.9 s (p50 1.3 s, n=23); mic_preflight p95 2.9 s (p50 0 ms, n=19); audio_ready p95 5.9 s (p50 249 ms, n=10).",
+        "Environment signal": "The collector also recorded 9 no_input_device preflight failures. This does not establish a Samantha startup regression.",
+        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Product latency targets and current-build reproduction are not established."
+      }
+    },
+    {
+      "id": "OBS-03",
+      "title": "Browser-assisted Samantha turns can be slow",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Four recorded Comet-assisted turns took 13.6–16.8 seconds. They are not linked to the latest installed build.",
+      "recommendation": "Repeat one representative browser task and trace Samantha and Comet timings together before selecting a fix.",
+      "verification": "Use one fresh browser task with correlated Samantha and Comet timing. Confirm the outcome independently and compare only against an agreed target.",
+      "details": {
+        "Telemetry evidence": "Four historical turns exceeded 10 seconds; the slowest was 16.8 seconds. Session identifiers are omitted.",
+        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. These events do not establish current-build performance or a root cause."
+      }
+    },
+    {
+      "id": "OBS-04",
+      "title": "Voice controls exceeded Dynamic Island layout bounds",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "Samantha telemetry reports voice_slot outside the island on three events and eight island_layout failures. The records are not linked to a fresh close or resize test.",
+      "recommendation": "Repeat voice, close, and resize checks on the installed PR build, then compare the linked layout measurements with the source result.",
+      "verification": "Record the installed version, run identity, and measured controls/circle bounds. Confirm every control stays inside the island through open, resize, and close.",
+      "details": {
+        "Latest telemetry": "Three voice_slot boundary events reported a maximum of 30.0 pt; eight island_layout failures were recorded.",
+        "Attribution limit": "The observability snapshot does not link these records to the user's close/reflow report or a controlled resize run. Root cause is unconfirmed.",
+        "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. Samantha source coverage is partial."
+      }
+    }
+  ]
+}
