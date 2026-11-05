@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.11 (2026-11-06)
+
+- Preserve occurrence-level evidence, attribution and bounded layout diagnostics.
+
 ## 0.1.10 (2026-11-04)
 
 - Island activity: every MCP tool call posts `call_started` / `call_finished` for `developer-observability` with the calling harness, so the ACU Dynamic Island (agent-computer-use 0.2.87) shows its trace-waterfall mark outside on the right while a call runs, and nothing inside the pill. Posting never fails a tool; set `DEVELOPER_OBSERVABILITY_ISLAND=0` to turn it off.

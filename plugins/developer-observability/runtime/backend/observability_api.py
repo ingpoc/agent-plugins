@@ -325,6 +325,9 @@ class ObservabilityAPI:
             if isinstance(turns, list):
                 summary['turns'] = [{
                     'turn': redact(str(item.get('turn', '')), 40),
+                    'timestamp': ObservabilityAPI._safe_time(item.get('timestamp')) or 'unknown',
+                    'version': redact(str(item.get('version') or 'unknown'), 40),
+                    'metric': redact(str(item.get('metric') or 'unknown'), 40),
                     'ms': item.get('ms') if isinstance(item.get('ms'), (int, float)) and not isinstance(item.get('ms'), bool) else None,
                     'tools': [redact(str(tool), 40) for tool in item['tools'][:5]] if isinstance(item.get('tools'), list) else [],
                     'errors': item.get('errors') if isinstance(item.get('errors'), int) and not isinstance(item.get('errors'), bool) else 0,
@@ -343,6 +346,22 @@ class ObservabilityAPI:
                 summary['max_overflow_pt'] = layout['max_overflow_pt']
             if triggers := counts(layout.get('triggers'), 8, 20):
                 summary['triggers'] = triggers
+            occurrences = layout.get('occurrences')
+            if isinstance(occurrences, list):
+                summary['occurrences'] = []
+                for item in occurrences[:10]:
+                    if not isinstance(item, dict):
+                        continue
+                    row = {'timestamp': ObservabilityAPI._safe_time(item.get('timestamp')) or 'unknown',
+                           'version': redact(str(item.get('version') or 'unknown'), 40),
+                           'version_attribution': item.get('version_attribution') if item.get('version_attribution') in ('event', 'session_inferred', 'unknown') else 'unknown',
+                           'trigger': redact(str(item.get('trigger') or 'unknown'), 20)}
+                    for name in ('bounds', 'rect'):
+                        if isinstance(item.get(name), dict):
+                            row[name] = numbers(item[name], ('x', 'y', 'w', 'h')) or {}
+                    if isinstance(item.get('overflow_pt'), (int, float)) and not isinstance(item['overflow_pt'], bool):
+                        row['overflow_pt'] = item['overflow_pt']
+                    summary['occurrences'].append(row)
             if summary:
                 fields['island_layout'] = summary
         # Local edit (0.1.8): bounded storage-size summary.
@@ -444,7 +463,8 @@ class ObservabilityAPI:
                     if evidence.get(key) is not None}
         raw_timeline = finding.get('event_timeline', [])
         timeline = []
-        safe_evidence_fields = ('tool', 'program', 'error_type', 'exit_code', 'failing_test',
+        safe_evidence_fields = ('tool', 'program', 'error_type', 'exit_code', 'failing_test', 'version', 'first_error_line',
+                                'version_attribution', 'session_attribution',
                                 'latest_attempt', 'samantha_label', 'app')
         connection_fields = ('close_code', 'connected_s', 'stopping', 'reconnect_requested',
                              'close_frame_received', 'last_server_event_type', 'last_server_event_s',

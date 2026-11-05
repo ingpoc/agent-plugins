@@ -90,7 +90,7 @@ def _stat(stats, source):
 
 def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None,
            metric=None, condition=None, mirror=False, test=False, version=None, alias=False, turn=None,
-           args=None, layout=None):
+           args=None, layout=None, session_attribution=None, version_attribution=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -102,7 +102,8 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
     return {'project': project, 'source': source, 'kind': kind, 'step': step, 'error': bool(error), 'ts': ts,
             'duration_ms': duration_ms, 'metric': metric, 'message': message, 'ref': where, 'session': session,
             'condition': condition, 'mirror': bool(mirror), 'test': bool(test), 'version': version,
-            'alias': bool(alias), 'turn': turn, 'args': args, 'layout': layout}
+            'alias': bool(alias), 'turn': turn, 'args': args, 'layout': layout,
+            'session_attribution': session_attribution, 'version_attribution': version_attribution}
 
 
 def _normalize(value):
@@ -205,16 +206,15 @@ def _jsonl_rows(path, max_bytes, stats, source):
 
 
 def _sessions(path, max_bytes):
-    """First pass: per-session version and test flags. Rows without a session belong to the last one seen."""
-    info, current = {}, None
+    """Collect flags only from explicitly identified sessions; conflicting versions stay unknown."""
+    info = {}
     for _line, obj in _jsonl_rows(path, max_bytes, {None: {'skipped': 0}}, None):
         session = obj.get('session_id') or obj.get('session')
-        current = session if isinstance(session, str) else current
-        if current is None:
+        if not isinstance(session, str) or not session:
             continue
-        entry = info.setdefault(current, {'version': None, 'purpose_test': False, 'canned': False, 'instant': False})
-        if entry['version'] is None and isinstance(obj.get('version'), str):
-            entry['version'] = obj['version'][:40]
+        entry = info.setdefault(session, {'versions': set(), 'purpose_test': False, 'canned': False, 'instant': False})
+        if isinstance(obj.get('version'), str) and obj['version']:
+            entry['versions'].add(obj['version'][:40])
         if obj.get('purpose') in TEST_PURPOSES:
             entry['purpose_test'] = True
         # Replies are compared against two canned words only; their text is never stored.
@@ -229,11 +229,18 @@ def _sessions(path, max_bytes):
 def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
     _stat(stats, source)
     sessions = _sessions(path, max_bytes)
-    current = None
     for number, obj in _jsonl_rows(path, max_bytes, stats, source):
         own = obj.get('session_id') or obj.get('session')
-        current = own if isinstance(own, str) else current
+        current = own if isinstance(own, str) and own else None
         flags = sessions.get(current, {})
+        versions = flags.get('versions', set())
+        direct_version = obj.get('version')
+        if isinstance(direct_version, str) and direct_version:
+            version, version_attribution = direct_version[:40], 'event'
+        elif len(versions) == 1:
+            version, version_attribution = next(iter(versions)), 'session_inferred'
+        else:
+            version, version_attribution = None, 'unknown'
         test = bool(flags.get('purpose_test') or (flags.get('canned') and flags.get('instant')))
         obj = {key: value for key, value in obj.items() if key not in DENY_KEYS}
         kind = _first_str(obj, ('kind', 'event', 'type', 'name')) or 'event'
@@ -273,8 +280,9 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                 continue
         yield _event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
                      duration_ms=duration, metric=metric, message=message, where=ref(path, number), session=current,
-                     condition=condition, mirror=mirror, test=test, version=flags.get('version'), turn=turn,
-                     args=args, layout=layout)
+                     condition=condition, mirror=mirror, test=test, version=version, turn=turn,
+                     args=args, layout=layout, session_attribution='event' if current else 'unknown',
+                     version_attribution=version_attribution)
 
 
 _SESSION = re.compile(r'\bsession_id=(\w+)')
@@ -308,7 +316,8 @@ def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
         stamp = parse_ts(match.group(1)) if match else None
         last_ts = stamp if stamp is not None else last_ts
         ts = last_ts if last_ts is not None else mtime
-        if own := _SESSION.search(line):
+        own = _SESSION.search(line)
+        if own:
             session = own.group(1)
         phase = _PHASE.search(line)
         word = _WORD.search(line)
@@ -330,7 +339,9 @@ def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
         message = f'cause: {cause}' if cause else scrub(text)
         yield _event(stats, project=project, source=source, kind='log_error' if error else 'log', step=step,
                      error=error, ts=ts, duration_ms=duration, metric=metric, message=message, where=ref(path, number),
-                     session=session, condition=cause, alias=named is not None)
+                     session=session, condition=cause, alias=named is not None,
+                     session_attribution='event' if own else ('previous_line_inferred' if session else 'unknown'),
+                     version_attribution='unknown')
 
 
 def iter_junit(path, project, source, stats):
