@@ -69,3 +69,11 @@ All paths above are under `plugins/developer-observability/` or `plugins/agent-c
 
 - 2026-11-06: Added OBS-12–OBS-16 and extended OBS-06 and OBS-10 in the canonical list. This is an implementation plan, not evidence that the enhancements are complete.
 - Current decision: prioritize task correlation and independent outcomes, then Ledger decisions; timing, island/device transitions and presentation build on the same identity contract. Measure any efficiency claim against a comparable baseline and acceptance cohort.
+
+### Iteration review: 0.2.105
+
+- **Delete:** No release or evidence step was removed: the required source and installed gates check different boundaries, and no comparable proof supports deleting either.
+- **Simplify:** Moved the cross-plugin synthetic integration test to collection tooling, leaving the portable ACU package's own tests independent of a sibling repository layout. The installed 0.2.105 package subsequently passed its 76-test focused suite.
+- **Optimize:** The release reran a full source gate after an earlier full gate, but the runs are not a validated interchangeable receipt. No speedup is claimed; any reuse would require a frozen-source identity, auditable receipt and fail-closed invalidation.
+- **Automate:** The existing findings manager already starts and records installation runs. Do not add another tracker or bypass its start/finish checks. A potential future improvement is automatic installation-receipt validation and run creation, only after its owner and failure/retry behavior are proved.
+- **Outcome:** The 0.2.105 release installed, but its microphone gate failed. The new 29-item run has explicit results; old-client refresh remains failing, the voice path is blocked, and the rotation fix still needs installed service concurrency and crash-recovery evidence. The 0.2.104 failed gate exposed a log-rotation defect, tracked as OBS-17. No completed source test is promoted to installed acceptance on its own.
