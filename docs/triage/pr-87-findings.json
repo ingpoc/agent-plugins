@@ -785,211 +785,361 @@
             "finished_at": "2026-11-06T11:15:37Z"
           }
         }
+      },
+      {
+        "id": "acu-0.2.102-98563a4-20261106",
+        "build": "ACU 0.2.102; Developer Observability 0.1.17; Context Ledger 0.1.39",
+        "revision": "98563a45aae00e6b94a1b2b6008f839b60b82893",
+        "installed_at": "2026-11-06T11:37:07+00:00",
+        "install_evidence": "Signed release receipt /private/tmp/acu-pr87-0.2.102-98563a4.json records build-install, package identity, notarization, fresh-client, Cursor, disconnect and microphone checks passing; voice gate timed out. Timestamp is receipt completion.",
+        "status": "complete",
+        "checks": {
+          "USER-01": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "Samantha close/reflow was not exercised; menu-bar toggle was not accessible to the native automation surface.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "USER-02": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:38:02Z",
+            "updated_at": "2026-11-06T11:38:02Z",
+            "evidence": "The 0.2.102 candidate is installed and scoped-lookup source tests pass, but the release voice window expired with no proven interaction; automatic selection and Ledger application have not been verified.",
+            "finished_at": "2026-11-06T11:38:22Z"
+          },
+          "USER-03": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No controlled spoken preference save, replacement or independent readback was captured on 0.2.102.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "USER-04": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "USER-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "AGENT-01": {
+            "state": "fixed",
+            "started_at": "2026-11-06T11:38:02Z",
+            "updated_at": "2026-11-06T11:38:02Z",
+            "evidence": "The 0.2.102 release receipt records live-fd passed; the overall release failed separately because a fresh spoken task was not proven.",
+            "finished_at": "2026-11-06T11:38:22Z"
+          },
+          "AGENT-02": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No controlled spoken recall was captured on 0.2.102.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-01": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No attributable spoken latency task was captured on 0.2.102.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-02": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "Voice smoke window expired without a proven spoken interaction, so a complete controlled startup measurement is unavailable.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-03": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No controlled spoken browser task was captured on 0.2.102.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-04": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No active voice-control resize was captured on 0.2.102.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-06": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No new spoken task on 0.2.102 was linked to a run reference.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-07": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-08": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-09": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-10": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No new independently verified spoken task outcome was captured on 0.2.102.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "AGENT-03": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "Before this installation, an earlier session recorded three unverified native-action failures. They are unlinked leads, and no controlled 0.2.102 spoken reproduction was performed.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-11": {
+            "state": "fixed",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "Installed observability returned two successive 50-event pages of a 702-event session and a separate session summary included native action outcomes; prior narrower verified capability remains.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "AGENT-04": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "The 0.2.102 installed microphone preflight passed; this alone does not explain the earlier missing input or establish automatic recovery.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-12": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No controlled save, recall, selection and replacement sequence was captured on 0.2.102.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-13": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No controlled live close/reflow transition with settled geometry was captured.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-14": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No linked spoken, browser, Ledger and native task was captured on 0.2.102.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-15": {
+            "state": "blocked",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "No controlled no-input and recovery sequence was exercised on 0.2.102.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "OBS-16": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "Installed observability tests previously passed mirror-pair handling; no attributable 0.2.102 spoken pair was exercised.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "AGENT-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "Installed Ledger 0.1.39 passed the simulated authorization-reset regression earlier; no real reset incident was exercised in this installation.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          },
+          "AGENT-06": {
+            "state": "not_fixed",
+            "started_at": "2026-11-06T11:38:02Z",
+            "updated_at": "2026-11-06T11:38:02Z",
+            "evidence": "After the 0.2.102 install and service restart, the already-running client returned RUNTIME_CONTRACT_FAILED: stale client or unverified service on Calculator state; the release receipt separately reports a fresh-client pass.",
+            "finished_at": "2026-11-06T11:38:22Z"
+          },
+          "REPORT-01": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T11:39:02Z",
+            "updated_at": "2026-11-06T11:39:02Z",
+            "evidence": "The regenerated report retains the verified navigation template; no new browser navigation check was performed in this installation run.",
+            "finished_at": "2026-11-06T11:39:47Z"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "acu-0.2.102-98563a4-20261106",
-      "build": "ACU 0.2.102; Developer Observability 0.1.17; Context Ledger 0.1.39",
-      "revision": "98563a45aae00e6b94a1b2b6008f839b60b82893",
-      "installed_at": "2026-11-06T11:37:07+00:00",
-      "install_evidence": "Signed release receipt /private/tmp/acu-pr87-0.2.102-98563a4.json records build-install, package identity, notarization, fresh-client, Cursor, disconnect and microphone checks passing; voice gate timed out. Timestamp is receipt completion.",
-      "status": "complete",
+      "id": "acu-0.2.103-b3cc2a5-goal-20261106",
+      "build": "ACU 0.2.103 build 638; Developer Observability 0.1.17; Context Ledger 0.1.39",
+      "revision": "b3cc2a585d12cbbe73192ab172dbc9359651bcfc",
+      "installed_at": "2026-11-06T14:14:25+00:00",
+      "install_evidence": "Receipt /private/tmp/acu-pr87-0.2.103-b3cc2a5-goal.json records signed/notarized install, package identity, fresh-client and disconnect success; microphone preflight failed. Timestamp is receipt completion.",
+      "status": "active",
       "checks": {
         "USER-01": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "Samantha close/reflow was not exercised; menu-bar toggle was not accessible to the native automation surface.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "USER-02": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:38:02Z",
-          "updated_at": "2026-11-06T11:38:02Z",
-          "evidence": "The 0.2.102 candidate is installed and scoped-lookup source tests pass, but the release voice window expired with no proven interaction; automatic selection and Ledger application have not been verified.",
-          "finished_at": "2026-11-06T11:38:22Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "USER-03": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No controlled spoken preference save, replacement or independent readback was captured on 0.2.102.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "USER-04": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "USER-05": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "AGENT-01": {
-          "state": "fixed",
-          "started_at": "2026-11-06T11:38:02Z",
-          "updated_at": "2026-11-06T11:38:02Z",
-          "evidence": "The 0.2.102 release receipt records live-fd passed; the overall release failed separately because a fresh spoken task was not proven.",
-          "finished_at": "2026-11-06T11:38:22Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "AGENT-02": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No controlled spoken recall was captured on 0.2.102.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-01": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No attributable spoken latency task was captured on 0.2.102.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-02": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "Voice smoke window expired without a proven spoken interaction, so a complete controlled startup measurement is unavailable.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-03": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No controlled spoken browser task was captured on 0.2.102.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-04": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No active voice-control resize was captured on 0.2.102.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-05": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-06": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No new spoken task on 0.2.102 was linked to a run reference.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-07": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-08": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-09": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No issue-specific live acceptance was performed on ACU 0.2.102; earlier verified status is retained where applicable.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-10": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No new independently verified spoken task outcome was captured on 0.2.102.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "AGENT-03": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "Before this installation, an earlier session recorded three unverified native-action failures. They are unlinked leads, and no controlled 0.2.102 spoken reproduction was performed.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-11": {
-          "state": "fixed",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "Installed observability returned two successive 50-event pages of a 702-event session and a separate session summary included native action outcomes; prior narrower verified capability remains.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "AGENT-04": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "The 0.2.102 installed microphone preflight passed; this alone does not explain the earlier missing input or establish automatic recovery.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-12": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No controlled save, recall, selection and replacement sequence was captured on 0.2.102.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-13": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No controlled live close/reflow transition with settled geometry was captured.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-14": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No linked spoken, browser, Ledger and native task was captured on 0.2.102.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-15": {
-          "state": "blocked",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "No controlled no-input and recovery sequence was exercised on 0.2.102.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "OBS-16": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "Installed observability tests previously passed mirror-pair handling; no attributable 0.2.102 spoken pair was exercised.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "AGENT-05": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "Installed Ledger 0.1.39 passed the simulated authorization-reset regression earlier; no real reset incident was exercised in this installation.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "AGENT-06": {
-          "state": "not_fixed",
-          "started_at": "2026-11-06T11:38:02Z",
-          "updated_at": "2026-11-06T11:38:02Z",
-          "evidence": "After the 0.2.102 install and service restart, the already-running client returned RUNTIME_CONTRACT_FAILED: stale client or unverified service on Calculator state; the release receipt separately reports a fresh-client pass.",
-          "finished_at": "2026-11-06T11:38:22Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         },
         "REPORT-01": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T11:39:02Z",
-          "updated_at": "2026-11-06T11:39:02Z",
-          "evidence": "The regenerated report retains the verified navigation template; no new browser navigation check was performed in this installation run.",
-          "finished_at": "2026-11-06T11:39:47Z"
+          "state": "checking",
+          "started_at": "2026-11-06T14:15:18Z",
+          "updated_at": "2026-11-06T14:15:18Z"
         }
       }
     }
@@ -1174,6 +1324,14 @@
           "session": "source-check-20261106",
           "timestamp": "2026-11-06T13:50:28+00:00",
           "reference": "pytest Ledger helper, preference, transport and provider suites; synthetic Ledger fixture"
+        },
+        {
+          "check": "Installed package regression suite",
+          "outcome": "Installed 0.2.103 test run failed: one repository-wide integration test assumed a sibling Ledger package in the installed ACU cache. This was a test packaging failure; 69 other tests passed. The cross-plugin test was moved to collection tooling and the focused source batch then passed 70 tests. The installed suite has not yet been rerun after that change.",
+          "build": "ACU 0.2.103, PR b3cc2a5",
+          "session": "acu-0.2.103-b3cc2a5-goal-20261106",
+          "timestamp": "2026-11-06T14:17:47+00:00",
+          "reference": "pytest installed package failure and focused repository suite, 2026-11-06; regression remains subject to installed recheck"
         }
       ]
     },
