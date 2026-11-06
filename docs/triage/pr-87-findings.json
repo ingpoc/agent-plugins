@@ -46,7 +46,7 @@
       "status": "awaiting_verification",
       "observed": "Samantha did not apply a relevant saved preference unless asked to consult Context Ledger.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "The user confirms the Calculator request was part of this test. The latest candidate ACU 0.2.96 session shows two Context Ledger lookups returning none, one recall rejected for having no searchable query terms, and one successful preference save receipt. The source fix now builds recall queries from need, situation, and rule; all 20 helper tests and the full repository gate pass. Installed-client retrieval remains pending.",
+      "verification": "The user confirms the Calculator request was part of the test. The latest pre-install ACU 0.2.96 session showed two Context Ledger lookups returning none, one recall rejected for having no searchable query terms, and one successful preference save receipt. The query fix passes 20 helper tests; ACU 0.2.97 is installed from PR head 61cc940. No post-install Ledger interaction was captured, so automatic retrieval remains unverified.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
@@ -213,16 +213,26 @@
       "verification_refs": [
         "plugins/agent-computer-use/skills/macos-cua/tests/integration_service_fd_hygiene.py — installed ACU 0.2.93 at PR head 776a1d5; live-fd passed 2 tests in 6.737 seconds.",
         "scripts/release_agent_computer_use.py — latest full signed install run passed source, build/install, signature, client, Cursor, and live-fd stages; microphone preflight blocked voice."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Installed disconnect integrity release check",
+          "outcome": "ACU 0.2.97 installed from PR head; fresh MCP/readback and live client, Cursor, FD checks passed. Final voice smoke remained unproven.",
+          "build": "ACU 0.2.97; source commit 61cc940",
+          "session": "PR release verification",
+          "timestamp": "2026-11-06T05:47:52:00Z",
+          "reference": "Local release report; live-fd check passed."
+        }
       ]
     },
     {
       "id": "AGENT-02",
       "title": "Samantha's Context Ledger task errors and retries",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "Fresh ACU 0.2.96 telemetry records a Context Ledger recall rejected because its query had no searchable terms. No subsequent ledger call appears after that error in the selected session; earlier retry records remain in history.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "The source recall path built a find call with an empty query, matching the captured invalid-query error. The PR now builds recall queries from need, situation, and rule terms; 20 focused ledger-helper tests pass. The installed 0.2.96 session still failed, so 0.2.97 package and live acceptance remain pending.",
+      "verification": "The ACU 0.2.96 candidate session contained a rejected recall with an empty search query and repeated Ledger calls. ACU 0.2.97 now builds recall queries from need, situation, and rule; 20 helper tests and the full source gate pass, and the package is installed from PR head 61cc940. No post-install live Ledger call was captured, so runtime recovery remains unverified.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
@@ -266,6 +276,14 @@
           "session": "unknown",
           "timestamp": "2026-11-06T05:16:34Z",
           "reference": "python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p test_ledger_helper.py -v."
+        },
+        {
+          "check": "Installed Context Ledger recall fix",
+          "outcome": "ACU 0.2.97 installed and fresh MCP check passed; source regression tests pass, but no post-install Ledger action was captured.",
+          "build": "ACU 0.2.97; source commit 61cc940",
+          "session": "PR release verification",
+          "timestamp": "2026-11-06T05:47:52:00Z",
+          "reference": "Local release report plus 20 passing ledger helper tests; live recall remains pending."
         }
       ]
     },
@@ -367,10 +385,10 @@
       "id": "OBS-04",
       "title": "Voice controls exceeded Dynamic Island layout bounds",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "A fresh ACU 0.2.96 resize event reports the voice slot extending 6 pt beyond a 74 pt island; older 50 pt events account for the larger historical overflow.",
       "recommendation": "Repeat voice, close, and resize checks on the installed PR build, then compare the linked layout measurements with the source result.",
-      "verification": "Fresh Developer Observability reports a 6 pt voice-slot overflow during resize on ACU 0.2.96. A regression test reproduced the transition bug before the fix; the fix now passes the focused test and full source gate (594 Swift tests). The installed 0.2.96 issue remains failing until 0.2.97 is installed and a live resize confirms the slot stays inside the island.",
+      "verification": "Developer Observability reported a 6 pt voice-slot overflow during resize on ACU 0.2.96. The transition regression test and full source gate pass, and ACU 0.2.97 from PR head 61cc940 is installed. The post-install voice smoke did not capture a resize, so live geometry acceptance remains pending.",
       "details": {
         "Latest telemetry": "Three voice_slot boundary events reported a maximum of 30.0 pt; eight island_layout failures were recorded.",
         "Attribution limit": "The observability snapshot does not link these records to the user's close/reflow report or a controlled resize run. Root cause is unconfirmed.",
@@ -400,6 +418,14 @@
           "session": "Source test run",
           "timestamp": "2026-11-06T05:35:43Z",
           "reference": "IslandVoiceSlotDesignTests.testControlledVoiceAppearanceCancelsAnInFlightWidthPinch; installed/live resize remains pending."
+        },
+        {
+          "check": "Installed island voice-slot transition fix",
+          "outcome": "ACU 0.2.97 installed; source transition regression and full gate pass. No post-install voice resize was captured.",
+          "build": "ACU 0.2.97; source commit 61cc940",
+          "session": "PR release verification",
+          "timestamp": "2026-11-06T05:47:52:00Z",
+          "reference": "Local release report plus passing IslandVoiceSlotDesignTests regression; live resize remains pending."
         }
       ]
     },
@@ -537,7 +563,7 @@
       "status": "investigation",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
       "recommendation": "Correlate explicit task outcomes to sessions using opaque run/response references; show Ledger result status and count in the concise timeline; offer bounded, credential-redacted Ledger result and error details only when the agent requests include_diagnostics=true. Keep transcripts and real session details out of the public report.",
-      "verification": "The user confirms asking Samantha to open Calculator and calculate thirteen times seventeen. The latest candidate ACU 0.2.96 session has two successful Comet actions, but no native CUA action, task_outcome, or app postcondition. The telemetry therefore cannot establish whether Calculator opened or whether the result was correct; the task outcome remains unknown.",
+      "verification": "The user confirms asking Samantha to open Calculator and calculate thirteen times seventeen. The pre-install candidate ACU 0.2.96 session recorded two successful Comet actions but no native CUA action, task_outcome, or app postcondition. The post-install 0.2.97 release smoke captured no fresh spoken input/action/response before timeout. The request is confirmed; whether Calculator opened and returned 221 remains unknown.",
       "details": {
         "Evidence gap": "The earlier snapshot's session match was only a candidate. Without explicit task correlation, success rows did not establish the user's Netflix outcome. Ledger result status/details and bounded error stacks were not available through the agent tools.",
         "Acceptance": "On an installed build, an explicit test run must link to its session and build, expose task outcome/tool names and an independent app postcondition, and show Ledger result/error details only on diagnostic opt-in. The task result remains unknown without the independent postcondition.",
@@ -575,6 +601,14 @@
           "session": "Latest Samantha candidate; task linkage unavailable",
           "timestamp": "2026-11-06T05:28:09.097358Z",
           "reference": "Fresh Developer Observability sessions snapshot. User confirmed the Calculator request, but the snapshot has no app postcondition."
+        },
+        {
+          "check": "Post-install Calculator voice smoke",
+          "outcome": "No fresh spoken input, Calculator action, and completed response were captured before the release smoke deadline; task result remains unknown.",
+          "build": "ACU 0.2.97; source commit 61cc940",
+          "session": "PR release voice smoke",
+          "timestamp": "2026-11-06T05:47:52:00Z",
+          "reference": "Release script reported that fresh spoken input, successful action, and completed response were not proven. Prior user-confirmed test was on the pre-install candidate."
         }
       ]
     }
