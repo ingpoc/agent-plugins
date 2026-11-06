@@ -1627,7 +1627,7 @@
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
         "Input privacy": "No preference value or original prompt is stored in this report.",
-        "Privacy boundary": "No personal ledger rows were read or written; tests use an in-memory transport.",
+        "Privacy boundary": "The owner-authorized investigation independently read saved Ledger records. Their values, identifiers and raw session content are omitted from this public report; source tests use synthetic data.",
         "Installed/live verification": "Pending an installed Samantha session where a real non-sensitive saved preference is used without naming Context Ledger.",
         "Latest live evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations succeeded. Query and result content are not captured, so preference relevance remains unknown.",
         "Latest verification": "Fresh 0.2.101 session recorded a successful Ledger recall with zero matches; the intended preference and whether it should match are not established.",
@@ -1777,6 +1777,14 @@
           "session": "acu-0.2.105-ac7488f-20261106",
           "timestamp": "2026-11-06T14:38:53+00:00",
           "reference": "pytest installed package Ledger, provider and log-rotation suites"
+        },
+        {
+          "check": "Installed exact-scope helper read",
+          "outcome": "The installed 0.2.106 helper directly recalled one active saved decision when supplied its exact known site scope and rule. This is an agent-invoked read and does not show that Samantha selects the correct scope or applies the preference automatically.",
+          "build": "ACU 0.2.106; Context Ledger installed 0.1.39",
+          "session": "installed-helper-read-20261106",
+          "timestamp": "2026-11-06T16:25:45+00:00",
+          "reference": "Installed voice_cua.ledger_helper against owner-authorized Ledger; preference values and IDs omitted"
         }
       ]
     },
@@ -2214,6 +2222,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "ACU_ISLAND_ACTIVITY=0 swift test --filter 'IslandHarnessMotionTests|IslandLayoutLogTests|IslandVoiceSlotDesignTests|IslandPluginMarksTests'"
+        },
+        {
+          "check": "Current occurrence review",
+          "outcome": "Developer Observability lists four 0.2.102 resize occurrences with six-point voice-slot overflow. Its recovered aggregate for 0.2.106 has no attributable controlled voice resize, so it does not prove acceptance.",
+          "build": "0.2.102 historical; 0.2.106 installed",
+          "session": "col-8d5ea6a3cd6b73d0",
+          "timestamp": "2026-11-06T16:24:31+00:00",
+          "reference": "Developer Observability issue inspection; session timestamps 2026-11-06 12:28–12:31 UTC"
         }
       ]
     },
@@ -2973,7 +2989,8 @@
         "Evidence": "Local release source log /private/tmp/acu-pr87-0.2.104-a34b376-goal-source-checks.log; the failing test uses temporary data.",
         "Scope": "Python log_rotation.py and the Swift CUALogRotation writer share the rotation format. Protect both writers and both activity and voice log paths; preserve crash recovery and retention.",
         "Candidate": "Python and Swift rotation now acquire the same persistent per-log lock across archive shifting and gzip. Existing inode locks still protect append and rename. This candidate has not been installed.",
-        "Source checks": "The Python rotation suite passed 15 repeated runs; the Swift suite passed 3 tests including concurrent Python and Swift writers. The initial tests were updated to expect the persistent rotation lock."
+        "Source checks": "The Python rotation suite passed 15 repeated runs; the Swift suite passed 3 tests including concurrent Python and Swift writers. The initial tests were updated to expect the persistent rotation lock.",
+        "Installed package concurrency": "The Swift rotation tests were built and run from the installed 0.2.106 package. All three passed, including concurrent Swift and Python writers against a temporary log. This is an installed-source integration test, not a live running-service or interrupted-compression check."
       },
       "evidence": [],
       "verification_evidence": [
@@ -2984,6 +3001,22 @@
           "session": "rotation-source-20261106",
           "timestamp": "2026-11-06T14:30:12+00:00",
           "reference": "test_log_rotation.py repeated 15 times; swift test --filter CUALogRotationTests"
+        },
+        {
+          "check": "Installed package cross-language rotation",
+          "outcome": "All three Swift rotation tests passed when built from the installed 0.2.106 package, including simultaneous Swift and installed Python writers against temporary data. No live service stress or interrupted-compression recovery was exercised.",
+          "build": "ACU 0.2.106 build 643",
+          "session": "installed-rotation-20261106",
+          "timestamp": "2026-11-06T16:24:31+00:00",
+          "reference": "swift test --filter CUALogRotationTests, installed package; temporary logs"
+        },
+        {
+          "check": "Installed writer interrupted-compression recovery",
+          "outcome": "A controlled temporary-log test used the installed 0.2.106 Python writer, killed the writer after archive rename and before compression, then rotated again. Both records were recovered exactly once; this does not exercise a killed live Swift service.",
+          "build": "ACU 0.2.106 build 643",
+          "session": "installed-rotation-crash-20261106",
+          "timestamp": "2026-11-06T16:25:11+00:00",
+          "reference": "Isolated forked writer and forced interruption using installed log_rotation.py; temporary logs only"
         }
       ]
     }
