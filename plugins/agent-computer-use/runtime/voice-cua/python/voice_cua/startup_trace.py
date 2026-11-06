@@ -19,9 +19,10 @@ LIVE_PHASES = frozenset({"audio_ready", "realtime_ready"})
 
 def log_startup(phase: str, *, status: str = "ok", kind: str = "startup", **fields: Any) -> None:
     """Append structured startup event and mirror a grep-friendly line to stderr (→ voice.log)."""
-    payload = {"phase": phase, "status": status, "source": "voice_stack", **fields}
+    mirror_id = uuid.uuid4().hex
+    payload = {"phase": phase, "status": status, "source": "voice_stack", **fields, "mirror_id": mirror_id}
     log_event(kind, **payload)
-    bits = [f"[startup] phase={phase} status={status}"]
+    bits = [f"[startup] phase={phase} status={status} mirror_id={mirror_id}"]
     for key in ("session_id", "elapsed_ms", "step_ms", "detail", "error"):
         val = fields.get(key)
         if val is not None and val != "":

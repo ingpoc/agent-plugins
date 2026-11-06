@@ -95,7 +95,7 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
            task_outcome=None, task_check_id=None, task_evidence_class=None, task_tools=None,
            call_ref=None, response_ref=None, run_ref=None, error_details=None, ledger_result_detail=None,
            outcome=None, ledger_detail_truncated=None, input_availability=None, input_device=None,
-           input_rate=None, input_recovery=None, input_selection=None):
+           input_rate=None, input_recovery=None, input_selection=None, mirror_ref=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -117,7 +117,7 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
             'error_details': error_details, 'ledger_result_detail': ledger_result_detail, 'outcome': outcome,
             'ledger_detail_truncated': ledger_detail_truncated, 'input_availability': input_availability,
             'input_device': input_device, 'input_rate': input_rate, 'input_recovery': input_recovery,
-            'input_selection': input_selection}
+            'input_selection': input_selection, 'mirror_ref': mirror_ref}
 
 
 def _normalize(value):
@@ -338,6 +338,7 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      input_recovery=obj.get('input_recovery') if obj.get('input_recovery') in ('recovered','not_observed','unknown') else None,
                      input_selection=obj.get('input_selection') if obj.get('input_selection') == 'system_default_snapshot' else None,
                      call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=opaque_id('run_id'),
+                     mirror_ref=opaque_id('mirror_id'),
                      outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown'))
 
 
@@ -397,7 +398,8 @@ def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
                      error=error, ts=ts, duration_ms=duration, metric=metric, message=message, where=ref(path, number),
                      session=session, condition=cause, alias=named is not None,
                      session_attribution='event' if own else ('previous_line_inferred' if session else 'unknown'),
-                     version_attribution='unknown')
+                     version_attribution='unknown',
+                     mirror_ref=hashlib.sha256(m.group(1).encode()).hexdigest()[:24] if (m := re.search(r'\bmirror_id=([0-9a-f]{32})\b', line)) else None)
 
 
 def iter_junit(path, project, source, stats):

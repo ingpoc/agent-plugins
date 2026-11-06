@@ -1,5 +1,10 @@
 # Changelog: agent-computer-use
 
+## 0.2.99
+
+- Tag mirrored startup diagnostics with a shared event identity.
+
+
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
 ## 0.2.98 (2026-11-06)

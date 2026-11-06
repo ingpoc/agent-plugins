@@ -578,11 +578,30 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                      'task_outcome': event.get('task_outcome'), 'task_check_id': event.get('task_check_id'),
                      'task_evidence_class': event.get('task_evidence_class'), 'task_tools': event.get('task_tools'),
                      'error_details': event.get('error_details'), 'run_ref': event.get('run_ref'),
-                     'call_ref': event.get('call_ref'), 'response_ref': event.get('response_ref')}
+                     'call_ref': event.get('call_ref'), 'response_ref': event.get('response_ref'),
+                     'mirror_ref': event.get('mirror_ref'), 'source': event.get('source'), 'source_ref': event.get('ref'),
+                     'event_kind': event.get('kind')}
                     for event, stage in rows]
+        # Collapse only records that explicitly carry the same producer-issued identity.
+        grouped = {}
+        collapsed = []
+        for item in timeline:
+            key = (item.get('mirror_ref'), item['stage']) if item.get('mirror_ref') else None
+            previous = grouped.get(key) if key else None
+            if previous and previous['source'] != item['source']:
+                if previous['event_kind'] in ('log', 'log_error') and item['event_kind'] not in ('log', 'log_error'):
+                    collapsed[collapsed.index(previous)] = item
+                    grouped[key] = item
+                    previous, item = item, previous
+                previous.setdefault('mirrors', []).append({'timestamp': item['timestamp'], 'source': item['source'], 'ref': item['source_ref']})
+            else:
+                collapsed.append(item)
+                if key:
+                    grouped[key] = item
+        timeline = collapsed
         session_timelines.append({'project': project, 'session_ref': session_ref,
                                   'last_seen': iso(rows[-1][0]['ts']), 'events': timeline,
-                                  'total': len(rows), 'truncated': False})
+                                  'total': len(timeline), 'raw_total': len(rows), 'truncated': False})
     session_timelines.sort(key=lambda row: row['last_seen'], reverse=True)
     return {
         'schema_version': 1, 'generated_at': stamp, 'producer': 'developer-observability-collector',

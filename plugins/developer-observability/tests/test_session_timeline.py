@@ -8,10 +8,34 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'runtime'))
 from backend.observability_api import ObservabilityAPI
 from collector.analyze import build
-from collector.sources import iter_jsonl
+from collector.sources import iter_jsonl, iter_textlog
 
 
 class SessionTimelineTests(unittest.TestCase):
+    def test_only_explicit_startup_mirrors_are_collapsed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            activity, voice = root / 'activity.jsonl', root / 'voice.log'
+            mirror = 'a' * 32
+            activity.write_text(json.dumps({'ts':'2026-11-06T10:00:00.001Z', 'session_id':'s',
+                'kind':'startup', 'phase':'audio_ready', 'step_ms':42, 'mirror_id':mirror,
+                'input_availability':'available'}) + '\n')
+            voice.write_text('2026-11-06T10:00:00.000Z [startup] phase=audio_ready status=ok '
+                f'mirror_id={mirror} session_id=s step_ms=42\n'
+                '2026-11-06T10:00:01.000Z [startup] phase=audio_ready status=ok session_id=s step_ms=42\n')
+            stats = {}
+            data = build(list(iter_jsonl(activity, 'a', 'activity', stats)) +
+                         list(iter_textlog(voice, 'a', 'voice', stats)), stats)
+            (root / 'findings.json').write_text(json.dumps(data))
+            api = ObservabilityAPI(root, {'a': {'owners': ['owner:a']}}, None)
+            ref = api.sessions('a')['sessions'][0]['session_ref']
+            timeline = api.sessions('a', ref, include_diagnostics=True)['timeline']
+            self.assertEqual(len(timeline), 2)
+            self.assertEqual(timeline[0]['input_availability'], 'available')
+            self.assertEqual(timeline[0]['mirrored_occurrences'], 1)
+            self.assertEqual(timeline[0]['diagnostics']['mirrors'][0]['source'], 'voice')
+            self.assertNotIn('mirrored_occurrences', timeline[1])
+
     def test_explicit_run_filter_and_microphone_evidence(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

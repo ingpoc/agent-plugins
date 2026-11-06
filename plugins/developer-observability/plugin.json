@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "developer-observability",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "Project-scoped build and runtime findings, redacted evidence and investigation leads over a local findings.json, with an optional local Decider and an MCP Apps dashboard.",
   "author": {
     "name": "ingpoc",

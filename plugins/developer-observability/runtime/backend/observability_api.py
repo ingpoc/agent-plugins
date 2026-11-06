@@ -537,6 +537,14 @@ class ObservabilityAPI:
                     item[key] = event[key]
             details = {key: scrub_detail(event.get(key)) for key in ('error_details', 'ledger_result_detail')
                        if isinstance(event.get(key), str) and event.get(key)}
+            mirrors = event.get('mirrors')
+            if isinstance(mirrors, list) and mirrors:
+                item['mirrored_occurrences'] = len(mirrors)
+                if include_diagnostics:
+                    details['mirrors'] = [{'timestamp': self._safe_time(m.get('timestamp')) or 'unknown',
+                                           'source': redact(str(m.get('source', '')), 120),
+                                           'ref': redact(str(m.get('ref', '')), 160)}
+                                          for m in mirrors[:20] if isinstance(m, dict)]
             item['diagnostics_available'] = bool(details)
             if include_diagnostics and details:
                 item['diagnostics'] = details

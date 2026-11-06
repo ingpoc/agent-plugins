@@ -1134,7 +1134,7 @@
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-10 and OBS-14 supply task identity and joined timing. OBS-11 remains fixed for its narrower pagination and native event coverage.",
-        "Implementation progress": "Developer Observability 0.1.16 is installed. A fresh MCP process exposes run_ref and returned the projects call successfully; task-level live acceptance and mirrored-event handling remain open."
+        "Implementation progress": "Source now tags mirrored startup records with a shared identity and collapses only matching records while retaining their provenance. Focused collector tests pass; installed verification remains pending."
       }
     },
     {

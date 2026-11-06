@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.17
+
+- Collapse explicitly identified mirrored startup events while retaining provenance.
+
+
 ## 0.1.16 (2026-11-06)
 
 - Add task-linked summaries, Ledger diagnostics, microphone state, and island transition evidence.
