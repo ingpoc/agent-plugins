@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.15 (2026-11-06)
+
+- Offer a compact session summary with event, failure, Ledger, outcome, and version counts.
+
 ## 0.1.14 (2026-11-06)
 
 - Preserve native action events in session timelines and paginate collected session events.

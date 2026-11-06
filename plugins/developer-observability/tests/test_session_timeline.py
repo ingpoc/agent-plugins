@@ -93,6 +93,13 @@ class SessionTimelineTests(unittest.TestCase):
             self.assertIsNone(second['next_cursor'])
             self.assertEqual(events[70]['outcome'], 'failure')
             self.assertEqual(events[70]['stage'], 'cua_act')
+            summary = api.sessions('a', ref, summary_only=True)
+            self.assertEqual(summary['summary']['native_event_outcomes'], {'success':74, 'failure':1})
+            self.assertEqual(summary['summary']['failure_events_by_stage'], {'cua_act':1})
+            self.assertNotIn('timeline', summary)
+            self.assertNotIn('coverage_details', summary)
+            with self.assertRaises(ValueError):
+                api.sessions('a', ref, cursor=first['next_cursor'], summary_only=True)
             with self.assertRaises(ValueError):
                 api.sessions('a', ref, cursor=first['next_cursor'], include_diagnostics=True)
 

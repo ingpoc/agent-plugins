@@ -652,10 +652,10 @@
       "status": "awaiting_verification",
       "observed": "The latest 66-event session returns 64 timeline entries with truncated=true. Native cua_act errors appear in issue inspection but not in the session timeline.",
       "recommendation": "Include native action stages in the session timeline and provide bounded pagination so agents can inspect all events and outcomes for a session.",
-      "verification": "Developer Observability 0.1.14 from PR code commit c6224d5 is installed. A fresh stdio MCP client retrieved all 92 collected events in two pages, including seven native-action failures. This existing agent session still advertises the older tool schema without a cursor; host reload and verification remain pending.",
+      "verification": "Developer Observability 0.1.14 is installed and a fresh stdio MCP client retrieved all 92 recent session events in two pages, including seven native-action failures. Version 0.1.15 adds a compact session summary in source. Installed 0.1.15 and the current T3 host schema remain to be verified.",
       "details": {
         "Evidence": "Developer Observability snapshot 2026-11-06 06:04 UTC; observability_api.py session timeline.",
-        "Source verification": "75-event regression passed. The 0.1.14 installed stdio client returned 92 events in two pages; the active T3 host still needs a tool-schema reload.",
+        "Source verification": "0.1.15 source passes session summary and pagination regressions. On the real session, its compact summary reported 92 events and seven native failure events; installed verification remains pending.",
         "Installed verification": "Version 0.1.14 fresh stdio MCP pagination returned 92 of 92 events, truncated=false. The current T3 agent session still exposes the older tool schema, so end-to-end host access to pagination is not yet verified."
       },
       "verification_refs": [

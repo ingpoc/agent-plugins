@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+from collections import Counter
 import hashlib
 import importlib.util
 import json
@@ -33,7 +34,7 @@ MAX_ISSUES_LIMIT = 100
 NEXT_STEPS = {
     'invalid_session_ref': 'Select a session_ref returned by observability_sessions for this project.',
     'session_not_in_project': 'Refresh observability_sessions for this project and select a returned session_ref.',
-    'invalid_limit': 'Pass limit as an integer: 1–100 for observability_issues (larger values are clamped to 100), '
+    'invalid_limit': 'Pass limit as an integer: 1–100 for observability_sessions and observability_issues (larger issue limits are clamped), '
                      '1–10 for observability_inspect_issue.',
     'invalid_status': 'Use status all, active, recovered or stale.',
     'invalid_kind': 'Use kind all, failure, latency_hotspot, redundancy, turn_latency, island_layout or storage.',
@@ -449,10 +450,12 @@ class ObservabilityAPI:
                 'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures,
                 'limit': limit, **({'limit_note': limit_note} if limit_note else {})}
 
-    def sessions(self, project_id, session_ref=None, include_diagnostics=False, cursor=None, limit=64):
+    def sessions(self, project_id, session_ref=None, include_diagnostics=False, cursor=None, limit=64, summary_only=False):
         """List recent opaque session references or inspect one bounded stage timeline."""
         if type(include_diagnostics) is not bool:
             raise ValueError('invalid_diagnostics: pass true or false')
+        if type(summary_only) is not bool or (summary_only and (session_ref is None or cursor is not None)):
+            raise ValueError('invalid_session_ref: summary requires a session_ref and no cursor')
         data, revision = self._read()
         self._project(project_id)
         if session_ref is not None and not safe_session_ref(session_ref):
@@ -514,6 +517,21 @@ class ObservabilityAPI:
             timeline.append(item)
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError('invalid_limit: use an integer 1–100')
+        if summary_only:
+            native = [event for event in timeline if event['stage'] == 'cua_act']
+            summary = {'events_by_stage': dict(Counter(event['stage'] for event in timeline)),
+                       'failure_events_by_stage': dict(Counter(event['stage'] for event in timeline if event['outcome'] == 'failure')),
+                       'native_event_outcomes': dict(Counter(event['outcome'] for event in native)),
+                       'ledger_result_events': dict(Counter(event['ledger_result_status'] for event in timeline if 'ledger_result_status' in event)),
+                       'task_outcome_events': dict(Counter(event['task_outcome'] for event in timeline if 'task_outcome' in event)),
+                       'versions': sorted({(event['version'], event['version_attribution']) for event in timeline})}
+            envelope = self._envelope(data, revision, project_id)
+            header = {key: envelope[key] for key in ('schema_version', 'project_id', 'snapshot_id', 'generated_at', 'freshness')}
+            header['coverage'] = {key: value for key, value in envelope.get('coverage', {}).items()
+                                  if key == project_id or key.startswith(project_id + ':')}
+            return {**header, 'session_ref': session_ref, 'summary': summary, 'total': row.get('total'),
+                    'truncated': row.get('truncated') is True,
+                    'limits': ['Counts describe collected events, not unique actions; source coverage may be partial.']}
         page, next_cursor = self._page(timeline, cursor, revision, f'sessions:{project_id}:{session_ref}:{include_diagnostics}', limit)
         return {**self._envelope(data, revision, project_id), 'session_ref': session_ref, 'timeline': page,
                 'total': row.get('total'), 'truncated': row.get('truncated') is True, 'next_cursor': next_cursor}
