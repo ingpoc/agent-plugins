@@ -5,7 +5,79 @@
       "label": "PR #87 · Fix Samantha island and preference behavior",
       "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/87"
     },
-    "worktree": "codex-samantha-issues-20261105"
+    "worktree": "codex-samantha-issues-20261105",
+    "verification_history": [],
+    "verification_run": {
+      "id": "acu-0.2.97-install-20261106-0544z",
+      "build": "ACU 0.2.97",
+      "revision": "61cc940",
+      "installed_at": "2026-11-06T05:44:13Z",
+      "install_evidence": "Local signed release receipt /tmp/acu-pr87-release.json; build-install and live client checks passed; timestamp is receipt completion.",
+      "status": "active",
+      "checks": {
+        "USER-01": {
+          "state": "pending"
+        },
+        "USER-02": {
+          "state": "pending"
+        },
+        "USER-03": {
+          "state": "pending"
+        },
+        "USER-04": {
+          "state": "pending"
+        },
+        "USER-05": {
+          "state": "pending"
+        },
+        "AGENT-01": {
+          "state": "fixed",
+          "started_at": "2026-11-06T07:28:54Z",
+          "updated_at": "2026-11-06T07:28:54Z",
+          "evidence": "Independent readback of /tmp/acu-pr87-release.json confirms ACU 0.2.97 commit 61cc940 and live-fd passed in 6.562 seconds.",
+          "finished_at": "2026-11-06T07:29:16Z"
+        },
+        "AGENT-02": {
+          "state": "pending"
+        },
+        "OBS-01": {
+          "state": "pending"
+        },
+        "OBS-02": {
+          "state": "pending"
+        },
+        "OBS-03": {
+          "state": "pending"
+        },
+        "OBS-04": {
+          "state": "pending"
+        },
+        "OBS-05": {
+          "state": "pending"
+        },
+        "OBS-06": {
+          "state": "pending"
+        },
+        "OBS-07": {
+          "state": "pending"
+        },
+        "OBS-08": {
+          "state": "pending"
+        },
+        "OBS-09": {
+          "state": "pending"
+        },
+        "OBS-10": {
+          "state": "pending"
+        },
+        "AGENT-03": {
+          "state": "pending"
+        },
+        "OBS-11": {
+          "state": "pending"
+        }
+      }
+    }
   },
   "findings": [
     {
