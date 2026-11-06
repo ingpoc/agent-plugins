@@ -423,7 +423,7 @@
         "Privacy boundary": "No personal ledger rows were read or written; tests use an in-memory transport.",
         "Installed/live verification": "Pending an installed Samantha session where a real non-sensitive saved preference is used without naming Context Ledger.",
         "Latest live evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations succeeded. Query and result content are not captured, so preference relevance remains unknown.",
-        "Latest verification": "Fresh 0.2.100 session included a Ledger lookup with zero matches; intended preference and whether it should match were not established."
+        "Latest verification": "Fresh 0.2.101 session recorded a successful Ledger recall with zero matches; the intended preference and whether it should match are not established."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
@@ -745,7 +745,8 @@
         "Telemetry provenance": "Latest observed Comet-assisted turn ended at 2026-11-05T11:25:53Z. Samantha and Comet stage timings are not joined to a controlled acceptance task.",
         "Decision": "No Comet or Samantha optimization was made without a repeatable task, correlated timings, and target.",
         "Installed/live verification": "Pending one fresh browser task with independent outcome verification.",
-        "Latest candidate browser evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: one comet_act success, with no duration or result in the bounded timeline. The link to the user-reported Netflix test is inferred."
+        "Latest candidate browser evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: one comet_act success, with no duration or result in the bounded timeline. The link to the user-reported Netflix test is inferred.",
+        "Latest verification": "Fresh 0.2.101 session recorded a successful Comet tool call; the resulting Netflix page and task-level outcome were not independently established."
       },
       "verification_refs": [
         "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-ac4bbcffb50cc0cd`, 14.9 s Comet-assisted turn; acceptance not assessed."
@@ -843,7 +844,8 @@
         "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed.",
         "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: opaque session ref is available; build attribution is session_inferred. The candidate link to the Netflix test is not explicit.",
         "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
-        "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified."
+        "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
+        "Latest verification": "Fresh 0.2.101 native, Comet, and Ledger events have no task run reference. Task correlation is still failing on this spoken path."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
@@ -957,7 +959,7 @@
         "Live acceptance limit": "The release runner reached the Calculator voice smoke but timed out without proving fresh spoken input, a successful action, and a completed response. The post-install collection found no Samantha session on ACU 0.2.96. Keep this issue open and the Netflix outcome unknown until a linked live test passes.",
         "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Scope": "Join task, action and response references with independent result evidence; do not infer task completion from a tool success.",
-        "Latest verification": "Fresh 0.2.100 session produced no linked task outcome; independent task success remains unknown."
+        "Latest verification": "Fresh 0.2.101 voice session contained no linked task outcome; independent Calculator readback showed 13 × 17 = 221."
       },
       "evidence": [],
       "verification_refs": [
@@ -1008,7 +1010,8 @@
       "verification": "On ACU 0.2.98 the user requested 13 × 17; a native action succeeded and an independent Calculator readback showed 221. Earlier missing-target failures were not separately ruled out.",
       "details": {
         "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue.",
-        "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved."
+        "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved.",
+        "Latest verification": "Fresh 0.2.101 session recorded successful native actions and independent Calculator readback of 13 × 17 = 221; earlier missing-target failures were not separately ruled out."
       },
       "verification_evidence": [
         {
@@ -1110,7 +1113,7 @@
         "Related findings": "OBS-01, OBS-02 and OBS-03; OBS-08 remains fixed for its narrower session timeline scope.",
         "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
         "Latest installation": "ACU 0.2.100 installed from PR code c3b9247. Source, notarization, live client, Cursor, disconnect and microphone checks passed; timed voice smoke did not prove a spoken interaction.",
-        "Latest verification": "Fresh 0.2.100 voice session contained native, Comet and Ledger calls but no task run references. Candidate did not prove live attribution."
+        "Latest verification": "Fresh 0.2.101 voice, native, Comet, and Ledger events have no task run reference; cross-stage attribution remains incomplete."
       }
     },
     {
