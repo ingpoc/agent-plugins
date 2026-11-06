@@ -410,7 +410,7 @@
     },
     {
       "id": "USER-02",
-      "title": "Samantha did not retrieve a relevant Context Ledger preference automatically",
+      "title": "User action needed · Retrieve a known preference",
       "source": "User reported",
       "status": "awaiting_verification",
       "observed": "Samantha did not apply a relevant saved preference unless asked to consult Context Ledger.",
@@ -423,7 +423,8 @@
         "Privacy boundary": "No personal ledger rows were read or written; tests use an in-memory transport.",
         "Installed/live verification": "Pending an installed Samantha session where a real non-sensitive saved preference is used without naming Context Ledger.",
         "Latest live evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations succeeded. Query and result content are not captured, so preference relevance remains unknown.",
-        "Latest verification": "Fresh 0.2.101 session recorded a successful Ledger recall with zero matches; the intended preference and whether it should match are not established."
+        "Latest verification": "Fresh 0.2.101 session recorded a successful Ledger recall with zero matches; the intended preference and whether it should match are not established.",
+        "User action": "When prompted, ask Samantha to use a specific preference that you know has already been saved, without telling her to consult Context Ledger. This is needed to compare the expected preference with the recalled and applied result."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
@@ -458,7 +459,7 @@
     },
     {
       "id": "USER-03",
-      "title": "Samantha should save durable preferences and critical decisions",
+      "title": "User action needed · Save and update a preference",
       "source": "User reported",
       "status": "untested",
       "observed": "Durable preferences and important decisions should be captured when they are stated, then reused at the right time without reminders.",
@@ -471,7 +472,8 @@
         "Input privacy": "The report does not include a preference value or decision content.",
         "Supersession behavior": "Context Ledger's same-scope+rule user_decision behavior is the intended preference supersession path. General captures are explicitly not treated as superseding.",
         "Privacy boundary": "Tests use mocks and temporary state; no personal ledger rows were read or written.",
-        "Installed/live verification": "ACU 0.2.97 from PR code commit 61cc940 is installed. A real non-sensitive preference/decision save and later retrieval have not been captured on this build."
+        "Installed/live verification": "ACU 0.2.97 from PR code commit 61cc940 is installed. A real non-sensitive preference/decision save and later retrieval have not been captured on this build.",
+        "User action": "When prompted, tell Samantha a durable preference and later change it. This exercises automatic capture, replacement and recall using your intended preference."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — exact scope/rule/value preference save and recall pass.",
@@ -1141,7 +1143,8 @@
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-10 and OBS-14 supply task identity and joined timing. OBS-11 remains fixed for its narrower pagination and native event coverage.",
-        "Implementation progress": "ACU 0.2.99 and Developer Observability 0.1.17 are installed from PR commit c60e779. Source, signing, notarization, client, Cursor, disconnect and microphone checks passed. Voice smoke timed out without a proven interaction; live mirror correlation remains unverified."
+        "Implementation progress": "ACU 0.2.99 and Developer Observability 0.1.17 are installed from PR commit c60e779. Source, signing, notarization, client, Cursor, disconnect and microphone checks passed. Voice smoke timed out without a proven interaction; live mirror correlation remains unverified.",
+        "Latest self-check": "Installed Developer Observability 0.1.17 passes four task-timeline tests, including explicit mirrored-event handling. Fresh installed ACU mirror pairing remains unverified."
       }
     },
     {
@@ -1154,7 +1157,8 @@
       "verification": "Observed during the release gate; the earlier full source gate passed. Installed behavior is not yet verified.",
       "details": {
         "Evidence": "Release gate: test_remote_bad_token_fails_loud; HTTP 401 followed by ConnectionResetError while reading the response body. No production credential or private response is included.",
-        "Implementation progress": "Source fix preserves the known HTTP 401 when reading the error body raises a connection reset. A deterministic regression test passes; the release gate must be rerun."
+        "Implementation progress": "Source fix preserves the known HTTP 401 when reading the error body raises a connection reset. A deterministic regression test passes; the release gate must be rerun.",
+        "Latest self-check": "The installed Context Ledger 0.1.39 reset regression test passes; a live server reset and authorization response have not been independently reproduced."
       }
     },
     {
@@ -1168,7 +1172,8 @@
       "details": {
         "Evidence": "Active ACU state tool returned No module named cua_client; a fresh process from the 0.2.98 cache independently read Calculator.",
         "Implementation progress": "The MCP now loads its service client at startup, before a versioned cache can be removed. Source protocol tests pass; an upgrade with an already-running client must verify the fix.",
-        "Latest verification": "ACU 0.2.101 installed from PR code cae6640; source, notarization, client, Cursor, disconnect and microphone checks passed. Already-running client across a subsequent refresh remains untested."
+        "Latest verification": "ACU 0.2.101 installed from PR code cae6640; source, notarization, client, Cursor, disconnect and microphone checks passed. Already-running client across a subsequent refresh remains untested.",
+        "Latest self-check": "The active ACU tool currently reads Calculator successfully and installed 0.2.101 protocol tests pass. Survival across a subsequent package refresh remains unverified."
       }
     }
   ]
