@@ -13,7 +13,7 @@
       "revision": "61cc940",
       "installed_at": "2026-11-06T05:44:13Z",
       "install_evidence": "Local signed release receipt /tmp/acu-pr87-release.json; build-install and live client checks passed; timestamp is receipt completion.",
-      "status": "complete",
+      "status": "active",
       "checks": {
         "USER-01": {
           "state": "inconclusive",
@@ -154,6 +154,21 @@
           "updated_at": "2026-11-06T07:38:12Z",
           "evidence": "A no_input_device preflight failure preceded a successful startup in another session; root cause and reliable recovery remain unknown.",
           "finished_at": "2026-11-06T07:38:41Z"
+        },
+        "OBS-12": {
+          "state": "pending"
+        },
+        "OBS-13": {
+          "state": "pending"
+        },
+        "OBS-14": {
+          "state": "pending"
+        },
+        "OBS-15": {
+          "state": "pending"
+        },
+        "OBS-16": {
+          "state": "pending"
         }
       }
     }
@@ -615,14 +630,15 @@
       "source": "Agent reported",
       "status": "investigation",
       "observed": "Diagnostic events need trustworthy session and build attribution, including explicit uncertainty.",
-      "recommendation": "Commit 8feeffe adds attribution and inference safeguards with source tests; verify attribution in an installed session.",
+      "recommendation": "Attach the actual installed build identity to attributable events, preserve explicit inferred or unknown labels where direct proof is unavailable, and link that identity to the task run.",
       "verification": "The latest candidate live session is selectable by opaque session ref and reports ACU 0.2.95 with session_inferred attribution. That is useful but not direct event-level build attribution, and the user's task/result is not explicitly joined; this finding remains under investigation.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
         "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
         "Installed build check": "PR code commit e514102: Developer Observability 0.1.12 installed via Codex personal marketplace; installed package matches source. Fresh MCP process listed observability_sessions, collected current data, returned 24 Samantha sessions and 48 stages for the latest session, and inspected the ledger issue. ACU 0.2.95 installed; source, signature, client, Cursor, FD and microphone checks passed. Voice smoke did not prove fresh input or completed action.",
         "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed.",
-        "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: opaque session ref is available; build attribution is session_inferred. The candidate link to the Netflix test is not explicit."
+        "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: opaque session ref is available; build attribution is session_inferred. The candidate link to the Netflix test is not explicit.",
+        "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
@@ -724,7 +740,7 @@
       "source": "Agent reported",
       "status": "investigation",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
-      "recommendation": "Correlate explicit task outcomes to sessions using opaque run/response references; show Ledger result status and count in the concise timeline; offer bounded, credential-redacted Ledger result and error details only when the agent requests include_diagnostics=true. Keep transcripts and real session details out of the public report.",
+      "recommendation": "Link the user's task to its actions, response and independently observed result using a stable run identity. Show expected and observed results only when recorded, and retain unknown or unverified outcomes when proof is missing.",
       "verification": "The latest 0.2.97 session explicitly records a task outcome of unverified with app_readback evidence class after native-action errors. Task outcome instrumentation is present; a verified result for the intended task has not been established.",
       "details": {
         "Evidence gap": "The earlier snapshot's session match was only a candidate. Without explicit task correlation, success rows did not establish the user's Netflix outcome. Ledger result status/details and bounded error stacks were not available through the agent tools.",
@@ -733,7 +749,9 @@
         "Privacy boundary": "The agent may inspect actual Ledger results and recorded error details through local opt-in diagnostics. Keep request text, transcripts, and actual session/result data out of the public PR report; credential values remain redacted.",
         "Implementation progress": "ACU 0.2.96 now emits correlated task outcomes and bounded local Ledger/error details. Developer Observability 0.1.13 summarizes by default and exposes those details only through include_diagnostics=true. Source/package checks and installed MCP diagnostics pass; independent live task acceptance remains open.",
         "Installed verification": "ACU 0.2.96 and Developer Observability 0.1.13 were installed from PR commit 42187bc. A fresh Developer Observability MCP process exposed nine tools, showed task and Ledger status in the default timeline, and returned synthetic Ledger/error details only on opt-in; credential redaction passed. ACU signature, native MCP/readback, cursor/fd integrations, and microphone preflight passed.",
-        "Live acceptance limit": "The release runner reached the Calculator voice smoke but timed out without proving fresh spoken input, a successful action, and a completed response. The post-install collection found no Samantha session on ACU 0.2.96. Keep this issue open and the Netflix outcome unknown until a linked live test passes."
+        "Live acceptance limit": "The release runner reached the Calculator voice smoke but timed out without proving fresh spoken input, a successful action, and a completed response. The post-install collection found no Samantha session on ACU 0.2.96. Keep this issue open and the Netflix outcome unknown until a linked live test passes.",
+        "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
+        "Scope": "Join task, action and response references with independent result evidence; do not infer task completion from a tool success."
       },
       "evidence": [],
       "verification_refs": [
@@ -843,6 +861,71 @@
       "verification": "Fresh Developer Observability snapshot 2026-11-06 07:36 UTC shows a failed preflight at 07:33:28 UTC followed by successful preflight and audio readiness in a later session. The cause and recovery mechanism are unknown.",
       "details": {
         "Evidence": "Issue col-5e50a051d4776370; version 0.2.97 attribution is session-inferred. Later successful startup does not establish cause or a reliable recovery."
+      }
+    },
+    {
+      "id": "OBS-12",
+      "title": "Show the complete Context Ledger decision trail",
+      "source": "User requested",
+      "status": "investigation",
+      "observed": "The current timeline can show Ledger operation, result status, count and optional bounded result details, but does not establish which preference was selected, applied, saved or superseded for a task.",
+      "recommendation": "Link each lookup, selected preference, application, save receipt and supersession outcome to the task. Show concise status first and recorded result/error details on demand.",
+      "verification": "Requested enhancement; the latest lookup returned no matches. Whether the requested preference existed or was applied remains unknown.",
+      "details": {
+        "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
+        "Related findings": "USER-02, USER-03 and AGENT-02 track preference behavior; OBS-09 remains fixed for its narrower metadata scope."
+      }
+    },
+    {
+      "id": "OBS-13",
+      "title": "Capture island transitions and before-and-after geometry",
+      "source": "User requested",
+      "status": "investigation",
+      "observed": "Layout occurrences expose geometry at particular resize events, but do not establish a complete open, resize, close or exit-fade sequence or the final idle and harness positions.",
+      "recommendation": "Capture correlated transition stages, layout state, island and control bounds, and final positions so the agent can compare before and after a close or resize.",
+      "verification": "Requested enhancement informed by current 0.2.97 resize events. Existing geometry evidence is not a linked close/reflow acceptance run.",
+      "details": {
+        "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
+        "Related findings": "OBS-04, USER-01 and USER-05; OBS-07 remains fixed for its narrower per-occurrence geometry scope."
+      }
+    },
+    {
+      "id": "OBS-14",
+      "title": "Link voice, model, Ledger, browser and native timing to one task",
+      "source": "User requested",
+      "status": "investigation",
+      "observed": "Stage timings and a compact session summary exist, but a single task-level timeline across Samantha, Ledger, Comet, native actions and playback is not established.",
+      "recommendation": "Join attributable stage durations, errors and outcomes to the task, preserve unknown stages and make slow-step evidence available on demand.",
+      "verification": "Requested enhancement; the latest session contains a 16.3-second Comet-associated turn, but task attribution and cause remain unverified.",
+      "details": {
+        "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
+        "Related findings": "OBS-01, OBS-02 and OBS-03; OBS-08 remains fixed for its narrower session timeline scope."
+      }
+    },
+    {
+      "id": "OBS-15",
+      "title": "Explain microphone preflight failures and recovery",
+      "source": "User requested",
+      "status": "investigation",
+      "observed": "A no-input-device preflight failure was followed by a successful startup in another session; available evidence does not establish what changed or whether recovery was automatic.",
+      "recommendation": "Record input availability and device selection at preflight and audio readiness, with correlated failure and recovery transitions.",
+      "verification": "Requested enhancement based on the 0.2.97 preflight lead; root cause and reliable recovery remain unknown.",
+      "details": {
+        "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
+        "Related findings": "AGENT-04 tracks the product symptom; OBS-02 tracks startup timing."
+      }
+    },
+    {
+      "id": "OBS-16",
+      "title": "Show a concise task summary and collapse mirrored events",
+      "source": "User requested",
+      "status": "investigation",
+      "observed": "A compact session summary exists, but it is not a single attributable task summary. Mirrored or repeated rows can obscure the action sequence.",
+      "recommendation": "Show task, build, outcome, duration, failed step and evidence completeness first; collapse genuine mirrored events while retaining occurrence counts and expandable source evidence.",
+      "verification": "Requested enhancement. Deduplication rules, false-merge behavior and task-level completeness need independent verification.",
+      "details": {
+        "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
+        "Related findings": "OBS-10 and OBS-14 supply task identity and joined timing. OBS-11 remains fixed for its narrower pagination and native event coverage."
       }
     }
   ]
