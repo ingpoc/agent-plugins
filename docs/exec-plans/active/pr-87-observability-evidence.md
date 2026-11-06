@@ -77,3 +77,11 @@ All paths above are under `plugins/developer-observability/` or `plugins/agent-c
 - **Optimize:** The release reran a full source gate after an earlier full gate, but the runs are not a validated interchangeable receipt. No speedup is claimed; any reuse would require a frozen-source identity, auditable receipt and fail-closed invalidation.
 - **Automate:** The existing findings manager already starts and records installation runs. Do not add another tracker or bypass its start/finish checks. A potential future improvement is automatic installation-receipt validation and run creation, only after its owner and failure/retry behavior are proved.
 - **Outcome:** The 0.2.105 release installed, but its microphone gate failed. The new 29-item run has explicit results; old-client refresh remains failing, the voice path is blocked, and the rotation fix still needs installed service concurrency and crash-recovery evidence. The 0.2.104 failed gate exposed a log-rotation defect, tracked as OBS-17. No completed source test is promoted to installed acceptance on its own.
+
+### Iteration review: 0.2.106
+
+- **Delete:** No verification or release stage was removed. The source and installed checks verify different artifacts, and the microphone failure is not an acceptance pass.
+- **Simplify:** The task identity change retires a completed spoken ID in the existing provider; unmatched delegations remain unknown instead of adding a second correlation store. Source tests cover a stale-ID reproduction and a spoken tool continuation.
+- **Optimize:** No comparable end-to-end measurement establishes a speed improvement. Repeated source gates and signing remain candidates for future measurement, not proof that a stage can be skipped.
+- **Automate:** The existing findings manager records the installation and per-issue outcomes; no additional tracker or autonomous retry was introduced. Automated promotion of a caller-reported task outcome would be a false pass and remains prohibited.
+- **Outcome:** ACU 0.2.106 installed from PR commit 603f5dd; 130 focused installed-package tests passed. The release failed at microphone preflight. The 29-item run remains two fixed, one not fixed, 14 blocked and 12 inconclusive. An already-running client rejected its stale runtime contract; task correlation and preference use still lack attributable spoken acceptance.
