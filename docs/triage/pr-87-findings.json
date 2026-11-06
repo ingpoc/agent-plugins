@@ -13,22 +13,42 @@
       "revision": "61cc940",
       "installed_at": "2026-11-06T05:44:13Z",
       "install_evidence": "Local signed release receipt /tmp/acu-pr87-release.json; build-install and live client checks passed; timestamp is receipt completion.",
-      "status": "active",
+      "status": "complete",
       "checks": {
         "USER-01": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:38:56Z",
+          "updated_at": "2026-11-06T07:38:56Z",
+          "evidence": "No linked close-and-reflow transition or measured post-close position was collected in the latest test; source tests alone do not prove installed behavior.",
+          "finished_at": "2026-11-06T07:39:14Z"
         },
         "USER-02": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "A lookup returned no matches; the intended preference and application are not independently established.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "USER-03": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:38:56Z",
+          "updated_at": "2026-11-06T07:38:56Z",
+          "evidence": "The latest session has a lookup but no preference or decision save receipt; save and supersession behavior were not exercised in the visible session.",
+          "finished_at": "2026-11-06T07:39:14Z"
         },
         "USER-04": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:38:56Z",
+          "updated_at": "2026-11-06T07:38:56Z",
+          "evidence": "Existing fixed status is based on the prior installed visual verification; the latest session contains no attributable fresh icon capture, so this installation check is inconclusive.",
+          "finished_at": "2026-11-06T07:39:14Z"
         },
         "USER-05": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:38:56Z",
+          "updated_at": "2026-11-06T07:38:56Z",
+          "evidence": "ACU 0.2.97 app version was read directly; recent 74 pt geometry is for a resize with voice activity and does not measure the idle pill.",
+          "finished_at": "2026-11-06T07:39:14Z"
         },
         "AGENT-01": {
           "state": "fixed",
@@ -38,43 +58,102 @@
           "finished_at": "2026-11-06T07:29:16Z"
         },
         "AGENT-02": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "A lookup succeeded with zero results; the prior recall error path was not exercised.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-01": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "A 16.3 s turn was recorded, but no accepted latency target or cause is established.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-02": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "A preflight failure was followed by successful startup in another session; cause and repeatability are unknown.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-03": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "A 16.3 s Comet-associated turn was observed; target, root cause, and task attribution are unverified.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-04": {
-          "state": "pending"
+          "state": "not_fixed",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "Two fresh event-attributed 0.2.97 resize events show 30 pt voice-slot overflow.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-05": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "Five distinct current-session native failures were returned with timestamps and per-occurrence diagnostics in the active T3 observability tool.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-06": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "Session IDs and version labels are visible, but many events use session-inferred build attribution; exact user task linkage remains unproven.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-07": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "Two current 0.2.97 layout events include exact bounds, slot rectangle, timestamp and overflow in the active T3 observability tool.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-08": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "Active T3 0.1.15 session timeline returned 71 stages with durations and explicit outcomes or unknowns across two pages.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-09": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "Active T3 0.1.15 session returned the latest Ledger lookup operation, success, none result and zero-decision count with opt-in detail.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-10": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "The task_outcome is explicitly unverified; the requested task and independent success are not established.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "AGENT-03": {
-          "state": "pending"
+          "state": "not_fixed",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "Latest 0.2.97 session includes four observation_incomplete failures and one expect_unverified failure.",
+          "finished_at": "2026-11-06T07:38:41Z"
         },
         "OBS-11": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-06T07:37:15Z",
+          "updated_at": "2026-11-06T07:37:15Z",
+          "evidence": "Active T3 0.1.15 host returned all 71 current-session events in two pages, including 12 native-action events.",
+          "finished_at": "2026-11-06T07:38:41Z"
+        },
+        "AGENT-04": {
+          "state": "inconclusive",
+          "started_at": "2026-11-06T07:38:12Z",
+          "updated_at": "2026-11-06T07:38:12Z",
+          "evidence": "A no_input_device preflight failure preceded a successful startup in another session; root cause and reliable recovery remain unknown.",
+          "finished_at": "2026-11-06T07:38:41Z"
         }
       }
     }
@@ -118,7 +197,7 @@
       "status": "awaiting_verification",
       "observed": "Samantha did not apply a relevant saved preference unless asked to consult Context Ledger.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "The latest ACU 0.2.97 candidate session contains three successful Context Ledger recalls, each returning no matches. The observed result does not establish whether the intended preference exists or was applied; the timeline is truncated.",
+      "verification": "The latest 0.2.97 session contains one successful Ledger lookup returning none and zero decisions. Without the requested preference or an independent readback, relevance and application remain unverified.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
@@ -314,7 +393,7 @@
       "status": "awaiting_verification",
       "observed": "Fresh ACU 0.2.96 telemetry records a Context Ledger recall rejected because its query had no searchable terms. No subsequent ledger call appears after that error in the selected session; earlier retry records remain in history.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "Three visible 0.2.97 recall calls succeeded and returned empty matches. The collector also flags one duplicate Ledger call in this session; argument equivalence and full-session recovery need investigation. The earlier empty-query failure did not recur in the visible recalls.",
+      "verification": "The latest session contains one successful lookup returning no decisions and no visible Ledger error. This does not exercise the previously failing recall path, so the recall fix and retry behavior remain awaiting verification.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
@@ -376,7 +455,7 @@
       "status": "investigation",
       "observed": "Developer Observability reports several slow voice and audio stages. These are leads, not confirmed user-facing latency defects.",
       "recommendation": "Trace a fresh, short voice interaction end to end and optimize only the stage that remains slow in a linked run.",
-      "verification": "The latest candidate 0.2.97 session includes a 33.3 s speech-to-playback turn with native actions and three errors, plus a 13.3 s Ledger turn. These are telemetry leads; a product latency target and root cause remain unestablished.",
+      "verification": "The latest 0.2.97 session includes a 16.3-second speech-to-playback turn associated with Comet. This is a current telemetry lead; its root cause and a product latency target remain unestablished.",
       "details": {
         "Latest metrics": "Speech-to-playback p95 13.7 s (p50 2.4 s, n=92); audio_ready p95 5.9 s (p50 249 ms, n=12); usage p95 4.6 s (p50 2.1 s, n=114).",
         "Threshold note": "The collector's 1.0 s threshold is an investigation signal, not a user-facing SLA. One aggregate speech-to-playback maximum is a 1,086.6 s outlier and needs run-level correlation.",
@@ -470,7 +549,7 @@
       "status": "failing",
       "observed": "A fresh ACU 0.2.96 resize event reports the voice slot extending 6 pt beyond a 74 pt island; older 50 pt events account for the larger historical overflow.",
       "recommendation": "Repeat voice, close, and resize checks on the installed PR build, then compare the linked layout measurements with the source result.",
-      "verification": "Five event-attributed ACU 0.2.97 resize observations show a 23 pt voice slot extending 30 pt beyond a 74 pt island; eight island_layout failure records are attributed to 0.2.97. Source tests passed, but the latest live geometry remains failing.",
+      "verification": "Fresh 0.2.97 telemetry records two resize events with the voice slot extending 30 pt beyond a 74 pt island; the issue remains failing.",
       "details": {
         "Latest telemetry": "Three voice_slot boundary events reported a maximum of 30.0 pt; eight island_layout failures were recorded.",
         "Attribution limit": "The observability snapshot does not link these records to the user's close/reflow report or a controlled resize run. Root cause is unconfirmed.",
@@ -515,10 +594,10 @@
       "id": "OBS-05",
       "title": "Per-occurrence error evidence",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "verified_fixed",
       "observed": "Error clusters need individual error evidence to distinguish occurrences.",
       "recommendation": "Commit 8feeffe adds occurrence evidence and source tests; verify individual errors in the installed client.",
-      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
+      "verification": "The installed Developer Observability tool returned individual timestamped failures from the fresh 0.2.97 session, including four observation_incomplete errors and one expect_unverified error. Each occurrence exposes its own bounded diagnostic context.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
         "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
@@ -526,7 +605,8 @@
         "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed."
       },
       "verification_refs": [
-        "Commit 8feeffe — Developer Observability source and tests."
+        "Active T3 Developer Observability issue col-dc38f92008a89f1a, snapshot 5db8119d: timestamped individual current-session failures and diagnostic error types.",
+        "plugins/developer-observability/tests/test_occurrence_evidence.py — occurrence evidence source check."
       ]
     },
     {
@@ -562,10 +642,10 @@
       "id": "OBS-07",
       "title": "Layout geometry details",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "verified_fixed",
       "observed": "Layout failures need geometry details to diagnose the affected bounds.",
       "recommendation": "Commit 8feeffe exposes layout occurrence details with source tests; verify details against a controlled installed layout event.",
-      "verification": "Developer Observability 0.1.12 and ACU 0.2.95 from PR commit e514102 are installed. Fresh MCP collection and session inspection succeeded; a controlled voice session was not proven, so this entry remains under investigation.",
+      "verification": "The installed Developer Observability tool exposed two current 0.2.97 resize occurrences with island bounds 74×24 pt, voice-slot rectangle x81 y4 w23 h16, and 30 pt overflow. The layout defect itself remains tracked under OBS-04.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
         "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
@@ -573,7 +653,7 @@
         "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed."
       },
       "verification_refs": [
-        "Commit 8feeffe — Developer Observability source and tests."
+        "Active T3 Developer Observability issue col-8d5ea6a3cd6b73d0, snapshot 5db8119d: timestamped 0.2.97 resize geometry and overflow."
       ]
     },
     {
@@ -645,7 +725,7 @@
       "status": "investigation",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
       "recommendation": "Correlate explicit task outcomes to sessions using opaque run/response references; show Ledger result status and count in the concise timeline; offer bounded, credential-redacted Ledger result and error details only when the agent requests include_diagnostics=true. Keep transcripts and real session details out of the public report.",
-      "verification": "The latest 0.2.97 candidate session can now be inspected through a fresh installed 0.1.15 MCP process: it has 16 cua_act events (one success, seven failures, eight unknown) and no task_outcome. A successful event is not linked to the intended Calculator task, so the task result remains unknown. The active agent host still needs a schema reload.",
+      "verification": "The latest 0.2.97 session explicitly records a task outcome of unverified with app_readback evidence class after native-action errors. Task outcome instrumentation is present; a verified result for the intended task has not been established.",
       "details": {
         "Evidence gap": "The earlier snapshot's session match was only a candidate. Without explicit task correlation, success rows did not establish the user's Netflix outcome. Ledger result status/details and bounded error stacks were not available through the agent tools.",
         "Acceptance": "On an installed build, an explicit test run must link to its session and build, expose task outcome/tool names and an independent app postcondition, and show Ledger result/error details only on diagnostic opt-in. The task result remains unknown without the independent postcondition.",
@@ -701,7 +781,7 @@
       "status": "failing",
       "observed": "Fresh ACU 0.2.97 telemetry records five cua_act errors during the latest test: target_missing and observation_incomplete. A separate grouped incident reports two retries.",
       "recommendation": "Inspect the affected action and observation path, identify the missing target or incomplete state, and verify a successful native action with independent app readback.",
-      "verification": "The latest 0.2.97 session contains seven native-action failure events and one successful native-action event, with no proven linkage between the success and the failed attempts. A separate direct installed MCP Calculator check read back 72. The Samantha voice-session failures remain unresolved.",
+      "verification": "The latest 0.2.97 session contains one successful native action and five later native-action errors: four observation_incomplete and one expect_unverified. A later task outcome is unverified; the intended task and independent result are not established.",
       "details": {
         "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue.",
         "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved."
@@ -721,18 +801,18 @@
       "id": "OBS-11",
       "title": "Session timeline omits native actions and truncates long sessions",
       "source": "Agent reported",
-      "status": "awaiting_verification",
+      "status": "verified_fixed",
       "observed": "The latest 66-event session returns 64 timeline entries with truncated=true. Native cua_act errors appear in issue inspection but not in the session timeline.",
       "recommendation": "Include native action stages in the session timeline and provide bounded pagination so agents can inspect all events and outcomes for a session.",
-      "verification": "Developer Observability 0.1.15 from PR code commit 4017c39 is installed. A fresh stdio MCP client retrieved the 92-event session in two pages, including seven native-action failure events, and independently verified the compact summary. This existing T3 agent session still advertises the older tool schema; host reload and verification remain pending.",
+      "verification": "The active T3 observability tool now exposes summary and cursor parameters. A fresh 0.2.97 Samantha session returned all 71 events across two pages (50 and 21), including 12 native-action events, with truncated=false.",
       "details": {
         "Evidence": "Developer Observability snapshot 2026-11-06 06:04 UTC; observability_api.py session timeline.",
         "Source verification": "0.1.15 source and full repository checks passed. Session summary and 75-event pagination regressions passed.",
-        "Installed verification": "Version 0.1.15 fresh stdio MCP returned 92 of 92 events, truncated=false, and matching native-event counts. The active T3 agent session still exposes the older schema; host reload remains pending."
+        "Installed verification": "T3 host now exposes the 0.1.15 summary and pagination schema; live session retrieval returned all 71 events and native actions."
       },
       "verification_refs": [
-        "plugins/developer-observability/tests/test_session_timeline.py — session summary and 75-event pagination regressions passed.",
-        "Installed 0.1.15 fresh stdio MCP client — actual session returned 92 of 92 events in two pages and a matching compact summary."
+        "Active T3 Developer Observability 0.1.15 sessions tool, snapshot 5db8119d: 71 events returned across two pages, including native action events.",
+        "plugins/developer-observability/tests/test_session_timeline.py — pagination and native-event regression passed."
       ],
       "verification_evidence": [
         {
@@ -752,6 +832,18 @@
           "reference": "Fresh stdio MCP client against installed plugin; current agent host schema remains older."
         }
       ]
+    },
+    {
+      "id": "AGENT-04",
+      "title": "Samantha microphone preflight temporarily found no input device",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "A 0.2.97 startup recorded no_input_device shortly before a later session recorded successful microphone preflight and audio readiness.",
+      "recommendation": "Investigate the input-device discovery and startup transition; verify whether the failure was transient and that Samantha recovers without a manual workaround.",
+      "verification": "Fresh Developer Observability snapshot 2026-11-06 07:36 UTC shows a failed preflight at 07:33:28 UTC followed by successful preflight and audio readiness in a later session. The cause and recovery mechanism are unknown.",
+      "details": {
+        "Evidence": "Issue col-5e50a051d4776370; version 0.2.97 attribution is session-inferred. Later successful startup does not establish cause or a reliable recovery."
+      }
     }
   ]
 }
