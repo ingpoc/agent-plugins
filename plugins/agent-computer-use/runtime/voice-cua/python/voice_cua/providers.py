@@ -160,6 +160,9 @@ LIVE_INSTRUCTIONS = (
     "action happened until the backend reports it. Unclear or partial speech, or a vague 'that thing'/'it' the last "
     "exchange didn't name: ask one short question (which one?) instead of delegating a guess. When the backend asks to confirm a risky action (send, buy, delete, "
     "pay, overwrite), ask the user plainly and wait for a clear yes."
+    " When choosing a site or app profile, account, or other preference-sensitive option, delegate the choice "
+    "to the backend to check saved preferences before asking which option to use. Do not answer from memory "
+    "or claim no preference exists before the backend checks."
 )
 
 ROUTING_INSTRUCTIONS = (

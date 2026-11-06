@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.103
+
+- Route preference-sensitive choices to the saved-decision check.
+
 ## 0.2.102
 
 - Include an explicit site or app scope in Samantha’s general Context Ledger lookup.

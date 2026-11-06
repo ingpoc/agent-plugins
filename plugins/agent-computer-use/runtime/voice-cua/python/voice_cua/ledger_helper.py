@@ -141,7 +141,14 @@ class LedgerHelper:
                     args = {'query': query, 'scope': scope, 'actor': 'samantha'}
                     if rule:
                         args['rule'] = rule
-                    return {'ok': True, **self.transport.call('find', args)}
+                    result = self.transport.call('find', args)
+                    if rule and result.get('ok') and not result.get('data', {}).get('matches'):
+                        candidates = self.transport.call('find', {k: v for k, v in args.items() if k != 'rule'})
+                        if not candidates.get('ok'):
+                            raise LedgerUnavailable('scoped candidate search failed')
+                        if candidates.get('data', {}).get('matches'):
+                            return {'ok': True, 'status': 'needs_disambiguation', 'data': candidates['data']}
+                    return {'ok': True, **result}
                 source = self._quote_source(owner_quote)
                 if not _norm_text(value) or source is None or (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
                     return _invalid('Value and owner quote must occur in a recent user statement')

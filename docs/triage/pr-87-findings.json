@@ -1043,7 +1043,7 @@
       "status": "failing",
       "observed": "During the 0.2.102 voice test, Samantha queried the Ledger and then said she had no saved site profile, although an active site-scoped preference already existed.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "In the latest 0.2.102 voice test, Samantha initially asked the user to choose a profile without a Ledger call. After the user explicitly requested their preference, a recall returned no matches, despite independently verified active saved preferences.",
+      "verification": "The latest installed 0.2.102 voice test failed: Samantha asked before checking, and her later recall returned no match despite a saved preference. A 0.2.103 candidate has passed source checks but is not installed or live-verified; automatic retrieval remains failing.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
@@ -1063,7 +1063,8 @@
         "Scope discrepancy": "A newly saved preference from that session was independently read back under the browser tool scope; earlier matching decisions were saved under the site tool scope. The failed recall scope and rule were not retained, so the precise reason for the miss is not proven. Personal values and identifiers are omitted.",
         "Root cause analysis": "The voice-facing Live instructions allow brief clarifications to be answered directly; the proactive Ledger instruction lives in the backend instructions and does not guarantee backend delegation at a preference-sensitive choice. Exact-scope and exact-rule recall is brittle: controlled reads found saved decisions with their precise scope and rule, but equivalent site identifiers or a different rule returned none. The actual live recall scope and rule were not recorded, so its specific mismatch is unknown.",
         "Required fix": "Ensure preference-sensitive choices reach the backend before asking; resolve site identity independently of browser tool, search existing scoped decisions without guessing a rule, and apply only an unambiguous active match. Record bounded scope/rule and delegation metadata to diagnose misses, without recording private values. Verify save, recall and application on an installed build.",
-        "Fix plan": "The existing PR #87 implementation plan now includes a scoped automatic-preference milestone, known limits, failure handling, privacy boundaries, owner paths and installed acceptance checks. Legacy browser-scope migration and the voice decision-boundary signal remain open design decisions."
+        "Fix plan": "The existing PR #87 implementation plan now includes a scoped automatic-preference milestone, known limits, failure handling, privacy boundaries, owner paths and installed acceptance checks. Legacy browser-scope migration and the voice decision-boundary signal remain open design decisions.",
+        "0.2.103 candidate": "Adds explicit voice delegation guidance and a bounded same-scope candidate search when an exact rule misses. Candidates require disambiguation and do not establish a saved preference by themselves. Site alias resolution, deterministic voice routing, conflict handling and live acceptance remain open."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
@@ -1157,6 +1158,22 @@
           "session": "scoped-recall-investigation-20261106",
           "timestamp": "2026-11-06T13:27:07+00:00",
           "reference": "Controlled local Ledger reads; source providers.py LIVE_INSTRUCTIONS and ledger_helper.py recall; private values excluded"
+        },
+        {
+          "check": "Candidate focused source suites",
+          "outcome": "59 Ledger and provider tests passed. These tests do not prove that the voice model delegates a preference-sensitive choice or applies an existing decision.",
+          "build": "ACU 0.2.103 candidate",
+          "session": "source-check-20261106",
+          "timestamp": "2026-11-06T13:36:55+00:00",
+          "reference": "pytest Ledger helper, preference and provider suites"
+        },
+        {
+          "check": "Scoped candidate regression",
+          "outcome": "70 focused tests passed; a temporary real Ledger confirmed a mismatched rule returns same-site candidates marked needs_disambiguation and excludes another site. Voice delegation and application were not exercised.",
+          "build": "ACU 0.2.103 candidate",
+          "session": "source-check-20261106",
+          "timestamp": "2026-11-06T13:50:28+00:00",
+          "reference": "pytest Ledger helper, preference, transport and provider suites; synthetic Ledger fixture"
         }
       ]
     },

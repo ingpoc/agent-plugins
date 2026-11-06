@@ -61,13 +61,43 @@ class LedgerHelperTests(unittest.TestCase):
         self.assertLessEqual(len(self.transport.call.call_args.args[1]['query']), 240)
 
     def test_recall_query_includes_need_situation_and_rule(self):
-        self.transport.call.return_value = {'ok': True, 'data': {'matches': []}}
+        self.transport.call.return_value = {'ok': True, 'data': {'matches': [self.match]}}
         result = self.helper.run(operation='recall', scope='tool:calculator', rule='arithmetic_choice',
                                  need='calculator app', situation='perform calculation')
         args = self.transport.call.call_args.args[1]
         self.assertTrue(result['ok'])
         self.assertEqual(args['query'], 'calculator app perform calculation arithmetic choice')
         self.assertEqual((args['scope'], args['rule']), ('tool:calculator', 'arithmetic_choice'))
+
+    def test_recall_exposes_candidates_without_claiming_an_exact_match(self):
+        self.transport.call.side_effect = [
+            {'ok': True, 'data': {'matches': []}},
+            {'ok': True, 'data': {'matches': [self.match]}},
+        ]
+        result = self.helper.run(operation='recall', scope='tool:example', rule='profile', need='profile')
+        self.assertEqual(result['status'], 'needs_disambiguation')
+        self.assertEqual(result['data']['matches'], [self.match])
+        self.assertNotIn('rule', self.transport.call.call_args.args[1])
+        self.assertEqual(self.transport.call.call_args.args[1]['scope'], 'tool:example')
+
+    def test_recall_candidates_stay_within_the_requested_site(self):
+        import uuid
+        sys.path.insert(0, str(Path(__file__).resolve().parents[4] / 'context-ledger'))
+        from context_ledger.store import Store, init_ledger
+        data = Path(self.temp.name) / 'ledger'
+        data.mkdir()
+        init_ledger(data, None, 'test', 'tester')
+        store = Store(data, actor_channel='agent')
+        self.addCleanup(store.close)
+        store.ab_today = lambda: '2026-10-17'
+        for site, value in [('example', 'A'), ('other', 'B')]:
+            store.save({'request_id': str(uuid.uuid4()), 'type': 'user_decision',
+                        'scope': 'tool:' + site, 'rule': 'profile_selection',
+                        'decision': value, 'why': 'Owner preference', 'entities': [site]}, mcp=True)
+        self.transport.call.side_effect = lambda name, args: {'ok': True, 'data': store.find(args, mcp=True)}
+        result = self.helper.run(operation='recall', scope='tool:example', rule='profile', need='profile')
+        self.assertEqual(result['status'], 'needs_disambiguation')
+        self.assertEqual([m['decision'] for m in result['data']['matches']], ['A'])
 
     def test_recall_without_query_terms_fails_before_transport(self):
         result = self.helper.run(operation='recall', scope='fleet')
