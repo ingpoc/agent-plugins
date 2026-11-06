@@ -1134,7 +1134,7 @@
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-10 and OBS-14 supply task identity and joined timing. OBS-11 remains fixed for its narrower pagination and native event coverage.",
-        "Implementation progress": "Source now tags mirrored startup records with a shared identity and collapses only matching records while retaining their provenance. Focused collector tests pass; installed verification remains pending."
+        "Implementation progress": "ACU 0.2.99 and Developer Observability 0.1.17 are installed from PR commit c60e779. Source, signing, notarization, client, Cursor, disconnect and microphone checks passed. Voice smoke timed out without a proven interaction; live mirror correlation remains unverified."
       }
     },
     {
