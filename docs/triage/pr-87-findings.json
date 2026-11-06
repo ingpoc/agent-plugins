@@ -1060,7 +1060,9 @@
         "Controlled follow-up": "The 0.2.102 helper was exercised against the actual Ledger with a bounded selection stub: the same lookup without site scope returned zero records, while a site-scoped lookup returned two. The scoped path can read the existing records; the actual live request scope is unknown.",
         "Lookup audit": "The Ledger access audit recorded a concrete query naming the site and profile choice and returned zero results at the exact time of the voice lookup. It does not retain the request scope, so the reason that specific lookup missed the record is still unproven.",
         "Latest test": "The session record shows an initial profile question, then an explicit request to use saved preferences, followed by a zero-match recall. The owner named the choice; Samantha reported selecting it. No independent page readback was captured.",
-        "Scope discrepancy": "A newly saved preference from that session was independently read back under the browser tool scope; earlier matching decisions were saved under the site tool scope. The failed recall scope and rule were not retained, so the precise reason for the miss is not proven. Personal values and identifiers are omitted."
+        "Scope discrepancy": "A newly saved preference from that session was independently read back under the browser tool scope; earlier matching decisions were saved under the site tool scope. The failed recall scope and rule were not retained, so the precise reason for the miss is not proven. Personal values and identifiers are omitted.",
+        "Root cause analysis": "The voice-facing Live instructions allow brief clarifications to be answered directly; the proactive Ledger instruction lives in the backend instructions and does not guarantee backend delegation at a preference-sensitive choice. Exact-scope and exact-rule recall is brittle: controlled reads found saved decisions with their precise scope and rule, but equivalent site identifiers or a different rule returned none. The actual live recall scope and rule were not recorded, so its specific mismatch is unknown.",
+        "Required fix": "Ensure preference-sensitive choices reach the backend before asking; resolve site identity independently of browser tool, search existing scoped decisions without guessing a rule, and apply only an unambiguous active match. Record bounded scope/rule and delegation metadata to diagnose misses, without recording private values. Verify save, recall and application on an installed build."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
@@ -1146,6 +1148,14 @@
           "session": "sref_d0524197762cc4e111e2e3f06eade1b1",
           "timestamp": "2026-11-06T13:10:45+00:00",
           "reference": "Developer Observability session and local voice chronology 2026-11-06 13:03–13:05 UTC; independent Ledger record readback"
+        },
+        {
+          "check": "Controlled exact-scope and rule matrix",
+          "outcome": "Live installed-owner helper read the actual Ledger: exact saved scope and rule returned a match; equivalent domain scope and alternate rule names returned zero. Live session arguments were not recorded.",
+          "build": "ACU 0.2.102; Context Ledger 0.1.39",
+          "session": "scoped-recall-investigation-20261106",
+          "timestamp": "2026-11-06T13:27:07+00:00",
+          "reference": "Controlled local Ledger reads; source providers.py LIVE_INSTRUCTIONS and ledger_helper.py recall; private values excluded"
         }
       ]
     },
