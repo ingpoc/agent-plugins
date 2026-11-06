@@ -573,7 +573,7 @@
       "status": "investigation",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
       "recommendation": "Correlate explicit task outcomes to sessions using opaque run/response references; show Ledger result status and count in the concise timeline; offer bounded, credential-redacted Ledger result and error details only when the agent requests include_diagnostics=true. Keep transcripts and real session details out of the public report.",
-      "verification": "The user confirms asking Samantha to open Calculator and calculate thirteen times seventeen. The pre-install candidate ACU 0.2.96 session recorded two successful Comet actions but no native CUA action, task_outcome, or app postcondition. The post-install 0.2.97 release smoke captured no fresh spoken input/action/response before timeout. The request is confirmed; whether Calculator opened and returned 221 remains unknown.",
+      "verification": "The latest 0.2.97 candidate session can now be inspected through a fresh 0.1.14 MCP process: it has 16 cua_act events (one success, seven failures, eight unknown) and no task_outcome. A successful event is not linked to the intended Calculator task, so the task result remains unknown. The current agent host still needs a schema reload.",
       "details": {
         "Evidence gap": "The earlier snapshot's session match was only a candidate. Without explicit task correlation, success rows did not establish the user's Netflix outcome. Ledger result status/details and bounded error stacks were not available through the agent tools.",
         "Acceptance": "On an installed build, an explicit test run must link to its session and build, expose task outcome/tool names and an independent app postcondition, and show Ledger result/error details only on diagnostic opt-in. The task result remains unknown without the independent postcondition.",
@@ -629,7 +629,7 @@
       "status": "failing",
       "observed": "Fresh ACU 0.2.97 telemetry records five cua_act errors during the latest test: target_missing and observation_incomplete. A separate grouped incident reports two retries.",
       "recommendation": "Inspect the affected action and observation path, identify the missing target or incomplete state, and verify a successful native action with independent app readback.",
-      "verification": "The latest 0.2.97 session records target_missing, observation_incomplete, and a retry-cap error. An independent direct installed MCP Calculator check succeeded and read back 72, but it does not reproduce or resolve the Samantha voice-session failures.",
+      "verification": "The latest 0.2.97 session contains seven native-action failure events and one successful native-action event, with no proven linkage between the success and the failed attempts. A separate direct installed MCP Calculator check read back 72. The Samantha voice-session failures remain unresolved.",
       "details": {
         "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue.",
         "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved."
@@ -652,11 +652,26 @@
       "status": "awaiting_verification",
       "observed": "The latest 66-event session returns 64 timeline entries with truncated=true. Native cua_act errors appear in issue inspection but not in the session timeline.",
       "recommendation": "Include native action stages in the session timeline and provide bounded pagination so agents can inspect all events and outcomes for a session.",
-      "verification": "Developer Observability 0.1.14 source now preserves native actions and pages collected timelines. Against the actual recent session, the candidate collector returned 92 of 92 events over two pages, including seven native-action failures. Focused tests and the full repository gate passed; installed-client verification remains pending.",
+      "verification": "Developer Observability 0.1.14 from PR code commit c6224d5 is installed. A fresh stdio MCP client retrieved all 92 collected events in two pages, including seven native-action failures. This existing agent session still advertises the older tool schema without a cursor; host reload and verification remain pending.",
       "details": {
         "Evidence": "Developer Observability snapshot 2026-11-06 06:04 UTC; observability_api.py session timeline.",
-        "Source verification": "75-event regression test passed; candidate collection of the recent session yielded 92 events across two pages, including native failures. Version 0.1.14 requires installed-client verification."
-      }
+        "Source verification": "75-event regression passed. The 0.1.14 installed stdio client returned 92 events in two pages; the active T3 host still needs a tool-schema reload.",
+        "Installed verification": "Version 0.1.14 fresh stdio MCP pagination returned 92 of 92 events, truncated=false. The current T3 agent session still exposes the older tool schema, so end-to-end host access to pagination is not yet verified."
+      },
+      "verification_refs": [
+        "plugins/developer-observability/tests/test_session_timeline.py — 75-event pagination regression passed.",
+        "Installed 0.1.14 fresh stdio MCP client — actual session returned 92 of 92 events in two pages, including seven native-action failures."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Installed session pagination and native actions",
+          "outcome": "Fresh installed MCP 0.1.14 returned all 92 events in two pages including seven native-action failures. The current agent session still exposes the old schema.",
+          "build": "Developer Observability 0.1.14; PR code commit c6224d5",
+          "session": "Latest candidate Samantha session",
+          "timestamp": "2026-11-06T06:37:21Z",
+          "reference": "Fresh stdio MCP calls: projects, issues, session pagination, and dashboard resource."
+        }
+      ]
     }
   ]
 }
