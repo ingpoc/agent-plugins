@@ -422,7 +422,8 @@
         "Input privacy": "No preference value or original prompt is stored in this report.",
         "Privacy boundary": "No personal ledger rows were read or written; tests use an in-memory transport.",
         "Installed/live verification": "Pending an installed Samantha session where a real non-sensitive saved preference is used without naming Context Ledger.",
-        "Latest live evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations succeeded. Query and result content are not captured, so preference relevance remains unknown."
+        "Latest live evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations succeeded. Query and result content are not captured, so preference relevance remains unknown.",
+        "Latest verification": "Fresh 0.2.100 session included a Ledger lookup with zero matches; intended preference and whether it should match were not established."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
@@ -955,7 +956,8 @@
         "Installed verification": "ACU 0.2.96 and Developer Observability 0.1.13 were installed from PR commit 42187bc. A fresh Developer Observability MCP process exposed nine tools, showed task and Ledger status in the default timeline, and returned synthetic Ledger/error details only on opt-in; credential redaction passed. ACU signature, native MCP/readback, cursor/fd integrations, and microphone preflight passed.",
         "Live acceptance limit": "The release runner reached the Calculator voice smoke but timed out without proving fresh spoken input, a successful action, and a completed response. The post-install collection found no Samantha session on ACU 0.2.96. Keep this issue open and the Netflix outcome unknown until a linked live test passes.",
         "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
-        "Scope": "Join task, action and response references with independent result evidence; do not infer task completion from a tool success."
+        "Scope": "Join task, action and response references with independent result evidence; do not infer task completion from a tool success.",
+        "Latest verification": "Fresh 0.2.100 session produced no linked task outcome; independent task success remains unknown."
       },
       "evidence": [],
       "verification_refs": [
@@ -1107,7 +1109,8 @@
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-01, OBS-02 and OBS-03; OBS-08 remains fixed for its narrower session timeline scope.",
         "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
-        "Latest installation": "ACU 0.2.100 installed from PR code c3b9247. Source, notarization, live client, Cursor, disconnect and microphone checks passed; timed voice smoke did not prove a spoken interaction."
+        "Latest installation": "ACU 0.2.100 installed from PR code c3b9247. Source, notarization, live client, Cursor, disconnect and microphone checks passed; timed voice smoke did not prove a spoken interaction.",
+        "Latest verification": "Fresh 0.2.100 voice session contained native, Comet and Ledger calls but no task run references. Candidate did not prove live attribution."
       }
     },
     {
@@ -1161,7 +1164,8 @@
       "verification": "Observed in the active client after installation; a fresh installed MCP process passed the same readback. Root cause remains unconfirmed.",
       "details": {
         "Evidence": "Active ACU state tool returned No module named cua_client; a fresh process from the 0.2.98 cache independently read Calculator.",
-        "Implementation progress": "The MCP now loads its service client at startup, before a versioned cache can be removed. Source protocol tests pass; an upgrade with an already-running client must verify the fix."
+        "Implementation progress": "The MCP now loads its service client at startup, before a versioned cache can be removed. Source protocol tests pass; an upgrade with an already-running client must verify the fix.",
+        "Latest verification": "ACU 0.2.101 installed from PR code cae6640; source, notarization, client, Cursor, disconnect and microphone checks passed. Already-running client across a subsequent refresh remains untested."
       }
     }
   ]
