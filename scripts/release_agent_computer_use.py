@@ -256,7 +256,6 @@ def release(args, root=ROOT):
         raise RuntimeError('release evidence must be outside the source worktree')
     report_path.parent.mkdir(parents=True,exist_ok=True)
     report = {'ok':False,'release_ready':False,'steps':[], 'voice_left_on':'unknown'}
-    print('Voice smoke follows installation. Prepare to say: Open Calculator and calculate thirteen times seventeen. Wait for VOICE SMOKE before speaking; the window is 90 seconds.', flush=True)
     def save():
         temporary = report_path.with_suffix('.tmp')
         temporary.write_text(json.dumps(report,indent=2)+'\n')
@@ -273,6 +272,7 @@ def release(args, root=ROOT):
         module = contract_module(root)
         identity = module.package_identity(root/PACKAGE)
         report['identity'] = identity
+        print(f"Voice smoke follows installation of ACU {identity['version']}. Prepare to say: Open Calculator and calculate thirteen times seventeen. Expected display: 13 × 17 = 221. Wait for VOICE SMOKE before speaking; the window is 90 seconds.", flush=True)
         microphone = APP/'Contents/Helpers/voice-cua.app/Contents/MacOS/voice-cua'
         if microphone.is_file():
             try:

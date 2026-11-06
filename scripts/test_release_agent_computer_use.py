@@ -1,5 +1,7 @@
 """Release policy and fail-closed orchestration, without touching installed apps."""
 import argparse
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -146,6 +148,15 @@ class ReleaseTests(unittest.TestCase):
         self.assertFalse(receipt['release_ready'])
         self.assertEqual(len(calls),1)
         self.assertEqual(receipt['steps'][0]['exit_code'],1)
+
+    def test_voice_smoke_is_announced_before_source_checks(self):
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as td, contextlib.redirect_stdout(output):
+            code, _, _ = self.run_release(td, source_exit=1)
+        self.assertEqual(code, 1)
+        self.assertIn('ACU 0.2.32', output.getvalue())
+        self.assertIn('13 × 17 = 221', output.getvalue())
+        self.assertIn('Wait for VOICE SMOKE', output.getvalue())
 
     def test_signed_only_never_claims_distribution_readiness(self):
         with tempfile.TemporaryDirectory() as td:

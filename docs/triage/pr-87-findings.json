@@ -573,7 +573,7 @@
       "status": "investigation",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
       "recommendation": "Correlate explicit task outcomes to sessions using opaque run/response references; show Ledger result status and count in the concise timeline; offer bounded, credential-redacted Ledger result and error details only when the agent requests include_diagnostics=true. Keep transcripts and real session details out of the public report.",
-      "verification": "The latest 0.2.97 candidate session can now be inspected through a fresh 0.1.14 MCP process: it has 16 cua_act events (one success, seven failures, eight unknown) and no task_outcome. A successful event is not linked to the intended Calculator task, so the task result remains unknown. The current agent host still needs a schema reload.",
+      "verification": "The latest 0.2.97 candidate session can now be inspected through a fresh installed 0.1.15 MCP process: it has 16 cua_act events (one success, seven failures, eight unknown) and no task_outcome. A successful event is not linked to the intended Calculator task, so the task result remains unknown. The active agent host still needs a schema reload.",
       "details": {
         "Evidence gap": "The earlier snapshot's session match was only a candidate. Without explicit task correlation, success rows did not establish the user's Netflix outcome. Ledger result status/details and bounded error stacks were not available through the agent tools.",
         "Acceptance": "On an installed build, an explicit test run must link to its session and build, expose task outcome/tool names and an independent app postcondition, and show Ledger result/error details only on diagnostic opt-in. The task result remains unknown without the independent postcondition.",
@@ -652,15 +652,15 @@
       "status": "awaiting_verification",
       "observed": "The latest 66-event session returns 64 timeline entries with truncated=true. Native cua_act errors appear in issue inspection but not in the session timeline.",
       "recommendation": "Include native action stages in the session timeline and provide bounded pagination so agents can inspect all events and outcomes for a session.",
-      "verification": "Developer Observability 0.1.14 is installed and a fresh stdio MCP client retrieved all 92 recent session events in two pages, including seven native-action failures. Version 0.1.15 adds a compact session summary in source. Installed 0.1.15 and the current T3 host schema remain to be verified.",
+      "verification": "Developer Observability 0.1.15 from PR code commit 4017c39 is installed. A fresh stdio MCP client retrieved the 92-event session in two pages, including seven native-action failure events, and independently verified the compact summary. This existing T3 agent session still advertises the older tool schema; host reload and verification remain pending.",
       "details": {
         "Evidence": "Developer Observability snapshot 2026-11-06 06:04 UTC; observability_api.py session timeline.",
-        "Source verification": "0.1.15 source passes session summary and pagination regressions. On the real session, its compact summary reported 92 events and seven native failure events; installed verification remains pending.",
-        "Installed verification": "Version 0.1.14 fresh stdio MCP pagination returned 92 of 92 events, truncated=false. The current T3 agent session still exposes the older tool schema, so end-to-end host access to pagination is not yet verified."
+        "Source verification": "0.1.15 source and full repository checks passed. Session summary and 75-event pagination regressions passed.",
+        "Installed verification": "Version 0.1.15 fresh stdio MCP returned 92 of 92 events, truncated=false, and matching native-event counts. The active T3 agent session still exposes the older schema; host reload remains pending."
       },
       "verification_refs": [
-        "plugins/developer-observability/tests/test_session_timeline.py — 75-event pagination regression passed.",
-        "Installed 0.1.14 fresh stdio MCP client — actual session returned 92 of 92 events in two pages, including seven native-action failures."
+        "plugins/developer-observability/tests/test_session_timeline.py — session summary and 75-event pagination regressions passed.",
+        "Installed 0.1.15 fresh stdio MCP client — actual session returned 92 of 92 events in two pages and a matching compact summary."
       ],
       "verification_evidence": [
         {
@@ -670,6 +670,14 @@
           "session": "Latest candidate Samantha session",
           "timestamp": "2026-11-06T06:37:21Z",
           "reference": "Fresh stdio MCP calls: projects, issues, session pagination, and dashboard resource."
+        },
+        {
+          "check": "Installed compact summary and session pagination",
+          "outcome": "Fresh installed MCP 0.1.15 returned a 92-event summary matching two timeline pages, including seven native-action failure events. Projects, issues and dashboard resource passed.",
+          "build": "Developer Observability 0.1.15; PR code commit 4017c39",
+          "session": "Latest candidate Samantha session",
+          "timestamp": "2026-11-06T06:44:23Z",
+          "reference": "Fresh stdio MCP client against installed plugin; current agent host schema remains older."
         }
       ]
     }
