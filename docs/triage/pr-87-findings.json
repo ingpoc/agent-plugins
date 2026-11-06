@@ -1118,6 +1118,14 @@
           "session": "source-test-20261106",
           "timestamp": "2026-11-06T11:29:42+00:00",
           "reference": "pytest Ledger helper, preferences, transport, observability and tool-surface suites"
+        },
+        {
+          "check": "Review of recent 0.2.102 voice session",
+          "outcome": "Recent session at 12:21–12:25 UTC contained a Ledger lookup returning no decisions and Comet actions. Exact linkage to the newly reported test and the selected profile is not established.",
+          "build": "ACU 0.2.102 build 631",
+          "session": "sref_4d1333e86a85272b5806f69b78278691",
+          "timestamp": "2026-11-06T12:47:14+00:00",
+          "reference": "Developer Observability session and current Calculator accessibility state; no personal preference values included"
         }
       ]
     },
@@ -1872,6 +1880,14 @@
           "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
           "timestamp": "2026-11-06T11:22:17+00:00",
           "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
+        },
+        {
+          "check": "Calculator independent readback",
+          "outcome": "Calculator currently displays 13 × 21 = 273, not the requested 13 × 17 = 221. The display has no task or timestamp link, so it cannot establish the outcome of the newly reported test.",
+          "build": "ACU 0.2.102 build 631",
+          "session": "unlinked-current-state",
+          "timestamp": "2026-11-06T12:47:14+00:00",
+          "reference": "Developer Observability session and current Calculator accessibility state; no personal preference values included"
         }
       ]
     },
@@ -2061,6 +2077,14 @@
           "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
           "timestamp": "2026-11-06T11:22:17+00:00",
           "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
+        },
+        {
+          "check": "Review task references",
+          "outcome": "One recent session reused a run reference across native, Ledger and Comet events and multiple reported outcomes. Without task boundaries, it does not independently establish that separate user tasks were joined correctly.",
+          "build": "ACU 0.2.102 build 631",
+          "session": "sref_4d1333e86a85272b5806f69b78278691",
+          "timestamp": "2026-11-06T12:47:14+00:00",
+          "reference": "Developer Observability session and current Calculator accessibility state; no personal preference values included"
         }
       ]
     },
