@@ -174,204 +174,410 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "acu-0.2.98-c4ae49f-install",
+        "build": "ACU 0.2.98; Developer Observability 0.1.16; Context Ledger 0.1.39",
+        "revision": "c4ae49f",
+        "installed_at": "2026-11-06T08:06:35Z",
+        "install_evidence": "Notarized PR worktree install and live checks in local release receipt /tmp/acu-pr87-0.2.98-release-retry.json; voice smoke unproven.",
+        "status": "complete",
+        "checks": {
+          "USER-01": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh Calculator run did not include a Samantha close-and-reflow measurement.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "USER-02": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh Calculator run did not invoke Ledger preference recall.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "USER-03": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh Calculator run did not exercise a preference or decision save.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "USER-04": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "No attributable fresh icon capture was obtained; the prior verified-fixed status is retained.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "USER-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh run did not measure the idle island pill width.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "AGENT-01": {
+            "state": "fixed",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "ACU 0.2.98 commit c4ae49f passed the installed live-fd release check.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "AGENT-02": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh Calculator run did not invoke a Ledger task; prior error and retry behavior was not retested.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "OBS-01": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "One fresh voice latency event measured 1.747 seconds; a single event and no agreed target cannot establish resolution.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "OBS-02": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "Fresh 0.2.98 startup stages were collected, but a comparable baseline and startup target are not established.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "OBS-03": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh Calculator run did not use Comet or measure a browser-assisted task.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "OBS-04": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh voice session did not include an attributable resize and bounds check; the prior failure remains open.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "OBS-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh session contained no suitable recorded tool error to independently recheck error detail; the prior verified-fixed status is retained.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "OBS-06": {
+            "state": "not_fixed",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "The fresh 0.2.98 spoken Calculator session has voice and action events but no explicit run_ref on those events; complete task attribution remains missing.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "OBS-07": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "No attributable fresh layout transition was independently inspected; the prior verified-fixed status is retained.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "OBS-08": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The installed 0.1.16 collector returned current 0.2.98 startup and voice stages, but this check does not supersede the prior full acceptance evidence.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "OBS-09": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh Calculator run did not exercise Ledger metadata; the prior verified-fixed status is retained.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "OBS-10": {
+            "state": "not_fixed",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "The fresh spoken task completed with independent 221 readback but its timeline did not contain a linked task outcome.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "AGENT-03": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "Fresh Calculator action and independent 221 readback succeeded; earlier missing-target failures were not separately reproduced or ruled out.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "OBS-11": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:11:24Z",
+            "updated_at": "2026-11-06T08:11:24Z",
+            "evidence": "The fresh 0.1.16 timeline included native action events; pagination on a long fresh session was not repeated and the prior verified-fixed status is retained.",
+            "finished_at": "2026-11-06T08:11:56Z"
+          },
+          "AGENT-04": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "The installed preflight and fresh audio-ready events report an available input; the earlier intermittent failure and recovery were not reproduced.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "OBS-12": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "This voice task did not exercise a Ledger recall, save, application or supersession.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "OBS-13": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "No attributable open, resize or close transition was independently checked in this pass.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "OBS-14": {
+            "state": "not_fixed",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "The fresh spoken Calculator action and response lack an explicit task run reference; voice-to-playback correlation is incomplete.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "OBS-15": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "Fresh 0.2.98 microphone preflight and audio-ready events both report available input; recovery after failure was not exercised.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "OBS-16": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "Fresh installed MCP returned a task-filtered summary for an older linked run, but the new voice task has no run reference and mirrored events remain.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "AGENT-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "Context Ledger 0.1.39 is installed; deterministic reset and authorization tests pass, but an installed live reset was not produced.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          },
+          "AGENT-06": {
+            "state": "not_fixed",
+            "started_at": "2026-11-06T08:10:25Z",
+            "updated_at": "2026-11-06T08:10:25Z",
+            "evidence": "The active ACU state tool returned No module named cua_client after reinstall; a fresh 0.2.98 MCP process could read Calculator.",
+            "finished_at": "2026-11-06T08:10:41Z"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "acu-0.2.98-c4ae49f-install",
-      "build": "ACU 0.2.98; Developer Observability 0.1.16; Context Ledger 0.1.39",
-      "revision": "c4ae49f",
-      "installed_at": "2026-11-06T08:06:35Z",
-      "install_evidence": "Notarized PR worktree install and live checks in local release receipt /tmp/acu-pr87-0.2.98-release-retry.json; voice smoke unproven.",
+      "id": "acu-0.2.101-cae6640-baseline-20261106",
+      "build": "ACU 0.2.101; Developer Observability 0.1.17; Context Ledger 0.1.39 (cache manifests; running process identity not established)",
+      "revision": "cae664055ad43193f383c9c2ec943c129027d68f (ACU receipt)",
+      "installed_at": "2026-11-06T15:16:48+05:30",
+      "install_evidence": "/tmp/acu-pr87-0.2.101-release.json records build-install and sync-installed success; release_ready false; cache manifests read independently. Timestamp is receipt modification time, not proven install completion.",
       "status": "complete",
       "checks": {
         "USER-01": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh Calculator run did not include a Samantha close-and-reflow measurement.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "No controlled installed close-and-reflow transition or post-close position was measured.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "USER-02": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh Calculator run did not invoke Ledger preference recall.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "state": "blocked",
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Voice session sref_980a451387d5f884e0edb55a4832e9fc recorded a lookup with no matches; intended saved preference and application cannot be independently established. When ready, user should ask Samantha to use a known saved preference without naming Ledger.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "USER-03": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh Calculator run did not exercise a preference or decision save.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "state": "blocked",
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "No attributable preference save and update was exercised. When ready, user should tell Samantha a durable preference, later change it, and ask her to use the revised preference.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "USER-04": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "No attributable fresh icon capture was obtained; the prior verified-fixed status is retained.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "No current installed visual capture compared with the artwork reference; prior verified status is retained.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "USER-05": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh run did not measure the idle island pill width.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "No controlled current installed idle width measurement or reference comparison was performed.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "AGENT-01": {
-          "state": "fixed",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "ACU 0.2.98 commit c4ae49f passed the installed live-fd release check.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "ACU 0.2.101 receipt records live-fd passed; overall release_ready is false. The previous verified status remains supported; this check did not independently rerun the full release gate.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "AGENT-02": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh Calculator run did not invoke a Ledger task; prior error and retry behavior was not retested.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "0.2.101 session has two Ledger events and one none result, but no controlled preference task or independent application readback; errors and retry recovery remain unproven.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-01": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "One fresh voice latency event measured 1.747 seconds; a single event and no agreed target cannot establish resolution.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Snapshot 8099af89 reports speech-to-playback p95 13.6 s across 140 samples; aggregate spans sessions and does not establish a controlled current-build latency or cause.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-02": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "Fresh 0.2.98 startup stages were collected, but a comparable baseline and startup target are not established.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Snapshot reports audio-ready p95 5.9 s across 19 samples and websocket open p95 2.1 s across 33; no controlled cold-start measurement was performed.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-03": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh Calculator run did not use Comet or measure a browser-assisted task.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Historical browser turn telemetry remains a lead; no controlled current-build browser task and independent result were measured.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-04": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh voice session did not include an attributable resize and bounds check; the prior failure remains open.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:40:21Z",
+          "updated_at": "2026-11-06T10:40:21Z",
+          "evidence": "Fresh snapshot 8099af89 reports 11 historical resize overflows through 0.2.97 and zero on 0.2.101; no controlled visual resize acceptance was performed.",
+          "finished_at": "2026-11-06T10:40:21Z"
         },
         "OBS-05": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh session contained no suitable recorded tool error to independently recheck error detail; the prior verified-fixed status is retained.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Current installed observability issue output exposes timestamped, version-attributed layout occurrences; no controlled current error occurrence was generated. Prior verified status retained.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-06": {
-          "state": "not_fixed",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "The fresh 0.2.98 spoken Calculator session has voice and action events but no explicit run_ref on those events; complete task attribution remains missing.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T10:39:50Z",
+          "updated_at": "2026-11-06T10:39:50Z",
+          "evidence": "Fresh collected layout session contains event-level version 0.2.101; this does not verify attribution for a spoken task.",
+          "finished_at": "2026-11-06T10:40:05Z"
         },
         "OBS-07": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "No attributable fresh layout transition was independently inspected; the prior verified-fixed status is retained.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Current installed observability issue col-8d5ea6a3cd6b73d0 exposes relative bounds, rect, trigger and overflow on historical occurrences; no controlled current resize was performed. Prior verified status retained.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-08": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The installed 0.1.16 collector returned current 0.2.98 startup and voice stages, but this check does not supersede the prior full acceptance evidence.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Installed observability returned a 44-event 0.2.101 voice session with stage timestamps and durations; no controlled latency acceptance was run. Prior verified status retained.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-09": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh Calculator run did not exercise Ledger metadata; the prior verified-fixed status is retained.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Installed observability summary for 0.2.101 voice session includes Ledger result none; no new controlled Ledger metadata privacy check was performed. Prior verified status retained.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-10": {
-          "state": "not_fixed",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "The fresh spoken task completed with independent 221 readback but its timeline did not contain a linked task outcome.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T10:39:50Z",
+          "updated_at": "2026-11-06T10:39:50Z",
+          "evidence": "Fresh layout-only session contains no task outcome; no linked task was exercised in this check.",
+          "finished_at": "2026-11-06T10:40:05Z"
         },
         "AGENT-03": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "Fresh Calculator action and independent 221 readback succeeded; earlier missing-target failures were not separately reproduced or ruled out.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Current 0.2.101 voice session reports four native actions, two successful and two unknown; no independently controlled reproduction of prior missing targets was performed.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-11": {
-          "state": "inconclusive",
-          "started_at": "2026-11-06T08:11:24Z",
-          "updated_at": "2026-11-06T08:11:24Z",
-          "evidence": "The fresh 0.1.16 timeline included native action events; pagination on a long fresh session was not repeated and the prior verified-fixed status is retained.",
-          "finished_at": "2026-11-06T08:11:56Z"
+          "state": "fixed",
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Installed observability returned all 44 events across three cursor pages from session sref_980a451387d5f884e0edb55a4832e9fc, including four cua_act events, matching total 44.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "AGENT-04": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "The installed preflight and fresh audio-ready events report an available input; the earlier intermittent failure and recovery were not reproduced.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "0.2.101 release receipt microphone check passed; historical no_input_device finding recovered in aggregate. Actual device selection and reliable recovery were not tested.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-12": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "This voice task did not exercise a Ledger recall, save, application or supersession.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Current voice session includes two Ledger events and a none result; it does not independently establish application, save, update and supersession decision trail.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-13": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "No attributable open, resize or close transition was independently checked in this pass.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Latest layout session has 441 events on 0.2.101; no controlled open-to-close transition with independent pixel and final-position readback was performed.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-14": {
-          "state": "not_fixed",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "The fresh spoken Calculator action and response lack an explicit task run reference; voice-to-playback correlation is incomplete.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "state": "inconclusive",
+          "started_at": "2026-11-06T10:39:50Z",
+          "updated_at": "2026-11-06T10:39:50Z",
+          "evidence": "Fresh layout-only session has no linked spoken task; cross-stage attribution was not exercised.",
+          "finished_at": "2026-11-06T10:40:05Z"
         },
         "OBS-15": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "Fresh 0.2.98 microphone preflight and audio-ready events both report available input; recovery after failure was not exercised.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Receipt microphone check passed and historical preflight finding reports recovered; the cause of earlier no-input and recovery mechanism remain unknown.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "OBS-16": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "Fresh installed MCP returned a task-filtered summary for an older linked run, but the new voice task has no run reference and mirrored events remain.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "started_at": "2026-11-06T10:39:50Z",
+          "updated_at": "2026-11-06T10:39:50Z",
+          "evidence": "Fresh layout-only session contains 441 layout events; no attributable mirrored task pair was exercised.",
+          "finished_at": "2026-11-06T10:40:05Z"
         },
         "AGENT-05": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "Context Ledger 0.1.39 is installed; deterministic reset and authorization tests pass, but an installed live reset was not produced.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "started_at": "2026-11-06T10:42:28Z",
+          "updated_at": "2026-11-06T10:42:28Z",
+          "evidence": "Installed 0.1.39 previously passed the recorded reset regression; this pass did not reproduce a real authorization response followed by a reset or rerun the release gate.",
+          "finished_at": "2026-11-06T10:43:48Z"
         },
         "AGENT-06": {
+          "state": "inconclusive",
+          "started_at": "2026-11-06T10:39:50Z",
+          "updated_at": "2026-11-06T10:39:50Z",
+          "evidence": "Active client read Calculator AX state successfully; no package refresh occurred during this check, so survival remains unproven.",
+          "finished_at": "2026-11-06T10:40:05Z"
+        },
+        "REPORT-01": {
           "state": "not_fixed",
-          "started_at": "2026-11-06T08:10:25Z",
-          "updated_at": "2026-11-06T08:10:25Z",
-          "evidence": "The active ACU state tool returned No module named cua_client after reinstall; a fresh 0.2.98 MCP process could read Calculator.",
-          "finished_at": "2026-11-06T08:10:41Z"
+          "started_at": "2026-11-06T11:06:07Z",
+          "updated_at": "2026-11-06T11:06:07Z",
+          "evidence": "Repeated the desktop Comet check after starting tracking: OBS-16 selection changed the URL and heading, but its detail panel was above the viewport; screenshot showed a blank detail area.",
+          "finished_at": "2026-11-06T11:06:51Z"
         }
       }
     }
@@ -384,7 +590,7 @@
       "status": "awaiting_verification",
       "observed": "After Samantha was closed, the menu-bar space remained and Codex did not move toward the Dynamic Island.",
       "recommendation": "Clear Samantha-owned activity, then compact the surviving plugin circles after the exit fade so Codex takes the nearest slot.",
-      "verification": "The source motion test passes: Codex takes Samantha's released harness slot after the exit fade. ACU 0.2.97 is installed from PR code commit 61cc940, and client, Cursor, and FD release checks passed. No installed close/reflow transition was captured, so this remains awaiting live verification.",
+      "verification": "The 0.2.101 island motion source tests pass, but the running menu-bar-only app did not expose its Samantha toggle to the available native accessibility surface. No controlled live close or Codex reflow has been captured.",
       "evidence": [
         {
           "src": "assets/samantha-toggle-enabled.png",
@@ -406,6 +612,16 @@
       },
       "verification_refs": [
         "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandHarnessMotionTests.swift — testSamanthaExitReclaimsClosestHarnessSlotForCodex passed (source test)."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Island source test batch",
+          "outcome": "67 selected Swift tests passed; 3 skipped. Includes harness exit, layout logging, marks and voice slot geometry. No live close/reflow or visual parity was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "ACU_ISLAND_ACTIVITY=0 swift test --filter 'IslandHarnessMotionTests|IslandLayoutLogTests|IslandVoiceSlotDesignTests|IslandPluginMarksTests'"
+        }
       ]
     },
     {
@@ -454,6 +670,14 @@
           "session": "Source test run",
           "timestamp": "2026-11-06T05:35:43Z",
           "reference": "test_ledger_helper.py; full repository check passed. Installed-client retrieval remains pending."
+        },
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
         }
       ]
     },
@@ -487,6 +711,14 @@
           "session": "unknown (opaque session reference omitted from public report)",
           "timestamp": "2026-11-06T04:54:53Z",
           "reference": "Developer Observability snapshot 7198a79f87496aa3838acfd6df95c44e090eb8059569b15e8ee7453ab06a363e; latest opt-in session diagnostics."
+        },
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
         }
       ]
     },
@@ -497,7 +729,7 @@
       "status": "verified_fixed",
       "observed": "Earlier captures show square-like package marks inset inside circles. The requested design keeps the circle size and uses the package artwork edge to edge; the Comet pointer also needs room inside its circle.",
       "recommendation": "Scale each package logo to fill the existing 24 pt frame and clip it to a circle. Keep the Comet glyph small enough to read clearly without adding a smaller square.",
-      "verification": "The four circles and reduced Comet mark were visually checked on installed ACU 0.2.92 at PR head 126a3ac. Icon-rendering source is unchanged in ACU 0.2.97, installed from PR code commit 61cc940. A fresh visual recheck was attempted, but CUA could not read SystemUIServer; the earlier cropped screenshots remain the direct visual proof.",
+      "verification": "Earlier installed 0.2.92 visual evidence remains valid for that build. The current 0.2.101 source icon tests pass, but no current visual comparison of all plugin marks was performed.",
       "verification_refs": [
         "assets/acu-circle.png — installed PR #87 head 126a3ac",
         "assets/comet-after.png — installed PR #87 head 126a3ac",
@@ -545,6 +777,14 @@
           "session": "Post-install UI check",
           "timestamp": "2026-11-06T05:57:07:00Z",
           "reference": "CUA getAXState for SystemUIServer returned error -10005 timeoutReached."
+        },
+        {
+          "check": "Island source test batch",
+          "outcome": "67 selected Swift tests passed; 3 skipped. Includes harness exit, layout logging, marks and voice slot geometry. No live close/reflow or visual parity was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "ACU_ISLAND_ACTIVITY=0 swift test --filter 'IslandHarnessMotionTests|IslandLayoutLogTests|IslandVoiceSlotDesignTests|IslandPluginMarksTests'"
         }
       ]
     },
@@ -555,7 +795,7 @@
       "status": "awaiting_verification",
       "observed": "The default island size appeared smaller after the idle width changed from 74 pt to 50 pt.",
       "recommendation": "Restore the original 74 pt idle width while keeping the 24 pt height and content-driven active widths unchanged.",
-      "verification": "The source geometry suite and full repository gate pass, including the 74 pt idle baseline. ACU 0.2.97 from PR code commit 61cc940 is installed; no current menu-bar point measurement or crop was captured, so live width acceptance remains pending.",
+      "verification": "The 0.2.101 idle island was seen in a cropped screen capture and source geometry tests pass. The capture was not compared with the reference or measured in display points, so current visual acceptance remains unproven.",
       "details": {
         "Source change": "IslandBarLayout.idleWidth is restored from 50 pt to 74 pt; the focused IslandTests width check now expects 74 pt.",
         "Source verification": "`ACU_ISLAND_ACTIVITY=0 swift test --filter 'CUAServiceTests.IslandVoiceSlotDesignTests'` — 13 passed. IslandBarLayout.idleWidth is 74 pt.",
@@ -571,6 +811,24 @@
       ],
       "verification_refs": [
         "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandVoiceSlotDesignTests.swift — 13 tests passed; includes the 74 pt compact width assertions."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Island source test batch",
+          "outcome": "67 selected Swift tests passed; 3 skipped. Includes harness exit, layout logging, marks and voice slot geometry. No live close/reflow or visual parity was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "ACU_ISLAND_ACTIVITY=0 swift test --filter 'IslandHarnessMotionTests|IslandLayoutLogTests|IslandVoiceSlotDesignTests|IslandPluginMarksTests'"
+        },
+        {
+          "check": "Idle island screenshot",
+          "outcome": "Screen capture shows an idle pill and one Codex circle. No reference comparison or controlled voice transition was performed, so width parity remains inconclusive.",
+          "build": "ACU app 0.2.101 build 624",
+          "session": "controlled-native-20261106",
+          "timestamp": "2026-11-06T10:59:14+00:00",
+          "reference": "Local screenshot 2026-11-06 16:28 IST; cropped island view"
+        }
       ]
     },
     {
@@ -666,6 +924,14 @@
           "session": "PR release verification",
           "timestamp": "2026-11-06T05:47:52:00Z",
           "reference": "Local release report plus 20 passing ledger helper tests; live recall remains pending."
+        },
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
         }
       ]
     },
@@ -809,6 +1075,14 @@
           "session": "PR release verification",
           "timestamp": "2026-11-06T05:47:52:00Z",
           "reference": "Local release report plus passing IslandVoiceSlotDesignTests regression; live resize remains pending."
+        },
+        {
+          "check": "Island source test batch",
+          "outcome": "67 selected Swift tests passed; 3 skipped. Includes harness exit, layout logging, marks and voice slot geometry. No live close/reflow or visual parity was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "ACU_ISLAND_ACTIVITY=0 swift test --filter 'IslandHarnessMotionTests|IslandLayoutLogTests|IslandVoiceSlotDesignTests|IslandPluginMarksTests'"
         }
       ]
     },
@@ -829,6 +1103,16 @@
       "verification_refs": [
         "Active T3 Developer Observability issue col-dc38f92008a89f1a, snapshot 5db8119d: timestamped individual current-session failures and diagnostic error types.",
         "plugins/developer-observability/tests/test_occurrence_evidence.py — occurrence evidence source check."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Developer Observability source suite",
+          "outcome": "82 tests passed, 2 skipped. This is source verification only and does not establish task-linked live acceptance.",
+          "build": "Developer Observability worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "python3 -m unittest discover -s tests, 2026-11-06"
+        }
       ]
     },
     {
@@ -860,6 +1144,14 @@
           "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
           "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
           "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        },
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
         }
       ]
     },
@@ -879,6 +1171,24 @@
       },
       "verification_refs": [
         "Active T3 Developer Observability issue col-8d5ea6a3cd6b73d0, snapshot 5db8119d: timestamped 0.2.97 resize geometry and overflow."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Island source test batch",
+          "outcome": "67 selected Swift tests passed; 3 skipped. Includes harness exit, layout logging, marks and voice slot geometry. No live close/reflow or visual parity was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "ACU_ISLAND_ACTIVITY=0 swift test --filter 'IslandHarnessMotionTests|IslandLayoutLogTests|IslandVoiceSlotDesignTests|IslandPluginMarksTests'"
+        },
+        {
+          "check": "Developer Observability source suite",
+          "outcome": "82 tests passed, 2 skipped. This is source verification only and does not establish task-linked live acceptance.",
+          "build": "Developer Observability worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "python3 -m unittest discover -s tests, 2026-11-06"
+        }
       ]
     },
     {
@@ -909,6 +1219,14 @@
           "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
           "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
           "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        },
+        {
+          "check": "Developer Observability source suite",
+          "outcome": "82 tests passed, 2 skipped. This is source verification only and does not establish task-linked live acceptance.",
+          "build": "Developer Observability worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "python3 -m unittest discover -s tests, 2026-11-06"
         }
       ]
     },
@@ -940,6 +1258,22 @@
           "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
           "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
           "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        },
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "Developer Observability source suite",
+          "outcome": "82 tests passed, 2 skipped. This is source verification only and does not establish task-linked live acceptance.",
+          "build": "Developer Observability worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "python3 -m unittest discover -s tests, 2026-11-06"
         }
       ]
     },
@@ -999,6 +1333,14 @@
           "session": "PR release voice smoke",
           "timestamp": "2026-11-06T05:47:52:00Z",
           "reference": "Release script reported that fresh spoken input, successful action, and completed response were not proven. Prior user-confirmed test was on the pre-install candidate."
+        },
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
         }
       ]
     },
@@ -1013,7 +1355,8 @@
       "details": {
         "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue.",
         "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved.",
-        "Latest verification": "Fresh 0.2.101 session recorded successful native actions and independent Calculator readback of 13 × 17 = 221; earlier missing-target failures were not separately ruled out."
+        "Latest verification": "Fresh 0.2.101 session recorded successful native actions and independent Calculator readback of 13 × 17 = 221; earlier missing-target failures were not separately ruled out.",
+        "Controlled native check": "On the active ACU client, a Calculator 1 + 1 task completed and a separate accessibility readback showed 2. This was not a Samantha-spoken task and did not reproduce the earlier target failure."
       },
       "verification_evidence": [
         {
@@ -1023,6 +1366,14 @@
           "session": "Independent native MCP check",
           "timestamp": "2026-11-06T06:09:22Z",
           "reference": "release_agent_computer_use.py mcp(compute=True) installed plugin smoke"
+        },
+        {
+          "check": "Controlled native action and readback",
+          "outcome": "Active ACU client pressed Calculator All Clear, 1, Add, 1, Equals; verified action and separate AX readback returned expression 1 + 1 and value 2. This was not a Samantha-spoken task, and does not reproduce the historical missing target.",
+          "build": "Active ACU client revision unknown; service 0.2.101 build 624",
+          "session": "controlled-native-20261106",
+          "timestamp": "2026-11-06T10:59:14+00:00",
+          "reference": "Calculator PID 27549, native action and separate state readback, 2026-11-06"
         }
       ]
     },
@@ -1059,6 +1410,14 @@
           "session": "Latest candidate Samantha session",
           "timestamp": "2026-11-06T06:44:23Z",
           "reference": "Fresh stdio MCP client against installed plugin; current agent host schema remains older."
+        },
+        {
+          "check": "Developer Observability source suite",
+          "outcome": "82 tests passed, 2 skipped. This is source verification only and does not establish task-linked live acceptance.",
+          "build": "Developer Observability worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "python3 -m unittest discover -s tests, 2026-11-06"
         }
       ]
     },
@@ -1072,7 +1431,17 @@
       "verification": "Fresh Developer Observability snapshot 2026-11-06 07:36 UTC shows a failed preflight at 07:33:28 UTC followed by successful preflight and audio readiness in a later session. The cause and recovery mechanism are unknown.",
       "details": {
         "Evidence": "Issue col-5e50a051d4776370; version 0.2.97 attribution is session-inferred. Later successful startup does not establish cause or a reliable recovery."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        }
+      ]
     },
     {
       "id": "OBS-12",
@@ -1086,7 +1455,17 @@
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "USER-02, USER-03 and AGENT-02 track preference behavior; OBS-09 remains fixed for its narrower metadata scope.",
         "Implementation progress": "Source changes include bounded Ledger result details, status, truncation and task correlation. Application and supersession still require live evidence."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        }
+      ]
     },
     {
       "id": "OBS-13",
@@ -1100,7 +1479,25 @@
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-04, USER-01 and USER-05; OBS-07 remains fixed for its narrower per-occurrence geometry scope.",
         "Implementation progress": "Source changes record transition identity and start/change/settled geometry; settled means model geometry was quiet, not that pixels were independently verified."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Island source test batch",
+          "outcome": "67 selected Swift tests passed; 3 skipped. Includes harness exit, layout logging, marks and voice slot geometry. No live close/reflow or visual parity was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "ACU_ISLAND_ACTIVITY=0 swift test --filter 'IslandHarnessMotionTests|IslandLayoutLogTests|IslandVoiceSlotDesignTests|IslandPluginMarksTests'"
+        },
+        {
+          "check": "Developer Observability source suite",
+          "outcome": "82 tests passed, 2 skipped. This is source verification only and does not establish task-linked live acceptance.",
+          "build": "Developer Observability worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "python3 -m unittest discover -s tests, 2026-11-06"
+        }
+      ]
     },
     {
       "id": "OBS-14",
@@ -1116,7 +1513,25 @@
         "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
         "Latest installation": "ACU 0.2.100 installed from PR code c3b9247. Source, notarization, live client, Cursor, disconnect and microphone checks passed; timed voice smoke did not prove a spoken interaction.",
         "Latest verification": "Fresh 0.2.101 voice, native, Comet, and Ledger events have no task run reference; cross-stage attribution remains incomplete."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "Developer Observability source suite",
+          "outcome": "82 tests passed, 2 skipped. This is source verification only and does not establish task-linked live acceptance.",
+          "build": "Developer Observability worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "python3 -m unittest discover -s tests, 2026-11-06"
+        }
+      ]
     },
     {
       "id": "OBS-15",
@@ -1130,7 +1545,17 @@
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "AGENT-04 tracks the product symptom; OBS-02 tracks startup timing.",
         "Implementation progress": "Source changes record default input availability and observed startup recovery. Device snapshot alone does not establish actual stream selection."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Voice and Ledger source test batch",
+          "outcome": "90 tests passed with pytest plugin autoload disabled; tests include simulated Ledger recall/save, activity correlation, microphone snapshots and reconnects. No controlled spoken task or independent Ledger readback was exercised.",
+          "build": "ACU worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        }
+      ]
     },
     {
       "id": "OBS-16",
@@ -1144,8 +1569,27 @@
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-10 and OBS-14 supply task identity and joined timing. OBS-11 remains fixed for its narrower pagination and native event coverage.",
         "Implementation progress": "ACU 0.2.99 and Developer Observability 0.1.17 are installed from PR commit c60e779. Source, signing, notarization, client, Cursor, disconnect and microphone checks passed. Voice smoke timed out without a proven interaction; live mirror correlation remains unverified.",
-        "Latest self-check": "Installed Developer Observability 0.1.17 passes four task-timeline tests, including explicit mirrored-event handling. Fresh installed ACU mirror pairing remains unverified."
-      }
+        "Latest self-check": "Installed Developer Observability 0.1.17 passes four task-timeline tests, including explicit mirrored-event handling. Fresh installed ACU mirror pairing remains unverified.",
+        "Installed package test": "The installed 0.1.17 timeline test suite passed four simulated tests, including explicit mirrored startup pairing and preservation of unrelated rows. No new live linked mirror pair was exercised."
+      },
+      "verification_evidence": [
+        {
+          "check": "Source timeline mirror regression",
+          "outcome": "Four source tests passed, including explicit startup mirror pairing; no live task was linked.",
+          "build": "PR worktree d3aa04d",
+          "session": "continuation-20261106",
+          "timestamp": "2026-11-06T10:50:54+00:00",
+          "reference": "python3 -m unittest plugins.developer-observability.tests.test_session_timeline"
+        },
+        {
+          "check": "Developer Observability source suite",
+          "outcome": "82 tests passed, 2 skipped. This is source verification only and does not establish task-linked live acceptance.",
+          "build": "Developer Observability worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "python3 -m unittest discover -s tests, 2026-11-06"
+        }
+      ]
     },
     {
       "id": "AGENT-05",
@@ -1154,12 +1598,22 @@
       "status": "failing",
       "observed": "The ACU 0.2.98 release source gate failed when a Context Ledger authorization test received HTTP 401 followed by a connection reset while reading its error body.",
       "recommendation": "Handle a reset while reading an HTTP error body while preserving the known 401 authorization failure.",
-      "verification": "Observed during the release gate; the earlier full source gate passed. Installed behavior is not yet verified.",
+      "verification": "The authorization-error and reset regression passed as a simulated test against both the worktree and installed Ledger 0.1.39. A real authorization response followed by a reset, and the full release gate, were not rerun.",
       "details": {
         "Evidence": "Release gate: test_remote_bad_token_fails_loud; HTTP 401 followed by ConnectionResetError while reading the response body. No production credential or private response is included.",
         "Implementation progress": "Source fix preserves the known HTTP 401 when reading the error body raises a connection reset. A deterministic regression test passes; the release gate must be rerun.",
         "Latest self-check": "The installed Context Ledger 0.1.39 reset regression test passes; a live server reset and authorization response have not been independently reproduced."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Authorization-reset regression",
+          "outcome": "One simulated 401 response body reset regression passed against the worktree and installed 0.1.39 package. A real server authorization/reset incident and full release gate were not reproduced.",
+          "build": "Context Ledger installed 0.1.39 and worktree d3aa04d",
+          "session": "controlled-source-20261106",
+          "timestamp": "2026-11-06T10:57:18+00:00",
+          "reference": "python3 -m unittest discover -s tests -p test_ledger_http_error.py -v, both package roots"
+        }
+      ]
     },
     {
       "id": "AGENT-06",
@@ -1174,7 +1628,34 @@
         "Implementation progress": "The MCP now loads its service client at startup, before a versioned cache can be removed. Source protocol tests pass; an upgrade with an already-running client must verify the fix.",
         "Latest verification": "ACU 0.2.101 installed from PR code cae6640; source, notarization, client, Cursor, disconnect and microphone checks passed. Already-running client across a subsequent refresh remains untested.",
         "Latest self-check": "The active ACU tool currently reads Calculator successfully and installed 0.2.101 protocol tests pass. Survival across a subsequent package refresh remains unverified."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Active ACU client readback",
+          "outcome": "Current client returned Calculator accessibility window and controls; no refresh was performed.",
+          "build": "ACU running process revision unknown; app 0.2.101",
+          "session": "continuation-20261106",
+          "timestamp": "2026-11-06T10:50:54+00:00",
+          "reference": "Calculator state, PID 21766, 2026-11-06; survival across refresh remains untested."
+        }
+      ]
+    },
+    {
+      "id": "REPORT-01",
+      "title": "Selecting a lower issue hides its details",
+      "source": "Agent reported",
+      "status": "awaiting_verification",
+      "observed": "On a desktop viewport, selecting a lower issue leaves its details above the visible area because the whole page scrolls with the long issue list.",
+      "recommendation": "Keep the issue navigation independently scrollable so the selected details remain visible.",
+      "verification": "The regenerated report was checked in Comet: selecting OBS-16 at desktop width kept its selected detail panel visible. At 390 px, selecting USER-05 updated the selected heading; the panel follows the report header. The previous run retains its recorded failure.",
+      "details": {
+        "Owner": "Shared batched-change-list HTML template; the findings JSON remains the sole tracker.",
+        "Evidence": "Comet selected OBS-16 successfully, but the screenshot showed the selected navigation item beside a blank detail area because the detail panel was above the viewport.",
+        "Scope": "This is a report navigation defect, separate from Samantha runtime acceptance.",
+        "Fix": "The shared renderer constrains desktop navigation to the viewport and scrolls it independently. Recheck in the next tracked installation run before marking the issue fixed.",
+        "Proof": "Desktop screenshot edfa3ae1-4d57-4894-a46b-573a6bb86db8-1; 390 px screenshot fbd4e1d8-59bf-48d2-80ae-1bc384d138c4-2; renderer tests 16 passed."
+      },
+      "evidence": []
     }
   ]
 }
