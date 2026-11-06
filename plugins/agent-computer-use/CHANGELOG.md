@@ -6,6 +6,11 @@ Built from git tags and commit history (`git log -- plugins/agent-computer-use`)
 
 - Correlate explicit task outcomes and capture bounded, credential-redacted Ledger and error diagnostics locally.
 
+## 0.2.97 (2026-11-06)
+
+- Include need, situation, and decision-rule terms in Context Ledger recalls instead of sending an empty query.
+- Cancel an idle-width pinch when controlled voice content appears mid-transition, keeping the voice slot inside the island.
+
 ## 0.2.95 (2026-11-06)
 
 - Emit privacy-safe ledger operation and failure categories for diagnostics.

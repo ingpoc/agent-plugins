@@ -135,7 +135,10 @@ class LedgerHelper:
                 return _invalid('Use scope fleet, tool:<lowercase-id>, or project:<lowercase-id>; rule must be lowercase_snake_case')
             try:
                 if operation == 'recall':
-                    args = {'query': '', 'scope': scope, 'actor': 'samantha'}
+                    query = ' '.join(f'{need} {situation} {rule.replace("_", " ")}'.split())[:240]
+                    if not query:
+                        return _invalid('Recall needs concrete search terms or a decision rule')
+                    args = {'query': query, 'scope': scope, 'actor': 'samantha'}
                     if rule:
                         args['rule'] = rule
                     return {'ok': True, **self.transport.call('find', args)}

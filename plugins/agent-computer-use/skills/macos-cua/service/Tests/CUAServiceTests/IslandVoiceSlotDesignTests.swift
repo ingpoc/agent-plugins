@@ -141,6 +141,19 @@ final class IslandVoiceSlotDesignTests: XCTestCase {
         XCTAssertEqual(m.drawnWidth, L.voicePillWidth(.listening), "same slot width: no width change")
     }
 
+    func testControlledVoiceAppearanceCancelsAnInFlightWidthPinch() {
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        model.apply(IslandSnapshot(kind: "acting", title: "Starting task", samantha_on: true))
+        model.apply(voice("thinking", plugins: [acu("Calculator", 300)]))
+
+        let shape = model.shapeRect
+        let slot = L.voiceSlotRect(shape: shape, apps: model.operatedApps.count,
+                                   controlled: model.showsTargetMark, content: .thinking)
+        XCTAssertEqual(shape.width, L.controlledPillWidth(apps: 1, voice: .thinking))
+        XCTAssertTrue(shape.contains(slot), "new voice controls remain inside the pill during a state transition")
+    }
+
     func testVoiceStatesKeepWidthDotAndSlotAnchorsAtSeventyFour() async {
         let model = IslandModel()
         model.idleActivity = "duo"

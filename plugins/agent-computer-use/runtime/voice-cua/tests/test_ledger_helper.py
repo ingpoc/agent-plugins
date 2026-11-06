@@ -50,6 +50,21 @@ class LedgerHelperTests(unittest.TestCase):
         self.helper.run(operation='lookup', situation='account ' * 30, need='preference ' * 20)
         self.assertLessEqual(len(self.transport.call.call_args.args[1]['query']), 240)
 
+    def test_recall_query_includes_need_situation_and_rule(self):
+        self.transport.call.return_value = {'ok': True, 'data': {'matches': []}}
+        result = self.helper.run(operation='recall', scope='tool:calculator', rule='arithmetic_choice',
+                                 need='calculator app', situation='perform calculation')
+        args = self.transport.call.call_args.args[1]
+        self.assertTrue(result['ok'])
+        self.assertEqual(args['query'], 'calculator app perform calculation arithmetic choice')
+        self.assertEqual((args['scope'], args['rule']), ('tool:calculator', 'arithmetic_choice'))
+
+    def test_recall_without_query_terms_fails_before_transport(self):
+        result = self.helper.run(operation='recall', scope='fleet')
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['error_type'], 'ledger_invalid_argument')
+        self.transport.call.assert_not_called()
+
     def test_invalid_ledger_find_is_not_retryable(self):
         self.transport.call.side_effect = LedgerInvalidArgument(message='stop-words alone match nothing')
         result = self.helper.run(operation='lookup', situation='how do I do it', need='preference')

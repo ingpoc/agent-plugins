@@ -46,7 +46,7 @@
       "status": "awaiting_verification",
       "observed": "Samantha did not apply a relevant saved preference unless asked to consult Context Ledger.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "The latest candidate session has two successful Context Ledger lookups, but no query or returned preference content. It cannot establish whether Samantha retrieved or used the relevant preference. Session link to the user's Netflix test is inferred; awaiting direct outcome verification.",
+      "verification": "The user confirms the Calculator request was part of this test. The latest candidate ACU 0.2.96 session shows two Context Ledger lookups returning none, one recall rejected for having no searchable query terms, and one successful preference save receipt. The source fix now builds recall queries from need, situation, and rule; all 20 helper tests and the full repository gate pass. Installed-client retrieval remains pending.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
@@ -67,6 +67,22 @@
           "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
           "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
           "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        },
+        {
+          "check": "Latest Context Ledger retrieval during Samantha test",
+          "outcome": "The candidate session records two lookup results with status none and zero decisions, followed by a recall failure with ledger_invalid_argument because the query contained no searchable terms. One preference save occurred between the lookups. Session-to-task linkage is not explicit; preference content is omitted from the public report.",
+          "build": "ACU 0.2.96 (session-inferred)",
+          "session": "unknown (opaque session reference omitted from public report)",
+          "timestamp": "2026-11-06T04:54:28Z–2026-11-06T04:55:40Z",
+          "reference": "Developer Observability snapshot 7198a79f87496aa3838acfd6df95c44e090eb8059569b15e8ee7453ab06a363e; latest opt-in session diagnostics."
+        },
+        {
+          "check": "ACU Context Ledger recall source tests",
+          "outcome": "Passed 20 tests including the regression for empty recall queries",
+          "build": "ACU 0.2.97 source",
+          "session": "Source test run",
+          "timestamp": "2026-11-06T05:35:43Z",
+          "reference": "test_ledger_helper.py; full repository check passed. Installed-client retrieval remains pending."
         }
       ]
     },
@@ -77,7 +93,7 @@
       "status": "untested",
       "observed": "Durable preferences and important decisions should be captured when they are stated, then reused at the right time without reminders.",
       "recommendation": "Capture durable preferences in their exact scope and rule. Use the decision capture path for critical decisions, and confirm a save only after the ledger returns a receipt.",
-      "verification": "The 31-test focused ledger suite passed. It verifies durable preference saves are grounded in a recent owner quote and require a receipt, and critical decision capture fails closed on missing gates. No personal ledger data was written; installed voice behavior remains untested.",
+      "verification": "The latest candidate ACU 0.2.96 session includes one successful preference save receipt (one decision, revision 1). The preference value is intentionally omitted and the task is not explicitly linked, so this does not verify which preference was stored or later applied; live acceptance remains untested.",
       "details": {
         "Source change": "The PR adds guidance for proactive preference capture and retrieval through the existing ledger_task tool.",
         "Supersession rule": "Updating a preference supersedes only an active user_decision with the same exact scope and rule. General captures do not auto-supersede; the current tool does not create an explicit supersedes link.",
@@ -90,6 +106,16 @@
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — exact scope/rule/value preference save and recall pass.",
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — owner quote, durable capture gates, receipt, duplicate, and uncertain-write checks pass; focused suite passes 31 tests."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Context Ledger preference save result in latest Samantha session",
+          "outcome": "The result returned status saved, one decision, revision 1. The preference value and decision identifier are omitted from the public report; the later lookup returned none, so reuse is not verified.",
+          "build": "ACU 0.2.96 (session-inferred)",
+          "session": "unknown (opaque session reference omitted from public report)",
+          "timestamp": "2026-11-06T04:54:53Z",
+          "reference": "Developer Observability snapshot 7198a79f87496aa3838acfd6df95c44e090eb8059569b15e8ee7453ab06a363e; latest opt-in session diagnostics."
+        }
       ]
     },
     {
@@ -193,10 +219,10 @@
       "id": "AGENT-02",
       "title": "Samantha's Context Ledger task errors and retries",
       "source": "Agent reported",
-      "status": "awaiting_verification",
-      "observed": "Agent telemetry reports repeated ledger_task failures. The latest Samantha activity also contains tool errors and repeated calls with different or unknown arguments.",
+      "status": "failing",
+      "observed": "Fresh ACU 0.2.96 telemetry records a Context Ledger recall rejected because its query had no searchable terms. No subsequent ledger call appears after that error in the selected session; earlier retry records remain in history.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "The latest candidate ACU 0.2.95 session contains two successful ledger_task lookups and no ledger error/retry event. The session is not explicitly linked to the user's Netflix task, and query/result details are unavailable, so this does not prove the task succeeded or fully validate the retry fix. Focused source tests cover the rejected-query/no-retry path; installed acceptance remains awaiting verification.",
+      "verification": "The source recall path built a find call with an empty query, matching the captured invalid-query error. The PR now builds recall queries from need, situation, and rule terms; 20 focused ledger-helper tests pass. The installed 0.2.96 session still failed, so 0.2.97 package and live acceptance remain pending.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
@@ -224,6 +250,22 @@
           "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
           "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
           "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        },
+        {
+          "check": "Installed Context Ledger recall failure and retry behavior",
+          "outcome": "One recall failed with ledger_invalid_argument: “find needs query words; stop-words alone match nothing.” The selected session shows no later ledger call before response_done. The query failure is confirmed; retry absence is limited to this session.",
+          "build": "ACU 0.2.96 (session-inferred)",
+          "session": "unknown (opaque session reference omitted from public report)",
+          "timestamp": "2026-11-06T04:55:40.752967Z",
+          "reference": "Developer Observability snapshot 7198a79f87496aa3838acfd6df95c44e090eb8059569b15e8ee7453ab06a363e; issue col-4ec8da4d712e32f8."
+        },
+        {
+          "check": "Focused recall-query source regression tests",
+          "outcome": "20 tests passed. New assertions verify need, situation, and rule terms are sent to find and an empty recall fails before transport. Full package gate and installed 0.2.97 verification remain pending.",
+          "build": "ACU source 0.2.97",
+          "session": "unknown",
+          "timestamp": "2026-11-06T05:16:34Z",
+          "reference": "python3 -m unittest discover -s plugins/agent-computer-use/runtime/voice-cua/tests -p test_ledger_helper.py -v."
         }
       ]
     },
@@ -325,10 +367,10 @@
       "id": "OBS-04",
       "title": "Voice controls exceeded Dynamic Island layout bounds",
       "source": "Agent reported",
-      "status": "investigation",
-      "observed": "Samantha telemetry reports voice_slot outside the island on three events and eight island_layout failures. The records are not linked to a fresh close or resize test.",
+      "status": "failing",
+      "observed": "A fresh ACU 0.2.96 resize event reports the voice slot extending 6 pt beyond a 74 pt island; older 50 pt events account for the larger historical overflow.",
       "recommendation": "Repeat voice, close, and resize checks on the installed PR build, then compare the linked layout measurements with the source result.",
-      "verification": "Developer Observability recorded one new island_layout failure attributed to ACU 0.2.94 at 2026-11-05 19:05:38 UTC. Its specific layout condition and connection to the earlier voice-slot overflow are not established; the issue remains under investigation.",
+      "verification": "Fresh Developer Observability reports a 6 pt voice-slot overflow during resize on ACU 0.2.96. A regression test reproduced the transition bug before the fix; the fix now passes the focused test and full source gate (594 Swift tests). The installed 0.2.96 issue remains failing until 0.2.97 is installed and a live resize confirms the slot stays inside the island.",
       "details": {
         "Latest telemetry": "Three voice_slot boundary events reported a maximum of 30.0 pt; eight island_layout failures were recorded.",
         "Attribution limit": "The observability snapshot does not link these records to the user's close/reflow report or a controlled resize run. Root cause is unconfirmed.",
@@ -341,6 +383,24 @@
       "verification_refs": [
         "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandVoiceAppsInsideTests.swift — 16 tests passed for in-pill geometry and transitions.",
         "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — voice_slot overflow 3x (max 30 pt) and island_layout failures 8x, latest 0.2.92."
+      ],
+      "verification_evidence": [
+        {
+          "check": "Voice-slot geometry during latest resize",
+          "outcome": "Telemetry reports a visible voice_slot outside the island after resize: island bounds 74×24 pt; slot x=57, y=4, w=23, h=16, giving 6 pt right overflow. Persistence after the resize animation is not independently verified.",
+          "build": "ACU 0.2.96 (event-attributed)",
+          "session": "unknown (opaque session reference omitted from public report)",
+          "timestamp": "2026-11-06T04:55:42.824Z",
+          "reference": "Developer Observability snapshot 7198a79f87496aa3838acfd6df95c44e090eb8059569b15e8ee7453ab06a363e; issue col-8d5ea6a3cd6b73d0."
+        },
+        {
+          "check": "ACU voice-slot transition regression and full repository gate",
+          "outcome": "Targeted Swift regression passed; full gate passed across 115 test processes including 594 Swift tests; three installed-service integrations skipped",
+          "build": "ACU 0.2.97 source",
+          "session": "Source test run",
+          "timestamp": "2026-11-06T05:35:43Z",
+          "reference": "IslandVoiceSlotDesignTests.testControlledVoiceAppearanceCancelsAnInFlightWidthPinch; installed/live resize remains pending."
+        }
       ]
     },
     {
@@ -477,7 +537,7 @@
       "status": "investigation",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
       "recommendation": "Correlate explicit task outcomes to sessions using opaque run/response references; show Ledger result status and count in the concise timeline; offer bounded, credential-redacted Ledger result and error details only when the agent requests include_diagnostics=true. Keep transcripts and real session details out of the public report.",
-      "verification": "The source timeline test passes for task outcome, tool names, and opaque run/response correlation; it verifies diagnostics stay hidden by default and that Ledger results and multi-line errors appear on include_diagnostics=true with credential redaction. The repo package gate passed for both changed plugins, including all 593 ACU Swift tests. ACU 0.2.96 and Developer Observability 0.1.13 are installed from PR commit 42187bc; signature, fresh MCP, integration checks, and microphone preflight passed. The live Calculator voice smoke did not prove fresh input, a successful action, and a completed response. The latest collection has no 0.2.96 Samantha session, so the historical Netflix result remains unknown.",
+      "verification": "The user confirms asking Samantha to open Calculator and calculate thirteen times seventeen. The latest candidate ACU 0.2.96 session has two successful Comet actions, but no native CUA action, task_outcome, or app postcondition. The telemetry therefore cannot establish whether Calculator opened or whether the result was correct; the task outcome remains unknown.",
       "details": {
         "Evidence gap": "The earlier snapshot's session match was only a candidate. Without explicit task correlation, success rows did not establish the user's Netflix outcome. Ledger result status/details and bounded error stacks were not available through the agent tools.",
         "Acceptance": "On an installed build, an explicit test run must link to its session and build, expose task outcome/tool names and an independent app postcondition, and show Ledger result/error details only on diagnostic opt-in. The task result remains unknown without the independent postcondition.",
@@ -499,6 +559,22 @@
           "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
           "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
           "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        },
+        {
+          "check": "Calculator task result correlation after user test",
+          "outcome": "User confirms asking Samantha to open Calculator and calculate thirteen times seventeen. The newest candidate session includes two successful comet_act calls but no cua_act, task_outcome, or app postcondition. This snapshot cannot establish whether Calculator opened or 221 was returned. Exact session-to-prompt linkage is not explicit.",
+          "build": "ACU 0.2.96 (session-inferred)",
+          "session": "unknown (opaque session reference omitted from public report)",
+          "timestamp": "2026-11-06T04:52:54Z–2026-11-06T04:56:04Z",
+          "reference": "Developer Observability snapshot 7198a79f87496aa3838acfd6df95c44e090eb8059569b15e8ee7453ab06a363e; latest candidate Samantha session."
+        },
+        {
+          "check": "Latest Samantha task-session correlation",
+          "outcome": "Unknown: two successful Comet actions; no native CUA action or task outcome was recorded",
+          "build": "ACU 0.2.96 (session-inferred)",
+          "session": "Latest Samantha candidate; task linkage unavailable",
+          "timestamp": "2026-11-06T05:28:09.097358Z",
+          "reference": "Fresh Developer Observability sessions snapshot. User confirmed the Calculator request, but the snapshot has no app postcondition."
         }
       ]
     }

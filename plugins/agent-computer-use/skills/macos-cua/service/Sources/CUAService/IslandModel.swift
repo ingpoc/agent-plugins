@@ -1962,33 +1962,34 @@ final class IslandModel: ObservableObject {
                 || (next == .expired && noticeUntil != nil))
         if !open && idleSamantha { userOpened = false }
         if !open { cardMode = .samantha; if rosterExpanded { rosterExpanded = false } }
-        if next != presentation {
-            let familyChanged = next.motionFamily != presentation.motionFamily
-            presentation = next
-            // No squeeze when operated app icons come or go: straight to the fitted width on one spring.
-            // Nor while a controlled target is (or was) in the pill: the ring, apps and voice slot are
-        // left-anchored, so a pinch to idle width would clip them mid-turn.
+        let presentationChanged = next != presentation
+        let familyChanged = next.motionFamily != presentation.motionFamily
+        if presentationChanged { presentation = next }
+        // Never keep the idle pinch width after operated content appears mid-transition.
         let operatedInvolved = showsOperatedApps || operatedSlotsAtLastWidth > 0 || showsTargetMark || controlledAtLastWidth
-                || voiceSlotContent != nil || voiceAtLastWidth != nil
-            if familyChanged, !(reduceMotion || systemReduceMotion), !open, !operatedInvolved {
-                // Alcove content swap: pinch to idle width, then grow to the new width.
-                pinching = true
-                widthFromOperatedApps = false
-                drawnWidth = IslandBarLayout.idleWidth
-                pinchTask?.cancel()
-                pinchTask = Task { @MainActor [weak self] in
-                    try? await Task.sleep(nanoseconds: 160_000_000)
-                    guard let self, !Task.isCancelled else { return }
-                    self.pinching = false
-                    self.widthFromOperatedApps = false
-                    self.operatedSlotsAtLastWidth = self.showsOperatedApps ? self.operatedApps.count : 0
-                    self.controlledAtLastWidth = self.showsTargetMark
-                    self.voiceAtLastWidth = self.voiceSlotContent
-                    self.drawnWidth = self.compactWidth(for: self.presentation, now: Date())
-                    self.onGeometryChange?()
-                }
-            } else if !pinching {
-                setDrawnWidth(compactWidth(for: next, now: now))
+            || voiceSlotContent != nil || voiceAtLastWidth != nil
+        if pinching && operatedInvolved {
+            pinchTask?.cancel()
+            pinchTask = nil
+            pinching = false
+            widthFromOperatedApps = false
+            setDrawnWidth(compactWidth(for: next, now: now))
+        } else if presentationChanged && familyChanged && !(reduceMotion || systemReduceMotion) && !open && !operatedInvolved {
+            // Alcove content swap: pinch to idle width, then grow to the new width.
+            pinching = true
+            widthFromOperatedApps = false
+            drawnWidth = IslandBarLayout.idleWidth
+            pinchTask?.cancel()
+            pinchTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 160_000_000)
+                guard let self, !Task.isCancelled else { return }
+                self.pinching = false
+                self.widthFromOperatedApps = false
+                self.operatedSlotsAtLastWidth = self.showsOperatedApps ? self.operatedApps.count : 0
+                self.controlledAtLastWidth = self.showsTargetMark
+                self.voiceAtLastWidth = self.voiceSlotContent
+                self.drawnWidth = self.compactWidth(for: self.presentation, now: Date())
+                self.onGeometryChange?()
             }
         } else if !pinching {
             setDrawnWidth(compactWidth(for: next, now: now))
