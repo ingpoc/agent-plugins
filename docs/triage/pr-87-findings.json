@@ -1041,9 +1041,9 @@
       "title": "User action needed · Retrieve a known preference",
       "source": "User reported",
       "status": "failing",
-      "observed": "Samantha did not automatically apply a saved preference when a site required a profile choice. The owner reports that the preference was already saved through Samantha.",
+      "observed": "During the 0.2.102 voice test, Samantha queried the Ledger and then said she had no saved site profile, although an active site-scoped preference already existed.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "Independent Context Ledger readback found active site-scoped preference records saved by Samantha. The recent Samantha session used generic lookup and returned no matches; source inspection shows generic lookup searches fleet and an optional project but passes no tool scopes. Exact arguments of that specific live lookup are not recorded.",
+      "verification": "The locally recorded voice session contains the user request, a Ledger lookup returning none, and Samantha stating that no preference was saved. Independent Ledger readback found existing active site-scoped decisions. The exact lookup arguments were not retained.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
@@ -1054,9 +1054,11 @@
         "Latest verification": "Fresh 0.2.101 session recorded a successful Ledger recall with zero matches; the intended preference and whether it should match are not established.",
         "User action": "When prompted, ask Samantha to use a specific preference that you know has already been saved, without telling her to consult Context Ledger. This is needed to compare the expected preference with the recalled and applied result.",
         "Root-cause evidence": "Samantha generic lookup constructs caller_scope with an empty tools list. Ledger find filters records by permitted scopes, so generic lookup without a tool scope cannot retrieve a tool-scoped preference. The exact live lookup arguments were not captured, so this explains a reproducible path, not the full live cause.",
-        "Privacy": "The saved preference value and record identifiers are intentionally omitted from this public report.",
+        "Privacy": "The personal preference, session transcript and decision IDs are omitted from this public report.",
         "Candidate fix": "ACU 0.2.102 candidate passes an explicitly supplied site or app scope through generic lookup and instructs the model to provide it. Focused source tests passed. Whether Samantha supplies the correct scope automatically and applies the saved choice remains unverified until an installed voice test.",
-        "Installed candidate": "ACU 0.2.102 was built, signed, notarized and installed from PR commit 98563a4. Thirty-three installed-package simulated Ledger tests passed; the voice gate did not prove a spoken interaction, so automatic scope choice and application are still unverified."
+        "Installed candidate": "ACU 0.2.102 was built, signed, notarized and installed from PR commit 98563a4. Thirty-three installed-package simulated Ledger tests passed; the voice gate did not prove a spoken interaction, so automatic scope choice and application are still unverified.",
+        "Controlled follow-up": "The 0.2.102 helper was exercised against the actual Ledger with a bounded selection stub: the same lookup without site scope returned zero records, while a site-scoped lookup returned two. The scoped path can read the existing records; the actual live request scope is unknown.",
+        "Lookup audit": "The Ledger access audit recorded a concrete query naming the site and profile choice and returned zero results at the exact time of the voice lookup. It does not retain the request scope, so the reason that specific lookup missed the record is still unproven."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
@@ -1126,6 +1128,14 @@
           "session": "sref_4d1333e86a85272b5806f69b78278691",
           "timestamp": "2026-11-06T12:47:14+00:00",
           "reference": "Developer Observability session and current Calculator accessibility state; no personal preference values included"
+        },
+        {
+          "check": "Recorded voice test and controlled scoped readback",
+          "outcome": "Voice record shows the requested usual-profile task, a lookup with zero decisions, and Samantha saying no preference was saved. Independent readback found existing active scoped decisions. Controlled helper path returned zero with scope omitted and two with explicit scope.",
+          "build": "ACU 0.2.102 build 631",
+          "session": "sref_4d1333e86a85272b5806f69b78278691",
+          "timestamp": "2026-11-06T12:56:16+00:00",
+          "reference": "Local session timestamps 2026-11-06 12:24 UTC; installed-owner helper against actual Ledger; personal details omitted"
         }
       ]
     },
@@ -1888,6 +1898,14 @@
           "session": "unlinked-current-state",
           "timestamp": "2026-11-06T12:47:14+00:00",
           "reference": "Developer Observability session and current Calculator accessibility state; no personal preference values included"
+        },
+        {
+          "check": "Voice record of calculator sequence",
+          "outcome": "Voice record contains the requested 13 times 17 task and Samantha reported 221. Later requests changed the calculator to a different expression; the later readback cannot refute the earlier task. No independently timestamped readback was captured at the first task.",
+          "build": "ACU 0.2.102 build 631",
+          "session": "sref_4d1333e86a85272b5806f69b78278691",
+          "timestamp": "2026-11-06T12:56:16+00:00",
+          "reference": "Local session timestamps 2026-11-06 12:21–12:23 UTC"
         }
       ]
     },
@@ -2085,6 +2103,14 @@
           "session": "sref_4d1333e86a85272b5806f69b78278691",
           "timestamp": "2026-11-06T12:47:14+00:00",
           "reference": "Developer Observability session and current Calculator accessibility state; no personal preference values included"
+        },
+        {
+          "check": "Task identity comparison against voice record",
+          "outcome": "The recorded task requests span distinct calculator and browser requests, but one run reference was reused across later native, Ledger and browser events; the run cannot be treated as a single task.",
+          "build": "ACU 0.2.102 build 631",
+          "session": "sref_4d1333e86a85272b5806f69b78278691",
+          "timestamp": "2026-11-06T12:56:16+00:00",
+          "reference": "Developer Observability run bdcfff40fd6351629f9bd62f and local session chronology"
         }
       ]
     },
