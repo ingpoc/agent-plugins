@@ -1140,6 +1140,9 @@
           "state": "checking",
           "started_at": "2026-11-06T14:15:18Z",
           "updated_at": "2026-11-06T14:15:18Z"
+        },
+        "OBS-17": {
+          "state": "pending"
         }
       }
     }
@@ -2476,6 +2479,32 @@
       "verification_refs": [
         "Comet screenshot 11b3bd6e-4048-4118-9873-9673c63dc24a-1 on regenerated report",
         "Comet screenshot fbd4e1d8-59bf-48d2-80ae-1bc384d138c4-2 at 390 px; renderer tests 16 passed"
+      ]
+    },
+    {
+      "id": "OBS-17",
+      "title": "Concurrent log rotation can lose activity evidence",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "The release source gate failed during concurrent activity-log rotation: writers raced on a shared gzip temporary file and the test observed missing rows.",
+      "recommendation": "Coordinate rotation across Python and Swift writers so concurrent rotations cannot replace or remove each other’s files, while preserving crash recovery and retention.",
+      "verification": "The 0.2.104 release source gate failed before installation. The concurrent rotation regression reported 1,715 of 1,800 rows and a missing temporary gzip file. This is source-test evidence; installed behavior was not exercised.",
+      "details": {
+        "Evidence": "Local release source log /private/tmp/acu-pr87-0.2.104-a34b376-goal-source-checks.log; the failing test uses temporary data.",
+        "Scope": "Python log_rotation.py and the Swift CUALogRotation writer share the rotation format. Protect both writers and both activity and voice log paths; preserve crash recovery and retention.",
+        "Candidate": "Python and Swift rotation now acquire the same persistent per-log lock across archive shifting and gzip. Existing inode locks still protect append and rename. This candidate has not been installed.",
+        "Source checks": "The Python rotation suite passed 15 repeated runs; the Swift suite passed 3 tests including concurrent Python and Swift writers. The initial tests were updated to expect the persistent rotation lock."
+      },
+      "evidence": [],
+      "verification_evidence": [
+        {
+          "check": "Concurrent rotation source regressions",
+          "outcome": "15 runs of the seven-test Python rotation suite passed; the three-test Swift suite passed, including simultaneous Swift and Python writers. Installed behavior has not been tested.",
+          "build": "ACU 0.2.104 candidate",
+          "session": "rotation-source-20261106",
+          "timestamp": "2026-11-06T14:30:12+00:00",
+          "reference": "test_log_rotation.py repeated 15 times; swift test --filter CUALogRotationTests"
+        }
       ]
     }
   ]

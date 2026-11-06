@@ -50,7 +50,7 @@ class RotationTests(unittest.TestCase):
             log_rotation.append(live, row.replace(b'"x"', f'"{i}"'.encode()), limit=4096)
         names = sorted(p.name for p in self.dir.iterdir())
         self.assertEqual([n for n in names if n != live.name],
-                         [f"samantha-activity.{i}.jsonl.gz" for i in range(1, 6)], "exactly five, all gzipped")
+                         [f"samantha-activity.{i}.jsonl.gz" for i in range(1, 6)] + [live.name + '.rotation.lock'], "five archives and the rotation lock")
         self.assertLess(live.stat().st_size, 4096 + len(row))
         kinds = [json.loads(line)["kind"] for line in _all_lines(live)]
         self.assertEqual(kinds, [str(i) for i in range(400 - len(kinds), 400)], "newest rows kept in order, no gaps")

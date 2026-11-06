@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.105
+
+- Serialize Python and Swift log rotations through compression to prevent concurrent archive races.
+
 ## 0.2.104
 
 - Package standalone tests without a collection-only sibling dependency.

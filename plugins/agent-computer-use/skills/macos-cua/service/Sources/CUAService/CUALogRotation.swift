@@ -5,8 +5,8 @@ import Foundation
 /// writer (`voice_cua/log_rotation.py`), so CUAService and voice_cua can append to one file:
 /// - every append opens the path `O_APPEND`, takes a shared `flock` on that open file and checks it is still
 ///   the file at the path (same inode), reopening if a rotation renamed it, so no row lands in a rotated copy;
-/// - the append that crosses 50 MB takes an exclusive `flock`, re-checks, shifts `.N.gz` up (keeping 5),
-///   renames the live file to `<stem>.1<suffix>` and releases; `.1` is then gzipped (temp, then rename).
+/// - the persistent `<log>.rotation.lock` serializes rotations and compression across both writers;
+///   an exclusive log `flock` protects the inode check, archive shift, and rename.
 /// Only the exact log names are renamed or deleted, never a socket, lock or other file in the folder.
 enum CUALogRotation {
     static let maxBytes: Int = 50 * 1024 * 1024
@@ -56,9 +56,13 @@ enum CUALogRotation {
         var st = stat()
         guard lstat(url.path, &st) == 0, Int(st.st_size) >= limit else { return false }
         threadLock.lock()
+        defer { threadLock.unlock() }
+        let lockFD = Darwin.open(url.path + ".rotation.lock", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR)
+        guard lockFD >= 0 else { return false }
+        defer { flock(lockFD, LOCK_UN); Darwin.close(lockFD) }
+        guard flock(lockFD, LOCK_EX) == 0 else { return false }
         let rotated: Bool
         do {
-            defer { threadLock.unlock() }
             guard let fd = openLive(url, LOCK_EX) else { return false }
             defer { flock(fd, LOCK_UN); Darwin.close(fd) }
             var cur = stat()
