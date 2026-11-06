@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.39
+
+- Report an authorization failure when an HTTP error response resets during body reading.
+
 ## 0.1.38
 
 - Owner preferences and decisions: automatic capture (user_decision, tool:/project: scope, rule = decision point, same scope+rule supersedes) and exact recall before a decision point.

@@ -169,6 +169,9 @@
         },
         "OBS-16": {
           "state": "pending"
+        },
+        "AGENT-05": {
+          "state": "pending"
         }
       }
     }
@@ -903,7 +906,7 @@
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-01, OBS-02 and OBS-03; OBS-08 remains fixed for its narrower session timeline scope.",
-        "Implementation progress": "Source changes group explicitly linked tool and Ledger events by task and provide timing summaries; unlinked voice and playback stages remain unknown."
+        "Implementation progress": "Developer Observability 0.1.16 is installed and a fresh MCP process exposes the task filter. Cross-stage task attribution still needs an installed Samantha run."
       }
     },
     {
@@ -931,7 +934,20 @@
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-10 and OBS-14 supply task identity and joined timing. OBS-11 remains fixed for its narrower pagination and native event coverage.",
-        "Implementation progress": "Source changes provide a task-filtered summary for explicitly linked events. Installed behavior and mirrored-event handling remain to be verified."
+        "Implementation progress": "Developer Observability 0.1.16 is installed. A fresh MCP process exposes run_ref and returned the projects call successfully; task-level live acceptance and mirrored-event handling remain open."
+      }
+    },
+    {
+      "id": "AGENT-05",
+      "title": "Ledger authorization error can crash when the server resets its response",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "The ACU 0.2.98 release source gate failed when a Context Ledger authorization test received HTTP 401 followed by a connection reset while reading its error body.",
+      "recommendation": "Handle a reset while reading an HTTP error body while preserving the known 401 authorization failure.",
+      "verification": "Observed during the release gate; the earlier full source gate passed. Installed behavior is not yet verified.",
+      "details": {
+        "Evidence": "Release gate: test_remote_bad_token_fails_loud; HTTP 401 followed by ConnectionResetError while reading the response body. No production credential or private response is included.",
+        "Implementation progress": "Source fix preserves the known HTTP 401 when reading the error body raises a connection reset. A deterministic regression test passes; the release gate must be rerun."
       }
     }
   ]
