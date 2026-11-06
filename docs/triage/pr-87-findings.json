@@ -842,7 +842,7 @@
         "Remaining acceptance": "Confirm this specific issue's acceptance criteria against a controlled current-build session; installed tool availability alone does not prove it fixed.",
         "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: opaque session ref is available; build attribution is session_inferred. The candidate link to the Netflix test is not explicit.",
         "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
-        "Implementation progress": "Source changes attach an explicit task run ID to tool events and preserve unknown identity when absent. Installed correlation remains to be checked."
+        "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
@@ -951,7 +951,7 @@
         "Acceptance": "On an installed build, an explicit test run must link to its session and build, expose task outcome/tool names and an independent app postcondition, and show Ledger result/error details only on diagnostic opt-in. The task result remains unknown without the independent postcondition.",
         "Attribution limit": "The user said they tested with Netflix. The session match is based on recency and its Comet action; there is no explicit run ID joining them.",
         "Privacy boundary": "The agent may inspect actual Ledger results and recorded error details through local opt-in diagnostics. Keep request text, transcripts, and actual session/result data out of the public PR report; credential values remain redacted.",
-        "Implementation progress": "Caller-reported tool success is now unverified; an independent end-to-end task result is still needed.",
+        "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
         "Installed verification": "ACU 0.2.96 and Developer Observability 0.1.13 were installed from PR commit 42187bc. A fresh Developer Observability MCP process exposed nine tools, showed task and Ledger status in the default timeline, and returned synthetic Ledger/error details only on opt-in; credential redaction passed. ACU signature, native MCP/readback, cursor/fd integrations, and microphone preflight passed.",
         "Live acceptance limit": "The release runner reached the Calculator voice smoke but timed out without proving fresh spoken input, a successful action, and a completed response. The post-install collection found no Samantha session on ACU 0.2.96. Keep this issue open and the Netflix outcome unknown until a linked live test passes.",
         "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
@@ -1106,7 +1106,7 @@
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-01, OBS-02 and OBS-03; OBS-08 remains fixed for its narrower session timeline scope.",
-        "Implementation progress": "Developer Observability 0.1.16 is installed and a fresh MCP process exposes the task filter. Cross-stage task attribution still needs an installed Samantha run."
+        "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified."
       }
     },
     {

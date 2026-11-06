@@ -306,7 +306,7 @@ class LiveTests(_Rows):
         p.inbound({"type": "session.input_transcript.delta", "delta": "Open Calculator",
                    "start_ms": 1000, "end_ms": 1400})
         request_id, _ = p._pending_spoken_request
-        p.inbound({"type": "session.delegation.created", "offset_ms": 1500,
+        p.inbound({"type": "session.delegation.created", "offset_ms": 1300,
                    "delegation": {"id": "d_spoken", "target": "responses"}})
         (created,) = p._backend_event("d_spoken", {
             "type": "response.created", "response": {"id": "r_spoken"}
@@ -314,6 +314,25 @@ class LiveTests(_Rows):
         p.heard.flush()
         self.assertEqual(created["response"]["metadata"]["voice_cua_request_id"], request_id)
         self.assertEqual(p._current_request("d_spoken"), request_id)
+
+    def test_delayed_transcript_links_unique_unstarted_delegation(self) -> None:
+        p, _ = _live()
+        p.inbound({"type": "session.delegation.created", "offset_ms": 1300,
+                   "delegation": {"id": "d_spoken", "target": "responses"}})
+        p.inbound({"type": "session.input_transcript.delta", "delta": "Open Calculator",
+                   "start_ms": 1000, "end_ms": 1400})
+        (created,) = p._backend_event("d_spoken", {"type": "response.created", "response": {"id": "r_spoken"}})
+        self.assertRegex(created["response"]["metadata"]["voice_cua_request_id"], r"^[0-9a-f]{32}$")
+
+    def test_delayed_transcript_does_not_link_ambiguous_delegations(self) -> None:
+        p, _ = _live()
+        for delegation in ("d1", "d2"):
+            p.inbound({"type": "session.delegation.created", "offset_ms": 1300,
+                       "delegation": {"id": delegation, "target": "responses"}})
+        p.inbound({"type": "session.input_transcript.delta", "delta": "Open Calculator",
+                   "start_ms": 1000, "end_ms": 1400})
+        (created,) = p._backend_event("d1", {"type": "response.created", "response": {"id": "r1"}})
+        self.assertNotIn("metadata", created["response"])
 
     def test_delegation_before_spoken_timeline_keeps_old_turn_then_matches_new_turn(self) -> None:
         p, _ = _live()

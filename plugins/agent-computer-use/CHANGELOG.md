@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.100
+
+- Correlate delayed speech transcripts when one unstarted delegation has a matching timeline.
+
 ## 0.2.99
 
 - Tag mirrored startup diagnostics with a shared event identity.
