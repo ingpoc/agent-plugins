@@ -2,6 +2,10 @@
 
 Built from git tags and commit history (`git log -- plugins/agent-computer-use`). Dates are commit dates. Earlier untagged versions are grouped.
 
+## 0.2.98 (2026-11-06)
+
+- Correlate tool and Ledger activity with tasks, distinguish tool reports from independently verified outcomes, and record microphone and island transition evidence.
+
 ## 0.2.96 (2026-11-06)
 
 - Correlate explicit task outcomes and capture bounded, credential-redacted Ledger and error diagnostics locally.

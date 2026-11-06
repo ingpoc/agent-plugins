@@ -40,7 +40,7 @@ TURN_TOP_N = 3
 TURN_METRICS = ('speech_to_playback_ms', 'turn_ms')
 SESSION_STAGES = frozenset({'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready',
                             'stack_begin', 'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'cua_act', 'cua_state',
-                            'voice_latency', 'usage'})
+                            'voice_latency', 'usage', 'island_layout'})
 LAYOUT_TOLERANCE_PT = 2
 
 
@@ -570,6 +570,11 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                      'ledger_result_status': event.get('ledger_result_status'),
                      'ledger_decision_count': event.get('ledger_decision_count'),
                      'ledger_result_detail': event.get('ledger_result_detail'),
+                     'ledger_detail_truncated': event.get('ledger_detail_truncated'),
+                     'input_availability': event.get('input_availability'), 'input_device': event.get('input_device'),
+                     'input_rate': event.get('input_rate'), 'input_recovery': event.get('input_recovery'),
+                     'input_selection': event.get('input_selection'),
+                     'layout': event.get('layout'),
                      'task_outcome': event.get('task_outcome'), 'task_check_id': event.get('task_check_id'),
                      'task_evidence_class': event.get('task_evidence_class'), 'task_tools': event.get('task_tools'),
                      'error_details': event.get('error_details'), 'run_ref': event.get('run_ref'),

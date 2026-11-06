@@ -11,6 +11,24 @@ from voice_cua.ledger_transport import LedgerUnavailable
 
 
 class LedgerObservabilityTests(unittest.TestCase):
+    def test_recall_detail_is_correlated_and_marks_truncation(self):
+        rows = []
+        result = {'ok': True, 'data': {'matches': [
+            {'decision_id': str(i), 'summary': 'Prefer concise answers', 'token': 'secret'}
+            for i in range(4)]}}
+        with patch.object(activity_log, '_append_row', side_effect=rows.append), \
+             activity_log.tool_context(call_id='call-1', run_id='abcdef123456'):
+            activity_log.log_tool_result('ledger_task', result, operation='recall')
+        row = rows[0]
+        self.assertEqual(row['run_id'], 'abcdef123456')
+        self.assertEqual(row['ledger_result_status'], 'found')
+        self.assertEqual(row['ledger_decision_count'], 3)
+        self.assertTrue(row['ledger_detail_truncated'])
+        self.assertEqual(len(json.loads(row['ledger_result_detail'])['data']['matches']), 3)
+        self.assertNotIn('secret', row['ledger_result_detail'])
+        with activity_log.tool_context(run_id='not-hex'):
+            self.assertNotIn('run_id', activity_log._current_tool_ids())
+
     def test_helper_error_has_correlation_without_exception_text(self):
         rows = []
         transport = Mock()

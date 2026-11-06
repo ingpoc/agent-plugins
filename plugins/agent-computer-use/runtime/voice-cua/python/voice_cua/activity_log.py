@@ -198,8 +198,10 @@ _tool_ctx = threading.local()
 
 
 class tool_context:  # noqa: N801 — used as a context manager
-    def __init__(self, *, call_id: str = "", response_id: str = "") -> None:
+    def __init__(self, *, call_id: str = "", response_id: str = "", run_id: str = "") -> None:
         self._ids = {"call_id": call_id or None, "response_id": response_id or None}
+        if isinstance(run_id, str) and re.fullmatch(r"[0-9a-f]{8,64}", run_id):
+            self._ids["run_id"] = run_id
         self._prev: dict[str, Any] | None = None
 
     def __enter__(self) -> "tool_context":
@@ -228,26 +230,36 @@ def _diagnostic_text(value: Any, *, limit: int = 4096) -> str:
     return value
 
 
-def _ledger_detail_value(value: Any, depth: int = 0) -> Any:
+def _ledger_detail_value(value: Any, depth: int = 0, *, truncated: list[bool]) -> Any:
     if depth > 5:
+        truncated[0] = True
         return "[depth limit]"
     if isinstance(value, dict):
-        return {key: _ledger_detail_value(item, depth + 1) for key, item in value.items()
+        return {key: _ledger_detail_value(item, depth + 1, truncated=truncated)
+                for key, item in value.items()
                 if key in _LEDGER_DETAIL_KEYS and key not in _SECRET_KEYS}
     if isinstance(value, list):
-        return [_ledger_detail_value(item, depth + 1) for item in value[:3]]
+        if len(value) > 3:
+            truncated[0] = True
+        return [_ledger_detail_value(item, depth + 1, truncated=truncated) for item in value[:3]]
     if isinstance(value, str):
+        if len(value) > 500:
+            truncated[0] = True
         return _diagnostic_text(value, limit=500)
     if value is None or isinstance(value, (bool, int, float)):
         return value
     return None
 
 
-def _ledger_result_detail(result: dict[str, Any]) -> str | None:
-    detail = _ledger_detail_value(result)
+def _ledger_result_detail(result: dict[str, Any]) -> tuple[str | None, bool]:
+    truncated = [False]
+    detail = _ledger_detail_value(result, truncated=truncated)
     if not isinstance(detail, dict) or not detail:
-        return None
-    return _diagnostic_text(json.dumps(detail, ensure_ascii=False, separators=(",", ":")), limit=4096)
+        return None, truncated[0]
+    serialized = json.dumps(detail, ensure_ascii=False, separators=(",", ":"))
+    if len(serialized) > 4096:
+        truncated[0] = True
+    return _diagnostic_text(serialized, limit=4096), truncated[0]
 
 
 def _tool_error_details(name: str, result: dict[str, Any], error_type: str = "") -> str | None:
@@ -376,9 +388,16 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
             category = "invalid_query_terms"
     diagnostic = _tool_error_details(name, result, error_type) if not ok else None
     decisions = result.get("decisions")
+    data = result.get("data")
+    matches = data.get("matches") if isinstance(data, dict) else None
+    if not isinstance(decisions, list) and isinstance(matches, list):
+        decisions = matches
     decision_count = min(len(decisions), 3) if isinstance(decisions, list) else (1 if result.get("decision_id") else 0)
     ledger_status = result.get("status")
+    if ledger and ok and ledger_status is None and isinstance(matches, list):
+        ledger_status = "found" if matches else "none"
     ledger_status = ledger_status if isinstance(ledger_status, str) and ledger_status in {"found", "none", "saved", "skipped", "cancelled"} else "other"
+    ledger_detail, ledger_truncated = _ledger_result_detail(result) if ledger else (None, None)
     log_event(
         "tool_result" if ok else "tool_error",
         **_current_tool_ids(),
@@ -397,7 +416,8 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
         error_details=diagnostic,
         ledger_result_status=ledger_status if ledger else None,
         ledger_decision_count=decision_count if ledger else None,
-        ledger_result_detail=_ledger_result_detail(result) if ledger else None,
+        ledger_result_detail=ledger_detail,
+        ledger_detail_truncated=ledger_truncated,
         **result_size(result),
     )
 
@@ -432,11 +452,12 @@ def tail_events(*, limit: int = 80) -> list[dict[str, Any]]:
 
 def log_task_outcome(*, check_id: str, outcome: str, evidence_class: str, run_id: str,
                      response_id: str = "", tools: list[str] | tuple[str, ...] = ()) -> None:
-    """Emit only externally verified check outcomes, never inferred model completion."""
+    """Emit check outcomes with an explicit evidence class."""
     import re
     if (len(check_id) > 48 or not re.fullmatch(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*", check_id)
             or outcome not in {"verified_success", "verified_incomplete", "unverified", "cancelled"}
-            or evidence_class not in {"app_readback", "browser_inventory", "local_login", "combined"}
+            or evidence_class not in {"app_readback", "browser_inventory", "local_login", "combined", "tool_reported"}
+            or (evidence_class == "tool_reported" and outcome not in {"unverified", "cancelled"})
             or not re.fullmatch(r"[0-9a-f]{8,64}", run_id)
             or not isinstance(response_id, str)
             or (response_id and (len(response_id) > 160 or not re.fullmatch(r"[A-Za-z0-9_-]+", response_id)))

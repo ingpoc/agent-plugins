@@ -71,6 +71,9 @@ struct IslandLayoutEvent: Equatable {
     var islandVisible: Bool
     var overlays: [IslandLayoutOverlay]
     var details: IslandLayoutDetails
+    var transitionId: String? = nil
+    var transitionPhase: String? = nil
+    var transitionTrigger: String? = nil
 
     /// AppKit (origin bottom-left of the primary screen) → global top-left points.
     static func topLeft(_ r: CGRect, primaryHeight: CGFloat) -> CGRect {
@@ -89,7 +92,7 @@ struct IslandLayoutEvent: Equatable {
         screenDict["scale"] = scale
         var islandDict = island.dict
         islandDict["visible"] = islandVisible
-        return [
+        var result: [String: Any] = [
             "ts": Self.iso(now),
             "ts_epoch": now.timeIntervalSince1970,
             "event": "island_layout",
@@ -111,6 +114,12 @@ struct IslandLayoutEvent: Equatable {
             "status": details.status,
             "app_identity": details.appIdentity,
         ]
+        if let transitionId, let transitionPhase, let transitionTrigger {
+            result["transition_id"] = transitionId
+            result["transition_phase"] = transitionPhase
+            result["transition_trigger"] = transitionTrigger
+        }
+        return result
     }
 
     static func iso(_ date: Date) -> String {
@@ -126,11 +135,15 @@ struct IslandLayoutEvent: Equatable {
 final class IslandLayoutLogger {
     static let shared = IslandLayoutLogger()
     static let coalesce: TimeInterval = 0.25
+    static let settleInterval: TimeInterval = 0.5
 
     var clock: () -> Date = Date.init
     var sink: ([String: Any]) -> Void = { SamanthaActivityLog.islandLayout($0) }
     /// Runs `block` after `delay` (tests drive it by hand).
     var schedule: (TimeInterval, @escaping @MainActor () -> Void) -> Void = { delay, block in
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { MainActor.assumeIsolated { block() } }
+    }
+    var settleSchedule: (TimeInterval, @escaping @MainActor () -> Void) -> Void = { delay, block in
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { MainActor.assumeIsolated { block() } }
     }
     var enabled: Bool = ProcessInfo.processInfo.environment["ACU_ISLAND_LAYOUT_LOG"] != "0"
@@ -142,6 +155,12 @@ final class IslandLayoutLogger {
     private var lastEmit: Date?
     private var pending: IslandLayoutEvent?
     private var timerArmed = false
+    private var transitionId: String?
+    private var transitionTrigger: String?
+    private var transitionSession: String?
+    private var transitionEmitted = false
+    private var lastIslandChange: Date?
+    private var settleTimerArmed = false
 
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
@@ -153,7 +172,11 @@ final class IslandLayoutLogger {
                 overlays: [IslandLayoutOverlay], details: IslandLayoutDetails? = nil) {
         let empty = IslandLayoutDetails(origin: CGPoint(x: island.minX, y: island.minY), ringOuterRect: nil, dotRect: nil,
                                         voiceSlotRect: nil, voiceContents: "none", glyphs: [], status: "unknown", appIdentity: [])
+        let previous = build(trigger: trigger)
         islandPart = (screenId, IslandLayoutRect(screen), Double(scale), IslandLayoutRect(island), visible, overlays, details ?? empty)
+        if enabled, let current = build(trigger: trigger), previous == nil || !current.sameGeometry(previous!) {
+            noteIslandChange(trigger: trigger, session: current.sessionId)
+        }
         submit(trigger: trigger)
     }
 
@@ -202,14 +225,63 @@ final class IslandLayoutLogger {
         emit(event, now: clock())
     }
 
+    private func noteIslandChange(trigger: String, session: String) {
+        if transitionId == nil || transitionSession != session {
+            transitionId = UUID().uuidString
+            transitionTrigger = trigger
+            transitionSession = session
+            transitionEmitted = false
+        }
+        lastIslandChange = clock()
+        armSettleTimer()
+    }
+
+    private func armSettleTimer() {
+        guard !settleTimerArmed else { return }
+        settleTimerArmed = true
+        settleSchedule(Self.settleInterval) { [weak self] in self?.settleIfQuiet() }
+    }
+
+    private func settleIfQuiet() {
+        settleTimerArmed = false
+        guard enabled, let changed = lastIslandChange, transitionId != nil else { return }
+        if clock().timeIntervalSince(changed) < Self.settleInterval {
+            armSettleTimer()
+            return
+        }
+        flushPending()
+        if var event = build(trigger: "settled") {
+            event.transitionId = transitionId
+            event.transitionTrigger = transitionTrigger
+            event.transitionPhase = "settled"
+            emit(event, now: clock())
+        }
+        transitionId = nil
+        transitionTrigger = nil
+        transitionSession = nil
+        lastIslandChange = nil
+        transitionEmitted = false
+    }
+
     private func emit(_ event: IslandLayoutEvent, now: Date) {
+        var event = event
+        if event.transitionPhase == nil, let id = transitionId {
+            event.transitionId = id
+            event.transitionTrigger = transitionTrigger
+            event.transitionPhase = transitionEmitted ? "change" : "start"
+            transitionEmitted = true
+        }
         last = event
         lastEmit = now
         sink(event.payload(now: now))
     }
 
     /// Test hook.
-    func reset() { islandPart = nil; cursor = nil; last = nil; lastEmit = nil; pending = nil; timerArmed = false }
+    func reset() {
+        islandPart = nil; cursor = nil; last = nil; lastEmit = nil; pending = nil; timerArmed = false
+        transitionId = nil; transitionTrigger = nil; transitionSession = nil; transitionEmitted = false
+        lastIslandChange = nil; settleTimerArmed = false
+    }
 }
 
 extension IslandLayoutLogger {

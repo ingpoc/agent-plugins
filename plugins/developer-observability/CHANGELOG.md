@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.16 (2026-11-06)
+
+- Add task-linked summaries, Ledger diagnostics, microphone state, and island transition evidence.
+
 ## 0.1.15 (2026-11-06)
 
 - Offer a compact session summary with event, failure, Ledger, outcome, and version counts.

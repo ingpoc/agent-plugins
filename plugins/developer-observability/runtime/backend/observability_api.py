@@ -450,7 +450,7 @@ class ObservabilityAPI:
                 'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures,
                 'limit': limit, **({'limit_note': limit_note} if limit_note else {})}
 
-    def sessions(self, project_id, session_ref=None, include_diagnostics=False, cursor=None, limit=64, summary_only=False):
+    def sessions(self, project_id, session_ref=None, include_diagnostics=False, cursor=None, limit=64, summary_only=False, run_ref=None):
         """List recent opaque session references or inspect one bounded stage timeline."""
         if type(include_diagnostics) is not bool:
             raise ValueError('invalid_diagnostics: pass true or false')
@@ -460,6 +460,8 @@ class ObservabilityAPI:
         self._project(project_id)
         if session_ref is not None and not safe_session_ref(session_ref):
             raise ValueError('invalid_session_ref: select a reference returned by observability_sessions')
+        if run_ref is not None and (session_ref is None or not isinstance(run_ref, str) or not re.fullmatch(r'[0-9a-f]{24}', run_ref)):
+            raise ValueError('invalid_session_ref: select a run_ref from the session timeline')
         entries = data.get('session_timelines', [])
         entries = entries if isinstance(entries, list) else []
         rows = [r for r in entries[:50] if isinstance(r, dict) and safe_session_ref(r.get('session_ref'))
@@ -474,7 +476,7 @@ class ObservabilityAPI:
         if row is None:
             raise ValueError('session_not_in_project: select a reference returned by observability_sessions')
         stages = {'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready', 'stack_begin',
-                  'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'cua_act', 'cua_state', 'voice_latency', 'usage'}
+                  'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'cua_act', 'cua_state', 'voice_latency', 'usage', 'island_layout'}
         metrics = {'speech_to_playback_ms', 'latency_ms', 'duration_ms', 'took_ms', 'backend_ms', 'duration_s', 'step_ms'}
         timeline = []
         for event in row.get('events', []) if isinstance(row.get('events'), list) else []:
@@ -496,12 +498,36 @@ class ObservabilityAPI:
                     item['ledger_result_status'] = redact(event['ledger_result_status'], 32)
                 if type(event.get('ledger_decision_count')) is int and 0 <= event['ledger_decision_count'] <= 3:
                     item['ledger_decision_count'] = event['ledger_decision_count']
+                if type(event.get('ledger_detail_truncated')) is bool:
+                    item['ledger_detail_truncated'] = event['ledger_detail_truncated']
+            if event['stage'] in ('mic_preflight', 'audio_ready'):
+                for key, allowed in (('input_availability', ('available','unavailable','unknown')),
+                                     ('input_recovery', ('recovered','not_observed','unknown'))):
+                    if event.get(key) in allowed:
+                        item[key] = event[key]
+                if isinstance(event.get('input_device'), str):
+                    item['input_device'] = redact(event['input_device'], 120)
+                if type(event.get('input_rate')) in (int, float) and 0 < event['input_rate'] <= 768000:
+                    item['input_rate'] = event['input_rate']
+                if event.get('input_selection') == 'system_default_snapshot':
+                    item['input_selection'] = event['input_selection']
+            if event['stage'] == 'island_layout' and isinstance(event.get('layout'), dict):
+                layout = event['layout']
+                screen = layout.get('screen')
+                island = layout.get('island')
+                if isinstance(screen, dict) and isinstance(island, dict):
+                    def relative(rect):
+                        return {**rect, 'x': rect['x'] - screen['x'], 'y': rect['y'] - screen['y']}
+                    item['layout'] = {key: layout[key] for key in ('trigger', 'transition_ref', 'transition_phase', 'transition_trigger') if key in layout}
+                    item['layout'].update({'screen': {'w': screen['w'], 'h': screen['h']}, 'island': relative(island),
+                                           'overlays': [relative(rect) for rect in layout.get('overlays', [])]})
             if event['stage'] == 'task_outcome':
                 if event.get('task_outcome') in ('verified_success', 'verified_incomplete', 'unverified', 'cancelled'):
                     item['task_outcome'] = event['task_outcome']
+                    item['task_outcome_attribution'] = 'caller_reported'
                 if isinstance(event.get('task_check_id'), str) and re.fullmatch(r'[a-z][a-z0-9]*(?:_[a-z0-9]+)*', event['task_check_id']):
                     item['task_check_id'] = event['task_check_id'][:48]
-                if event.get('task_evidence_class') in ('app_readback', 'browser_inventory', 'local_login', 'combined'):
+                if event.get('task_evidence_class') in ('app_readback', 'browser_inventory', 'local_login', 'combined', 'tool_reported'):
                     item['task_evidence_class'] = event['task_evidence_class']
                 tools = event.get('task_tools')
                 if isinstance(tools, list):
@@ -515,6 +541,10 @@ class ObservabilityAPI:
             if include_diagnostics and details:
                 item['diagnostics'] = details
             timeline.append(item)
+        if run_ref is not None:
+            timeline = [event for event in timeline if event.get('run_ref') == run_ref]
+            if not timeline:
+                raise ValueError('invalid_session_ref: select a run_ref from this session timeline')
         if type(limit) is not int or not 1 <= limit <= 100:
             raise ValueError('invalid_limit: use an integer 1–100')
         if summary_only:
@@ -524,17 +554,25 @@ class ObservabilityAPI:
                        'native_event_outcomes': dict(Counter(event['outcome'] for event in native)),
                        'ledger_result_events': dict(Counter(event['ledger_result_status'] for event in timeline if 'ledger_result_status' in event)),
                        'task_outcome_events': dict(Counter(event['task_outcome'] for event in timeline if 'task_outcome' in event)),
+                       'outcome_limitation': 'Recorded task outcomes, including legacy verified_success, are caller-reported and do not establish independent success.',
                        'versions': sorted({(event['version'], event['version_attribution']) for event in timeline})}
+            if run_ref is not None:
+                timed = [event for event in timeline if event['duration_ms'] is not None]
+                summary['timed_stages'] = [{'stage': e['stage'], 'timestamp': e['timestamp'],
+                                            'duration_ms': e['duration_ms'], 'metric': e['metric']} for e in timed[:100]]
+                summary['timed_stages_truncated'] = len(timed) > 100
+                summary['independent_task_result'] = 'unknown'
+                summary['linkage'] = 'explicit_run_ref_only'
             envelope = self._envelope(data, revision, project_id)
             header = {key: envelope[key] for key in ('schema_version', 'project_id', 'snapshot_id', 'generated_at', 'freshness')}
             header['coverage'] = {key: value for key, value in envelope.get('coverage', {}).items()
                                   if key == project_id or key.startswith(project_id + ':')}
-            return {**header, 'session_ref': session_ref, 'summary': summary, 'total': row.get('total'),
+            return {**header, 'session_ref': session_ref, **({'run_ref': run_ref} if run_ref else {}), 'summary': summary, 'total': len(timeline) if run_ref else row.get('total'),
                     'truncated': row.get('truncated') is True,
                     'limits': ['Counts describe collected events, not unique actions; source coverage may be partial.']}
-        page, next_cursor = self._page(timeline, cursor, revision, f'sessions:{project_id}:{session_ref}:{include_diagnostics}', limit)
-        return {**self._envelope(data, revision, project_id), 'session_ref': session_ref, 'timeline': page,
-                'total': row.get('total'), 'truncated': row.get('truncated') is True, 'next_cursor': next_cursor}
+        page, next_cursor = self._page(timeline, cursor, revision, f'sessions:{project_id}:{session_ref}:{include_diagnostics}:{run_ref}', limit)
+        return {**self._envelope(data, revision, project_id), 'session_ref': session_ref, **({'run_ref': run_ref} if run_ref else {}), 'timeline': page,
+                'total': len(timeline) if run_ref else row.get('total'), 'truncated': row.get('truncated') is True, 'next_cursor': next_cursor}
 
     def inspect(self, project_id, issue_id, cursor=None, limit=10, include_diagnostics=False):
         # Local edit (0.1.7): evidence pages are 1–10; validate before reading.

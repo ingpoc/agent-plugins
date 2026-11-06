@@ -12,6 +12,48 @@ from collector.sources import iter_jsonl
 
 
 class SessionTimelineTests(unittest.TestCase):
+    def test_explicit_run_filter_and_microphone_evidence(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / 'activity.jsonl'
+            rows = [
+                {'ts':'2026-11-06T10:00:00Z', 'session_id':'s', 'kind':'startup', 'phase':'audio_ready',
+                 'input_availability':'available', 'input_device':'Built-in microphone', 'input_rate':48000,
+                 'input_recovery':'recovered', 'input_selection':'system_default_snapshot'},
+                {'ts':'2026-11-06T10:00:01Z', 'session_id':'s', 'kind':'tool_result', 'tool':'ledger_task',
+                 'run_id':'abc12345', 'ok':True, 'ledger_result_detail':'{"value":"concise"}', 'ledger_detail_truncated':False},
+                {'ts':'2026-11-06T10:00:02Z', 'session_id':'s', 'kind':'task_outcome', 'run_id':'abc12345',
+                 'outcome':'unverified', 'evidence_class':'tool_reported', 'check_id':'calculator'},
+                {'ts':'2026-11-06T10:00:03Z', 'session_id':'s', 'kind':'tool_result', 'tool':'cua_act', 'run_id':'def12345', 'ok':True},
+                {'ts':'2026-11-06T10:00:04Z', 'session_id':'s', 'kind':'tool_result', 'tool':'cua_act', 'ok':True},
+                {'ts':'2026-11-06T10:00:05Z', 'session_id':'s', 'event':'island_layout', 'trigger':'settled',
+                 'transition_id':'12345678-1234-1234-1234-123456789abc', 'transition_phase':'settled', 'transition_trigger':'overlay_show',
+                 'screen':{'x':100,'y':200,'w':1000,'h':800}, 'island':{'x':500,'y':200,'w':100,'h':30,'visible':True}, 'overlays':[]},
+            ]
+            source.write_text('\n'.join(json.dumps(row) for row in rows) + '\n')
+            stats = {}
+            data = build(list(iter_jsonl(source, 'a', 'activity', stats)), stats)
+            (root / 'findings.json').write_text(json.dumps(data))
+            api = ObservabilityAPI(root, {'a': {'owners': ['owner:a']}}, None)
+            ref = api.sessions('a')['sessions'][0]['session_ref']
+            events = api.sessions('a', ref)['timeline']
+            self.assertEqual(events[0]['input_selection'], 'system_default_snapshot')
+            self.assertEqual(events[0]['input_recovery'], 'recovered')
+            self.assertEqual(events[5]['layout']['island']['x'], 400)
+            self.assertEqual(events[5]['layout']['transition_phase'], 'settled')
+            self.assertNotIn('x', events[5]['layout']['screen'])
+            run = events[1]['run_ref']
+            page = api.sessions('a', ref, run_ref=run, limit=1)
+            self.assertEqual(page['total'], 2)
+            self.assertFalse(page['timeline'][0]['ledger_detail_truncated'])
+            self.assertNotIn('diagnostics', page['timeline'][0])
+            second = api.sessions('a', ref, run_ref=run, limit=1, cursor=page['next_cursor'])
+            self.assertEqual(second['timeline'][0]['task_evidence_class'], 'tool_reported')
+            self.assertEqual(api.sessions('a', ref, run_ref=run, summary_only=True)['summary']['independent_task_result'], 'unknown')
+            self.assertIn('concise', api.sessions('a', ref, run_ref=run, include_diagnostics=True)['timeline'][0]['diagnostics']['ledger_result_detail'])
+            with self.assertRaises(ValueError):
+                api.sessions('a', ref, run_ref=events[3]['run_ref'], cursor=page['next_cursor'])
+
     def test_explicit_session_timeline_is_scoped_and_privacy_safe(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

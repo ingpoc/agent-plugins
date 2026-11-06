@@ -8,6 +8,7 @@ final class IslandLayoutLogTests: XCTestCase {
     private var rows: [[String: Any]] = []
     private var now = Date(timeIntervalSince1970: 1_000)
     private var scheduled: [() -> Void] = []
+    private var settleScheduled: [() -> Void] = []
     private var logger: IslandLayoutLogger!
 
     override func setUp() {
@@ -16,6 +17,7 @@ final class IslandLayoutLogTests: XCTestCase {
         logger.clock = { [unowned self] in self.now }
         logger.sink = { [unowned self] in self.rows.append($0) }
         logger.schedule = { [unowned self] _, block in self.scheduled.append(block) }
+        logger.settleSchedule = { [unowned self] _, block in self.settleScheduled.append(block) }
     }
 
     private func post(_ trigger: String, x: CGFloat = 600, width: CGFloat = 75, overlays: [IslandLayoutOverlay] = [],
@@ -32,7 +34,7 @@ final class IslandLayoutLogTests: XCTestCase {
         let row = rows[0]
         XCTAssertEqual(Set(row.keys), ["ts", "ts_epoch", "event", "kind", "source", "schema", "session_id", "turn_id",
                                        "version", "trigger", "screen", "island", "overlays", "island_origin", "ring_outer_rect",
-                                       "dot_rect", "voice_slot", "glyphs", "status", "app_identity"])
+                                       "dot_rect", "voice_slot", "glyphs", "status", "app_identity", "transition_id", "transition_phase", "transition_trigger"])
         XCTAssertEqual(row["event"] as? String, "island_layout")
         XCTAssertEqual(row["schema"] as? Int, 1)
         XCTAssertTrue(row["turn_id"] is NSNull)
@@ -99,6 +101,26 @@ final class IslandLayoutLogTests: XCTestCase {
         XCTAssertEqual(details.appIdentity, ["com.apple.calculator"])
         XCTAssertEqual(Set(details.glyphs.map(\.kind)), ["target", "app", "plugin", "harness"])
         XCTAssertTrue(details.glyphs.allSatisfy { $0.alpha == 1 })
+    }
+
+    func testTransitionSettlesOnlyAfterQuietAndRetainsFinalGeometry() throws {
+        post("show")
+        let id = try XCTUnwrap(rows.first?["transition_id"] as? String)
+        XCTAssertEqual(rows.first?["transition_phase"] as? String, "start")
+        now += 0.3
+        post("resize", width: 100)
+        settleScheduled.removeFirst()()
+        XCTAssertEqual(rows.count, 2, "an early timer must not claim settlement")
+        now += 0.5
+        settleScheduled.removeFirst()()
+        let settled = try XCTUnwrap(rows.last)
+        XCTAssertEqual(settled["transition_id"] as? String, id)
+        XCTAssertEqual(settled["transition_phase"] as? String, "settled")
+        XCTAssertEqual(settled["transition_trigger"] as? String, "show")
+        XCTAssertEqual((settled["island"] as? [String: Any])?["w"] as? Double, 100)
+        now += 0.1
+        post("hide", width: 75)
+        XCTAssertNotEqual(rows.last?["transition_id"] as? String, id)
     }
 
     func testMovesCoalesceToOnePer250msWithTheLatestFrame() {

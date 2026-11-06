@@ -39,6 +39,12 @@ ownership.
    Use `summary_only=true` for compact stage, failure, native-action, Ledger, outcome,
    and version counts. Session timelines include native actions and use `next_cursor` for additional pages;
    pass that cursor to the same session with the same diagnostics setting.
+   To inspect one explicitly linked task, pass a `run_ref` returned in its session
+   timeline with the same session reference; unlinked events are not inferred.
+   A run summary's timed stages are capped and can overlap, so do not sum them.
+   Legacy `verified_success` task records were caller-reported, not independent
+   acceptance; the independent task result remains unknown without separate proof.
+   Microphone selection reports a system-default snapshot, not the chosen stream.
    When the result or cause matters, call `observability_sessions(...,
    include_diagnostics=true)` or `observability_inspect_issue(...,
    include_diagnostics=true)` to expand bounded, credential-redacted Ledger

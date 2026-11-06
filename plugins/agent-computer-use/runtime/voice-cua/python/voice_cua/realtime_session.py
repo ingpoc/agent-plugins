@@ -63,11 +63,9 @@ def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, s
     }
     if not evidence:
         return None
-    evidence_class = next(iter(evidence)) if len(evidence) == 1 else "combined"
+    evidence_class = "tool_reported"
     if status == "cancelled" or any(row.get("cancelled") is True for row in results):
         return "cancelled", evidence_class
-    if status == "completed" and all(row.get("ok") is True and row.get("verified") is True for row in results):
-        return "verified_success", evidence_class
     return "unverified", evidence_class
 
 
@@ -1194,7 +1192,7 @@ class RealtimeSession:
                 plugin_island.tool_started(name, arguments)
                 island_publish(kind, title=title, detail=detail, app=app, step=name)
                 errors_before = errors_published()
-                with tool_context(call_id=call_id, response_id=response_id):
+                with tool_context(call_id=call_id, response_id=response_id, run_id=task_run_id):
                     try:
                         result = dispatch(name, arguments)
                     except Exception as exc:  # noqa: BLE001 — always answer the tool call

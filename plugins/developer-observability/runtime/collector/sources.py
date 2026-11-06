@@ -94,7 +94,8 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
            ledger_error_category=None, ledger_result_status=None, ledger_decision_count=None,
            task_outcome=None, task_check_id=None, task_evidence_class=None, task_tools=None,
            call_ref=None, response_ref=None, run_ref=None, error_details=None, ledger_result_detail=None,
-           outcome=None):
+           outcome=None, ledger_detail_truncated=None, input_availability=None, input_device=None,
+           input_rate=None, input_recovery=None, input_selection=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -113,7 +114,10 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
             'task_outcome': task_outcome, 'task_check_id': task_check_id,
             'task_evidence_class': task_evidence_class, 'task_tools': task_tools,
             'call_ref': call_ref, 'response_ref': response_ref, 'run_ref': run_ref,
-            'error_details': error_details, 'ledger_result_detail': ledger_result_detail, 'outcome': outcome}
+            'error_details': error_details, 'ledger_result_detail': ledger_result_detail, 'outcome': outcome,
+            'ledger_detail_truncated': ledger_detail_truncated, 'input_availability': input_availability,
+            'input_device': input_device, 'input_rate': input_rate, 'input_recovery': input_recovery,
+            'input_selection': input_selection}
 
 
 def _normalize(value):
@@ -166,7 +170,15 @@ def _layout(obj):
         rect['expected_inside_island'] = bool(raw.get('expected_inside_island'))
         overlays.append(rect)
     trigger = obj.get('trigger') if isinstance(obj.get('trigger'), str) else ''
-    return {'trigger': trigger[:20], 'screen': screen, 'island': island, 'overlays': overlays}
+    result = {'trigger': trigger[:20], 'screen': screen, 'island': island, 'overlays': overlays}
+    transition = obj.get('transition_id')
+    if isinstance(transition, str) and re.fullmatch(r'[0-9a-fA-F-]{36}', transition):
+        result['transition_ref'] = hashlib.sha256(transition.encode()).hexdigest()[:24]
+        if obj.get('transition_phase') in ('start', 'change', 'settled'):
+            result['transition_phase'] = obj['transition_phase']
+        if isinstance(obj.get('transition_trigger'), str):
+            result['transition_trigger'] = scrub(obj['transition_trigger'])[:40]
+    return result
 
 
 def _lines(path, max_bytes):
@@ -303,7 +315,7 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         task_check_id = obj.get('check_id') if kind == 'task_outcome' else None
         task_check_id = task_check_id[:48] if isinstance(task_check_id, str) and re.fullmatch(r'[a-z][a-z0-9]*(?:_[a-z0-9]+)*', task_check_id) else None
         task_evidence_class = obj.get('evidence_class') if kind == 'task_outcome' else None
-        task_evidence_class = task_evidence_class if task_evidence_class in ('app_readback', 'browser_inventory', 'local_login', 'combined') else None
+        task_evidence_class = task_evidence_class if task_evidence_class in ('app_readback', 'browser_inventory', 'local_login', 'combined', 'tool_reported') else None
         task_tools = obj.get('tools') if kind == 'task_outcome' else None
         task_tools = sorted({tool for tool in task_tools if isinstance(tool, str) and tool in ('cua_act', 'comet_act', 'system_volume')})[:3] if isinstance(task_tools, list) else None
         def opaque_id(key):
@@ -319,6 +331,12 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      task_check_id=task_check_id, task_evidence_class=task_evidence_class,
                      task_tools=task_tools, error_details=error_details or None,
                      ledger_result_detail=ledger_result_detail or None,
+                     ledger_detail_truncated=obj.get('ledger_detail_truncated') if type(obj.get('ledger_detail_truncated')) is bool else None,
+                     input_availability=obj.get('input_availability') if obj.get('input_availability') in ('available','unavailable','unknown') else None,
+                     input_device=scrub(obj.get('input_device'))[:120] if isinstance(obj.get('input_device'), str) else None,
+                     input_rate=obj.get('input_rate') if type(obj.get('input_rate')) in (int,float) and 0 < obj['input_rate'] <= 768000 else None,
+                     input_recovery=obj.get('input_recovery') if obj.get('input_recovery') in ('recovered','not_observed','unknown') else None,
+                     input_selection=obj.get('input_selection') if obj.get('input_selection') == 'system_default_snapshot' else None,
                      call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=opaque_id('run_id'),
                      outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown'))
 
