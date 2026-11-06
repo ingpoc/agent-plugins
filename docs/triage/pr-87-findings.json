@@ -884,6 +884,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "User-reported Ledger task",
+          "outcome": "The fresh session contains two successful Ledger lookups, both with result status none and zero decisions. No save, replacement or independent application readback is established.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -925,6 +933,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "User-reported Ledger task",
+          "outcome": "The fresh session contains two successful Ledger lookups, both with result status none and zero decisions. No save, replacement or independent application readback is established.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1138,6 +1154,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "User-reported Ledger task",
+          "outcome": "The fresh session contains two successful Ledger lookups, both with result status none and zero decisions. No save, replacement or independent application readback is established.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1233,6 +1257,14 @@
           "session": "sref_3be882a84bf77eafe3dc0becd04d5057",
           "timestamp": "2026-11-05T19:32:31Z–2026-11-05T19:34:27Z",
           "reference": "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; candidate session sref_3be882a84bf77eafe3dc0becd04d5057; user reported Netflix test but exact run linkage is not explicit."
+        },
+        {
+          "check": "User-reported Comet task",
+          "outcome": "User reports Netflix was opened through Comet. The fresh 0.2.101 session contains a successful Comet action, but no task run reference and no independent page readback was captured.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1337,7 +1369,8 @@
         "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: opaque session ref is available; build attribution is session_inferred. The candidate link to the Netflix test is not explicit.",
         "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
-        "Latest verification": "Fresh 0.2.101 native, Comet, and Ledger events have no task run reference. Task correlation is still failing on this spoken path."
+        "Latest verification": "Fresh 0.2.101 native, Comet, and Ledger events have no task run reference. Task correlation is still failing on this spoken path.",
+        "Fresh spoken session": "The 0.2.101 session had native, Comet and Ledger events with call/response references but no task run reference. Installed app version was observed; event build attribution is partly inferred."
       },
       "verification_refs": [
         "Commit 8feeffe — Developer Observability source and tests."
@@ -1358,6 +1391,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "Fresh session task correlation",
+          "outcome": "The 0.2.101 session includes native, Comet and Ledger events with response/call references but no task run reference or task outcome. Startup mirror pairs are shown with mirrored-occurrence counts; task-level acceptance remains unproven.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1480,6 +1521,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "python3 -m unittest discover -s tests, 2026-11-06"
+        },
+        {
+          "check": "User-reported Ledger task",
+          "outcome": "The fresh session contains two successful Ledger lookups, both with result status none and zero decisions. No save, replacement or independent application readback is established.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1501,7 +1550,8 @@
         "Live acceptance limit": "The release runner reached the Calculator voice smoke but timed out without proving fresh spoken input, a successful action, and a completed response. The post-install collection found no Samantha session on ACU 0.2.96. Keep this issue open and the Netflix outcome unknown until a linked live test passes.",
         "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Scope": "Join task, action and response references with independent result evidence; do not infer task completion from a tool success.",
-        "Latest verification": "Fresh 0.2.101 voice session contained no linked task outcome; independent Calculator readback showed 13 × 17 = 221."
+        "Latest verification": "Fresh 0.2.101 voice session contained no linked task outcome; independent Calculator readback showed 13 × 17 = 221.",
+        "Fresh spoken session": "No task outcome was present. Calculator later independently displayed 10 × 20 = 200, but an explicit identifier did not link the readback to the spoken task."
       },
       "evidence": [],
       "verification_refs": [
@@ -1547,6 +1597,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "Fresh session task correlation",
+          "outcome": "The 0.2.101 session includes native, Comet and Ledger events with response/call references but no task run reference or task outcome. Startup mirror pairs are shown with mirrored-occurrence counts; task-level acceptance remains unproven.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1580,6 +1638,14 @@
           "session": "controlled-native-20261106",
           "timestamp": "2026-11-06T10:59:14+00:00",
           "reference": "Calculator PID 27549, native action and separate state readback, 2026-11-06"
+        },
+        {
+          "check": "User-reported Calculator task",
+          "outcome": "User reports a Samantha Calculator test. The fresh session has one successful native action; a separate later Calculator accessibility readback showed 10 × 20 = 200. No explicit task/run identifier links that readback to the spoken request.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1636,7 +1702,8 @@
       "recommendation": "Investigate the input-device discovery and startup transition; verify whether the failure was transient and that Samantha recovers without a manual workaround.",
       "verification": "Fresh Developer Observability snapshot 2026-11-06 07:36 UTC shows a failed preflight at 07:33:28 UTC followed by successful preflight and audio readiness in a later session. The cause and recovery mechanism are unknown.",
       "details": {
-        "Evidence": "Issue col-5e50a051d4776370; version 0.2.97 attribution is session-inferred. Later successful startup does not establish cause or a reliable recovery."
+        "Evidence": "Issue col-5e50a051d4776370; version 0.2.97 attribution is session-inferred. Later successful startup does not establish cause or a reliable recovery.",
+        "Fresh device check": "After the default input returned, installed microphone preflight passed and the next session recorded microphone and audio readiness success. Cross-session recovery cause remains unknown."
       },
       "verification_evidence": [
         {
@@ -1646,6 +1713,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "Microphone preflight after input returned",
+          "outcome": "The default input device was restored and installed preflight passed. A new session recorded mic_preflight and audio_ready success; the prior no-input failure and recovery occurred across sessions, so automatic recovery is not established.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1670,6 +1745,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "User-reported Ledger task",
+          "outcome": "The fresh session contains two successful Ledger lookups, both with result status none and zero decisions. No save, replacement or independent application readback is established.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1736,6 +1819,22 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "python3 -m unittest discover -s tests, 2026-11-06"
+        },
+        {
+          "check": "User-reported Comet task",
+          "outcome": "User reports Netflix was opened through Comet. The fresh 0.2.101 session contains a successful Comet action, but no task run reference and no independent page readback was captured.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
+        },
+        {
+          "check": "Fresh session task correlation",
+          "outcome": "The 0.2.101 session includes native, Comet and Ledger events with response/call references but no task run reference or task outcome. Startup mirror pairs are shown with mirrored-occurrence counts; task-level acceptance remains unproven.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1760,6 +1859,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "pytest selected Ledger, microphone, observability and reconnect test files, 2026-11-06"
+        },
+        {
+          "check": "Microphone preflight after input returned",
+          "outcome": "The default input device was restored and installed preflight passed. A new session recorded mic_preflight and audio_ready success; the prior no-input failure and recovery occurred across sessions, so automatic recovery is not established.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
@@ -1794,6 +1901,14 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "python3 -m unittest discover -s tests, 2026-11-06"
+        },
+        {
+          "check": "Fresh session task correlation",
+          "outcome": "The 0.2.101 session includes native, Comet and Ledger events with response/call references but no task run reference or task outcome. Startup mirror pairs are shown with mirrored-occurrence counts; task-level acceptance remains unproven.",
+          "build": "ACU 0.2.101 build 624; package matched 39b815a",
+          "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:22:17+00:00",
+          "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
         }
       ]
     },
