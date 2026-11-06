@@ -1043,7 +1043,7 @@
       "status": "failing",
       "observed": "During the 0.2.102 voice test, Samantha queried the Ledger and then said she had no saved site profile, although an active site-scoped preference already existed.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "The locally recorded voice session contains the user request, a Ledger lookup returning none, and Samantha stating that no preference was saved. Independent Ledger readback found existing active site-scoped decisions. The exact lookup arguments were not retained.",
+      "verification": "In the latest 0.2.102 voice test, Samantha initially asked the user to choose a profile without a Ledger call. After the user explicitly requested their preference, a recall returned no matches, despite independently verified active saved preferences.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
@@ -1058,7 +1058,9 @@
         "Candidate fix": "ACU 0.2.102 candidate passes an explicitly supplied site or app scope through generic lookup and instructs the model to provide it. Focused source tests passed. Whether Samantha supplies the correct scope automatically and applies the saved choice remains unverified until an installed voice test.",
         "Installed candidate": "ACU 0.2.102 was built, signed, notarized and installed from PR commit 98563a4. Thirty-three installed-package simulated Ledger tests passed; the voice gate did not prove a spoken interaction, so automatic scope choice and application are still unverified.",
         "Controlled follow-up": "The 0.2.102 helper was exercised against the actual Ledger with a bounded selection stub: the same lookup without site scope returned zero records, while a site-scoped lookup returned two. The scoped path can read the existing records; the actual live request scope is unknown.",
-        "Lookup audit": "The Ledger access audit recorded a concrete query naming the site and profile choice and returned zero results at the exact time of the voice lookup. It does not retain the request scope, so the reason that specific lookup missed the record is still unproven."
+        "Lookup audit": "The Ledger access audit recorded a concrete query naming the site and profile choice and returned zero results at the exact time of the voice lookup. It does not retain the request scope, so the reason that specific lookup missed the record is still unproven.",
+        "Latest test": "The session record shows an initial profile question, then an explicit request to use saved preferences, followed by a zero-match recall. The owner named the choice; Samantha reported selecting it. No independent page readback was captured.",
+        "Scope discrepancy": "A newly saved preference from that session was independently read back under the browser tool scope; earlier matching decisions were saved under the site tool scope. The failed recall scope and rule were not retained, so the precise reason for the miss is not proven. Personal values and identifiers are omitted."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
@@ -1136,6 +1138,14 @@
           "session": "sref_4d1333e86a85272b5806f69b78278691",
           "timestamp": "2026-11-06T12:56:16+00:00",
           "reference": "Local session timestamps 2026-11-06 12:24 UTC; installed-owner helper against actual Ledger; personal details omitted"
+        },
+        {
+          "check": "Latest spoken preference retrieval",
+          "outcome": "The initial choice prompted the user without a Ledger call. After an explicit preference request, recall returned zero matches and Samantha reported no saved preference. The owner named the choice; Samantha later reported opening it. Existing site-scoped records were independently present.",
+          "build": "ACU 0.2.102 build 631",
+          "session": "sref_d0524197762cc4e111e2e3f06eade1b1",
+          "timestamp": "2026-11-06T13:10:45+00:00",
+          "reference": "Developer Observability session and local voice chronology 2026-11-06 13:03–13:05 UTC; independent Ledger record readback"
         }
       ]
     },
@@ -1185,6 +1195,14 @@
           "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
           "timestamp": "2026-11-06T11:22:17+00:00",
           "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
+        },
+        {
+          "check": "Latest preference save independent readback",
+          "outcome": "A preference save receipt was emitted after the owner named the choice. Independent Ledger readback found the new active record under the browser tool scope, while earlier relevant records use the site tool scope; replacement of those records was not established.",
+          "build": "ACU 0.2.102 build 631; Context Ledger 0.1.39",
+          "session": "sref_d0524197762cc4e111e2e3f06eade1b1",
+          "timestamp": "2026-11-06T13:10:45+00:00",
+          "reference": "Developer Observability save receipt and independent Ledger get; personal values omitted"
         }
       ]
     },
@@ -2111,6 +2129,14 @@
           "session": "sref_4d1333e86a85272b5806f69b78278691",
           "timestamp": "2026-11-06T12:56:16+00:00",
           "reference": "Developer Observability run bdcfff40fd6351629f9bd62f and local session chronology"
+        },
+        {
+          "check": "Latest task correlation",
+          "outcome": "The same run reference spans multiple spoken requests, including opening a site, recall, and selecting a profile; task boundaries remain unreliable.",
+          "build": "ACU 0.2.102 build 631",
+          "session": "sref_d0524197762cc4e111e2e3f06eade1b1",
+          "timestamp": "2026-11-06T13:10:45+00:00",
+          "reference": "Developer Observability timeline and local voice chronology 2026-11-06 13:03–13:05 UTC"
         }
       ]
     },
