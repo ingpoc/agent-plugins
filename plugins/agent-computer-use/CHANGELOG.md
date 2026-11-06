@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.106
+
+- Do not assign a completed spoken task’s identity to a later unmatched delegation.
+
 ## 0.2.105
 
 - Serialize Python and Swift log rotations through compression to prevent concurrent archive races.

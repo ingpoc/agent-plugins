@@ -2079,6 +2079,14 @@
           "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
           "timestamp": "2026-11-06T11:22:17+00:00",
           "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
+        },
+        {
+          "check": "Completed spoken turn identity regression",
+          "outcome": "A source regression first reproduced an unmatched later delegation inheriting a completed spoken turn ID. The candidate cleared that ID only after the spoken delegation completed; 98 provider, reconnect and observability tests passed, including a spoken tool continuation. This does not establish complete end-to-end attribution.",
+          "build": "ACU 0.2.106 candidate",
+          "session": "source-attribution-20261106",
+          "timestamp": "2026-11-06T14:43:59+00:00",
+          "reference": "test_providers.py LiveTurnIdTests and focused provider/reconnect/observability suites"
         }
       ]
     },
@@ -2285,6 +2293,14 @@
           "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
           "timestamp": "2026-11-06T11:22:17+00:00",
           "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
+        },
+        {
+          "check": "Completed spoken turn identity regression",
+          "outcome": "A source regression first reproduced an unmatched later delegation inheriting a completed spoken turn ID. The candidate cleared that ID only after the spoken delegation completed; 98 provider, reconnect and observability tests passed, including a spoken tool continuation. This does not establish complete end-to-end attribution.",
+          "build": "ACU 0.2.106 candidate",
+          "session": "source-attribution-20261106",
+          "timestamp": "2026-11-06T14:43:59+00:00",
+          "reference": "test_providers.py LiveTurnIdTests and focused provider/reconnect/observability suites"
         }
       ]
     },
@@ -2497,7 +2513,8 @@
         "Related findings": "OBS-01, OBS-02 and OBS-03; OBS-08 remains fixed for its narrower session timeline scope.",
         "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
         "Latest installation": "ACU 0.2.100 installed from PR code c3b9247. Source, notarization, live client, Cursor, disconnect and microphone checks passed; timed voice smoke did not prove a spoken interaction.",
-        "Latest verification": "Fresh 0.2.101 voice, native, Comet, and Ledger events have no task run reference; cross-stage attribution remains incomplete."
+        "Latest verification": "Fresh 0.2.101 voice, native, Comet, and Ledger events have no task run reference; cross-stage attribution remains incomplete.",
+        "0.2.106 candidate": "Retires a completed spoken turn ID so an unmatched later delegation is not falsely joined; preserves a matching spoken tool continuation in a source test. Task boundaries, out-of-order cases and installed/live acceptance remain open."
       },
       "verification_evidence": [
         {
@@ -2555,6 +2572,14 @@
           "session": "sref_d0524197762cc4e111e2e3f06eade1b1",
           "timestamp": "2026-11-06T13:10:45+00:00",
           "reference": "Developer Observability timeline and local voice chronology 2026-11-06 13:03–13:05 UTC"
+        },
+        {
+          "check": "Completed spoken turn identity regression",
+          "outcome": "A source regression first reproduced an unmatched later delegation inheriting a completed spoken turn ID. The candidate cleared that ID only after the spoken delegation completed; 98 provider, reconnect and observability tests passed, including a spoken tool continuation. This does not establish complete end-to-end attribution.",
+          "build": "ACU 0.2.106 candidate",
+          "session": "source-attribution-20261106",
+          "timestamp": "2026-11-06T14:43:59+00:00",
+          "reference": "test_providers.py LiveTurnIdTests and focused provider/reconnect/observability suites"
         }
       ]
     },

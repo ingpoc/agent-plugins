@@ -389,6 +389,7 @@ class LiveProvider(VoiceProvider):
             self._last_delegation = ""
             self._pending_request = ""  # voice_cua_request_id of the last typed request
             self._pending_spoken_request: tuple[str, int] | None = None
+            self._spoken_turn_request = ""
             self._unmatched_delegation_offsets: dict[str, int] = {}
             self._skip_next_create = False
             self._delegation_request: dict[str, str] = {}
@@ -894,6 +895,10 @@ class LiveProvider(VoiceProvider):
                 request_id = self._current_request(delegation)
                 stale = bool(text) and not had_calls and not request_id and bool(
                     self._delegation_request.get(delegation))
+                if not had_calls and not outstanding and request_id and request_id == self._spoken_turn_request:
+                    if self._turn_request == request_id:
+                        self._turn_request = ""
+                    self._spoken_turn_request = ""
             if stale:
                 log_event("live_stale_turn_output", delegation_id=delegation[:64] or None,
                           chars=len(text))
@@ -932,6 +937,7 @@ class LiveProvider(VoiceProvider):
             self._pending_spoken_request = None
             self._turn_seq += 1
             self._turn_request = request_id
+            self._spoken_turn_request = request_id
             self._pending_request = request_id
         else:
             # A delegation before a pending transcript's timeline belongs to the current
