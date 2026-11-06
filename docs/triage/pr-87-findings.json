@@ -1332,6 +1332,14 @@
           "session": "acu-0.2.103-b3cc2a5-goal-20261106",
           "timestamp": "2026-11-06T14:17:47+00:00",
           "reference": "pytest installed package failure and focused repository suite, 2026-11-06; regression remains subject to installed recheck"
+        },
+        {
+          "check": "Same-version installed test retry",
+          "outcome": "Refreshing the same version left the previous installed test file in the versioned cache; the installed suite again failed on the sibling import. Package runtime identity matched because test files are excluded. A new version is prepared to refresh the corrected package; installed recheck remains pending.",
+          "build": "ACU 0.2.103 e49aaad",
+          "session": "acu-0.2.103-b3cc2a5-goal-20261106",
+          "timestamp": "2026-11-06T14:22:11+00:00",
+          "reference": "release receipt /private/tmp/acu-pr87-0.2.103-e49aaad-goal.json and installed pytest result"
         }
       ]
     },

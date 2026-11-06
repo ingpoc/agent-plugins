@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.104
+
+- Package standalone tests without a collection-only sibling dependency.
+
 ## 0.2.103
 
 - Route preference-sensitive choices to the saved-decision check.
