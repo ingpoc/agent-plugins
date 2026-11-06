@@ -12,10 +12,10 @@
       "id": "USER-01",
       "title": "Closing Samantha leaves menu-bar space; Codex does not move closer",
       "source": "User reported",
-      "status": "untested",
+      "status": "awaiting_verification",
       "observed": "After Samantha was closed, the menu-bar space remained and Codex did not move toward the Dynamic Island.",
       "recommendation": "Clear Samantha-owned activity, then compact the surviving plugin circles after the exit fade so Codex takes the nearest slot.",
-      "verification": "The source motion test passed on this worktree: `IslandHarnessMotionTests.testSamanthaExitReclaimsClosestHarnessSlotForCodex` (1 test). It verifies Codex takes Samantha's released harness slot after the exit fade model step. The installed menu-bar close/reflow behavior has not yet been exercised.",
+      "verification": "The source motion test passes: Codex takes Samantha's released harness slot after the exit fade. ACU 0.2.97 is installed from PR code commit 61cc940, and client, Cursor, and FD release checks passed. No installed close/reflow transition was captured, so this remains awaiting live verification.",
       "evidence": [
         {
           "src": "assets/samantha-toggle-enabled.png",
@@ -32,8 +32,8 @@
         "Source change": "IslandHub clears Samantha-owned plugin rows and releases pending controls. IslandModel compacts surviving source-group slots after the 150 ms exit fade.",
         "Source verification": "`ACU_ISLAND_ACTIVITY=0 swift test --filter 'CUAServiceTests.IslandHarnessMotionTests/testSamanthaExitReclaimsClosestHarnessSlotForCodex'` — 1 passed. The test waits 250 ms and asserts Codex moves to the freed slot.",
         "Attribution": "User report; attached crops show toggle states, not a measured transition.",
-        "Installed verification": "The latest head was built and installed; client, Cursor, and FD integration checks passed. Samantha close/reflow was not part of those checks.",
-        "Installed/live verification": "Pending ACU 0.2.94 installation and a real Samantha close/reflow observation. The screenshots remain toggle-state crops, not transition evidence."
+        "Installed verification": "ACU 0.2.97 from PR code commit 61cc940 is installed; fresh MCP/readback, client, Cursor, and FD checks passed. Those checks did not exercise Samantha close/reflow.",
+        "Installed/live verification": "Pending a real Samantha close/reflow observation on installed ACU 0.2.97. The attached screenshots show toggle states only, not the transition."
       },
       "verification_refs": [
         "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandHarnessMotionTests.swift — testSamanthaExitReclaimsClosestHarnessSlotForCodex passed (source test)."
@@ -93,7 +93,7 @@
       "status": "untested",
       "observed": "Durable preferences and important decisions should be captured when they are stated, then reused at the right time without reminders.",
       "recommendation": "Capture durable preferences in their exact scope and rule. Use the decision capture path for critical decisions, and confirm a save only after the ledger returns a receipt.",
-      "verification": "The latest candidate ACU 0.2.96 session includes one successful preference save receipt (one decision, revision 1). The preference value is intentionally omitted and the task is not explicitly linked, so this does not verify which preference was stored or later applied; live acceptance remains untested.",
+      "verification": "The pre-install candidate ACU 0.2.96 session includes one successful preference save receipt (one decision, revision 1). The value is intentionally omitted and the save is not linked to a verified task. ACU 0.2.97 is now installed, but no post-install preference or critical-decision save was captured; live acceptance remains untested.",
       "details": {
         "Source change": "The PR adds guidance for proactive preference capture and retrieval through the existing ledger_task tool.",
         "Supersession rule": "Updating a preference supersedes only an active user_decision with the same exact scope and rule. General captures do not auto-supersede; the current tool does not create an explicit supersedes link.",
@@ -101,7 +101,7 @@
         "Input privacy": "The report does not include a preference value or decision content.",
         "Supersession behavior": "Context Ledger's same-scope+rule user_decision behavior is the intended preference supersession path. General captures are explicitly not treated as superseding.",
         "Privacy boundary": "Tests use mocks and temporary state; no personal ledger rows were read or written.",
-        "Installed/live verification": "Pending a real non-sensitive preference/decision test on the installed Samantha build."
+        "Installed/live verification": "ACU 0.2.97 from PR code commit 61cc940 is installed. A real non-sensitive preference/decision save and later retrieval have not been captured on this build."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — exact scope/rule/value preference save and recall pass.",
@@ -125,7 +125,7 @@
       "status": "verified_fixed",
       "observed": "Earlier captures show square-like package marks inset inside circles. The requested design keeps the circle size and uses the package artwork edge to edge; the Comet pointer also needs room inside its circle.",
       "recommendation": "Scale each package logo to fill the existing 24 pt frame and clip it to a circle. Keep the Comet glyph small enough to read clearly without adding a smaller square.",
-      "verification": "Four circles and the reduced Comet mark were visually checked on installed ACU 0.2.92 at PR head 126a3ac. ACU 0.2.93 at PR head 776a1d5 was rebuilt and installed; its icon-rendering source is unchanged and current client/Cursor integrations passed. No new cropped icon screenshot was captured after this reinstall.",
+      "verification": "The four circles and reduced Comet mark were visually checked on installed ACU 0.2.92 at PR head 126a3ac. Icon-rendering source is unchanged in ACU 0.2.97, installed from PR code commit 61cc940. A fresh visual recheck was attempted, but CUA could not read SystemUIServer; the earlier cropped screenshots remain the direct visual proof.",
       "verification_refs": [
         "assets/acu-circle.png — installed PR #87 head 126a3ac",
         "assets/comet-after.png — installed PR #87 head 126a3ac",
@@ -162,23 +162,33 @@
       "details": {
         "Source change": "IslandPluginCircleIcon resolves the package artwork, scales it to fill the 24 pt circle, then clips it. Comet Control uses a smaller pointer glyph.",
         "Scope": "Four plugin marks were checked: Agent Computer Use, Comet Control, Context Ledger, and Developer Observability.",
-        "Build identity": "Current install: ACU 0.2.93 from PR head 776a1d5. Icon-rendering source is unchanged from the prior live-checked 0.2.92 build.",
-        "Current risk": "The cropped live icon evidence is from 0.2.92. The latest reinstall did not change icon code, but a fresh 0.2.93 crop was not captured."
-      }
+        "Build identity": "Current install: ACU 0.2.97 from PR code commit 61cc940. Icon-rendering source is unchanged from the prior live-checked 0.2.92 build.",
+        "Current risk": "The direct cropped icon proof is from 0.2.92. The current 0.2.97 visual recheck was blocked by a CUA SystemUIServer accessibility timeout; this is not evidence of an icon regression."
+      },
+      "verification_evidence": [
+        {
+          "check": "Post-install icon visual recheck",
+          "outcome": "No fresh icon screenshot was captured; CUA SystemUIServer accessibility read timed out. Earlier cropped visual evidence remains the direct acceptance proof.",
+          "build": "ACU 0.2.97; PR code commit 61cc940",
+          "session": "Post-install UI check",
+          "timestamp": "2026-11-06T05:57:07:00Z",
+          "reference": "CUA getAXState for SystemUIServer returned error -10005 timeoutReached."
+        }
+      ]
     },
     {
       "id": "USER-05",
       "title": "The default idle Dynamic Island pill is narrower than before",
       "source": "User reported",
-      "status": "untested",
+      "status": "awaiting_verification",
       "observed": "The default island size appeared smaller after the idle width changed from 74 pt to 50 pt.",
       "recommendation": "Restore the original 74 pt idle width while keeping the 24 pt height and content-driven active widths unchanged.",
-      "verification": "The source geometry suite passed 13 tests, including the 74 pt idle baseline and voice-state width assertions. The installed menu-bar pill width has not yet been measured.",
+      "verification": "The source geometry suite and full repository gate pass, including the 74 pt idle baseline. ACU 0.2.97 from PR code commit 61cc940 is installed; no current menu-bar point measurement or crop was captured, so live width acceptance remains pending.",
       "details": {
         "Source change": "IslandBarLayout.idleWidth is restored from 50 pt to 74 pt; the focused IslandTests width check now expects 74 pt.",
         "Source verification": "`ACU_ISLAND_ACTIVITY=0 swift test --filter 'CUAServiceTests.IslandVoiceSlotDesignTests'` — 13 passed. IslandBarLayout.idleWidth is 74 pt.",
-        "Installed verification": "ACU 0.2.93 from PR head 776a1d5 was built and installed. A point measurement or fresh menu-bar crop is still pending.",
-        "Installed/live verification": "Pending ACU 0.2.94 installation and a measured menu-bar screenshot."
+        "Installed verification": "ACU 0.2.97 from PR code commit 61cc940 is installed; the source suite confirms the 74 pt baseline.",
+        "Installed/live verification": "Pending a point measurement or cropped menu-bar screenshot of the idle pill on installed ACU 0.2.97."
       },
       "evidence": [
         {
@@ -198,12 +208,12 @@
       "status": "verified_fixed",
       "observed": "The prior full release gate counted startup descriptors as disconnect growth (53 to 60, above the +4 limit). After warming the service and waiting for the documented scan, the latest installed 0.2.93 full gate passed the live-fd step without changing the limit.",
       "recommendation": "Keep the service warm before the FD baseline and retain the +4 limit. No service-channel leak has been established.",
-      "verification": "Verified fixed on PR head 776a1d5: the latest installed release run passed live-fd (2 tests, 6.737 seconds) after the warm baseline. The overall release then stopped at microphone preflight; voice was not reached.",
+      "verification": "Verified fixed on installed ACU 0.2.97 from PR code commit 61cc940: the live FD disconnect check passed in the release run. The release run stopped only at the final voice smoke because no fresh spoken input/action/response was captured.",
       "details": {
         "Previous full run": "The descriptor count grew from 55 to 63 against an allowed maximum of 59. The isolated disconnect repeat passed 2 tests.",
         "Root cause": "Unknown. A descriptor leak is a hypothesis, not an established cause.",
-        "Release status": "The previous installed 0.2.92 full release gate failed while an isolated repeat passed. The updated 0.2.93 installed release gate is still pending.",
-        "Current installed full run": "ACU 0.2.93 built and synced from PR head 776a1d5. Source checks passed (111 test processes); build/install, signature, client, Cursor, and live-fd all passed. Microphone preflight then failed because no input device was available; voice was not reached.",
+        "Release status": "ACU 0.2.97 local installed verification passed source checks, build/install, signature, fresh MCP/readback, live client, Cursor, FD, and microphone preflight. Voice smoke was not proven; this is a local signed check, not a distribution release.",
+        "Current installed full run": "ACU 0.2.97 from PR code commit 61cc940 is installed. The release report records live-fd as passed. The final voice smoke timed out without a fresh task.",
         "Current isolated repeat": "The updated local test warmed the installed ACU 0.2.93 service, waited 5.5 seconds, and passed both tests in 6.616 seconds with ACU_ISLAND_ACTIVITY=0.",
         "Source review": "SwiftNIO local source defaults allowRemoteHalfClosure to false. SocketServer releases the connection count in channelInactive and handlerRemoved. The earlier half-close diagnosis is stale; no socket leak is confirmed.",
         "Release test correction": "Live integration steps receive ACU_ISLAND_ACTIVITY=0 per repository policy. This alone did not clear the earlier full-run failure.",
@@ -396,7 +406,7 @@
         "Source verification": "`ACU_ISLAND_ACTIVITY=0 swift test --filter 'CUAServiceTests.IslandVoiceAppsInsideTests'` — 16 passed, including every voice transition geometry and voice controls/apps inside the pill.",
         "Telemetry provenance": "The 3 voice_slot overflow rows are versioned 0.2.91 (1) and 0.2.92 (2); 8 island_layout failures are versioned 0.2.89 (2), 0.2.91 (1), and 0.2.92 (5). These rows are not linked to a controlled close/resize run.",
         "Installed/live verification": "Pending a fresh installed-build voice, resize, and close run with measured control and circle bounds. Microphone availability is not established.",
-        "Latest test evidence": "Snapshot a388ea974760123cd5a6d1f87851e8243b1cad33061a41c75f06a03d19225cd3: issue col-7ed98c0042f27adc has one new 0.2.94 failure. The collector does not expose the failure detail in its excerpt."
+        "Latest test evidence": "Fresh Developer Observability snapshot 31f111b5e1661b4006864f2df65f672c15c238ddd5c473c923b634421a3b9bd9 generated 2026-11-06 05:45 UTC still reflects the pre-install Samantha session. Its 6 pt resize overflow on ACU 0.2.96 remains a historical lead; the 0.2.97 post-install voice smoke did not capture a resize."
       },
       "verification_refs": [
         "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandVoiceAppsInsideTests.swift — 16 tests passed for in-pill geometry and transitions.",
