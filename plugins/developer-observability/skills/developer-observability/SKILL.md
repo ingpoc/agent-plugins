@@ -36,6 +36,8 @@ ownership.
    opaque returned `session_ref` to see bounded stage timings and outcomes.
    Task outcomes include their check, evidence class, correlated response/run refs,
    and tool names. Ledger status and result count are visible in the summary.
+   Session timelines include native actions and use `next_cursor` for additional pages;
+   pass that cursor to the same session with the same diagnostics setting.
    When the result or cause matters, call `observability_sessions(...,
    include_diagnostics=true)` or `observability_inspect_issue(...,
    include_diagnostics=true)` to expand bounded, credential-redacted Ledger

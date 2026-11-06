@@ -124,6 +124,9 @@ class ReleaseTests(unittest.TestCase):
         def run(command, **kwargs):
             calls.append(command)
             return Mock(returncode=source_exit if command[-1:] == ['scripts/check.py'] else 0)
+        def smoke(*_args):
+            self.assertEqual(json.loads(args.report.read_text())['stage'], 'voice-smoke')
+            return {'session_id':'fresh','audio':True}
         with patch.object(release,'output',side_effect=output), \
              patch.object(release,'APP',Path(directory)/'app'), \
              patch.object(release,'hygiene_gate',return_value={'checked':False}), \
@@ -132,7 +135,7 @@ class ReleaseTests(unittest.TestCase):
              patch.object(release,'contract_module',return_value=contract), \
              patch.object(release.subprocess,'run',side_effect=run), \
              patch.object(release,'mcp',return_value=('0.2.32','')), \
-             patch.object(release,'voice_smoke',return_value={'session_id':'fresh','audio':True}):
+             patch.object(release,'voice_smoke',side_effect=smoke):
             code = release.release(args)
         return code,json.loads(args.report.read_text()),calls
 

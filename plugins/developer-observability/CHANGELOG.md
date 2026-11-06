@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.14 (2026-11-06)
+
+- Preserve native action events in session timelines and paginate collected session events.
+
 ## 0.1.13 (2026-11-06)
 
 - Expose task outcomes in session timelines and add opt-in, bounded error and Context Ledger diagnostics.

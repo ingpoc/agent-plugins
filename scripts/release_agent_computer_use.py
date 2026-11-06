@@ -256,6 +256,7 @@ def release(args, root=ROOT):
         raise RuntimeError('release evidence must be outside the source worktree')
     report_path.parent.mkdir(parents=True,exist_ok=True)
     report = {'ok':False,'release_ready':False,'steps':[], 'voice_left_on':'unknown'}
+    print('Voice smoke follows installation. Prepare to say: Open Calculator and calculate thirteen times seventeen. Wait for VOICE SMOKE before speaking; the window is 90 seconds.', flush=True)
     def save():
         temporary = report_path.with_suffix('.tmp')
         temporary.write_text(json.dumps(report,indent=2)+'\n')
@@ -332,7 +333,10 @@ def release(args, root=ROOT):
             raise RuntimeError('fresh MCP process version does not match candidate')
         report['native_smoke'] = {'ok':True,'fresh_mcp':True,'independent_readback':True}
         run('microphone',[str(APP/'Contents/Helpers/voice-cua.app/Contents/MacOS/voice-cua'),'--preflight-mic'],30)
+        report['stage'] = 'voice-smoke'
+        save()
         report['voice'] = voice_smoke(plugin,version)
+        report.pop('stage', None)
         report['voice_left_on'] = True
         frozen(root,head)
         if module.package_identity(root/PACKAGE) != identity:

@@ -649,12 +649,13 @@
       "id": "OBS-11",
       "title": "Session timeline omits native actions and truncates long sessions",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "The latest 66-event session returns 64 timeline entries with truncated=true. Native cua_act errors appear in issue inspection but not in the session timeline.",
       "recommendation": "Include native action stages in the session timeline and provide bounded pagination so agents can inspect all events and outcomes for a session.",
-      "verification": "The installed observability session tool returned 64 of 66 entries without a cursor. Source inspection shows a 64-event slice and a stage allowlist that excludes cua_act.",
+      "verification": "Developer Observability 0.1.14 source now preserves native actions and pages collected timelines. Against the actual recent session, the candidate collector returned 92 of 92 events over two pages, including seven native-action failures. Focused tests and the full repository gate passed; installed-client verification remains pending.",
       "details": {
-        "Evidence": "Developer Observability snapshot 2026-11-06 06:04 UTC; observability_api.py session timeline."
+        "Evidence": "Developer Observability snapshot 2026-11-06 06:04 UTC; observability_api.py session timeline.",
+        "Source verification": "75-event regression test passed; candidate collection of the recent session yielded 92 events across two pages, including native failures. Version 0.1.14 requires installed-client verification."
       }
     }
   ]

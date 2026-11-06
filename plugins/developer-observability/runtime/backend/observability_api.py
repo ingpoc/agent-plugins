@@ -107,7 +107,7 @@ class ObservabilityAPI:
     def _load(path):
         if not path.is_file():
             return None, b''
-        if path.stat().st_size > 16_000_000:
+        if path.stat().st_size > 128_000_000:
             raise ValueError('backend_unavailable: prepared findings missing or oversized')
         raw = path.read_bytes()
         data = json.loads(raw)
@@ -449,7 +449,7 @@ class ObservabilityAPI:
                 'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures,
                 'limit': limit, **({'limit_note': limit_note} if limit_note else {})}
 
-    def sessions(self, project_id, session_ref=None, include_diagnostics=False):
+    def sessions(self, project_id, session_ref=None, include_diagnostics=False, cursor=None, limit=64):
         """List recent opaque session references or inspect one bounded stage timeline."""
         if type(include_diagnostics) is not bool:
             raise ValueError('invalid_diagnostics: pass true or false')
@@ -471,10 +471,10 @@ class ObservabilityAPI:
         if row is None:
             raise ValueError('session_not_in_project: select a reference returned by observability_sessions')
         stages = {'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready', 'stack_begin',
-                  'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'voice_latency', 'usage'}
+                  'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'cua_act', 'cua_state', 'voice_latency', 'usage'}
         metrics = {'speech_to_playback_ms', 'latency_ms', 'duration_ms', 'took_ms', 'backend_ms', 'duration_s', 'step_ms'}
         timeline = []
-        for event in row.get('events', [])[:64] if isinstance(row.get('events'), list) else []:
+        for event in row.get('events', []) if isinstance(row.get('events'), list) else []:
             if not isinstance(event, dict) or event.get('stage') not in stages:
                 continue
             duration = event.get('duration_ms')
@@ -512,8 +512,11 @@ class ObservabilityAPI:
             if include_diagnostics and details:
                 item['diagnostics'] = details
             timeline.append(item)
-        return {**self._envelope(data, revision, project_id), 'session_ref': session_ref, 'timeline': timeline,
-                'total': row.get('total'), 'truncated': row.get('truncated') is True}
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError('invalid_limit: use an integer 1–100')
+        page, next_cursor = self._page(timeline, cursor, revision, f'sessions:{project_id}:{session_ref}:{include_diagnostics}', limit)
+        return {**self._envelope(data, revision, project_id), 'session_ref': session_ref, 'timeline': page,
+                'total': row.get('total'), 'truncated': row.get('truncated') is True, 'next_cursor': next_cursor}
 
     def inspect(self, project_id, issue_id, cursor=None, limit=10, include_diagnostics=False):
         # Local edit (0.1.7): evidence pages are 1–10; validate before reading.

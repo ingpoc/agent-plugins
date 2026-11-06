@@ -2,6 +2,7 @@ import json
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'runtime'))
@@ -40,7 +41,8 @@ class SessionTimelineTests(unittest.TestCase):
             self.assertEqual(len(listing), 1)
             ref = listing[0]['session_ref']
             result = api.sessions('a', ref)
-            self.assertEqual([e['stage'] for e in result['timeline']], ['audio_ready', 'ledger_task', 'task_outcome'])
+            self.assertEqual([e['stage'] for e in result['timeline']], ['audio_ready', 'ledger_task', 'task_outcome', 'cua_act'])
+            self.assertEqual(result['timeline'][3]['outcome'], 'failure')
             self.assertEqual(result['timeline'][0]['duration_ms'], 250)
             self.assertEqual(result['timeline'][1]['ledger_operation'], 'recall')
             self.assertEqual(result['timeline'][1]['ledger_result_status'], 'found')
@@ -68,6 +70,31 @@ class SessionTimelineTests(unittest.TestCase):
                 api.sessions('b', ref)
             with self.assertRaises(ValueError):
                 api.sessions('a', 'private-session')
+
+    def test_long_session_can_be_paged_without_losing_native_actions(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / 'activity.jsonl'
+            start = datetime(2026, 11, 6, tzinfo=timezone.utc)
+            rows = [{'ts': (start + timedelta(seconds=i)).isoformat(), 'session_id': 'one',
+                     'kind': 'tool_error' if i == 70 else 'tool_result', 'tool': 'cua_act',
+                     'ok': i != 70, 'error': 'failed' if i == 70 else None} for i in range(75)]
+            source.write_text('\n'.join(json.dumps(row) for row in rows) + '\n')
+            stats = {}
+            data = build(list(iter_jsonl(source, 'a', 'activity', stats)), stats)
+            (root / 'findings.json').write_text(json.dumps(data))
+            api = ObservabilityAPI(root, {'a': {'owners': ['owner:a']}}, None)
+            ref = api.sessions('a')['sessions'][0]['session_ref']
+            first = api.sessions('a', ref, limit=50)
+            second = api.sessions('a', ref, cursor=first['next_cursor'], limit=50)
+            events = first['timeline'] + second['timeline']
+            self.assertEqual(len(events), 75)
+            self.assertFalse(first['truncated'])
+            self.assertIsNone(second['next_cursor'])
+            self.assertEqual(events[70]['outcome'], 'failure')
+            self.assertEqual(events[70]['stage'], 'cua_act')
+            with self.assertRaises(ValueError):
+                api.sessions('a', ref, cursor=first['next_cursor'], include_diagnostics=True)
 
 
 if __name__ == '__main__':

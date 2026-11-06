@@ -39,7 +39,7 @@ TURN_SLOW_MS = 10_000
 TURN_TOP_N = 3
 TURN_METRICS = ('speech_to_playback_ms', 'turn_ms')
 SESSION_STAGES = frozenset({'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready',
-                            'stack_begin', 'response_done', 'ledger_task', 'task_outcome', 'comet_act',
+                            'stack_begin', 'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'cua_act', 'cua_state',
                             'voice_latency', 'usage'})
 LAYOUT_TOLERANCE_PT = 2
 
@@ -574,10 +574,10 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                      'task_evidence_class': event.get('task_evidence_class'), 'task_tools': event.get('task_tools'),
                      'error_details': event.get('error_details'), 'run_ref': event.get('run_ref'),
                      'call_ref': event.get('call_ref'), 'response_ref': event.get('response_ref')}
-                    for event, stage in rows[-64:]]
+                    for event, stage in rows]
         session_timelines.append({'project': project, 'session_ref': session_ref,
                                   'last_seen': iso(rows[-1][0]['ts']), 'events': timeline,
-                                  'total': len(rows), 'truncated': len(rows) > 64})
+                                  'total': len(rows), 'truncated': False})
     session_timelines.sort(key=lambda row: row['last_seen'], reverse=True)
     return {
         'schema_version': 1, 'generated_at': stamp, 'producer': 'developer-observability-collector',
