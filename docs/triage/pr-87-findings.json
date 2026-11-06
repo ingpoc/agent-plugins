@@ -242,7 +242,7 @@
       "status": "awaiting_verification",
       "observed": "Fresh ACU 0.2.96 telemetry records a Context Ledger recall rejected because its query had no searchable terms. No subsequent ledger call appears after that error in the selected session; earlier retry records remain in history.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "The latest ACU 0.2.97 candidate session records three successful recall calls returning empty matches. This shows the prior empty-query rejection did not recur in the visible calls; preference retrieval and full-session recovery remain unverified because the timeline is truncated.",
+      "verification": "Three visible 0.2.97 recall calls succeeded and returned empty matches. The collector also flags one duplicate Ledger call in this session; argument equivalence and full-session recovery need investigation. The earlier empty-query failure did not recur in the visible recalls.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
@@ -304,7 +304,7 @@
       "status": "investigation",
       "observed": "Developer Observability reports several slow voice and audio stages. These are leads, not confirmed user-facing latency defects.",
       "recommendation": "Trace a fresh, short voice interaction end to end and optimize only the stage that remains slow in a linked run.",
-      "verification": "Fresh snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5 reports speech-to-playback p95 13.7 s (p50 2.4 s, n=92). The candidate session has individual samples of 1.497–3.237 s, but its link to the reported task is inferred and the collector threshold is not a product SLA. Aggregate tail latency remains open.",
+      "verification": "The latest candidate 0.2.97 session includes a 33.3 s speech-to-playback turn with native actions and three errors, plus a 13.3 s Ledger turn. These are telemetry leads; a product latency target and root cause remain unestablished.",
       "details": {
         "Latest metrics": "Speech-to-playback p95 13.7 s (p50 2.4 s, n=92); audio_ready p95 5.9 s (p50 249 ms, n=12); usage p95 4.6 s (p50 2.1 s, n=114).",
         "Threshold note": "The collector's 1.0 s threshold is an investigation signal, not a user-facing SLA. One aggregate speech-to-playback maximum is a 1,086.6 s outlier and needs run-level correlation.",
@@ -398,7 +398,7 @@
       "status": "failing",
       "observed": "A fresh ACU 0.2.96 resize event reports the voice slot extending 6 pt beyond a 74 pt island; older 50 pt events account for the larger historical overflow.",
       "recommendation": "Repeat voice, close, and resize checks on the installed PR build, then compare the linked layout measurements with the source result.",
-      "verification": "Fresh telemetry attributes eight island_layout failures to ACU 0.2.97 during the latest test. The earlier source fix is installed, but the new failures require investigation; the session is partially truncated and the precise geometry is not established.",
+      "verification": "Five event-attributed ACU 0.2.97 resize observations show a 23 pt voice slot extending 30 pt beyond a 74 pt island; eight island_layout failure records are attributed to 0.2.97. Source tests passed, but the latest live geometry remains failing.",
       "details": {
         "Latest telemetry": "Three voice_slot boundary events reported a maximum of 30.0 pt; eight island_layout failures were recorded.",
         "Attribution limit": "The observability snapshot does not link these records to the user's close/reflow report or a controlled resize run. Root cause is unconfirmed.",
@@ -629,9 +629,32 @@
       "status": "failing",
       "observed": "Fresh ACU 0.2.97 telemetry records five cua_act errors during the latest test: target_missing and observation_incomplete. A separate grouped incident reports two retries.",
       "recommendation": "Inspect the affected action and observation path, identify the missing target or incomplete state, and verify a successful native action with independent app readback.",
-      "verification": "Developer Observability snapshot generated 2026-11-06 06:04 UTC records five errors from 06:02 to 06:03 UTC. Version attribution is session-inferred; the session timeline is truncated, so the requested action and final outcome are not established.",
+      "verification": "The latest 0.2.97 session records target_missing, observation_incomplete, and a retry-cap error. An independent direct installed MCP Calculator check succeeded and read back 72, but it does not reproduce or resolve the Samantha voice-session failures.",
       "details": {
-        "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue."
+        "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue.",
+        "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved."
+      },
+      "verification_evidence": [
+        {
+          "check": "Independent installed native Calculator action",
+          "outcome": "Passed: direct installed MCP Calculator action verified with independent display readback of 72. Samantha voice-session failures were not reproduced by this direct check.",
+          "build": "ACU 0.2.97",
+          "session": "Independent native MCP check",
+          "timestamp": "2026-11-06T06:09:22Z",
+          "reference": "release_agent_computer_use.py mcp(compute=True) installed plugin smoke"
+        }
+      ]
+    },
+    {
+      "id": "OBS-11",
+      "title": "Session timeline omits native actions and truncates long sessions",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "The latest 66-event session returns 64 timeline entries with truncated=true. Native cua_act errors appear in issue inspection but not in the session timeline.",
+      "recommendation": "Include native action stages in the session timeline and provide bounded pagination so agents can inspect all events and outcomes for a session.",
+      "verification": "The installed observability session tool returned 64 of 66 entries without a cursor. Source inspection shows a 64-event slice and a stage allowlist that excludes cua_act.",
+      "details": {
+        "Evidence": "Developer Observability snapshot 2026-11-06 06:04 UTC; observability_api.py session timeline."
       }
     }
   ]
