@@ -2882,14 +2882,15 @@
       "id": "AGENT-05",
       "title": "Ledger authorization error can crash when the server resets its response",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "The ACU 0.2.98 release source gate failed when a Context Ledger authorization test received HTTP 401 followed by a connection reset while reading its error body.",
       "recommendation": "Handle a reset while reading an HTTP error body while preserving the known 401 authorization failure.",
-      "verification": "The authorization-error and reset regression passed as a simulated test against both the worktree and installed Ledger 0.1.39. A real authorization response followed by a reset, and the full release gate, were not rerun.",
+      "verification": "The installed 0.1.39 client was tested against a controlled local HTTP server that returned 401 and reset the connection while its response body was read. The reset was observed and the client reported UNAUTHORIZED rather than crashing.",
       "details": {
         "Evidence": "Release gate: test_remote_bad_token_fails_loud; HTTP 401 followed by ConnectionResetError while reading the response body. No production credential or private response is included.",
         "Implementation progress": "Source fix preserves the known HTTP 401 when reading the error body raises a connection reset. A deterministic regression test passes; the release gate must be rerun.",
-        "Latest self-check": "The installed Context Ledger 0.1.39 reset regression test passes; a live server reset and authorization response have not been independently reproduced."
+        "Latest self-check": "The installed Context Ledger 0.1.39 reset regression test passes; a live server reset and authorization response have not been independently reproduced.",
+        "Live boundary": "The controlled server used a synthetic token and did not connect to the real Ledger service; it exercised the installed HTTP client over a real loopback socket. The earlier installed verification run is preserved as inconclusive."
       },
       "verification_evidence": [
         {
@@ -2899,7 +2900,19 @@
           "session": "controlled-source-20261106",
           "timestamp": "2026-11-06T10:57:18+00:00",
           "reference": "python3 -m unittest discover -s tests -p test_ledger_http_error.py -v, both package roots"
+        },
+        {
+          "check": "Installed HTTP client 401 and TCP reset",
+          "outcome": "A local controlled server sent HTTP 401 and reset the actual socket while the installed client read the error body. ConnectionResetError was observed and the client returned its UNAUTHORIZED failure without crashing.",
+          "build": "Context Ledger installed 0.1.39",
+          "session": "controlled-loopback-401-reset-20261106",
+          "timestamp": "2026-11-06T14:54:32+00:00",
+          "reference": "Controlled local socket test of installed ledger_loop.Mcp._post; synthetic token"
         }
+      ],
+      "verification_refs": [
+        "Controlled local TCP server reset against installed Context Ledger 0.1.39 client, 2026-11-06",
+        "Installed test_ledger_http_error.py regression and PR release source gates"
       ]
     },
     {
