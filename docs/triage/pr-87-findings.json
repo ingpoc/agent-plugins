@@ -834,10 +834,10 @@
       "id": "USER-02",
       "title": "User action needed · Retrieve a known preference",
       "source": "User reported",
-      "status": "awaiting_verification",
-      "observed": "Samantha did not apply a relevant saved preference unless asked to consult Context Ledger.",
+      "status": "failing",
+      "observed": "Samantha did not automatically apply a saved preference when a site required a profile choice. The owner reports that the preference was already saved through Samantha.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "The latest 0.2.97 session contains one successful Ledger lookup returning none and zero decisions. Without the requested preference or an independent readback, relevance and application remain unverified.",
+      "verification": "Independent Context Ledger readback found active site-scoped preference records saved by Samantha. The recent Samantha session used generic lookup and returned no matches; source inspection shows generic lookup searches fleet and an optional project but passes no tool scopes. Exact arguments of that specific live lookup are not recorded.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
@@ -846,7 +846,10 @@
         "Installed/live verification": "Pending an installed Samantha session where a real non-sensitive saved preference is used without naming Context Ledger.",
         "Latest live evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations succeeded. Query and result content are not captured, so preference relevance remains unknown.",
         "Latest verification": "Fresh 0.2.101 session recorded a successful Ledger recall with zero matches; the intended preference and whether it should match are not established.",
-        "User action": "When prompted, ask Samantha to use a specific preference that you know has already been saved, without telling her to consult Context Ledger. This is needed to compare the expected preference with the recalled and applied result."
+        "User action": "When prompted, ask Samantha to use a specific preference that you know has already been saved, without telling her to consult Context Ledger. This is needed to compare the expected preference with the recalled and applied result.",
+        "Root-cause evidence": "Samantha generic lookup constructs caller_scope with an empty tools list. Ledger find filters records by permitted scopes, so generic lookup without a tool scope cannot retrieve a tool-scoped preference. The exact live lookup arguments were not captured, so this explains a reproducible path, not the full live cause.",
+        "Privacy": "The saved preference value and record identifiers are intentionally omitted from this public report.",
+        "Candidate fix": "ACU 0.2.102 candidate passes an explicitly supplied site or app scope through generic lookup and instructs the model to provide it. Focused source tests passed. Whether Samantha supplies the correct scope automatically and applies the saved choice remains unverified until an installed voice test."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
@@ -892,6 +895,22 @@
           "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
           "timestamp": "2026-11-06T11:22:17+00:00",
           "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
+        },
+        {
+          "check": "Independent saved-decision readback and source trace",
+          "outcome": "Active site-scoped user decisions created by Samantha exist. The recent session had two zero-result generic lookups; source tracing shows generic lookup excludes tool scopes. Exact arguments of the live lookups are unknown.",
+          "build": "ACU 0.2.101; Context Ledger 0.1.39",
+          "session": "sref_e154901d8c7855ee6e8288b4a81cea06",
+          "timestamp": "2026-11-06T11:26:42+00:00",
+          "reference": "Context Ledger readback and ledger_helper.py lookup scope; private values omitted"
+        },
+        {
+          "check": "Scoped generic lookup source regression",
+          "outcome": "72 focused source tests passed, including a scoped generic lookup and isolation from a different tool scope. This is not installed or live evidence.",
+          "build": "ACU 0.2.102 candidate",
+          "session": "source-test-20261106",
+          "timestamp": "2026-11-06T11:29:42+00:00",
+          "reference": "pytest Ledger helper, preferences, transport, observability and tool-surface suites"
         }
       ]
     },

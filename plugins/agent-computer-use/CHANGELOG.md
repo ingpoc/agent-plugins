@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.102
+
+- Include an explicit site or app scope in Samantha’s general Context Ledger lookup.
+
 ## 0.2.101
 
 - Load the service client at MCP startup so an idle client retains it across package refresh.

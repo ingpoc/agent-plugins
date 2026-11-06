@@ -184,8 +184,19 @@ class LedgerHelper:
                 return _invalid('The owner statement rejects saving or the proposed decision')
             if not personal and not (_project_named(project, quote) or _project_named(project, self._recent()[matched])):
                 return _invalid('Project scope not established by the user statement; omit project for a personal preference')
+        lookup_scope = ''
+        if operation == 'lookup' and scope:
+            if not isinstance(scope, str) or not isinstance(rule, str):
+                return _invalid('Scope and rule must be text')
+            lookup_scope, rule = _normalize_scope_rule(scope, rule)
+            if not re.fullmatch(r'(?:fleet|(?:tool|project):[a-z0-9][a-z0-9._-]{0,63})', lookup_scope) or (rule and not re.fullmatch(r'[a-z0-9_]{1,64}', rule)):
+                return _invalid('Use scope fleet, tool:<lowercase-id>, or project:<lowercase-id>; rule must be lowercase_snake_case')
         scope = {'project': project or None, 'tools': []}
-        cache_key = (situation + '\n' + need, json.dumps(scope, sort_keys=True))
+        if lookup_scope.startswith('tool:'):
+            scope['tools'].append(lookup_scope[5:])
+        elif lookup_scope.startswith('project:'):
+            scope['project'] = lookup_scope[8:]
+        cache_key = (situation + '\n' + need + '\n' + lookup_scope + '\n' + (rule if lookup_scope else ''), json.dumps(scope, sort_keys=True))
         task_id = str(uuid.uuid5(uuid.UUID(self.task_id), json.dumps(cache_key)))
         if not self._lock.acquire(timeout=2):
             return {'ok': False, 'error': 'Context Ledger helper busy'}
@@ -194,8 +205,12 @@ class LedgerHelper:
             try:
                 if cache_key not in self._cache or time.monotonic() - self._cache[cache_key][0] > 30:
                     query = ' '.join(f'{need} {situation}'.split())[:240]
-                    found = self.transport.call('find', {'query': query, 'actor': 'samantha',
-                        'task_id': task_id, 'caller_scope': scope, 'limit': 3})
+                    args = {'query': query, 'actor': 'samantha', 'task_id': task_id, 'caller_scope': scope, 'limit': 3}
+                    if lookup_scope:
+                        args['scope'] = lookup_scope
+                        if rule:
+                            args['rule'] = rule
+                    found = self.transport.call('find', args)
                     if not found.get('ok'):
                         raise LedgerUnavailable('lookup failed')
                     self._cache[cache_key] = (time.monotonic(), found)

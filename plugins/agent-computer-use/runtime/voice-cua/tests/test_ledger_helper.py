@@ -42,6 +42,16 @@ class LedgerHelperTests(unittest.TestCase):
         self.assertEqual(self.transport.call.call_count, 1)
         self.assertEqual(self.transport.call.call_args.args[1]['caller_scope'], {'project': 'agent-plugins', 'tools': []})
 
+    def test_lookup_searches_the_explicit_tool_scope(self):
+        def find(_name, args):
+            matches = [self.match] if args.get('scope') == 'tool:example' and 'example' in args['caller_scope']['tools'] else []
+            return {'ok': True, 'data': {'matches': matches}}
+        self.transport.call.side_effect = find
+        result = self.helper.run(operation='lookup', situation='choose a profile', need='profile preference', scope='Tool:Example')
+        self.assertEqual(result['decisions'], [self.match])
+        other = self.helper.run(operation='lookup', situation='choose a profile', need='profile preference', scope='tool:other')
+        self.assertEqual(other['status'], 'none')
+
     def test_lookup_query_uses_need_before_generic_situation_and_respects_limit(self):
         self.helper.run(operation='lookup', situation='how do I do it', need='saved email account preference')
         args = self.transport.call.call_args.args[1]
