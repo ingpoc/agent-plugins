@@ -69,6 +69,9 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_service_client_is_loaded_before_first_tool_call(self):
+        self.assertIsNotNone(compact_mcp._BACKEND._client)
+
     def test_action_delta_preserves_full_state_verification_and_failure_context(self):
         before = '[0] AXWindow "Fixture"\n' + '\n'.join(
             f'  [{i}] AXButton "Button {i}" [pressable] {{0,0 10x10}}'

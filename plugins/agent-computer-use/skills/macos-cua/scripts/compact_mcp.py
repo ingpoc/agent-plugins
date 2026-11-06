@@ -40,7 +40,7 @@ from compact_backend import (
     expectation_is_new,
 )
 
-_BACKEND: Any = None
+_BACKEND: Any = CUABackend()
 _CLIENT: dict[str, str] = {"name": ""}
 _ACTIVITY_UNSET = object()
 _ACTIVITY: Any = _ACTIVITY_UNSET

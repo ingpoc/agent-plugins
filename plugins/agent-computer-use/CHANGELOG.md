@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.101
+
+- Load the service client at MCP startup so an idle client retains it across package refresh.
+
 ## 0.2.100
 
 - Correlate delayed speech transcripts when one unstarted delegation has a matching timeline.

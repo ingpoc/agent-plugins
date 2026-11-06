@@ -1106,7 +1106,8 @@
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-01, OBS-02 and OBS-03; OBS-08 remains fixed for its narrower session timeline scope.",
-        "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified."
+        "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
+        "Latest installation": "ACU 0.2.100 installed from PR code c3b9247. Source, notarization, live client, Cursor, disconnect and microphone checks passed; timed voice smoke did not prove a spoken interaction."
       }
     },
     {
@@ -1159,7 +1160,8 @@
       "recommendation": "Find why an already-running client resolves a missing module after the plugin is refreshed, and make reconnect or reload reliable.",
       "verification": "Observed in the active client after installation; a fresh installed MCP process passed the same readback. Root cause remains unconfirmed.",
       "details": {
-        "Evidence": "Active ACU state tool returned No module named cua_client; a fresh process from the 0.2.98 cache independently read Calculator."
+        "Evidence": "Active ACU state tool returned No module named cua_client; a fresh process from the 0.2.98 cache independently read Calculator.",
+        "Implementation progress": "The MCP now loads its service client at startup, before a versioned cache can be removed. Source protocol tests pass; an upgrade with an already-running client must verify the fix."
       }
     }
   ]
