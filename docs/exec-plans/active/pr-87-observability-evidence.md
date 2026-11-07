@@ -112,3 +112,11 @@ Use one coherent batch and one issue-by-issue installed run per iteration. Check
 - **Optimize:** The frozen release source gate ran once. No comparable end-to-end time saving is established.
 - **Automate:** The existing subprocess tests exercised actual process replacement with queued requests; the installed persistent-client probe recorded the pre-existing 0.2.108 client's failure. A later refresh must test a client containing the handoff code.
 - **Outcome:** ACU 0.2.109 installed from PR commit 3cfbdd6; 137 focused installed-package tests passed. The run recorded one fixed, one not fixed, 14 blocked and 13 inconclusive. Microphone preflight failed. Source review identified a read-only identity-probe reconnect edge case, which must be corrected before testing handoff acceptance.
+
+### Iteration review: 0.2.110
+
+- **Delete:** Kept action retries disabled. Only the read-only service identity probe may reconnect after a closed socket.
+- **Simplify:** Reused the existing `CUAClient` reconnect behavior for the identity probe instead of adding a second reconnect mechanism.
+- **Optimize:** The frozen release source gate ran once; no comparable end-to-end improvement has been established.
+- **Automate:** A persistent 0.2.109 client exercised the actual refresh: its first post-refresh call failed and its second successfully handed off. The source regression uses the real client retry path; a 0.2.110 client must still be tested across another installed refresh.
+- **Outcome:** ACU 0.2.110 installed from PR commit a551690; 137 focused installed-package tests and 52 installed MCP tests passed. All 29 outcomes were recorded: one fixed, one not fixed, 14 blocked and 13 inconclusive. Microphone preflight failed; the first-call handoff and spoken acceptance remain unverified.
