@@ -128,3 +128,11 @@ Use one coherent batch and one issue-by-issue installed run per iteration. Check
 - **Optimize:** The frozen release source gate ran once. No comparable end-to-end performance improvement has been demonstrated.
 - **Automate:** The existing installed MCP and Ledger suites passed, and the persistent-client probe confirmed first-call survival and the new server version. The findings manager recorded the complete issue pass and rendered the HTML.
 - **Outcome:** ACU 0.2.111 installed from PR commit ca1621b; 52 installed MCP tests and 137 focused installed voice/Ledger tests passed. One persistent 0.2.110 MCP client survived the refresh to 0.2.111 on its first state call; AGENT-06 is verified for clients containing the handoff. The run recorded two fixed, 12 blocked and 15 inconclusive. The release remained not ready because microphone preflight failed; spoken acceptance and island close/reflow remain unverified.
+
+### Iteration review: 0.2.112
+
+- **Delete:** No Ledger record or approval metadata was modified. Removed the mistaken implication that a pending application outcome means a user decision is awaiting approval.
+- **Simplify:** Added a bounded explanation to existing Ledger results and instructions, preserving the original outcome and trust tier instead of creating another authority or changing stored decisions.
+- **Optimize:** One installed text-only task provided task-linked lookup and independent exact-site readback without a voice session. One successful observation is not a measured latency improvement or general reliability proof.
+- **Automate:** Existing source and installed suites checked outcome semantics; the findings manager recorded the installed issue pass. A persistent 0.2.111 MCP client survived the refresh on its first call.
+- **Outcome:** ACU 0.2.112 installed from PR commit 2adb5b0; 139 focused installed voice/Ledger tests and 52 installed MCP tests passed. The signed helper returned the expected saved profile in one text-only task without being told to consult Ledger; independent readback matched an active site-scoped decision, distinct from the separate profile-selection-rule record. The run recorded two fixed, 11 blocked and 16 inconclusive. Microphone preflight failed, and spoken use, actual profile opening and island close/reflow remain unverified.
