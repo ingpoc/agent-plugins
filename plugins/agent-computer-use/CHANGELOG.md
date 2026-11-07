@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.108
+
+- Report incomplete Ledger search results as needing disambiguation instead of claiming a complete match.
+
 ## 0.2.107
 
 - Refresh Ledger lookup results on every lookup so saved and externally updated preferences do not remain hidden behind stale cached results.

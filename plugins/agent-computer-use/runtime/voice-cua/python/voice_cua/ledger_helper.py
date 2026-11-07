@@ -140,12 +140,14 @@ class LedgerHelper:
                     if rule:
                         args['rule'] = rule
                     result = self.transport.call('find', args)
+                    if result.get('ok') and result.get('data', {}).get('has_more') is True:
+                        return {'ok': True, 'status': 'needs_disambiguation', 'has_more': True, 'data': result['data']}
                     if rule and result.get('ok') and not result.get('data', {}).get('matches'):
                         candidates = self.transport.call('find', {k: v for k, v in args.items() if k != 'rule'})
                         if not candidates.get('ok'):
                             raise LedgerUnavailable('scoped candidate search failed')
-                        if candidates.get('data', {}).get('matches'):
-                            return {'ok': True, 'status': 'needs_disambiguation', 'data': candidates['data']}
+                        if candidates.get('data', {}).get('matches') or candidates.get('data', {}).get('has_more') is True:
+                            return {'ok': True, 'status': 'needs_disambiguation', 'has_more': candidates['data'].get('has_more') is True, 'data': candidates['data']}
                     return {'ok': True, **result}
                 source = self._quote_source(owner_quote)
                 if not _norm_text(value) or source is None or (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
@@ -220,6 +222,8 @@ class LedgerHelper:
                 matches = found.get('data', {}).get('matches')
                 if not isinstance(matches, list) or len(matches) > 3:
                     raise LedgerUnavailable('invalid find result')
+                if operation == 'lookup' and found['data'].get('has_more') is True:
+                    return {'ok': True, 'status': 'needs_disambiguation', 'has_more': True, 'data': found['data']}
                 if operation == 'lookup' and not matches:
                     return {'ok': True, 'status': 'none', 'decisions': []}
                 result = self.request({'operation': operation, 'situation': situation, 'need': need,

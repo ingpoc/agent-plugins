@@ -396,7 +396,7 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
     ledger_status = result.get("status")
     if ledger and ok and ledger_status is None and isinstance(matches, list):
         ledger_status = "found" if matches else "none"
-    ledger_status = ledger_status if isinstance(ledger_status, str) and ledger_status in {"found", "none", "saved", "skipped", "cancelled"} else "other"
+    ledger_status = ledger_status if isinstance(ledger_status, str) and ledger_status in {"found", "none", "saved", "skipped", "cancelled", "needs_disambiguation"} else "other"
     ledger_detail, ledger_truncated = _ledger_result_detail(result) if ledger else (None, None)
     log_event(
         "tool_result" if ok else "tool_error",

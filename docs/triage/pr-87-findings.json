@@ -2014,6 +2014,14 @@
           "session": "acu-0.2.107-ea56232-20261107",
           "timestamp": "2026-11-07T03:31:13.334238+00:00",
           "reference": "Isolated temporary Ledger with installed Context Ledger 0.1.39; /private/tmp/pr87-installed-ledger-freshness.py"
+        },
+        {
+          "check": "Partial Ledger result handling",
+          "outcome": "Source regression reproduced a lookup returning found when Ledger indicated more records. The 0.2.108 candidate reports needs_disambiguation and preserves has_more for lookup and recall; focused tests pass. This is not proof the spoken model asks or applies a preference correctly.",
+          "build": "ACU 0.2.108 source candidate",
+          "session": "source-ledger-partial-20261107",
+          "timestamp": "2026-11-07T03:35:13.785464+00:00",
+          "reference": "test_ledger_helper.py and test_ledger_observability.py; synthetic results"
         }
       ]
     },
@@ -2947,6 +2955,14 @@
           "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
           "timestamp": "2026-11-06T11:22:17+00:00",
           "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
+        },
+        {
+          "check": "Partial Ledger result handling",
+          "outcome": "Source regression reproduced a lookup returning found when Ledger indicated more records. The 0.2.108 candidate reports needs_disambiguation and preserves has_more for lookup and recall; focused tests pass. This is not proof the spoken model asks or applies a preference correctly.",
+          "build": "ACU 0.2.108 source candidate",
+          "session": "source-ledger-partial-20261107",
+          "timestamp": "2026-11-07T03:35:13.785464+00:00",
+          "reference": "test_ledger_helper.py and test_ledger_observability.py; synthetic results"
         }
       ]
     },

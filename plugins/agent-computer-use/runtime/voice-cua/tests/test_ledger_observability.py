@@ -11,6 +11,15 @@ from voice_cua.ledger_transport import LedgerUnavailable
 
 
 class LedgerObservabilityTests(unittest.TestCase):
+    def test_partial_result_is_not_logged_as_found(self):
+        rows = []
+        result = {'ok': True, 'status': 'needs_disambiguation', 'has_more': True,
+                  'data': {'matches': [{'decision_id': 'fixture', 'decision': 'PRIVATE_VALUE'}]}}
+        with patch.object(activity_log, '_append_row', side_effect=rows.append):
+            activity_log.log_tool_result('ledger_task', result, operation='lookup')
+        self.assertEqual(rows[0]['ledger_result_status'], 'needs_disambiguation')
+        self.assertNotIn('PRIVATE_VALUE', json.dumps({k: v for k, v in rows[0].items() if k != 'ledger_result_detail'}))
+
     def test_recall_detail_is_correlated_and_marks_truncation(self):
         rows = []
         result = {'ok': True, 'data': {'matches': [

@@ -98,6 +98,15 @@ class LedgerHelperTests(unittest.TestCase):
         self.assertEqual(r['status'], 'none')
         self.decide.assert_not_called()
 
+    def test_partial_scoped_lookup_is_not_reported_as_complete(self):
+        for matches in ([self.match], []):
+            self.transport.call.return_value = {'ok': True, 'data': {'matches': matches, 'has_more': True}}
+            for operation in ('lookup', 'recall'):
+                result = self.helper.run(operation=operation, situation='choose profile', need='profile', scope='tool:example')
+                self.assertEqual(result['status'], 'needs_disambiguation')
+                self.assertTrue(result['has_more'])
+        self.decide.assert_not_called()
+
     def test_fabricated_id_is_rejected(self):
         self.decide.return_value = {'status': 'found', 'decision_ids': ['fabricated']}
         self.assertFalse(self.helper.run(operation='lookup', situation='sites', need='where')['ok'])
