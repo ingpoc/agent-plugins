@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.107
+
+- Refresh Ledger lookup results on every lookup so saved and externally updated preferences do not remain hidden behind stale cached results.
+
 ## 0.2.106
 
 - Do not assign a completed spoken task’s identity to a later unmatched delegation.

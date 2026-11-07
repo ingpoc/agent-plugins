@@ -56,6 +56,28 @@ def test_preference_normalizes_scope_and_rule_before_lookup_or_save(tmp_path):
     assert (args['scope'], args['rule']) == ('tool:gmail', 'account_select')
 
 
+def test_lookup_observes_preference_saved_after_empty_lookup(tmp_path):
+    stored = []
+    def call(name, args):
+        if name == 'find':
+            return {'ok': True, 'data': {'matches': list(stored)}}
+        stored[:] = [{'decision_id': 'saved', 'decision': args['decision']}]
+        return {'ok': True, 'data': {'decision_id': 'saved'}}
+    helper = LedgerHelper(Mock(call=call), lambda _: {'status': 'found', 'decision_ids': ['saved']}, tmp_path / 'pending')
+    lookup = {'operation': 'lookup', 'scope': 'tool:gmail', 'situation': 'choose account', 'need': 'account'}
+    assert helper.run(**lookup)['status'] == 'none'
+    quote = 'Please use Work for my email account'
+    helper.note_user(quote)
+    assert helper.run(operation='preference', scope='tool:gmail', rule='account_select', value='Work', owner_quote=quote)['status'] == 'saved'
+    assert helper.run(**lookup)['decisions'][0]['decision'] == 'Work'
+    quote = 'Please use Personal for my email account'
+    helper.note_user(quote)
+    assert helper.run(operation='preference', scope='tool:gmail', rule='account_select', value='Personal', owner_quote=quote)['status'] == 'saved'
+    assert helper.run(**lookup)['decisions'][0]['decision'] == 'Personal'
+    stored[:] = [{'decision_id': 'saved', 'decision': 'Family'}]
+    assert helper.run(**lookup)['decisions'][0]['decision'] == 'Family'
+
+
 def test_preference_rejects_one_off_and_unquoted_value(tmp_path):
     transport = Mock()
     helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')

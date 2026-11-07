@@ -1785,6 +1785,14 @@
           "session": "installed-helper-read-20261106",
           "timestamp": "2026-11-06T16:25:45+00:00",
           "reference": "Installed voice_cua.ledger_helper against owner-authorized Ledger; preference values and IDs omitted"
+        },
+        {
+          "check": "Fresh lookup after preference save and correction",
+          "outcome": "A synthetic lookup cached an empty result and still returned none after a successful preference save. The 0.2.107 source removes the lookup cache; focused tests now read the new value, a correction and an external change on successive lookups. This does not prove spoken capture or application.",
+          "build": "ACU 0.2.107 source candidate",
+          "session": "source-ledger-freshness-20261107",
+          "timestamp": "2026-11-07T03:21:11.822405+00:00",
+          "reference": "test_ledger_preferences.py and focused Ledger/provider suite"
         }
       ]
     },
@@ -1842,6 +1850,14 @@
           "session": "sref_d0524197762cc4e111e2e3f06eade1b1",
           "timestamp": "2026-11-06T13:10:45+00:00",
           "reference": "Developer Observability save receipt and independent Ledger get; personal values omitted"
+        },
+        {
+          "check": "Fresh lookup after preference save and correction",
+          "outcome": "A synthetic lookup cached an empty result and still returned none after a successful preference save. The 0.2.107 source removes the lookup cache; focused tests now read the new value, a correction and an external change on successive lookups. This does not prove spoken capture or application.",
+          "build": "ACU 0.2.107 source candidate",
+          "session": "source-ledger-freshness-20261107",
+          "timestamp": "2026-11-07T03:21:11.822405+00:00",
+          "reference": "test_ledger_preferences.py and focused Ledger/provider suite"
         }
       ]
     },

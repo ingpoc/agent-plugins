@@ -35,11 +35,11 @@ class LedgerHelperTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.helper = LedgerHelper(self.transport, self.decide, Path(self.temp.name) / "pending")
 
-    def test_lookup_only_returns_found_ids_and_reuses_unchanged_find(self):
+    def test_lookup_only_returns_found_ids_and_refreshes_find(self):
         for _ in range(2):
             r = self.helper.run(operation='lookup', situation='sites', need='where', project='agent-plugins')
             self.assertEqual(r['decisions'], [self.match])
-        self.assertEqual(self.transport.call.call_count, 1)
+        self.assertEqual(self.transport.call.call_count, 2)
         self.assertEqual(self.transport.call.call_args.args[1]['caller_scope'], {'project': 'agent-plugins', 'tools': []})
 
     def test_lookup_searches_the_explicit_tool_scope(self):

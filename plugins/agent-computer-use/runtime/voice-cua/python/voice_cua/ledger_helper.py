@@ -7,7 +7,6 @@ import os
 import stat
 from pathlib import Path
 import threading
-import time
 import urllib.request
 import urllib.error
 import uuid
@@ -79,7 +78,6 @@ class LedgerHelper:
         self._uncertain: set[str] = set()
         self._requests: dict[str, dict[str, Any]] = {}
         self._pending_dir = pending_dir or Path.home() / '.cache/macos-cua/ledger-pending'
-        self._cache: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
         self._history: dict[tuple[str, str], dict[str, Any]] = {}
 
     def note_user(self, text: str) -> None:
@@ -210,24 +208,22 @@ class LedgerHelper:
         try:
             write_started = False
             try:
-                if cache_key not in self._cache or time.monotonic() - self._cache[cache_key][0] > 30:
-                    query = ' '.join(f'{need} {situation}'.split())[:240]
-                    args = {'query': query, 'actor': 'samantha', 'task_id': task_id, 'caller_scope': scope, 'limit': 3}
-                    if lookup_scope:
-                        args['scope'] = lookup_scope
-                        if rule:
-                            args['rule'] = rule
-                    found = self.transport.call('find', args)
-                    if not found.get('ok'):
-                        raise LedgerUnavailable('lookup failed')
-                    self._cache[cache_key] = (time.monotonic(), found)
-                matches = self._cache[cache_key][1].get('data', {}).get('matches')
+                query = ' '.join(f'{need} {situation}'.split())[:240]
+                args = {'query': query, 'actor': 'samantha', 'task_id': task_id, 'caller_scope': scope, 'limit': 3}
+                if lookup_scope:
+                    args['scope'] = lookup_scope
+                    if rule:
+                        args['rule'] = rule
+                found = self.transport.call('find', args)
+                if not found.get('ok'):
+                    raise LedgerUnavailable('lookup failed')
+                matches = found.get('data', {}).get('matches')
                 if not isinstance(matches, list) or len(matches) > 3:
                     raise LedgerUnavailable('invalid find result')
                 if operation == 'lookup' and not matches:
                     return {'ok': True, 'status': 'none', 'decisions': []}
                 result = self.request({'operation': operation, 'situation': situation, 'need': need,
-                                       'scope': scope, 'matches': self._cache[cache_key][1], 'parent_capture_checks': capture_gate,
+                                       'scope': scope, 'matches': found, 'parent_capture_checks': capture_gate,
                                        'previous_helper_result': self._history.get(cache_key)})
                 self._history[cache_key] = result
                 if operation == 'lookup':
@@ -275,7 +271,6 @@ class LedgerHelper:
                     raise LedgerUnavailable('capture receipt missing')
                 marker.unlink()
                 self._uncertain.discard(request_id)
-                self._cache.clear()
                 return {'ok': True, 'status': 'saved', 'decision_id': saved['data']['decision_id'], 'revision': saved['data'].get('revision')}
             except LedgerInvalidArgument as exc:
                 from voice_cua.activity_log import _current_tool_ids, log_event
@@ -329,7 +324,6 @@ class LedgerHelper:
             with self._lock:
                 self._utterances.clear()
                 self._history.clear()
-                self._cache.clear()
                 self.transport.close()
         if self._lock.acquire(blocking=False):
             self._lock.release()
