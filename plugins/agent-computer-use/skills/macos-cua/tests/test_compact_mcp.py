@@ -72,6 +72,22 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_action_retains_dispatch_when_app_exits_before_screenshot(self):
+        from cua_client import RPCError
+        backend = compact_mcp.CUABackend()
+        client = Mock()
+        client.execute_plan.return_value = {
+            'before': {'text': '[0] AXWindow "Example"'},
+            'after': {'text': '', 'error': 'window disappeared'},
+            'results': [{'ok': True}],
+        }
+        client.get_app_state.side_effect = RPCError(-32001, 'App not found')
+        with patch.object(backend, '_rpc', side_effect=lambda fn, **kwargs: fn(client)):
+            result = backend.act('Example', {'label': 'Quit', 'allow_unverified': True})
+        self.assertTrue(result['dispatched'])
+        self.assertFalse(result['verified'])
+        self.assertIs(result['app_running'], False)
+
     def test_action_reports_observed_exit_without_claiming_unverified_success(self):
         class Backend(compact_mcp.CUABackend):
             def __init__(self):

@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.119
+
+- Preserve action dispatch and observed app exit when screenshot capture races with the app closing.
+
 ## 0.2.118
 
 - Apply an unambiguous saved user preference without treating its application history as an approval requirement.

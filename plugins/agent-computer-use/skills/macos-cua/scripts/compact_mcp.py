@@ -236,6 +236,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         "ok": {"type": "boolean"},
         "verified": {"type": "boolean"},
         "dispatched": {"type": "boolean"},
+        "app_running": {"type": "boolean"},
         "completion": {"type": "string", "enum": ["verified", "unverified"]},
         "text": {"type": "string"},
         "method": {"type": ["string", "null"]},

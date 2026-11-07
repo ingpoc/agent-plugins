@@ -351,9 +351,17 @@ class CUABackend:
             }
             if isinstance(after, dict) and after.get("running") is False:
                 payload["app_running"] = False
-            fetch = lambda: self._get_app_state(
-                client, app, disableDiff=True, includeScreenshot=True
-            )
+            def fetch():
+                from cua_client import RPCError
+                try:
+                    return self._get_app_state(
+                        client, app, disableDiff=True, includeScreenshot=True
+                    )
+                except RPCError as exc:
+                    if exc.code != -32001:
+                        raise
+                    payload["app_running"] = False
+                    return {"running": False}
             policy = dict(before=before, after=after, arguments=arguments, fetch=fetch)
             if not ok:
                 # allow_unverified without expect: dispatch-only; keep compact delta, not expect_unverified spam

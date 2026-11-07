@@ -208,3 +208,18 @@ For relevant live requests and transitions, inspect the Dynamic Island visually 
 
 - Clarify use of a relevant saved self-reported preference without claiming formal attestation. Preserve an observed app exit in action feedback without declaring unverified dispatch successful.
 - The 89 focused tests and frozen 118-process source gate passed. Installed behavior and the remaining issue pass are pending.
+
+### Iteration review: 0.2.118
+
+- Installed PR commit `b7b3113984fc098bb0382e5074098a98b92a425c`. Source, signature, notarization, microphone, fresh MCP, client, cursor and live-fd checks passed. Spoken acceptance remains pending.
+- The corrected 32-issue pass recorded 10 fixed, 6 not fixed, 2 blocked and 14 inconclusive. The earlier chooser readback used another Comet window and is superseded; read-only `page_context` from Samantha's exact lease showed the Netflix home page personalized for the expected profile. Calculator displayed 221 and closed while its action reported `observation_incomplete`. Current telemetry recorded two voice-slot bounds violations.
+- Samantha must infer when to recall relevant decisions and when to save durable user preferences without being asked to use Ledger. The installed typed recall passed; independent automatic-save and spoken checks remain open.
+- **Delete:** Avoid repeating a readback already tied to the exact task and browser lease.
+- **Simplify:** One on/off/on capture set covers multiple island issues, with a second stopped capture showing that the waveform disappeared after settling.
+- **Optimize:** Reuse a single post-batch observability collection and filter by task run. No speed improvement is claimed without a comparable baseline.
+- **Automate:** Bind browser postcondition readback to the task's lease and window identity to prevent wrong-window conclusions. An isolated automatic-save test remains needed.
+
+### Candidate: ACU 0.2.119
+
+- A controlled installed 0.2.118 Calculator quit reproduced `observation_incomplete`; a trace showed screenshot fallback raising `app_not_found` after the key action, discarding the action result. Preserve the dispatch result and the fresh observed app absence when this race occurs; other screenshot errors still propagate.
+- A focused regression passes. A worktree MCP live check cannot use the installed service because the runtime contract hands off to the installed package; candidate acceptance requires the exact pushed and installed build.
