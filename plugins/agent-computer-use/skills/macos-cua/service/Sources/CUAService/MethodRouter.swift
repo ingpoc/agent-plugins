@@ -448,7 +448,10 @@ final class MethodRouter: @unchecked Sendable {
         let raiseForInput: Bool = req.param("raiseForInput") ?? false
         let includeScreenshot: Bool = req.param("includeScreenshot") ?? true
         let t0 = ProcessInfo.processInfo.systemUptime
-        let resolved0 = try appResolver.resolve(app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req))
+        // A state read must not resurrect a process that a preceding close action just ended.
+        let resolved0 = try appResolver.resolve(
+            app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req), launchIfMissing: false
+        )
         var resolved = resolved0
         let t1 = ProcessInfo.processInfo.systemUptime
         var snapshot = axTree.walk(
@@ -474,7 +477,9 @@ final class MethodRouter: @unchecked Sendable {
             if screenshotPath == nil {
                 captureRetry = true
                 try await Task.sleep(nanoseconds: 120_000_000)
-                resolved = try appResolver.resolve(app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req))
+                resolved = try appResolver.resolve(
+                    app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req), launchIfMissing: false
+                )
                 snapshot = axTree.walk(
                     axApp: resolved.axApp,
                     windowID: resolved.windowID,

@@ -29,7 +29,7 @@ def test_preferences_and_recall_without_helper(tmp_path):
         args = transport.call.call_args.args[1]
         assert (args['scope'], args['rule'], args['decision']) == (scope, rule, value)
     replay = LedgerHelper(transport, decide, tmp_path / 'pending2')
-    assert replay.run(operation='recall', scope='tool:gmail', rule='account_select')['data']['matches'][0]['decision'] == 'Work'
+    assert replay.run(operation='recall', scope='Gmail', rule='Account Select')['data']['matches'][0]['decision'] == 'Work'
     decide.assert_not_called()
     assert 'ledger_task' in {tool['name'] for tool in tool_definitions()}
     assert 'proactively' in SYSTEM_INSTRUCTIONS
@@ -44,6 +44,21 @@ def test_preferences_and_recall_without_helper(tmp_path):
     assert 'If `has_more` is true, ask rather than select from an incomplete set' in skill
 
 
+def test_preference_normalizes_bare_app_scope(tmp_path):
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
+    helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
+    quote = 'Please use Work for my email account'
+    helper.note_user(quote)
+
+    result = helper.run(operation='preference', scope='Gmail', rule='Account Select',
+                        value='Work', owner_quote=quote)
+
+    assert result['status'] == 'saved'
+    args = transport.call.call_args.args[1]
+    assert (args['scope'], args['rule']) == ('tool:gmail', 'account_select')
+
+
 def test_preference_normalizes_scope_and_rule_before_lookup_or_save(tmp_path):
     transport = Mock()
     transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
@@ -55,6 +70,27 @@ def test_preference_normalizes_scope_and_rule_before_lookup_or_save(tmp_path):
     assert result['status'] == 'saved'
     args = transport.call.call_args.args[1]
     assert (args['scope'], args['rule']) == ('tool:gmail', 'account_select')
+
+
+def test_lookup_normalizes_bare_site_scope_without_widening(tmp_path):
+    match = {'decision_id': 'saved', 'decision': 'Work'}
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'matches': [match]}}
+    helper = LedgerHelper(transport, lambda _: {'status': 'found', 'decision_ids': ['saved']}, tmp_path / 'pending')
+
+    result = helper.run(operation='lookup', scope='Video Service', rule='Profile Selection',
+                        situation='choose a profile', need='profile')
+
+    assert result['decisions'] == [match]
+    args = transport.call.call_args.args[1]
+    assert args['scope'] == 'tool:video-service'
+    assert args['rule'] == 'profile_selection'
+    assert args['caller_scope'] == {'project': None, 'tools': ['video-service']}
+    transport.reset_mock()
+    invalid = helper.run(operation='lookup', scope='site:video-service', rule='Profile Selection',
+                         situation='choose a profile', need='profile')
+    assert invalid['error_type'] == 'ledger_invalid_argument'
+    transport.call.assert_not_called()
 
 
 def test_lookup_observes_preference_saved_after_empty_lookup(tmp_path):

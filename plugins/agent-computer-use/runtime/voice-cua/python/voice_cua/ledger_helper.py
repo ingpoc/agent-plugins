@@ -38,6 +38,8 @@ def _normalize_scope_rule(scope: str, rule: str) -> tuple[str, str]:
         kind, sep, value = scope.partition(':')
         if sep and kind in {'tool', 'project'}:
             scope = f'{kind}:{normalize_project(value)}'
+        elif not sep and scope:
+            scope = f'tool:{normalize_project(scope)}'
     rule = re.sub(r'[^a-z0-9]+', '_', rule.strip().casefold()).strip('_')[:64]
     return scope, rule
 

@@ -1,5 +1,10 @@
 # Changelog: agent-computer-use
 
+## 0.2.115
+
+- Normalize bare site/app scopes to tool scopes before Context Ledger preference lookup.
+- Keep app-state reads passive so post-close checks cannot relaunch the app being checked.
+
 ## 0.2.114
 
 - Add authorized agent control to start, stop, and inspect Samantha using the menu supervisor.
