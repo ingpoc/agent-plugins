@@ -223,3 +223,16 @@ For relevant live requests and transitions, inspect the Dynamic Island visually 
 
 - A controlled installed 0.2.118 Calculator quit reproduced `observation_incomplete`; a trace showed screenshot fallback raising `app_not_found` after the key action, discarding the action result. Preserve the dispatch result and the fresh observed app absence when this race occurs; other screenshot errors still propagate.
 - A focused regression passes. A worktree MCP live check cannot use the installed service because the runtime contract hands off to the installed package; candidate acceptance requires the exact pushed and installed build.
+
+### Iteration review: 0.2.119
+
+- Installed PR commit `db62c228105af7d086bc68fde6d79e1d3cfda338`; source, signing, notarization, fresh-client, cursor, file-descriptor and microphone checks passed. Spoken acceptance remains pending.
+- The installed pass covers all 32 findings: 8 fixed, 7 not fixed, 1 blocked and 16 inconclusive. The fresh standalone MCP retained the dispatched close result and observed app exit, but Samantha's linked close task still logged `observation_incomplete`; independent process readback confirmed Calculator exited. The broader native-action issue remains failing.
+- A fresh typed Netflix request made a narrow site-scoped lookup that returned no matches and asked which profile to use. The 0.2.118 success remains historical evidence, but the new failure establishes inconsistent automatic preference recall. Automatic save/update remains blocked by the lack of an isolated writable Ledger fixture.
+- The user subsequently reported that spoken recall also failed, including when they explicitly asked Samantha to check Ledger. A recent voice session contains a rule-filtered lookup returning no decisions; speech events do not carry a run reference, so the match is time-correlated rather than proven. Source inspection shows `lookup` returns `none` immediately on an empty rule-filtered result, while `recall` separately searches candidates without the rule. This is a next-PR root-cause lead; the correct fallback must preserve scope and conflict/pagination safeguards.
+- The user reports Samantha stopped in the requested spoken cancellation test. The recent voice session has no linked, timestamped cancellation utterance, so the ordering of cancellation and subsequent actions remains inconclusive.
+- Installed-package rotation tests passed for Python and Swift, including concurrent writers to a temporary log; running-service stress and crash recovery remain unproven. Current 0.2.119 resize telemetry reports a 30 pt voice-slot overflow; physical clipping was not independently established.
+- **Delete:** Avoid rerunning the full source gate separately immediately before a release that already runs the same gate; this iteration ran both.
+- **Simplify:** One task-linked observability timeline and independent app readback cover calculation, close, attribution and diagnostics, while preserving the distinction between standalone MCP and Samantha.
+- **Optimize:** Freeze the candidate once and use the release gate's result as the source-gate receipt. No speedup is claimed without comparable measurements.
+- **Automate:** Add an isolated writable Ledger fixture and task-to-browser-lease identity checks in the next PR; neither is established by the existing tests.
