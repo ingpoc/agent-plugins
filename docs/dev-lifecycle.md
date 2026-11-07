@@ -10,6 +10,7 @@ Guru 2026-11-03 15:12 IST: "it has to be followed by all harness". Applies to ev
 
 ## 2. Maintain
 - Whatever is installed on the Mini (the app, `~/.agents/plugins/*` or harness caches) must come from Origin main or an open PR head, through `scripts/release_agent_computer_use.py`. Never hand-patch hashed plugin dirs.
+- Developer Observability: `python3 scripts/release_agent_computer_use.py --plugin developer-observability --pr <number>` refreshes only that package from the clean, exact open PR head and probes the installed MCP. Comet Control and Context Ledger retain their plugin-owned install and live verification instructions; this command does not refresh them.
 - Every open PR has a live owner. Branches and worktrees untouched for 7+ days go to the owner with last commit and status.
 - After a merge, in the same turn: `git worktree remove`, `git branch -d`, and delete the branch on Origin (the mirror follows). Abandoned work: make a verified `git bundle` under `<archive>/<date>-<topic>/` first, then retire it through the hygiene deletion gate. Retiring needs Guru's OK.
 

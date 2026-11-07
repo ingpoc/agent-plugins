@@ -368,7 +368,19 @@ def main(argv=None):
     parser.add_argument('--sign-only',action='store_true',help='Local signed validation; never produces distribution-ready evidence.')
     parser.add_argument('--hygiene-override',action='store_true',help='Release despite hygiene FAILs for agent-plugins; recorded in the report.')
     parser.add_argument('--report',type=Path,default=Path.home()/'.agents/artifacts/acu-release.json')
+    parser.add_argument('--plugin', choices=['agent-computer-use', 'developer-observability'], default='agent-computer-use')
+    parser.add_argument('--pr', type=int, help='Open Origin PR containing the exact candidate head')
     args = parser.parse_args(argv)
+    if args.plugin == 'developer-observability':
+        if not args.pr or args.check or args.verify_installed or args.skip_voice_smoke or args.sign_only or args.hygiene_override:
+            parser.error('developer-observability requires --pr and does not accept ACU release options')
+        from release_developer_observability import release_observability
+        try:
+            with exclusive_release(Path.home()/'.cache/macos-cua/release.lock'):
+                return release_observability(ROOT, args.pr)
+        except (RuntimeError, OSError, subprocess.SubprocessError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
     if args.check:
         try:
             print(json.dumps(policy()));return 0

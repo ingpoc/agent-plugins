@@ -31,6 +31,30 @@ class APITests(unittest.TestCase):
     def write(self):
         (self.root/'findings.json').write_text(json.dumps(self.data))
 
+    def test_brief_and_batch_inspection(self):
+        brief = self.api.diagnose('a', top=1)
+        self.assertEqual(brief['brief']['counts']['total'], 3)
+        self.assertEqual(len(brief['brief']['top_failures']), 1)
+        self.assertNotIn('delta', brief['brief'])
+        result = self.api.diagnose('a', ['id0', 'missing'], brief['snapshot_id'])
+        self.assertEqual(result['count'], 1)
+        self.assertEqual(result['errors'][0]['error'], 'issue_not_in_project')
+        with self.assertRaisesRegex(ValueError, 'invalid_issue_ids'):
+            self.api.diagnose('a', [], brief['snapshot_id'])
+        with self.assertRaisesRegex(ValueError, 'snapshot_changed'):
+            self.api.diagnose('a', ['id0'], 'old-snapshot')
+        with self.assertRaisesRegex(ValueError, 'invalid_diagnosis'):
+            self.api.diagnose('a', ['id0'])
+        original = self.api.inspect
+        def changing(*args, **kwargs):
+            result = original(*args, **kwargs)
+            self.data['generated_at'] = '2000-01-01T00:00:00Z'
+            self.write()
+            return result
+        with patch.object(self.api, 'inspect', side_effect=changing):
+            with self.assertRaisesRegex(ValueError, 'snapshot_changed'):
+                self.api.diagnose('a', ['id0', 'id1'], brief['snapshot_id'])
+
     def test_scoped_listing_pagination_and_cross_project_rejection(self):
         result = self.api.issues('a', limit=1)
         self.assertEqual(result['total'], 3)

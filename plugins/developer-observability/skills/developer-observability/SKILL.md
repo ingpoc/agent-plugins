@@ -8,7 +8,10 @@ Use the MCP tools directly; loading Kindle/Decider skills is unnecessary for
 routine inspection. Those skills retain collection, device and service repair
 ownership.
 
-1. `observability_projects` → select a returned project ID; inspect freshness,
+1. `observability_diagnose` → select a project ID and use its scoped result for
+   counts and ranked findings. Expand up to five issue IDs with the returned
+   `snapshot_id`; retry diagnosis if the snapshot changes. Use
+   `observability_projects` for project attribution details. Inspect freshness,
    source coverage and unassigned counts. Attribution follows configured maps
    and, when enabled, projects discovered from the findings. If
    `data_source.status` is `no_findings`, or `freshness`/`sources.collector`
