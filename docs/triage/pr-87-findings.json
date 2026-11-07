@@ -2847,6 +2847,13 @@
           "updated_at": "2026-11-07T04:45:25Z",
           "evidence": "Installed Python rotation tests passed among 139 focused tests; no controlled running-service rotation or crash test was performed.",
           "finished_at": "2026-11-07T04:45:25Z"
+        },
+        "AGENT-07": {
+          "state": "not_fixed",
+          "started_at": "2026-11-07T04:54:49Z",
+          "updated_at": "2026-11-07T04:54:49Z",
+          "evidence": "User voice session on the installed 0.2.112 build recorded a new Calculator action starting after the user said to leave the task; model receipt and interpretation of cancellation are not independently established.",
+          "finished_at": "2026-11-07T04:54:49Z"
         }
       }
     }
@@ -3931,7 +3938,7 @@
       "status": "failing",
       "observed": "Fresh ACU 0.2.97 telemetry records five cua_act errors during the latest test: target_missing and observation_incomplete. A separate grouped incident reports two retries.",
       "recommendation": "Inspect the affected action and observation path, identify the missing target or incomplete state, and verify a successful native action with independent app readback.",
-      "verification": "On ACU 0.2.98 the user requested 13 × 17; a native action succeeded and an independent Calculator readback showed 221. Earlier missing-target failures were not separately ruled out.",
+      "verification": "In the 0.2.112 voice session, Calculator showed the correct arithmetic result on independent readback. Subsequent close attempts were dispatched but returned incomplete observations; a later action failed and Calculator was open when independently checked. The post-close state and cause remain unproven.",
       "details": {
         "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue.",
         "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved.",
@@ -3986,6 +3993,14 @@
           "session": "sref_fdba14238d94ef23c2828ccc6e169004",
           "timestamp": "2026-11-07T04:52:29.479156+00:00",
           "reference": "Developer Observability session sref_fdba14238d94ef23c2828ccc6e169004; user voice session; independent Calculator AX readback"
+        },
+        {
+          "check": "Close action dispatch and interruption ordering",
+          "outcome": "The 0.2.112 voice session recorded cmd+w dispatched with an incomplete after-observation, followed by a dispatched close-button attempt with the same error. A further action started after the user utterance to leave the task and failed with target_missing. AppResolver can report no window after closure, but the recorded diagnostic does not establish the actual post-action state or whether observation caused a later reopen.",
+          "build": "ACU 0.2.112 installed",
+          "session": "sref_fdba14238d94ef23c2828ccc6e169004",
+          "timestamp": "2026-11-07T04:55:08.785912+00:00",
+          "reference": "Task-linked activity events; compact_backend.py and MethodRouter.swift planState source review"
         }
       ]
     },
@@ -4557,6 +4572,28 @@
           "session": "installed-rotation-crash-20261106",
           "timestamp": "2026-11-06T16:25:11+00:00",
           "reference": "Isolated forked writer and forced interruption using installed log_rotation.py; temporary logs only"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-07",
+      "title": "Action continued after spoken cancellation",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "During a voice session, a new Calculator action began after the user said to leave the task. Earlier close attempts had produced incomplete observations.",
+      "recommendation": "Trace cancellation through the voice turn and tool dispatch boundary. Stop queued work when the user cancels while accurately reporting any in-flight action whose outcome is unknown; do not replay it.",
+      "verification": "The installed 0.2.112 voice session recorded the cancellation utterance before another Calculator action began. The action failed with target_missing; its scheduling and causal link require investigation.",
+      "details": {
+        "Evidence": "Developer Observability session sref_fdba14238d94ef23c2828ccc6e169004; the transcript precedes a later cua_act. This ordering does not establish precisely when the model received or interpreted the cancellation."
+      },
+      "verification_evidence": [
+        {
+          "check": "Close action dispatch and interruption ordering",
+          "outcome": "The 0.2.112 voice session recorded cmd+w dispatched with an incomplete after-observation, followed by a dispatched close-button attempt with the same error. A further action started after the user utterance to leave the task and failed with target_missing. AppResolver can report no window after closure, but the recorded diagnostic does not establish the actual post-action state or whether observation caused a later reopen.",
+          "build": "ACU 0.2.112 installed",
+          "session": "sref_fdba14238d94ef23c2828ccc6e169004",
+          "timestamp": "2026-11-07T04:55:08.785912+00:00",
+          "reference": "Task-linked activity events; compact_backend.py and MethodRouter.swift planState source review"
         }
       ]
     }
