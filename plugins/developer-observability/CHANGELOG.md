@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.20
+
+- Keep routine diagnosis guidance concise and load specialized guidance on demand.
+
 ## 0.1.18
 
 - Show privacy-bounded Ledger scope categories in task timelines.
