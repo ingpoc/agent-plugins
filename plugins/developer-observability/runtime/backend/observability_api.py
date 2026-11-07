@@ -492,6 +492,10 @@ class ObservabilityAPI:
             if event['stage'] == 'ledger_task':
                 if event.get('ledger_operation') in ('lookup', 'capture', 'recall', 'preference', 'unknown'):
                     item['ledger_operation'] = event['ledger_operation']
+                if event.get('ledger_scope_kind') in ('missing', 'fleet', 'browser', 'tool', 'project', 'invalid'):
+                    item['ledger_scope_kind'] = event['ledger_scope_kind']
+                if type(event.get('ledger_rule_supplied')) is bool:
+                    item['ledger_rule_supplied'] = event['ledger_rule_supplied']
                 if event.get('ledger_error_category') in ('invalid_argument', 'invalid_query_terms', 'unavailable', 'outcome_unknown', 'other'):
                     item['ledger_error_category'] = event['ledger_error_category']
                 if isinstance(event.get('ledger_result_status'), str):

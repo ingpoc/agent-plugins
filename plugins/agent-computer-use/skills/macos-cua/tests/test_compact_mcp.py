@@ -1506,6 +1506,8 @@ class ExpectVerifiedTests(unittest.TestCase):
     def test_negative_expectation_requires_an_observed_after_state(self):
         before = '[0] AXWindow "Fixture"\n[1] AXStaticText value="working"'
         self.assertFalse(compact_mcp.expectation_is_new({'not_text': 'working'}, before, '', [{'ok': True}], {'error': 'No window for app'}))
+        self.assertTrue(compact_mcp.expectation_is_new({'not_text': 'working'}, before, '', [{'ok': True}], {'running': False}))
+        self.assertFalse(compact_mcp.expectation_is_new({'not_text': 'missing'}, before, '', [{'ok': True}], {'running': False}))
         self.assertTrue(compact_mcp.expectation_is_new({'not_text': 'working'}, before, '[0] AXWindow "Fixture"\n[1] AXStaticText value="done"', [{'ok': True}], {}))
 
 

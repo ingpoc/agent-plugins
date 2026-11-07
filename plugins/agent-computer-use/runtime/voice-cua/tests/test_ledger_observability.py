@@ -11,6 +11,15 @@ from voice_cua.ledger_transport import LedgerUnavailable
 
 
 class LedgerObservabilityTests(unittest.TestCase):
+    def test_scope_diagnostics_expose_only_bounded_categories(self):
+        rows = []
+        with patch.object(activity_log, '_append_row', side_effect=rows.append):
+            for scope in ('', 'fleet', 'tool:comet', 'tool:PRIVATE_SITE', 'project:PRIVATE_PROJECT', 'bad:PRIVATE'):
+                activity_log.log_tool_start('ledger_task', {'operation': 'recall', 'scope': scope, 'rule': 'PRIVATE_RULE'})
+        self.assertEqual([r['ledger_scope_kind'] for r in rows], ['missing', 'fleet', 'browser', 'tool', 'project', 'invalid'])
+        self.assertTrue(all(r['ledger_rule_supplied'] for r in rows))
+        self.assertNotIn('PRIVATE', json.dumps(rows))
+
     def test_partial_result_is_not_logged_as_found(self):
         rows = []
         result = {'ok': True, 'status': 'needs_disambiguation', 'has_more': True,

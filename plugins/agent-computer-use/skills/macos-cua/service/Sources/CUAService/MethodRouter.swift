@@ -332,6 +332,8 @@ final class MethodRouter: @unchecked Sendable {
         )
         do {
             return try await handleGetAppState(request) as? [String: Any] ?? [:]
+        } catch let error as RPCMethodError where error.code == -32001 {
+            return ["text": "", "running": false]
         } catch {
             return ["text": "", "error": error.localizedDescription]
         }

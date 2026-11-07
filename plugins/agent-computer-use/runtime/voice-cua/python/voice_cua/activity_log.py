@@ -352,6 +352,12 @@ def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
     app = str(arguments.get("app") or "") if name != "ledger_task" else ""
     operation = arguments.get("operation") if name == "ledger_task" else None
     ledger_operation = operation if operation in ("lookup", "capture", "recall", "preference") else "unknown"
+    scope = arguments.get("scope")
+    scope = scope.strip().casefold() if isinstance(scope, str) else ""
+    scope_kind = ("missing" if not scope else "fleet" if scope == "fleet" else
+                  "browser" if scope in ("comet", "chrome", "tool:comet", "tool:chrome") else
+                  "tool" if scope.startswith("tool:") or ":" not in scope else
+                  "project" if scope.startswith("project:") else "invalid")
     log_event(
         "tool_start",
         **_current_tool_ids(),
@@ -359,6 +365,8 @@ def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
         app=app or None,
         step=(str(arguments.get("step_label") or arguments.get("label") or "") or None) if name != "ledger_task" else None,
         ledger_operation=ledger_operation if name == "ledger_task" else None,
+        ledger_scope_kind=scope_kind if name == "ledger_task" else None,
+        ledger_rule_supplied=bool(arguments.get("rule")) if name == "ledger_task" else None,
         has_expect=bool(arguments.get("expect")) or None,
         allow_unverified=arguments.get("allow_unverified") is True or None,
         plan=plan_shape(arguments, tool=name) if name in ("cua_act", "cua_state") else None,

@@ -91,7 +91,7 @@ def _stat(stats, source):
 def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None,
            metric=None, condition=None, mirror=False, test=False, version=None, alias=False, turn=None,
            args=None, layout=None, session_attribution=None, version_attribution=None, ledger_operation=None,
-           ledger_error_category=None, ledger_result_status=None, ledger_decision_count=None,
+           ledger_error_category=None, ledger_result_status=None, ledger_decision_count=None, ledger_scope_kind=None, ledger_rule_supplied=None,
            task_outcome=None, task_check_id=None, task_evidence_class=None, task_tools=None,
            call_ref=None, response_ref=None, run_ref=None, error_details=None, ledger_result_detail=None,
            outcome=None, ledger_detail_truncated=None, input_availability=None, input_device=None,
@@ -111,6 +111,7 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
             'session_attribution': session_attribution, 'version_attribution': version_attribution,
             'ledger_operation': ledger_operation, 'ledger_error_category': ledger_error_category,
             'ledger_result_status': ledger_result_status, 'ledger_decision_count': ledger_decision_count,
+            'ledger_scope_kind': ledger_scope_kind, 'ledger_rule_supplied': ledger_rule_supplied,
             'task_outcome': task_outcome, 'task_check_id': task_check_id,
             'task_evidence_class': task_evidence_class, 'task_tools': task_tools,
             'call_ref': call_ref, 'response_ref': response_ref, 'run_ref': run_ref,
@@ -304,6 +305,10 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                 continue
         operation = obj.get('ledger_operation') if step == 'ledger_task' else None
         operation = operation if operation in ('lookup', 'capture', 'recall', 'preference', 'unknown') else None
+        scope_kind = obj.get('ledger_scope_kind') if step == 'ledger_task' else None
+        scope_kind = scope_kind if scope_kind in ('missing', 'fleet', 'browser', 'tool', 'project', 'invalid') else None
+        rule_supplied = obj.get('ledger_rule_supplied') if step == 'ledger_task' else None
+        rule_supplied = rule_supplied if type(rule_supplied) is bool else None
         category = obj.get('ledger_error_category') if step == 'ledger_task' else None
         category = category if category in ('invalid_argument', 'invalid_query_terms', 'unavailable', 'outcome_unknown', 'other') else None
         ledger_status = obj.get('ledger_result_status') if step == 'ledger_task' else None
@@ -326,6 +331,7 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      condition=condition, mirror=mirror, test=test, version=version, turn=turn,
                      args=args, layout=layout, session_attribution='event' if current else 'unknown',
                      version_attribution=version_attribution, ledger_operation=operation,
+                     ledger_scope_kind=scope_kind, ledger_rule_supplied=rule_supplied,
                      ledger_error_category=category, ledger_result_status=ledger_status,
                      ledger_decision_count=decision_count, task_outcome=task_outcome,
                      task_check_id=task_check_id, task_evidence_class=task_evidence_class,

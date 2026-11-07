@@ -165,13 +165,18 @@ For relevant live requests and transitions, inspect the Dynamic Island visually 
 - **Optimize:** Measured 8.19 s and 15.86 s for the two typed requests; without a comparable baseline, no speed improvement is claimed.
 - **Automate:** The remaining root-cause check is deterministic: normalize a bare site/app scope to `tool:<slug>` and add a regression test before the next release iteration.
 
-### 0.2.115 candidate progress (installed verification pending)
+### Iteration review: 0.2.115
 
-- Installed 0.2.114 accessible pass remains complete across all 31 findings. The latest typed Calculator close request returned an uncertain result, and the process PID changed from 53250 to 18054 during the same turn. Because app-state resolution launched missing apps by name, that readback could have reopened Calculator; the candidate now makes both state-read resolution attempts passive.
-- The bare-scope Ledger normalization candidate remains in the same release and now has a focused source regression. The preference tests passed 6/6, `AppResolverTests` passed 2/2, ACU fast-path tests passed 15/15, and `scripts/check.py --fast --jobs 2` passed 118 test processes, including 597 Swift cases.
-- A local on/off/on top-strip screenshot pass on installed 0.2.114 confirmed the menu-bar items compact when Samantha stops and restore when it starts. It is still-frame evidence; animation quality remains unchecked. User-confirmed pill sizing is preserved.
-- The controlled run used `/api/session/text` with the microphone disconnected, and agent control stopped and restarted Samantha through the existing supervisor. ScreenCaptureKit's Comet capture failed, but the OS screenshot helper captured the menu-bar strip; no private screenshots were added to the repository.
-- **Delete:** No microphone dependency for typed behavior, process-bound close checks, or menu-bar geometry. Keep spoken-only acceptance for a later explicit user session.
-- **Simplify:** Passive `state` reads now share the resolver with a single `launchIfMissing` flag; explicit open/action paths retain their existing behavior.
-- **Optimize:** Captured only the top 240 pixels for visual review, avoiding full-desktop evidence in the tracker.
-- **Automate:** Added a deterministic Swift regression ensuring passive resolution does not launch a known installed app. The exact 0.2.115 candidate still needs push/install and a new all-31 installed run.
+- **Build and run:** ACU 0.2.115 build 668 was installed from PR revision `2b127aea50c85b0d28eb179b63810a9eeb4f44a5`. App and Codex plugin manifests both read 0.2.115. The separate release microphone preflight reported `no_input_device` as expected after the user's disconnect.
+- **Outcome:** The fresh issue-navigation run completed all 31 checks: 12 fixed (including preserved fixes), 10 not fixed, 4 blocked, and 5 inconclusive. The Netflix task did not apply the saved preference; Calculator closed but Samantha reported the wrong prior state; task outcome/build attribution remain incomplete. Live layout telemetry still puts the voice slot 6–30 pt outside the 74 pt island even though 16 source layout tests pass. Microphone-only checks remain blocked.
+- **Independent checks:** The typed Netflix run linked Ledger, Comet and outcome events, but its Ledger result was ambiguous and the browser stayed at profile selection. Three supervisor cycles started healthy in 1.099–1.114 s. Current source tests passed for 3 log-rotation cases, 1 closest-slot reflow case, and 16 voice/app bounds cases. Live log-rotation concurrency and reflow to an identifiable surviving Codex mark were not established.
+- **Delete:** Do not repeat menu-bar captures for every issue. One controlled on/off/on capture set covers the visual transition; targeted observations can then reuse that evidence.
+- **Simplify:** Use the status returned by each supervisor start/stop call as its immediate readback; make one separate status call only when a later operation needs an independent baseline.
+- **Optimize:** Batch all issue outcomes through the findings manager and render once per batch. Use one fresh observability collection after the controlled task group, then inspect only linked runs and implicated issue IDs.
+- **Automate:** Keep using the existing manager for run creation, batched outcomes and HTML generation. The next fix cycle should add a deterministic runtime geometry assertion that compares the emitted voice-slot rect to the actual pill bounds, since source tests and installed telemetry disagree.
+
+### Candidate: ACU 0.2.116 and Developer Observability 0.1.18
+
+- The candidate clarifies agreement between complete relevant Ledger decisions, records bounded scope categories, and distinguishes an exited app during a planned action. These changes are not yet installed or verified as fixes.
+- The Netflix task returned unrelated Ledger decisions; a separate scoped helper lookup returned the saved decisions. The task did not record its scope, so the cause remains unconfirmed.
+- The combined `scripts/check.py --fast --jobs 2` source gate passed 118 test processes. Installed integration tests were skipped and remain required after installation.

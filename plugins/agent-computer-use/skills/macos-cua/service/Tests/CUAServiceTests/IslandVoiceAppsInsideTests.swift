@@ -8,6 +8,23 @@ import XCTest
 /// target outer edge · 24 · app icons · 8 · voice slot · 6 · dot · 9. Outside right: plugin marks only.
 @MainActor
 final class IslandVoiceAppsInsideTests: XCTestCase {
+    func testVoiceSlotFitsImmediatelyAfterControlledContentArrives() {
+        for apps in [["Calculator"], Self.apps3] {
+            let model = IslandModel()
+            model.apply(IslandSnapshot(kind: "idle"))
+            for kind in ["listening", "thinking", "speaking"] {
+                model.apply(Self.voice(kind, apps: apps))
+                guard let content = model.voiceSlotContent else {
+                    XCTFail("missing voice slot for \(kind)")
+                    continue
+                }
+                let shape = model.shapeRect
+                let slot = IslandBarLayout.voiceSlotRect(shape: shape, apps: model.operatedApps.count,
+                                                         controlled: model.showsTargetMark, content: content)
+                XCTAssertTrue(shape.contains(slot), "\(kind), apps=\(apps.count), shape=\(shape), slot=\(slot)")
+            }
+        }
+    }
     static func acu(_ app: String, _ t: Double, agent: String = "Samantha") -> IslandPluginUse {
         var u = IslandPluginUse(plugin: "acu", app: "Agent Computer Use", agent: agent, last_seen_at: t)
         u.target_app = app

@@ -1,5 +1,11 @@
 # Changelog: agent-computer-use
 
+## 0.2.116
+
+- Use an agreed saved preference when complete, relevant Ledger decisions have the same value under different rules.
+- Recognize an exited app as an observed absence when verifying a planned action.
+- Record the Ledger scope category and rule presence without saving their values.
+
 ## 0.2.115
 
 - Normalize bare site/app scopes to tool scopes before Context Ledger preference lookup.

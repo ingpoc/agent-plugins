@@ -566,6 +566,8 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                      'version': event.get('version'),
                      'version_attribution': event.get('version_attribution') or 'unknown',
                      'ledger_operation': event.get('ledger_operation'),
+                     'ledger_scope_kind': event.get('ledger_scope_kind'),
+                     'ledger_rule_supplied': event.get('ledger_rule_supplied'),
                      'ledger_error_category': event.get('ledger_error_category'),
                      'ledger_result_status': event.get('ledger_result_status'),
                      'ledger_decision_count': event.get('ledger_decision_count'),

@@ -12,6 +12,29 @@ from collector.sources import iter_jsonl, iter_textlog
 
 
 class SessionTimelineTests(unittest.TestCase):
+    def test_ledger_start_scope_is_task_linked_and_unknown_scope_is_dropped(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / 'activity.jsonl'
+            rows = [
+                {'ts':'2026-11-06T10:00:00Z', 'session_id':'s', 'kind':'tool_start',
+                 'tool':'ledger_task', 'run_id':'abc12345', 'ledger_operation':'recall',
+                 'ledger_scope_kind':'tool', 'ledger_rule_supplied':False},
+                {'ts':'2026-11-06T10:00:01Z', 'session_id':'s', 'kind':'tool_start',
+                 'tool':'ledger_task', 'run_id':'def12345', 'ledger_scope_kind':'PRIVATE_SITE'},
+            ]
+            source.write_text('\n'.join(json.dumps(row) for row in rows) + '\n')
+            stats = {}
+            (root / 'findings.json').write_text(json.dumps(build(list(iter_jsonl(source, 'a', 'activity', stats)), stats)))
+            api = ObservabilityAPI(root, {'a': {'owners': ['owner:a']}}, None)
+            ref = api.sessions('a')['sessions'][0]['session_ref']
+            events = api.sessions('a', ref)['timeline']
+            self.assertEqual(events[0]['ledger_scope_kind'], 'tool')
+            self.assertIs(events[0]['ledger_rule_supplied'], False)
+            self.assertNotIn('ledger_scope_kind', events[1])
+            self.assertNotIn('PRIVATE_SITE', json.dumps(events))
+            self.assertEqual(api.sessions('a', ref, run_ref=events[0]['run_ref'])['total'], 1)
+
     def test_only_explicit_startup_mirrors_are_collapsed(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -87,6 +110,7 @@ class SessionTimelineTests(unittest.TestCase):
                  'phase':'audio_ready', 'step_ms':250, 'version':'0.2.94', 'detail':'private input'},
                 {'ts':'2026-11-06T10:00:01Z', 'session_id':'private-session', 'kind':'tool_result',
                  'tool':'ledger_task', 'ledger_operation':'recall', 'ledger_result_status':'found',
+                 'ledger_scope_kind':'browser', 'ledger_rule_supplied':False,
                  'ledger_decision_count':1, 'ledger_result_detail':'{"status":"found","decisions":[{"summary":"Use concise answers"}]}',
                  'call_id':'private-call', 'response_id':'private-response', 'ok':True},
                 {'ts':'2026-11-06T10:00:02Z', 'session_id':'private-session', 'kind':'task_outcome',
@@ -111,6 +135,8 @@ class SessionTimelineTests(unittest.TestCase):
             self.assertEqual(result['timeline'][3]['outcome'], 'failure')
             self.assertEqual(result['timeline'][0]['duration_ms'], 250)
             self.assertEqual(result['timeline'][1]['ledger_operation'], 'recall')
+            self.assertEqual(result['timeline'][1]['ledger_scope_kind'], 'browser')
+            self.assertIs(result['timeline'][1]['ledger_rule_supplied'], False)
             self.assertEqual(result['timeline'][1]['ledger_result_status'], 'found')
             self.assertEqual(result['timeline'][1]['ledger_decision_count'], 1)
             self.assertTrue(result['timeline'][1]['diagnostics_available'])

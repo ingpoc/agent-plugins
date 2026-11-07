@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.18
+
+- Show privacy-bounded Ledger scope categories in task timelines.
+
 ## 0.1.17
 
 - Collapse explicitly identified mirrored startup events while retaining provenance.

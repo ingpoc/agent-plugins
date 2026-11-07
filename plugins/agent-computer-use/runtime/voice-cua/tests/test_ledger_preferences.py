@@ -44,6 +44,15 @@ def test_preferences_and_recall_without_helper(tmp_path):
     assert 'If `has_more` is true, ask rather than select from an incomplete set' in skill
 
 
+def test_preference_instructions_cover_agreement_and_conflict():
+    ledger_tool = next(tool for tool in tool_definitions() if tool['name'] == 'ledger_task')
+    skill = (Path(__file__).resolve().parents[3] / 'skills/macos-cua/SKILL.md').read_text()
+    for instructions in (SYSTEM_INSTRUCTIONS, ledger_tool['description'], skill):
+        assert 'rule names differ' in instructions
+        assert 'conflict' in instructions
+        assert 'has_more' in instructions
+
+
 def test_preference_normalizes_bare_app_scope(tmp_path):
     transport = Mock()
     transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}

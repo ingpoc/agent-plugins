@@ -36,6 +36,7 @@ ownership.
    opaque returned `session_ref` to see bounded stage timings and outcomes.
    Task outcomes include their check, evidence class, correlated response/run refs,
    and tool names. Ledger status and result count are visible in the summary.
+   Timeline scope categories do not identify a particular site or project.
    Use `summary_only=true` for compact stage, failure, native-action, Ledger, outcome,
    and version counts. Session timelines include native actions and use `next_cursor` for additional pages;
    pass that cursor to the same session with the same diagnostics setting.
