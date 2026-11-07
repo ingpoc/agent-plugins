@@ -104,3 +104,11 @@ Use one coherent batch and one issue-by-issue installed run per iteration. Check
 - **Optimize:** The frozen-head release source gate took 74.87 seconds, compared with 74.47 seconds for 0.2.107; these individual runs do not establish a speed change. The full gate ran once in this iteration.
 - **Automate:** Added an isolated real-Ledger regression to the existing cross-plugin integration suite. A persistent MCP process tested client survival across refresh; it passed before and failed after the update. Reuse the release receipt and findings manager for the installed pass.
 - **Outcome:** ACU 0.2.108 installed from PR commit 09ba6dc; 137 focused installed-package tests passed. All 29 issues received outcomes: one fixed, one not fixed, 14 blocked and 13 inconclusive. The release remained not ready because microphone preflight found no input. Automatic spoken preference use and active-client refresh remain open.
+
+### Iteration review: 0.2.109
+
+- **Delete:** Retained the runtime identity guard; a naive restart that drops buffered requests or an in-place identity override would be unsafe.
+- **Simplify:** The candidate reuses the existing app and service contract and hands off only before dispatch, retaining the request, buffered input and client identity. Source tests cover mixed framing and reject a mismatched or incompatible target.
+- **Optimize:** The frozen release source gate ran once. No comparable end-to-end time saving is established.
+- **Automate:** The existing subprocess tests exercised actual process replacement with queued requests; the installed persistent-client probe recorded the pre-existing 0.2.108 client's failure. A later refresh must test a client containing the handoff code.
+- **Outcome:** ACU 0.2.109 installed from PR commit 3cfbdd6; 137 focused installed-package tests passed. The run recorded one fixed, one not fixed, 14 blocked and 13 inconclusive. Microphone preflight failed. Source review identified a read-only identity-probe reconnect edge case, which must be corrected before testing handoff acceptance.
