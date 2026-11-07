@@ -12,7 +12,7 @@ import time
 from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 
-from .scrub import DENY_KEYS, TEXT_KINDS, scrub
+from .scrub import DENY_KEYS, TEXT_KINDS, scrub, scrub_detail
 
 # Real step durations, in priority order. `step_ms` is a gap since the previous row, so it only
 # counts for successful rows that are not an end, close, failure or idle phase (see END_PHASE).
@@ -90,7 +90,12 @@ def _stat(stats, source):
 
 def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None,
            metric=None, condition=None, mirror=False, test=False, version=None, alias=False, turn=None,
-           args=None, layout=None):
+           args=None, layout=None, session_attribution=None, version_attribution=None, ledger_operation=None,
+           ledger_error_category=None, ledger_result_status=None, ledger_decision_count=None, ledger_scope_kind=None, ledger_rule_supplied=None,
+           task_outcome=None, task_check_id=None, task_evidence_class=None, task_tools=None,
+           call_ref=None, response_ref=None, run_ref=None, error_details=None, ledger_result_detail=None,
+           outcome=None, ledger_detail_truncated=None, input_availability=None, input_device=None,
+           input_rate=None, input_recovery=None, input_selection=None, mirror_ref=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -102,7 +107,18 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
     return {'project': project, 'source': source, 'kind': kind, 'step': step, 'error': bool(error), 'ts': ts,
             'duration_ms': duration_ms, 'metric': metric, 'message': message, 'ref': where, 'session': session,
             'condition': condition, 'mirror': bool(mirror), 'test': bool(test), 'version': version,
-            'alias': bool(alias), 'turn': turn, 'args': args, 'layout': layout}
+            'alias': bool(alias), 'turn': turn, 'args': args, 'layout': layout,
+            'session_attribution': session_attribution, 'version_attribution': version_attribution,
+            'ledger_operation': ledger_operation, 'ledger_error_category': ledger_error_category,
+            'ledger_result_status': ledger_result_status, 'ledger_decision_count': ledger_decision_count,
+            'ledger_scope_kind': ledger_scope_kind, 'ledger_rule_supplied': ledger_rule_supplied,
+            'task_outcome': task_outcome, 'task_check_id': task_check_id,
+            'task_evidence_class': task_evidence_class, 'task_tools': task_tools,
+            'call_ref': call_ref, 'response_ref': response_ref, 'run_ref': run_ref,
+            'error_details': error_details, 'ledger_result_detail': ledger_result_detail, 'outcome': outcome,
+            'ledger_detail_truncated': ledger_detail_truncated, 'input_availability': input_availability,
+            'input_device': input_device, 'input_rate': input_rate, 'input_recovery': input_recovery,
+            'input_selection': input_selection, 'mirror_ref': mirror_ref}
 
 
 def _normalize(value):
@@ -155,7 +171,15 @@ def _layout(obj):
         rect['expected_inside_island'] = bool(raw.get('expected_inside_island'))
         overlays.append(rect)
     trigger = obj.get('trigger') if isinstance(obj.get('trigger'), str) else ''
-    return {'trigger': trigger[:20], 'screen': screen, 'island': island, 'overlays': overlays}
+    result = {'trigger': trigger[:20], 'screen': screen, 'island': island, 'overlays': overlays}
+    transition = obj.get('transition_id')
+    if isinstance(transition, str) and re.fullmatch(r'[0-9a-fA-F-]{36}', transition):
+        result['transition_ref'] = hashlib.sha256(transition.encode()).hexdigest()[:24]
+        if obj.get('transition_phase') in ('start', 'change', 'settled'):
+            result['transition_phase'] = obj['transition_phase']
+        if isinstance(obj.get('transition_trigger'), str):
+            result['transition_trigger'] = scrub(obj['transition_trigger'])[:40]
+    return result
 
 
 def _lines(path, max_bytes):
@@ -205,16 +229,15 @@ def _jsonl_rows(path, max_bytes, stats, source):
 
 
 def _sessions(path, max_bytes):
-    """First pass: per-session version and test flags. Rows without a session belong to the last one seen."""
-    info, current = {}, None
+    """Collect flags only from explicitly identified sessions; conflicting versions stay unknown."""
+    info = {}
     for _line, obj in _jsonl_rows(path, max_bytes, {None: {'skipped': 0}}, None):
         session = obj.get('session_id') or obj.get('session')
-        current = session if isinstance(session, str) else current
-        if current is None:
+        if not isinstance(session, str) or not session:
             continue
-        entry = info.setdefault(current, {'version': None, 'purpose_test': False, 'canned': False, 'instant': False})
-        if entry['version'] is None and isinstance(obj.get('version'), str):
-            entry['version'] = obj['version'][:40]
+        entry = info.setdefault(session, {'versions': set(), 'purpose_test': False, 'canned': False, 'instant': False})
+        if isinstance(obj.get('version'), str) and obj['version']:
+            entry['versions'].add(obj['version'][:40])
         if obj.get('purpose') in TEST_PURPOSES:
             entry['purpose_test'] = True
         # Replies are compared against two canned words only; their text is never stored.
@@ -229,15 +252,24 @@ def _sessions(path, max_bytes):
 def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
     _stat(stats, source)
     sessions = _sessions(path, max_bytes)
-    current = None
     for number, obj in _jsonl_rows(path, max_bytes, stats, source):
         own = obj.get('session_id') or obj.get('session')
-        current = own if isinstance(own, str) else current
+        current = own if isinstance(own, str) and own else None
         flags = sessions.get(current, {})
+        versions = flags.get('versions', set())
+        direct_version = obj.get('version')
+        if isinstance(direct_version, str) and direct_version:
+            version, version_attribution = direct_version[:40], 'event'
+        elif len(versions) == 1:
+            version, version_attribution = next(iter(versions)), 'session_inferred'
+        else:
+            version, version_attribution = None, 'unknown'
         test = bool(flags.get('purpose_test') or (flags.get('canned') and flags.get('instant')))
+        error_details = scrub_detail(obj.get('error_details'))
+        ledger_result_detail = scrub_detail(obj.get('ledger_result_detail'))
         obj = {key: value for key, value in obj.items() if key not in DENY_KEYS}
         kind = _first_str(obj, ('kind', 'event', 'type', 'name')) or 'event'
-        step = _first_str(obj, ('phase', 'tool', 'step', 'stage')) or ''
+        step = 'task_outcome' if kind == 'task_outcome' else (_first_str(obj, ('phase', 'tool', 'step', 'stage')) or '')
         status = str(obj.get('status', '')).lower()
         err = obj.get('error')
         error = (status in ERROR_STATUS or 'error' in kind or 'fail' in kind or bool(isinstance(err, (str, dict)) and err)
@@ -271,10 +303,49 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
             if layout is None:
                 stats[source]['skipped'] += 1
                 continue
+        operation = obj.get('ledger_operation') if step == 'ledger_task' else None
+        operation = operation if operation in ('lookup', 'capture', 'recall', 'preference', 'unknown') else None
+        scope_kind = obj.get('ledger_scope_kind') if step == 'ledger_task' else None
+        scope_kind = scope_kind if scope_kind in ('missing', 'fleet', 'browser', 'tool', 'project', 'invalid') else None
+        rule_supplied = obj.get('ledger_rule_supplied') if step == 'ledger_task' else None
+        rule_supplied = rule_supplied if type(rule_supplied) is bool else None
+        category = obj.get('ledger_error_category') if step == 'ledger_task' else None
+        category = category if category in ('invalid_argument', 'invalid_query_terms', 'unavailable', 'outcome_unknown', 'other') else None
+        ledger_status = obj.get('ledger_result_status') if step == 'ledger_task' else None
+        ledger_status = ledger_status[:32] if isinstance(ledger_status, str) else None
+        decision_count = obj.get('ledger_decision_count') if step == 'ledger_task' else None
+        decision_count = decision_count if type(decision_count) is int and 0 <= decision_count <= 3 else None
+        task_outcome = obj.get('outcome') if kind == 'task_outcome' else None
+        task_outcome = task_outcome if task_outcome in ('verified_success', 'verified_incomplete', 'unverified', 'cancelled') else None
+        task_check_id = obj.get('check_id') if kind == 'task_outcome' else None
+        task_check_id = task_check_id[:48] if isinstance(task_check_id, str) and re.fullmatch(r'[a-z][a-z0-9]*(?:_[a-z0-9]+)*', task_check_id) else None
+        task_evidence_class = obj.get('evidence_class') if kind == 'task_outcome' else None
+        task_evidence_class = task_evidence_class if task_evidence_class in ('app_readback', 'browser_inventory', 'local_login', 'combined', 'tool_reported') else None
+        task_tools = obj.get('tools') if kind == 'task_outcome' else None
+        task_tools = sorted({tool for tool in task_tools if isinstance(tool, str) and tool in ('cua_act', 'comet_act', 'system_volume')})[:3] if isinstance(task_tools, list) else None
+        def opaque_id(key):
+            value = obj.get(key)
+            return hashlib.sha256(value.encode()).hexdigest()[:24] if isinstance(value, str) and 0 < len(value) <= 128 else None
         yield _event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
                      duration_ms=duration, metric=metric, message=message, where=ref(path, number), session=current,
-                     condition=condition, mirror=mirror, test=test, version=flags.get('version'), turn=turn,
-                     args=args, layout=layout)
+                     condition=condition, mirror=mirror, test=test, version=version, turn=turn,
+                     args=args, layout=layout, session_attribution='event' if current else 'unknown',
+                     version_attribution=version_attribution, ledger_operation=operation,
+                     ledger_scope_kind=scope_kind, ledger_rule_supplied=rule_supplied,
+                     ledger_error_category=category, ledger_result_status=ledger_status,
+                     ledger_decision_count=decision_count, task_outcome=task_outcome,
+                     task_check_id=task_check_id, task_evidence_class=task_evidence_class,
+                     task_tools=task_tools, error_details=error_details or None,
+                     ledger_result_detail=ledger_result_detail or None,
+                     ledger_detail_truncated=obj.get('ledger_detail_truncated') if type(obj.get('ledger_detail_truncated')) is bool else None,
+                     input_availability=obj.get('input_availability') if obj.get('input_availability') in ('available','unavailable','unknown') else None,
+                     input_device=scrub(obj.get('input_device'))[:120] if isinstance(obj.get('input_device'), str) else None,
+                     input_rate=obj.get('input_rate') if type(obj.get('input_rate')) in (int,float) and 0 < obj['input_rate'] <= 768000 else None,
+                     input_recovery=obj.get('input_recovery') if obj.get('input_recovery') in ('recovered','not_observed','unknown') else None,
+                     input_selection=obj.get('input_selection') if obj.get('input_selection') == 'system_default_snapshot' else None,
+                     call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=opaque_id('run_id'),
+                     mirror_ref=opaque_id('mirror_id'),
+                     outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown'))
 
 
 _SESSION = re.compile(r'\bsession_id=(\w+)')
@@ -308,7 +379,8 @@ def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
         stamp = parse_ts(match.group(1)) if match else None
         last_ts = stamp if stamp is not None else last_ts
         ts = last_ts if last_ts is not None else mtime
-        if own := _SESSION.search(line):
+        own = _SESSION.search(line)
+        if own:
             session = own.group(1)
         phase = _PHASE.search(line)
         word = _WORD.search(line)
@@ -330,7 +402,10 @@ def iter_textlog(path, project, source, stats, max_bytes=64_000_000):
         message = f'cause: {cause}' if cause else scrub(text)
         yield _event(stats, project=project, source=source, kind='log_error' if error else 'log', step=step,
                      error=error, ts=ts, duration_ms=duration, metric=metric, message=message, where=ref(path, number),
-                     session=session, condition=cause, alias=named is not None)
+                     session=session, condition=cause, alias=named is not None,
+                     session_attribution='event' if own else ('previous_line_inferred' if session else 'unknown'),
+                     version_attribution='unknown',
+                     mirror_ref=hashlib.sha256(m.group(1).encode()).hexdigest()[:24] if (m := re.search(r'\bmirror_id=([0-9a-f]{32})\b', line)) else None)
 
 
 def iter_junit(path, project, source, stats):

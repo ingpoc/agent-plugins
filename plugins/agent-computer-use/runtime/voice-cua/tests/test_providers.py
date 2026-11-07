@@ -306,7 +306,7 @@ class LiveTests(_Rows):
         p.inbound({"type": "session.input_transcript.delta", "delta": "Open Calculator",
                    "start_ms": 1000, "end_ms": 1400})
         request_id, _ = p._pending_spoken_request
-        p.inbound({"type": "session.delegation.created", "offset_ms": 1500,
+        p.inbound({"type": "session.delegation.created", "offset_ms": 1300,
                    "delegation": {"id": "d_spoken", "target": "responses"}})
         (created,) = p._backend_event("d_spoken", {
             "type": "response.created", "response": {"id": "r_spoken"}
@@ -314,6 +314,25 @@ class LiveTests(_Rows):
         p.heard.flush()
         self.assertEqual(created["response"]["metadata"]["voice_cua_request_id"], request_id)
         self.assertEqual(p._current_request("d_spoken"), request_id)
+
+    def test_delayed_transcript_links_unique_unstarted_delegation(self) -> None:
+        p, _ = _live()
+        p.inbound({"type": "session.delegation.created", "offset_ms": 1300,
+                   "delegation": {"id": "d_spoken", "target": "responses"}})
+        p.inbound({"type": "session.input_transcript.delta", "delta": "Open Calculator",
+                   "start_ms": 1000, "end_ms": 1400})
+        (created,) = p._backend_event("d_spoken", {"type": "response.created", "response": {"id": "r_spoken"}})
+        self.assertRegex(created["response"]["metadata"]["voice_cua_request_id"], r"^[0-9a-f]{32}$")
+
+    def test_delayed_transcript_does_not_link_ambiguous_delegations(self) -> None:
+        p, _ = _live()
+        for delegation in ("d1", "d2"):
+            p.inbound({"type": "session.delegation.created", "offset_ms": 1300,
+                       "delegation": {"id": delegation, "target": "responses"}})
+        p.inbound({"type": "session.input_transcript.delta", "delta": "Open Calculator",
+                   "start_ms": 1000, "end_ms": 1400})
+        (created,) = p._backend_event("d1", {"type": "response.created", "response": {"id": "r1"}})
+        self.assertNotIn("metadata", created["response"])
 
     def test_delegation_before_spoken_timeline_keeps_old_turn_then_matches_new_turn(self) -> None:
         p, _ = _live()
@@ -490,6 +509,36 @@ def _meta(events: list[dict]) -> str:
 
 class LiveTurnIdTests(_Rows):
     """Each typed request is a turn; only delegations created in that turn answer it."""
+
+    def test_unmatched_new_delegation_does_not_reuse_completed_spoken_turn(self) -> None:
+        p, _ = _live()
+        p.heard._on_flush = lambda _text: None
+        p.inbound({'type': 'session.input_transcript.delta', 'delta': 'First task', 'start_ms': 1000, 'end_ms': 1400})
+        p.inbound({'type': 'session.delegation.created', 'offset_ms': 1300, 'delegation': {'id': 'first'}})
+        initial = [p.inbound(event) for event in _answer('first', 'r1', 'Finished.')]
+        self.assertTrue(_meta(initial[0]))
+        self.assertEqual(_meta(initial[0]), _meta(initial[2]))
+        p.heard.flush()
+        p.inbound({'type': 'session.delegation.created', 'delegation': {'id': 'unmatched'}})
+        subsequent = [p.inbound(event) for event in _answer('unmatched', 'r2', 'Different task.')]
+        self.assertEqual(_meta(subsequent[0]), '')
+        self.assertEqual(_meta(subsequent[2]), '')
+
+    def test_spoken_tool_continuation_keeps_its_turn(self) -> None:
+        p, _ = _live()
+        p.heard._on_flush = lambda _text: None
+        p.inbound({'type': 'session.input_transcript.delta', 'delta': 'Open app', 'start_ms': 1000, 'end_ms': 1400})
+        p.inbound({'type': 'session.delegation.created', 'offset_ms': 1300, 'delegation': {'id': 'first'}})
+        first = p.inbound(_ev('first', {'type': 'response.created', 'response': {'id': 'r1'}}))
+        request = _meta(first)
+        p.inbound(_fc('first', 'c1'))
+        p.outbound({'type': 'conversation.item.create', 'item': {'type': 'function_call_output', 'call_id': 'c1', 'output': '{}'}})
+        p.inbound(_ev('first', {'type': 'response.completed', 'response': {'id': 'r1', 'status': 'completed'}}))
+        continuation = [p.inbound(event) for event in _answer('first', 'r2', 'Done.')]
+        self.assertTrue(request)
+        self.assertEqual(_meta(continuation[0]), request)
+        self.assertEqual(_meta(continuation[2]), request)
+        p.heard.flush()
 
     def test_older_delegation_continuation_does_not_take_the_next_request(self) -> None:
         # Run H: the BBC delegation kept going after its waiter closed; its continuation

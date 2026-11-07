@@ -78,6 +78,16 @@ final class ServiceDelegate: NSObject, NSApplicationDelegate {
             inputActions: inputActions,
             logger: logger
         )
+        router?.voiceControl = { [weak voiceSupervisor] operation in
+            guard let voice = voiceSupervisor else { return ["ok": false, "error": "Samantha control unavailable"] }
+            if operation == "start" && !voice.running {
+                IslandSettingsStore.shared.ensureToken(.samantha)
+                guard await voice.start() else { return ["ok": false, "running": false, "error": "Samantha failed to start"] }
+            } else if operation == "stop" && voice.running {
+                voice.stop()
+            }
+            return ["ok": true, "running": voice.running, "healthy": voice.running && voice.isHealthy(), "gateway_port": voice.gatewayPort]
+        }
         islandController?.setCursorOverlay(cursorOverlay!)
 
         server = SocketServer(socketPath: socketPath, logger: logger) { [router] request in

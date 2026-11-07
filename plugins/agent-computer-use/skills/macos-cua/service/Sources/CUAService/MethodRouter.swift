@@ -20,6 +20,7 @@ final class MethodRouter: @unchecked Sendable {
     private let inputActions: InputActions
     private let logger: Logger
     private var requestRunning = false
+    var voiceControl: (@MainActor (String) async -> [String: Any])?
 
     init(
         appResolver: AppResolver,
@@ -44,7 +45,7 @@ final class MethodRouter: @unchecked Sendable {
     static let cursorControlMethods: Set<String> = ["cursor_status", "configure_cursor"]
     /// Methods that never move the tip: no action bracket, so observers
     /// polling them neither show the tip nor extend its idle countdown.
-    static let nonActionMethods: Set<String> = ["runtime_contract", "list_apps", "hide_agent_cursor", "wait", "credential_request", "credential_status", "credential_cancel", "system_volume", "local_sessions"]
+    static let nonActionMethods: Set<String> = ["runtime_contract", "list_apps", "hide_agent_cursor", "wait", "credential_request", "credential_status", "credential_cancel", "system_volume", "local_sessions", "voice_control"]
 
     static func movesTip(_ req: JSONRPCRequest) -> Bool {
         if nonActionMethods.contains(req.method) { return false }
@@ -56,6 +57,15 @@ final class MethodRouter: @unchecked Sendable {
         guard let fingerprint = expected["sha256"] as? String,
               let version = expected["version"] as? String else { return false }
         return supplied?["sha256"] == fingerprint && supplied?["version"] == version
+    }
+
+    @MainActor
+    static func handleVoiceControl(_ operation: String?, handler: (@MainActor (String) async -> [String: Any])?) async throws -> [String: Any] {
+        guard let operation, ["status", "start", "stop"].contains(operation) else {
+            throw RPCMethodError(code: -32602, message: "voice_control operation must be status, start or stop")
+        }
+        guard let handler else { throw RPCMethodError(code: -32001, message: "Samantha control unavailable") }
+        return await handler(operation)
     }
 
     @MainActor
@@ -121,6 +131,8 @@ final class MethodRouter: @unchecked Sendable {
     @MainActor
     private func route(_ req: JSONRPCRequest) async throws -> Any {
         switch req.method {
+        case "voice_control":
+            return try await Self.handleVoiceControl(req.param("operation"), handler: voiceControl)
         case "local_sessions":
             let includeIdle: Bool = req.param("include_idle") ?? true
             let includeProbes: Bool = req.param("include_probes") ?? true
@@ -320,6 +332,8 @@ final class MethodRouter: @unchecked Sendable {
         )
         do {
             return try await handleGetAppState(request) as? [String: Any] ?? [:]
+        } catch let error as RPCMethodError where error.code == -32001 {
+            return ["text": "", "running": false]
         } catch {
             return ["text": "", "error": error.localizedDescription]
         }
@@ -436,7 +450,10 @@ final class MethodRouter: @unchecked Sendable {
         let raiseForInput: Bool = req.param("raiseForInput") ?? false
         let includeScreenshot: Bool = req.param("includeScreenshot") ?? true
         let t0 = ProcessInfo.processInfo.systemUptime
-        let resolved0 = try appResolver.resolve(app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req))
+        // A state read must not resurrect a process that a preceding close action just ended.
+        let resolved0 = try appResolver.resolve(
+            app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req), launchIfMissing: false
+        )
         var resolved = resolved0
         let t1 = ProcessInfo.processInfo.systemUptime
         var snapshot = axTree.walk(
@@ -462,7 +479,9 @@ final class MethodRouter: @unchecked Sendable {
             if screenshotPath == nil {
                 captureRetry = true
                 try await Task.sleep(nanoseconds: 120_000_000)
-                resolved = try appResolver.resolve(app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req))
+                resolved = try appResolver.resolve(
+                    app, raiseForInput: raiseForInput, windowID: pinnedWindowID(req), launchIfMissing: false
+                )
                 snapshot = axTree.walk(
                     axApp: resolved.axApp,
                     windowID: resolved.windowID,

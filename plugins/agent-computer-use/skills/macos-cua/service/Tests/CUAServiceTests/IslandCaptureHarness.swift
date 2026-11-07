@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import XCTest
 @testable import CUAService
 
@@ -9,6 +10,12 @@ import XCTest
 /// Non-activating panel — never takes focus.
 @MainActor
 final class IslandCaptureHarness: XCTestCase {
+    static func render<V: View>(_ view: V, scale: CGFloat) -> CGImage? {
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = scale
+        return renderer.cgImage
+    }
+
     private var port = 0
     private var controller: IslandController?
     /// Gateway-like merge (agents / approval / meters persist unless given; {} clears approval).

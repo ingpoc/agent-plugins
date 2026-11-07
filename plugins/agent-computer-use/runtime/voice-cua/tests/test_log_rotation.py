@@ -1,5 +1,6 @@
 """0.2.86: samantha-activity.jsonl and voice.log rotate in the writer. Temp directories only, never the real cache."""
 import gzip
+import io
 import json
 import os
 import socket
@@ -49,7 +50,7 @@ class RotationTests(unittest.TestCase):
             log_rotation.append(live, row.replace(b'"x"', f'"{i}"'.encode()), limit=4096)
         names = sorted(p.name for p in self.dir.iterdir())
         self.assertEqual([n for n in names if n != live.name],
-                         [f"samantha-activity.{i}.jsonl.gz" for i in range(1, 6)], "exactly five, all gzipped")
+                         [f"samantha-activity.{i}.jsonl.gz" for i in range(1, 6)] + [live.name + '.rotation.lock'], "five archives and the rotation lock")
         self.assertLess(live.stat().st_size, 4096 + len(row))
         kinds = [json.loads(line)["kind"] for line in _all_lines(live)]
         self.assertEqual(kinds, [str(i) for i in range(400 - len(kinds), 400)], "newest rows kept in order, no gaps")
@@ -128,11 +129,25 @@ class RotationTests(unittest.TestCase):
             subprocess.run([sys.executable, "-c", script, str(live)], stdout=out, stderr=out, check=True, timeout=60)
         self.assertTrue((self.dir / "voice.1.log.gz").is_file())
         lines = _all_lines(live)
-        self.assertEqual(lines[-1], "last line")
-        phases = [line.split()[1] for line in lines if line.startswith("[startup]")]
+        self.assertEqual(lines[-1].split(" ", 1)[1], "last line")
+        phases = [line.split(" ", 1)[1].split()[1] for line in lines if "[startup]" in line]
         self.assertEqual(phases[-1], "phase=step299")
         nums = [int(p.removeprefix("phase=step")) for p in phases]
         self.assertEqual(nums, list(range(nums[0], 300)), "contiguous: nothing landed in a rotated copy after rotation")
+
+    def test_voice_log_timestamps_each_complete_line_with_offset(self):
+        stream = io.StringIO()
+        wrapped = log_rotation.RotatingStdStreams(self.dir / "voice.log", stream)
+        wrapped.write("split ")
+        wrapped.write("line\nsecond\n")
+        wrapped.flush()
+        lines = stream.getvalue().splitlines()
+        self.assertEqual([line.split(" ", 1)[1] for line in lines], ["split line", "second"])
+        from datetime import datetime
+
+        for line in lines:
+            stamp = datetime.fromisoformat(line.split(" ", 1)[0])
+            self.assertIsNotNone(stamp.utcoffset())
 
 
 if __name__ == "__main__":

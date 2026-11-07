@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'python'))
 _ACTIVITY_DIR = tempfile.TemporaryDirectory(prefix="voice-cua-test-ledger-")
 os.environ["VOICE_CUA_ACTIVITY_LOG"] = str(Path(_ACTIVITY_DIR.name) / "activity.jsonl")
 from voice_cua.ledger_helper import LedgerHelper
+from voice_cua.ledger_transport import LedgerInvalidArgument
 
 class LedgerHelperTests(unittest.TestCase):
     def test_activity_log_is_redirected_to_a_temp_path(self):
@@ -34,17 +35,89 @@ class LedgerHelperTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.helper = LedgerHelper(self.transport, self.decide, Path(self.temp.name) / "pending")
 
-    def test_lookup_only_returns_found_ids_and_reuses_unchanged_find(self):
+    def test_lookup_only_returns_found_ids_and_refreshes_find(self):
         for _ in range(2):
             r = self.helper.run(operation='lookup', situation='sites', need='where', project='agent-plugins')
             self.assertEqual(r['decisions'], [self.match])
-        self.assertEqual(self.transport.call.call_count, 1)
+        self.assertEqual(self.transport.call.call_count, 2)
         self.assertEqual(self.transport.call.call_args.args[1]['caller_scope'], {'project': 'agent-plugins', 'tools': []})
+
+    def test_lookup_searches_the_explicit_tool_scope(self):
+        def find(_name, args):
+            matches = [self.match] if args.get('scope') == 'tool:example' and 'example' in args['caller_scope']['tools'] else []
+            return {'ok': True, 'data': {'matches': matches}}
+        self.transport.call.side_effect = find
+        result = self.helper.run(operation='lookup', situation='choose a profile', need='profile preference', scope='Tool:Example')
+        self.assertEqual(result['decisions'], [self.match])
+        other = self.helper.run(operation='lookup', situation='choose a profile', need='profile preference', scope='tool:other')
+        self.assertEqual(other['status'], 'none')
+
+    def test_lookup_query_uses_need_before_generic_situation_and_respects_limit(self):
+        self.helper.run(operation='lookup', situation='how do I do it', need='saved email account preference')
+        args = self.transport.call.call_args.args[1]
+        self.assertEqual(args['query'], 'saved email account preference how do I do it')
+
+        self.helper.run(operation='lookup', situation='account ' * 30, need='preference ' * 20)
+        self.assertLessEqual(len(self.transport.call.call_args.args[1]['query']), 240)
+
+    def test_recall_query_includes_need_situation_and_rule(self):
+        self.transport.call.return_value = {'ok': True, 'data': {'matches': [self.match]}}
+        result = self.helper.run(operation='recall', scope='tool:calculator', rule='arithmetic_choice',
+                                 need='calculator app', situation='perform calculation')
+        args = self.transport.call.call_args.args[1]
+        self.assertTrue(result['ok'])
+        self.assertEqual(args['query'], 'calculator app perform calculation arithmetic choice')
+        self.assertEqual((args['scope'], args['rule']), ('tool:calculator', 'arithmetic_choice'))
+
+    def test_recall_exposes_candidates_without_claiming_an_exact_match(self):
+        self.transport.call.side_effect = [
+            {'ok': True, 'data': {'matches': []}},
+            {'ok': True, 'data': {'matches': [self.match]}},
+        ]
+        result = self.helper.run(operation='recall', scope='tool:example', rule='profile', need='profile')
+        self.assertEqual(result['status'], 'needs_disambiguation')
+        self.assertEqual(result['data']['matches'], [self.match])
+        self.assertNotIn('rule', self.transport.call.call_args.args[1])
+        self.assertEqual(self.transport.call.call_args.args[1]['scope'], 'tool:example')
+
+    def test_recall_without_query_terms_fails_before_transport(self):
+        result = self.helper.run(operation='recall', scope='fleet')
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['error_type'], 'ledger_invalid_argument')
+        self.transport.call.assert_not_called()
+
+    def test_invalid_ledger_find_is_not_retryable(self):
+        self.transport.call.side_effect = LedgerInvalidArgument(message='stop-words alone match nothing')
+        result = self.helper.run(operation='lookup', situation='how do I do it', need='preference')
+        self.assertEqual(result['error_type'], 'ledger_invalid_argument')
+        self.assertFalse(result['retryable'])
 
     def test_empty_find_never_invents_a_match(self):
         self.transport.call.return_value = {'ok': True, 'data': {'matches': []}}
         r = self.helper.run(operation='lookup', situation='sites', need='where')
         self.assertEqual(r['status'], 'none')
+        self.decide.assert_not_called()
+
+    def test_pending_application_outcome_does_not_imply_pending_approval(self):
+        self.match.update({'type': 'user_decision', 'outcome': 'pending', 'tier': 'hint'})
+        for operation in ('lookup', 'recall'):
+            result = self.helper.run(operation=operation, situation='choose profile', need='profile', scope='tool:example')
+            self.assertIn('application outcome', result['outcome_semantics'])
+            self.assertIn('not an approval state', result['outcome_semantics'])
+            self.assertNotIn('confirmed', result['outcome_semantics'])
+
+    def test_pending_note_does_not_claim_an_agent_conclusion_is_a_user_choice(self):
+        self.match.update({'type': 'agent_conclusion', 'outcome': 'pending'})
+        result = self.helper.run(operation='recall', situation='choose profile', need='profile', scope='tool:example')
+        self.assertNotIn('outcome_semantics', result)
+
+    def test_partial_scoped_lookup_is_not_reported_as_complete(self):
+        for matches in ([self.match], []):
+            self.transport.call.return_value = {'ok': True, 'data': {'matches': matches, 'has_more': True}}
+            for operation in ('lookup', 'recall'):
+                result = self.helper.run(operation=operation, situation='choose profile', need='profile', scope='tool:example')
+                self.assertEqual(result['status'], 'needs_disambiguation')
+                self.assertTrue(result['has_more'])
         self.decide.assert_not_called()
 
     def test_fabricated_id_is_rejected(self):

@@ -44,9 +44,9 @@ from voice_cua.realtime_session import RealtimeSession, _task_outcome  # noqa: E
 class TerminalOutcomeTests(unittest.TestCase):
     def test_verified_action_requires_completed_response(self) -> None:
         results = [{"tool": "cua_act", "ok": True, "verified": True}]
-        for status in ("failed", "incomplete"):
+        for status in ("completed", "failed", "incomplete"):
             with self.subTest(status=status):
-                self.assertEqual(_task_outcome(results, status=status), ("unverified", "app_readback"))
+                self.assertEqual(_task_outcome(results, status=status), ("unverified", "tool_reported"))
 
 
 class FakeWS:
@@ -86,9 +86,11 @@ class TaskOutcomeTests(unittest.TestCase):
             session._note_response_done({"id": response_id, "status": "completed", "output": []})
         log.assert_called_once_with(
             check_id="tool_task",
-            outcome="verified_success",
-            evidence_class="app_readback",
+            outcome="unverified",
+            evidence_class="tool_reported",
             run_id=run_id,
+            response_id=response_id,
+            tools=["cua_act"],
         )
         self.assertNotIn(run_id, session._task_runs)
 
@@ -104,9 +106,11 @@ class TaskOutcomeTests(unittest.TestCase):
             session._note_response_done({"id": "old-response", "status": "completed", "output": []})
         log.assert_called_once_with(
             check_id="tool_task",
-            outcome="verified_success",
-            evidence_class="app_readback",
+            outcome="unverified",
+            evidence_class="tool_reported",
             run_id=old_run,
+            response_id="old-response",
+            tools=["cua_act"],
         )
         self.assertEqual(session._task_runs[new_run], [])
         self.assertEqual(session._response_task_run_ids["new-response"], new_run)
@@ -126,13 +130,13 @@ class TaskOutcomeTests(unittest.TestCase):
     def test_success_without_postcondition_stays_unverified(self) -> None:
         self.assertEqual(
             _task_outcome([{"tool": "cua_act", "ok": False, "verified": False}], status="completed"),
-            ("unverified", "app_readback"),
+            ("unverified", "tool_reported"),
         )
 
     def test_user_cancellation_is_not_counted_as_success(self) -> None:
         self.assertEqual(
             _task_outcome([{"tool": "comet_act", "ok": False, "cancelled": True}], status="cancelled"),
-            ("cancelled", "browser_inventory"),
+            ("cancelled", "tool_reported"),
         )
 
 

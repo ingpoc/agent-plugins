@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 import Logging
 @testable import CUAService
@@ -129,6 +130,20 @@ final class AppResolverTests: XCTestCase {
             resolver.applicationURL(named: "Finder")?.path,
             "/System/Library/CoreServices/Finder.app"
         )
+    }
+
+    func testPassiveResolveDoesNotLaunchInstalledApp() throws {
+        let resolver = AppResolver(logger: Logger(label: "AppResolverTests"))
+        guard let url = resolver.applicationURL(named: "Activity Monitor"),
+              let bundleID = Bundle(url: url)?.bundleIdentifier else {
+            throw XCTSkip("Activity Monitor is unavailable")
+        }
+        guard !NSWorkspace.shared.runningApplications.contains(where: { $0.bundleIdentifier == bundleID }) else {
+            throw XCTSkip("Activity Monitor is already running")
+        }
+
+        XCTAssertThrowsError(try resolver.resolve(bundleID, launchIfMissing: false))
+        XCTAssertFalse(NSWorkspace.shared.runningApplications.contains(where: { $0.bundleIdentifier == bundleID }))
     }
 }
 

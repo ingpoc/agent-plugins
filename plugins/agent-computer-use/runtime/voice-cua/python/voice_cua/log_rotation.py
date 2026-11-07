@@ -8,9 +8,10 @@ Swift writers can share one file:
 * every append opens the path with ``O_APPEND``, takes a shared ``flock`` on that open file, and checks the
   descriptor still is the file at the path (same inode). If a rotation renamed it, it reopens and retries,
   so no row ever lands in a rotated file.
-* the writer whose append crosses the limit takes an exclusive ``flock`` on the same open file, re-checks
+* a persistent ``<log>.rotation.lock`` serializes rotations across Python and Swift processes, including gzip;
+  the writer whose append crosses the limit takes an exclusive ``flock`` on the open log, re-checks
   inode and size, shifts the older ``.N.gz`` files up, renames the live file to ``<stem>.1<suffix>`` and only
-  then releases the lock. The new live file is created by the next append. ``.1`` is gzipped afterwards
+  then releases the log lock. The new live file is created by the next append. ``.1`` is gzipped under the rotation lock
   (temp file then rename), so a crash leaves either the plain or the gzipped copy, never half of one.
 
 Only these exact log names are ever renamed or deleted: never a socket, lock or anything else in the folder.
@@ -24,11 +25,24 @@ import gzip
 import os
 import shutil
 import threading
+from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 MAX_BYTES = 50 * 1024 * 1024
 KEEP = 5
 _thread_lock = threading.Lock()
+
+
+@contextmanager
+def _rotation_lock(path: Path):
+    fd = os.open(str(path) + '.rotation.lock', os.O_CREAT | os.O_WRONLY, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
 
 
 def max_bytes() -> int:
@@ -114,7 +128,7 @@ def rotate_if_needed(path: Path, limit: int | None = None) -> bool:
             return False
     except FileNotFoundError:
         return False
-    with _thread_lock:
+    with _thread_lock, _rotation_lock(path):
         fd = _open_live(path, fcntl.LOCK_EX)
         try:
             if os.fstat(fd).st_size < limit:
@@ -124,9 +138,9 @@ def rotate_if_needed(path: Path, limit: int | None = None) -> bool:
         finally:
             fcntl.flock(fd, fcntl.LOCK_UN)
             os.close(fd)
-    plain = rotated_path(path, 1, gz=False)
-    if plain.is_file():
-        gzip_file(plain, rotated_path(path, 1))
+        plain = rotated_path(path, 1, gz=False)
+        if plain.is_file():
+            gzip_file(plain, rotated_path(path, 1))
     return True
 
 
@@ -155,26 +169,42 @@ class RotatingStdStreams:
     def __init__(self, path: Path, stream, limit: int | None = None) -> None:
         self.path, self._stream, self._limit = path, stream, limit
         self._lock = threading.Lock()
+        self._pending = ""
 
     def __getattr__(self, name):
         return getattr(self._stream, name)
 
     def write(self, text: str) -> int:
         with self._lock:
-            n = self._stream.write(text)
-            self._stream.flush()
-            try:
-                full = os.fstat(self._stream.fileno()).st_size >= (self._limit or max_bytes())
-            except (OSError, ValueError):
-                full = False
-            if full:
-                self._rotate()
-            return n
+            self._pending += text
+            while "\n" in self._pending:
+                line, self._pending = self._pending.split("\n", 1)
+                self._write_line(line + "\n")
+            return len(text)
 
     def flush(self) -> None:
+        with self._lock:
+            if self._pending:
+                self._write_line(self._pending)
+                self._pending = ""
+            self._stream.flush()
+
+    def _write_line(self, line: str) -> None:
+        stamp = datetime.now().astimezone().isoformat(timespec="milliseconds")
+        self._stream.write(f"{stamp} {line}")
         self._stream.flush()
+        try:
+            full = os.fstat(self._stream.fileno()).st_size >= (self._limit or max_bytes())
+        except (OSError, ValueError):
+            full = False
+        if full:
+            self._rotate()
 
     def _rotate(self) -> None:
+        with _rotation_lock(self.path):
+            self._rotate_locked()
+
+    def _rotate_locked(self) -> None:
         limit = self._limit or max_bytes()
         fd = _open_live(self.path, fcntl.LOCK_EX)
         try:

@@ -1,5 +1,7 @@
 """Release policy and fail-closed orchestration, without touching installed apps."""
 import argparse
+import contextlib
+import io
 import json
 import os
 from pathlib import Path
@@ -35,7 +37,7 @@ class PolicyTests(unittest.TestCase):
         for relative in ('plugin.json','.cursor-plugin/plugin.json'):
             (self.package/relative).write_text(json.dumps({'version':value}))
         (self.package/'skills/macos-cua/service/Resources/Info.plist').write_bytes(
-            plistlib.dumps({'CFBundleShortVersionString':value}))
+            plistlib.dumps({'CFBundleShortVersionString':value, 'CFBundleVersion':value}))
 
     def tracked(self, relative):
         p = self.package/relative;p.parent.mkdir(parents=True,exist_ok=True);p.write_text('new content')
@@ -110,9 +112,9 @@ class ReleaseTests(unittest.TestCase):
             with release.exclusive_release(path):
                 pass
 
-    def run_release(self, directory, *, source_exit=0, sign_only=False):
+    def run_release(self, directory, *, source_exit=0, sign_only=False, microphone_exit=0, skip_voice_smoke=False):
         args = argparse.Namespace(report=Path(directory)/'receipt.json',
-                                  verify_installed=True,sign_only=sign_only,hygiene_override=False)
+                                  verify_installed=True,sign_only=sign_only,hygiene_override=False,skip_voice_smoke=skip_voice_smoke)
         identity = {'version':'0.2.32','sha256':'fingerprint'}
         contract = Mock();contract.package_identity.return_value = identity
         def output(command, **kwargs):
@@ -123,15 +125,20 @@ class ReleaseTests(unittest.TestCase):
         calls = []
         def run(command, **kwargs):
             calls.append(command)
-            return Mock(returncode=source_exit if command[-1:] == ['scripts/check.py'] else 0)
+            code = source_exit if command[-1:] == ['scripts/check.py'] else microphone_exit if command[-1:] == ['--preflight-mic'] else 0
+            return Mock(returncode=code)
+        def smoke(*_args):
+            self.assertEqual(json.loads(args.report.read_text())['stage'], 'voice-smoke')
+            return {'session_id':'fresh','audio':True}
         with patch.object(release,'output',side_effect=output), \
+             patch.object(release,'APP',Path(directory)/'app'), \
              patch.object(release,'hygiene_gate',return_value={'checked':False}), \
              patch.object(release,'frozen'), \
              patch.object(release,'policy',return_value={'version':'0.2.32'}), \
              patch.object(release,'contract_module',return_value=contract), \
              patch.object(release.subprocess,'run',side_effect=run), \
              patch.object(release,'mcp',return_value=('0.2.32','')), \
-             patch.object(release,'voice_smoke',return_value={'session_id':'fresh','audio':True}):
+             patch.object(release,'voice_smoke',side_effect=smoke):
             code = release.release(args)
         return code,json.loads(args.report.read_text()),calls
 
@@ -142,6 +149,30 @@ class ReleaseTests(unittest.TestCase):
         self.assertFalse(receipt['release_ready'])
         self.assertEqual(len(calls),1)
         self.assertEqual(receipt['steps'][0]['exit_code'],1)
+
+    def test_failed_source_checks_do_not_request_voice(self):
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as td, contextlib.redirect_stdout(output):
+            code, _, _ = self.run_release(td, source_exit=1)
+        self.assertEqual(code, 1)
+        self.assertNotIn('VOICE SMOKE', output.getvalue())
+        self.assertNotIn('Prepare to say', output.getvalue())
+
+    def test_failed_installed_microphone_does_not_request_voice(self):
+        with tempfile.TemporaryDirectory() as td:
+            code, receipt, _ = self.run_release(td, microphone_exit=1)
+        self.assertEqual(code, 1)
+        self.assertFalse(receipt['release_ready'])
+        self.assertEqual(receipt['steps'][-1]['name'], 'microphone')
+        self.assertNotIn('voice', receipt)
+
+    def test_skipped_voice_smoke_keeps_release_not_ready(self):
+        with tempfile.TemporaryDirectory() as td:
+            code, receipt, _ = self.run_release(td, skip_voice_smoke=True)
+        self.assertEqual(code, 1)
+        self.assertFalse(receipt['release_ready'])
+        self.assertFalse(receipt['voice']['ok'])
+        self.assertEqual(receipt['stage'], 'voice-smoke')
 
     def test_signed_only_never_claims_distribution_readiness(self):
         with tempfile.TemporaryDirectory() as td:
@@ -158,6 +189,9 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue(receipt['release_ready'])
         self.assertEqual(receipt['commit'],'a'*40)
         self.assertEqual(receipt['identity']['sha256'],'fingerprint')
+        self.assertEqual(receipt['native_smoke']['version'],'0.2.32')
+        self.assertEqual(receipt['existing_client'],'not_checked')
+        self.assertIsNone(receipt['microphone_preflight']['ok'])
         self.assertTrue(all(s['ok'] for s in receipt['steps']))
         self.assertTrue(any(c[:3] == ['xcrun','stapler','validate'] for c in calls))
 

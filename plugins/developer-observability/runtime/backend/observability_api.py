@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+from collections import Counter
 import hashlib
 import importlib.util
 import json
@@ -17,6 +18,7 @@ from urllib.parse import urlsplit
 from .contract import safe_session_ref
 from .finding_text import redact
 from . import recommendations
+from collector.scrub import scrub_detail
 
 
 NO_FINDINGS_HINT = (
@@ -30,7 +32,9 @@ KINDS = ('all', 'failure', 'latency_hotspot', 'redundancy', 'turn_latency', 'isl
 MAX_ISSUES_LIMIT = 100
 # Local edit (0.1.7): error hints name the real fix, not backend or Decider health.
 NEXT_STEPS = {
-    'invalid_limit': 'Pass limit as an integer: 1–100 for observability_issues (larger values are clamped to 100), '
+    'invalid_session_ref': 'Select a session_ref returned by observability_sessions for this project.',
+    'session_not_in_project': 'Refresh observability_sessions for this project and select a returned session_ref.',
+    'invalid_limit': 'Pass limit as an integer: 1–100 for observability_sessions and observability_issues (larger issue limits are clamped), '
                      '1–10 for observability_inspect_issue.',
     'invalid_status': 'Use status all, active, recovered or stale.',
     'invalid_kind': 'Use kind all, failure, latency_hotspot, redundancy, turn_latency, island_layout or storage.',
@@ -104,7 +108,7 @@ class ObservabilityAPI:
     def _load(path):
         if not path.is_file():
             return None, b''
-        if path.stat().st_size > 16_000_000:
+        if path.stat().st_size > 128_000_000:
             raise ValueError('backend_unavailable: prepared findings missing or oversized')
         raw = path.read_bytes()
         data = json.loads(raw)
@@ -123,6 +127,7 @@ class ObservabilityAPI:
             keys = {f.get('finding_key') for f in primary['findings'] if isinstance(f, dict)}
             data = {**primary, 'findings': primary['findings'] + [
                 f for f in collected['findings'] if isinstance(f, dict) and f.get('finding_key') not in keys]}
+            data['session_timelines'] = collected.get('session_timelines', [])
             for field in ('coverage', 'coverage_details'):
                 if isinstance(primary.get(field), dict) and isinstance(collected.get(field), dict):
                     data[field] = {**primary[field], **collected[field]}
@@ -325,6 +330,9 @@ class ObservabilityAPI:
             if isinstance(turns, list):
                 summary['turns'] = [{
                     'turn': redact(str(item.get('turn', '')), 40),
+                    'timestamp': ObservabilityAPI._safe_time(item.get('timestamp')) or 'unknown',
+                    'version': redact(str(item.get('version') or 'unknown'), 40),
+                    'metric': redact(str(item.get('metric') or 'unknown'), 40),
                     'ms': item.get('ms') if isinstance(item.get('ms'), (int, float)) and not isinstance(item.get('ms'), bool) else None,
                     'tools': [redact(str(tool), 40) for tool in item['tools'][:5]] if isinstance(item.get('tools'), list) else [],
                     'errors': item.get('errors') if isinstance(item.get('errors'), int) and not isinstance(item.get('errors'), bool) else 0,
@@ -343,6 +351,22 @@ class ObservabilityAPI:
                 summary['max_overflow_pt'] = layout['max_overflow_pt']
             if triggers := counts(layout.get('triggers'), 8, 20):
                 summary['triggers'] = triggers
+            occurrences = layout.get('occurrences')
+            if isinstance(occurrences, list):
+                summary['occurrences'] = []
+                for item in occurrences[:10]:
+                    if not isinstance(item, dict):
+                        continue
+                    row = {'timestamp': ObservabilityAPI._safe_time(item.get('timestamp')) or 'unknown',
+                           'version': redact(str(item.get('version') or 'unknown'), 40),
+                           'version_attribution': item.get('version_attribution') if item.get('version_attribution') in ('event', 'session_inferred', 'unknown') else 'unknown',
+                           'trigger': redact(str(item.get('trigger') or 'unknown'), 20)}
+                    for name in ('bounds', 'rect'):
+                        if isinstance(item.get(name), dict):
+                            row[name] = numbers(item[name], ('x', 'y', 'w', 'h')) or {}
+                    if isinstance(item.get('overflow_pt'), (int, float)) and not isinstance(item['overflow_pt'], bool):
+                        row['overflow_pt'] = item['overflow_pt']
+                    summary['occurrences'].append(row)
             if summary:
                 fields['island_layout'] = summary
         # Local edit (0.1.8): bounded storage-size summary.
@@ -426,10 +450,148 @@ class ObservabilityAPI:
                 'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures,
                 'limit': limit, **({'limit_note': limit_note} if limit_note else {})}
 
-    def inspect(self, project_id, issue_id, cursor=None, limit=10):
+    def sessions(self, project_id, session_ref=None, include_diagnostics=False, cursor=None, limit=64, summary_only=False, run_ref=None):
+        """List recent opaque session references or inspect one bounded stage timeline."""
+        if type(include_diagnostics) is not bool:
+            raise ValueError('invalid_diagnostics: pass true or false')
+        if type(summary_only) is not bool or (summary_only and (session_ref is None or cursor is not None)):
+            raise ValueError('invalid_session_ref: summary requires a session_ref and no cursor')
+        data, revision = self._read()
+        self._project(project_id)
+        if session_ref is not None and not safe_session_ref(session_ref):
+            raise ValueError('invalid_session_ref: select a reference returned by observability_sessions')
+        if run_ref is not None and (session_ref is None or not isinstance(run_ref, str) or not re.fullmatch(r'[0-9a-f]{24}', run_ref)):
+            raise ValueError('invalid_session_ref: select a run_ref from the session timeline')
+        entries = data.get('session_timelines', [])
+        entries = entries if isinstance(entries, list) else []
+        rows = [r for r in entries[:50] if isinstance(r, dict) and safe_session_ref(r.get('session_ref'))
+                and self._matches({'owner_ref': 'owner:' + str(r.get('project', '')),
+                                   'latest_evidence': {'project': r.get('project')}}, project_id)]
+        if session_ref is None:
+            return {**self._envelope(data, revision, project_id), 'sessions': [
+                {'session_ref': r['session_ref'], 'last_seen': self._safe_time(r.get('last_seen')) or 'unknown',
+                 'total': r.get('total') if type(r.get('total')) is int and r['total'] >= 0 else None,
+                 'truncated': r.get('truncated') is True} for r in rows]}
+        row = next((r for r in rows if r['session_ref'] == session_ref), None)
+        if row is None:
+            raise ValueError('session_not_in_project: select a reference returned by observability_sessions')
+        stages = {'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready', 'stack_begin',
+                  'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'cua_act', 'cua_state', 'voice_latency', 'usage', 'island_layout'}
+        metrics = {'speech_to_playback_ms', 'latency_ms', 'duration_ms', 'took_ms', 'backend_ms', 'duration_s', 'step_ms'}
+        timeline = []
+        for event in row.get('events', []) if isinstance(row.get('events'), list) else []:
+            if not isinstance(event, dict) or event.get('stage') not in stages:
+                continue
+            duration = event.get('duration_ms')
+            item = {'timestamp': self._safe_time(event.get('timestamp')) or 'unknown',
+                             'stage': event['stage'], 'duration_ms': duration if type(duration) in (int, float) and 0 <= duration <= 86400000 else None,
+                             'metric': event.get('metric') if event.get('metric') in metrics else None,
+                             'outcome': event.get('outcome') if event.get('outcome') in ('success', 'failure', 'unknown') else 'unknown',
+                             'version': redact(str(event['version']), 40) if event.get('version') else 'unknown',
+                             'version_attribution': event.get('version_attribution') if event.get('version_attribution') in ('event', 'session_inferred', 'unknown') else 'unknown'}
+            if event['stage'] == 'ledger_task':
+                if event.get('ledger_operation') in ('lookup', 'capture', 'recall', 'preference', 'unknown'):
+                    item['ledger_operation'] = event['ledger_operation']
+                if event.get('ledger_scope_kind') in ('missing', 'fleet', 'browser', 'tool', 'project', 'invalid'):
+                    item['ledger_scope_kind'] = event['ledger_scope_kind']
+                if type(event.get('ledger_rule_supplied')) is bool:
+                    item['ledger_rule_supplied'] = event['ledger_rule_supplied']
+                if event.get('ledger_error_category') in ('invalid_argument', 'invalid_query_terms', 'unavailable', 'outcome_unknown', 'other'):
+                    item['ledger_error_category'] = event['ledger_error_category']
+                if isinstance(event.get('ledger_result_status'), str):
+                    item['ledger_result_status'] = redact(event['ledger_result_status'], 32)
+                if type(event.get('ledger_decision_count')) is int and 0 <= event['ledger_decision_count'] <= 3:
+                    item['ledger_decision_count'] = event['ledger_decision_count']
+                if type(event.get('ledger_detail_truncated')) is bool:
+                    item['ledger_detail_truncated'] = event['ledger_detail_truncated']
+            if event['stage'] in ('mic_preflight', 'audio_ready'):
+                for key, allowed in (('input_availability', ('available','unavailable','unknown')),
+                                     ('input_recovery', ('recovered','not_observed','unknown'))):
+                    if event.get(key) in allowed:
+                        item[key] = event[key]
+                if isinstance(event.get('input_device'), str):
+                    item['input_device'] = redact(event['input_device'], 120)
+                if type(event.get('input_rate')) in (int, float) and 0 < event['input_rate'] <= 768000:
+                    item['input_rate'] = event['input_rate']
+                if event.get('input_selection') == 'system_default_snapshot':
+                    item['input_selection'] = event['input_selection']
+            if event['stage'] == 'island_layout' and isinstance(event.get('layout'), dict):
+                layout = event['layout']
+                screen = layout.get('screen')
+                island = layout.get('island')
+                if isinstance(screen, dict) and isinstance(island, dict):
+                    def relative(rect):
+                        return {**rect, 'x': rect['x'] - screen['x'], 'y': rect['y'] - screen['y']}
+                    item['layout'] = {key: layout[key] for key in ('trigger', 'transition_ref', 'transition_phase', 'transition_trigger') if key in layout}
+                    item['layout'].update({'screen': {'w': screen['w'], 'h': screen['h']}, 'island': relative(island),
+                                           'overlays': [relative(rect) for rect in layout.get('overlays', [])]})
+            if event['stage'] == 'task_outcome':
+                if event.get('task_outcome') in ('verified_success', 'verified_incomplete', 'unverified', 'cancelled'):
+                    item['task_outcome'] = event['task_outcome']
+                    item['task_outcome_attribution'] = 'caller_reported'
+                if isinstance(event.get('task_check_id'), str) and re.fullmatch(r'[a-z][a-z0-9]*(?:_[a-z0-9]+)*', event['task_check_id']):
+                    item['task_check_id'] = event['task_check_id'][:48]
+                if event.get('task_evidence_class') in ('app_readback', 'browser_inventory', 'local_login', 'combined', 'tool_reported'):
+                    item['task_evidence_class'] = event['task_evidence_class']
+                tools = event.get('task_tools')
+                if isinstance(tools, list):
+                    item['task_tools'] = sorted({tool for tool in tools if isinstance(tool, str) and tool in ('cua_act', 'comet_act', 'system_volume')})
+            for key in ('call_ref', 'response_ref', 'run_ref'):
+                if isinstance(event.get(key), str) and re.fullmatch(r'[0-9a-f]{24}', event[key]):
+                    item[key] = event[key]
+            details = {key: scrub_detail(event.get(key)) for key in ('error_details', 'ledger_result_detail')
+                       if isinstance(event.get(key), str) and event.get(key)}
+            mirrors = event.get('mirrors')
+            if isinstance(mirrors, list) and mirrors:
+                item['mirrored_occurrences'] = len(mirrors)
+                if include_diagnostics:
+                    details['mirrors'] = [{'timestamp': self._safe_time(m.get('timestamp')) or 'unknown',
+                                           'source': redact(str(m.get('source', '')), 120),
+                                           'ref': redact(str(m.get('ref', '')), 160)}
+                                          for m in mirrors[:20] if isinstance(m, dict)]
+            item['diagnostics_available'] = bool(details)
+            if include_diagnostics and details:
+                item['diagnostics'] = details
+            timeline.append(item)
+        if run_ref is not None:
+            timeline = [event for event in timeline if event.get('run_ref') == run_ref]
+            if not timeline:
+                raise ValueError('invalid_session_ref: select a run_ref from this session timeline')
+        if type(limit) is not int or not 1 <= limit <= 100:
+            raise ValueError('invalid_limit: use an integer 1–100')
+        if summary_only:
+            native = [event for event in timeline if event['stage'] == 'cua_act']
+            summary = {'events_by_stage': dict(Counter(event['stage'] for event in timeline)),
+                       'failure_events_by_stage': dict(Counter(event['stage'] for event in timeline if event['outcome'] == 'failure')),
+                       'native_event_outcomes': dict(Counter(event['outcome'] for event in native)),
+                       'ledger_result_events': dict(Counter(event['ledger_result_status'] for event in timeline if 'ledger_result_status' in event)),
+                       'task_outcome_events': dict(Counter(event['task_outcome'] for event in timeline if 'task_outcome' in event)),
+                       'outcome_limitation': 'Recorded task outcomes, including legacy verified_success, are caller-reported and do not establish independent success.',
+                       'versions': sorted({(event['version'], event['version_attribution']) for event in timeline})}
+            if run_ref is not None:
+                timed = [event for event in timeline if event['duration_ms'] is not None]
+                summary['timed_stages'] = [{'stage': e['stage'], 'timestamp': e['timestamp'],
+                                            'duration_ms': e['duration_ms'], 'metric': e['metric']} for e in timed[:100]]
+                summary['timed_stages_truncated'] = len(timed) > 100
+                summary['independent_task_result'] = 'unknown'
+                summary['linkage'] = 'explicit_run_ref_only'
+            envelope = self._envelope(data, revision, project_id)
+            header = {key: envelope[key] for key in ('schema_version', 'project_id', 'snapshot_id', 'generated_at', 'freshness')}
+            header['coverage'] = {key: value for key, value in envelope.get('coverage', {}).items()
+                                  if key == project_id or key.startswith(project_id + ':')}
+            return {**header, 'session_ref': session_ref, **({'run_ref': run_ref} if run_ref else {}), 'summary': summary, 'total': len(timeline) if run_ref else row.get('total'),
+                    'truncated': row.get('truncated') is True,
+                    'limits': ['Counts describe collected events, not unique actions; source coverage may be partial.']}
+        page, next_cursor = self._page(timeline, cursor, revision, f'sessions:{project_id}:{session_ref}:{include_diagnostics}:{run_ref}', limit)
+        return {**self._envelope(data, revision, project_id), 'session_ref': session_ref, **({'run_ref': run_ref} if run_ref else {}), 'timeline': page,
+                'total': len(timeline) if run_ref else row.get('total'), 'truncated': row.get('truncated') is True, 'next_cursor': next_cursor}
+
+    def inspect(self, project_id, issue_id, cursor=None, limit=10, include_diagnostics=False):
         # Local edit (0.1.7): evidence pages are 1–10; validate before reading.
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 10:
             raise ValueError('invalid_limit: evidence pages are 1–10')
+        if type(include_diagnostics) is not bool:
+            raise ValueError('invalid_diagnostics: pass true or false')
         data, revision = self._read()
         self._project(project_id)
         finding = next((f for f in data['findings'] if f['finding_key'] == issue_id and self._matches(f, project_id)), None)
@@ -444,8 +606,10 @@ class ObservabilityAPI:
                     if evidence.get(key) is not None}
         raw_timeline = finding.get('event_timeline', [])
         timeline = []
-        safe_evidence_fields = ('tool', 'program', 'error_type', 'exit_code', 'failing_test',
-                                'latest_attempt', 'samantha_label', 'app')
+        safe_evidence_fields = ('tool', 'program', 'error_type', 'exit_code', 'failing_test', 'version', 'first_error_line',
+                                'version_attribution', 'session_attribution',
+                                'latest_attempt', 'samantha_label', 'app', 'ledger_operation', 'ledger_result_status',
+                                'task_outcome', 'task_check_id', 'task_evidence_class', 'run_ref', 'response_ref')
         connection_fields = ('close_code', 'connected_s', 'stopping', 'reconnect_requested',
                              'close_frame_received', 'last_server_event_type', 'last_server_event_s',
                              'last_client_wire_type', 'last_client_wire_s', 'last_mic_append_s')
@@ -464,6 +628,16 @@ class ObservabilityAPI:
                     'evidence': {key: redact(str(safe[key]), 120) for key in safe_evidence_fields
                                  if safe.get(key) is not None},
                 }
+                if type(safe.get('ledger_decision_count')) is int and 0 <= safe['ledger_decision_count'] <= 3:
+                    timeline_item['evidence']['ledger_decision_count'] = safe['ledger_decision_count']
+                task_tools = safe.get('task_tools')
+                if isinstance(task_tools, list):
+                    timeline_item['evidence']['task_tools'] = sorted({tool for tool in task_tools if isinstance(tool, str) and tool in ('cua_act', 'comet_act', 'system_volume')})
+                diagnostics = {key: scrub_detail(safe.get(key)) for key in ('error_details', 'ledger_result_detail')
+                               if isinstance(safe.get(key), str) and safe.get(key)}
+                timeline_item['diagnostics_available'] = bool(diagnostics)
+                if include_diagnostics and diagnostics:
+                    timeline_item['diagnostics'] = diagnostics
                 if session_ref := safe_session_ref(safe.get('session_ref')):
                     timeline_item['evidence']['session_ref'] = session_ref
                 for id_field, ref_field in (('attempt_id', 'attempt_ref'), ('invocation_id', 'invocation_ref')):

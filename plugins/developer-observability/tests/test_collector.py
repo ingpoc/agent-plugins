@@ -57,6 +57,25 @@ class CollectorTests(unittest.TestCase):
         startup = [e for e in events if e['kind'] == 'startup']
         self.assertEqual([e['duration_ms'] for e in startup][:2], [1000, 1250])
 
+    def test_jsonl_attribution_does_not_inherit_ambiguous_sessions_or_versions(self):
+        path = self.tmp / 'interleaved.jsonl'
+        rows = [
+            {'kind':'startup', 'session_id':'a', 'version':'0.2.92'},
+            {'kind':'startup', 'session_id':'b', 'version':'0.2.94'},
+            {'kind':'tool_error', 'error':'failure'},
+            {'kind':'tool_error', 'session_id':'a', 'error':'failure'},
+            {'kind':'startup', 'session_id':'a', 'version':'0.2.94'},
+            {'kind':'tool_error', 'session_id':'b', 'error':'failure'},
+            {'kind':'tool_error', 'session_id':'a', 'version':'0.2.93', 'error':'failure'},
+        ]
+        path.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+        events = list(iter_jsonl(path, 'p', 'p:app', {}))
+        self.assertEqual((events[2]['session'], events[2]['version']), (None, None))
+        self.assertEqual((events[3]['session'], events[3]['version']), ('a', None))
+        self.assertEqual((events[5]['version'], events[5]['version_attribution']), ('0.2.94', 'session_inferred'))
+        self.assertEqual((events[6]['version'], events[6]['version_attribution']), ('0.2.93', 'event'))
+        self.assertEqual(events[2]['session_attribution'], 'unknown')
+
     def test_percentile_nearest_rank(self):
         values = list(range(1, 21))
         self.assertEqual(percentile(values, 0.5), 10)

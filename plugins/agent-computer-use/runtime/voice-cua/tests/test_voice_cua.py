@@ -525,7 +525,8 @@ class GatewayTests(unittest.TestCase):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         url = f"http://127.0.0.1:{server.server_port}/api/shutdown"
-        shutdown = Mock()
+        shutdown_called = threading.Event()
+        shutdown = Mock(side_effect=shutdown_called.set)
         try:
             with patch.dict(os.environ, {"VOICE_CUA_CONTROL_TOKEN": "owner-token"}), patch(
                 "voice_cua.gateway.request_shutdown", shutdown
@@ -541,6 +542,7 @@ class GatewayTests(unittest.TestCase):
                 )
                 with urllib.request.urlopen(request, timeout=2) as response:
                     self.assertEqual(response.status, 200)
+                self.assertTrue(shutdown_called.wait(2), 'shutdown was not requested')
                 shutdown.assert_called_once_with()
         finally:
             server.shutdown()

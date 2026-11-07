@@ -1,199 +1,120 @@
-import AppKit
-import QuartzCore
-import SwiftUI
 import XCTest
 @testable import CUAService
 
-/// Samantha's turn-on uses the one harness-circle motion (UI & UX, 2026-11-04 11:57 IST).
 @MainActor
 final class IslandHarnessMotionTests: XCTestCase {
     private let codex = IslandAgent(id: "agent:Codex", name: "Codex", app: "Codex", title: "Task", status: "running", last_seen_at: 100)
 
-    func testHarnessMotionIsTheSharedWidthCurveAndSnapsUnderReduceMotion() {
-        XCTAssertEqual(IslandMotion.harness(reduce: false), IslandMotion.widthCurve)
-        XCTAssertNil(IslandMotion.harness(reduce: true), "Reduce Motion: the layout snaps, nothing slides")
-        XCTAssertEqual(IslandMotion.harnessEnterScale, 0.6)
+    private func apply(_ names: [String], to model: IslandModel, now: Date) {
+        let agents = names.map {
+            IslandAgent(id: "agent:\($0)", name: $0, app: $0, title: "Task", status: "running",
+                        last_seen_at: now.timeIntervalSince1970)
+        }
+        model.apply(IslandSnapshot(kind: "idle", agents: agents), now: now)
     }
 
-    /// Value of the shared curve (`.smooth(duration: 0.35)`, a critically damped spring) at `fraction` of 0.35 s.
-    private func curve(_ fraction: Double) -> CGFloat {
-        CGFloat(Spring(duration: 0.35, bounce: 0).value(target: 1.0, time: 0.35 * fraction))
+    private func waitForHarnessExit() async {
+        try? await Task.sleep(nanoseconds: 250_000_000)
     }
 
-    /// Frame geometry of a turn-on / turn-off, one Codex neighbour (UI & UX, 2026-11-04 12:24 IST): on the
-    /// shared curve the circle never sits under the pill, never overlaps Codex from the 25 % frame on, clears
-    /// it by ≥ 2 pt from 50 %, lands exactly on its slot, and draws above the neighbour it pushes. (At 25 % the
-    /// opened slot is 19.0 pt for an 18.9 pt circle, so ≥ 2 pt there needs a smaller start scale.)
-    func testEnteringCircleStaysInItsOpeningSlotAndAboveItsNeighbour() {
+    func testSamanthaExitReclaimsClosestHarnessSlotForCodex() async {
         let model = IslandModel()
         model.idleActivity = "duo"
-        model.apply(IslandSnapshot(kind: "listening", title: "Listening", agents: [codex], samantha_on: true))
-        let final = IslandBarLayout.agentRects(shape: model.shapeRect, count: 2)
-        XCTAssertEqual(model.sourceGroups.first?.id, IslandSourceGroups.samantha, "Samantha nearest the pill")
-        let sam = final[0], codexFinal = final[1], pillMinX = model.shapeRect.minX
-        let gap = IslandMotion.harnessTrailingGap(rects: final, index: 0, shape: model.shapeRect)
-        XCTAssertEqual(gap, 6, accuracy: 0.001)
-        var clear: [Int: CGFloat] = [:]
+        model.apply(IslandSnapshot(kind: "listening", agents: [codex], samantha_on: true))
+        let samanthaSlot = try! XCTUnwrap(model.sourceGroupSlots[IslandSourceGroups.samantha])
+        let codexSlot = try! XCTUnwrap(model.sourceGroupSlots["Codex"])
+        let samanthaRect = IslandBarLayout.agentRects(shape: model.shapeRect, slots: [samanthaSlot])[0]
+        XCTAssertEqual(samanthaSlot, 0, "Samantha enters closest to the pill on a fresh shared session")
+        XCTAssertEqual(codexSlot, 1, "Codex moves outward while Samantha is nearest the pill")
+
         for step in 0...20 {
-            let f = Double(step) / 20, v = curve(f)
-            let s = IslandMotion.harnessFrame(final: sam, progress: v, trailingGap: gap)
-            let codexMaxX = codexFinal.maxX + IslandMotion.harnessSlot * (1 - v)   // Codex slides on the same curve
-            XCTAssertEqual(s.width, sam.width * (0.6 + 0.4 * v), accuracy: 0.001)
-            XCTAssertEqual(s.midY, sam.midY, accuracy: 0.001)
-            XCTAssertLessThanOrEqual(s.maxX, pillMinX + 0.001, "never under the pill (\(f))")
-            clear[step * 5] = s.minX - codexMaxX
-            if f >= 0.25 { XCTAssertGreaterThanOrEqual(s.minX - codexMaxX, 0, "no overlap with Codex at \(f)") }
-            if f >= 0.5 { XCTAssertGreaterThanOrEqual(s.minX - codexMaxX, 2, "≥ 2 pt clear at \(f)") }
+            let progress = CGFloat(step) / 20
+            let diameter = samanthaRect.width * (IslandMotion.harnessEnterScale
+                + (1 - IslandMotion.harnessEnterScale) * progress)
+            let frame = CGRect(x: samanthaRect.midX - diameter / 2, y: samanthaRect.midY - diameter / 2,
+                               width: diameter, height: diameter)
+            let codexAfter = IslandBarLayout.agentRects(shape: model.shapeRect, slots: [codexSlot])[0]
+            XCTAssertGreaterThanOrEqual(frame.minX - codexAfter.maxX, IslandBarLayout.circleSpacing - 0.001,
+                                        "no overlap while entering at step \(step)")
         }
-        XCTAssertEqual(clear[100]!, IslandBarLayout.circleSpacing, accuracy: 0.2, "spring ~settled at 0.35 s")
-        let landed = IslandMotion.harnessFrame(final: sam, progress: 1, trailingGap: gap)
-        XCTAssertEqual(landed.minX, sam.minX, accuracy: 0.001)
-        XCTAssertEqual(landed.width, sam.width, accuracy: 0.001)
-        let mid = IslandMotion.harnessFrame(final: final[1], progress: 1, trailingGap: IslandBarLayout.circleSpacing)
-        XCTAssertEqual(mid.minX, final[1].minX, accuracy: 0.001, "lands exactly for a circle after another circle too")
-        // Turn-on: Samantha enters at 0, Codex moves 0 → 1.
-        let on = model.previousSourceGroupIDs
-        let samOn = IslandMotion.harnessDrawOrder(id: IslandSourceGroups.samantha, slot: 0, previous: on)
-        let codexOn = IslandMotion.harnessDrawOrder(id: model.sourceGroups[1].id, slot: 1, previous: on)
-        XCTAssertGreaterThan(samOn, codexOn, "entering circle above the neighbour it pushes")
-        // Turn-off: Samantha leaves, keeping her last rank (slot 0); Codex moves 1 → 0.
-        model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
-        let off = model.previousSourceGroupIDs
-        XCTAssertEqual(off.first, IslandSourceGroups.samantha)
-        let codexOff = IslandMotion.harnessDrawOrder(id: model.sourceGroups[0].id, slot: 0, previous: off)
-        XCTAssertGreaterThan(samOn, codexOff, "leaving circle stays above the neighbour sliding back")
-        print(String(format: "harness clearance to Codex: 25%% %.2f pt, 50%% %.2f pt, 75%% %.2f pt", clear[25]!, clear[50]!, clear[75]!))
+
+        model.apply(IslandSnapshot(kind: "idle", agents: [codex], samantha_on: false))
+        XCTAssertEqual(model.sourceGroupSlots["Codex"], codexSlot, "Codex stays clear during Samantha's exit fade")
+        for step in 0...20 {
+            let progress = CGFloat(step) / 20
+            let diameter = samanthaRect.width * (1 - (1 - IslandMotion.harnessEnterScale) * progress)
+            let frame = CGRect(x: samanthaRect.midX - diameter / 2, y: samanthaRect.midY - diameter / 2,
+                               width: diameter, height: diameter)
+            let codexAfterRemoval = IslandBarLayout.agentRects(shape: model.shapeRect, slots: [codexSlot])[0]
+            XCTAssertGreaterThanOrEqual(frame.minX - codexAfterRemoval.maxX, IslandBarLayout.circleSpacing - 0.001,
+                                        "no overlap while leaving at step \(step)")
+        }
+        await waitForHarnessExit()
+        XCTAssertEqual(model.sourceGroupSlots["Codex"], 0, "Codex moves into Samantha's freed slot")
     }
 
-    /// Shared exit (UI & UX final, 2026-11-04 12:40 IST): circle 1 → 0.6 and 1 → 0 with `.easeIn(0.15)` in
-    /// place, then the slot closes with `.smooth(0.3)` from 0.10 s (0.40 s total). No neighbour overlaps the
-    /// leaving circle while it is above 10 % opacity.
-    func testExitCircleLeavesBeforeTheSlotClosesOnIt() {
-        XCTAssertEqual(IslandMotion.harnessExitTotal, 0.40, accuracy: 1e-9)
-        XCTAssertEqual(IslandMotion.harnessExitDuration, 0.15)
-        XCTAssertEqual(IslandMotion.harnessExitSlotDelay, 0.10)
-        XCTAssertEqual(IslandMotion.harnessExitSlotDuration, 0.3)
-        XCTAssertEqual(IslandMotion.harnessExitCircle, Animation.easeIn(duration: 0.15))
-        XCTAssertEqual(IslandMotion.harnessExitSlot, Animation.smooth(duration: 0.3).delay(0.10))
-        XCTAssertNil(IslandMotion.harnessExitSlide(reduce: true), "Reduce Motion: neighbours snap")
-        XCTAssertEqual(IslandMotion.harnessExitFade(reduce: false), Animation.easeIn(duration: 0.15))
-        XCTAssertEqual(IslandMotion.harnessExitFade(reduce: true), IslandMotion.crossfade, "Reduce Motion: 0.15 s fade")
-        if #available(macOS 14.0, *) {
-            for t in stride(from: 0.0, through: 0.3, by: 0.01) {
-                XCTAssertEqual(IslandMotion.smooth(t, duration: 0.3), Spring(duration: 0.3, bounce: 0).value(target: 1.0, time: t), accuracy: 1e-3)
-                XCTAssertEqual(IslandMotion.easeIn(t / 0.3), UnitCurve.easeIn.value(at: t / 0.3), accuracy: 1e-3)
-            }
-        }
+    func testHarnessTransitionScalesAndFadesWithoutChangingItsSlot() {
+        XCTAssertEqual(IslandMotion.harnessEnterScale, 0.6)
+        XCTAssertEqual(IslandMotion.harness(reduce: false), IslandMotion.widthCurve)
+        XCTAssertNil(IslandMotion.harness(reduce: true))
+        _ = IslandMotion.harnessTransition(reduce: false)
+    }
+
+    func testHarnessExitReservesAnimatedSlotAndReusesInnerSlots() async {
         let model = IslandModel()
         model.idleActivity = "duo"
-        model.apply(IslandSnapshot(kind: "listening", title: "Listening", agents: [codex], samantha_on: true))
-        let rs = IslandBarLayout.agentRects(shape: model.shapeRect, count: 2)
-        let sam = rs[0], codexStart = rs[1]
-        let seq = model.harnessExitSeq
-        model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
-        XCTAssertEqual(model.harnessExitSeq, seq + 1, "a circle left: neighbours take the delayed exit slide")
-        let codexEnd = IslandBarLayout.agentRects(shape: model.shapeRect, count: 1)[0]
-        XCTAssertEqual(codexEnd.minX - codexStart.minX, IslandMotion.harnessSlot, accuracy: 0.001)
-        var minVisibleClear = CGFloat.infinity
-        for i in 0...400 {
-            let t = Double(i) / 1000
-            let e = IslandMotion.harnessExit(final: sam, at: t)
-            let codexMaxX = codexStart.maxX + IslandMotion.harnessSlot * e.slotClosed
-            XCTAssertEqual(e.frame.midX, sam.midX, accuracy: 0.001, "scales in place")
-            if e.opacity > 0.1 {
-                minVisibleClear = min(minVisibleClear, e.frame.minX - codexMaxX)
-                XCTAssertGreaterThanOrEqual(e.frame.minX - codexMaxX, 0, "no overlap above 10 % opacity at \(t) s")
-            }
-        }
-        let end = IslandMotion.harnessExit(final: sam, at: 0.15)
-        XCTAssertEqual(end.opacity, 0, accuracy: 1e-6)
-        XCTAssertEqual(end.frame.width, sam.width * 0.6, accuracy: 0.001)
-        XCTAssertEqual(IslandMotion.harnessExit(final: sam, at: 0.10).slotClosed, 0, "slot waits 0.10 s")
-        var report: [String] = []
-        for f in [0.0, 0.25, 0.5, 0.75, 1.0] {
-            let e = IslandMotion.harnessExit(final: sam, at: 0.40 * f)
-            let codexMaxX = codexStart.maxX + IslandMotion.harnessSlot * e.slotClosed
-            report.append(String(format: "%.0f%% t=%.0fms opacity=%.2f scale=%.2f closed=%.2f clear=%.2fpt",
-                                 f * 100, f * 400, e.opacity, e.frame.width / sam.width, e.slotClosed, e.frame.minX - codexMaxX))
-        }
-        print("harness exit: min clear above 10% opacity \(String(format: "%.2f", minVisibleClear)) pt; " + report.joined(separator: " | "))
-    }
+        let now = Date()
+        var names = ["Codex", "Cursor", "Grok Bot"]
+        apply(names, to: model, now: now)
 
-    func testScaleAnchorIsTheDrawnCircleCentre() {
-        // Circles are offset inside the window-sized ZStack; their layout frame is 24×24 at the origin.
-        let r = CGRect(x: 262, y: 3, width: 24, height: 24)
-        let a = IslandMotion.harnessAnchor(r)
-        XCTAssertEqual(a.x * r.width, r.midX, accuracy: 0.001)
-        XCTAssertEqual(a.y * r.height, r.midY, accuracy: 0.001)
-    }
+        var before = model.sourceGroupSlots
+        XCTAssertEqual(Set(before.values), Set(0..<IslandSourceGroups.maxCircles))
+        let leaving = try! XCTUnwrap(before.max { $0.value < $1.value })
+        let survivors = before.filter { $0.key != leaving.key }
+        names = names.filter { $0 != leaving.key } + ["Claude"]
+        apply(names, to: model, now: now.addingTimeInterval(0.1))
 
-    func testTurningSamanthaOnOpensASlotAndMovesTheNeighbourByOneSlot() {
-        let model = IslandModel()
-        model.idleActivity = "duo"
-        model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
-        let before = IslandBarLayout.agentRects(shape: model.shapeRect, count: model.sourceGroups.count)
-        model.apply(IslandSnapshot(kind: "listening", title: "Listening", agents: [codex], samantha_on: true))
-        let ids = model.sourceGroups.map(\.id)
-        let after = IslandBarLayout.agentRects(shape: model.shapeRect, count: model.sourceGroups.count)
-        XCTAssertEqual(ids.count, 2)
-        let codexBefore = before[0], codexAfter = after[ids.firstIndex { $0 != IslandSourceGroups.samantha }!]
-        // Pill edge may move with the pill width; the slot itself is one circle + spacing.
-        let slot = IslandBarLayout.circleDiameter + IslandBarLayout.circleSpacing
-        XCTAssertEqual((codexAfter.minX - after[0].minX) - (codexBefore.minX - before[0].minX), -slot, accuracy: 0.001)
-        model.apply(IslandSnapshot(kind: "idle", agents: [codex]))
-        XCTAssertEqual(model.sourceGroups.count, 1, "turning off closes the slot")
-    }
+        var during = model.sourceGroupSlots
+        let enteringSlot = try! XCTUnwrap(during["Claude"])
+        XCTAssertNotEqual(enteringSlot, leaving.value, "the outgoing slot remains reserved during its fade")
+        XCTAssertEqual(Set(during.values).count, during.count, "active circles have distinct slots")
+        for (id, slot) in survivors { XCTAssertEqual(during[id], slot, "survivors stay in place") }
 
-    /// Real frames from the live view: the island hosted in an offscreen, borderless window of the test
-    /// process (never on the user's screen, no input), Samantha turned on, the live hosting view captured
-    /// at 0/25/50/75/100% of the 0.35 s harness curve. CUA_ISLAND_MOTION_DIR=<dir> swift test --filter testCaptureTurnOnFrames
-    func testCaptureTurnOnFrames() async throws {
-        guard let dir = ProcessInfo.processInfo.environment["CUA_ISLAND_MOTION_DIR"] else {
-            throw XCTSkip("set CUA_ISLAND_MOTION_DIR to capture")
+        let shape = model.shapeRect
+        let outgoing = IslandBarLayout.agentRects(shape: shape, slots: [leaving.value])[0]
+        let incoming = IslandBarLayout.agentRects(shape: shape, slots: [enteringSlot])[0]
+        for step in 0...20 {
+            let progress = CGFloat(step) / 20
+            let outgoingDiameter = outgoing.width * (1 - (1 - IslandMotion.harnessEnterScale) * progress)
+            let incomingDiameter = incoming.width * (IslandMotion.harnessEnterScale
+                + (1 - IslandMotion.harnessEnterScale) * progress)
+            let outgoingFrame = CGRect(x: outgoing.midX - outgoingDiameter / 2, y: outgoing.midY - outgoingDiameter / 2,
+                                       width: outgoingDiameter, height: outgoingDiameter)
+            let incomingFrame = CGRect(x: incoming.midX - incomingDiameter / 2, y: incoming.midY - incomingDiameter / 2,
+                                       width: incomingDiameter, height: incomingDiameter)
+            XCTAssertFalse(outgoingFrame.intersects(incomingFrame), "exit and entry do not overlap at step \(step)")
         }
-        let plugins = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("../../../../../../").standardized
-        setenv("ACU_PLUGIN_LOGO_ROOT", plugins.path, 1)
-        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        for (label, on, reduce) in [("on", true, false), ("off", false, false), ("on-reduce", true, true), ("off-reduce", false, true)] {
-            let model = IslandModel()
-            model.idleActivity = "duo"
-            let offSnap = IslandSnapshot(kind: "idle", agents: [codex])
-            let onSnap = IslandSnapshot(kind: "listening", title: "Listening", agents: [codex], samantha_on: true)
-            model.systemReduceMotion = reduce
-            model.apply(on ? offSnap : onSnap)
-            let root = SamanthaIslandBar(model: model)
-                .environment(\.colorScheme, .dark)
-                .background(Color(white: 0.18))
-            let host = NSHostingView(rootView: root)
-            let size = IslandBarLayout.windowSize
-            host.frame = CGRect(origin: .zero, size: size)
-            let win = NSWindow(contentRect: CGRect(x: -8000, y: -8000, width: size.width, height: size.height),
-                               styleMask: [.borderless], backing: .buffered, defer: false)
-            win.isReleasedWhenClosed = false
-            win.contentView = host
-            win.orderBack(nil)
-            defer { win.orderOut(nil); win.close() }
-            func spin(_ s: Double) { RunLoop.main.run(until: Date().addingTimeInterval(s)) }
-            spin(1.0)
-            let total = reduce ? 0.15 : (on ? 0.35 : IslandMotion.harnessExitTotal)
-            var frames: [(Double, NSBitmapImageRep)] = []
-            let t0 = CACurrentMediaTime()
-            model.apply(on ? onSnap : offSnap)
-            for p in [0.0, 0.25, 0.5, 0.75, 1.0] {
-                while CACurrentMediaTime() - t0 < p * total { spin(0.001) }
-                guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return XCTFail("rep") }
-                host.cacheDisplay(in: host.bounds, to: rep)
-                frames.append(((CACurrentMediaTime() - t0) * 1000, rep))
-            }
-            spin(0.6)
-            guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else { return XCTFail("rep") }
-            host.cacheDisplay(in: host.bounds, to: rep)
-            frames.append(((CACurrentMediaTime() - t0) * 1000, rep))
-            for (i, (ms, rep)) in frames.enumerated() {
-                let name = String(format: "%@-%d-%03dms.png", label, i, Int(ms.rounded()))
-                try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent(name))
-            }
+
+        await waitForHarnessExit()
+        during = model.sourceGroupSlots
+        XCTAssertEqual(during["Claude"], leaving.value, "the slot is reused after the exit transition")
+        for (id, slot) in survivors { XCTAssertEqual(during[id], slot, "survivors still stay in place") }
+
+        for cycle in 0..<6 {
+            before = model.sourceGroupSlots
+            let inner = try! XCTUnwrap(before.min { $0.value < $1.value })
+            let nextName = "Worker \(cycle)"
+            let stable = before.filter { $0.key != inner.key }
+            names = names.filter { $0 != inner.key } + [nextName]
+            apply(names, to: model, now: now.addingTimeInterval(1 + Double(cycle) * 0.3))
+            during = model.sourceGroupSlots
+            XCTAssertNotEqual(during[nextName], inner.value, "the leaving inner slot is reserved during cycle \(cycle)")
+            for (id, slot) in stable { XCTAssertEqual(during[id], slot, "existing circle stays in place") }
+
+            await waitForHarnessExit()
+            let settled = model.sourceGroupSlots
+            XCTAssertEqual(Set(settled.values), Set(0..<IslandSourceGroups.maxCircles), "slots stay on-panel after cycle \(cycle)")
+            XCTAssertEqual(settled.count, IslandSourceGroups.maxCircles)
         }
     }
 }

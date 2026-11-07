@@ -7,6 +7,7 @@ import os
 import threading
 import urllib.error
 import urllib.request
+from datetime import datetime
 
 import re
 
@@ -19,6 +20,22 @@ _ACTIVE_APPS: list[str] = []
 # (cua_act, Comet) must not get a second "Failed · …" from the generic result summary:
 # one failure, one island error, one island_error_raw row.
 _TLS = threading.local()
+_VOICE_STATE = "idle"
+_VOICE_STATE_LOCK = threading.Lock()
+
+
+def _log_voice_transition(kind: str) -> None:
+    global _VOICE_STATE
+    if kind not in {"listening", "thinking", "speaking", "idle"}:
+        return
+    with _VOICE_STATE_LOCK:
+        if kind == _VOICE_STATE:
+            return
+        _VOICE_STATE = kind
+    from voice_cua.activity_log import log_event
+
+    log_event("island_voice_state", state=kind,
+              ts_iso=datetime.now().astimezone().isoformat(timespec="milliseconds"))
 
 
 def errors_published() -> int:
@@ -178,6 +195,9 @@ def island_voice_meter(
     ISLAND.set_voice_meter(side, level, levels)
 
 
+VOICE_KINDS = frozenset({"listening", "thinking", "speaking", "reconnecting"})
+
+
 def island_publish(
     kind: IslandKind,
     *,
@@ -190,6 +210,7 @@ def island_publish(
     active_apps: list[str] | None = None,
     expanded: bool = False,
 ) -> None:
+    _log_voice_transition(str(kind))
     if kind == "error":
         _TLS.errors = errors_published() + 1
     if kind == "idle":
@@ -199,7 +220,9 @@ def island_publish(
         if name in _ACTIVE_APPS:
             _ACTIVE_APPS.remove(name)
         _ACTIVE_APPS.append(name)  # most recent last
-    apps = active_apps if active_apps is not None else list(_ACTIVE_APPS)
+    # Voice states carry no apps: an app Samantha operated is drawn inside the pill from the ACU plugin
+    # use while it is in use, never re-posted on later listening / thinking / speaking posts (0.2.87).
+    apps = active_apps if active_apps is not None else ([] if kind in VOICE_KINDS else list(_ACTIVE_APPS))
     body = {
         "kind": kind,
         "title": title,

@@ -51,6 +51,14 @@ class LiveServiceFdHygieneTests(unittest.TestCase):
         self.pid = pids[0]
 
     def test_client_disconnects_do_not_leak_service_fds(self):
+        warmup = cua_client.CUAClient()
+        try:
+            warmup.connect(timeout=5)
+            self.assertIsInstance(warmup.call("list_apps", retry=False), list)
+        finally:
+            warmup.close()
+        # Let the 5 s island process scan finish before taking the leak baseline.
+        time.sleep(5.5)
         before = _fd_count(self.pid)
         for _ in range(CYCLES):
             client = cua_client.CUAClient()
@@ -61,9 +69,7 @@ class LiveServiceFdHygieneTests(unittest.TestCase):
             finally:
                 client.close()
         time.sleep(0.5)  # let NIO reap closed child channels
-        # Background work (the island's 5 s local-process scan briefly holds pipe and
-        # file fds) can overlap one sample; a leak never shrinks, so take the lowest
-        # of a few samples.
+        # The island's local-process scan can briefly hold pipe and file fds.
         after = _fd_count(self.pid)
         for _ in range(6):
             if after <= before + FD_SLACK:
@@ -73,8 +79,7 @@ class LiveServiceFdHygieneTests(unittest.TestCase):
         self.assertLessEqual(
             after, before + FD_SLACK,
             f"{CYCLES} disconnects grew the service from {before} to {after} "
-            f"fds: peer close is not releasing the child channel "
-            f"(allowRemoteHalfClosure without an inputClosed handler)")
+            f"fds beyond the background-scan window")
 
     def test_a_fresh_connection_still_answers_after_the_cycles(self):
         """The wedge looked like 'connects, then Socket closed'."""

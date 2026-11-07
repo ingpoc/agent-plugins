@@ -19,9 +19,10 @@ LIVE_PHASES = frozenset({"audio_ready", "realtime_ready"})
 
 def log_startup(phase: str, *, status: str = "ok", kind: str = "startup", **fields: Any) -> None:
     """Append structured startup event and mirror a grep-friendly line to stderr (→ voice.log)."""
-    payload = {"phase": phase, "status": status, "source": "voice_stack", **fields}
+    mirror_id = uuid.uuid4().hex
+    payload = {"phase": phase, "status": status, "source": "voice_stack", **fields, "mirror_id": mirror_id}
     log_event(kind, **payload)
-    bits = [f"[startup] phase={phase} status={status}"]
+    bits = [f"[startup] phase={phase} status={status} mirror_id={mirror_id}"]
     for key in ("session_id", "elapsed_ms", "step_ms", "detail", "error"):
         val = fields.get(key)
         if val is not None and val != "":
@@ -35,10 +36,26 @@ class StartupTimer:
         self._t0 = time.monotonic()
         self._last = self._t0
         self.live = False
+        self._mic_failure_seen = False
         os.environ["VOICE_CUA_STARTUP_ID"] = self.session_id
 
     def mark(self, phase: str, *, status: str = "ok", **fields: Any) -> None:
         now = time.monotonic()
+        if phase in {"mic_preflight", "audio_ready"}:
+            try:
+                from voice_cua.audio_io import input_device_snapshot
+
+                fields.update(input_device_snapshot())
+            except Exception:  # noqa: BLE001 — diagnostics must not break startup
+                fields["input_availability"] = "unknown"
+            if status in {"fail", "skip"}:
+                self._mic_failure_seen = True
+            fields["input_recovery"] = (
+                "recovered" if phase == "audio_ready" and status == "ok" and self._mic_failure_seen
+                else "not_observed"
+            )
+            if phase == "audio_ready" and status == "ok":
+                self._mic_failure_seen = False
         # Reconnects re-run startup from the socket open; everything else after go-live is mid-session.
         if phase in {"realtime_ws_open", "stack_begin"}:
             self.live = False

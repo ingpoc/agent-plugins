@@ -7,7 +7,6 @@ import os
 import stat
 from pathlib import Path
 import threading
-import time
 import urllib.request
 import urllib.error
 import uuid
@@ -33,6 +32,18 @@ def normalize_project(project: Any) -> str:
     return text[:64]
 
 
+def _normalize_scope_rule(scope: str, rule: str) -> tuple[str, str]:
+    scope = scope.strip().casefold()
+    if scope != 'fleet':
+        kind, sep, value = scope.partition(':')
+        if sep and kind in {'tool', 'project'}:
+            scope = f'{kind}:{normalize_project(value)}'
+        elif not sep and scope:
+            scope = f'tool:{normalize_project(scope)}'
+    rule = re.sub(r'[^a-z0-9]+', '_', rule.strip().casefold()).strip('_')[:64]
+    return scope, rule
+
+
 def _norm_text(text: str) -> str:
     """Casefolded words only, so quotes match across punctuation, quotes and spacing."""
     return ' '.join(re.findall(r'[\w]+', str(text or '').casefold()))
@@ -50,7 +61,16 @@ def _project_named(project: str, text: str) -> bool:
 
 
 def _invalid(error: str) -> dict[str, Any]:
-    return {'ok': False, 'error': error, 'error_type': 'ledger_invalid_argument', 'retryable': True}
+    return {'ok': False, 'error': error, 'error_type': 'ledger_invalid_argument', 'retryable': False}
+
+
+def _outcome_semantics(result: dict[str, Any]) -> dict[str, Any]:
+    data = result.get('data')
+    matches = data.get('matches') if isinstance(data, dict) else result.get('decisions')
+    if isinstance(matches, list) and any(isinstance(row, dict) and row.get('type') == 'user_decision'
+                                        and row.get('outcome') == 'pending' for row in matches):
+        return {**result, 'outcome_semantics': 'Pending is an application outcome, not an approval state; it does not establish owner attestation or successful use.'}
+    return result
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -69,7 +89,6 @@ class LedgerHelper:
         self._uncertain: set[str] = set()
         self._requests: dict[str, dict[str, Any]] = {}
         self._pending_dir = pending_dir or Path.home() / '.cache/macos-cua/ledger-pending'
-        self._cache: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
         self._history: dict[tuple[str, str], dict[str, Any]] = {}
 
     def note_user(self, text: str) -> None:
@@ -118,14 +137,29 @@ class LedgerHelper:
         if self._closed.is_set():
             return {'ok': False, 'error': 'Ledger helper session closed'}
         if operation in {'recall', 'preference'}:
-            if not all(isinstance(item, str) for item in (scope, rule, value, owner_quote)) or not re.fullmatch(r'(?:fleet|(?:tool|project):[a-z0-9][a-z0-9._-]{0,63})', scope) or (rule and not re.fullmatch(r'[a-z0-9_]{1,64}', rule)) or (operation == 'preference' and not rule):
-                return _invalid('Invalid scope or decision point')
+            if not all(isinstance(item, str) for item in (scope, rule, value, owner_quote)):
+                return _invalid('Scope, rule, value, and owner_quote must be text')
+            scope, rule = _normalize_scope_rule(scope, rule)
+            if not re.fullmatch(r'(?:fleet|(?:tool|project):[a-z0-9][a-z0-9._-]{0,63})', scope) or (rule and not re.fullmatch(r'[a-z0-9_]{1,64}', rule)) or (operation == 'preference' and not rule):
+                return _invalid('Use scope fleet, tool:<lowercase-id>, or project:<lowercase-id>; rule must be lowercase_snake_case')
             try:
                 if operation == 'recall':
-                    args = {'query': '', 'scope': scope, 'actor': 'samantha'}
+                    query = ' '.join(f'{need} {situation} {rule.replace("_", " ")}'.split())[:240]
+                    if not query:
+                        return _invalid('Recall needs concrete search terms or a decision rule')
+                    args = {'query': query, 'scope': scope, 'actor': 'samantha'}
                     if rule:
                         args['rule'] = rule
-                    return {'ok': True, **self.transport.call('find', args)}
+                    result = self.transport.call('find', args)
+                    if result.get('ok') and result.get('data', {}).get('has_more') is True:
+                        return _outcome_semantics({'ok': True, 'status': 'needs_disambiguation', 'has_more': True, 'data': result['data']})
+                    if rule and result.get('ok') and not result.get('data', {}).get('matches'):
+                        candidates = self.transport.call('find', {k: v for k, v in args.items() if k != 'rule'})
+                        if not candidates.get('ok'):
+                            raise LedgerUnavailable('scoped candidate search failed')
+                        if candidates.get('data', {}).get('matches') or candidates.get('data', {}).get('has_more') is True:
+                            return _outcome_semantics({'ok': True, 'status': 'needs_disambiguation', 'has_more': candidates['data'].get('has_more') is True, 'data': candidates['data']})
+                    return _outcome_semantics({'ok': True, **result})
                 source = self._quote_source(owner_quote)
                 if not _norm_text(value) or source is None or (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
                     return _invalid('Value and owner quote must occur in a recent user statement')
@@ -168,27 +202,43 @@ class LedgerHelper:
                 return _invalid('The owner statement rejects saving or the proposed decision')
             if not personal and not (_project_named(project, quote) or _project_named(project, self._recent()[matched])):
                 return _invalid('Project scope not established by the user statement; omit project for a personal preference')
+        lookup_scope = ''
+        if operation == 'lookup' and scope:
+            if not isinstance(scope, str) or not isinstance(rule, str):
+                return _invalid('Scope and rule must be text')
+            lookup_scope, rule = _normalize_scope_rule(scope, rule)
+            if not re.fullmatch(r'(?:fleet|(?:tool|project):[a-z0-9][a-z0-9._-]{0,63})', lookup_scope) or (rule and not re.fullmatch(r'[a-z0-9_]{1,64}', rule)):
+                return _invalid('Use scope fleet, tool:<lowercase-id>, or project:<lowercase-id>; rule must be lowercase_snake_case')
         scope = {'project': project or None, 'tools': []}
-        cache_key = (situation + '\n' + need, json.dumps(scope, sort_keys=True))
+        if lookup_scope.startswith('tool:'):
+            scope['tools'].append(lookup_scope[5:])
+        elif lookup_scope.startswith('project:'):
+            scope['project'] = lookup_scope[8:]
+        cache_key = (situation + '\n' + need + '\n' + lookup_scope + '\n' + (rule if lookup_scope else ''), json.dumps(scope, sort_keys=True))
         task_id = str(uuid.uuid5(uuid.UUID(self.task_id), json.dumps(cache_key)))
         if not self._lock.acquire(timeout=2):
             return {'ok': False, 'error': 'Context Ledger helper busy'}
         try:
             write_started = False
             try:
-                if cache_key not in self._cache or time.monotonic() - self._cache[cache_key][0] > 30:
-                    found = self.transport.call('find', {'query': situation, 'actor': 'samantha',
-                        'task_id': task_id, 'caller_scope': scope, 'limit': 3})
-                    if not found.get('ok'):
-                        raise LedgerUnavailable('lookup failed')
-                    self._cache[cache_key] = (time.monotonic(), found)
-                matches = self._cache[cache_key][1].get('data', {}).get('matches')
+                query = ' '.join(f'{need} {situation}'.split())[:240]
+                args = {'query': query, 'actor': 'samantha', 'task_id': task_id, 'caller_scope': scope, 'limit': 3}
+                if lookup_scope:
+                    args['scope'] = lookup_scope
+                    if rule:
+                        args['rule'] = rule
+                found = self.transport.call('find', args)
+                if not found.get('ok'):
+                    raise LedgerUnavailable('lookup failed')
+                matches = found.get('data', {}).get('matches')
                 if not isinstance(matches, list) or len(matches) > 3:
                     raise LedgerUnavailable('invalid find result')
+                if operation == 'lookup' and found['data'].get('has_more') is True:
+                    return _outcome_semantics({'ok': True, 'status': 'needs_disambiguation', 'has_more': True, 'data': found['data']})
                 if operation == 'lookup' and not matches:
                     return {'ok': True, 'status': 'none', 'decisions': []}
                 result = self.request({'operation': operation, 'situation': situation, 'need': need,
-                                       'scope': scope, 'matches': self._cache[cache_key][1], 'parent_capture_checks': capture_gate,
+                                       'scope': scope, 'matches': found, 'parent_capture_checks': capture_gate,
                                        'previous_helper_result': self._history.get(cache_key)})
                 self._history[cache_key] = result
                 if operation == 'lookup':
@@ -196,7 +246,7 @@ class LedgerHelper:
                     by_id = {m.get('decision_id'): m for m in matches if isinstance(m, dict) and isinstance(m.get('decision_id'), str)}
                     if result.get('status') not in {'found', 'none'} or not isinstance(ids, list) or len(ids) > 3 or any(not isinstance(i, str) or i not in by_id for i in ids) or (result['status'] == 'found') != bool(ids):
                         raise LedgerUnavailable('invalid helper result')
-                    return {'ok': True, 'status': result['status'], 'decisions': [by_id[i] for i in ids]}
+                    return _outcome_semantics({'ok': True, 'status': result['status'], 'decisions': [by_id[i] for i in ids]})
                 if result.get('status') == 'skip':
                     return {'ok': True, 'status': 'skipped', 'reason': str(result.get('reason', 'not durable'))[:200]}
                 if result.get('status') != 'save':
@@ -236,12 +286,11 @@ class LedgerHelper:
                     raise LedgerUnavailable('capture receipt missing')
                 marker.unlink()
                 self._uncertain.discard(request_id)
-                self._cache.clear()
                 return {'ok': True, 'status': 'saved', 'decision_id': saved['data']['decision_id'], 'revision': saved['data'].get('revision')}
             except LedgerInvalidArgument as exc:
-                from voice_cua.activity_log import log_event
-                log_event('ledger_helper_error', stage='capture' if write_started else 'lookup',
-                          error_class='LedgerInvalidArgument', error_code=exc.code)
+                from voice_cua.activity_log import _current_tool_ids, log_event
+                log_event('ledger_helper_error', **_current_tool_ids(), stage='capture' if write_started else 'lookup',
+                          error_class='LedgerInvalidArgument', error_code=exc.code if exc.code in {'INVALID_ARGUMENT', 'VALIDATION_ERROR', 'INVALID_PARAMS', 'SCOPE_DENIED'} else 'other')
                 if write_started:
                     # Rejected before anything was stored: the pending marker is not an unknown outcome.
                     self._uncertain.discard(request_id)
@@ -252,11 +301,11 @@ class LedgerHelper:
                 detail = exc.message or exc.code
                 return _invalid(f'Context Ledger rejected the request (invalid argument: {detail[:80]}); nothing was saved')
             except Exception as exc:
-                from voice_cua.activity_log import log_event
+                from voice_cua.activity_log import _current_tool_ids, log_event
                 cause = exc.__cause__
-                log_event('ledger_helper_error', stage='capture' if write_started else 'lookup',
+                log_event('ledger_helper_error', **_current_tool_ids(), stage='capture' if write_started else 'lookup',
                           error_class=type(exc).__name__, cause_class=type(cause).__name__ if cause else None,
-                          cause=str(cause or exc)[:80] or None, http_status=exc.code if isinstance(exc, urllib.error.HTTPError) else None)
+                          http_status=exc.code if isinstance(exc, urllib.error.HTTPError) else None)
                 if write_started:
                     return {'ok': False, 'error': 'Ledger save outcome unknown; do not retry without checking', 'error_type': 'ledger_outcome_unknown'}
                 return {'ok': False, 'error': 'Context Ledger helper unavailable; nothing was saved', 'error_type': 'ledger_unavailable'}
@@ -290,7 +339,6 @@ class LedgerHelper:
             with self._lock:
                 self._utterances.clear()
                 self._history.clear()
-                self._cache.clear()
                 self.transport.close()
         if self._lock.acquire(blocking=False):
             self._lock.release()

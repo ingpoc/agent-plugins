@@ -63,11 +63,9 @@ def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, s
     }
     if not evidence:
         return None
-    evidence_class = next(iter(evidence)) if len(evidence) == 1 else "combined"
+    evidence_class = "tool_reported"
     if status == "cancelled" or any(row.get("cancelled") is True for row in results):
         return "cancelled", evidence_class
-    if status == "completed" and all(row.get("ok") is True and row.get("verified") is True for row in results):
-        return "verified_success", evidence_class
     return "unverified", evidence_class
 
 
@@ -1189,10 +1187,12 @@ class RealtimeSession:
             try:
                 kind, title, detail, app = describe_tool(name, arguments)
                 app = plugin_island.island_app(name, app)
-                island_publish(kind, title=title, detail=detail, app=app, step=name)
+                # Plugin use first: the hub row (ring + app inside) must exist before the acting post, or
+                # the island flashes the app outside for one post (0.2.86, 13:26:54 IST).
                 plugin_island.tool_started(name, arguments)
+                island_publish(kind, title=title, detail=detail, app=app, step=name)
                 errors_before = errors_published()
-                with tool_context(call_id=call_id, response_id=response_id):
+                with tool_context(call_id=call_id, response_id=response_id, run_id=task_run_id):
                     try:
                         result = dispatch(name, arguments)
                     except Exception as exc:  # noqa: BLE001 — always answer the tool call
@@ -1659,7 +1659,9 @@ class RealtimeSession:
         task_outcome = _task_outcome(task_results, status=status)
         if task_run_id and task_outcome:
             log_task_outcome(check_id="tool_task", outcome=task_outcome[0],
-                             evidence_class=task_outcome[1], run_id=task_run_id)
+                             evidence_class=task_outcome[1], run_id=task_run_id,
+                             response_id=response_id,
+                             tools=sorted({row["tool"] for row in task_results if row.get("tool") in _TASK_ACTION_EVIDENCE}))
         self._turn_open = False
         self._turn_closed_at = len(getattr(self.provider, "history", None) or [])
         text_bits: list[str] = []

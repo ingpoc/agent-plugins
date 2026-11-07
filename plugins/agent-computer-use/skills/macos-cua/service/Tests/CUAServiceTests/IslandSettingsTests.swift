@@ -266,10 +266,10 @@ final class IslandSettingsTests: XCTestCase {
     func testIdleActivityNoneHidesPillAndHitRects() {
         let m = IslandModel()
         _ = m.apply(IslandSnapshot(kind: "ready"))
-        XCTAssertFalse(m.hitRects.isEmpty)
+        XCTAssertFalse(m.hitRects().isEmpty)
         m.idleActivity = "none"
         XCTAssertTrue(m.idleHidden)
-        XCTAssertTrue(m.hitRects.isEmpty)
+        XCTAssertTrue(m.hitRects().isEmpty)
         _ = m.apply(IslandSnapshot(kind: "listening", title: "Listening"))
         XCTAssertFalse(m.idleHidden, "live states always show")
         m.idleActivity = "agents"

@@ -15,7 +15,7 @@ allowed-tools: Bash, Read
 
 # macos-cua
 
-Engine and sole visible-cursor owner: **CUAService** (Swift `.app`). Cursor MCP is a 2-tool adapter (`state`, `act`) — not a second computer-use stack.
+Engine and sole visible-cursor owner: **CUAService** (Swift `.app`). Cursor MCP uses `state` and `act` for computer use and exposes `sessions` and `voice_control` — not a second computer-use stack.
 
 TCC on **macos-cua Service** / **CUAService**: Accessibility + Screen Recording. Relaunch after granting Screen Recording.
 
@@ -26,6 +26,8 @@ python3 "$SKILL_DIR/service/install_service.py"
 ```
 
 Do not shell a Python client per click when MCP is up. Do not use cua-driver or `start_session` / `verify` / `end_session`.
+
+Use `voice_control` with `status`, `start` or `stop` for an authorized Samantha test. Check `running` and `healthy`; the returned gateway port identifies the local session for typed prompts. Do not stop another user’s active session without authorization.
 
 ## Surfaces
 
@@ -63,6 +65,7 @@ Comet **other-window** popups (Google chooser, Razorpay Bank) bind by window tit
 | When | File |
 | --- | --- |
 | Shared Dynamic Island task/subagent roster, status, approval/choice, or secure credential save from any installed harness | [`references/dynamic-island.md`](references/dynamic-island.md) |
+| Generic marketplace-plugin MCP activity hooks | [island-plugin-hooks](../../docs/island-plugin-hooks.md) |
 | Samantha voice/browser runtime verification and Kindle findings | [verify-samantha](../../runtime/voice-cua/verify/SKILL.md) |
 | Act-first loop / input delivery / Mini local-exec | [`references/fast-workflow.md`](references/fast-workflow.md) |
 | MCP / CUAService architecture | [`references/architecture.md`](references/architecture.md) |
@@ -77,4 +80,6 @@ Maintainer-only (not the agent loop): `references/lifecycle.md`, `references/cua
 
 ## Preferences (Context Ledger)
 
-Before a site/app decision point, recall the exact `scope` and `rule` and apply the active value without asking. On an owner choice or correction, save `user_decision` with `scope=tool:<site-or-app>` and `rule=<decision_point>`; exclude one-offs, temporary authorizations and secrets.
+Local telemetry keeps bounded, credential-redacted Ledger results and error context. The concise observability view shows status/count; agents can opt into details with `include_diagnostics=true`. Preference values, search queries, and transcripts stay out of the report.
+
+Use `ledger_task` automatically; do not wait for the user to ask. Before a preference-sensitive site/app choice or recurring/critical workflow decision, search the site or app `scope` without guessing a rule, then apply only an unambiguous active relevant match. For a named site or app use `tool:<site-or-app>`; never substitute `fleet` or the browser scope. Use `fleet` only for genuinely global preferences. Use `fleet`, `tool:<lowercase-id>`, or `project:<lowercase-id>` for scope and lowercase `snake_case` for the rule. A pending application outcome and hint tier describe past use. Apply an unambiguous active relevant user decision as a saved preference, including a self-reported record; do not claim owner attestation or prior successful use. For lookup, provide the site or app `scope` and concrete decision terms in `need`; the helper searches both `need` and `situation`. Recall searches the provided `need` and `situation` plus the exact rule terms. A `needs_disambiguation` result contains candidates, not a verified preference. If `has_more` is true, ask rather than select from an incomplete set; otherwise use the agreed value when active relevant user decisions match even if their rule names differ. Ask if relevant values conflict or applicability is unclear. After the owner states or corrects a durable preference, save it with `preference`, its exact value, and the exact owner quote. Use `capture` for critical decisions only when the owner decision is explicit, durable, model-safe, has a concrete future trigger, and adds a unique value. Skip one-offs, temporary permissions, secrets, status, uncertainty, and duplicates. A preference update with the same scope and rule supersedes its older active `user_decision`; general captures do not auto-supersede, and this tool cannot create an explicit supersession link. Never claim a general decision was replaced. Report saved only after a receipt. `ledger_invalid_argument` is non-retryable: stop and explain; do not retry with reworded arguments unless a later user turn supplies new context. `ledger_unavailable` means stop.

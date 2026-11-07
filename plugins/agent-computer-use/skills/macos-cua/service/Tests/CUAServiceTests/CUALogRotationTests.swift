@@ -70,7 +70,7 @@ final class CUALogRotationTests: XCTestCase {
         }
         XCTAssertEqual(([sock] + others).map(sig), before, "sockets, locks and other files untouched")
         let names = try FileManager.default.contentsOfDirectory(atPath: dir.path).filter { $0.hasPrefix("samantha-activity.") && $0 != live.lastPathComponent }
-        XCTAssertEqual(names.sorted(), (1...5).map { "samantha-activity.\($0).jsonl.gz" })
+        XCTAssertEqual(names.sorted(), (1...5).map { "samantha-activity.\($0).jsonl.gz" } + [live.lastPathComponent + ".rotation.lock"])
         let nums = try allLines(live).map { line -> Int in
             let obj = try JSONSerialization.jsonObject(with: Data(line.utf8)) as! [String: Any]
             return obj["i"] as! Int

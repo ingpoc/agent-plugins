@@ -38,6 +38,9 @@ ROLLUP_LEAD_S = 5
 TURN_SLOW_MS = 10_000
 TURN_TOP_N = 3
 TURN_METRICS = ('speech_to_playback_ms', 'turn_ms')
+SESSION_STAGES = frozenset({'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready',
+                            'stack_begin', 'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'cua_act', 'cua_state',
+                            'voice_latency', 'usage', 'island_layout'})
 LAYOUT_TOLERANCE_PT = 2
 
 
@@ -79,17 +82,19 @@ class Context:
 def prepare(events, include_tests=False):
     """Propagate session version/test flags across sources; split out excluded test events."""
     events = list(events)
-    tests = {e['session'] for e in events if e['test'] and e['session']}
-    versions = {}
+    tests = {(e['project'], e['session']) for e in events if e['test'] and e['session'] and e.get('session_attribution') == 'event'}
+    versions = defaultdict(set)
     for e in events:
-        if e['version'] and e['session']:
-            versions.setdefault(e['session'], e['version'])
+        if e['version'] and e['session'] and e.get('session_attribution') == 'event' and e.get('version_attribution') == 'event':
+            versions[(e['project'], e['session'])].add(e['version'])
     kept, excluded = [], Counter()
     for e in events:
-        if e['session'] in tests:
+        key = (e['project'], e['session'])
+        if e.get('session_attribution') == 'event' and key in tests:
             e['test'] = True
-        if not e['version'] and e['session'] in versions:
-            e['version'] = versions[e['session']]
+        if not e['version'] and e.get('session_attribution') == 'event' and len(versions[key]) == 1:
+            e['version'] = next(iter(versions[key]))
+            e['version_attribution'] = 'session_inferred'
         if e['test'] and not include_tests:
             excluded[e['source']] += 1
             continue
@@ -162,7 +167,7 @@ def rollup(events):
 def _status(ctx, project, last_ts, by_version):
     """Failures: none on the project's latest version -> recovered. Otherwise a recent window decides."""
     latest = ctx.latest.get(project)
-    if by_version is not None and latest is not None and not by_version.get(latest):
+    if by_version is not None and latest is not None and not by_version.get(latest) and not by_version.get('unknown'):
         return 'recovered'
     return 'active' if ctx.recent(last_ts) else 'stale'
 
@@ -176,7 +181,7 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
     lead = Counter((e['kind'], e['step']) for e in events if e['step']).most_common(1)
     step = lead[0][0][1] if lead else (events[0]['step'] or events[0]['kind'])
     plain = [e for e in newest if not e.get('alias')] or newest
-    message = next((e['message'] for e in reversed(plain) if e['message']), '')
+    message = plain[-1].get('message') or ''
     times = [iso(e['ts']) for e in stamped[-64:]]
     sources = Counter(e['source'] for e in events)
     finding = {
@@ -190,6 +195,23 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
         'recovery_times': [], 'recovery_times_complete': True,
         'workflow_id': f"wf:{sources.most_common(1)[0][0]}", 'step_id': f'step:{project}-{step}',
         'latest_evidence': {'project': project, 'tool': step, 'first_error_line': message, 'error_type': events[0]['kind']},
+        'event_timeline': [{'event_id': e['ref'], 'event_at': iso(e['ts']) if e['ts'] is not None else None,
+                            'event_type': e['kind'], 'outcome': 'failure' if e['error'] else 'unknown',
+                            'safe_evidence': {'tool': e['step'], 'version': e.get('version'),
+                                              'version_attribution': e.get('version_attribution', 'unknown'),
+                                              'session_attribution': e.get('session_attribution', 'unknown'),
+                                              'first_error_line': scrub(e.get('message'), 120) or None,
+                                              'error_details': e.get('error_details'),
+                                              'ledger_result_detail': e.get('ledger_result_detail'),
+                                              'ledger_result_status': e.get('ledger_result_status'),
+                                              'ledger_decision_count': e.get('ledger_decision_count'),
+                                              'task_outcome': e.get('task_outcome'),
+                                              'task_check_id': e.get('task_check_id'),
+                                              'task_evidence_class': e.get('task_evidence_class'),
+                                              'task_tools': e.get('task_tools'), 'run_ref': e.get('run_ref'),
+                                              'response_ref': e.get('response_ref')}}
+                           for e in list(reversed(plain))[:20]],
+        'event_timeline_total': len(plain), 'event_timeline_truncated': len(plain) > 20,
     }
     if by_version and set(by_version) != {'unknown'}:
         finding['by_version'] = dict(by_version)
@@ -427,7 +449,8 @@ def turn_latency(ctx, events):
                          and x.get('turn_ctx') == turn)
             duration = round(event['duration_ms'], 1)
             details.append({'turn': turn, 'ms': int(duration) if duration == int(duration) else duration,
-                            'tools': tools, 'errors': errors})
+                            'tools': tools, 'errors': errors, 'timestamp': iso(event['ts']) if event['ts'] is not None else None,
+                            'version': event.get('version'), 'metric': event.get('metric')})
         headline = (f"{project}: session {session} slowest turn {_seconds(slow[0][1]['duration_ms'])} "
                     f"(turn {slow[0][0]}")
         if details[0]['tools']:
@@ -467,26 +490,35 @@ def island_layout(ctx, events):
         violations = []
         for overlay in overlays:
             if overlay.get('visible') and overlay.get('expected_inside_island') and not _contains(island, overlay):
-                violations.append((overlay['kind'], 'outside_island', _overflow(island, overlay)))
+                violations.append((overlay['kind'], 'outside_island', _overflow(island, overlay), island, overlay))
         rects = ([('island', island)] if island.get('visible') else []) + \
                 [(overlay['kind'], overlay) for overlay in overlays if overlay.get('visible')]
         for name, rect in rects:
             if not _contains(screen, rect):
-                violations.append((name, 'off_screen', _overflow(screen, rect)))
-        for name, violation, overflow in violations:
-            groups[(e['project'], name, violation)].append((e, overflow, spec.get('trigger', '')))
+                violations.append((name, 'off_screen', _overflow(screen, rect), screen, rect))
+        for name, violation, overflow, outer, rect in violations:
+            relative = {'x': round(rect['x'] - outer['x'], 1), 'y': round(rect['y'] - outer['y'], 1),
+                        'w': round(rect['w'], 1), 'h': round(rect['h'], 1)}
+            bounds = {'w': round(outer['w'], 1), 'h': round(outer['h'], 1)}
+            groups[(e['project'], name, violation)].append((e, overflow, spec.get('trigger', ''), bounds, relative))
     out = []
     for (project, name, violation), rows in groups.items():
         items = [row[0] for row in rows]
         max_overflow = max(row[1] for row in rows)
         triggers = dict(sorted(Counter(row[2] for row in rows).items()))
+        recent = sorted(rows, key=lambda row: row[0]['ts'] if row[0]['ts'] is not None else -1, reverse=True)[:10]
+        occurrences = [{'timestamp': iso(e['ts']) if e['ts'] is not None else None,
+                        'version': e.get('version'), 'version_attribution': e.get('version_attribution', 'unknown'), 'trigger': trigger,
+                        'overflow_pt': round(overflow, 1), 'bounds': bounds, 'rect': rect}
+                       for e, overflow, trigger, bounds, rect in recent]
         headline = (f"{project}: island {name} "
                     f"{'outside the island' if violation == 'outside_island' else 'off screen'} "
                     f"{len(items)}x (max {max_overflow:.1f} pt)")
         out.append(_finding(ctx, 'island_layout', 'layout_violation', (project, 'island_layout', name, violation),
                             items, headline, len(items),
                             {'island_layout': {'overlay_kind': name, 'violation': violation,
-                                               'max_overflow_pt': round(max_overflow, 1), 'triggers': triggers}},
+                                               'max_overflow_pt': round(max_overflow, 1), 'triggers': triggers,
+                                               'occurrences': occurrences}},
                             by_version=Counter(e['version'] or 'unknown' for e in items)))
     return out
 
@@ -516,9 +548,66 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
     for source, count in excluded.items():
         stats.setdefault(source, {})['excluded_test'] = count
     stamp = iso(now)
+    session_groups = defaultdict(list)
+    for event in events:
+        if not event.get('session') or event.get('session_attribution') != 'event' or event.get('ts') is None:
+            continue
+        stage = event.get('step') if event.get('step') in SESSION_STAGES else event.get('kind')
+        if stage not in SESSION_STAGES:
+            continue
+        session_groups[(event['project'], event['session'])].append((event, stage))
+    session_timelines = []
+    for (project, session), rows in session_groups.items():
+        rows.sort(key=lambda row: row[0]['ts'])
+        session_ref = 'sref_' + hashlib.sha256((project + '\0' + session).encode()).hexdigest()[:32]
+        timeline = [{'timestamp': iso(event['ts']), 'stage': stage,
+                     'duration_ms': event.get('duration_ms'), 'metric': event.get('metric'),
+                     'outcome': event.get('outcome') or ('failure' if event['error'] else 'unknown'),
+                     'version': event.get('version'),
+                     'version_attribution': event.get('version_attribution') or 'unknown',
+                     'ledger_operation': event.get('ledger_operation'),
+                     'ledger_scope_kind': event.get('ledger_scope_kind'),
+                     'ledger_rule_supplied': event.get('ledger_rule_supplied'),
+                     'ledger_error_category': event.get('ledger_error_category'),
+                     'ledger_result_status': event.get('ledger_result_status'),
+                     'ledger_decision_count': event.get('ledger_decision_count'),
+                     'ledger_result_detail': event.get('ledger_result_detail'),
+                     'ledger_detail_truncated': event.get('ledger_detail_truncated'),
+                     'input_availability': event.get('input_availability'), 'input_device': event.get('input_device'),
+                     'input_rate': event.get('input_rate'), 'input_recovery': event.get('input_recovery'),
+                     'input_selection': event.get('input_selection'),
+                     'layout': event.get('layout'),
+                     'task_outcome': event.get('task_outcome'), 'task_check_id': event.get('task_check_id'),
+                     'task_evidence_class': event.get('task_evidence_class'), 'task_tools': event.get('task_tools'),
+                     'error_details': event.get('error_details'), 'run_ref': event.get('run_ref'),
+                     'call_ref': event.get('call_ref'), 'response_ref': event.get('response_ref'),
+                     'mirror_ref': event.get('mirror_ref'), 'source': event.get('source'), 'source_ref': event.get('ref'),
+                     'event_kind': event.get('kind')}
+                    for event, stage in rows]
+        # Collapse only records that explicitly carry the same producer-issued identity.
+        grouped = {}
+        collapsed = []
+        for item in timeline:
+            key = (item.get('mirror_ref'), item['stage']) if item.get('mirror_ref') else None
+            previous = grouped.get(key) if key else None
+            if previous and previous['source'] != item['source']:
+                if previous['event_kind'] in ('log', 'log_error') and item['event_kind'] not in ('log', 'log_error'):
+                    collapsed[collapsed.index(previous)] = item
+                    grouped[key] = item
+                    previous, item = item, previous
+                previous.setdefault('mirrors', []).append({'timestamp': item['timestamp'], 'source': item['source'], 'ref': item['source_ref']})
+            else:
+                collapsed.append(item)
+                if key:
+                    grouped[key] = item
+        timeline = collapsed
+        session_timelines.append({'project': project, 'session_ref': session_ref,
+                                  'last_seen': iso(rows[-1][0]['ts']), 'events': timeline,
+                                  'total': len(timeline), 'raw_total': len(rows), 'truncated': False})
+    session_timelines.sort(key=lambda row: row['last_seen'], reverse=True)
     return {
         'schema_version': 1, 'generated_at': stamp, 'producer': 'developer-observability-collector',
-        'collector_version': VERSION, 'findings': findings,
+        'collector_version': VERSION, 'findings': findings, 'session_timelines': session_timelines[:50],
         'settings': {'include_tests': include_tests, 'active_window_h': window_h, 'latency_threshold_ms': threshold_ms,
                      'test_latency_threshold_ms': test_threshold_ms, 'turn_latency_threshold_ms': TURN_SLOW_MS},
         'latest_versions': dict(ctx.latest),

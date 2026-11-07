@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stdio MCP adapter: two tools over CUAService. Not an engine.
+"""Stdio MCP adapter over CUAService. Not an engine.
 
 CUAService owns AX, cursor, settle, screenshots. This process exists only
 because Cursor injects tools through MCP stdio. No start/end/verify: the
@@ -13,10 +13,12 @@ compat for older Cursor senders.
 """
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -40,7 +42,7 @@ from compact_backend import (
     expectation_is_new,
 )
 
-_BACKEND: Any = None
+_BACKEND: Any = CUABackend()
 _CLIENT: dict[str, str] = {"name": ""}
 _ACTIVITY_UNSET = object()
 _ACTIVITY: Any = _ACTIVITY_UNSET
@@ -234,6 +236,7 @@ def tool_schemas() -> list[dict[str, Any]]:
         "ok": {"type": "boolean"},
         "verified": {"type": "boolean"},
         "dispatched": {"type": "boolean"},
+        "app_running": {"type": "boolean"},
         "completion": {"type": "string", "enum": ["verified", "unverified"]},
         "text": {"type": "string"},
         "method": {"type": ["string", "null"]},
@@ -311,6 +314,11 @@ def tool_schemas() -> list[dict[str, Any]]:
             "outputSchema": result_schema,
         },
         {
+            "name": "voice_control",
+            "description": "Start, stop, or check Samantha through the same supervisor as the menu-bar switch. Returns running state and local gateway port; start and stop only when authorized.",
+            "inputSchema": _schema({"operation": {"type": "string", "enum": ["status", "start", "stop"]}}, ["operation"]),
+        },
+        {
             "name": "sessions",
             "description": "Read-only: local agent sessions the island hides (Codex threads with title, state, model, effort, cwd, repo, branch, tokens, context %, pid/host, deep_link; idle threads; probe runs flagged probe:true; harness processes). No emails or account ids.",
             "inputSchema": _schema({"include_idle": {"type": "boolean", "default": True},
@@ -345,6 +353,7 @@ def handle_act(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 HANDLERS = {
+    "voice_control": lambda arguments: _backend().voice_control(str(arguments.get("operation") or "")),
     "sessions": lambda arguments: _backend().sessions(arguments),
     "state": _state_payload,
     "act": handle_act,
@@ -494,6 +503,36 @@ def handle_rpc(message: dict[str, Any]) -> dict[str, Any] | None:
         return _rpc_error(rpc_id, -32602, f"Invalid params: missing _meta.{META_VERSION}")
     return _rpc_error(rpc_id, -32601, f"Method not found: {method}")
 
+class MCPInput:
+    def __init__(self, stream, *, pending: bytes = b"") -> None:
+        self.stream = stream
+        self.pending = bytearray(pending)
+        self.eof = False
+
+    def _fill(self) -> None:
+        chunk = self.stream.read1(65536)
+        if chunk:
+            self.pending.extend(chunk)
+        else:
+            self.eof = True
+
+    def readline(self) -> bytes:
+        while b"\n" not in self.pending and not self.eof:
+            self._fill()
+        at = self.pending.find(b"\n")
+        size = at + 1 if at >= 0 else len(self.pending)
+        result = bytes(self.pending[:size])
+        del self.pending[:size]
+        return result
+
+    def read(self, size: int) -> bytes:
+        while len(self.pending) < size and not self.eof:
+            self._fill()
+        result = bytes(self.pending[:size])
+        del self.pending[:size]
+        return result
+
+
 def read_message(stream) -> tuple[dict[str, Any] | None, str]:
     first = stream.readline()
     if not first:
@@ -518,12 +557,61 @@ def write_message(stream, payload: dict[str, Any]) -> None:
     stream.write(raw + b"\n")
     stream.flush()
 
+
+def _handoff_if_stale(message: dict[str, Any], stdin: MCPInput) -> None:
+    if message.get("method") != "tools/call":
+        return
+    try:
+        from cua_client import _CLIENT_CONTRACT
+        from runtime_contract import APP, RECORD, package_identity
+
+        installed = json.loads((APP / RECORD).read_text())
+        if installed == _CLIENT_CONTRACT:
+            return
+        current = _backend()._cua().call("runtime_contract", retry=True)
+        if not isinstance(current, dict) or current != installed or current == _CLIENT_CONTRACT:
+            return
+        version = current.get("version")
+        if not isinstance(version, str) or not version or not isinstance(current.get("sha256"), str):
+            return
+        roots = [Path.home() / ".agents/plugins/agent-computer-use"]
+        roots.extend(PLUGIN_ROOT.parent.glob("*"))
+        for root in roots:
+            try:
+                manifest = json.loads((root / "plugin.json").read_text())
+                script = root / "skills/macos-cua/scripts/compact_mcp.py"
+                marker = script.with_name("mcp-handoff-v1")
+                if manifest.get("version") != version or not script.is_file() or marker.read_text() != "1\n" or package_identity(root) != current:
+                    continue
+            except (OSError, ValueError, KeyError):
+                continue
+            with tempfile.TemporaryFile() as spool:
+                spool.write(json.dumps({"message": message, "pending": base64.b64encode(stdin.pending).decode(), "client": _CLIENT}).encode())
+                spool.seek(0)
+                os.set_inheritable(spool.fileno(), True)
+                os.execv(sys.executable, [sys.executable, "-u", str(script), "--resume-fd", str(spool.fileno())])
+    except Exception:
+        return
+
+
 def serve() -> int:
-    stdin = sys.stdin.buffer
+    resumed = None
+    pending = b""
+    if len(sys.argv) == 3 and sys.argv[1] == "--resume-fd":
+        with os.fdopen(int(sys.argv[2]), "rb") as spool:
+            state = json.load(spool)
+        resumed = state["message"]
+        pending = base64.b64decode(state["pending"], validate=True)
+        _CLIENT.update(state["client"])
+    stdin = MCPInput(sys.stdin.buffer, pending=pending)
     stdout = sys.stdout.buffer
     while True:
         try:
-            message, incoming = read_message(stdin)
+            if resumed is not None:
+                message, incoming = resumed, "resume"
+                resumed = None
+            else:
+                message, incoming = read_message(stdin)
         except json.JSONDecodeError:
             write_message(
                 stdout,
@@ -533,6 +621,7 @@ def serve() -> int:
         if incoming == "eof" or message is None:
             _end_activity()
             return 0
+        _handoff_if_stale(message, stdin)
         reply = handle_rpc(message)
         if reply is not None:
             write_message(stdout, reply)

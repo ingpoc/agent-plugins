@@ -69,6 +69,24 @@ final class StatusStore: IslandGateStoring {
 }
 
 final class StatusTests: XCTestCase {
+    @MainActor
+    func testVoiceControlRejectsInvalidOperationsAndReturnsSupervisorState() async throws {
+        var seen: [String] = []
+        let handler: @MainActor (String) async -> [String: Any] = { operation in
+            seen.append(operation)
+            return ["ok": true, "running": operation == "start", "gateway_port": 8766]
+        }
+        let result = try await MethodRouter.handleVoiceControl("start", handler: handler)
+        XCTAssertEqual(result["running"] as? Bool, true)
+        XCTAssertEqual(result["gateway_port"] as? Int, 8766)
+        do {
+            _ = try await MethodRouter.handleVoiceControl("restart", handler: handler)
+            XCTFail("invalid operation must fail")
+        } catch {
+            XCTAssertEqual(seen, ["start"])
+        }
+    }
+
     func testStatusJSONHasStableRequiredShape() throws {
         let value = CUAServiceStatus(
             version: "1.2.3", build: "42", bundleId: "com.ingpoc.cua-service", path: "/Applications/Agent Computer Use.app",

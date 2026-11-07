@@ -40,7 +40,7 @@ def policy(root=ROOT, *, base=None):
     app = plistlib.loads((package / 'skills/macos-cua/service/Resources/Info.plist').read_bytes())
     grok_path = package / '.grok-plugin/plugin.json'
     grok = json.loads(grok_path.read_text())['version'] if grok_path.is_file() else version
-    if cursor != version or claude != version or grok != version or app['CFBundleShortVersionString'] != version:
+    if cursor != version or claude != version or grok != version or app['CFBundleShortVersionString'] != version or app.get('CFBundleVersion') != version:
         raise RuntimeError('release metadata versions disagree with plugin.json')
     baseline = base or os.environ.get('AGENT_PLUGINS_RELEASE_BASE') or (
         'refs/remotes/origin/main' if os.environ.get('CI') else 'HEAD')
@@ -100,7 +100,7 @@ def mcp(plugin, *, compute=False):
     rows = {r['id']:r for line in result.stdout.splitlines()
             if (r := json.loads(line)).get('id') is not None}
     version = rows[1]['result']['serverInfo']['version']
-    if {t['name'] for t in rows[2]['result']['tools']} != {'state','act','sessions'}:
+    if {t['name'] for t in rows[2]['result']['tools']} != {'state','act','sessions','voice_control'}:
         raise RuntimeError('installed MCP tool contract differs')
     def data(identifier):
         result = rows[identifier]['result']
@@ -160,7 +160,7 @@ def voice_events(rows):
 def voice_smoke(plugin, version):
     activity = Path.home()/'.cache/macos-cua/samantha-activity.jsonl'
     offset = activity.stat().st_size if activity.exists() else 0
-    print('VOICE SMOKE: turn Samantha ON and say: Open Calculator and calculate thirteen times seventeen.', flush=True)
+    print('VOICE SMOKE: turn Samantha ON and say: Open Calculator and calculate thirteen times seventeen. Expected: 221. The window is 90 seconds.', flush=True)
     deadline = time.monotonic()+90
     while time.monotonic() < deadline:
         rows = []
@@ -272,14 +272,26 @@ def release(args, root=ROOT):
         module = contract_module(root)
         identity = module.package_identity(root/PACKAGE)
         report['identity'] = identity
+        microphone = APP/'Contents/Helpers/voice-cua.app/Contents/MacOS/voice-cua'
+        if microphone.is_file():
+            try:
+                probe = subprocess.run([str(microphone),'--preflight-mic'],capture_output=True,text=True,timeout=30)
+                report['microphone_preflight'] = {'ok':probe.returncode == 0, 'exit_code':probe.returncode,
+                    'detail':(probe.stderr or probe.stdout).strip()[:300], 'source':'existing installed app'}
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                report['microphone_preflight'] = {'ok':False,'detail':str(exc)[:300], 'source':'existing installed app'}
+        else:
+            report['microphone_preflight'] = {'ok':None,'detail':'No installed helper available for preflight'}
+        save()
         def run(name, command, timeout=1800):
             frozen(root,head)
             log = report_path.parent/(report_path.stem+'-'+name+'.log')
             step = {'name':name,'ok':False,'log':str(log)}
             report['steps'].append(step);save()
             started = time.monotonic()
+            env = {**os.environ, 'ACU_ISLAND_ACTIVITY':'0'} if name.startswith('live-') else None
             with log.open('w') as stream:
-                result = subprocess.run(command,cwd=root,stdout=stream,stderr=subprocess.STDOUT,timeout=timeout)
+                result = subprocess.run(command,cwd=root,stdout=stream,stderr=subprocess.STDOUT,timeout=timeout,env=env)
             step.update({'exit_code':result.returncode,'seconds':round(time.monotonic()-started,3)})
             if result.returncode:
                 raise RuntimeError(f'{name} failed; see {log}')
@@ -307,7 +319,10 @@ def release(args, root=ROOT):
         if not args.sign_only:
             run('notarization',['xcrun','stapler','validate',str(APP)],60)
         report['notarization'] = 'not_verified_signed_only' if args.sign_only else 'staple_verified'
+        report['stage'] = 'runtime-contract'
+        save()
         module.check(root/PACKAGE, APP)
+        report.pop('stage', None)
         for name, relative in [('client','service/Tests/CUAServiceTests/integration_cua_client.py'),
                 ('cursor','tests/integration_macos_cua_cursor.py'),('fd','tests/integration_service_fd_hygiene.py')]:
             run('live-'+name,[sys.executable,'scripts/run_strict.py','--allowlist','scripts/check_test_allowlist.json',
@@ -315,9 +330,19 @@ def release(args, root=ROOT):
         version, _ = mcp(plugin,compute=True)
         if version != identity['version']:
             raise RuntimeError('fresh MCP process version does not match candidate')
-        report['native_smoke'] = {'ok':True,'fresh_mcp':True,'independent_readback':True}
+        report['native_smoke'] = {'ok':True,'fresh_mcp':True,'version':version,'independent_readback':True}
+        report['existing_client'] = 'not_checked'
         run('microphone',[str(APP/'Contents/Helpers/voice-cua.app/Contents/MacOS/voice-cua'),'--preflight-mic'],30)
+        if getattr(args, 'skip_voice_smoke', False):
+            report['stage'] = 'voice-smoke'
+            report['voice'] = {'ok': False, 'reason': 'not exercised; spoken acceptance pending'}
+            save()
+            print('Installed checks passed; spoken acceptance remains pending.', flush=True)
+            return 1
+        report['stage'] = 'voice-smoke'
+        save()
         report['voice'] = voice_smoke(plugin,version)
+        report.pop('stage', None)
         report['voice_left_on'] = True
         frozen(root,head)
         if module.package_identity(root/PACKAGE) != identity:
@@ -326,6 +351,8 @@ def release(args, root=ROOT):
         return 0
     except Exception as exc:
         report['error'] = str(exc)
+        if isinstance(exc, OSError) and exc.filename:
+            report['error_path'] = str(exc.filename)
         print(str(exc),file=sys.stderr)
         return 1
     finally:
@@ -337,6 +364,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check',action='store_true',help='Source policy only; safe in CI.')
     parser.add_argument('--verify-installed',action='store_true',help='Reuse the existing app; refresh and verify the Codex package without rebuilding or restarting.')
+    parser.add_argument('--skip-voice-smoke',action='store_true',help='Stop after installed checks without requesting speech; release remains not ready.')
     parser.add_argument('--sign-only',action='store_true',help='Local signed validation; never produces distribution-ready evidence.')
     parser.add_argument('--hygiene-override',action='store_true',help='Release despite hygiene FAILs for agent-plugins; recorded in the report.')
     parser.add_argument('--report',type=Path,default=Path.home()/'.agents/artifacts/acu-release.json')

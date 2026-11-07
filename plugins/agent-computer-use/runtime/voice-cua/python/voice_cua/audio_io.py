@@ -82,6 +82,30 @@ def input_device_info(device: Any = None) -> dict[str, Any]:
         return {}
 
 
+def input_device_snapshot() -> dict[str, Any]:
+    """Describe the current default input without treating a query error as absence."""
+    result: dict[str, Any] = {"input_availability": "unknown", "input_selection": "system_default_snapshot"}
+    if sd is None:
+        return result
+    try:
+        index = sd.default.device[0]
+        if index is None or index < 0:
+            result["input_availability"] = "unavailable"
+            return result
+        info = sd.query_devices(index)
+        if int(info.get("max_input_channels", 0)) <= 0:
+            result["input_availability"] = "unavailable"
+            return result
+        result["input_availability"] = "available"
+        result["input_device"] = str(info.get("name") or "")[:120]
+        rate = float(info.get("default_samplerate") or 0)
+        if 0 < rate < 1_000_000:
+            result["input_rate"] = round(rate)
+    except Exception:  # noqa: BLE001 — diagnostics must not break audio startup
+        pass
+    return result
+
+
 def output_device_info() -> dict[str, Any]:
     if sd is None:
         return {}

@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest.mock import Mock, patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +23,7 @@ SPEC = importlib.util.spec_from_file_location("compact_mcp", SCRIPT)
 compact_mcp = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(compact_mcp)
 
-FIVE = ["state", "act", "sessions"]
+FIVE = ["state", "act", "voice_control", "sessions"]
 MODERN_META = {
     "io.modelcontextprotocol/protocolVersion": compact_mcp.MODERN_VERSION,
     "io.modelcontextprotocol/clientCapabilities": {},
@@ -69,6 +72,201 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_action_retains_dispatch_when_app_exits_before_screenshot(self):
+        from cua_client import RPCError
+        backend = compact_mcp.CUABackend()
+        client = Mock()
+        client.execute_plan.return_value = {
+            'before': {'text': '[0] AXWindow "Example"'},
+            'after': {'text': '', 'error': 'window disappeared'},
+            'results': [{'ok': True}],
+        }
+        client.get_app_state.side_effect = RPCError(-32001, 'App not found')
+        with patch.object(backend, '_rpc', side_effect=lambda fn, **kwargs: fn(client)):
+            result = backend.act('Example', {'label': 'Quit', 'allow_unverified': True})
+        self.assertTrue(result['dispatched'])
+        self.assertFalse(result['verified'])
+        self.assertIs(result['app_running'], False)
+
+    def test_action_reports_observed_exit_without_claiming_unverified_success(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def execute_plan(self, app, steps):
+                        return {'before': {'text': '[0] AXWindow "Example"'},
+                                'after': {'text': '', 'running': False},
+                                'results': [{'ok': True}]}
+                return fn(Client())
+
+        result = Backend().act('Example', {'label': 'Quit', 'allow_unverified': True})
+        self.assertTrue(result['dispatched'])
+        self.assertFalse(result['verified'])
+        self.assertFalse(result['ok'])
+        self.assertIs(result['app_running'], False)
+
+    def test_missing_app_state_is_typed_and_other_rpc_errors_propagate(self):
+        backend = compact_mcp.CUABackend()
+        from cua_client import RPCError
+        with patch.object(backend, '_rpc', side_effect=RPCError(-32001, 'App not found')):
+            result = backend.state('Example')
+        self.assertEqual(result, {'ok': False, 'app': 'Example', 'running': False,
+                                  'error_type': 'app_not_running', 'error': 'App is not running'})
+        client = Mock()
+        client.get_app_state.side_effect = RPCError(-32001, 'App not found')
+        with patch.object(backend, '_rpc', return_value={}), patch.object(backend, '_reset'), \
+             patch.object(backend, '_cua', return_value=client):
+            self.assertEqual(backend.state('Example'), result)
+        with patch.object(backend, '_rpc', side_effect=RPCError(-32002, 'No window')):
+            with self.assertRaises(RPCError):
+                backend.state('Example')
+
+    def test_voice_control_routes_requested_operation_and_reports_readback(self):
+        backend = Mock()
+        backend.voice_control.return_value = {'ok': True, 'running': True, 'gateway_port': 8766}
+        with patch.object(compact_mcp, '_BACKEND', backend):
+            result = compact_mcp.call_tool('voice_control', {'operation': 'start'}, modern=False)
+        backend.voice_control.assert_called_once_with('start')
+        self.assertEqual(result['structuredContent'], {'ok': True, 'running': True, 'gateway_port': 8766})
+
+    def test_voice_control_does_not_retry_start_or_stop(self):
+        client = Mock()
+        client.call.return_value = {'ok': True, 'running': True}
+        backend = compact_mcp.CUABackend()
+        with patch.object(backend, '_rpc', side_effect=lambda fn, **kwargs: fn(client)) as rpc:
+            backend.voice_control('start')
+        rpc.assert_called_once()
+        self.assertFalse(rpc.call_args.kwargs['retry'])
+        client.call.assert_called_once_with('voice_control', {'operation': 'start'}, retry=False)
+
+    def test_buffered_messages_can_be_transferred_without_loss(self):
+        body = b'{"id":2}'
+        raw = b'{"id":1}\nContent-Length: ' + str(len(body)).encode() + b'\r\n\r\n' + body + b'{"id":3}\n'
+        stream = compact_mcp.MCPInput(io.BytesIO(raw))
+        self.assertEqual(compact_mcp.read_message(stream), ({'id': 1}, 'nl'))
+        resumed = compact_mcp.MCPInput(io.BytesIO(b''), pending=bytes(stream.pending))
+        self.assertEqual(compact_mcp.read_message(resumed), ({'id': 2}, 'lsp'))
+        self.assertEqual(compact_mcp.read_message(resumed), ({'id': 3}, 'nl'))
+        self.assertEqual(compact_mcp.read_message(resumed), (None, 'eof'))
+
+    def test_stale_handoff_preserves_request_and_queued_bytes_before_dispatch(self):
+        import base64
+        import runtime_contract
+        from cua_client import CUAClient
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            installed = root / 'app' / 'contract.json'
+            installed.parent.mkdir()
+            identity = {'version': '99.0.0', 'sha256': 'a' * 64}
+            installed.write_text(json.dumps(identity))
+            old = root / 'versions' / 'old'
+            new = root / 'versions' / 'new'
+            script = new / 'skills/macos-cua/scripts/compact_mcp.py'
+            script.parent.mkdir(parents=True)
+            script.write_text('')
+            script.with_name('mcp-handoff-v1').write_text('1\n')
+            (new / 'plugin.json').write_text(json.dumps({'version': identity['version']}))
+            backend = Mock()
+            client = CUAClient()
+            client._call_once = Mock(side_effect=[ConnectionResetError('old socket closed'), identity])
+            client.connect = Mock()
+            backend._cua.return_value = client
+            request = {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'act'}}
+            pending = b'{"jsonrpc":"2.0","id":4,"method":"ping"}\n'
+            saved = {}
+            class Replaced(BaseException):
+                pass
+            def replace(_program, args):
+                fd = int(args[-1])
+                saved.update(json.loads(os.pread(fd, 100000, 0)))
+                raise Replaced()
+            with patch.object(compact_mcp, 'PLUGIN_ROOT', old), patch.object(compact_mcp, '_backend', return_value=backend), \
+                 patch.object(runtime_contract, 'APP', installed.parent), patch.object(runtime_contract, 'RECORD', installed.name), \
+                 patch.object(runtime_contract, 'package_identity', return_value=identity), patch.object(compact_mcp.os, 'execv', side_effect=replace):
+                with self.assertRaises(Replaced):
+                    compact_mcp._handoff_if_stale(request, compact_mcp.MCPInput(io.BytesIO(b''), pending=pending))
+            self.assertEqual(saved['message'], request)
+            self.assertEqual(base64.b64decode(saved['pending']), pending)
+            self.assertEqual(client._call_once.call_count, 2)
+            client.connect.assert_called_once_with()
+
+    def test_process_handoff_keeps_queued_requests_and_client_identity(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app = root / 'app'
+            app.mkdir()
+            identity = {'version': '99.0.0', 'sha256': 'a' * 64}
+            (app / 'contract.json').write_text(json.dumps(identity))
+            old = root / 'versions' / 'old'
+            new = root / 'versions' / 'new'
+            script = new / 'skills/macos-cua/scripts/compact_mcp.py'
+            script.parent.mkdir(parents=True)
+            script.with_name('mcp-handoff-v1').write_text('1\n')
+            (new / 'plugin.json').write_text(json.dumps({'version': identity['version']}))
+            loader = (f"import importlib.util,sys,os\n"
+                      f"spec=importlib.util.spec_from_file_location('handoff_fixture',{str(SCRIPT)!r})\n"
+                      "m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)\n")
+            script.write_text(loader + "m._handoff_if_stale=lambda *a: None\n"
+                              "m.HANDLERS['state']=lambda a: {'ok':True,'client':m._CLIENT['name'],'pid':os.getpid()}\n"
+                              "raise SystemExit(m.serve())\n")
+            original = root / 'original.py'
+            original.write_text(loader + "import runtime_contract\n"
+                f"runtime_contract.APP=__import__('pathlib').Path({str(app)!r});runtime_contract.RECORD='contract.json'\n"
+                f"runtime_contract.package_identity=lambda root: {identity!r}\n"
+                f"m.PLUGIN_ROOT=__import__('pathlib').Path({str(old)!r})\n"
+                f"class Client:\n def call(self,*a,**k): return {identity!r}\n"
+                "class Backend:\n def _cua(self): return Client()\n"
+                "m._backend=lambda: Backend()\nraise SystemExit(m.serve())\n")
+            proc = _spawn([sys.executable, '-u', str(original)])
+            try:
+                init = {'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-11-25',
+                        'capabilities':{},'clientInfo':{'name':'fixture-client','version':'1'}}}
+                act = {'jsonrpc':'2.0','id':2,'method':'tools/call','params':{'name':'state','arguments':{}}}
+                ping = {'jsonrpc':'2.0','id':3,'method':'ping'}
+                body = json.dumps(act).encode()
+                proc.stdin.write(json.dumps(init).encode()+b'\n'+f'Content-Length: {len(body)}\r\n\r\n'.encode()+body+json.dumps(ping).encode()+b'\n')
+                proc.stdin.flush()
+                self.assertEqual(_recv(proc)['id'], 1)
+                result = _recv(proc)
+                self.assertEqual(result['id'], 2)
+                self.assertEqual(result['result']['structuredContent']['client'], 'fixture-client')
+                self.assertEqual(result['result']['structuredContent']['pid'], proc.pid)
+                self.assertEqual(_recv(proc)['id'], 3)
+            finally:
+                _close(proc)
+
+    def test_handoff_refuses_package_that_does_not_match_service(self):
+        import runtime_contract
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app = root / 'app'
+            app.mkdir()
+            identity = {'version': '99.0.0', 'sha256': 'a' * 64}
+            (app / 'contract.json').write_text(json.dumps(identity))
+            old = root / 'versions' / 'old'
+            new = root / 'versions' / 'new'
+            script = new / 'skills/macos-cua/scripts/compact_mcp.py'
+            script.parent.mkdir(parents=True)
+            script.write_text('')
+            script.with_name('mcp-handoff-v1').write_text('1\n')
+            (new / 'plugin.json').write_text(json.dumps({'version': identity['version']}))
+            backend = Mock()
+            backend._cua.return_value.call.return_value = identity
+            with patch.object(compact_mcp, 'PLUGIN_ROOT', old), patch.object(compact_mcp, '_backend', return_value=backend), \
+                 patch.object(runtime_contract, 'APP', app), patch.object(runtime_contract, 'RECORD', 'contract.json'), \
+                 patch.object(runtime_contract, 'package_identity', return_value={'version':'99.0.0','sha256':'b'*64}) as fingerprint, \
+                 patch.object(compact_mcp.os, 'execv') as replace:
+                compact_mcp._handoff_if_stale({'method':'tools/call'}, compact_mcp.MCPInput(io.BytesIO(b'')))
+                fingerprint.return_value = identity
+                script.with_name('mcp-handoff-v1').unlink()
+                compact_mcp._handoff_if_stale({'method':'tools/call'}, compact_mcp.MCPInput(io.BytesIO(b'')))
+            replace.assert_not_called()
+
+    def test_service_client_is_loaded_before_first_tool_call(self):
+        self.assertIsNotNone(compact_mcp._BACKEND._client)
+
     def test_action_delta_preserves_full_state_verification_and_failure_context(self):
         before = '[0] AXWindow "Fixture"\n' + '\n'.join(
             f'  [{i}] AXButton "Button {i}" [pressable] {{0,0 10x10}}'
@@ -1183,7 +1381,7 @@ class CompactMcpSpecTests(unittest.TestCase):
 
 
 class CompactMcpProtocolTests(unittest.TestCase):
-    def test_script_legacy_initialize_lists_two_tools(self):
+    def test_script_legacy_initialize_lists_tools(self):
         proc = _spawn([sys.executable, "-u", str(SCRIPT)])
         try:
             _send(
@@ -1243,7 +1441,7 @@ class CompactMcpProtocolTests(unittest.TestCase):
         self.assertEqual(init["result"]["protocolVersion"], "2025-11-25")
         self.assertEqual([tool["name"] for tool in listed["result"]["tools"]], FIVE)
 
-    def test_script_modern_discover_lists_two_tools(self):
+    def test_script_modern_discover_lists_tools(self):
         proc = _spawn([sys.executable, str(SCRIPT)])
         try:
             _send(
@@ -1355,6 +1553,13 @@ class ExpectVerifiedTests(unittest.TestCase):
         self.assertTrue(
             compact_mcp.expect_is_new("Glowing ring of gas", before, after + '[42] AXCell "Glowing ring of gas"\n')
         )
+
+    def test_negative_expectation_requires_an_observed_after_state(self):
+        before = '[0] AXWindow "Fixture"\n[1] AXStaticText value="working"'
+        self.assertFalse(compact_mcp.expectation_is_new({'not_text': 'working'}, before, '', [{'ok': True}], {'error': 'No window for app'}))
+        self.assertTrue(compact_mcp.expectation_is_new({'not_text': 'working'}, before, '', [{'ok': True}], {'running': False}))
+        self.assertFalse(compact_mcp.expectation_is_new({'not_text': 'missing'}, before, '', [{'ok': True}], {'running': False}))
+        self.assertTrue(compact_mcp.expectation_is_new({'not_text': 'working'}, before, '[0] AXWindow "Fixture"\n[1] AXStaticText value="done"', [{'ok': True}], {}))
 
 
 if __name__ == "__main__":

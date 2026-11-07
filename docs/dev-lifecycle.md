@@ -22,7 +22,7 @@ Rules that machines check, so the 2026-11-03 cleanup does not recur:
 - **After every merge**: remove the worktree, `git branch -d`, delete the Origin branch (section 2). Retiring unmerged work still needs a verified bundle and Guru's OK.
 
 ## 3. Release
-1. Bump the SemVer in every manifest and `Info.plist` together. `check.py` release-policy enforces this; versions never go backwards, so a revert ships as the next number.
+1. Run `python3 scripts/set_acu_version.py <major.minor.patch>` to align the ACU manifests and `Info.plist`, then update the changelog. `check.py` release-policy enforces alignment; versions never go backwards, so a revert ships as the next number.
 2. Open the PR, get CI green, do a normal `origin pr merge` (no admin, no force-push).
    - Known flakes: `IslandGateColdStartTests`. Add a test here only after an isolated rerun has passed. When the only red check on a PR is a listed known flake and its isolated rerun passes, run `agent-plugins-origin-ci once <pr> --force` right away to refresh the stale Origin check. It needs no extra sign-off, because it only reruns CI and changes nothing.
 3. Before tagging, check that no revert, relay or spec change is still pending. If one landed after the merge, ship it first as the next version.

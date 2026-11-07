@@ -44,7 +44,6 @@ SUPPORTED_VERSIONS = (MODERN_VERSION,) + LEGACY_VERSIONS
 META_VERSION = "io.modelcontextprotocol/protocolVersion"
 META_CLIENT_CAPS = "io.modelcontextprotocol/clientCapabilities"
 META_SERVER_INFO = "io.modelcontextprotocol/serverInfo"
-TOOL_NAMES = ("state", "act")
 INSTRUCTIONS = (SCRIPT_DIR / "compact_instructions.txt").read_text()
 NEW_DOCUMENT_SETTLE_S = 0.6
 
@@ -92,7 +91,12 @@ class CUABackend:
     def sessions(self, arguments: dict[str, Any]) -> dict[str, Any]:
         return self._rpc(lambda client: client.call("local_sessions", arguments))
 
+    def voice_control(self, operation: str) -> dict[str, Any]:
+        return self._rpc(lambda client: client.call("voice_control", {"operation": operation}, retry=False), retry=False)
+
     def state(self, app: str, **kwargs: Any) -> dict[str, Any]:
+        from cua_client import RPCError
+
         max_elements = int(kwargs.get("max_elements") or DEFAULT_MAX)
         disable_diff = not bool(kwargs.get("diff"))
         want_shot = kwargs.get("screenshot") is True
@@ -105,10 +109,16 @@ class CUABackend:
                 includeScreenshot=want_shot,
             )
 
-        result = self._rpc(_call)
-        if not isinstance(result, dict) or not result.get("text"):
-            self._reset()
-            result = _call(self._cua())
+        try:
+            result = self._rpc(_call)
+            if not isinstance(result, dict) or not result.get("text"):
+                self._reset()
+                result = _call(self._cua())
+        except RPCError as exc:
+            if exc.code != -32001:
+                raise
+            return {"ok": False, "app": app, "running": False, "error_type": "app_not_running",
+                    "error": "App is not running"}
         if not isinstance(result, dict):
             return {"ok": False, "error": "empty CUAService state", "app": app}
         text = str(result.get("text") or "")
@@ -339,9 +349,19 @@ class CUABackend:
                 ),
                 "error_type": "completion_unverified" if dispatched and not verified else None,
             }
-            fetch = lambda: self._get_app_state(
-                client, app, disableDiff=True, includeScreenshot=True
-            )
+            if isinstance(after, dict) and after.get("running") is False:
+                payload["app_running"] = False
+            def fetch():
+                from cua_client import RPCError
+                try:
+                    return self._get_app_state(
+                        client, app, disableDiff=True, includeScreenshot=True
+                    )
+                except RPCError as exc:
+                    if exc.code != -32001:
+                        raise
+                    payload["app_running"] = False
+                    return {"running": False}
             policy = dict(before=before, after=after, arguments=arguments, fetch=fetch)
             if not ok:
                 # allow_unverified without expect: dispatch-only; keep compact delta, not expect_unverified spam
@@ -367,6 +387,8 @@ class CUABackend:
                         before_text=before_text,
                         after_text=text,
                     )
+            if payload.get("app_running") is False:
+                policy["fetch"] = None
             return apply_screenshot_policy(payload, **policy)
 
         try:

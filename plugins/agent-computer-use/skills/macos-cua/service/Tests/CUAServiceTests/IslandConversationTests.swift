@@ -3,6 +3,8 @@ import XCTest
 
 @MainActor
 final class IslandConversationTests: XCTestCase {
+    /// Voice states hug the voice slot (Guru 14:17 IST): the width follows only the slot's content
+    /// (meter 23 pt, thinking dots 14 pt), never loudness, and never dips through the 74 pt pinch.
     func testRoutineVoiceStatesKeepTheirWidth() async throws {
         let m = IslandModel()
         m.reduceMotion = false
@@ -12,7 +14,9 @@ final class IslandConversationTests: XCTestCase {
         var dips = 0
         for kind in ["thinking", "speaking", "listening", "acting"] {
             m.apply(IslandSnapshot(kind: kind, title: kind))
-            if m.drawnWidth != IslandBarLayout.standardWidth { dips += 1 }
+            if let voice = m.voiceSlotContent {
+                if m.drawnWidth != IslandBarLayout.voicePillWidth(voice) { dips += 1 }
+            } else if m.drawnWidth == IslandBarLayout.idleWidth { dips += 1 }
             try await Task.sleep(nanoseconds: 220_000_000)
         }
         print("conversation routine width dips: \(dips)")

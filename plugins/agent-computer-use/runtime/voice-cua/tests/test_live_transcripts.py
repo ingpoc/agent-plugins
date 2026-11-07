@@ -351,9 +351,13 @@ class ExpiryRestTests(unittest.TestCase):
 
         sess = Sess()
         sess._dormant.set()
-        threading.Timer(0.05, lambda: sess._wake.is_set() and sess._session_ready.set()).start()
-        with patch.object(session_hub, "_active", sess), patch.object(session_hub, "WAKE_WAIT_S", 1.0):
-            self.assertEqual(session_hub.send_text_and_wait("hi")["ok"], True)
+        worker = threading.Thread(target=lambda: sess._wake.wait(1) and sess._session_ready.set())
+        worker.start()
+        try:
+            with patch.object(session_hub, "_active", sess), patch.object(session_hub, "WAKE_WAIT_S", 1.0):
+                self.assertEqual(session_hub.send_text_and_wait("hi")["ok"], True)
+        finally:
+            worker.join(timeout=2)
         self.assertTrue(sess._wake.is_set())
 
 

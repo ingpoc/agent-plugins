@@ -26,7 +26,7 @@ it never writes another producer's file.
 4. Manifests: root `mcp.json` (sh resolver over `${PLUGIN_ROOT}`,
    `${CURSOR_PLUGIN_ROOT}`, `${CLAUDE_PLUGIN_ROOT}`, failing with
    `PLUGIN_ROOT_UNRESOLVED`), `.cursor-plugin/`, `.claude-plugin/`, and Grok's
-   `.mcp.json`. No manifest sets `cwd`. Verify seven tools, a real
+   `.mcp.json`. No manifest sets `cwd`. Verify the listed tools, a real
    `observability_projects`, a scoped issue and the `ui://` resource through the
    installed client. Without any findings the projects call returns
    `data_source.status = no_findings` and a hint; that is not a failure of the
@@ -46,5 +46,7 @@ validation is owned by collection `scripts/check.py`. `tests/serve_host.py` is
 an optional loopback acceptance host, not a production service.
 
 No credential collection, repair execution, collector restart or arbitrary log
-reader is exposed. Raw evidence is a bounded redacted projection, never full
-source transcripts. No MCP tool authenticates repair acceptance.
+reader is exposed. Default evidence is concise; `include_diagnostics=true`
+returns bounded, credential-redacted recorded errors and Context Ledger results.
+Transcripts and prompts are never collected. No MCP tool authenticates repair
+acceptance.

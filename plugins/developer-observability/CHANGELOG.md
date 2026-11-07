@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.1.18
+
+- Show privacy-bounded Ledger scope categories in task timelines.
+
+## 0.1.17
+
+- Collapse explicitly identified mirrored startup events while retaining provenance.
+
+
+## 0.1.16 (2026-11-06)
+
+- Add task-linked summaries, Ledger diagnostics, microphone state, and island transition evidence.
+
+## 0.1.15 (2026-11-06)
+
+- Offer a compact session summary with event, failure, Ledger, outcome, and version counts.
+
+## 0.1.14 (2026-11-06)
+
+- Preserve native action events in session timelines and paginate collected session events.
+
+## 0.1.13 (2026-11-06)
+
+- Expose task outcomes in session timelines and add opt-in, bounded error and Context Ledger diagnostics.
+
+## 0.1.12 (2026-11-06)
+
+- Add bounded session stage timing and privacy-safe ledger metadata.
+
+## 0.1.11 (2026-11-06)
+
+- Preserve occurrence-level evidence, attribution and bounded layout diagnostics.
+
+## 0.1.10 (2026-11-04)
+
+- Island activity: every MCP tool call posts `call_started` / `call_finished` for `developer-observability` with the calling harness, so the ACU Dynamic Island (agent-computer-use 0.2.87) shows its trace-waterfall mark outside on the right while a call runs, and nothing inside the pill. Posting never fails a tool; set `DEVELOPER_OBSERVABILITY_ISLAND=0` to turn it off.
+
 ## 0.1.9 (2026-11-04)
 
 - Reads Samantha's rotated logs. agent-computer-use 0.2.86 rotates `samantha-activity.jsonl` and `voice.log` at 50 MB and keeps 5 gzipped copies (`samantha-activity.1.jsonl.gz` … `.5`, `voice.1.log.gz` …). The built-in Samantha sources now include those copies, oldest first, and a plain `.N` a crash left before its gzip. They are read under the live file's source id, so coverage and issue IDs stay one source per log. `.gz` files are streamed with `gzip`.

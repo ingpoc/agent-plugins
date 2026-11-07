@@ -160,6 +160,9 @@ LIVE_INSTRUCTIONS = (
     "action happened until the backend reports it. Unclear or partial speech, or a vague 'that thing'/'it' the last "
     "exchange didn't name: ask one short question (which one?) instead of delegating a guess. When the backend asks to confirm a risky action (send, buy, delete, "
     "pay, overwrite), ask the user plainly and wait for a clear yes."
+    " When choosing a site or app profile, account, or other preference-sensitive option, delegate the choice "
+    "to the backend to check saved preferences before asking which option to use. Do not answer from memory "
+    "or claim no preference exists before the backend checks."
 )
 
 ROUTING_INSTRUCTIONS = (
@@ -386,6 +389,8 @@ class LiveProvider(VoiceProvider):
             self._last_delegation = ""
             self._pending_request = ""  # voice_cua_request_id of the last typed request
             self._pending_spoken_request: tuple[str, int] | None = None
+            self._spoken_turn_request = ""
+            self._unmatched_delegation_offsets: dict[str, int] = {}
             self._skip_next_create = False
             self._delegation_request: dict[str, str] = {}
             # Turn ids: every typed request (response.create carrying voice_cua_request_id,
@@ -738,6 +743,15 @@ class LiveProvider(VoiceProvider):
                     backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
                     if not backend_busy and not self._pending_request:
                         self._pending_spoken_request = (uuid.uuid4().hex, start_ms)
+                        end_ms = event.get("end_ms")
+                        matches = [d for d, offset in self._unmatched_delegation_offsets.items()
+                                   if isinstance(end_ms, int) and not isinstance(end_ms, bool)
+                                   and start_ms <= offset <= end_ms and d not in self._delegation_response]
+                        if len(matches) == 1:
+                            delegation = matches[0]
+                            self._delegation_turn.pop(delegation, None)
+                            self._delegation_request.pop(delegation, None)
+                            self._claim_delegation(delegation, offset_ms=self._unmatched_delegation_offsets.pop(delegation))
             return [{"type": "input_audio_buffer.speech_started"}] if fresh or self._new_user_burst() else []
         if et == "session.output_transcript.delta":
             if not self.said.pending():
@@ -768,6 +782,10 @@ class LiveProvider(VoiceProvider):
                 self._last_delegation = delegation or self._last_delegation
                 if delegation:
                     self._claim_delegation(delegation, offset_ms=offset_ms)
+                    if delegation not in self._delegation_request and isinstance(offset_ms, int) and not isinstance(offset_ms, bool):
+                        self._unmatched_delegation_offsets[delegation] = offset_ms
+                        if len(self._unmatched_delegation_offsets) > 256:
+                            self._unmatched_delegation_offsets.pop(next(iter(self._unmatched_delegation_offsets)))
             log_event("live_delegation", delegation_id=delegation[:64] or None,
                       target=str((event.get("delegation") or {}).get("target") or event.get("target") or ""))
             return []
@@ -877,6 +895,10 @@ class LiveProvider(VoiceProvider):
                 request_id = self._current_request(delegation)
                 stale = bool(text) and not had_calls and not request_id and bool(
                     self._delegation_request.get(delegation))
+                if not had_calls and not outstanding and request_id and request_id == self._spoken_turn_request:
+                    if self._turn_request == request_id:
+                        self._turn_request = ""
+                    self._spoken_turn_request = ""
             if stale:
                 log_event("live_stale_turn_output", delegation_id=delegation[:64] or None,
                           chars=len(text))
@@ -915,6 +937,7 @@ class LiveProvider(VoiceProvider):
             self._pending_spoken_request = None
             self._turn_seq += 1
             self._turn_request = request_id
+            self._spoken_turn_request = request_id
             self._pending_request = request_id
         else:
             # A delegation before a pending transcript's timeline belongs to the current

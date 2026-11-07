@@ -165,6 +165,8 @@ class TurnLatencyTests(Case):
         self.assertEqual(info['turns'][0]['turn'], '28')
         self.assertIn('ledger_task', info['turns'][0]['tools'])
         self.assertEqual(info['turns'][0]['errors'], 4)
+        self.assertIsNotNone(info['turns'][0]['timestamp'])
+        self.assertEqual(info['turns'][0]['metric'], 'speech_to_playback_ms')
 
 
 class LimitTests(Case):
@@ -197,6 +199,15 @@ def overlay(kind, x, y, w, h, visible=True, inside=True):
 
 
 class IslandLayoutTests(Case):
+    def test_layout_evidence_is_bounded_to_ten_most_recent(self):
+        rows = [layout([overlay('permission_card', 640, 4, 100, 30)], ts=T + i) for i in range(12)]
+        findings, _ = self.collect(rows)
+        card = next(f for f in findings if f['kind'] == 'island_layout')
+        occurrences = card['island_layout']['occurrences']
+        self.assertEqual(len(occurrences), 10)
+        self.assertEqual(occurrences[0]['overflow_pt'], 16.0)
+        self.assertGreater(occurrences[0]['timestamp'], occurrences[-1]['timestamp'])
+
     def test_7_island_layout_violations_from_synthetic_events(self):
         rows = [
             layout([overlay('status_pill', 660, 4, 100, 30)]),                                   # inside: fine
@@ -215,6 +226,12 @@ class IslandLayoutTests(Case):
         self.assertEqual(card['failed_attempt_count'], 2)
         self.assertEqual(card['island_layout']['max_overflow_pt'], 16.0)
         self.assertEqual(card['island_layout']['triggers'], {'overlay_move': 1, 'overlay_show': 1})
+        latest = card['island_layout']['occurrences'][0]
+        self.assertEqual(latest['overflow_pt'], 16.0)
+        self.assertEqual(latest['version'], '0.2.85')
+        self.assertEqual(latest['bounds'], {'w': 200.0, 'h': 40.0})
+        self.assertEqual(latest['rect'], {'x': -16.0, 'y': 4.0, 'w': 100.0, 'h': 30.0})
+        self.assertNotIn('id', latest['rect'])
         self.assertEqual(found[('island', 'off_screen')]['island_layout']['max_overflow_pt'], 168.0)
         again, _ = self.collect(rows[:2])
         self.assertEqual(next(f['finding_key'] for f in again if f['kind'] == 'island_layout'), card['finding_key'])

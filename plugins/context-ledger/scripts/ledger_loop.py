@@ -277,7 +277,11 @@ class Mcp:
             with self.opener.open(req, timeout=self._left()) as resp:
                 status, hdrs, body = resp.status, resp.headers, resp.read()
         except urllib.error.HTTPError as exc:
-            status, hdrs, body = exc.code, exc.headers, exc.read()
+            status, hdrs = exc.code, exc.headers
+            try:
+                body = exc.read()
+            except OSError:
+                body = b""
         except (urllib.error.URLError, OSError) as exc:
             reason = getattr(exc, "reason", exc)
             code = "TIMEOUT" if isinstance(reason, TimeoutError) or isinstance(exc, TimeoutError) or "timed out" in str(reason) else "UNREACHABLE"

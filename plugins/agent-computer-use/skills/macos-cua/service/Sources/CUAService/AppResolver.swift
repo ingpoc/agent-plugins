@@ -46,9 +46,10 @@ final class AppResolver: @unchecked Sendable {
         _ app: String,
         raiseForInput: Bool = false,
         preferFocusedWindow: Bool = false,
-        windowID preferredWindowID: CGWindowID? = nil
+        windowID preferredWindowID: CGWindowID? = nil,
+        launchIfMissing: Bool = true
     ) throws -> ResolvedApp {
-        let runningApp = findRunningApp(app)
+        let runningApp = findRunningApp(app, launchIfMissing: launchIfMissing)
         guard let runningApp else {
             throw RPCMethodError(code: -32001, message: "App not found: \(app)")
         }
@@ -148,7 +149,7 @@ final class AppResolver: @unchecked Sendable {
         return ext == "appex" || ext == "xpc"
     }
 
-    private func findRunningApp(_ query: String) -> NSRunningApplication? {
+    private func findRunningApp(_ query: String, launchIfMissing: Bool) -> NSRunningApplication? {
         if let pid = Self.pidSelector(query) {
             // Exact process only: never fall through to name matching or a launch.
             return NSRunningApplication(processIdentifier: pid)
@@ -170,6 +171,7 @@ final class AppResolver: @unchecked Sendable {
         }) {
             return match
         }
+        guard launchIfMissing else { return nil }
         if let url = applicationURL(named: query) {
             return launchApplication(at: url)
         }
