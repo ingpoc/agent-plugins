@@ -37,9 +37,11 @@ NEXT_STEPS = {
     'invalid_limit': 'Pass limit as an integer: 1–100 for observability_sessions and observability_issues (larger issue limits are clamped), '
                      '1–10 for observability_inspect_issue.',
     'invalid_status': 'Use status all, active, recovered or stale.',
+    'invalid_issue_ids': 'Pass 1–5 full issue IDs returned by observability_issues.',
+    'invalid_diagnosis': 'For issue expansion, pass project_id, issue_ids and snapshot_id from a diagnosis response.',
     'invalid_kind': 'Use kind all, failure, latency_hotspot, redundancy, turn_latency, island_layout or storage.',
     'unknown_project': 'Call observability_projects and use a returned project_id.',
-    'snapshot_changed': 'Restart the query without a cursor.',
+    'snapshot_changed': 'Fetch a fresh diagnosis or restart the query without a cursor.',
     'issue_not_in_project': 'Use a full issue_id returned by observability_issues for this project.',
 }
 LIMITS = ['Project attribution follows configured owner/label mappings; labels may be provisional.',
@@ -450,6 +452,140 @@ class ObservabilityAPI:
                 'by_status': by_status, 'by_source': by_source, 'slowest': slowest, 'top_failures': top_failures,
                 'limit': limit, **({'limit_note': limit_note} if limit_note else {})}
 
+    # Local edit (0.1.19): one-call triage and bounded batch inspection, so an agent does not page
+    # projects -> issues -> inspect for every candidate before it can name the next action.
+    MAX_BRIEF_TOP = 20
+    MAX_BATCH_ISSUES = 5
+    ENVELOPE_FIELDS = ('schema_version', 'project_id', 'snapshot_id', 'generated_at', 'served_at',
+                       'freshness', 'coverage', 'coverage_gaps', 'coverage_details', 'coverage_gap_scope',
+                       'limits', 'data_source', 'optional_services')
+
+    @staticmethod
+    def _brief_score(finding):
+        """Ranking score for the brief. The basis is reported; the score is not a verdict."""
+        kind = finding.get('kind') or 'failure'
+
+        def number(value):
+            return value if isinstance(value, (int, float)) and not isinstance(value, bool) else 0
+
+        if kind == 'failure':
+            return number(finding.get('failed_attempt_count')), 'failed_attempts'
+        if kind == 'turn_latency':
+            return number((finding.get('turn_latency') or {}).get('max_ms')), 'max_turn_ms'
+        if kind == 'latency_hotspot':
+            return number((finding.get('latency') or {}).get('p95_ms')), 'p95_ms'
+        if kind == 'redundancy':
+            return number((finding.get('redundancy') or {}).get('wasted_ms')), 'wasted_ms'
+        if kind == 'storage':
+            return number((finding.get('storage') or {}).get('bytes')), 'bytes'
+        return number((finding.get('island_layout') or {}).get('max_overflow_pt')), 'max_overflow_pt'
+
+    def _brief_issue(self, finding):
+        summary = self._summary(finding)
+        score, basis = self._brief_score(finding)
+        return {'issue_id': summary['issue_id'], 'kind': summary['kind'], 'status': summary['status'],
+                'headline': summary['headline'], 'score': score, 'score_basis': basis,
+                'last_seen': summary['last_seen'], 'evidence_count': summary['evidence_count'],
+                'source': summary['source'], 'owner_ref': summary['owner_ref'],
+                'owner_locator': summary['owner_locator']}
+
+    def _brief_blocks(self, findings, top):
+        """At most `top` rows per bucket, so one brief cannot become an unpaged issue list."""
+        blocks = {'top_failures': [], 'slowest': [], 'redundancy': [], 'layout': [], 'storage': []}
+        for finding in findings:
+            kind = finding.get('kind') or 'failure'
+            row = self._brief_issue(finding)
+            if kind == 'failure':
+                blocks['top_failures'].append(row)
+            elif kind in ('latency_hotspot', 'turn_latency'):
+                blocks['slowest'].append(row)
+            elif kind == 'redundancy':
+                blocks['redundancy'].append(row)
+            elif kind == 'storage':
+                blocks['storage'].append(row)
+            else:
+                blocks['layout'].append(row)
+        for rows in blocks.values():
+            rows.sort(key=lambda row: (row['score'], row['last_seen'] or ''), reverse=True)
+            del rows[top:]
+        return {key: rows for key, rows in blocks.items() if rows}
+
+    @staticmethod
+    def _brief_counts(rows):
+        by_kind, by_status = {}, {}
+        for row in rows:
+            by_kind[row['kind']] = by_kind.get(row['kind'], 0) + 1
+            by_status[row['status']] = by_status.get(row['status'], 0) + 1
+        return {'total': len(rows), 'active': by_status.get('active', 0),
+                'by_kind': by_kind, 'by_status': by_status}
+
+    @staticmethod
+    def _brief_digest(rows, blocks):
+        counts = ObservabilityAPI._brief_counts(rows)
+        kinds = ', '.join(f'{kind} {count}' for kind, count in sorted(counts['by_kind'].items()))
+        lines = [f'{counts["total"]} findings, {counts["active"]} active' + (f' ({kinds})' if kinds else '')]
+        for block, label in (('top_failures', 'top failure'), ('slowest', 'slowest'),
+                             ('redundancy', 'most wasted'), ('layout', 'layout'), ('storage', 'storage')):
+            if rows := blocks.get(block):
+                lines.append(f'{label}: {rows[0]["headline"]} [{rows[0]["issue_id"]}]')
+        return lines
+
+    def _brief_overview(self, top):
+        if not self._findings_present():
+            return {**self.projects(), 'brief': {'scope': 'all_projects', 'top': top,
+                                                 'digest': ['No findings.json yet; call observability_collect once.'],
+                                                 'projects': []}}
+        data, revision = self._read()
+        projects, assigned, digest = [], set(), []
+        for key, config in self.project_map.items():
+            matches = [finding for finding in data['findings'] if self._matches(finding, key)]
+            assigned.update(finding['finding_key'] for finding in matches)
+            rows = [self._summary(finding) for finding in matches]
+            blocks = self._brief_blocks(matches, 1)
+            ranked = next(iter(blocks.values()), [])
+            top_issue = ranked[0] if ranked else None
+            counts = self._brief_counts(rows)
+            projects.append({'project_id': key, 'label': redact(config.get('label', key), 80),
+                             'issue_count': counts['total'], 'active_count': counts['active'],
+                             'by_kind': counts['by_kind'], 'example_issue': top_issue})
+            if matches:
+                digest.append(f'{key}: {counts["total"]} findings, {counts["active"]} active'
+                              + (f'; example {top_issue["headline"]}' if top_issue else ''))
+        unassigned = [finding for finding in data['findings'] if finding['finding_key'] not in assigned]
+        if unassigned:
+            digest.append(f'{len(unassigned)} unassigned findings; configure projects or enable discovery')
+        return {**self._envelope(data, revision), 'projects': projects,
+                'data_source': {'status': 'findings_present'}, 'optional_services': self.optional_services(),
+                'unassigned_issue_count': len(unassigned),
+                'brief': {'scope': 'all_projects', 'top': top, 'digest': digest,
+                          'projects': projects}}
+
+    def brief(self, project_id=None, top=5):
+        """One bounded triage call: counts, ranked blocks and a digest."""
+        if not isinstance(top, int) or isinstance(top, bool) or not 1 <= top <= self.MAX_BRIEF_TOP:
+            raise ValueError(f'invalid_limit: brief top must be an integer 1–{self.MAX_BRIEF_TOP}')
+        if project_id is None:
+            return self._brief_overview(top)
+        data, revision = self._read()
+        self._project(project_id)
+        findings = [finding for finding in data['findings'] if self._matches(finding, project_id)]
+        rows = [self._summary(finding) for finding in findings]
+        blocks = self._brief_blocks(findings, top)
+        return {**self._envelope(data, revision, project_id),
+                'brief': {'scope': project_id, 'top': top, 'counts': self._brief_counts(rows),
+                          'digest': self._brief_digest(rows, blocks), **blocks},
+                'next_step': 'Expand selected issue IDs with observability_diagnose and this snapshot_id, then verify in the owning project.'}
+
+    def diagnose(self, project_id=None, issue_ids=None, snapshot_id=None, top=5, include_diagnostics=False):
+        if issue_ids is None:
+            if snapshot_id is not None or include_diagnostics is not False:
+                raise ValueError('invalid_diagnosis: snapshot and diagnostics require issue IDs')
+            return self.brief(project_id, top)
+        if not isinstance(project_id, str) or not isinstance(snapshot_id, str):
+            raise ValueError('invalid_diagnosis: expansion requires project and snapshot ID')
+        return self.inspect_many(project_id, issue_ids, limit=5, include_diagnostics=include_diagnostics,
+                                 snapshot_id=snapshot_id)
+
     def sessions(self, project_id, session_ref=None, include_diagnostics=False, cursor=None, limit=64, summary_only=False, run_ref=None):
         """List recent opaque session references or inspect one bounded stage timeline."""
         if type(include_diagnostics) is not bool:
@@ -719,6 +855,43 @@ class ObservabilityAPI:
                                      'fixed_at': finding.get('fixed_at'),
                                      'provenance': 'adapter-linked or operator-reported; not independently executed by MCP'},
                 'acceptance_status': 'not_assessed'}
+
+    # Local edit (0.1.19): bounded batch inspection for a shortlist from the brief.
+    def inspect_many(self, project_id, issue_ids, limit=5, include_diagnostics=False, snapshot_id=None):
+        """Inspect 1–5 issue IDs in one call; a per-issue error does not fail the batch."""
+        if not isinstance(issue_ids, list) or not 1 <= len(issue_ids) <= self.MAX_BATCH_ISSUES:
+            raise ValueError(f'invalid_issue_ids: pass 1–{self.MAX_BATCH_ISSUES} issue IDs from observability_issues')
+        seen, ordered = set(), []
+        for issue_id in issue_ids:
+            if not isinstance(issue_id, str) or not issue_id:
+                raise ValueError('invalid_issue_ids: issue IDs must be strings from observability_issues')
+            if issue_id not in seen:
+                seen.add(issue_id)
+                ordered.append(issue_id)
+        _, revision = self._read()
+        self._project(project_id)
+        if snapshot_id is not None and snapshot_id != revision:
+            raise ValueError('snapshot_changed: restart diagnosis')
+        results, errors, envelope = [], [], None
+        for issue_id in ordered:
+            try:
+                full = self.inspect(project_id, issue_id, limit=limit, include_diagnostics=include_diagnostics)
+            except ValueError as error:
+                code = str(error).split(':', 1)[0]
+                if code != 'issue_not_in_project':
+                    raise
+                errors.append({'issue_id': issue_id, 'error': code})
+                continue
+            if full['snapshot_id'] != revision:
+                raise ValueError('snapshot_changed: retry batch inspection')
+            if envelope is None:
+                envelope = {key: full[key] for key in self.ENVELOPE_FIELDS if key in full}
+            results.append({key: value for key, value in full.items() if key not in self.ENVELOPE_FIELDS})
+        if self._read()[1] != revision:
+            raise ValueError('snapshot_changed: retry batch inspection')
+        if envelope is None:
+            raise ValueError(errors[0]['error'] if errors else 'issue_not_in_project')
+        return {**envelope, 'issues': results, 'errors': errors, 'count': len(results)}
 
     def recommendation(self, project_id, operation='read'):
         self._read()

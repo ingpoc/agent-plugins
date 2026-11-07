@@ -33,7 +33,7 @@ class MCPTests(unittest.TestCase):
                 (base/'findings.json').write_text(json.dumps({
                     'generated_at': datetime.now(timezone.utc).isoformat(),
                     'findings': [{'finding_key': 'k1', 'owner_ref': 'owner:a', 'headline': 'h', 'status': 'active',
-                                  'latest_evidence': {'first_error_line': 'private detail'}}]}))
+                                  'latest_evidence': {'first_error_line': 'token=sk-abcdefghijklmnopqrstuvwxyz'}}]}))
             config = base/'config.json'
             # Collector output stays in the temp dir: never merge the machine's real collected findings.
             config.write_text(json.dumps({'runtime': str(base), 'decider_script': None,
@@ -52,7 +52,7 @@ class MCPTests(unittest.TestCase):
                         await client.initialize()
                         self.assertEqual(client.protocol_version, '2025-11-25')
                     tools = (await client.list_tools()).tools
-                    self.assertEqual(len(tools), 9)
+                    self.assertEqual(len(tools), 10)
                     self.assertIn('observability_sessions', [t.name for t in tools])
                     self.assertIn('observability_storage', [t.name for t in tools])
                     self.assertIn("observability_collect", [t.name for t in tools])
@@ -70,12 +70,24 @@ class MCPTests(unittest.TestCase):
                         return
                     self.assertEqual(projects['data_source']['status'], 'findings_present')
                     self.assertEqual([(p['project_id'], p['issue_count']) for p in projects['projects']], [('a', 1)])
+                    brief = await client.call_tool('observability_diagnose', {'project_id': 'a'})
+                    self.assertFalse(brief.is_error)
+                    self.assertEqual(brief.structured_content['brief']['counts']['total'], 1)
+                    batch = await client.call_tool('observability_diagnose', {'project_id': 'a', 'issue_ids': ['k1', 'missing'], 'snapshot_id': brief.structured_content['snapshot_id']})
+                    self.assertFalse(batch.is_error)
+                    self.assertEqual(batch.structured_content['count'], 1)
+                    self.assertEqual(batch.structured_content['errors'][0]['error'], 'issue_not_in_project')
+                    self.assertNotIn('sk-abcdefghijklmnopqrstuvwxyz', json.dumps(batch.model_dump()))
+                    stale = await client.call_tool('observability_diagnose', {'project_id': 'a', 'issue_ids': ['k1'], 'snapshot_id': 'old'})
+                    self.assertTrue(stale.is_error)
+                    self.assertEqual(stale.structured_content['error'], 'snapshot_changed')
+                    self.assertIn('fresh diagnosis', stale.structured_content['next_step'])
                     issues = await client.call_tool('observability_issues', {'project_id': 'a'})
                     self.assertEqual(issues.structured_content['total'], 1)
                     failure = await client.call_tool('observability_issues', {'project_id':'other'})
                     self.assertTrue(failure.is_error)
                     dumped = json.dumps(failure.model_dump())
-                    self.assertNotIn('private detail', dumped)
+                    self.assertNotIn('sk-abcdefghijklmnopqrstuvwxyz', dumped)
                     self.assertNotIn(str(base), dumped)
                     resource = await client.read_resource('ui://developer-observability/dashboard')
                     html = resource.contents[0]
