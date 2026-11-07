@@ -51,6 +51,7 @@ def test_preference_instructions_cover_agreement_and_conflict():
         assert 'rule names differ' in instructions
         assert 'conflict' in instructions
         assert 'has_more' in instructions
+        assert 'genuinely global preferences' in instructions
 
 
 def test_preference_normalizes_bare_app_scope(tmp_path):

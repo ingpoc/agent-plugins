@@ -180,3 +180,17 @@ For relevant live requests and transitions, inspect the Dynamic Island visually 
 - The candidate clarifies agreement between complete relevant Ledger decisions, records bounded scope categories, and distinguishes an exited app during a planned action. These changes are not yet installed or verified as fixes.
 - The Netflix task returned unrelated Ledger decisions; a separate scoped helper lookup returned the saved decisions. The task did not record its scope, so the cause remains unconfirmed.
 - The combined `scripts/check.py --fast --jobs 2` source gate passed 118 test processes. Installed integration tests were skipped and remain required after installation.
+
+### Iteration review: 0.2.116
+
+- Installed PR commit `3313bd166a6d8bfe1e1e831909d1b2981604c5ae`. Signature, notarization, fresh MCP, client, cursor and live-fd checks passed. Microphone preflight failed because the input was disconnected.
+- The 32-issue run recorded 9 fixed, 6 not fixed, 5 blocked and 12 inconclusive. A typed Netflix task queried fleet scope twice and left the profile chooser open. A typed Calculator task produced 221 and closed the process, but its timeline recorded an action error and a subsequent state error. Two current resize records report voice-slot bounds violations.
+- **Delete:** Avoid a second scoped Ledger read to infer the task input when task-linked scope categories are available.
+- **Simplify:** Reuse one on/off/on screenshot set for control, reflow and icon observations; keep animation and icon identity inconclusive when stills cannot establish them.
+- **Optimize:** Collect observability once after the task batch and filter by run ID. This is a process change, not a measured speed claim.
+- **Automate:** The new bounded scope category made the wrong fleet scope visible in the task timeline. It cannot distinguish individual non-browser tools, and complete save, audio and motion checks remain outstanding.
+
+### Candidate: ACU 0.2.117
+
+- Clarify the named site/app scope rule and return an explicit `app_not_running` state for the observed missing-process response. The site selection remains model-controlled and needs installed verification.
+- The 88 focused Ledger and compact MCP tests and the frozen 118-process source gate passed. Installed integration and live verification remain pending.

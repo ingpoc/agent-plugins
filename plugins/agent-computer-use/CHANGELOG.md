@@ -1,5 +1,10 @@
 # Changelog: agent-computer-use
 
+## 0.2.117
+
+- Return an explicit not-running state when an observed app has exited.
+- Direct site and app preference lookups to their own Ledger scope.
+
 ## 0.2.116
 
 - Use an agreed saved preference when complete, relevant Ledger decisions have the same value under different rules.

@@ -72,6 +72,22 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_missing_app_state_is_typed_and_other_rpc_errors_propagate(self):
+        backend = compact_mcp.CUABackend()
+        from cua_client import RPCError
+        with patch.object(backend, '_rpc', side_effect=RPCError(-32001, 'App not found')):
+            result = backend.state('Example')
+        self.assertEqual(result, {'ok': False, 'app': 'Example', 'running': False,
+                                  'error_type': 'app_not_running', 'error': 'App is not running'})
+        client = Mock()
+        client.get_app_state.side_effect = RPCError(-32001, 'App not found')
+        with patch.object(backend, '_rpc', return_value={}), patch.object(backend, '_reset'), \
+             patch.object(backend, '_cua', return_value=client):
+            self.assertEqual(backend.state('Example'), result)
+        with patch.object(backend, '_rpc', side_effect=RPCError(-32002, 'No window')):
+            with self.assertRaises(RPCError):
+                backend.state('Example')
+
     def test_voice_control_routes_requested_operation_and_reports_readback(self):
         backend = Mock()
         backend.voice_control.return_value = {'ok': True, 'running': True, 'gateway_port': 8766}

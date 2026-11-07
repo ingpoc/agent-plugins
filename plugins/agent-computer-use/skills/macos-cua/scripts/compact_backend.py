@@ -95,6 +95,8 @@ class CUABackend:
         return self._rpc(lambda client: client.call("voice_control", {"operation": operation}, retry=False), retry=False)
 
     def state(self, app: str, **kwargs: Any) -> dict[str, Any]:
+        from cua_client import RPCError
+
         max_elements = int(kwargs.get("max_elements") or DEFAULT_MAX)
         disable_diff = not bool(kwargs.get("diff"))
         want_shot = kwargs.get("screenshot") is True
@@ -107,10 +109,16 @@ class CUABackend:
                 includeScreenshot=want_shot,
             )
 
-        result = self._rpc(_call)
-        if not isinstance(result, dict) or not result.get("text"):
-            self._reset()
-            result = _call(self._cua())
+        try:
+            result = self._rpc(_call)
+            if not isinstance(result, dict) or not result.get("text"):
+                self._reset()
+                result = _call(self._cua())
+        except RPCError as exc:
+            if exc.code != -32001:
+                raise
+            return {"ok": False, "app": app, "running": False, "error_type": "app_not_running",
+                    "error": "App is not running"}
         if not isinstance(result, dict):
             return {"ok": False, "error": "empty CUAService state", "app": app}
         text = str(result.get("text") or "")
