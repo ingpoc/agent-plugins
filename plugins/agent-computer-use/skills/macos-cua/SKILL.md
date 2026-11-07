@@ -15,7 +15,7 @@ allowed-tools: Bash, Read
 
 # macos-cua
 
-Engine and sole visible-cursor owner: **CUAService** (Swift `.app`). Cursor MCP is a 2-tool adapter (`state`, `act`) — not a second computer-use stack.
+Engine and sole visible-cursor owner: **CUAService** (Swift `.app`). Cursor MCP uses `state` and `act` for computer use and exposes `sessions` and `voice_control` — not a second computer-use stack.
 
 TCC on **macos-cua Service** / **CUAService**: Accessibility + Screen Recording. Relaunch after granting Screen Recording.
 
@@ -26,6 +26,8 @@ python3 "$SKILL_DIR/service/install_service.py"
 ```
 
 Do not shell a Python client per click when MCP is up. Do not use cua-driver or `start_session` / `verify` / `end_session`.
+
+Use `voice_control` with `status`, `start` or `stop` for an authorized Samantha test. Check `running` and `healthy`; the returned gateway port identifies the local session for typed prompts. Do not stop another user’s active session without authorization.
 
 ## Surfaces
 

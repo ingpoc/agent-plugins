@@ -23,7 +23,7 @@ SPEC = importlib.util.spec_from_file_location("compact_mcp", SCRIPT)
 compact_mcp = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(compact_mcp)
 
-FIVE = ["state", "act", "sessions"]
+FIVE = ["state", "act", "voice_control", "sessions"]
 MODERN_META = {
     "io.modelcontextprotocol/protocolVersion": compact_mcp.MODERN_VERSION,
     "io.modelcontextprotocol/clientCapabilities": {},
@@ -72,6 +72,24 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_voice_control_routes_requested_operation_and_reports_readback(self):
+        backend = Mock()
+        backend.voice_control.return_value = {'ok': True, 'running': True, 'gateway_port': 8766}
+        with patch.object(compact_mcp, '_BACKEND', backend):
+            result = compact_mcp.call_tool('voice_control', {'operation': 'start'}, modern=False)
+        backend.voice_control.assert_called_once_with('start')
+        self.assertEqual(result['structuredContent'], {'ok': True, 'running': True, 'gateway_port': 8766})
+
+    def test_voice_control_does_not_retry_start_or_stop(self):
+        client = Mock()
+        client.call.return_value = {'ok': True, 'running': True}
+        backend = compact_mcp.CUABackend()
+        with patch.object(backend, '_rpc', side_effect=lambda fn, **kwargs: fn(client)) as rpc:
+            backend.voice_control('start')
+        rpc.assert_called_once()
+        self.assertFalse(rpc.call_args.kwargs['retry'])
+        client.call.assert_called_once_with('voice_control', {'operation': 'start'}, retry=False)
+
     def test_buffered_messages_can_be_transferred_without_loss(self):
         body = b'{"id":2}'
         raw = b'{"id":1}\nContent-Length: ' + str(len(body)).encode() + b'\r\n\r\n' + body + b'{"id":3}\n'
@@ -1312,7 +1330,7 @@ class CompactMcpSpecTests(unittest.TestCase):
 
 
 class CompactMcpProtocolTests(unittest.TestCase):
-    def test_script_legacy_initialize_lists_two_tools(self):
+    def test_script_legacy_initialize_lists_tools(self):
         proc = _spawn([sys.executable, "-u", str(SCRIPT)])
         try:
             _send(
@@ -1372,7 +1390,7 @@ class CompactMcpProtocolTests(unittest.TestCase):
         self.assertEqual(init["result"]["protocolVersion"], "2025-11-25")
         self.assertEqual([tool["name"] for tool in listed["result"]["tools"]], FIVE)
 
-    def test_script_modern_discover_lists_two_tools(self):
+    def test_script_modern_discover_lists_tools(self):
         proc = _spawn([sys.executable, str(SCRIPT)])
         try:
             _send(

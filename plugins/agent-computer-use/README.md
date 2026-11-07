@@ -16,7 +16,7 @@ When the local Context Ledger plugin is installed and bound, Samantha can use a 
 
 ## Overview
 
-**Purpose.** Lets an agent see and operate native macOS apps. The `agent-computer-use` MCP server exposes three tools: read-only `sessions` (local agent sessions: Codex threads with model, effort, state, repo and tokens, plus harness processes), `state` (a compact Accessibility snapshot of one app) and `act` (a batch of actions that presses Accessibility elements first and falls back to pointer and keyboard input, then returns a verified delta). The `macos-cua` skill tells the agent how to use them. Optional: Samantha, ACU's own voice runtime (`runtime/voice-cua/`, GPT-Live-1 by default or Grok Voice 3.0) that drives the same tools by voice.
+**Purpose.** Lets an agent see and operate native macOS apps. The `agent-computer-use` MCP server exposes four tools: `voice_control` (start, stop or inspect Samantha through the menu supervisor), read-only `sessions` (local agent sessions: Codex threads with model, effort, state, repo and tokens, plus harness processes), `state` (a compact Accessibility snapshot of one app) and `act` (a batch of actions that presses Accessibility elements first and falls back to pointer and keyboard input, then returns a verified delta). The `macos-cua` skill tells the agent how to use them. Optional: Samantha, ACU's own voice runtime (`runtime/voice-cua/`, GPT-Live-1 by default or Grok Voice 3.0) that drives the same tools by voice.
 
 **Requirements.** macOS 13 or later (tested on Apple silicon), `python3` on `PATH`, and the CUAService helper app (**Agent Computer Use.app**) installed. It asks for its macOS permissions once, in its onboarding window. Not supported on Linux or Windows.
 
@@ -25,11 +25,11 @@ When the local Context Ledger plugin is installed and bound, Samantha can use a 
 1. Install the `agent-computer-use` plugin from this repository's marketplace. Per-client commands (Codex, Cursor, Grok Build, Agent Plugins Installer): repository root [`README.md`](../../README.md#install).
 2. Install CUAService. Testers use the notarized build from the repository's GitHub release (download the DMG, drag **Agent Computer Use** to Applications, open it). Maintainers can build from source with `python3 skills/macos-cua/service/install_service.py --team <YOUR_TEAM_ID>`. That needs Xcode Command Line Tools and a code-signing identity for that Apple Developer team.
 3. Grant permissions in the onboarding window (it opens on first launch; also ACU Settings › Computer Use). Required: **Accessibility** and **Screen Recording** (quit and reopen Agent Computer Use after granting Screen Recording; macOS applies it only on relaunch). **Automation**, per app, the first time an agent drives that app (for example Music, Finder, Comet, System Events). Optional: **Microphone** (Samantha voice only), **Calendars** and **Focus** (island extras). Every prompt is macOS's own.
-4. Restart the client. The plugin should list three tools, `state`, `act`, and read-only `sessions`.
+4. Restart the client. The plugin should list four tools, `state`, `act`, `voice_control`, and read-only `sessions`.
 
 **Configuration.** Nothing is required. `AGENT_COMPUTER_USE_PYTHON` picks the Python interpreter. For voice only, store an OpenAI API key (GPT-Live-1) or an xAI API key (Grok Voice 3.0) in the macOS login Keychain with the `runtime/voice-cua` secrets CLI. `runtime/voice-cua/config/secret-templates/` holds metadata only (label, Keychain service, account) and never a value.
 
-**Network endpoints and credentials.** `state`, `act`, and `sessions` stay on the machine. They talk to the local CUAService process, and nothing is uploaded. The voice runtime, when you turn it on, calls OpenAI GPT-Live at `wss://api.openai.com/v1/live/sessions` with the Keychain OpenAI key (or, if you pick Grok Voice, `wss://api.x.ai/v1/realtime` with a Keychain xAI key). The developer-only benchmark `skills/macos-cua/scripts/bench_jev_act.py` calls `https://ai-gateway.vercel.sh` with your own gateway key. Runtime counters and logs stay local under `~/.cache/macos-cua/`. There is no remote telemetry.
+**Network endpoints and credentials.** `state`, `act`, `voice_control`, and `sessions` stay on the machine. They talk to the local CUAService process, and nothing is uploaded. The voice runtime, when you turn it on, calls OpenAI GPT-Live at `wss://api.openai.com/v1/live/sessions` with the Keychain OpenAI key (or, if you pick Grok Voice, `wss://api.x.ai/v1/realtime` with a Keychain xAI key). The developer-only benchmark `skills/macos-cua/scripts/bench_jev_act.py` calls `https://ai-gateway.vercel.sh` with your own gateway key. Runtime counters and logs stay local under `~/.cache/macos-cua/`. There is no remote telemetry.
 
 **Testing.** From this directory: `python3 -m unittest skills/macos-cua/tests/test_plugin_package.py skills/macos-cua/tests/test_jev_act.py skills/macos-cua/tests/test_cua_service_health.py`. Live check: ask the agent to "open Calculator and compute 12 × 3 with agent-computer-use". It should call `state` and then `act`, and the display should read 36.
 
@@ -220,7 +220,7 @@ be running with all three permissions granted; island unlock is separate.
 
 A nonzero command exit or missing required record/tool means failure. Listing
 proof is deliberately labelled separately from a successful MCP tool call.
-The portable MCP exposes `state`, `act`, and `sessions`; it has no `status` or
+The portable MCP exposes `state`, `act`, `voice_control`, and `sessions`; it has no standalone `status` or
 `version` tool. To prove an end-to-end tool call in Codex or Claude, request ACU
 `state` in a new enabled-plugin session and inspect its successful response.
 See [Codex plugin docs](https://developers.openai.com/plugins/build/plugins),

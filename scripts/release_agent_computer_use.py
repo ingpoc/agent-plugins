@@ -100,7 +100,7 @@ def mcp(plugin, *, compute=False):
     rows = {r['id']:r for line in result.stdout.splitlines()
             if (r := json.loads(line)).get('id') is not None}
     version = rows[1]['result']['serverInfo']['version']
-    if {t['name'] for t in rows[2]['result']['tools']} != {'state','act','sessions'}:
+    if {t['name'] for t in rows[2]['result']['tools']} != {'state','act','sessions','voice_control'}:
         raise RuntimeError('installed MCP tool contract differs')
     def data(identifier):
         result = rows[identifier]['result']
@@ -333,6 +333,12 @@ def release(args, root=ROOT):
         report['native_smoke'] = {'ok':True,'fresh_mcp':True,'version':version,'independent_readback':True}
         report['existing_client'] = 'not_checked'
         run('microphone',[str(APP/'Contents/Helpers/voice-cua.app/Contents/MacOS/voice-cua'),'--preflight-mic'],30)
+        if getattr(args, 'skip_voice_smoke', False):
+            report['stage'] = 'voice-smoke'
+            report['voice'] = {'ok': False, 'reason': 'not exercised; spoken acceptance pending'}
+            save()
+            print('Installed checks passed; spoken acceptance remains pending.', flush=True)
+            return 1
         report['stage'] = 'voice-smoke'
         save()
         report['voice'] = voice_smoke(plugin,version)
@@ -358,6 +364,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check',action='store_true',help='Source policy only; safe in CI.')
     parser.add_argument('--verify-installed',action='store_true',help='Reuse the existing app; refresh and verify the Codex package without rebuilding or restarting.')
+    parser.add_argument('--skip-voice-smoke',action='store_true',help='Stop after installed checks without requesting speech; release remains not ready.')
     parser.add_argument('--sign-only',action='store_true',help='Local signed validation; never produces distribution-ready evidence.')
     parser.add_argument('--hygiene-override',action='store_true',help='Release despite hygiene FAILs for agent-plugins; recorded in the report.')
     parser.add_argument('--report',type=Path,default=Path.home()/'.agents/artifacts/acu-release.json')

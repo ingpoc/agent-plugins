@@ -3074,6 +3074,13 @@
           "updated_at": "2026-11-07T05:15:04Z",
           "evidence": "No new controlled cancellation was exercised; prior user voice session recorded a later action after the utterance, with model receipt timing unknown.",
           "finished_at": "2026-11-07T05:15:05Z"
+        },
+        "AGENT-08": {
+          "state": "inconclusive",
+          "started_at": "2026-11-07T05:22:18Z",
+          "updated_at": "2026-11-07T05:22:18Z",
+          "evidence": "The current installed 0.2.113 build does not expose the requested control; a new source candidate requires installation and live verification.",
+          "finished_at": "2026-11-07T05:22:18Z"
         }
       }
     }
@@ -4862,6 +4869,28 @@
           "session": "sref_fdba14238d94ef23c2828ccc6e169004",
           "timestamp": "2026-11-07T04:55:08.785912+00:00",
           "reference": "Task-linked activity events; compact_backend.py and MethodRouter.swift planState source review"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-08",
+      "title": "Agent control for Samantha on and off",
+      "source": "User requested",
+      "status": "in_progress",
+      "observed": "The menu-bar Samantha switch was not available through the current native automation target, forcing the user to turn Samantha on for agent-driven tests.",
+      "recommendation": "Expose authorized start, stop and status through the existing ACU supervisor, with running and health readback; use it for installed checks and restore the intended state.",
+      "verification": "A source candidate adds a service-owned MCP control. It has not yet been installed or verified against the menu and gateway.",
+      "details": {
+        "Scope": "The current menu-controlled session is left running until the candidate is ready. Source tests do not prove the installed control or island reflow."
+      },
+      "verification_evidence": [
+        {
+          "check": "Source control contract",
+          "outcome": "Source candidate exposes status, start and stop through the existing menu supervisor; status reports running, health and gateway port. Swift tests cover validation and readback; MCP tests cover dispatch and prohibit retries. Installed behavior and menu equivalence remain unverified.",
+          "build": "ACU 0.2.114 source candidate",
+          "session": "source-voice-control-20261107",
+          "timestamp": "2026-11-07T05:23:39.618084+00:00",
+          "reference": "MethodRouter.swift, ServiceDelegate.swift, compact_mcp.py, StatusTests.swift and test_compact_mcp.py"
         }
       ]
     }

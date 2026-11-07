@@ -11,7 +11,7 @@ Trigger: run or validate Samantha through prompts, investigate an incident, or a
 
 ## 2. Choose one test path
 
-**Existing voice session:** the operator turns Samantha on. Discover the actual gateway port from the helper startup record/listener; confirm `/health` identifies `service=voice-cua` and the expected version, then require `/api/session/status` `ready: true`. Never guess port 8765 or kill its unrelated owner. The operator speaks for microphone/speaker acceptance; agents can submit typed prompts to the same session but must label them typed.
+**Existing voice session:** use the ACU `voice_control` tool to inspect or start Samantha when authorized; preserve another user’s active session. Read its returned gateway port, or discover the actual gateway port from the helper startup record/listener; confirm `/health` identifies `service=voice-cua` and the expected version, then require `/api/session/status` `ready: true`. Never guess port 8765 or kill its unrelated owner. The operator speaks for microphone/speaker acceptance; agents can submit typed prompts to the same session but must label them typed.
 
 **Isolated installed-helper text test:** require no active Samantha helper and no other live driver. Set `H` to `/Applications/Agent Computer Use.app/Contents/Helpers/voice-cua.app/Contents/MacOS/voice-cua`. Select a verified free localhost port and retain the launched process/session handle:
 

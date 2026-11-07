@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.114
+
+- Add authorized agent control to start, stop, and inspect Samantha using the menu supervisor.
+
 ## 0.2.113
 
 - Require an observed after-state before accepting a negative text postcondition.

@@ -44,7 +44,6 @@ SUPPORTED_VERSIONS = (MODERN_VERSION,) + LEGACY_VERSIONS
 META_VERSION = "io.modelcontextprotocol/protocolVersion"
 META_CLIENT_CAPS = "io.modelcontextprotocol/clientCapabilities"
 META_SERVER_INFO = "io.modelcontextprotocol/serverInfo"
-TOOL_NAMES = ("state", "act")
 INSTRUCTIONS = (SCRIPT_DIR / "compact_instructions.txt").read_text()
 NEW_DOCUMENT_SETTLE_S = 0.6
 
@@ -91,6 +90,9 @@ class CUABackend:
 
     def sessions(self, arguments: dict[str, Any]) -> dict[str, Any]:
         return self._rpc(lambda client: client.call("local_sessions", arguments))
+
+    def voice_control(self, operation: str) -> dict[str, Any]:
+        return self._rpc(lambda client: client.call("voice_control", {"operation": operation}, retry=False), retry=False)
 
     def state(self, app: str, **kwargs: Any) -> dict[str, Any]:
         max_elements = int(kwargs.get("max_elements") or DEFAULT_MAX)

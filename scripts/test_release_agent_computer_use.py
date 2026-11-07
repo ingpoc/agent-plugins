@@ -112,9 +112,9 @@ class ReleaseTests(unittest.TestCase):
             with release.exclusive_release(path):
                 pass
 
-    def run_release(self, directory, *, source_exit=0, sign_only=False, microphone_exit=0):
+    def run_release(self, directory, *, source_exit=0, sign_only=False, microphone_exit=0, skip_voice_smoke=False):
         args = argparse.Namespace(report=Path(directory)/'receipt.json',
-                                  verify_installed=True,sign_only=sign_only,hygiene_override=False)
+                                  verify_installed=True,sign_only=sign_only,hygiene_override=False,skip_voice_smoke=skip_voice_smoke)
         identity = {'version':'0.2.32','sha256':'fingerprint'}
         contract = Mock();contract.package_identity.return_value = identity
         def output(command, **kwargs):
@@ -165,6 +165,14 @@ class ReleaseTests(unittest.TestCase):
         self.assertFalse(receipt['release_ready'])
         self.assertEqual(receipt['steps'][-1]['name'], 'microphone')
         self.assertNotIn('voice', receipt)
+
+    def test_skipped_voice_smoke_keeps_release_not_ready(self):
+        with tempfile.TemporaryDirectory() as td:
+            code, receipt, _ = self.run_release(td, skip_voice_smoke=True)
+        self.assertEqual(code, 1)
+        self.assertFalse(receipt['release_ready'])
+        self.assertFalse(receipt['voice']['ok'])
+        self.assertEqual(receipt['stage'], 'voice-smoke')
 
     def test_signed_only_never_claims_distribution_readiness(self):
         with tempfile.TemporaryDirectory() as td:

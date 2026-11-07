@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stdio MCP adapter: two tools over CUAService. Not an engine.
+"""Stdio MCP adapter over CUAService. Not an engine.
 
 CUAService owns AX, cursor, settle, screenshots. This process exists only
 because Cursor injects tools through MCP stdio. No start/end/verify: the
@@ -313,6 +313,11 @@ def tool_schemas() -> list[dict[str, Any]]:
             "outputSchema": result_schema,
         },
         {
+            "name": "voice_control",
+            "description": "Start, stop, or check Samantha through the same supervisor as the menu-bar switch. Returns running state and local gateway port; start and stop only when authorized.",
+            "inputSchema": _schema({"operation": {"type": "string", "enum": ["status", "start", "stop"]}}, ["operation"]),
+        },
+        {
             "name": "sessions",
             "description": "Read-only: local agent sessions the island hides (Codex threads with title, state, model, effort, cwd, repo, branch, tokens, context %, pid/host, deep_link; idle threads; probe runs flagged probe:true; harness processes). No emails or account ids.",
             "inputSchema": _schema({"include_idle": {"type": "boolean", "default": True},
@@ -347,6 +352,7 @@ def handle_act(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 HANDLERS = {
+    "voice_control": lambda arguments: _backend().voice_control(str(arguments.get("operation") or "")),
     "sessions": lambda arguments: _backend().sessions(arguments),
     "state": _state_payload,
     "act": handle_act,
