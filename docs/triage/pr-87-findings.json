@@ -2908,7 +2908,7 @@
       "status": "failing",
       "observed": "During the 0.2.102 voice test, Samantha queried the Ledger and then said she had no saved site profile, although an active site-scoped preference already existed.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "The installed 0.2.112 signed helper answered one controlled text-only profile question with the expected saved choice without being told to use Ledger; its task-linked result matched an active site-scoped decision. The prior 0.2.111 text run failed. Spoken default lookup and opening the correct profile remain unverified.",
+      "verification": "User voice test on 0.2.112: initial preference lookup failed validation. A later lookup found a decision after repeated requests; browser actions followed user confirmation. The desired automatic preference use remains failing; final selected profile was not independently read back.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
@@ -3136,6 +3136,14 @@
           "session": "text-only-sref_88f9292f4058f8ad0905947718f88390",
           "timestamp": "2026-11-07T04:45:06.856349+00:00",
           "reference": "Developer Observability session sref_88f9292f4058f8ad0905947718f88390; independent owner-authorized exact-site readback; values and identifiers omitted"
+        },
+        {
+          "check": "User spoken Netflix profile task",
+          "outcome": "The first Ledger lookup returned ledger_invalid_argument. A later lookup found one record after repeated requests, and browser actions followed the user confirmation. Automatic preference use without prompting failed; correct profile selection was not independently read back.",
+          "build": "ACU 0.2.112 installed",
+          "session": "sref_fdba14238d94ef23c2828ccc6e169004",
+          "timestamp": "2026-11-07T04:52:29.479156+00:00",
+          "reference": "Developer Observability session sref_fdba14238d94ef23c2828ccc6e169004; user voice session; independent Calculator AX readback"
         }
       ]
     },
@@ -3605,6 +3613,14 @@
           "session": "col-8d5ea6a3cd6b73d0",
           "timestamp": "2026-11-06T16:24:31+00:00",
           "reference": "Developer Observability issue inspection; session timestamps 2026-11-06 12:28–12:31 UTC"
+        },
+        {
+          "check": "Voice island layout lead",
+          "outcome": "Fresh collector reports voice_slot outside island during the user session, including up to 30 pt in its grouped occurrences. The collector grouping includes historical events; a controlled visual capture and task-specific layout investigation remain required.",
+          "build": "ACU 0.2.112 installed",
+          "session": "sref_fdba14238d94ef23c2828ccc6e169004",
+          "timestamp": "2026-11-07T04:52:29.479156+00:00",
+          "reference": "Developer Observability session sref_fdba14238d94ef23c2828ccc6e169004; user voice session; independent Calculator AX readback"
         }
       ]
     },
@@ -3962,6 +3978,14 @@
           "session": "sref_4d1333e86a85272b5806f69b78278691",
           "timestamp": "2026-11-06T12:56:16+00:00",
           "reference": "Local session timestamps 2026-11-06 12:21–12:23 UTC"
+        },
+        {
+          "check": "User spoken Calculator and close task",
+          "outcome": "User requested 15 times 20; successful native action and later independent Calculator AX readback showed 300. Later attempts to close Calculator returned two observation_incomplete errors and one target_missing; independent AX state still showed its window open.",
+          "build": "ACU 0.2.112 installed",
+          "session": "sref_fdba14238d94ef23c2828ccc6e169004",
+          "timestamp": "2026-11-07T04:52:29.479156+00:00",
+          "reference": "Developer Observability session sref_fdba14238d94ef23c2828ccc6e169004; user voice session; independent Calculator AX readback"
         }
       ]
     },
@@ -4037,6 +4061,14 @@
           "session": "user-spoken-session-sref_e154901d8c7855ee6e8288b4a81cea06",
           "timestamp": "2026-11-06T11:22:17+00:00",
           "reference": "Developer Observability session sref_e154901d8c7855ee6e8288b4a81cea06; independent Calculator readback where stated"
+        },
+        {
+          "check": "Voice microphone startup",
+          "outcome": "The user voice session reported successful mic_preflight and audio_ready after previous no-input preflight failures. This proves this session had audio input, not automatic recovery or readiness for every device state.",
+          "build": "ACU 0.2.112 installed",
+          "session": "sref_fdba14238d94ef23c2828ccc6e169004",
+          "timestamp": "2026-11-07T04:52:29.479156+00:00",
+          "reference": "Developer Observability session sref_fdba14238d94ef23c2828ccc6e169004; user voice session; independent Calculator AX readback"
         }
       ]
     },
