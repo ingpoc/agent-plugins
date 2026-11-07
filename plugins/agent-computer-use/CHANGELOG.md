@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.112
+
+- Clarify pending application outcomes for recorded user decisions without asserting approval or successful use.
+
 ## 0.2.111
 
 - Maintenance release for installed MCP refresh verification.

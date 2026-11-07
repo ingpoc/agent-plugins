@@ -2695,7 +2695,7 @@
       "status": "failing",
       "observed": "During the 0.2.102 voice test, Samantha queried the Ledger and then said she had no saved site profile, although an active site-scoped preference already existed.",
       "recommendation": "When a preference is relevant to a choice, recall its active scope and rule automatically and apply it without asking the user to name Context Ledger.",
-      "verification": "The 0.2.102 voice test failed: Samantha asked before checking and later reported no match despite an existing preference. The installed 0.2.106 helper independently retrieved a saved decision with its exact site scope and rule; automatic spoken lookup and application remain unverified.",
+      "verification": "The installed 0.2.111 signed helper failed a controlled text-only preference question: it could not resolve the saved site choice. A separate instrumented installed-package diagnostic found the exact saved decision but treated its pending application outcome as an unconfirmed preference. Spoken application remains unverified.",
       "details": {
         "Source review": "The existing ledger_task supports recall, preference, lookup, and capture. The PR adds proactive recall guidance; source review did not identify a missing tool capability.",
         "Source verification": "The system prompt says to call ledger_task proactively before preference-sensitive choices. The preference helper test saves and recalls an exact scope+rule without calling the helper model.",
@@ -2716,7 +2716,8 @@
         "Root cause analysis": "The voice-facing Live instructions allow brief clarifications to be answered directly; the proactive Ledger instruction lives in the backend instructions and does not guarantee backend delegation at a preference-sensitive choice. Exact-scope and exact-rule recall is brittle: controlled reads found saved decisions with their precise scope and rule, but equivalent site identifiers or a different rule returned none. The actual live recall scope and rule were not recorded, so its specific mismatch is unknown.",
         "Required fix": "Ensure preference-sensitive choices reach the backend before asking; resolve site identity independently of browser tool, search existing scoped decisions without guessing a rule, and apply only an unambiguous active match. Record bounded scope/rule and delegation metadata to diagnose misses, without recording private values. Verify save, recall and application on an installed build.",
         "Fix plan": "The existing PR #87 implementation plan now includes a scoped automatic-preference milestone, known limits, failure handling, privacy boundaries, owner paths and installed acceptance checks. Legacy browser-scope migration and the voice decision-boundary signal remain open design decisions.",
-        "0.2.103 candidate": "Adds explicit voice delegation guidance and a bounded same-scope candidate search when an exact rule misses. Candidates require disambiguation and do not establish a saved preference by themselves. Site alias resolution, deterministic voice routing, conflict handling and live acceptance remain open."
+        "0.2.103 candidate": "Adds explicit voice delegation guidance and a bounded same-scope candidate search when an exact rule misses. Candidates require disambiguation and do not establish a saved preference by themselves. Site alias resolution, deterministic voice routing, conflict handling and live acceptance remain open.",
+        "Latest controlled test": "The signed helper returned unrelated Ledger records and did not resolve the preference; the exact requested scope was not logged. A separate diagnostic used the expected site scope and matched the saved decision, but Samantha misinterpreted its pending application outcome. No preference values or identifiers are included here."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — proactive recall instruction and scoped preference save/recall pass.",
@@ -2890,6 +2891,30 @@
           "session": "acu-0.2.108-09ba6dc-20261107",
           "timestamp": "2026-11-07T03:41:05.952576+00:00",
           "reference": "/private/tmp/pr87-installed-ledger-partial.py; Context Ledger 0.1.39 isolated store"
+        },
+        {
+          "check": "Installed text-only preference task",
+          "outcome": "The signed 0.2.111 helper answered a text-only request for the usual site profile without opening a site. It could not resolve the preference. The task-linked Ledger result contained three records with no IDs matching the two independently read active records in the known site scope; the requested scope was not captured. This is a failure of the text task, not a spoken test.",
+          "build": "ACU 0.2.111; PR ca1621b",
+          "session": "text-only-sref_4ae5176c8a545b646372f02e63b8db83",
+          "timestamp": "2026-11-07T04:17:01.582715+00:00",
+          "reference": "Developer Observability session sref_4ae5176c8a545b646372f02e63b8db83; independent owner-authorized exact-scope Ledger readback; no values or IDs retained in report"
+        },
+        {
+          "check": "Instrumented installed-package text diagnostic",
+          "outcome": "A separate diagnostic using installed 0.2.111 Python runtime and a privacy-limited scope observer used the expected site scope, selected the exact saved decision, then asked for a profile because it called the decision pending and unconfirmed. Ledger metadata shows an active user_decision with pending outcome and hint tier; pending concerns recorded application outcome, not a proof that the owner never chose it. This diagnostic is not the original signed-helper run and is not a fix.",
+          "build": "ACU 0.2.111 installed Python package; diagnostic instrumentation",
+          "session": "text-diagnostic-8f5a56d4",
+          "timestamp": "2026-11-07T04:17:01.582715+00:00",
+          "reference": "Scoped diagnostic; task-linked Ledger result matched independent exact-scope readback; record metadata checked without retaining values or IDs"
+        },
+        {
+          "check": "Pending application outcome interpretation",
+          "outcome": "Source candidate adds a bounded explanation that pending is an application outcome, not an approval state, and does not establish owner attestation or successful use. Synthetic tests cover user decisions and agent conclusions. The automatic preference behavior is not yet installed or live-verified.",
+          "build": "ACU 0.2.112 source candidate",
+          "session": "source-outcome-semantics-20261107",
+          "timestamp": "2026-11-07T04:18:38.013387+00:00",
+          "reference": "ledger_helper.py and test_ledger_helper.py; synthetic records"
         }
       ]
     },
@@ -3839,6 +3864,22 @@
           "session": "acu-0.2.108-09ba6dc-20261107",
           "timestamp": "2026-11-07T03:41:05.952576+00:00",
           "reference": "/private/tmp/pr87-installed-ledger-partial.py; Context Ledger 0.1.39 isolated store"
+        },
+        {
+          "check": "Instrumented installed-package text diagnostic",
+          "outcome": "A separate diagnostic using installed 0.2.111 Python runtime and a privacy-limited scope observer used the expected site scope, selected the exact saved decision, then asked for a profile because it called the decision pending and unconfirmed. Ledger metadata shows an active user_decision with pending outcome and hint tier; pending concerns recorded application outcome, not a proof that the owner never chose it. This diagnostic is not the original signed-helper run and is not a fix.",
+          "build": "ACU 0.2.111 installed Python package; diagnostic instrumentation",
+          "session": "text-diagnostic-8f5a56d4",
+          "timestamp": "2026-11-07T04:17:01.582715+00:00",
+          "reference": "Scoped diagnostic; task-linked Ledger result matched independent exact-scope readback; record metadata checked without retaining values or IDs"
+        },
+        {
+          "check": "Pending application outcome interpretation",
+          "outcome": "Source candidate adds a bounded explanation that pending is an application outcome, not an approval state, and does not establish owner attestation or successful use. Synthetic tests cover user decisions and agent conclusions. The automatic preference behavior is not yet installed or live-verified.",
+          "build": "ACU 0.2.112 source candidate",
+          "session": "source-outcome-semantics-20261107",
+          "timestamp": "2026-11-07T04:18:38.013387+00:00",
+          "reference": "ledger_helper.py and test_ledger_helper.py; synthetic records"
         }
       ]
     },

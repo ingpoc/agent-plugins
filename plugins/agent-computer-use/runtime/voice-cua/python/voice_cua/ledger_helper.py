@@ -62,6 +62,15 @@ def _invalid(error: str) -> dict[str, Any]:
     return {'ok': False, 'error': error, 'error_type': 'ledger_invalid_argument', 'retryable': False}
 
 
+def _outcome_semantics(result: dict[str, Any]) -> dict[str, Any]:
+    data = result.get('data')
+    matches = data.get('matches') if isinstance(data, dict) else result.get('decisions')
+    if isinstance(matches, list) and any(isinstance(row, dict) and row.get('type') == 'user_decision'
+                                        and row.get('outcome') == 'pending' for row in matches):
+        return {**result, 'outcome_semantics': 'Pending is an application outcome, not an approval state; it does not establish owner attestation or successful use.'}
+    return result
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -141,14 +150,14 @@ class LedgerHelper:
                         args['rule'] = rule
                     result = self.transport.call('find', args)
                     if result.get('ok') and result.get('data', {}).get('has_more') is True:
-                        return {'ok': True, 'status': 'needs_disambiguation', 'has_more': True, 'data': result['data']}
+                        return _outcome_semantics({'ok': True, 'status': 'needs_disambiguation', 'has_more': True, 'data': result['data']})
                     if rule and result.get('ok') and not result.get('data', {}).get('matches'):
                         candidates = self.transport.call('find', {k: v for k, v in args.items() if k != 'rule'})
                         if not candidates.get('ok'):
                             raise LedgerUnavailable('scoped candidate search failed')
                         if candidates.get('data', {}).get('matches') or candidates.get('data', {}).get('has_more') is True:
-                            return {'ok': True, 'status': 'needs_disambiguation', 'has_more': candidates['data'].get('has_more') is True, 'data': candidates['data']}
-                    return {'ok': True, **result}
+                            return _outcome_semantics({'ok': True, 'status': 'needs_disambiguation', 'has_more': candidates['data'].get('has_more') is True, 'data': candidates['data']})
+                    return _outcome_semantics({'ok': True, **result})
                 source = self._quote_source(owner_quote)
                 if not _norm_text(value) or source is None or (' ' + _norm_text(value) + ' ') not in (' ' + _norm_text(owner_quote) + ' '):
                     return _invalid('Value and owner quote must occur in a recent user statement')
@@ -223,7 +232,7 @@ class LedgerHelper:
                 if not isinstance(matches, list) or len(matches) > 3:
                     raise LedgerUnavailable('invalid find result')
                 if operation == 'lookup' and found['data'].get('has_more') is True:
-                    return {'ok': True, 'status': 'needs_disambiguation', 'has_more': True, 'data': found['data']}
+                    return _outcome_semantics({'ok': True, 'status': 'needs_disambiguation', 'has_more': True, 'data': found['data']})
                 if operation == 'lookup' and not matches:
                     return {'ok': True, 'status': 'none', 'decisions': []}
                 result = self.request({'operation': operation, 'situation': situation, 'need': need,
@@ -235,7 +244,7 @@ class LedgerHelper:
                     by_id = {m.get('decision_id'): m for m in matches if isinstance(m, dict) and isinstance(m.get('decision_id'), str)}
                     if result.get('status') not in {'found', 'none'} or not isinstance(ids, list) or len(ids) > 3 or any(not isinstance(i, str) or i not in by_id for i in ids) or (result['status'] == 'found') != bool(ids):
                         raise LedgerUnavailable('invalid helper result')
-                    return {'ok': True, 'status': result['status'], 'decisions': [by_id[i] for i in ids]}
+                    return _outcome_semantics({'ok': True, 'status': result['status'], 'decisions': [by_id[i] for i in ids]})
                 if result.get('status') == 'skip':
                     return {'ok': True, 'status': 'skipped', 'reason': str(result.get('reason', 'not durable'))[:200]}
                 if result.get('status') != 'save':

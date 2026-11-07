@@ -98,6 +98,19 @@ class LedgerHelperTests(unittest.TestCase):
         self.assertEqual(r['status'], 'none')
         self.decide.assert_not_called()
 
+    def test_pending_application_outcome_does_not_imply_pending_approval(self):
+        self.match.update({'type': 'user_decision', 'outcome': 'pending', 'tier': 'hint'})
+        for operation in ('lookup', 'recall'):
+            result = self.helper.run(operation=operation, situation='choose profile', need='profile', scope='tool:example')
+            self.assertIn('application outcome', result['outcome_semantics'])
+            self.assertIn('not an approval state', result['outcome_semantics'])
+            self.assertNotIn('confirmed', result['outcome_semantics'])
+
+    def test_pending_note_does_not_claim_an_agent_conclusion_is_a_user_choice(self):
+        self.match.update({'type': 'agent_conclusion', 'outcome': 'pending'})
+        result = self.helper.run(operation='recall', situation='choose profile', need='profile', scope='tool:example')
+        self.assertNotIn('outcome_semantics', result)
+
     def test_partial_scoped_lookup_is_not_reported_as_complete(self):
         for matches in ([self.match], []):
             self.transport.call.return_value = {'ok': True, 'data': {'matches': matches, 'has_more': True}}
