@@ -4,12 +4,15 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest.mock import Mock, patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +72,124 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_buffered_messages_can_be_transferred_without_loss(self):
+        body = b'{"id":2}'
+        raw = b'{"id":1}\nContent-Length: ' + str(len(body)).encode() + b'\r\n\r\n' + body + b'{"id":3}\n'
+        stream = compact_mcp.MCPInput(io.BytesIO(raw))
+        self.assertEqual(compact_mcp.read_message(stream), ({'id': 1}, 'nl'))
+        resumed = compact_mcp.MCPInput(io.BytesIO(b''), pending=bytes(stream.pending))
+        self.assertEqual(compact_mcp.read_message(resumed), ({'id': 2}, 'lsp'))
+        self.assertEqual(compact_mcp.read_message(resumed), ({'id': 3}, 'nl'))
+        self.assertEqual(compact_mcp.read_message(resumed), (None, 'eof'))
+
+    def test_stale_handoff_preserves_request_and_queued_bytes_before_dispatch(self):
+        import base64
+        import runtime_contract
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            installed = root / 'app' / 'contract.json'
+            installed.parent.mkdir()
+            identity = {'version': '99.0.0', 'sha256': 'a' * 64}
+            installed.write_text(json.dumps(identity))
+            old = root / 'versions' / 'old'
+            new = root / 'versions' / 'new'
+            script = new / 'skills/macos-cua/scripts/compact_mcp.py'
+            script.parent.mkdir(parents=True)
+            script.write_text('')
+            script.with_name('mcp-handoff-v1').write_text('1\n')
+            (new / 'plugin.json').write_text(json.dumps({'version': identity['version']}))
+            backend = Mock()
+            backend._cua.return_value.call.return_value = identity
+            request = {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'act'}}
+            pending = b'{"jsonrpc":"2.0","id":4,"method":"ping"}\n'
+            saved = {}
+            class Replaced(BaseException):
+                pass
+            def replace(_program, args):
+                fd = int(args[-1])
+                saved.update(json.loads(os.pread(fd, 100000, 0)))
+                raise Replaced()
+            with patch.object(compact_mcp, 'PLUGIN_ROOT', old), patch.object(compact_mcp, '_backend', return_value=backend), \
+                 patch.object(runtime_contract, 'APP', installed.parent), patch.object(runtime_contract, 'RECORD', installed.name), \
+                 patch.object(runtime_contract, 'package_identity', return_value=identity), patch.object(compact_mcp.os, 'execv', side_effect=replace):
+                with self.assertRaises(Replaced):
+                    compact_mcp._handoff_if_stale(request, compact_mcp.MCPInput(io.BytesIO(b''), pending=pending))
+            self.assertEqual(saved['message'], request)
+            self.assertEqual(base64.b64decode(saved['pending']), pending)
+            backend._cua.return_value.call.assert_called_once_with('runtime_contract', retry=False)
+
+    def test_process_handoff_keeps_queued_requests_and_client_identity(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app = root / 'app'
+            app.mkdir()
+            identity = {'version': '99.0.0', 'sha256': 'a' * 64}
+            (app / 'contract.json').write_text(json.dumps(identity))
+            old = root / 'versions' / 'old'
+            new = root / 'versions' / 'new'
+            script = new / 'skills/macos-cua/scripts/compact_mcp.py'
+            script.parent.mkdir(parents=True)
+            script.with_name('mcp-handoff-v1').write_text('1\n')
+            (new / 'plugin.json').write_text(json.dumps({'version': identity['version']}))
+            loader = (f"import importlib.util,sys,os\n"
+                      f"spec=importlib.util.spec_from_file_location('handoff_fixture',{str(SCRIPT)!r})\n"
+                      "m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)\n")
+            script.write_text(loader + "m._handoff_if_stale=lambda *a: None\n"
+                              "m.HANDLERS['state']=lambda a: {'ok':True,'client':m._CLIENT['name'],'pid':os.getpid()}\n"
+                              "raise SystemExit(m.serve())\n")
+            original = root / 'original.py'
+            original.write_text(loader + "import runtime_contract\n"
+                f"runtime_contract.APP=__import__('pathlib').Path({str(app)!r});runtime_contract.RECORD='contract.json'\n"
+                f"runtime_contract.package_identity=lambda root: {identity!r}\n"
+                f"m.PLUGIN_ROOT=__import__('pathlib').Path({str(old)!r})\n"
+                f"class Client:\n def call(self,*a,**k): return {identity!r}\n"
+                "class Backend:\n def _cua(self): return Client()\n"
+                "m._backend=lambda: Backend()\nraise SystemExit(m.serve())\n")
+            proc = _spawn([sys.executable, '-u', str(original)])
+            try:
+                init = {'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-11-25',
+                        'capabilities':{},'clientInfo':{'name':'fixture-client','version':'1'}}}
+                act = {'jsonrpc':'2.0','id':2,'method':'tools/call','params':{'name':'state','arguments':{}}}
+                ping = {'jsonrpc':'2.0','id':3,'method':'ping'}
+                body = json.dumps(act).encode()
+                proc.stdin.write(json.dumps(init).encode()+b'\n'+f'Content-Length: {len(body)}\r\n\r\n'.encode()+body+json.dumps(ping).encode()+b'\n')
+                proc.stdin.flush()
+                self.assertEqual(_recv(proc)['id'], 1)
+                result = _recv(proc)
+                self.assertEqual(result['id'], 2)
+                self.assertEqual(result['result']['structuredContent']['client'], 'fixture-client')
+                self.assertEqual(result['result']['structuredContent']['pid'], proc.pid)
+                self.assertEqual(_recv(proc)['id'], 3)
+            finally:
+                _close(proc)
+
+    def test_handoff_refuses_package_that_does_not_match_service(self):
+        import runtime_contract
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app = root / 'app'
+            app.mkdir()
+            identity = {'version': '99.0.0', 'sha256': 'a' * 64}
+            (app / 'contract.json').write_text(json.dumps(identity))
+            old = root / 'versions' / 'old'
+            new = root / 'versions' / 'new'
+            script = new / 'skills/macos-cua/scripts/compact_mcp.py'
+            script.parent.mkdir(parents=True)
+            script.write_text('')
+            script.with_name('mcp-handoff-v1').write_text('1\n')
+            (new / 'plugin.json').write_text(json.dumps({'version': identity['version']}))
+            backend = Mock()
+            backend._cua.return_value.call.return_value = identity
+            with patch.object(compact_mcp, 'PLUGIN_ROOT', old), patch.object(compact_mcp, '_backend', return_value=backend), \
+                 patch.object(runtime_contract, 'APP', app), patch.object(runtime_contract, 'RECORD', 'contract.json'), \
+                 patch.object(runtime_contract, 'package_identity', return_value={'version':'99.0.0','sha256':'b'*64}) as fingerprint, \
+                 patch.object(compact_mcp.os, 'execv') as replace:
+                compact_mcp._handoff_if_stale({'method':'tools/call'}, compact_mcp.MCPInput(io.BytesIO(b'')))
+                fingerprint.return_value = identity
+                script.with_name('mcp-handoff-v1').unlink()
+                compact_mcp._handoff_if_stale({'method':'tools/call'}, compact_mcp.MCPInput(io.BytesIO(b'')))
+            replace.assert_not_called()
+
     def test_service_client_is_loaded_before_first_tool_call(self):
         self.assertIsNotNone(compact_mcp._BACKEND._client)
 

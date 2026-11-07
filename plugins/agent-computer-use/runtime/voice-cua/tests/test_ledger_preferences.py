@@ -41,6 +41,7 @@ def test_preferences_and_recall_without_helper(tmp_path):
     skill = (Path(__file__).resolve().parents[3] / 'skills/macos-cua/SKILL.md').read_text()
     assert 'the helper searches both `need` and `situation`' in skill
     assert '`ledger_invalid_argument` is non-retryable' in skill
+    assert 'If `has_more` is true, ask rather than select from an incomplete set' in skill
 
 
 def test_preference_normalizes_scope_and_rule_before_lookup_or_save(tmp_path):

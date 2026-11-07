@@ -1,5 +1,10 @@
 # Changelog: agent-computer-use
 
+## 0.2.109
+
+- Prepare stale MCP clients to hand off queued requests to a package matching the running service before dispatch.
+- Clarify that incomplete Ledger results require a question before selection.
+
 ## 0.2.108
 
 - Report incomplete Ledger search results as needing disambiguation instead of claiming a complete match.

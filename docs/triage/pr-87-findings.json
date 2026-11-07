@@ -3449,7 +3449,8 @@
         "Evidence": "Active ACU state tool returned No module named cua_client; a fresh process from the 0.2.98 cache independently read Calculator.",
         "Implementation progress": "The MCP now loads its service client at startup, before a versioned cache can be removed. Source protocol tests pass; an upgrade with an already-running client must verify the fix.",
         "Latest verification": "ACU 0.2.101 installed from PR code cae6640; source, notarization, client, Cursor, disconnect and microphone checks passed. Already-running client across a subsequent refresh remains untested.",
-        "Latest self-check": "The active ACU tool currently reads Calculator successfully and installed 0.2.101 protocol tests pass. Survival across a subsequent package refresh remains unverified."
+        "Latest self-check": "The active ACU tool currently reads Calculator successfully and installed 0.2.101 protocol tests pass. Survival across a subsequent package refresh remains unverified.",
+        "Handoff candidate": "The source candidate compares the installed app contract with the running service, then selects a matching package before dispatch and carries the current request, buffered input and client name across exec. Source tests cover queued mixed-framing requests and a mismatched package. A persistent newly installed client must still be tested across the next refresh."
       },
       "verification_evidence": [
         {
@@ -3475,6 +3476,22 @@
           "session": "acu-0.2.108-09ba6dc-20261107",
           "timestamp": "2026-11-07T03:41:05.952576+00:00",
           "reference": "/private/tmp/pr87-refresh-probe.py and /private/tmp/acu-pr87-0.2.108-09ba6dc.json"
+        },
+        {
+          "check": "Refresh handoff buffering investigation",
+          "outcome": "The running MCP adapter uses buffered stdin. In an isolated pipe, reading the first of two queued JSON messages left nine bytes of the second in the Python buffer. A naive exec restart would discard those bytes; a safe handoff must retain queued input and switch before any action dispatch. No refresh repair has been validated.",
+          "build": "ACU 0.2.108 source and isolated Python pipe",
+          "session": "refresh-handoff-investigation-20261107",
+          "timestamp": "2026-11-07T03:43:58.785867+00:00",
+          "reference": "compact_mcp.py serve/read_message; isolated two-message stdin buffer reproduction"
+        },
+        {
+          "check": "Refresh handoff source proof",
+          "outcome": "Source candidate compares the installed app contract with the running service identity, locates a matching package and transfers the current request, queued bytes and client identity before dispatch. A subprocess test preserved pipelined mixed-framing requests through exec, and a mismatched candidate was rejected. Existing 0.2.108 clients cannot acquire this new code; a persistent 0.2.109 client must be tested across a subsequent refresh.",
+          "build": "ACU 0.2.109 source candidate",
+          "session": "source-refresh-handoff-20261107",
+          "timestamp": "2026-11-07T03:48:10.174390+00:00",
+          "reference": "test_compact_mcp.py handoff tests; no live refresh acceptance yet"
         }
       ]
     },
