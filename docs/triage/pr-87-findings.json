@@ -1357,218 +1357,431 @@
             "finished_at": "2026-11-06T14:38:35Z"
           }
         }
+      },
+      {
+        "id": "acu-0.2.106-603f5dd-20261106",
+        "build": "ACU 0.2.106; Developer Observability 0.1.17; Context Ledger 0.1.39",
+        "revision": "603f5dd26edb4b1913d6e102b4059c316b1611e6",
+        "installed_at": "2026-11-06T14:49:52+00:00",
+        "install_evidence": "Release receipt /private/tmp/acu-pr87-0.2.106-603f5dd-goal.json; source, build, signing, notarization and live-client checks passed; microphone preflight failed. Timestamp is receipt completion.",
+        "status": "complete",
+        "checks": {
+          "USER-01": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "A controlled Samantha on/off and settled reflow was not exercised; the menu-bar switch has not been accessible through the available automation surface.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "USER-02": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "The installed microphone preflight failed because no default input device is available. No 0.2.106 spoken preference-sensitive task or independent selection readback was exercised.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "USER-03": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No default input device is available for a controlled spoken preference save, correction and independent readback.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "USER-04": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "The previous verified visual result is retained; no controlled current comparison of all plugin marks was captured.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "USER-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No current reference comparison and independent idle-width measurement were captured.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "AGENT-01": {
+            "state": "fixed",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "The 0.2.106 release receipt reports live-fd disconnect checks passed; the release failed separately at microphone preflight.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "AGENT-02": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No default input device is available for the controlled spoken recall and recovery check.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-01": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No default input device is available for an attributable voice-to-playback latency test.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-02": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "The installed microphone preflight failed with no default input; a complete controlled voice startup cannot be measured.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-03": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No default input device is available for a controlled spoken browser-assisted task.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-04": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No controlled active voice resize was exercised; microphone preflight failed.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No controlled new error occurrence with independently known content was produced in this installed run.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-06": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Installed provider tests pass the completed-turn identity regression; no attributable fresh spoken task was exercised and the already-running client rejected its stale runtime identity.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-07": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Prior narrow geometry verification remains; no controlled current visual comparison was performed.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-08": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Existing timeline functionality remains; no attributable fresh voice timing task was exercised.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-09": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Previous privacy-safe metadata verification remains; no new controlled voice Ledger event was produced.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-10": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No independently verified spoken task and linked outcome were exercised on 0.2.106.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "AGENT-03": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Fresh-client smoke passed, but the already-running client was stale and no controlled spoken native task was exercised.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-11": {
+            "state": "fixed",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Installed observability returned all 51 events of a previously identified session, including six native-action events, without truncation; the prior narrow timeline fix remains verified.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "AGENT-04": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Microphone preflight failed because no default input was available; the cause and automatic recovery were not established.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-12": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No controlled spoken save, selection and replacement sequence was exercised on 0.2.106.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-13": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No controlled Samantha close/reflow transition and independent final geometry were captured.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-14": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Installed provider tests pass the completed-turn identity regression, but no new spoken task joining voice, Ledger, browser and native action was exercised; microphone preflight failed.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-15": {
+            "state": "blocked",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "No input was available at microphone preflight; a controlled same-session device recovery was not exercised.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-16": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "The installed observability timeline test suite passed earlier in this iteration; no attributable 0.2.106 voice mirror pair was exercised.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "AGENT-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Installed 0.1.39 simulated 401/reset regression passed; no real authorization-reset incident was reproduced.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "AGENT-06": {
+            "state": "not_fixed",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "After 0.2.106 installed, the already-running ACU client returned RUNTIME_CONTRACT_FAILED stale client; the release separately confirmed a fresh client passed.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "REPORT-01": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Prior browser verification remains; no new browser navigation check was performed during this install.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          },
+          "OBS-17": {
+            "state": "inconclusive",
+            "started_at": "2026-11-06T14:50:36Z",
+            "updated_at": "2026-11-06T14:50:36Z",
+            "evidence": "Installed ACU package passed the Python rotation suite as part of 130 focused tests; prior source Swift/Python concurrency tests passed. No independent installed service concurrency or crash-recovery test was performed.",
+            "finished_at": "2026-11-06T14:51:46Z"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "acu-0.2.106-603f5dd-20261106",
-      "build": "ACU 0.2.106; Developer Observability 0.1.17; Context Ledger 0.1.39",
-      "revision": "603f5dd26edb4b1913d6e102b4059c316b1611e6",
-      "installed_at": "2026-11-06T14:49:52+00:00",
-      "install_evidence": "Release receipt /private/tmp/acu-pr87-0.2.106-603f5dd-goal.json; source, build, signing, notarization and live-client checks passed; microphone preflight failed. Timestamp is receipt completion.",
+      "id": "acu-0.2.107-ea56232-20261107",
+      "build": "ACU 0.2.107",
+      "revision": "ea56232437038f0f7af4af3ac509b47b78da016a",
+      "installed_at": "2026-11-07T03:29:20.363481+00:00",
+      "install_evidence": "/private/tmp/acu-pr87-0.2.107-ea56232.json; signature, notarization, installed client and independent Calculator readback passed; microphone preflight failed",
       "status": "complete",
       "checks": {
         "USER-01": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "A controlled Samantha on/off and settled reflow was not exercised; the menu-bar switch has not been accessible through the available automation surface.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Controlled Samantha close/reflow not exercised; existing client rejected the refreshed runtime contract and no alternate accessible island switch was established.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "USER-02": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "The installed microphone preflight failed because no default input device is available. No 0.2.106 spoken preference-sensitive task or independent selection readback was exercised.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed helper passed a synthetic isolated Ledger save/correction and independent readback; microphone preflight found no input, so automatic spoken lookup and application were not exercised.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "USER-03": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No default input device is available for a controlled spoken preference save, correction and independent readback.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed helper saved and corrected synthetic preferences with independent isolated Ledger readback. Spoken capture and use were not exercised because microphone preflight found no input.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "USER-04": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "The previous verified visual result is retained; no controlled current comparison of all plugin marks was captured.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Prior verified visual result preserved; no new current comparison of plugin marks.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "USER-05": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No current reference comparison and independent idle-width measurement were captured.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "No independent current idle-pill width and reference comparison was captured.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "AGENT-01": {
           "state": "fixed",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "The 0.2.106 release receipt reports live-fd disconnect checks passed; the release failed separately at microphone preflight.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "0.2.107 release live-fd disconnect integration passed; the release separately failed microphone preflight.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "AGENT-02": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No default input device is available for the controlled spoken recall and recovery check.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed synthetic Ledger save, correction and readback passed; no spoken recall/recovery test was possible without a default input device.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-01": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No default input device is available for an attributable voice-to-playback latency test.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "No default input device for a linked speech-to-playback measurement.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-02": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "The installed microphone preflight failed with no default input; a complete controlled voice startup cannot be measured.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed microphone preflight found no input, so a complete voice startup could not be measured.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-03": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No default input device is available for a controlled spoken browser-assisted task.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "No default input device for a controlled spoken browser task.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-04": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No controlled active voice resize was exercised; microphone preflight failed.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "No controlled active voice resize was performed; installed microphone preflight found no input.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-05": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No controlled new error occurrence with independently known content was produced in this installed run.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "No controlled new error occurrence with independently known content was generated; previous verified fix remains.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-06": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Installed provider tests pass the completed-turn identity regression; no attributable fresh spoken task was exercised and the already-running client rejected its stale runtime identity.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed provider regression tests passed, but no attributable spoken task was available; the pre-existing client rejected the refreshed service contract.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-07": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Prior narrow geometry verification remains; no controlled current visual comparison was performed.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Previous narrow geometry verification retained; no new controlled layout capture.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-08": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Existing timeline functionality remains; no attributable fresh voice timing task was exercised.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Previous stage-timeline verification retained; no new linked spoken timing task.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-09": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Previous privacy-safe metadata verification remains; no new controlled voice Ledger event was produced.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed Ledger observability tests passed; no new controlled spoken Ledger event was produced.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-10": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No independently verified spoken task and linked outcome were exercised on 0.2.106.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "No independently verified spoken task and linked outcome was exercised; microphone preflight found no input.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "AGENT-03": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Fresh-client smoke passed, but the already-running client was stale and no controlled spoken native task was exercised.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Fresh installed MCP Calculator actions and separate readback passed in release smoke; prior voice-session missing-target failure was not reproduced or ruled out.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-11": {
-          "state": "fixed",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Installed observability returned all 51 events of a previously identified session, including six native-action events, without truncation; the prior narrow timeline fix remains verified.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "state": "inconclusive",
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Prior installed timeline and native-action verification preserved; no new controlled long session was captured in this run.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "AGENT-04": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Microphone preflight failed because no default input was available; the cause and automatic recovery were not established.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed microphone preflight found no input device; cause and automatic recovery remain unestablished.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-12": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No controlled spoken save, selection and replacement sequence was exercised on 0.2.106.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Synthetic installed helper save and correction were independently read back; no spoken decision trail and application was exercised without microphone input.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-13": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No controlled Samantha close/reflow transition and independent final geometry were captured.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "No controlled Samantha close/reflow and final geometry readback; the active client rejected the new runtime contract.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-14": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Installed provider tests pass the completed-turn identity regression, but no new spoken task joining voice, Ledger, browser and native action was exercised; microphone preflight failed.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed provider tests passed; no spoken task joining voice, Ledger, browser and native action was available without microphone input.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-15": {
           "state": "blocked",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "No input was available at microphone preflight; a controlled same-session device recovery was not exercised.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "No input was available at installed microphone preflight; same-session device recovery was not exercised.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-16": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "The installed observability timeline test suite passed earlier in this iteration; no attributable 0.2.106 voice mirror pair was exercised.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed provider suite passed; no attributable new voice mirror pair or task summary was generated in this run.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "AGENT-05": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Installed 0.1.39 simulated 401/reset regression passed; no real authorization-reset incident was reproduced.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Prior 0.1.39 installed authorization-reset test remains verified; no new real authorization-reset incident was reproduced.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "AGENT-06": {
           "state": "not_fixed",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "After 0.2.106 installed, the already-running ACU client returned RUNTIME_CONTRACT_FAILED stale client; the release separately confirmed a fresh client passed.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "The same active client read Calculator successfully against 0.2.106 before refresh, then returned RUNTIME_CONTRACT_FAILED after 0.2.107 installation; fresh installed MCP smoke passed.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "REPORT-01": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Prior browser verification remains; no new browser navigation check was performed during this install.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Prior visual navigation fix retained; current in-app browser refused access to the file URL under its URL policy, so no new visual navigation check.",
+          "finished_at": "2026-11-07T03:31:01Z"
         },
         "OBS-17": {
           "state": "inconclusive",
-          "started_at": "2026-11-06T14:50:36Z",
-          "updated_at": "2026-11-06T14:50:36Z",
-          "evidence": "Installed ACU package passed the Python rotation suite as part of 130 focused tests; prior source Swift/Python concurrency tests passed. No independent installed service concurrency or crash-recovery test was performed.",
-          "finished_at": "2026-11-06T14:51:46Z"
+          "started_at": "2026-11-07T03:30:35Z",
+          "updated_at": "2026-11-07T03:30:35Z",
+          "evidence": "Installed 0.2.107 Python rotation tests passed among 135 focused tests. No controlled running-service concurrent rotation or crash test was performed.",
+          "finished_at": "2026-11-07T03:31:01Z"
         }
       }
     }
@@ -1793,6 +2006,14 @@
           "session": "source-ledger-freshness-20261107",
           "timestamp": "2026-11-07T03:21:11.822405+00:00",
           "reference": "test_ledger_preferences.py and focused Ledger/provider suite"
+        },
+        {
+          "check": "Installed synthetic Ledger freshness and independent readback",
+          "outcome": "The installed helper used an isolated real Ledger to read no match, save a synthetic preference, read it, correct it and independently read the active corrected value. It does not prove spoken delegation or selection.",
+          "build": "ACU 0.2.107; PR ea562324",
+          "session": "acu-0.2.107-ea56232-20261107",
+          "timestamp": "2026-11-07T03:31:13.334238+00:00",
+          "reference": "Isolated temporary Ledger with installed Context Ledger 0.1.39; /private/tmp/pr87-installed-ledger-freshness.py"
         }
       ]
     },
@@ -1866,6 +2087,14 @@
           "session": "release-source-gate-20261107",
           "timestamp": "2026-11-07T03:25:08.955972+00:00",
           "reference": "/private/tmp/acu-pr87-0.2.107-16776d5.json and test_voice_cua.py"
+        },
+        {
+          "check": "Installed synthetic Ledger freshness and independent readback",
+          "outcome": "The installed helper used an isolated real Ledger to read no match, save a synthetic preference, read it, correct it and independently read the active corrected value. It does not prove spoken delegation or selection.",
+          "build": "ACU 0.2.107; PR ea562324",
+          "session": "acu-0.2.107-ea56232-20261107",
+          "timestamp": "2026-11-07T03:31:13.334238+00:00",
+          "reference": "Isolated temporary Ledger with installed Context Ledger 0.1.39; /private/tmp/pr87-installed-ledger-freshness.py"
         }
       ]
     },
@@ -2985,6 +3214,14 @@
           "session": "continuation-20261106",
           "timestamp": "2026-11-06T10:50:54+00:00",
           "reference": "Calculator state, PID 21766, 2026-11-06; survival across refresh remains untested."
+        },
+        {
+          "check": "Existing client across plugin refresh",
+          "outcome": "The already-running client successfully read Calculator against 0.2.106 before refresh; after 0.2.107 installation the same client returned RUNTIME_CONTRACT_FAILED. Fresh installed MCP Calculator action and independent readback passed.",
+          "build": "ACU 0.2.107; PR ea562324",
+          "session": "acu-0.2.107-ea56232-20261107",
+          "timestamp": "2026-11-07T03:31:13.334238+00:00",
+          "reference": "Active ACU MCP state before and after installation; /private/tmp/acu-pr87-0.2.107-ea56232.json"
         }
       ]
     },
