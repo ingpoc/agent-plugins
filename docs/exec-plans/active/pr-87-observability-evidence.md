@@ -236,3 +236,4 @@ For relevant live requests and transitions, inspect the Dynamic Island visually 
 - **Simplify:** One task-linked observability timeline and independent app readback cover calculation, close, attribution and diagnostics, while preserving the distinction between standalone MCP and Samantha.
 - **Optimize:** Freeze the candidate once and use the release gate's result as the source-gate receipt. No speedup is claimed without comparable measurements.
 - **Automate:** Add an isolated writable Ledger fixture and task-to-browser-lease identity checks in the next PR; neither is established by the existing tests.
+- At the user's request, PR #87 displays the 13 previously verified fixes. The same JSON retains the 19 unresolved findings and their evidence under `tracking.deferred_findings` for the follow-up PR; current-install inconclusive checks do not erase earlier verification.
