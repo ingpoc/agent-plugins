@@ -4001,6 +4001,14 @@
           "session": "sref_fdba14238d94ef23c2828ccc6e169004",
           "timestamp": "2026-11-07T04:55:08.785912+00:00",
           "reference": "Task-linked activity events; compact_backend.py and MethodRouter.swift planState source review"
+        },
+        {
+          "check": "Negative postcondition with missing observation",
+          "outcome": "A source regression reproduced a false verified negative text postcondition when the after-state was empty. The 0.2.113 candidate requires a nonempty after-state and retains success for observed text removal. This prevents false success but does not verify or fix closing a window.",
+          "build": "ACU 0.2.113 source candidate",
+          "session": "source-negative-observation-20261107",
+          "timestamp": "2026-11-07T04:56:33.245195+00:00",
+          "reference": "test_compact_mcp.py negative expectation regression; compact_verification.py"
         }
       ]
     },

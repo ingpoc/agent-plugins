@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.113
+
+- Require an observed after-state before accepting a negative text postcondition.
+
 ## 0.2.112
 
 - Clarify pending application outcomes for recorded user decisions without asserting approval or successful use.

@@ -1485,6 +1485,11 @@ class ExpectVerifiedTests(unittest.TestCase):
             compact_mcp.expect_is_new("Glowing ring of gas", before, after + '[42] AXCell "Glowing ring of gas"\n')
         )
 
+    def test_negative_expectation_requires_an_observed_after_state(self):
+        before = '[0] AXWindow "Fixture"\n[1] AXStaticText value="working"'
+        self.assertFalse(compact_mcp.expectation_is_new({'not_text': 'working'}, before, '', [{'ok': True}], {'error': 'No window for app'}))
+        self.assertTrue(compact_mcp.expectation_is_new({'not_text': 'working'}, before, '[0] AXWindow "Fixture"\n[1] AXStaticText value="done"', [{'ok': True}], {}))
+
 
 if __name__ == "__main__":
     unittest.main()

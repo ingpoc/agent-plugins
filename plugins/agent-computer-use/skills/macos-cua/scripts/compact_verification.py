@@ -98,7 +98,8 @@ def expectation_is_new(
     if expect.get("not_text"):
         needle = str(expect["not_text"])
         checks.append(
-            expect_verified(needle, before_tree)
+            bool(after_tree.strip())
+            and expect_verified(needle, before_tree)
             and not expect_verified(needle, after_tree)
         )
     if expect.get("path"):
