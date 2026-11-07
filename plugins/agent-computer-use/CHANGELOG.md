@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.120
+
+- Search the same site or app scope for saved decisions when a rule-specific lookup returns no matches.
+
 ## 0.2.119
 
 - Preserve action dispatch and observed app exit when screenshot capture races with the app closing.

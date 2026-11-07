@@ -52,6 +52,30 @@ class LedgerHelperTests(unittest.TestCase):
         other = self.helper.run(operation='lookup', situation='choose a profile', need='profile preference', scope='tool:other')
         self.assertEqual(other['status'], 'none')
 
+    def test_empty_rule_lookup_searches_same_scope_for_relevant_candidates(self):
+        self.transport.call.side_effect = [
+            {'ok': True, 'data': {'matches': []}},
+            {'ok': True, 'data': {'matches': [self.match]}},
+        ]
+        result = self.helper.run(operation='lookup', situation='choose a profile', need='profile',
+                                 scope='tool:example', rule='profile_selection')
+        self.assertEqual(result['decisions'], [self.match])
+        first, second = [call.args[1] for call in self.transport.call.call_args_list]
+        self.assertEqual(first['rule'], 'profile_selection')
+        self.assertNotIn('rule', second)
+        self.assertEqual(second['scope'], first['scope'])
+        self.assertEqual(second['caller_scope'], first['caller_scope'])
+
+    def test_broader_scope_lookup_does_not_select_an_incomplete_result(self):
+        self.transport.call.side_effect = [
+            {'ok': True, 'data': {'matches': []}},
+            {'ok': True, 'data': {'matches': [self.match], 'has_more': True}},
+        ]
+        result = self.helper.run(operation='lookup', situation='choose a profile', need='profile',
+                                 scope='tool:example', rule='profile_selection')
+        self.assertEqual(result['status'], 'needs_disambiguation')
+        self.decide.assert_not_called()
+
     def test_lookup_query_uses_need_before_generic_situation_and_respects_limit(self):
         self.helper.run(operation='lookup', situation='how do I do it', need='saved email account preference')
         args = self.transport.call.call_args.args[1]
