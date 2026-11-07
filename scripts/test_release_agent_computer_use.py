@@ -112,7 +112,7 @@ class ReleaseTests(unittest.TestCase):
             with release.exclusive_release(path):
                 pass
 
-    def run_release(self, directory, *, source_exit=0, sign_only=False):
+    def run_release(self, directory, *, source_exit=0, sign_only=False, microphone_exit=0):
         args = argparse.Namespace(report=Path(directory)/'receipt.json',
                                   verify_installed=True,sign_only=sign_only,hygiene_override=False)
         identity = {'version':'0.2.32','sha256':'fingerprint'}
@@ -125,7 +125,8 @@ class ReleaseTests(unittest.TestCase):
         calls = []
         def run(command, **kwargs):
             calls.append(command)
-            return Mock(returncode=source_exit if command[-1:] == ['scripts/check.py'] else 0)
+            code = source_exit if command[-1:] == ['scripts/check.py'] else microphone_exit if command[-1:] == ['--preflight-mic'] else 0
+            return Mock(returncode=code)
         def smoke(*_args):
             self.assertEqual(json.loads(args.report.read_text())['stage'], 'voice-smoke')
             return {'session_id':'fresh','audio':True}
@@ -149,14 +150,21 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(len(calls),1)
         self.assertEqual(receipt['steps'][0]['exit_code'],1)
 
-    def test_voice_smoke_is_announced_before_source_checks(self):
+    def test_failed_source_checks_do_not_request_voice(self):
         output = io.StringIO()
         with tempfile.TemporaryDirectory() as td, contextlib.redirect_stdout(output):
             code, _, _ = self.run_release(td, source_exit=1)
         self.assertEqual(code, 1)
-        self.assertIn('ACU 0.2.32', output.getvalue())
-        self.assertIn('13 × 17 = 221', output.getvalue())
-        self.assertIn('Wait for VOICE SMOKE', output.getvalue())
+        self.assertNotIn('VOICE SMOKE', output.getvalue())
+        self.assertNotIn('Prepare to say', output.getvalue())
+
+    def test_failed_installed_microphone_does_not_request_voice(self):
+        with tempfile.TemporaryDirectory() as td:
+            code, receipt, _ = self.run_release(td, microphone_exit=1)
+        self.assertEqual(code, 1)
+        self.assertFalse(receipt['release_ready'])
+        self.assertEqual(receipt['steps'][-1]['name'], 'microphone')
+        self.assertNotIn('voice', receipt)
 
     def test_signed_only_never_claims_distribution_readiness(self):
         with tempfile.TemporaryDirectory() as td:
@@ -173,6 +181,8 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue(receipt['release_ready'])
         self.assertEqual(receipt['commit'],'a'*40)
         self.assertEqual(receipt['identity']['sha256'],'fingerprint')
+        self.assertEqual(receipt['native_smoke']['version'],'0.2.32')
+        self.assertEqual(receipt['existing_client'],'not_checked')
         self.assertIsNone(receipt['microphone_preflight']['ok'])
         self.assertTrue(all(s['ok'] for s in receipt['steps']))
         self.assertTrue(any(c[:3] == ['xcrun','stapler','validate'] for c in calls))

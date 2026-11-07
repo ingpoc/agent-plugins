@@ -160,7 +160,7 @@ def voice_events(rows):
 def voice_smoke(plugin, version):
     activity = Path.home()/'.cache/macos-cua/samantha-activity.jsonl'
     offset = activity.stat().st_size if activity.exists() else 0
-    print('VOICE SMOKE: turn Samantha ON and say: Open Calculator and calculate thirteen times seventeen.', flush=True)
+    print('VOICE SMOKE: turn Samantha ON and say: Open Calculator and calculate thirteen times seventeen. Expected: 221. The window is 90 seconds.', flush=True)
     deadline = time.monotonic()+90
     while time.monotonic() < deadline:
         rows = []
@@ -272,7 +272,6 @@ def release(args, root=ROOT):
         module = contract_module(root)
         identity = module.package_identity(root/PACKAGE)
         report['identity'] = identity
-        print(f"Voice smoke follows installation of ACU {identity['version']}. Prepare to say: Open Calculator and calculate thirteen times seventeen. Expected display: 13 × 17 = 221. Wait for VOICE SMOKE before speaking; the window is 90 seconds.", flush=True)
         microphone = APP/'Contents/Helpers/voice-cua.app/Contents/MacOS/voice-cua'
         if microphone.is_file():
             try:
@@ -331,7 +330,8 @@ def release(args, root=ROOT):
         version, _ = mcp(plugin,compute=True)
         if version != identity['version']:
             raise RuntimeError('fresh MCP process version does not match candidate')
-        report['native_smoke'] = {'ok':True,'fresh_mcp':True,'independent_readback':True}
+        report['native_smoke'] = {'ok':True,'fresh_mcp':True,'version':version,'independent_readback':True}
+        report['existing_client'] = 'not_checked'
         run('microphone',[str(APP/'Contents/Helpers/voice-cua.app/Contents/MacOS/voice-cua'),'--preflight-mic'],30)
         report['stage'] = 'voice-smoke'
         save()
