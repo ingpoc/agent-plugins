@@ -233,6 +233,13 @@ class LedgerHelper:
                 matches = found.get('data', {}).get('matches')
                 if not isinstance(matches, list) or len(matches) > 3:
                     raise LedgerUnavailable('invalid find result')
+                if operation == 'lookup' and rule and not matches and not found['data'].get('has_more'):
+                    found = self.transport.call('find', {k: v for k, v in args.items() if k != 'rule'})
+                    if not found.get('ok'):
+                        raise LedgerUnavailable('scoped candidate search failed')
+                    matches = found.get('data', {}).get('matches')
+                    if not isinstance(matches, list) or len(matches) > 3:
+                        raise LedgerUnavailable('invalid find result')
                 if operation == 'lookup' and found['data'].get('has_more') is True:
                     return _outcome_semantics({'ok': True, 'status': 'needs_disambiguation', 'has_more': True, 'data': found['data']})
                 if operation == 'lookup' and not matches:
