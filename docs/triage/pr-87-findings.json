@@ -1858,6 +1858,14 @@
           "session": "source-ledger-freshness-20261107",
           "timestamp": "2026-11-07T03:21:11.822405+00:00",
           "reference": "test_ledger_preferences.py and focused Ledger/provider suite"
+        },
+        {
+          "check": "0.2.107 release source gate",
+          "outcome": "Release of 16776d5 stopped before installation when the gateway shutdown test asserted before the HTTP handler called the mock. The test now waits for that callback; the focused gateway suite passed. The release must be rerun from a newly pushed head.",
+          "build": "ACU 0.2.107 candidate 16776d5",
+          "session": "release-source-gate-20261107",
+          "timestamp": "2026-11-07T03:25:08.955972+00:00",
+          "reference": "/private/tmp/acu-pr87-0.2.107-16776d5.json and test_voice_cua.py"
         }
       ]
     },
