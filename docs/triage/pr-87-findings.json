@@ -4009,6 +4009,14 @@
           "session": "source-negative-observation-20261107",
           "timestamp": "2026-11-07T04:56:33.245195+00:00",
           "reference": "test_compact_mcp.py negative expectation regression; compact_verification.py"
+        },
+        {
+          "check": "0.2.113 release source gate",
+          "outcome": "Release of baff05f stopped before installation: a wake-up test timer could fire before the wake event and never signal readiness. The test now waits for the event before signalling; the focused transcript suite and MCP suite pass. The full release gate must be rerun.",
+          "build": "ACU 0.2.113 candidate baff05f",
+          "session": "release-source-gate-20261107",
+          "timestamp": "2026-11-07T04:59:00.905924+00:00",
+          "reference": "/private/tmp/acu-pr87-0.2.113-baff05f.json; test_live_transcripts.py"
         }
       ]
     },
