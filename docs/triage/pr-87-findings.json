@@ -3766,239 +3766,473 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "acu-0.2.116-3313bd1-20261107-1339Z",
+        "build": "ACU 0.2.116; Developer Observability 0.1.18; Context Ledger 0.1.39",
+        "revision": "3313bd166a6d8bfe1e1e831909d1b2981604c5ae",
+        "installed_at": "2026-11-07T13:39:32Z",
+        "install_evidence": "/tmp/pr87-acu-0116-install.json: install, signature, notarization, client, cursor, fd and fresh MCP checks passed; microphone preflight failed because no input device.",
+        "status": "complete",
+        "checks": {
+          "USER-01": {
+            "state": "fixed",
+            "started_at": "2026-11-07T13:43:06Z",
+            "updated_at": "2026-11-07T13:43:06Z",
+            "evidence": "LIVE controlled on/off/on supervisor cycle: the surviving Codex mark moved into the adjacent slot when Samantha stopped; still screenshots captured before, after and after restart. Motion smoothness was not measured.",
+            "finished_at": "2026-11-07T13:44:05Z"
+          },
+          "USER-02": {
+            "state": "not_fixed",
+            "started_at": "2026-11-07T13:39:50Z",
+            "updated_at": "2026-11-07T13:39:50Z",
+            "evidence": "LIVE typed request asked Samantha to open Netflix and use the usual profile without mentioning Ledger. Samantha asked which profile; independent Comet AX readback showed the Netflix profile chooser, including the saved profile. The requested profile was not selected.",
+            "finished_at": "2026-11-07T13:41:23Z"
+          },
+          "USER-03": {
+            "state": "blocked",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "No isolated writable Ledger fixture was exercised in this installed pass. The existing user preference was read only; save and update are not proven.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "USER-04": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:43:06Z",
+            "updated_at": "2026-11-07T13:43:06Z",
+            "evidence": "LIVE still capture shows the current icon cluster; it does not establish the exact Comet artwork sizing against its reference. Prior verified status is preserved.",
+            "finished_at": "2026-11-07T13:44:05Z"
+          },
+          "USER-05": {
+            "state": "fixed",
+            "started_at": "2026-11-07T13:43:06Z",
+            "updated_at": "2026-11-07T13:43:06Z",
+            "evidence": "LIVE idle pill was visible in the stopped capture; prior user confirmation accepted the current size and no contrary evidence was observed.",
+            "finished_at": "2026-11-07T13:44:05Z"
+          },
+          "AGENT-01": {
+            "state": "fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "INSTALLED release receipt reports live-fd passed on 0.2.116. The separate microphone preflight failed for no input device.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "AGENT-02": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "LIVE Netflix task made two successful Ledger calls without an argument error, but both used fleet scope and failed to retrieve the requested site preference. Historical retry causes are not all ruled out.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-01": {
+            "state": "blocked",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "No microphone input is connected; typed task timings do not measure voice capture or playback.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-02": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "LIVE healthy supervisor start was observed, but no microphone/audio-ready startup was measured with the input disconnected.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-03": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "LIVE typed Netflix task ended without selecting a profile. Its task timeline is linked, but failed task and no agreed latency threshold do not establish browser performance acceptance.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-04": {
+            "state": "not_fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "LIVE installed 0.2.116 layout telemetry recorded two resize events with the voice slot outside a 74 pt island by 6 and 30 pt; actual visible clipping is not independently established.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-05": {
+            "state": "fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "INSTALLED issue inspection returned individual timestamped occurrences and bounded diagnostics, including the task-linked 0.2.116 observation_incomplete event.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-06": {
+            "state": "not_fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "LIVE 0.2.116 task events carry session-inferred version attribution rather than direct event-level build identity.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-07": {
+            "state": "fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "INSTALLED layout issue inspection returned current island bounds, slot rectangle, resize trigger and overflow for two 0.2.116 occurrences.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-08": {
+            "state": "fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "INSTALLED session timeline returned 30 events without truncation, including startup and model-stage durations, outcomes and version-attribution labels.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-09": {
+            "state": "fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "INSTALLED default task timeline exposed operation, bounded scope category and opaque identifiers without raw preference values; diagnostic details were not needed for the metadata check.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-10": {
+            "state": "not_fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "LIVE Calculator had independent success readback, but its correlated task_outcome remained unknown; Netflix task also did not produce the requested result.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "AGENT-03": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:39:50Z",
+            "updated_at": "2026-11-07T13:39:50Z",
+            "evidence": "LIVE typed Calculator 13 × 17 returned 221 and independent AX readback confirmed 221. A subsequent close request returned Calculator is closed and independent process inspection found no Calculator process. This one sequence passed, but historical missing-target and incomplete-observation failure modes are not all ruled out.",
+            "finished_at": "2026-11-07T13:41:23Z"
+          },
+          "OBS-11": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "INSTALLED current session returned all 30 events including native actions; pagination for a long new session was not exercised. Prior verified status is preserved.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "AGENT-04": {
+            "state": "blocked",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "The microphone is intentionally disconnected; input detection and recovery cannot be exercised.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-12": {
+            "state": "not_fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "LIVE task linked Ledger calls and scope categories, but the saved site preference was not selected or applied and save/supersession were not exercised.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-13": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:43:06Z",
+            "updated_at": "2026-11-07T13:43:06Z",
+            "evidence": "LIVE captured on/off/on still screenshots only. No continuous transition capture or independent frame-by-frame geometry was collected.",
+            "finished_at": "2026-11-07T13:44:05Z"
+          },
+          "OBS-14": {
+            "state": "not_fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "LIVE task links Ledger and browser events, but voice/audio and independent outcome timing are not all linked to the tested task.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-15": {
+            "state": "blocked",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "The microphone is disconnected; recovery after reconnect was not exercised.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-16": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "A task timeline was inspected, but no controlled mirror pair and independently verified task summary were exercised in this install.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "AGENT-05": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "Context Ledger remains 0.1.39, previously verified against a reset after 401; the controlled reset was not repeated in this installed pass. Prior verified status is preserved.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "AGENT-06": {
+            "state": "fixed",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "LIVE the existing session ACU client returned Comet state and operated Samantha control after the 0.2.116 refresh; fresh MCP and release client checks also passed.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "REPORT-01": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "The report was regenerated and its issue checks updated; interactive lower-item navigation was not exercised because local browser access is disabled. Prior verified status is preserved.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "OBS-17": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "No safe live concurrent log rotation was induced in this installed pass; previous source concurrency tests do not prove installed runtime behavior.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "AGENT-07": {
+            "state": "blocked",
+            "started_at": "2026-11-07T13:44:15Z",
+            "updated_at": "2026-11-07T13:44:15Z",
+            "evidence": "Spoken cancellation requires microphone input, which is disconnected.",
+            "finished_at": "2026-11-07T13:45:59Z"
+          },
+          "AGENT-08": {
+            "state": "fixed",
+            "started_at": "2026-11-07T13:43:06Z",
+            "updated_at": "2026-11-07T13:43:06Z",
+            "evidence": "INSTALLED voice_control stop returned running=false and start returned running=true, healthy=true. Independent on/off/on screenshots changed consistently; Samantha was restored running.",
+            "finished_at": "2026-11-07T13:44:05Z"
+          },
+          "USER-06": {
+            "state": "inconclusive",
+            "started_at": "2026-11-07T13:43:06Z",
+            "updated_at": "2026-11-07T13:43:06Z",
+            "evidence": "LIVE controlled on/off/on captures show the visible pink waveform mark disappear on stop and return on start. The original reported screenshot may represent a different or intermittent stale icon; ownership of every original mark is not established.",
+            "finished_at": "2026-11-07T13:44:05Z"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "acu-0.2.116-3313bd1-20261107-1339Z",
-      "build": "ACU 0.2.116; Developer Observability 0.1.18; Context Ledger 0.1.39",
-      "revision": "3313bd166a6d8bfe1e1e831909d1b2981604c5ae",
-      "installed_at": "2026-11-07T13:39:32Z",
-      "install_evidence": "/tmp/pr87-acu-0116-install.json: install, signature, notarization, client, cursor, fd and fresh MCP checks passed; microphone preflight failed because no input device.",
+      "id": "acu-0.2.117-1b31ec1-20261107-1423Z",
+      "build": "ACU 0.2.117; Developer Observability 0.1.18; Context Ledger 0.1.39",
+      "revision": "1b31ec1c42bdca3228f997f4dc446b7fcbf94fab",
+      "installed_at": "2026-11-07T14:23:29Z",
+      "install_evidence": "/tmp/pr87-acu-0117-install.json: source, install, signature, notarization, live client, cursor, fd and fresh MCP checks passed; microphone preflight failed with no input device.",
       "status": "complete",
       "checks": {
         "USER-01": {
           "state": "fixed",
-          "started_at": "2026-11-07T13:43:06Z",
-          "updated_at": "2026-11-07T13:43:06Z",
-          "evidence": "LIVE controlled on/off/on supervisor cycle: the surviving Codex mark moved into the adjacent slot when Samantha stopped; still screenshots captured before, after and after restart. Motion smoothness was not measured.",
-          "finished_at": "2026-11-07T13:44:05Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE on/off/on captures show the surviving Codex mark moving into the adjacent slot after Samantha stops. Still images do not measure animation.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "USER-02": {
           "state": "not_fixed",
-          "started_at": "2026-11-07T13:39:50Z",
-          "updated_at": "2026-11-07T13:39:50Z",
-          "evidence": "LIVE typed request asked Samantha to open Netflix and use the usual profile without mentioning Ledger. Samantha asked which profile; independent Comet AX readback showed the Netflix profile chooser, including the saved profile. The requested profile was not selected.",
-          "finished_at": "2026-11-07T13:41:23Z"
+          "started_at": "2026-11-07T14:23:40Z",
+          "updated_at": "2026-11-07T14:23:40Z",
+          "evidence": "LIVE first typed Netflix request retrieved the two matching user decisions with tool scope but the session restarted as audio became available and the HTTP response was lost. Independent AX showed the profile chooser. A subsequent typed request asked which profile to use and AX again showed the chooser; saved profile application is not proven.",
+          "finished_at": "2026-11-07T14:25:39Z"
         },
         "USER-03": {
           "state": "blocked",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "No isolated writable Ledger fixture was exercised in this installed pass. The existing user preference was read only; save and update are not proven.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "No isolated writable installed Ledger fixture was exercised. The real user preference was not changed; automatic save and update remain unproven.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "USER-04": {
           "state": "inconclusive",
-          "started_at": "2026-11-07T13:43:06Z",
-          "updated_at": "2026-11-07T13:43:06Z",
-          "evidence": "LIVE still capture shows the current icon cluster; it does not establish the exact Comet artwork sizing against its reference. Prior verified status is preserved.",
-          "finished_at": "2026-11-07T13:44:05Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE captures show the icon cluster but do not compare Comet mark dimensions against the reference. Prior verified status is preserved.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "USER-05": {
           "state": "fixed",
-          "started_at": "2026-11-07T13:43:06Z",
-          "updated_at": "2026-11-07T13:43:06Z",
-          "evidence": "LIVE idle pill was visible in the stopped capture; prior user confirmation accepted the current size and no contrary evidence was observed.",
-          "finished_at": "2026-11-07T13:44:05Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE stopped capture shows the idle pill. Prior user acceptance of its size remains valid; no contrary evidence appeared.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "AGENT-01": {
           "state": "fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "INSTALLED release receipt reports live-fd passed on 0.2.116. The separate microphone preflight failed for no input device.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "INSTALLED release receipt reports live-fd passed. Initial microphone preflight failed separately before the input was connected.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "AGENT-02": {
-          "state": "inconclusive",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "LIVE Netflix task made two successful Ledger calls without an argument error, but both used fleet scope and failed to retrieve the requested site preference. Historical retry causes are not all ruled out.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "state": "not_fixed",
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE task-linked lookup returned a saved site decision without a transport error, but Samantha still requested a profile and did not apply it.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-01": {
-          "state": "blocked",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "No microphone input is connected; typed task timings do not measure voice capture or playback.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "state": "inconclusive",
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "Microphone preflight and audio-ready succeeded after connection. Typed prompts do not establish voice response or playback latency.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-02": {
           "state": "inconclusive",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "LIVE healthy supervisor start was observed, but no microphone/audio-ready startup was measured with the input disconnected.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "INSTALLED audio-ready and websocket stages have timings in the current session, but no complete spoken startup acceptance was performed.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-03": {
           "state": "inconclusive",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "LIVE typed Netflix task ended without selecting a profile. Its task timeline is linked, but failed task and no agreed latency threshold do not establish browser performance acceptance.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE Netflix task was linked to Ledger and Comet events but did not achieve its requested outcome; no comparable success baseline was measured.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-04": {
           "state": "not_fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "LIVE installed 0.2.116 layout telemetry recorded two resize events with the voice slot outside a 74 pt island by 6 and 30 pt; actual visible clipping is not independently established.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE 0.2.117 resize telemetry reported voice slot x81 width23 against island width74, overflow 30 pt. Visible clipping during the transition was not independently captured.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-05": {
           "state": "fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "INSTALLED issue inspection returned individual timestamped occurrences and bounded diagnostics, including the task-linked 0.2.116 observation_incomplete event.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "INSTALLED per-occurrence issue inspection returned timestamped native action failures and bounded diagnostics, including the current Calculator failure.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-06": {
           "state": "not_fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "LIVE 0.2.116 task events carry session-inferred version attribution rather than direct event-level build identity.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE current task events label version attribution session_inferred rather than direct build attribution.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-07": {
           "state": "fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "INSTALLED layout issue inspection returned current island bounds, slot rectangle, resize trigger and overflow for two 0.2.116 occurrences.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "INSTALLED layout issue inspection returned current bounds, slot rectangle, resize trigger and overflow.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-08": {
           "state": "fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "INSTALLED session timeline returned 30 events without truncation, including startup and model-stage durations, outcomes and version-attribution labels.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "INSTALLED session timeline returned startup and model durations, outcomes, input readiness and explicit attribution.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-09": {
           "state": "fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "INSTALLED default task timeline exposed operation, bounded scope category and opaque identifiers without raw preference values; diagnostic details were not needed for the metadata check.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "INSTALLED default task timeline showed operation, scope category and opaque references without exposing the saved preference value.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-10": {
           "state": "not_fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "LIVE Calculator had independent success readback, but its correlated task_outcome remained unknown; Netflix task also did not produce the requested result.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE independently observed Calculator result and closure are not independently verified in the task outcome; Netflix task outcome is unverified.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "AGENT-03": {
-          "state": "inconclusive",
-          "started_at": "2026-11-07T13:39:50Z",
-          "updated_at": "2026-11-07T13:39:50Z",
-          "evidence": "LIVE typed Calculator 13 × 17 returned 221 and independent AX readback confirmed 221. A subsequent close request returned Calculator is closed and independent process inspection found no Calculator process. This one sequence passed, but historical missing-target and incomplete-observation failure modes are not all ruled out.",
-          "finished_at": "2026-11-07T13:41:23Z"
+          "state": "not_fixed",
+          "started_at": "2026-11-07T14:23:40Z",
+          "updated_at": "2026-11-07T14:23:40Z",
+          "evidence": "LIVE Calculator was independently observed running before the typed close request. The process was absent afterward, but Samantha said it was already closed, so the task narration was incorrect. The underlying action and state events require task-linked inspection.",
+          "finished_at": "2026-11-07T14:26:07Z"
         },
         "OBS-11": {
-          "state": "inconclusive",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "INSTALLED current session returned all 30 events including native actions; pagination for a long new session was not exercised. Prior verified status is preserved.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "state": "fixed",
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "INSTALLED long session returned all 552 events across cursor pages without truncation. Current separate task timeline includes native actions.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "AGENT-04": {
-          "state": "blocked",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "The microphone is intentionally disconnected; input detection and recovery cannot be exercised.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "state": "inconclusive",
+          "started_at": "2026-11-07T14:26:14Z",
+          "updated_at": "2026-11-07T14:26:14Z",
+          "evidence": "INSTALLED microphone preflight first failed with no input device; after user connected the microphone the same installed helper preflight passed and the new session reported audio ready. A live voice capture and spoken response have not been independently checked.",
+          "finished_at": "2026-11-07T14:26:23Z"
         },
         "OBS-12": {
           "state": "not_fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "LIVE task linked Ledger calls and scope categories, but the saved site preference was not selected or applied and save/supersession were not exercised.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE site decision retrieval is linked, but application failed and no save or supersession was exercised.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-13": {
           "state": "inconclusive",
-          "started_at": "2026-11-07T13:43:06Z",
-          "updated_at": "2026-11-07T13:43:06Z",
-          "evidence": "LIVE captured on/off/on still screenshots only. No continuous transition capture or independent frame-by-frame geometry was collected.",
-          "finished_at": "2026-11-07T13:44:05Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE on/off/on stills were captured. No continuous transition frames or independent frame-by-frame geometry were recorded.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-14": {
           "state": "not_fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "LIVE task links Ledger and browser events, but voice/audio and independent outcome timing are not all linked to the tested task.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE explicit task run links Ledger and browser events but lacks complete voice, model, native and independent outcome timings.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-15": {
-          "state": "blocked",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "The microphone is disconnected; recovery after reconnect was not exercised.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "state": "inconclusive",
+          "started_at": "2026-11-07T14:26:14Z",
+          "updated_at": "2026-11-07T14:26:14Z",
+          "evidence": "INSTALLED prior no-input preflight and a later successful microphone preflight and audio-ready event were observed across session restart after microphone connection. The telemetry does not prove an in-session recovery or explain its timing.",
+          "finished_at": "2026-11-07T14:26:23Z"
         },
         "OBS-16": {
           "state": "inconclusive",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "A task timeline was inspected, but no controlled mirror pair and independently verified task summary were exercised in this install.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "INSTALLED task summary returns five linked events and unverified outcome. A controlled mirror pair and complete independent task summary were not tested.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "AGENT-05": {
           "state": "inconclusive",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "Context Ledger remains 0.1.39, previously verified against a reset after 401; the controlled reset was not repeated in this installed pass. Prior verified status is preserved.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "The previously verified Ledger 0.1.39 reset behavior was not repeated in this pass. Prior fixed status is preserved.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "AGENT-06": {
           "state": "fixed",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "LIVE the existing session ACU client returned Comet state and operated Samantha control after the 0.2.116 refresh; fresh MCP and release client checks also passed.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE existing ACU client read Comet and Calculator state and controlled Samantha after refresh. Fresh MCP and release client checks passed.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "REPORT-01": {
           "state": "inconclusive",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "The report was regenerated and its issue checks updated; interactive lower-item navigation was not exercised because local browser access is disabled. Prior verified status is preserved.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "The generated report was updated, but interactive lower-item navigation was not rechecked because local browser access is disabled. Prior verified status is preserved.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "OBS-17": {
           "state": "inconclusive",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "No safe live concurrent log rotation was induced in this installed pass; previous source concurrency tests do not prove installed runtime behavior.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "Installed concurrent log rotation was not induced; previous source tests alone do not establish live behavior.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "AGENT-07": {
           "state": "blocked",
-          "started_at": "2026-11-07T13:44:15Z",
-          "updated_at": "2026-11-07T13:44:15Z",
-          "evidence": "Spoken cancellation requires microphone input, which is disconnected.",
-          "finished_at": "2026-11-07T13:45:59Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "A controlled spoken cancellation requires a user voice session and has not yet been performed.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "AGENT-08": {
           "state": "fixed",
-          "started_at": "2026-11-07T13:43:06Z",
-          "updated_at": "2026-11-07T13:43:06Z",
-          "evidence": "INSTALLED voice_control stop returned running=false and start returned running=true, healthy=true. Independent on/off/on screenshots changed consistently; Samantha was restored running.",
-          "finished_at": "2026-11-07T13:44:05Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "INSTALLED supervisor stop returned running false, start returned healthy and running true; on/off/on still captures changed consistently.",
+          "finished_at": "2026-11-07T14:30:22Z"
         },
         "USER-06": {
           "state": "inconclusive",
-          "started_at": "2026-11-07T13:43:06Z",
-          "updated_at": "2026-11-07T13:43:06Z",
-          "evidence": "LIVE controlled on/off/on captures show the visible pink waveform mark disappear on stop and return on start. The original reported screenshot may represent a different or intermittent stale icon; ownership of every original mark is not established.",
-          "finished_at": "2026-11-07T13:44:05Z"
+          "started_at": "2026-11-07T14:27:29Z",
+          "updated_at": "2026-11-07T14:27:29Z",
+          "evidence": "LIVE on/off/on captures show the pink waveform disappearing on stop and returning on start. The original reported mark may be a different or intermittent icon.",
+          "finished_at": "2026-11-07T14:30:22Z"
         }
       }
     }
@@ -4384,6 +4618,38 @@
           "session": "pr87-scope-correction-source",
           "timestamp": "unknown",
           "reference": "SYSTEM_INSTRUCTIONS, ledger_task description, macos-cua skill and Ledger tests."
+        },
+        {
+          "check": "Installed typed task after site scope clarification",
+          "outcome": "The first task used tool scope and found two matching user decisions. Its session ended during microphone recovery, so no task completion was observed. A later retry asked the user which profile to use and the browser stayed on the profile chooser.",
+          "build": "ACU 0.2.117; Developer Observability 0.1.18",
+          "session": "sref_2118c231c3f2025d1ddb2c84b624ac24; run 04d4f4f15928142dffd14f0c",
+          "timestamp": "2026-11-07T14:23:57Z",
+          "reference": "Installed task-linked timeline and independent Comet accessibility readback."
+        },
+        {
+          "check": "Installed retry task-linked Ledger result",
+          "outcome": "The retry used tool scope and returned one matching saved user decision, but Samantha still asked which profile to use. Independent browser readback remained on the profile chooser. Retrieval succeeded for this task; application failed.",
+          "build": "ACU 0.2.117; Developer Observability 0.1.18",
+          "session": "sref_4fa511e483abc8dd18889d2099d8021a; run 60c4dc75298ba1553c1d05dd",
+          "timestamp": "2026-11-07T14:25:09Z",
+          "reference": "Installed task-linked Ledger result and Comet accessibility readback; preference value withheld."
+        },
+        {
+          "check": "Ledger provenance contract inspection",
+          "outcome": "Independent readback confirms both active saved user-decision records have self_reported approval state. Ledger save intentionally writes self_reported and compact find omits approval state. The Samantha prompt warns that a hint does not establish attestation, while Ledger's preference workflow says to apply active relevant preferences. Whether this conflict caused the model to ask remains unproven; self_reported is not owner-attested proof.",
+          "build": "Context Ledger 0.1.39 installed; ACU 0.2.117",
+          "session": "pr87-ledger-provenance-investigation",
+          "timestamp": "unknown",
+          "reference": "Read-only installed Ledger get and Context Ledger store/save and preference workflow source; values withheld."
+        },
+        {
+          "check": "Candidate preference provenance instruction",
+          "outcome": "Candidate clarifies that an active relevant self-reported user decision may be applied as a saved preference without claiming formal owner attestation or prior successful use. Conflicts, incomplete results and untrusted content remain guarded. 32 focused source tests passed; model adherence and installed behavior remain unverified.",
+          "build": "ACU 0.2.118 worktree, uncommitted",
+          "session": "pr87-preference-provenance-source",
+          "timestamp": "unknown",
+          "reference": "Session instructions, Ledger tool description, macos-cua skill and focused Ledger tests."
         }
       ]
     },
@@ -5490,6 +5756,22 @@
           "session": "pr87-absent-state-source",
           "timestamp": "unknown",
           "reference": "compact_backend.state and test_compact_mcp.py."
+        },
+        {
+          "check": "Installed close task-linked error details",
+          "outcome": "After the Calculator close request the timeline recorded cua_act observation_incomplete followed by the new typed app_not_running state result. The process was absent, but Samantha said it was already closed. The typed state improvement is live; the action result and narration still fail.",
+          "build": "ACU 0.2.117; Developer Observability 0.1.18",
+          "session": "sref_4fa511e483abc8dd18889d2099d8021a; run 06ba16ee3704e18dffc6b2c2",
+          "timestamp": "2026-11-07T14:25:52Z",
+          "reference": "Installed task-linked timeline and independent process readback."
+        },
+        {
+          "check": "Candidate observed-exit feedback",
+          "outcome": "Candidate preserves an explicit app_running=false observation after an action and avoids an impossible screenshot fetch once the app has exited. A test confirms dispatched but unverified actions remain unverified. The task trace recorded a quit key without a visible expectation; the complete request arguments were not logged, so exact postcondition selection is unknown. Installed behavior remains unverified.",
+          "build": "ACU 0.2.118 worktree, uncommitted",
+          "session": "pr87-exit-feedback-source",
+          "timestamp": "unknown",
+          "reference": "compact_backend action feedback, voice tool description, and test_compact_mcp.py."
         }
       ]
     },

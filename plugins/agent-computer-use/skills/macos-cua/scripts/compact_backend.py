@@ -349,6 +349,8 @@ class CUABackend:
                 ),
                 "error_type": "completion_unverified" if dispatched and not verified else None,
             }
+            if isinstance(after, dict) and after.get("running") is False:
+                payload["app_running"] = False
             fetch = lambda: self._get_app_state(
                 client, app, disableDiff=True, includeScreenshot=True
             )
@@ -377,6 +379,8 @@ class CUABackend:
                         before_text=before_text,
                         after_text=text,
                     )
+            if payload.get("app_running") is False:
+                policy["fetch"] = None
             return apply_screenshot_policy(payload, **policy)
 
         try:

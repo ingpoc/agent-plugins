@@ -72,6 +72,25 @@ def _close(proc: subprocess.Popen) -> None:
 
 
 class CompactMcpDispatchTests(unittest.TestCase):
+    def test_action_reports_observed_exit_without_claiming_unverified_success(self):
+        class Backend(compact_mcp.CUABackend):
+            def __init__(self):
+                pass
+
+            def _rpc(self, fn, *, retry=True):
+                class Client:
+                    def execute_plan(self, app, steps):
+                        return {'before': {'text': '[0] AXWindow "Example"'},
+                                'after': {'text': '', 'running': False},
+                                'results': [{'ok': True}]}
+                return fn(Client())
+
+        result = Backend().act('Example', {'label': 'Quit', 'allow_unverified': True})
+        self.assertTrue(result['dispatched'])
+        self.assertFalse(result['verified'])
+        self.assertFalse(result['ok'])
+        self.assertIs(result['app_running'], False)
+
     def test_missing_app_state_is_typed_and_other_rpc_errors_propagate(self):
         backend = compact_mcp.CUABackend()
         from cua_client import RPCError

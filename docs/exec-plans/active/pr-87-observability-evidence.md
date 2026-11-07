@@ -194,3 +194,17 @@ For relevant live requests and transitions, inspect the Dynamic Island visually 
 
 - Clarify the named site/app scope rule and return an explicit `app_not_running` state for the observed missing-process response. The site selection remains model-controlled and needs installed verification.
 - The 88 focused Ledger and compact MCP tests and the frozen 118-process source gate passed. Installed integration and live verification remain pending.
+
+### Iteration review: 0.2.117
+
+- Installed PR commit `1b31ec1c42bdca3228f997f4dc446b7fcbf94fab`. Source, signature, notarization, fresh MCP, client, cursor and live-fd checks passed. Microphone preflight initially failed; after connection a new session reported audio ready.
+- The typed Netflix retry retrieved a matching site decision but asked which profile to use. Calculator displayed 221 and closed, but its linked action reported `observation_incomplete`. Current resize telemetry still reports voice-slot overflow.
+- **Delete:** Do not repeat a read-only Ledger lookup when the same task's linked result already shows what was retrieved.
+- **Simplify:** One on/off/on capture set covers control, reflow and icon presence; it does not prove animation or the original icon's identity.
+- **Optimize:** Page one existing long session to validate timeline coverage instead of generating hundreds of new events. No comparable speed baseline was measured.
+- **Automate:** The existing task-linked scope diagnostic exposed the incorrect fleet lookup in 0.2.116 and confirmed a tool-scope lookup in 0.2.117. Automatic decision application remains failing.
+
+### Candidate: ACU 0.2.118
+
+- Clarify use of a relevant saved self-reported preference without claiming formal attestation. Preserve an observed app exit in action feedback without declaring unverified dispatch successful.
+- The 89 focused tests and frozen 118-process source gate passed. Installed behavior and the remaining issue pass are pending.

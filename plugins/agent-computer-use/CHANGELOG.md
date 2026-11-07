@@ -1,5 +1,10 @@
 # Changelog: agent-computer-use
 
+## 0.2.118
+
+- Apply an unambiguous saved user preference without treating its application history as an approval requirement.
+- Preserve an observed app exit in action feedback without claiming an unverified action succeeded.
+
 ## 0.2.117
 
 - Return an explicit not-running state when an observed app has exited.

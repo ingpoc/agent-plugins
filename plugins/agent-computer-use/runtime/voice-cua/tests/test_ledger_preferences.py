@@ -52,6 +52,8 @@ def test_preference_instructions_cover_agreement_and_conflict():
         assert 'conflict' in instructions
         assert 'has_more' in instructions
         assert 'genuinely global preferences' in instructions
+        assert 'self-reported record' in instructions
+        assert 'do not claim owner attestation' in instructions
 
 
 def test_preference_normalizes_bare_app_scope(tmp_path):
