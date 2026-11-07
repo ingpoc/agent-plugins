@@ -2,8 +2,8 @@
   "title": "Samantha issues and recommended fixes",
   "tracking": {
     "pull_request": {
-      "label": "Follow-up issues · Parent PR #87",
-      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/87"
+      "label": "PR #88 · Remaining Samantha and observability issues",
+      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/88"
     },
     "worktree": "codex-samantha-issues-20261105",
     "verification_history": [
