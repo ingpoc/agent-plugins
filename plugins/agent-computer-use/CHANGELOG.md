@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.111
+
+- Maintenance release for installed MCP refresh verification.
+
 ## 0.2.110
 
 - Reconnect a closed service socket when probing its identity before an MCP handoff.
