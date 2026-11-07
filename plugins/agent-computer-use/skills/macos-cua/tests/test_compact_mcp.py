@@ -85,6 +85,7 @@ class CompactMcpDispatchTests(unittest.TestCase):
     def test_stale_handoff_preserves_request_and_queued_bytes_before_dispatch(self):
         import base64
         import runtime_contract
+        from cua_client import CUAClient
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             installed = root / 'app' / 'contract.json'
@@ -99,7 +100,10 @@ class CompactMcpDispatchTests(unittest.TestCase):
             script.with_name('mcp-handoff-v1').write_text('1\n')
             (new / 'plugin.json').write_text(json.dumps({'version': identity['version']}))
             backend = Mock()
-            backend._cua.return_value.call.return_value = identity
+            client = CUAClient()
+            client._call_once = Mock(side_effect=[ConnectionResetError('old socket closed'), identity])
+            client.connect = Mock()
+            backend._cua.return_value = client
             request = {'jsonrpc': '2.0', 'id': 3, 'method': 'tools/call', 'params': {'name': 'act'}}
             pending = b'{"jsonrpc":"2.0","id":4,"method":"ping"}\n'
             saved = {}
@@ -116,7 +120,8 @@ class CompactMcpDispatchTests(unittest.TestCase):
                     compact_mcp._handoff_if_stale(request, compact_mcp.MCPInput(io.BytesIO(b''), pending=pending))
             self.assertEqual(saved['message'], request)
             self.assertEqual(base64.b64decode(saved['pending']), pending)
-            backend._cua.return_value.call.assert_called_once_with('runtime_contract', retry=False)
+            self.assertEqual(client._call_once.call_count, 2)
+            client.connect.assert_called_once_with()
 
     def test_process_handoff_keeps_queued_requests_and_client_identity(self):
         with tempfile.TemporaryDirectory() as td:

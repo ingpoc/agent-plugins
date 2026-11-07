@@ -561,7 +561,7 @@ def _handoff_if_stale(message: dict[str, Any], stdin: MCPInput) -> None:
         installed = json.loads((APP / RECORD).read_text())
         if installed == _CLIENT_CONTRACT:
             return
-        current = _backend()._cua().call("runtime_contract", retry=False)
+        current = _backend()._cua().call("runtime_contract", retry=True)
         if not isinstance(current, dict) or current != installed or current == _CLIENT_CONTRACT:
             return
         version = current.get("version")

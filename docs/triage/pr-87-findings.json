@@ -3713,6 +3713,14 @@
           "session": "acu-0.2.109-3cfbdd6-20261107",
           "timestamp": "2026-11-07T03:54:29.179349+00:00",
           "reference": "/private/tmp/acu-pr87-0.2.109-3cfbdd6.json; persistent 0.2.108 MCP probe; cua_client.py call"
+        },
+        {
+          "check": "Closed socket during read-only handoff probe",
+          "outcome": "A source regression using the actual CUAClient retry implementation reproduced a closed old socket causing the 0.2.109 handoff to stop. The 0.2.110 candidate retries only runtime_contract, reconnects, and transfers the untouched request. No action retry was introduced; installed refresh acceptance is pending.",
+          "build": "ACU 0.2.110 source candidate",
+          "session": "source-handoff-reconnect-20261107",
+          "timestamp": "2026-11-07T03:56:10.556347+00:00",
+          "reference": "test_compact_mcp.py stale handoff regression; actual CUAClient.call retry path"
         }
       ]
     },

@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.110
+
+- Reconnect a closed service socket when probing its identity before an MCP handoff.
+
 ## 0.2.109
 
 - Prepare stale MCP clients to hand off queued requests to a package matching the running service before dispatch.
