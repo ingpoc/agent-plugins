@@ -120,3 +120,11 @@ Use one coherent batch and one issue-by-issue installed run per iteration. Check
 - **Optimize:** The frozen release source gate ran once; no comparable end-to-end improvement has been established.
 - **Automate:** A persistent 0.2.109 client exercised the actual refresh: its first post-refresh call failed and its second successfully handed off. The source regression uses the real client retry path; a 0.2.110 client must still be tested across another installed refresh.
 - **Outcome:** ACU 0.2.110 installed from PR commit a551690; 137 focused installed-package tests and 52 installed MCP tests passed. All 29 outcomes were recorded: one fixed, one not fixed, 14 blocked and 13 inconclusive. Microphone preflight failed; the first-call handoff and spoken acceptance remain unverified.
+
+### Iteration review: 0.2.111
+
+- **Delete:** No identity guard or action verification was removed. The previously added explicit input buffer prevents a process replacement from dropping queued messages.
+- **Simplify:** Reused the installed persistent-client probe and existing release receipt to exercise the same client before and after the service update. Old processes that predate handoff still need reconnection.
+- **Optimize:** The frozen release source gate ran once. No comparable end-to-end performance improvement has been demonstrated.
+- **Automate:** The existing installed MCP and Ledger suites passed, and the persistent-client probe confirmed first-call survival and the new server version. The findings manager recorded the complete issue pass and rendered the HTML.
+- **Outcome:** ACU 0.2.111 installed from PR commit ca1621b; 52 installed MCP tests and 137 focused installed voice/Ledger tests passed. One persistent 0.2.110 MCP client survived the refresh to 0.2.111 on its first state call; AGENT-06 is verified for clients containing the handoff. The run recorded two fixed, 12 blocked and 15 inconclusive. The release remained not ready because microphone preflight failed; spoken acceptance and island close/reflow remain unverified.
