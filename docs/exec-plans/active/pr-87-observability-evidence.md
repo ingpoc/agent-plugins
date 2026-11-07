@@ -237,3 +237,8 @@ For relevant live requests and transitions, inspect the Dynamic Island visually 
 - **Optimize:** Freeze the candidate once and use the release gate's result as the source-gate receipt. No speedup is claimed without comparable measurements.
 - **Automate:** Add an isolated writable Ledger fixture and task-to-browser-lease identity checks in the next PR; neither is established by the existing tests.
 - At the user's request, PR #87 displays the 13 previously verified fixes. The same JSON retains the 19 unresolved findings and their evidence under `tracking.deferred_findings` for the follow-up PR; current-install inconclusive checks do not erase earlier verification.
+
+### Follow-up PR
+
+- The existing tracker now displays the 19 unresolved findings; the 13 previously verified findings are retained under `tracking.archived_findings` and remain visible on PR #87.
+- Candidate ACU 0.2.120 retries a rule-filtered empty lookup without the rule while keeping the exact scope, then applies the existing selection and incomplete-result checks. Focused source tests pass; installed and voice acceptance are pending.
