@@ -2,10 +2,10 @@
   "title": "Samantha issues and recommended fixes",
   "tracking": {
     "pull_request": {
-      "label": "PR #92 · ACU 0.2.120",
-      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92"
+      "label": "PR #94 · Follow-up",
+      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94"
     },
-    "worktree": "samantha-followup-20261108",
+    "worktree": "samantha-pr92-rollover",
     "verification_history": [
       {
         "id": "acu-0.2.97-install-20261106-0544z",
