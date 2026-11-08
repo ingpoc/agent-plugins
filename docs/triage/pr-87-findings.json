@@ -5734,6 +5734,9 @@
           "updated_at": "2026-11-08T16:12:35Z",
           "evidence": "Samantha opened example.com but explicitly reported it could neither read the heading nor close the window. Independent Comet AX saw the test window; a direct comet_end cleanup later confirmed verified_absent. No root cause established.",
           "finished_at": "2026-11-08T16:12:43Z"
+        },
+        "AGENT-10": {
+          "state": "pending"
         }
       }
     },
@@ -6436,7 +6439,7 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-08T19:45:02+00:00"
+      "updated_at": "2026-11-08T19:55:32+00:00"
     }
   },
   "findings": [
@@ -8543,6 +8546,29 @@
           "session": "source and installed evidence review",
           "timestamp": "2026-11-08T16:59:50.372446+00:00",
           "reference": "ACU microphone preflight; installed Developer Observability session sref_b88b720e5ce28462b168589e6345ce63"
+        }
+      ]
+    },
+    {
+      "id": "AGENT-10",
+      "title": "Release voice gate rejects a completed current-session response",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "The ACU 0.2.122 release voice check timed out despite a same-session spoken input, successful Calculator action and completion event; independent accessibility readback showed 13 × 17 = 221.",
+      "recommendation": "Accept the runtime’s current session_phase response_done event while retaining ordered, same-session input and successful action requirements.",
+      "verification": "The installed release attempt at 7caac2d failed because the gate recognized only the legacy startup event. Source candidate updates the gate; fresh release acceptance is pending.",
+      "details": {
+        "Agent reproduced": "Session 72fd7a34 recorded user_transcript, successful Calculator cua_act and session_phase response_done in order. A separate accessibility readback showed 221.",
+        "Source hypothesis": "The release gate filters for startup while startup_trace emits session_phase after becoming live."
+      },
+      "verification_evidence": [
+        {
+          "check": "Failed release voice smoke",
+          "outcome": "Same-session transcript, successful Calculator action and session_phase response_done were recorded, but the release gate rejected the attempt. Independent Calculator readback showed 221.",
+          "build": "ACU 0.2.122 PR 7caac2d",
+          "session": "72fd7a34",
+          "timestamp": "2026-11-08T19:55:09.612280+00:00",
+          "reference": "/tmp/pr92-acu-0.2.122-7caac2d.json; release gate and bounded activity metadata."
         }
       ]
     }

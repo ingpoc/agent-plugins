@@ -151,7 +151,7 @@ def voice_events(rows):
             state['input'] = True
         if kind == 'tool_result' and row.get('tool') == 'cua_act' and row.get('app') == 'Calculator' and row.get('ok') is True:
             state['action'] = state['input']
-        if kind == 'startup' and row.get('phase') == 'response_done' and row.get('status') == 'ok':
+        if kind in {'startup', 'session_phase'} and row.get('phase') == 'response_done' and row.get('status') == 'ok':
             state['done'] = state['action']
     return next((sid for sid,s in sessions.items()
                  if s['input'] and s['action'] and s['done'] and not s['failed']), None)
