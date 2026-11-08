@@ -5575,168 +5575,339 @@
             "finished_at": "2026-11-08T13:38:05Z"
           }
         }
+      },
+      {
+        "id": "devobs-0.1.23-b631aa7",
+        "build": "Developer Observability 0.1.23",
+        "revision": "b631aa7109ce914665173aab2e398099e0ec1084",
+        "installed_at": "2026-11-08T13:39:08.509579+00:00",
+        "install_evidence": "Exact open PR head installer and fresh installed MCP probe passed; report-only change from 464e497.",
+        "status": "interrupted",
+        "checks": {
+          "USER-02": {
+            "state": "pending"
+          },
+          "USER-03": {
+            "state": "inconclusive",
+            "started_at": "2026-11-08T16:00:40Z",
+            "updated_at": "2026-11-08T16:00:40Z",
+            "previous_checks": [
+              {
+                "state": "inconclusive",
+                "started_at": "2026-11-08T13:43:11Z",
+                "updated_at": "2026-11-08T13:43:11Z",
+                "evidence": "Samantha supervisor reported running and healthy; requested a non-sensitive spoken preference save, change and recall. Awaiting the user's result; no new acceptance is inferred.",
+                "finished_at": "2026-11-08T13:45:36Z"
+              }
+            ],
+            "evidence": "Typed synthetic save, update and recall succeeded in live ACU 0.2.121; independent Ledger readback confirmed the replacement. Broader spoken and critical-decision acceptance was not exercised.",
+            "finished_at": "2026-11-08T16:02:39Z"
+          },
+          "AGENT-02": {
+            "state": "inconclusive",
+            "started_at": "2026-11-08T16:53:15Z",
+            "updated_at": "2026-11-08T16:53:15Z",
+            "previous_checks": [
+              {
+                "state": "inconclusive",
+                "started_at": "2026-11-08T16:06:05Z",
+                "updated_at": "2026-11-08T16:06:05Z",
+                "evidence": "A typed question returned the previously saved test value, but the bounded activity slice did not record a Ledger call for that turn; the previously rejected-request and retry path was not reproduced.",
+                "finished_at": "2026-11-08T16:12:14Z"
+              }
+            ],
+            "evidence": "Direct installed ledger_task recall with an empty query returned ledger_invalid_argument and retryable=false; a separately supplied valid scoped recall returned the synthetic test preference. This exercises the tool boundary, not Samantha’s autonomous recovery or retry behavior.",
+            "finished_at": "2026-11-08T16:53:35Z"
+          },
+          "OBS-01": {
+            "state": "pending"
+          },
+          "OBS-02": {
+            "state": "pending"
+          },
+          "OBS-03": {
+            "state": "inconclusive",
+            "started_at": "2026-11-08T16:07:17Z",
+            "updated_at": "2026-11-08T16:07:17Z",
+            "evidence": "The typed example.com request took 11.85 seconds and opened the window, but Samantha reported she could not read the heading or close it; no completed browser journey or accepted latency target was established. Separate cleanup confirmed the window absent.",
+            "finished_at": "2026-11-08T16:12:14Z"
+          },
+          "OBS-04": {
+            "state": "pending"
+          },
+          "OBS-06": {
+            "state": "fixed",
+            "started_at": "2026-11-08T16:51:47Z",
+            "updated_at": "2026-11-08T16:51:47Z",
+            "previous_checks": [
+              {
+                "state": "inconclusive",
+                "started_at": "2026-11-08T16:06:05Z",
+                "updated_at": "2026-11-08T16:06:05Z",
+                "evidence": "The installed 0.2.121 session summary reports event-level build 0.2.121+f38dad3c7f7d and separately marks session-inferred attribution. This is improved build evidence but does not establish the requested task/result join.",
+                "finished_at": "2026-11-08T16:12:14Z"
+              }
+            ],
+            "evidence": "The controlled typed Calculator task has session ref sref_b88b720e5ce28462b168589e6345ce63 and run ref 855a058fc390e9f04a5f5f92. Its scoped installed MCP summary contains the native action, task outcome, and build 0.2.121+f38dad3c7f7d with event attribution; version-only attribution remains explicitly session_inferred. The outcome is correctly unverified; independent outcome integration remains OBS-10.",
+            "finished_at": "2026-11-08T16:52:00Z"
+          },
+          "OBS-10": {
+            "state": "not_fixed",
+            "started_at": "2026-11-08T16:06:05Z",
+            "updated_at": "2026-11-08T16:06:05Z",
+            "evidence": "Calculator 64 and subsequent app exit were independently read back, while task_outcome events remained unverified in the session telemetry; the independent results were not joined as verified outcomes.",
+            "finished_at": "2026-11-08T16:12:14Z"
+          },
+          "AGENT-03": {
+            "state": "not_fixed",
+            "started_at": "2026-11-08T16:06:05Z",
+            "updated_at": "2026-11-08T16:06:05Z",
+            "evidence": "Calculator 8 × 8 produced 64 with independent AX readback. The subsequent close left the app absent, but Samantha logged a cua_act allow_unverified error; this does not establish clean close-action feedback.",
+            "finished_at": "2026-11-08T16:12:14Z"
+          },
+          "AGENT-04": {
+            "state": "pending"
+          },
+          "OBS-12": {
+            "state": "not_fixed",
+            "started_at": "2026-11-08T16:06:05Z",
+            "updated_at": "2026-11-08T16:06:05Z",
+            "evidence": "The fresh session summary shows two Ledger save receipts and one selected record. Independent Ledger readback found a superseded predecessor, but the summary reports zero supersession events and does not establish the full task-linked trail.",
+            "finished_at": "2026-11-08T16:12:14Z"
+          },
+          "OBS-13": {
+            "state": "pending"
+          },
+          "OBS-14": {
+            "state": "pending"
+          },
+          "OBS-15": {
+            "state": "pending"
+          },
+          "OBS-16": {
+            "state": "inconclusive",
+            "started_at": "2026-11-08T16:06:05Z",
+            "updated_at": "2026-11-08T16:06:05Z",
+            "evidence": "A concise installed session summary is available, but this check did not establish a single task-linked summary or exercise a known mirrored event pair.",
+            "finished_at": "2026-11-08T16:12:14Z"
+          },
+          "OBS-17": {
+            "state": "pending"
+          },
+          "AGENT-07": {
+            "state": "pending"
+          },
+          "USER-06": {
+            "state": "fixed",
+            "started_at": "2026-11-08T16:48:35Z",
+            "updated_at": "2026-11-08T16:48:35Z",
+            "previous_checks": [
+              {
+                "state": "inconclusive",
+                "started_at": "2026-11-08T16:08:42Z",
+                "updated_at": "2026-11-08T16:08:42Z",
+                "evidence": "On installed 0.2.121, the waveform circle present before stopping disappeared immediately and remained absent in a capture more than 30 seconds later; supervisor reported stopped. Samantha was restarted. The identity of the specific icon in the original user screenshot remains unconfirmed.",
+                "finished_at": "2026-11-08T16:12:14Z"
+              }
+            ],
+            "evidence": "The 0.2.120 controlled off capture shows the pink Samantha waveform still present after 30 seconds. In the 0.2.121 controlled test, the same waveform disappeared on stop and remained absent more than 30 seconds later; supervisor confirmed stopped and Samantha was restored. The source IslandPluginMarksTests on/off contract passed in the full repository check; the tested 0.2.121 source package matched the installed personal package.",
+            "finished_at": "2026-11-08T16:48:49Z"
+          },
+          "OBS-18": {
+            "state": "fixed",
+            "started_at": "2026-11-08T13:39:08Z",
+            "updated_at": "2026-11-08T13:39:08Z",
+            "evidence": "Rechecked exact PR head b631aa7 using fresh installed MCP snapshot 7a1b844af324: active rows precede stale and recovered rows.",
+            "finished_at": "2026-11-08T13:39:19Z"
+          },
+          "OBS-19": {
+            "state": "fixed",
+            "started_at": "2026-11-08T13:39:19Z",
+            "updated_at": "2026-11-08T13:39:19Z",
+            "evidence": "Rechecked exact PR head b631aa7: installed collector and MCP processed a controlled failing CI log, identified its test, stated output was not retained, advised inspecting the check log, and did not expose the sample secret.",
+            "finished_at": "2026-11-08T13:39:29Z"
+          },
+          "AGENT-09": {
+            "state": "not_fixed",
+            "started_at": "2026-11-08T16:12:35Z",
+            "updated_at": "2026-11-08T16:12:35Z",
+            "evidence": "Samantha opened example.com but explicitly reported it could neither read the heading nor close the window. Independent Comet AX saw the test window; a direct comet_end cleanup later confirmed verified_absent. No root cause established.",
+            "finished_at": "2026-11-08T16:12:43Z"
+          },
+          "AGENT-10": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "devobs-0.1.23-b631aa7",
-      "build": "Developer Observability 0.1.23",
-      "revision": "b631aa7109ce914665173aab2e398099e0ec1084",
-      "installed_at": "2026-11-08T13:39:08.509579+00:00",
-      "install_evidence": "Exact open PR head installer and fresh installed MCP probe passed; report-only change from 464e497.",
-      "status": "active",
+      "id": "acu-0.2.122-f3dac96",
+      "build": "ACU 0.2.122, Context Ledger 0.1.40",
+      "revision": "f3dac96d1739b4f4348e54c3acc0ad590f1757ea",
+      "installed_at": "2026-11-08T20:06:55.291885+00:00",
+      "install_evidence": "Signed and notarized ACU at 7caac2d with identical runtime package at f3dac96; corrected release check /tmp/pr92-acu-0.2.122-f3dac96-recheck.json passed. Context Ledger 0.1.40 package identity matched source.",
+      "status": "complete",
       "checks": {
         "USER-02": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "USER-03": {
-          "state": "inconclusive",
-          "started_at": "2026-11-08T16:00:40Z",
-          "updated_at": "2026-11-08T16:00:40Z",
-          "previous_checks": [
-            {
-              "state": "inconclusive",
-              "started_at": "2026-11-08T13:43:11Z",
-              "updated_at": "2026-11-08T13:43:11Z",
-              "evidence": "Samantha supervisor reported running and healthy; requested a non-sensitive spoken preference save, change and recall. Awaiting the user's result; no new acceptance is inferred.",
-              "finished_at": "2026-11-08T13:45:36Z"
-            }
-          ],
-          "evidence": "Typed synthetic save, update and recall succeeded in live ACU 0.2.121; independent Ledger readback confirmed the replacement. Broader spoken and critical-decision acceptance was not exercised.",
-          "finished_at": "2026-11-08T16:02:39Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "AGENT-02": {
-          "state": "inconclusive",
-          "started_at": "2026-11-08T16:53:15Z",
-          "updated_at": "2026-11-08T16:53:15Z",
-          "previous_checks": [
-            {
-              "state": "inconclusive",
-              "started_at": "2026-11-08T16:06:05Z",
-              "updated_at": "2026-11-08T16:06:05Z",
-              "evidence": "A typed question returned the previously saved test value, but the bounded activity slice did not record a Ledger call for that turn; the previously rejected-request and retry path was not reproduced.",
-              "finished_at": "2026-11-08T16:12:14Z"
-            }
-          ],
-          "evidence": "Direct installed ledger_task recall with an empty query returned ledger_invalid_argument and retryable=false; a separately supplied valid scoped recall returned the synthetic test preference. This exercises the tool boundary, not Samantha’s autonomous recovery or retry behavior.",
-          "finished_at": "2026-11-08T16:53:35Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-01": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-02": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-03": {
-          "state": "inconclusive",
-          "started_at": "2026-11-08T16:07:17Z",
-          "updated_at": "2026-11-08T16:07:17Z",
-          "evidence": "The typed example.com request took 11.85 seconds and opened the window, but Samantha reported she could not read the heading or close it; no completed browser journey or accepted latency target was established. Separate cleanup confirmed the window absent.",
-          "finished_at": "2026-11-08T16:12:14Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-04": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-06": {
-          "state": "fixed",
-          "started_at": "2026-11-08T16:51:47Z",
-          "updated_at": "2026-11-08T16:51:47Z",
-          "previous_checks": [
-            {
-              "state": "inconclusive",
-              "started_at": "2026-11-08T16:06:05Z",
-              "updated_at": "2026-11-08T16:06:05Z",
-              "evidence": "The installed 0.2.121 session summary reports event-level build 0.2.121+f38dad3c7f7d and separately marks session-inferred attribution. This is improved build evidence but does not establish the requested task/result join.",
-              "finished_at": "2026-11-08T16:12:14Z"
-            }
-          ],
-          "evidence": "The controlled typed Calculator task has session ref sref_b88b720e5ce28462b168589e6345ce63 and run ref 855a058fc390e9f04a5f5f92. Its scoped installed MCP summary contains the native action, task outcome, and build 0.2.121+f38dad3c7f7d with event attribution; version-only attribution remains explicitly session_inferred. The outcome is correctly unverified; independent outcome integration remains OBS-10.",
-          "finished_at": "2026-11-08T16:52:00Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-10": {
-          "state": "not_fixed",
-          "started_at": "2026-11-08T16:06:05Z",
-          "updated_at": "2026-11-08T16:06:05Z",
-          "evidence": "Calculator 64 and subsequent app exit were independently read back, while task_outcome events remained unverified in the session telemetry; the independent results were not joined as verified outcomes.",
-          "finished_at": "2026-11-08T16:12:14Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "AGENT-03": {
-          "state": "not_fixed",
-          "started_at": "2026-11-08T16:06:05Z",
-          "updated_at": "2026-11-08T16:06:05Z",
-          "evidence": "Calculator 8 × 8 produced 64 with independent AX readback. The subsequent close left the app absent, but Samantha logged a cua_act allow_unverified error; this does not establish clean close-action feedback.",
-          "finished_at": "2026-11-08T16:12:14Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "AGENT-04": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-12": {
-          "state": "not_fixed",
-          "started_at": "2026-11-08T16:06:05Z",
-          "updated_at": "2026-11-08T16:06:05Z",
-          "evidence": "The fresh session summary shows two Ledger save receipts and one selected record. Independent Ledger readback found a superseded predecessor, but the summary reports zero supersession events and does not establish the full task-linked trail.",
-          "finished_at": "2026-11-08T16:12:14Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-13": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-14": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-15": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-16": {
-          "state": "inconclusive",
-          "started_at": "2026-11-08T16:06:05Z",
-          "updated_at": "2026-11-08T16:06:05Z",
-          "evidence": "A concise installed session summary is available, but this check did not establish a single task-linked summary or exercise a known mirrored event pair.",
-          "finished_at": "2026-11-08T16:12:14Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-17": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "AGENT-07": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "USER-06": {
-          "state": "fixed",
-          "started_at": "2026-11-08T16:48:35Z",
-          "updated_at": "2026-11-08T16:48:35Z",
-          "previous_checks": [
-            {
-              "state": "inconclusive",
-              "started_at": "2026-11-08T16:08:42Z",
-              "updated_at": "2026-11-08T16:08:42Z",
-              "evidence": "On installed 0.2.121, the waveform circle present before stopping disappeared immediately and remained absent in a capture more than 30 seconds later; supervisor reported stopped. Samantha was restarted. The identity of the specific icon in the original user screenshot remains unconfirmed.",
-              "finished_at": "2026-11-08T16:12:14Z"
-            }
-          ],
-          "evidence": "The 0.2.120 controlled off capture shows the pink Samantha waveform still present after 30 seconds. In the 0.2.121 controlled test, the same waveform disappeared on stop and remained absent more than 30 seconds later; supervisor confirmed stopped and Samantha was restored. The source IslandPluginMarksTests on/off contract passed in the full repository check; the tested 0.2.121 source package matched the installed personal package.",
-          "finished_at": "2026-11-08T16:48:49Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-18": {
-          "state": "fixed",
-          "started_at": "2026-11-08T13:39:08Z",
-          "updated_at": "2026-11-08T13:39:08Z",
-          "evidence": "Rechecked exact PR head b631aa7 using fresh installed MCP snapshot 7a1b844af324: active rows precede stale and recovered rows.",
-          "finished_at": "2026-11-08T13:39:19Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "OBS-19": {
-          "state": "fixed",
-          "started_at": "2026-11-08T13:39:19Z",
-          "updated_at": "2026-11-08T13:39:19Z",
-          "evidence": "Rechecked exact PR head b631aa7: installed collector and MCP processed a controlled failing CI log, identified its test, stated output was not retained, advised inspecting the check log, and did not expose the sample secret.",
-          "finished_at": "2026-11-08T13:39:29Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T20:16:25Z",
+          "updated_at": "2026-11-08T20:16:25Z",
+          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+          "finished_at": "2026-11-08T20:16:34Z"
         },
         "AGENT-09": {
           "state": "not_fixed",
-          "started_at": "2026-11-08T16:12:35Z",
-          "updated_at": "2026-11-08T16:12:35Z",
-          "evidence": "Samantha opened example.com but explicitly reported it could neither read the heading nor close the window. Independent Comet AX saw the test window; a direct comet_end cleanup later confirmed verified_absent. No root cause established.",
-          "finished_at": "2026-11-08T16:12:43Z"
+          "started_at": "2026-11-08T20:07:07Z",
+          "updated_at": "2026-11-08T20:07:07Z",
+          "evidence": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",
+          "finished_at": "2026-11-08T20:07:59Z"
         },
         "AGENT-10": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-08T20:06:55Z",
+          "updated_at": "2026-11-08T20:06:55Z",
+          "evidence": "Corrected gate passed a fresh 0.2.122 spoken run with ordered transcript, successful Calculator action and session_phase response_done; independent display readback confirmed 13 × 17 = 221 and audio readiness. The earlier corrected-gate attempt heard speech but no fresh Calculator action and remains a failed attempt.",
+          "finished_at": "2026-11-08T20:07:07Z"
         }
       }
     },
@@ -6438,8 +6609,8 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-08T19:55:32+00:00"
+      "stage": null,
+      "updated_at": "2026-11-08T20:16:34+00:00"
     }
   },
   "findings": [
@@ -8522,10 +8693,12 @@
       "status": "failing",
       "observed": "In an authorized typed example.com task, Samantha opened the isolated Comet window but said she could neither read its heading nor close it.",
       "recommendation": "Trace why the active lease did not expose or use the page and close actions; verify a bounded read and close in the same lease.",
-      "verification": "ACU 0.2.121 typed task returned incomplete after 11.85 seconds. Independent Comet AX confirmed the Example Domain window. Direct cleanup through Samantha comet_end confirmed verified_absent; cleanup is not task success.",
+      "verification": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",
       "details": {
         "Evidence": "Fresh session sref_b88b720e5ce28462b168589e6345ce63 and installed activity events; Comet broker probe reported runtime_verified and extension_connected.",
-        "Boundary": "The user-facing task did not complete. The cause is not yet established."
+        "Boundary": "The user-facing task did not complete. The cause is not yet established.",
+        "Installed recheck": "ACU 0.2.122 repeated the failure after the wording change. Activity recorded a successful comet_begin, a tool-list update and a subsequent session.updated event, but no comet_act or comet_end model call. Direct cleanup was successful.",
+        "Source hypothesis": "The tool-list update and tool-result continuation are sent close together. Whether the continuing backend could use the newly added tools was not observed; session.updated alone does not establish validation or tool availability."
       },
       "verification_refs": [
         "ACU 0.2.121 live typed task and same-session comet_end cleanup"
@@ -8546,6 +8719,14 @@
           "session": "source and installed evidence review",
           "timestamp": "2026-11-08T16:59:50.372446+00:00",
           "reference": "ACU microphone preflight; installed Developer Observability session sref_b88b720e5ce28462b168589e6345ce63"
+        },
+        {
+          "check": "Installed same-task Comet recheck",
+          "outcome": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",
+          "build": "ACU 0.2.122 PR f3dac96",
+          "session": "72fd7a34",
+          "timestamp": "2026-11-08T20:07:59.531025+00:00",
+          "reference": "Installed gateway typed prompt and same-session comet_end cleanup."
         }
       ]
     },
@@ -8553,13 +8734,15 @@
       "id": "AGENT-10",
       "title": "Release voice gate rejects a completed current-session response",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "The ACU 0.2.122 release voice check timed out despite a same-session spoken input, successful Calculator action and completion event; independent accessibility readback showed 13 × 17 = 221.",
       "recommendation": "Accept the runtime’s current session_phase response_done event while retaining ordered, same-session input and successful action requirements.",
-      "verification": "The installed release attempt at 7caac2d failed because the gate recognized only the legacy startup event. Source candidate updates the gate; fresh release acceptance is pending.",
+      "verification": "Corrected gate passed a fresh 0.2.122 spoken run with ordered transcript, successful Calculator action and session_phase response_done; independent display readback confirmed 13 × 17 = 221 and audio readiness. The earlier corrected-gate attempt heard speech but no fresh Calculator action and remains a failed attempt.",
       "details": {
         "Agent reproduced": "Session 72fd7a34 recorded user_transcript, successful Calculator cua_act and session_phase response_done in order. A separate accessibility readback showed 221.",
-        "Source hypothesis": "The release gate filters for startup while startup_trace emits session_phase after becoming live."
+        "Source hypothesis": "The release gate filters for startup while startup_trace emits session_phase after becoming live.",
+        "User reported": "On the earlier recheck, Samantha calculated by herself and used Calculator only when explicitly asked to use the app.",
+        "Second attempt": "The corrected gate still rejected a later run that recorded speech but no new Calculator action; the display already contained 221. The successful recheck began from a cleared display and explicitly requested Calculator button presses."
       },
       "verification_evidence": [
         {
@@ -8569,7 +8752,19 @@
           "session": "72fd7a34",
           "timestamp": "2026-11-08T19:55:09.612280+00:00",
           "reference": "/tmp/pr92-acu-0.2.122-7caac2d.json; release gate and bounded activity metadata."
+        },
+        {
+          "check": "Corrected release voice gate live recheck",
+          "outcome": "Corrected gate passed a fresh 0.2.122 spoken run with ordered transcript, successful Calculator action and session_phase response_done; independent display readback confirmed 13 × 17 = 221 and audio readiness. The earlier corrected-gate attempt heard speech but no fresh Calculator action and remains a failed attempt.",
+          "build": "ACU 0.2.122 f3dac96",
+          "session": "72fd7a34",
+          "timestamp": "2026-11-08T20:07:07.223798+00:00",
+          "reference": "/tmp/pr92-acu-0.2.122-f3dac96-recheck.json; earlier /tmp/pr92-acu-0.2.122-f3dac96.json"
         }
+      ],
+      "verification_refs": [
+        "scripts/test_release_agent_computer_use.py",
+        "/tmp/pr92-acu-0.2.122-f3dac96-recheck.json"
       ]
     }
   ]
