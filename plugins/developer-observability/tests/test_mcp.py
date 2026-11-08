@@ -34,6 +34,13 @@ class MCPTests(unittest.TestCase):
                     'generated_at': datetime.now(timezone.utc).isoformat(),
                     'findings': [{'finding_key': 'k1', 'owner_ref': 'owner:a', 'headline': 'h', 'status': 'active',
                                   'latest_evidence': {'first_error_line': 'token=sk-abcdefghijklmnopqrstuvwxyz'}}]}))
+                (base/'collected').mkdir()
+                (base/'collected'/'findings.json').write_text(json.dumps({
+                    'generated_at': datetime.now(timezone.utc).isoformat(), 'findings': [],
+                    'version_scopes': [{'project': 'a', 'version': '2.0', 'attribution': 'event',
+                                        'findings': [{'finding_key': 'col-scoped', 'owner_ref': 'owner:a',
+                                                      'headline': 'versioned', 'status': 'active'}],
+                                        'session_timelines': []}]}))
             config = base/'config.json'
             # Collector output stays in the temp dir: never merge the machine's real collected findings.
             config.write_text(json.dumps({'runtime': str(base), 'decider_script': None,
@@ -52,7 +59,7 @@ class MCPTests(unittest.TestCase):
                         await client.initialize()
                         self.assertEqual(client.protocol_version, '2025-11-25')
                     tools = (await client.list_tools()).tools
-                    self.assertEqual(len(tools), 10)
+                    self.assertEqual(len(tools), 11)
                     self.assertIn('observability_sessions', [t.name for t in tools])
                     self.assertIn('observability_storage', [t.name for t in tools])
                     self.assertIn("observability_collect", [t.name for t in tools])
@@ -70,6 +77,12 @@ class MCPTests(unittest.TestCase):
                         return
                     self.assertEqual(projects['data_source']['status'], 'findings_present')
                     self.assertEqual([(p['project_id'], p['issue_count']) for p in projects['projects']], [('a', 1)])
+                    versions = await client.call_tool('observability_version_scopes', {'project_id': 'a'})
+                    self.assertEqual(versions.structured_content['version_scopes'], [{'version': '2.0', 'attribution': 'event'}])
+                    scoped = await client.call_tool('observability_diagnose', {'project_id': 'a', 'version': '2.0', 'attribution': 'event'})
+                    self.assertFalse(scoped.is_error)
+                    self.assertEqual(scoped.structured_content['brief']['counts']['total'], 1)
+                    self.assertFalse(scoped.structured_content['version_scope']['deployment_verified'])
                     brief = await client.call_tool('observability_diagnose', {'project_id': 'a'})
                     self.assertFalse(brief.is_error)
                     self.assertEqual(brief.structured_content['brief']['counts']['total'], 1)

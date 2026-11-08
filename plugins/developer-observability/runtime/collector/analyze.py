@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 import hashlib
+import json
 import math
 import re
 import time
@@ -535,7 +536,7 @@ def _rank(finding):
 
 
 def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H, threshold_ms=HOTSPOT_MS,
-          test_threshold_ms=TEST_HOTSPOT_MS):
+          test_threshold_ms=TEST_HOTSPOT_MS, *, scoped=True):
     now = time.time() if now is None else now
     events, excluded = prepare(events, include_tests)
     roll = rollup(events)
@@ -605,7 +606,7 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                                   'last_seen': iso(rows[-1][0]['ts']), 'events': timeline,
                                   'total': len(timeline), 'raw_total': len(rows), 'truncated': False})
     session_timelines.sort(key=lambda row: row['last_seen'], reverse=True)
-    return {
+    document = {
         'schema_version': 1, 'generated_at': stamp, 'producer': 'developer-observability-collector',
         'collector_version': VERSION, 'findings': findings, 'session_timelines': session_timelines[:50],
         'settings': {'include_tests': include_tests, 'active_window_h': window_h, 'latency_threshold_ms': threshold_ms,
@@ -618,3 +619,28 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                              for source, item in stats.items()},
         'coverage_gaps': [], 'coverage_gap_scope': 'collector', 'collector_stats': stats,
     }
+    if scoped:
+        groups = defaultdict(list)
+        for event in events:
+            version = event.get('version')
+            attribution = event.get('version_attribution')
+            if not isinstance(version, str) or not version or attribution not in ('event', 'session_inferred'):
+                version, attribution = None, 'unknown'
+            elif scrub(version, 40) != version:
+                version, attribution = None, 'unknown'
+            groups[(event['project'], version, attribution)].append(
+                {**event, 'version': None, 'version_attribution': 'unknown'} if attribution == 'unknown' else event)
+        if len(groups) > 256:
+            raise ValueError('collector_failed: too many project/version scopes; narrow collector sources')
+        document['version_scopes'] = []
+        for (project, version, attribution), rows in sorted(groups.items(), key=lambda item: str(item[0])):
+            scope_id = hashlib.sha256(json.dumps([project, version, attribution], separators=(',', ':')).encode()).hexdigest()[:24]
+            projection = build(rows, {}, now, True, window_h, threshold_ms, test_threshold_ms, scoped=False)
+            for finding in projection['findings']:
+                finding['finding_key'] = 'col-' + hashlib.sha256((scope_id + '\0' + finding['finding_key']).encode()).hexdigest()[:16]
+            for session in projection['session_timelines']:
+                session['session_ref'] = 'sref_' + hashlib.sha256((scope_id + '\0' + session['session_ref']).encode()).hexdigest()[:32]
+            document['version_scopes'].append({'project': project, 'version': version, 'attribution': attribution,
+                                               'findings': projection['findings'],
+                                               'session_timelines': projection['session_timelines']})
+    return document

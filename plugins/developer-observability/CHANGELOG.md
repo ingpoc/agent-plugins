@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.21
+
+- Filter collected observations by project, observed version and attribution, keeping unknown versions separate.
+- Add version-aware diagnosis and dashboard filtering; scoped views exclude legacy primary findings and do not verify deployments.
+
+## 0.1.20
+
+- Keep routine diagnosis guidance concise and load specialized guidance on demand.
+
 ## 0.1.18
 
 - Show privacy-bounded Ledger scope categories in task timelines.
