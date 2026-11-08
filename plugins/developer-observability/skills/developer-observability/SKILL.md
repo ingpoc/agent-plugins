@@ -14,6 +14,11 @@ service repair, not routine inspection.
    old, call `observability_collect` once (optionally `project_dir`) and re-read;
    never report no issues from an empty state. Collection prunes expired
    plugin-owned files to Trash.
+   For version-specific results, call `observability_version_scopes` and pass
+   the selected `version` and `attribution` to diagnosis and every subsequent
+   detail or session call. `unknown` attribution uses no version. Event and
+   session-inferred attribution are separate; observed versions do not prove
+   deployment. Legacy primary data is excluded from scoped results.
 2. Expand up to five relevant full issue IDs with `observability_diagnose`, the
    same `project_id`, and its `snapshot_id`. If the snapshot changed, restart
    diagnosis. Request bounded diagnostics only when needed; keep real session

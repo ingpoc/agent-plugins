@@ -63,6 +63,8 @@ def _write(out, document):
     try:
         with os.fdopen(fd, 'w') as handle:
             json.dump(document, handle, separators=(',', ':'))
+            if handle.tell() > 128_000_000:
+                raise ValueError('collector_failed: snapshot too large; narrow collector sources')
         os.chmod(tmp, 0o600)
         os.replace(tmp, out / 'findings.json')
     except BaseException:

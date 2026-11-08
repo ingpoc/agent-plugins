@@ -42,6 +42,72 @@ class CollectorTests(unittest.TestCase):
         stats = {}
         return build(discover_project(self.project, stats), stats, NOW)
 
+    def test_scoped_findings_do_not_mix_versions(self):
+        path = self.tmp / 'versions.jsonl'
+        rows = []
+        for version, count in [('1.0', 3), ('2.0', 2)]:
+            for index in range(count):
+                rows.append({'kind': 'realtime_error', 'status': 'error', 'detail': 'same error',
+                             'version': version, 'session_id': f'{version}-{index}', 'ts': NOW - index})
+            for index in range(5):
+                rows.append({'kind': 'startup', 'phase': 'connect', 'status': 'ok',
+                             'step_ms': 8000 if version == '1.0' else 2000,
+                             'version': version, 'session_id': f'{version}-latency-{index}', 'ts': NOW - index})
+        rows.append({'kind': 'realtime_error', 'status': 'error', 'detail': 'unattributed error', 'ts': NOW})
+        rows.extend([{'kind': 'startup', 'session_id': 'inferred', 'version': '2.0', 'ts': NOW},
+                     {'kind': 'realtime_error', 'status': 'error', 'detail': 'inferred error',
+                      'session_id': 'inferred', 'ts': NOW + 1},
+                     {'kind': 'response_done', 'session_id': 'shared', 'version': '1.0', 'ts': NOW},
+                     {'kind': 'response_done', 'session_id': 'shared', 'version': '2.0', 'ts': NOW + 1}])
+        path.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+        stats = {}
+        document = build(iter_jsonl(path, 'p', 'p:log', stats), stats, NOW)
+        scopes = {(scope['version'], scope['attribution']): scope for scope in document['version_scopes']}
+        first, second = scopes[('1.0', 'event')], scopes[('2.0', 'event')]
+        first_failure = next(f for f in first['findings'] if f['kind'] == 'failure')
+        second_failure = next(f for f in second['findings'] if f['kind'] == 'failure')
+        self.assertEqual(first_failure['failed_attempt_count'], 3)
+        self.assertEqual(second_failure['failed_attempt_count'], 2)
+        self.assertNotEqual(first_failure['finding_key'], second_failure['finding_key'])
+        self.assertEqual(next(f['latency']['p95_ms'] for f in first['findings'] if f['kind'] == 'latency_hotspot'), 8000)
+        self.assertEqual(next(f['latency']['p95_ms'] for f in second['findings'] if f['kind'] == 'latency_hotspot'), 2000)
+        self.assertIn((None, 'unknown'), scopes)
+        self.assertIn(('2.0', 'session_inferred'), scopes)
+        self.assertTrue(any(f['kind'] == 'failure' for f in scopes[('2.0', 'session_inferred')]['findings']))
+        self.assertNotEqual(first['session_timelines'][0]['session_ref'], second['session_timelines'][0]['session_ref'])
+        runtime, collected = self.tmp/'primary', self.tmp/'output'
+        runtime.mkdir(); collected.mkdir()
+        (runtime/'findings.json').write_text(json.dumps({'findings': [{'finding_key': 'legacy', 'owner_ref': 'owner:p'}]}))
+        (collected/'findings.json').write_text(json.dumps(document))
+        api = ObservabilityAPI(runtime, {'p': {'owners': ['owner:p']}}, None, collected=collected)
+        catalog = api.version_scopes('p')['version_scopes']
+        self.assertIn({'version': '2.0', 'attribution': 'event'}, catalog)
+        self.assertIn({'version': None, 'attribution': 'unknown'}, catalog)
+        listing = api.issues('p', version='2.0', attribution='event')
+        failures = [row for row in listing['issues'] if row['kind'] == 'failure']
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(failures[0]['failed_attempts'], 2)
+        self.assertEqual(listing['slowest'][0]['latency']['p95_ms'], 2000)
+        self.assertNotIn('legacy', [row['issue_id'] for row in listing['issues']])
+        self.assertEqual(listing['version_scope']['legacy_primary'], 'excluded')
+        brief = api.diagnose('p', version='2.0', attribution='event')
+        issue_id = brief['brief']['top_failures'][0]['issue_id']
+        result = api.diagnose('p', [issue_id], brief['snapshot_id'], version='2.0', attribution='event')
+        self.assertEqual(result['issues'][0]['issue']['failed_attempts'], 2)
+        sessions = api.sessions('p', version='2.0', attribution='event')['sessions']
+        self.assertTrue(sessions)
+        with self.assertRaisesRegex(ValueError, 'session_not_in_project'):
+            api.sessions('p', first['session_timelines'][0]['session_ref'], version='2.0', attribution='event')
+        with self.assertRaisesRegex(ValueError, 'snapshot_changed'):
+            api.diagnose('p', [issue_id], brief['snapshot_id'], version='1.0', attribution='event')
+        page = api.issues('p', limit=1, version='1.0', attribution='event')
+        self.assertIsNotNone(page['next_cursor'])
+        with self.assertRaisesRegex(ValueError, 'invalid_cursor|snapshot_changed'):
+            api.issues('p', cursor=page['next_cursor'], limit=1, version='2.0', attribution='event')
+        with self.assertRaisesRegex(ValueError, 'invalid_version_scope'):
+            api.issues('p', version='2.0', attribution='unknown')
+        self.assertFalse(api.issues('p', version='missing', attribution='event')['version_scope']['scope_present'])
+
     def test_scrub_removes_tokens_email_and_home(self):
         text = scrub(f'{SECRETS[0]} {SECRETS[1]} {SECRETS[4]} {SECRETS[5]} Bearer abc123def {Path.home()}/x')
         for secret in (SECRETS[0], SECRETS[1], SECRETS[4], SECRETS[5], 'abc123def', str(Path.home())):

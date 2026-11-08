@@ -38,6 +38,8 @@ NEXT_STEPS = {
                      '1–10 for observability_inspect_issue.',
     'invalid_status': 'Use status all, active, recovered or stale.',
     'invalid_issue_ids': 'Pass 1–5 full issue IDs returned by observability_issues.',
+    'invalid_version_scope': 'Select an observed version and attribution from observability_version_scopes.',
+    'version_scope_unavailable': 'Collect a new snapshot before requesting a version-scoped view.',
     'invalid_diagnosis': 'For issue expansion, pass project_id, issue_ids and snapshot_id from a diagnosis response.',
     'invalid_kind': 'Use kind all, failure, latency_hotspot, redundancy, turn_latency, island_layout or storage.',
     'unknown_project': 'Call observability_projects and use a returned project_id.',
@@ -118,7 +120,7 @@ class ObservabilityAPI:
             raise ValueError('backend_unavailable: invalid prepared findings')
         return data, raw
 
-    def _read(self):
+    def _read(self, project_id=None, version=None, attribution=None):
         paths = self._paths()
         primary, primary_raw = self._load(paths[0])
         collected, collected_raw = self._load(paths[1]) if len(paths) > 1 else (None, b'')
@@ -137,11 +139,35 @@ class ObservabilityAPI:
             data['generated_at'] = max(stamps) if stamps else None
         data['sources'] = {'primary': primary.get('generated_at') if primary else None,
                            'collector': collected.get('generated_at') if collected else None}
+        data['_collector_version_scopes'] = collected.get('version_scopes') if collected else None
         aliases = data.get('attribution_aliases')
         self.aliases = {k: v for k, v in aliases.items() if isinstance(k, str) and isinstance(v, str)} \
             if isinstance(aliases, dict) else {}
         self.project_map = {**self._discovered(data), **self.configured}
-        return data, hashlib.sha256(primary_raw + b'\0' + collected_raw).hexdigest()
+        revision = hashlib.sha256(primary_raw + b'\0' + collected_raw).hexdigest()
+        if version is not None or attribution is not None:
+            self._project(project_id)
+            if attribution not in ('event', 'session_inferred', 'unknown') or (attribution == 'unknown') != (version is None):
+                raise ValueError('invalid_version_scope: select an observed version and attribution, or unknown')
+            if version is not None and (not isinstance(version, str) or not version or len(version) > 100):
+                raise ValueError('invalid_version_scope: version must be a nonempty string up to 100 characters')
+            if not collected or not isinstance(collected.get('version_scopes'), list):
+                raise ValueError('version_scope_unavailable: collect a snapshot with version scopes')
+            scopes = [s for s in collected['version_scopes'] if isinstance(s, dict)
+                      and s.get('version') == version and s.get('attribution') == attribution
+                      and self._matches({'owner_ref': 'owner:' + str(s.get('project', '')),
+                                         'latest_evidence': {'project': s.get('project')}}, project_id)]
+            data = {**collected, 'findings': [f for s in scopes for f in s['findings']],
+                    'session_timelines': [t for s in scopes for t in s['session_timelines']],
+                    'coverage': {}, 'coverage_details': {}, 'coverage_gaps': [], 'coverage_gap_scope': 'unknown',
+                    'sources': {'primary': primary.get('generated_at') if primary else None,
+                                'collector': collected.get('generated_at')},
+                    'version_scope': {'version': version, 'attribution': attribution,
+                                      'scope_present': bool(scopes), 'legacy_primary': 'excluded',
+                                      'deployment_verified': False,
+                                      'coverage_note': 'Other attribution scopes, collector health findings and legacy primary data are excluded; version-specific coverage is unknown. No findings does not prove success.'}}
+            revision = hashlib.sha256((revision + json.dumps([project_id, version, attribution])).encode()).hexdigest()
+        return data, revision
 
     def _fallback_project(self, label):
         """Local edit: worktree-style labels (`<project>-<task>`) and explicit aliases resolve to a project."""
@@ -227,7 +253,7 @@ class ObservabilityAPI:
                 'coverage_gap_scope': redact(str(data.get('coverage_gap_scope', 'unknown')), 200),
                 'sources': {key: self._safe_time(value) for key, value in (data.get('sources') or {}).items()
                             if key in ('primary', 'collector')},
-                'limits': list(LIMITS)}
+                'limits': list(LIMITS), **({'version_scope': data['version_scope']} if 'version_scope' in data else {})}
 
     def projects(self):
         if not self._findings_present():
@@ -408,7 +434,7 @@ class ObservabilityAPI:
         next_cursor = base64.urlsafe_b64encode(json.dumps([revision, scope, end]).encode()).decode() if end < len(items) else None
         return items[offset:end], next_cursor
 
-    def issues(self, project_id, status='all', cursor=None, limit=20, kind='all'):
+    def issues(self, project_id, status='all', cursor=None, limit=20, kind='all', version=None, attribution=None):
         # Local edit (0.1.7): validate the page size first, even for a project with no findings, and clamp.
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
             raise ValueError('invalid_limit: use an integer 1–100')
@@ -419,12 +445,14 @@ class ObservabilityAPI:
         if kind not in KINDS:
             raise ValueError('invalid_kind: use all, failure, latency_hotspot, redundancy, turn_latency, island_layout or storage')
         if not self._findings_present():
+            if version is not None or attribution is not None:
+                raise ValueError('version_scope_unavailable: collect a snapshot with version scopes')
             self.project_map = dict(self.configured)
             self._project(project_id)
             return {**self._empty(project_id), 'issues': [], 'total': 0, 'active': 0, 'next_cursor': None, 'by_kind': {},
                     'by_status': {}, 'by_source': {}, 'slowest': [], 'top_failures': [], 'limit': limit,
                     **({'limit_note': limit_note} if limit_note else {})}
-        data, revision = self._read()
+        data, revision = self._read(project_id, version, attribution)
         self._project(project_id)
         if status not in ('all', 'active', 'recovered', 'stale'):
             raise ValueError('invalid_status')
@@ -458,7 +486,7 @@ class ObservabilityAPI:
     MAX_BATCH_ISSUES = 5
     ENVELOPE_FIELDS = ('schema_version', 'project_id', 'snapshot_id', 'generated_at', 'served_at',
                        'freshness', 'coverage', 'coverage_gaps', 'coverage_details', 'coverage_gap_scope',
-                       'limits', 'data_source', 'optional_services')
+                       'limits', 'data_source', 'optional_services', 'sources', 'version_scope')
 
     @staticmethod
     def _brief_score(finding):
@@ -560,13 +588,27 @@ class ObservabilityAPI:
                 'brief': {'scope': 'all_projects', 'top': top, 'digest': digest,
                           'projects': projects}}
 
-    def brief(self, project_id=None, top=5):
+    def version_scopes(self, project_id):
+        data, revision = self._read()
+        self._project(project_id)
+        collector_scopes = data.get('_collector_version_scopes')
+        if not isinstance(collector_scopes, list):
+            raise ValueError('version_scope_unavailable: collect a snapshot with version scopes')
+        scopes = [{'version': s['version'], 'attribution': s['attribution']} for s in collector_scopes
+                  if isinstance(s, dict) and 'version' in s and 'attribution' in s and self._matches({'owner_ref': 'owner:' + str(s.get('project', '')),
+                                    'latest_evidence': {'project': s.get('project')}}, project_id)]
+        return {**self._envelope(data, revision, project_id), 'version_scopes': scopes,
+                'note': 'Observed versions are not verified deployments; legacy primary data is excluded from scoped views.'}
+
+    def brief(self, project_id=None, top=5, version=None, attribution=None):
         """One bounded triage call: counts, ranked blocks and a digest."""
         if not isinstance(top, int) or isinstance(top, bool) or not 1 <= top <= self.MAX_BRIEF_TOP:
             raise ValueError(f'invalid_limit: brief top must be an integer 1–{self.MAX_BRIEF_TOP}')
         if project_id is None:
+            if version is not None or attribution is not None:
+                raise ValueError('invalid_version_scope: select a project first')
             return self._brief_overview(top)
-        data, revision = self._read()
+        data, revision = self._read(project_id, version, attribution)
         self._project(project_id)
         findings = [finding for finding in data['findings'] if self._matches(finding, project_id)]
         rows = [self._summary(finding) for finding in findings]
@@ -576,23 +618,23 @@ class ObservabilityAPI:
                           'digest': self._brief_digest(rows, blocks), **blocks},
                 'next_step': 'Expand selected issue IDs with observability_diagnose and this snapshot_id, then verify in the owning project.'}
 
-    def diagnose(self, project_id=None, issue_ids=None, snapshot_id=None, top=5, include_diagnostics=False):
+    def diagnose(self, project_id=None, issue_ids=None, snapshot_id=None, top=5, include_diagnostics=False, version=None, attribution=None):
         if issue_ids is None:
             if snapshot_id is not None or include_diagnostics is not False:
                 raise ValueError('invalid_diagnosis: snapshot and diagnostics require issue IDs')
-            return self.brief(project_id, top)
+            return self.brief(project_id, top, version, attribution)
         if not isinstance(project_id, str) or not isinstance(snapshot_id, str):
             raise ValueError('invalid_diagnosis: expansion requires project and snapshot ID')
         return self.inspect_many(project_id, issue_ids, limit=5, include_diagnostics=include_diagnostics,
-                                 snapshot_id=snapshot_id)
+                                 snapshot_id=snapshot_id, version=version, attribution=attribution)
 
-    def sessions(self, project_id, session_ref=None, include_diagnostics=False, cursor=None, limit=64, summary_only=False, run_ref=None):
+    def sessions(self, project_id, session_ref=None, include_diagnostics=False, cursor=None, limit=64, summary_only=False, run_ref=None, version=None, attribution=None):
         """List recent opaque session references or inspect one bounded stage timeline."""
         if type(include_diagnostics) is not bool:
             raise ValueError('invalid_diagnostics: pass true or false')
         if type(summary_only) is not bool or (summary_only and (session_ref is None or cursor is not None)):
             raise ValueError('invalid_session_ref: summary requires a session_ref and no cursor')
-        data, revision = self._read()
+        data, revision = self._read(project_id, version, attribution)
         self._project(project_id)
         if session_ref is not None and not safe_session_ref(session_ref):
             raise ValueError('invalid_session_ref: select a reference returned by observability_sessions')
@@ -722,13 +764,13 @@ class ObservabilityAPI:
         return {**self._envelope(data, revision, project_id), 'session_ref': session_ref, **({'run_ref': run_ref} if run_ref else {}), 'timeline': page,
                 'total': len(timeline) if run_ref else row.get('total'), 'truncated': row.get('truncated') is True, 'next_cursor': next_cursor}
 
-    def inspect(self, project_id, issue_id, cursor=None, limit=10, include_diagnostics=False):
+    def inspect(self, project_id, issue_id, cursor=None, limit=10, include_diagnostics=False, version=None, attribution=None):
         # Local edit (0.1.7): evidence pages are 1–10; validate before reading.
         if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1 or limit > 10:
             raise ValueError('invalid_limit: evidence pages are 1–10')
         if type(include_diagnostics) is not bool:
             raise ValueError('invalid_diagnostics: pass true or false')
-        data, revision = self._read()
+        data, revision = self._read(project_id, version, attribution)
         self._project(project_id)
         finding = next((f for f in data['findings'] if f['finding_key'] == issue_id and self._matches(f, project_id)), None)
         if finding is None:
@@ -857,7 +899,7 @@ class ObservabilityAPI:
                 'acceptance_status': 'not_assessed'}
 
     # Local edit (0.1.19): bounded batch inspection for a shortlist from the brief.
-    def inspect_many(self, project_id, issue_ids, limit=5, include_diagnostics=False, snapshot_id=None):
+    def inspect_many(self, project_id, issue_ids, limit=5, include_diagnostics=False, snapshot_id=None, version=None, attribution=None):
         """Inspect 1–5 issue IDs in one call; a per-issue error does not fail the batch."""
         if not isinstance(issue_ids, list) or not 1 <= len(issue_ids) <= self.MAX_BATCH_ISSUES:
             raise ValueError(f'invalid_issue_ids: pass 1–{self.MAX_BATCH_ISSUES} issue IDs from observability_issues')
@@ -868,14 +910,15 @@ class ObservabilityAPI:
             if issue_id not in seen:
                 seen.add(issue_id)
                 ordered.append(issue_id)
-        _, revision = self._read()
+        _, revision = self._read(project_id, version, attribution)
         self._project(project_id)
         if snapshot_id is not None and snapshot_id != revision:
             raise ValueError('snapshot_changed: restart diagnosis')
         results, errors, envelope = [], [], None
         for issue_id in ordered:
             try:
-                full = self.inspect(project_id, issue_id, limit=limit, include_diagnostics=include_diagnostics)
+                full = self.inspect(project_id, issue_id, limit=limit, include_diagnostics=include_diagnostics,
+                                    version=version, attribution=attribution)
             except ValueError as error:
                 code = str(error).split(':', 1)[0]
                 if code != 'issue_not_in_project':
@@ -887,7 +930,7 @@ class ObservabilityAPI:
             if envelope is None:
                 envelope = {key: full[key] for key in self.ENVELOPE_FIELDS if key in full}
             results.append({key: value for key, value in full.items() if key not in self.ENVELOPE_FIELDS})
-        if self._read()[1] != revision:
+        if self._read(project_id, version, attribution)[1] != revision:
             raise ValueError('snapshot_changed: retry batch inspection')
         if envelope is None:
             raise ValueError(errors[0]['error'] if errors else 'issue_not_in_project')
