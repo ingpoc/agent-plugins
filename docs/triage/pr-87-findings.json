@@ -5260,82 +5260,239 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "build": "ACU 0.2.120; PR #92",
+        "revision": "3dab126e49070cd174c40fa74f309bc744b38056",
+        "installed_at": "2026-11-08T06:01:50+00:00",
+        "install_evidence": "Local signed install receipt ~/.agents/artifacts/pr92-acu-0120-3dab126.json; source, package, app and live service identity match; voice smoke not exercised.",
+        "id": "acu-0.2.120-3dab126-user02-retest",
+        "status": "interrupted",
+        "checks": {
+          "USER-02": {
+            "state": "fixed",
+            "started_at": "2026-11-08T06:42:55Z",
+            "updated_at": "2026-11-08T06:42:55Z",
+            "evidence": "Spoken retest: Ledger returned the saved preference without being named; Samantha acted and the user independently confirmed seeing the expected Netflix profile.",
+            "finished_at": "2026-11-08T06:42:59Z"
+          },
+          "USER-03": {
+            "state": "pending"
+          },
+          "AGENT-02": {
+            "state": "pending"
+          },
+          "OBS-01": {
+            "state": "pending"
+          },
+          "OBS-02": {
+            "state": "pending"
+          },
+          "OBS-03": {
+            "state": "pending"
+          },
+          "OBS-04": {
+            "state": "pending"
+          },
+          "OBS-06": {
+            "state": "pending"
+          },
+          "OBS-10": {
+            "state": "pending"
+          },
+          "AGENT-03": {
+            "state": "pending"
+          },
+          "AGENT-04": {
+            "state": "pending"
+          },
+          "OBS-12": {
+            "state": "pending"
+          },
+          "OBS-13": {
+            "state": "pending"
+          },
+          "OBS-14": {
+            "state": "pending"
+          },
+          "OBS-15": {
+            "state": "pending"
+          },
+          "OBS-16": {
+            "state": "pending"
+          },
+          "OBS-17": {
+            "state": "pending"
+          },
+          "AGENT-07": {
+            "state": "pending"
+          },
+          "USER-06": {
+            "state": "pending"
+          },
+          "OBS-18": {
+            "state": "pending"
+          },
+          "OBS-19": {
+            "state": "pending"
+          }
+        }
       }
     ],
     "verification_run": {
-      "build": "ACU 0.2.120; PR #92",
-      "revision": "3dab126e49070cd174c40fa74f309bc744b38056",
-      "installed_at": "2026-11-08T06:01:50+00:00",
-      "install_evidence": "Local signed install receipt ~/.agents/artifacts/pr92-acu-0120-3dab126.json; source, package, app and live service identity match; voice smoke not exercised.",
-      "id": "acu-0.2.120-3dab126-user02-retest",
-      "status": "active",
+      "id": "acu-0.2.121-23e08ab-pr92-install",
+      "build": "ACU 0.2.121; Developer Observability 0.1.22; PR #92",
+      "revision": "23e08aba867fd33bd01527aedd3ed19e19df3056",
+      "installed_at": "2026-11-08T07:50:59+00:00",
+      "install_evidence": "Local signed receipt ~/.agents/artifacts/pr92-acu-0121-23e08ab.json: source-checks, build-install, sync-installed, signature, live client/cursor/fd and mic preflight all OK; notarization skipped by --sign-only; spoken acceptance not exercised. Developer Observability 0.1.22 synced from the same PR head, MCP probe ok.",
+      "status": "complete",
       "checks": {
         "USER-02": {
-          "state": "fixed",
-          "started_at": "2026-11-08T06:42:55Z",
-          "updated_at": "2026-11-08T06:42:55Z",
-          "evidence": "Spoken retest: Ledger returned the saved preference without being named; Samantha acted and the user independently confirmed seeing the expected Netflix profile.",
-          "finished_at": "2026-11-08T06:42:59Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Previously verified fixed; not re-exercised on this install, so the earlier proof is retained unchanged.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "USER-03": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Requires the user preference save/update test card; no spoken or typed preference test after install.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "AGENT-02": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "No Context Ledger preference lookup after install; the rejected-query path was not exercised.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-01": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "No linked voice turn after install, so the slow stage could not be re-measured on 0.2.121.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-02": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Previously verified fixed; startup timing was not re-measured on this install.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-03": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "No browser-assisted turn after install; Comet timing not exercised.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-04": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Installed ACU 0.2.121 (23e08ab): 210 overlay-bound checks across post-install sessions, 0 violations. Active island w=126 keeps voice_slot_speaking (right edge 1001) inside the island (right edge 1023); idle returns to w=74. Source gate ran IslandVoiceAppsInsideTests.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-06": {
-          "state": "pending"
+          "state": "not_fixed",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Post-install 0.2.121 events: 19 of 150 carry a build identity (0.2.121+f38dad3c7f7d, 0.2.121+7921ac18d6bc), 131 report build=unknown; version labels are explicit (event 134, session_inferred 16). Most events still lack an installed build identity.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-10": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "No task run after install; observed events carry task_ref null, which is absence of a task, not proof of the reported defect.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "AGENT-03": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Native actions ran only through the release live client/cursor suites, which passed; the reported target_missing/observation_incomplete scenario was not reproduced.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "AGENT-04": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Microphone preflight passed on this install; the transient no_input_device failure did not recur.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-12": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "No task run after install, so the Ledger decision trail (lookup, selection, application, supersession) was not exercised.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-13": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Previously verified fixed; island transition capture was not re-exercised, though post-install island_layout events are present.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-14": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "No task run after install; the cross-stage task timeline was not exercised.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-15": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Preflight passed on this install; no failure/recovery transition was recorded to evaluate.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-16": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "No task run after install, so the single task summary and mirrored-event collapse were not exercised.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-17": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Source gate on 23e08ab passed test_log_rotation.py (0.5s exit 0), test_rotated_logs.py (0.2s exit 0) and Swift CUALogRotationTests/testSwiftAndPythonWritersShareTheFileAcrossRotations; check.py reported check ok and the installed app is that same signed build.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "AGENT-07": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Cancellation requires a spoken session; none was run after install.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "USER-06": {
-          "state": "pending"
+          "state": "blocked",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Needs user confirmation of which island mark appears while the Samantha switch is off; supervisor status alone does not identify the mark.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-18": {
-          "state": "pending"
+          "state": "not_fixed",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Reproduced on installed Developer Observability 0.1.22 with fresh snapshot a86575c1: agent-plugins brief ordered stale(4), stale(3), recovered(3), active(2), active(2) - stale rows still rank above active ones. No ranking change in this head.",
+          "finished_at": "2026-11-08T07:56:09Z"
         },
         "OBS-19": {
-          "state": "pending"
+          "state": "not_fixed",
+          "started_at": "2026-11-08T07:55:56Z",
+          "updated_at": "2026-11-08T07:55:56Z",
+          "evidence": "Reproduced on 0.1.22: active CI finding col-ce2697be4e869067 still returns observed=unknown, suggested_investigation=unknown, first_error_line=unknown, owner_revision/locator=unknown, diagnostics_available=false.",
+          "finished_at": "2026-11-08T07:56:09Z"
         }
       }
     },
@@ -6027,18 +6184,18 @@
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
     "installed_plugins": {
-      "observed_at": "2026-11-08 05:47 UTC",
-      "source": "local manifests; ACU package/app/service contract passed; other running identities unverified",
+      "observed_at": "2026-11-08 07:56 UTC",
+      "source": "plugin.json in ~/.codex/plugins/cache/personal (read after install); ACU build identity f38dad3c7f7d from signed receipt",
       "versions": {
-        "agent-computer-use": "0.2.120",
-        "developer-observability": "0.1.21",
+        "agent-computer-use": "0.2.121",
+        "developer-observability": "0.1.22",
         "context-ledger": "0.1.39",
         "comet-control": "0.1.23"
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-08T07:29:19+00:00"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-08T07:56:20+00:00"
     }
   },
   "findings": [
@@ -6808,10 +6965,10 @@
       "id": "OBS-04",
       "title": "Voice controls exceeded Dynamic Island layout bounds",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "A fresh ACU 0.2.96 resize event reports the voice slot extending 6 pt beyond a 74 pt island; older 50 pt events account for the larger historical overflow.",
       "recommendation": "Repeat voice, close, and resize checks on the installed PR build, then compare the linked layout measurements with the source result.",
-      "verification": "Fresh 0.2.97 telemetry records two resize events with the voice slot extending 30 pt beyond a 74 pt island; the issue remains failing.",
+      "verification": "Installed ACU 0.2.121 (23e08ab): 210 overlay-bound checks across post-install sessions, 0 violations. Active island w=126 keeps voice_slot_speaking (right edge 1001) inside the island (right edge 1023); idle returns to w=74. Source gate ran IslandVoiceAppsInsideTests.",
       "details": {
         "Latest telemetry": "Three voice_slot boundary events reported a maximum of 30.0 pt; eight island_layout failures were recorded.",
         "Attribution limit": "The observability snapshot does not link these records to the user's close/reflow report or a controlled resize run. Root cause is unconfirmed.",
@@ -6822,8 +6979,8 @@
         "Earlier test evidence (0.2.96)": "Fresh Developer Observability snapshot 31f111b5e1661b4006864f2df65f672c15c238ddd5c473c923b634421a3b9bd9 generated 2026-11-06 05:45 UTC still reflects the pre-install Samantha session. Its 6 pt resize overflow on ACU 0.2.96 remains a historical lead; the 0.2.97 post-install voice smoke did not capture a resize."
       },
       "verification_refs": [
-        "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandVoiceAppsInsideTests.swift — 16 tests passed for in-pill geometry and transitions.",
-        "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — voice_slot overflow 3x (max 30 pt) and island_layout failures 8x, latest 0.2.92."
+        "Installed ACU 0.2.121, PR head 23e08ab; snapshot a86575c1 (2026-11-08T07:52:25Z) session sref_e6c04c3c57d30ee4672d34619f3b4282 island_layout events 07:50:48-07:51:48Z",
+        "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandVoiceAppsInsideTests.swift - ran in release source-checks on 23e08ab"
       ],
       "verification_evidence": [
         {
@@ -7774,10 +7931,10 @@
       "id": "OBS-17",
       "title": "Concurrent log rotation can lose activity evidence",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "The release source gate failed during concurrent activity-log rotation: writers raced on a shared gzip temporary file and the test observed missing rows.",
       "recommendation": "Coordinate rotation across Python and Swift writers so concurrent rotations cannot replace or remove each other’s files, while preserving crash recovery and retention.",
-      "verification": "The 0.2.104 release source gate failed before installation. The concurrent rotation regression reported 1,715 of 1,800 rows and a missing temporary gzip file. This is source-test evidence; installed behavior was not exercised.",
+      "verification": "Source gate on 23e08ab passed test_log_rotation.py (0.5s exit 0), test_rotated_logs.py (0.2s exit 0) and Swift CUALogRotationTests/testSwiftAndPythonWritersShareTheFileAcrossRotations; check.py reported check ok and the installed app is that same signed build.",
       "details": {
         "Evidence": "Local release source log /private/tmp/acu-pr87-0.2.104-a34b376-goal-source-checks.log; the failing test uses temporary data.",
         "Scope": "Python log_rotation.py and the Swift CUALogRotation writer share the rotation format. Protect both writers and both activity and voice log paths; preserve crash recovery and retention.",
@@ -7819,6 +7976,10 @@
           "timestamp": "2026-11-07T17:36:00Z",
           "reference": "Installed log_rotation.py RotatingStdStreams followed by append rotation; temporary log and gzip readback"
         }
+      ],
+      "verification_refs": [
+        "Release source-checks log pr92-acu-0121-23e08ab-source-checks.log: test_log_rotation.py exit 0, test_rotated_logs.py exit 0, CUALogRotationTests/testSwiftAndPythonWritersShareTheFileAcrossRotations",
+        "Signed receipt ~/.agents/artifacts/pr92-acu-0121-23e08ab.json step source-checks and build-install ok"
       ]
     },
     {
@@ -7899,7 +8060,7 @@
       "id": "OBS-19",
       "title": "An active CI finding lacks diagnostic evidence and a next action",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "failing",
       "observed": "Expanding an active repeated CI test failure returned unknown for the observed cause, error line, owner location and suggested investigation.",
       "recommendation": "Trace why this producer did not retain useful bounded failure evidence, then expose an evidence-backed next investigation or an explicit missing-evidence action; do not invent a root cause.",
       "verification": "Agent reproduced the missing fields through the installed 0.1.19 MCP in a fresh snapshot. The CI failure itself was not reproduced or independently diagnosed.",
