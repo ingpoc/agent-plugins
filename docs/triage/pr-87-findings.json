@@ -6037,8 +6037,8 @@
       }
     },
     "workflow": {
-      "stage": null,
-      "updated_at": "2026-11-08T06:42:59+00:00"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-08T07:29:19+00:00"
     }
   },
   "findings": [
