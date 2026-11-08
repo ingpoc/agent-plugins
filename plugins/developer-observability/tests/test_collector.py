@@ -178,6 +178,18 @@ class CollectorTests(unittest.TestCase):
         self.assertIn(('test', 'AppTests.GateTests.testColdStart'), failed)
         self.assertEqual(sum(1 for e in check if e['kind'] == 'check_test'), 2)
 
+    def test_failed_ci_summary_explains_missing_output(self):
+        log = self.project / 'ci/run1/check.log'
+        log.write_text('test tests/test_example.py (1.0s, exit 1)\nAssertionError: known failure token=' + SECRETS[0] + '\n')
+        stats = {}
+        events = list(iter_checklog(self.project / 'ci/run1', 'p', 'p:ci', stats))
+        doc = build(events, stats, NOW)
+        finding = next(f for f in doc['findings'] if f['latest_evidence']['error_type'] == 'check_test')
+        self.assertEqual(finding['latest_evidence']['tool'], 'tests/test_example.py')
+        self.assertIn('not retained', finding['what_happened'])
+        self.assertIn('check log', finding['fix'])
+        self.assertNotIn(SECRETS[0], json.dumps(doc))
+
     def test_git_state_and_hygiene(self):
         repo = self.tmp / 'repo'
         repo.mkdir()

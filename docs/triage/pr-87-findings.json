@@ -6194,8 +6194,8 @@
       }
     },
     "workflow": {
-      "stage": "report_rollover",
-      "updated_at": "2026-11-08T07:56:20+00:00"
+      "stage": "install",
+      "updated_at": "2026-11-08T13:35:26+00:00"
     }
   },
   "findings": [
@@ -8054,7 +8054,17 @@
         "Agent reproduced": "Snapshot ef342c89: the first failure was stale (last seen 2026-11-01); an active CI failure appeared below it. The generated snapshot was 2026-11-07 19:24 UTC.",
         "Source hypothesis": "The brief sorts by numeric score and last_seen without considering status (runtime/backend/observability_api.py, _brief_blocks).",
         "Acceptance": "Against a controlled mixed active/stale fixture and a fresh installed client, verify the default diagnosis clearly prioritizes or separates actionable active findings while preserving historical evidence."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Source regression",
+          "outcome": "Active failures precede stale failures in controlled ranking; backend suite passed.",
+          "build": "developer-observability 0.1.23 source",
+          "session": "source tests",
+          "timestamp": "2026-11-08T13:33:38.616850+00:00",
+          "reference": "plugins/developer-observability/tests"
+        }
+      ]
     },
     {
       "id": "OBS-19",
@@ -8068,7 +8078,17 @@
         "Agent reproduced": "Snapshot ef342c89, issue col-184407bb4e930e3f, returned unknown for observed, first error line, owner locator and suggested investigation.",
         "Telemetry lead": "The finding describes repeated failures in the Comet Control lease-driver test. This is a historical CI lead, not proof of a current test failure or its cause.",
         "Acceptance": "Use a controlled failing CI fixture with a known safe error and owning location, then verify the installed tool returns useful bounded evidence or a precise explicit gap without exposing secrets."
-      }
+      },
+      "verification_evidence": [
+        {
+          "check": "Source investigation and regression",
+          "outcome": "CI check_test summaries discard failure output; controlled failing check log retains the test process and explicitly directs inspection of the check log without collecting a sample secret. Collector suite passed.",
+          "build": "developer-observability 0.1.23 source",
+          "session": "source tests",
+          "timestamp": "2026-11-08T13:33:38.616850+00:00",
+          "reference": "plugins/developer-observability/tests"
+        }
+      ]
     }
   ]
 }

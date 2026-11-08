@@ -222,6 +222,9 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
             after = by_version.get(latest, 0)
             finding['before_after'] = {'version': latest, 'before': count - after, 'after': after}
     finding.update(extra or {})
+    if events[0]['kind'] == 'check_test' and not message:
+        finding['what_happened'] = 'A CI test process failed; its failure output was not retained.'
+        finding['fix'] = 'Inspect the CI check log for the failed test process named in the evidence.'
     return finding
 
 

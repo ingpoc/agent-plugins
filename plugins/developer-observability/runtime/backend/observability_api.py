@@ -534,7 +534,7 @@ class ObservabilityAPI:
             else:
                 blocks['layout'].append(row)
         for rows in blocks.values():
-            rows.sort(key=lambda row: (row['score'], row['last_seen'] or ''), reverse=True)
+            rows.sort(key=lambda row: (row['status'] == 'active', row['score'], row['last_seen'] or ''), reverse=True)
             del rows[top:]
         return {key: rows for key, rows in blocks.items() if rows}
 

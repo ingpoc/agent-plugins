@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.23
+
+- Prioritize active diagnosis findings and explain when CI test failure output was not retained.
+
 ## 0.1.22
 
 - Attribute events and timeline items to the installed build identity.
