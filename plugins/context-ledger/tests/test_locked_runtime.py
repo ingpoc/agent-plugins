@@ -23,8 +23,13 @@ class LockedRuntimeTests(unittest.TestCase):
             self.assertFalse(locked._mcp_server_available())
 
     def test_mcp_available_true_when_spec_present(self):
-        with mock.patch.object(importlib.util, "find_spec", return_value=object()):
+        with mock.patch.object(importlib.util, "find_spec", return_value=mock.Mock(origin="/opt/venv/mcp.py")):
             self.assertTrue(locked._mcp_server_available())
+
+    def test_user_site_module_is_not_available_to_isolated_child(self):
+        with mock.patch.object(locked.site, "getusersitepackages", return_value="/home/user/site"), \
+                mock.patch.object(importlib.util, "find_spec", return_value=mock.Mock(origin="/home/user/site/mcp.py")):
+            self.assertFalse(locked._mcp_server_available())
 
     def test_mcp_available_false_when_spec_none(self):
         with mock.patch.object(importlib.util, "find_spec", return_value=None):

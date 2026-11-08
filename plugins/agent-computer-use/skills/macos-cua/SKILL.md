@@ -58,6 +58,7 @@ Comet **other-window** popups (Google chooser, Razorpay Bank) bind by window tit
 - No silent Quartz fallback (`MACOS_CUA_PIXEL_CLICK=1` required).
 - No WhatsApp send.
 - Dispatch `ok` is never proof. No desktop-global click.
+- A dispatch-only action is not retryable: inspect the result or current state before continuing.
 - Confirm immediately before a risky UI action; see [`references/safety.md`](references/safety.md).
 
 ## Load map

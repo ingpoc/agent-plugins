@@ -5494,24 +5494,131 @@
             "finished_at": "2026-11-08T07:56:09Z"
           }
         }
+      },
+      {
+        "id": "devobs-0.1.23-464e497",
+        "build": "Developer Observability 0.1.23",
+        "revision": "464e497df33904dd35883be346a6245c2f002aa0",
+        "installed_at": "2026-11-08T13:36:18.990355+00:00",
+        "install_evidence": "Exact Origin PR head installer and fresh installed MCP probe passed.",
+        "status": "interrupted",
+        "checks": {
+          "USER-02": {
+            "state": "pending"
+          },
+          "USER-03": {
+            "state": "pending"
+          },
+          "AGENT-02": {
+            "state": "pending"
+          },
+          "OBS-01": {
+            "state": "pending"
+          },
+          "OBS-02": {
+            "state": "pending"
+          },
+          "OBS-03": {
+            "state": "pending"
+          },
+          "OBS-04": {
+            "state": "pending"
+          },
+          "OBS-06": {
+            "state": "pending"
+          },
+          "OBS-10": {
+            "state": "pending"
+          },
+          "AGENT-03": {
+            "state": "pending"
+          },
+          "AGENT-04": {
+            "state": "pending"
+          },
+          "OBS-12": {
+            "state": "pending"
+          },
+          "OBS-13": {
+            "state": "pending"
+          },
+          "OBS-14": {
+            "state": "pending"
+          },
+          "OBS-15": {
+            "state": "pending"
+          },
+          "OBS-16": {
+            "state": "pending"
+          },
+          "OBS-17": {
+            "state": "pending"
+          },
+          "AGENT-07": {
+            "state": "pending"
+          },
+          "USER-06": {
+            "state": "pending"
+          },
+          "OBS-18": {
+            "state": "fixed",
+            "started_at": "2026-11-08T13:36:19Z",
+            "updated_at": "2026-11-08T13:36:19Z",
+            "evidence": "Fresh installed MCP snapshot 7a1b844af324 returned seven active failures before stale and recovered rows; source mixed-status regression passed.",
+            "finished_at": "2026-11-08T13:37:35Z"
+          },
+          "OBS-19": {
+            "state": "fixed",
+            "started_at": "2026-11-08T13:37:35Z",
+            "updated_at": "2026-11-08T13:37:35Z",
+            "evidence": "Installed collector and MCP processed controlled failing CI log, named the test, explained the missing output and directed check-log inspection without returning the fixture secret. Original CI finding returned the same explicit gap in fresh snapshot 7a1b844af324.",
+            "finished_at": "2026-11-08T13:38:05Z"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "devobs-0.1.23-464e497",
+      "id": "devobs-0.1.23-b631aa7",
       "build": "Developer Observability 0.1.23",
-      "revision": "464e497df33904dd35883be346a6245c2f002aa0",
-      "installed_at": "2026-11-08T13:36:18.990355+00:00",
-      "install_evidence": "Exact Origin PR head installer and fresh installed MCP probe passed.",
+      "revision": "b631aa7109ce914665173aab2e398099e0ec1084",
+      "installed_at": "2026-11-08T13:39:08.509579+00:00",
+      "install_evidence": "Exact open PR head installer and fresh installed MCP probe passed; report-only change from 464e497.",
       "status": "active",
       "checks": {
         "USER-02": {
           "state": "pending"
         },
         "USER-03": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-08T16:00:40Z",
+          "updated_at": "2026-11-08T16:00:40Z",
+          "previous_checks": [
+            {
+              "state": "inconclusive",
+              "started_at": "2026-11-08T13:43:11Z",
+              "updated_at": "2026-11-08T13:43:11Z",
+              "evidence": "Samantha supervisor reported running and healthy; requested a non-sensitive spoken preference save, change and recall. Awaiting the user's result; no new acceptance is inferred.",
+              "finished_at": "2026-11-08T13:45:36Z"
+            }
+          ],
+          "evidence": "Typed synthetic save, update and recall succeeded in live ACU 0.2.121; independent Ledger readback confirmed the replacement. Broader spoken and critical-decision acceptance was not exercised.",
+          "finished_at": "2026-11-08T16:02:39Z"
         },
         "AGENT-02": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-08T16:53:15Z",
+          "updated_at": "2026-11-08T16:53:15Z",
+          "previous_checks": [
+            {
+              "state": "inconclusive",
+              "started_at": "2026-11-08T16:06:05Z",
+              "updated_at": "2026-11-08T16:06:05Z",
+              "evidence": "A typed question returned the previously saved test value, but the bounded activity slice did not record a Ledger call for that turn; the previously rejected-request and retry path was not reproduced.",
+              "finished_at": "2026-11-08T16:12:14Z"
+            }
+          ],
+          "evidence": "Direct installed ledger_task recall with an empty query returned ledger_invalid_argument and retryable=false; a separately supplied valid scoped recall returned the synthetic test preference. This exercises the tool boundary, not Samantha’s autonomous recovery or retry behavior.",
+          "finished_at": "2026-11-08T16:53:35Z"
         },
         "OBS-01": {
           "state": "pending"
@@ -5520,25 +5627,54 @@
           "state": "pending"
         },
         "OBS-03": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-08T16:07:17Z",
+          "updated_at": "2026-11-08T16:07:17Z",
+          "evidence": "The typed example.com request took 11.85 seconds and opened the window, but Samantha reported she could not read the heading or close it; no completed browser journey or accepted latency target was established. Separate cleanup confirmed the window absent.",
+          "finished_at": "2026-11-08T16:12:14Z"
         },
         "OBS-04": {
           "state": "pending"
         },
         "OBS-06": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-08T16:51:47Z",
+          "updated_at": "2026-11-08T16:51:47Z",
+          "previous_checks": [
+            {
+              "state": "inconclusive",
+              "started_at": "2026-11-08T16:06:05Z",
+              "updated_at": "2026-11-08T16:06:05Z",
+              "evidence": "The installed 0.2.121 session summary reports event-level build 0.2.121+f38dad3c7f7d and separately marks session-inferred attribution. This is improved build evidence but does not establish the requested task/result join.",
+              "finished_at": "2026-11-08T16:12:14Z"
+            }
+          ],
+          "evidence": "The controlled typed Calculator task has session ref sref_b88b720e5ce28462b168589e6345ce63 and run ref 855a058fc390e9f04a5f5f92. Its scoped installed MCP summary contains the native action, task outcome, and build 0.2.121+f38dad3c7f7d with event attribution; version-only attribution remains explicitly session_inferred. The outcome is correctly unverified; independent outcome integration remains OBS-10.",
+          "finished_at": "2026-11-08T16:52:00Z"
         },
         "OBS-10": {
-          "state": "pending"
+          "state": "not_fixed",
+          "started_at": "2026-11-08T16:06:05Z",
+          "updated_at": "2026-11-08T16:06:05Z",
+          "evidence": "Calculator 64 and subsequent app exit were independently read back, while task_outcome events remained unverified in the session telemetry; the independent results were not joined as verified outcomes.",
+          "finished_at": "2026-11-08T16:12:14Z"
         },
         "AGENT-03": {
-          "state": "pending"
+          "state": "not_fixed",
+          "started_at": "2026-11-08T16:06:05Z",
+          "updated_at": "2026-11-08T16:06:05Z",
+          "evidence": "Calculator 8 × 8 produced 64 with independent AX readback. The subsequent close left the app absent, but Samantha logged a cua_act allow_unverified error; this does not establish clean close-action feedback.",
+          "finished_at": "2026-11-08T16:12:14Z"
         },
         "AGENT-04": {
           "state": "pending"
         },
         "OBS-12": {
-          "state": "pending"
+          "state": "not_fixed",
+          "started_at": "2026-11-08T16:06:05Z",
+          "updated_at": "2026-11-08T16:06:05Z",
+          "evidence": "The fresh session summary shows two Ledger save receipts and one selected record. Independent Ledger readback found a superseded predecessor, but the summary reports zero supersession events and does not establish the full task-linked trail.",
+          "finished_at": "2026-11-08T16:12:14Z"
         },
         "OBS-13": {
           "state": "pending"
@@ -5550,7 +5686,11 @@
           "state": "pending"
         },
         "OBS-16": {
-          "state": "pending"
+          "state": "inconclusive",
+          "started_at": "2026-11-08T16:06:05Z",
+          "updated_at": "2026-11-08T16:06:05Z",
+          "evidence": "A concise installed session summary is available, but this check did not establish a single task-linked summary or exercise a known mirrored event pair.",
+          "finished_at": "2026-11-08T16:12:14Z"
         },
         "OBS-17": {
           "state": "pending"
@@ -5559,21 +5699,41 @@
           "state": "pending"
         },
         "USER-06": {
-          "state": "pending"
+          "state": "fixed",
+          "started_at": "2026-11-08T16:48:35Z",
+          "updated_at": "2026-11-08T16:48:35Z",
+          "previous_checks": [
+            {
+              "state": "inconclusive",
+              "started_at": "2026-11-08T16:08:42Z",
+              "updated_at": "2026-11-08T16:08:42Z",
+              "evidence": "On installed 0.2.121, the waveform circle present before stopping disappeared immediately and remained absent in a capture more than 30 seconds later; supervisor reported stopped. Samantha was restarted. The identity of the specific icon in the original user screenshot remains unconfirmed.",
+              "finished_at": "2026-11-08T16:12:14Z"
+            }
+          ],
+          "evidence": "The 0.2.120 controlled off capture shows the pink Samantha waveform still present after 30 seconds. In the 0.2.121 controlled test, the same waveform disappeared on stop and remained absent more than 30 seconds later; supervisor confirmed stopped and Samantha was restored. The source IslandPluginMarksTests on/off contract passed in the full repository check; the tested 0.2.121 source package matched the installed personal package.",
+          "finished_at": "2026-11-08T16:48:49Z"
         },
         "OBS-18": {
           "state": "fixed",
-          "started_at": "2026-11-08T13:36:19Z",
-          "updated_at": "2026-11-08T13:36:19Z",
-          "evidence": "Fresh installed MCP snapshot 7a1b844af324 returned seven active failures before stale and recovered rows; source mixed-status regression passed.",
-          "finished_at": "2026-11-08T13:37:35Z"
+          "started_at": "2026-11-08T13:39:08Z",
+          "updated_at": "2026-11-08T13:39:08Z",
+          "evidence": "Rechecked exact PR head b631aa7 using fresh installed MCP snapshot 7a1b844af324: active rows precede stale and recovered rows.",
+          "finished_at": "2026-11-08T13:39:19Z"
         },
         "OBS-19": {
           "state": "fixed",
-          "started_at": "2026-11-08T13:37:35Z",
-          "updated_at": "2026-11-08T13:37:35Z",
-          "evidence": "Installed collector and MCP processed controlled failing CI log, named the test, explained the missing output and directed check-log inspection without returning the fixture secret. Original CI finding returned the same explicit gap in fresh snapshot 7a1b844af324.",
-          "finished_at": "2026-11-08T13:38:05Z"
+          "started_at": "2026-11-08T13:39:19Z",
+          "updated_at": "2026-11-08T13:39:19Z",
+          "evidence": "Rechecked exact PR head b631aa7: installed collector and MCP processed a controlled failing CI log, identified its test, stated output was not retained, advised inspecting the check log, and did not expose the sample secret.",
+          "finished_at": "2026-11-08T13:39:29Z"
+        },
+        "AGENT-09": {
+          "state": "not_fixed",
+          "started_at": "2026-11-08T16:12:35Z",
+          "updated_at": "2026-11-08T16:12:35Z",
+          "evidence": "Samantha opened example.com but explicitly reported it could neither read the heading nor close the window. Independent Comet AX saw the test window; a direct comet_end cleanup later confirmed verified_absent. No root cause established.",
+          "finished_at": "2026-11-08T16:12:43Z"
         }
       }
     },
@@ -6265,18 +6425,18 @@
     ],
     "archived_note": "Previously verified fixes are preserved here and shown in PR #87.",
     "installed_plugins": {
-      "observed_at": "2026-11-08 07:56 UTC",
-      "source": "plugin.json in ~/.codex/plugins/cache/personal (read after install); ACU build identity f38dad3c7f7d from signed receipt",
+      "observed_at": "2026-11-08T13:43:48.840859+00:00",
+      "source": "Read personal plugin manifests after installation; manifest versions do not independently identify running processes. Developer Observability 0.1.23 was also probed as a fresh MCP at PR head b631aa7.",
       "versions": {
         "agent-computer-use": "0.2.121",
-        "developer-observability": "0.1.22",
+        "developer-observability": "0.1.23",
         "context-ledger": "0.1.39",
         "comet-control": "0.1.23"
       }
     },
     "workflow": {
-      "stage": null,
-      "updated_at": "2026-11-08T13:38:34+00:00"
+      "stage": "install",
+      "updated_at": "2026-11-08T19:45:02+00:00"
     }
   },
   "findings": [
@@ -6714,7 +6874,7 @@
       "status": "untested",
       "observed": "Durable preferences and important decisions should be captured when they are stated, then reused at the right time without reminders.",
       "recommendation": "Capture durable preferences in their exact scope and rule. Use the decision capture path for critical decisions, and confirm a save only after the ledger returns a receipt.",
-      "verification": "The pre-install candidate ACU 0.2.96 session includes one successful preference save receipt (one decision, revision 1). The value is intentionally omitted and the save is not linked to a verified task. ACU 0.2.97 is now installed, but no post-install preference or critical-decision save was captured; live acceptance remains untested.",
+      "verification": "Typed synthetic live test passed: Samantha saved a scoped preference, updated it and recalled the updated value; independent Ledger readback confirmed replacement. User-authored spoken capture and critical-decision behavior were not tested.",
       "details": {
         "Source change": "The PR adds guidance for proactive preference capture and retrieval through the existing ledger_task tool.",
         "Supersession rule": "Updating a preference supersedes only an active user_decision with the same exact scope and rule. General captures do not auto-supersede; the current tool does not create an explicit supersedes link.",
@@ -6722,8 +6882,10 @@
         "Input privacy": "The report does not include a preference value or decision content.",
         "Supersession behavior": "Context Ledger's same-scope+rule user_decision behavior is the intended preference supersession path. General captures are explicitly not treated as superseding.",
         "Privacy boundary": "Tests use mocks and temporary state; no personal ledger rows were read or written.",
-        "User action": "When prompted, tell Samantha a durable preference and later change it. This exercises automatic capture, replacement and recall using your intended preference.",
-        "Earlier Installed/live verification (0.2.97)": "ACU 0.2.97 from PR code commit 61cc940 was installed at that check. A real non-sensitive preference/decision save and later retrieval have not been captured on this build."
+        "User action": "A spoken test is not required to establish the typed result; spoken capture and a critical-decision check remain untested.",
+        "Earlier Installed/live verification (0.2.97)": "ACU 0.2.97 from PR code commit 61cc940 was installed at that check. A real non-sensitive preference/decision save and later retrieval have not been captured on this build.",
+        "Current user action": "Tell Samantha a non-sensitive durable preference, change it, then ask her to recall the updated preference; report whether she recalled it. Samantha supervisor reported healthy and running before this request.",
+        "Typed live check": "Agent-authored, non-sensitive test preference in project:user-03. Two save receipts and the lookup were observed; independent Ledger readback showed the original superseded and the replacement active. The synthetic replacement remains in Ledger."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — exact scope/rule/value preference save and recall pass.",
@@ -6785,6 +6947,14 @@
           "session": "acu-0.2.107-ea56232-20261107",
           "timestamp": "2026-11-07T03:31:13.334238+00:00",
           "reference": "Isolated temporary Ledger with installed Context Ledger 0.1.39; /private/tmp/pr87-installed-ledger-freshness.py"
+        },
+        {
+          "check": "Typed synthetic preference save, change and recall",
+          "outcome": "Agent supplied three typed turns to the live Samantha session. Both saves returned receipts; the updated preference was recalled. Independent Context Ledger readback showed the original record superseded by the active replacement. This synthetic same-session check is not a user-authored spoken interaction or a critical-decision test.",
+          "build": "ACU 0.2.121 gateway; Context Ledger 0.1.39",
+          "session": "5498661a",
+          "timestamp": "2026-11-08T16:02:38.995643+00:00",
+          "reference": "Samantha activity events: two ledger_save_receipt events, lookup and ledger_select; independent Context Ledger readback of both synthetic records."
         }
       ]
     },
@@ -6795,7 +6965,7 @@
       "status": "failing",
       "observed": "Fresh ACU 0.2.96 telemetry records a Context Ledger recall rejected because its query had no searchable terms. No subsequent ledger call appears after that error in the selected session; earlier retry records remain in history.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
-      "verification": "The 0.2.114 typed preference lookup reproduced the non-retryable invalid-argument failure in the task-linked ledger call. Samantha stopped without a reworded retry, but did not retrieve the saved decision. The source validator rejects a noncanonical lookup scope before contacting Context Ledger.",
+      "verification": "Direct installed ledger_task recall with an empty query returned ledger_invalid_argument and retryable=false; a separately supplied valid scoped recall returned the synthetic test preference. This exercises the tool boundary, not Samantha’s autonomous recovery or retry behavior.",
       "details": {
         "Agent evidence": "One Grok agent finding recorded 12 ledger_task failures through 2026-11-03.",
         "Latest telemetry": "The 2026-11-05 Samantha activity snapshot recorded 2 ledger_task tool errors and 7 retries with different or unknown arguments.",
@@ -6809,7 +6979,8 @@
         "Installed verification": "Release report /tmp/acu-pr87-verify.json: source checks, signature, live-client, live-cursor, live-fd, and fresh MCP independent readback passed. Microphone preflight returned no input device; voice smoke was not reached.",
         "Initial install attempt": "Build, install, sync and signature passed; the first runtime contract call returned a missing-file error. An immediate independent runtime contract check passed; the installed verification then reached microphone preflight.",
         "Latest live validation": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: two ledger lookup operations completed successfully, with no ledger error/retry event in the selected session. Build attribution is session-inferred and the exact Netflix task is not explicitly linked.",
-        "Earlier test evidence (0.2.94)": "Snapshot a388ea974760123cd5a6d1f87851e8243b1cad33061a41c75f06a03d19225cd3: issue col-6a58cb9cddd82ad5 has one new failure in 0.2.94 at 19:05:38 UTC. The first-error excerpt refers to the grouped history, so its exact applicability to the new failure is unknown."
+        "Earlier test evidence (0.2.94)": "Snapshot a388ea974760123cd5a6d1f87851e8243b1cad33061a41c75f06a03d19225cd3: issue col-6a58cb9cddd82ad5 has one new failure in 0.2.94 at 19:05:38 UTC. The first-error excerpt refers to the grouped history, so its exact applicability to the new failure is unknown.",
+        "Previous verification": "The 0.2.114 typed preference lookup reproduced the non-retryable invalid-argument failure in the task-linked ledger call. Samantha stopped without a reworded retry, but did not retrieve the saved decision. The source validator rejects a noncanonical lookup scope before contacting Context Ledger."
       },
       "verification_refs": [
         "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — 18 tests passed, including concrete query composition and non-retryable invalid requests.",
@@ -6895,6 +7066,22 @@
           "session": "sref_112977461a4e2f19135c316afd6c9977; run 13244d24c02358fd741590af",
           "timestamp": "2026-11-07T17:33:46Z",
           "reference": "ACU 0.2.120 db03e0f; local signed install receipt ~/.agents/artifacts/pr88-acu-0.2.120-db03e0f.json."
+        },
+        {
+          "check": "Controlled installed check",
+          "outcome": "A typed question returned the previously saved test value, but the bounded activity slice did not record a Ledger call for that turn; the previously rejected-request and retry path was not reproduced.",
+          "build": "ACU 0.2.121+f38dad3c7f7d; Developer Observability 0.1.23",
+          "session": "sref_b88b720e5ce28462b168589e6345ce63",
+          "timestamp": "2026-11-08T16:12:13.877493+00:00",
+          "reference": "Fresh snapshot 82aa1670e4e5; independent Calculator AX and supervisor readback; USER-06 crops where applicable."
+        },
+        {
+          "check": "Controlled invalid and valid installed Ledger recall",
+          "outcome": "Direct installed ledger_task recall with an empty query returned ledger_invalid_argument and retryable=false; a separately supplied valid scoped recall returned the synthetic test preference. This exercises the tool boundary, not Samantha’s autonomous recovery or retry behavior.",
+          "build": "ACU 0.2.121; Context Ledger 0.1.39 installed",
+          "session": "direct gateway calls",
+          "timestamp": "2026-11-08T16:53:35.325893+00:00",
+          "reference": "Installed gateway ledger_task results; test input uses the isolated USER-03 test scope."
         }
       ]
     },
@@ -7002,7 +7189,7 @@
       "status": "failing",
       "observed": "Four recorded Comet-assisted turns took 13.6–16.8 seconds. They are not linked to the latest installed build.",
       "recommendation": "Repeat one representative browser task and trace Samantha and Comet timings together before selecting a fix.",
-      "verification": "The latest candidate session has one successful comet_act event, but its duration and action/result are unknown. This does not establish Netflix success or browser-turn latency; historical slow Comet-assisted turns remain unresolved.",
+      "verification": "The typed example.com request took 11.85 seconds and opened the window, but Samantha reported she could not read the heading or close it; no completed browser journey or accepted latency target was established. Separate cleanup confirmed the window absent.",
       "details": {
         "Telemetry evidence": "Four historical turns exceeded 10 seconds; the slowest was 16.8 seconds. Session identifiers are omitted.",
         "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. These events do not establish current-build performance or a root cause.",
@@ -7010,7 +7197,8 @@
         "Decision": "No Comet or Samantha optimization was made without a repeatable task, correlated timings, and target.",
         "Installed/live verification": "Pending one fresh browser task with independent outcome verification.",
         "Latest candidate browser evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: one comet_act success, with no duration or result in the bounded timeline. The link to the user-reported Netflix test is inferred.",
-        "Earlier verification (0.2.101)": "Fresh 0.2.101 session recorded a successful Comet tool call; the resulting Netflix page and task-level outcome were not independently established."
+        "Earlier verification (0.2.101)": "Fresh 0.2.101 session recorded a successful Comet tool call; the resulting Netflix page and task-level outcome were not independently established.",
+        "Previous verification": "The latest candidate session has one successful comet_act event, but its duration and action/result are unknown. This does not establish Netflix success or browser-turn latency; historical slow Comet-assisted turns remain unresolved."
       },
       "verification_refs": [
         "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-ac4bbcffb50cc0cd`, 14.9 s Comet-assisted turn; acceptance not assessed."
@@ -7039,6 +7227,14 @@
           "session": "acu-0.2.114-typed-follow-up-20261107",
           "timestamp": "2026-11-07T06:38:04Z",
           "reference": "USER-02 installed check; Developer Observability links the Ledger failure"
+        },
+        {
+          "check": "Controlled installed check",
+          "outcome": "The typed example.com request took 11.85 seconds and opened the window, but Samantha reported she could not read the heading or close it; no completed browser journey or accepted latency target was established. Separate cleanup confirmed the window absent.",
+          "build": "ACU 0.2.121+f38dad3c7f7d; Developer Observability 0.1.23",
+          "session": "sref_b88b720e5ce28462b168589e6345ce63",
+          "timestamp": "2026-11-08T16:12:13.877493+00:00",
+          "reference": "Fresh snapshot 82aa1670e4e5; independent Calculator AX and supervisor readback; USER-06 crops where applicable."
         }
       ]
     },
@@ -7142,10 +7338,10 @@
       "id": "OBS-06",
       "title": "Reliable session and build attribution",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "Diagnostic events need trustworthy session and build attribution, including explicit uncertainty.",
       "recommendation": "Attach the actual installed build identity to attributable events, preserve explicit inferred or unknown labels where direct proof is unavailable, and link that identity to the task run.",
-      "verification": "The latest candidate live session is selectable by opaque session ref and reports ACU 0.2.95 with session_inferred attribution. That is useful but not direct event-level build attribution, and the user's task/result is not explicitly joined; this finding remains under investigation.",
+      "verification": "The controlled typed Calculator task has session ref sref_b88b720e5ce28462b168589e6345ce63 and run ref 855a058fc390e9f04a5f5f92. Its scoped installed MCP summary contains the native action, task outcome, and build 0.2.121+f38dad3c7f7d with event attribution; version-only attribution remains explicitly session_inferred. The outcome is correctly unverified; independent outcome integration remains OBS-10.",
       "details": {
         "Source evidence": "Developer Observability commit 8feeffe; inspect the relevant collector and backend changes and tests.",
         "Acceptance": "Exercise the installed client with a controlled session and inspect attributable evidence.",
@@ -7155,10 +7351,14 @@
         "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
         "Fresh spoken session": "The 0.2.101 session had native, Comet and Ledger events with call/response references but no task run reference. Installed app version was observed; event build attribution is partly inferred.",
-        "Earlier verification (0.2.101)": "Fresh 0.2.101 native, Comet, and Ledger events have no task run reference. Task correlation is still failing on this spoken path."
+        "Earlier verification (0.2.101)": "Fresh 0.2.101 native, Comet, and Ledger events have no task run reference. Task correlation is still failing on this spoken path.",
+        "Previous verification": "The latest candidate live session is selectable by opaque session ref and reports ACU 0.2.95 with session_inferred attribution. That is useful but not direct event-level build attribution, and the user's task/result is not explicitly joined; this finding remains under investigation.",
+        "Earlier conclusion correction": "The prior check examined the session-wide summary and overlooked the run-scoped action and outcome. This check uses the explicitly supplied run ref; independent acceptance remains unknown and is tracked by OBS-10."
       },
       "verification_refs": [
-        "Commit 8feeffe — Developer Observability source and tests."
+        "plugins/developer-observability/tests/test_session_timeline.py",
+        "plugins/agent-computer-use/runtime/voice-cua/tests/test_reconnect_comet.py",
+        "Installed session sref_b88b720e5ce28462b168589e6345ce63, run 855a058fc390e9f04a5f5f92, snapshot 82aa1670e4e5."
       ],
       "verification_evidence": [
         {
@@ -7216,6 +7416,22 @@
           "session": "sref_112977461a4e2f19135c316afd6c9977; run 13244d24c02358fd741590af",
           "timestamp": "2026-11-07T17:33:46Z",
           "reference": "Developer Observability session summary and local signed install receipt"
+        },
+        {
+          "check": "Controlled installed check",
+          "outcome": "The installed 0.2.121 session summary reports event-level build 0.2.121+f38dad3c7f7d and separately marks session-inferred attribution. This is improved build evidence but does not establish the requested task/result join.",
+          "build": "ACU 0.2.121+f38dad3c7f7d; Developer Observability 0.1.23",
+          "session": "sref_b88b720e5ce28462b168589e6345ce63",
+          "timestamp": "2026-11-08T16:12:13.877493+00:00",
+          "reference": "Fresh snapshot 82aa1670e4e5; independent Calculator AX and supervisor readback; USER-06 crops where applicable."
+        },
+        {
+          "check": "Task-scoped installed build attribution",
+          "outcome": "The controlled typed Calculator task has session ref sref_b88b720e5ce28462b168589e6345ce63 and run ref 855a058fc390e9f04a5f5f92. Its scoped installed MCP summary contains the native action, task outcome, and build 0.2.121+f38dad3c7f7d with event attribution; version-only attribution remains explicitly session_inferred. The outcome is correctly unverified; independent outcome integration remains OBS-10.",
+          "build": "ACU 0.2.121+f38dad3c7f7d; Developer Observability 0.1.23",
+          "session": "sref_b88b720e5ce28462b168589e6345ce63",
+          "timestamp": "2026-11-08T16:52:00.440879+00:00",
+          "reference": "Snapshot 82aa1670e4e5, run 855a058fc390e9f04a5f5f92; source observability tests and full repository check."
         }
       ]
     },
@@ -7226,7 +7442,7 @@
       "status": "failing",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
       "recommendation": "Link the user's task to its actions, response and independently observed result using a stable run identity. Show expected and observed results only when recorded, and retain unknown or unverified outcomes when proof is missing.",
-      "verification": "On installed 0.2.118, the linked typed Netflix task outcome remained unverified in telemetry although independent readback of its exact browser lease confirmed the expected profile. Integration of independent outcomes remains open.",
+      "verification": "Calculator 64 and subsequent app exit were independently read back, while task_outcome events remained unverified in the session telemetry; the independent results were not joined as verified outcomes.",
       "details": {
         "Evidence gap": "The earlier snapshot's session match was only a candidate. Without explicit task correlation, success rows did not establish the user's Netflix outcome. Ledger result status/details and bounded error stacks were not available through the agent tools.",
         "Acceptance": "On an installed build, an explicit test run must link to its session and build, expose task outcome/tool names and an independent app postcondition, and show Ledger result/error details only on diagnostic opt-in. The task result remains unknown without the independent postcondition.",
@@ -7238,7 +7454,8 @@
         "Implementation plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Scope": "Join task, action and response references with independent result evidence; do not infer task completion from a tool success.",
         "Fresh spoken session": "No task outcome was present. Calculator later independently displayed 10 × 20 = 200, but an explicit identifier did not link the readback to the spoken task.",
-        "Earlier verification (0.2.101)": "Fresh 0.2.101 voice session contained no linked task outcome; independent Calculator readback showed 13 × 17 = 221."
+        "Earlier verification (0.2.101)": "Fresh 0.2.101 voice session contained no linked task outcome; independent Calculator readback showed 13 × 17 = 221.",
+        "Previous verification": "On installed 0.2.118, the linked typed Netflix task outcome remained unverified in telemetry although independent readback of its exact browser lease confirmed the expected profile. Integration of independent outcomes remains open."
       },
       "evidence": [],
       "verification_refs": [
@@ -7324,6 +7541,22 @@
           "session": "sref_112977461a4e2f19135c316afd6c9977; run 13244d24c02358fd741590af",
           "timestamp": "2026-11-07T17:33:46Z",
           "reference": "Developer Observability session summary and local signed install receipt"
+        },
+        {
+          "check": "Controlled installed check",
+          "outcome": "Calculator 64 and subsequent app exit were independently read back, while task_outcome events remained unverified in the session telemetry; the independent results were not joined as verified outcomes.",
+          "build": "ACU 0.2.121+f38dad3c7f7d; Developer Observability 0.1.23",
+          "session": "sref_b88b720e5ce28462b168589e6345ce63",
+          "timestamp": "2026-11-08T16:12:13.877493+00:00",
+          "reference": "Fresh snapshot 82aa1670e4e5; independent Calculator AX and supervisor readback; USER-06 crops where applicable."
+        },
+        {
+          "check": "Evidence boundary review",
+          "outcome": "The current producer intentionally reports tool-only outcomes as unverified. No independent verifier receipt has been implemented; the observed Calculator result must not be promoted from the tool result alone.",
+          "build": "installed ACU 0.2.121 and source candidate 0.2.122",
+          "session": "source and installed evidence review",
+          "timestamp": "2026-11-08T16:59:50.372446+00:00",
+          "reference": "ACU microphone preflight; installed Developer Observability session sref_b88b720e5ce28462b168589e6345ce63"
         }
       ]
     },
@@ -7334,12 +7567,13 @@
       "status": "failing",
       "observed": "Fresh ACU 0.2.97 telemetry records five cua_act errors during the latest test: target_missing and observation_incomplete. A separate grouped incident reports two retries.",
       "recommendation": "Inspect the affected action and observation path, identify the missing target or incomplete state, and verify a successful native action with independent app readback.",
-      "verification": "Installed 0.2.119 fresh standalone MCP retained dispatch and observed exit for Cmd+Q. However, Samantha typed close task run 1b66a8141f3aa33f90bc3d8c logged cua_act observation_incomplete and subsequent cua_state app_not_running; Calculator was independently absent. The Samantha path remains failing.",
+      "verification": "Calculator 8 × 8 produced 64 with independent AX readback. The subsequent close left the app absent, but Samantha logged a cua_act allow_unverified error; this does not establish clean close-action feedback.",
       "details": {
         "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue.",
         "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved.",
         "Controlled native check": "On the active ACU client, a Calculator 1 + 1 task completed and a separate accessibility readback showed 2. This was not a Samantha-spoken task and did not reproduce the earlier target failure.",
-        "Earlier verification (0.2.101)": "Fresh 0.2.101 session recorded successful native actions and independent Calculator readback of 13 × 17 = 221; earlier missing-target failures were not separately ruled out."
+        "Earlier verification (0.2.101)": "Fresh 0.2.101 session recorded successful native actions and independent Calculator readback of 13 × 17 = 221; earlier missing-target failures were not separately ruled out.",
+        "Previous verification": "Installed 0.2.119 fresh standalone MCP retained dispatch and observed exit for Cmd+Q. However, Samantha typed close task run 1b66a8141f3aa33f90bc3d8c logged cua_act observation_incomplete and subsequent cua_state app_not_running; Calculator was independently absent. The Samantha path remains failing."
       },
       "verification_evidence": [
         {
@@ -7541,6 +7775,38 @@
           "session": "sref_e745c5cce38c45161e48c5f1db83c223",
           "timestamp": "2026-11-07T17:52:22Z",
           "reference": "Developer Observability snapshot febeb38cc2c735fde11867ddf69d51f0fd5b8e5983351140d8bc6f6596050095"
+        },
+        {
+          "check": "Controlled installed check",
+          "outcome": "Calculator 8 × 8 produced 64 with independent AX readback. The subsequent close left the app absent, but Samantha logged a cua_act allow_unverified error; this does not establish clean close-action feedback.",
+          "build": "ACU 0.2.121+f38dad3c7f7d; Developer Observability 0.1.23",
+          "session": "sref_b88b720e5ce28462b168589e6345ce63",
+          "timestamp": "2026-11-08T16:12:13.877493+00:00",
+          "reference": "Fresh snapshot 82aa1670e4e5; independent Calculator AX and supervisor readback; USER-06 crops where applicable."
+        },
+        {
+          "check": "Dispatch-only retry source review",
+          "outcome": "allow_unverified previously fell through to a generic retryable failure hint even though dispatch may have completed. Source candidate preserves unverified state and blocks blind retry; focused tool-surface suite passed. Live acceptance remains pending.",
+          "build": "ACU 0.2.122 source candidate",
+          "session": "source investigation",
+          "timestamp": "2026-11-08T16:41:21.505428+00:00",
+          "reference": "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/tools.py and tests/test_tool_surface.py"
+        },
+        {
+          "check": "ACU skill validation gate",
+          "outcome": "The ACU skill static validator stopped before its test phase because compact_backend.py contains 632 nonblank, noncomment source lines against a 600-line limit. The file is unchanged from PR HEAD, which also contains 632 lines. The failure remains open; no build or install was attempted because microphone preflight also reported no input device.",
+          "build": "ACU 0.2.122 source candidate",
+          "session": "source validation",
+          "timestamp": "2026-11-08T16:55:46.866056+00:00",
+          "reference": "plugins/agent-computer-use/skills/macos-cua/scripts/validate.sh; git HEAD comparison"
+        },
+        {
+          "check": "ACU static gate root fix",
+          "outcome": "The pre-existing ACU static validator failure (632 source lines in compact_backend.py) was corrected by moving the pure native step compiler to the existing compilation module. The open-app behavior tests and complete macos-cua static validator passed after the move; installed/live verification is still pending.",
+          "build": "ACU 0.2.122 source candidate",
+          "session": "source validation",
+          "timestamp": "2026-11-08T16:58:09.488167+00:00",
+          "reference": "compact_form_fills.py, compact_backend.py, test_open_app.py and /tmp/acu-static-validation-rerun.log"
         }
       ]
     },
@@ -7606,11 +7872,12 @@
       "status": "failing",
       "observed": "The current timeline can show Ledger operation, result status, count and optional bounded result details, but does not establish which preference was selected, applied, saved or superseded for a task.",
       "recommendation": "Link each lookup, selected preference, application, save receipt and supersession outcome to the task. Show concise status first and recorded result/error details on demand.",
-      "verification": "Requested enhancement; the latest lookup returned no matches. Whether the requested preference existed or was applied remains unknown.",
+      "verification": "The fresh session summary shows two Ledger save receipts and one selected record. Independent Ledger readback found a superseded predecessor, but the summary reports zero supersession events and does not establish the full task-linked trail.",
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "USER-02, USER-03 and AGENT-02 track preference behavior; OBS-09 remains fixed for its narrower metadata scope.",
-        "Implementation progress": "Source changes include bounded Ledger result details, status, truncation and task correlation. Application and supersession still require live evidence."
+        "Implementation progress": "Source changes include bounded Ledger result details, status, truncation and task correlation. Application and supersession still require live evidence.",
+        "Previous verification": "Requested enhancement; the latest lookup returned no matches. Whether the requested preference existed or was applied remains unknown."
       },
       "verification_evidence": [
         {
@@ -7708,6 +7975,22 @@
           "session": "sref_112977461a4e2f19135c316afd6c9977; run 13244d24c02358fd741590af",
           "timestamp": "2026-11-07T17:33:46Z",
           "reference": "ACU 0.2.120 db03e0f; local signed install receipt ~/.agents/artifacts/pr88-acu-0.2.120-db03e0f.json."
+        },
+        {
+          "check": "Controlled installed check",
+          "outcome": "The fresh session summary shows two Ledger save receipts and one selected record. Independent Ledger readback found a superseded predecessor, but the summary reports zero supersession events and does not establish the full task-linked trail.",
+          "build": "ACU 0.2.121+f38dad3c7f7d; Developer Observability 0.1.23",
+          "session": "sref_b88b720e5ce28462b168589e6345ce63",
+          "timestamp": "2026-11-08T16:12:13.877493+00:00",
+          "reference": "Fresh snapshot 82aa1670e4e5; independent Calculator AX and supervisor readback; USER-06 crops where applicable."
+        },
+        {
+          "check": "Committed supersession receipt source candidate",
+          "outcome": "Context Ledger now returns committed superseded IDs in the idempotent save receipt; ACU records each supplied ID as a bounded trail event. Focused Ledger and ACU tests pass. Installed and task-linked live acceptance remain pending.",
+          "build": "Context Ledger 0.1.40 and ACU 0.2.122 source candidates",
+          "session": "source investigation",
+          "timestamp": "2026-11-08T16:44:09.575042+00:00",
+          "reference": "plugins/context-ledger/tests/test_preferences.py; plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_observability.py"
         }
       ]
     },
@@ -7957,13 +8240,14 @@
       "status": "failing",
       "observed": "A compact session summary exists, but it is not a single attributable task summary. Mirrored or repeated rows can obscure the action sequence.",
       "recommendation": "Show task, build, outcome, duration, failed step and evidence completeness first; collapse genuine mirrored events while retaining occurrence counts and expandable source evidence.",
-      "verification": "Installed 0.1.16 returned a filtered summary for an older linked run. The fresh spoken task has no run reference, and duplicate startup events remain visible.",
+      "verification": "A concise installed session summary is available, but this check did not establish a single task-linked summary or exercise a known mirrored event pair.",
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "OBS-10 and OBS-14 supply task identity and joined timing. OBS-11 remains fixed for its narrower pagination and native event coverage.",
         "Implementation progress": "ACU 0.2.99 and Developer Observability 0.1.17 are installed from PR commit c60e779. Source, signing, notarization, client, Cursor, disconnect and microphone checks passed. Voice smoke timed out without a proven interaction; live mirror correlation remains unverified.",
         "Installed package test": "The installed 0.1.17 timeline test suite passed four simulated tests, including explicit mirrored startup pairing and preservation of unrelated rows. No new live linked mirror pair was exercised.",
-        "Earlier self-check (0.1.17)": "Installed Developer Observability 0.1.17 passes four task-timeline tests, including explicit mirrored-event handling. Fresh installed ACU mirror pairing remains unverified."
+        "Earlier self-check (0.1.17)": "Installed Developer Observability 0.1.17 passes four task-timeline tests, including explicit mirrored-event handling. Fresh installed ACU mirror pairing remains unverified.",
+        "Previous verification": "Installed 0.1.16 returned a filtered summary for an older linked run. The fresh spoken task has no run reference, and duplicate startup events remain visible."
       },
       "verification_evidence": [
         {
@@ -8005,6 +8289,22 @@
           "session": "sref_112977461a4e2f19135c316afd6c9977; run 13244d24c02358fd741590af",
           "timestamp": "2026-11-07T17:33:46Z",
           "reference": "Developer Observability session summary and local signed install receipt"
+        },
+        {
+          "check": "Controlled installed check",
+          "outcome": "A concise installed session summary is available, but this check did not establish a single task-linked summary or exercise a known mirrored event pair.",
+          "build": "ACU 0.2.121+f38dad3c7f7d; Developer Observability 0.1.23",
+          "session": "sref_b88b720e5ce28462b168589e6345ce63",
+          "timestamp": "2026-11-08T16:12:13.877493+00:00",
+          "reference": "Fresh snapshot 82aa1670e4e5; independent Calculator AX and supervisor readback; USER-06 crops where applicable."
+        },
+        {
+          "check": "Task summary review",
+          "outcome": "An explicit run-scoped summary exists for the controlled Calculator run. The run did not contain an attributable mirror pair, so live mirror-collapse acceptance remains unproven.",
+          "build": "installed ACU 0.2.121 and source candidate 0.2.122",
+          "session": "source and installed evidence review",
+          "timestamp": "2026-11-08T16:59:50.372446+00:00",
+          "reference": "ACU microphone preflight; installed Developer Observability session sref_b88b720e5ce28462b168589e6345ce63"
         }
       ]
     },
@@ -8105,12 +8405,15 @@
       "id": "USER-06",
       "title": "Samantha icon appears when Samantha is switched off",
       "source": "User reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "The user reports a Samantha icon remains visible in the Dynamic Island while the menu switch is off. The supplied screenshot shows the off switch and several island marks; the identity of the reported mark needs independent confirmation.",
       "recommendation": "Identify the visible mark and its owner, then clear any stale Samantha-owned activity when Samantha stops.",
-      "verification": "Not yet verified: supervisor status independently reports Samantha is not running. The screenshot alone does not establish which mark is Samantha-owned.",
+      "verification": "The 0.2.120 controlled off capture shows the pink Samantha waveform still present after 30 seconds. In the 0.2.121 controlled test, the same waveform disappeared on stop and remained absent more than 30 seconds later; supervisor confirmed stopped and Samantha was restored. The source IslandPluginMarksTests on/off contract passed in the full repository check; the tested 0.2.121 source package matched the installed personal package.",
       "details": {
-        "Evidence": "User-supplied screenshot on 2026-11-07; voice_control status returned running=false and healthy=false. Investigate the icon identity and a controlled on/off transition before changing status."
+        "Evidence": "User-supplied screenshot on 2026-11-07; voice_control status returned running=false and healthy=false. Investigate the icon identity and a controlled on/off transition before changing status.",
+        "Previous verification": "Not yet verified: supervisor status independently reports Samantha is not running. The screenshot alone does not establish which mark is Samantha-owned.",
+        "Original screenshot identity": "The user screenshot itself was not reidentified. A separate 0.2.120 controlled reproduction captured the pink Samantha waveform after stop; the current check compares that same waveform.",
+        "Source check": "The repository check passed IslandPluginMarksTests; the source and installed personal ACU 0.2.121 package identities matched at the time of the controlled test."
       },
       "verification_evidence": [
         {
@@ -8120,7 +8423,36 @@
           "session": "controlled off/on",
           "timestamp": "2026-11-07T18:00:18Z",
           "reference": "/tmp/pr88-run-20261107/shots/island-off-30s.png (local evidence)"
+        },
+        {
+          "check": "Controlled installed check",
+          "outcome": "On installed 0.2.121, the waveform circle present before stopping disappeared immediately and remained absent in a capture more than 30 seconds later; supervisor reported stopped. Samantha was restarted. The identity of the specific icon in the original user screenshot remains unconfirmed.",
+          "build": "ACU 0.2.121+f38dad3c7f7d; Developer Observability 0.1.23",
+          "session": "sref_b88b720e5ce28462b168589e6345ce63",
+          "timestamp": "2026-11-08T16:12:13.877493+00:00",
+          "reference": "Fresh snapshot 82aa1670e4e5; independent Calculator AX and supervisor readback; USER-06 crops where applicable."
         }
+      ],
+      "evidence": [
+        {
+          "src": "captures/user06-earlier-off.png",
+          "alt": "Earlier ACU 0.2.120 capture after Samantha stopped",
+          "caption": "Previous: pink waveform remained visible 30 seconds after stop."
+        },
+        {
+          "src": "captures/user06-on.png",
+          "alt": "ACU 0.2.121 while Samantha was running",
+          "caption": "Current: Samantha running."
+        },
+        {
+          "src": "captures/user06-off.png",
+          "alt": "ACU 0.2.121 after Samantha stopped",
+          "caption": "Current: the same waveform is absent after stop."
+        }
+      ],
+      "verification_refs": [
+        "plugins/agent-computer-use/skills/macos-cua/service/Tests/CUAServiceTests/IslandPluginMarksTests.swift",
+        "ACU 0.2.121+f38dad3c7f7d controlled off/on and prior ACU 0.2.120 off-after-30s crops"
       ]
     },
     {
@@ -8178,6 +8510,40 @@
         "plugins/developer-observability/tests/test_collector.py",
         "Installed PR 92 head 464e497, snapshot 7a1b844af324",
         "Controlled installed MCP fixture 2026-11-08"
+      ]
+    },
+    {
+      "id": "AGENT-09",
+      "title": "Samantha could not finish or close a Comet test task",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "In an authorized typed example.com task, Samantha opened the isolated Comet window but said she could neither read its heading nor close it.",
+      "recommendation": "Trace why the active lease did not expose or use the page and close actions; verify a bounded read and close in the same lease.",
+      "verification": "ACU 0.2.121 typed task returned incomplete after 11.85 seconds. Independent Comet AX confirmed the Example Domain window. Direct cleanup through Samantha comet_end confirmed verified_absent; cleanup is not task success.",
+      "details": {
+        "Evidence": "Fresh session sref_b88b720e5ce28462b168589e6345ce63 and installed activity events; Comet broker probe reported runtime_verified and extension_connected.",
+        "Boundary": "The user-facing task did not complete. The cause is not yet established."
+      },
+      "verification_refs": [
+        "ACU 0.2.121 live typed task and same-session comet_end cleanup"
+      ],
+      "verification_evidence": [
+        {
+          "check": "Comet tool contract source review",
+          "outcome": "comet_begin previously instructed that a user-task window is never closed, conflicting with the explicit-request close contract. Source candidate now says to keep it open unless the user asks to close it. This does not explain or prove repair of the missing page-read call.",
+          "build": "ACU 0.2.122 source candidate",
+          "session": "source investigation",
+          "timestamp": "2026-11-08T16:41:21.505428+00:00",
+          "reference": "plugins/agent-computer-use/runtime/voice-cua/python/voice_cua/tools.py and tests/test_tool_surface.py"
+        },
+        {
+          "check": "Release readiness",
+          "outcome": "Installed ACU helper preflight returned no input device; no ACU build, install, or post-change live browser verification was attempted. The missing page-read call has not been explained.",
+          "build": "installed ACU 0.2.121 and source candidate 0.2.122",
+          "session": "source and installed evidence review",
+          "timestamp": "2026-11-08T16:59:50.372446+00:00",
+          "reference": "ACU microphone preflight; installed Developer Observability session sref_b88b720e5ce28462b168589e6345ce63"
+        }
       ]
     }
   ]

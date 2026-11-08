@@ -369,7 +369,7 @@ def tool_definitions(
         "description": (
             "Open a website in Comet (isolated visible window), or — if the user's Comet window is "
             "already open — load the URL in that same window. purpose=user_task (default) for "
-            "anything the user asked; that window is never closed afterwards. purpose=self_test "
+            "anything the user asked; keep that window open unless the user asks to close it. purpose=self_test "
             "only for your own checks; that window closes on comet_end."
         ),
         "parameters": {
@@ -566,6 +566,7 @@ FAIL_HINTS = {
     "action_failed": ("Step failed: try one other route (label, key or coordinates).", True),
     "verification_required": ("Add expect (or allow_unverified for dispatch-only) and retry.", True),
     "expect_unverified": ("It ran but isn't confirmed: read the settled state in this result (no cua_state); don't repeat it.", False),
+    "allow_unverified": ("Action dispatched without verification; inspect its result or current state before proceeding, and do not repeat it.", False),
     "user_denied": ("User said no: don't retry.", False),
 }
 CAP_HINT = "Stopped retrying this action: tell the user what blocked it, or take a different approach."
@@ -623,7 +624,7 @@ def _note_failure(step_fp: str, out: dict[str, Any]) -> None:
     with _STEP_LOCK:
         count = _STEP_FAILS.get(step_fp, (0, 0.0))[0] + 1
         _STEP_FAILS[step_fp] = (MAX_STEP_TRIES if not retryable else count, time.monotonic())
-    if count >= MAX_STEP_TRIES:
+    if count >= MAX_STEP_TRIES and retryable:
         hint, retryable = CAP_HINT, False
     out["hint"] = hint
     out["retryable"] = bool(retryable)

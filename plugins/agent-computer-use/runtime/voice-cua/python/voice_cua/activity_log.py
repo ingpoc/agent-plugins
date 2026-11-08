@@ -479,6 +479,10 @@ def _log_ledger_trail(result: dict[str, Any], *, operation: Any, status: str,
         if isinstance(supersedes, str) and _LEDGER_ID.fullmatch(supersedes):
             log_event("ledger_supersede", **_current_tool_ids(),
                       decision_id=result["decision_id"], supersedes=supersedes)
+        for prior in result.get("superseded_ids", []) if isinstance(result.get("superseded_ids"), list) else []:
+            if isinstance(prior, str) and _LEDGER_ID.fullmatch(prior) and prior != supersedes:
+                log_event("ledger_supersede", **_current_tool_ids(),
+                          decision_id=result["decision_id"], supersedes=prior)
 
 
 def log_exception(name: str, exc: BaseException, *, app: str = "", duration_ms: int | None = None) -> None:

@@ -1,5 +1,10 @@
 # Changelog: agent-computer-use
 
+## 0.2.122
+
+- Clarify when to close a Comet task window and avoid retrying dispatch-only native actions blindly.
+- Record preference replacements returned by Context Ledger save receipts.
+
 ## 0.2.121
 
 - Stamp every activity row with the installed build identity, including the app package digest.

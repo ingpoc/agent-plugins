@@ -96,6 +96,16 @@ class LedgerObservabilityTests(unittest.TestCase):
         self.assertEqual((rows[1]['ledger_selected_count'], rows[1]['ledger_selected_id']), (1, 'dec_123456'))
         self.assertEqual((rows[3]['decision_id'], rows[3]['revision']), ('dec_654321', 3))
         self.assertEqual(rows[4]['supersedes'], 'dec_123456')
+
+    def test_save_receipt_reports_each_committed_supersession(self):
+        rows = []
+        result = {'ok': True, 'status': 'saved', 'decision_id': 'dec_654321', 'revision': 1,
+                  'superseded_ids': ['dec_123456', 'dec_abcdef'], 'value': 'PRIVATE_VALUE'}
+        with patch.object(activity_log, '_append_row', side_effect=rows.append):
+            activity_log.log_tool_result('ledger_task', result, operation='preference', duration_ms=1)
+        self.assertEqual([row['supersedes'] for row in rows if row['kind'] == 'ledger_supersede'],
+                         ['dec_123456', 'dec_abcdef'])
+        self.assertNotIn('PRIVATE_VALUE', json.dumps(rows))
         self.assertTrue(all(row['build'] for row in rows))
         self.assertNotIn('PRIVATE_VALUE', json.dumps(rows[1::2]))
 

@@ -16,6 +16,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import site
 import subprocess
 import sys
 from pathlib import Path
@@ -23,7 +24,8 @@ from pathlib import Path
 
 def _mcp_server_available() -> bool:
     try:
-        return importlib.util.find_spec("mcp.server.mcpserver") is not None
+        spec = importlib.util.find_spec("mcp.server.mcpserver")
+        return spec is not None and not Path(spec.origin).is_relative_to(Path(site.getusersitepackages()))
     except ModuleNotFoundError:
         return False
 

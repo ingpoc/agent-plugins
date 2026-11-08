@@ -55,6 +55,8 @@ class LazyGroupTests(unittest.TestCase):
         self.assertNotIn("comet_act", idle)
         self.assertNotIn("comet_end", idle)
         self.assertTrue({"comet_begin", "comet_act", "comet_end"}.issubset(active))
+        begin = next(tool for tool in tools.tool_definitions(comet_active=False) if tool["name"] == "comet_begin")
+        self.assertIn("unless the user asks to close it", begin["description"])
 
     def test_comet_schema_distinguishes_page_text_from_compact_context(self) -> None:
         active = {tool["name"]: tool for tool in tools.tool_definitions(comet_active=True)}
@@ -276,6 +278,16 @@ class RetryCapTests(_Fresh):
         self.backend.act.return_value = {"ok": False, "error_type": "expect_unverified"}
         out = tools.dispatch("cua_act", {"app": "Notes", "op": "type_text", "text": "hi", "expect": "hi"})
         self.assertFalse(out["retryable"])
+
+    def test_dispatch_only_does_not_retry_a_completed_action(self) -> None:
+        self.backend.act.return_value = {"ok": False, "dispatched": True, "app_running": False, "error_type": "allow_unverified"}
+        args = {"app": "Calculator", "op": "key", "key": "cmd+q", "allow_unverified": True}
+        out = tools.dispatch("cua_act", args)
+        self.assertFalse(out["retryable"])
+        self.assertIn("do not repeat", out["hint"])
+        self.assertIs(out["app_running"], False)
+        self.assertEqual(tools.dispatch("cua_act", args)["error_type"], "retry_cap")
+        self.backend.act.assert_called_once()
 
     def test_unverified_shortcut_is_not_dispatched_twice_with_aliases(self) -> None:
         self.backend.act.return_value = {"ok": False, "dispatched": True, "error_type": "expect_unverified"}

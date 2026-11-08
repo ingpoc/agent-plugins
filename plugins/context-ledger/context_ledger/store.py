@@ -664,6 +664,7 @@ class Store:
             )
             trace = parsed["body"].get("trace") or {}
             if tool == "save" and trace.get("type") == "user_decision" and trace.get("rule"):
+                superseded_ids = []
                 rows = conn.execute("select decision_id from current_records where scope_id=? and decision_id!=?", (self.binding["scope_id"], decision_id)).fetchall()
                 for row in rows:
                     old = self._get_record(conn, row["decision_id"], mcp=mcp)
@@ -678,6 +679,11 @@ class Store:
                         "event_type": "superseded", "request_id": new_uuid(),
                         "payload": {"replacement_id": decision_id, "reason": "Owner preference updated"}}
                     self._append_event_row(conn, supersession, ingest_kind="local", request_hash=None, mcp=mcp)
+                    superseded_ids.append(old["decision_id"])
+                if superseded_ids:
+                    receipt["superseded_ids"] = sorted(superseded_ids)
+                    conn.execute("update requests set receipt_json=? where scope_id=? and request_id=?",
+                                 (canonical_json(receipt), self.binding["scope_id"], parsed["request_id"]))
             return receipt
 
     def append_event(self, arguments: dict[str, Any], *, mcp: bool, tool: str = "append_event") -> dict[str, Any]:
@@ -1342,7 +1348,8 @@ class Store:
         if parsed["actor"]:
             args["actor"] = parsed["actor"]
         receipt = self.record(args, mcp=mcp, tool="save")
-        return {"decision_id": receipt["decision_id"], "revision": receipt["revision"]}
+        return {"decision_id": receipt["decision_id"], "revision": receipt["revision"],
+                **({"superseded_ids": receipt["superseded_ids"]} if "superseded_ids" in receipt else {})}
 
     def access_report(self) -> dict[str, Any]:
         """Per-caller lookups, bytes, and helpful marks (outcome.helpful on the returned ids)."""

@@ -22,7 +22,7 @@ from compact_verification import (
 from fail_feedback import apply_failure_feedback, VERIFICATION_REQUIRED
 from compact_form_fills import (
     compile_error_payload,
-    compile_set_value_step,
+    compile_native_step,
     dispatch_labeled_set_value,
     dispatch_set_checked,
     fill_value_from_step,
@@ -251,7 +251,7 @@ class CUABackend:
                     seen = observed_window_id(elements_state)
                     if seen is not None:
                         plan_window = seen
-                native = self._native_step(
+                native = compile_native_step(
                     step,
                     after_new_document=after_new,
                     elements_state=elements_state,
@@ -416,86 +416,6 @@ class CUABackend:
             return apply_failure_feedback(
                 payload, arguments=arguments, before_text="", after_text=after
             )
-
-    def _native_step(self, step: dict[str, Any], *, after_new_document: bool = False,
-                     elements_state: dict[str, Any] | None = None) -> dict[str, Any]:
-        if step.get("wait") is not None:
-            return {"method": "wait", "params": {"seconds": step["wait"]}}
-        op = str(step.get("op") or "").lower()
-        action = str(step.get("action") or "")
-        if not op and action.lower() in {
-            "open", "reveal", "scroll", "drag", "select_text", "focus", "raise", "activate",
-        }:
-            op = action.lower()
-        if op in {"open", "reveal"}:
-            params = {
-                key: step[key] for key in ("path", "url") if step.get(key) is not None
-            }
-            if op == "reveal":
-                params["reveal"] = True
-            return {"method": "open_item", "params": params}
-        if op in {"focus", "raise", "activate"}:
-            return {"method": "get_app_state", "params": {"raiseForInput": True}}
-        if op == "scroll":
-            params = {
-                "direction": str(step.get("direction") or "down"),
-                "pages": int(step.get("pages") or 1),
-            }
-            if step.get("element") is not None:
-                params["element_index"] = int(step["element"])
-            return {"method": "scroll", "params": params}
-        if op == "drag":
-            return {
-                "method": "drag",
-                "params": {
-                    key: float(step[key])
-                    for key in ("from_x", "from_y", "to_x", "to_y")
-                },
-            }
-        if op == "select_text":
-            params = {
-                "element_index": int(step["element"]),
-                "text": str(step.get("text") or ""),
-            }
-            params.update({
-                key: step[key]
-                for key in ("prefix", "suffix", "selection_type")
-                if step.get(key) is not None
-            })
-            return {"method": "select_text", "params": params}
-        if step.get("key"):
-            return {"method": "press_key", "params": {"key": str(step["key"])}}
-        element = step.get("element")
-        action_l = str(action or "").lower()
-        fill_value = fill_value_from_step(step)
-        if action_l == "set_value" and fill_value is not None:
-            return compile_set_value_step(step, elements_state=elements_state)
-        if step.get("text") is not None and element is not None and not step.get("label"):
-            return {
-                "method": "set_value",
-                "params": {"element_index": int(element), "value": str(step["text"])},
-            }
-        if step.get("text") is not None and not step.get("label"):
-            return {
-                "method": "type_text",
-                "params": {
-                    "text": str(step["text"]),
-                    "after_new_document": after_new_document,
-                },
-            }
-        if action and element is not None and action_l not in {"click", "set_value", "type"}:
-            return {
-                "method": "perform_secondary_action",
-                "params": {"element_index": int(element), "action": action},
-            }
-        params: dict[str, Any] = {}
-        if step.get("label"):
-            params["label"] = str(step["label"])
-        if element is not None:
-            params["element_index"] = int(element)
-        if step.get("x") is not None and step.get("y") is not None:
-            params.update({"x": float(step["x"]), "y": float(step["y"])})
-        return {"method": "click", "params": params}
 
     def focus(self, app: str) -> dict[str, Any]:
         """Raise and activate ``app`` (AX raise through CUAService; never moves the real mouse)."""
