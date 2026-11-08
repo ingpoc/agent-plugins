@@ -93,6 +93,12 @@ class HygieneMapTest(unittest.TestCase):
         self.root = Path(self._tmp.name).resolve()
         self.fx = Fixture(self.root)
         self.out = self.root / "out" / "map.html"
+        self.observation = mock.patch.object(hm, 'observe_remotes', return_value={
+            'origin': hm.refs(self.fx.canonical, 'refs/remotes/origin-cursor'),
+            'github': hm.refs(self.fx.canonical, 'refs/remotes/github'), 'active_prs': {},
+            'observed_at': '2026-01-01T00:00:00+00:00'})
+        self.observer = self.observation.start()
+        self.addCleanup(self.observation.stop)
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -262,13 +268,42 @@ class HygieneMapTest(unittest.TestCase):
         feature = self.find(t, kind="branch", label="feature")
         self.assertEqual((feature["status"], feature["merged"], feature["local_only"]), ("fail", False, 1))
         done = self.find(t, kind="branch", label="done")
-        self.assertEqual((done["status"], done["merged"]), ("stale", True))
+        self.assertEqual((done["status"], done["merged"]), ("warn", True))
         main = self.find(t, kind="branch", path="~/code/other", label="main")
         self.assertEqual(main["status"], "ok")
         other = self.find(t, kind="repo", label="other")
         # ~/code is a scan root but not the checkout root: amber, with the reason.
         self.assertEqual(other["status"], "warn")
         self.assertEqual([r["check"] for r in other["reasons"]], ["outside-root"])
+
+    def test_merged_branch_requires_current_origin_and_complete_pr_check(self) -> None:
+        sh(self.fx.canonical, 'branch', 'finished', 'main')
+        branch = self.find(self.tree(rows=[]), kind='branch', label='finished')
+        self.assertEqual(branch['status'], 'stale')
+        observed = self.observer.return_value
+        observed['active_prs'] = {'finished': {'number': 8, 'status': 'open', 'head': branch['head']}}
+        branch = self.find(self.tree(rows=[]), kind='branch', label='finished')
+        self.assertEqual(branch['status'], 'warn')
+        self.assertIn('open PR #8', branch['note'])
+        observed['active_prs'] = None
+        branch = self.find(self.tree(rows=[]), kind='branch', label='finished')
+        self.assertEqual(branch['status'], 'warn')
+        self.assertIn('unknown', branch['note'])
+        observed['active_prs'] = {}
+        observed['origin'] = {'main': '0' * 40}
+        branch = self.find(self.tree(rows=[]), kind='branch', label='finished')
+        self.assertEqual(branch['status'], 'warn')
+
+    def test_remote_observation_fails_closed_on_incomplete_pr_listing(self) -> None:
+        self.observation.stop()
+        entries = [{'number': n, 'status': 'open', 'headRef': f'b{n}', 'headSha': 'a' * 40}
+                   for n in range(200)]
+        response = subprocess.CompletedProcess([], 0, json.dumps(entries), '')
+        with mock.patch.object(hm, 'git', return_value='a' * 40 + '\trefs/heads/main\n'), \
+             mock.patch.object(hm.subprocess, 'run', return_value=response):
+            result = hm.observe_remotes(self.fx.canonical, 'origin', 'github')
+        self.assertIsNone(result['active_prs'])
+        self.assertEqual(result['origin']['main'], 'a' * 40)
 
     def test_hygiene_items_land_on_their_nodes_with_plain_reasons(self) -> None:
         home = str(self.fx.home)
@@ -319,7 +354,7 @@ class HygieneMapTest(unittest.TestCase):
         hm.publish(self.fx.manifest, ROWS, out=self.out, home=self.fx.home)
         page = self.out.read_text()
         for needle in ('id="q"', 'id="prob"', "Show only problems", 'id="side"', 'class="legend"',
-                       "Stale: safe to sweep", "pass</span>", "warn</span>", "fail</span>"):
+                       "Review for cleanup", "pass</span>", "warn</span>", "fail</span>"):
             self.assertIn(needle, page)
         data = page.split('id="hm-data">', 1)[1].split("</script>", 1)[0]
         tree = json.loads(data)["tree"]

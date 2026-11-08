@@ -4,7 +4,7 @@
 The page is a collapsible tree rooted at the Mac Mini: every clone under the
 manifest scan roots grouped by repo, each with its worktrees, local branches and
 extra clones, plus a "Machine checks" branch for findings that are not about a
-clone. Nodes are coloured by status (fail / warn / stale-safe-to-sweep / ok) from
+clone. Nodes are coloured by status (fail / warn / cleanup-candidate / ok) from
 the `hygiene check` rows plus git state; clicking one opens a side panel with
 path, branch, merged, dirty count, local-only commits, age, owner and the
 plain-English reason for every failing or warning check. All CSS, JS and data
@@ -19,8 +19,8 @@ Origin main, hygiene status per check), hashes it, and rewrites
 (temp file in the same directory, then rename) and the page is self-contained:
 no network, no external assets; data and script are inline.
 
-Branch lists come from the canonical clone's remote-tracking refs (as of its
-last fetch); this module never talks to the network.
+Branch lists come from cached remote-tracking refs. Bounded read-only remote
+and PR observations are separate; an unavailable observation is unknown.
 
 Fail open: any error logs one line to stderr and leaves the hygiene result alone.
 Installed copy: `~/.agents/bin/hygiene_map.py` next to `hygiene.py` (source:
@@ -201,6 +201,45 @@ def refs(repo: Path, prefix: str) -> dict[str, str]:
         if short and short != "HEAD":
             found[short] = sha
     return found
+
+
+def observe_remotes(repo: Path, origin: str | None, github: str | None) -> dict:
+    """Observe live heads and active PRs without changing Git refs."""
+    def heads(remote):
+        if not remote:
+            return None
+        out = git(repo, 'ls-remote', '--heads', remote)
+        if out is None:
+            return None
+        rows = {}
+        for line in out.splitlines():
+            sha, sep, ref = line.partition('\t')
+            if not sep or len(sha) != 40 or not ref.startswith('refs/heads/'):
+                return None
+            rows[ref.removeprefix('refs/heads/')] = sha
+        return rows
+
+    prs = None
+    try:
+        proc = subprocess.run(['origin', 'pr', 'list', '--state', 'all', '--limit', '200',
+                               '--json', 'number,status,headRef,headSha,baseRef'], cwd=repo,
+                              capture_output=True, text=True, timeout=10, check=True)
+        entries = json.loads(proc.stdout)
+        if isinstance(entries, list) and len(entries) < 200 and all(
+            isinstance(p, dict) and isinstance(p.get('headRef'), str) and
+            p.get('status') in ('open', 'draft', 'merged', 'closed') and
+            isinstance(p.get('number'), int) and isinstance(p.get('headSha'), str) and
+            len(p['headSha']) == 40 and isinstance(p.get('baseRef'), str) for p in entries
+        ):
+            prs = {}
+            for p in entries:
+                if p['status'] in ('open', 'draft'):
+                    for ref in (p['headRef'], p['baseRef']):
+                        prs[ref] = {'number': p['number'], 'status': p['status'], 'head': p['headSha']}
+    except (OSError, subprocess.SubprocessError, ValueError):
+        pass
+    return {'origin': heads(origin), 'github': heads(github), 'active_prs': prs,
+            'observed_at': datetime.now(timezone.utc).isoformat()}
 
 
 def merged(repo: Path, sha: str, main_sha: str | None) -> bool | None:
@@ -386,6 +425,10 @@ def git_snapshot(m: dict, home: Path | None = None) -> dict:
     main_sha = None
     if o_name:
         main_sha = (git(canonical, "rev-parse", "--verify", "-q", f"refs/remotes/{o_name}/main") or "").strip() or None
+    live = observe_remotes(canonical, o_name, g_name) if canonical.is_dir() else {
+        'origin': None, 'github': None, 'active_prs': None, 'observed_at': None}
+    live['cached_main_matches'] = bool(main_sha and live['origin'] is not None and
+                                       live['origin'].get('main') == main_sha)
 
     clone_rows, wt_rows, local_rows = [], [], []
     for clone in clones:
@@ -435,12 +478,12 @@ def git_snapshot(m: dict, home: Path | None = None) -> dict:
                                "in_main": merged(clone, sha, clone_main_sha),
                                "owner": owner_of("", name)})
 
-    origin_b = refs(canonical, f"refs/remotes/{o_name}") if o_name else {}
-    github_b = refs(canonical, f"refs/remotes/{g_name}") if g_name else {}
+    origin_b = live['origin'] if live['origin'] is not None else (refs(canonical, f"refs/remotes/{o_name}") if o_name else {})
+    github_b = live['github'] if live['github'] is not None else (refs(canonical, f"refs/remotes/{g_name}") if g_name else {})
     remote_rows = []
     for where, table, other in (("origin", origin_b, github_b), ("github", github_b, origin_b)):
         for name, sha in table.items():
-            remote_rows.append({"where": where, "name": name, "head": sha[:7],
+            remote_rows.append({"where": where, "name": name, "head": sha[:7], 'live': live[where] is not None,
                                 "in_main": merged(canonical, sha, main_sha),
                                 "on_both": name in other, "owner": owner_of("", name)})
 
@@ -475,6 +518,7 @@ def git_snapshot(m: dict, home: Path | None = None) -> dict:
         "repo": REPO,
         "canonical": tilde(canonical, home),
         "origin_main": main_sha[:7] if main_sha else None,
+        "remote_observation": live,
         "clones": clone_rows,
         "worktrees": sorted(wt_rows, key=lambda r: (r["clone"], r["kind"] != "clone", r["path"])),
         "local_branches": sorted(local_rows, key=lambda r: (r["clone"], r["name"])),
@@ -532,7 +576,7 @@ CHECK_TEXT = {
     "local-only-commits": "Commits on this branch are not on any remote (as of the last fetch).",
     "outside-root": "Not under the checkout or worktree root from the manifest.",
     "missing-folder": "git still lists this worktree but its folder is gone; `git worktree prune` cleans it up.",
-    "stale-candidate": "Merged into main, nothing uncommitted, no local-only commits: safe to sweep.",
+    "stale-candidate": "Merged into observed main with no active PR or visible changes; recheck before cleanup.",
     "not-merged": "Not merged into main yet.",
 }
 RANK = {"fail": 4, "warn": 3, "stale": 2, "ok": 1}
@@ -579,6 +623,17 @@ def build_tree(snap: dict, rows: list[dict], home: Path, host: str) -> dict:
                 "check": r.get("check", ""), "status": r.get("status", ""), "item": str(it)})
     used: set[str] = set()
     seq = iter(range(1, 1_000_000))
+    live = snap.get('remote_observation') or {}
+
+    def pr_note(branch: str, clone_path: str) -> str:
+        if clone_path != snap.get('canonical') or live.get('active_prs') is None:
+            return 'PR state unknown'
+        pr = live['active_prs'].get(branch)
+        return f"{pr['status']} PR #{pr['number']}" if pr else 'No open or draft PR observed'
+
+    def can_retire(branch: str, clone_path: str) -> bool:
+        return (clone_path == snap.get('canonical') and live.get('cached_main_matches') is True
+                and isinstance(live.get('active_prs'), dict) and branch not in live['active_prs'])
 
     def node(kind: str, label: str, **kw) -> dict:
         n = {"id": f"n{next(seq)}", "kind": kind, "label": label, "children": [], "reasons": [], **kw}
@@ -608,8 +663,12 @@ def build_tree(snap: dict, rows: list[dict], home: Path, host: str) -> dict:
         n = node("worktree" if w["kind"] == "worktree" else "checkout",
                  w["path"].rsplit("/", 1)[-1] if w["kind"] == "worktree" else "main checkout",
                  path=w["path"], branch=w["branch"], head=w["head"], merged=w["in_main"], dirty=w["dirty"],
-                 local_only=w["local_only"], age_days=w["age_days"], owner=w["owner"], place=w["place"])
+                 local_only=w["local_only"], age_days=w["age_days"], owner=w["owner"], place=w["place"],
+                 note=pr_note(w['branch'], clone_path))
         attach(n, w["path"])
+        if w['kind'] == 'worktree' and w['in_main'] is True and not can_retire(w['branch'], clone_path):
+            n['reasons'].append({'check': 'cleanup-evidence', 'level': 'warn',
+                                 'text': 'Open PR or live cleanup evidence unavailable; verify before removal.', 'item': ''})
         if w["dirty"]:
             add(n, "uncommitted-changes", "fail", f'{w["dirty"]} file(s)')
         if w["local_only"]:
@@ -619,18 +678,23 @@ def build_tree(snap: dict, rows: list[dict], home: Path, host: str) -> dict:
         elif w["place"] == "outside" and w["kind"] == "worktree" and not any(
                 x["check"] == "worktree-placement" for x in n["reasons"]):
             add(n, "outside-root", "warn")
-        stale = (w["kind"] == "worktree" and w["in_main"] is True and w["dirty"] == 0 and not w["local_only"])
+        stale = (w["kind"] == "worktree" and w["in_main"] is True and w["dirty"] == 0
+                 and w["local_only"] == 0 and can_retire(w['branch'], clone_path))
         return settle(n, stale_ok=stale)
 
     def br_node(b: dict, clone: dict) -> dict:
         n = node("branch", b["name"], path=clone["path"], branch=b["name"], head=b["head"], merged=b["in_main"],
                  local_only=b["local_only"], age_days=b["age_days"], owner=b["owner"],
-                 upstream=b["upstream"], checked_out=b["checked_out"])
+                 upstream=b["upstream"], checked_out=b["checked_out"], note=pr_note(b['name'], clone['path']))
         attach(n, f'{clone["path"]}:{b["name"]}')
         if b["local_only"]:
             add(n, "local-only-commits", "fail", f'{b["local_only"]} commit(s)')
         is_main = b["name"] in MAIN_NAMES or (clone["main_ref"] or "").endswith("/" + b["name"])
-        stale = (b["in_main"] is True and not b["checked_out"] and not is_main and not b["local_only"])
+        if b['in_main'] is True and not is_main and not can_retire(b['name'], clone['path']):
+            n['reasons'].append({'check': 'cleanup-evidence', 'level': 'warn',
+                                 'text': 'Open PR or live cleanup evidence unavailable; verify before removal.', 'item': ''})
+        stale = (b["in_main"] is True and not b["checked_out"] and not is_main
+                 and b["local_only"] == 0 and can_retire(b['name'], clone['path']))
         return settle(n, stale_ok=stale)
 
     def clone_node(c: dict, label: str, primary: bool) -> dict:
@@ -687,9 +751,15 @@ def build_tree(snap: dict, rows: list[dict], home: Path, host: str) -> dict:
             g = node("group", f'Remote branches ({len(snap["remote_branches"])})')
             for b in snap["remote_branches"]:
                 where = "Origin" if b["where"] == "origin" else "GitHub"
+                origin_live, github_live = live.get('origin'), live.get('github')
+                if origin_live is None or github_live is None:
+                    mirror = 'Mirror status unknown'
+                else:
+                    a, ghead = origin_live.get(b['name']), github_live.get(b['name'])
+                    mirror = 'Origin and GitHub match' if a and a == ghead else 'Origin and GitHub differ or branch missing'
                 bn = node("remote-branch", f'{where}: {b["name"]}', branch=b["name"], head=b["head"],
                           merged=b["in_main"], owner=b["owner"],
-                          note="on Origin and GitHub" if b["on_both"] else f"{where} only")
+                          note=f"{'Live observation' if b.get('live') else 'Cached ref'}; {mirror}; {pr_note(b['name'], snap.get('canonical'))}")
                 g["children"].append(settle(bn))
             rn["children"].append(settle(g))
         root["children"].append(settle(rn))
@@ -812,7 +882,7 @@ function yn(v,y,n){return v===true?y:v===false?n:'unknown'}
 function panel(id){sel=id;var n=byId[id],h=[];
  var path=[];for(var p=id;p;p=parent[p])path.unshift(byId[p].label);
  h.push('<div class="sub">'+esc(path.slice(0,-1).join(' › '))+'</div><h2>'+esc(n.label)+'</h2>');
- h.push('<div class="st"><span class="pill p-'+shown(n)+'">'+({fail:'Fail',warn:'Warn',stale:'Stale: safe to sweep',ok:'OK'}[shown(n)])+'</span> <span class="kind">'+esc(n.kind)+'</span></div>');
+ h.push('<div class="st"><span class="pill p-'+shown(n)+'">'+({fail:'Fail',warn:'Warn',stale:'Review for cleanup',ok:'OK'}[shown(n)])+'</span> <span class="kind">'+esc(n.kind)+'</span></div>');
  var f=[];function add(k,v){if(v!==undefined&&v!==null&&v!=='')f.push('<dt>'+k+'</dt><dd>'+v+'</dd>')}
  add('Path',n.path?'<code>'+esc(n.path)+'</code>':'');add('Role',esc(n.role));add('Branch',n.branch?'<code>'+esc(n.branch)+'</code>':'');
  add('Head',n.head?'<code>'+esc(n.head)+'</code>':'');add('Upstream',n.upstream?'<code>'+esc(n.upstream)+'</code>':(n.kind==='branch'?'none':''));
@@ -892,11 +962,16 @@ def render_html(snap: dict, rows: list[dict], generated_at: datetime, home: Path
         host = platform.node().split(".")[0]
     when = generated_at.astimezone(IST).strftime("%a %d %b %Y, %H:%M IST")
     c = snap["hygiene"]["counts"]
+    observation = snap.get('remote_observation') or {}
+    observed_at = observation.get('observed_at') or 'unknown'
+    remote_status = ('available' if observation.get('origin') is not None else 'unknown')
+    mirror_status = ('available' if observation.get('github') is not None else 'unknown')
+    pr_status = ('available' if observation.get('active_prs') is not None else 'unknown')
     tree = build_tree(snap, rows, home, host)
     disk = free_disk(rows)
     mini_css, mini_body, mini_js = mini_html(mini)
     legend = [("ok", "OK: clean, merged"), ("warn", "Warn: old, too many worktrees, outside root"),
-              ("fail", "Fail: misplaced, local-only commits, uncommitted"), ("stale", "Stale: safe to sweep")]
+              ("fail", "Fail: misplaced, local-only commits, uncommitted"), ("stale", "Review for cleanup")]
     order = {"FAIL": 0, "WARN": 1, "UNKNOWN": 2, "PASS": 3}
     trs = []
     for r in sorted(rows, key=lambda r: (order.get(r.get("status"), 9), r.get("check", ""))):
@@ -915,7 +990,8 @@ def render_html(snap: dict, rows: list[dict], generated_at: datetime, home: Path
         f'<span class="pill p-fail">{c["FAIL"]}</span><span>fail</span></div>',
         f'<div class="stat">{esc(disk + " free") if disk else "free disk unknown"}<span>disk</span></div>',
         f'<div class="stat">{esc(len(snap.get("machine", [])))}<span>clones scanned</span></div>',
-        f'<div class="stat"><code>{esc(snap["origin_main"] or "unknown")}</code><span>agent-plugins Origin main</span></div>',
+        f'<div class="stat"><code>{esc(snap["origin_main"] or "unknown")}</code><span>cached Origin main (last fetch unknown)</span></div>',
+        f'<div class="sub">Live observation: {esc(observed_at)} · Origin {remote_status} · GitHub {mirror_status} · PRs {pr_status}. Snapshot is advisory; recheck before cleanup.</div>',
         '<div class="legend">' + "".join(f'<span><i class="d-{k}"></i>{esc(t)}</span>' for k, t in legend) + "</div>",
         "</header>",
         '<nav class="tabs"><button class="on" data-t="tab-tree">Repos &amp; worktrees</button>'

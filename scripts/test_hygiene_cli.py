@@ -43,6 +43,9 @@ class CliTest(unittest.TestCase):
             mock.patch.dict(os.environ, {"HOME": str(self.fx.home), "HYGIENE_MINI_BACKGROUND": "0"}),
             mock.patch.object(hy, "load_manifest", return_value=self.fx.manifest),
             mock.patch.object(hy, "run_checks", return_value=report),
+            mock.patch.object(hm, 'observe_remotes', return_value={
+                'origin': None, 'github': None, 'active_prs': None,
+                'observed_at': '2026-01-01T00:00:00+00:00'}),
             # The plain report header carries the wall clock; pin it so outputs compare.
             mock.patch.object(hy.time, "strftime", return_value="2026-11-03 12:00:00"),
         ]
@@ -75,6 +78,16 @@ class CliTest(unittest.TestCase):
         (self.fx.wt / "new-file.txt").write_text("z")
         self.run_cli("check")
         self.assertNotEqual(self.map.stat().st_mtime_ns, before)
+
+    def test_new_observation_refreshes_map_timestamp(self) -> None:
+        self.run_cli('check')
+        before = self.map.stat().st_mtime_ns
+        with mock.patch.object(hm, 'observe_remotes', return_value={
+            'origin': None, 'github': None, 'active_prs': None,
+            'observed_at': '2026-01-02T00:00:00+00:00'}):
+            self.run_cli('check')
+        self.assertNotEqual(self.map.stat().st_mtime_ns, before)
+        self.assertIn('2026-01-02T00:00:00+00:00', self.map.read_text())
 
     def test_map_failure_never_changes_output_or_exit_code(self) -> None:
         clean = {tuple(a): self.run_cli(*a)[:2] for a in (["check", "--no-map"], ["check", "--strict", "--no-map"],
