@@ -5337,162 +5337,243 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "acu-0.2.121-23e08ab-pr92-install",
+        "build": "ACU 0.2.121; Developer Observability 0.1.22; PR #92",
+        "revision": "23e08aba867fd33bd01527aedd3ed19e19df3056",
+        "installed_at": "2026-11-08T07:50:59+00:00",
+        "install_evidence": "Local signed receipt ~/.agents/artifacts/pr92-acu-0121-23e08ab.json: source-checks, build-install, sync-installed, signature, live client/cursor/fd and mic preflight all OK; notarization skipped by --sign-only; spoken acceptance not exercised. Developer Observability 0.1.22 synced from the same PR head, MCP probe ok.",
+        "status": "complete",
+        "checks": {
+          "USER-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Previously verified fixed; not re-exercised on this install, so the earlier proof is retained unchanged.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "USER-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Requires the user preference save/update test card; no spoken or typed preference test after install.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "AGENT-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "No Context Ledger preference lookup after install; the rejected-query path was not exercised.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-01": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "No linked voice turn after install, so the slow stage could not be re-measured on 0.2.121.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Previously verified fixed; startup timing was not re-measured on this install.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "No browser-assisted turn after install; Comet timing not exercised.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-04": {
+            "state": "fixed",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Installed ACU 0.2.121 (23e08ab): 210 overlay-bound checks across post-install sessions, 0 violations. Active island w=126 keeps voice_slot_speaking (right edge 1001) inside the island (right edge 1023); idle returns to w=74. Source gate ran IslandVoiceAppsInsideTests.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-06": {
+            "state": "not_fixed",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Post-install 0.2.121 events: 19 of 150 carry a build identity (0.2.121+f38dad3c7f7d, 0.2.121+7921ac18d6bc), 131 report build=unknown; version labels are explicit (event 134, session_inferred 16). Most events still lack an installed build identity.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-10": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "No task run after install; observed events carry task_ref null, which is absence of a task, not proof of the reported defect.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "AGENT-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Native actions ran only through the release live client/cursor suites, which passed; the reported target_missing/observation_incomplete scenario was not reproduced.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "AGENT-04": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Microphone preflight passed on this install; the transient no_input_device failure did not recur.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-12": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "No task run after install, so the Ledger decision trail (lookup, selection, application, supersession) was not exercised.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-13": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Previously verified fixed; island transition capture was not re-exercised, though post-install island_layout events are present.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-14": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "No task run after install; the cross-stage task timeline was not exercised.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-15": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Preflight passed on this install; no failure/recovery transition was recorded to evaluate.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-16": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "No task run after install, so the single task summary and mirrored-event collapse were not exercised.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-17": {
+            "state": "fixed",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Source gate on 23e08ab passed test_log_rotation.py (0.5s exit 0), test_rotated_logs.py (0.2s exit 0) and Swift CUALogRotationTests/testSwiftAndPythonWritersShareTheFileAcrossRotations; check.py reported check ok and the installed app is that same signed build.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "AGENT-07": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Cancellation requires a spoken session; none was run after install.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "USER-06": {
+            "state": "blocked",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Needs user confirmation of which island mark appears while the Samantha switch is off; supervisor status alone does not identify the mark.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-18": {
+            "state": "not_fixed",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Reproduced on installed Developer Observability 0.1.22 with fresh snapshot a86575c1: agent-plugins brief ordered stale(4), stale(3), recovered(3), active(2), active(2) - stale rows still rank above active ones. No ranking change in this head.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          },
+          "OBS-19": {
+            "state": "not_fixed",
+            "started_at": "2026-11-08T07:55:56Z",
+            "updated_at": "2026-11-08T07:55:56Z",
+            "evidence": "Reproduced on 0.1.22: active CI finding col-ce2697be4e869067 still returns observed=unknown, suggested_investigation=unknown, first_error_line=unknown, owner_revision/locator=unknown, diagnostics_available=false.",
+            "finished_at": "2026-11-08T07:56:09Z"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "acu-0.2.121-23e08ab-pr92-install",
-      "build": "ACU 0.2.121; Developer Observability 0.1.22; PR #92",
-      "revision": "23e08aba867fd33bd01527aedd3ed19e19df3056",
-      "installed_at": "2026-11-08T07:50:59+00:00",
-      "install_evidence": "Local signed receipt ~/.agents/artifacts/pr92-acu-0121-23e08ab.json: source-checks, build-install, sync-installed, signature, live client/cursor/fd and mic preflight all OK; notarization skipped by --sign-only; spoken acceptance not exercised. Developer Observability 0.1.22 synced from the same PR head, MCP probe ok.",
-      "status": "complete",
+      "id": "devobs-0.1.23-464e497",
+      "build": "Developer Observability 0.1.23",
+      "revision": "464e497df33904dd35883be346a6245c2f002aa0",
+      "installed_at": "2026-11-08T13:36:18.990355+00:00",
+      "install_evidence": "Exact Origin PR head installer and fresh installed MCP probe passed.",
+      "status": "active",
       "checks": {
         "USER-02": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Previously verified fixed; not re-exercised on this install, so the earlier proof is retained unchanged.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "USER-03": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Requires the user preference save/update test card; no spoken or typed preference test after install.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "AGENT-02": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "No Context Ledger preference lookup after install; the rejected-query path was not exercised.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-01": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "No linked voice turn after install, so the slow stage could not be re-measured on 0.2.121.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-02": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Previously verified fixed; startup timing was not re-measured on this install.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-03": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "No browser-assisted turn after install; Comet timing not exercised.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-04": {
-          "state": "fixed",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Installed ACU 0.2.121 (23e08ab): 210 overlay-bound checks across post-install sessions, 0 violations. Active island w=126 keeps voice_slot_speaking (right edge 1001) inside the island (right edge 1023); idle returns to w=74. Source gate ran IslandVoiceAppsInsideTests.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-06": {
-          "state": "not_fixed",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Post-install 0.2.121 events: 19 of 150 carry a build identity (0.2.121+f38dad3c7f7d, 0.2.121+7921ac18d6bc), 131 report build=unknown; version labels are explicit (event 134, session_inferred 16). Most events still lack an installed build identity.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-10": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "No task run after install; observed events carry task_ref null, which is absence of a task, not proof of the reported defect.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "AGENT-03": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Native actions ran only through the release live client/cursor suites, which passed; the reported target_missing/observation_incomplete scenario was not reproduced.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "AGENT-04": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Microphone preflight passed on this install; the transient no_input_device failure did not recur.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-12": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "No task run after install, so the Ledger decision trail (lookup, selection, application, supersession) was not exercised.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-13": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Previously verified fixed; island transition capture was not re-exercised, though post-install island_layout events are present.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-14": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "No task run after install; the cross-stage task timeline was not exercised.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-15": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Preflight passed on this install; no failure/recovery transition was recorded to evaluate.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-16": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "No task run after install, so the single task summary and mirrored-event collapse were not exercised.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-17": {
-          "state": "fixed",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Source gate on 23e08ab passed test_log_rotation.py (0.5s exit 0), test_rotated_logs.py (0.2s exit 0) and Swift CUALogRotationTests/testSwiftAndPythonWritersShareTheFileAcrossRotations; check.py reported check ok and the installed app is that same signed build.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "AGENT-07": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Cancellation requires a spoken session; none was run after install.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "USER-06": {
-          "state": "blocked",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Needs user confirmation of which island mark appears while the Samantha switch is off; supervisor status alone does not identify the mark.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "pending"
         },
         "OBS-18": {
-          "state": "not_fixed",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Reproduced on installed Developer Observability 0.1.22 with fresh snapshot a86575c1: agent-plugins brief ordered stale(4), stale(3), recovered(3), active(2), active(2) - stale rows still rank above active ones. No ranking change in this head.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "fixed",
+          "started_at": "2026-11-08T13:36:19Z",
+          "updated_at": "2026-11-08T13:36:19Z",
+          "evidence": "Fresh installed MCP snapshot 7a1b844af324 returned seven active failures before stale and recovered rows; source mixed-status regression passed.",
+          "finished_at": "2026-11-08T13:37:35Z"
         },
         "OBS-19": {
-          "state": "not_fixed",
-          "started_at": "2026-11-08T07:55:56Z",
-          "updated_at": "2026-11-08T07:55:56Z",
-          "evidence": "Reproduced on 0.1.22: active CI finding col-ce2697be4e869067 still returns observed=unknown, suggested_investigation=unknown, first_error_line=unknown, owner_revision/locator=unknown, diagnostics_available=false.",
-          "finished_at": "2026-11-08T07:56:09Z"
+          "state": "fixed",
+          "started_at": "2026-11-08T13:37:35Z",
+          "updated_at": "2026-11-08T13:37:35Z",
+          "evidence": "Installed collector and MCP processed controlled failing CI log, named the test, explained the missing output and directed check-log inspection without returning the fixture secret. Original CI finding returned the same explicit gap in fresh snapshot 7a1b844af324.",
+          "finished_at": "2026-11-08T13:38:05Z"
         }
       }
     },
@@ -6194,8 +6275,8 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-08T13:35:26+00:00"
+      "stage": null,
+      "updated_at": "2026-11-08T13:38:34+00:00"
     }
   },
   "findings": [
@@ -8046,10 +8127,10 @@
       "id": "OBS-18",
       "title": "Diagnosis ranks a stale failure above active failures",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "The installed Developer Observability 0.1.19 project diagnosis returned a stale failure as its top failure while the same response contained active failures.",
       "recommendation": "Make current actionability explicit when ranking diagnosis leads; retain historical findings without presenting stale rows as the default top failure over active rows.",
-      "verification": "Agent reproduced through the installed MCP after a fresh collector run; the ordering was observed in a single snapshot. No fix has been tested.",
+      "verification": "Source regression and installed 0.1.23 fresh MCP diagnosis confirmed active failures precede stale and recovered findings.",
       "details": {
         "Agent reproduced": "Snapshot ef342c89: the first failure was stale (last seen 2026-11-01); an active CI failure appeared below it. The generated snapshot was 2026-11-07 19:24 UTC.",
         "Source hypothesis": "The brief sorts by numeric score and last_seen without considering status (runtime/backend/observability_api.py, _brief_blocks).",
@@ -8064,16 +8145,20 @@
           "timestamp": "2026-11-08T13:33:38.616850+00:00",
           "reference": "plugins/developer-observability/tests"
         }
+      ],
+      "verification_refs": [
+        "plugins/developer-observability/tests/test_backend.py",
+        "Installed PR 92 head 464e497, snapshot 7a1b844af324"
       ]
     },
     {
       "id": "OBS-19",
       "title": "An active CI finding lacks diagnostic evidence and a next action",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "Expanding an active repeated CI test failure returned unknown for the observed cause, error line, owner location and suggested investigation.",
       "recommendation": "Trace why this producer did not retain useful bounded failure evidence, then expose an evidence-backed next investigation or an explicit missing-evidence action; do not invent a root cause.",
-      "verification": "Agent reproduced the missing fields through the installed 0.1.19 MCP in a fresh snapshot. The CI failure itself was not reproduced or independently diagnosed.",
+      "verification": "Controlled failure fixture passed through installed collector and MCP; original historical CI finding also reports its missing output and next action in the fresh installed snapshot.",
       "details": {
         "Agent reproduced": "Snapshot ef342c89, issue col-184407bb4e930e3f, returned unknown for observed, first error line, owner locator and suggested investigation.",
         "Telemetry lead": "The finding describes repeated failures in the Comet Control lease-driver test. This is a historical CI lead, not proof of a current test failure or its cause.",
@@ -8088,6 +8173,11 @@
           "timestamp": "2026-11-08T13:33:38.616850+00:00",
           "reference": "plugins/developer-observability/tests"
         }
+      ],
+      "verification_refs": [
+        "plugins/developer-observability/tests/test_collector.py",
+        "Installed PR 92 head 464e497, snapshot 7a1b844af324",
+        "Controlled installed MCP fixture 2026-11-08"
       ]
     }
   ]
