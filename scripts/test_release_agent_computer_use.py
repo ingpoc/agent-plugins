@@ -96,6 +96,11 @@ class VoiceProofTests(unittest.TestCase):
         rows = self.rows();rows[1]['ok'] = False
         self.assertIsNone(release.voice_events(rows))
 
+    def test_current_session_phase_completion_is_accepted(self):
+        rows = self.rows()
+        rows[2]['kind'] = 'session_phase'
+        self.assertEqual(release.voice_events(rows), 'session')
+
     def test_error_or_disconnect_invalidates_completion(self):
         for kind in ('realtime_error','ws_closed','tool_error','reconnecting'):
             self.assertIsNone(release.voice_events(self.rows()+[dict(session_id='session',kind=kind)]))

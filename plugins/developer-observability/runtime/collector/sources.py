@@ -95,7 +95,9 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
            task_outcome=None, task_check_id=None, task_evidence_class=None, task_tools=None,
            call_ref=None, response_ref=None, run_ref=None, error_details=None, ledger_result_detail=None,
            outcome=None, ledger_detail_truncated=None, input_availability=None, input_device=None,
-           input_rate=None, input_recovery=None, input_selection=None, mirror_ref=None):
+           input_rate=None, input_recovery=None, input_selection=None, mirror_ref=None, build=None,
+           ledger_rule=None, ledger_selected_count=None, ledger_selected_id=None, ledger_supersedes=None,
+           ledger_decision_id=None, ledger_revision=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -118,7 +120,10 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
             'error_details': error_details, 'ledger_result_detail': ledger_result_detail, 'outcome': outcome,
             'ledger_detail_truncated': ledger_detail_truncated, 'input_availability': input_availability,
             'input_device': input_device, 'input_rate': input_rate, 'input_recovery': input_recovery,
-            'input_selection': input_selection, 'mirror_ref': mirror_ref}
+            'input_selection': input_selection, 'mirror_ref': mirror_ref, 'build': build,
+            'ledger_rule': ledger_rule, 'ledger_selected_count': ledger_selected_count,
+            'ledger_selected_id': ledger_selected_id, 'ledger_supersedes': ledger_supersedes,
+            'ledger_decision_id': ledger_decision_id, 'ledger_revision': ledger_revision}
 
 
 def _normalize(value):
@@ -326,6 +331,15 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         def opaque_id(key):
             value = obj.get(key)
             return hashlib.sha256(value.encode()).hexdigest()[:24] if isinstance(value, str) and 0 < len(value) <= 128 else None
+        # Installed build identity recorded on the row by the producer (OBS-06); version-only rows
+        # keep it unknown rather than guessing from the session.
+        build = obj.get('build')
+        build = build[:40] if isinstance(build, str) and re.fullmatch(r'[A-Za-z0-9_.+\-]{1,40}', build) else None
+        ledger_rule = obj.get('ledger_rule')
+        ledger_rule = ledger_rule[:64] if isinstance(ledger_rule, str) and re.fullmatch(r'[a-z0-9_]{1,64}', ledger_rule) else None
+        selected_count = obj.get('ledger_selected_count')
+        selected_count = selected_count if type(selected_count) is int and 0 <= selected_count <= 3 else None
+        supersedes = obj.get('supersedes') if isinstance(obj.get('supersedes'), str) else None
         yield _event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
                      duration_ms=duration, metric=metric, message=message, where=ref(path, number), session=current,
                      condition=condition, mirror=mirror, test=test, version=version, turn=turn,
@@ -344,7 +358,12 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      input_recovery=obj.get('input_recovery') if obj.get('input_recovery') in ('recovered','not_observed','unknown') else None,
                      input_selection=obj.get('input_selection') if obj.get('input_selection') == 'system_default_snapshot' else None,
                      call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=opaque_id('run_id'),
-                     mirror_ref=opaque_id('mirror_id'),
+                     mirror_ref=opaque_id('mirror_id'), build=build,
+                     ledger_rule=ledger_rule, ledger_selected_count=selected_count,
+                     ledger_selected_id=opaque_id('ledger_selected_id'), ledger_supersedes=opaque_id('supersedes')
+                     if 'supersedes' in obj else opaque_id('ledger_supersedes'),
+                     ledger_decision_id=opaque_id('decision_id'),
+                     ledger_revision=obj.get('revision') if type(obj.get('revision')) is int and 0 <= obj['revision'] <= 100000 else None,
                      outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown'))
 
 

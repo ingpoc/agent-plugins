@@ -40,8 +40,9 @@ TURN_SLOW_MS = 10_000
 TURN_TOP_N = 3
 TURN_METRICS = ('speech_to_playback_ms', 'turn_ms')
 SESSION_STAGES = frozenset({'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready',
-                            'stack_begin', 'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'cua_act', 'cua_state',
-                            'voice_latency', 'usage', 'island_layout'})
+                            'stack_begin', 'response_done', 'ledger_task', 'task_outcome', 'comet_begin', 'comet_act',
+                            'comet_end', 'cua_act', 'cua_state', 'voice_latency', 'usage', 'island_layout',
+                            'ledger_select', 'ledger_save_receipt', 'ledger_supersede'})
 LAYOUT_TOLERANCE_PT = 2
 
 
@@ -221,6 +222,9 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
             after = by_version.get(latest, 0)
             finding['before_after'] = {'version': latest, 'before': count - after, 'after': after}
     finding.update(extra or {})
+    if events[0]['kind'] == 'check_test' and not message:
+        finding['what_happened'] = 'A CI test process failed; its failure output was not retained.'
+        finding['fix'] = 'Inspect the CI check log for the failed test process named in the evidence.'
     return finding
 
 
@@ -583,7 +587,13 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                      'error_details': event.get('error_details'), 'run_ref': event.get('run_ref'),
                      'call_ref': event.get('call_ref'), 'response_ref': event.get('response_ref'),
                      'mirror_ref': event.get('mirror_ref'), 'source': event.get('source'), 'source_ref': event.get('ref'),
-                     'event_kind': event.get('kind')}
+                     'event_kind': event.get('kind'), 'build': event.get('build'),
+                     'ledger_rule': event.get('ledger_rule'),
+                     'ledger_selected_count': event.get('ledger_selected_count'),
+                     'ledger_selected_id': event.get('ledger_selected_id'),
+                     'ledger_supersedes': event.get('ledger_supersedes'),
+                     'ledger_decision_id': event.get('ledger_decision_id'),
+                     'ledger_revision': event.get('ledger_revision')}
                     for event, stage in rows]
         # Collapse only records that explicitly carry the same producer-issued identity.
         grouped = {}

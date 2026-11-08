@@ -135,6 +135,47 @@ class RotationTests(unittest.TestCase):
         nums = [int(p.removeprefix("phase=step")) for p in phases]
         self.assertEqual(nums, list(range(nums[0], 300)), "contiguous: nothing landed in a rotated copy after rotation")
 
+    def test_stream_wrapper_reopens_after_another_writer_rotates(self):
+        """0.2.121 (OBS-17): a descriptor left on the renamed copy must not swallow later rows."""
+        live = self.dir / "voice.log"
+        live.write_text("", encoding="utf-8")
+        stream = open(live, "a", encoding="utf-8")
+        self.addCleanup(stream.close)
+        wrapped = log_rotation.RotatingStdStreams(live, stream, limit=1 << 20)
+        wrapped.write("before\n")
+        rotated = log_rotation.rotated_path(live, 1, gz=False)
+        os.replace(live, rotated)          # another writer (Swift / second Python process) rotated it
+        live.write_text("", encoding="utf-8")
+        wrapped.write("after\n")
+        self.assertEqual([line.split(" ", 1)[1] for line in live.read_text(encoding="utf-8").splitlines()],
+                         ["after"], "new rows land in the live file")
+        self.assertEqual([line.split(" ", 1)[1] for line in rotated.read_text(encoding="utf-8").splitlines()],
+                         ["before"], "the rotated copy keeps only what was written before the rename")
+
+    def test_inherited_stdout_reopens_after_external_rotation(self):
+        """0.2.121 (OBS-17): the same check for the real fd 1/2 a CUAService child inherits."""
+        live = self.dir / "voice.log"
+        rotated = self.dir / "voice.1.log"
+        script = textwrap.dedent(f"""
+            import os, sys
+            sys.path.insert(0, {str(ROOT / "python")!r})
+            from pathlib import Path
+            from voice_cua.log_rotation import install_voice_log_rotation
+            live = Path(sys.argv[1])
+            assert install_voice_log_rotation(live, limit=1 << 20)
+            print("[startup] phase=before status=ok")
+            sys.stdout.flush()
+            os.replace(live, live.with_name("voice.1.log"))
+            live.write_text("")
+            print("[startup] phase=after status=ok")
+            sys.stdout.flush()
+        """)
+        with open(live, "w") as out:
+            subprocess.run([sys.executable, "-c", script, str(live)], stdout=out, stderr=out, check=True, timeout=60)
+        self.assertIn("phase=after", live.read_text(encoding="utf-8"))
+        self.assertIn("phase=before", rotated.read_text(encoding="utf-8"))
+        self.assertNotIn("phase=after", rotated.read_text(encoding="utf-8"), "no row lands in the renamed copy")
+
     def test_voice_log_timestamps_each_complete_line_with_offset(self):
         stream = io.StringIO()
         wrapped = log_rotation.RotatingStdStreams(self.dir / "voice.log", stream)

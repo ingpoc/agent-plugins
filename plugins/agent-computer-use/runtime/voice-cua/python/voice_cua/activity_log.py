@@ -33,6 +33,20 @@ _LEDGER_DETAIL_KEYS = frozenset({
 })
 _TASK_OUTCOME_TOOLS = frozenset({"cua_act", "comet_act", "system_volume"})
 _process_session_id = uuid.uuid4().hex[:8]  # fallback when startup_trace never ran
+_build_label: str | None = None
+
+
+def build_label() -> str:
+    """One identity per process: the installed version plus the signed app's package digest (OBS-06)."""
+    global _build_label
+    if _build_label is None:
+        try:
+            from voice_cua import build_label as installed_build
+
+            _build_label = installed_build()
+        except Exception:  # noqa: BLE001 — telemetry must never break a tool call
+            _build_label = ""
+    return _build_label or "unknown"
 
 
 def log_path() -> Path:
@@ -59,7 +73,8 @@ def _append_row(entry: dict[str, Any]) -> None:
 
 def log_event(kind: str, **fields: Any) -> None:
     """Append one JSON line. Safe fields only — never log secret values."""
-    entry: dict[str, Any] = {"ts": time.time(), "kind": kind, "session_id": current_session_id()}
+    entry: dict[str, Any] = {"ts": time.time(), "kind": kind, "session_id": current_session_id(),
+                             "build": build_label()}
     for key, value in fields.items():
         if value is None:
             continue
@@ -108,7 +123,7 @@ def _call_ids(response: dict[str, Any]) -> list[str]:
     return out
 
 
-_LABEL_KEYS = ("provider", "model", "live_model", "tier", "delegation_id")
+_LABEL_KEYS = ("provider", "model", "live_model", "tier", "delegation_id", "run_id")
 
 
 def usage_row(
@@ -132,6 +147,7 @@ def usage_row(
         "ts": now,
         "ts_iso": datetime.fromtimestamp(now).astimezone().isoformat(timespec="milliseconds"),
         "session_id": current_session_id(),
+        "build": build_label(),
     }
     for key in _LABEL_KEYS:
         value = (labels or {}).get(key)
@@ -184,7 +200,8 @@ def log_usage_final(*, reason: str = "session_close", **extra: Any) -> None:
     now = time.time()
     row: dict[str, Any] = {"kind": "usage", "ts": now,
                            "ts_iso": datetime.fromtimestamp(now).astimezone().isoformat(timespec="milliseconds"),
-                           "session_id": session, "final": True, "reason": reason[:40], **totals}
+                           "session_id": session, "build": build_label(), "final": True,
+                           "reason": reason[:40], **totals}
     for key, value in extra.items():
         if value is not None and key not in _SECRET_KEYS:
             row[key] = value
@@ -373,9 +390,12 @@ def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
     )
 
 
-def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operation: Any = None) -> None:
+def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operation: Any = None,
+                    duration_ms: int | None = None) -> None:
+    """One row per finished tool call; ``duration_ms`` is the wall time the model waited (OBS-03/OBS-14)."""
     if result.get("cancelled") is True and result.get("error_type") == "user_cancelled":
-        log_event("tool_cancelled", **_current_tool_ids(), tool=name, classification="user_cancelled")
+        log_event("tool_cancelled", **_current_tool_ids(), tool=name, classification="user_cancelled",
+                  duration_ms=duration_ms)
         return
     ok = bool(result.get("ok"))
     err = str(result.get("error") or "")
@@ -426,11 +446,46 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
         ledger_decision_count=decision_count if ledger else None,
         ledger_result_detail=ledger_detail,
         ledger_detail_truncated=ledger_truncated,
+        duration_ms=duration_ms,
         **result_size(result),
     )
+    if ledger and ok:
+        _log_ledger_trail(result, operation=operation, status=ledger_status, decisions=decisions)
 
 
-def log_exception(name: str, exc: BaseException, *, app: str = "") -> None:
+_LEDGER_ID = re.compile(r"[A-Za-z0-9_-]{6,64}")
+
+
+def _log_ledger_trail(result: dict[str, Any], *, operation: Any, status: str,
+                      decisions: Any) -> None:
+    """OBS-12: the decision trail — selection and save receipt, ids and rule names only.
+
+    A preference value is private owner data and is never logged; the opaque decision id and the
+    schema rule name are what an auditor needs to follow lookup → supply → save → supersede.
+    """
+    rule = result.get("rule") if isinstance(result.get("rule"), str) else None
+    rule = rule if isinstance(rule, str) and re.fullmatch(r"[a-z0-9_]{1,64}", rule) else None
+    if operation in ("lookup", "recall", "preference") and status == "found" and isinstance(decisions, list):
+        ids = [row.get("decision_id") for row in decisions if isinstance(row, dict)]
+        ids = [value for value in ids if isinstance(value, str) and _LEDGER_ID.fullmatch(value)]
+        if ids:
+            log_event("ledger_select", **_current_tool_ids(), ledger_operation=operation, ledger_rule=rule,
+                      ledger_selected_count=len(ids), ledger_selected_id=ids[0])
+    if status == "saved" and isinstance(result.get("decision_id"), str) and _LEDGER_ID.fullmatch(result["decision_id"]):
+        supersedes = result.get("supersedes")
+        log_event("ledger_save_receipt", **_current_tool_ids(),
+                  decision_id=result["decision_id"], revision=result.get("revision"),
+                  supersedes=supersedes if isinstance(supersedes, str) and _LEDGER_ID.fullmatch(supersedes) else None)
+        if isinstance(supersedes, str) and _LEDGER_ID.fullmatch(supersedes):
+            log_event("ledger_supersede", **_current_tool_ids(),
+                      decision_id=result["decision_id"], supersedes=supersedes)
+        for prior in result.get("superseded_ids", []) if isinstance(result.get("superseded_ids"), list) else []:
+            if isinstance(prior, str) and _LEDGER_ID.fullmatch(prior) and prior != supersedes:
+                log_event("ledger_supersede", **_current_tool_ids(),
+                          decision_id=result["decision_id"], supersedes=prior)
+
+
+def log_exception(name: str, exc: BaseException, *, app: str = "", duration_ms: int | None = None) -> None:
     details = _diagnostic_text(f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}")
     log_event(
         "tool_error",
@@ -441,6 +496,7 @@ def log_exception(name: str, exc: BaseException, *, app: str = "") -> None:
         error=_diagnostic_text(str(exc), limit=240) if name != "ledger_task" else None,
         error_type=type(exc).__name__,
         error_details=details,
+        duration_ms=duration_ms,
     )
 
 

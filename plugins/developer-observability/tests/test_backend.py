@@ -45,6 +45,7 @@ class APITests(unittest.TestCase):
             self.api.diagnose('a', ['id0'], 'old-snapshot')
         with self.assertRaisesRegex(ValueError, 'invalid_diagnosis'):
             self.api.diagnose('a', ['id0'])
+
         original = self.api.inspect
         def changing(*args, **kwargs):
             result = original(*args, **kwargs)
@@ -54,6 +55,14 @@ class APITests(unittest.TestCase):
         with patch.object(self.api, 'inspect', side_effect=changing):
             with self.assertRaisesRegex(ValueError, 'snapshot_changed'):
                 self.api.diagnose('a', ['id0', 'id1'], brief['snapshot_id'])
+
+    def test_brief_prioritizes_active_failure_over_stale_high_count(self):
+        findings = [
+            {'finding_key': 'stale', 'status': 'stale', 'kind': 'failure', 'failed_attempt_count': 100},
+            {'finding_key': 'active', 'status': 'active', 'kind': 'failure', 'failed_attempt_count': 1},
+        ]
+        rows = self.api._brief_blocks(findings, 1)['top_failures']
+        self.assertEqual(rows[0]['issue_id'], 'active')
 
     def test_scoped_listing_pagination_and_cross_project_rejection(self):
         result = self.api.issues('a', limit=1)

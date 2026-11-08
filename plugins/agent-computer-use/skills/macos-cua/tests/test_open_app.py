@@ -100,21 +100,13 @@ class NewDocumentSplitTests(unittest.TestCase):
 
     def test_type_after_cmd_n_runs_as_a_second_plan_with_the_new_document_guard(self):
         backend = FakeBackend([(WINDOW, 2)])
-        seen = []
-        real_native = compact_backend.CUABackend._native_step
-
-        def spy(self, step, *, after_new_document=False, elements_state=None):
-            seen.append((step.get("op"), after_new_document))
-            return real_native(self, step, after_new_document=after_new_document, elements_state=elements_state)
-
-        with patch.object(compact_backend, "NEW_DOCUMENT_SETTLE_S", 0), \
-                patch.object(compact_backend.CUABackend, "_native_step", spy):
+        with patch.object(compact_backend, "NEW_DOCUMENT_SETTLE_S", 0):
             out = backend.act("TextEdit", {
                 "steps": [{"op": "key", "key": "cmd+n"}, {"op": "type_text", "text": "Samantha test"}],
                 "expect": "done",
             })
         self.assertEqual(len(backend.plans), 2, out)  # cmd+n plan, then the typing plan
-        self.assertEqual(seen, [("key", False), ("type_text", True)])
+        self.assertTrue(backend.plans[1][0]["params"]["after_new_document"])
 
 
 if __name__ == "__main__":

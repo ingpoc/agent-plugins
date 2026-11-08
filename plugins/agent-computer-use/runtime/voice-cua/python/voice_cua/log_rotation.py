@@ -161,9 +161,11 @@ def append(path: Path, data: bytes, limit: int | None = None) -> None:
 class RotatingStdStreams:
     """Keeps this process's stdout/stderr (``voice.log``, inherited from CUAService) rotating.
 
-    Python-level writes go through this wrapper. Once the file is full it rotates under the exclusive lock
-    and ``dup2``s a fresh ``O_APPEND`` descriptor onto fd 1 and 2 BEFORE the lock is released, so nothing
-    else is written into the rotated copy.
+    Python-level writes go through this wrapper. Before every line the wrapper re-checks that its
+    descriptor still is the live file at ``path`` and reopens when another writer rotated it, so a row can
+    never land in a renamed (or already deleted) copy. Once the file is full it rotates under the exclusive
+    lock and ``dup2``s a fresh ``O_APPEND`` descriptor BEFORE the lock is released, so nothing else writes
+    into the rotated copy.
     """
 
     def __init__(self, path: Path, stream, limit: int | None = None) -> None:
@@ -189,35 +191,65 @@ class RotatingStdStreams:
                 self._pending = ""
             self._stream.flush()
 
+    def _stream_fd(self) -> int | None:
+        try:
+            return self._stream.fileno()
+        except (AttributeError, OSError, ValueError):
+            return None   # in-memory stream (tests): no descriptor to revalidate
+
+    def _reopen_locked(self, fd: int) -> None:
+        """Point ``fd`` (and stderr when it mirrors stdout) at the current live file."""
+        fresh = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+        try:
+            targets = (1, 2) if fd == 1 else (fd,)
+            for target in targets:
+                os.dup2(fresh, target)
+        finally:
+            os.close(fresh)
+
     def _write_line(self, line: str) -> None:
         stamp = datetime.now().astimezone().isoformat(timespec="milliseconds")
-        self._stream.write(f"{stamp} {line}")
-        self._stream.flush()
-        try:
-            full = os.fstat(self._stream.fileno()).st_size >= (self._limit or max_bytes())
-        except (OSError, ValueError):
-            full = False
-        if full:
+        payload = f"{stamp} {line}"
+        fd = self._stream_fd()
+        if fd is None:
+            self._stream.write(payload)
+            self._stream.flush()
+            return
+        with _thread_lock:
+            for _ in range(50):
+                if not _same_file(fd, self.path):
+                    self.path.parent.mkdir(parents=True, exist_ok=True)
+                    self._reopen_locked(fd)
+                fcntl.flock(fd, fcntl.LOCK_SH)
+                if _same_file(fd, self.path):
+                    try:
+                        self._stream.write(payload)
+                        self._stream.flush()
+                        size = os.fstat(fd).st_size
+                    finally:
+                        fcntl.flock(fd, fcntl.LOCK_UN)
+                    break
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            else:
+                raise OSError(errno.EAGAIN, f"{self.path.name} kept moving during rotation")
+        if size >= (self._limit or max_bytes()):
             self._rotate()
 
     def _rotate(self) -> None:
-        with _rotation_lock(self.path):
+        with _thread_lock, _rotation_lock(self.path):
             self._rotate_locked()
 
     def _rotate_locked(self) -> None:
         limit = self._limit or max_bytes()
         fd = _open_live(self.path, fcntl.LOCK_EX)
         try:
-            if not _same_file(self._stream.fileno(), self.path) or os.fstat(fd).st_size < limit:
+            if os.fstat(fd).st_size < limit:
                 return
             _shift(self.path)
             os.replace(self.path, rotated_path(self.path, 1, gz=False))
-            fresh = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-            try:
-                for target in (1, 2):
-                    os.dup2(fresh, target)
-            finally:
-                os.close(fresh)
+            stream_fd = self._stream_fd()
+            if stream_fd is not None:
+                self._reopen_locked(stream_fd)
         finally:
             fcntl.flock(fd, fcntl.LOCK_UN)
             os.close(fd)

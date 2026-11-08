@@ -79,6 +79,42 @@ class LedgerObservabilityTests(unittest.TestCase):
         for argument in ('PRIVATE_VALUE', 'PRIVATE_LABEL', 'PRIVATE_APP', 'PRIVATE_HINT'):
             self.assertNotIn(argument, json.dumps(rows))
 
+    def test_selection_save_and_supersede_are_trailed_without_private_values(self):
+        rows = []
+        select = {'ok': True, 'status': 'found', 'rule': 'browser_preference',
+                  'decisions': [{'decision_id': 'dec_123456', 'summary': 'PRIVATE_VALUE'}],
+                  'data': {'matches': [{'decision_id': 'dec_123456', 'summary': 'PRIVATE_VALUE'}]}}
+        save = {'ok': True, 'status': 'saved', 'decision_id': 'dec_654321', 'revision': 3,
+                'supersedes': 'dec_123456', 'value': 'PRIVATE_VALUE'}
+        with patch.object(activity_log, '_append_row', side_effect=rows.append):
+            activity_log.log_tool_result('ledger_task', select, operation='lookup', duration_ms=123)
+            activity_log.log_tool_result('ledger_task', save, operation='capture', duration_ms=45)
+        self.assertEqual([row['kind'] for row in rows],
+                         ['tool_result', 'ledger_select', 'tool_result', 'ledger_save_receipt', 'ledger_supersede'])
+        self.assertEqual((rows[0]['duration_ms'], rows[2]['duration_ms']), (123, 45))
+        self.assertEqual(rows[1]['ledger_rule'], 'browser_preference')
+        self.assertEqual((rows[1]['ledger_selected_count'], rows[1]['ledger_selected_id']), (1, 'dec_123456'))
+        self.assertEqual((rows[3]['decision_id'], rows[3]['revision']), ('dec_654321', 3))
+        self.assertEqual(rows[4]['supersedes'], 'dec_123456')
+
+    def test_save_receipt_reports_each_committed_supersession(self):
+        rows = []
+        result = {'ok': True, 'status': 'saved', 'decision_id': 'dec_654321', 'revision': 1,
+                  'superseded_ids': ['dec_123456', 'dec_abcdef'], 'value': 'PRIVATE_VALUE'}
+        with patch.object(activity_log, '_append_row', side_effect=rows.append):
+            activity_log.log_tool_result('ledger_task', result, operation='preference', duration_ms=1)
+        self.assertEqual([row['supersedes'] for row in rows if row['kind'] == 'ledger_supersede'],
+                         ['dec_123456', 'dec_abcdef'])
+        self.assertNotIn('PRIVATE_VALUE', json.dumps(rows))
+        self.assertTrue(all(row['build'] for row in rows))
+        self.assertNotIn('PRIVATE_VALUE', json.dumps(rows[1::2]))
+
+    def test_build_label_is_version_plus_package_digest_when_installed(self):
+        import re
+        from voice_cua import __version__, build_info, build_label
+        self.assertEqual(build_info()['version'], __version__)
+        self.assertRegex(build_label(), r'^' + re.escape(__version__) + r'(?:\+[0-9a-f]{12})?$')
+
     def test_unexpected_operation_is_suppressed_but_error_context_is_recorded(self):
         rows = []
         with patch.object(activity_log, '_append_row', side_effect=rows.append):

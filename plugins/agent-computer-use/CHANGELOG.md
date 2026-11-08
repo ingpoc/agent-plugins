@@ -1,5 +1,22 @@
 # Changelog: agent-computer-use
 
+## 0.2.122
+
+- Clarify when to close a Comet task window and avoid retrying dispatch-only native actions blindly.
+- Record preference replacements returned by Context Ledger save receipts.
+
+## 0.2.121
+
+- Stamp every activity row with the installed build identity, including the app package digest.
+- Record tool durations and a bounded Ledger decision trail; run ids join voice latency and usage to a task.
+- Reopen rotated activity logs even when another writer rotated them first.
+- Keep the island at its content width while a card closes into controlled voice.
+- Apply a stop snapshot that only changes the Samantha mark.
+
+## 0.2.120
+
+- Search the same site or app scope for saved decisions when a rule-specific lookup returns no matches.
+
 ## 0.2.119
 
 - Preserve action dispatch and observed app exit when screenshot capture races with the app closing.

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.40
+
+- Include committed preference replacements in save receipts.
+
 ## 0.1.39
 
 - Report an authorization failure when an HTTP error response resets during body reading.
