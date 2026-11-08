@@ -318,6 +318,9 @@ struct IslandSnapshot: Codable, Equatable {
             && agents == other.agents && agent_approval == other.agent_approval
             && pending_count == other.pending_count && expired == other.expired
             && plugins == other.plugins
+            // Samantha's own circle joins the left side; a stop that leaves the same row otherwise
+            // still changes the picture (USER-06: the circle stayed after Stop).
+            && samantha_on == other.samantha_on
     }
 }
 
@@ -1841,8 +1844,24 @@ final class IslandModel: ObservableObject {
     private var controlledAtLastWidth = false
     private var voiceAtLastWidth: IslandVoiceSlotContent?
 
+    /// The compact pill is never drawn narrower than the content its overlays already lay out — the ring,
+    /// app icons and voice slot are positioned from the shape, so a narrower pill would push them past its
+    /// edge (OBS-04: a 74 pt pill with the voice slot's controlled 57 pt offset, 6 pt outside).
+    private var contentMinimumWidth: CGFloat {
+        guard permissionWarning == nil else { return 0 }
+        if pluginTarget != nil, Self.operatedAppStates.contains(presentation) {
+            return IslandBarLayout.controlledPillWidth(
+                apps: operatedApps.count,
+                voice: Self.voiceSlotContent(for: presentation, controlled: true, voiceTurnActive: voiceTurnActive))
+        }
+        if let voice = Self.voiceSlotContent(for: presentation, controlled: false, voiceTurnActive: voiceTurnActive) {
+            return IslandBarLayout.voicePillWidth(voice)
+        }
+        return 0
+    }
+
     private func setDrawnWidth(_ width: CGFloat) {
-        let width = IslandBarLayout.snappedCompactWidth(width)
+        let width = IslandBarLayout.snappedCompactWidth(max(width, contentMinimumWidth))
         let slots = showsOperatedApps ? operatedApps.count : 0
         let voice = voiceSlotContent
         let changed = width != drawnWidth
@@ -1954,7 +1973,6 @@ final class IslandModel: ObservableObject {
             schedulers[a.id] = sch
         }
         let choicePeek = agentApproval?.isChoice == true && (choicePeekUntil.map { now < $0 } ?? false)
-        let wasOpen = cardOpen
         let modeBefore = cardMode
         let idleSamantha = (next == .idle || next == .doneSettled) && cardMode == .samantha
         let open = next != .hud && next != .peek && !forceCompact && !(idleSamantha && !isSticky)
@@ -1965,6 +1983,11 @@ final class IslandModel: ObservableObject {
         let presentationChanged = next != presentation
         let familyChanged = next.motionFamily != presentation.motionFamily
         if presentationChanged { presentation = next }
+        // Card state must land BEFORE the width rules: they are all gated on `!cardOpen`, so a
+        // card close that reveals a ring / apps / voice slot used to pinch to 74 pt around content
+        // that needs 102 pt (OBS-04). Width and the overlays now read one card state.
+        let cardWasOpen = cardOpen
+        if cardOpen != open { cardOpen = open }
         // Never keep the idle pinch width after operated content appears mid-transition.
         let operatedInvolved = showsOperatedApps || operatedSlotsAtLastWidth > 0 || showsTargetMark || controlledAtLastWidth
             || voiceSlotContent != nil || voiceAtLastWidth != nil
@@ -1994,8 +2017,7 @@ final class IslandModel: ObservableObject {
         } else if !pinching {
             setDrawnWidth(compactWidth(for: next, now: now))
         }
-        if open != wasOpen {
-            cardOpen = open
+        if open != cardWasOpen {
             if open, userOpened { markFailuresSeen() }
             if open, let a = agentApproval, cardMode == .samantha {
                 IslandEventLog.log("opened", id: a.id, source: a.agent, kind: a.kind,

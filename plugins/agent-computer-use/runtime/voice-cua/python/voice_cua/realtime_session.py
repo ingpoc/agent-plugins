@@ -922,12 +922,14 @@ class RealtimeSession:
         elif et in {"response.done", "response.output_audio.done"}:
             if et == "response.done":
                 response = event.get("response") or {}
+                response_id = str(response.get("id") or "")
                 with self._response_condition:
-                    started = self._response_started.pop(str(response.get("id") or ""), None)
+                    started = self._response_started.pop(response_id, None)
                 latency_ms = int((time.monotonic() - started) * 1000) if started else None
+                labels = dict(self.provider.usage_labels(response))
+                labels.setdefault("run_id", self._response_task_run_ids.get(response_id, ""))
                 try:
-                    log_usage(response, latency_ms=latency_ms,
-                              labels=self.provider.usage_labels(response))  # counts + ids only
+                    log_usage(response, latency_ms=latency_ms, labels=labels)  # counts + ids only
                 except Exception:  # noqa: BLE001 — logging must never break a turn
                     pass
                 self._note_response_done(response)
@@ -1470,7 +1472,7 @@ class RealtimeSession:
         """Close a GPT-Live session after LIVE_IDLE_CLOSE_SECONDS without speech or work."""
         while not self._stop.wait(timeout=5.0):
             if self._audio:
-                self._audio.flush_timings()
+                self._audio.flush_timings(run_id=self._current_run_id())
             if not getattr(self.provider, "manages_barge_in", False) or self.LIVE_IDLE_CLOSE_SECONDS <= 0:
                 continue
             if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
@@ -1603,6 +1605,14 @@ class RealtimeSession:
     def _request_id(response: dict[str, Any]) -> str:
         metadata = response.get("metadata") or {}
         return str(metadata.get("voice_cua_request_id") or "") if isinstance(metadata, dict) else ""
+
+    def _current_run_id(self) -> str:
+        """Task run of the response whose playback we are timing (empty when unknown)."""
+        response_id = self._current_response_id
+        if not response_id:
+            return ""
+        with self._response_lock:
+            return self._response_task_run_ids.get(response_id, "")
 
     def _request_for_response(self, response_id: str) -> str:
         with self._response_lock:

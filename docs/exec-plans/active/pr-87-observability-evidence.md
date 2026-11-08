@@ -2,7 +2,7 @@
 
 ## Purpose and acceptance
 
-An agent investigating an installed Samantha test can identify the task, installed build, actions, Ledger decisions, timing, and independently observed result. It can tell a failure from missing evidence without inferring completion from a successful tool call. The canonical issue list is `docs/triage/pr-87-findings.json`; the rendered page is `docs/triage/pr-87.html`. Keep all existing fixed statuses until a new failure is reported or reproduced.
+An agent investigating an installed Samantha test can identify the task, installed build, actions, Ledger decisions, timing, and independently observed result. It can tell a failure from missing evidence without inferring completion from a successful tool call. The canonical issue list is `docs/triage/pr-87-findings.json`; the current PR #88 report is `docs/triage/pr-88.html`. Keep all existing fixed statuses until a new failure is reported or reproduced.
 
 ## Current state and ownership
 

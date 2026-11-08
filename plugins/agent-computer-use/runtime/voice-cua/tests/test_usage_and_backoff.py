@@ -84,7 +84,7 @@ class UsageRowTests(_LogCase):
         row = json.loads(raw)
         self.assertEqual(
             list(row),
-            ["kind", "ts", "ts_iso", "session_id", "response_id", "call_id", "latency_ms", *USAGE_FIELDS],
+            ["kind", "ts", "ts_iso", "session_id", "build", "response_id", "call_id", "latency_ms", *USAGE_FIELDS],
         )
         self.assertEqual(row["kind"], "usage")
         self.assertEqual(row["session_id"], "abcd1234")
@@ -117,13 +117,13 @@ class UsageRowTests(_LogCase):
         })
         self.assertEqual(
             set(row) - {"ts", "ts_iso"},
-            {"kind", "session_id", "response_id", "input_tokens", "input_text_tokens"},
+            {"kind", "session_id", "build", "response_id", "input_tokens", "input_text_tokens"},
         )
 
     def test_no_usage_still_logs_ids_only(self) -> None:
         row = usage_row({"id": "resp_3"})
-        self.assertEqual(set(row), {"kind", "ts", "ts_iso", "session_id", "response_id"})
-        self.assertEqual(set(usage_row(None)), {"kind", "ts", "ts_iso", "session_id"})
+        self.assertEqual(set(row), {"kind", "ts", "ts_iso", "session_id", "build", "response_id"})
+        self.assertEqual(set(usage_row(None)), {"kind", "ts", "ts_iso", "session_id", "build"})
 
     def test_response_done_appends_one_usage_row(self) -> None:
         session = make_session()
@@ -177,7 +177,7 @@ class UsageRowTests(_LogCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["bytes"], len(json.dumps(event).encode()))
         self.assertEqual(rows[0]["session_id"], "abcd1234")
-        self.assertEqual(set(rows[0]), {"ts", "kind", "session_id", "bytes", "provider"})
+        self.assertEqual(set(rows[0]), {"ts", "kind", "session_id", "build", "bytes", "provider"})
         self.assertEqual(rows[0]["provider"], "test-loop")
 
     def test_every_row_carries_session_id(self) -> None:
