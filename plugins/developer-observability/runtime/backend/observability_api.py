@@ -654,7 +654,9 @@ class ObservabilityAPI:
         if row is None:
             raise ValueError('session_not_in_project: select a reference returned by observability_sessions')
         stages = {'mic_preflight', 'audio_ready', 'realtime_ws_open', 'realtime_ready', 'stack_begin',
-                  'response_done', 'ledger_task', 'task_outcome', 'comet_act', 'cua_act', 'cua_state', 'voice_latency', 'usage', 'island_layout'}
+                  'response_done', 'ledger_task', 'task_outcome', 'comet_begin', 'comet_act', 'comet_end',
+                  'cua_act', 'cua_state', 'voice_latency', 'usage', 'island_layout',
+                  'ledger_select', 'ledger_save_receipt', 'ledger_supersede'}
         metrics = {'speech_to_playback_ms', 'latency_ms', 'duration_ms', 'took_ms', 'backend_ms', 'duration_s', 'step_ms'}
         timeline = []
         for event in row.get('events', []) if isinstance(row.get('events'), list) else []:
@@ -665,8 +667,20 @@ class ObservabilityAPI:
                              'stage': event['stage'], 'duration_ms': duration if type(duration) in (int, float) and 0 <= duration <= 86400000 else None,
                              'metric': event.get('metric') if event.get('metric') in metrics else None,
                              'outcome': event.get('outcome') if event.get('outcome') in ('success', 'failure', 'unknown') else 'unknown',
+                             'build': (event['build'][:40] if isinstance(event.get('build'), str)
+                                       and re.fullmatch(r'[A-Za-z0-9_.+\-]{1,40}', event['build']) else 'unknown'),
                              'version': redact(str(event['version']), 40) if event.get('version') else 'unknown',
                              'version_attribution': event.get('version_attribution') if event.get('version_attribution') in ('event', 'session_inferred', 'unknown') else 'unknown'}
+            if event['stage'] in ('ledger_select', 'ledger_save_receipt', 'ledger_supersede'):
+                if isinstance(event.get('ledger_rule'), str):
+                    item['ledger_rule'] = event['ledger_rule'][:64]
+                if type(event.get('ledger_selected_count')) is int and 0 <= event['ledger_selected_count'] <= 3:
+                    item['ledger_selected_count'] = event['ledger_selected_count']
+                for key in ('ledger_selected_id', 'ledger_supersedes', 'ledger_decision_id'):
+                    if isinstance(event.get(key), str) and re.fullmatch(r'[0-9a-f]{24}', event[key]):
+                        item[key] = event[key]
+                if type(event.get('ledger_revision')) is int and 0 <= event['ledger_revision'] <= 100000:
+                    item['ledger_revision'] = event['ledger_revision']
             if event['stage'] == 'ledger_task':
                 if event.get('ledger_operation') in ('lookup', 'capture', 'recall', 'preference', 'unknown'):
                     item['ledger_operation'] = event['ledger_operation']
@@ -739,13 +753,36 @@ class ObservabilityAPI:
             raise ValueError('invalid_limit: use an integer 1–100')
         if summary_only:
             native = [event for event in timeline if event['stage'] == 'cua_act']
+            ledger_stages = ('ledger_select', 'ledger_save_receipt', 'ledger_supersede')
+            ledger_trail = [event for event in timeline if event['stage'] in ledger_stages]
+            builds = sorted({event['build'] for event in timeline if event.get('build') not in (None, '', 'unknown')})
             summary = {'events_by_stage': dict(Counter(event['stage'] for event in timeline)),
                        'failure_events_by_stage': dict(Counter(event['stage'] for event in timeline if event['outcome'] == 'failure')),
                        'native_event_outcomes': dict(Counter(event['outcome'] for event in native)),
                        'ledger_result_events': dict(Counter(event['ledger_result_status'] for event in timeline if 'ledger_result_status' in event)),
                        'task_outcome_events': dict(Counter(event['task_outcome'] for event in timeline if 'task_outcome' in event)),
                        'outcome_limitation': 'Recorded task outcomes, including legacy verified_success, are caller-reported and do not establish independent success.',
-                       'versions': sorted({(event['version'], event['version_attribution']) for event in timeline})}
+                       'versions': sorted({(event['version'], event['version_attribution']) for event in timeline}),
+                       'builds': builds,
+                       'build_attribution': 'event' if builds else 'unknown',
+                       'ledger_trail_counts': {stage: sum(1 for event in ledger_trail if event['stage'] == stage)
+                                               for stage in ledger_stages},
+                       'ledger_trail': [{key: value for key, value in event.items()
+                                         if key in ('stage', 'timestamp', 'ledger_rule', 'ledger_selected_count',
+                                                    'ledger_selected_id', 'ledger_decision_id', 'ledger_revision',
+                                                    'ledger_supersedes')} for event in ledger_trail[:50]],
+                       'ledger_trail_truncated': len(ledger_trail) > 50,
+                       'evidence_completeness': {
+                           'event_count': len(timeline),
+                           'events_with_duration': sum(event['duration_ms'] is not None for event in timeline),
+                           'outcomes': dict(Counter(event['outcome'] for event in timeline)),
+                           'stages_observed': sorted({event['stage'] for event in timeline}),
+                           'diagnostics_included': include_diagnostics,
+                           'timeline_truncated': row.get('truncated') is True,
+                           'source_coverage': 'collected_events_only'}}
+            failures = [event for event in timeline if event['outcome'] == 'failure']
+            summary['first_failure'] = ({'stage': failures[0]['stage'], 'timestamp': failures[0]['timestamp']}
+                                        if failures else None)
             if run_ref is not None:
                 timed = [event for event in timeline if event['duration_ms'] is not None]
                 summary['timed_stages'] = [{'stage': e['stage'], 'timestamp': e['timestamp'],
@@ -753,6 +790,22 @@ class ObservabilityAPI:
                 summary['timed_stages_truncated'] = len(timed) > 100
                 summary['independent_task_result'] = 'unknown'
                 summary['linkage'] = 'explicit_run_ref_only'
+                known = [event['timestamp'] for event in timeline
+                         if event['timestamp'] != 'unknown' and self._safe_time(event['timestamp'])]
+                span = None
+                if len(known) >= 2:
+                    try:
+                        start = datetime.fromisoformat(known[0].replace('Z', '+00:00'))
+                        end = datetime.fromisoformat(known[-1].replace('Z', '+00:00'))
+                        span = max(0, int((end - start).total_seconds() * 1000))
+                    except ValueError:
+                        span = None
+                summary['task_identity'] = {'session_ref': session_ref, 'run_ref': run_ref,
+                                            'builds': builds, 'build_attribution': 'event' if builds else 'unknown',
+                                            'started_at': known[0] if known else 'unknown',
+                                            'ended_at': known[-1] if known else 'unknown',
+                                            'duration_ms': span}
+                summary['evidence_completeness']['independent_task_result'] = 'unknown'
             envelope = self._envelope(data, revision, project_id)
             header = {key: envelope[key] for key in ('schema_version', 'project_id', 'snapshot_id', 'generated_at', 'freshness')}
             header['coverage'] = {key: value for key, value in envelope.get('coverage', {}).items()

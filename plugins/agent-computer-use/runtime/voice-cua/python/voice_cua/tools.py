@@ -467,15 +467,18 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     blocked = workflow_store.mutation_guard(name, args)
     if blocked is not None:
         return blocked
+    started = time.monotonic()
     try:
         result = fn(args)
+        elapsed_ms = int((time.monotonic() - started) * 1000)
         if not result.get("cancelled") and (name != "system_volume" or args.get("direction", "read") != "read"):
             workflow_store.note_failure(name, result if isinstance(result, dict) else {"ok": False})
         log_tool_result(name, result if isinstance(result, dict) else {"ok": False}, app=app,
-                        operation=args.get("operation") if name == "ledger_task" else None)
+                        operation=args.get("operation") if name == "ledger_task" else None,
+                        duration_ms=elapsed_ms)
         return result
     except Exception as exc:  # noqa: BLE001 — surface to model
-        log_exception(name, exc, app=app)
+        log_exception(name, exc, app=app, duration_ms=int((time.monotonic() - started) * 1000))
         island_publish("error", title="Tool error", detail=str(exc)[:120], app=app)
         return {"ok": False, "error": str(exc)}
 

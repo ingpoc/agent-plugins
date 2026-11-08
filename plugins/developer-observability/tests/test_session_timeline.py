@@ -163,6 +163,67 @@ class SessionTimelineTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 api.sessions('a', 'private-session')
 
+    def test_build_identity_and_ledger_trail_are_attributed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source = root / 'activity.jsonl'
+            label = '0.2.121+1a2b3c4d5e6f'
+            rows = [
+                {'ts': '2026-11-06T10:00:00Z', 'session_id': 's', 'kind': 'comet_begin',
+                 'run_id': 'run-abc', 'build': label, 'ok': True},
+                {'ts': '2026-11-06T10:00:00.500Z', 'session_id': 's', 'kind': 'ledger_select',
+                 'run_id': 'run-abc', 'build': label, 'ledger_rule': 'browser_preference',
+                 'ledger_selected_count': 1, 'ledger_selected_id': 'decision-private-id'},
+                {'ts': '2026-11-06T10:00:01Z', 'session_id': 's', 'kind': 'ledger_save_receipt',
+                 'run_id': 'run-abc', 'build': label, 'decision_id': 'decision-private-id2',
+                 'revision': 4, 'supersedes': 'decision-old-id'},
+                {'ts': '2026-11-06T10:00:02Z', 'session_id': 's', 'kind': 'comet_act',
+                 'run_id': 'run-abc', 'build': label, 'ok': False, 'duration_ms': 1700},
+                {'ts': '2026-11-06T10:00:03Z', 'session_id': 's', 'kind': 'comet_end',
+                 'run_id': 'run-abc', 'build': label, 'ok': True},
+                {'ts': '2026-11-06T10:00:04Z', 'session_id': 's', 'kind': 'comet_act',
+                 'run_id': 'run-other', 'ok': True},
+            ]
+            source.write_text('\n'.join(json.dumps(row) for row in rows) + '\n')
+            stats = {}
+            data = build(list(iter_jsonl(source, 'a', 'activity', stats)), stats)
+            (root / 'findings.json').write_text(json.dumps(data))
+            api = ObservabilityAPI(root, {'a': {'owners': ['owner:a']}}, None)
+            ref = api.sessions('a')['sessions'][0]['session_ref']
+            timeline = api.sessions('a', ref)['timeline']
+            self.assertEqual([event['stage'] for event in timeline],
+                             ['comet_begin', 'ledger_select', 'ledger_save_receipt', 'comet_act', 'comet_end',
+                              'comet_act'])
+            self.assertTrue(all(event['build'] == label for event in timeline[:5]))
+            self.assertEqual(timeline[1]['ledger_rule'], 'browser_preference')
+            self.assertEqual(timeline[1]['ledger_selected_count'], 1)
+            self.assertRegex(timeline[1]['ledger_selected_id'], r'^[0-9a-f]{24}$')
+            self.assertEqual(timeline[2]['ledger_revision'], 4)
+            self.assertRegex(timeline[2]['ledger_decision_id'], r'^[0-9a-f]{24}$')
+            self.assertRegex(timeline[2]['ledger_supersedes'], r'^[0-9a-f]{24}$')
+            self.assertNotIn('decision-private-id', json.dumps(timeline))
+            run = timeline[0]['run_ref']
+            summary = api.sessions('a', ref, run_ref=run, summary_only=True)['summary']
+            self.assertEqual(summary['builds'], [label])
+            self.assertEqual(summary['build_attribution'], 'event')
+            self.assertEqual(summary['ledger_trail_counts'],
+                             {'ledger_select': 1, 'ledger_save_receipt': 1, 'ledger_supersede': 0})
+            self.assertEqual(summary['first_failure'], {'stage': 'comet_act', 'timestamp': timeline[3]['timestamp']})
+            identity = summary['task_identity']
+            self.assertEqual(identity['run_ref'], run)
+            self.assertEqual(identity['session_ref'], ref)
+            self.assertEqual(identity['builds'], [label])
+            self.assertEqual(identity['duration_ms'], 3000)
+            self.assertEqual(summary['independent_task_result'], 'unknown')
+            completeness = summary['evidence_completeness']
+            self.assertEqual(completeness['event_count'], 5)
+            self.assertEqual(completeness['events_with_duration'], 1)
+            self.assertEqual(completeness['outcomes']['failure'], 1)
+            self.assertEqual(completeness['independent_task_result'], 'unknown')
+            unknown = api.sessions('a', ref, run_ref=timeline[5]['run_ref'], summary_only=True)['summary']
+            self.assertEqual(unknown['builds'], [])
+            self.assertEqual(unknown['build_attribution'], 'unknown')
+
     def test_long_session_can_be_paged_without_losing_native_actions(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

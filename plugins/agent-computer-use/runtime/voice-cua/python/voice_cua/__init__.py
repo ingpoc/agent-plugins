@@ -1,12 +1,47 @@
 """Voice CUA Agent — local tool host for GPT-Live 1 + CUAService."""
 
 import json
+import re
 from pathlib import Path
 import sys
 
-_manifest = (Path(sys._MEIPASS) / "plugin.json" if getattr(sys, "frozen", False)
-             else Path(__file__).resolve().parents[4] / "plugin.json")
+_manifest_root = (Path(sys._MEIPASS) if getattr(sys, "frozen", False)
+                  else Path(__file__).resolve().parents[4])
+_manifest = _manifest_root / "plugin.json"
 __version__ = json.loads(_manifest.read_text())["version"]
+
+
+def build_info() -> dict[str, str]:
+    """Installed build identity: the package version plus the signed app's package digest.
+
+    ``install_service.py`` writes ``runtime-contract.json`` (version + sha256 of every packaged
+    file) into the app; the helper reads the same record from the enclosing app so an activity row
+    identifies the exact installed build, not just a version number (OBS-06).
+    """
+    info = {"version": str(__version__)}
+    roots = [_manifest_root]
+    if getattr(sys, "frozen", False):
+        try:
+            roots.insert(0, Path(sys.executable).resolve().parents[3] / "Resources")
+        except (IndexError, OSError):
+            pass
+    for resources in roots:
+        try:
+            data = json.loads((resources / "runtime-contract.json").read_text())
+        except (OSError, ValueError):
+            continue
+        digest = data.get("sha256")
+        if isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest):
+            info["sha256"] = digest
+            break
+    return info
+
+
+def build_label() -> str:
+    """Short one-field build label for telemetry rows: ``0.2.121`` or ``0.2.121+1a2b3c4d5e6f``."""
+    info = build_info()
+    digest = info.get("sha256", "")
+    return f"{info['version']}+{digest[:12]}" if digest else info["version"]
 
 SYSTEM_INSTRUCTIONS = """
 You are a Mac voice computer-use agent. Drive ANY regular macOS app via tools.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.22
+
+- Attribute events and timeline items to the installed build identity.
+- Trace browser begin/act/end and Ledger select/save/supersede stages with opaque ids.
+- Add task identity, run duration, first failed stage and evidence completeness to session summaries.
+
 ## 0.1.21
 
 - Filter collected observations by project, observed version and attribution, keeping unknown versions separate.

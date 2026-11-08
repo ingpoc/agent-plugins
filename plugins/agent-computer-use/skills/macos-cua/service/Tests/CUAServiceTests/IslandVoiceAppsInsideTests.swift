@@ -131,6 +131,42 @@ final class IslandVoiceAppsInsideTests: XCTestCase {
         assertZones(model, apps: 1, voice: .thinking, "multi-step acting")
     }
 
+    func testCardCloseIntoControlledVoiceNeverDrawsNarrowerThanItsContent() async {
+        // OBS-04: an error card held by its peek, then the next turn starts listening with a controlled
+        // target. The width rules are gated on `!cardOpen`; evaluated against the stale card state the
+        // transition pinched to 74 pt and drew the 57 pt voice slot 6 pt outside the pill.
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let now = Date()
+        model.apply(IslandSnapshot(kind: "error", title: "Could not open Notes"), now: now)
+        XCTAssertTrue(model.cardOpen, "the error card is up")
+        model.apply(Self.voice("thinking", apps: ["Calculator"]), now: now.addingTimeInterval(0.3))
+        XCTAssertFalse(model.cardOpen)
+        let needed = IslandBarLayout.controlledPillWidth(apps: 1, voice: .thinking)
+        let shape = model.shapeRect
+        XCTAssertGreaterThanOrEqual(shape.width, needed, "never pinched below the content width")
+        for o in overlays(model) where o.expectedInsideIsland {
+            let r = CGRect(x: o.rect.x, y: o.rect.y, width: o.rect.w, height: o.rect.h)
+            XCTAssertTrue(shape.insetBy(dx: -0.5, dy: -0.5).contains(r), "\(o.id) inside the pill right away")
+        }
+        await settle()   // the 400 ms shrink debounce then settles on the hug width
+        XCTAssertGreaterThan(IslandModel.widthShrinkDebounce, 0.35, "the debounce is longer than settle()")
+        try? await Task.sleep(nanoseconds: UInt64((IslandModel.widthShrinkDebounce + 0.25) * 1_000_000_000))
+        XCTAssertEqual(model.shapeRect.width, needed)
+    }
+
+    func testCardCloseWithoutOperatedContentStillPinches() async {
+        // The 160 ms pinched content swap must survive the fix where nothing operated is involved.
+        let model = IslandModel()
+        model.idleActivity = "duo"
+        let now = Date()
+        model.apply(IslandSnapshot(kind: "error", title: "Could not open Notes"), now: now)
+        model.apply(IslandSnapshot(kind: "done", title: "Saved the note"), now: now.addingTimeInterval(0.3))
+        XCTAssertEqual(model.shapeRect.width, IslandBarLayout.idleWidth, "pinch to the idle width first")
+        await settle()
+        XCTAssertEqual(model.shapeRect.width, IslandBarLayout.standardWidth, "then grow to the conversation width")
+    }
+
     func testVoiceStatesStayAtSeventyFourAndKeepTheVoiceSlotReserved() async {
         let model = IslandModel()
         model.idleActivity = "duo"

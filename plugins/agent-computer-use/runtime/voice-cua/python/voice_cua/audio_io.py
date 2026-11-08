@@ -654,12 +654,15 @@ class RealtimeAudio:
             # Output overlapping speech cannot measure the first audio after that utterance.
             self._timed_turn_id = turn_id
 
-    def flush_timings(self) -> None:
+    def flush_timings(self, run_id: str = "") -> None:
+        """Drain playback timings; ``run_id`` joins the row to the task run (OBS-14)."""
         while True:
             try:
                 row = self._speaker.timings.get_nowait()
             except queue.Empty:
                 return
+            if run_id:
+                row = {**row, "run_id": run_id}
             _log_event("voice_latency", **row)
 
     def device_summary(self) -> dict[str, Any]:

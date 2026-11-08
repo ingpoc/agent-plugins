@@ -800,6 +800,23 @@ final class IslandPluginMarksTests: XCTestCase {
         XCTAssertTrue(model.sourceGroups.isEmpty)
     }
 
+    func testStopSnapshotThatOnlyChangesSamanthaOnIsStillApplied() {
+        // USER-06: after Stop the hub posts the same row with her session off. `sameVisual` ignored
+        // `samantha_on`, so IslandController dropped the snapshot and the left circle stayed.
+        let on = IslandSnapshot(kind: "idle", title: "Resting", samantha_on: true)
+        var off = on
+        off.samantha_on = false
+        XCTAssertFalse(on.sameVisual(as: off), "turning her session off changes the picture")
+        XCTAssertFalse(off.sameVisual(as: on))
+        XCTAssertTrue(on.sameVisual(as: on), "an unchanged snapshot is still the same visual")
+
+        let model = IslandModel()
+        model.apply(on)
+        XCTAssertEqual(model.sourceGroups.map(\.id), ["Samantha"])
+        model.apply(off)
+        XCTAssertTrue(model.sourceGroups.isEmpty, "her circle leaves with the stop snapshot")
+    }
+
     func testSamanthaJoinsOtherHarnessesInTheSameOrderAndCap() {
         let model = IslandModel()
         model.idleActivity = "duo"
