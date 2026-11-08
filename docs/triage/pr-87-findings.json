@@ -6628,6 +6628,18 @@
         "OBS-16",
         "AGENT-07",
         "AGENT-09"
+      ],
+      "excluded_ids": [
+        "USER-02",
+        "OBS-02",
+        "OBS-04",
+        "OBS-06",
+        "OBS-13",
+        "OBS-17",
+        "USER-06",
+        "OBS-18",
+        "OBS-19",
+        "AGENT-10"
       ]
     }
   },
