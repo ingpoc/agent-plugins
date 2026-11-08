@@ -5738,176 +5738,361 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "acu-0.2.122-f3dac96",
+        "build": "ACU 0.2.122, Context Ledger 0.1.40",
+        "revision": "f3dac96d1739b4f4348e54c3acc0ad590f1757ea",
+        "installed_at": "2026-11-08T20:06:55.291885+00:00",
+        "install_evidence": "Signed and notarized ACU at 7caac2d with identical runtime package at f3dac96; corrected release check /tmp/pr92-acu-0.2.122-f3dac96-recheck.json passed. Context Ledger 0.1.40 package identity matched source.",
+        "status": "complete",
+        "checks": {
+          "USER-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "USER-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-01": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-04": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-06": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-10": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-04": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-12": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-13": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-14": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-15": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-16": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-17": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-07": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "USER-06": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-18": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-19": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-09": {
+            "state": "not_fixed",
+            "started_at": "2026-11-08T20:07:07Z",
+            "updated_at": "2026-11-08T20:07:07Z",
+            "evidence": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",
+            "finished_at": "2026-11-08T20:07:59Z"
+          },
+          "AGENT-10": {
+            "state": "fixed",
+            "started_at": "2026-11-08T20:06:55Z",
+            "updated_at": "2026-11-08T20:06:55Z",
+            "evidence": "Corrected gate passed a fresh 0.2.122 spoken run with ordered transcript, successful Calculator action and session_phase response_done; independent display readback confirmed 13 × 17 = 221 and audio readiness. The earlier corrected-gate attempt heard speech but no fresh Calculator action and remains a failed attempt.",
+            "finished_at": "2026-11-08T20:07:07Z"
+          },
+          "OBS-20": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:36:55Z",
+            "updated_at": "2026-11-08T21:36:55Z",
+            "evidence": "This issue was added after the ACU 0.2.122 verification; no task-usage check was performed on that installation.",
+            "finished_at": "2026-11-08T21:36:56Z"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "acu-0.2.122-f3dac96",
-      "build": "ACU 0.2.122, Context Ledger 0.1.40",
-      "revision": "f3dac96d1739b4f4348e54c3acc0ad590f1757ea",
-      "installed_at": "2026-11-08T20:06:55.291885+00:00",
-      "install_evidence": "Signed and notarized ACU at 7caac2d with identical runtime package at f3dac96; corrected release check /tmp/pr92-acu-0.2.122-f3dac96-recheck.json passed. Context Ledger 0.1.40 package identity matched source.",
+      "id": "devobs-0124-e454c5d",
+      "build": "Developer Observability 0.1.24",
+      "revision": "e454c5df92484ad991b938170feca3a930971f0c",
+      "installed_at": "2026-11-08T21:37:04.500884+00:00",
+      "install_evidence": "Installed package version read back at this timestamp; release installer reported exact PR head e454c5d and installed MCP probe passed. This timestamp is observation, not installation time.",
       "status": "complete",
       "checks": {
         "USER-02": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "USER-03": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "AGENT-02": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-01": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-02": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-03": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-04": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-06": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-10": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "AGENT-03": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "AGENT-04": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-12": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-13": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-14": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-15": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-16": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-17": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "AGENT-07": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "USER-06": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-18": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "OBS-19": {
           "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "AGENT-09": {
-          "state": "not_fixed",
-          "started_at": "2026-11-08T20:07:07Z",
-          "updated_at": "2026-11-08T20:07:07Z",
-          "evidence": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",
-          "finished_at": "2026-11-08T20:07:59Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
         },
         "AGENT-10": {
-          "state": "fixed",
-          "started_at": "2026-11-08T20:06:55Z",
-          "updated_at": "2026-11-08T20:06:55Z",
-          "evidence": "Corrected gate passed a fresh 0.2.122 spoken run with ordered transcript, successful Calculator action and session_phase response_done; independent display readback confirmed 13 × 17 = 221 and audio readiness. The earlier corrected-gate attempt heard speech but no fresh Calculator action and remains a failed attempt.",
-          "finished_at": "2026-11-08T20:07:07Z"
+          "state": "blocked",
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+          "finished_at": "2026-11-08T21:37:16Z"
+        },
+        "OBS-20": {
+          "state": "inconclusive",
+          "started_at": "2026-11-08T21:37:16Z",
+          "updated_at": "2026-11-08T21:37:16Z",
+          "evidence": "Installed 0.1.24 MCP returned a captured real Codex CLI Luna low task from an isolated proof database. Exact attribution of T3-delegated children, independent acceptance and paired comparison remain unverified.",
+          "finished_at": "2026-11-08T21:37:16Z"
         }
       }
     },
@@ -6610,7 +6795,7 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-08T20:16:34+00:00"
+      "updated_at": "2026-11-08T21:37:16+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
@@ -8796,6 +8981,21 @@
         "scripts/test_release_agent_computer_use.py",
         "/tmp/pr92-acu-0.2.122-f3dac96-recheck.json"
       ]
+    },
+    {
+      "id": "OBS-20",
+      "title": "Attribute agent task usage and verify comparisons",
+      "source": "User requested",
+      "status": "investigation",
+      "observed": "A real Codex CLI Luna run produced task usage, but T3-delegated child usage has not been linked to an authoritative session or an independent task acceptance result.",
+      "recommendation": "Prove exact parent and child attribution for an enrolled T3 Luna task, bind independent acceptance, then enable valid baseline and candidate comparisons with incomplete coverage reported explicitly.",
+      "details": {
+        "Source tests": "Developer Observability 0.1.24: 102 tests passed, two skipped; task usage source tests passed.",
+        "Installed evidence": "Exact PR head e454c5d installed as 0.1.24; installed MCP returned one recorded Codex CLI task from an isolated proof database.",
+        "Live evidence": "Real Luna low Codex CLI capture recorded input and output tokens; T3 child capture and independent acceptance were not established.",
+        "Scope": "Recorded CLI jobs and sampled sessions overlap and must not be summed; no token savings, cost or comparison verdict established."
+      },
+      "evidence": []
     }
   ]
 }
