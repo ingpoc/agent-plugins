@@ -33,3 +33,5 @@ For issue filtering, pagination, session or linked-run timelines, and opt-in
 Ledger or error details, read [issues and sessions](references/issues-and-sessions.md).
 For the Ledger recommendation pilot, typed Decider choices, storage or dashboard,
 read [optional tools](references/optional-tools.md). These are not routine steps.
+
+For opt-in Codex task usage, call `observability_task_usage`. Recorded jobs and recent sampled sessions are separate and can overlap; usage does not establish cost or independent acceptance.

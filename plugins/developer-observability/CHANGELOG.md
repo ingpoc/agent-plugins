@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.24
+
+- Add opt-in Codex task usage capture and a read-only usage view.
+
 ## 0.1.23
 
 - Prioritize active diagnosis findings and explain when CI test failure output was not retained.

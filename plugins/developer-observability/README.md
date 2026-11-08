@@ -71,6 +71,12 @@ Round-trips / AX snapshots vs floor. Prefer one asserted run over N granular cal
 
 Replace `unmeasured` after a real suite. Do not invent scores.
 
+## Opt-in Codex task usage
+
+`observability_task_usage` reports explicitly captured Codex jobs and a separate bounded recent-session sample. These populations can overlap and must not be added together. Missing model, effort, usage, cost, or independent acceptance remain unknown.
+
+To capture an explicitly launched Codex CLI job, run `bin/developer-observability codex-capture --category analysis -- <codex arguments>`. This forwards Codex JSON events to stdout and stores aggregate usage locally. The optional `--verify` check records a caller-supplied check result, not independent task acceptance. This wrapper does not capture or attribute T3-delegated child sessions.
+
 ## Interface
 
 Six tools: projects, scoped issues, issue/evidence detail, existing Ledger
