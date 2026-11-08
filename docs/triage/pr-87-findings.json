@@ -6611,6 +6611,24 @@
     "workflow": {
       "stage": null,
       "updated_at": "2026-11-08T20:16:34+00:00"
+    },
+    "rollover": {
+      "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
+      "unresolved_ids": [
+        "USER-03",
+        "AGENT-02",
+        "OBS-01",
+        "OBS-03",
+        "OBS-10",
+        "AGENT-03",
+        "AGENT-04",
+        "OBS-12",
+        "OBS-14",
+        "OBS-15",
+        "OBS-16",
+        "AGENT-07",
+        "AGENT-09"
+      ]
     }
   },
   "findings": [
