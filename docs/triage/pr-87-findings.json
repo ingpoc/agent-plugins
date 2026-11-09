@@ -6804,7 +6804,7 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-09T05:14:17+00:00"
+      "updated_at": "2026-11-09T05:30:30+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
@@ -8997,13 +8997,15 @@
       "source": "User requested",
       "status": "investigation",
       "observed": "A real Codex CLI Luna run produced task usage, but T3-delegated child usage has not been linked to an authoritative session or an independent task acceptance result.",
-      "recommendation": "Prove exact parent and child attribution for an enrolled T3 Luna task, bind independent acceptance, then enable valid baseline and candidate comparisons with incomplete coverage reported explicitly.",
+      "recommendation": "Establish an authoritative T3 child-execution-to-provider-session and usage mapping in the harness, then extend Developer Observability to validate explicitly enrolled task evidence and independently attributed acceptance; mark missing coverage incomplete.",
       "details": {
         "Source tests": "Developer Observability 0.1.24: 102 tests passed, two skipped; task usage source tests passed.",
         "Installed evidence": "Exact PR head e454c5d installed as 0.1.24; installed MCP returned one recorded Codex CLI task from an isolated proof database.",
         "Live evidence": "Real Luna low Codex CLI capture recorded input and output tokens; T3 child capture and independent acceptance were not established.",
         "Scope": "Codex CLI capture is separately proven. Do not combine its jobs with sampled sessions or infer parent/child costs. No baseline/candidate savings verdict established.",
-        "T3 live proof": "A fresh delegated Luna low task produced the expected disposable output; independent bytes passed. T3 returned child/run IDs, but an exact-ID search of 44 current-day Codex session metadata records found no match. Usage attribution remains unknown; timestamps do not establish identity."
+        "T3 live proof": "A fresh delegated Luna low task produced the expected disposable output; independent bytes passed. T3 returned child/run IDs, but an exact-ID search of 44 current-day Codex session metadata records found no match. Usage attribution remains unknown; timestamps do not establish identity.",
+        "Architecture finding": "The exposed T3 interface reports parent-child task IDs and run metadata but no exact provider-session mapping or authoritative child token usage. A bounded metadata search found no exact match; additional T3 internals were not verified.",
+        "Proposed owner boundary": "T3 must expose authoritative execution identity and terminal usage through a read-only lookup or receipt; Developer Observability validates enrolled records and independent acceptance without time-based inference. The actual T3 adapter capability remains unproven."
       },
       "evidence": []
     }
