@@ -6989,7 +6989,7 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-09T05:58:09+00:00"
+      "updated_at": "2026-11-09T05:59:02+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
@@ -9195,12 +9195,14 @@
         "Remaining boundary": "This single-child proof uses internal T3 state, not a supported public usage API. Parent and descendant totals, retries, missing coverage, stable versioned contracts, and independent comparative acceptance remain unverified.",
         "Native documentation": "Upstream T3 documents provider request and turn usage, including native vs T3-managed children, with best-effort and restart limitations. Codex exposes last and cumulative thread usage; last context is not task-total usage. Upstream documentation does not prove the installed T3 build exposes these via MCP.",
         "Implementation boundary": "Prefer an authenticated T3-supported per-run read interface and its provider-normalized usage; use Codex app-server notifications for Codex-specific capture when directly controlling that provider. Current MCP session read did not expose a verified token-usage field. Avoid depending on internal SQLite schemas as a stable interface.",
-        "References": "https://github.com/pingdotgg/t3code/blob/main/docs/internals/product-analytics.md ; https://github.com/pingdotgg/t3code/blob/main/docs/orchestration-v2/orchestrator-mcp-server.md ; https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md",
+        "References": "https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md ; https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/src/protocol/v2/account.rs ; https://github.com/pingdotgg/t3code/blob/main/docs/internals/product-analytics.md ; https://github.com/pingdotgg/t3code/blob/main/docs/orchestration-v2/orchestrator-mcp-server.md",
         "Capture failure handling": "Source regression reproduced and corrected exit 0 on persistence failure. Installed 0.1.25 failure and recovery checks passed using a simulated provider; a real Luna low Codex CLI capture recorded usage. This proves CLI capture, not T3 attribution.",
         "Native architecture": "Prefer exposing exact run usage and coverage from T3’s authenticated read interface, consuming its provider normalization. No supported T3 usage interface or independently verified complete task comparison was available in this session.",
         "Native Codex proof": "Installed Codex CLI 0.167.0 app-server thread/resume for the exact previously verified Codex thread emitted thread/tokenUsage/updated with matching cumulative input, cached-input, output and reasoning counters. Plain thread/read emitted no usage notification in the bounded probe. account/usage/read returned null threadUsage for this account.",
         "Native T3 boundary": "Installed T3 CLI thread show and T3 MCP thread read expose T3 thread/run metadata but did not expose a provider thread ID or token totals in the inspected response. A prior exact join used an internal T3 projection and is not a supported API contract.",
-        "Scope and next action": "Use provider-native usage events when controlling an explicit Codex thread. T3-provider-neutral attribution requires a supported T3 execution-to-provider usage interface; do not infer identities by time or mark complete without independent acceptance."
+        "Scope and next action": "Use provider-native usage events when controlling an explicit Codex thread. T3-provider-neutral attribution requires a supported T3 execution-to-provider usage interface; do not infer identities by time or mark complete without independent acceptance.",
+        "Native provider proof": "Codex CLI 0.167.0 app-server resumed a known completed Codex test thread and emitted thread/tokenUsage/updated for the exact thread. Its cumulative input, cached-input, output and reasoning counters matched the previously observed terminal usage. Plain thread/read produced no usage notification in the bounded test; account/usage/read returned null threadUsage for this account. Resume is stateful and this proof covers one Codex thread only.",
+        "Control-plane limitation": "T3 native provider analytics distinguish T3-managed child runs and native subagents but are documented as best effort, including possible missing children and restart gaps. The installed T3 CLI thread show and exposed MCP read did not return provider session ID or usage for the test child. No public provider-neutral exact-run usage API has been proved in this session."
       },
       "evidence": []
     }
