@@ -6988,8 +6988,8 @@
       }
     },
     "workflow": {
-      "stage": null,
-      "updated_at": "2026-11-09T06:29:39+00:00"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-09T06:31:22+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
@@ -9204,13 +9204,14 @@
         "Native provider proof": "Codex CLI 0.167.0 app-server resumed a known completed Codex test thread and emitted thread/tokenUsage/updated for the exact thread. Its cumulative input, cached-input, output and reasoning counters matched the previously observed terminal usage. Plain thread/read produced no usage notification in the bounded test; account/usage/read returned null threadUsage for this account. Resume is stateful and this proof covers one Codex thread only.",
         "Control-plane limitation": "T3 native provider analytics distinguish T3-managed child runs and native subagents but are documented as best effort, including possible missing children and restart gaps. The installed T3 CLI thread show and exposed MCP read did not return provider session ID or usage for the test child. No public provider-neutral exact-run usage API has been proved in this session.",
         "Evidence hardening 0.1.26": "Source tests: 106 passed, 2 skipped. Exact PR head 04a7ee7 installed as 0.1.26; MCP probe passed. A real Luna low Codex CLI run recorded token usage with --quiet-events; acceptance remains unknown. Replayed or ambiguous and failed turns yield unknown usage; unexpected stored fields are rejected.",
-        "Remaining work": "Independent acceptance, run-level provenance, supported T3-to-provider identity, child coverage, and comparable baseline/candidate task evidence remain unimplemented and unverified.",
+        "Remaining work": "Install the exact PR head and run a real direct Codex task with an external artifact check. Establish task-to-artifact binding, verifier independence, supported T3 identity, child coverage and comparable cohort evidence before any savings verdict.",
         "Astra low review": "Read-only architecture review identified that a native thread can contain multiple runs and cumulative counters cannot alone establish a run total. The Island inventory discovers Codex threads but is not an authoritative T3 run-to-thread or turn-boundary binding.",
         "Evidence privacy and replay": "Version 0.1.26 added optional quiet capture, rejected unexpected stored fields, and suppresses totals for ambiguous replayed or failed turns. Raw events are still forwarded unless --quiet-events is requested; comprehensive schema, all retry cases and privacy of existing records remain unverified.",
         "Independent acceptance": "A caller-supplied --verify exit code is a check result, not independent acceptance. Bind a separately executed verifier, scenario, output digest and verifier identity; absent or mismatched evidence must yield incomplete.",
         "Comparison eligibility": "Require matching scenario, fixture, measurement boundary and effective settings, with explicit skill revision, complete non-overlapping usage and passing independent verification; preserve failed attempts and reject unsupported provider, child or retry coverage.",
         "Next controlled checks": "Run a disposable direct Codex task with a separately executed verifier and verify the exact native usage and output independently. Then attempt T3 via supported interfaces; report binding_unavailable when no authoritative run-to-thread-and-turn binding exists.",
-        "Review provenance": "Astra low review of source at 8d79a3b; review was read-only and did not independently test installed T3 behavior. Subsequent 0.1.26 source changes and one quiet CLI capture were recorded separately."
+        "Review provenance": "Astra low review of source at 8d79a3b; review was read-only and did not independently test installed T3 behavior. Subsequent 0.1.26 source changes and one quiet CLI capture were recorded separately.",
+        "Source pilot 0.1.27": "107 source tests passed, 2 skipped; plugin validation passed. Exact captured task detail and a separately run digest-bound check were added. Verifier independence, task-to-artifact binding and child coverage remain unproven."
       },
       "evidence": []
     }

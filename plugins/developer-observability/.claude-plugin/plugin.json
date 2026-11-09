@@ -1,6 +1,6 @@
 {
   "name": "developer-observability",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "description": "Project-scoped build and runtime findings, redacted evidence and investigation leads over a local findings.json, with an optional local Decider and an MCP Apps dashboard.",
   "author": {
     "name": "ingpoc"

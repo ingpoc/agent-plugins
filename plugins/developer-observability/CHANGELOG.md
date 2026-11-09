@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.27
+
+- Expose individual Codex captures and record artifact-bound external checks with explicit evidence limits.
+
 ## 0.1.26
 
 - Reject private summary fields and avoid reporting totals for ambiguous or failed turns.

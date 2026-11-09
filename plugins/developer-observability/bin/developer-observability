@@ -9,6 +9,13 @@ if [ "${1:-}" = codex-capture ]; then
   fi
   exec "$PY" "$ROOT/runtime/collector/codex_capture.py" "$@"
 fi
+if [ "${1:-}" = codex-verify ]; then
+  shift
+  if [ ! -x "$PY" ]; then
+    PY=$(command -v python3) || { echo "developer-observability: python3 not found" >&2; exit 127; }
+  fi
+  exec "$PY" "$ROOT/runtime/collector/codex_verify.py" "$@"
+fi
 if [ "${1:-}" = codex-usage ]; then
   shift
   if [ ! -x "$PY" ]; then

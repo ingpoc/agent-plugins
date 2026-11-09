@@ -14,6 +14,34 @@ spec.loader.exec_module(module)
 
 
 class CodexUsageTests(unittest.TestCase):
+    def test_task_detail_and_external_verification_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            db = root / 'usage.sqlite3'
+            task = '12345678-1234-4234-8234-123456789012'
+            summary = module.summarize([json.dumps({'type': 'thread.started', 'thread_id': task}),
+                                        json.dumps({'type': 'turn.completed', 'usage': {'input_tokens': 3, 'cached_input_tokens': 1, 'output_tokens': 2}})])
+            summary['process_exit_code'] = 0
+            module.record(db, task, 'coding', summary)
+            scenario, skill, artifact, verifier = [root / name for name in ('scenario', 'skill', 'artifact', 'verifier')]
+            for file in (scenario, skill, artifact):
+                file.write_text('fixture')
+            verifier.write_text('#!/bin/sh\ntest "$(cat "$1")" = fixture\n')
+            verifier.chmod(0o755)
+            launcher = path.parents[2] / 'bin/developer-observability'
+            command = [str(launcher), 'codex-verify', '--database', str(db), '--task-id', task,
+                       '--scenario', str(scenario), '--skill', str(skill), '--artifact', str(artifact), '--verifier', str(verifier)]
+            self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
+            self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
+            detail = module.task_detail(db, task)
+            self.assertEqual(detail['thread_id'], task)
+            self.assertEqual(detail['verification']['result'], 'pass')
+            self.assertEqual(detail['acceptance'], 'unknown')
+            self.assertIn('child_coverage_unknown', detail['reasons'])
+            artifact.write_text('changed')
+            self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+            self.assertEqual(module.task_detail(db, task)['verification']['result'], 'pass')
+
     def test_counts_only_usage_without_content(self):
         lines = [json.dumps({'type': 'thread.started', 'thread_id': '12345678-1234-4234-8234-123456789012'}),
                  json.dumps({'type': 'item.completed', 'text': 'private task text'}),

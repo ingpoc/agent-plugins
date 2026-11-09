@@ -122,6 +122,36 @@ def record(path, task_id, category, summary):
             db.execute('INSERT INTO task_usage (task_id, category, summary) VALUES (?, ?, ?)', (task_id, category, payload))
 
 
+def task_detail(path, task_id):
+    task_id = str(uuid.UUID(task_id))
+    path = Path(path).expanduser()
+    if not path.is_file():
+        return {'status': 'not_captured', 'reason': 'task_not_found'}
+    with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True) as db:
+        row = db.execute('SELECT category, summary FROM task_usage WHERE task_id = ?', (task_id,)).fetchone()
+        exists = db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='task_verification'").fetchone()
+        verification = db.execute('SELECT receipt FROM task_verification WHERE task_id = ?', (task_id,)).fetchone() if exists else None
+    if row is None:
+        return {'status': 'not_captured', 'reason': 'task_not_found'}
+    summary = json.loads(row[1])
+    usage = summary.get('usage', {})
+    reasons = []
+    if not summary.get('thread_id'):
+        reasons.append('binding_unavailable')
+    if summary.get('process_exit_code') != 0 or summary.get('failed_turns') or summary.get('invalid_events') or not summary.get('completed_turns'):
+        reasons.append('execution_incomplete')
+    if any(usage.get(k) is None for k in ('input_tokens', 'cached_input_tokens', 'output_tokens')):
+        reasons.append('usage_partial')
+    reasons.extend(('child_coverage_unknown', 'acceptance_unverified'))
+    return {'status': 'incomplete', 'task_id': task_id, 'category': row[0],
+            'source': 'explicit_codex_cli_capture', 'usage': {k: usage.get(k) for k in FIELDS},
+            'model': summary.get('model'), 'effort': summary.get('effort'),
+            'thread_id': summary.get('thread_id'), 'elapsed_seconds': summary.get('elapsed_seconds'),
+            'caller_check': summary.get('check_status', 'not_run'),
+            'verification': json.loads(verification[0]) if verification else None,
+            'acceptance': 'unknown', 'reasons': reasons}
+
+
 def task_overview(path):
     path = Path(path).expanduser()
     if not path.exists():
