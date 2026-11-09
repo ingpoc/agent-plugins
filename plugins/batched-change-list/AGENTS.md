@@ -27,10 +27,10 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 
 This package ships **no** standing authorization to merge. With nothing recorded here, the skill stops after a verified-fix report and asks before merging, publishing, installing or sending anything.
 
-An owner who wants the original hands-off rule records it here in their own install, for example:
+An owner who wants the original hands-off rule records it in the product repository’s applicable agent instructions, for example its `AGENTS.md`:
 
 > Standing authorization: when at least 10 distinct findings in the current PR are `verified_fixed`, finish accessible verification, commit and push the verified-fix report, and merge to `main` after required checks and reviews pass. Verify the merge, then fast-forward the local `main` without overwriting local changes. Explicit instructions and project restrictions override this.
 
-Add it only for a repository where an autonomous merge of a fix PR is acceptable.
+The skill checks the applicable product repository instructions for this policy. Add it only for a repository where an autonomous merge of a fix PR is acceptable; do not edit the installed plugin copy.
 
 Behavior: `skills/batched-change-list/SKILL.md`.

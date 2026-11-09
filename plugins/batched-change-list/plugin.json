@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "batched-change-list",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Collect related product findings in one JSON tracker, render a reviewable HTML change list, and drive fix, install and verification through a batched workflow.",
   "author": {
     "name": "ingpoc",
