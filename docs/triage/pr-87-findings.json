@@ -6089,10 +6089,19 @@
         },
         "OBS-20": {
           "state": "inconclusive",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Installed 0.1.24 MCP returned a captured real Codex CLI Luna low task from an isolated proof database. Exact attribution of T3-delegated children, independent acceptance and paired comparison remain unverified.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:13:27Z",
+          "updated_at": "2026-11-09T05:13:27Z",
+          "previous_checks": [
+            {
+              "state": "inconclusive",
+              "started_at": "2026-11-08T21:37:16Z",
+              "updated_at": "2026-11-08T21:37:16Z",
+              "evidence": "Installed 0.1.24 MCP returned a captured real Codex CLI Luna low task from an isolated proof database. Exact attribution of T3-delegated children, independent acceptance and paired comparison remain unverified.",
+              "finished_at": "2026-11-08T21:37:16Z"
+            }
+          ],
+          "evidence": "A fresh T3-delegated Codex Luna low task completed, and independent byte comparison of its disposable output passed. T3 returned child/run IDs and session timestamps, but no authoritative Codex session ID or token counters; exact child-ID search across 44 current-day Codex session metadata records found no match. Usage and parent/child attribution remain unknown; this is not proof that no mapping exists.",
+          "finished_at": "2026-11-09T05:14:17Z"
         }
       }
     },
@@ -6795,7 +6804,7 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-08T21:37:16+00:00"
+      "updated_at": "2026-11-09T05:14:17+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
@@ -8993,7 +9002,8 @@
         "Source tests": "Developer Observability 0.1.24: 102 tests passed, two skipped; task usage source tests passed.",
         "Installed evidence": "Exact PR head e454c5d installed as 0.1.24; installed MCP returned one recorded Codex CLI task from an isolated proof database.",
         "Live evidence": "Real Luna low Codex CLI capture recorded input and output tokens; T3 child capture and independent acceptance were not established.",
-        "Scope": "Recorded CLI jobs and sampled sessions overlap and must not be summed; no token savings, cost or comparison verdict established."
+        "Scope": "Codex CLI capture is separately proven. Do not combine its jobs with sampled sessions or infer parent/child costs. No baseline/candidate savings verdict established.",
+        "T3 live proof": "A fresh delegated Luna low task produced the expected disposable output; independent bytes passed. T3 returned child/run IDs, but an exact-ID search of 44 current-day Codex session metadata records found no match. Usage attribution remains unknown; timestamps do not establish identity."
       },
       "evidence": []
     }
