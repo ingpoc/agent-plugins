@@ -2,10 +2,10 @@
   "title": "Samantha issues and recommended fixes",
   "tracking": {
     "pull_request": {
-      "label": "PR #94 · Follow-up",
-      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94"
+      "label": "PR #96 · Follow-up",
+      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/96"
     },
-    "worktree": "samantha-pr92-rollover",
+    "worktree": "samantha-pr94-rollover",
     "verification_history": [
       {
         "id": "acu-0.2.97-install-20261106-0544z",
@@ -7161,10 +7161,10 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-09T07:37:24+00:00"
+      "updated_at": "2026-11-09T12:50:16+00:00"
     },
     "rollover": {
-      "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
+      "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
       "unresolved_ids": [
         "USER-03",
         "AGENT-02",
@@ -7178,7 +7178,8 @@
         "OBS-15",
         "OBS-16",
         "AGENT-07",
-        "AGENT-09"
+        "AGENT-09",
+        "OBS-20"
       ],
       "excluded_ids": [
         "USER-02",
