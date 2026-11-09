@@ -220,7 +220,7 @@ fi
 catalog() {
     case "$1" in
         claude) printf '%s\n' 'agent-computer-use context-ledger developer-observability' ;;
-        codex|cursor|grok) printf '%s\n' 'agent-computer-use comet-control context-ledger developer-observability' ;;
+        codex|cursor|grok) printf '%s\n' 'agent-computer-use batched-change-list comet-control context-ledger developer-observability' ;;
         *) printf '\n' ;;
     esac
 }

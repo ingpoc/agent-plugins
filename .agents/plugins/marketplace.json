@@ -35,6 +35,14 @@
         "path": "./plugins/developer-observability"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "batched-change-list",
+      "source": {
+        "source": "local",
+        "path": "./plugins/batched-change-list"
+      },
+      "category": "Productivity"
     }
   ]
 }

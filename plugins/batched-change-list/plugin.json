@@ -1,0 +1,20 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "batched-change-list",
+  "version": "0.1.1",
+  "description": "Collect related product findings in one JSON tracker, render a reviewable HTML change list, and drive fix, install and verification through a batched workflow.",
+  "author": {
+    "name": "ingpoc",
+    "url": "https://github.com/ingpoc"
+  },
+  "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/batched-change-list",
+  "repository": "https://github.com/ingpoc/agent-plugins",
+  "license": "MIT",
+  "keywords": [
+    "quality",
+    "regression",
+    "change-list",
+    "verification",
+    "skills-only"
+  ]
+}

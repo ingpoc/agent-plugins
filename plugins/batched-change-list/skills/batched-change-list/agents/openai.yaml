@@ -1,0 +1,3 @@
+interface:
+  display_name: "Batched Change List"
+  short_description: "Collect tested issues in an HTML change list"

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<title>batched-change-list</title>
+<rect x="100" y="100" width="824" height="824" rx="180" fill="#0f172a"/>
+<g fill="none" stroke="#38bdf8" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
+<path d="M236 296 l40 40 80 -92"/>
+<path d="M236 496 l40 40 80 -92"/>
+</g>
+<g stroke="#64748b" stroke-width="44" stroke-linecap="round">
+<line x1="452" y1="296" x2="808" y2="296"/>
+<line x1="452" y1="496" x2="808" y2="496"/>
+</g>
+<g fill="none" stroke="#f97316" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
+<path d="M236 696 l40 40 80 -92"/>
+</g>
+<line x1="452" y1="696" x2="808" y2="696" stroke="#f97316" stroke-width="44" stroke-linecap="round"/>
+</svg>

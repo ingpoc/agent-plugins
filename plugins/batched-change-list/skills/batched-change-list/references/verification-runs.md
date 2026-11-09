@@ -1,0 +1,13 @@
+# Installed verification runs
+
+Use `scripts/manage_findings.py batch` with `--render`; see [tracker operations](tracker-operations.md) for the command.
+
+After each PR install, start a distinct verification run using `batch` with `{"action":"start-verification","run":{"id":"unique-install-id","build":"installed version","revision":"installed revision","installed_at":"ISO 8601 timestamp","install_evidence":"receipt or independent readback"}}`. Existing product statuses, including fixed, remain unchanged. Every issue starts as not checked for that installation; added issues join the active run as not checked.
+
+Before checking an issue, write and render `{"action":"start-check","run_id":"unique-install-id","id":"ISSUE-01"}`. Repeat it as a heartbeat for long checks. To recheck a finished issue on the same install, use the same `start-check` with `"recheck":true`; prior results and other checks are preserved, and a completed run reopens. When finished, write and render `{"action":"finish-check","run_id":"unique-install-id","id":"ISSUE-01","outcome":"fixed|not_fixed|blocked|inconclusive","evidence":"specific proof or reason"}` in a separate invocation. `fixed` requires `verified_fixed` and verification references; a newly observed `not_fixed` result changes product status to failing. Blocked and inconclusive do not change a prior fixed status. Only `{"action":"complete-verification","run_id":"unique-install-id"}` after every issue has a result or an explicit blocker; blocked/inconclusive are not counted as checked. If another install occurs first, start a new run with a new ID; the earlier run is retained as interrupted.
+
+A completed current check can be corrected using `batch --render` with `{"action":"correct-check","run_id":"...","id":"ISSUE-01","outcome":"not_fixed|blocked|inconclusive","reason":"specific evidence and reason for correction"}`. The previous check is retained in its corrections history. A correction to fixed still requires a new verification check and proof.
+
+To show current plugin inventory separately from the verification run, set `tracking.installed_plugins` to `{"observed_at":"timestamp","source":"manifest or other provenance and limitations","versions":{"plugin-name":"version"}}`. Read installed identities before recording them; do not infer running versions from manifests. Update the inventory only when freshly checked.
+
+For spoken tests, compare the bounded local transcript and tool events with the observed outcome; a user’s direct confirmation can establish the visible result. Keep transcripts private and distinguish claims from observations.
