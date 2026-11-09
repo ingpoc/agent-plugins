@@ -100,6 +100,19 @@ class CodexUsageTests(unittest.TestCase):
             self.assertIsNone(json.loads(row)['model'])
             self.assertEqual(module.task_overview(db)['categories'][0]['input_tokens'], 17)
 
+    def test_capture_persistence_failure_is_not_reported_as_success(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / 'codex'
+            fake.write_text('#!/bin/sh\nprintf \'%s\\n\' \'{"type":"turn.completed","usage":{"input_tokens":17}}\'\n')
+            fake.chmod(0o755)
+            launcher = path.parents[2] / 'bin/developer-observability'
+            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'])
+            result = subprocess.run([str(launcher), 'codex-capture', '--database', str(root), '--', 'example'],
+                                    capture_output=True, text=True, env=env)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('usage capture failed', result.stderr)
+
     def test_caller_check_failure_is_recorded_and_fails_launcher(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

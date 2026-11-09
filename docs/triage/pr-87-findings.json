@@ -6811,7 +6811,7 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-09T05:40:43+00:00"
+      "updated_at": "2026-11-09T05:46:25+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
@@ -9017,7 +9017,9 @@
         "Remaining boundary": "This single-child proof uses internal T3 state, not a supported public usage API. Parent and descendant totals, retries, missing coverage, stable versioned contracts, and independent comparative acceptance remain unverified.",
         "Native documentation": "Upstream T3 documents provider request and turn usage, including native vs T3-managed children, with best-effort and restart limitations. Codex exposes last and cumulative thread usage; last context is not task-total usage. Upstream documentation does not prove the installed T3 build exposes these via MCP.",
         "Implementation boundary": "Prefer an authenticated T3-supported per-run read interface and its provider-normalized usage; use Codex app-server notifications for Codex-specific capture when directly controlling that provider. Current MCP session read did not expose a verified token-usage field. Avoid depending on internal SQLite schemas as a stable interface.",
-        "References": "https://github.com/pingdotgg/t3code/blob/main/docs/internals/product-analytics.md ; https://github.com/pingdotgg/t3code/blob/main/docs/orchestration-v2/orchestrator-mcp-server.md ; https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md"
+        "References": "https://github.com/pingdotgg/t3code/blob/main/docs/internals/product-analytics.md ; https://github.com/pingdotgg/t3code/blob/main/docs/orchestration-v2/orchestrator-mcp-server.md ; https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md",
+        "Capture failure handling": "Source regression reproduced a successful Codex process returning exit 0 despite usage-storage failure. Developer Observability 0.1.25 changes this to nonzero; source regression and suite passed. Installed and live failure/recovery still require checking.",
+        "Native architecture": "Prefer exposing exact run usage and coverage from T3’s authenticated read interface, consuming its provider normalization. No supported T3 usage interface or independently verified complete task comparison was available in this session."
       },
       "evidence": []
     }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.25
+
+- Report failed task-usage persistence as a capture failure.
+
 ## 0.1.24
 
 - Add opt-in Codex task usage capture and a read-only usage view.

@@ -76,6 +76,7 @@ def main():
         record(args.database, task_id, args.category, summary)
     except Exception as error:
         print(f'developer-observability: usage capture failed ({type(error).__name__})', file=sys.stderr)
+        return summary['process_exit_code'] or 1
     else:
         print(json.dumps({'task_id': task_id, 'capture': 'recorded'}), file=sys.stderr)
     return summary['process_exit_code'] or (1 if args.verify and summary['check_status'] != 'passed' else 0)
