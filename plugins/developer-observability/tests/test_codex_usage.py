@@ -14,6 +14,24 @@ spec.loader.exec_module(module)
 
 
 class CodexUsageTests(unittest.TestCase):
+    def test_incomplete_stream_and_failed_usage_are_not_comparable(self):
+        malformed = module.summarize(['not json', json.dumps({'type': 'turn.completed',
+            'usage': {'input_tokens': 4, 'cached_input_tokens': 1, 'output_tokens': 2}})])
+        self.assertEqual(malformed['invalid_events'], 1)
+        self.assertIsNone(malformed['usage']['input_tokens'])
+        failed = module.summarize([json.dumps({'type': 'turn.failed',
+            'usage': {'input_tokens': 9, 'output_tokens': 2, 'secret': 'not stored'}})])
+        self.assertIsNone(failed['usage']['input_tokens'])
+        self.assertEqual(failed['failed_usage_observations'], [{'input_tokens': 9, 'output_tokens': 2}])
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / 'usage.sqlite3'
+            task = '12345678-1234-4234-8234-123456789012'
+            failed['process_exit_code'] = 1
+            module.record(db, task, 'analysis', failed)
+            detail = module.task_detail(db, task)
+            self.assertFalse(detail['direct_measurement_eligible'])
+            self.assertEqual(detail['failed_usage_observations'], [{'input_tokens': 9, 'output_tokens': 2}])
+
     def test_task_detail_and_external_verification_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -35,6 +53,7 @@ class CodexUsageTests(unittest.TestCase):
             self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
             detail = module.task_detail(db, task)
             self.assertEqual(detail['thread_id'], task)
+            self.assertTrue(detail['direct_measurement_eligible'])
             self.assertEqual(detail['verification']['result'], 'pass')
             self.assertEqual(detail['acceptance'], 'unknown')
             self.assertIn('child_coverage_unknown', detail['reasons'])

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.28
+
+- Reject malformed-stream totals for direct measurement and expose bounded failed-event usage observations.
+
 ## 0.1.27
 
 - Expose individual Codex captures and record artifact-bound external checks with explicit evidence limits.

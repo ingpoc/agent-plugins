@@ -21,6 +21,8 @@ def summarize(lines):
     turn_ids = set()
     ambiguous = False
     missing_turn_id = False
+    failed_usage = []
+    failed_usage_truncated = False
     for line in lines:
         try:
             event = json.loads(line)
@@ -38,6 +40,14 @@ def summarize(lines):
             continue
         if event.get('type') == 'turn.failed':
             failed += 1
+            usage = event.get('usage')
+            if isinstance(usage, dict):
+                observed = {k: usage[k] for k in FIELDS if type(usage.get(k)) is int and usage[k] >= 0}
+                if observed:
+                    if len(failed_usage) < 20:
+                        failed_usage.append(observed)
+                    else:
+                        failed_usage_truncated = True
         if event.get('type') != 'turn.completed':
             continue
         turn_id = event.get('turn_id')
@@ -66,7 +76,8 @@ def summarize(lines):
                 totals[field] += value
                 present[field] += 1
     return {'completed_turns': completed, 'failed_turns': failed, 'invalid_events': invalid,
-            'usage': {field: totals[field] if completed and not failed and not ambiguous and present[field] == completed else None for field in FIELDS},
+            'usage': {field: totals[field] if completed and not failed and not invalid and not ambiguous and present[field] == completed else None for field in FIELDS},
+            'failed_usage_observations': failed_usage, 'failed_usage_truncated': failed_usage_truncated,
             'thread_id': next(iter(threads)) if len(threads) == 1 else None,
             'model': None, 'effort': None,
             'acceptance': 'unknown', 'cost': None}
@@ -76,7 +87,7 @@ def record(path, task_id, category, summary):
     task_id = str(uuid.UUID(task_id))
     if category not in ('coding', 'research', 'computer_use', 'writing', 'analysis', 'other', 'unknown'):
         raise ValueError('unknown task category')
-    allowed = {'completed_turns', 'failed_turns', 'invalid_events', 'usage', 'thread_id', 'model', 'effort', 'acceptance', 'cost', 'requested_model', 'requested_effort', 'process_exit_code', 'elapsed_seconds', 'check_status', 'check_seconds'}
+    allowed = {'completed_turns', 'failed_turns', 'invalid_events', 'usage', 'thread_id', 'model', 'effort', 'acceptance', 'cost', 'requested_model', 'requested_effort', 'process_exit_code', 'elapsed_seconds', 'check_status', 'check_seconds', 'failed_usage_observations', 'failed_usage_truncated'}
     if not isinstance(summary, dict) or set(summary) - allowed or not isinstance(summary.get('usage'), dict) or set(summary['usage']) - set(FIELDS):
         raise ValueError('invalid usage summary fields')
     if summary.get('acceptance', 'unknown') != 'unknown' or summary.get('cost') is not None:
@@ -90,6 +101,12 @@ def record(path, task_id, category, summary):
             raise ValueError('invalid effort')
     if any(value is not None and (type(value) is not int or value < 0) for value in summary['usage'].values()):
         raise ValueError('invalid usage')
+    observations = summary.get('failed_usage_observations', [])
+    if (not isinstance(observations, list) or len(observations) > 20 or
+            any(not isinstance(row, dict) or not row or set(row) - set(FIELDS) or
+                any(type(value) is not int or value < 0 for value in row.values()) for row in observations) or
+            type(summary.get('failed_usage_truncated', False)) is not bool):
+        raise ValueError('invalid failed usage observations')
     if summary.get('thread_id') is not None:
         try:
             uuid.UUID(summary['thread_id'])
@@ -138,16 +155,21 @@ def task_detail(path, task_id):
     reasons = []
     if not summary.get('thread_id'):
         reasons.append('binding_unavailable')
-    if summary.get('process_exit_code') != 0 or summary.get('failed_turns') or summary.get('invalid_events') or not summary.get('completed_turns'):
+    if summary.get('process_exit_code') != 0 or summary.get('failed_turns') != 0 or summary.get('invalid_events') != 0 or summary.get('completed_turns') != 1:
         reasons.append('execution_incomplete')
+        usage = {}
     if any(usage.get(k) is None for k in ('input_tokens', 'cached_input_tokens', 'output_tokens')):
         reasons.append('usage_partial')
+    measurement_eligible = not reasons
     reasons.extend(('child_coverage_unknown', 'acceptance_unverified'))
     return {'status': 'incomplete', 'task_id': task_id, 'category': row[0],
             'source': 'explicit_codex_cli_capture', 'usage': {k: usage.get(k) for k in FIELDS},
             'model': summary.get('model'), 'effort': summary.get('effort'),
             'thread_id': summary.get('thread_id'), 'elapsed_seconds': summary.get('elapsed_seconds'),
             'caller_check': summary.get('check_status', 'not_run'),
+            'direct_measurement_eligible': measurement_eligible,
+            'failed_usage_observations': summary.get('failed_usage_observations', []),
+            'failed_usage_truncated': summary.get('failed_usage_truncated', False),
             'verification': json.loads(verification[0]) if verification else None,
             'acceptance': 'unknown', 'reasons': reasons}
 
@@ -183,13 +205,13 @@ def task_overview(path):
                                                 'known_duration_tasks': 0, 'elapsed_seconds': 0.0})
             group['tasks'] += 1
             group['checks_passed' if check == 'passed' else 'checks_failed' if check == 'failed' else 'checks_unknown'] += 1
-            value = summary.get('usage', {}).get('input_tokens')
+            value = summary.get('usage', {}).get('input_tokens') if not summary.get('invalid_events') else None
             if type(value) is int and value >= 0:
                 row['known_input_tasks'] += 1
                 row['input_tokens'] += value
                 group['known_input_tasks'] += 1
                 group['input_tokens'] += value
-            value = summary.get('usage', {}).get('output_tokens')
+            value = summary.get('usage', {}).get('output_tokens') if not summary.get('invalid_events') else None
             if type(value) is int and value >= 0:
                 row['known_output_tasks'] += 1
                 row['output_tokens'] += value
