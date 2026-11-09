@@ -7161,7 +7161,7 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-09T12:50:16+00:00"
+      "updated_at": "2026-11-09T14:02:16+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -9309,6 +9309,14 @@
           "session": "72fd7a34",
           "timestamp": "2026-11-08T20:07:59.531025+00:00",
           "reference": "Installed gateway typed prompt and same-session comet_end cleanup."
+        },
+        {
+          "check": "Current supervisor and source inspection",
+          "outcome": "Installed Samantha supervisor reports running=false and healthy=false. Source sends session.update for Comet tools before the follow-up response.create, but does not wait for an attributable acknowledgement; source ordering alone does not prove the cause or tool availability. No new live user task was run.",
+          "build": "PR 96 head 7173b13; installed ACU 0.2.122",
+          "session": "PR 96 investigation",
+          "timestamp": "2026-11-09T14:02:16.004567+00:00",
+          "reference": "voice_control status; realtime_session.py _on_comet_change and tool follow-up"
         }
       ]
     },
