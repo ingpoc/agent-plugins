@@ -2,10 +2,10 @@
   "title": "Samantha issues and recommended fixes",
   "tracking": {
     "pull_request": {
-      "label": "PR #92 · ACU 0.2.120",
-      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92"
+      "label": "PR #94 · Follow-up",
+      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94"
     },
-    "worktree": "samantha-followup-20261108",
+    "worktree": "samantha-pr92-rollover",
     "verification_history": [
       {
         "id": "acu-0.2.97-install-20261106-0544z",
@@ -5738,176 +5738,727 @@
             "state": "pending"
           }
         }
+      },
+      {
+        "id": "acu-0.2.122-f3dac96",
+        "build": "ACU 0.2.122, Context Ledger 0.1.40",
+        "revision": "f3dac96d1739b4f4348e54c3acc0ad590f1757ea",
+        "installed_at": "2026-11-08T20:06:55.291885+00:00",
+        "install_evidence": "Signed and notarized ACU at 7caac2d with identical runtime package at f3dac96; corrected release check /tmp/pr92-acu-0.2.122-f3dac96-recheck.json passed. Context Ledger 0.1.40 package identity matched source.",
+        "status": "complete",
+        "checks": {
+          "USER-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "USER-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-01": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-04": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-06": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-10": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-04": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-12": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-13": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-14": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-15": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-16": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-17": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-07": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "USER-06": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-18": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "OBS-19": {
+            "state": "blocked",
+            "started_at": "2026-11-08T20:16:25Z",
+            "updated_at": "2026-11-08T20:16:25Z",
+            "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
+            "finished_at": "2026-11-08T20:16:34Z"
+          },
+          "AGENT-09": {
+            "state": "not_fixed",
+            "started_at": "2026-11-08T20:07:07Z",
+            "updated_at": "2026-11-08T20:07:07Z",
+            "evidence": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",
+            "finished_at": "2026-11-08T20:07:59Z"
+          },
+          "AGENT-10": {
+            "state": "fixed",
+            "started_at": "2026-11-08T20:06:55Z",
+            "updated_at": "2026-11-08T20:06:55Z",
+            "evidence": "Corrected gate passed a fresh 0.2.122 spoken run with ordered transcript, successful Calculator action and session_phase response_done; independent display readback confirmed 13 × 17 = 221 and audio readiness. The earlier corrected-gate attempt heard speech but no fresh Calculator action and remains a failed attempt.",
+            "finished_at": "2026-11-08T20:07:07Z"
+          },
+          "OBS-20": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:36:55Z",
+            "updated_at": "2026-11-08T21:36:55Z",
+            "evidence": "This issue was added after the ACU 0.2.122 verification; no task-usage check was performed on that installation.",
+            "finished_at": "2026-11-08T21:36:56Z"
+          }
+        }
+      },
+      {
+        "id": "devobs-0124-e454c5d",
+        "build": "Developer Observability 0.1.24",
+        "revision": "e454c5df92484ad991b938170feca3a930971f0c",
+        "installed_at": "2026-11-08T21:37:04.500884+00:00",
+        "install_evidence": "Installed package version read back at this timestamp; release installer reported exact PR head e454c5d and installed MCP probe passed. This timestamp is observation, not installation time.",
+        "status": "complete",
+        "checks": {
+          "USER-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "USER-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-01": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-04": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-06": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-10": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-04": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-12": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-13": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-14": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-15": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-16": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-17": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-07": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "USER-06": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-18": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-19": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-09": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-10": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-20": {
+            "state": "inconclusive",
+            "started_at": "2026-11-09T05:34:39Z",
+            "updated_at": "2026-11-09T05:34:39Z",
+            "previous_checks": [
+              {
+                "state": "inconclusive",
+                "started_at": "2026-11-08T21:37:16Z",
+                "updated_at": "2026-11-08T21:37:16Z",
+                "evidence": "Installed 0.1.24 MCP returned a captured real Codex CLI Luna low task from an isolated proof database. Exact attribution of T3-delegated children, independent acceptance and paired comparison remain unverified.",
+                "finished_at": "2026-11-08T21:37:16Z"
+              },
+              {
+                "state": "inconclusive",
+                "started_at": "2026-11-09T05:13:27Z",
+                "updated_at": "2026-11-09T05:13:27Z",
+                "evidence": "A fresh T3-delegated Codex Luna low task completed, and independent byte comparison of its disposable output passed. T3 returned child/run IDs and session timestamps, but no authoritative Codex session ID or token counters; exact child-ID search across 44 current-day Codex session metadata records found no match. Usage and parent/child attribution remain unknown; this is not proof that no mapping exists.",
+                "finished_at": "2026-11-09T05:14:17Z"
+              }
+            ],
+            "evidence": "The completed disposable T3 Luna child was independently accepted; T3 local statev2 read-only run to provider thread mapping contained a strong native Codex session ID. Exactly one Codex session metadata record matched, and its terminal cumulative input, cached-input, output and reasoning counters matched T3 turn usage. This proves one child without descendants; no supported T3 lookup, parent accounting, retries, full coverage, or comparison endpoint was verified.",
+            "finished_at": "2026-11-09T05:34:40Z"
+          }
+        }
+      },
+      {
+        "id": "devobs-0125-e79d864",
+        "build": "Developer Observability 0.1.25",
+        "revision": "e79d86402a777f52caf9013491bbbf0af72a9375",
+        "installed_at": "2026-11-09T05:48:39.572041+00:00",
+        "install_evidence": "Installed version observed at this time; installer reported exact PR head e79d864 and MCP probe passed. Observation time is not installation time.",
+        "status": "complete",
+        "checks": {
+          "USER-02": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "USER-03": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "AGENT-02": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-01": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-02": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-03": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-04": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-06": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-10": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "AGENT-03": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "AGENT-04": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-12": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-13": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-14": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-15": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-16": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-17": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "AGENT-07": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "USER-06": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-18": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-19": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "AGENT-09": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "AGENT-10": {
+            "state": "blocked",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          },
+          "OBS-20": {
+            "state": "inconclusive",
+            "started_at": "2026-11-09T05:48:40Z",
+            "updated_at": "2026-11-09T05:48:40Z",
+            "evidence": "Installed exact PR head 0.1.25: fake-provider failure/recovery check confirms persistence failure exits nonzero and successful storage recovers; a real Luna low Codex CLI task recorded token counters. T3 supported usage interface, complete task attribution and comparison remain unverified.",
+            "finished_at": "2026-11-09T05:48:40Z"
+          }
+        }
+      },
+      {
+        "id": "devobs-0127-e47161a",
+        "build": "developer-observability 0.1.27",
+        "revision": "e47161a926cdb3b6c44d112407a0c30c2e42d516",
+        "installed_at": "2026-11-09T06:41:06.429504+00:00",
+        "install_evidence": "Release installer reported exact PR head e47161a and installed MCP probe passed; snapshot freshness stale.",
+        "status": "interrupted",
+        "checks": {
+          "USER-02": {
+            "state": "pending"
+          },
+          "USER-03": {
+            "state": "pending"
+          },
+          "AGENT-02": {
+            "state": "pending"
+          },
+          "OBS-01": {
+            "state": "pending"
+          },
+          "OBS-02": {
+            "state": "pending"
+          },
+          "OBS-03": {
+            "state": "pending"
+          },
+          "OBS-04": {
+            "state": "pending"
+          },
+          "OBS-06": {
+            "state": "pending"
+          },
+          "OBS-10": {
+            "state": "pending"
+          },
+          "AGENT-03": {
+            "state": "pending"
+          },
+          "AGENT-04": {
+            "state": "pending"
+          },
+          "OBS-12": {
+            "state": "pending"
+          },
+          "OBS-13": {
+            "state": "pending"
+          },
+          "OBS-14": {
+            "state": "pending"
+          },
+          "OBS-15": {
+            "state": "pending"
+          },
+          "OBS-16": {
+            "state": "pending"
+          },
+          "OBS-17": {
+            "state": "pending"
+          },
+          "AGENT-07": {
+            "state": "pending"
+          },
+          "USER-06": {
+            "state": "pending"
+          },
+          "OBS-18": {
+            "state": "pending"
+          },
+          "OBS-19": {
+            "state": "pending"
+          },
+          "AGENT-09": {
+            "state": "pending"
+          },
+          "AGENT-10": {
+            "state": "pending"
+          },
+          "OBS-20": {
+            "state": "inconclusive",
+            "started_at": "2026-11-09T06:41:06Z",
+            "updated_at": "2026-11-09T06:41:06Z",
+            "evidence": "Direct-Codex installed and live rechecks passed; no supported exact T3 binding or complete child usage, independent acceptance or comparable cohorts established.",
+            "finished_at": "2026-11-09T06:42:16Z"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "acu-0.2.122-f3dac96",
-      "build": "ACU 0.2.122, Context Ledger 0.1.40",
-      "revision": "f3dac96d1739b4f4348e54c3acc0ad590f1757ea",
-      "installed_at": "2026-11-08T20:06:55.291885+00:00",
-      "install_evidence": "Signed and notarized ACU at 7caac2d with identical runtime package at f3dac96; corrected release check /tmp/pr92-acu-0.2.122-f3dac96-recheck.json passed. Context Ledger 0.1.40 package identity matched source.",
-      "status": "complete",
+      "id": "devobs-0128-fbd3040",
+      "build": "developer-observability 0.1.28",
+      "revision": "fbd3040e5cc8d0c48cc2c01002ac85a1e0a932f3",
+      "installed_at": "2026-11-09T07:24:41.533803+00:00",
+      "install_evidence": "Exact PR head installed; release MCP probe passed, snapshot freshness stale.",
+      "status": "active",
       "checks": {
         "USER-02": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "USER-03": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "AGENT-02": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-01": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-02": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-03": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-04": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-06": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-10": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "AGENT-03": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "AGENT-04": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-12": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-13": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-14": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-15": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-16": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-17": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "AGENT-07": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "USER-06": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-18": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "OBS-19": {
-          "state": "blocked",
-          "started_at": "2026-11-08T20:16:25Z",
-          "updated_at": "2026-11-08T20:16:25Z",
-          "evidence": "Not rechecked on this ACU installation: the pass stopped after AGENT-09 reproduced a Comet failure. Prior verification and product status are retained; resume the issue-specific check after that failure is resolved.",
-          "finished_at": "2026-11-08T20:16:34Z"
+          "state": "pending"
         },
         "AGENT-09": {
-          "state": "not_fixed",
-          "started_at": "2026-11-08T20:07:07Z",
-          "updated_at": "2026-11-08T20:07:07Z",
-          "evidence": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",
-          "finished_at": "2026-11-08T20:07:59Z"
+          "state": "pending"
         },
         "AGENT-10": {
-          "state": "fixed",
-          "started_at": "2026-11-08T20:06:55Z",
-          "updated_at": "2026-11-08T20:06:55Z",
-          "evidence": "Corrected gate passed a fresh 0.2.122 spoken run with ordered transcript, successful Calculator action and session_phase response_done; independent display readback confirmed 13 × 17 = 221 and audio readiness. The earlier corrected-gate attempt heard speech but no fresh Calculator action and remains a failed attempt.",
-          "finished_at": "2026-11-08T20:07:07Z"
+          "state": "pending"
+        },
+        "OBS-20": {
+          "state": "inconclusive",
+          "started_at": "2026-11-09T07:24:41Z",
+          "updated_at": "2026-11-09T07:24:41Z",
+          "evidence": "Installed 0.1.28 MCP and clean live direct capture passed, with synthetic malformed and failed-event checks. Full child/retry coverage, independent acceptance and general comparison remain unproven.",
+          "finished_at": "2026-11-09T07:37:24Z"
         }
       }
     },
@@ -6610,7 +7161,37 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-08T20:16:34+00:00"
+      "updated_at": "2026-11-09T07:37:24+00:00"
+    },
+    "rollover": {
+      "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
+      "unresolved_ids": [
+        "USER-03",
+        "AGENT-02",
+        "OBS-01",
+        "OBS-03",
+        "OBS-10",
+        "AGENT-03",
+        "AGENT-04",
+        "OBS-12",
+        "OBS-14",
+        "OBS-15",
+        "OBS-16",
+        "AGENT-07",
+        "AGENT-09"
+      ],
+      "excluded_ids": [
+        "USER-02",
+        "OBS-02",
+        "OBS-04",
+        "OBS-06",
+        "OBS-13",
+        "OBS-17",
+        "USER-06",
+        "OBS-18",
+        "OBS-19",
+        "AGENT-10"
+      ]
     }
   },
   "findings": [
@@ -8766,6 +9347,64 @@
         "scripts/test_release_agent_computer_use.py",
         "/tmp/pr92-acu-0.2.122-f3dac96-recheck.json"
       ]
+    },
+    {
+      "id": "OBS-20",
+      "title": "Attribute agent task usage and verify comparisons",
+      "source": "User requested",
+      "status": "investigation",
+      "observed": "A real Codex CLI Luna run produced task usage, but T3-delegated child usage has not been linked to an authoritative session or an independent task acceptance result.",
+      "recommendation": "Establish a verifiable exact run, provider thread and turn-boundary binding; collect complete usage with explicit retry and child coverage; bind a separately verified result; reject incompatible or incomplete comparisons. Prove direct Codex first; keep T3 attribution unknown when no supported binding exists.",
+      "details": {
+        "Source tests": "Developer Observability 0.1.24: 102 tests passed, two skipped; task usage source tests passed.",
+        "Installed evidence": "Exact PR head e454c5d installed as 0.1.24; installed MCP returned one recorded Codex CLI task from an isolated proof database.",
+        "Live evidence": "Real Luna low Codex CLI capture recorded input and output tokens; T3 child capture and independent acceptance were not established.",
+        "Scope": "Codex CLI capture is separately proven. Do not combine its jobs with sampled sessions or infer parent/child costs. No baseline/candidate savings verdict established.",
+        "T3 live proof": "A fresh delegated Luna low task produced the expected disposable output; independent bytes passed. T3 returned child/run IDs, but an exact-ID search of 44 current-day Codex session metadata records found no match. Usage attribution remains unknown; timestamps do not establish identity.",
+        "Architecture finding": "The exposed T3 interface reports parent-child task IDs and run metadata but no exact provider-session mapping or authoritative child token usage. A bounded metadata search found no exact match; additional T3 internals were not verified.",
+        "Proposed owner boundary": "T3 must expose authoritative execution identity and terminal usage through a read-only lookup or receipt; Developer Observability validates enrolled records and independent acceptance without time-based inference. The actual T3 adapter capability remains unproven.",
+        "T3 exact mapping proof": "One actual completed T3 Luna low child maps through T3 local read-only state to a strong native Codex session ID; an exact unique session matched and terminal cumulative input, cached-input, output, and reasoning counters agreed. Its independent disposable output check passed.",
+        "Remaining boundary": "This single-child proof uses internal T3 state, not a supported public usage API. Parent and descendant totals, retries, missing coverage, stable versioned contracts, and independent comparative acceptance remain unverified.",
+        "Native documentation": "Upstream T3 documents provider request and turn usage, including native vs T3-managed children, with best-effort and restart limitations. Codex exposes last and cumulative thread usage; last context is not task-total usage. Upstream documentation does not prove the installed T3 build exposes these via MCP.",
+        "Implementation boundary": "Prefer an authenticated T3-supported per-run read interface and its provider-normalized usage; use Codex app-server notifications for Codex-specific capture when directly controlling that provider. Current MCP session read did not expose a verified token-usage field. Avoid depending on internal SQLite schemas as a stable interface.",
+        "References": "https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md ; https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/src/protocol/v2/account.rs ; https://github.com/pingdotgg/t3code/blob/main/docs/internals/product-analytics.md ; https://github.com/pingdotgg/t3code/blob/main/docs/orchestration-v2/orchestrator-mcp-server.md",
+        "Capture failure handling": "Source regression reproduced and corrected exit 0 on persistence failure. Installed 0.1.25 failure and recovery checks passed using a simulated provider; a real Luna low Codex CLI capture recorded usage. This proves CLI capture, not T3 attribution.",
+        "Native architecture": "Prefer exposing exact run usage and coverage from T3’s authenticated read interface, consuming its provider normalization. No supported T3 usage interface or independently verified complete task comparison was available in this session.",
+        "Native Codex proof": "Installed Codex CLI 0.167.0 app-server thread/resume for the exact previously verified Codex thread emitted thread/tokenUsage/updated with matching cumulative input, cached-input, output and reasoning counters. Plain thread/read emitted no usage notification in the bounded probe. account/usage/read returned null threadUsage for this account.",
+        "Native T3 boundary": "Installed T3 CLI thread show and T3 MCP thread read expose T3 thread/run metadata but did not expose a provider thread ID or token totals in the inspected response. A prior exact join used an internal T3 projection and is not a supported API contract.",
+        "Scope and next action": "Use provider-native usage events when controlling an explicit Codex thread. T3-provider-neutral attribution requires a supported T3 execution-to-provider usage interface; do not infer identities by time or mark complete without independent acceptance.",
+        "Native provider proof": "Codex CLI 0.167.0 app-server resumed a known completed Codex test thread and emitted thread/tokenUsage/updated for the exact thread. Its cumulative input, cached-input, output and reasoning counters matched the previously observed terminal usage. Plain thread/read produced no usage notification in the bounded test; account/usage/read returned null threadUsage for this account. Resume is stateful and this proof covers one Codex thread only.",
+        "Control-plane limitation": "T3 native provider analytics distinguish T3-managed child runs and native subagents but are documented as best effort, including possible missing children and restart gaps. The installed T3 CLI thread show and exposed MCP read did not return provider session ID or usage for the test child. No public provider-neutral exact-run usage API has been proved in this session.",
+        "Evidence hardening 0.1.26": "Source tests: 106 passed, 2 skipped. Exact PR head 04a7ee7 installed as 0.1.26; MCP probe passed. A real Luna low Codex CLI run recorded token usage with --quiet-events; acceptance remains unknown. Replayed or ambiguous and failed turns yield unknown usage; unexpected stored fields are rejected.",
+        "Remaining work": "Test marker propagation for an actual T3 task and verify uniqueness, lifecycle and spoofing limits. Establish authoritative task-to-artifact binding, verifier independence, child coverage and comparable cohort evidence before any savings verdict.",
+        "Astra low review": "Read-only architecture review identified that a native thread can contain multiple runs and cumulative counters cannot alone establish a run total. The Island inventory discovers Codex threads but is not an authoritative T3 run-to-thread or turn-boundary binding.",
+        "Evidence privacy and replay": "Version 0.1.26 added optional quiet capture, rejected unexpected stored fields, and suppresses totals for ambiguous replayed or failed turns. Raw events are still forwarded unless --quiet-events is requested; comprehensive schema, all retry cases and privacy of existing records remain unverified.",
+        "Independent acceptance": "A caller-supplied --verify exit code is a check result, not independent acceptance. Bind a separately executed verifier, scenario, output digest and verifier identity; absent or mismatched evidence must yield incomplete.",
+        "Comparison eligibility": "Require matching scenario, fixture, measurement boundary and effective settings, with explicit skill revision, complete non-overlapping usage and passing independent verification; preserve failed attempts and reject unsupported provider, child or retry coverage.",
+        "Next controlled checks": "Run a disposable direct Codex task with a separately executed verifier and verify the exact native usage and output independently. Then attempt T3 via supported interfaces; report binding_unavailable when no authoritative run-to-thread-and-turn binding exists.",
+        "Review provenance": "Astra low review of source at 8d79a3b; review was read-only and did not independently test installed T3 behavior. Subsequent 0.1.26 source changes and one quiet CLI capture were recorded separately.",
+        "Source pilot 0.1.27": "107 source tests passed, 2 skipped; plugin validation passed. Exact captured task detail and a separately run digest-bound check were added. Verifier independence, task-to-artifact binding and child coverage remain unproven.",
+        "Installed pilot 0.1.27": "Exact code head 79f2321 installed; installed MCP returned the captured thread ID, artifact-check receipt and explicit unknown acceptance and child coverage. Installer noted stale snapshot freshness.",
+        "Live pilot 0.1.27": "A real direct Codex Luna task produced a captured native thread and token counters. A separate verifier checked its disposable output and passed; the receipt records digests. Independence and task-to-output binding remain caller assertions.",
+        "Marker discovery experiment": "For this direct task, a unique marker in its initial prompt appeared in both the title and first message of the exact Codex thread in the inventory consumed by Dynamic Island. This is discovery evidence for that one task, not a proven T3 binding or complete child usage.",
+        "Verification recheck 0.1.27": "Installed exact PR head e47161a; release MCP probe passed with stale snapshot freshness. 107 source tests passed, 2 skipped. Installed MCP matched a captured native thread and usage, returned its separate check receipt and unknown acceptance/child coverage, and handled missing and invalid IDs. A fresh real Luna direct task after installation recorded usage and a separate output check passed; its unique prompt marker appeared in the exact Codex inventory thread. T3 task-to-thread attribution, child coverage and verifier independence remain unverified.",
+        "Skill experiment pilot": "Two paired single-turn Codex Luna low trials tested the current batched-change-list stage workflow against an isolated stage-command candidate. Independently checked preservation, three rendered transitions, cleared stage and reproducible final HTML passed in all four runs. Baseline: 51.96s/6 shell calls/216891 input/1536 output tokens and 45.44s/7 calls/259605 input/1299 output. Candidate: 31.41s/5 calls/188842 input/878 output and 35.92s/5 calls/185113 input/794 output. Cached input is a subset of input, not extra. Measurements exclude external verifier and orchestration and are two same-scenario parallel pairs, not proof of general savings. Both source suites passed 32 tests; invalid stage rejected without writes. Two initial launches failed before agent work due to unsupported CLI option and were retained outside the successful pairs. T3 child attribution and full-workflow comparison remain unproven.",
+        "Reusable workflow direction": "After broader independent tasks and full-boundary accounting establish a reliable selection method, use it to design a reusable skill-refinement skill; do not adopt or claim universal gains based solely on the stage pilot.",
+        "Rollover skill experiment": "Historical efficiency pair, recovery status superseded by 'Rollover recovery test' below. One corrected parallel pair used one unresolved and one verified finding. Independent checks confirmed both agents preserved records, updated PR identity/worktree, excluded the verified ID, and carried the unresolved ID into the report. Baseline: 60.77 seconds, 10 shell calls, 374894 input and 2137 output tokens; candidate: 49.69 seconds, 7 calls, 258213 input and 1468 output tokens. Cached input is included in input. A preceding pair used a defective fixture with no unresolved issue and is excluded from comparison. This one scenario is not a general efficiency verdict. A separate simulated report-write failure showed the candidate updates the tracker first, emits a rerender instruction, and rejects direct retry; manual rerender recovered. Do not adopt without addressing or explicitly accepting recovery behavior and testing additional cases. Verifier and orchestration overhead are not included.",
+        "Astra low experiment review": "Prioritize improving the experiment workflow; direct-Codex capture is sufficient for bounded pilots. Pin common fixture and source identity, counterbalance order, retain failures, independently bind acceptance and measure the full boundary. Do not infer lower cost from lower total input because cached input differs. T3-inclusive attribution remains unproven. Hold rollover until failure recovery is resolved.",
+        "Manifest workflow trial": "A prototype runner in /tmp/skill-eval-manifest pinned a shared fixture and full skill-content hashes at base revision 862a137, captured four real single-process Luna low executions sequentially in counterbalanced order, and wrote hashed independent acceptance receipts for intermediate tracker/report snapshots, finding preservation and invalid-stage no-write behavior. Candidate passed both cases; baseline passed review and failed cycle after stopping before the first transition. For accepted review: baseline 61.065 seconds end-to-end, 12 shell calls, 266075 input (242304 cached), 1813 output; candidate 59.217 seconds, 9 calls, 317449 input (295424 cached), 1609 output. Full input includes cached tokens. The failed baseline cycle took 37.595 seconds and remains in the record; do not compare its speed as equivalent completed work. Two synthetic cases do not establish general savings; verifier and orchestration token usage and descendants remain unknown. Runner total includes per-run setup and acceptance but excludes Python startup, initial fixture creation and final analysis. Hashes bind receipts but do not by themselves prove chronology. No skill change adopted.",
+        "Capture hardening source 0.1.28": "Source-only: malformed event streams now suppress usage totals; exact task detail exposes conservative eligibility for single clean direct capture; failed-event token observations remain bounded and unaggregated. 108 source tests passed, 2 skipped; plugin manifest validation passed. Installed and live checks pending.",
+        "Experiment quality correction": "Astra review found neither candidate agent used the stage command in the previous manifest pilot. The report receipts verified artifacts using each arm renderer, not an independent rendering oracle. Do not attribute observed differences to the stage command or call the prior checks independent acceptance. A new arm-neutral deterministic contract checked stage labels, findings, existing verification state, invalid input and write failure recovery for both interfaces.",
+        "Capture hardening installed 0.1.28": "Exact PR head fbd3040 installed; MCP installer probe passed but snapshot freshness was stale. Installed MCP with synthetic failure and malformed streams returned failed-event usage only as unaggregated observations, suppressed malformed totals and marked both ineligible. A fresh real Luna CLI capture returned direct-measurement eligibility and a native thread; child coverage and acceptance remained unknown. Source suite 108 passed, 2 skipped. Failed-event usage live evidence uses synthetic input and does not prove providers emit it.",
+        "Updated workflow pilot": "Six sequential matched pairs of stage-transition tasks, two per three sequences with reversed order, used the same fixture and pinned skill hashes. Arm-neutral JSON/HTML checks covered findings, current stage and final tracker; chronology and outside-tracker writes remain unproven. Independent event reconciliation matched all terminal usage counters. Candidate accepted 6/6 and actually invoked stage in 4/6; baseline accepted 4/6. Both accepted in four pairs; candidate versus baseline end-to-end seconds: 41.836 vs 46.829, 28.868 vs 61.476, 44.102 vs 66.521, and 53.647 vs 52.966. Token categories and full results retained in /tmp/bcl-workflow-v2/results.json. Four matched successes and stage-only synthetic tasks do not establish broad speed, quality or cost improvement. Failed runs were retained; no adoption threshold was predeclared. Direct CLI token coverage excludes verifier and orchestration; children and T3 remain unknown.",
+        "Next work": "Developer Observability: full T3/child/retry attribution remains unresolved. Batched-change-list: the rollover helper is safe in the experiment copy but should only be promoted with a broader efficiency sample; the stage shortcut is not adopted. Status view and authorization/threshold are out of scope for this PR. Use docs/triage/experiments/evaluation-workflow.md for the next recommendation so deterministic checks precede agent runs.",
+        "OpenCode provider review": "Independent read-only review used OpenCode GLM-5.3-Flash Free low because the Codex account was still rate-limited. It inspected fbd3040, OBS-20, and the six-pair runner/results. Verdict: inconclusive; do not adopt. Confirmed: the candidate used stage in only 4/6 runs, so pairs mixed mechanism-on and mechanism-off behavior; uncached input was higher in 3 of the 4 both-accepted pairs (25,955 vs 20,491; 33,605 vs 30,003; 47,817 vs 32,922) and lower in handoff-2; pair order was not recorded; the v2 checker is same-process and does not prove chronology or outside-tracker writes; the runner duplicates collector eligibility; runner and analyze used different stage-command regexes. Two claims were stale because the reviewer read the project-root checkout: the worktree report already shows build 0.1.28 and OBS-20 already records the installed 0.1.28 checks and the six-pair pilot. A claimed legacy-row leak was dismissed: pre-0.1.28 summarize already nulled failed and ambiguous usage, and stored invalid_events rows are excluded by the new task_overview gate. No product code changed from this review.",
+        "OpenCode stage pilot": "Testing moved to OpenCode v2.2.6 with deepseek-v4.1-flash-free#low because Codex was rate-limited. Plan: docs/triage/experiments/opencode-stage-pilot/plan.json; 3 cases x 2 reps, balanced order, failures retained. First probes showed the candidate still chose batch because SKILL.md said to; the candidate SKILL.md was changed to make the single-stage command primary, and the new tree hash is pinned in the plan. Matched pilot: 6/6 candidate runs used stage; 6/6 candidate and 6/6 baseline accepted; all 6 pairs both accepted. Medians candidate vs baseline: shell calls 8 vs 8 (tie), agent seconds 35.252 vs 41.689, uncached input 23,943 vs 26,654.5, output 1,537.5 vs 1,883.5, cache read 203,456 vs 233,024. Candidate was faster in 5/6 pairs and used fewer calls in 3/6; fix-2 was slower and used 2 more calls. The predeclared rule required a strict call-count win, so the verdict is inconclusive despite adoption, correctness, time and uncached-input checks passing. Results, runner, plan and candidate patch are under docs/triage/experiments/opencode-stage-pilot/. This is a directional OpenCode-provider result; verifier and orchestration tokens are excluded.",
+        "Recommendation test coverage": "Stage shortcut: REMOVE / do not adopt. Codex six pairs (candidate stage-used 4/6; mixed) and OpenCode six pairs (6/6 used stage; all accepted; median calls 8 vs 8, time 35.252 vs 41.689 s, uncached 23,943 vs 26,654.5). The primary endpoint, call count, tied. Rollover command: KEEP in the experiment copy. One corrected Codex pair is directional only (49.69 vs 60.77 s, 7 vs 10 calls, 258,213 vs 374,894 input with cache included, 1,468 vs 2,137 output). Recovery is now deterministically tested: 26/26 checks on the fixed wrapper, 15/26 fail on the old wrapper, 32 existing tests pass, and 2/2 OpenCode runs used the helper correctly. Provenance-aware status view: OUT OF SCOPE for PR #92. Baseline inspection found the status/source, latest-check label separating current/previous/none, and version timeline already present; only a provenance label remains optional. No candidate was built. Authorization and threshold provenance: OUT OF SCOPE for PR #92. No code counts findings or enforces the 10-finding merge threshold; it is an operational instruction, not a benchmarkable performance change. Structured input convenience: REMOVE as a separate item; it was one direct batch-vs-stage command check, later folded into the stage pilot, with no distinct agent trial. Evaluation workflow: documented in docs/triage/experiments/evaluation-workflow.md. Claim class selects the test; contract checks cost 0.4 s, a 2-run adoption probe 101 s, and a 12-run matched pilot 470 s.",
+        "Rollover recovery test": "Old failure reproduced deterministically: with the report directory at mode 0500, the wrapper committed PR 2 and excluded ISSUE-02 to the tracker, left no report, and exited 1 with a traceback. Retry after restoring permissions was rejected with 'rollover target must differ from current PR'; manual render.py recovered. Candidate fix: when rollover.target_url already matches, require the same label, URL, and worktree, render from the tracker, write the report only if absent, and return recovered true; an existing report must be byte-identical. The first-run existing-report guard is retained and errors use the skill's exit-2 convention. Evidence: docs/triage/experiments/rollover-recovery/verify.py passes 26/26 checks on the fixed wrapper; the same checks against the old wrapper pass 11/26 and fail 15/26. The existing 32-test suite passes. OpenCode deepseek-v4.1-flash-free#low adoption probe: 2/2 runs used the helper and produced the correct tracker/report pair (22.47 s / 3 calls and 78.822 s / 4 calls; single-run times are not an efficiency comparison). Decision: keep the recovery fix in the experiment copy. Do not promote to the installed skill without a broader efficiency sample. Full T3 attribution remains separate.",
+        "Evaluation workflow": "docs/triage/experiments/evaluation-workflow.md defines the repeatable path. Classify the claim first: already-present behavior -> read-only baseline; contract/correctness -> deterministic harness plus negative control; agent adoption -> 1-2 probes on the current provider; efficiency -> predeclared matched pairs; policy/prose -> owner decision. Order matters: contract before adoption before efficiency, because a matched pair measures nothing if the agent never uses the mechanism. Predeclare the primary endpoint, balance order, retain failures, and treat a tie as not adopted. Observed cost: 0.4 s for the 26-check rollover harness, 101 s for the 2-run OpenCode probe, 470 s for the 12-run stage pilot. Applied outcomes: stage removed on a call-count tie; rollover kept on contract evidence; status view and authorization declared out of scope for this PR; structured input folded into the stage pilot."
+      },
+      "evidence": []
     }
   ]
 }

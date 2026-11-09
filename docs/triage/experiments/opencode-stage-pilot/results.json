@@ -1,0 +1,325 @@
+{
+  "baseline_accepted": 6,
+  "candidate_accepted": 6,
+  "candidate_runs": 6,
+  "candidate_stage_used": 6,
+  "checks": {
+    "adoption": true,
+    "correctness": true,
+    "shell_calls": false,
+    "time": true,
+    "uncached_input": true
+  },
+  "medians": {
+    "baseline": {
+      "agent_seconds": 41.689,
+      "cache_read": 233024.0,
+      "output": 1883.5,
+      "shell_calls": 8.0,
+      "uncached_input": 26654.5
+    },
+    "candidate": {
+      "agent_seconds": 35.252,
+      "cache_read": 203456.0,
+      "output": 1537.5,
+      "shell_calls": 8.0,
+      "uncached_input": 23943.0
+    }
+  },
+  "model": "opencode/deepseek-v4.1-flash-free",
+  "note": "Directional OpenCode-provider pilot, not a general efficiency or savings verdict; verifier/orchestration tokens excluded.",
+  "pairs_both_accepted": 6,
+  "pairs_total": 6,
+  "rows": [
+    {
+      "baseline": {
+        "accepted": true,
+        "agent_seconds": 41.117,
+        "batch_stage_used": true,
+        "candidate_command_used": false,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 41.123,
+        "shell_calls": 9
+      },
+      "baseline_tokens": {
+        "cache_read": 266624,
+        "cache_write": 0,
+        "input_total": 294636,
+        "input_uncached": 28012,
+        "output": 2083,
+        "reasoning": 440,
+        "steps": 12
+      },
+      "both_accepted": true,
+      "candidate": {
+        "accepted": true,
+        "agent_seconds": 35.206,
+        "batch_stage_used": false,
+        "candidate_command_used": true,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 35.214,
+        "shell_calls": 6
+      },
+      "candidate_tokens": {
+        "cache_read": 186112,
+        "cache_write": 0,
+        "input_total": 209822,
+        "input_uncached": 23710,
+        "output": 1433,
+        "reasoning": 127,
+        "steps": 9
+      },
+      "case": "fix",
+      "complete": true,
+      "delta": {
+        "agent_seconds": -5.911,
+        "output": -650,
+        "shell_calls": -3,
+        "uncached_input": -4302
+      },
+      "rep": "1"
+    },
+    {
+      "baseline": {
+        "accepted": true,
+        "agent_seconds": 30.244,
+        "batch_stage_used": true,
+        "candidate_command_used": false,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 30.254,
+        "shell_calls": 7
+      },
+      "baseline_tokens": {
+        "cache_read": 204800,
+        "cache_write": 0,
+        "input_total": 212120,
+        "input_uncached": 7320,
+        "output": 1795,
+        "reasoning": 330,
+        "steps": 9
+      },
+      "both_accepted": true,
+      "candidate": {
+        "accepted": true,
+        "agent_seconds": 37.06,
+        "batch_stage_used": false,
+        "candidate_command_used": true,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 37.066,
+        "shell_calls": 9
+      },
+      "candidate_tokens": {
+        "cache_read": 250112,
+        "cache_write": 0,
+        "input_total": 262477,
+        "input_uncached": 12365,
+        "output": 1665,
+        "reasoning": 391,
+        "steps": 11
+      },
+      "case": "fix",
+      "complete": true,
+      "delta": {
+        "agent_seconds": 6.816,
+        "output": -130,
+        "shell_calls": 2,
+        "uncached_input": 5045
+      },
+      "rep": "2"
+    },
+    {
+      "baseline": {
+        "accepted": true,
+        "agent_seconds": 42.656,
+        "batch_stage_used": true,
+        "candidate_command_used": false,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 42.661,
+        "shell_calls": 6
+      },
+      "baseline_tokens": {
+        "cache_read": 160896,
+        "cache_write": 0,
+        "input_total": 187235,
+        "input_uncached": 26339,
+        "output": 1520,
+        "reasoning": 271,
+        "steps": 8
+      },
+      "both_accepted": true,
+      "candidate": {
+        "accepted": true,
+        "agent_seconds": 32.197,
+        "batch_stage_used": false,
+        "candidate_command_used": true,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 32.207,
+        "shell_calls": 7
+      },
+      "candidate_tokens": {
+        "cache_read": 187136,
+        "cache_write": 0,
+        "input_total": 212714,
+        "input_uncached": 25578,
+        "output": 1295,
+        "reasoning": 158,
+        "steps": 9
+      },
+      "case": "handoff",
+      "complete": true,
+      "delta": {
+        "agent_seconds": -10.459,
+        "output": -225,
+        "shell_calls": 1,
+        "uncached_input": -761
+      },
+      "rep": "1"
+    },
+    {
+      "baseline": {
+        "accepted": true,
+        "agent_seconds": 42.191,
+        "batch_stage_used": true,
+        "candidate_command_used": false,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 42.197,
+        "shell_calls": 7
+      },
+      "baseline_tokens": {
+        "cache_read": 186368,
+        "cache_write": 0,
+        "input_total": 213338,
+        "input_uncached": 26970,
+        "output": 1841,
+        "reasoning": 222,
+        "steps": 9
+      },
+      "both_accepted": true,
+      "candidate": {
+        "accepted": true,
+        "agent_seconds": 33.774,
+        "batch_stage_used": false,
+        "candidate_command_used": true,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 33.779,
+        "shell_calls": 9
+      },
+      "candidate_tokens": {
+        "cache_read": 230912,
+        "cache_write": 0,
+        "input_total": 238618,
+        "input_uncached": 7706,
+        "output": 1585,
+        "reasoning": 304,
+        "steps": 10
+      },
+      "case": "handoff",
+      "complete": true,
+      "delta": {
+        "agent_seconds": -8.417,
+        "output": -256,
+        "shell_calls": 2,
+        "uncached_input": -19264
+      },
+      "rep": "2"
+    },
+    {
+      "baseline": {
+        "accepted": true,
+        "agent_seconds": 41.187,
+        "batch_stage_used": true,
+        "candidate_command_used": false,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 41.193,
+        "shell_calls": 11
+      },
+      "baseline_tokens": {
+        "cache_read": 299392,
+        "cache_write": 0,
+        "input_total": 319571,
+        "input_uncached": 20179,
+        "output": 2165,
+        "reasoning": 602,
+        "steps": 12
+      },
+      "both_accepted": true,
+      "candidate": {
+        "accepted": true,
+        "agent_seconds": 35.299,
+        "batch_stage_used": false,
+        "candidate_command_used": true,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 35.306,
+        "shell_calls": 10
+      },
+      "candidate_tokens": {
+        "cache_read": 215808,
+        "cache_write": 0,
+        "input_total": 239984,
+        "input_uncached": 24176,
+        "output": 1671,
+        "reasoning": 238,
+        "steps": 10
+      },
+      "case": "triage",
+      "complete": true,
+      "delta": {
+        "agent_seconds": -5.888,
+        "output": -494,
+        "shell_calls": -1,
+        "uncached_input": 3997
+      },
+      "rep": "1"
+    },
+    {
+      "baseline": {
+        "accepted": true,
+        "agent_seconds": 56.352,
+        "batch_stage_used": true,
+        "candidate_command_used": false,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 56.359,
+        "shell_calls": 10
+      },
+      "baseline_tokens": {
+        "cache_read": 261248,
+        "cache_write": 0,
+        "input_total": 290816,
+        "input_uncached": 29568,
+        "output": 1926,
+        "reasoning": 515,
+        "steps": 12
+      },
+      "both_accepted": true,
+      "candidate": {
+        "accepted": true,
+        "agent_seconds": 42.409,
+        "batch_stage_used": false,
+        "candidate_command_used": true,
+        "direct_measurement_eligible": true,
+        "end_to_end_seconds": 42.414,
+        "shell_calls": 7
+      },
+      "candidate_tokens": {
+        "cache_read": 191104,
+        "cache_write": 0,
+        "input_total": 219228,
+        "input_uncached": 28124,
+        "output": 1490,
+        "reasoning": 279,
+        "steps": 9
+      },
+      "case": "triage",
+      "complete": true,
+      "delta": {
+        "agent_seconds": -13.943,
+        "output": -436,
+        "shell_calls": -3,
+        "uncached_input": -1444
+      },
+      "rep": "2"
+    }
+  ],
+  "variant": "low",
+  "verdict": "inconclusive"
+}

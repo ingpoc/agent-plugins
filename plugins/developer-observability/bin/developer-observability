@@ -2,6 +2,27 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 PY="${OBSERVABILITY_PYTHON:-$HOME/.local/share/developer-observability/runtime/bin/python3}"
+if [ "${1:-}" = codex-capture ]; then
+  shift
+  if [ ! -x "$PY" ]; then
+    PY=$(command -v python3) || { echo "developer-observability: python3 not found" >&2; exit 127; }
+  fi
+  exec "$PY" "$ROOT/runtime/collector/codex_capture.py" "$@"
+fi
+if [ "${1:-}" = codex-verify ]; then
+  shift
+  if [ ! -x "$PY" ]; then
+    PY=$(command -v python3) || { echo "developer-observability: python3 not found" >&2; exit 127; }
+  fi
+  exec "$PY" "$ROOT/runtime/collector/codex_verify.py" "$@"
+fi
+if [ "${1:-}" = codex-usage ]; then
+  shift
+  if [ ! -x "$PY" ]; then
+    PY=$(command -v python3) || { echo "developer-observability: python3 not found" >&2; exit 127; }
+  fi
+  exec "$PY" "$ROOT/runtime/collector/codex_usage.py" "$@"
+fi
 if [ "${1:-}" = collect ]; then
   # The collector is stdlib-only, so it also runs before install.py has built the MCP runtime.
   shift
