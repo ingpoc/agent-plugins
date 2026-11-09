@@ -5916,199 +5916,377 @@
             "finished_at": "2026-11-08T21:36:56Z"
           }
         }
+      },
+      {
+        "id": "devobs-0124-e454c5d",
+        "build": "Developer Observability 0.1.24",
+        "revision": "e454c5df92484ad991b938170feca3a930971f0c",
+        "installed_at": "2026-11-08T21:37:04.500884+00:00",
+        "install_evidence": "Installed package version read back at this timestamp; release installer reported exact PR head e454c5d and installed MCP probe passed. This timestamp is observation, not installation time.",
+        "status": "complete",
+        "checks": {
+          "USER-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "USER-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-01": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-02": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-04": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-06": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-10": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-03": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-04": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-12": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-13": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-14": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-15": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-16": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-17": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-07": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "USER-06": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-18": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-19": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-09": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "AGENT-10": {
+            "state": "blocked",
+            "started_at": "2026-11-08T21:37:16Z",
+            "updated_at": "2026-11-08T21:37:16Z",
+            "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
+            "finished_at": "2026-11-08T21:37:16Z"
+          },
+          "OBS-20": {
+            "state": "inconclusive",
+            "started_at": "2026-11-09T05:34:39Z",
+            "updated_at": "2026-11-09T05:34:39Z",
+            "previous_checks": [
+              {
+                "state": "inconclusive",
+                "started_at": "2026-11-08T21:37:16Z",
+                "updated_at": "2026-11-08T21:37:16Z",
+                "evidence": "Installed 0.1.24 MCP returned a captured real Codex CLI Luna low task from an isolated proof database. Exact attribution of T3-delegated children, independent acceptance and paired comparison remain unverified.",
+                "finished_at": "2026-11-08T21:37:16Z"
+              },
+              {
+                "state": "inconclusive",
+                "started_at": "2026-11-09T05:13:27Z",
+                "updated_at": "2026-11-09T05:13:27Z",
+                "evidence": "A fresh T3-delegated Codex Luna low task completed, and independent byte comparison of its disposable output passed. T3 returned child/run IDs and session timestamps, but no authoritative Codex session ID or token counters; exact child-ID search across 44 current-day Codex session metadata records found no match. Usage and parent/child attribution remain unknown; this is not proof that no mapping exists.",
+                "finished_at": "2026-11-09T05:14:17Z"
+              }
+            ],
+            "evidence": "The completed disposable T3 Luna child was independently accepted; T3 local statev2 read-only run to provider thread mapping contained a strong native Codex session ID. Exactly one Codex session metadata record matched, and its terminal cumulative input, cached-input, output and reasoning counters matched T3 turn usage. This proves one child without descendants; no supported T3 lookup, parent accounting, retries, full coverage, or comparison endpoint was verified.",
+            "finished_at": "2026-11-09T05:34:40Z"
+          }
+        }
       }
     ],
     "verification_run": {
-      "id": "devobs-0124-e454c5d",
-      "build": "Developer Observability 0.1.24",
-      "revision": "e454c5df92484ad991b938170feca3a930971f0c",
-      "installed_at": "2026-11-08T21:37:04.500884+00:00",
-      "install_evidence": "Installed package version read back at this timestamp; release installer reported exact PR head e454c5d and installed MCP probe passed. This timestamp is observation, not installation time.",
+      "id": "devobs-0125-e79d864",
+      "build": "Developer Observability 0.1.25",
+      "revision": "e79d86402a777f52caf9013491bbbf0af72a9375",
+      "installed_at": "2026-11-09T05:48:39.572041+00:00",
+      "install_evidence": "Installed version observed at this time; installer reported exact PR head e79d864 and MCP probe passed. Observation time is not installation time.",
       "status": "complete",
       "checks": {
         "USER-02": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "USER-03": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "AGENT-02": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-01": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-02": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-03": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-04": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-06": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-10": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "AGENT-03": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "AGENT-04": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-12": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-13": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-14": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-15": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-16": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-17": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "AGENT-07": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "USER-06": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-18": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-19": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "AGENT-09": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "AGENT-10": {
           "state": "blocked",
-          "started_at": "2026-11-08T21:37:16Z",
-          "updated_at": "2026-11-08T21:37:16Z",
-          "evidence": "Not checked in this Developer Observability task-usage installation; prior issue-specific evidence and status remain unchanged.",
-          "finished_at": "2026-11-08T21:37:16Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Not checked during this Developer Observability installation; earlier issue-specific evidence and status are preserved.",
+          "finished_at": "2026-11-09T05:48:40Z"
         },
         "OBS-20": {
           "state": "inconclusive",
-          "started_at": "2026-11-09T05:34:39Z",
-          "updated_at": "2026-11-09T05:34:39Z",
-          "previous_checks": [
-            {
-              "state": "inconclusive",
-              "started_at": "2026-11-08T21:37:16Z",
-              "updated_at": "2026-11-08T21:37:16Z",
-              "evidence": "Installed 0.1.24 MCP returned a captured real Codex CLI Luna low task from an isolated proof database. Exact attribution of T3-delegated children, independent acceptance and paired comparison remain unverified.",
-              "finished_at": "2026-11-08T21:37:16Z"
-            },
-            {
-              "state": "inconclusive",
-              "started_at": "2026-11-09T05:13:27Z",
-              "updated_at": "2026-11-09T05:13:27Z",
-              "evidence": "A fresh T3-delegated Codex Luna low task completed, and independent byte comparison of its disposable output passed. T3 returned child/run IDs and session timestamps, but no authoritative Codex session ID or token counters; exact child-ID search across 44 current-day Codex session metadata records found no match. Usage and parent/child attribution remain unknown; this is not proof that no mapping exists.",
-              "finished_at": "2026-11-09T05:14:17Z"
-            }
-          ],
-          "evidence": "The completed disposable T3 Luna child was independently accepted; T3 local statev2 read-only run to provider thread mapping contained a strong native Codex session ID. Exactly one Codex session metadata record matched, and its terminal cumulative input, cached-input, output and reasoning counters matched T3 turn usage. This proves one child without descendants; no supported T3 lookup, parent accounting, retries, full coverage, or comparison endpoint was verified.",
-          "finished_at": "2026-11-09T05:34:40Z"
+          "started_at": "2026-11-09T05:48:40Z",
+          "updated_at": "2026-11-09T05:48:40Z",
+          "evidence": "Installed exact PR head 0.1.25: fake-provider failure/recovery check confirms persistence failure exits nonzero and successful storage recovers; a real Luna low Codex CLI task recorded token counters. T3 supported usage interface, complete task attribution and comparison remain unverified.",
+          "finished_at": "2026-11-09T05:48:40Z"
         }
       }
     },
@@ -6811,7 +6989,7 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-09T05:46:25+00:00"
+      "updated_at": "2026-11-09T05:48:40+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
@@ -9018,7 +9196,7 @@
         "Native documentation": "Upstream T3 documents provider request and turn usage, including native vs T3-managed children, with best-effort and restart limitations. Codex exposes last and cumulative thread usage; last context is not task-total usage. Upstream documentation does not prove the installed T3 build exposes these via MCP.",
         "Implementation boundary": "Prefer an authenticated T3-supported per-run read interface and its provider-normalized usage; use Codex app-server notifications for Codex-specific capture when directly controlling that provider. Current MCP session read did not expose a verified token-usage field. Avoid depending on internal SQLite schemas as a stable interface.",
         "References": "https://github.com/pingdotgg/t3code/blob/main/docs/internals/product-analytics.md ; https://github.com/pingdotgg/t3code/blob/main/docs/orchestration-v2/orchestrator-mcp-server.md ; https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md",
-        "Capture failure handling": "Source regression reproduced a successful Codex process returning exit 0 despite usage-storage failure. Developer Observability 0.1.25 changes this to nonzero; source regression and suite passed. Installed and live failure/recovery still require checking.",
+        "Capture failure handling": "Source regression reproduced and corrected exit 0 on persistence failure. Installed 0.1.25 failure and recovery checks passed using a simulated provider; a real Luna low Codex CLI capture recorded usage. This proves CLI capture, not T3 attribution.",
         "Native architecture": "Prefer exposing exact run usage and coverage from T3’s authenticated read interface, consuming its provider normalization. No supported T3 usage interface or independently verified complete task comparison was available in this session."
       },
       "evidence": []
