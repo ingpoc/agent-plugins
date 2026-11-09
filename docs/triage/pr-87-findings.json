@@ -6989,7 +6989,7 @@
     },
     "workflow": {
       "stage": null,
-      "updated_at": "2026-11-09T06:27:01+00:00"
+      "updated_at": "2026-11-09T06:28:03+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
@@ -9202,7 +9202,9 @@
         "Native T3 boundary": "Installed T3 CLI thread show and T3 MCP thread read expose T3 thread/run metadata but did not expose a provider thread ID or token totals in the inspected response. A prior exact join used an internal T3 projection and is not a supported API contract.",
         "Scope and next action": "Use provider-native usage events when controlling an explicit Codex thread. T3-provider-neutral attribution requires a supported T3 execution-to-provider usage interface; do not infer identities by time or mark complete without independent acceptance.",
         "Native provider proof": "Codex CLI 0.167.0 app-server resumed a known completed Codex test thread and emitted thread/tokenUsage/updated for the exact thread. Its cumulative input, cached-input, output and reasoning counters matched the previously observed terminal usage. Plain thread/read produced no usage notification in the bounded test; account/usage/read returned null threadUsage for this account. Resume is stateful and this proof covers one Codex thread only.",
-        "Control-plane limitation": "T3 native provider analytics distinguish T3-managed child runs and native subagents but are documented as best effort, including possible missing children and restart gaps. The installed T3 CLI thread show and exposed MCP read did not return provider session ID or usage for the test child. No public provider-neutral exact-run usage API has been proved in this session."
+        "Control-plane limitation": "T3 native provider analytics distinguish T3-managed child runs and native subagents but are documented as best effort, including possible missing children and restart gaps. The installed T3 CLI thread show and exposed MCP read did not return provider session ID or usage for the test child. No public provider-neutral exact-run usage API has been proved in this session.",
+        "Evidence hardening 0.1.26": "Source tests: 106 passed, 2 skipped. Exact PR head 04a7ee7 installed as 0.1.26; MCP probe passed. A real Luna low Codex CLI run recorded token usage with --quiet-events; acceptance remains unknown. Replayed or ambiguous and failed turns yield unknown usage; unexpected stored fields are rejected.",
+        "Remaining work": "Independent acceptance, run-level provenance, supported T3-to-provider identity, child coverage, and comparable baseline/candidate task evidence remain unimplemented and unverified."
       },
       "evidence": []
     }
