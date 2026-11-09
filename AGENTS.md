@@ -42,6 +42,7 @@ Forge: [Cursor Origin](https://cursor.com/codebase/gurusharan/agent-plugins); Gi
 | Name | Path | Install |
 | --- | --- | --- |
 | `agent-computer-use` | `plugins/agent-computer-use/` | `plugins/agent-computer-use/AGENTS.md` |
+| `batched-change-list` | `plugins/batched-change-list/` | `plugins/batched-change-list/AGENTS.md` |
 | `comet-control` | `plugins/comet-control/` | `plugins/comet-control/AGENTS.md` |
 | `context-ledger` | `plugins/context-ledger/` | `plugins/context-ledger/AGENTS.md` |
 | `developer-observability` | `plugins/developer-observability/` | `plugins/developer-observability/AGENTS.md` |

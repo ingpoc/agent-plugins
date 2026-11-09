@@ -66,6 +66,22 @@
         "build failures",
         "mcp apps"
       ]
+    },
+    {
+      "name": "batched-change-list",
+      "source": {
+        "type": "local",
+        "path": "./plugins/batched-change-list"
+      },
+      "description": "Collect related product findings in one JSON tracker, render a reviewable HTML change list, and drive fix, install and verification through a batched workflow.",
+      "category": "productivity",
+      "homepage": "https://github.com/ingpoc/agent-plugins/tree/main/plugins/batched-change-list",
+      "keywords": [
+        "batched-change-list",
+        "change list",
+        "qa findings",
+        "regression tracker"
+      ]
     }
   ]
 }

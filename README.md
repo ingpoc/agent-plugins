@@ -14,6 +14,12 @@ plugins/agent-computer-use/
 ├── mcp.json
 ├── skills/macos-cua/
 └── bin/
+plugins/batched-change-list/
+├── AGENTS.md
+├── README.md
+├── plugin.json
+├── CHANGELOG.md
+└── skills/batched-change-list/
 plugins/comet-control/
 ├── AGENTS.md
 ├── README.md
@@ -38,11 +44,11 @@ plugins/developer-observability/
 └── bin/
 ```
 
-Catalog: `.cursor-plugin/marketplace.json` (and the Codex/Grok twins) lists all four. Cursor clients that already added this marketplace only show previously **Added** plugins until the marketplace is removed and re-added (or updated) so the catalog re-indexes — a new row in `marketplace.json` alone is not enough.
+Catalog: `.cursor-plugin/marketplace.json` (and the Codex/Grok twins) lists all five. Cursor clients that already added this marketplace only show previously **Added** plugins until the marketplace is removed and re-added (or updated) so the catalog re-indexes — a new row in `marketplace.json` alone is not enough.
 
 ## Install
 
-Four plugins: `agent-computer-use`, `comet-control` and `context-ledger` (macOS only), and `developer-observability` (macOS or Linux). Swap the name in the commands below.
+Five plugins: `agent-computer-use`, `comet-control` and `context-ledger` (macOS only), `developer-observability` (macOS or Linux), and `batched-change-list` (skills only, needs `python3`). Swap the name in the commands below.
 
 | Client | Install | Update |
 | --- | --- | --- |
