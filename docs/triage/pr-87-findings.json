@@ -6988,8 +6988,8 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-09T06:31:22+00:00"
+      "stage": "install",
+      "updated_at": "2026-11-09T06:40:15+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/92",
