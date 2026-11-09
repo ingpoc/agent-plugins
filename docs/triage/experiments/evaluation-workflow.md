@@ -51,6 +51,35 @@ agent is the most expensive step and is reserved for claims about agent behavior
 - Do not claim installed or live evidence from source tests.
 - Keep the failures; they are the reason the decision is credible.
 
+## What this can and cannot settle
+
+| Claim | Cheap? | Reliable? | Limit |
+| --- | --- | --- | --- |
+| Contract / recovery | Yes, 0.4 s | Yes | Proves the wrapper's behavior, not that the feature is worth having |
+| Agent adoption | Yes, ~100 s | Go/no-go | Two runs show reachability, not robustness across models or prompts |
+| Efficiency | ~8 min for 12 runs | Only for large effects | Six pairs on one free model cannot resolve a small or mixed win |
+| Policy / prose | Yes | Yes, as a decision | The decision is judgment, not measurement |
+
+The workflow is strongest as a **gate**, not as a general performance oracle. It
+reliably answers "does it work, and will the agent use it?" within minutes. It
+does not yet reliably answer "is it meaningfully faster or cheaper?" for small
+effects.
+
+Known limits:
+
+- The measurement boundary excludes verifier and orchestration tokens, so
+  absolute savings are unknown.
+- Synthetic fixtures test command mechanics, not the value of the real task.
+- A median can hide a bimodal run; always keep per-pair wins and losses.
+- A tied primary endpoint is a policy decision. The stage pilot improved time by
+  about 15% but tied on calls; that is enough to reject a command whose stated
+  purpose was fewer calls, not enough to claim general savings.
+
+Minimum upgrade to make this routine: move the deterministic contract tests into
+the skill's own suite and CI, consolidate the one-off runners into one
+parameterized harness, and require a predeclared primary endpoint plus minimum
+effect before running any matched pairs.
+
 ## Applied to this session
 
 | Recommendation | Furthest stage reached | Outcome | Cost |
