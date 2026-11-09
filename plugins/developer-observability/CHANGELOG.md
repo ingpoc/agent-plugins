@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.26
+
+- Reject private summary fields and avoid reporting totals for ambiguous or failed turns.
+
 ## 0.1.25
 
 - Report failed task-usage persistence as a capture failure.

@@ -45,6 +45,20 @@ class CodexUsageTests(unittest.TestCase):
         self.assertEqual(result['invalid_events'], 1)
         self.assertTrue(all(value is None for value in result['usage'].values()))
 
+    def test_duplicate_and_failed_turns_do_not_produce_totals(self):
+        event = json.dumps({'type': 'turn.completed', 'turn_id': 'turn-1', 'usage': {'input_tokens': 10}})
+        self.assertIsNone(module.summarize([event, event])['usage']['input_tokens'])
+        self.assertIsNone(module.summarize([event, '{"type":"turn.failed"}'])['usage']['input_tokens'])
+
+    def test_record_rejects_unrecognized_or_private_fields(self):
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / 'usage.sqlite3'
+            summary = module.summarize(['{"type":"turn.completed","usage":{"input_tokens":10}}'])
+            summary['prompt'] = 'private'
+            with self.assertRaises(ValueError):
+                module.record(db, '12345678-1234-4234-8234-123456789012', 'coding', summary)
+            self.assertFalse(db.exists())
+
     def test_record_is_idempotent_and_rejects_conflicting_replay(self):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / 'usage.sqlite3'
@@ -99,6 +113,19 @@ class CodexUsageTests(unittest.TestCase):
             self.assertEqual(json.loads(row)['requested_effort'], 'low')
             self.assertIsNone(json.loads(row)['model'])
             self.assertEqual(module.task_overview(db)['categories'][0]['input_tokens'], 17)
+
+    def test_quiet_capture_does_not_emit_task_content(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / 'codex'
+            fake.write_text('#!/bin/sh\nprintf \'%s\\n\' \'{"type":"item.completed","text":"private-content"}\' \'{"type":"turn.completed","usage":{"input_tokens":17}}\'\n')
+            fake.chmod(0o755)
+            launcher = path.parents[2] / 'bin/developer-observability'
+            env = dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'])
+            result = subprocess.run([str(launcher), 'codex-capture', '--quiet-events', '--database', str(root/'usage.sqlite3'), '--', 'example'],
+                                    capture_output=True, text=True, env=env)
+            self.assertEqual(result.returncode, 0)
+            self.assertNotIn('private-content', result.stdout + result.stderr)
 
     def test_capture_persistence_failure_is_not_reported_as_success(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--task-id', default=None)
     parser.add_argument('--category', choices=('coding', 'research', 'computer_use', 'writing', 'analysis', 'other', 'unknown'), default='unknown')
     parser.add_argument('--database', default='~/.local/share/developer-observability/task-usage.sqlite3')
+    parser.add_argument('--quiet-events', action='store_true', help='do not forward raw Codex events')
     parser.add_argument('--verify', help='caller-supplied executable check, run after a successful task')
     parser.add_argument('codex_args', nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -53,7 +54,8 @@ def main():
 
     def events():
         for line in proc.stdout:
-            sys.stdout.write(line)
+            if not args.quiet_events:
+                sys.stdout.write(line)
             yield line
 
     summary = summarize(events())

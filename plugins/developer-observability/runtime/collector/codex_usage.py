@@ -3,6 +3,7 @@ import argparse
 import json
 import math
 import os
+import re
 from pathlib import Path
 import sqlite3
 import sys
@@ -17,6 +18,9 @@ def summarize(lines):
     completed = failed = invalid = 0
     present = {field: 0 for field in FIELDS}
     threads = set()
+    turn_ids = set()
+    ambiguous = False
+    missing_turn_id = False
     for line in lines:
         try:
             event = json.loads(line)
@@ -36,6 +40,15 @@ def summarize(lines):
             failed += 1
         if event.get('type') != 'turn.completed':
             continue
+        turn_id = event.get('turn_id')
+        if isinstance(turn_id, str) and turn_id:
+            if turn_id in turn_ids or missing_turn_id:
+                ambiguous = True
+            turn_ids.add(turn_id)
+        else:
+            missing_turn_id = True
+            if completed:
+                ambiguous = True
         completed += 1
         usage = event.get('usage')
         if not isinstance(usage, dict):
@@ -53,7 +66,7 @@ def summarize(lines):
                 totals[field] += value
                 present[field] += 1
     return {'completed_turns': completed, 'failed_turns': failed, 'invalid_events': invalid,
-            'usage': {field: totals[field] if completed and present[field] == completed else None for field in FIELDS},
+            'usage': {field: totals[field] if completed and not failed and not ambiguous and present[field] == completed else None for field in FIELDS},
             'thread_id': next(iter(threads)) if len(threads) == 1 else None,
             'model': None, 'effort': None,
             'acceptance': 'unknown', 'cost': None}
@@ -63,6 +76,38 @@ def record(path, task_id, category, summary):
     task_id = str(uuid.UUID(task_id))
     if category not in ('coding', 'research', 'computer_use', 'writing', 'analysis', 'other', 'unknown'):
         raise ValueError('unknown task category')
+    allowed = {'completed_turns', 'failed_turns', 'invalid_events', 'usage', 'thread_id', 'model', 'effort', 'acceptance', 'cost', 'requested_model', 'requested_effort', 'process_exit_code', 'elapsed_seconds', 'check_status', 'check_seconds'}
+    if not isinstance(summary, dict) or set(summary) - allowed or not isinstance(summary.get('usage'), dict) or set(summary['usage']) - set(FIELDS):
+        raise ValueError('invalid usage summary fields')
+    if summary.get('acceptance', 'unknown') != 'unknown' or summary.get('cost') is not None:
+        raise ValueError('acceptance and cost must remain unknown')
+    for field in ('model', 'requested_model'):
+        value = summary.get(field)
+        if value is not None and (not isinstance(value, str) or not re.fullmatch(r'(?:gpt-[A-Za-z0-9._-]{1,76}|o[0-9][A-Za-z0-9._-]{0,77})', value)):
+            raise ValueError('invalid model')
+    for field in ('effort', 'requested_effort'):
+        if summary.get(field) not in (None, 'none', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'):
+            raise ValueError('invalid effort')
+    if any(value is not None and (type(value) is not int or value < 0) for value in summary['usage'].values()):
+        raise ValueError('invalid usage')
+    if summary.get('thread_id') is not None:
+        try:
+            uuid.UUID(summary['thread_id'])
+        except (ValueError, TypeError, AttributeError):
+            raise ValueError('invalid thread id') from None
+    if summary.get('check_status') not in (None, 'not_run', 'passed', 'failed', 'error'):
+        raise ValueError('invalid check status')
+    for field in ('completed_turns', 'failed_turns', 'invalid_events'):
+        value = summary.get(field)
+        if value is not None and (type(value) is not int or value < 0):
+            raise ValueError('invalid event count')
+    for field in ('elapsed_seconds', 'check_seconds'):
+        value = summary.get(field)
+        if value is not None and (type(value) not in (int, float) or not math.isfinite(value) or value < 0):
+            raise ValueError('invalid duration')
+    value = summary.get('process_exit_code')
+    if value is not None and type(value) is not int:
+        raise ValueError('invalid process exit code')
     path = Path(path).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     fd = os.open(path, os.O_CREAT | os.O_RDWR, 0o600)
