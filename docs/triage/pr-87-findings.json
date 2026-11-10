@@ -6459,6 +6459,18 @@
           "updated_at": "2026-11-09T07:24:41Z",
           "evidence": "Installed 0.1.28 MCP and clean live direct capture passed, with synthetic malformed and failed-event checks. Full child/retry coverage, independent acceptance and general comparison remain unproven.",
           "finished_at": "2026-11-09T07:37:24Z"
+        },
+        "DEVOBS-01": {
+          "state": "pending"
+        },
+        "DEVOBS-02": {
+          "state": "pending"
+        },
+        "DEVOBS-03": {
+          "state": "pending"
+        },
+        "DEVOBS-04": {
+          "state": "pending"
         }
       }
     },
@@ -7160,8 +7172,8 @@
       }
     },
     "workflow": {
-      "stage": null,
-      "updated_at": "2026-11-09T14:02:16+00:00"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-10T10:42:01+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -8195,7 +8207,7 @@
       "id": "OBS-10",
       "title": "Session telemetry cannot confirm the task result",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
       "recommendation": "Link the user's task to its actions, response and independently observed result using a stable run identity. Show expected and observed results only when recorded, and retain unknown or unverified outcomes when proof is missing.",
       "verification": "Calculator 64 and subsequent app exit were independently read back, while task_outcome events remained unverified in the session telemetry; the independent results were not joined as verified outcomes.",
@@ -8625,7 +8637,7 @@
       "id": "OBS-12",
       "title": "Show the complete Context Ledger decision trail",
       "source": "User requested",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "The current timeline can show Ledger operation, result status, count and optional bounded result details, but does not establish which preference was selected, applied, saved or superseded for a task.",
       "recommendation": "Link each lookup, selected preference, application, save receipt and supersession outcome to the task. Show concise status first and recorded result/error details on demand.",
       "verification": "The fresh session summary shows two Ledger save receipts and one selected record. Independent Ledger readback found a superseded predecessor, but the summary reports zero supersession events and does not establish the full task-linked trail.",
@@ -8830,7 +8842,7 @@
       "id": "OBS-14",
       "title": "Link voice, model, Ledger, browser and native timing to one task",
       "source": "User requested",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "Stage timings and a compact session summary exist, but a single task-level timeline across Samantha, Ledger, Comet, native actions and playback is not established.",
       "recommendation": "Join attributable stage durations, errors and outcomes to the task, preserve unknown stages and make slow-step evidence available on demand.",
       "verification": "Fresh 0.2.98 spoken Calculator events have no task run reference; voice-to-action/playback attribution remains incomplete.",
@@ -8953,7 +8965,7 @@
       "id": "OBS-15",
       "title": "Explain microphone preflight failures and recovery",
       "source": "User requested",
-      "status": "investigation",
+      "status": "in_progress",
       "observed": "A no-input-device preflight failure was followed by a successful startup in another session; available evidence does not establish what changed or whether recovery was automatic.",
       "recommendation": "Record input availability and device selection at preflight and audio readiness, with correlated failure and recovery transitions.",
       "verification": "Requested enhancement based on the 0.2.97 preflight lead; root cause and reliable recovery remain unknown.",
@@ -8993,7 +9005,7 @@
       "id": "OBS-16",
       "title": "Show a concise task summary and collapse mirrored events",
       "source": "User requested",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "A compact session summary exists, but it is not a single attributable task summary. Mirrored or repeated rows can obscure the action sequence.",
       "recommendation": "Show task, build, outcome, duration, failed step and evidence completeness first; collapse genuine mirrored events while retaining occurrence counts and expandable source evidence.",
       "verification": "A concise installed session summary is available, but this check did not establish a single task-linked summary or exercise a known mirrored event pair.",
@@ -9414,6 +9426,67 @@
         "Evaluation workflow": "docs/triage/experiments/evaluation-workflow.md defines the repeatable path. Classify the claim first: already-present behavior -> read-only baseline; contract/correctness -> deterministic harness plus negative control; agent adoption -> 1-2 probes on the current provider; efficiency -> predeclared matched pairs; policy/prose -> owner decision. Order matters: contract before adoption before efficiency, because a matched pair measures nothing if the agent never uses the mechanism. Predeclare the primary endpoint, balance order, retain failures, and treat a tie as not adopted. Observed cost: 0.4 s for the 26-check rollover harness, 101 s for the 2-run OpenCode probe, 470 s for the 12-run stage pilot. Applied outcomes: stage removed on a call-count tie; rollover kept on contract evidence; status view and authorization declared out of scope for this PR; structured input folded into the stage pilot."
       },
       "evidence": []
+    },
+    {
+      "id": "DEVOBS-01",
+      "title": "Wrong next step on latency and retry findings",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "All 4 active agent-plugins findings (3 latency_hotspot slow tests, 1 redundancy retry) have the fix text 'Inspect the CI check log for the failed test process named in the evidence', but none of those tests failed.",
+      "recommendation": "Generate the fix text by kind: for latency, name the slow step with p50/p95 and the place to profile it; for retry or duplicate, name the repeated call and the dedupe point.",
+      "details": {
+        "Root cause guess": "The fix template is chosen by source (origin-ci), not by finding kind.",
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+      },
+      "verification_refs": [
+        "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
+      ]
+    },
+    {
+      "id": "DEVOBS-02",
+      "title": "Coverage boilerplate repeated in every issues reply",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "observability_issues returns about 2.6 KB of coverage, coverage_details and limits on every call. That's 3.7 KB in total for samantha (one issue at 526 B) and 7.2 KB for agent-plugins. Every source reads 'partial' because the heartbeats are from 2026-11-04.",
+      "recommendation": "By default, coverage is a one-line status that lists only gaps; details are available on request. Fix the stale heartbeat or partial status. ACU confirmed this independently.",
+      "details": {
+        "Measured": "samantha reply 3705 chars; agent-plugins reply 7205 chars; coverage_details alone 1913 chars",
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+      },
+      "verification_refs": [
+        "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
+      ]
+    },
+    {
+      "id": "DEVOBS-03",
+      "title": "findings.json is 80 MB for 0.4 MB of findings",
+      "source": "Agent reported",
+      "status": "failing",
+      "observed": "collected/findings.json is 80,638,049 bytes. version_scopes is 59.8 MB, session_timelines 28.5 MB and findings 0.38 MB. Collect takes 11.6 s with a 278 MB peak RSS over 44,928 events.",
+      "recommendation": "Store the version scopes and timelines as separate, lazily paged files (or indexes), so the snapshot stays small and collect does less work.",
+      "details": {
+        "Measured": "runtime_ms 11594, peak_rss_mb 277.9",
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+      },
+      "verification_refs": [
+        "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
+      ]
+    },
+    {
+      "id": "DEVOBS-04",
+      "title": "Installed version isn't on main",
+      "source": "Agent reported",
+      "status": "blocked",
+      "observed": "The Mini runs 0.1.28 from the unmerged branch samantha-pr94-rollover, and Origin main is at 0.1.23 (464e497). A reinstall from main would roll back 0.1.24 to 0.1.28.",
+      "recommendation": "Intentional for now: Guru said no merges yet, so 0.1.24 to 0.1.28 stays on PR #96 (samantha-pr94-rollover). Don't reinstall from main. Devobs fixes go on branch devobs-fixes from 2f13a31, stacked on #96.",
+      "details": {
+        "Branch commits": "04a7ee7, 79f2321, fbd3040",
+        "ACU 2026-11-10 16:25 IST": "Branch plan and ownership agreed: Observability owns plugins/developer-observability/**; ACU owns the ACU and Samantha emitters.",
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+      },
+      "verification_refs": [
+        "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
+      ]
     }
   ]
 }
