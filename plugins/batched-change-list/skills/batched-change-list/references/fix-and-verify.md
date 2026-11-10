@@ -18,6 +18,8 @@ Use `Verified fixed` only after the acceptance criteria pass the relevant tests 
 
 Before declaring a fix complete, see [prove it works](principles.md#prove-it-works).
 
+Before fixing a group, set its items to `in_progress` and write `details."Current step"` (what is happening now, with a time) in one `batch --render`. The navigation shows a working spinner on every `in_progress` item, replacing its earlier check badge, and sorts them after checking items. The page is the user's only view of what you are doing, so update it as each step starts. Move an item off `in_progress` only to `verified_fixed` with evidence, or back to `failing` or `blocked` with the reason.
+
 After each coherent test or verification batch, update the authoritative findings and regenerate the view; reconcile per-item status, navigation badges, counts, build/head and evidence together. Consolidate related report-only edits into one commit after the batch. Preserve unresolved findings for the next pass. An authorized PR is created or updated before installing when project policy requires an open PR head; install that exact head and verify its identity. Do not merge, publish, install, send messages, or run intrusive tests unless authorized by the user or applicable instructions.
 
 Record issues found, fix/build/install/verification cycles actually run, and available wall time or token evidence. Report measured savings only with a comparable baseline and equal or better outcomes; otherwise describe batching as a potential saving, not a proven one.

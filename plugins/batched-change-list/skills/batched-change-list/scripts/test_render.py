@@ -134,6 +134,18 @@ class RenderTests(unittest.TestCase):
         program += "\nif(finished.map(x=>x.id).join('')!=='ABC')process.exit(2);"
         subprocess.run(['node', '-e', program], check=True)
 
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
+    def test_in_progress_issue_sorts_after_checking_and_shows_working(self):
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        sort = next(line for line in template.splitlines() if line.startswith('const findings='))
+        program = """const items=[{id:'A',status:'failing'},{id:'B',status:'in_progress',check:{state:'not_fixed'}},
+          {id:'C',status:'failing',check:{state:'checking'}},{id:'D',status:'verified_fixed'}];
+          const document={getElementById:()=>({textContent:JSON.stringify(items)})};\n"""
+        program += sort + "\nif(findings.map(x=>x.id).join('')!=='CBAD')process.exit(1);"
+        subprocess.run(['node', '-e', program], check=True)
+        self.assertIn("const working=item.status==='in_progress'", template)
+        self.assertIn("if(!working&&run&&item.check)", template)
+
     def test_invalid_ids_status_and_missing_proof_fail(self):
         for mutation in ("duplicate", "status", "proof"):
             with self.subTest(mutation=mutation):

@@ -6471,6 +6471,9 @@
         },
         "DEVOBS-04": {
           "state": "pending"
+        },
+        "AGENT-11": {
+          "state": "pending"
         }
       }
     },
@@ -7173,7 +7176,7 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-10T10:42:01+00:00"
+      "updated_at": "2026-11-10T13:52:32+00:00"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -8223,7 +8226,8 @@
         "Scope": "Join task, action and response references with independent result evidence; do not infer task completion from a tool success.",
         "Fresh spoken session": "No task outcome was present. Calculator later independently displayed 10 × 20 = 200, but an explicit identifier did not link the readback to the spoken task.",
         "Earlier verification (0.2.101)": "Fresh 0.2.101 voice session contained no linked task outcome; independent Calculator readback showed 13 × 17 = 221.",
-        "Previous verification": "On installed 0.2.118, the linked typed Netflix task outcome remained unverified in telemetry although independent readback of its exact browser lease confirmed the expected profile. Integration of independent outcomes remains open."
+        "Previous verification": "On installed 0.2.118, the linked typed Netflix task outcome remained unverified in telemetry although independent readback of its exact browser lease confirmed the expected profile. Integration of independent outcomes remains open.",
+        "Current step": "Now (19:29 IST): Luna round 2 (same session) is revising the plan: high-signal values at the failing step, expandable detail per step. Next: Terra plan review."
       },
       "evidence": [],
       "verification_refs": [
@@ -8645,7 +8649,8 @@
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "USER-02, USER-03 and AGENT-02 track preference behavior; OBS-09 remains fixed for its narrower metadata scope.",
         "Implementation progress": "Source changes include bounded Ledger result details, status, truncation and task correlation. Application and supersession still require live evidence.",
-        "Previous verification": "Requested enhancement; the latest lookup returned no matches. Whether the requested preference existed or was applied remains unknown."
+        "Previous verification": "Requested enhancement; the latest lookup returned no matches. Whether the requested preference existed or was applied remains unknown.",
+        "Current step": "Now (19:29 IST): Luna round 2 (same session) is revising the plan: high-signal values at the failing step, expandable detail per step. Next: Terra plan review."
       },
       "verification_evidence": [
         {
@@ -8852,7 +8857,8 @@
         "Implementation progress": "A candidate links a delayed transcript to one unstarted delegation only when their reported intervals overlap; ambiguous matches stay unlinked. Source tests pass. Live attribution remains unverified.",
         "0.2.106 candidate": "Retires a completed spoken turn ID so an unmatched later delegation is not falsely joined; preserves a matching spoken tool continuation in a source test. Task boundaries, out-of-order cases and installed/live acceptance remain open.",
         "Earlier installation (0.2.100)": "ACU 0.2.100 installed from PR code c3b9247. Source, notarization, live client, Cursor, disconnect and microphone checks passed; timed voice smoke did not prove a spoken interaction.",
-        "Earlier verification (0.2.101)": "Fresh 0.2.101 voice, native, Comet, and Ledger events have no task run reference; cross-stage attribution remains incomplete."
+        "Earlier verification (0.2.101)": "Fresh 0.2.101 voice, native, Comet, and Ledger events have no task run reference; cross-stage attribution remains incomplete.",
+        "Current step": "Now (19:29 IST): Luna round 2 (same session) is revising the plan: high-signal values at the failing step, expandable detail per step. Next: Terra plan review."
       },
       "verification_evidence": [
         {
@@ -8972,7 +8978,8 @@
       "details": {
         "Plan": "Implementation plan: docs/exec-plans/active/pr-87-observability-evidence.md. Evidence targets and dependencies are in the plan.",
         "Related findings": "AGENT-04 tracks the product symptom; OBS-02 tracks startup timing.",
-        "Implementation progress": "Source changes record default input availability and observed startup recovery. Device snapshot alone does not establish actual stream selection."
+        "Implementation progress": "Source changes record default input availability and observed startup recovery. Device snapshot alone does not establish actual stream selection.",
+        "Current step": "Now (19:29 IST): Luna round 2 (same session) is revising the plan: high-signal values at the failing step, expandable detail per step. Next: Terra plan review."
       },
       "verification_evidence": [
         {
@@ -9015,7 +9022,8 @@
         "Implementation progress": "ACU 0.2.99 and Developer Observability 0.1.17 are installed from PR commit c60e779. Source, signing, notarization, client, Cursor, disconnect and microphone checks passed. Voice smoke timed out without a proven interaction; live mirror correlation remains unverified.",
         "Installed package test": "The installed 0.1.17 timeline test suite passed four simulated tests, including explicit mirrored startup pairing and preservation of unrelated rows. No new live linked mirror pair was exercised.",
         "Earlier self-check (0.1.17)": "Installed Developer Observability 0.1.17 passes four task-timeline tests, including explicit mirrored-event handling. Fresh installed ACU mirror pairing remains unverified.",
-        "Previous verification": "Installed 0.1.16 returned a filtered summary for an older linked run. The fresh spoken task has no run reference, and duplicate startup events remain visible."
+        "Previous verification": "Installed 0.1.16 returned a filtered summary for an older linked run. The fresh spoken task has no run reference, and duplicate startup events remain visible.",
+        "Current step": "Now (19:29 IST): Luna round 2 (same session) is revising the plan: high-signal values at the failing step, expandable detail per step. Next: Terra plan review."
       },
       "verification_evidence": [
         {
@@ -9487,6 +9495,21 @@
       "verification_refs": [
         "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
       ]
+    },
+    {
+      "id": "AGENT-11",
+      "title": "Agent workflow wastes tokens on steps a script should do",
+      "source": "Agent reported",
+      "status": "in_progress",
+      "observed": "In this round, plan runs finished at 16:41 and 16:53 IST but the agent did not notice for about 2 hours. The Astra review failed instantly (model not supported on this ChatGPT account) and that was only seen at 19:13. The review brief overwrote its own output file because macOS filenames are case-insensitive. Status checks, tracker reads and prior-fix lookups were ad-hoc multi-command explorations.",
+      "recommendation": "Delete redundant steps and replace the rest with deterministic scripts; keep agent turns to decisions and reviews.",
+      "details": {
+        "Done": "step.py: one command sets stage, status and Current step and re-renders. job.sh: launches or resumes Codex with unique file names, fails fast on unsupported model, writes a .done file with exit and thread. Nav 'Working on it' badge.",
+        "Delete": "Separate background wait shells per run (job.sh .done replaces them); hand-written python dumps of the tracker (use manage_findings list/get); re-explaining the whole plan in each Codex brief (resume the session, send only the delta); chat status messages that repeat the HTML; ad-hoc pgrep/ls/tail status checks.",
+        "Automate next": "status.sh: one compact line per job and in-progress item from .done files and the tracker; model preflight list for Codex routing (record Astra unavailable on techtrends3107); prior-fix digest (git log of the plugin path joined with verified_fixed tracker verification lines); review verdict parser (PASS/CHANGES plus numbered must-fix only) feeding the next resume brief.",
+        "Current step": "Now (19:31 IST): Spinner and 'Current step' rule added to the batched-change-list skill (0.1.2), tests pass; committed to PR #96. Fixer status unchanged: Luna round 2 revising the plan."
+      },
+      "evidence": []
     }
   ]
 }
