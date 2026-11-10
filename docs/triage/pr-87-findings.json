@@ -1916,9 +1916,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-10T20:00:11Z",
-      "now": "2026-11-10T20:00:11Z — Terra re-check: names now match; Luna (high) fixing explicit Ledger selection + ledger_use, secure-field check before typing, raw run refs; Observability asked to hash run refs (started 01:30)"
+      "stage": "install",
+      "updated_at": "2026-11-10T20:55:16Z",
+      "now": "2026-11-10T20:55:16Z — Committed 4e37db0 (ACU 0.2.123 emitters); signed build + install on the Mini running, then devobs ee91a0d install (started 02:27)"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
