@@ -1901,6 +1901,12 @@
         },
         "USER-07": {
           "state": "pending"
+        },
+        "OBS-21": {
+          "state": "pending"
+        },
+        "AGENT-12": {
+          "state": "pending"
         }
       }
     },
@@ -1916,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-10T20:55:16Z",
-      "now": "2026-11-10T20:55:16Z — Committed 4e37db0 (ACU 0.2.123 emitters); signed build + install on the Mini running, then devobs ee91a0d install (started 02:27)"
+      "stage": "verify",
+      "updated_at": "2026-11-10T21:04:39Z",
+      "now": "2026-11-10T21:04:39Z — 0.2.123 built, signed and installed on the Mini (all release steps ok). Live checks blocked: the Mini is locked since 00:46; waiting for Guru to unlock (03:05)"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -2860,6 +2866,30 @@
           "caption": "Left: Codex circle without the Grok Bot badge, plus a separate Grok Bot circle."
         }
       ]
+    },
+    {
+      "id": "OBS-21",
+      "title": "ACU reports 'App has no open window' when the real cause is a locked screen",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "2026-11-11 03:00 IST: installed 0.2.123 Calculator probe failed with observation_incomplete 'Pinned AX window 224142 not found' and hint 'App has no open window'. CGSSessionScreenIsLocked was true (locked since 00:46 IST); Calculator AX window count 0.",
+      "details": {
+        "Why it matters": "The failure hint points agents at opening the app, which cannot help. Root cause is session lock, readable from CGSessionCopyCurrentDictionary."
+      },
+      "recommendation": "Before observing, CUAService checks session lock and display sleep; on lock, fail with error_type screen_locked and hint 'Mac is locked; ask the user to unlock', and record it as the failing-step fact in observability.",
+      "evidence": []
+    },
+    {
+      "id": "AGENT-12",
+      "title": "Full CUAService swift test run hangs after PermissionBrokerTests",
+      "source": "Agent reported",
+      "status": "investigation",
+      "observed": "2026-11-11 02:05 IST: swift test (and with --skip SingleInstanceTests) printed nothing for 10+ min after PermissionBrokerTests.testTokenReadOncePerProcess; Luna's run also stalled 15+ min. swift build passes.",
+      "details": {
+        "Why it matters": "Blocks the full Swift gate; the changed InputActions.swift has no Swift tests."
+      },
+      "recommendation": "Find the next suite to start (swift test --list-tests order), add a per-test timeout, fix the blocking wait.",
+      "evidence": []
     }
   ]
 }
