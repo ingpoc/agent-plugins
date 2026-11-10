@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from http.server import HTTPServer
 from pathlib import Path
 import tempfile
@@ -31,6 +32,29 @@ class ServerTests(unittest.TestCase):
                     with self.assertRaises(HTTPError) as error:
                         urlopen(url + 'private')
                     self.assertEqual(error.exception.code, 404)
+                finally:
+                    server.shutdown()
+                    thread.join()
+
+    def test_live_source_renders_inventory_override(self):
+        example = Path(__file__).parents[1] / 'examples/findings.json'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            page = root / 'report.html'
+            page.write_text('fallback')
+            data = root / 'findings.json'
+            data.write_text(example.read_text())
+            inventory = root / 'inventory.json'
+            inventory.write_text(json.dumps({'versions':{'batched-change-list':'0.1.3'},
+                                             'observed_at':'2026-11-10T00:00:00Z','source':'live'}))
+            with HTTPServer(('127.0.0.1', 0), server_module.handler_for(page, data, inventory)) as server:
+                thread = threading.Thread(target=server.serve_forever, daemon=True)
+                thread.start()
+                try:
+                    with urlopen(f'http://127.0.0.1:{server.server_port}/') as response:
+                        content = response.read().decode()
+                    self.assertIn('Inventory supplied at render time', content)
+                    self.assertIn('<strong>0.1.3</strong>', content)
                 finally:
                     server.shutdown()
                     thread.join()
