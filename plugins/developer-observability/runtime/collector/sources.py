@@ -65,7 +65,7 @@ _NESTED_TASK_KEYS = {'app', 'window', 'name', 'title', 'role', 'id', 'status', '
 
 def _task_value(value, limit=1024):
     if isinstance(value, str):
-        return scrub(value, limit) or ''
+        return scrub(value, limit, preserve_emails=True) or ''
     if value is None or type(value) in (bool, int, float):
         return value
     if isinstance(value, (list, tuple)):

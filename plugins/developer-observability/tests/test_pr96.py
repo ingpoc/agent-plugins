@@ -1,4 +1,5 @@
 """Synthetic acceptance coverage for the 0.1.29 read-side contracts."""
+import base64
 import hashlib
 import json
 import os
@@ -21,7 +22,7 @@ STAMP = datetime.fromtimestamp(NOW, timezone.utc).isoformat().replace('+00:00', 
 
 class PR96Tests(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(prefix='devobs-pr96-')
+        self.tmp = tempfile.TemporaryDirectory(dir=ROOT, prefix='.pr96-')
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
@@ -192,6 +193,12 @@ class PR96Tests(unittest.TestCase):
              'status': 'ok', 'step_ref': 'separate-step', 'ts': NOW - 9},
             {'run_id': 'mic-run', 'session_id': 'shared-session', 'kind': 'mic_preflight', 'phase': 'mic_preflight',
              'status': 'ok', 'step_ref': 'mic-check', 'ts': NOW - 8},
+            {'run_id': 'mic-run', 'session_id': 'shared-session', 'kind': 'voice_latency', 'phase': 'voice',
+             'status': 'ok', 'step_ref': 'voice-check', 'ts': NOW - 7},
+            # Live CI shape: test paths contain 'voice' and 'mic' (voice-cua/tests/test_mic_preflight.py).
+            {'run_id': 'ci-mic-name', 'session_id': 'shared-session', 'kind': 'check_test',
+             'phase': 'plugins/x/runtime/voice-cua/tests/test_mic_preflight.py', 'status': 'ok',
+             'step_ref': 'ci-mic-check', 'ts': NOW - 6},
             {'run_id': 'mirror-run', 'session_id': 'shared-session', 'kind': 'tool_start', 'phase': 'cua_act',
              'status': 'ok', 'step_ref': 'primary-action', 'target': 'Mirror target', 'ts': NOW - 6},
             {'run_id': 'mirror-run', 'session_id': 'shared-session', 'kind': 'tool_start', 'phase': 'cua_act',
@@ -242,6 +249,8 @@ class PR96Tests(unittest.TestCase):
                          'https://example.test/loaded-sentinel')
         mic = api.task('p', hashlib.sha256(b'mic-run').hexdigest()[:24])
         self.assertTrue(any(gap['code'] == 'mic_state_not_in_scope' for gap in mic['gaps']))
+        ci_mic = api.task('p', hashlib.sha256(b'ci-mic-name').hexdigest()[:24])
+        self.assertFalse(any(gap['code'] == 'mic_state_not_in_scope' for gap in ci_mic['gaps']))
         mirror = api.task('p', hashlib.sha256(b'mirror-run').hexdigest()[:24])
         self.assertEqual(mirror['total_steps'], 1)
         self.assertEqual(mirror['steps'][0]['mirror_refs'], ['mirrored-action'])
@@ -278,6 +287,7 @@ class PR96Tests(unittest.TestCase):
         self.assertEqual(page['first_failure']['step_ref'], 'test_40')
         self.assertEqual(page['first_failure']['error_type'], 'AssertionError')
         self.assertIn('CI failure sentinel', json.dumps(page))
+        self.assertEqual(next(step['line'] for step in steps if step['step_ref'] == 'test_00').count('Suite.case_00'), 1)
 
         run_dir = self.root / 'checklog-run'
         run_dir.mkdir()
@@ -346,13 +356,36 @@ class PR96Tests(unittest.TestCase):
         changed = api.task('p', run_ref, first['next_cursor'])
         self.assertEqual(changed['gap']['code'], 'snapshot_changed')
 
+    def test_oversized_facet_value_cursor_stays_on_blocked_value(self):
+        large = 'x' * 4096
+        for position, values in enumerate((['large', 'small'], ['small', 'large', 'small'],
+                                           ['small', 'small', 'large'])):
+            with self.subTest(position=position):
+                run_id = f'oversized-{position}'
+                rows = [{'run_id': run_id, 'step_ref': 'oversized-step', 'kind': 'task_step',
+                         'status': 'ok', 'request': large if value == 'large' else value,
+                         'ts': NOW + index} for index, value in enumerate(values)]
+                api, _out = self.collect_rows(rows, f'oversized-{position}')
+                run_ref = hashlib.sha256(run_id.encode()).hexdigest()[:24]
+                page = api.task_detail('p', run_ref, 'oversized-step', 'arguments')
+                if position:
+                    self.assertTrue(page['values'])
+                    page = api.task_detail('p', run_ref, 'oversized-step', 'arguments', page['next_cursor'])
+                self.assertEqual(page['gap']['code'], 'facet_value_exceeds_page_cap')
+                cursor = page['next_cursor']
+                offset = json.loads(base64.urlsafe_b64decode(cursor).decode())[-1]
+                self.assertEqual(offset, values.index('large'))
+                self.assertEqual(api.task_detail('p', run_ref, 'oversized-step', 'arguments', cursor), page)
+
     def test_task_redaction_preserves_nonsecret_sentinels(self):
-        secrets = ('sk-live-abcdefghijklmnop', 'Bearer abcdef0123456789', 'password=private-sentinel')
-        request = 'request sentinel ' + secrets[0]
-        typed = 'typed text sentinel ' + secrets[1]
+        secrets = ('sk-live-abcdefghijklmnop', 'Bearer abcdef0123456789', 'password=private-sentinel',
+                   'api_key=private-api-key', 'token=private-url-token')
+        email = 'person@example.test'
+        request = f'request sentinel {secrets[0]} {email} {secrets[2]}'
+        typed = f'typed text sentinel {secrets[1]} {email} {secrets[3]}'
         query = 'query term sentinel'
         target = 'target sentinel'
-        url = 'https://example.test/nonsecret-url-sentinel'
+        url = f'https://example.test/nonsecret-url-sentinel?{secrets[4]}&keep={email}'
         rows = [{'run_id': 'redact-run', 'request': request, 'kind': 'cua_act', 'phase': 'cua_act',
                  'status': 'error', 'error_type': 'TargetError', 'error_message': secrets[2],
                  'step_ref': 'redact-fail', 'typed_text': typed, 'query_terms': [query], 'target': target,
@@ -362,10 +395,14 @@ class PR96Tests(unittest.TestCase):
         blob = json.dumps(view, ensure_ascii=False)
         for secret in secrets:
             self.assertNotIn(secret, blob)
-        for sentinel in ('request sentinel', 'typed text sentinel', query, target, url):
+        for sentinel in ('request sentinel', 'typed text sentinel', query, target, 'nonsecret-url-sentinel', email):
             self.assertIn(sentinel, blob)
         detail = api.task_detail('p', hashlib.sha256(b'redact-run').hexdigest()[:24],
                                  'redact-fail', 'arguments')
+        detail_blob = json.dumps(detail, ensure_ascii=False)
+        for secret in secrets:
+            self.assertNotIn(secret, detail_blob)
+        self.assertIn(email, detail_blob)
         self.assertIn(query, json.dumps(detail))
         self.assertIn(typed.split(' ')[0] + ' ' + typed.split(' ')[1] + ' ' + typed.split(' ')[2], json.dumps(detail))
 
@@ -379,18 +416,44 @@ class PR96Tests(unittest.TestCase):
                                            'collector_heartbeat_at': old}}
         for name in ('codex', 'cursor', 'grokbot', 'opencode', 'samantha', 't3'):
             details[name] = {'read_in_collect': False, 'last_event_at': old, 'collector_heartbeat_at': old}
-        (out / 'findings.json').write_text(json.dumps({'generated_at': STAMP, 'findings': [],
-            'coverage': {'agent-plugins:origin-ci': 'stale', 'samantha:voice.log': 'stale'},
-            'coverage_details': details, 'coverage_gaps': []}))
+        legacy_gaps = [{'source': name, 'status': 'partial' if name != 'opencode' else 'unknown'}
+                       for name in ('codex', 'cursor', 'grokbot', 'opencode', 'samantha', 't3')]
+        (out / 'findings.json').write_text(json.dumps({'generated_at': STAMP,
+            'findings': [
+                {'finding_key': 'legacy', 'owner_ref': 'owner:samantha', 'source': 'samantha:voice.log',
+                 'latest_evidence': {'project': 'samantha'}},
+                {'finding_key': 'ci', 'owner_ref': 'owner:agent-plugins', 'source': 'agent-plugins:origin-ci',
+                 'latest_evidence': {'project': 'agent-plugins'}}],
+            'task_index': [{'project': 'samantha', 'source': 'samantha:voice.log'},
+                           {'project': 'agent-plugins', 'source': 'agent-plugins:origin-ci'}],
+            'coverage': {'agent-plugins:origin-ci': 'collected', 'samantha:voice.log': 'collected',
+                         **{name: item['status'] for name, item in zip(
+                             ('codex', 'cursor', 'grokbot', 'opencode', 'samantha', 't3'), legacy_gaps)}},
+            'coverage_details': details, 'coverage_gaps': legacy_gaps}))
         api = ObservabilityAPI(self.root / 'runtime', {'agent-plugins': {'owners': ['owner:agent-plugins']},
                                'samantha': {'owners': ['owner:samantha']}},
                                None, collected=out)
         coverage = api.issues('samantha', include_coverage=True)
-        self.assertRegex(coverage['coverage'], r'^gaps: legacy snapshot [67]d old \(6 sources\)$')
+        self.assertRegex(coverage['coverage'], r'^legacy snapshot [67]d old \(6 sources\)$')
         self.assertLess(len(coverage['coverage'].encode()), 300)
         self.assertEqual(set(coverage['coverage_details']),
                          {'samantha:voice.log', 'codex', 'cursor', 'grokbot', 'opencode', 'samantha', 't3'})
-        self.assertNotIn('samantha', api.issues('agent-plugins')['coverage'])
+        agent_plugins_coverage = api.issues('agent-plugins')['coverage']
+        self.assertEqual(agent_plugins_coverage, 'ok 1/1 sources')
+        self.assertNotIn('legacy snapshot', agent_plugins_coverage)
+
+    def test_coverage_gap_fallback_never_crosses_project(self):
+        out = self.root / 'coverage-gap-scope'
+        out.mkdir()
+        (out / 'findings.json').write_text(json.dumps({'generated_at': STAMP, 'findings': [],
+            'coverage_details': {'p:present': {'read_in_collect': True, 'last_event_at': STAMP}},
+            'coverage_gaps': [{'source': 'q:origin-ci'}, {'source': 'p:voice'}]}))
+        api = ObservabilityAPI(self.root / 'runtime',
+            {'p': {'owners': ['owner:p']}, 'q': {'owners': ['owner:q']}}, None, collected=out)
+        self.assertIn('voice', api.issues('p')['coverage'])
+        self.assertNotIn('origin-ci', api.issues('p')['coverage'])
+        self.assertIn('origin-ci', api.issues('q')['coverage'])
+        self.assertNotIn('voice', api.issues('q')['coverage'])
 
     def test_ci_summary_creates_bounded_task_with_failing_test(self):
         run = self.root / 'ci-run'
@@ -468,7 +531,7 @@ class PR96Tests(unittest.TestCase):
         failed_step = task['first_failure']
         self.assertEqual(failed_step['error_type'], 'TargetNotFound')
         self.assertIn('check the visible page', blob)
-        self.assertIn('target missed', blob)
+        self.assertEqual(blob.count('target missed'), 1)
         self.assertTrue(any(gap['code'] == 'step_ref_missing' for gap in task['gaps']))
         listed = api.tasks('p')['tasks']
         self.assertEqual(listed[0]['run_ref'], failed_ref)

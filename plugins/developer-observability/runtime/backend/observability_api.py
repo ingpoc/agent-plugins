@@ -292,15 +292,22 @@ class ObservabilityAPI:
                     'read_in_collect': item.get('read_in_collect') is True,
                     'age_seconds': event_age, 'stale_after_s': stale_after,
                 }
+        legacy = {key for key, item in coverage_details.items()
+                  if ':' not in key and not item.get('read_in_collect') and item.get('status') != 'missing'}
+        activity_sources = [finding.get('source') for finding in data.get('findings', [])
+                            if isinstance(finding, dict) and (project_id is None or self._matches(finding, project_id))]
+        activity_sources += [row.get('source') for row in data.get('task_index', [])
+                             if isinstance(row, dict) and (project_id is None or row.get('project') == project_id)]
+        legacy_activity = project_id is None or any(
+            isinstance(source, str) and (source == key or source.startswith(key + ':'))
+            for source in activity_sources for key in legacy)
         project_sources = {key: value for key, value in coverage_data.items()
-                           if isinstance(key, str) and (project_id is None or ':' not in key or
-                           key.split(':', 1)[0] == project_id)}
-        legacy = {'codex', 'cursor', 'grokbot', 'opencode', 'samantha', 't3'}
+                           if isinstance(key, str) and key not in legacy and
+                           (project_id is None or ':' in key and key.split(':', 1)[0] == project_id)}
         project_details = {key: value for key, value in coverage_details.items()
                            if project_id is None or ':' in key and key.split(':', 1)[0] == project_id
-                           or key in legacy and project_id == 'samantha'}
-        legacy_missing = [key for key, value in project_details.items()
-                          if key in legacy and not value.get('read_in_collect')]
+                           or key in legacy and legacy_activity}
+        legacy_missing = sorted(legacy) if legacy_activity else []
         gaps = []
         for source, item in project_details.items():
             if source in legacy and not item.get('read_in_collect'):
@@ -318,13 +325,18 @@ class ObservabilityAPI:
                 gaps.append(short)
         if not gaps:
             gaps = [redact(str(item.get('source', item)), 60) for item in data.get('coverage_gaps', [])
-                    if isinstance(item, dict) and (not isinstance(item.get('source'), str) or
-                    item.get('source') not in project_details or
-                    not project_details[item['source']].get('read_in_collect'))]
+                    if isinstance(item, dict) and (project_id is None or isinstance(item.get('source'), str) and
+                    (item['source'] in project_details or ':' in item['source'] and
+                     item['source'].split(':', 1)[0] == project_id or
+                     item['source'] in legacy and legacy_activity)) and
+                    (not isinstance(item.get('source'), str) or item['source'] not in legacy) and
+                    (not isinstance(item.get('source'), str) or item['source'] not in project_details or
+                     not project_details[item['source']].get('read_in_collect'))]
         if not gaps:
             gaps = [f"{redact(str(source).rsplit(':', 1)[-1], 60)} {redact(str(status), 20)}"
                     for source, status in project_sources.items() if status != 'collected' and
                     not (source in project_details and project_details[source].get('read_in_collect'))]
+        legacy_gap = None
         if legacy_missing:
             stamps = [self._safe_time(project_details[key].get('collector_heartbeat_at')) for key in legacy_missing]
             try:
@@ -333,8 +345,8 @@ class ObservabilityAPI:
                 legacy_gap = f'legacy snapshot {legacy_age}d old ({len(legacy_missing)} sources)'
             except (ValueError, TypeError):
                 legacy_gap = f'legacy snapshot ({len(legacy_missing)} sources)'
-            gaps.append(legacy_gap)
-        coverage = (f"gaps: {'; '.join(gaps)}" if gaps else
+        coverage = (f"gaps: {'; '.join(gaps)}; {legacy_gap}" if gaps and legacy_gap else
+                    f"gaps: {'; '.join(gaps)}" if gaps else legacy_gap or
                     f"ok {sum(value == 'collected' for value in project_sources.values())}/{len(project_sources)} sources"
                     if project_sources else 'gaps: coverage unavailable')
         if len(coverage.encode('utf-8')) > 240:
@@ -1092,7 +1104,7 @@ class ObservabilityAPI:
                       'near_miss_targets', 'lease', 'cancel', 'cancel_ack', 'cancel_state', 'queued_action',
                       'queued_action_suppressed', 'target_run_ref', 'expected_outcome', 'hint', 'app')
             return {'step_ref': step.get('step_ref'), 'status': 'failure', 'line': line,
-                    'error_type': step.get('error_type') or 'unknown', 'message': step.get('message'),
+                    'error_type': step.get('error_type') or 'unknown',
                     'details': {key: data[key] for key in fields if key in data},
                     **({'mirror_refs': step['mirror_refs']} if step.get('mirror_refs') else {})}
         return {'step_ref': step.get('step_ref'), 'line': line,
@@ -1238,8 +1250,9 @@ class ObservabilityAPI:
                     break
                 return {'snapshot_id': snapshot_id, 'run_ref': run_ref, 'step_ref': step_ref, 'facet': facet,
                         'values': [], 'truncated': True, 'truncation_reason': 'single_value_exceeds_page_cap',
-                        'next_cursor': self._task_next_cursor(snapshot_id, project_id, run_ref, step_ref, facet, end)
-                        if end < len(values) else None}
+                        'gap': {'code': 'facet_value_exceeds_page_cap',
+                                'next_action': 'Request a smaller value from the producer.'},
+                        'next_cursor': self._task_next_cursor(snapshot_id, project_id, run_ref, step_ref, facet, index)}
             page.append(values[index])
         end = offset + len(page)
         if next_cursor is None and end < len(values):

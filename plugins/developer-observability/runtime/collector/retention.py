@@ -20,6 +20,7 @@ import fnmatch
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import time
 
@@ -137,6 +138,10 @@ def prune(config, out_dir, dry_run=False, now=None, home=None):
         snapshot_id = None
     if isinstance(snapshot_id, str) and len(snapshot_id) == 32 and all(c in '0123456789abcdef' for c in snapshot_id):
         keep.add(out_dir / 'snapshots' / snapshot_id)
+    staged = [path for path in (out_dir / '.trash').iterdir()
+              if path.is_dir() and not path.is_symlink() and re.fullmatch(r'[0-9a-f]{32}', path.name)] \
+        if (out_dir / '.trash').is_dir() else []
+    keep.update(staged)
     roots = [('outputs', out_dir, keep)]
     roots += [('cache', Path(p).expanduser(), set()) for p in opts['cache_dirs']]
     roots += [('traces', Path(p).expanduser(), set()) for p in opts['trace_paths']]
@@ -145,6 +150,26 @@ def prune(config, out_dir, dry_run=False, now=None, home=None):
     moved, freed, capped, items = 0, 0, False, []
     if not opts['enabled']:
         return {'enabled': False, 'dry_run': dry_run, 'moved': 0, 'bytes': 0}
+    for path in staged:
+        try:
+            age = now - path.stat().st_mtime
+        except OSError:
+            continue
+        if age <= opts['days'] * DAY:
+            continue
+        size = _size(path)
+        if size > budget:
+            capped = True
+            continue
+        if len(items) < 50:
+            items.append({'root': 'outputs', 'name': path.name, 'age_days': int(age // DAY), 'bytes': size})
+        if not dry_run:
+            target = trash / 'outputs' / path.relative_to(out_dir)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(path), str(target))
+        budget -= size
+        moved += 1
+        freed += size
     for label, root, keep in roots:
         for path, base, age in _candidates(root, keep, now, opts['days'], opts['backup_days'], home):
             size = _size(path)

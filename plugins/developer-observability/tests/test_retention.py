@@ -69,6 +69,23 @@ class RetentionTests(unittest.TestCase):
         moved = sorted(p.name for p in self.trash.rglob('*') if p.is_file())
         self.assertEqual(moved, sorted(['check.log', 'mcp.json.bak-20260901', '.findings-abc.json', 'spans.jsonl']))
 
+    def test_expired_superseded_snapshot_directory_moves_to_trash(self):
+        snapshot_id = 'a' * 32
+        staged = self.out / '.trash' / snapshot_id
+        touch(staged / 'sessions' / 'session.json', 10)
+        old = NOW - 10 * DAY
+        os.utime(staged, (old, old))
+        (self.out / 'findings.json').parent.mkdir(parents=True, exist_ok=True)
+        (self.out / 'findings.json').write_text(json.dumps({'snapshot_id': 'b' * 32}))
+
+        result = retention.prune(self.config, self.out, now=NOW, home=self.home)
+
+        self.assertEqual(result['moved'], 1)
+        self.assertFalse(staged.exists())
+        moved = list(self.trash.rglob('session.json'))
+        self.assertEqual(len(moved), 1)
+        self.assertEqual(moved[0].read_bytes(), b'x' * 10)
+
     def test_never_touches_acu_or_samantha_logs(self):
         protected = self.acu()
         before = {p: (p.stat().st_size, p.stat().st_mtime) for p in protected}

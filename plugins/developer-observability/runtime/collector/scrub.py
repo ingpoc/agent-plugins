@@ -6,6 +6,7 @@ import re
 from backend.finding_text import redact
 
 _EMAIL = re.compile(r'[\w.+-]+@[\w-]+\.[\w.]+')
+_URL_SECRET = re.compile(r'([?&](?:password|pass|api[_-]?key|token|access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization)=)[^&#\s]*', re.I)
 _JWT = re.compile(r'eyJ[\w-]+\.[\w-]+\.[\w-]+')
 _BEARER = re.compile(r'(?i)bearer\s+\S+')
 _TOKEN = re.compile(r'\b(?:sk|pk|rk|ghp|gho|ghs|xox[abpr]|glpat|AKIA)[-_A-Za-z0-9]{8,}')
@@ -15,13 +16,15 @@ DENY_KEYS = {'text', 'transcript', 'audio', 'content', 'prompt', 'utterance', 'd
 TEXT_KINDS = {'user_transcript', 'assistant_reply', 'assistant_text', 'transcript'}
 
 
-def scrub(text, limit: int = 160) -> str:
+def scrub(text, limit: int = 160, preserve_emails: bool = False) -> str:
     if not isinstance(text, str) or not text.strip():
         return ''
     text = _JWT.sub('[redacted]', text)
     text = _BEARER.sub('Bearer [redacted]', text)
     text = _TOKEN.sub('[redacted]', text)
-    text = _EMAIL.sub('[email]', text)
+    text = _URL_SECRET.sub(r'\1[redacted]', text)
+    if not preserve_emails:
+        text = _EMAIL.sub('[email]', text)
     line = redact(text, limit)
     return '' if line == 'unknown' else line
 

@@ -620,8 +620,9 @@ def _task_records(events, snapshot_id, sidecar_writer):
                 times = [datetime.fromisoformat(row['timestamp'].replace('Z', '+00:00')).timestamp()
                          for row in event_rows if row.get('timestamp')]
                 duration = round((max(times) - min(times)) * 1000) if len(times) > 1 else None
+            fallback_action = last['kind'] if last['kind'] != last['stage'] else None
             step = {'step_ref': step_ref, 'stage': last['stage'],
-                    'action': merged.get('action') or last['stage'] or last['kind'],
+                    'action': merged.get('action') or fallback_action,
                     'target': merged.get('target') or merged.get('app'),
                     'duration_ms': duration, 'status': status,
                     'retry_of_step_ref': next((row['retry_of_step_ref'] for row in event_rows if row['retry_of_step_ref']), None),
@@ -669,7 +670,8 @@ def _task_records(events, snapshot_id, sidecar_writer):
         if missing_steps:
             task_gaps.append({'code': 'step_ref_missing', 'producer': scrub(missing_steps[0].get('source'), 80),
                               'count': len(missing_steps), 'next_action': 'Emit a stable step_ref for each task event.'})
-        if any('mic' in str(event.get('step') or event.get('kind')).lower() for event in all_events):
+        # Producer-declared event kinds only; step/test names (e.g. CI test paths) never imply mic state.
+        if any(re.match(r'(mic|audio|microphone)(_|$)', str(event.get('kind') or '').lower()) for event in all_events):
             task_gaps.append({'code': 'mic_state_not_in_scope',
                               'next_action': 'Inspect microphone readiness in the owning runtime.'})
         direct_inputs = {}
