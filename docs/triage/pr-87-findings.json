@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-10T21:04:39Z",
-      "now": "2026-11-10T21:04:39Z — 0.2.123 built, signed and installed on the Mini (all release steps ok). Live checks blocked: the Mini is locked since 00:46; waiting for Guru to unlock (03:05)"
+      "updated_at": "2026-11-10T21:07:17Z",
+      "now": "2026-11-10T21:07:17Z — Both installed on the Mini: ACU 0.2.123 (PR #96 4e37db0) and developer-observability 0.1.29 (PR #97 ee91a0d, MCP probe passed). Live checks wait for the Mini to be unlocked (locked since 00:46) (02:37)"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
