@@ -258,6 +258,50 @@ class PR96Tests(unittest.TestCase):
         self.assertEqual(deferred['outcome']['observed'], 'unknown')
         self.assertIn('next_action', deferred['outcome'])
 
+    def test_run_links_redacted_typed_text_and_ledger_decision_gap(self):
+        rows = [
+            {'run_id': 'link-target', 'kind': 'task_step', 'step_ref': 'target-step', 'status': 'ok', 'ts': NOW - 5},
+            {'run_id': 'link-retry', 'kind': 'task_step', 'step_ref': 'retry-step',
+             'retry_of_run_ref': 'link-target', 'status': 'ok', 'ts': NOW - 4},
+            {'run_id': 'link-projected', 'kind': 'task_step', 'step_ref': 'projected-step',
+             'retry_of_run_ref': hashlib.sha256(b'link-target').hexdigest()[:24], 'status': 'ok', 'ts': NOW - 3.5},
+            {'run_id': 'link-cancel', 'kind': 'cancel_request', 'step_ref': 'cancel-step',
+             'cancel': {'requested': True, 'target_run_ref': 'link-target'}, 'status': 'ok', 'ts': NOW - 3},
+            {'run_id': 'typed-redacted', 'kind': 'cua_act', 'step_ref': 'typed-step', 'status': 'error',
+             'error_type': 'Rejected', 'typed_text_redacted_reason': 'security_unknown',
+             'typed_text_length': 17, 'ts': NOW - 2},
+            {'run_id': 'typed-redacted-chars', 'kind': 'cua_act', 'step_ref': 'typed-step-chars', 'status': 'error',
+             'error_type': 'Rejected', 'typed_text_redacted_reason': 'security_unknown',
+             'typed_text_chars': 19, 'ts': NOW - 1},
+            {'run_id': 'ledger-gap', 'kind': 'ledger_lookup', 'step_ref': 'ledger-lookup',
+             'ledger_operation': 'lookup', 'ledger_result_status': 'selected', 'selected_id': 'record-1',
+             'ts': NOW - 2},
+            {'run_id': 'ledger-gap', 'kind': 'cua_act', 'step_ref': 'apply-action', 'action': 'apply decision',
+             'status': 'ok', 'ts': NOW - 1},
+        ]
+        api, _out = self.collect_rows(rows, 'followup-contracts')
+        target_ref = hashlib.sha256(b'link-target').hexdigest()[:24]
+        listing = api.tasks('p')
+        self.assertIn(target_ref, {row['run_ref'] for row in listing['tasks']})
+        retry = api.task('p', hashlib.sha256(b'link-retry').hexdigest()[:24])
+        self.assertEqual(retry['steps'][0]['retry_of_run_ref'], target_ref)
+        projected = api.task('p', hashlib.sha256(b'link-projected').hexdigest()[:24])
+        self.assertEqual(projected['steps'][0]['retry_of_run_ref'], target_ref)
+        cancel = api.task('p', hashlib.sha256(b'link-cancel').hexdigest()[:24])
+        self.assertEqual(cancel['cancellation']['cancel']['target_run_ref'], target_ref)
+
+        typed_ref = hashlib.sha256(b'typed-redacted').hexdigest()[:24]
+        typed = api.task('p', typed_ref)
+        rendered = json.dumps(typed, ensure_ascii=False)
+        self.assertIn('redacted (security_unknown, 17 chars)', rendered)
+        typed_chars = api.task('p', hashlib.sha256(b'typed-redacted-chars').hexdigest()[:24])
+        self.assertIn('redacted (security_unknown, 19 chars)', json.dumps(typed_chars, ensure_ascii=False))
+
+        ledger = api.task('p', hashlib.sha256(b'ledger-gap').hexdigest()[:24])
+        gap = next(gap for gap in ledger['gaps'] if gap['code'] == 'ledger_decision_id_missing')
+        self.assertIn('ledger_use only appears', gap['reason'])
+        self.assertEqual(gap['next_action'], 'Emit ledger_decision_id on the action that applied the decision.')
+
     def test_ci_junit_run_becomes_bounded_task_with_test_steps(self):
         junit = self.root / 'ci.xml'
         tests = ['<testcase id="test_%02d" classname="Suite" name="case_%02d" time="0.01" />' % (i, i)

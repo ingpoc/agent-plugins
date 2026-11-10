@@ -45,6 +45,8 @@ _TASK_REF = re.compile(r'[A-Za-z0-9_.:/-]{1,128}\Z')
 _CHECK_ID = re.compile(r'(?i)^(?:run_id|check_id)=([A-Za-z0-9_.:-]{1,128})$')
 _TASK_FIELDS = {
     'request': ('request', 'task_request'), 'typed_text': ('typed_text',), 'error_message': ('error_message',),
+    'typed_text_redacted_reason': ('typed_text_redacted_reason',),
+    'typed_text_length': ('typed_text_length', 'typed_text_chars'),
     'query_terms': ('query_terms', 'ledger_query_terms'),
     'invalid_query_terms': ('invalid_query_terms',), 'selected_id': ('selected_id', 'ledger_selected_id'),
     'action': ('action',), 'target': ('target',), 'expected_target': ('expected_target', 'expected'),
@@ -69,10 +71,12 @@ def _task_value(value, limit=1024):
     if value is None or type(value) in (bool, int, float):
         return value
     if isinstance(value, (list, tuple)):
-        return [_task_value(item, 240) for item in value[:20] if isinstance(item, (str, bool, int, float))]
+        return [_task_value(item, 240) for item in value[:20]
+                if isinstance(item, (str, bool, int, float, dict, list, tuple))]
     if isinstance(value, dict):
-        return {key: _task_value(item, 240) for key, item in list(value.items())[:20]
-                if isinstance(key, str) and key in _NESTED_TASK_KEYS
+        return {key: (_run_ref(item) if key.endswith('_run_ref') and isinstance(item, str)
+                      else _task_value(item, 240)) for key, item in list(value.items())[:20]
+                if isinstance(key, str) and (key in _NESTED_TASK_KEYS or key.endswith('_run_ref'))
                 and isinstance(item, (str, bool, int, float, list, tuple, dict, type(None)))}
     return None
 
@@ -88,6 +92,8 @@ def _test_step_ref(value):
 
 
 def _run_ref(value):
+    if isinstance(value, str) and re.fullmatch(r'[0-9a-fA-F]{24}', value):
+        return value.lower()
     return hashlib.sha256(value.encode()).hexdigest()[:24] if isinstance(value, str) and 0 < len(value) <= 512 else None
 
 
@@ -100,11 +106,18 @@ def _task_fields(obj):
         value = _task_value(obj[key], 4096 if output in ('request', 'typed_text', 'url') else 1024)
         if value is not None:
             fields[output] = value
+    if fields.get('typed_text_redacted_reason') and isinstance(fields.get('typed_text_length'), int):
+        fields['typed_text'] = f"redacted ({fields['typed_text_redacted_reason']}, {fields['typed_text_length']} chars)"
     arguments = obj.get('arguments')
     if isinstance(arguments, dict):
         allowed = {key for keys in _TASK_FIELDS.values() for key in keys}
-        fields['arguments'] = {key: _task_value(value) for key, value in list(arguments.items())[:20]
-                               if key in allowed and _task_value(value) is not None}
+        fields['arguments'] = {key: (_run_ref(value) if key.endswith('_run_ref') and isinstance(value, str)
+                                     else _task_value(value)) for key, value in list(arguments.items())[:20]
+                               if (key in allowed or isinstance(key, str) and key.endswith('_run_ref'))
+                               and _task_value(value) is not None}
+    for key, value in obj.items():
+        if isinstance(key, str) and key.endswith('_run_ref') and isinstance(value, str):
+            fields[key] = _run_ref(value)
     if 'error_type' in obj and isinstance(obj['error_type'], str):
         fields['error_type'] = scrub(obj['error_type'], 120)
     return fields
@@ -440,11 +453,11 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      ledger_rule=ledger_rule, ledger_selected_count=selected_count,
                      ledger_selected_id=opaque_id('ledger_selected_id'), ledger_supersedes=opaque_id('supersedes')
                      if 'supersedes' in obj else opaque_id('ledger_supersedes'),
-                     ledger_decision_id=opaque_id('decision_id'),
+                     ledger_decision_id=opaque_id('ledger_decision_id') or opaque_id('decision_id'),
                      ledger_revision=obj.get('revision') if type(obj.get('revision')) is int and 0 <= obj['revision'] <= 100000 else None,
                      step_ref=_task_id(obj.get('step_ref')) or opaque_id('call_id'),
                      retry_of_step_ref=_task_id(obj.get('retry_of_step_ref')),
-                     retry_of_run_ref=_task_id(obj.get('retry_of_run_ref')),
+                     retry_of_run_ref=_run_ref(obj.get('retry_of_run_ref')),
                      mirror_of=_task_id(obj.get('mirror_of')), caused_by=caused_by,
                      task_data=_task_fields(obj),
                      outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown'))

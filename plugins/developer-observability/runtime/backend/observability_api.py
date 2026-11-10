@@ -1105,9 +1105,11 @@ class ObservabilityAPI:
                       'queued_action_suppressed', 'target_run_ref', 'expected_outcome', 'hint', 'app')
             return {'step_ref': step.get('step_ref'), 'status': 'failure', 'line': line,
                     'error_type': step.get('error_type') or 'unknown',
+                    **({'retry_of_run_ref': step['retry_of_run_ref']} if step.get('retry_of_run_ref') else {}),
                     'details': {key: data[key] for key in fields if key in data},
                     **({'mirror_refs': step['mirror_refs']} if step.get('mirror_refs') else {})}
         return {'step_ref': step.get('step_ref'), 'line': line,
+                **({'retry_of_run_ref': step['retry_of_run_ref']} if step.get('retry_of_run_ref') else {}),
                 **({'status': step['status']} if step.get('status', 'unknown') != 'success' else {}),
                 **({'mirror_refs': step['mirror_refs']} if step.get('mirror_refs') else {})}
 

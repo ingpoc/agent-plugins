@@ -695,10 +695,20 @@ def _task_records(events, snapshot_id, sidecar_writer):
                       'selected_id': ledger_data.get('selected_id') or 'none',
                       'operation': event.get('ledger_operation'),
                       'decision_count': event.get('ledger_decision_count')}
-            use = next((event for event in all_events if event.get('kind') in ('ledger_use', 'ledger_record_used')),
-                       None)
+            action_events = [event for event in all_events if
+                             str(event.get('kind') or '').endswith('_act') or
+                             str(event.get('kind') or '').startswith('tool_') or
+                             (isinstance(event.get('task_data'), dict) and event['task_data'].get('action'))]
+            decision_ids = {event.get('ledger_decision_id') for event in action_events
+                            if event.get('ledger_decision_id')}
+            use = next((event for event in all_events if event.get('kind') in ('ledger_use', 'ledger_record_used')
+                        and event.get('ledger_decision_id') in decision_ids), None)
             if use:
                 ledger['applied'] = True
+            elif action_events and not decision_ids:
+                task_gaps.append({'code': 'ledger_decision_id_missing',
+                                  'reason': 'ledger_use only appears when the action carries an explicit ledger_decision_id',
+                                  'next_action': 'Emit ledger_decision_id on the action that applied the decision.'})
         cancellation = {key: data[key] for data in data_rows for key in (
             'cancel', 'cancel_ack', 'cancel_state', 'target_run_ref', 'queued_action',
             'queued_action_suppressed') if key in data}
