@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.29
+
+- Treat sources read in the current collect as collected, scope coverage by project, and group retired legacy snapshot gaps.
+- Add run-indexed task lookup, bounded task facets, compact coverage, and snapshot-bound detail sidecars while retaining reads of old monolithic findings files.
+- Join tool lifecycle events by call ID, include task outcomes and Ledger summaries, and rank recent failed tasks first.
+- Link CI check logs to explicit reporter attempts and move superseded snapshot sidecars into retention staging.
+- Match CI and JUnit fix guidance to the finding kind: failure, latency hotspot, or redundancy.
+- Live measurements: `findings.json` 81 MB -> TBD-live; collect wall time 6–12 s -> TBD-live; peak RSS ~295 MB -> TBD-live.
+
 ## 0.1.28
 
 - Reject malformed-stream totals for direct measurement and expose bounded failed-event usage observations.
@@ -90,7 +99,6 @@ Automatic clearing and storage visibility (Guru 2026-11-04 11:39 IST):
 - Hard exclusions, which are never moved or written: every `[protected].paths` entry in `~/.agents/machine.toml` (read on each run and skipped quietly when the file or list is missing), `~/.cache/macos-cua` and other ACU-owned dirs, Samantha's `samantha-activity*.jsonl` and `voice.log` (Samantha/ACU rotates them), the runtime venv and `~/.config/developer-observability`. Tests cover each exclusion.
 - Storage report: disk use of collector outputs, the runtime venv, plugin caches, trace dirs, the pruned-trash folder, Samantha log sizes (stat only) and any Apple container VM named `*signoz*`. A path over `retention.warn_bytes` (1 GiB) becomes a `storage` finding (`observability_issues kind=storage`).
 - Settings live in config `retention` (`enabled`, `days`, `backup_days`, `cache_dirs`, `trace_paths`, `trash_dir`, `max_trash_bytes`, `warn_bytes`), and each has a default.
-- `backend_root` (the legacy kindle-project checkout) is not used at runtime. The plugin runs only on its vendored backend. Only the optional drift test reads the key, and it skips when the path is missing.
 
 ## 0.1.7 (2026-11-04)
 

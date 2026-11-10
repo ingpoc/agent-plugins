@@ -17,6 +17,7 @@ config.json. Those paths are only measured (stat) for the storage report.
 from __future__ import annotations
 
 import fnmatch
+import json
 import os
 from pathlib import Path
 import shutil
@@ -112,7 +113,7 @@ def _candidates(root, keep, now, days, backup_days, home):
         dirs[:] = [d for d in dirs if not is_protected(base_path / d, home) and not (base_path / d).is_symlink()]
         for name in files:
             path = base_path / name
-            if path in keep or path.is_symlink() or is_protected(path, home):
+            if path in keep or any(kept.is_dir() and _inside(path, kept) for kept in keep) or path.is_symlink() or is_protected(path, home):
                 continue
             limit = backup_days if any(fnmatch.fnmatch(name, p) for p in BACKUP_PATTERNS) else days
             try:
@@ -129,7 +130,14 @@ def prune(config, out_dir, dry_run=False, now=None, home=None):
     home = Path(home or Path.home())
     now = time.time() if now is None else now
     out_dir = Path(out_dir).expanduser()
-    roots = [('outputs', out_dir, {out_dir / 'findings.json'})]
+    keep = {out_dir / 'findings.json'}
+    try:
+        snapshot_id = json.loads((out_dir / 'findings.json').read_text()).get('snapshot_id')
+    except (OSError, ValueError, AttributeError):
+        snapshot_id = None
+    if isinstance(snapshot_id, str) and len(snapshot_id) == 32 and all(c in '0123456789abcdef' for c in snapshot_id):
+        keep.add(out_dir / 'snapshots' / snapshot_id)
+    roots = [('outputs', out_dir, keep)]
     roots += [('cache', Path(p).expanduser(), set()) for p in opts['cache_dirs']]
     roots += [('traces', Path(p).expanduser(), set()) for p in opts['trace_paths']]
     trash = Path(opts['trash_dir']).expanduser() / time.strftime('%Y%m%d-%H%M%S', time.localtime(now))

@@ -1,16 +1,9 @@
 {
-  "upstream_repo": "kindle-project (private, Cursor Origin)",
-  "upstream_commit": "5e9c4592d92886c4c7c66738ef39818ced65010a",
-  "upstream_commit_note": "same file bytes as cf2b097 (first vendored); hashes are of the upstream files before local edits",
-  "upstream_package": "telemetry",
-  "files": {
-    "observability_api.py": "fc8fb5326be269890d711b3be69865c5712f3b39c8bad88609f21e52ec0531fc",
-    "contract.py": "aa9379b457853ea71fcdb0f7cf811b00f5b18170a8471b731b59be50452c4a0a",
-    "finding_text.py": "be72dbb493965fa204a03ada8bc1d4a22c306264937d570f96cbd72d2a8ce81e",
-    "recommendations.py": "1f953e140ef7b64eb88e07e734dc5dfefc31e9ccc019a74287d55b14e6fae9e7"
+  "canonical": "plugins/developer-observability/runtime/backend",
+  "historical_origin": {
+    "repo": "kindle-project (retired 2026-11-04)",
+    "package": "telemetry",
+    "commit": "5e9c4592d92886c4c7c66738ef39818ced65010a"
   },
-  "verbatim": [
-    "contract.py",
-    "finding_text.py"
-  ]
+  "note": "No upstream; edit in place."
 }

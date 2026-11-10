@@ -41,6 +41,73 @@ _PLAIN_MS = re.compile(r'(\d+(?:\.\d+)?)\s?ms\b')
 _CHECK_FAILED = re.compile(r'^failed: test (.+?) \(exit (\d+)\)')
 _XCTEST = re.compile(r'error: -\[([\w.]+) (\w+)\] : (.*)')
 _CHECK_TEST = re.compile(r'^test (.+?) \(([\d.]+)s, exit (\d+)\)')
+_TASK_REF = re.compile(r'[A-Za-z0-9_.:/-]{1,128}\Z')
+_CHECK_ID = re.compile(r'(?i)^(?:run_id|check_id)=([A-Za-z0-9_.:-]{1,128})$')
+_TASK_FIELDS = {
+    'request': ('request', 'task_request'), 'typed_text': ('typed_text',), 'error_message': ('error_message',),
+    'query_terms': ('query_terms', 'ledger_query_terms'),
+    'invalid_query_terms': ('invalid_query_terms',), 'selected_id': ('selected_id', 'ledger_selected_id'),
+    'action': ('action',), 'target': ('target',), 'expected_target': ('expected_target', 'expected'),
+    'found_target': ('found_target', 'found'), 'url': ('url',), 'lease': ('lease',),
+    'cancel': ('cancel',), 'cancel_ack': ('cancel_ack',), 'cancel_state': ('cancel_state',),
+    'target_run_ref': ('target_run_ref',), 'queued_action': ('queued_action',),
+    'queued_action_suppressed': ('queued_action_suppressed',),
+    'expected_outcome': ('expected_outcome', 'outcome_expected'),
+    'hint': ('hint',), 'verified': ('verified',), 'completion': ('completion',),
+    'match_count': ('match_count',), 'near_miss_count': ('near_miss_count',),
+    'matching_targets': ('matching_targets',), 'near_miss_targets': ('near_miss_targets',),
+    'app': ('app',), 'window': ('window',),
+}
+_NESTED_TASK_KEYS = {'app', 'window', 'name', 'title', 'role', 'id', 'status', 'state', 'active',
+                     'released', 'requested', 'acknowledged', 'suppressed', 'started', 'count', 'url',
+                     'target', 'expected', 'found', 'match_count', 'near_miss_count'}
+
+
+def _task_value(value, limit=1024):
+    if isinstance(value, str):
+        return scrub(value, limit) or ''
+    if value is None or type(value) in (bool, int, float):
+        return value
+    if isinstance(value, (list, tuple)):
+        return [_task_value(item, 240) for item in value[:20] if isinstance(item, (str, bool, int, float))]
+    if isinstance(value, dict):
+        return {key: _task_value(item, 240) for key, item in list(value.items())[:20]
+                if isinstance(key, str) and key in _NESTED_TASK_KEYS
+                and isinstance(item, (str, bool, int, float, list, tuple, dict, type(None)))}
+    return None
+
+
+def _task_id(value):
+    return value if isinstance(value, str) and _TASK_REF.fullmatch(value) else None
+
+
+def _test_step_ref(value):
+    if step_ref := _task_id(value):
+        return step_ref
+    return f'test-{hashlib.sha256(value.encode()).hexdigest()[:24]}' if isinstance(value, str) and value else None
+
+
+def _run_ref(value):
+    return hashlib.sha256(value.encode()).hexdigest()[:24] if isinstance(value, str) and 0 < len(value) <= 512 else None
+
+
+def _task_fields(obj):
+    fields = {}
+    for output, keys in _TASK_FIELDS.items():
+        key = next((key for key in keys if key in obj), None)
+        if key is None:
+            continue
+        value = _task_value(obj[key], 4096 if output in ('request', 'typed_text', 'url') else 1024)
+        if value is not None:
+            fields[output] = value
+    arguments = obj.get('arguments')
+    if isinstance(arguments, dict):
+        allowed = {key for keys in _TASK_FIELDS.values() for key in keys}
+        fields['arguments'] = {key: _task_value(value) for key, value in list(arguments.items())[:20]
+                               if key in allowed and _task_value(value) is not None}
+    if 'error_type' in obj and isinstance(obj['error_type'], str):
+        fields['error_type'] = scrub(obj['error_type'], 120)
+    return fields
 
 
 def ref(path, line) -> str:
@@ -85,7 +152,8 @@ def _first_str(obj, keys):
 
 
 def _stat(stats, source):
-    return stats.setdefault(source, {'events': 0, 'errors': 0, 'durations': 0, 'skipped': 0, 'last_event_at': None})
+    return stats.setdefault(source, {'events': 0, 'errors': 0, 'durations': 0, 'skipped': 0,
+                                     'last_event_at': None, 'read': False, 'missing': False})
 
 
 def _event(stats, *, project, source, kind, step, error, ts, duration_ms, message, where, session=None,
@@ -97,7 +165,8 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
            outcome=None, ledger_detail_truncated=None, input_availability=None, input_device=None,
            input_rate=None, input_recovery=None, input_selection=None, mirror_ref=None, build=None,
            ledger_rule=None, ledger_selected_count=None, ledger_selected_id=None, ledger_supersedes=None,
-           ledger_decision_id=None, ledger_revision=None):
+           ledger_decision_id=None, ledger_revision=None, step_ref=None, retry_of_step_ref=None,
+           retry_of_run_ref=None, mirror_of=None, caused_by=None, task_data=None):
     item = _stat(stats, source)
     item['events'] += 1
     item['errors'] += bool(error)
@@ -123,7 +192,10 @@ def _event(stats, *, project, source, kind, step, error, ts, duration_ms, messag
             'input_selection': input_selection, 'mirror_ref': mirror_ref, 'build': build,
             'ledger_rule': ledger_rule, 'ledger_selected_count': ledger_selected_count,
             'ledger_selected_id': ledger_selected_id, 'ledger_supersedes': ledger_supersedes,
-            'ledger_decision_id': ledger_decision_id, 'ledger_revision': ledger_revision}
+            'ledger_decision_id': ledger_decision_id, 'ledger_revision': ledger_revision,
+            'step_ref': step_ref, 'retry_of_step_ref': retry_of_step_ref,
+            'retry_of_run_ref': retry_of_run_ref, 'mirror_of': mirror_of,
+            'caused_by': caused_by or [], 'task_data': task_data or {}}
 
 
 def _normalize(value):
@@ -278,13 +350,14 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         status = str(obj.get('status', '')).lower()
         err = obj.get('error')
         error = (status in ERROR_STATUS or 'error' in kind or 'fail' in kind or bool(isinstance(err, (str, dict)) and err)
+                 or bool(obj.get('error_type'))
                  or obj.get('ok') is False)
         if kind == 'tool_error' and str(obj.get('error_type', '')).startswith('needs_confirm'):
             kind, error = 'tool_needs_confirmation', False
         mirror = kind in MIRROR_KINDS
         error = error and not mirror
         text = err.get('message') if isinstance(err, dict) else None
-        raw_message = text if isinstance(text, str) else _first_str(obj, ('error', 'detail', 'message', 'reason', 'msg'))
+        raw_message = text if isinstance(text, str) else _first_str(obj, ('error', 'error_message', 'detail', 'message', 'reason', 'msg'))
         cause = obj.get('cause') if isinstance(obj.get('cause'), str) else _cause(obj.get('detail'), obj.get('error'))
         condition = cause if cause and (error or status == 'skip') else None
         metric = next((key for key in DURATION_KEYS if _number(obj.get(key)) is not None), None)
@@ -308,7 +381,7 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
             if layout is None:
                 stats[source]['skipped'] += 1
                 continue
-        operation = obj.get('ledger_operation') if step == 'ledger_task' else None
+        operation = obj.get('ledger_operation') if step == 'ledger_task' or 'ledger' in kind.lower() else None
         operation = operation if operation in ('lookup', 'capture', 'recall', 'preference', 'unknown') else None
         scope_kind = obj.get('ledger_scope_kind') if step == 'ledger_task' else None
         scope_kind = scope_kind if scope_kind in ('missing', 'fleet', 'browser', 'tool', 'project', 'invalid') else None
@@ -316,12 +389,14 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         rule_supplied = rule_supplied if type(rule_supplied) is bool else None
         category = obj.get('ledger_error_category') if step == 'ledger_task' else None
         category = category if category in ('invalid_argument', 'invalid_query_terms', 'unavailable', 'outcome_unknown', 'other') else None
-        ledger_status = obj.get('ledger_result_status') if step == 'ledger_task' else None
+        ledger_status = obj.get('ledger_result_status') if step == 'ledger_task' or 'ledger' in kind.lower() else None
         ledger_status = ledger_status[:32] if isinstance(ledger_status, str) else None
-        decision_count = obj.get('ledger_decision_count') if step == 'ledger_task' else None
+        decision_count = obj.get('ledger_decision_count') if step == 'ledger_task' or 'ledger' in kind.lower() else None
         decision_count = decision_count if type(decision_count) is int and 0 <= decision_count <= 3 else None
         task_outcome = obj.get('outcome') if kind == 'task_outcome' else None
-        task_outcome = task_outcome if task_outcome in ('verified_success', 'verified_incomplete', 'unverified', 'cancelled') else None
+        task_outcome = {'success': 'success', 'failure': 'failure', 'cancelled': 'cancelled',
+                        'unknown': 'unknown'}.get(task_outcome, task_outcome if task_outcome in
+                                                   ('verified_success', 'verified_incomplete', 'unverified') else None)
         task_check_id = obj.get('check_id') if kind == 'task_outcome' else None
         task_check_id = task_check_id[:48] if isinstance(task_check_id, str) and re.fullmatch(r'[a-z][a-z0-9]*(?:_[a-z0-9]+)*', task_check_id) else None
         task_evidence_class = obj.get('evidence_class') if kind == 'task_outcome' else None
@@ -340,6 +415,9 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
         selected_count = obj.get('ledger_selected_count')
         selected_count = selected_count if type(selected_count) is int and 0 <= selected_count <= 3 else None
         supersedes = obj.get('supersedes') if isinstance(obj.get('supersedes'), str) else None
+        refs = obj.get('caused_by')
+        caused_by = [_task_id(value) for value in refs] if isinstance(refs, list) else []
+        caused_by = [value for value in caused_by if value]
         yield _event(stats, project=project, source=source, kind=kind, step=step, error=error, ts=ts,
                      duration_ms=duration, metric=metric, message=message, where=ref(path, number), session=current,
                      condition=condition, mirror=mirror, test=test, version=version, turn=turn,
@@ -357,13 +435,18 @@ def iter_jsonl(path, project, source, stats, max_bytes=64_000_000):
                      input_rate=obj.get('input_rate') if type(obj.get('input_rate')) in (int,float) and 0 < obj['input_rate'] <= 768000 else None,
                      input_recovery=obj.get('input_recovery') if obj.get('input_recovery') in ('recovered','not_observed','unknown') else None,
                      input_selection=obj.get('input_selection') if obj.get('input_selection') == 'system_default_snapshot' else None,
-                     call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=opaque_id('run_id'),
+                     call_ref=opaque_id('call_id'), response_ref=opaque_id('response_id'), run_ref=_run_ref(obj.get('run_id')),
                      mirror_ref=opaque_id('mirror_id'), build=build,
                      ledger_rule=ledger_rule, ledger_selected_count=selected_count,
                      ledger_selected_id=opaque_id('ledger_selected_id'), ledger_supersedes=opaque_id('supersedes')
                      if 'supersedes' in obj else opaque_id('ledger_supersedes'),
                      ledger_decision_id=opaque_id('decision_id'),
                      ledger_revision=obj.get('revision') if type(obj.get('revision')) is int and 0 <= obj['revision'] <= 100000 else None,
+                     step_ref=_task_id(obj.get('step_ref')) or opaque_id('call_id'),
+                     retry_of_step_ref=_task_id(obj.get('retry_of_step_ref')),
+                     retry_of_run_ref=_task_id(obj.get('retry_of_run_ref')),
+                     mirror_of=_task_id(obj.get('mirror_of')), caused_by=caused_by,
+                     task_data=_task_fields(obj),
                      outcome='failure' if error else ('success' if obj.get('ok') is True or status == 'ok' else 'unknown'))
 
 
@@ -435,6 +518,8 @@ def iter_junit(path, project, source, stats):
         stats[source]['skipped'] += 1
         return
     ts = Path(path).stat().st_mtime
+    run_id = root.get('run_id') or root.get('check_id') or next(
+        (prop.get('value') for prop in root.iter('property') if prop.get('name') in ('run_id', 'check_id')), None)
     for case in root.iter('testcase'):
         bad = case.find('failure')
         if bad is None:
@@ -444,9 +529,14 @@ def iter_junit(path, project, source, stats):
         except ValueError:
             duration = None
         message = scrub((bad.get('message') or bad.text or '') if bad is not None else '')
+        error_type = bad.get('type') if bad is not None else None
+        case_name = f"{case.get('classname', '')}.{case.get('name', '')}".strip('.')
         yield _event(stats, project=project, source=source, kind='test',
-                     step=f"{case.get('classname', '')}.{case.get('name', '')}", error=bad is not None, ts=ts,
-                     duration_ms=duration, metric='test_ms', message=message, where=ref(path, 0))
+                     step=case_name, error=bad is not None, ts=ts,
+                     duration_ms=duration, metric='test_ms', message=message, where=ref(path, 0),
+                     run_ref=_run_ref(run_id), step_ref=_test_step_ref(case.get('step_ref') or case.get('id') or case_name),
+                     task_data={'error_type': scrub(error_type, 120)} if error_type else {},
+                     outcome='failure' if bad is not None else 'success')
 
 
 def iter_checklog(run_dir, project, source, stats):
@@ -454,21 +544,66 @@ def iter_checklog(run_dir, project, source, stats):
     log = Path(run_dir) / 'check.log'
     if not log.is_file():
         stats[source]['skipped'] += 1
+        stats[source]['missing'] = True
         return
     ts = log.stat().st_mtime
+    run_id = None
+    context = {}
+    try:
+        summary = json.loads((Path(run_dir) / 'summary.json').read_text())
+        attempt = summary.get('attempt') if isinstance(summary, dict) else None
+        head, pr = (summary.get('head'), summary.get('pr')) if isinstance(summary, dict) else (None, None)
+        if isinstance(attempt, str) and 0 < len(attempt) <= 512:
+            run_id = attempt
+            valid_head = isinstance(head, str) and re.fullmatch(r'[0-9a-fA-F]{40}', head)
+            context = {'request': f'CI PR #{pr} @ {head[:12]}' if type(pr) is int and valid_head else None,
+                       'build': head if valid_head else None,
+                       'task_outcome': {'success': 'verified_success', 'failure': 'verified_incomplete'}.get(
+                           summary.get('conclusion'))}
+            phases = summary.get('phases')
+            if isinstance(phases, dict):
+                for index, (phase, duration) in enumerate(phases.items()):
+                    if isinstance(phase, str) and type(duration) in (int, float) and duration >= 0:
+                        yield _event(stats, project=project, source=source, kind='ci_phase', step=phase,
+                                     error=False, ts=ts - len(phases) + index, duration_ms=duration,
+                                     message='', where=ref(Path(run_dir) / 'summary.json', 0),
+                                     run_ref=_run_ref(run_id), step_ref=_test_step_ref(f'phase-{phase}'),
+                                     task_data={'request': context['request']} if context['request'] else {},
+                                     build=context['build'], task_outcome=context['task_outcome'], outcome='success')
+    except (OSError, ValueError, TypeError):
+        pass
     for number, line in _lines(log, 64_000_000):
         line = line.strip()
+        if match := _CHECK_ID.fullmatch(line):
+            run_id = run_id or match.group(1)
+            continue
+        step_match = re.search(r'\bstep_ref=([A-Za-z0-9_.:/-]{1,128})(?:\s|$)', line)
+        step_ref = _task_id(step_match.group(1)) if step_match else None
         where = ref(log, number)
         if match := _CHECK_FAILED.match(line):
             yield _event(stats, project=project, source=source, kind='check_failed', step=match.group(1), error=True,
-                         ts=ts, duration_ms=None, message=scrub(line), where=where)
+                         ts=ts, duration_ms=None, message=scrub(line), where=where,
+                         run_ref=_run_ref(run_id),
+                         step_ref=step_ref or (_test_step_ref(match.group(1)) if run_id else None),
+                         task_data={'request': context['request']} if context.get('request') else {},
+                         build=context.get('build'), task_outcome=context.get('task_outcome'))
         elif match := _XCTEST.search(line):
+            test_name = f'{match.group(1)}.{match.group(2)}'
             yield _event(stats, project=project, source=source, kind='test', step=f'{match.group(1)}.{match.group(2)}',
-                         error=True, ts=ts, duration_ms=None, message=scrub(match.group(3)), where=where)
+                         error=True, ts=ts, duration_ms=None, message=scrub(match.group(3)), where=where,
+                         run_ref=_run_ref(run_id),
+                         step_ref=step_ref or (_test_step_ref(test_name) if run_id else None),
+                         task_data={'request': context['request']} if context.get('request') else {},
+                         build=context.get('build'), task_outcome=context.get('task_outcome'))
         elif match := _CHECK_TEST.match(line):
             yield _event(stats, project=project, source=source, kind='check_test', step=match.group(1),
                          error=match.group(3) != '0', ts=ts, duration_ms=float(match.group(2)) * 1000, metric='test_ms',
-                         message='', where=where)
+                         message='', where=where, run_ref=_run_ref(run_id),
+                         step_ref=step_ref or (_test_step_ref(match.group(1)) if run_id else None),
+                         task_data={**({'request': context['request']} if context.get('request') else {}),
+                                    **({'error_type': 'test_failure'} if match.group(3) != '0' else {})},
+                         build=context.get('build'), task_outcome=context.get('task_outcome'),
+                         outcome='failure' if match.group(3) != '0' else 'success')
 
 
 def _git(repo, *args):
@@ -545,8 +680,15 @@ def discover_project(directory, stats, project=None):
             yield from iter_textlog(path, project, source, stats)
         elif path.suffix == '.xml' and _is_junit(path):
             yield from iter_junit(path, project, source, stats)
+        if source in stats:
+            stats[source]['read'] = not bool(stats[source].get('io_errors') or stats[source].get('missing')
+                                             or stats[source].get('skipped'))
     if (directory / '.git').exists():
-        yield from iter_git(directory, project, f'{project}:git', stats)
+        source = f'{project}:git'
+        yield from iter_git(directory, project, source, stats)
+        if source in stats:
+            stats[source]['read'] = not bool(stats[source].get('io_errors') or stats[source].get('missing')
+                                             or stats[source].get('skipped'))
 
 
 ROTATED_KEEP = 5
@@ -601,10 +743,15 @@ def iter_spec(spec, stats):
     if kind not in ADAPTERS or not project:
         raise ValueError(f'invalid source spec type {kind!r}')
     source = spec.get('source') or f'{project}:{path.name}'
+    item = _stat(stats, source)
+    stale_after = spec.get('stale_after_s', 86400)
+    item['stale_after_s'] = stale_after if isinstance(stale_after, (int, float)) and not isinstance(stale_after, bool) and stale_after > 0 else 86400
     if not path.exists():
+        item['missing'] = True
         _io_error(stats, source)
         return
     try:
         yield from ADAPTERS[kind](path, project, source, stats)
+        item['read'] = not bool(item.get('io_errors') or item.get('missing') or item.get('skipped'))
     except OSError:
         _io_error(stats, source)

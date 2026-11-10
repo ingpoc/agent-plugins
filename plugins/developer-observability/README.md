@@ -25,7 +25,7 @@ The plugin reads a prepared `findings.json`. Two producers can feed it, and the 
 - the bundled portable collector (`runtime/collector/`, stdlib only, any OS): `observability_collect` or `bin/developer-observability collect --project-dir <dir>` scans JSONL and text logs, JUnit XML, agent-plugins `check.py` logs, git state and `hygiene --json` reports, and writes failure, latency-hotspot (p50/p95), slow-turn (`turn_latency`), island-layout and redundancy findings with `file:line` evidence to `~/.local/share/developer-observability/collected/findings.json`. Extra sources go in config `collector.sources` (`[{"type": "jsonl", "path": "...", "project": "..."}]`); `collector.known_sources: false` skips the built-in Samantha and agent-plugins CI paths. Each cause is one finding however many logs repeat it, and downstream errors of the same incident (same session, turn and subsystem within 30 s) are attached to the root cause as `effects`; tool and app errors are `app_error`, while `collector_failure` means only that the collector could not read a source; a duplicate call needs the same tool and arguments (otherwise it is a retry); issue IDs are stable across runs; island HUD mirrors and test sessions (`--include-tests` to keep them) never count as failures; latency comes only from real step durations; `active` means seen within `collector.active_window_h` (24 h), and sessions with a `version` get before/after counts. Nothing is capped: findings are ranked and paginated. Transcript and audio fields are never stored; tokens, emails and home paths are scrubbed.
 - an external producer such as the Kindle telemetry snapshot service (its source adapters, SigNoz and launchd jobs live in that project). When `~/Library/Application Support/KindleSnapshot/runtime/findings.json` exists, the default config points at it.
 
-Retention (0.1.8): after each collect, `runtime/collector/retention.py` moves expired plugin-owned files (collector scratch and snapshots over 7 days, except the live `findings.json`; `~/.cache/observability` files over 7 days, and backups over 30 days; optional `retention.trace_paths`) to `~/.Trash/developer-observability-pruned/` (capped at 2 GiB, never `rm`). It never touches `~/.cache/macos-cua`, Samantha logs or the runtime venv. It reports their sizes, plus any `*signoz*` container VM, as `storage` findings over 1 GiB. `observability_storage` shows the report and a dry run. `backend_root` is legacy and ignored at runtime.
+Retention (0.1.8): after each collect, `runtime/collector/retention.py` moves expired plugin-owned files (collector scratch and snapshots over 7 days, except the live `findings.json`; `~/.cache/observability` files over 7 days, and backups over 30 days; optional `retention.trace_paths`) to `~/.Trash/developer-observability-pruned/` (capped at 2 GiB, never `rm`). It never touches `~/.cache/macos-cua`, Samantha logs or the runtime venv. It reports their sizes, plus any `*signoz*` container VM, as `storage` findings over 1 GiB. `observability_storage` shows the report and a dry run.
 
 Without either, `observability_projects` returns an empty state with a hint instead of an error.
 
@@ -83,10 +83,12 @@ To capture an explicitly launched Codex CLI job, run `bin/developer-observabilit
 
 ## Interface
 
-Six tools: projects, scoped issues, issue/evidence detail, existing Ledger
-recommendation, typed Decider decision, and MCP Apps dashboard. The read-side
-backend is vendored in `runtime/backend/` (see `VENDORED.json`). Tool names carry
-the `observability_` prefix. Prepared data is reused without a source rescan.
+Task tools: `observability_tasks` lists recent runs,
+`observability_task` reads a run, and `observability_task_detail` pages a bounded
+facet. For "what happened in task X," start with `observability_tasks` or
+`observability_task`; use `observability_diagnose` for triage. The canonical
+read-side backend lives in `runtime/backend/`; its source record is
+`runtime/backend/VENDORED.json`. Prepared data is reused without a source rescan.
 
 The dashboard is bundled with the official `@modelcontextprotocol/ext-apps`
 2.0.3 SDK. The server uses MCP Python SDK 2.2.0 with modern 2026-07-28 discovery
@@ -98,6 +100,6 @@ Setup and proof boundaries: [AGENTS.md](AGENTS.md). Architecture and usage:
 latency/token improvement or general cross-project recommendation coverage is
 claimed. Private bindings and telemetry are never part of this public package.
 
-Design: [six-tool plan](docs/PLAN.md). Proof contract and bounded retrieval
+Design: [tool plan](docs/PLAN.md). Proof contract and bounded retrieval
 measurements: [verification](docs/VERIFICATION.md). Installed/runtime observations
 and screenshots remain private, not in this public repository.

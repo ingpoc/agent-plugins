@@ -22,6 +22,7 @@ import json
 import math
 import re
 import time
+from datetime import datetime
 
 from . import VERSION
 from .scrub import scrub, signature
@@ -61,6 +62,22 @@ def _seconds(ms):
 
 def _label(event):
     return f"{event['kind']}/{event['step']}" if event['step'] else event['kind']
+
+
+def _test_fix(kind, finding, events):
+    if not any(event.get('metric') == 'test_ms' for event in events):
+        return None
+    if kind == 'failure':
+        failed = next((event.get('step') for event in events if event.get('error')), 'the named test')
+        return f'Inspect the CI check log for the failed test {failed}.'
+    if kind == 'latency_hotspot':
+        latency = finding.get('latency', {})
+        name = next((event.get('step') for event in events if event.get('step')), 'the named slow test')
+        return (f"Profile and shorten {name} or split it (p95 {latency.get('p95_ms', 'unknown')} ms "
+                f"over {latency.get('n', 'unknown')} runs).")
+    if kind == 'redundancy':
+        return 'Deduplicate or cache the repeated test call; if it is a retry, explain its cause.'
+    return None
 
 
 class Context:
@@ -222,9 +239,10 @@ def _finding(ctx, kind, error_class, parts, events, headline, count, extra=None,
             after = by_version.get(latest, 0)
             finding['before_after'] = {'version': latest, 'before': count - after, 'after': after}
     finding.update(extra or {})
-    if events[0]['kind'] == 'check_test' and not message:
+    if kind == 'failure' and any(e.get('metric') == 'test_ms' for e in events) and not message:
         finding['what_happened'] = 'A CI test process failed; its failure output was not retained.'
-        finding['fix'] = 'Inspect the CI check log for the failed test process named in the evidence.'
+    if test_fix := _test_fix(kind, finding, events):
+        finding['fix'] = test_fix
     return finding
 
 
@@ -539,8 +557,197 @@ def _rank(finding):
     return (active, impact)
 
 
+def _scope_identity(event):
+    version, attribution = event.get('version'), event.get('version_attribution')
+    if not isinstance(version, str) or not version or attribution not in ('event', 'session_inferred'):
+        return None, 'unknown'
+    if scrub(version, 40) != version:
+        return None, 'unknown'
+    return version, attribution
+
+
+def _task_records(events, snapshot_id, sidecar_writer):
+    groups, gaps = defaultdict(list), Counter()
+    gap_sources = defaultdict(Counter)
+    for event in events:
+        run_ref, step_ref = event.get('run_ref'), event.get('step_ref')
+        source = event.get('source') or 'unknown'
+        if not isinstance(run_ref, str) or not re.fullmatch(r'[0-9a-f]{24}', run_ref):
+            gap_sources[(event.get('project'), source)]['run_ref_missing'] += 1
+            if not step_ref:
+                gap_sources[(event.get('project'), source)]['legacy_event_unlinked'] += 1
+            continue
+        task_key = (event.get('project'), run_ref)
+        if not isinstance(step_ref, str) or not step_ref:
+            groups[task_key].append((None, event))
+            gap_sources[(event.get('project'), source)]['step_ref_missing'] += 1
+            continue
+        groups[task_key].append((step_ref, event))
+
+    index = []
+    for (project, run_ref), rows in groups.items():
+        rows.sort(key=lambda row: (row[1].get('ts') if row[1].get('ts') is not None else float('inf'),
+                                   str(row[1].get('ref') or '')))
+        by_step = defaultdict(list)
+        for step_ref, event in rows:
+            if step_ref:
+                data = event.get('task_data') if isinstance(event.get('task_data'), dict) else {}
+                by_step[step_ref].append({
+                    'event_ref': event.get('ref'), 'timestamp': iso(event.get('ts')),
+                    'stage': event.get('step') or event.get('kind'), 'kind': event.get('kind'),
+                    'duration_ms': event.get('duration_ms'),
+                    'status': 'failure' if event.get('error') else event.get('outcome', 'unknown'),
+                    'error_type': data.get('error_type') or (event.get('kind') if event.get('error') else None),
+                    'message': event.get('error_details') or event.get('message') or None,
+                    'data': data, 'retry_of_step_ref': event.get('retry_of_step_ref'),
+                    'retry_of_run_ref': event.get('retry_of_run_ref'), 'mirror_of': event.get('mirror_of'),
+                    'caused_by': event.get('caused_by') or [], 'source': scrub(event.get('source'), 80),
+                    'ledger': {key: event.get(key) for key in ('ledger_operation', 'ledger_result_status',
+                              'ledger_error_category', 'ledger_selected_count') if event.get(key) is not None}})
+        steps, details = [], {}
+        for step_ref, event_rows in by_step.items():
+            event_rows.sort(key=lambda row: (row.get('timestamp') or '', str(row.get('event_ref') or '')))
+            failed = next((row for row in event_rows if row['status'] == 'failure'), None)
+            last = event_rows[-1]
+            status = 'failure' if failed else next(
+                (row['status'] for row in reversed(event_rows) if row['status'] in ('success', 'cancelled')), 'unknown')
+            merged = {}
+            for row in event_rows:
+                merged.update(row['data'])
+            duration = next((row['duration_ms'] for row in reversed(event_rows)
+                             if isinstance(row.get('duration_ms'), (int, float))), None)
+            if duration is None:
+                times = [datetime.fromisoformat(row['timestamp'].replace('Z', '+00:00')).timestamp()
+                         for row in event_rows if row.get('timestamp')]
+                duration = round((max(times) - min(times)) * 1000) if len(times) > 1 else None
+            step = {'step_ref': step_ref, 'stage': last['stage'],
+                    'action': merged.get('action') or last['stage'] or last['kind'],
+                    'target': merged.get('target') or merged.get('app'),
+                    'duration_ms': duration, 'status': status,
+                    'retry_of_step_ref': next((row['retry_of_step_ref'] for row in event_rows if row['retry_of_step_ref']), None),
+                    'retry_of_run_ref': next((row['retry_of_run_ref'] for row in event_rows if row['retry_of_run_ref']), None),
+                    'mirror_of': next((row['mirror_of'] for row in event_rows if row['mirror_of']), None),
+                    'mirror_count': 1, 'mirror_refs': [], 'data': merged,
+                    'error_type': failed['error_type'] if failed else None,
+                    'message': failed['message'] if failed else None,
+                    'caused_by': list(dict.fromkeys(ref for row in event_rows for ref in row['caused_by']))}
+            steps.append((event_rows[0].get('timestamp') or '', step))
+            details[step_ref] = event_rows
+        steps.sort(key=lambda pair: (pair[0], pair[1]['step_ref']))
+        step_map = {step['step_ref']: step for _, step in steps}
+        for _, step in steps:
+            mirror = step.get('mirror_of')
+            if isinstance(mirror, str) and mirror in step_map and mirror != step['step_ref']:
+                step_map[mirror]['mirror_refs'].append(step['step_ref'])
+        visible_steps = []
+        for _, step in steps:
+            if step['step_ref'] in {ref for current in step_map.values() for ref in current['mirror_refs']}:
+                continue
+            step['mirror_count'] = 1 + len(step['mirror_refs'])
+            visible_steps.append(step)
+
+        all_events = [event for _, event in rows]
+        data_rows = [event.get('task_data') for event in all_events if isinstance(event.get('task_data'), dict)]
+        request = next((data.get('request') for data in data_rows if isinstance(data.get('request'), str)), None)
+        expected = next((data.get('expected_outcome') for data in data_rows if data.get('expected_outcome') is not None), 'unknown')
+        outcome_event = next((event for event in reversed(all_events) if event.get('kind') == 'task_outcome'), {})
+        explicit_outcome = next((event.get('task_outcome') for event in reversed(all_events)
+                                 if event.get('task_outcome')), None)
+        first_failure = next((step for step in visible_steps if step['status'] == 'failure'), None)
+        observed = explicit_outcome or ('failure' if first_failure else 'unknown')
+        typed_build = next((event.get('build') for event in reversed(all_events) if event.get('build')), None)
+        version_event = next((event for event in reversed(all_events) if event.get('version')), None)
+        first_ts = next((event.get('ts') for event in all_events if event.get('ts') is not None), None)
+        last_ts = next((event.get('ts') for event in reversed(all_events) if event.get('ts') is not None), None)
+        duration = max(0, int((last_ts - first_ts) * 1000)) if first_ts is not None and last_ts is not None else None
+        task_gaps = []
+        if request is None:
+            task_gaps.append({'code': 'request_missing', 'next_action': 'Emit request on a run event.'})
+        if expected == 'unknown':
+            task_gaps.append({'code': 'outcome_expected_missing', 'next_action': 'Emit expected_outcome for this run.'})
+        missing_steps = [event for step_ref, event in rows if step_ref is None]
+        if missing_steps:
+            task_gaps.append({'code': 'step_ref_missing', 'producer': scrub(missing_steps[0].get('source'), 80),
+                              'count': len(missing_steps), 'next_action': 'Emit a stable step_ref for each task event.'})
+        if any('mic' in str(event.get('step') or event.get('kind')).lower() for event in all_events):
+            task_gaps.append({'code': 'mic_state_not_in_scope',
+                              'next_action': 'Inspect microphone readiness in the owning runtime.'})
+        direct_inputs = {}
+        if first_failure:
+            for input_ref in first_failure['caused_by']:
+                if input_ref in details:
+                    direct_inputs[input_ref] = [row['data'] for row in details[input_ref]]
+                else:
+                    task_gaps.append({'code': 'caused_by_ref_missing', 'step_ref': first_failure['step_ref'],
+                                      'input_ref': input_ref, 'next_action': 'Emit an explicit caused_by input step_ref.'})
+        ledger_rows = [(event, event.get('task_data') or {}) for event in all_events
+                       if event.get('ledger_operation') or event.get('step') == 'ledger_task'
+                       or 'ledger' in str(event.get('kind', '')).lower()]
+        ledger = None
+        if ledger_rows:
+            event, ledger_data = next(((event, data) for event, data in ledger_rows
+                                       if data.get('query_terms') or event.get('ledger_result_status')), ledger_rows[0])
+            ledger = {'lookup_status': event.get('ledger_result_status') or 'unknown',
+                      'query_terms': ledger_data.get('query_terms'),
+                      'invalid_query_terms': ledger_data.get('invalid_query_terms'),
+                      'selected_id': ledger_data.get('selected_id') or 'none',
+                      'operation': event.get('ledger_operation'),
+                      'decision_count': event.get('ledger_decision_count')}
+            use = next((event for event in all_events if event.get('kind') in ('ledger_use', 'ledger_record_used')),
+                       None)
+            if use:
+                ledger['applied'] = True
+        cancellation = {key: data[key] for data in data_rows for key in (
+            'cancel', 'cancel_ack', 'cancel_state', 'target_run_ref', 'queued_action',
+            'queued_action_suppressed') if key in data}
+        project_rows = [event for event in all_events if event.get('project') == project]
+        source = scrub(project_rows[0].get('source'), 80) if project_rows else 'unknown'
+        task = {'snapshot_id': snapshot_id, 'project': project, 'run_ref': run_ref,
+                'request': request, 'build': typed_build,
+                'version': version_event.get('version') if version_event else None,
+                'version_attribution': version_event.get('version_attribution', 'unknown') if version_event else 'unknown',
+                'outcome': {'expected': expected, 'observed': observed,
+                            **({'check_id': outcome_event['task_check_id']} if outcome_event.get('task_check_id') else {}),
+                            **({'evidence_class': outcome_event['task_evidence_class']}
+                               if outcome_event.get('task_evidence_class') else {}),
+                            **{key: outcome_event['task_data'][key] for key in ('verified', 'completion')
+                               if isinstance(outcome_event.get('task_data'), dict) and
+                               key in outcome_event['task_data']},
+                            **({'next_action': 'Emit expected_outcome and an explicit task_outcome event.'}
+                               if expected == 'unknown' or observed == 'unknown' else {})},
+                'steps': visible_steps, 'step_details': details, 'first_failure': first_failure,
+                'direct_inputs': direct_inputs, 'ledger': ledger, 'gaps': task_gaps,
+                'cancellation': cancellation or None,
+                'generated_at': iso(last_ts) if last_ts is not None else None}
+        file_key = hashlib.sha256((str(project) + '\0' + run_ref).encode()).hexdigest()[:24]
+        file_ref = sidecar_writer('tasks', file_key, task)
+        request_summary = request or ''
+        if len(request_summary) > 120:
+            request_summary = request_summary[:117] + '...'
+        first_error_type = first_failure.get('error_type') if first_failure else None
+        index_outcome = ('success' if observed in ('success', 'verified_success') else
+                         'failure' if observed in ('failure', 'verified_incomplete') else
+                         'cancelled' if observed == 'cancelled' else 'unknown')
+        index.append({'project': project, 'run_ref': run_ref, 'request': request_summary,
+                      'outcome': index_outcome, 'first_error_type': first_error_type, 'duration_ms': duration,
+                      'step_count': len(by_step), 'last_seen': iso(last_ts) if last_ts is not None else None,
+                      'source': source, 'file': file_ref})
+    index.sort(key=lambda item: (item.get('last_seen') or '', item['run_ref']), reverse=True)
+    index.sort(key=lambda item: item.get('first_error_type') is None)
+    for (project, source), counts in gap_sources.items():
+        for code, count in counts.items():
+            gaps[(project, source, code)] += count
+    gap_index = [{'project': project, 'producer': scrub(source, 80), 'code': code, 'count': count,
+                  'next_action': ('Emit run_id so events can be linked to a task.' if code == 'run_ref_missing'
+                                  else 'Emit step_ref on task events.' if code == 'step_ref_missing'
+                                  else 'Emit run_id and step_ref so legacy events can be linked.')}
+                 for (project, source, code), count in sorted(gaps.items())]
+    return index, gap_index
+
+
 def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H, threshold_ms=HOTSPOT_MS,
-          test_threshold_ms=TEST_HOTSPOT_MS, *, scoped=True):
+          test_threshold_ms=TEST_HOTSPOT_MS, *, scoped=True, snapshot_id=None, sidecar_writer=None,
+          include_sessions=True):
     now = time.time() if now is None else now
     events, excluded = prepare(events, include_tests)
     roll = rollup(events)
@@ -554,13 +761,15 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
         stats.setdefault(source, {})['excluded_test'] = count
     stamp = iso(now)
     session_groups = defaultdict(list)
-    for event in events:
-        if not event.get('session') or event.get('session_attribution') != 'event' or event.get('ts') is None:
-            continue
-        stage = event.get('step') if event.get('step') in SESSION_STAGES else event.get('kind')
-        if stage not in SESSION_STAGES:
-            continue
-        session_groups[(event['project'], event['session'])].append((event, stage))
+    if include_sessions:
+        for event in events:
+            if not event.get('session') or event.get('session_attribution') != 'event' or event.get('ts') is None:
+                continue
+            stage = event.get('step') if event.get('step') in SESSION_STAGES else event.get('kind')
+            if stage not in SESSION_STAGES:
+                continue
+            session_groups[(event['project'], event['session'])].append((event, stage))
+    compact = bool(sidecar_writer)
     session_timelines = []
     for (project, session), rows in session_groups.items():
         rows.sort(key=lambda row: row[0]['ts'])
@@ -612,22 +821,61 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
                 if key:
                     grouped[key] = item
         timeline = collapsed
-        session_timelines.append({'project': project, 'session_ref': session_ref,
-                                  'last_seen': iso(rows[-1][0]['ts']), 'events': timeline,
-                                  'total': len(timeline), 'raw_total': len(rows), 'truncated': False})
+        session = {'project': project, 'session_ref': session_ref,
+                   'last_seen': iso(rows[-1][0]['ts']), 'events': timeline,
+                   'total': len(timeline), 'raw_total': len(rows), 'truncated': False}
+        if compact:
+            scope_counts, scope_raw_counts, scope_last_seen = Counter(), Counter(), {}
+            for item in timeline:
+                scope = _scope_identity({'version': item.get('version'),
+                                         'version_attribution': item.get('version_attribution')})
+                scope_counts[scope] += 1
+                scope_last_seen[scope] = item['timestamp']
+            for event, _ in rows:
+                scope = _scope_identity(event)
+                scope_raw_counts[scope] += 1
+            file_ref = sidecar_writer('sessions', session_ref, {'snapshot_id': snapshot_id, 'session': session})
+            session_timelines.append({'project': project, 'session_ref': session_ref,
+                                      'last_seen': session['last_seen'], 'total': session['total'],
+                                      'raw_total': session['raw_total'], 'truncated': False, 'file': file_ref,
+                                      'scope_counts': scope_counts, 'scope_raw_counts': scope_raw_counts,
+                                      'scope_last_seen': scope_last_seen})
+        else:
+            session_timelines.append(session)
     session_timelines.sort(key=lambda row: row['last_seen'], reverse=True)
+    coverage, coverage_details, coverage_gaps = {}, {}, []
+    for source, item in stats.items():
+        last_event_at = item.get('last_event_at')
+        try:
+            age = max(0, int(now - datetime.fromisoformat(last_event_at.replace('Z', '+00:00')).timestamp()))
+        except (ValueError, TypeError, AttributeError):
+            age = None
+        stale_after_s = item.get('stale_after_s', 86400)
+        if item.get('missing'):
+            status = 'missing'
+        elif age is not None and age > stale_after_s:
+            status = 'stale'
+        elif item.get('read') and not item.get('io_errors') and not item.get('skipped'):
+            status = 'collected'
+        else:
+            status = 'stale'
+        coverage[source] = status
+        detail = {'status': status, 'collector_heartbeat_at': stamp,
+                  'last_event_at': last_event_at or 'unknown', 'last_received_at': stamp,
+                  'dropped_rows': item.get('skipped', 0), 'read_in_collect': item.get('read') is True,
+                  'age_seconds': age, 'stale_after_s': stale_after_s}
+        coverage_details[source] = detail
+        if status != 'collected':
+            coverage_gaps.append({'source': source, 'status': status,
+                                  **({'age_seconds': age} if age is not None else {})})
     document = {
         'schema_version': 1, 'generated_at': stamp, 'producer': 'developer-observability-collector',
         'collector_version': VERSION, 'findings': findings, 'session_timelines': session_timelines[:50],
         'settings': {'include_tests': include_tests, 'active_window_h': window_h, 'latency_threshold_ms': threshold_ms,
                      'test_latency_threshold_ms': test_threshold_ms, 'turn_latency_threshold_ms': TURN_SLOW_MS},
         'latest_versions': dict(ctx.latest),
-        'coverage': {source: 'collected' for source in stats},
-        'coverage_details': {source: {'status': 'collected', 'collector_heartbeat_at': stamp,
-                                      'last_event_at': item.get('last_event_at') or 'unknown',
-                                      'last_received_at': stamp, 'dropped_rows': item.get('skipped', 0)}
-                             for source, item in stats.items()},
-        'coverage_gaps': [], 'coverage_gap_scope': 'collector', 'collector_stats': stats,
+        'coverage': coverage, 'coverage_details': coverage_details,
+        'coverage_gaps': coverage_gaps, 'coverage_gap_scope': 'collector', 'collector_stats': stats,
     }
     if scoped:
         groups = defaultdict(list)
@@ -645,12 +893,47 @@ def build(events, stats, now=None, include_tests=False, window_h=ACTIVE_WINDOW_H
         document['version_scopes'] = []
         for (project, version, attribution), rows in sorted(groups.items(), key=lambda item: str(item[0])):
             scope_id = hashlib.sha256(json.dumps([project, version, attribution], separators=(',', ':')).encode()).hexdigest()[:24]
-            projection = build(rows, {}, now, True, window_h, threshold_ms, test_threshold_ms, scoped=False)
+            projection = build(rows, {}, now, True, window_h, threshold_ms, test_threshold_ms,
+                               scoped=False, include_sessions=not bool(sidecar_writer))
             for finding in projection['findings']:
                 finding['finding_key'] = 'col-' + hashlib.sha256((scope_id + '\0' + finding['finding_key']).encode()).hexdigest()[:16]
-            for session in projection['session_timelines']:
-                session['session_ref'] = 'sref_' + hashlib.sha256((scope_id + '\0' + session['session_ref']).encode()).hexdigest()[:32]
-            document['version_scopes'].append({'project': project, 'version': version, 'attribution': attribution,
-                                               'findings': projection['findings'],
-                                               'session_timelines': projection['session_timelines']})
+            if sidecar_writer:
+                scoped_sessions = []
+                for session in session_timelines:
+                    if session['project'] != project:
+                        continue
+                    scope_key = (version, attribution)
+                    total = session.get('scope_counts', {}).get(scope_key, 0)
+                    if not total:
+                        continue
+                    scoped_ref = 'sref_' + hashlib.sha256((scope_id + '\0' + session['session_ref']).encode()).hexdigest()[:32]
+                    scoped_sessions.append({'project': project, 'session_ref': scoped_ref,
+                                            'global_session_ref': session['session_ref'],
+                                            'last_seen': session.get('scope_last_seen', {}).get(scope_key, session['last_seen']),
+                                            'total': total,
+                                            'raw_total': session.get('scope_raw_counts', {}).get(scope_key, total),
+                                            'truncated': False, 'file': session['file']})
+                scoped_sessions.sort(key=lambda row: row['last_seen'], reverse=True)
+                scope_file = sidecar_writer('scopes', scope_id, {
+                    'snapshot_id': snapshot_id, 'findings': projection['findings'], 'sessions': scoped_sessions[:50]})
+                document['version_scopes'].append({'project': project, 'version': version, 'attribution': attribution,
+                                                   'scope_ref': scope_id, 'finding_count': len(projection['findings']),
+                                                   'session_count': len(scoped_sessions),
+                                                   'last_seen': scoped_sessions[0]['last_seen'] if scoped_sessions else None,
+                                                   'file': scope_file})
+            else:
+                for session in projection['session_timelines']:
+                    session['session_ref'] = 'sref_' + hashlib.sha256((scope_id + '\0' + session['session_ref']).encode()).hexdigest()[:32]
+                document['version_scopes'].append({'project': project, 'version': version, 'attribution': attribution,
+                                                   'findings': projection['findings'],
+                                                   'session_timelines': projection['session_timelines']})
+    if sidecar_writer:
+        document['snapshot_id'] = snapshot_id
+        document['session_index'] = [
+            {'project': session['project'], 'session_ref': session['session_ref'], 'last_seen': session['last_seen'],
+             'total': session['total'], 'raw_total': session['raw_total'], 'truncated': session['truncated'],
+             'file': f'snapshots/{snapshot_id}/sessions/{session["session_ref"]}.json'}
+            for session in session_timelines[:50]]
+        document.pop('session_timelines', None)
+        document['task_index'], document['task_gaps'] = _task_records(events, snapshot_id, sidecar_writer)
     return document
