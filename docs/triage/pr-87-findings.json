@@ -1917,8 +1917,8 @@
     },
     "workflow": {
       "stage": "plan_fix",
-      "updated_at": "2026-11-10T16:50:26Z",
-      "now": "2026-11-10T16:50:26Z — Luna fixing 4 Terra findings in change-list 0.1.3 and revising the dev-obs plan (started 22:20)"
+      "updated_at": "2026-11-10T20:00:11Z",
+      "now": "2026-11-10T20:00:11Z — Terra re-check: names now match; Luna (high) fixing explicit Ledger selection + ledger_use, secure-field check before typing, raw run refs; Observability asked to hash run refs (started 01:30)"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -2761,12 +2761,13 @@
       "id": "DEVOBS-01",
       "title": "Wrong next step on latency and retry findings",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "All 4 active agent-plugins findings (3 latency_hotspot slow tests, 1 redundancy retry) have the fix text 'Inspect the CI check log for the failed test process named in the evidence', but none of those tests failed.",
       "recommendation": "Generate the fix text by kind: for latency, name the slow step with p50/p95 and the place to profile it; for retry or duplicate, name the repeated call and the dedupe point.",
       "details": {
         "Root cause guess": "The fix template is chosen by source (origin-ci), not by finding kind.",
-        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96",
+        "Fix": "Fixed on devobs-fixes 210b612 (0.1.29): fix text chosen by finding kind (failure / latency_hotspot / redundancy); 122 tests pass. Awaiting installed check."
       },
       "verification_refs": [
         "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
@@ -2776,12 +2777,13 @@
       "id": "DEVOBS-02",
       "title": "Coverage boilerplate repeated in every issues reply",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "observability_issues returns about 2.6 KB of coverage, coverage_details and limits on every call. That's 3.7 KB in total for samantha (one issue at 526 B) and 7.2 KB for agent-plugins. Every source reads 'partial' because the heartbeats are from 2026-11-04.",
       "recommendation": "By default, coverage is a one-line status that lists only gaps; details are available on request. Fix the stale heartbeat or partial status. ACU confirmed this independently.",
       "details": {
         "Measured": "samantha reply 3705 chars; agent-plugins reply 7205 chars; coverage_details alone 1913 chars",
-        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96",
+        "Fix": "Fixed on devobs-fixes 210b612: one-line project-scoped coverage (live 36 B, was ~2.5 KB); details via include_coverage; sources read this collect are collected. Awaiting installed check."
       },
       "verification_refs": [
         "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"
@@ -2791,12 +2793,13 @@
       "id": "DEVOBS-03",
       "title": "findings.json is 80 MB for 0.4 MB of findings",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "collected/findings.json is 80,638,049 bytes. version_scopes is 59.8 MB, session_timelines 28.5 MB and findings 0.38 MB. Collect takes 11.6 s with a 278 MB peak RSS over 44,928 events.",
       "recommendation": "Store the version scopes and timelines as separate, lazily paged files (or indexes), so the snapshot stays small and collect does less work.",
       "details": {
         "Measured": "runtime_ms 11594, peak_rss_mb 277.9",
-        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96"
+        "Owner": "Observability (plugins/developer-observability/**), branch devobs-fixes stacked on PR #96",
+        "Fix": "Fixed on devobs-fixes 210b612: findings.json 81.3 MB -> 0.42 MB with lazy per-snapshot sidecars; collect 6.1 s/295 MB -> 5.7 s/253 MB; issues read 483 -> 7 ms. Awaiting installed check."
       },
       "verification_refs": [
         "Live check 2026-11-10 16:22 IST on installed 0.1.28 (snapshot 3da5e6ac); collect summary in evidence-collect-20261110-1622.json"

@@ -24,7 +24,9 @@ class FailFeedbackTests(unittest.TestCase):
         )
         self.assertEqual(out["error_type"], ff.OBSERVATION_INCOMPLETE)
         self.assertNotIn('[1]', out["text"])
-        self.assertEqual(out["failure"], {"completed_steps": 1, "failed_step": 2})
+        self.assertEqual(out["failure"]["completed_steps"], 1)
+        self.assertEqual(out["failure"]["failed_step"], 2)
+        self.assertEqual(out["failure"]["observation"]["state"], "empty")
         for key in ("error", "results", "expect"):
             self.assertNotIn(key, out)
 
@@ -88,6 +90,43 @@ class FailFeedbackTests(unittest.TestCase):
         self.assertLess(len(text), len(tree) // 2)
         self.assertNotIn('AXButton "B20"', text)
 
+    def test_failure_facts_keep_expected_target_and_near_miss_without_tree_dump(self):
+        tree = '[0] AXWindow "Editor — report"\n[1] AXButton "Save draft"\n[2] AXButton "Cancel"'
+        out = ff.apply_failure_feedback(
+            {"ok": False, "dispatched": False, "verified": False,
+             "error": "AX target lookup failed", "results": [
+                 {"ok": False, "error": "Label not found", "method": "ax-press"}]},
+            arguments={"app": "TextEdit", "steps": [{"op": "click", "label": "Save"}]},
+            before_text=tree, after_text=tree,
+        )
+        failure = out["failure"]
+        self.assertEqual(failure["expected_target"], {"op": "click", "label": "Save", "app": "TextEdit"})
+        self.assertEqual(failure["found_target"]["method"], "ax-press")
+        self.assertEqual(failure["observation"]["match_count"], 0)
+        self.assertEqual(failure["observation"]["near_miss_count"], 1)
+        self.assertTrue(any('AXButton "Save draft"' in line
+                            for line in failure["observation"]["candidates"]))
+        serialized = str(failure) + out["text"]
+        self.assertNotIn('AXButton "Cancel"', serialized)
+        self.assertNotIn('AXButton "Cancel"', out["text"])
+        self.assertIn("AX target lookup failed", failure["error"])
+
+    def test_credential_target_redacts_typed_and_observed_values(self):
+        sentinel = "password-observation-sentinel-987654321"
+        tree = f'[0] AXWindow "Login"\n[1] AXTextField "Password" value="{sentinel}"'
+        out = ff.apply_failure_feedback(
+            {"ok": False, "dispatched": False, "verified": False,
+             "error": "AX target lookup failed", "results": [
+                 {"ok": False, "error": "Password field not found", "value": sentinel}]},
+            arguments={"app": "Browser", "steps": [{"op": "type_text", "label": "Password",
+                                                        "text": sentinel, "expect": sentinel}]},
+            before_text=tree, after_text=tree,
+        )
+        self.assertNotIn(sentinel, str(out))
+        self.assertEqual(out["failure"]["expected_target"]["text"], "[redacted]")
+        self.assertEqual(out["failure"]["found_target"]["value"], "[redacted]")
+        self.assertEqual(out["failure"]["observation"]["candidates"], [])
+
     def test_apply_mutates_payload(self):
         after = '[0] AXWindow "W"\n  [1] AXButton "Save"\n  [2] AXStaticText value="draft"'
         payload = {
@@ -107,10 +146,10 @@ class FailFeedbackTests(unittest.TestCase):
         )
         self.assertEqual(out["error_type"], ff.EXPECT_UNVERIFIED)
         self.assertNotIn("reason", out["failure"])
-        # The settled state rides along so no follow-up cua_state is needed.
-        self.assertFalse(out["full_text_omitted"])
-        self.assertIn("settled state:", out["text"])
-        self.assertIn(after.strip()[:40], out["text"])
+        # The settled observation is summarized without returning the full AX tree.
+        self.assertTrue(out["full_text_omitted"])
+        self.assertIn("settled observation:", out["text"])
+        self.assertNotIn('AXStaticText value="draft"', out["text"])
         self.assertIn("reason: expect_unverified", out["text"])
         self.assertIn("Save", out["text"])
 

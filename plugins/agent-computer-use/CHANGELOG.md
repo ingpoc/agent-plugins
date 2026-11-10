@@ -1,5 +1,10 @@
 # Changelog: agent-computer-use
 
+## 0.2.123
+
+- Correlate task, tool, cancellation, playback and failure events by run and step refs while retaining non-secret diagnostic content.
+- Keep Comet and native CUA failure facts compact, with credential-only redaction and explicit gaps for missing links or final URLs.
+
 ## 0.2.122
 
 - Clarify when to close a Comet task window and avoid retrying dispatch-only native actions blindly.

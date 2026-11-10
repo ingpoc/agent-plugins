@@ -296,11 +296,11 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertFalse(failed["ok"])
         self.assertEqual(failed["error_type"], "expect_unverified")
         self.assertIn("reason: expect_unverified", failed["text"])
-        # The action ran: the settled state rides along (live runs always followed this
-        # failure with a cua_state that returned the same tree plus a model round trip).
-        self.assertIn("settled state:", failed["text"])
-        self.assertIn('[30] AXStaticText value="finished"', failed["text"])
-        self.assertFalse(failed.get("full_text_omitted"))
+        # The settled observation is summarized; the full AX tree never reaches the task view.
+        self.assertIn("settled observation:", failed["text"])
+        self.assertNotIn('AXButton "Button 20"', failed["text"])
+        self.assertTrue(failed.get("full_text_omitted"))
+        self.assertGreater(failed["failure"]["observation"]["line_count"], 1)
 
     def test_allow_unverified_without_expect_stays_compact(self):
         before = 'Window: "W"\n  [1] AXButton "A" {0,0 10x10}'
@@ -870,7 +870,8 @@ class CompactMcpDispatchTests(unittest.TestCase):
         )
         self.assertFalse(out["ok"])
         self.assertEqual(clicks, ["All Clear", "Miss"])
-        self.assertEqual(out["failure"], {"completed_steps": 1, "failed_step": 2})
+        self.assertEqual(out["failure"]["completed_steps"], 1)
+        self.assertEqual(out["failure"]["failed_step"], 2)
 
     def test_act_fails_closed_on_null_click_point(self):
         class Backend(compact_mcp.CUABackend):

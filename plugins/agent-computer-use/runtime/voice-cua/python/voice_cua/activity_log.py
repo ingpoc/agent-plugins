@@ -1,4 +1,4 @@
-"""Structured Samantha activity log — tools, apps, errors (no secret values)."""
+"""Structured local activity log — task data stays useful; credentials are scrubbed."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import threading
 import time
 import traceback
 import uuid
+from difflib import SequenceMatcher
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -18,13 +19,21 @@ from voice_cua import log_rotation
 
 _DEFAULT = Path.home() / ".cache/macos-cua/samantha-activity.jsonl"
 _lock = threading.Lock()
-_SECRET_KEYS = frozenset({"value", "secret", "password", "api_key", "token"})
+_SECRET_KEYS = frozenset({
+    "secret", "client_secret", "password", "api_key", "token", "access_token", "refresh_token",
+    "auth_token", "authorization", "cookie", "credentials", "private_key",
+})
 _DIAGNOSTIC_SECRET = re.compile(
-    r"(?i)([A-Z0-9_]*(?:bearer|token|password|secret|api[_-]?key|authorization|cookie)(?![A-Z0-9_]))"
-    r"([\"']?\s*[=:]\s*|\s+)(?!\[redacted\])(?:\"[^\"]*\"|'[^']*'|\S+)"
+    r"(?i)([A-Z0-9_]*(?:bearer|token|password|secret|api[_-]?key|authorization|cookie|credential)(?![A-Z0-9_]))"
+    r"([\"']?\s*[=:]\s*)(?!\[redacted\])(?:bearer\s+)?(?:\"[^\"]*\"|'[^']*'|[^&;,\s]+)"
 )
 _DIAGNOSTIC_TOKEN = re.compile(r"\b(?:sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9]{8,}|xox[abpr]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{12,}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9._-]+)")
-_DIAGNOSTIC_EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+_BEARER_TOKEN = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+_URL_USERINFO = re.compile(r"(?i)(https?://)[^/@\s]+@")
+_CREDENTIAL_TARGET = re.compile(r"(?i)(password|secret|credential|api[_ -]?key|authorization|auth token|securetextfield)")
+_SECURE_ROLE = re.compile(r"(?i)\b(?:AXSecureTextField|password\s+role|role\s*[:=]\s*password)\b")
+_OBSERVATION_KEYS = frozenset({"text", "page_text", "inner_text", "content", "html", "dom", "elements", "tree", "accessibility_tree"})
+_SECRET_VALUE_TOOLS = frozenset({"secrets_get", "secrets_inject", "secrets_provide", "secrets_put"})
 _LEDGER_DETAIL_KEYS = frozenset({
     "ok", "status", "decision_id", "revision", "decision_ids", "decisions", "data", "matches",
     "match_count", "summary", "decision", "situation", "action", "rationale", "applicability",
@@ -66,19 +75,17 @@ def current_session_id() -> str:
 
 def _append_row(entry: dict[str, Any]) -> None:
     """Atomic append: the whole line goes out in ONE O_APPEND write(2), rotating at 50 MB (log_rotation)."""
-    line = json.dumps(entry, ensure_ascii=False, default=str) + "\n"
+    line = json.dumps(_redact_secrets(entry), ensure_ascii=False, default=str) + "\n"
     with _lock:
         log_rotation.append(log_path(), line.encode("utf-8"))
 
 
 def log_event(kind: str, **fields: Any) -> None:
-    """Append one JSON line. Safe fields only — never log secret values."""
+    """Append one local JSON line, preserving task data and scrubbing credentials."""
     entry: dict[str, Any] = {"ts": time.time(), "kind": kind, "session_id": current_session_id(),
                              "build": build_label()}
     for key, value in fields.items():
         if value is None:
-            continue
-        if key in _SECRET_KEYS:
             continue
         entry[key] = value
     _append_row(entry)
@@ -203,7 +210,7 @@ def log_usage_final(*, reason: str = "session_close", **extra: Any) -> None:
                            "session_id": session, "build": build_label(), "final": True,
                            "reason": reason[:40], **totals}
     for key, value in extra.items():
-        if value is not None and key not in _SECRET_KEYS:
+        if value is not None:
             row[key] = value
     _append_row(row)
 
@@ -215,10 +222,26 @@ _tool_ctx = threading.local()
 
 
 class tool_context:  # noqa: N801 — used as a context manager
-    def __init__(self, *, call_id: str = "", response_id: str = "", run_id: str = "") -> None:
+    def __init__(self, *, call_id: str = "", response_id: str = "", run_id: str = "",
+                 step_ref: str = "", caused_by: list[str] | tuple[str, ...] = (),
+                 retry_of_step_ref: str = "", retry_of_run_ref: str = "",
+                 cancellation_state: str = "") -> None:
         self._ids = {"call_id": call_id or None, "response_id": response_id or None}
         if isinstance(run_id, str) and re.fullmatch(r"[0-9a-f]{8,64}", run_id):
             self._ids["run_id"] = run_id
+            self._ids["run_ref_status"] = "linked"
+        else:
+            self._ids["run_ref_status"] = "unknown"
+            self._ids["run_ref_gap"] = "tool_context_missing_run_id"
+        self._ids["step_ref"] = step_ref or new_step_ref()
+        refs = [ref for ref in caused_by if isinstance(ref, str) and ref]
+        if refs:
+            self._ids["caused_by"] = list(dict.fromkeys(refs))
+        for key, value in (("retry_of_step_ref", retry_of_step_ref),
+                           ("retry_of_run_ref", retry_of_run_ref),
+                           ("cancellation_state", cancellation_state)):
+            if value:
+                self._ids[key] = value
         self._prev: dict[str, Any] | None = None
 
     def __enter__(self) -> "tool_context":
@@ -234,13 +257,226 @@ def _current_tool_ids() -> dict[str, Any]:
     return dict(getattr(_tool_ctx, "ids", None) or {})
 
 
+def current_tool_ids() -> dict[str, Any]:
+    """Current step identity for sibling ACU emitters such as retry tracking."""
+    return _current_tool_ids()
+
+
+def update_tool_context(**fields: Any) -> None:
+    """Attach a relation discovered during dispatch to every row for this step."""
+    ids = getattr(_tool_ctx, "ids", None)
+    if isinstance(ids, dict):
+        ids.update({key: value for key, value in fields.items() if value is not None and value != ""})
+
+
+def new_step_ref() -> str:
+    """Opaque UUID for one producer step; separate attempts always get separate refs."""
+    return uuid.uuid4().hex
+
+
+def _redact_secrets(value: Any, *, key: str = "") -> Any:
+    normalized_key = re.sub(r"[^a-z0-9]+", "_", key.casefold()).strip("_")
+    if (normalized_key in _SECRET_KEYS or normalized_key.endswith(("secret", "password", "token"))
+            or normalized_key in {"apikey", "bearer"}):
+        return "[redacted]"
+    if isinstance(value, dict):
+        return {str(k): _redact_secrets(v, key=str(k)) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_redact_secrets(item) for item in value]
+    if isinstance(value, str):
+        value = _DIAGNOSTIC_SECRET.sub(lambda match: match.group(1) + match.group(2) + "[redacted]", value)
+        value = _BEARER_TOKEN.sub("Bearer [redacted]", value)
+        value = _URL_USERINFO.sub(r"\1[redacted]@", value)
+        return _DIAGNOSTIC_TOKEN.sub("[redacted]", value)
+    return value
+
+
+def _redact_tool_credentials(value: Any, tool: str, *, in_credential_target: bool = False) -> Any:
+    if isinstance(value, dict):
+        target = " ".join(str(value.get(key) or "") for key in ("label", "role", "field", "name", "target"))
+        is_credential_target = (in_credential_target or bool(_CREDENTIAL_TARGET.search(target))
+                                or value.get("secret") is True or value.get("is_secret") is True)
+        out: dict[str, Any] = {}
+        for key, item in value.items():
+            normalized = re.sub(r"[^a-z0-9]+", "_", str(key).casefold()).strip("_")
+            if ((tool in _SECRET_VALUE_TOOLS and normalized in {"value", "secret_value"})
+                    or (is_credential_target and normalized in {"text", "value", "expect"})):
+                out[str(key)] = "[redacted]"
+            else:
+                out[str(key)] = _redact_tool_credentials(item, tool,
+                                                        in_credential_target=is_credential_target)
+        return out
+    if isinstance(value, list):
+        return [_redact_tool_credentials(item, tool, in_credential_target=in_credential_target)
+                for item in value]
+    return value
+
+
+def _has_credential_target(value: Any) -> bool:
+    if isinstance(value, dict):
+        target = " ".join(str(value.get(key) or "") for key in ("label", "role", "field", "name", "target"))
+        return (bool(_CREDENTIAL_TARGET.search(target)) or value.get("secret") is True
+                or value.get("is_secret") is True
+                or any(_has_credential_target(item) for item in value.values()))
+    if isinstance(value, list):
+        return any(_has_credential_target(item) for item in value)
+    return False
+
+
+def _target_labels(value: Any) -> set[str]:
+    labels: set[str] = set()
+    if isinstance(value, dict):
+        for key in ("label", "name", "title", "target"):
+            item = value.get(key)
+            if isinstance(item, str) and item.strip():
+                labels.add(item.strip().casefold())
+        for key in ("steps", "step", "target", "expect", "expected_target"):
+            if key in value:
+                labels.update(_target_labels(value[key]))
+    elif isinstance(value, list):
+        for item in value:
+            labels.update(_target_labels(item))
+    return labels
+
+
+def _observed_secure_target(arguments: dict[str, Any], result: dict[str, Any]) -> bool:
+    labels = _target_labels(arguments)
+    if not labels:
+        return False
+    return any(_SECURE_ROLE.search(line) and any(label in line.casefold() for label in labels)
+               for text in _observation_texts(result) for line in text.splitlines())
+
+
+def _typed_text_length(value: Any) -> int:
+    return sum(len(item) for item in value) if isinstance(value, list) else len(value)
+
+
+def _typed_text_security(arguments: dict[str, Any], result: dict[str, Any]) -> str:
+    if _has_credential_target(arguments) or _observed_secure_target(arguments, result):
+        return "secure"
+    role = result.get("focused_role")
+    subrole = result.get("focused_subrole")
+    if isinstance(role, str) and role.strip():
+        if _SECURE_ROLE.search(f"{role} {subrole or ''}"):
+            return "secure"
+        if isinstance(subrole, str) and subrole.strip():
+            return "non_secure"
+        if role in {"AXTextArea", "AXSearchField", "AXComboBox"}:
+            return "non_secure"
+    return "unknown"
+
+
+def _redact_typed_values(value: Any) -> Any:
+    if isinstance(value, dict):
+        action = value.get("op") or value.get("action") or value.get("type")
+        if isinstance(action, str) and action in {"type_text", "type", "fill", "set_value"}:
+            return {key: ("[redacted]" if key in {"text", "typed_text", "value"}
+                          else _redact_typed_values(item)) for key, item in value.items()}
+        return {key: _redact_typed_values(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_typed_values(item) for item in value]
+    return value
+
+
+def _observation_facts(text: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Keep target-relevant lines and counts; never persist a full AX/page dump."""
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    label_terms: list[str] = []
+    text_terms: list[str] = []
+    for key in ("query", "text", "expect", "selector"):
+        value = arguments.get(key)
+        if isinstance(value, str) and value.strip():
+            text_terms.append(value.strip())
+    if isinstance(arguments.get("label"), str) and arguments["label"].strip():
+        label_terms.append(arguments["label"].strip())
+    steps = arguments.get("steps")
+    actions = arguments.get("actions")
+    for step in (steps if isinstance(steps, list) else []) + (actions if isinstance(actions, list) else []):
+        if isinstance(step, dict):
+            if isinstance(step.get("label"), str) and step["label"].strip():
+                label_terms.append(step["label"].strip())
+            text_terms.extend(str(step[key]).strip() for key in ("query", "text", "expect", "selector")
+                              if isinstance(step.get(key), str) and step[key].strip())
+    label_terms = list(dict.fromkeys(label_terms))
+    text_terms = list(dict.fromkeys(text_terms))
+    matches: list[str] = []
+    unmatched: list[tuple[float, str]] = []
+    for line in lines[1:]:
+        labels = re.findall(r'["\']([^"\']{1,120})["\']', line)
+        exact_label = any(label.casefold() == term.casefold()
+                          for label in labels for term in label_terms)
+        exact_text = any(term.casefold() in line.casefold() for term in text_terms)
+        if exact_label or exact_text:
+            matches.append(line)
+            continue
+        score = max((SequenceMatcher(None, term.casefold(), label.casefold()).ratio()
+                     for term in label_terms for label in labels), default=0.0)
+        if score >= 0.55 and not any(re.fullmatch(re.escape(term) + r"\d+", label, re.I)
+                                     for term in label_terms for label in labels):
+            unmatched.append((score, line))
+    near = [line for _, line in sorted(unmatched, reverse=True)[:4]]
+    candidates = [] if _has_credential_target(arguments) else (matches[:4] or near[:4])
+    window = lines[0][:160] if lines and re.search(r"(?i)(?:\bAXWindow\b|^Window:|^Window\s)", lines[0]) else None
+    return {
+        "state": "available" if lines else "empty",
+        "window": window,
+        "line_count": len(lines),
+        "match_count": len(matches),
+        "near_miss_count": len(unmatched),
+        "candidates": [line[:200] for line in candidates],
+    }
+
+
+def _observation_texts(value: Any) -> list[str]:
+    out: list[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key.casefold() in _OBSERVATION_KEYS:
+                if isinstance(item, str) and item:
+                    out.append(item)
+                elif isinstance(item, list):
+                    out.extend(str(row) for row in item if isinstance(row, str) and row)
+                else:
+                    out.extend(_observation_texts(item))
+            else:
+                out.extend(_observation_texts(item))
+    elif isinstance(value, list):
+        for item in value:
+            out.extend(_observation_texts(item))
+    return out
+
+
+def _strip_observation_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _strip_observation_payload(item) for key, item in value.items()
+                if key.casefold() not in _OBSERVATION_KEYS}
+    if isinstance(value, list):
+        return [_strip_observation_payload(item) for item in value]
+    return value
+
+
+def _reported_actual_url(value: Any) -> str:
+    if isinstance(value, dict):
+        for key in ("actual_url", "final_url", "page_url", "current_url", "url"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.startswith(("http://", "https://")):
+                return candidate
+        for item in value.values():
+            found = _reported_actual_url(item)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for item in value:
+            found = _reported_actual_url(item)
+            if found:
+                return found
+    return ""
+
+
 def _diagnostic_text(value: Any, *, limit: int = 4096) -> str:
     if not isinstance(value, str):
         value = json.dumps(value, ensure_ascii=False, default=str)
-    value = value.replace(str(Path.home()), "~")
-    value = _DIAGNOSTIC_SECRET.sub(lambda match: match.group(1) + match.group(2) + "[redacted]", value)
-    value = _DIAGNOSTIC_TOKEN.sub("[redacted]", value)
-    value = _DIAGNOSTIC_EMAIL.sub("[email]", value)
+    value = _redact_secrets(value)
     if len(value) > limit:
         half = limit // 2
         value = value[:half] + "\n…[diagnostic truncated]…\n" + value[-half:]
@@ -301,6 +537,113 @@ def _tool_error_details(name: str, result: dict[str, Any], error_type: str = "")
     return _diagnostic_text("\n".join(fields)) if len(fields) > 1 else None
 
 
+def _typed_text(arguments: dict[str, Any]) -> str | list[str] | None:
+    values: list[str] = []
+
+    def collect(value: Any) -> None:
+        if isinstance(value, dict):
+            action = value.get("op") or value.get("action") or value.get("type")
+            if isinstance(action, str) and action in {"type_text", "type", "fill", "set_value"}:
+                text = value.get("typed_text", value.get("text", value.get("value")))
+                if isinstance(text, str):
+                    values.append(text)
+            elif isinstance(value.get("typed_text"), str):
+                values.append(value["typed_text"])
+            for item in value.values():
+                collect(item)
+        elif isinstance(value, list):
+            for item in value:
+                collect(item)
+
+    collect(arguments)
+    values = list(dict.fromkeys(values))
+    return values[0] if len(values) == 1 else values or None
+
+
+def _without_typed_values(value: Any) -> Any:
+    if isinstance(value, dict):
+        action = value.get("op") or value.get("action") or value.get("type")
+        if isinstance(action, str) and action in {"type_text", "type", "fill", "set_value"}:
+            return {key: _without_typed_values(item) for key, item in value.items()
+                    if key not in {"text", "typed_text", "value", "expect"}}
+        return {key: _without_typed_values(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_without_typed_values(item) for item in value]
+    return value
+
+
+def _target_summary(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    label = next((value[key] for key in ("label", "name", "title", "text", "target")
+                  if isinstance(value.get(key), str) and value[key]), None)
+    role = value.get("role") if isinstance(value.get("role"), str) else None
+    if label and role:
+        return f"{label} ({role})"
+    return label or role or value.get("method") or value.get("op")
+
+
+def _task_fields(name: str, arguments: dict[str, Any], result: dict[str, Any] | None = None,
+                 ledger_error_category: str | None = None) -> dict[str, Any]:
+    result = result or {}
+    fields: dict[str, Any] = {}
+    if name == "ledger_task":
+        terms = arguments.get("query_terms")
+        if not isinstance(terms, (list, tuple)):
+            terms = [arguments.get(key) for key in ("need", "situation")]
+        terms = [term for term in terms if isinstance(term, str) and term]
+        if terms:
+            fields["query_terms"] = terms
+        invalid_terms = result.get("invalid_query_terms") or result.get("invalid_terms")
+        if not invalid_terms and ledger_error_category == "invalid_query_terms":
+            invalid_terms = terms
+        if isinstance(invalid_terms, (list, tuple)):
+            fields["invalid_query_terms"] = list(invalid_terms)
+    else:
+        failure = result.get("failure") if isinstance(result.get("failure"), dict) else {}
+        observation = result.get("observation") if isinstance(result.get("observation"), dict) else {}
+        if not observation and isinstance(failure.get("observation"), dict):
+            observation = failure["observation"]
+        expected = result.get("expected_target") or failure.get("expected_target") or arguments.get("expected_target")
+        if not expected:
+            expected = arguments.get("target") or arguments.get("label")
+        if not expected and isinstance(failure.get("failed_step"), int):
+            steps = arguments.get("steps")
+            index = failure["failed_step"] - 1
+            if isinstance(steps, list) and 0 <= index < len(steps):
+                expected = steps[index]
+        found = result.get("found_target") or failure.get("found_target")
+        for key, value in (("expected_target", _target_summary(expected)),
+                           ("found_target", _target_summary(found))):
+            if value is not None:
+                fields[key] = value
+        for key in ("match_count", "near_miss_count"):
+            value = result.get(key, observation.get(key))
+            if value is not None:
+                fields[key] = value
+        typed = _typed_text(arguments)
+        if typed is not None:
+            security = _typed_text_security(arguments, result)
+            if security == "secure":
+                fields.update(typed_text="[redacted]", typed_text_redacted_reason="secure_target",
+                              typed_text_length=_typed_text_length(typed))
+            elif security == "unknown":
+                fields.update(typed_text="[redacted]", typed_text_redacted_reason="security_unknown",
+                              typed_text_length=_typed_text_length(typed))
+            else:
+                fields["typed_text"] = typed
+    if name.startswith("comet_"):
+        lease = result.get("lease")
+        if lease is not None:
+            fields["lease"] = lease
+        actual_url = _reported_actual_url(result)
+        if actual_url:
+            fields["url"] = actual_url
+        elif name == "comet_begin" and result.get("ok") is True:
+            fields["url_gap"] = "comet_begin_did_not_report_final_url"
+    return fields
+
+
 _encoder: Any = False  # False = not probed yet; None = tiktoken unavailable
 
 
@@ -336,36 +679,9 @@ def result_size(result: Any) -> dict[str, int]:
     return out
 
 
-_TYPED_KEYS = ("text", "value", "query", "url", "path", "prefix", "suffix")
-
-
-def plan_shape(arguments: dict[str, Any], *, tool: str = "cua_act") -> list[str]:
-    """Audit view of a cua_act/cua_state call: op + target per step, typed content as a length.
-
-    ``op:key cmd+n`` / ``op:type_text text=27ch`` / ``op:click label=Save``. UI labels and key
-    chords are kept (they are what an auditor needs to spot a wrong target); anything the
-    user could have dictated (text/value/query/url/path) is reduced to its length.
-    """
-    steps = arguments.get("steps") if isinstance(arguments.get("steps"), list) else [arguments]
-    out: list[str] = []
-    for step in steps[:12]:
-        if not isinstance(step, dict):
-            continue
-        bits = [f"op:{step.get('op') or ('state' if tool == 'cua_state' else '?')}"]
-        if step.get("key"):
-            bits.append(str(step["key"])[:24])
-        if step.get("label"):
-            bits.append(f"label={str(step['label'])[:40]}")
-        if step.get("element") is not None:
-            bits.append(f"el={step['element']}")
-        for key in _TYPED_KEYS:
-            if step.get(key):
-                bits.append(f"{key}={len(str(step[key]))}ch")
-        out.append(" ".join(bits))
-    return out
-
-
 def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
+    arguments = _redact_tool_credentials(arguments, name)
+    start_arguments = _without_typed_values(arguments)
     app = str(arguments.get("app") or "") if name != "ledger_task" else ""
     operation = arguments.get("operation") if name == "ledger_task" else None
     ledger_operation = operation if operation in ("lookup", "capture", "recall", "preference") else "unknown"
@@ -379,23 +695,61 @@ def log_tool_start(name: str, arguments: dict[str, Any]) -> None:
         "tool_start",
         **_current_tool_ids(),
         tool=name,
-        app=app or None,
+        app=app or ("Comet" if name.startswith("comet_") else None),
+        arguments=start_arguments,
         step=(str(arguments.get("step_label") or arguments.get("label") or "") or None) if name != "ledger_task" else None,
         ledger_operation=ledger_operation if name == "ledger_task" else None,
         ledger_scope_kind=scope_kind if name == "ledger_task" else None,
         ledger_rule_supplied=bool(arguments.get("rule")) if name == "ledger_task" else None,
         has_expect=bool(arguments.get("expect")) or None,
         allow_unverified=arguments.get("allow_unverified") is True or None,
-        plan=plan_shape(arguments, tool=name) if name in ("cua_act", "cua_state") else None,
+        **_task_fields(name, start_arguments),
     )
 
 
 def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operation: Any = None,
-                    duration_ms: int | None = None) -> None:
+                    duration_ms: int | None = None,
+                    arguments: dict[str, Any] | None = None) -> None:
     """One row per finished tool call; ``duration_ms`` is the wall time the model waited (OBS-03/OBS-14)."""
+    arguments = arguments or {}
+    typed_text = _typed_text(arguments)
+    typed_security = _typed_text_security(arguments, result) if typed_text is not None else None
+    typed_redaction_fields = {}
+    if typed_text is not None and typed_security in {"secure", "unknown"}:
+        typed_redaction_fields = {
+            "typed_text": "[redacted]",
+            "typed_text_redacted_reason": "secure_target" if typed_security == "secure" else "security_unknown",
+            "typed_text_length": _typed_text_length(typed_text),
+        }
+    failure = result.get("failure") if isinstance(result.get("failure"), dict) else {}
+    observation = result.get("observation") if isinstance(result.get("observation"), dict) else {}
+    credential_target = any(_has_credential_target(value) for value in (
+        arguments, result.get("found_target"), failure.get("found_target"),
+        observation.get("target"), failure.get("observation"),
+    )) or typed_security == "secure"
+    sensitive_texts = typed_text if typed_security in {"secure", "unknown"} else None
+    result = _redact_tool_credentials(result, name, in_credential_target=credential_target)
+    arguments = _redact_tool_credentials(arguments, name, in_credential_target=credential_target)
+    if typed_security in {"secure", "unknown"}:
+        result = _redact_typed_values(result)
+        arguments = _redact_typed_values(arguments)
+    secrets = sensitive_texts if isinstance(sensitive_texts, list) else [sensitive_texts]
+    secrets = [value for value in secrets if isinstance(value, str) and value]
+    if secrets:
+        def redact_known(value: Any) -> Any:
+            if isinstance(value, dict):
+                return {key: redact_known(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [redact_known(item) for item in value]
+            if isinstance(value, str):
+                for secret_text in secrets:
+                    value = value.replace(secret_text, "[redacted]")
+            return value
+        result = redact_known(result)
     if result.get("cancelled") is True and result.get("error_type") == "user_cancelled":
         log_event("tool_cancelled", **_current_tool_ids(), tool=name, classification="user_cancelled",
-                  duration_ms=duration_ms)
+                  duration_ms=duration_ms, result=result, arguments=arguments,
+                  **_task_fields(name, arguments, result), **typed_redaction_fields)
         return
     ok = bool(result.get("ok"))
     err = str(result.get("error") or "")
@@ -403,7 +757,8 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
     if not ok and (result.get("needs_confirmation") or error_type.startswith("needs_confirm")):
         # Risk gate asked the user first: an expected step, not a failed tool.
         log_event("tool_needs_confirmation", **_current_tool_ids(), tool=name, app=(app or None) if name != "ledger_task" else None,
-                  classification="needs_confirmation")
+                  classification="needs_confirmation", result=result, arguments=arguments,
+                  **_task_fields(name, arguments, result), **typed_redaction_fields)
         return
     if not error_type:
         error_type = "user_denied" if err == "user denied" else ("act_miss" if not ok else "")
@@ -426,11 +781,27 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
         ledger_status = "found" if matches else "none"
     ledger_status = ledger_status if isinstance(ledger_status, str) and ledger_status in {"found", "none", "saved", "skipped", "cancelled", "needs_disambiguation"} else "other"
     ledger_detail, ledger_truncated = _ledger_result_detail(result) if ledger else (None, None)
+    logged_result = dict(result)
+    if name in {"cua_state", "cua_act", "comet_act"}:
+        observed = _observation_texts(logged_result)
+        if observed:
+            logged_result = _strip_observation_payload(logged_result)
+            logged_result["observation"] = _observation_facts("\n".join(observed), arguments or {})
+    if name == "comet_begin" and result.get("ok") is True:
+        logged_result.pop("actual_url", None)
+        logged_result.pop("actual_url_gap", None)
+    task_fields = _task_fields(name, arguments, result, ledger_error_category=category)
+    task_fields.update(typed_redaction_fields)
+    ledger_decision_id = arguments.get("ledger_decision_id") if ok and not ledger else None
+    if isinstance(ledger_decision_id, str) and _LEDGER_ID.fullmatch(ledger_decision_id):
+        task_fields["selected_id"] = ledger_decision_id
+    else:
+        ledger_decision_id = None
     log_event(
         "tool_result" if ok else "tool_error",
         **_current_tool_ids(),
         tool=name,
-        app=(app or None) if not ledger else None,
+        app=app or None,
         ledger_operation=(operation if operation in ("lookup", "capture", "recall", "preference") else "unknown") if ledger else None,
         ledger_error_category=category,
         ok=ok,
@@ -447,10 +818,21 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
         ledger_result_detail=ledger_detail,
         ledger_detail_truncated=ledger_truncated,
         duration_ms=duration_ms,
+        result=logged_result,
+        arguments=arguments,
         **result_size(result),
+        **task_fields,
     )
+    if ledger_decision_id:
+        step_action = {key: arguments[key] for key in ("steps", "actions", "op", "type", "label", "target")
+                       if key in arguments}
+        log_event("ledger_use", **_current_tool_ids(), decision_id=ledger_decision_id,
+                  action={"tool": name, **step_action})
     if ledger and ok:
         _log_ledger_trail(result, operation=operation, status=ledger_status, decisions=decisions)
+    elif ledger and category == "invalid_query_terms":
+        log_event("ledger_select", **_current_tool_ids(), ledger_operation=operation,
+                  ledger_selection_status="none", ledger_selected_count=0)
 
 
 _LEDGER_ID = re.compile(r"[A-Za-z0-9_-]{6,64}")
@@ -458,11 +840,7 @@ _LEDGER_ID = re.compile(r"[A-Za-z0-9_-]{6,64}")
 
 def _log_ledger_trail(result: dict[str, Any], *, operation: Any, status: str,
                       decisions: Any) -> None:
-    """OBS-12: the decision trail — selection and save receipt, ids and rule names only.
-
-    A preference value is private owner data and is never logged; the opaque decision id and the
-    schema rule name are what an auditor needs to follow lookup → supply → save → supersede.
-    """
+    """OBS-12 compact decision trail; full credential-scrubbed records live on the tool result row."""
     rule = result.get("rule") if isinstance(result.get("rule"), str) else None
     rule = rule if isinstance(rule, str) and re.fullmatch(r"[a-z0-9_]{1,64}", rule) else None
     if operation in ("lookup", "recall", "preference") and status == "found" and isinstance(decisions, list):
@@ -470,7 +848,11 @@ def _log_ledger_trail(result: dict[str, Any], *, operation: Any, status: str,
         ids = [value for value in ids if isinstance(value, str) and _LEDGER_ID.fullmatch(value)]
         if ids:
             log_event("ledger_select", **_current_tool_ids(), ledger_operation=operation, ledger_rule=rule,
-                      ledger_selected_count=len(ids), ledger_selected_id=ids[0])
+                      ledger_selection_status="available",
+                      ledger_selected_count=len(ids))
+    elif operation in ("lookup", "recall", "preference") and status == "none":
+        log_event("ledger_select", **_current_tool_ids(), ledger_operation=operation, ledger_rule=rule,
+                  ledger_selection_status="none", ledger_selected_count=0)
     if status == "saved" and isinstance(result.get("decision_id"), str) and _LEDGER_ID.fullmatch(result["decision_id"]):
         supersedes = result.get("supersedes")
         log_event("ledger_save_receipt", **_current_tool_ids(),
@@ -491,7 +873,7 @@ def log_exception(name: str, exc: BaseException, *, app: str = "", duration_ms: 
         "tool_error",
         **_current_tool_ids(),
         tool=name,
-        app=(app or None) if name != "ledger_task" else None,
+        app=app or None,
         ok=False,
         error=_diagnostic_text(str(exc), limit=240) if name != "ledger_task" else None,
         error_type=type(exc).__name__,
@@ -514,20 +896,26 @@ def tail_events(*, limit: int = 80) -> list[dict[str, Any]]:
     return out
 
 
-def log_task_outcome(*, check_id: str, outcome: str, evidence_class: str, run_id: str,
-                     response_id: str = "", tools: list[str] | tuple[str, ...] = ()) -> None:
+def log_task_outcome(*, check_id: str, outcome: str, evidence_class: str | None, run_id: str,
+                     response_id: str = "", tools: list[str] | tuple[str, ...] = (),
+                     step_ref: str = "", caused_by: list[str] | tuple[str, ...] = (),
+                     expected_outcome: str = "unknown", duration_ms: int | None = None) -> None:
     """Emit check outcomes with an explicit evidence class."""
     import re
     if (len(check_id) > 48 or not re.fullmatch(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*", check_id)
-            or outcome not in {"verified_success", "verified_incomplete", "unverified", "cancelled"}
-            or evidence_class not in {"app_readback", "browser_inventory", "local_login", "combined", "tool_reported"}
+            or outcome not in {"verified_success", "verified_incomplete", "unverified", "cancelled", "unknown"}
+            or evidence_class not in {None, "app_readback", "browser_inventory", "local_login", "combined", "tool_reported"}
             or (evidence_class == "tool_reported" and outcome not in {"unverified", "cancelled"})
             or not re.fullmatch(r"[0-9a-f]{8,64}", run_id)
             or not isinstance(response_id, str)
             or (response_id and (len(response_id) > 160 or not re.fullmatch(r"[A-Za-z0-9_-]+", response_id)))
             or not isinstance(tools, (list, tuple))
-            or any(tool not in _TASK_OUTCOME_TOOLS for tool in tools)):
+            or any(tool not in _TASK_OUTCOME_TOOLS for tool in tools)
+            or expected_outcome != "unknown"
+            or (duration_ms is not None and (type(duration_ms) is not int or duration_ms < 0))):
         raise ValueError("invalid task outcome metadata")
     log_event("task_outcome", check_id=check_id, outcome=outcome,
-              evidence_class=evidence_class, run_id=run_id, response_id=response_id or None,
+              expected_outcome=expected_outcome, evidence_class=evidence_class, run_id=run_id,
+              response_id=response_id or None, duration_ms=duration_ms,
+              step_ref=step_ref or new_step_ref(), caused_by=list(caused_by) or None,
               tools=sorted(set(tools)) or None)

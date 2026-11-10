@@ -48,6 +48,9 @@ class TerminalOutcomeTests(unittest.TestCase):
             with self.subTest(status=status):
                 self.assertEqual(_task_outcome(results, status=status), ("unverified", "tool_reported"))
 
+    def test_settled_task_without_action_evidence_is_unknown(self) -> None:
+        self.assertEqual(_task_outcome([], status="completed"), ("unknown", None))
+
 
 class FakeWS:
     def __init__(self) -> None:
@@ -61,11 +64,127 @@ class FakeWS:
 
 
 class TaskOutcomeTests(unittest.TestCase):
+    def test_response_without_explicit_run_link_remains_unlinked(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session._active_task_run_id = "c" * 32
+        from voice_cua import activity_log
+        rows = []
+        with patch.object(activity_log, "_append_row", side_effect=rows.append), \
+             patch("voice_cua.realtime_session.island_publish"):
+            session._dispatch_event({"type": "response.created", "response": {"id": "untagged"}})
+            session._handle_error_event({"error": {"type": "server_error", "message": "synthetic error"}})
+        row = next(row for row in rows if row["kind"] == "model_response_start")
+        self.assertNotIn("run_id", row)
+        self.assertEqual(row["run_ref_status"], "unknown")
+        self.assertEqual(row["run_ref_gap"], "response_created_without_task_context")
+        error = next(row for row in rows if row["kind"] == "realtime_error")
+        self.assertNotIn("run_id", error)
+        self.assertEqual(error["run_ref_gap"], "realtime_error_run_link_missing")
+
+    def test_task_cancel_links_inflight_step_and_waits_for_response_ack(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        run_id = "c" * 32
+        session._active_task_run_id = run_id
+        session._task_runs[run_id] = []
+        session._task_request_step_refs[run_id] = "request-step"
+        session._current_response_id = "response-1"
+        session._active_response_ids.add("response-1")
+        session._response_task_run_ids["response-1"] = run_id
+        session._response_step_refs["response-1"] = "response-step"
+        session._pending_calls["call-1"] = {"run_id": run_id, "step_ref": "tool-step"}
+        events = []
+        with patch("voice_cua.realtime_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
+             patch.object(session, "_send", return_value=True), \
+             patch("voice_cua.realtime_session.island_publish"), \
+             patch("voice_cua.realtime_session.log_usage"), \
+             patch("voice_cua.realtime_session.log_task_outcome"), \
+             patch("voice_cua.realtime_session.hide_agent_cursor"):
+            self.assertTrue(session.island_control("stopTask"))
+            cancel = dict(events)["cancel"]
+            self.assertEqual(cancel["run_id"], run_id)
+            self.assertTrue(cancel["cancel"])
+            self.assertEqual(cancel["target_run_ref"], run_id)
+            self.assertEqual(cancel["queued_action_suppressed"], "unknown")
+            self.assertEqual(cancel["caused_by"], ["response-step", "tool-step", "request-step"])
+            self.assertEqual(cancel["inflight_step_refs"], ["tool-step"])
+            session._dispatch_event({"type": "response.done", "response": {
+                "id": "response-1", "status": "cancelled", "output": [],
+            }})
+        acknowledged = dict(events)["cancel_ack"]
+        self.assertEqual(acknowledged["step_ref"], cancel["step_ref"])
+        self.assertTrue(acknowledged["cancel_ack"])
+        self.assertEqual(acknowledged["target_run_ref"], run_id)
+        self.assertEqual(acknowledged["queued_action_suppressed"], "unknown")
+
+    def test_cancel_before_action_with_unconfirmed_ack_settles_unknown(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        run_id = "e" * 32
+        session._active_task_run_id = run_id
+        session._task_runs[run_id] = []
+        session._task_request_step_refs[run_id] = "request-step"
+        session._current_response_id = "response-failed"
+        session._active_response_ids.add("response-failed")
+        session._response_task_run_ids["response-failed"] = run_id
+        session._response_step_refs["response-failed"] = "response-step"
+        events = []
+        with patch("voice_cua.realtime_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
+             patch("voice_cua.realtime_session.log_task_outcome") as outcome, \
+             patch("voice_cua.realtime_session.log_usage"), \
+             patch("voice_cua.realtime_session.island_publish"), \
+             patch("voice_cua.realtime_session.mark"), \
+             patch("voice_cua.realtime_session.hide_agent_cursor"), \
+             patch.object(session, "_send", return_value=True):
+            session.island_control("stopTask")
+            session._dispatch_event({"type": "response.done", "response": {
+                "id": "response-failed", "status": "failed", "output": [],
+            }})
+        ack = dict(events)["cancel_ack"]
+        self.assertEqual(ack["cancel_ack"], "unknown")
+        self.assertEqual(ack["queued_action_suppressed"], "unknown")
+        self.assertEqual(outcome.call_args.kwargs["outcome"], "unknown")
+
+    def test_duplicate_tool_delivery_emits_mirror_reference_without_dispatch(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "activity.jsonl"
+            with patch.dict(os.environ, {"VOICE_CUA_ACTIVITY_LOG": str(log)}):
+                session._pending_calls["call-1"] = {
+                    "name": "cua_act", "run_id": "a" * 32,
+                    "step_ref": "step-original", "response_id": "response-1",
+                }
+                session._run_tool("call-1", "cua_act", "{}", response_id="response-1")
+                rows = [json.loads(line) for line in log.read_text().splitlines()]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["kind"], "tool_call_mirror")
+        self.assertEqual(rows[0]["step_ref"], "step-original")
+        self.assertEqual(rows[0]["mirror_of"], "step-original")
+        self.assertEqual(rows[0]["run_id"], "a" * 32)
+        self.assertIn("call-1", session._pending_calls)
+
+    def test_user_retry_uses_new_run_ref_with_parent_relation(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        with patch("voice_cua.workflow_store.begin_engagement"), patch("voice_cua.tools.note_user_turn"):
+            previous_run = session._note_user_turn("Open the report")
+        events = []
+        with patch("voice_cua.realtime_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
+             patch.object(session, "_send", return_value=True), \
+             patch("voice_cua.workflow_store.begin_engagement"), \
+             patch("voice_cua.tools.note_user_turn"), \
+             patch("voice_cua.realtime_session.island_publish"):
+            self.assertTrue(session.island_control("retry"))
+        new_request = dict(events)["user_request"]
+        self.assertNotEqual(new_request["run_id"], previous_run)
+        self.assertEqual(new_request["retry_of_run_ref"], previous_run)
+        self.assertEqual(new_request["request"], "Open the report")
+        self.assertEqual(new_request["expected_outcome"], "unknown")
+        self.assertRegex(new_request["step_ref"], r"^[0-9a-f]{32}$")
+
     def test_tool_result_is_correlated_through_final_response(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=False)
         request_id, response_id = "b" * 32, "response-1"
         with patch("voice_cua.workflow_store.begin_engagement"), patch("voice_cua.tools.note_user_turn"):
             run_id = session._note_user_turn("Calculate 8 times 8", request_id=request_id)
+        request_step_ref = session._task_request_step_refs[run_id]
         with patch("voice_cua.realtime_session.island_publish"):
             session._dispatch_event({
                 "type": "response.created",
@@ -84,15 +203,45 @@ class TaskOutcomeTests(unittest.TestCase):
             "voice_cua.realtime_session.mark"
         ):
             session._note_response_done({"id": response_id, "status": "completed", "output": []})
-        log.assert_called_once_with(
-            check_id="tool_task",
-            outcome="unverified",
-            evidence_class="tool_reported",
-            run_id=run_id,
-            response_id=response_id,
-            tools=["cua_act"],
-        )
+        outcome = log.call_args.kwargs
+        self.assertEqual(outcome["check_id"], "tool_task")
+        self.assertEqual(outcome["outcome"], "unverified")
+        self.assertEqual(outcome["evidence_class"], "tool_reported")
+        self.assertEqual(outcome["run_id"], run_id)
+        self.assertEqual(outcome["response_id"], response_id)
+        self.assertEqual(outcome["step_ref"], session._response_step_refs[response_id])
+        self.assertEqual(outcome["caused_by"], [request_step_ref])
+        self.assertEqual(outcome["expected_outcome"], "unknown")
+        self.assertIsInstance(outcome["duration_ms"], int)
+        self.assertEqual(outcome["tools"], ["cua_act"])
         self.assertNotIn(run_id, session._task_runs)
+
+    def test_response_settlement_emits_unknown_outcome_without_action_evidence(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        run_id, response_id = "d" * 32, "response-unknown"
+        session._response_task_run_ids[response_id] = run_id
+        session._task_runs[run_id] = []
+        session._task_request_step_refs[run_id] = "request-step"
+        session._task_started_at[run_id] = time.monotonic()
+        with patch("voice_cua.realtime_session.log_event"), \
+             patch("voice_cua.realtime_session.log_task_outcome") as outcome, \
+             patch("voice_cua.realtime_session.log_usage"), \
+             patch("voice_cua.realtime_session.island_publish"), \
+             patch("voice_cua.realtime_session.mark"), \
+             patch("voice_cua.realtime_session.hide_agent_cursor"):
+            session._dispatch_event({"type": "response.done", "response": {
+                "id": response_id, "status": "completed", "output": [],
+            }})
+            session._dispatch_event({"type": "response.done", "response": {
+                "id": response_id, "status": "completed", "output": [],
+            }})
+        outcome.assert_called_once()
+        fields = outcome.call_args.kwargs
+        self.assertEqual(fields["outcome"], "unknown")
+        self.assertIsNone(fields["evidence_class"])
+        self.assertEqual(fields["expected_outcome"], "unknown")
+        self.assertEqual(fields["caused_by"], ["request-step"])
+        self.assertIsInstance(fields["duration_ms"], int)
 
     def test_old_response_cannot_clear_a_new_turn_outcome(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=False)
@@ -104,14 +253,11 @@ class TaskOutcomeTests(unittest.TestCase):
             "voice_cua.realtime_session.mark"
         ):
             session._note_response_done({"id": "old-response", "status": "completed", "output": []})
-        log.assert_called_once_with(
-            check_id="tool_task",
-            outcome="unverified",
-            evidence_class="tool_reported",
-            run_id=old_run,
-            response_id="old-response",
-            tools=["cua_act"],
-        )
+        outcome = log.call_args.kwargs
+        self.assertEqual(outcome["outcome"], "unverified")
+        self.assertRegex(outcome["step_ref"], r"^[0-9a-f]{32}$")
+        self.assertEqual(outcome["caused_by"], [])
+        self.assertEqual(outcome["tools"], ["cua_act"])
         self.assertEqual(session._task_runs[new_run], [])
         self.assertEqual(session._response_task_run_ids["new-response"], new_run)
 
@@ -125,6 +271,8 @@ class TaskOutcomeTests(unittest.TestCase):
         create = next(e for e in session.ws.events if e["type"] == "response.create")
         request_id = create["response"]["metadata"]["voice_cua_request_id"]
         self.assertRegex(request_id, r"^[0-9a-f]{32}$")
+        self.assertTrue(create["response"]["metadata"]["voice_cua_request_step_ref"])
+        self.assertTrue(session._task_request_step_refs[request_id])
         self.assertIn(request_id, session._task_runs)
 
     def test_success_without_postcondition_stays_unverified(self) -> None:

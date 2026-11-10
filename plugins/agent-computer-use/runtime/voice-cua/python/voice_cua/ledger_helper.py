@@ -308,10 +308,11 @@ class LedgerHelper:
                 detail = exc.message or exc.code
                 return _invalid(f'Context Ledger rejected the request (invalid argument: {detail[:80]}); nothing was saved')
             except Exception as exc:
-                from voice_cua.activity_log import _current_tool_ids, log_event
+                from voice_cua.activity_log import _current_tool_ids, _diagnostic_text, log_event
                 cause = exc.__cause__
                 log_event('ledger_helper_error', **_current_tool_ids(), stage='capture' if write_started else 'lookup',
-                          error_class=type(exc).__name__, cause_class=type(cause).__name__ if cause else None,
+                          error_class=type(exc).__name__, error=_diagnostic_text(str(exc), limit=240),
+                          cause_class=type(cause).__name__ if cause else None,
                           http_status=exc.code if isinstance(exc, urllib.error.HTTPError) else None)
                 if write_started:
                     return {'ok': False, 'error': 'Ledger save outcome unknown; do not retry without checking', 'error_type': 'ledger_outcome_unknown'}

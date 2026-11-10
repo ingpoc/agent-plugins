@@ -20,7 +20,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from voice_cua import SYSTEM_INSTRUCTIONS, session_instructions
-from voice_cua.activity_log import log_event, log_task_outcome, log_usage, tool_context
+from voice_cua.activity_log import log_event, log_task_outcome, log_usage, new_step_ref, tool_context
 from voice_cua.activity_log import log_exception as _log_exception
 from voice_cua.cua_bridge import hide_agent_cursor
 from voice_cua.comet_bridge import comet_add_listener, comet_end, comet_is_active, comet_remove_listener
@@ -55,18 +55,16 @@ _TASK_ACTION_EVIDENCE = {
 }
 
 
-def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, str] | None:
+def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, str | None]:
     evidence = {
         _TASK_ACTION_EVIDENCE[row["tool"]]
         for row in results
         if row.get("tool") in _TASK_ACTION_EVIDENCE
     }
-    if not evidence:
-        return None
-    evidence_class = "tool_reported"
+    evidence_class = "tool_reported" if evidence else None
     if status == "cancelled" or any(row.get("cancelled") is True for row in results):
         return "cancelled", evidence_class
-    return "unverified", evidence_class
+    return ("unverified", evidence_class) if evidence else ("unknown", None)
 
 
 def _has_sound(b64: str, floor: int = 600) -> bool:
@@ -279,7 +277,16 @@ class RealtimeSession:
         self._active_response_ids: set[str] = set()
         self._response_request_ids: dict[str, str] = {}
         self._response_task_run_ids: dict[str, str] = {}
+        self._response_step_refs: dict[str, str] = {}
+        self._response_cancellation_step_refs: dict[str, str] = {}
         self._task_runs: dict[str, list[dict[str, Any]]] = {}
+        self._task_request_step_refs: dict[str, str] = {}
+        self._task_last_step_refs: dict[str, str] = {}
+        self._task_started_at: dict[str, float] = {}
+        self._cancel_requested_by_run: dict[str, str] = {}
+        self._cancel_requested_at_by_run: dict[str, float] = {}
+        self._active_task_run_id = ""
+        self._last_task_run_id = ""
         self._response_transcripts: dict[str, str] = {}
         self._text_waiters: dict[str, dict[str, Any]] = {}
         self._text_only = not enable_audio
@@ -496,12 +503,23 @@ class RealtimeSession:
         if self._audio is not None:
             self._audio.clear_playback()
         with self._response_condition:
+            for response_id, started in self._response_started.items():
+                run_id = self._response_task_run_ids.get(response_id, "")
+                step_ref = self._response_step_refs.get(response_id, "")
+                log_event("model_response_gap", run_id=run_id or None,
+                          run_ref_status="linked" if run_id else "unknown",
+                          run_ref_gap=None if run_id else "response_run_link_missing",
+                          step_ref=step_ref or None, response_id=response_id,
+                          gap="connection_reset_before_response_done",
+                          duration_ms=int((time.monotonic() - started) * 1000))
             self._active_response_ids.clear()
             self._response_started.clear()
             self._speaking_response_ids.clear()
             self._cancelled_response_ids.clear()
             self._current_response_id = ""
             self._response_request_ids.clear()
+            self._response_step_refs.clear()
+            self._response_cancellation_step_refs.clear()
             self._response_transcripts.clear()
             request_ids = list(self._text_waiters)
             self._response_condition.notify_all()
@@ -863,21 +881,18 @@ class RealtimeSession:
                 return
             heard = str(event.get("transcript") or "").strip()
             if heard:
-                # 'You:' line in voice.log plus the text (capped) in the local activity log.
-                log_event("user_transcript", chars=len(heard), text=heard[:240],
-                          item_id=str(event.get("item_id") or ""))
                 self._last_user_text = heard
-                self._note_user_turn(heard, defer_response=True)
+                self._note_user_turn(heard, defer_response=True, source="microphone_transcription",
+                                     item_id=str(event.get("item_id") or ""))
                 print(f"You: {heard}", flush=True)
                 # Card title = the final utterance (compact view never shows text).
                 if not (self._audio and self._audio.has_playback()):
                     island_publish("thinking", title=heard, detail="Thinking")
         elif et == "conversation.item.input_audio_transcription.failed":
             err = event.get("error") or {}
-            log_event(
-                "user_transcript_failed",
-                error=str(err.get("message") if isinstance(err, dict) else err)[:120],
-            )
+            log_event("user_transcript_failed", step_ref=new_step_ref(),
+                      run_ref_status="unknown", run_ref_gap="transcript_not_available_for_task_link",
+                      error_context=err)
         elif et == "input_audio_buffer.speech_stopped":
             if not (self._audio and self._audio.has_playback()):
                 island_publish("listening", title="Listening", detail="")
@@ -890,12 +905,26 @@ class RealtimeSession:
         elif et == "response.created":
             response = event.get("response") or {}
             response_id = str(response.get("id") or "")
-            request_id = self._request_id(response)
+            explicit_run_id = self._request_id(response)
+            request_id = explicit_run_id
+            run_ref_source = "response_metadata" if explicit_run_id else ""
+            metadata = response.get("metadata") or {}
+            request_step_ref = (str(metadata.get("voice_cua_request_step_ref") or "")
+                                if isinstance(metadata, dict) else "")
+            request_step_ref = request_step_ref or self._task_request_step_refs.get(request_id, "")
+            if request_id and request_step_ref:
+                self._task_request_step_refs[request_id] = request_step_ref
+            step_ref = new_step_ref()
+            caused_by = [request_step_ref] if request_step_ref else []
+            previous_step_ref = self._task_last_step_refs.get(request_id, "") if request_id else ""
+            if previous_step_ref and previous_step_ref not in caused_by:
+                caused_by.append(previous_step_ref)
             with self._response_condition:
                 if response_id:
                     if len(self._response_started) > 256:  # never grow without bound
                         self._response_started.clear()
                     self._response_started[response_id] = time.monotonic()
+                    self._response_step_refs[response_id] = step_ref
                     self._active_response_ids.add(response_id)
                     self._current_response_id = response_id
                     if request_id:
@@ -905,6 +934,14 @@ class RealtimeSession:
                         self._cancel_settle(request_id)
                     self._cancelled_response_ids.discard(response_id)
                 self._response_condition.notify_all()
+            log_event("model_response_start", run_id=request_id or None,
+                      run_ref_status="linked" if request_id else "unknown",
+                      run_ref_source=run_ref_source or None,
+                      run_ref_gap=None if request_id else "response_created_without_task_context",
+                      step_ref=step_ref, caused_by=caused_by or None,
+                      causal_ref_gap=None if caused_by else "request_step_ref_missing",
+                      response_id=response_id or None, provider=self.provider.name,
+                      model=getattr(self.provider, "model", None))
             # The server answered after our tool output: it arrived; nothing to redeliver.
             self._unacked = {k: v for k, v in self._unacked.items() if v[2] != self._conn_epoch}
             island_publish("thinking", title="Thinking", detail="")
@@ -925,9 +962,40 @@ class RealtimeSession:
                 response_id = str(response.get("id") or "")
                 with self._response_condition:
                     started = self._response_started.pop(response_id, None)
+                    step_ref = self._response_step_refs.get(response_id, "")
+                    run_id = self._response_task_run_ids.get(response_id, "")
+                    request_step_ref = self._task_request_step_refs.get(run_id, "") if run_id else ""
+                    cancellation_step_ref = self._response_cancellation_step_refs.pop(response_id, "")
                 latency_ms = int((time.monotonic() - started) * 1000) if started else None
+                status = str(response.get("status") or "unknown")
+                log_event("model_response_end", run_id=run_id or None,
+                          run_ref_status="linked" if run_id else "unknown",
+                          run_ref_gap=None if run_id else "response_run_link_missing",
+                          step_ref=step_ref or None, caused_by=[request_step_ref] if request_step_ref else None,
+                          causal_ref_gap=None if request_step_ref else "request_step_ref_missing",
+                          response_id=response_id or None, status=status,
+                          duration_ms=latency_ms,
+                          duration_gap=None if latency_ms is not None else "response_start_missing")
+                if cancellation_step_ref:
+                    state = "acknowledged" if status == "cancelled" else (
+                        "not_cancelled" if status in {"completed", "incomplete"} else "unknown")
+                    cancel_requested_at = self._cancel_requested_at_by_run.get(run_id)
+                    log_event("cancel_ack", run_id=run_id or None,
+                              run_ref_status="linked" if run_id else "unknown",
+                              run_ref_gap=None if run_id else "cancel_run_link_missing",
+                              step_ref=cancellation_step_ref,
+                              caused_by=[step_ref] if step_ref else None,
+                              cancel={"requested": True},
+                              cancel_ack=(True if state == "acknowledged" else
+                                          False if state == "not_cancelled" else "unknown"),
+                              target_run_ref=run_id or "unknown",
+                              queued_action_suppressed="unknown",
+                              duration_ms=(int((time.monotonic() - cancel_requested_at) * 1000)
+                                           if cancel_requested_at is not None else None),
+                              target_response_id=response_id or None, status=status,
+                              gap=None if state != "unknown" else "response_status_does_not_confirm_cancel")
                 labels = dict(self.provider.usage_labels(response))
-                labels.setdefault("run_id", self._response_task_run_ids.get(response_id, ""))
+                labels.setdefault("run_id", run_id)
                 try:
                     log_usage(response, latency_ms=latency_ms, labels=labels)  # counts + ids only
                 except Exception:  # noqa: BLE001 — logging must never break a turn
@@ -1083,13 +1151,30 @@ class RealtimeSession:
             request_id = event_id.removeprefix("voice_text_").split("_", 1)[0]
             self._finish_text_waiter(request_id, error=msg)
         classification = self._classify_error(err)
+        response_id = str(event.get("response_id") or "")
+        event_request_id = (event_id.removeprefix("voice_text_").split("_", 1)[0]
+                            if event_id.startswith("voice_text_") else "")
+        run_id = self._response_task_run_ids.get(response_id, "") if response_id else ""
+        if not run_id and event_request_id in self._task_request_step_refs:
+            run_id = event_request_id
+        step_ref = self._response_step_refs.get(response_id, "") if response_id else ""
+        step_ref = step_ref or new_step_ref()
+        request_step_ref = self._task_request_step_refs.get(run_id, "") if run_id else ""
         log_event(
             "realtime_error",
+            run_id=run_id or None,
+            run_ref_status="linked" if run_id else "unknown",
+            run_ref_gap=None if run_id else "realtime_error_run_link_missing",
+            step_ref=step_ref,
+            caused_by=[request_step_ref] if request_step_ref else None,
+            causal_ref_gap=None if request_step_ref else "request_step_ref_missing",
+            response_id=response_id or None,
             code=code or None,
             param=param or None,
             event_id=event_id or None,
             classification=classification,
             error=msg,
+            error_context=err,
             error_type=str(err.get("type") or "realtime"),
         )
         print("error:", err, file=sys.stderr)
@@ -1146,8 +1231,6 @@ class RealtimeSession:
         call_id = item.get("call_id") or ""
         name = item.get("name") or ""
         raw_args = item.get("arguments") or "{}"
-        if call_id in self._pending_calls:
-            return
         self._run_tool(
             call_id,
             name,
@@ -1167,13 +1250,27 @@ class RealtimeSession:
     ) -> None:
         if not call_id or not name:
             return
-        if call_id in self._pending_calls:
-            return
         request_id = request_id or self._request_for_response(response_id)
         with self._response_lock:
+            existing = self._pending_calls.get(call_id)
+            if existing:
+                log_event("tool_call_mirror", run_id=existing.get("run_id") or None,
+                          run_ref_status="linked" if existing.get("run_id") else "unknown",
+                          run_ref_gap=None if existing.get("run_id") else "duplicate_call_run_link_missing",
+                          step_ref=existing.get("step_ref"), mirror_of=existing.get("step_ref"), call_id=call_id,
+                          source="duplicate_function_call_delivery")
+                return
             task_run_id = (self._response_task_run_ids.get(response_id)
                            or (request_id if request_id in self._task_runs else ""))
-        self._pending_calls[call_id] = {"name": name, "request_id": request_id}
+            tool_step_ref = new_step_ref()
+            response_step_ref = self._response_step_refs.get(response_id, "")
+            request_step_ref = self._task_request_step_refs.get(task_run_id, "") if task_run_id else ""
+            cancellation_step_ref = self._cancel_requested_by_run.get(task_run_id, "") if task_run_id else ""
+            caused_by = [ref for ref in (request_step_ref, response_step_ref, cancellation_step_ref) if ref]
+            self._pending_calls[call_id] = {
+                "name": name, "request_id": request_id, "run_id": task_run_id,
+                "step_ref": tool_step_ref, "response_id": response_id,
+            }
         try:
             arguments = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
         except json.JSONDecodeError:
@@ -1194,7 +1291,9 @@ class RealtimeSession:
                 plugin_island.tool_started(name, arguments)
                 island_publish(kind, title=title, detail=detail, app=app, step=name)
                 errors_before = errors_published()
-                with tool_context(call_id=call_id, response_id=response_id, run_id=task_run_id):
+                with tool_context(call_id=call_id, response_id=response_id, run_id=task_run_id,
+                                  step_ref=tool_step_ref, caused_by=caused_by,
+                                  cancellation_state="requested_before_tool_start" if cancellation_step_ref else ""):
                     try:
                         result = dispatch(name, arguments)
                     except Exception as exc:  # noqa: BLE001 — always answer the tool call
@@ -1204,6 +1303,9 @@ class RealtimeSession:
                         plugin_island.tool_finished(name, arguments)
                 if not isinstance(result, dict):
                     result = {"ok": False, "error": "non-dict tool result"}
+                if task_run_id:
+                    with self._response_lock:
+                        self._task_last_step_refs[task_run_id] = tool_step_ref
                 for bad in ("value", "secret", "password", "api_key", "token"):
                     result.pop(bad, None)
                 self._record_task_action(task_run_id, name, result)
@@ -1472,7 +1574,8 @@ class RealtimeSession:
         """Close a GPT-Live session after LIVE_IDLE_CLOSE_SECONDS without speech or work."""
         while not self._stop.wait(timeout=5.0):
             if self._audio:
-                self._audio.flush_timings(run_id=self._current_run_id())
+                self._audio.flush_timings(run_id=self._current_run_id(),
+                                          causal_ref=self._current_response_step_ref())
             if not getattr(self.provider, "manages_barge_in", False) or self.LIVE_IDLE_CLOSE_SECONDS <= 0:
                 continue
             if self._dormant.is_set() or self.ws is None or not self._session_ready.is_set():
@@ -1614,6 +1717,13 @@ class RealtimeSession:
         with self._response_lock:
             return self._response_task_run_ids.get(response_id, "")
 
+    def _current_response_step_ref(self) -> str:
+        response_id = self._current_response_id
+        if not response_id:
+            return ""
+        with self._response_lock:
+            return self._response_step_refs.get(response_id, "")
+
     def _request_for_response(self, response_id: str) -> str:
         with self._response_lock:
             return self._response_request_ids.get(response_id, "")
@@ -1639,6 +1749,8 @@ class RealtimeSession:
                 self._current_response_id = ""
             self._response_request_ids.pop(response_id, None)
             self._response_task_run_ids.pop(response_id, None)
+            self._response_step_refs.pop(response_id, None)
+            self._response_cancellation_step_refs.pop(response_id, None)
             self._response_transcripts.pop(response_id, None)
             self._response_condition.notify_all()
 
@@ -1665,13 +1777,30 @@ class RealtimeSession:
         with self._response_lock:
             task_run_id = (self._response_task_run_ids.get(response_id)
                            or (request_id if request_id in self._task_runs else ""))
-            task_results = self._task_runs.pop(task_run_id, []) if task_run_id else []
+            task_settling = bool(task_run_id and task_run_id in self._task_runs)
+            task_results = self._task_runs.pop(task_run_id, []) if task_settling else []
+            task_started_at = self._task_started_at.pop(task_run_id, None) if task_settling else None
+            cancel_step_ref = self._cancel_requested_by_run.pop(task_run_id, "") if task_settling else ""
         task_outcome = _task_outcome(task_results, status=status)
-        if task_run_id and task_outcome:
+        if task_settling:
             log_task_outcome(check_id="tool_task", outcome=task_outcome[0],
                              evidence_class=task_outcome[1], run_id=task_run_id,
                              response_id=response_id,
+                             step_ref=self._response_step_refs.get(response_id, "") or new_step_ref(),
+                             caused_by=[ref for ref in (self._task_request_step_refs.get(task_run_id),
+                                                        cancel_step_ref) if ref],
+                             duration_ms=(int((time.monotonic() - task_started_at) * 1000)
+                                          if task_started_at is not None else None),
+                             expected_outcome="unknown",
                              tools=sorted({row["tool"] for row in task_results if row.get("tool") in _TASK_ACTION_EVIDENCE}))
+        if task_run_id:
+            with self._response_lock:
+                if self._active_task_run_id == task_run_id:
+                    self._active_task_run_id = ""
+                self._task_request_step_refs.pop(task_run_id, None)
+                self._task_last_step_refs.pop(task_run_id, None)
+                self._task_started_at.pop(task_run_id, None)
+                self._cancel_requested_at_by_run.pop(task_run_id, None)
         self._turn_open = False
         self._turn_closed_at = len(getattr(self.provider, "history", None) or [])
         text_bits: list[str] = []
@@ -1735,7 +1864,11 @@ class RealtimeSession:
         event: dict[str, Any] = {"type": "response.create"}
         if request_id:
             event["event_id"] = f"voice_text_{request_id}_{uuid.uuid4().hex[:8]}"
-            event["response"] = {"metadata": {"voice_cua_request_id": request_id}}
+            metadata = {"voice_cua_request_id": request_id}
+            step_ref = self._task_request_step_refs.get(request_id, "")
+            if step_ref:
+                metadata["voice_cua_request_step_ref"] = step_ref
+            event["response"] = {"metadata": metadata}
         self._send(event)
 
     def island_control(self, action: str) -> bool:
@@ -1745,21 +1878,54 @@ class RealtimeSession:
             with self._response_lock:
                 active = self._current_response_id
                 response_active = active in self._active_response_ids
-            if response_active:
+                run_id = self._response_task_run_ids.get(active, "") or self._active_task_run_id
+                response_step_ref = self._response_step_refs.get(active, "")
+                inflight = [row for row in self._pending_calls.values() if row.get("run_id") == run_id]
+                inflight_refs = [row.get("step_ref") for row in inflight if row.get("step_ref")]
+            cancel_step_ref = new_step_ref()
+            task_cancel = action in ("cancel", "stopTask")
+            caused_by = [ref for ref in [response_step_ref, *inflight_refs] if ref]
+            if task_cancel and run_id:
+                with self._response_lock:
+                    self._cancel_requested_by_run[run_id] = cancel_step_ref
+                    self._cancel_requested_at_by_run[run_id] = time.monotonic()
+                    if active:
+                        self._response_cancellation_step_refs[active] = cancel_step_ref
+                caused_by.append(self._task_request_step_refs.get(run_id, ""))
+                caused_by = [ref for ref in caused_by if ref]
+            provider_manages = getattr(getattr(self, "provider", None), "manages_barge_in", False)
+            cancel_send_ok = None
+            if response_active and not provider_manages:
                 with self._response_condition:
                     self._cancelled_response_ids.add(active)
                     self._response_condition.notify_all()
-                self._send({"type": "response.cancel"})
-            if getattr(getattr(self, "provider", None), "manages_barge_in", False):
+                cancel_send_ok = self._send({"type": "response.cancel"})
+            if provider_manages:
                 # GPT-Live drops response.cancel; an appended instruction interrupts speech
                 # (Delegation > Steer the live conversation). Backend work is not cancelled by it.
                 note = ("The user pressed Stop. Stop speaking now and wait quietly for them."
                         if action == "stopSpeaking" else
                         "The user pressed Stop on the current task. Stop speaking, start no further "
                         "steps for it, and wait quietly for the next request.")
-                self._send({"type": "conversation.item.create", "item": {
+                cancel_send_ok = self._send({"type": "conversation.item.create", "item": {
                     "type": "message", "role": "system", "content": [{"type": "input_text", "text": note}]}})
-            log_event("island_control", action=action, cancelled=bool(response_active))
+            log_event("cancel" if task_cancel else "island_control", action=action,
+                      cancel=True if task_cancel else None,
+                      cancel_ack="unknown" if task_cancel else None,
+                      target_run_ref=(run_id or "unknown") if task_cancel else None,
+                      queued_action_suppressed="unknown" if task_cancel else None,
+                      run_id=run_id or None,
+                      run_ref_status="linked" if run_id else "unknown",
+                      run_ref_gap=None if run_id else "cancel_task_run_missing",
+                      step_ref=cancel_step_ref, caused_by=caused_by or None,
+                      target_response_id=active or None, target_step_ref=response_step_ref or None,
+                      cancel_scope="task" if task_cancel else "response",
+                      cancellation_state="requested" if task_cancel else "response_stop_requested",
+                      cancellation_delivery=("steer_instruction" if provider_manages else "response_cancel")
+                      if response_active else "no_active_response",
+                      cancel_send_ok=cancel_send_ok, cancelled=bool(response_active),
+                      inflight_tool_count=len(inflight), inflight_step_refs=inflight_refs,
+                      settlement_gap="no_active_response_to_ack" if not response_active else None)
             island_publish("listening", title="Listening", detail="")
             return True
         if action in ("mute", "unmute"):
@@ -1769,7 +1935,7 @@ class RealtimeSession:
             if not last:
                 return False
             log_event("island_control", action=action, chars=len(last))
-            self.send_text(last)
+            self.send_text(last, retry_of_run_ref=self._last_task_run_id)
             return True
         if action == "replay":
             log_event("island_control", action=action)
@@ -1788,18 +1954,33 @@ class RealtimeSession:
                      "succeeded. If it is already done, just tell me the outcome.")
         return " ".join(parts)
 
-    def _note_user_turn(self, text: str, *, request_id: str = "", defer_response: bool = False) -> str:
+    def _note_user_turn(self, text: str, *, request_id: str = "", defer_response: bool = False,
+                        source: str = "text_input", item_id: str = "",
+                        retry_of_run_ref: str = "") -> str:
         from voice_cua.workflow_store import begin_engagement
         from voice_cua.tools import note_user_turn
         begin_engagement()
         note_user_turn(text)
         self._turn_open = True
         self._turn_text = text
+        self._last_user_text = text
         self._turn_tools = 0
-        task_request_id = request_id or ("" if defer_response else uuid.uuid4().hex)
+        task_request_id = request_id or uuid.uuid4().hex
+        request_step_ref = new_step_ref()
         with self._response_lock:
             if task_request_id:
                 self._task_runs[task_request_id] = []
+                self._task_request_step_refs[task_request_id] = request_step_ref
+                self._task_last_step_refs.pop(task_request_id, None)
+                self._task_started_at[task_request_id] = time.monotonic()
+                self._active_task_run_id = task_request_id
+                self._last_task_run_id = task_request_id
+        log_event("user_transcript" if source == "microphone_transcription" else "user_request",
+                  run_id=task_request_id, run_ref_status="linked", run_ref_source="controller_task_start",
+                  retry_of_run_ref=retry_of_run_ref or None, step_ref=request_step_ref,
+                  request=text, expected_outcome="unknown",
+                  text=text if source == "microphone_transcription" else None,
+                  source=source, item_id=item_id or None, chars=len(text))
         self._turn_recovered = False
         return task_request_id
 
@@ -1878,9 +2059,11 @@ class RealtimeSession:
                   epoch=self._conn_epoch, results=len(results) or None,
                   text_request=bool(request_id) or None)
 
-    def send_text(self, text: str, *, request_id: str = "", replay: bool = False) -> None:
+    def send_text(self, text: str, *, request_id: str = "", replay: bool = False,
+                  retry_of_run_ref: str = "") -> None:
         if not replay:
-            request_id = self._note_user_turn(text, request_id=request_id)
+            request_id = self._note_user_turn(text, request_id=request_id,
+                                              retry_of_run_ref=retry_of_run_ref)
         self._send({
             "type": "conversation.item.create",
             "item": {
