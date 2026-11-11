@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-11T11:58:57Z",
-      "now": "2026-11-11T11:58:57Z — Spoken stop did not cancel the in-flight action (run 17:27); Codex Luna implementing spoken-stop cancel"
+      "stage": "install",
+      "updated_at": "2026-11-11T12:07:44Z",
+      "now": "2026-11-11T12:07:44Z — Building and installing ACU 0.2.131 with spoken-stop cancel"
     },
     "rollover": {
       "source_pr": 96,
