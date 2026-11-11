@@ -164,45 +164,106 @@ def has_input_device() -> bool:
         return False
 
 
+def mic_failure_class(error: str | BaseException) -> str:
+    text = str(error).lower()
+    if any(term in text for term in ("no input device", "no default input", "no default device", "error querying device -1")):
+        return "no_input_device"
+    if any(term in text for term in ("device or resource busy", "device busy", "already in use", "device unavailable")):
+        return "device_busy"
+    if any(term in text for term in ("permission denied", "not authorized", "not authorised", "microphone needs access", "access denied")):
+        return "permission_denied"
+    if any(term in text for term in ("query", "portaudio", "inputstream", "timed out", "timeout")):
+        return "query_error"
+    return "other"
+
+
+def _mic_devices() -> tuple[list[dict[str, Any]], str]:
+    if sd is None:
+        return [], ""
+    try:
+        devices = sd.query_devices()
+        default_index = sd.default.device[0]
+        inputs = [
+            {"name": str(device.get("name") or ""), "index": index, "default": index == default_index}
+            for index, device in enumerate(devices)
+            if int(device.get("max_input_channels", 0)) > 0
+        ]
+        default_name = next((device["name"] for device in inputs if device["default"]), "")
+        return inputs, default_name
+    except Exception:  # noqa: BLE001 — diagnostics must not break audio startup
+        return [], ""
+
+
 def mic_preflight() -> int:
     """Open/close mic once so macOS TCC runs when Samantha turns on, not mid-session.
 
     Returns 0 ok, 1 failed, ``MIC_NO_INPUT_DEVICE`` when there is no input device: that check
     runs first and costs no TCC helper or stream open, so a mic-less Mac fails fast, once.
     """
-    if os.environ.get("VOICE_CUA_NO_AUDIO", "").strip().lower() in {"1", "true", "yes"}:
-        return 0
-    if sd is not None and not has_input_device():
-        print("mic preflight: no input device (text only)", file=sys.stderr, flush=True)
-        return MIC_NO_INPUT_DEVICE
-    if sys.platform == "darwin" and not _mic_authorized():
-        print("mic preflight failed: microphone needs access (ACU onboarding › Microphone)", file=sys.stderr, flush=True)
-        return 1
-    if sd is None:
-        print("mic preflight: sounddevice unavailable", file=sys.stderr, flush=True)
-        return 1
-    stream = None
-    try:
-        stream = sd.InputStream(
-            samplerate=SAMPLE_RATE,
-            channels=1,
-            dtype="int16",
-            blocksize=BLOCKSIZE,
-        )
-        stream.start()
-        stream.stop()
-        stream.close()
-        print("mic preflight ok", flush=True)
-        return 0
-    except Exception as exc:  # pragma: no cover — hardware/TCC dependent
-        print(f"mic preflight failed: {exc}", file=sys.stderr, flush=True)
-        return 1
-    finally:
-        if stream is not None:
-            try:
-                stream.close()
-            except Exception:
+    attempts: list[dict[str, Any]] = []
+    for attempt in range(1, 4):
+        started = time.monotonic()
+        stream = None
+        error = ""
+        result = 0
+        audio_disabled = os.environ.get("VOICE_CUA_NO_AUDIO", "").strip().lower() in {"1", "true", "yes"}
+        try:
+            if audio_disabled:
                 pass
+            elif sd is not None:
+                try:
+                    input_info = sd.query_devices(kind="input")
+                    has_input = int(input_info.get("max_input_channels", 0)) > 0
+                except Exception as exc:  # PortAudio's -1 query is how it reports no default input.
+                    has_input = False
+                    error = str(exc)
+                if not has_input:
+                    print("mic preflight: no input device (text only)", file=sys.stderr, flush=True)
+                    result = MIC_NO_INPUT_DEVICE
+                    error = error or "no input device"
+            if result == 0 and not audio_disabled and sys.platform == "darwin" and not _mic_authorized():
+                print("mic preflight failed: microphone needs access (ACU onboarding › Microphone)", file=sys.stderr, flush=True)
+                result = 1
+                error = "microphone needs access (ACU onboarding › Microphone)"
+            if result == 0 and not audio_disabled and sd is None:
+                print("mic preflight: sounddevice unavailable", file=sys.stderr, flush=True)
+                result = 1
+                error = "sounddevice unavailable"
+            elif result == 0 and not audio_disabled and sd is not None:
+                stream = sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype="int16", blocksize=BLOCKSIZE)
+                stream.start()
+                stream.stop()
+                print("mic preflight ok", flush=True)
+        except Exception as exc:  # pragma: no cover — hardware/TCC dependent
+            result = 1
+            error = str(exc)
+            print(f"mic preflight failed: {exc}", file=sys.stderr, flush=True)
+        finally:
+            if stream is not None:
+                try:
+                    stream.close()
+                except Exception:
+                    pass
+        failure_class = mic_failure_class(error) if error else ""
+        devices, default_name = _mic_devices()
+        retry = result != 0 and failure_class in {"query_error", "device_busy"} and attempt < 3
+        attempts.append({
+            "ok": result == 0, "error": error, "failure_class": failure_class,
+            "input_devices": devices, "default_input_device": default_name,
+            "attempt": attempt, "duration_ms": round((time.monotonic() - started) * 1000),
+            "recovery": "retried" if retry else "none", "retry_succeeded": None,
+        })
+        if result == 0 or not retry:
+            break
+        time.sleep(0.5)
+    succeeded = attempts[-1]["ok"]
+    if len(attempts) > 1:
+        for event in attempts:
+            if event["recovery"] == "retried":
+                event["retry_succeeded"] = succeeded
+    for event in attempts:
+        _log_event("mic_preflight", **event)
+    return 0 if succeeded else (MIC_NO_INPUT_DEVICE if attempts[-1]["failure_class"] == "no_input_device" else 1)
 
 
 _preflight_event: threading.Event | None = None

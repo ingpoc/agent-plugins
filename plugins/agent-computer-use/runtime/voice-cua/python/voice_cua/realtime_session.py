@@ -61,6 +61,30 @@ _READ_ONLY_TOOLS = {
 }
 
 
+def _turn_latency_fields(turn: dict[str, Any], playback_at: float | None) -> dict[str, Any]:
+    """Calculate observed turn phases; absent timestamp pairs stay unknown."""
+    def elapsed(start: str, end: str) -> int | None:
+        a, b = turn.get(start), playback_at if end == "playback" else turn.get(end)
+        return round((b - a) * 1000) if isinstance(a, (int, float)) and isinstance(b, (int, float)) else None
+
+    durations = {
+        "speech_end_to_response_created": elapsed("speech_end", "response_created"),
+        "response_created_to_first_tool_start": elapsed("response_created", "first_tool_start"),
+        "tool_time_total": turn.get("tool_time_total_ms", 0) if turn.get("tool_count") else None,
+        "last_tool_end_to_first_audio_delta": elapsed("last_tool_end", "first_audio_delta"),
+        "first_audio_delta_to_playback_start": elapsed("first_audio_delta", "playback"),
+        "total_speech_end_to_playback_start": elapsed("speech_end", "playback"),
+    }
+    phases = {k: v for k, v in durations.items()
+              if k != "total_speech_end_to_playback_start" and v is not None}
+    return {**durations,
+            "slowest_tool": turn.get("slowest_tool") if turn.get("tool_count") else None,
+            "slowest_tool_ms": turn.get("slowest_tool_ms") if turn.get("tool_count") else None,
+            "dominant_phase": max(phases, key=phases.get) if phases else None,
+            "over_budget": durations["total_speech_end_to_playback_start"] is not None
+                           and durations["total_speech_end_to_playback_start"] > 4000}
+
+
 def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, str | None]:
     evidence_class = "tool_reported" if results else None
     if any(row.get("outcome") == "unknown" for row in results):
@@ -333,6 +357,8 @@ class RealtimeSession:
         self._access_refused = ""  # "HTTP 403 ..." when the handshake says this key can't use the model
         self._tool_groups: set[str] = set()  # lazy tool groups loaded this conversation
         self._response_started: dict[str, float] = {}  # response_id → monotonic at response.created
+        self._turn_latency: dict[str, Any] = {}
+        self._pending_speech_end: float | None = None
         self._spoken_stop_response_ids: set[str] = set()
         self._config_error_published = False
         self._rate_limit_warned = False
@@ -937,6 +963,7 @@ class RealtimeSession:
                       run_ref_status="unknown", run_ref_gap="transcript_not_available_for_task_link",
                       error_context=err)
         elif et == "input_audio_buffer.speech_stopped":
+            self._pending_speech_end = time.monotonic()
             if not (self._audio and self._audio.has_playback()):
                 island_publish("listening", title="Listening", detail="")
         elif et == "conversation.item.truncated":
@@ -968,6 +995,14 @@ class RealtimeSession:
                         self._response_started.clear()
                         self._spoken_stop_response_ids.clear()
                     self._response_started[response_id] = time.monotonic()
+                    if request_id:
+                        turn = getattr(self, "_turn_latency", None)
+                        if not isinstance(turn, dict) or turn.get("run_id") != request_id:
+                            turn = {"run_id": request_id, "step_ref": step_ref,
+                                    "tool_time_total_ms": 0, "tool_count": 0}
+                            self._turn_latency = turn
+                        turn["response_created"] = self._response_started[response_id]
+                        turn["step_ref"] = step_ref
                     self._response_step_refs[response_id] = step_ref
                     self._active_response_ids.add(response_id)
                     self._current_response_id = response_id
@@ -1045,6 +1080,10 @@ class RealtimeSession:
                 except Exception:  # noqa: BLE001 — logging must never break a turn
                     pass
                 self._note_response_done(response)
+                turn = getattr(self, "_turn_latency", None)
+                if (not self._turn_open and isinstance(turn, dict) and turn.get("run_id") == run_id
+                        and not turn.get("emitted")):
+                    self._emit_turn_latency(turn, None)
                 self._finish_response(str(response.get("id") or ""))
             self._publish_listening_when_idle()
         elif et == "error":
@@ -1066,7 +1105,23 @@ class RealtimeSession:
             return
         delta = event.get("delta") or ""
         if self._audio and delta:
+            turn = getattr(self, "_turn_latency", None)
+            if isinstance(turn, dict) and not turn.get("first_audio_delta"):
+                turn["first_audio_delta"] = time.monotonic()
             self._audio.on_output_delta(delta, item_id=item_id)
+            if isinstance(turn, dict) and self._audio.has_playback():
+                self._emit_turn_latency(turn, time.monotonic())
+
+    def _emit_turn_latency(self, turn: dict[str, Any], playback_at: float | None) -> None:
+        if turn.get("emitted"):
+            return
+        turn["emitted"] = True
+        run_id = turn.get("run_id") or ""
+        log_event("turn_latency", run_id=run_id or None,
+                  run_ref_status="linked" if run_id else "unknown",
+                  run_ref_gap=None if run_id else "turn_run_id_missing",
+                  step_ref=turn.get("step_ref") or None,
+                  **_turn_latency_fields(turn, playback_at))
 
     def _handle_content_part_added(self, event: dict[str, Any]) -> None:
         part = event.get("part") or {}
@@ -1361,6 +1416,10 @@ class RealtimeSession:
                     self._deliver_tool_result(call_id, name, result, epoch=epoch, arguments=arguments)
                     return
                 kind, title, detail, app = describe_tool(name, arguments)
+                tool_started_at = time.monotonic()
+                turn = getattr(self, "_turn_latency", None)
+                if isinstance(turn, dict) and turn.get("run_id") == task_run_id:
+                    turn.setdefault("first_tool_start", tool_started_at)
                 app = plugin_island.island_app(name, app)
                 # Plugin use first: the hub row (ring + app inside) must exist before the acting post, or
                 # the island flashes the app outside for one post (0.2.86, 13:26:54 IST).
@@ -1390,6 +1449,14 @@ class RealtimeSession:
                         _log_exception(name, exc)
                     finally:
                         plugin_island.tool_finished(name, arguments)
+                tool_duration_ms = round((time.monotonic() - tool_started_at) * 1000)
+                if isinstance(turn, dict) and turn.get("run_id") == task_run_id:
+                    turn["tool_time_total_ms"] = turn.get("tool_time_total_ms", 0) + tool_duration_ms
+                    turn["tool_count"] = turn.get("tool_count", 0) + 1
+                    if tool_duration_ms > turn.get("slowest_tool_ms", -1):
+                        turn["slowest_tool_ms"] = tool_duration_ms
+                        turn["slowest_tool"] = name
+                    turn["last_tool_end"] = time.monotonic()
                 if not isinstance(result, dict):
                     result = {"ok": False, "error": "non-dict tool result"}
                 with self._response_lock:
@@ -2093,6 +2160,10 @@ class RealtimeSession:
         self._last_user_text = text
         self._turn_tools = 0
         task_request_id = request_id or uuid.uuid4().hex
+        turn = getattr(self, "_turn_latency", {})
+        self._turn_latency = {"speech_end": self._pending_speech_end, "run_id": task_request_id,
+                              "step_ref": "", "tool_time_total_ms": 0, "tool_count": 0}
+        self._pending_speech_end = None
         request_step_ref = new_step_ref()
         with self._response_lock:
             if task_request_id:

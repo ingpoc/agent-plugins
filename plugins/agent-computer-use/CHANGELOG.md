@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.135
+
+- Samantha observability: a `turn_latency` event per turn (phase milliseconds, dominant phase, over-budget flag) and a `mic_preflight` event per preflight (error text, failure class, devices seen, recovery), with up to two retries for transient preflight failures.
+
 ## 0.2.134
 
 - Samantha: a typed stop no longer waits behind the running request, so it can arrive mid-task.

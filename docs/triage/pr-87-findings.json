@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-11T13:31:34Z",
-      "now": "2026-11-11T13:31:34Z — Releasing 0.2.134: typed stop bypasses the request lock so the mid-task stop can be tested"
+      "updated_at": "2026-11-11T14:22:27Z",
+      "now": "2026-11-11T14:22:27Z — Releasing 0.2.135 with turn_latency and mic_preflight events; then one combined live check"
     },
     "rollover": {
       "source_pr": 96,
@@ -2126,7 +2126,7 @@
       "id": "OBS-01",
       "title": "Voice response and audio delays",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "in_progress",
       "observed": "Developer Observability reports several slow voice and audio stages. These are leads, not confirmed user-facing latency defects.",
       "recommendation": "Trace a fresh, short voice interaction end to end and optimize only the stage that remains slow in a linked run.",
       "verification": "The latest 0.2.97 session includes a 16.3-second speech-to-playback turn associated with Comet. This is a current telemetry lead; its root cause and a product latency target remain unestablished.",
