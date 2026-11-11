@@ -644,7 +644,7 @@ struct SamanthaSourceCircle: View {
             if let initiator = IslandSourceGroups.initiatorBadge(group.initiatorBadges) {
                 SamanthaAppIcon(appName: initiator, size: 12, radius: 3)
                     .clipShape(Circle()).overlay(Circle().stroke(Color.black, lineWidth: 1.5))
-                    .offset(x: 3, y: 3).accessibilityHidden(true)
+                    .offset(x: 3, y: -1).accessibilityHidden(true)
             }
         }
         .overlay(alignment: .topTrailing) {

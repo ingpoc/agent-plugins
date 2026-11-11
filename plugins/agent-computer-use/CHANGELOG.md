@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.127
+
+- Wait up to 2 s for `session.updated` before continuing after a tool-list update (Comet read/close tools were unusable); log expected and read-back text on failed native steps; lift the Codex-circle initiator badge so it stays inside the menu-bar height.
+
 ## 0.2.126
 
 - Show the initiator badge on the Dynamic Island left Codex circle when one initiator owns it; skip queued tool calls after a spoken cancel and report in-flight ones as unknown; block Ledger recall retries after a rejected query in the same turn.

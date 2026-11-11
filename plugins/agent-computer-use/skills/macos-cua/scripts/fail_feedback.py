@@ -249,8 +249,10 @@ def _failure_facts(
             near.append((score, line))
     near.sort(reverse=True)
     candidates = [] if credential_target else (matching[:4] or [line for _, line in near[:4]])
+    readback = [line[:120] for line in lines[1:]
+                if re.search(r"\bAX(?:StaticText|TextField|TextArea|ValueIndicator)\b", line)]
     window = lines[0][:160] if lines and re.search(r"(?i)(?:\bAXWindow\b|^Window:|^Window\s)", lines[0]) else None
-    return {
+    facts = {
         "completed_steps": sum(item.get("ok") is True for item in results),
         "failed_step": failed_step + 1 if failed_step is not None else None,
         "error": str(error or "") or None,
@@ -266,6 +268,12 @@ def _failure_facts(
         },
         "before_observation_state": "available" if str(before_text or "").strip() else "empty",
     }
+    if arguments.get("expect") is not None and not credential_target:
+        facts["expectation_check"] = {
+            "expected": str(arguments["expect"])[:80],
+            "found": readback[:3],
+        }
+    return facts
 
 
 def format_failure_text(

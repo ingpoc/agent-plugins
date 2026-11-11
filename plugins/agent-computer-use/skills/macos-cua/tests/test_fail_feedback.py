@@ -153,6 +153,27 @@ class FailFeedbackTests(unittest.TestCase):
         self.assertIn("reason: expect_unverified", out["text"])
         self.assertIn("Save", out["text"])
 
+    def test_expect_unverified_logs_short_expected_and_readback_for_plan(self):
+        out = ff.apply_failure_feedback(
+            {"ok": False, "verified": False, "dispatched": True,
+             "error": "completion_unverified", "results": [{"ok": True}]},
+            arguments={
+                "app": "Calculator",
+                "steps": [{"op": "click", "label": label} for label in (
+                    "All Clear", "9", "9", "Multiply", "9", "9", "Equals",
+                    "All Clear", "8", "8", "Multiply", "8", "8", "Equals",
+                    "All Clear", "7", "7", "Multiply", "7", "7", "Equals",
+                )],
+                "expect": "5929",
+            },
+            before_text='[0] AXWindow "Calculator"',
+            after_text='[0] AXWindow "Calculator"\n[1] AXStaticText value="5,929"',
+        )
+        self.assertEqual(out["failure"]["expectation_check"], {
+            "expected": "5929",
+            "found": ['[1] AXStaticText value="5,929"'],
+        })
+
 
 if __name__ == "__main__":
     unittest.main()

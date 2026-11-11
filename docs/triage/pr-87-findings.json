@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-11T04:39:51Z",
-      "now": "2026-11-11T04:39:51Z — 0.2.124 live: emitter now logs ledger_result_status=none (count 0), task_outcome=verified_success with expected_outcome, step_ref on all new events (runs ef9a20d5, cc4f5c67). Devobs task view still shows lookup_status unknown: analyze.py:691-692 picks the row that has query_terms (the tool_start) instead of the result row; handed to Observability."
+      "stage": "plan_fix",
+      "updated_at": "2026-11-11T07:53:02Z",
+      "now": "2026-11-11T07:53:02Z — Luna I (comet tools-update ack) and Luna J (expect_unverified) running in parallel"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -2325,7 +2325,7 @@
       "id": "AGENT-03",
       "title": "Samantha native actions report missing targets and incomplete observations",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "Fresh ACU 0.2.97 telemetry records five cua_act errors during the latest test: target_missing and observation_incomplete. A separate grouped incident reports two retries.",
       "recommendation": "Inspect the affected action and observation path, identify the missing target or incomplete state, and verify a successful native action with independent app readback.",
       "verification": "Calculator 8 × 8 produced 64 with independent AX readback. The subsequent close left the app absent, but Samantha logged a cua_act allow_unverified error; this does not establish clean close-action feedback.",
@@ -2728,7 +2728,7 @@
       "id": "AGENT-09",
       "title": "Samantha could not finish or close a Comet test task",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "in_progress",
       "observed": "In an authorized typed example.com task, Samantha opened the isolated Comet window but said she could neither read its heading nor close it.",
       "recommendation": "Trace why the active lease did not expose or use the page and close actions; verify a bounded read and close in the same lease.",
       "verification": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",

@@ -41,6 +41,7 @@ except ImportError:  # pragma: no cover
     websocket = None  # type: ignore
 
 EXIT_NEEDS_API_KEY = 78  # EX_CONFIG: CUAService does not auto-restart on this exit
+TOOLS_UPDATE_ACK_TIMEOUT = 2.0
 REALTIME_MODEL = os.environ.get("VOICE_CUA_REALTIME_MODEL", "gpt-live-1")
 REALTIME_VOICE = os.environ.get("VOICE_CUA_REALTIME_VOICE", "marin")
 REALTIME_SAMPLE_RATE = int(os.environ.get("VOICE_CUA_SAMPLE_RATE", "24000"))
@@ -297,6 +298,8 @@ class RealtimeSession:
         self._audio: RealtimeAudio | None = None
         self._stop = threading.Event()
         self._session_ready = threading.Event()
+        self._tools_update_ack = threading.Event()
+        self._tools_update_ack.set()
         self._dormant = threading.Event()
         self._wake = threading.Event()
         self._last_activity = time.monotonic()
@@ -778,6 +781,7 @@ class RealtimeSession:
         })
 
     def _send_tools_update(self) -> None:
+        self._tools_update_ack.clear()
         self._send({
             "type": "session.update",
             "session": {
@@ -786,6 +790,10 @@ class RealtimeSession:
                 "tool_choice": "auto",
             },
         })
+
+    def _wait_for_tools_update_ack(self) -> None:
+        if not self._tools_update_ack.wait(TOOLS_UPDATE_ACK_TIMEOUT):
+            log_event("tools_update_unconfirmed", timeout=TOOLS_UPDATE_ACK_TIMEOUT)
 
     def _sync_tool_groups(self, name: str, result: dict[str, Any]) -> None:
         """Lazy tools: more_tools loads a group; a refused risky action loads confirm_risky.
@@ -843,6 +851,7 @@ class RealtimeSession:
         et = event.get("type")
         if et == "session.updated":
             mark("realtime_session_updated")
+            self._tools_update_ack.set()
             # Successful (re)connect — reset the planned reconnect. The backoff
             # counter resets in run() only once this connection proved stable.
             self._connected_at = time.monotonic()
@@ -1364,6 +1373,7 @@ class RealtimeSession:
                 self._sync_tool_groups(name, result)
                 if name.startswith("comet_"):
                     self._on_comet_change(comet_is_active())
+                self._wait_for_tools_update_ack()
                 if stale == "recovery" or (epoch != self._conn_epoch
                                            and call_id in getattr(self, "_recovered_calls", ())):
                     return  # drop recovery continues the task with this result
