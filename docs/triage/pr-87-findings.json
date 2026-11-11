@@ -2,10 +2,10 @@
   "title": "Samantha issues and recommended fixes",
   "tracking": {
     "pull_request": {
-      "label": "PR #96 · Follow-up",
-      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/96"
+      "label": "PR #98 · Roll-over (draft); #96 merged 9b984a8",
+      "url": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/98"
     },
-    "worktree": "samantha-pr94-rollover",
+    "worktree": "samantha-pr96-rollover",
     "verification_history": [
       {
         "id": "acu-0.2.97-install-20261106-0544z",
@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "report_rollover",
-      "updated_at": "2026-11-11T09:12:38Z",
-      "now": "2026-11-11T09:12:38Z — PR #96 merged (9b984a8, ACU 0.2.129); 10 issues verified fixed, remaining issues rolled over to this PR"
+      "updated_at": "2026-11-11T09:25:48Z",
+      "now": "2026-11-11T09:25:48Z — Roll-over PR #98 open; next: OBS-01, OBS-20, AGENT-04"
     },
     "rollover": {
       "source_pr": 96,
