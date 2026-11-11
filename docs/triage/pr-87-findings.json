@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-11T08:50:43Z",
-      "now": "2026-11-11T08:50:43Z — Installing 0.2.129 (numeric expect with grouping, failed-step label)"
+      "stage": "verify",
+      "updated_at": "2026-11-11T08:55:21Z",
+      "now": "2026-11-11T08:55:21Z — AGENT-03 and AGENT-09 verified on 0.2.129. Next: AGENT-07 cancel, AGENT-02 recall retry, OBS-21."
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -2325,10 +2325,10 @@
       "id": "AGENT-03",
       "title": "Samantha native actions report missing targets and incomplete observations",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Fresh ACU 0.2.97 telemetry records five cua_act errors during the latest test: target_missing and observation_incomplete. A separate grouped incident reports two retries.",
       "recommendation": "Inspect the affected action and observation path, identify the missing target or incomplete state, and verify a successful native action with independent app readback.",
-      "verification": "Calculator 8 × 8 produced 64 with independent AX readback. The subsequent close left the app absent, but Samantha logged a cua_act allow_unverified error; this does not establish clean close-action feedback.",
+      "verification": "expect_unverified is gone: numbers with grouping separators now match, so the Calculator turn finishes verified (run 917c771e, verified_success, 9,801). target_missing now reports the label of the step that failed and the retry after cua_state succeeds.",
       "details": {
         "Diagnostics": "Error types include target_missing and observation_incomplete. The collector reports no linked recovery for this issue.",
         "Independent check": "Installed ACU 0.2.97 direct MCP Calculator action and independent display readback succeeded with 72; the failed voice-session action remains unresolved.",
@@ -2350,7 +2350,19 @@
           "session": "source validation",
           "timestamp": "2026-11-08T16:58:09.488167+00:00",
           "reference": "compact_form_fills.py, compact_backend.py, test_open_app.py and /tmp/acu-static-validation-rerun.log"
+        },
+        {
+          "check": "Live typed turn: Calculator 99 times 99",
+          "outcome": "Observability run 917c771e on 0.2.129: verified_success. The first cua_act failed with target_missing and now names the step that failed (All Clear), the model recovered with one cua_state and a retry, and the final cua_act returned verified=true. Samantha said 9,801. On 0.2.128 the same turn ended expect_unverified because the display read 9,801 and the check wanted 9801.",
+          "build": "ACU 0.2.129",
+          "session": "livecheck 14:24 IST",
+          "timestamp": "2026-11-11T08:56:00Z",
+          "reference": "pr96/captures/livecheck-1424.png; run 917c771e41a11b287bf12ad5"
         }
+      ],
+      "verification_refs": [
+        "run 917c771e on 0.2.129",
+        "pr96/captures/livecheck-1424.png"
       ]
     },
     {
