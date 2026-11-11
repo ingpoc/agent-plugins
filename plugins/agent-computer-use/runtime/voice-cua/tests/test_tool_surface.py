@@ -46,14 +46,14 @@ class _Fresh(unittest.TestCase):
 
 class LazyGroupTests(unittest.TestCase):
     def test_base_surface_has_no_secrets_or_confirm(self) -> None:
-        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "system_volume", "ledger_task"})
+        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "comet_act", "comet_end", "system_volume", "ledger_task"})
 
-    def test_comet_actions_are_only_offered_during_a_lease(self) -> None:
+    def test_comet_actions_ride_with_comet_begin(self) -> None:
         idle = {tool["name"] for tool in tools.tool_definitions(comet_active=False)}
         active = {tool["name"] for tool in tools.tool_definitions(comet_active=True)}
         self.assertIn("comet_begin", idle)
-        self.assertNotIn("comet_act", idle)
-        self.assertNotIn("comet_end", idle)
+        self.assertIn("comet_act", idle)
+        self.assertIn("comet_end", idle)
         self.assertTrue({"comet_begin", "comet_act", "comet_end"}.issubset(active))
         begin = next(tool for tool in tools.tool_definitions(comet_active=False) if tool["name"] == "comet_begin")
         self.assertIn("unless the user asks to close it", begin["description"])

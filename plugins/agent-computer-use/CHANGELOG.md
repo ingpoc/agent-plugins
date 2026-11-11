@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.128
+
+- Offer `comet_act` and `comet_end` together with `comet_begin` from the start: the live model ignored the mid-turn tool-list update and said it could not read or close the page.
+
 ## 0.2.127
 
 - Wait up to 2 s for `session.updated` before continuing after a tool-list update (Comet read/close tools were unusable); log expected and read-back text on failed native steps; lift the Codex-circle initiator badge so it stays inside the menu-bar height.

@@ -390,57 +390,58 @@ def tool_definitions(
             "required": ["url"],
         },
     })
-    if comet_active is not False:
-        tools.extend([
-            {
-                "type": "function",
-                "name": "comet_act",
-                "description": (
-                    "Run one batch in an active isolated Comet lease; call comet_begin first. Common actions: page_context; "
-                    "use text for visible page text and page_context for compact orientation; goto {url}; click_text {text}; "
-                    "click_selector {selector}; fill_selector "
-                    "{selector,value}; wait_for_selector; wait_for_url_change; screenshot {format:'png'}."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "actions": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "type": {"type": "string", "enum": sorted(ALLOWED_ACTIONS)},
-                                    "url": {"type": "string", "description": "goto: absolute https URL"},
-                                    "text": {"type": "string", "description": "click_text: visible text"},
-                                    "selector": {"type": "string"},
-                                    "value": {"type": "string", "description": "fill_selector value"},
-                                },
-                                "required": ["type"],
+    # Always offered: a mid-turn tool-list update after comet_begin was not honoured by the live model
+    # (it said it could not read or close), so comet_act/comet_end ride with comet_begin (AGENT-09).
+    tools.extend([
+        {
+            "type": "function",
+            "name": "comet_act",
+            "description": (
+                "Run one batch in an active isolated Comet lease; call comet_begin first. Common actions: page_context; "
+                "use text for visible page text and page_context for compact orientation; goto {url}; click_text {text}; "
+                "click_selector {selector}; fill_selector "
+                "{selector,value}; wait_for_selector; wait_for_url_change; screenshot {format:'png'}."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "actions": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {"type": "string", "enum": sorted(ALLOWED_ACTIONS)},
+                                "url": {"type": "string", "description": "goto: absolute https URL"},
+                                "text": {"type": "string", "description": "click_text: visible text"},
+                                "selector": {"type": "string"},
+                                "value": {"type": "string", "description": "fill_selector value"},
                             },
-                            "minItems": 1,
+                            "required": ["type"],
                         },
-                        "timeout": {"type": "number", "minimum": 1, "maximum": 90},
-                        "risky": {"type": "boolean", "description": "Confirm before irreversible or external actions"},
-                        "ledger_decision_id": {"type": "string", "description": (
-                            "Set only when this action applies a specific Ledger record; use that record's decision_id."
-                        )},
+                        "minItems": 1,
                     },
-                    "required": ["actions"],
+                    "timeout": {"type": "number", "minimum": 1, "maximum": 90},
+                    "risky": {"type": "boolean", "description": "Confirm before irreversible or external actions"},
+                    "ledger_decision_id": {"type": "string", "description": (
+                        "Set only when this action applies a specific Ledger record; use that record's decision_id."
+                    )},
                 },
+                "required": ["actions"],
             },
-            {
-                "type": "function",
-                "name": "comet_end",
-                "description": (
-                    "Finish the Comet task after comet_begin. A self_test window closes. The user's window stays open "
-                    "unless user_requested=true because the user explicitly asked to close it."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {"user_requested": {"type": "boolean"}},
-                },
+        },
+        {
+            "type": "function",
+            "name": "comet_end",
+            "description": (
+                "Finish the Comet task after comet_begin. A self_test window closes. The user's window stays open "
+                "unless user_requested=true because the user explicitly asked to close it."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {"user_requested": {"type": "boolean"}},
             },
-        ])
+        },
+    ])
     return tools
 
 
