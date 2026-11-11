@@ -2893,7 +2893,7 @@
       "id": "USER-07",
       "title": "Island's left Codex circle lacks the Grok Bot badge",
       "source": "User reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "With two ACU-launched Codex CLI jobs running (originator acu_exec.grokbot), the left side shows a Codex circle and a separate Grok Bot circle, but the Codex circle has no Grok Bot badge. The expanded banner for the same job shows the Codex icon with the Grok Bot badge. ACU 0.2.122, 19:45 IST.",
       "recommendation": "Give the left circle the same initiator badge the banner uses (IslandActivityViews.swift:563 draws it only in the banner), so the user can see which harness is working and which bot started it.",
       "details": {
@@ -2910,7 +2910,22 @@
           "alt": "Compact island left circles",
           "caption": "Left: Codex circle without the Grok Bot badge, plus a separate Grok Bot circle."
         }
-      ]
+      ],
+      "verification_evidence": [
+        {
+          "check": "USER-07 left Codex circle initiator badge",
+          "outcome": "Live on the Mini with Codex job luna-H (originator acu_exec.grokbot, thread 01a1c976-5684-7880-a11d-ace095def7e6) running, the left island circle shows the Codex icon with the small Grok Bot badge at its lower right, same mark as the banner.",
+          "build": "ACU 0.2.126 (2b148a1)",
+          "session": "01a1c976-5684-7880-a11d-ace095def7e6",
+          "timestamp": "2026-11-11T07:18:05Z",
+          "reference": "~/code/acu-release/pr96/captures/island-codex-badge.png (zoom: island-codex-badge-zoom.png); launcher log ~/code/acu-release/pr96/luna-H.jsonl"
+        }
+      ],
+      "verification_refs": [
+        "Screenshot ~/code/acu-release/pr96/captures/island-codex-badge-zoom.png - left Codex circle with Grok Bot badge on 0.2.126.",
+        "Codex job luna-H launched by ACU with originator acu_exec.grokbot (thread 01a1c976-5684-7880-a11d-ace095def7e6)."
+      ],
+      "verification": "Installed ACU 0.2.126; with an ACU-launched Codex job running, the left island circle shows the Codex icon plus the Grok Bot badge (zoomed screenshot)."
     },
     {
       "id": "OBS-21",
@@ -2928,13 +2943,28 @@
       "id": "AGENT-12",
       "title": "Full CUAService swift test run hangs after PermissionBrokerTests",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "verified_fixed",
       "observed": "2026-11-11 02:05 IST: swift test (and with --skip SingleInstanceTests) printed nothing for 10+ min after PermissionBrokerTests.testTokenReadOncePerProcess; Luna's run also stalled 15+ min. swift build passes.",
       "details": {
         "Why it matters": "Blocks the full Swift gate; the changed InputActions.swift has no Swift tests."
       },
       "recommendation": "Find the next suite to start (swift test --list-tests order), add a per-test timeout, fix the blocking wait.",
-      "evidence": []
+      "evidence": [],
+      "verification_evidence": [
+        {
+          "check": "AGENT-12 full CUAService swift test completes",
+          "outcome": "Full swift test with a 600 s limit finished: 602 tests, 17 skipped, 0 failures, about 95 s, passing PermissionBrokerTests. The release source-checks step on 0.2.125 and 0.2.126 also ran the whole suite to completion (swift check 73.9 s). The earlier hang did not reproduce.",
+          "build": "ACU 0.2.126 (2b148a1)",
+          "session": "01a1c963-f50f-7b43-aa58-560795a7916d",
+          "timestamp": "2026-11-11T07:18:05Z",
+          "reference": "luna-F.last.md and rel-0.2.126b-source-checks.log in ~/code/acu-release/pr96"
+        }
+      ],
+      "verification_refs": [
+        "Full swift test run: 602 tests, 17 skipped, 0 failures in about 95 s (luna-F.last.md).",
+        "Release source-checks swift step completed in 73.9 s on 0.2.126 (rel-0.2.126b-source-checks.log)."
+      ],
+      "verification": "Full CUAService swift test run finishes (602 tests, 0 failures, about 95 s) and completes inside the release source checks on 0.2.126."
     }
   ]
 }
