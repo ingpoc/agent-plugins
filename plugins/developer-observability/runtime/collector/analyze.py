@@ -745,7 +745,6 @@ def _task_records(events, snapshot_id, sidecar_writer):
                       'step_count': len(by_step), 'last_seen': iso(last_ts) if last_ts is not None else None,
                       'source': source, 'file': file_ref})
     index.sort(key=lambda item: (item.get('last_seen') or '', item['run_ref']), reverse=True)
-    index.sort(key=lambda item: item.get('first_error_type') is None)
     for (project, source), counts in gap_sources.items():
         for code, count in counts.items():
             gaps[(project, source, code)] += count

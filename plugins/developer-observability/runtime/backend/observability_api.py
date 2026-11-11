@@ -1054,9 +1054,18 @@ class ObservabilityAPI:
              'first_error_type', 'duration_ms', 'step_count', 'last_seen')} for row in page],
             'total': len(rows), 'next_cursor': next_cursor, 'gaps': gaps}
 
+    @staticmethod
+    def _as_run_ref(value):
+        if not isinstance(value, str) or not 0 < len(value) <= 512:
+            return None
+        if re.fullmatch(r'[0-9a-f]{24}', value):
+            return value
+        return hashlib.sha256(value.encode()).hexdigest()[:24]
+
     def _task_detail(self, data, project_id, run_ref):
-        if not isinstance(run_ref, str) or not re.fullmatch(r'[0-9a-f]{24}', run_ref):
-            raise ValueError('invalid_task_ref: pass a 24-character run_ref from observability_tasks')
+        run_ref = self._as_run_ref(run_ref)
+        if run_ref is None:
+            raise ValueError('invalid_task_ref: pass a 24-character run_ref from observability_tasks, or the raw run_id from the log')
         row = next((row for row in data.get('task_index', []) if isinstance(row, dict)
                     and row.get('project') == project_id and row.get('run_ref') == run_ref), None)
         if row is None:
@@ -1117,8 +1126,9 @@ class ObservabilityAPI:
         data, revision = self._read(project_id)
         self._project(project_id)
         snapshot_id = data.get('snapshot_id') or revision
-        if not isinstance(run_ref, str) or not re.fullmatch(r'[0-9a-f]{24}', run_ref):
-            raise ValueError('invalid_task_ref: pass a 24-character run_ref from observability_tasks')
+        run_ref = self._as_run_ref(run_ref)
+        if run_ref is None:
+            raise ValueError('invalid_task_ref: pass a 24-character run_ref from observability_tasks, or the raw run_id from the log')
         try:
             task = self._task_detail(data, project_id, run_ref)
         except ValueError:
@@ -1191,8 +1201,9 @@ class ObservabilityAPI:
         data, revision = self._read(project_id)
         self._project(project_id)
         snapshot_id = data.get('snapshot_id') or revision
-        if not isinstance(run_ref, str) or not re.fullmatch(r'[0-9a-f]{24}', run_ref):
-            raise ValueError('invalid_task_ref: pass a 24-character run_ref from observability_tasks')
+        run_ref = self._as_run_ref(run_ref)
+        if run_ref is None:
+            raise ValueError('invalid_task_ref: pass a 24-character run_ref from observability_tasks, or the raw run_id from the log')
         try:
             task = self._task_detail(data, project_id, run_ref)
         except ValueError:

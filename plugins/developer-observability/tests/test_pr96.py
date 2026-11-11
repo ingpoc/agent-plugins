@@ -562,6 +562,7 @@ class PR96Tests(unittest.TestCase):
         api, _out = self.collect_rows(rows, 'samantha-live-shape')
         failed_ref = hashlib.sha256(failed_run.encode()).hexdigest()[:24]
         task = api.task('p', failed_ref)
+        self.assertEqual(api.task('p', failed_run)['run_ref'], failed_ref)
         blob = json.dumps(task, ensure_ascii=False, separators=(',', ':'))
         self.assertLessEqual(len(blob.encode()), 4096)
         self.assertEqual(task['outcome']['observed'], 'failure')
@@ -578,8 +579,11 @@ class PR96Tests(unittest.TestCase):
         self.assertEqual(blob.count('target missed'), 1)
         self.assertTrue(any(gap['code'] == 'step_ref_missing' for gap in task['gaps']))
         listed = api.tasks('p')['tasks']
-        self.assertEqual(listed[0]['run_ref'], failed_ref)
-        self.assertEqual(listed[0]['first_error_type'], 'TargetNotFound')
+        stamps = [row['last_seen'] for row in listed]
+        self.assertEqual(stamps, sorted(stamps, reverse=True))
+        failed_rows = api.tasks('p', status='failure')['tasks']
+        self.assertEqual(failed_rows[0]['run_ref'], failed_ref)
+        self.assertEqual(failed_rows[0]['first_error_type'], 'TargetNotFound')
 
 
 if __name__ == '__main__':
