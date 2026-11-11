@@ -493,6 +493,7 @@ class AudioIOTests(unittest.TestCase):
             names = {tool["name"] for tool in session.ws.events[-1]["session"]["tools"]}
             self.assertIn("comet_begin", names)  # stays offered: follow-ups reuse the window
             self.assertTrue({"comet_act", "comet_end"}.issubset(names))
+            session._tools_update_ack.set()  # the server confirmed session.updated
             session._finish_response("resp_active")
             deadline = time.monotonic() + 1
             while time.monotonic() < deadline and len(session.ws.events) < 3:
