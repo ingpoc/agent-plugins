@@ -1106,8 +1106,11 @@ class RealtimeSession:
         delta = event.get("delta") or ""
         if self._audio and delta:
             turn = getattr(self, "_turn_latency", None)
-            if isinstance(turn, dict) and not turn.get("first_audio_delta"):
+            if isinstance(turn, dict) and response_id and turn.get("audio_response_id") != response_id:
+                # Each spoken response gets its own event, so waits after the first reply are measured too.
+                turn["audio_response_id"] = response_id
                 turn["first_audio_delta"] = time.monotonic()
+                turn["emitted"] = False
             self._audio.on_output_delta(delta, item_id=item_id)
             if isinstance(turn, dict) and self._audio.has_playback():
                 self._emit_turn_latency(turn, time.monotonic())
@@ -1121,6 +1124,7 @@ class RealtimeSession:
                   run_ref_status="linked" if run_id else "unknown",
                   run_ref_gap=None if run_id else "turn_run_id_missing",
                   step_ref=turn.get("step_ref") or None,
+                  response_id=turn.get("audio_response_id") or None,
                   **_turn_latency_fields(turn, playback_at))
 
     def _handle_content_part_added(self, event: dict[str, Any]) -> None:

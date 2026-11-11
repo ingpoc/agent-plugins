@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.137
+
+- Samantha: `turn_latency` is logged for every spoken response of a turn (with `response_id`), so the wait before the final answer is measured, not just the first "on it" reply.
+
 ## 0.2.136
 
 - Samantha: `turn_latency` keeps the first response's start time, so response_created_to_first_tool_start is never negative.
