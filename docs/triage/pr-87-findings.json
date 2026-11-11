@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-11T14:30:25Z",
-      "now": "2026-11-11T14:30:25Z — Releasing 0.2.136: fixes a negative phase in turn_latency; mic_preflight log already shows the cause (only a Loom virtual input present)"
+      "stage": "verify",
+      "updated_at": "2026-11-11T14:34:12Z",
+      "now": "2026-11-11T14:34:12Z — Logging verified live in text mode (cause of mic preflight failure and a phase breakdown per turn); the speech-to-playback phases need a spoken turn with a working mic, so these stay open"
     },
     "rollover": {
       "source_pr": 96,
@@ -2142,7 +2142,16 @@
       "verification_refs": [
         "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-4b548ad9ff94ce26`, speech-to-playback p95 14.842 s, p50 2.379 s, n=74; acceptance not assessed."
       ],
-      "verification_evidence": []
+      "verification_evidence": [
+        {
+          "check": "Typed Calculator turn on 0.2.136: read the new turn_latency event",
+          "outcome": "success: first tool began 3027 ms after response creation (dominant phase), tools 1517 ms, never negative; speech-to-playback phases stay null in text mode and need a spoken turn with a mic",
+          "build": "0.2.136+f0e4d88993eb",
+          "session": "7ea66e04",
+          "timestamp": "2026-11-11T20:43:39+05:30",
+          "reference": "run 8cf21a13, samantha-activity.jsonl turn_latency ts 1794407619"
+        }
+      ]
     },
     {
       "id": "OBS-02",
@@ -2600,6 +2609,14 @@
           "session": "580f2a27",
           "timestamp": "2026-11-11T17:08:37+05:30",
           "reference": "observability run 580f2a277cf1cf687269680f; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1708.png"
+        },
+        {
+          "check": "Start Samantha with no usable mic (0.2.135): read the new mic_preflight event",
+          "outcome": "cause now logged: failure_class no_input_device, error 'Error querying device -1', only input device LoomAudioDevice (virtual), default input empty, attempt 1, recovery none",
+          "build": "0.2.135+e6a7f1c05893",
+          "session": "f6a6541a",
+          "timestamp": "2026-11-11T20:38:20+05:30",
+          "reference": "samantha-activity.jsonl mic_preflight ts 1794407300; release check rel-0.2.135-microphone.log"
         }
       ]
     },
