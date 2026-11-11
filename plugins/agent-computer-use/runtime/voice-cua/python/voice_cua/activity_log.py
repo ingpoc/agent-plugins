@@ -151,6 +151,7 @@ def usage_row(
     # Numeric epoch ts like every other row (0.2.85); the readable local time rides along as ts_iso.
     row: dict[str, Any] = {
         "kind": "usage",
+        "step_ref": new_step_ref(),
         "ts": now,
         "ts_iso": datetime.fromtimestamp(now).astimezone().isoformat(timespec="milliseconds"),
         "session_id": current_session_id(),
@@ -205,7 +206,7 @@ def log_usage_final(*, reason: str = "session_close", **extra: Any) -> None:
     with _usage_lock:
         totals = dict(_usage_totals.pop(session, {"responses": 0}))
     now = time.time()
-    row: dict[str, Any] = {"kind": "usage", "ts": now,
+    row: dict[str, Any] = {"kind": "usage", "step_ref": new_step_ref(), "ts": now,
                            "ts_iso": datetime.fromtimestamp(now).astimezone().isoformat(timespec="milliseconds"),
                            "session_id": session, "build": build_label(), "final": True,
                            "reason": reason[:40], **totals}

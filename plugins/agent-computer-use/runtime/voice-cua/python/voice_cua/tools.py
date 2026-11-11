@@ -500,7 +500,8 @@ def dispatch(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 — surface to model
         elapsed_ms = int((time.monotonic() - started) * 1000)
         log_exception(name, exc, app=app, duration_ms=elapsed_ms)
-        log_tool_result(name, {"ok": False, "error": str(exc), "error_type": type(exc).__name__},
+        log_tool_result(name, {"ok": False, "error": str(exc), "error_type": getattr(exc, "error_type", None) or type(exc).__name__,
+                               "hint": getattr(exc, "hint", None)},
                         app=app, duration_ms=elapsed_ms, arguments=args)
         island_publish("error", title="Tool error", detail=str(exc)[:120], app=app)
         return {"ok": False, "error": str(exc)}

@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.125
+
+- Fail fast with `screen_locked` or `display_asleep` and a plain hint instead of "App has no open window"; add `step_ref` to usage rows.
+
 ## 0.2.124
 
 - Report empty Ledger lookups as `none`; record request expectations and completed outcomes from the last successful tool result.
