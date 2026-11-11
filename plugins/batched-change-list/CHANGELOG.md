@@ -1,5 +1,10 @@
 # Changelog: batched-change-list
 
+## 0.1.5
+
+- Add the `rollover` batch operation: at merge time one call excludes every verified-fixed finding, lists the rest as carried over, points the page header at the new PR and worktree, and sets the stage (it replaces five manual edits that left the header stale).
+- Document the merge sequence: mark the PR ready, wait for the required CI check on the head, then merge, rename the worktree and restart the viewer on the new path.
+
 ## 0.1.4
 
 - Add the Fast cycle (triage once, parallel fixes, one install and one combined live check per build) to fix-and-verify.
