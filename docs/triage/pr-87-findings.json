@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-11T11:42:50Z",
-      "now": "2026-11-11T11:42:50Z — Installed ledger value-match fix on 0.2.129; waiting for Guru to repeat the spoken preference save"
+      "updated_at": "2026-11-11T11:51:33Z",
+      "now": "2026-11-11T11:51:33Z — Spoken save and fresh-session recall pass on 0.2.130; waiting for Guru to speak a change of the preference, then I recall the updated value"
     },
     "rollover": {
       "source_pr": 96,
@@ -2027,10 +2027,10 @@
       "id": "USER-03",
       "title": "User action needed · Save and update a preference",
       "source": "User reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Durable preferences and important decisions should be captured when they are stated, then reused at the right time without reminders.",
       "recommendation": "Capture durable preferences in their exact scope and rule. Use the decision capture path for critical decisions, and confirm a save only after the ledger returns a receipt.",
-      "verification": "Typed synthetic live test passed: Samantha saved a scoped preference, updated it and recalled the updated value; independent Ledger readback confirmed replacement. User-authored spoken capture and critical-decision behavior were not tested.",
+      "verification": "Spoken on 0.2.130: Guru stated a preference (saved, 1 decision), changed it by voice (saved), and a fresh session recalled the updated value from the Ledger (run e08a97a7, lookup found, reply \"light mode in every app\"). 0.2.129 failed the first save because a snake_case value was rejected as not in the user statement; fixed in 0.2.130. Critical-decision capture was not tested.",
       "details": {
         "Supersession rule": "Updating a preference supersedes only an active user_decision with the same exact scope and rule. General captures do not auto-supersede; the current tool does not create an explicit supersedes link.",
         "Source verification": "Preference writes include exact scope+rule and return `saved` only with a decision ID. Critical capture checks require durable/model-safe status, a user quote, future trigger, changed choice, and receipt.",
@@ -2042,8 +2042,9 @@
         "Typed live check": "Agent-authored, non-sensitive test preference in project:user-03. Two save receipts and the lookup were observed; independent Ledger readback showed the original superseded and the replacement active. The synthetic replacement remains in Ledger."
       },
       "verification_refs": [
-        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_preferences.py — exact scope/rule/value preference save and recall pass.",
-        "plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_helper.py — owner quote, durable capture gates, receipt, duplicate, and uncertain-write checks pass; focused suite passes 31 tests."
+        "run e08a97a7 on 0.2.130",
+        "pr96/captures/livecheck-1725.png",
+        "samantha-activity.jsonl ledger_task preference saved x2, lookup found"
       ],
       "verification_evidence": [
         {
@@ -2053,6 +2054,30 @@
           "session": "release-source-gate-20261107",
           "timestamp": "2026-11-07T03:25:08.955972+00:00",
           "reference": "/private/tmp/acu-pr87-0.2.107-16776d5.json and test_voice_cua.py"
+        },
+        {
+          "check": "Spoken preference save on 0.2.130",
+          "outcome": "Guru said \"remember that I prefer dark mode in every app\"; ledger_task preference returned saved with 1 decision (earlier 0.2.129 run failed: snake_case value rejected as not in the user statement).",
+          "build": "0.2.130",
+          "session": "live-0.2.130",
+          "timestamp": "2026-11-11T17:21:33+05:30",
+          "reference": "samantha-activity.jsonl tool_result ledger_task 17:1x IST"
+        },
+        {
+          "check": "Ledger recall in a fresh session (typed)",
+          "outcome": "Run aeb66eb6 success, 6 steps; ledger lookup_status found; reply \"Your saved preference is dark mode in every app\".",
+          "build": "0.2.130",
+          "session": "aeb66eb6",
+          "timestamp": "2026-11-11T17:21:33+05:30",
+          "reference": "observability run aeb66eb6eccd4b1eafd8cca9; screenshot pr96/captures/livecheck-1720.png"
+        },
+        {
+          "check": "Which appearance mode do I prefer for apps? Check my saved preferences.",
+          "outcome": "success, 6 steps; gaps: ['ledger_decision_id_missing']",
+          "build": "0.2.130+3eab9afcdd6c",
+          "session": "e08a97a7",
+          "timestamp": "2026-11-11T17:25:17+05:30",
+          "reference": "observability run e08a97a7d3ac008e0870183b; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1725.png"
         }
       ]
     },
