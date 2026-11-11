@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-11T08:39:52Z",
-      "now": "2026-11-11T08:39:52Z — Root cause: live model ignores mid-turn tool-list update. Building and installing 0.2.128 (comet_act/comet_end always offered)"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-11T08:44:39Z",
+      "now": "2026-11-11T08:44:39Z — Luna N: Calculator expect compares 9,801 vs 9801 and target_missing names the wrong label"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -2728,10 +2728,10 @@
       "id": "AGENT-09",
       "title": "Samantha could not finish or close a Comet test task",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "In an authorized typed example.com task, Samantha opened the isolated Comet window but said she could neither read its heading nor close it.",
       "recommendation": "Trace why the active lease did not expose or use the page and close actions; verify a bounded read and close in the same lease.",
-      "verification": "Installed ACU 0.2.122 repeated the same typed example.com task: Samantha opened the page but reported that she could not read or close it, after 9.61 seconds. Direct comet_end cleanup closed the test lease and verified it absent. The instruction correction alone did not fix the failure.",
+      "verification": "Root cause: the live model ignored the tool list changed mid-turn, so comet_act and comet_end were never callable after comet_begin. 0.2.128 offers them from the start; the same typed turn now opens, reads and closes in one turn, confirmed by observability run eb1ff9b2 (success, verified_success).",
       "details": {
         "Evidence": "Fresh session sref_b88b720e5ce28462b168589e6345ce63 and installed activity events; Comet broker probe reported runtime_verified and extension_connected.",
         "Boundary": "The user-facing task did not complete. The cause is not yet established.",
@@ -2739,7 +2739,8 @@
         "Source hypothesis": "The tool-list update and tool-result continuation are sent close together. Whether the continuing backend could use the newly added tools was not observed; session.updated alone does not establish validation or tool availability."
       },
       "verification_refs": [
-        "ACU 0.2.121 live typed task and same-session comet_end cleanup"
+        "run eb1ff9b2 on 0.2.128",
+        "pr96/captures/livecheck-1414.png"
       ],
       "verification_evidence": [
         {
@@ -2749,6 +2750,14 @@
           "session": "72fd7a34",
           "timestamp": "2026-11-08T20:07:59.531025+00:00",
           "reference": "Installed gateway typed prompt and same-session comet_end cleanup."
+        },
+        {
+          "check": "Live typed turn: open Comet to example.com, read heading, close it",
+          "outcome": "One turn ran comet_begin, comet_act, comet_end in order; Samantha said the heading was Example Domain and Comet is closed. Observability run eb1ff9b2 on build 0.2.128 shows outcome success, verified_success, no first failure, 6 steps. Before the fix the same turn stopped after comet_begin and said she could not read or close it.",
+          "build": "ACU 0.2.128",
+          "session": "livecheck 14:14 IST",
+          "timestamp": "2026-11-11T08:44:00Z",
+          "reference": "pr96/captures/livecheck-1414.png; run eb1ff9b21348b4ba3279f7b6"
         }
       ]
     },
