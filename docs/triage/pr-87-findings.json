@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-11T12:50:11Z",
-      "now": "2026-11-11T12:50:11Z — 0.2.132 installed; waiting for Guru to say a long task then stop right after it"
+      "stage": "install",
+      "updated_at": "2026-11-11T13:24:04Z",
+      "now": "2026-11-11T13:24:04Z — Releasing 0.2.133: typed stop uses the spoken cancel path so I can test the race myself"
     },
     "rollover": {
       "source_pr": 96,

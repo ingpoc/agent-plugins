@@ -23,6 +23,17 @@ class FakeWS:
 
 
 class SpokenStopTests(unittest.TestCase):
+    def test_typed_stop_uses_cancel_path_and_is_not_a_new_request(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        session.ws = FakeWS()
+        calls = []
+        session.island_control = lambda action, **kw: calls.append((action, kw)) or True  # type: ignore
+        session._active_task_run_id = "run-typed"
+        session.send_text("Uh, stop.")
+        self.assertEqual(calls[0][0], "cancel")
+        self.assertEqual(calls[0][1]["cancel_source"], "transcript")
+        self.assertEqual(session.ws.events, [])
+
     def test_detector_matches_short_stop_intents_only(self) -> None:
         for phrase in (
             "stop", "please stop", "Wait, stop", "cancel that", "never mind",

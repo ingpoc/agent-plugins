@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.133
+
+- Samantha: a typed stop ("stop", "uh, stop") now takes the same cancel path as a spoken one, so stop behavior can be tested without a microphone. The log marks it source=typed.
+
 ## 0.2.132
 
 - Spoken stop detection ignores leading filler words ("uh, you can stop", "okay, please stop"); the live transcript "Uh, you can stop" did not trigger the cancel on 0.2.131 (AGENT-07).

@@ -917,7 +917,7 @@ class RealtimeSession:
                               run_ref_gap=None if run_id else "stop_transcript_without_task",
                               step_ref=transcript_step_ref,
                               caused_by=[ref for ref in (request_step_ref, response_step_ref) if ref] or None,
-                              text=heard, source="microphone_transcription",
+                              text=heard, source=str(event.get("source") or "microphone_transcription"),
                               item_id=str(event.get("item_id") or ""), chars=len(heard))
                     if response_active or run_id:
                         self.island_control("cancel", caused_by_step_ref=transcript_step_ref,
@@ -2204,6 +2204,11 @@ class RealtimeSession:
 
     def send_text(self, text: str, *, request_id: str = "", replay: bool = False,
                   retry_of_run_ref: str = "") -> None:
+        if not replay and self._spoken_task_cancel(text):
+            # A typed stop word takes the same cancel path as a spoken one.
+            self._dispatch_event({"type": "conversation.item.input_audio_transcription.completed",
+                                  "transcript": text, "item_id": "typed", "source": "typed"})
+            return
         if not replay:
             request_id = self._note_user_turn(text, request_id=request_id,
                                               retry_of_run_ref=retry_of_run_ref)
