@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-11T12:47:01Z",
-      "now": "2026-11-11T12:47:01Z — Installing 0.2.132: spoken stop ignores leading filler words"
+      "stage": "verify",
+      "updated_at": "2026-11-11T12:50:11Z",
+      "now": "2026-11-11T12:50:11Z — 0.2.132 installed; waiting for Guru to say a long task then stop right after it"
     },
     "rollover": {
       "source_pr": 96,
