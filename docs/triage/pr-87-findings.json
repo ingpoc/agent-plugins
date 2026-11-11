@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-11T08:38:53Z",
-      "now": "2026-11-11T08:38:53Z — Live check on 0.2.127: AGENT-09 still fails (comet_act not called right after comet_begin); AGENT-03 Calculator 9,801 correct but step unverified. Fixing AGENT-09 next."
+      "stage": "install",
+      "updated_at": "2026-11-11T08:39:52Z",
+      "now": "2026-11-11T08:39:52Z — Root cause: live model ignores mid-turn tool-list update. Building and installing 0.2.128 (comet_act/comet_end always offered)"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
