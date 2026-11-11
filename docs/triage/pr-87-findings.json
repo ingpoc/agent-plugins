@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-10T21:07:17Z",
-      "now": "2026-11-10T21:07:17Z — Both installed on the Mini: ACU 0.2.123 (PR #96 4e37db0) and developer-observability 0.1.29 (PR #97 ee91a0d, MCP probe passed). Live checks wait for the Mini to be unlocked (locked since 00:46) (02:37)"
+      "updated_at": "2026-11-11T04:00:41Z",
+      "now": "2026-11-11T04:00:41Z — Live run 7bc9cf38 shows request, build, failing-step target and causal links; run d707afcc (ledger_task+ledger_select logged) is missing from observability_tasks after collect; outcome stays unverified; mic check not run (Mini has no input)"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
