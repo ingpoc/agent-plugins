@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-11T08:55:21Z",
-      "now": "2026-11-11T08:55:21Z — AGENT-03 and AGENT-09 verified on 0.2.129. Next: AGENT-07 cancel, AGENT-02 recall retry, OBS-21."
+      "updated_at": "2026-11-11T08:57:35Z",
+      "now": "2026-11-11T08:57:35Z — 8 of 22 verified fixed. AGENT-07, AGENT-02 installed on 0.2.129; typed turns queue behind a running task, so a mid-task cancel needs a spoken test. OBS-21 needs a locked screen."
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -2052,7 +2052,7 @@
       "id": "AGENT-02",
       "title": "Samantha's Context Ledger task errors and retries",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "Fresh ACU 0.2.96 telemetry records a Context Ledger recall rejected because its query had no searchable terms. No subsequent ledger call appears after that error in the selected session; earlier retry records remain in history.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
       "verification": "Direct installed ledger_task recall with an empty query returned ledger_invalid_argument and retryable=false; a separately supplied valid scoped recall returned the synthetic test preference. This exercises the tool boundary, not Samantha’s autonomous recovery or retry behavior.",
@@ -2625,7 +2625,7 @@
       "id": "AGENT-07",
       "title": "Action continued after spoken cancellation",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "awaiting_verification",
       "observed": "During a voice session, a new Calculator action began after the user said to leave the task. Earlier close attempts had produced incomplete observations.",
       "recommendation": "Trace cancellation through the voice turn and tool dispatch boundary. Stop queued work when the user cancels while accurately reporting any in-flight action whose outcome is unknown; do not replay it.",
       "verification": "User reports that Samantha stopped in the requested spoken Calculator cancellation check. Recent 0.2.119 voice-session telemetry includes a native action but has no timestamped cancellation utterance or task run link, so whether any action began after the stop cannot be independently established.",
@@ -2952,7 +2952,7 @@
       "id": "OBS-21",
       "title": "ACU reports 'App has no open window' when the real cause is a locked screen",
       "source": "Agent reported",
-      "status": "investigation",
+      "status": "awaiting_verification",
       "observed": "2026-11-11 03:00 IST: installed 0.2.123 Calculator probe failed with observation_incomplete 'Pinned AX window 224142 not found' and hint 'App has no open window'. CGSSessionScreenIsLocked was true (locked since 00:46 IST); Calculator AX window count 0.",
       "details": {
         "Why it matters": "The failure hint points agents at opening the app, which cannot help. Root cause is session lock, readable from CGSessionCopyCurrentDictionary."
