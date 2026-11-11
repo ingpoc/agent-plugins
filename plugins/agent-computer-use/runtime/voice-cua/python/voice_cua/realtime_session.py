@@ -2111,6 +2111,7 @@ class RealtimeSession:
     @staticmethod
     def _spoken_task_cancel(text: str) -> bool:
         text = text.replace("’", "'")
+        text = re.sub(r"^\s*(?:(?:uh+|um+|er+|hmm+|hey|ok(?:ay)?|so|actually|well|alright|samantha)\b[\s,.;:!-]*)+", "", text, flags=re.IGNORECASE)
         return bool(re.fullmatch(
             r"\s*(?:(?:wait[,;:]?\s+)?(?:please\s+)?(?:stop(?:\s+(?:it|this|that|the task))?|"
             r"cancel(?:\s+(?:it|this|that|(?:the\s+)?task))?|never\s+mind|leave\s+(?:it|that|this|the task)|"

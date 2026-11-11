@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.132
+
+- Spoken stop detection ignores leading filler words ("uh, you can stop", "okay, please stop"); the live transcript "Uh, you can stop" did not trigger the cancel on 0.2.131 (AGENT-07).
+
 ## 0.2.131
 
 - A spoken stop ("wait, stop", "you can stop", "please stop") now runs the same cancel as the island card: tool calls from a response already in progress are not started, and an action already executing is reported as outcome unknown and never repeated (AGENT-07).

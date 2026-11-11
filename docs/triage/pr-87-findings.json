@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-11T12:13:17Z",
-      "now": "2026-11-11T12:13:17Z — 0.2.131 installed; waiting for Guru to repeat the long Calculator task and say stop"
+      "stage": "install",
+      "updated_at": "2026-11-11T12:47:01Z",
+      "now": "2026-11-11T12:47:01Z — Installing 0.2.132: spoken stop ignores leading filler words"
     },
     "rollover": {
       "source_pr": 96,
@@ -2698,6 +2698,14 @@
           "session": "live-0.2.130",
           "timestamp": "2026-11-11T17:29:12+05:30",
           "reference": "samantha-activity.jsonl 17:27:39-17:27:52 (model_response_start, live_backend_input_queued, user_transcript, tool_start cua_act)"
+        },
+        {
+          "check": "Spoken stop mid-action, 0.2.131",
+          "outcome": "Not conclusive and found a gap: \"Uh, you can stop\" at 18:15:37 did not trigger the cancel (no cancel event) because the detector rejected the leading filler; the running action finished and she reported outcome unknown. Fixed in 0.2.132.",
+          "build": "0.2.131",
+          "session": "live-0.2.131",
+          "timestamp": "2026-11-11T18:20:00+05:30",
+          "reference": "samantha-activity.jsonl 18:15:17-18:15:47"
         }
       ]
     },

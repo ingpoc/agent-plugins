@@ -73,3 +73,10 @@ class SpokenStopTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_detector_ignores_leading_filler_words() -> None:
+    from voice_cua.realtime_session import RealtimeSession
+    for phrase in ("Uh, you can stop", "Um, wait, stop", "Okay, please stop.", "Hey Samantha, cancel that"):
+        assert RealtimeSession._spoken_task_cancel(phrase), phrase
+    assert not RealtimeSession._spoken_task_cancel("Uh, don't stop")
