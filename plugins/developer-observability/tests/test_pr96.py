@@ -278,6 +278,11 @@ class PR96Tests(unittest.TestCase):
              'ts': NOW - 2},
             {'run_id': 'ledger-gap', 'kind': 'cua_act', 'step_ref': 'apply-action', 'action': 'apply decision',
              'status': 'ok', 'ts': NOW - 1},
+            {'run_id': 'ledger-none', 'kind': 'ledger_lookup', 'step_ref': 'none-lookup',
+             'ledger_operation': 'lookup', 'ledger_result_status': 'none', 'ledger_decision_count': 0,
+             'ts': NOW - 2},
+            {'run_id': 'ledger-none', 'kind': 'cua_act', 'step_ref': 'none-action', 'action': 'click',
+             'status': 'ok', 'ts': NOW - 1},
         ]
         api, _out = self.collect_rows(rows, 'followup-contracts')
         target_ref = hashlib.sha256(b'link-target').hexdigest()[:24]
@@ -301,6 +306,8 @@ class PR96Tests(unittest.TestCase):
         gap = next(gap for gap in ledger['gaps'] if gap['code'] == 'ledger_decision_id_missing')
         self.assertIn('ledger_use only appears', gap['reason'])
         self.assertEqual(gap['next_action'], 'Emit ledger_decision_id on the action that applied the decision.')
+        empty = api.task('p', hashlib.sha256(b'ledger-none').hexdigest()[:24])
+        self.assertFalse(any(g['code'] == 'ledger_decision_id_missing' for g in empty['gaps']))
 
     def test_ci_junit_run_becomes_bounded_task_with_test_steps(self):
         junit = self.root / 'ci.xml'

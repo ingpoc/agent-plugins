@@ -6,6 +6,7 @@
 - Add run-indexed task lookup, bounded task facets, compact coverage, and snapshot-bound detail sidecars while retaining reads of old monolithic findings files.
 - Join tool lifecycle events by call ID, include task outcomes and Ledger summaries, and list tasks newest first (failures via status=failure) and accept a raw run_id wherever a run_ref is expected.
 - Build the task Ledger summary field by field so the result row's status and decision count win over the start row.
+- Report ledger_decision_id_missing only when a Ledger lookup returned decisions.
 - Link CI check logs to explicit reporter attempts and move superseded snapshot sidecars into retention staging.
 - Match CI and JUnit fix guidance to the finding kind: failure, latency hotspot, or redundancy.
 - Live measurements (Mac Mini, 2026-11-11, ~45.5k events, 62 findings, before = 0.1.28): `findings.json` 81.3 MB -> 0.42 MB (session/scope/task detail now in lazily read per-snapshot sidecars, 57 MB / 323 files on disk vs 81 MB before); collect 6.1 s / 295 MB RSS -> 5.5 s / 250 MB; `observability_issues` 22.4 KB -> 19.8 KB (Samantha) and 17.7 KB -> 15.1 KB (agent-plugins), coverage block ~2.5 KB -> one line under 100 B, read latency 483 ms -> 7 ms; one task view: Samantha 1.7 KB (the session view was 72 KB) and a CI run 3.8 KB, each naming the first failing step and its typed error.

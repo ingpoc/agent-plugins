@@ -705,7 +705,8 @@ def _task_records(events, snapshot_id, sidecar_writer):
                         and event.get('ledger_decision_id') in decision_ids), None)
             if use:
                 ledger['applied'] = True
-            elif action_events and not decision_ids:
+            elif action_events and not decision_ids and ledger['lookup_status'] != 'none' \
+                    and ledger['decision_count'] != 0:
                 task_gaps.append({'code': 'ledger_decision_id_missing',
                                   'reason': 'ledger_use only appears when the action carries an explicit ledger_decision_id',
                                   'next_action': 'Emit ledger_decision_id on the action that applied the decision.'})
