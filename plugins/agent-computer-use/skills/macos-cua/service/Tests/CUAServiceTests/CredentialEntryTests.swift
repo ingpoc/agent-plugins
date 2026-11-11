@@ -58,7 +58,9 @@ final class CredentialEntryTests: XCTestCase {
     func testTimeoutInvalidatesSave() async throws {
         let c = CredentialEntryController()
         let id = c.request(fields, timeout: 0.01)["request_id"] as! String
-        try await Task.sleep(nanoseconds: 40_000_000)
+        for _ in 0..<100 where c.status(id)["status"] as? String != "expired" {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
         XCTAssertEqual(c.status(id)["status"] as? String, "expired")
         XCTAssertNotNil(c.save(id, account: "test", value: "fixture-only"))
     }
