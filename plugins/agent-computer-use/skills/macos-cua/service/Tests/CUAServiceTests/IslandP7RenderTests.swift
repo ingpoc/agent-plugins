@@ -9,6 +9,22 @@ import XCTest
 final class IslandP7RenderTests: XCTestCase {
     private var dir = ""
 
+    /// Snapshot of a view hosted in an offscreen window at 2x, for content ImageRenderer cannot draw (ScrollView).
+    @MainActor static func hostedImage<V: View>(_ view: V) -> CGImage? {
+        let host = NSHostingView(rootView: view)
+        let size = NSSize(width: 1200, height: 700)
+        host.frame = NSRect(origin: .zero, size: size)
+        let win = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        win.contentView = host
+        win.orderBack(nil); defer { win.orderOut(nil) }
+        host.layoutSubtreeIfNeeded()
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 2400, pixelsHigh: 1400, bitsPerSample: 8, samplesPerPixel: 4,
+                                         hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        rep.size = size
+        host.cacheDisplay(in: host.bounds, to: rep)
+        return rep.cgImage
+    }
+
     private func save(_ model: IslandModel, _ name: String) async throws {
         try await Task.sleep(nanoseconds: 800_000_000)
         var rect = model.shapeRect
@@ -24,9 +40,12 @@ final class IslandP7RenderTests: XCTestCase {
             let view = SamanthaIslandBar(model: model).environment(\.colorScheme, scheme).background(bg)
             let r = ImageRenderer(content: view)
             r.scale = 2
-            guard let full = r.cgImage else { return XCTFail("render \(name)") }
+            // ImageRenderer draws ScrollView content (the agent list) blank; snapshot a hosting view for those.
+            guard let full = (name.hasPrefix("agents-") || name.hasPrefix("focus-agent")) ? Self.hostedImage(view) : r.cgImage
+            else { return XCTFail("render \(name)") }
             let crop = CGRect(x: max(0, rect.minX * 2), y: max(0, rect.minY * 2 - 12), width: rect.width * 2, height: rect.height * 2 + 24)
-            let raw = full.cropping(to: crop) ?? full
+            let hosted = name.hasPrefix("agents-") || name.hasPrefix("focus-agent")
+            let raw = hosted ? full : (full.cropping(to: crop) ?? full)
             let cs = CGColorSpace(name: CGColorSpace.sRGB)!
             guard let ctx = CGContext(data: nil, width: raw.width, height: raw.height, bitsPerComponent: 8, bytesPerRow: 0,
                                       space: cs, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return XCTFail("ctx") }
