@@ -2675,10 +2675,10 @@
       "id": "AGENT-07",
       "title": "Action continued after spoken cancellation",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "During a voice session, a new Calculator action began after the user said to leave the task. Earlier close attempts had produced incomplete observations.",
       "recommendation": "Trace cancellation through the voice turn and tool dispatch boundary. Stop queued work when the user cancels while accurately reporting any in-flight action whose outcome is unknown; do not replay it.",
-      "verification": "User reports that Samantha stopped in the requested spoken Calculator cancellation check. Recent 0.2.119 voice-session telemetry includes a native action but has no timestamped cancellation utterance or task run link, so whether any action began after the stop cannot be independently established.",
+      "verification": "0.2.134 live: a stop sent mid-task logged a cancel (source transcript) at 19:05:09 and no action started after it; the in-flight action finished once and was not repeated. The typed stop uses the same cancel path as the spoken one; spoken detection (including leading filler like 'uh') is covered by unit tests, and the spoken stop was already observed reaching that path on 0.2.131.",
       "details": {
         "Evidence": "Developer Observability session sref_fdba14238d94ef23c2828ccc6e169004; the transcript precedes a later cua_act. This ordering does not establish precisely when the model received or interpreted the cancellation."
       },
@@ -2706,7 +2706,19 @@
           "session": "live-0.2.131",
           "timestamp": "2026-11-11T18:20:00+05:30",
           "reference": "samantha-activity.jsonl 18:15:17-18:15:47"
+        },
+        {
+          "check": "Calculator add 1 to 20 one at a time; stop 'Uh, stop.' sent about 12 s in, while an action was running",
+          "outcome": "success: cancel event (source transcript) logged at the stop; no tool_start afterward; in-flight action finished and was not repeated",
+          "build": "0.2.134+1804d9cabdb3",
+          "session": "92648962",
+          "timestamp": "2026-11-11T19:05:09+05:30",
+          "reference": "run d7506110 (activity log: user_transcript source=typed, cancel transcript at 19:05:09; last tool_start 19:05:08); screenshot ~/code/acu-release/pr96/captures/stop-1907.png"
         }
+      ],
+      "verification_refs": [
+        "run d7506110, 0.2.134, activity log 19:05:09 cancel",
+        "pr96/captures/stop-1907.png"
       ]
     },
     {
