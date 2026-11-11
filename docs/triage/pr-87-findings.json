@@ -1922,39 +1922,47 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-11T09:06:20Z",
-      "now": "2026-11-11T09:06:20Z — job.sh self-test: set-activity written automatically at job start"
+      "stage": "report_rollover",
+      "updated_at": "2026-11-11T09:12:38Z",
+      "now": "2026-11-11T09:12:38Z — PR #96 merged (9b984a8, ACU 0.2.129); 10 issues verified fixed, remaining issues rolled over to this PR"
     },
     "rollover": {
-      "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
+      "source_pr": 96,
       "unresolved_ids": [
         "USER-03",
         "AGENT-02",
         "OBS-01",
-        "OBS-03",
-        "OBS-10",
-        "AGENT-03",
         "AGENT-04",
-        "OBS-12",
-        "OBS-14",
         "OBS-15",
-        "OBS-16",
         "AGENT-07",
-        "AGENT-09",
-        "OBS-20"
+        "OBS-20",
+        "DEVOBS-01",
+        "DEVOBS-02",
+        "DEVOBS-03",
+        "DEVOBS-04",
+        "OBS-21"
       ],
       "excluded_ids": [
         "USER-02",
         "OBS-02",
+        "OBS-03",
         "OBS-04",
         "OBS-06",
+        "OBS-10",
+        "AGENT-03",
+        "OBS-12",
         "OBS-13",
+        "OBS-14",
+        "OBS-16",
         "OBS-17",
         "USER-06",
         "OBS-18",
         "OBS-19",
-        "AGENT-10"
+        "AGENT-09",
+        "AGENT-10",
+        "AGENT-11",
+        "USER-07",
+        "AGENT-12"
       ]
     }
   },
