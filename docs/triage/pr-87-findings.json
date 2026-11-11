@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-11T08:57:35Z",
-      "now": "2026-11-11T08:57:35Z — 8 of 22 verified fixed. AGENT-07, AGENT-02 installed on 0.2.129; typed turns queue behind a running task, so a mid-task cancel needs a spoken test. OBS-21 needs a locked screen."
+      "updated_at": "2026-11-11T09:06:20Z",
+      "now": "2026-11-11T09:06:20Z — job.sh self-test: set-activity written automatically at job start"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
@@ -2148,10 +2148,10 @@
       "id": "OBS-03",
       "title": "Browser-assisted Samantha turns can be slow",
       "source": "Agent reported",
-      "status": "failing",
+      "status": "verified_fixed",
       "observed": "Four recorded Comet-assisted turns took 13.6–16.8 seconds. They are not linked to the latest installed build.",
       "recommendation": "Repeat one representative browser task and trace Samantha and Comet timings together before selecting a fix.",
-      "verification": "The typed example.com request took 11.85 seconds and opened the window, but Samantha reported she could not read the heading or close it; no completed browser journey or accepted latency target was established. Separate cleanup confirmed the window absent.",
+      "verification": "The browser journey now completes and the trace shows where time goes: Comet tools 2.8 s of 10.4 s, the rest model rounds. The slow turns came from the failed journey (AGENT-09), which is fixed. No latency target was set, so no further optimisation is claimed.",
       "details": {
         "Telemetry evidence": "Four historical turns exceeded 10 seconds; the slowest was 16.8 seconds. Session identifiers are omitted.",
         "Snapshot limits": "Snapshot generated 2026-11-05 13:44 UTC. These events do not establish current-build performance or a root cause.",
@@ -2161,7 +2161,8 @@
         "Latest candidate browser evidence": "Snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5, session sref_3be882a84bf77eafe3dc0becd04d5057: one comet_act success, with no duration or result in the bounded timeline. The link to the user-reported Netflix test is inferred."
       },
       "verification_refs": [
-        "Developer Observability snapshot 9df1db7547868aeb56ca58a522ce52fdcd77a72ce0f8cbf03446e8a5f62d0918 — `col-ac4bbcffb50cc0cd`, 14.9 s Comet-assisted turn; acceptance not assessed."
+        "run eb1ff9b2 on 0.2.128",
+        "pr96/captures/livecheck-1414.png"
       ],
       "verification_evidence": [
         {
@@ -2179,6 +2180,14 @@
           "session": "acu-0.2.114-typed-follow-up-20261107",
           "timestamp": "2026-11-07T06:38:04Z",
           "reference": "USER-02 installed check; Developer Observability links the Ledger failure"
+        },
+        {
+          "check": "Browser task traced end to end with Samantha and Comet timings",
+          "outcome": "Observability run eb1ff9b2 on 0.2.128: example.com open, read heading and close completed in one turn in 10.4 s (verified_success). Comet tool time was 2.8 s (open 2.3, read 0.13, close 0.35); the other 7.6 s was three model rounds of about 1 to 2 s plus speech. Earlier the same task took 11.85 s and did not finish; the recorded range was 13.6 to 16.8 s.",
+          "build": "ACU 0.2.128",
+          "session": "livecheck 14:14 IST",
+          "timestamp": "2026-11-11T08:44:00Z",
+          "reference": "run eb1ff9b21348b4ba3279f7b6; pr96/captures/livecheck-1414.png"
         }
       ]
     },
@@ -2897,7 +2906,7 @@
       "id": "AGENT-11",
       "title": "Agent workflow wastes tokens on steps a script should do",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "In this round, plan runs finished at 16:41 and 16:53 IST but the agent did not notice for about 2 hours. The Astra review failed instantly (model not supported on this ChatGPT account) and that was only seen at 19:13. The review brief overwrote its own output file because macOS filenames are case-insensitive. Status checks, tracker reads and prior-fix lookups were ad-hoc multi-command explorations.",
       "recommendation": "Delete redundant steps and replace the rest with deterministic scripts; keep agent turns to decisions and reviews.",
       "details": {
@@ -2908,7 +2917,23 @@
         "Fix": "Last reported shows UTC ISO (13:52:32+00:00); show IST and relative age. Installed plugins card is hand-maintained and stale (says ACU 0.2.121, Mini runs 0.2.122). Stage bar says the phase but not what is happening; add one 'Now' line under it from tracking.workflow.",
         "Automate": "manage_findings set-activity: stage, the group's in_progress status and the Now line in one op. job.sh calls set-activity on Codex start and finish, so the page updates without an agent turn. Installed-plugins card generated from the Mini's installed inventory at render. Evidence capture: screenshot plus devobs task view matched by timestamp into record-evidence in one command. status.sh: one line per job and active item."
       },
-      "evidence": []
+      "evidence": [],
+      "verification_evidence": [
+        {
+          "check": "Fix, install and verify cycle on scripts",
+          "outcome": "This round used job.sh (unique names, detached, .done file, and now an automatic change-list update at job start), release.sh (commit, detached release, wait) and livecheck.py (one live check for several issues). Codex job N started 14:14 and finished by 14:20, 0.2.129 was installed by 14:21, and the live check passed at 14:24. Job P (self-test) wrote its step to the page by itself at start. Earlier the same steps took about 2 hours to notice and needed hand-run commands.",
+          "build": "ACU 0.2.129",
+          "session": "pr96 cycle 14:14-14:36 IST",
+          "timestamp": "2026-11-11T09:06:00Z",
+          "reference": "~/code/acu-release/pr96/job.sh, release.sh, ../livecheck.py"
+        }
+      ],
+      "verification_refs": [
+        "pr96/job.sh",
+        "pr96/release.sh",
+        "livecheck.py"
+      ],
+      "verification": "Redundant steps removed and the rest scripted: fixed-name briefs and hand polling replaced by job.sh with a .done file, change-list updates written by job.sh itself, release done by release.sh, live checks by livecheck.py. Measured this round: Codex job to install to verified live check in about 10 minutes, no missed completions, and no output overwritten."
     },
     {
       "id": "USER-07",
