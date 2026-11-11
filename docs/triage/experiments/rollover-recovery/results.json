@@ -1,0 +1,229 @@
+{
+  "checks": [
+    {
+      "check": "happy.exit",
+      "detail": {
+        "exit": 0,
+        "stderr": ""
+      },
+      "pass": true
+    },
+    {
+      "check": "happy.tracker",
+      "detail": {
+        "pull_request": {
+          "label": "PR 2",
+          "url": "https://example.com/pr/2"
+        },
+        "rollover": {
+          "excluded_ids": [
+            "ISSUE-02"
+          ],
+          "source_pr": "https://example.com/pr/1",
+          "target_url": "https://example.com/pr/2"
+        },
+        "worktree": "new-worktree"
+      },
+      "pass": true
+    },
+    {
+      "check": "happy.report",
+      "detail": {
+        "ids": [
+          "ISSUE-01"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "check": "happy.recovered_flag",
+      "detail": {
+        "excluded_ids": [
+          "ISSUE-02"
+        ],
+        "pr": "https://example.com/pr/2",
+        "recovered": false,
+        "report": "/var/folders/d4/n827kdgs5hl0dj940t7t6wm00000gn/T/bcl-rollover-happy-var6lbow/report/pr-2.html"
+      },
+      "pass": true
+    },
+    {
+      "check": "denied.exit",
+      "detail": {
+        "exit": 2,
+        "stdout": ""
+      },
+      "pass": true
+    },
+    {
+      "check": "denied.clean_error",
+      "detail": "rollover: tracker updated; fix the report path and rerun the same command to complete the rollover: [Errno 13] Permission denied: '/var/folders/d4/n827kdgs5hl0dj940t7t6wm00000gn/T/bcl-rollover-denied-z4miwwrz/report/.pr-2.html._0yba45k.tmp'\n",
+      "pass": true
+    },
+    {
+      "check": "denied.tracker_committed",
+      "detail": {
+        "pull_request": {
+          "label": "PR 2",
+          "url": "https://example.com/pr/2"
+        },
+        "rollover": {
+          "excluded_ids": [
+            "ISSUE-02"
+          ],
+          "source_pr": "https://example.com/pr/1",
+          "target_url": "https://example.com/pr/2"
+        },
+        "worktree": "new-worktree"
+      },
+      "pass": true
+    },
+    {
+      "check": "denied.report_absent",
+      "detail": "/var/folders/d4/n827kdgs5hl0dj940t7t6wm00000gn/T/bcl-rollover-denied-z4miwwrz/report/pr-2.html",
+      "pass": true
+    },
+    {
+      "check": "retry.exit",
+      "detail": {
+        "exit": 0,
+        "stderr": ""
+      },
+      "pass": true
+    },
+    {
+      "check": "retry.no_double_mutation",
+      "detail": {
+        "before": "7e98b5a08b17afdf8a75c7e4c01655f6cd395fc35f71ff8a2864f3f38988c809",
+        "same_bytes": true
+      },
+      "pass": true
+    },
+    {
+      "check": "retry.report",
+      "detail": {
+        "ids": [
+          "ISSUE-01"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "check": "retry.recovered_flag",
+      "detail": {
+        "excluded_ids": [
+          "ISSUE-02"
+        ],
+        "pr": "https://example.com/pr/2",
+        "recovered": true,
+        "report": "/var/folders/d4/n827kdgs5hl0dj940t7t6wm00000gn/T/bcl-rollover-denied-z4miwwrz/report/pr-2.html"
+      },
+      "pass": true
+    },
+    {
+      "check": "retry.same_report_bytes",
+      "detail": {
+        "happy": "9e5ac3d80fb0b90eaa589da5f5be3d8093bcedd58ea6be771b8be2f20875b16e",
+        "retry": "9e5ac3d80fb0b90eaa589da5f5be3d8093bcedd58ea6be771b8be2f20875b16e"
+      },
+      "pass": true
+    },
+    {
+      "check": "repeat.exit",
+      "detail": {
+        "exit": 0,
+        "out": "{\"pr\": \"https://example.com/pr/2\", \"excluded_ids\": [\"ISSUE-02\"], \"report\": \"/var/folders/d4/n827kdgs5hl0dj940t7t6wm00000gn/T/bcl-rollover-denied-z4miwwrz/report/pr-2.html\", \"recovered\": false}\n",
+        "stderr": ""
+      },
+      "pass": true
+    },
+    {
+      "check": "repeat.unchanged",
+      "detail": {},
+      "pass": true
+    },
+    {
+      "check": "same_pr.exit",
+      "detail": {
+        "exit": 2,
+        "stderr": "rollover: rollover target must differ from current PR\n"
+      },
+      "pass": true
+    },
+    {
+      "check": "same_pr.unchanged",
+      "detail": {},
+      "pass": true
+    },
+    {
+      "check": "metadata.exit",
+      "detail": {
+        "exit": 2,
+        "stderr": "rollover: rollover target already applied with a different label or worktree\n"
+      },
+      "pass": true
+    },
+    {
+      "check": "metadata.unchanged",
+      "detail": {},
+      "pass": true
+    },
+    {
+      "check": "metadata.correct_retry",
+      "detail": {
+        "exit": 0,
+        "stderr": ""
+      },
+      "pass": true
+    },
+    {
+      "check": "existing.exit",
+      "detail": {
+        "exit": 2,
+        "stderr": "rollover: report must be a new path\n"
+      },
+      "pass": true
+    },
+    {
+      "check": "existing.unchanged",
+      "detail": {},
+      "pass": true
+    },
+    {
+      "check": "render.exit",
+      "detail": {
+        "exit": 2,
+        "stderr": "rollover: ISSUE-01: unsupported status or source\n"
+      },
+      "pass": true
+    },
+    {
+      "check": "render.unchanged",
+      "detail": {},
+      "pass": true
+    },
+    {
+      "check": "missing_dir.first",
+      "detail": {
+        "exit": 2,
+        "stderr": "rollover: tracker updated; fix the report path and rerun the same command to complete the rollover: [Errno 2] No such file or directory: '/var/folders/d4/n827kdgs5hl0dj940t7t6wm00000gn/T/bcl-rollover-missing-dir-kpxkof5i/report/.pr-2.html.6ai_5jhi.tmp'\n"
+      },
+      "pass": true
+    },
+    {
+      "check": "missing_dir.retry",
+      "detail": {
+        "exit": 0,
+        "out": "{\"pr\": \"https://example.com/pr/2\", \"excluded_ids\": [\"ISSUE-02\"], \"report\": \"/var/folders/d4/n827kdgs5hl0dj940t7t6wm00000gn/T/bcl-rollover-missing-dir-kpxkof5i/report/pr-2.html\", \"recovered\": true}\n",
+        "stderr": ""
+      },
+      "pass": true
+    }
+  ],
+  "fixture_sha256": "e025808de8b0f05f19531a4dcc7c5e19973dcef080300d5de56acf399902952b",
+  "ok": true,
+  "passed": 26,
+  "script_sha256": "4d717614930225c03242d883ba4cb3b5aaa2d16026e4be4e264571d8ccb8abd4",
+  "skill": "/Users/gurusharan/code/worktrees/.agents/bcl-rollover-experiment/skills/batched-change-list",
+  "total": 26
+}

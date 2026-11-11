@@ -416,4 +416,13 @@ final class AppResolver: @unchecked Sendable {
 struct RPCMethodError: Error {
     let code: Int
     let message: String
+    let errorType: String?
+    let hint: String?
+
+    init(code: Int, message: String, errorType: String? = nil, hint: String? = nil) {
+        self.code = code
+        self.message = message
+        self.errorType = errorType
+        self.hint = hint
+    }
 }

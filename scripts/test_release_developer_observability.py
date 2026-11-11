@@ -22,6 +22,19 @@ class ReleaseTests(unittest.TestCase):
                 release.release_observability(Path('/candidate'), 1)
             run.assert_not_called()
 
+    def test_draft_pr_reaches_hygiene_preflight(self):
+        def output(command, **_):
+            if command[:2] == ['git', 'rev-parse']:
+                return 'candidate'
+            if command[:2] == ['git', 'branch']:
+                return 'topic'
+            return json.dumps({'status': 'draft', 'headSha': 'candidate', 'headRef': 'topic'})
+        with patch.object(release.shared, 'output', side_effect=output), \
+             patch.object(release.shared, 'frozen'), \
+             patch.object(release.shared, 'hygiene_gate', side_effect=RuntimeError('hygiene reached')):
+            with self.assertRaisesRegex(RuntimeError, 'hygiene reached'):
+                release.release_observability(Path('/candidate'), 1)
+
     def test_extra_installed_files_stop_before_sync(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)

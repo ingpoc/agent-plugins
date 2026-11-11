@@ -1,9 +1,24 @@
 """Native form-plan fills for compact act (compile_cua schema)."""
 from __future__ import annotations
 
+import re
+from decimal import Decimal
 from typing import Any
 
 _FIELD_ROLES = {"AXTextField", "AXTextArea", "AXComboBox"}
+
+
+def _values_equal(actual: str, expected: str) -> bool:
+    def number(value: str) -> Decimal | None:
+        compact = value.replace(",", "").replace("\u2009", "").replace("\u202f", "").replace(" ", "")
+        if not re.fullmatch(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)", compact):
+            return None
+        return Decimal(compact)
+
+    actual_number, expected_number = number(actual), number(expected)
+    if actual_number is not None and expected_number is not None:
+        return actual_number == expected_number
+    return actual == expected
 
 
 def expectation_supports_value(expect: Any) -> bool:
@@ -40,7 +55,8 @@ def expectation_value_field_matches(expect: Any, after_state: Any) -> bool:
             matches.append(item)
     if len(matches) != 1:
         return False
-    return str(matches[0].get("value") if matches[0].get("value") is not None else "") == equals
+    actual = str(matches[0].get("value") if matches[0].get("value") is not None else "")
+    return _values_equal(actual, equals)
 
 
 def match_set_value_indices(state: dict[str, Any], label: str) -> list[int]:

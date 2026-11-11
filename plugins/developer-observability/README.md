@@ -71,6 +71,16 @@ Round-trips / AX snapshots vs floor. Prefer one asserted run over N granular cal
 
 Replace `unmeasured` after a real suite. Do not invent scores.
 
+## Opt-in Codex task usage
+
+Direct task detail exposes `direct_measurement_eligible` for a clean, single-thread, single-turn CLI capture with required usage fields. This does not establish child coverage, independent acceptance, cost, or comparison eligibility. Usage attached to failed events is retained as bounded, unaggregated observations and may be incomplete or duplicated. Malformed streams are not included in totals.
+
+`observability_task_usage(task_id=...)` reads one explicit capture, including its Codex thread ID and any artifact check receipt. `codex-verify --task-id UUID --scenario FILE --skill FILE --artifact FILE --verifier EXECUTABLE` runs a separate executable with the artifact path and records SHA-256 digests and its result. The caller must choose a genuinely independent verifier; the tool cannot prove independence or that the artifact came from the capture. Child coverage and acceptance remain unknown.
+
+`observability_task_usage` reports explicitly captured Codex jobs and a separate bounded recent-session sample. These populations can overlap and must not be added together. Missing model, effort, usage, cost, or independent acceptance remain unknown.
+
+To capture an explicitly launched Codex CLI job, run `bin/developer-observability codex-capture --category analysis -- <codex arguments>`. This forwards Codex JSON events to stdout and stores aggregate usage locally. The optional `--verify` check records a caller-supplied check result, not independent task acceptance. The command exits nonzero if usage cannot be stored. Captured elapsed time ends before the optional check and is not end-to-end time through acceptance. Usage totals remain unknown for failed turns or ambiguous replayed/multiple unidentifiable turns. The JSON event stream is forwarded to stdout and can contain task content; pass `--quiet-events` to suppress it. This wrapper does not capture or attribute T3-delegated child sessions.
+
 ## Interface
 
 Six tools: projects, scoped issues, issue/evidence detail, existing Ledger

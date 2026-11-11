@@ -17,6 +17,25 @@ SPEC = importlib.util.spec_from_file_location("change_list_renderer", RENDERER_P
 RENDERER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RENDERER)
 
+MAX_TRACKER_BYTES = 320 * 1024
+MAX_DETAIL_CHARS = 600
+MAX_DETAIL_KEYS = 8
+CLOSED_STATUSES = {"verified_fixed", "closed"}
+DETAIL_DENY_PATTERNS = tuple(re.compile(pattern, re.I) for pattern in (
+    r"\bcurrent step\b",
+    r"\b(?:previous|earlier)\b.*\b(?:verification|test evidence|installation|acceptance attempt|self-check|controlled test|conclusion correction)\b",
+    r"\bopen\s*code\b.*\b(?:pilot|provider review)\b",
+    r"\bmanifest workflow trial\b",
+    r"\brollover skill experiment\b",
+    r"\bskill experiment pilot\b",
+    r"\bevaluation workflow\b",
+    r"\b(?:updated workflow|marker discovery|verification recheck)\b.*\b(?:pilot|experiment|trial|review|recheck)\b",
+    r"\bverification recheck\b",
+    r"\bastra low\b.*\b(?:experiment|review)\b",
+    r"\b(?:source|installed|live) pilot\b",
+    r"\b(?:capture|evidence) hardening\b",
+    r"\b(?:experiment quality correction|rollover recovery test|comparison eligibility|review provenance|reusable workflow direction|recommendation test coverage)\b",
+))
 
 def array_end(text, start):
     depth = 0
@@ -163,6 +182,172 @@ def validate_record(record):
             raise ValueError("evidence timestamp must be ISO 8601 with timezone or unknown") from None
 
 
+def normalized_text(value):
+    return " ".join(value.split()).casefold() if isinstance(value, str) else ""
+
+
+def validate_observed_at(value, run, field):
+    if not isinstance(value, str) or not value.strip() or value == "unknown":
+        raise ValueError(f"{field} requires observed_at for this verification run")
+    try:
+        validate_record({"check":field, "outcome":"observed", "build":run["build"],
+                         "session":run["id"], "timestamp":value, "reference":"observation"})
+        observed = datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+        installed = datetime.fromisoformat(run["installed_at"].replace("Z", "+00:00")).astimezone(timezone.utc)
+    except (KeyError, ValueError):
+        raise ValueError(f"{field} observed_at must be ISO 8601 with timezone for this verification run") from None
+    if observed < installed:
+        raise ValueError(f"{field} observed_at must be at or after this verification run's install time")
+    return value
+
+
+def has_observation_for_run(check, run):
+    try:
+        validate_observed_at(check.get("observed_at"), run, "verification check")
+    except ValueError:
+        return False
+    return True
+
+
+def validate_new_observation(value, operation, run, observed_at, field, check=None):
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field} requires an observation")
+    provenance = (operation, check or {})
+    if any(source.get("carried_over") is True or source.get("no_new_observation") is True
+           or source.get("new_observation") is False for source in provenance):
+        raise ValueError(f"{field} is marked as carried over or having no new observation")
+    return value.strip(), validate_observed_at(observed_at, run, field)
+
+
+def detail_key_denied(key):
+    return isinstance(key, str) and any(pattern.search(key) for pattern in DETAIL_DENY_PATTERNS)
+
+
+def validate_detail_limits(item):
+    details = item.get("details", {})
+    if not isinstance(details, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in details.items()):
+        raise ValueError(f"{item.get('id', 'finding')}.details must contain string keys and values")
+    if len(details) > MAX_DETAIL_KEYS:
+        raise ValueError(f"{item.get('id', 'finding')}.details exceeds {MAX_DETAIL_KEYS} keys; run compact")
+    for key, value in details.items():
+        if detail_key_denied(key):
+            raise ValueError(f"{item.get('id', 'finding')}.details key {key!r} is process or history noise")
+        if len(value) > MAX_DETAIL_CHARS:
+            raise ValueError(f"{item.get('id', 'finding')}.details[{key!r}] exceeds {MAX_DETAIL_CHARS} characters; run compact")
+
+
+def referenced_evidence(item, record):
+    reference = normalized_text(record.get("reference"))
+    references = item.get("verification_refs", [])
+    if not isinstance(references, list):
+        return False
+    token_pattern = re.compile(r"\bsref_[a-f0-9]{8,}\b|\b[a-f0-9]{32,}\b", re.I)
+    record_tokens = set(token_pattern.findall(reference))
+    for value in references:
+        candidate = normalized_text(value)
+        if candidate and (candidate in reference or reference in candidate):
+            return True
+        if record_tokens & set(token_pattern.findall(candidate)):
+            return True
+    return False
+
+
+def evidence_class(record):
+    outcome = normalized_text(record.get("outcome"))
+    if re.search(r"\b(?:inconclusive|blocked)\b", outcome):
+        return "inconclusive"
+    if re.search(r"\b(?:fail(?:ed|ure)?|not[_ ]fixed|regression)\b", outcome):
+        return "failing"
+    if re.search(r"\b(?:pass(?:ed)?|success(?:ful)?|verified[_ ]fixed|fixed)\b", outcome):
+        return "passing"
+    return None
+
+
+def evidence_timestamp(record, index):
+    value = record.get("timestamp", "")
+    if not isinstance(value, str):
+        return float("-inf"), index
+    match = re.match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))", value)
+    if match:
+        try:
+            return datetime.fromisoformat(match.group(1).replace("Z", "+00:00")).astimezone(timezone.utc).timestamp(), index
+        except ValueError:
+            pass
+    return float("-inf"), index
+
+
+def trim_verification_evidence(item):
+    if "verification_evidence" not in item:
+        return
+    records = item["verification_evidence"]
+    if not isinstance(records, list):
+        raise ValueError(f"{item.get('id', 'finding')}.verification_evidence must be an array")
+    latest_outcomes = {}
+    latest = {}
+    keep = set()
+    for index, record in enumerate(records):
+        if not isinstance(record, dict):
+            raise ValueError(f"{item.get('id', 'finding')}.verification_evidence entries must be objects")
+        outcome = normalized_text(record.get("outcome"))
+        if outcome and (outcome not in latest_outcomes or evidence_timestamp(record, index) > evidence_timestamp(records[latest_outcomes[outcome]], latest_outcomes[outcome])):
+            latest_outcomes[outcome] = index
+        kind = evidence_class(record)
+        if kind and (kind not in latest or evidence_timestamp(record, index) > evidence_timestamp(records[latest[kind]], latest[kind])):
+            latest[kind] = index
+        if referenced_evidence(item, record):
+            keep.add(index)
+    keep.update(latest_outcomes.values())
+    keep.update(latest.values())
+    item["verification_evidence"] = [record for index, record in enumerate(records) if index in keep]
+
+
+def compact_document(document):
+    findings = document.get("findings")
+    if not isinstance(findings, list):
+        raise ValueError("compact requires authoritative findings JSON")
+    before = [(item.get("id"), item.get("status")) for item in findings]
+    tracking = document.setdefault("tracking", {})
+    if not isinstance(tracking, dict):
+        raise ValueError("tracking must be an object")
+    history = tracking.get("verification_history", [])
+    if not isinstance(history, list) or any(not isinstance(run, dict) for run in history):
+        raise ValueError("verification_history must be an array of runs")
+    compacted_runs = []
+    for run in history:
+        checks = run.get("checks", {})
+        if not isinstance(checks, dict):
+            raise ValueError("verification run checks must be an object")
+        for item_id, check in list(checks.items()):
+            if not isinstance(check, dict):
+                raise ValueError("verification checks must be objects")
+            state = check.get("state")
+            marked_carryover = (check.get("carried_over") is True or check.get("no_new_observation") is True
+                                or check.get("new_observation") is False)
+            if state in ("inconclusive", "blocked") and (marked_carryover or not has_observation_for_run(check, run)):
+                del checks[item_id]
+        if run.get("status") == "interrupted":
+            run["checks"] = {item_id: check for item_id, check in checks.items() if check.get("state") not in ("checking", "pending")}
+            checks = run["checks"]
+        if run.get("status") == "interrupted" and not checks:
+            continue
+        compacted_runs.append(run)
+    tracking["verification_history"] = compacted_runs
+    tracking.pop("archived_findings", None)
+    for item in findings:
+        details = item.get("details")
+        if details is not None:
+            if not isinstance(details, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in details.items()):
+                raise ValueError(f"{item.get('id', 'finding')}.details must contain string keys and values")
+            kept = [(key, value[:MAX_DETAIL_CHARS] if len(value) > MAX_DETAIL_CHARS else value)
+                    for key, value in details.items() if not detail_key_denied(key)]
+            item["details"] = dict(kept[-MAX_DETAIL_KEYS:])
+        trim_verification_evidence(item)
+    after = [(item.get("id"), item.get("status")) for item in findings]
+    if before != after:
+        raise ValueError("compact cannot change finding IDs or statuses")
+    return document
+
+
 def verification_action(document, findings, operation):
     tracking = document.setdefault("tracking", {})
     if not isinstance(tracking, dict):
@@ -179,6 +364,7 @@ def verification_action(document, findings, operation):
             raise ValueError("a finished check is required")
         if outcome not in ("not_fixed", "blocked", "inconclusive") or not isinstance(reason, str) or not reason.strip():
             raise ValueError("correction requires an outcome and reason")
+        reason, _ = validate_new_observation(reason, operation, run, check.get("observed_at"), "correction reason", check)
         corrections = check.setdefault("corrections", [])
         corrections.append({"previous": copy.deepcopy({k: v for k, v in check.items() if k != "corrections"}),
                             "previous_verification": item.get("verification", ""),
@@ -226,13 +412,19 @@ def verification_action(document, findings, operation):
             raise ValueError("issue check is already finished")
         if not finished and check.get("state") not in ("pending", "checking"):
             raise ValueError("issue check cannot be started")
+        observation, observed_at = validate_new_observation(operation.get("observation"), operation, run,
+                                                             operation.get("observed_at"), "start-check observation")
         now = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
         history = check.get("previous_checks", [])
+        if not isinstance(history, list):
+            raise ValueError("previous_checks must be an array")
         if finished:
             history = [*history, {k: copy.deepcopy(v) for k, v in check.items() if k != "previous_checks"}]
         if reopens:
             run["status"] = "active"
-        checks[item["id"]] = {"state":"checking", "started_at":now if finished else check.get("started_at", now), "updated_at":now, **({"previous_checks":history} if history else {})}
+        checks[item["id"]] = {"state":"checking", "observation":observation, "observed_at":observed_at,
+                               "started_at":now if finished else check.get("started_at", now), "updated_at":now,
+                               **({"previous_checks":history} if history else {})}
         return
     if action != "finish-check" or check.get("state") != "checking":
         raise ValueError("start the issue check before finishing it")
@@ -240,6 +432,7 @@ def verification_action(document, findings, operation):
     evidence = operation.get("evidence")
     if outcome not in ("fixed", "not_fixed", "blocked", "inconclusive") or not isinstance(evidence, str) or not evidence.strip():
         raise ValueError("finish-check requires an outcome and evidence or reason")
+    evidence, _ = validate_new_observation(evidence, operation, run, check.get("observed_at"), "finish-check evidence", check)
     if outcome == "fixed" and (item.get("status") != "verified_fixed" or not item.get("verification_refs")):
         raise ValueError("fixed requires verified_fixed status and verification references")
     if outcome == "not_fixed":
@@ -315,6 +508,11 @@ def parser_for():
     audit.add_argument("data", type=Path)
     audit.add_argument("--collection", default="findings")
 
+    compact = commands.add_parser("compact", help="remove superseded tracker noise and render the result")
+    compact.add_argument("data", type=Path)
+    compact.add_argument("--render", type=Path, help="render the compacted tracker to this HTML file")
+    compact.add_argument("--inventory", type=Path, help="optional installed-plugin inventory JSON")
+
     get = commands.add_parser("get", help="print one finding as JSON")
     get.add_argument("data", type=Path)
     get.add_argument("id")
@@ -347,6 +545,7 @@ def parser_for():
     batch.add_argument("data", type=Path)
     batch.add_argument("operations", help="JSON array path, or - for stdin")
     batch.add_argument("--render", type=Path, help="render the resulting authoritative JSON to this HTML file")
+    batch.add_argument("--inventory", type=Path, help="optional installed-plugin inventory JSON")
     batch.add_argument("--collection", default="findings")
     return parser
 
@@ -355,14 +554,33 @@ def main(argv=None):
     parser = parser_for()
     args = parser.parse_args(argv)
     try:
-        path, original, store, findings = load(args.data, args.collection)
+        path, original, store, findings = load(args.data, getattr(args, "collection", "findings"))
         if args.command == "audit":
-            run = store.get("document", {}).get("tracking", {}).get("verification_run", {})
-            versions = set(re.findall(r"\b\d+\.\d+\.\d+\b", run.get("build", "")))
+            document = store.get("document", {})
+            tracking = document.get("tracking", {})
+            run = tracking.get("verification_run", {}) if isinstance(tracking, dict) else {}
+            versions = set(re.findall(r"\b\d+\.\d+\.\d+\b", run.get("build", ""))) if isinstance(run, dict) else set()
             warnings = []
+            violations = []
+            if store["kind"] == "json" and len(original) > MAX_TRACKER_BYTES:
+                violations.append({"kind": "tracker_over_budget", "bytes": len(original), "budget": MAX_TRACKER_BYTES,
+                                   "message": "run manage_findings.py compact"})
             for item in findings:
                 seen = {}
-                for key, value in item.get("details", {}).items():
+                details = item.get("details", {})
+                if not isinstance(details, dict):
+                    violations.append({"id": item["id"], "kind": "invalid_details"})
+                    continue
+                if len(details) > MAX_DETAIL_KEYS:
+                    violations.append({"id": item["id"], "kind": "too_many_details", "message": "run compact"})
+                for key, value in details.items():
+                    if detail_key_denied(key):
+                        violations.append({"id": item["id"], "kind": "denied_detail_key", "field": key, "message": "run compact"})
+                    if not isinstance(value, str):
+                        violations.append({"id": item["id"], "kind": "invalid_detail_value", "field": key})
+                        continue
+                    if len(value) > MAX_DETAIL_CHARS:
+                        violations.append({"id": item["id"], "kind": "detail_too_long", "field": key, "message": "run compact"})
                     normalized = " ".join(value.split()).casefold()
                     if normalized and normalized in seen:
                         warnings.append({"id": item["id"], "kind": "duplicate_detail", "fields": [seen[normalized], key]})
@@ -370,7 +588,44 @@ def main(argv=None):
                     mentioned = set(re.findall(r"\b\d+\.\d+\.\d+\b", value))
                     if versions and mentioned and mentioned.isdisjoint(versions) and re.search(r"\b(latest|current|is installed)\b", key + " " + value, re.I):
                         warnings.append({"id": item["id"], "kind": "possibly_stale", "field": key})
-            print(json.dumps(warnings, ensure_ascii=False, indent=2))
+                trimmed = copy.deepcopy(item)
+                trim_verification_evidence(trimmed)
+                if len(trimmed.get("verification_evidence", [])) != len(item.get("verification_evidence", [])):
+                    violations.append({"id": item["id"], "kind": "too_much_verification_evidence", "message": "run compact"})
+            if isinstance(tracking, dict):
+                if "archived_findings" in tracking:
+                    violations.append({"kind": "archived_findings", "message": "run compact"})
+                for history_run in tracking.get("verification_history", []):
+                    checks = history_run.get("checks", {}) if isinstance(history_run, dict) else {}
+                    for item_id, check in checks.items() if isinstance(checks, dict) else []:
+                        if not isinstance(check, dict):
+                            continue
+                        marked_carryover = (check.get("carried_over") is True or check.get("no_new_observation") is True
+                                            or check.get("new_observation") is False)
+                        if check.get("state") in ("inconclusive", "blocked") and (marked_carryover or not has_observation_for_run(check, history_run)):
+                            violations.append({"id": item_id, "kind": "carryover_check", "run": history_run.get("id"), "message": "run compact"})
+            print(json.dumps(warnings + violations, ensure_ascii=False, indent=2))
+            return 1 if violations else 0
+        if args.command == "compact":
+            if store["kind"] != "json" or store["collection"] != "findings":
+                raise ValueError("compact requires authoritative findings JSON")
+            if args.inventory and not args.render:
+                raise ValueError("--inventory requires --render")
+            if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
+                raise ValueError("render output must differ from input and template")
+            compact_document(store["document"])
+            inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
+            rendered = RENDERER.render(store["document"], path.parent, inventory) if args.render else None
+            content = (json.dumps(store["document"], ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+            html_original = args.render.read_bytes() if args.render and args.render.exists() else None
+            atomic_write(path, original, content)
+            if args.render:
+                try:
+                    run = store["document"].get("tracking", {}).get("verification_run")
+                    (live_write if run else atomic_write)(args.render, html_original, rendered.encode("utf-8"))
+                except (OSError, ValueError) as error:
+                    raise ValueError(f"JSON compacted but render failed: {error}") from error
+            print(f"Compacted {path}: {len(original)} -> {len(content)} bytes" + (f"; rendered {args.render}" if args.render else ""))
             return 0
         if args.command == "list":
             rows = [{"id": item["id"], "title": item.get("title"),
@@ -385,11 +640,13 @@ def main(argv=None):
         if args.command == "batch":
             if store["kind"] != "json" or store["collection"] != "findings":
                 raise ValueError("batch requires authoritative findings JSON")
+            if args.inventory and not args.render:
+                raise ValueError("--inventory requires --render")
             operations = read_json(args.operations)
             if not isinstance(operations, list) or not operations:
                 raise ValueError("batch requires a nonempty operations array")
             existing_run = store["document"].get("tracking", {}).get("verification_run")
-            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage"}
+            run_actions = {"start-verification", "start-check", "finish-check", "complete-verification", "correct-check", "set-stage", "set-activity"}
             if (existing_run or any(isinstance(op, dict) and op.get("action") in run_actions for op in operations)) and not args.render:
                 raise ValueError("verification progress requires --render so the page stays current")
             started_checks = set()
@@ -403,6 +660,24 @@ def main(argv=None):
                         raise ValueError("set-stage requires a valid stage or null")
                     store["document"].setdefault("tracking", {})["workflow"] = {"stage": stage, "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
                     continue
+                if action == "set-activity":
+                    stage, ids, activity = operation.get("stage"), operation.get("ids"), operation.get("now")
+                    if stage not in RENDERER.WORKFLOW_STAGES:
+                        raise ValueError("set-activity requires a valid stage")
+                    if not isinstance(ids, list) or any(not isinstance(identifier, str) or not identifier.strip() for identifier in ids) or len(ids) != len(set(ids)):
+                        raise ValueError("set-activity ids must be a list of unique finding IDs")
+                    if not isinstance(activity, str) or not activity.strip() or "\n" in activity or "\r" in activity:
+                        raise ValueError("set-activity now must be one nonempty line")
+                    affected = [findings[find_index(findings, identifier)] for identifier in ids]
+                    closed = [item["id"] for item in affected if item.get("status") in CLOSED_STATUSES]
+                    if closed and operation.get("reopen") is not True:
+                        raise ValueError(f"set-activity cannot reopen closed findings {', '.join(closed)}; pass \"reopen\": true")
+                    for item in affected:
+                        item["status"] = "in_progress"
+                    timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+                    store["document"].setdefault("tracking", {})["workflow"] = {
+                        "stage": stage, "updated_at": timestamp, "now": f"{timestamp} — {activity.strip()}"}
+                    continue
                 if action in run_actions:
                     if action == "finish-check" and operation.get("id") in started_checks:
                         raise ValueError("render the checking state before finishing the issue")
@@ -414,6 +689,8 @@ def main(argv=None):
                     item = operation.get("entry")
                     if not isinstance(item, dict):
                         raise ValueError("entry must be a JSON object")
+                    validate_detail_limits(item)
+                    trim_verification_evidence(item)
                     run = store["document"].get("tracking", {}).get("verification_run", {})
                     validate_ids(findings + [item])
                     findings.append(item)
@@ -428,7 +705,10 @@ def main(argv=None):
                         raise ValueError("patch must be a JSON object")
                     if "check" in patch or "check_history" in patch:
                         raise ValueError("use verification actions to update check progress")
-                    findings[index] = merge_patch(dict(findings[index]), patch)
+                    updated = merge_patch(dict(findings[index]), patch)
+                    validate_detail_limits(updated)
+                    trim_verification_evidence(updated)
+                    findings[index] = updated
                 elif action == "delete":
                     run = store["document"].get("tracking", {}).get("verification_run", {})
                     if run.get("status") == "active":
@@ -443,13 +723,16 @@ def main(argv=None):
                     if not isinstance(records, list):
                         raise ValueError("verification_evidence must be an array")
                     records.append(record)
+                    validate_detail_limits(findings[index])
+                    trim_verification_evidence(findings[index])
                 else:
                     raise ValueError("unknown batch action")
             validate_ids(findings)
             store["document"]["findings"] = findings
-            rendered = RENDERER.render(store["document"], path.parent)
             if args.render and (args.render.resolve() == path.resolve() or args.render.resolve() == RENDERER.TEMPLATE.resolve()):
                 raise ValueError("render output must differ from input and template")
+            inventory = RENDERER.load_inventory(args.inventory) if args.inventory else None
+            rendered = RENDERER.render(store["document"], path.parent, inventory)
             html_original = args.render.read_bytes() if args.render and args.render.exists() else None
             write(path, original, store, findings, validate=False)
             if args.render:
@@ -472,6 +755,8 @@ def main(argv=None):
             if not isinstance(records, list):
                 raise ValueError("verification_evidence must be an array")
             records.append(record)
+            validate_detail_limits(item)
+            trim_verification_evidence(item)
             write(path, original, store, findings)
             print(f"Recorded evidence for {args.id}")
             return 0
@@ -479,6 +764,8 @@ def main(argv=None):
             item = read_json(args.entry)
             if not isinstance(item, dict):
                 raise ValueError("entry must be a JSON object")
+            validate_detail_limits(item)
+            trim_verification_evidence(item)
             if store["kind"] == "json":
                 run = store["document"].get("tracking", {}).get("verification_run", {})
             validate_ids(findings + [item])
@@ -498,6 +785,8 @@ def main(argv=None):
             index = find_index(findings, args.id)
             updated = merge_patch(dict(findings[index]), patch)
             updated["id"] = args.id
+            validate_detail_limits(updated)
+            trim_verification_evidence(updated)
             findings[index] = updated
             validate_ids(findings)
             write(path, original, store, findings)
@@ -519,4 +808,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

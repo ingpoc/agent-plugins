@@ -42,6 +42,17 @@ def _session() -> RealtimeSession:
     s._audio = _FakeAudio()
     s._response_lock = threading.Lock()
     s._response_condition = threading.Condition()
+    s._response_task_run_ids = {}
+    s._response_step_refs = {}
+    s._response_cancellation_step_refs = {}
+    s._task_request_step_refs = {}
+    s._cancel_requested_by_run = {}
+    s._dispatching_calls = set()
+    s._counted_skipped_calls = set()
+    s._skipped_calls_by_run = {}
+    s._pending_calls = {}
+    s._active_task_run_id = ""
+    s._last_task_run_id = ""
     s._current_response_id = "resp-1"
     s._active_response_ids = {"resp-1"}
     s._cancelled_response_ids = set()
@@ -82,7 +93,7 @@ class IslandControlTests(unittest.TestCase):
 
     def test_retry_resends_last_utterance_or_reports_unhandled(self) -> None:
         s = _session()
-        s.send_text = lambda text, request_id="": s.sent.append({"type": "text", "text": text})
+        s.send_text = lambda text, request_id="", **kwargs: s.sent.append({"type": "text", "text": text})
         self.assertFalse(s.island_control("retry"))
         s._last_user_text = "what's 12 times 7"
         self.assertTrue(s.island_control("retry"))

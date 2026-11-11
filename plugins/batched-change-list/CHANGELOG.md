@@ -1,5 +1,9 @@
 # Changelog: batched-change-list
 
+## 0.1.4
+
+- Add the Fast cycle (triage once, parallel fixes, one install and one combined live check per build) to fix-and-verify.
+
 ## 0.1.1
 
 - Store optional merge authorization in the product repository’s agent instructions, where it survives plugin refreshes.

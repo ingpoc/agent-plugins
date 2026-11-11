@@ -1,0 +1,55 @@
+{
+  "accepted": 2,
+  "fixture_sha256": "e025808de8b0f05f19531a4dcc7c5e19973dcef080300d5de56acf399902952b",
+  "probe_sha256": "e32f563904882eabd8fdf647da1588c3d5fc679d658442a3aa427586fc41a464",
+  "rows": [
+    {
+      "accepted": true,
+      "exit": 0,
+      "helper_commands": [
+        "cd /Users/gurusharan/code/worktrees/.agents/bcl-rollover-experiment/skills/batched-change-list && python3 scripts/rollover_experiment.py /tmp/bcl-rollover-oc/rep-1/findings.json /tmp/bcl-rollover-oc/rep-1/pr-2.html --label \"PR 2\" --url \"https://example.com/pr/2\" --worktree \"new-worktree\""
+      ],
+      "helper_used": true,
+      "model": "opencode/deepseek-v4.1-flash-free#low",
+      "rep": 1,
+      "report_ok": true,
+      "report_sha256": "9e5ac3d80fb0b90eaa589da5f5be3d8093bcedd58ea6be771b8be2f20875b16e",
+      "seconds": 22.47,
+      "shell_calls": 3,
+      "tokens": {
+        "cache_read": 126976,
+        "input_uncached": 30235,
+        "output": 955,
+        "reasoning": 399,
+        "steps": 6
+      },
+      "tracker_ok": true,
+      "tracker_sha256": "7e98b5a08b17afdf8a75c7e4c01655f6cd395fc35f71ff8a2864f3f38988c809"
+    },
+    {
+      "accepted": true,
+      "exit": 0,
+      "helper_commands": [
+        "cd /Users/gurusharan/code/worktrees/.agents/bcl-rollover-experiment/skills/batched-change-list/scripts && python3 rollover_experiment.py /tmp/bcl-rollover-oc/rep-2/findings.json /tmp/bcl-rollover-oc/rep-2/pr-2.html --label \"PR 2\" --url \"https://example.com/pr/2\" --worktree \"new-worktree\""
+      ],
+      "helper_used": true,
+      "model": "opencode/deepseek-v4.1-flash-free#low",
+      "rep": 2,
+      "report_ok": true,
+      "report_sha256": "9e5ac3d80fb0b90eaa589da5f5be3d8093bcedd58ea6be771b8be2f20875b16e",
+      "seconds": 78.822,
+      "shell_calls": 4,
+      "tokens": {
+        "cache_read": 144128,
+        "input_uncached": 24376,
+        "output": 897,
+        "reasoning": 143,
+        "steps": 7
+      },
+      "tracker_ok": true,
+      "tracker_sha256": "7e98b5a08b17afdf8a75c7e4c01655f6cd395fc35f71ff8a2864f3f38988c809"
+    }
+  ],
+  "skill": "/Users/gurusharan/code/worktrees/.agents/bcl-rollover-experiment/skills/batched-change-list",
+  "total": 2
+}

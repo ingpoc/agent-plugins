@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.28
+
+- Reject malformed-stream totals for direct measurement and expose bounded failed-event usage observations.
+
+## 0.1.27
+
+- Expose individual Codex captures and record artifact-bound external checks with explicit evidence limits.
+
+## 0.1.26
+
+- Reject private summary fields and avoid reporting totals for ambiguous or failed turns.
+
+## 0.1.25
+
+- Report failed task-usage persistence as a capture failure.
+
+## 0.1.24
+
+- Add opt-in Codex task usage capture and a read-only usage view.
+
 ## 0.1.23
 
 - Prioritize active diagnosis findings and explain when CI test failure output was not retained.

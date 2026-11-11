@@ -212,7 +212,9 @@ class CUAClient:
                 continue
             if "error" in response and response["error"]:
                 err = response["error"]
-                raise RPCError(err.get("code", -1), err.get("message", "Unknown error"))
+                data = err.get("data") if isinstance(err.get("data"), dict) else {}
+                raise RPCError(err.get("code", -1), err.get("message", "Unknown error"),
+                               error_type=data.get("error_type"), hint=data.get("hint"))
             return response.get("result")
         raise ConnectionError(f"no JSON-RPC response for id {req_id}")
 
@@ -424,7 +426,9 @@ def health(socket_path: str | Path | None = None, timeout: float = 5.0) -> dict:
 
 
 class RPCError(Exception):
-    def __init__(self, code: int, message: str):
+    def __init__(self, code: int, message: str, *, error_type: str | None = None, hint: str | None = None):
         self.code = code
         self.message = message
+        self.error_type = error_type
+        self.hint = hint
         super().__init__(f"RPC error {code}: {message}")

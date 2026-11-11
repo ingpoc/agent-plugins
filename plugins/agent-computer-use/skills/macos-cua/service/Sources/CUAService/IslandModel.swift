@@ -649,6 +649,7 @@ struct IslandSourceGroup: Equatable, Identifiable {
     var done = false
     /// At least one row of this source is running.
     var running = false
+    var initiatorBadges: [String?] = []
 }
 
 enum IslandSourceGroups {
@@ -683,6 +684,11 @@ enum IslandSourceGroups {
     }
     static func leftIdentity(_ g: IslandSourceGroup) -> LeftIdentity {
         g.id == samantha ? .samanthaGlyph : .app(g.app.isEmpty ? g.id : g.app)
+    }
+
+    static func initiatorBadge(_ candidates: [String?]) -> String? {
+        guard let first = candidates.first ?? nil, candidates.allSatisfy({ $0 == first }) else { return nil }
+        return first
     }
 
     /// Adds Samantha's circle while she uses a plugin: after urgent (needs-you / failed) circles, before
@@ -730,6 +736,7 @@ enum IslandSourceGroups {
             if failure, !a.needs_you, seenFailures[a.id] == IslandModel.failureSignature(a) { continue }
             if a.status == "done", !doneVisible(a, now: now) { continue }
             touch(name, app)
+            map[name]!.initiatorBadges.append(a.initiator.map { $0.chain.first ?? $0.bot ?? $0.agent })
             if a.needs_you || a.status == "needs_you" { map[name]!.needsYou += 1 }
             if failure { map[name]!.failed = true }
             if a.status == "running" { map[name]!.running = true }

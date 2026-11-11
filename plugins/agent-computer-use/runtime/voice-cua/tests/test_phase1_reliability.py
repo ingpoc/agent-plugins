@@ -135,6 +135,7 @@ class GAEventTests(unittest.TestCase):
             # Beta alias must not publish speaking.
             feed(session, {"type": "response.audio.delta", "response_id": "r2", "delta": "AAAA"})
             self.assertEqual(published.count("speaking"), 1)
+
             # response.done clears the tracker → a new response speaks again.
             feed(session, {"type": "response.done", "response": {"id": "r1"}})
             feed(session, {
@@ -182,6 +183,43 @@ class GAEventTests(unittest.TestCase):
                 "part": {"type": "output_text"},
             })
         self.assertEqual(published.count("speaking"), 1)
+
+
+class ToolListAckTests(unittest.TestCase):
+    def _run_comet_begin(self, *, acknowledge: bool) -> tuple[RealtimeSession, list[str]]:
+        session = make_session()
+        logged: list[str] = []
+        session._wait_for_responses_idle = Mock(return_value=True)
+        timeout = 2.0 if acknowledge else 0.02
+        with patch("voice_cua.realtime_session.dispatch", return_value={"ok": True}), \
+                patch("voice_cua.realtime_session.comet_is_active", return_value=True), \
+                patch("voice_cua.realtime_session.plugin_island.tool_started"), \
+                patch("voice_cua.realtime_session.plugin_island.tool_finished"), \
+                patch("voice_cua.realtime_session.log_event",
+                      side_effect=lambda event, **_: logged.append(event)), \
+                patch("voice_cua.realtime_session.TOOLS_UPDATE_ACK_TIMEOUT", timeout):
+            session._run_tool("call_1", "comet_begin", "{}")
+            deadline = time.monotonic() + 1
+            while "session.update" not in event_types(session) and time.monotonic() < deadline:
+                time.sleep(0.005)
+            self.assertIn("session.update", event_types(session))
+            self.assertNotIn("response.create", event_types(session))
+            if acknowledge:
+                feed(session, {"type": "session.updated"})
+            deadline = time.monotonic() + 1
+            while "response.create" not in event_types(session) and time.monotonic() < deadline:
+                time.sleep(0.005)
+        return session, logged
+
+    def test_tool_continuation_waits_for_tool_list_ack(self) -> None:
+        session, _ = self._run_comet_begin(acknowledge=True)
+        types = event_types(session)
+        self.assertLess(types.index("session.update"), types.index("response.create"))
+
+    def test_tool_continuation_times_out_and_logs_unconfirmed_update(self) -> None:
+        session, logged = self._run_comet_begin(acknowledge=False)
+        self.assertIn("response.create", event_types(session))
+        self.assertIn("tools_update_unconfirmed", logged)
 
 
 class ResponseDonePartsTests(unittest.TestCase):

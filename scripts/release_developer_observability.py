@@ -13,7 +13,7 @@ def release_observability(root: Path, pr: int) -> int:
     change = json.loads(shared.output(['origin', 'pr', 'view', str(pr), '-R', 'gurusharan/agent-plugins',
                                        '--json', 'status,headSha,headRef'], root=root))
     branch = shared.output(['git', 'branch', '--show-current'], root=root)
-    if change.get('status') != 'open' or change.get('headSha') != head or change.get('headRef') != branch:
+    if change.get('status') not in ('open', 'draft') or change.get('headSha') != head or change.get('headRef') != branch:
         raise RuntimeError('release requires the exact open Origin PR head and branch')
     shared.hygiene_gate(False)
     package = root / 'plugins/developer-observability'

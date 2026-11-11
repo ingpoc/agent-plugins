@@ -23,14 +23,55 @@ class RenderTests(unittest.TestCase):
         subprocess.run(['node', '-e', program], check=True)
 
     @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
-    def test_latest_check_reason_and_previous_result_are_labeled(self):
+    def test_poll_signature_is_stable_for_identical_page_content(self):
         template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
-        helper = next(line for line in template.splitlines() if line.startswith('function latestResult('))
-        program = helper + "\nconst previous={version:'0.2.119',state:'fixed',outcome:'prior proof'};"
-        program += "for(const state of ['fixed','not_fixed','inconclusive','blocked']){const x=latestResult({check:{state,evidence:'current reason'},version_timeline:[previous]});if(x.reason!=='current reason'||!x.label.startsWith('Latest check'))process.exit(1)}"
-        program += "const p=latestResult({check:{state:'pending'},version_timeline:[previous]});if(p.reason!=='prior proof'||!p.label.includes('Previous check')||!p.label.includes('0.2.119'))process.exit(1);"
-        program += "if(!latestResult({check:{state:'pending'}}).label.includes('No completed check'))process.exit(1);"
+        signature = next(line for line in template.splitlines() if line.startswith('const pageContentSignature='))
+        # Baseline comes from the first fetched copy, never the live DOM: page JS rewrites
+        # <time data-relative> inside .workflow, so a live-DOM baseline reloads on every poll.
+        self.assertNotIn('pageContentSignature(document)', template)
+        self.assertIn('(original??=pageContentSignature(next))!==pageContentSignature(next)', template)
+        program = signature + """
+const page=(data,run,workflow,build,tracking)=>({
+ getElementById(id){return {textContent:id==='findings-data'?data:run}},
+ querySelector(selector){return {outerHTML:({'.workflow':workflow,'.header-build':build,'.tracking':tracking})[selector]}}
+});
+const original=pageContentSignature(page('findings','run','workflow','build','tracking'));
+if(pageContentSignature(page('findings','run','workflow','build','tracking'))!==original)process.exit(1);
+if(pageContentSignature(page('findings','run','workflow','build','changed'))===original)process.exit(2);
+"""
         subprocess.run(['node', '-e', program], check=True)
+
+    def test_previous_check_summary_is_removed_and_progress_requires_active_run(self):
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        self.assertNotIn('function latestResult(', template)
+        self.assertIn("run?.status==='active'", template)
+        data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
+        page = renderer.render(data, Path(__file__).parents[1])
+        self.assertNotIn('id="verification-progress"', page)
+
+    def test_inventory_override_and_recorded_fallback(self):
+        data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
+        data['tracking'] = {'installed_plugins': {'versions': {'batched-change-list':'0.1.2'},
+                                                  'observed_at':'2026-11-10T00:00:00Z','source':'saved inventory'}}
+        page = renderer.render(data, Path(__file__).parents[1])
+        self.assertIn('As recorded', page)
+        self.assertIn('0.1.2', page)
+        inventory = {'versions': {'batched-change-list':'0.1.3'},
+                     'observed_at':'2026-11-10T01:00:00Z','source':'live inventory'}
+        page = renderer.render(data, Path(__file__).parents[1], inventory)
+        self.assertIn('Inventory supplied at render time', page)
+        self.assertIn('0.1.3', page)
+        self.assertNotIn('<strong>0.1.2</strong>', page)
+
+    def test_workflow_times_render_localization_hooks_and_now_line(self):
+        data = json.loads((Path(__file__).parents[1] / 'examples/findings.json').read_text())
+        data['tracking'] = {'workflow': {'stage':'verify','updated_at':'2026-11-10T10:00:00Z',
+                                         'now':'2026-11-10T10:00:00Z — Checking the installed build'}}
+        page = renderer.render(data, Path(__file__).parents[1])
+        self.assertEqual(page.count('<time datetime='), 2)
+        self.assertIn('class="workflow-now"', page)
+        self.assertIn('Last reported', page)
+        self.assertIn('Intl.RelativeTimeFormat', page)
 
     def test_timeline_selects_latest_dated_result_per_version_including_runs(self):
         item = {'id': 'ISSUE-01', 'verification_evidence': [
@@ -133,6 +174,18 @@ class RenderTests(unittest.TestCase):
         program += "items[1].check.state='inconclusive';\n" + sort.replace('const findings=', 'const finished=')
         program += "\nif(finished.map(x=>x.id).join('')!=='ABC')process.exit(2);"
         subprocess.run(['node', '-e', program], check=True)
+
+    @unittest.skipUnless(shutil.which('node'), 'node is needed to execute page JavaScript')
+    def test_in_progress_issue_sorts_after_checking_and_shows_working(self):
+        template = (Path(__file__).parent.parent / 'templates/change-list.html').read_text()
+        sort = next(line for line in template.splitlines() if line.startswith('const findings='))
+        program = """const items=[{id:'A',status:'failing'},{id:'B',status:'in_progress',check:{state:'not_fixed'}},
+          {id:'C',status:'failing',check:{state:'checking'}},{id:'D',status:'verified_fixed'}];
+          const document={getElementById:()=>({textContent:JSON.stringify(items)})};\n"""
+        program += sort + "\nif(findings.map(x=>x.id).join('')!=='CBAD')process.exit(1);"
+        subprocess.run(['node', '-e', program], check=True)
+        self.assertIn("const working=item.status==='in_progress'", template)
+        self.assertIn("if(!working&&run?.status==='active'&&item.check)", template)
 
     def test_invalid_ids_status_and_missing_proof_fail(self):
         for mutation in ("duplicate", "status", "proof"):

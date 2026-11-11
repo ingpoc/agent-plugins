@@ -77,14 +77,21 @@ struct JSONRPCResponse: Codable {
         JSONRPCResponse(id: id, result: value)
     }
 
-    static func error(id: AnyCodable?, code: Int, message: String) -> JSONRPCResponse {
-        JSONRPCResponse(id: id, error: RPCError(code: code, message: message))
+    static func error(id: AnyCodable?, code: Int, message: String, errorType: String? = nil, hint: String? = nil) -> JSONRPCResponse {
+        JSONRPCResponse(id: id, error: RPCError(code: code, message: message, data: errorType.map { ["error_type": $0, "hint": hint ?? ""] }))
     }
 }
 
 struct RPCError: Codable {
     let code: Int
     let message: String
+    let data: [String: String]?
+
+    init(code: Int, message: String, data: [String: String]? = nil) {
+        self.code = code
+        self.message = message
+        self.data = data
+    }
 }
 
 /// Length-prefixed frame codec: 4-byte LE length + UTF-8 JSON body.

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+from difflib import SequenceMatcher
 from typing import Any
 
 # Stable reason codes for the model (actionable, not tree dumps).
@@ -12,7 +13,6 @@ STALE_ID = "stale_id"
 OBSERVATION_INCOMPLETE = "observation_incomplete"
 ACTION_FAILED = "action_failed"
 EXPECT_UNVERIFIED = "expect_unverified"
-SETTLED_STATE_MAX = 6000  # chars of settled AX text returned with expect_unverified
 VERIFICATION_REQUIRED = "verification_required"
 
 _REASON_HINTS = {
@@ -23,6 +23,17 @@ _REASON_HINTS = {
     EXPECT_UNVERIFIED: "Dispatch ran but expect was not new in the settled observation; read the settled state below (no cua_state needed); do not claim done unless it shows the result.",
     VERIFICATION_REQUIRED: "Mutating act needs expect (or allow_unverified for dispatch-only).",
 }
+_CREDENTIAL_TARGET = re.compile(r"(?i)(password|secret|credential|api[_ -]?key|authorization|auth token|securetextfield)")
+
+
+def _has_credential_target(arguments: dict[str, Any]) -> bool:
+    rows = [arguments]
+    for key in ("steps", "actions"):
+        if isinstance(arguments.get(key), list):
+            rows.extend(row for row in arguments[key] if isinstance(row, dict))
+    return any(_CREDENTIAL_TARGET.search(" ".join(
+        str(row.get(key) or "") for key in ("label", "role", "field", "name", "target")
+    )) for row in rows)
 
 _LABEL_RE = re.compile(r'"(.*?)"')
 _INDEX_RE = re.compile(r"\[(\d+)\]")
@@ -120,12 +131,15 @@ def classify_failure(
 
 def _target_hints(arguments: dict[str, Any], results: list[dict[str, Any]] | None) -> list[str]:
     hints: list[str] = []
+    credential_target = _has_credential_target(arguments)
     for key in ("label", "text", "key", "op", "path", "url"):
+        if credential_target and key == "text":
+            continue
         if arguments.get(key) is not None:
             hints.append(f"{key}={arguments.get(key)!s}"[:120])
     if arguments.get("element") is not None:
         hints.append(f"element={arguments.get('element')}")
-    if arguments.get("expect") is not None:
+    if arguments.get("expect") is not None and not credential_target:
         hints.append(f"expect={arguments.get('expect')!s}"[:120])
     steps = arguments.get("steps")
     if isinstance(steps, list) and steps:
@@ -143,37 +157,129 @@ def _target_hints(arguments: dict[str, Any], results: list[dict[str, Any]] | Non
     return hints
 
 
-def _nearby_lines(tree: str, arguments: dict[str, Any], *, limit: int = 8) -> list[str]:
+def _nearby_lines(tree: str, arguments: dict[str, Any], *, limit: int = 4) -> list[str]:
     if not tree:
         return []
     lines = tree.splitlines()
+    if _has_credential_target(arguments):
+        return [lines[0][:160]] if lines and re.search(r"(?i)(?:\bAXWindow\b|^Window:|^Window\s)", lines[0]) else []
+    label_needles: list[str] = []
     needles: list[str] = []
-    for key in ("label", "text", "expect"):
+    for key in ("text", "expect", "query"):
         val = arguments.get(key)
         if val:
             needles.append(str(val))
+    if arguments.get("label"):
+        label_needles.append(str(arguments["label"]))
     steps = arguments.get("steps")
     if isinstance(steps, list):
         for step in steps:
-            if isinstance(step, dict) and step.get("label"):
-                needles.append(str(step["label"]))
-    needles = [n for n in needles if n]
+            if isinstance(step, dict):
+                if step.get("label"):
+                    label_needles.append(str(step["label"]))
+                for key in ("text", "expect", "query"):
+                    if step.get(key):
+                        needles.append(str(step[key]))
+    label_needles = list(dict.fromkeys(n for n in label_needles if n))
+    needles = list(dict.fromkeys(n for n in needles if n))
     hits: list[str] = []
-    if lines:
+    if lines and re.search(r"(?i)(?:\bAXWindow\b|^Window:|^Window\s)", lines[0]):
         hits.append(lines[0][:160])  # window header
+    near: list[tuple[float, str]] = []
     for line in lines[1:]:
-        if any(n.lower() in line.lower() for n in needles):
+        labels = re.findall(r'["\']([^"\']{1,120})["\']', line)
+        exact_label = any(label.casefold() == target.casefold()
+                          for label in labels for target in label_needles)
+        exact_text = any(re.search(rf"(?<!\w){re.escape(n)}(?!\w)", line, re.I) for n in needles)
+        if exact_label or exact_text:
             hits.append(line[:160])
-        if len(hits) >= limit:
-            break
-    if len(hits) == 1 and len(lines) > 1:
-        # No needle hits — include a few static text / value lines.
-        for line in lines[1:]:
-            if "value=" in line or "AXStaticText" in line or "AXText" in line:
-                hits.append(line[:160])
-            if len(hits) >= min(limit, 4):
+            continue
+        for target in label_needles:
+            score = max((SequenceMatcher(None, target.casefold(), label.casefold()).ratio()
+                         for label in labels), default=0.0)
+            if score >= 0.55 and not any(re.fullmatch(re.escape(target) + r"\d+", label, re.I)
+                                         for label in labels):
+                near.append((score, line[:160]))
                 break
+    hits.extend(line for _, line in sorted(near, reverse=True)[:max(0, limit - len(hits))])
+    hits = hits[:limit]
     return hits
+
+
+def _failure_facts(
+    *, arguments: dict[str, Any], before_text: str, after_text: str,
+    results: list[dict[str, Any]], error: str | None, reported_failed_step: Any = None,
+) -> dict[str, Any]:
+    failed_result_index = next((i for i, item in enumerate(results) if item.get("ok") is not True), None)
+    reported_step = reported_failed_step
+    if not isinstance(reported_step, int):
+        reported_step = next((item.get("failed_step") for item in results
+                              if isinstance(item.get("failed_step"), int)), None)
+    failed_step = (reported_step - 1 if isinstance(reported_step, int) and reported_step > 0
+                   else failed_result_index)
+    steps = arguments.get("steps")
+    expected_step = (steps[failed_step] if failed_step is not None and isinstance(steps, list)
+                     and failed_step < len(steps) and isinstance(steps[failed_step], dict) else arguments)
+    target_keys = ("op", "label", "text", "query", "selector", "element", "element_index", "role", "expect")
+    expected_target = {key: expected_step[key] for key in target_keys if key in expected_step}
+    if arguments.get("app"):
+        expected_target["app"] = arguments["app"]
+    credential_target = _has_credential_target(arguments)
+    if credential_target:
+        for key in ("text", "value", "expect"):
+            if key in expected_target:
+                expected_target[key] = "[redacted]"
+    failed_result = results[failed_result_index] if failed_result_index is not None else {}
+    found_keys = ("element_index", "role", "label", "value", "method", "error_type", "error")
+    found_target = {key: failed_result[key] for key in found_keys if key in failed_result}
+    if credential_target and "value" in found_target:
+        found_target["value"] = "[redacted]"
+    lines = [line.strip() for line in str(after_text or "").splitlines() if line.strip()]
+    label_terms = [str(expected_target["label"]).strip()] if expected_target.get("label") else []
+    terms = [str(expected_target[key]).strip() for key in ("text", "query", "selector", "role")
+             if expected_target.get(key)]
+    matching: list[str] = []
+    near: list[tuple[float, str]] = []
+    for line in lines[1:]:
+        labels = re.findall(r'["\']([^"\']{1,120})["\']', line) or [line]
+        exact_label = any(target.casefold() == label.casefold()
+                          for target in label_terms for label in labels)
+        exact_text = any(re.search(rf"(?<!\w){re.escape(term)}(?!\w)", line, re.I) for term in terms)
+        if exact_label or exact_text:
+            matching.append(line)
+            continue
+        score = max((SequenceMatcher(None, term.casefold(), label.casefold()).ratio()
+                     for term in label_terms for label in labels), default=0.0)
+        if score >= 0.55 and not any(re.fullmatch(re.escape(term) + r"\d+", label, re.I)
+                                     for term in label_terms for label in labels):
+            near.append((score, line))
+    near.sort(reverse=True)
+    candidates = [] if credential_target else (matching[:4] or [line for _, line in near[:4]])
+    readback = [line[:120] for line in lines[1:]
+                if re.search(r"\bAX(?:StaticText|TextField|TextArea|ValueIndicator)\b", line)]
+    window = lines[0][:160] if lines and re.search(r"(?i)(?:\bAXWindow\b|^Window:|^Window\s)", lines[0]) else None
+    facts = {
+        "completed_steps": sum(item.get("ok") is True for item in results),
+        "failed_step": failed_step + 1 if failed_step is not None else None,
+        "error": str(error or "") or None,
+        "expected_target": expected_target,
+        "found_target": found_target or None,
+        "observation": {
+            "state": "available" if lines else "empty",
+            "window": window,
+            "line_count": len(lines),
+            "match_count": len(matching),
+            "near_miss_count": len(near),
+            "candidates": [line[:200] for line in candidates],
+        },
+        "before_observation_state": "available" if str(before_text or "").strip() else "empty",
+    }
+    if arguments.get("expect") is not None and not credential_target:
+        facts["expectation_check"] = {
+            "expected": str(arguments["expect"])[:80],
+            "found": readback[:3],
+        }
+    return facts
 
 
 def format_failure_text(
@@ -230,10 +336,11 @@ def apply_failure_feedback(
         error_type=str(payload.get("error_type") or "") or None,
     )
     payload["error_type"] = reason
-    payload["failure"] = {
-        "completed_steps": sum(item.get("ok") is True for item in results),
-        "failed_step": next((i + 1 for i, item in enumerate(results) if item.get("ok") is not True), None),
-    }
+    payload["failure"] = _failure_facts(
+        arguments=arguments, before_text=before_text, after_text=after_text,
+        results=results, error=str(payload.get("error") or "") or None,
+        reported_failed_step=payload.get("failed_step"),
+    )
     payload["text"] = format_failure_text(
         reason=reason,
         arguments=arguments,
@@ -246,13 +353,13 @@ def apply_failure_feedback(
     for key in ("error", "results", "expect"):
         payload.pop(key, None)
     if reason == EXPECT_UNVERIFIED and after_text.strip():
-        # The action ran: hand back the settled observation so the model reads the outcome
-        # here instead of spending a round trip on cua_state (the usual next call).
-        settled = after_text.strip()
-        if len(settled) > SETTLED_STATE_MAX:
-            settled = settled[:SETTLED_STATE_MAX] + "…"
-        payload["text"] += "\nsettled state:\n" + settled
-        payload["full_text_omitted"] = len(after_text.strip()) > SETTLED_STATE_MAX
+        # Keep only target-relevant settled facts; the full AX tree never reaches the task view.
+        observation = payload["failure"]["observation"]
+        payload["text"] += "\nsettled observation: " + "; ".join(
+            f"{key}={value}" for key, value in observation.items()
+            if value not in (None, [], "")
+        )
+        payload["full_text_omitted"] = True
         return payload
     # Keep full tree off the model path; callers that need proof can re-state.
     payload["full_text_omitted"] = True

@@ -507,6 +507,10 @@ def _meta(events: list[dict]) -> str:
     return str(((events[0].get("response") or {}).get("metadata") or {}).get("voice_cua_request_id") or "")
 
 
+def _step_meta(events: list[dict]) -> str:
+    return str(((events[0].get("response") or {}).get("metadata") or {}).get("voice_cua_request_step_ref") or "")
+
+
 class LiveTurnIdTests(_Rows):
     """Each typed request is a turn; only delegations created in that turn answer it."""
 
@@ -531,13 +535,28 @@ class LiveTurnIdTests(_Rows):
         p.inbound({'type': 'session.delegation.created', 'offset_ms': 1300, 'delegation': {'id': 'first'}})
         first = p.inbound(_ev('first', {'type': 'response.created', 'response': {'id': 'r1'}}))
         request = _meta(first)
+        request_step_ref = _step_meta(first)
         p.inbound(_fc('first', 'c1'))
         p.outbound({'type': 'conversation.item.create', 'item': {'type': 'function_call_output', 'call_id': 'c1', 'output': '{}'}})
         p.inbound(_ev('first', {'type': 'response.completed', 'response': {'id': 'r1', 'status': 'completed'}}))
         continuation = [p.inbound(event) for event in _answer('first', 'r2', 'Done.')]
         self.assertTrue(request)
+        self.assertTrue(request_step_ref)
         self.assertEqual(_meta(continuation[0]), request)
         self.assertEqual(_meta(continuation[2]), request)
+        self.assertEqual(_step_meta(continuation[0]), request_step_ref)
+
+    def test_typed_request_step_ref_crosses_the_provider_boundary(self) -> None:
+        p, _ = _live()
+        request_id = "a" * 32
+        outbound = p.outbound({"type": "response.create", "response": {"metadata": {
+            "voice_cua_request_id": request_id,
+            "voice_cua_request_step_ref": "request-step-1",
+        }}})
+        self.assertTrue(outbound)
+        created = p.inbound(_ev("typed", {"type": "response.created", "response": {"id": "r-typed"}}))
+        self.assertEqual(_meta(created), request_id)
+        self.assertEqual(_step_meta(created), "request-step-1")
         p.heard.flush()
 
     def test_older_delegation_continuation_does_not_take_the_next_request(self) -> None:

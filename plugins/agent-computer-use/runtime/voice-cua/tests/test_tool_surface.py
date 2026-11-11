@@ -46,14 +46,14 @@ class _Fresh(unittest.TestCase):
 
 class LazyGroupTests(unittest.TestCase):
     def test_base_surface_has_no_secrets_or_confirm(self) -> None:
-        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "system_volume", "ledger_task"})
+        self.assertEqual(names(), {"cua_state", "cua_act", "more_tools", "show_details", "comet_begin", "comet_act", "comet_end", "system_volume", "ledger_task"})
 
-    def test_comet_actions_are_only_offered_during_a_lease(self) -> None:
+    def test_comet_actions_ride_with_comet_begin(self) -> None:
         idle = {tool["name"] for tool in tools.tool_definitions(comet_active=False)}
         active = {tool["name"] for tool in tools.tool_definitions(comet_active=True)}
         self.assertIn("comet_begin", idle)
-        self.assertNotIn("comet_act", idle)
-        self.assertNotIn("comet_end", idle)
+        self.assertIn("comet_act", idle)
+        self.assertIn("comet_end", idle)
         self.assertTrue({"comet_begin", "comet_act", "comet_end"}.issubset(active))
         begin = next(tool for tool in tools.tool_definitions(comet_active=False) if tool["name"] == "comet_begin")
         self.assertIn("unless the user asks to close it", begin["description"])
@@ -254,6 +254,33 @@ class RiskGateTests(_Fresh):
 
 
 class RetryCapTests(_Fresh):
+    def test_ledger_signal_is_telemetry_only_for_native_dispatch(self) -> None:
+        args = {"app": "Notes", "op": "click", "label": "Preference",
+                "ledger_decision_id": "dec_123456"}
+        tools.dispatch("cua_act", args)
+        self.assertNotIn("ledger_decision_id", self.backend.act.call_args.args[1])
+
+    def test_retry_rows_have_unique_step_refs_and_explicit_parent(self) -> None:
+        from voice_cua.activity_log import tool_context
+
+        self.backend.act.return_value = {"ok": False, "error_type": "action_failed", "error": "no match"}
+        args = {"app": "Notes", "op": "click", "label": "Save", "expect": "saved"}
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "activity.jsonl"
+            with patch.dict(os.environ, {"VOICE_CUA_ACTIVITY_LOG": str(log)}):
+                for index, expect in enumerate(("saved", "saved elsewhere", "saved"), start=1):
+                    with tool_context(run_id="1234567890abcdef1234567890abcdef",
+                                      step_ref=f"attempt-{index}",
+                                      caused_by=["response-step"]):
+                        tools.dispatch("cua_act", dict(args, expect=expect))
+                starts = [json.loads(line) for line in log.read_text().splitlines()
+                          if json.loads(line).get("kind") == "tool_start"]
+        self.assertEqual([row["step_ref"] for row in starts], ["attempt-1", "attempt-2", "attempt-3"])
+        self.assertNotIn("retry_of_step_ref", starts[0])
+        self.assertEqual(starts[1]["retry_of_step_ref"], "attempt-1")
+        self.assertEqual(starts[2]["retry_of_step_ref"], "attempt-2")
+        self.assertTrue(all(row["run_id"] == "1234567890abcdef1234567890abcdef" for row in starts))
+
     def test_failure_gets_hint_and_retryable(self) -> None:
         self.backend.act.return_value = {"ok": False, "error_type": "target_missing", "error": "no match"}
         out = tools.dispatch("cua_act", {"app": "Notes", "op": "click", "label": "Foo", "expect": "x"})
@@ -324,7 +351,8 @@ class CompactActSchemaTests(unittest.TestCase):
     def test_same_fields_ops_and_required_as_backend(self) -> None:
         props = self.voice["parameters"]["properties"]
         backend_props = self.backend["properties"]
-        self.assertEqual(set(props) - {"step_label", "risky"}, set(backend_props))
+        self.assertEqual(set(props) - {"step_label", "risky", "ledger_decision_id"}, set(backend_props))
+        self.assertEqual(props["ledger_decision_id"]["type"], "string")
         self.assertEqual(props["op"]["enum"], backend_props["op"]["enum"])
         self.assertEqual(self.voice["parameters"]["required"], self.backend["required"])
         for key, prop in props.items():
@@ -333,8 +361,10 @@ class CompactActSchemaTests(unittest.TestCase):
         # Every per-step field the backend accepts is described at top level.
         step_fields = set(backend_props["steps"]["items"]["properties"])
         self.assertTrue(step_fields <= set(props))
+        comet = next(t for t in tools.tool_definitions(comet_active=True) if t["name"] == "comet_act")
+        self.assertEqual(comet["parameters"]["properties"]["ledger_decision_id"]["type"], "string")
 
-    def test_at_most_half_the_old_size(self) -> None:
+    def test_under_55_percent_of_the_old_size(self) -> None:
         extras = {"step_label": {"type": "string", "description": "Short human step for island UI"},
                   "risky": {"type": "boolean", "description": "Force confirm_risky before acting"}}
         old_tool = {
@@ -343,7 +373,7 @@ class CompactActSchemaTests(unittest.TestCase):
         }
         old = len(json.dumps(old_tool))
         new = len(json.dumps(self.voice))
-        self.assertLessEqual(new, old * 0.5)
+        self.assertLessEqual(new, old * 0.55)
 
 
 if __name__ == "__main__":

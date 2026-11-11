@@ -219,12 +219,12 @@ class ToolsTests(unittest.TestCase):
             self.assertNotIn("cursor", n.lower())
             self.assertNotIn("grok", n.lower())
 
-    def test_comet_actions_are_offered_only_during_a_lease(self) -> None:
+    def test_comet_actions_ride_with_comet_begin(self) -> None:
         idle = {tool["name"] for tool in tool_definitions(comet_active=False)}
         active = {tool["name"] for tool in tool_definitions(comet_active=True)}
         self.assertIn("comet_begin", idle)
-        self.assertNotIn("comet_act", idle)
-        self.assertNotIn("comet_end", idle)
+        self.assertIn("comet_act", idle)
+        self.assertIn("comet_end", idle)
         self.assertTrue({"comet_begin", "comet_act", "comet_end"}.issubset(active))
 
     def test_comet_browser_tasks_use_fresh_isolated_leases(self) -> None:
@@ -493,6 +493,7 @@ class AudioIOTests(unittest.TestCase):
             names = {tool["name"] for tool in session.ws.events[-1]["session"]["tools"]}
             self.assertIn("comet_begin", names)  # stays offered: follow-ups reuse the window
             self.assertTrue({"comet_act", "comet_end"}.issubset(names))
+            session._tools_update_ack.set()  # the server confirmed session.updated
             session._finish_response("resp_active")
             deadline = time.monotonic() + 1
             while time.monotonic() < deadline and len(session.ws.events) < 3:

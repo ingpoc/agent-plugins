@@ -1,5 +1,34 @@
 # Changelog: agent-computer-use
 
+## 0.2.129
+
+- Treat numbers with grouping separators (9,801) as equal to plain digits in `expect` checks; report the label of the step that actually failed in `target_missing`.
+
+## 0.2.128
+
+- Offer `comet_act` and `comet_end` together with `comet_begin` from the start: the live model ignored the mid-turn tool-list update and said it could not read or close the page.
+
+## 0.2.127
+
+- Wait up to 2 s for `session.updated` before continuing after a tool-list update (Comet read/close tools were unusable); log expected and read-back text on failed native steps; lift the Codex-circle initiator badge so it stays inside the menu-bar height.
+
+## 0.2.126
+
+- Show the initiator badge on the Dynamic Island left Codex circle when one initiator owns it; skip queued tool calls after a spoken cancel and report in-flight ones as unknown; block Ledger recall retries after a rejected query in the same turn.
+
+## 0.2.125
+
+- Fail fast with `screen_locked` or `display_asleep` and a plain hint instead of "App has no open window"; add `step_ref` to usage rows.
+
+## 0.2.124
+
+- Report empty Ledger lookups as `none`; record request expectations and completed outcomes from the last successful tool result.
+
+## 0.2.123
+
+- Correlate task, tool, cancellation, playback and failure events by run and step refs while retaining non-secret diagnostic content.
+- Keep Comet and native CUA failure facts compact, with credential-only redaction and explicit gaps for missing links or final URLs.
+
 ## 0.2.122
 
 - Clarify when to close a Comet task window and avoid retrying dispatch-only native actions blindly.

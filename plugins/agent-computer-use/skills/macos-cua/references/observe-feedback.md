@@ -31,6 +31,11 @@ and a short `text` body.
 
 Missing after-state discards old IDs.
 
+Failure results include the expected target, any target facts the failed native call returned, and
+a small settled observation summary (window, line counts, matching/near-miss candidates). They do
+not include whole AX trees; the local activity record carries the step ref and full non-secret act
+arguments for diagnosis.
+
 ## Window selection
 
 CUAService prefers the **AX focused** window over the largest CGWindow

@@ -1,0 +1,46 @@
+{
+  "cases": {
+    "fix": [
+      "plan_fix",
+      "verify",
+      null
+    ],
+    "handoff": [
+      "verify",
+      "report_rollover",
+      null
+    ],
+    "triage": [
+      "collect",
+      "present",
+      null
+    ]
+  },
+  "created_at": "2026-11-09T08:10:00Z",
+  "decision_rule": {
+    "adopt_if": "candidate stage command used in >=5/6 runs; candidate accepted in all 6; candidate median shell_calls < baseline; candidate median agent_seconds <= baseline; candidate median uncached_input <= 1.10x baseline",
+    "adoption_min_runs": 5,
+    "note": "Directional OpenCode-provider pilot, not a general efficiency or savings verdict; verifier/orchestration tokens excluded.",
+    "otherwise": "inconclusive",
+    "reject_adoption_below": 3,
+    "reject_if": "any candidate acceptance failure or candidate stage use <3/6",
+    "uncached_input_max_ratio": 1.1
+  },
+  "design": "3 cases x 2 reps = 6 matched pairs, sequential, order balanced per case (rep1 baseline first, rep2 candidate first); failures retained",
+  "fixture_sha256": "c322b3fc963ba7ac3b5e89ca1185131cc84b89aca8073ab33001a73df5d2add2",
+  "model": "opencode/deepseek-v4.1-flash-free",
+  "opencode_version": "opencode v2.2.6",
+  "provider": "opencode",
+  "runner_sha256": "318908133b736d1a5a7ac249749897aa501eb127754f38e6003c0f9a00376e75",
+  "skills": {
+    "baseline": {
+      "path": "/Users/gurusharan/code/worktrees/.agents/bcl-status-experiment/skills/batched-change-list",
+      "tree_sha256": "c21b136980f9254c0f599895ab2c5148f2a2df36d0f2954578c7f30c09a664cb"
+    },
+    "candidate": {
+      "path": "/Users/gurusharan/code/worktrees/.agents/bcl-input-experiment/skills/batched-change-list",
+      "tree_sha256": "cea755683898f83ef96bd7297679cb17baba08c16295e70fd04a8318badc7140"
+    }
+  },
+  "variant": "low"
+}

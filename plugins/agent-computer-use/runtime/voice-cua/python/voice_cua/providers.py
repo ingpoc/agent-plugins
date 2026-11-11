@@ -35,7 +35,7 @@ import time
 import uuid
 from typing import Any, Callable
 
-from voice_cua.activity_log import log_event
+from voice_cua.activity_log import log_event, new_step_ref
 
 LIVE_MODEL = "gpt-live-1"  # the only OpenAI voice path (Realtime removed)
 XAI_MODEL = "grok-voice-latest"
@@ -162,7 +162,9 @@ LIVE_INSTRUCTIONS = (
     "pay, overwrite), ask the user plainly and wait for a clear yes."
     " When choosing a site or app profile, account, or other preference-sensitive option, delegate the choice "
     "to the backend to check saved preferences before asking which option to use. Do not answer from memory "
-    "or claim no preference exists before the backend checks."
+    "or claim no preference exists before the backend checks. When a tool action applies a specific returned "
+    "Ledger record, include its exact decision_id as ledger_decision_id on that action; omit it for records "
+    "that were only considered or not applied."
 )
 
 ROUTING_INSTRUCTIONS = (
@@ -347,14 +349,27 @@ class LiveProvider(VoiceProvider):
         self._remember("user", text)
         with self._lock:
             backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
+            request_id = (self._pending_spoken_request[0] if self._pending_spoken_request else
+                          self._pending_request or self._turn_request)
+            step_ref = self._request_step_refs.get(request_id) if request_id else None
+            if request_id and not step_ref:
+                step_ref = self._request_step_refs[request_id] = new_step_ref()
+            if len(self._request_step_refs) > 256:
+                self._request_step_refs.pop(next(iter(self._request_step_refs)))
             if backend_busy:
                 self._pending_spoken_update = text
             else:
                 self._pending_spoken_update = ""
         if backend_busy:
-            log_event("live_backend_input_queued", chars=len(text))
-        # 'You:' line in voice.log plus the text (capped) in the local activity log.
-        log_event("user_transcript", chars=len(text), text=text[:240], provider="openai-live")
+            log_event("live_backend_input_queued", run_id=request_id or None,
+                      run_ref_status="linked" if request_id else "unknown",
+                      run_ref_gap=None if request_id else "pending_spoken_request_missing",
+                      step_ref=step_ref or new_step_ref(), chars=len(text))
+        log_event("user_transcript", run_id=request_id or None,
+                  run_ref_status="linked" if request_id else "unknown",
+                  run_ref_gap=None if request_id else "pending_spoken_request_missing",
+                  step_ref=step_ref or new_step_ref(), chars=len(text), text=text,
+                  provider="openai-live", source="microphone_transcription")
         print(f"You: {text}", flush=True)
         island_publish("thinking", title=text[:120], detail="Thinking")
 
@@ -389,6 +404,7 @@ class LiveProvider(VoiceProvider):
             self._last_delegation = ""
             self._pending_request = ""  # voice_cua_request_id of the last typed request
             self._pending_spoken_request: tuple[str, int] | None = None
+            self._request_step_refs: dict[str, str] = getattr(self, "_request_step_refs", {})
             self._spoken_turn_request = ""
             self._unmatched_delegation_offsets: dict[str, int] = {}
             self._skip_next_create = False
@@ -589,7 +605,10 @@ class LiveProvider(VoiceProvider):
                 return []
             meta = (event.get("response") or {}).get("metadata") or {}
             request_id = str(meta.get("voice_cua_request_id") or "") if isinstance(meta, dict) else ""
+            request_step_ref = str(meta.get("voice_cua_request_step_ref") or "") if isinstance(meta, dict) else ""
             with self._lock:
+                if request_id and request_step_ref:
+                    self._request_step_refs[request_id] = request_step_ref
                 outstanding = sum(len(c) for c in self._pending_calls.values())
                 new_turn = bool(request_id) and (
                     request_id != self._turn_request or getattr(self, "_user_item_queued", False))
@@ -742,7 +761,9 @@ class LiveProvider(VoiceProvider):
                 with self._lock:
                     backend_busy = bool(self._active_backend_responses or any(self._pending_calls.values()))
                     if not backend_busy and not self._pending_request:
-                        self._pending_spoken_request = (uuid.uuid4().hex, start_ms)
+                        request_id = uuid.uuid4().hex
+                        self._pending_spoken_request = (request_id, start_ms)
+                        self._request_step_refs[request_id] = new_step_ref()
                         end_ms = event.get("end_ms")
                         matches = [d for d, offset in self._unmatched_delegation_offsets.items()
                                    if isinstance(end_ms, int) and not isinstance(end_ms, bool)
@@ -858,6 +879,9 @@ class LiveProvider(VoiceProvider):
             created: dict[str, Any] = {"id": rid}
             if request_id:
                 created["metadata"] = {"voice_cua_request_id": request_id}
+                request_step_ref = self._request_step_refs.get(request_id)
+                if request_step_ref:
+                    created["metadata"]["voice_cua_request_step_ref"] = request_step_ref
             return [{"type": "response.created", "response": created}]
         if it == "response.output_text.done":
             with self._lock:

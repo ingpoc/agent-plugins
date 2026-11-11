@@ -57,7 +57,14 @@ def safe_link(value, field):
     return value
 
 
-def render_tracking(tracking):
+def load_inventory(path):
+    inventory = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(inventory, dict):
+        raise ValueError("inventory must be a JSON object")
+    return inventory
+
+
+def render_tracking(tracking, inventory_override=None):
     if not isinstance(tracking, dict):
         raise ValueError("tracking must be an object")
     parts = []
@@ -85,27 +92,31 @@ def render_tracking(tracking):
         revision = html.escape(run["revision"])
         installed = html.escape(run["installed_at"])
         build_card = f'<div class="tracking-item"><span class="tracking-label">Verification build</span><strong>{build} · {revision}</strong><span>Run installed {installed} · {run["status"]}</span></div>'
-    inventory = tracking.get("installed_plugins")
+    recorded_inventory = inventory_override is None and tracking.get("installed_plugins") is not None
+    inventory = inventory_override if inventory_override is not None else tracking.get("installed_plugins")
     if inventory is not None:
-        if not isinstance(inventory, dict) or not isinstance(inventory.get("versions"), dict) or not inventory["versions"]:
+        if not isinstance(inventory, dict) or not isinstance(inventory.get("versions"), dict):
             raise ValueError("tracking.installed_plugins requires versions")
         observed = html.escape(required_text(inventory.get("observed_at"), "installed_plugins.observed_at"))
         source = html.escape(required_text(inventory.get("source"), "installed_plugins.source"))
         versions = []
         for name, version in inventory["versions"].items():
             versions.append(f'<span>{html.escape(required_text(name, "plugin name"))} <strong>{html.escape(required_text(version, "plugin version"))}</strong></span>')
-        if run is None:
-            raise ValueError("installed_plugins requires a verification run")
+        if not versions:
+            versions.append("<span>No plugin versions recorded</span>")
+        detail_rows = []
+        if run is not None:
+            detail_rows.append(f'<p>Verification run: {build} · {revision}<br>Installed {installed} · {run["status"]}</p>')
+        detail_rows.append(f'<p>Inventory checked {observed} · {source}</p>')
+        inventory_note = "As recorded" if recorded_inventory else "Inventory supplied at render time"
         build_card = (f'<div class="tracking-item"><span class="tracking-label">Installed plugins</span>'
-                     f'<div class="plugin-versions">{"".join(versions)}</div><span class="inventory-note">Inventory · see build details</span>'
-                     f'<details class="build-details"><summary>Build details</summary>'
-                     f'<p>Verification run: {build} · {revision}<br>Installed {installed} · {run["status"]}</p>'
-                     f'<p>Inventory checked {observed} · {source}</p></details></div>')
+                     f'<div class="plugin-versions">{"".join(versions)}</div><span class="inventory-note">{inventory_note}</span>'
+                     f'<details class="build-details"><summary>Build details</summary>{"".join(detail_rows)}</details></div>')
     summary = '<div class="tracking" aria-label="Pull request and worktree">' + "".join(parts) + "</div>" if parts else ""
     return summary, build_card
 
 
-def render(data, base):
+def render(data, base, inventory_override=None):
     if not isinstance(data, dict):
         raise ValueError("document must be an object")
     title = required_text(data.get("title"), "title")
@@ -115,10 +126,18 @@ def render(data, base):
         raise ValueError("tracking.workflow requires a valid stage and updated_at")
     active = workflow.get("stage") if workflow else None
     steps = ''.join('<li class="workflow-step' + (' active" aria-current="step"' if key == active else '"') + f'><span>{index}</span>{html.escape(label)}</li>' for index, (key, label) in enumerate(WORKFLOW_STAGES.items(), 1))
-    timestamp = html.escape(workflow['updated_at']) if workflow else ''
-    timeline = f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong><span>{"Last reported " + timestamp if timestamp else "No active step reported"}</span></div><ol>{steps}</ol></section>'
-    tracking, build_card = render_tracking(tracking_data)
+    timestamp = html.escape(workflow['updated_at'], quote=True) if workflow else ''
+    time_html = f'<time datetime="{timestamp}" data-relative>{html.escape(workflow["updated_at"])}</time>' if workflow else ''
+    now_html = ""
+    if workflow and workflow.get("now") is not None:
+        match = re.match(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:\d{2})) — (.+)$", required_text(workflow["now"], "tracking.workflow.now"))
+        if not match:
+            raise ValueError("tracking.workflow.now must start with its ISO 8601 timestamp")
+        now_html = f'<p class="workflow-now"><strong>Now</strong> <time datetime="{html.escape(match.group(1), quote=True)}" data-relative>{html.escape(match.group(1))}</time> · {html.escape(match.group(2))}</p>'
+    timeline = f'<section class="workflow" aria-label="Workflow progress"><div class="workflow-heading"><strong>Workflow</strong><span>{"Last reported " + time_html if time_html else "No active step reported"}</span></div><ol>{steps}</ol>{now_html}</section>'
+    tracking, build_card = render_tracking(tracking_data, inventory_override)
     run = tracking_data.get("verification_run")
+    progress = '<p id="verification-progress" role="status"></p>' if isinstance(run, dict) and run.get("status") == "active" else ""
     findings = data.get("findings")
     if not isinstance(findings, list):
         raise ValueError("findings must be an array")
@@ -146,9 +165,9 @@ def render(data, base):
             if state in ("fixed", "not_fixed", "blocked", "inconclusive"):
                 required_text(check.get("evidence"), f"{item['id']}.check.evidence")
                 required_text(check.get("finished_at"), f"{item['id']}.check.finished_at")
-            if state == "fixed" and item["status"] != "verified_fixed":
+            if run["status"] == "active" and state == "fixed" and item["status"] != "verified_fixed":
                 raise ValueError(f"{item['id']}: fixed check requires verified_fixed status")
-            if state == "not_fixed" and item["status"] == "verified_fixed":
+            if run["status"] == "active" and state == "not_fixed" and item["status"] == "verified_fixed":
                 raise ValueError(f"{item['id']}: a failed check cannot retain verified_fixed status")
             if run["status"] == "complete" and state in ("pending", "checking"):
                 raise ValueError(f"{item['id']}: completed run has unchecked issues")
@@ -215,8 +234,10 @@ def render(data, base):
     serialized = json.dumps([item for item in output if item["id"] not in excluded], ensure_ascii=True).replace("<", "\\u003c")
     run_view = {key: run[key] for key in ("id", "build", "revision", "installed_at", "status")} if run else None
     replacements = {"{{TITLE}}": html.escape(title), "{{FINDINGS_JSON}}": serialized,
-                    "{{TRACKING}}": tracking, "{{BUILD_CARD}}": build_card, "{{TIMELINE}}": timeline, "{{RUN_JSON}}": json.dumps(run_view, ensure_ascii=True).replace("<", "\\u003c")}
-    return re.sub(r"\{\{TITLE\}\}|\{\{FINDINGS_JSON\}\}|\{\{TRACKING\}\}|\{\{BUILD_CARD\}\}|\{\{TIMELINE\}\}|\{\{RUN_JSON\}\}",
+                    "{{TRACKING}}": tracking, "{{BUILD_CARD}}": build_card, "{{TIMELINE}}": timeline,
+                    "{{VERIFICATION_PROGRESS}}": progress,
+                    "{{RUN_JSON}}": json.dumps(run_view, ensure_ascii=True).replace("<", "\\u003c")}
+    return re.sub(r"\{\{TITLE\}\}|\{\{FINDINGS_JSON\}\}|\{\{TRACKING\}\}|\{\{BUILD_CARD\}\}|\{\{TIMELINE\}\}|\{\{VERIFICATION_PROGRESS\}\}|\{\{RUN_JSON\}\}",
                   lambda match: replacements[match.group()], template)
 
 
@@ -224,12 +245,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path, help="authoritative findings JSON")
     parser.add_argument("output", type=Path, help="output HTML")
+    parser.add_argument("--inventory", type=Path, help="optional installed-plugin inventory JSON")
     args = parser.parse_args()
     try:
         if args.input.resolve() == args.output.resolve() or args.output.resolve() == TEMPLATE.resolve():
             raise ValueError("output must differ from input and template")
         data = json.loads(args.input.read_text(encoding="utf-8"))
-        result = render(data, args.input.resolve().parent)
+        inventory = load_inventory(args.inventory) if args.inventory else None
+        result = render(data, args.input.resolve().parent, inventory)
         args.output.write_text(result, encoding="utf-8")
     except (OSError, ValueError, json.JSONDecodeError) as error:
         parser.exit(2, f"render: {error}\n")
