@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "verify",
-      "updated_at": "2026-11-11T11:51:33Z",
-      "now": "2026-11-11T11:51:33Z — Spoken save and fresh-session recall pass on 0.2.130; waiting for Guru to speak a change of the preference, then I recall the updated value"
+      "stage": "plan_fix",
+      "updated_at": "2026-11-11T11:58:57Z",
+      "now": "2026-11-11T11:58:57Z — Spoken stop did not cancel the in-flight action (run 17:27); Codex Luna implementing spoken-stop cancel"
     },
     "rollover": {
       "source_pr": 96,
@@ -2085,7 +2085,7 @@
       "id": "AGENT-02",
       "title": "Samantha's Context Ledger task errors and retries",
       "source": "Agent reported",
-      "status": "awaiting_verification",
+      "status": "in_progress",
       "observed": "Fresh ACU 0.2.96 telemetry records a Context Ledger recall rejected because its query had no searchable terms. No subsequent ledger call appears after that error in the selected session; earlier retry records remain in history.",
       "recommendation": "Build Context Ledger search queries from the concrete need and situation; stop after a rejected request instead of retrying with reworded arguments.",
       "verification": "Direct installed ledger_task recall with an empty query returned ledger_invalid_argument and retryable=false; a separately supplied valid scoped recall returned the synthetic test preference. This exercises the tool boundary, not Samantha’s autonomous recovery or retry behavior.",
@@ -2675,7 +2675,7 @@
       "id": "AGENT-07",
       "title": "Action continued after spoken cancellation",
       "source": "Agent reported",
-      "status": "awaiting_verification",
+      "status": "in_progress",
       "observed": "During a voice session, a new Calculator action began after the user said to leave the task. Earlier close attempts had produced incomplete observations.",
       "recommendation": "Trace cancellation through the voice turn and tool dispatch boundary. Stop queued work when the user cancels while accurately reporting any in-flight action whose outcome is unknown; do not replay it.",
       "verification": "User reports that Samantha stopped in the requested spoken Calculator cancellation check. Recent 0.2.119 voice-session telemetry includes a native action but has no timestamped cancellation utterance or task run link, so whether any action began after the stop cannot be independently established.",
@@ -2690,6 +2690,14 @@
           "session": "sref_fdba14238d94ef23c2828ccc6e169004",
           "timestamp": "2026-11-07T04:55:08.785912+00:00",
           "reference": "Task-linked activity events; compact_backend.py and MethodRouter.swift planState source review"
+        },
+        {
+          "check": "Spoken stop during a long Calculator task, 0.2.130",
+          "outcome": "FAILED: user said \"Wait, stop\" at 17:27:40; an in-flight response issued a new cua_act at 17:27:42 which ran to 17:27:46 (expect_unverified). The stop was only queued as input; no cancel ran, no tool_cancelled logged. Samantha later said she stopped.",
+          "build": "0.2.130",
+          "session": "live-0.2.130",
+          "timestamp": "2026-11-11T17:29:12+05:30",
+          "reference": "samantha-activity.jsonl 17:27:39-17:27:52 (model_response_start, live_backend_input_queued, user_transcript, tool_start cua_act)"
         }
       ]
     },

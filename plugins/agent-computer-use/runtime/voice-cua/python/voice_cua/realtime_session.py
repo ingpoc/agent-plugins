@@ -20,7 +20,8 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from voice_cua import SYSTEM_INSTRUCTIONS, session_instructions
-from voice_cua.activity_log import log_event, log_task_outcome, log_usage, new_step_ref, tool_context
+from voice_cua.activity_log import (log_event, log_task_outcome, log_tool_result, log_usage,
+                                    new_step_ref, tool_context)
 from voice_cua.activity_log import log_exception as _log_exception
 from voice_cua.cua_bridge import hide_agent_cursor
 from voice_cua.comet_bridge import comet_add_listener, comet_end, comet_is_active, comet_remove_listener
@@ -55,10 +56,15 @@ _TASK_ACTION_EVIDENCE = {
     "system_volume": "app_readback",
     "ledger_task": "ledger_result",
 }
+_READ_ONLY_TOOLS = {
+    "cua_state", "secrets_list", "secrets_get", "more_tools", "show_details", "workflow_read",
+}
 
 
 def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, str | None]:
     evidence_class = "tool_reported" if results else None
+    if any(row.get("outcome") == "unknown" for row in results):
+        return "unknown", evidence_class
     if status == "cancelled" or any(row.get("cancelled") is True for row in results):
         return "cancelled", evidence_class
     if not results:
@@ -286,6 +292,8 @@ class RealtimeSession:
         self._task_started_at: dict[str, float] = {}
         self._cancel_requested_by_run: dict[str, str] = {}
         self._cancel_requested_at_by_run: dict[str, float] = {}
+        self._latest_spoken_stop_at = 0.0
+        self._latest_spoken_stop_step_ref = ""
         self._dispatching_calls: set[str] = set()
         self._counted_skipped_calls: set[str] = set()
         self._skipped_calls_by_run: dict[str, int] = {}
@@ -325,6 +333,7 @@ class RealtimeSession:
         self._access_refused = ""  # "HTTP 403 ..." when the handshake says this key can't use the model
         self._tool_groups: set[str] = set()  # lazy tool groups loaded this conversation
         self._response_started: dict[str, float] = {}  # response_id → monotonic at response.created
+        self._spoken_stop_response_ids: set[str] = set()
         self._config_error_published = False
         self._rate_limit_warned = False
         self._planned_reconnect_timer: threading.Timer | None = None
@@ -895,7 +904,24 @@ class RealtimeSession:
             if heard:
                 if self._spoken_task_cancel(heard):
                     self._last_user_text = heard
-                    self.island_control("cancel")
+                    with self._response_lock:
+                        response_id = self._current_response_id
+                        run_id = (self._response_task_run_ids.get(response_id, "")
+                                  or self._active_task_run_id)
+                        response_active = response_id in self._active_response_ids
+                        response_step_ref = self._response_step_refs.get(response_id, "")
+                        request_step_ref = self._task_request_step_refs.get(run_id, "")
+                    transcript_step_ref = new_step_ref()
+                    log_event("user_transcript", run_id=run_id or None,
+                              run_ref_status="linked" if run_id else "unknown",
+                              run_ref_gap=None if run_id else "stop_transcript_without_task",
+                              step_ref=transcript_step_ref,
+                              caused_by=[ref for ref in (request_step_ref, response_step_ref) if ref] or None,
+                              text=heard, source="microphone_transcription",
+                              item_id=str(event.get("item_id") or ""), chars=len(heard))
+                    if response_active or run_id:
+                        self.island_control("cancel", caused_by_step_ref=transcript_step_ref,
+                                            cancel_source="transcript")
                     print(f"You: {heard}", flush=True)
                     return
                 self._last_user_text = heard
@@ -940,6 +966,7 @@ class RealtimeSession:
                 if response_id:
                     if len(self._response_started) > 256:  # never grow without bound
                         self._response_started.clear()
+                        self._spoken_stop_response_ids.clear()
                     self._response_started[response_id] = time.monotonic()
                     self._response_step_refs[response_id] = step_ref
                     self._active_response_ids.add(response_id)
@@ -1302,19 +1329,35 @@ class RealtimeSession:
         def work() -> None:
             try:
                 with self._response_lock:
-                    cancelled = bool(task_run_id and task_run_id in self._cancel_requested_by_run)
+                    response_started_at = self._response_started.get(response_id, 0.0)
+                    stop_cancelled = bool(
+                        name not in _READ_ONLY_TOOLS and response_started_at
+                        and response_started_at <= self._latest_spoken_stop_at
+                    ) or (name not in _READ_ONLY_TOOLS and response_id in self._spoken_stop_response_ids)
+                    cancellation_step_ref = (self._cancel_requested_by_run.get(task_run_id, "")
+                                             or self._response_cancellation_step_refs.get(response_id, "")
+                                             or (self._latest_spoken_stop_step_ref if stop_cancelled else ""))
+                with self._response_lock:
+                    cancelled = bool(task_run_id and task_run_id in self._cancel_requested_by_run) or stop_cancelled
                     if cancelled:
                         if call_id not in self._counted_skipped_calls:
                             self._counted_skipped_calls.add(call_id)
-                            self._skipped_calls_by_run[task_run_id] = self._skipped_calls_by_run.get(task_run_id, 0) + 1
-                        skipped = self._skipped_calls_by_run[task_run_id]
+                            if task_run_id:
+                                self._skipped_calls_by_run[task_run_id] = self._skipped_calls_by_run.get(task_run_id, 0) + 1
+                        skipped = self._skipped_calls_by_run.get(task_run_id, 1) if task_run_id else 1
                 if cancelled:
-                    log_event("task_data", run_id=task_run_id,
-                              task_data={"cancellation": {"state": "requested", "skipped_calls": skipped,
-                                                          "in_flight_outcome": "unknown"}})
-                    result = {"ok": False, "cancelled": True, "outcome": "not_started",
-                              "error": "Task cancelled before this tool started", "retryable": False}
-                    self._record_task_result(task_run_id, name, result)
+                    with tool_context(call_id=call_id, response_id=response_id, run_id=task_run_id,
+                                      step_ref=tool_step_ref, caused_by=caused_by + ([cancellation_step_ref]
+                                                                                   if cancellation_step_ref else [])):
+                        result = {"ok": False, "cancelled": True, "outcome": "not_started",
+                                  "error": "User cancelled before this tool started",
+                                  "error_type": "user_cancelled", "retryable": False}
+                        log_tool_result(name, result, arguments=arguments)
+                        self._record_task_result(task_run_id, name, result)
+                    if task_run_id:
+                        log_event("task_data", run_id=task_run_id,
+                                  task_data={"cancellation": {"state": "requested", "skipped_calls": skipped,
+                                                              "in_flight_outcome": "unknown"}})
                     self._deliver_tool_result(call_id, name, result, epoch=epoch, arguments=arguments)
                     return
                 kind, title, detail, app = describe_tool(name, arguments)
@@ -1353,8 +1396,8 @@ class RealtimeSession:
                     cancelled_inflight = bool(dispatch_started and task_run_id
                                               and task_run_id in self._cancel_requested_by_run)
                 if cancelled_inflight:
-                    result = {"ok": False, "cancelled": True, "outcome": "unknown",
-                              "error": "Task cancelled while this tool was in flight; outcome unknown. Do not retry.",
+                    result = {"ok": False, "outcome": "unknown",
+                              "error": "Action was interrupted while executing; outcome unknown. Do not repeat it.",
                               "error_type": "cancelled_outcome_unknown", "retryable": False}
                 if task_run_id:
                     with self._response_lock:
@@ -1407,6 +1450,7 @@ class RealtimeSession:
                     "ok": result.get("ok") is True,
                     "verified": result.get("verified") is True,
                     "cancelled": result.get("cancelled") is True,
+                    "outcome": result.get("outcome"),
                 })
 
     @staticmethod
@@ -1930,7 +1974,7 @@ class RealtimeSession:
             event["response"] = {"metadata": metadata}
         self._send(event)
 
-    def island_control(self, action: str) -> bool:
+    def island_control(self, action: str, *, caused_by_step_ref: str = "", cancel_source: str = "card") -> bool:
         """Island card buttons (Stop / Cancel / Replay / Retry). True when the session acted."""
         if action in ("stopSpeaking", "cancel", "stopTask"):
             self._handle_speech_started()          # drop buffered audio + truncate what was heard
@@ -1946,6 +1990,15 @@ class RealtimeSession:
             cancel_step_ref = new_step_ref()
             task_cancel = action in ("cancel", "stopTask")
             caused_by = [ref for ref in [response_step_ref, *inflight_refs] if ref]
+            if caused_by_step_ref:
+                caused_by.append(caused_by_step_ref)
+                self._latest_spoken_stop_at = time.monotonic()
+                self._latest_spoken_stop_step_ref = cancel_step_ref
+                if active:
+                    if len(self._spoken_stop_response_ids) > 256:
+                        self._spoken_stop_response_ids.clear()
+                    self._spoken_stop_response_ids.add(active)
+                    self._response_cancellation_step_refs[active] = cancel_step_ref
             if task_cancel and run_id:
                 with self._response_lock:
                     self._cancel_requested_by_run[run_id] = cancel_step_ref
@@ -1992,6 +2045,7 @@ class RealtimeSession:
                       cancellation_state="requested" if task_cancel else "response_stop_requested",
                       cancellation_delivery=("steer_instruction" if provider_manages else "response_cancel")
                       if response_active else "no_active_response",
+                      cancel_source=cancel_source if caused_by_step_ref else "card",
                       cancel_send_ok=cancel_send_ok, cancelled=bool(response_active),
                       inflight_tool_count=len(inflight), inflight_step_refs=inflight_refs,
                       settlement_gap="no_active_response_to_ack" if not response_active else None)
@@ -2056,9 +2110,11 @@ class RealtimeSession:
 
     @staticmethod
     def _spoken_task_cancel(text: str) -> bool:
+        text = text.replace("’", "'")
         return bool(re.fullmatch(
-            r"\s*(?:(?:please\s+)?(?:cancel|stop)(?:\s+(?:the\s+)?(?:task|it|this|that))?|"
-            r"leave\s+(?:it|that|this|the\s+task)|never\s+mind|forget\s+(?:it|that|this))[.!?\s]*",
+            r"\s*(?:(?:wait[,;:]?\s+)?(?:please\s+)?(?:stop(?:\s+(?:it|this|that|the task))?|"
+            r"cancel(?:\s+(?:it|this|that|(?:the\s+)?task))?|never\s+mind|leave\s+(?:it|that|this|the task)|"
+            r"you\s+can\s+stop|that'?s\s+enough|forget\s+(?:it|that|this)))[.!?\s]*",
             text, re.IGNORECASE,
         ))
 

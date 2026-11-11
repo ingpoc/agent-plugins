@@ -203,11 +203,14 @@ class TaskOutcomeTests(unittest.TestCase):
 
     def test_spoken_cancel_transcript_routes_to_task_cancel(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=False)
+        session._active_task_run_id = "spoken-stop-run"
         with patch.object(session, "island_control", return_value=True) as cancel, \
              patch.object(session, "_note_user_turn") as note:
             session._dispatch_event({"type": "conversation.item.input_audio_transcription.completed",
                                      "transcript": "Leave the task."})
-        cancel.assert_called_once_with("cancel")
+        cancel.assert_called_once()
+        self.assertEqual(cancel.call_args.args, ("cancel",))
+        self.assertEqual(cancel.call_args.kwargs["cancel_source"], "transcript")
         note.assert_not_called()
 
     def test_cancel_during_tool_reports_unknown_and_never_replays(self) -> None:
@@ -242,6 +245,8 @@ class TaskOutcomeTests(unittest.TestCase):
         dispatch.assert_called_once()
         self.assertEqual(delivered[0]["error_type"], "cancelled_outcome_unknown")
         self.assertEqual(delivered[0]["outcome"], "unknown")
+        self.assertNotIn("cancelled", delivered[0])
+        self.assertIn("outcome unknown", delivered[0]["error"])
 
     def test_duplicate_tool_delivery_emits_mirror_reference_without_dispatch(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=False)

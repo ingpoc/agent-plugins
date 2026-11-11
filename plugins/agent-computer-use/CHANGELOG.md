@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.131
+
+- A spoken stop ("wait, stop", "you can stop", "please stop") now runs the same cancel as the island card: tool calls from a response already in progress are not started, and an action already executing is reported as outcome unknown and never repeated (AGENT-07).
+
 ## 0.2.130
 
 - Ledger preference save accepts a snake_case value (`dark_mode`) when the owner said the same words with spaces ("dark mode"); it was rejected as not in the user statement (USER-03).
