@@ -144,10 +144,15 @@ class PrivacyAndInjectionTests(unittest.TestCase):
             self.assertEqual(logged.call_args.args[0], "task_outcome")
             self.assertEqual(logged.call_args.kwargs["response_id"], "resp_test-123")
             self.assertEqual(logged.call_args.kwargs["tools"], ["comet_act"])
+            activity_log.log_task_outcome(check_id="tool_task", outcome="verified_success",
+                                          evidence_class="tool_reported", run_id="a1234567",
+                                          tools=["ledger_task"], expected_outcome="Check my app preference")
+            self.assertEqual(logged.call_args.kwargs["expected_outcome"], "Check my app preference")
+            self.assertEqual(logged.call_args.kwargs["tools"], ["ledger_task"])
             with self.assertRaises(ValueError):
                 activity_log.log_task_outcome(check_id="free form user data", outcome="failed",
                                               evidence_class="transcript", run_id="a1234567")
-            self.assertEqual(logged.call_count, 1)
+            self.assertEqual(logged.call_count, 2)
 
     def test_opt_in_diagnostics_capture_ledger_result_and_redacted_error_context(self):
         from voice_cua import activity_log

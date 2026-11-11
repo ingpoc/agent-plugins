@@ -44,9 +44,22 @@ from voice_cua.realtime_session import RealtimeSession, _task_outcome  # noqa: E
 class TerminalOutcomeTests(unittest.TestCase):
     def test_verified_action_requires_completed_response(self) -> None:
         results = [{"tool": "cua_act", "ok": True, "verified": True}]
-        for status in ("completed", "failed", "incomplete"):
+        self.assertEqual(_task_outcome(results, status="completed"), ("verified_success", "tool_reported"))
+        for status in ("failed", "incomplete"):
             with self.subTest(status=status):
                 self.assertEqual(_task_outcome(results, status=status), ("unverified", "tool_reported"))
+
+    def test_last_successful_result_completes_ledger_only_and_recall_then_act(self) -> None:
+        ledger_only = [{"tool": "ledger_task", "ok": True}]
+        recall_then_act = [
+            {"tool": "ledger_task", "ok": True},
+            {"tool": "cua_act", "ok": True, "verified": True},
+        ]
+        later_error = recall_then_act + [{"tool": "cua_act", "ok": False}]
+        for rows in (ledger_only, recall_then_act):
+            with self.subTest(rows=rows):
+                self.assertEqual(_task_outcome(rows, status="completed"), ("verified_success", "tool_reported"))
+        self.assertEqual(_task_outcome(later_error, status="completed"), ("unverified", "tool_reported"))
 
     def test_settled_task_without_action_evidence_is_unknown(self) -> None:
         self.assertEqual(_task_outcome([], status="completed"), ("unknown", None))
@@ -176,7 +189,7 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertNotEqual(new_request["run_id"], previous_run)
         self.assertEqual(new_request["retry_of_run_ref"], previous_run)
         self.assertEqual(new_request["request"], "Open the report")
-        self.assertEqual(new_request["expected_outcome"], "unknown")
+        self.assertEqual(new_request["expected_outcome"], "Open the report")
         self.assertRegex(new_request["step_ref"], r"^[0-9a-f]{32}$")
 
     def test_tool_result_is_correlated_through_final_response(self) -> None:
@@ -205,13 +218,13 @@ class TaskOutcomeTests(unittest.TestCase):
             session._note_response_done({"id": response_id, "status": "completed", "output": []})
         outcome = log.call_args.kwargs
         self.assertEqual(outcome["check_id"], "tool_task")
-        self.assertEqual(outcome["outcome"], "unverified")
+        self.assertEqual(outcome["outcome"], "verified_success")
         self.assertEqual(outcome["evidence_class"], "tool_reported")
         self.assertEqual(outcome["run_id"], run_id)
         self.assertEqual(outcome["response_id"], response_id)
         self.assertEqual(outcome["step_ref"], session._response_step_refs[response_id])
         self.assertEqual(outcome["caused_by"], [request_step_ref])
-        self.assertEqual(outcome["expected_outcome"], "unknown")
+        self.assertEqual(outcome["expected_outcome"], "Calculate 8 times 8")
         self.assertIsInstance(outcome["duration_ms"], int)
         self.assertEqual(outcome["tools"], ["cua_act"])
         self.assertNotIn(run_id, session._task_runs)
@@ -243,6 +256,22 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertEqual(fields["caused_by"], ["request-step"])
         self.assertIsInstance(fields["duration_ms"], int)
 
+    def test_ledger_only_run_records_success_and_request_expectation(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        run_id, response_id = "e" * 32, "response-ledger-only"
+        request = "Check the Context Ledger for my calculation app preference"
+        session._response_task_run_ids[response_id] = run_id
+        session._task_runs[run_id] = [{"tool": "ledger_task", "ok": True}]
+        session._task_expected_outcomes[run_id] = request
+        with patch("voice_cua.realtime_session.log_task_outcome") as log, patch(
+            "voice_cua.realtime_session.mark"
+        ):
+            session._note_response_done({"id": response_id, "status": "completed", "output": []})
+        outcome = log.call_args.kwargs
+        self.assertEqual(outcome["outcome"], "verified_success")
+        self.assertEqual(outcome["expected_outcome"], request)
+        self.assertEqual(outcome["tools"], ["ledger_task"])
+
     def test_old_response_cannot_clear_a_new_turn_outcome(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=False)
         old_run, new_run = "a" * 32, "b" * 32
@@ -254,7 +283,7 @@ class TaskOutcomeTests(unittest.TestCase):
         ):
             session._note_response_done({"id": "old-response", "status": "completed", "output": []})
         outcome = log.call_args.kwargs
-        self.assertEqual(outcome["outcome"], "unverified")
+        self.assertEqual(outcome["outcome"], "verified_success")
         self.assertRegex(outcome["step_ref"], r"^[0-9a-f]{32}$")
         self.assertEqual(outcome["caused_by"], [])
         self.assertEqual(outcome["tools"], ["cua_act"])

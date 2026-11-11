@@ -69,6 +69,17 @@ class ActivityAudit(unittest.TestCase):
         self.assertNotIn("retry_of_run_id", error)
         self.assertNotIn("causal_refs", error)
 
+    def test_empty_ledger_lookup_records_none(self) -> None:
+        for result in ({"ok": True, "decisions": []}, {"ok": True, "status": "unknown", "decisions": []},
+                       {"ok": True, "data": {"matches": []}}):
+            rows = []
+            with self.subTest(result=result), patch.object(activity_log, "_append_row", side_effect=rows.append):
+                activity_log.log_tool_result("ledger_task", result, operation="lookup")
+            task = next(row for row in rows if row["kind"] == "tool_result")
+            selection = next(row for row in rows if row["kind"] == "ledger_select")
+            self.assertEqual(task["ledger_result_status"], "none")
+            self.assertEqual(selection["ledger_selection_status"], "none")
+
     def test_failure_target_facts_are_flat_and_secure_typed_text_is_redacted(self) -> None:
         secure_text = "secure-field-password-sentinel"
         normal_text = "normal typed query sentinel"

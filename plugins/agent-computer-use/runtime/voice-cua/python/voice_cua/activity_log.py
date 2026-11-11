@@ -40,7 +40,7 @@ _LEDGER_DETAIL_KEYS = frozenset({
     "scope", "rule", "entities", "sensitivity", "constraints", "reason", "changed_choice",
     "supersedes", "superseded_by", "source", "tags", "created_at", "updated_at", "record_type",
 })
-_TASK_OUTCOME_TOOLS = frozenset({"cua_act", "comet_act", "system_volume"})
+_TASK_OUTCOME_TOOLS = frozenset({"cua_act", "comet_act", "system_volume", "ledger_task"})
 _process_session_id = uuid.uuid4().hex[:8]  # fallback when startup_trace never ran
 _build_label: str | None = None
 
@@ -777,8 +777,15 @@ def log_tool_result(name: str, result: dict[str, Any], *, app: str = "", operati
         decisions = matches
     decision_count = min(len(decisions), 3) if isinstance(decisions, list) else (1 if result.get("decision_id") else 0)
     ledger_status = result.get("status")
-    if ledger and ok and ledger_status is None and isinstance(matches, list):
-        ledger_status = "found" if matches else "none"
+    ledger_records = decisions if isinstance(decisions, list) else matches
+    if ledger and ok and isinstance(ledger_records, list):
+        if operation == "lookup" and result.get("has_more") is not True:
+            if not ledger_records:
+                ledger_status = "none"
+            elif ledger_status in (None, "unknown"):
+                ledger_status = "found"
+        elif ledger_status is None:
+            ledger_status = "found" if ledger_records else "none"
     ledger_status = ledger_status if isinstance(ledger_status, str) and ledger_status in {"found", "none", "saved", "skipped", "cancelled", "needs_disambiguation"} else "other"
     ledger_detail, ledger_truncated = _ledger_result_detail(result) if ledger else (None, None)
     logged_result = dict(result)
@@ -905,13 +912,13 @@ def log_task_outcome(*, check_id: str, outcome: str, evidence_class: str | None,
     if (len(check_id) > 48 or not re.fullmatch(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*", check_id)
             or outcome not in {"verified_success", "verified_incomplete", "unverified", "cancelled", "unknown"}
             or evidence_class not in {None, "app_readback", "browser_inventory", "local_login", "combined", "tool_reported"}
-            or (evidence_class == "tool_reported" and outcome not in {"unverified", "cancelled"})
+            or (evidence_class == "tool_reported" and outcome not in {"verified_success", "unverified", "cancelled"})
             or not re.fullmatch(r"[0-9a-f]{8,64}", run_id)
             or not isinstance(response_id, str)
             or (response_id and (len(response_id) > 160 or not re.fullmatch(r"[A-Za-z0-9_-]+", response_id)))
             or not isinstance(tools, (list, tuple))
             or any(tool not in _TASK_OUTCOME_TOOLS for tool in tools)
-            or expected_outcome != "unknown"
+            or not isinstance(expected_outcome, str)
             or (duration_ms is not None and (type(duration_ms) is not int or duration_ms < 0))):
         raise ValueError("invalid task outcome metadata")
     log_event("task_outcome", check_id=check_id, outcome=outcome,

@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.124
+
+- Report empty Ledger lookups as `none`; record request expectations and completed outcomes from the last successful tool result.
+
 ## 0.2.123
 
 - Correlate task, tool, cancellation, playback and failure events by run and step refs while retaining non-secret diagnostic content.

@@ -52,19 +52,18 @@ _TASK_ACTION_EVIDENCE = {
     "cua_act": "app_readback",
     "comet_act": "browser_inventory",
     "system_volume": "app_readback",
+    "ledger_task": "ledger_result",
 }
 
 
 def _task_outcome(results: list[dict[str, Any]], *, status: str) -> tuple[str, str | None]:
-    evidence = {
-        _TASK_ACTION_EVIDENCE[row["tool"]]
-        for row in results
-        if row.get("tool") in _TASK_ACTION_EVIDENCE
-    }
-    evidence_class = "tool_reported" if evidence else None
+    evidence_class = "tool_reported" if results else None
     if status == "cancelled" or any(row.get("cancelled") is True for row in results):
         return "cancelled", evidence_class
-    return ("unverified", evidence_class) if evidence else ("unknown", None)
+    if not results:
+        return "unknown", None
+    return ("verified_success" if status == "completed" and results[-1].get("ok") is True
+            else "unverified", evidence_class)
 
 
 def _has_sound(b64: str, floor: int = 600) -> bool:
@@ -280,6 +279,7 @@ class RealtimeSession:
         self._response_step_refs: dict[str, str] = {}
         self._response_cancellation_step_refs: dict[str, str] = {}
         self._task_runs: dict[str, list[dict[str, Any]]] = {}
+        self._task_expected_outcomes: dict[str, str] = {}
         self._task_request_step_refs: dict[str, str] = {}
         self._task_last_step_refs: dict[str, str] = {}
         self._task_started_at: dict[str, float] = {}
@@ -1308,7 +1308,7 @@ class RealtimeSession:
                         self._task_last_step_refs[task_run_id] = tool_step_ref
                 for bad in ("value", "secret", "password", "api_key", "token"):
                     result.pop(bad, None)
-                self._record_task_action(task_run_id, name, result)
+                self._record_task_result(task_run_id, name, result)
                 rkind, rtitle, rdetail = summarize_result(name, result, fallback=detail)
                 if not (rkind == "error" and errors_published() > errors_before):
                     island_publish(rkind, title=rtitle, detail=rdetail, app=app)
@@ -1339,8 +1339,8 @@ class RealtimeSession:
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _record_task_action(self, run_id: str, name: str, result: dict[str, Any]) -> None:
-        if not run_id or name not in _TASK_ACTION_EVIDENCE:
+    def _record_task_result(self, run_id: str, name: str, result: dict[str, Any]) -> None:
+        if not run_id:
             return
         with self._response_lock:
             if run_id in self._task_runs:
@@ -1780,6 +1780,7 @@ class RealtimeSession:
             task_settling = bool(task_run_id and task_run_id in self._task_runs)
             task_results = self._task_runs.pop(task_run_id, []) if task_settling else []
             task_started_at = self._task_started_at.pop(task_run_id, None) if task_settling else None
+            expected_outcome = self._task_expected_outcomes.pop(task_run_id, "") if task_settling else ""
             cancel_step_ref = self._cancel_requested_by_run.pop(task_run_id, "") if task_settling else ""
         task_outcome = _task_outcome(task_results, status=status)
         if task_settling:
@@ -1791,7 +1792,7 @@ class RealtimeSession:
                                                         cancel_step_ref) if ref],
                              duration_ms=(int((time.monotonic() - task_started_at) * 1000)
                                           if task_started_at is not None else None),
-                             expected_outcome="unknown",
+                             expected_outcome=expected_outcome or "unknown",
                              tools=sorted({row["tool"] for row in task_results if row.get("tool") in _TASK_ACTION_EVIDENCE}))
         if task_run_id:
             with self._response_lock:
@@ -1970,6 +1971,7 @@ class RealtimeSession:
         with self._response_lock:
             if task_request_id:
                 self._task_runs[task_request_id] = []
+                self._task_expected_outcomes[task_request_id] = text
                 self._task_request_step_refs[task_request_id] = request_step_ref
                 self._task_last_step_refs.pop(task_request_id, None)
                 self._task_started_at[task_request_id] = time.monotonic()
@@ -1978,7 +1980,7 @@ class RealtimeSession:
         log_event("user_transcript" if source == "microphone_transcription" else "user_request",
                   run_id=task_request_id, run_ref_status="linked", run_ref_source="controller_task_start",
                   retry_of_run_ref=retry_of_run_ref or None, step_ref=request_step_ref,
-                  request=text, expected_outcome="unknown",
+                  request=text, expected_outcome=text,
                   text=text if source == "microphone_transcription" else None,
                   source=source, item_id=item_id or None, chars=len(text))
         self._turn_recovered = False
