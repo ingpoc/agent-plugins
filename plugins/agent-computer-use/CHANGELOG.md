@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.130
+
+- Ledger preference save accepts a snake_case value (`dark_mode`) when the owner said the same words with spaces ("dark mode"); it was rejected as not in the user statement (USER-03).
+
 ## 0.2.129
 
 - Treat numbers with grouping separators (9,801) as equal to plain digits in `expect` checks; report the label of the step that actually failed in `target_missing`.

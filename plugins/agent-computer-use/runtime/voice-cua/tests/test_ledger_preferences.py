@@ -139,3 +139,13 @@ def test_preference_rejects_one_off_and_unquoted_value(tmp_path):
     helper.note_user(quote)
     assert not helper.run(operation='preference', scope='tool:gmail', rule='account_select', value='Work', owner_quote=quote)['ok']
     transport.call.assert_not_called()
+
+
+def test_snake_case_value_matches_spoken_words(tmp_path):
+    transport = Mock()
+    transport.call.return_value = {'ok': True, 'data': {'decision_id': 'saved'}}
+    helper = LedgerHelper(transport, Mock(), tmp_path / 'pending')
+    quote = 'I prefer dark mode in every app'
+    helper.note_user('Remember that ' + quote)
+    result = helper.run(operation='preference', scope='fleet', rule='app_appearance_mode', value='dark_mode', owner_quote=quote)
+    assert result['status'] == 'saved', result

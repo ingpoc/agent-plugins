@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "report_rollover",
-      "updated_at": "2026-11-11T09:25:48Z",
-      "now": "2026-11-11T09:25:48Z — Roll-over PR #98 open; next: OBS-01, OBS-20, AGENT-04"
+      "stage": "verify",
+      "updated_at": "2026-11-11T11:42:50Z",
+      "now": "2026-11-11T11:42:50Z — Installed ledger value-match fix on 0.2.129; waiting for Guru to repeat the spoken preference save"
     },
     "rollover": {
       "source_pr": 96,
@@ -2027,7 +2027,7 @@
       "id": "USER-03",
       "title": "User action needed · Save and update a preference",
       "source": "User reported",
-      "status": "untested",
+      "status": "in_progress",
       "observed": "Durable preferences and important decisions should be captured when they are stated, then reused at the right time without reminders.",
       "recommendation": "Capture durable preferences in their exact scope and rule. Use the decision capture path for critical decisions, and confirm a save only after the ledger returns a receipt.",
       "verification": "Typed synthetic live test passed: Samantha saved a scoped preference, updated it and recalled the updated value; independent Ledger readback confirmed replacement. User-authored spoken capture and critical-decision behavior were not tested.",
@@ -2567,6 +2567,14 @@
           "session": "release receipt and voice_control status",
           "timestamp": "2026-11-07T17:33:46Z",
           "reference": "ACU 0.2.120 db03e0f; local signed install receipt ~/.agents/artifacts/pr88-acu-0.2.120-db03e0f.json."
+        },
+        {
+          "check": "Open Calculator and calculate eleven times twelve.",
+          "outcome": "success, 6 steps",
+          "build": "0.2.129+1a2ff2962d50",
+          "session": "580f2a27",
+          "timestamp": "2026-11-11T17:08:37+05:30",
+          "reference": "observability run 580f2a277cf1cf687269680f; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1708.png"
         }
       ]
     },
