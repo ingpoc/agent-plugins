@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import sys
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
-from voice_cua import realtime_session
-from voice_cua.realtime_session import _turn_latency_fields
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
+
+from voice_cua import realtime_session  # noqa: E402
+from voice_cua.realtime_session import _turn_latency_fields  # noqa: E402
 
 
 class TurnLatencyTests(unittest.TestCase):
