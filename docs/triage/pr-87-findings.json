@@ -2267,7 +2267,7 @@
       "id": "OBS-10",
       "title": "Session telemetry cannot confirm the task result",
       "source": "Agent reported",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "The prior snapshot showed a successful Comet action and completed responses, but no explicit task result or final app postcondition. Session telemetry also did not expose the Context Ledger result or full recorded error context needed to diagnose a test.",
       "recommendation": "Link the user's task to its actions, response and independently observed result using a stable run identity. Show expected and observed results only when recorded, and retain unknown or unverified outcomes when proof is missing.",
       "verification": "Calculator 64 and subsequent app exit were independently read back, while task_outcome events remained unverified in the session telemetry; the independent results were not joined as verified outcomes.",
@@ -2283,7 +2283,8 @@
       },
       "evidence": [],
       "verification_refs": [
-        "Developer Observability snapshot fa5e86a5233cda2010525b0494fff1dd2eb9d455112a2277549f809ae532d2e5; session sref_3be882a84bf77eafe3dc0becd04d5057 (candidate correlation only)."
+        "Developer Observability observability_task, project samantha, run ef9a20d58f7849a8acf3eb3d59edebfa and cc4f5c67e9424be590db44856bf0b018 (devobs af3e8c9): ledger lookup_status, decision_count, task outcome verified_success.",
+        "~/code/acu-release/pr96/captures/livecheck-1009.png - Calculator result screenshot from the live check."
       ],
       "verification_evidence": [
         {
@@ -2309,6 +2310,14 @@
           "session": "Samantha live written Calculator tasks",
           "timestamp": "2026-11-07T05:53:18.990819Z",
           "reference": "Developer Observability session sref_fbd480014624294ffb618c36401d7b2d; run_refs 831e0b9d435886335b14699a and d8b635e77157b63feff5459d; independent Calculator AX state."
+        },
+        {
+          "check": "OBS-10 task result confirmable",
+          "outcome": "Run ef9a20d5 (typed turn, Ledger + Calculator 7x6): task_outcome=verified_success with expected_outcome stored, evidence_class tool_reported, duration 8848 ms; observability_task shows the outcome and the request text.",
+          "build": "ACU 0.2.124 (5681f3d) + developer-observability 0.1.29 (af3e8c9)",
+          "session": "ef9a20d58f7849a8acf3eb3d59edebfa",
+          "timestamp": "2026-11-11T04:41:57Z",
+          "reference": "observability_task via ~/code/acu-release/livecheck.py; screenshot ~/code/acu-release/pr96/captures/livecheck-1009.png; /tmp/livecheck.json"
         }
       ]
     },
@@ -2379,7 +2388,7 @@
       "id": "OBS-12",
       "title": "Show the complete Context Ledger decision trail",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "The current timeline can show Ledger operation, result status, count and optional bounded result details, but does not establish which preference was selected, applied, saved or superseded for a task.",
       "recommendation": "Link each lookup, selected preference, application, save receipt and supersession outcome to the task. Show concise status first and recorded result/error details on demand.",
       "verification": "The fresh session summary shows two Ledger save receipts and one selected record. Independent Ledger readback found a superseded predecessor, but the summary reports zero supersession events and does not establish the full task-linked trail.",
@@ -2404,7 +2413,19 @@
           "session": "source investigation",
           "timestamp": "2026-11-08T16:44:09.575042+00:00",
           "reference": "plugins/context-ledger/tests/test_preferences.py; plugins/agent-computer-use/runtime/voice-cua/tests/test_ledger_observability.py"
+        },
+        {
+          "check": "OBS-12 Ledger decision trail",
+          "outcome": "Run ef9a20d5: lookup_status none, decision_count 0, query_terms and situation shown. Run cc4f5c67: lookup_status needs_disambiguation with 3 decisions. Both read from the result row via devobs af3e8c9. Remaining: ledger_decision_id is not emitted when a decision is applied.",
+          "build": "ACU 0.2.124 (5681f3d) + developer-observability 0.1.29 (af3e8c9)",
+          "session": "cc4f5c67e9424be590db44856bf0b018",
+          "timestamp": "2026-11-11T04:41:57Z",
+          "reference": "observability_task via ~/code/acu-release/livecheck.py; screenshot ~/code/acu-release/pr96/captures/livecheck-1009.png; /tmp/livecheck.json"
         }
+      ],
+      "verification_refs": [
+        "Developer Observability observability_task, project samantha, run ef9a20d58f7849a8acf3eb3d59edebfa and cc4f5c67e9424be590db44856bf0b018 (devobs af3e8c9): ledger lookup_status, decision_count, task outcome verified_success.",
+        "~/code/acu-release/pr96/captures/livecheck-1009.png - Calculator result screenshot from the live check."
       ]
     },
     {
