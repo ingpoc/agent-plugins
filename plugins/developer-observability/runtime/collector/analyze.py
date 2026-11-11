@@ -687,14 +687,14 @@ def _task_records(events, snapshot_id, sidecar_writer):
                        or 'ledger' in str(event.get('kind', '')).lower()]
         ledger = None
         if ledger_rows:
-            event, ledger_data = next(((event, data) for event, data in ledger_rows
-                                       if data.get('query_terms') or event.get('ledger_result_status')), ledger_rows[0])
-            ledger = {'lookup_status': event.get('ledger_result_status') or 'unknown',
-                      'query_terms': ledger_data.get('query_terms'),
-                      'invalid_query_terms': ledger_data.get('invalid_query_terms'),
-                      'selected_id': ledger_data.get('selected_id') or 'none',
-                      'operation': event.get('ledger_operation'),
-                      'decision_count': event.get('ledger_decision_count')}
+            def first_value(getter):
+                return next((value for event, data in ledger_rows if (value := getter(event, data)) not in (None, '', [])), None)
+            ledger = {'lookup_status': first_value(lambda e, d: e.get('ledger_result_status')) or 'unknown',
+                      'query_terms': first_value(lambda e, d: d.get('query_terms')),
+                      'invalid_query_terms': first_value(lambda e, d: d.get('invalid_query_terms')),
+                      'selected_id': first_value(lambda e, d: d.get('selected_id')) or 'none',
+                      'operation': first_value(lambda e, d: e.get('ledger_operation')),
+                      'decision_count': first_value(lambda e, d: e.get('ledger_decision_count'))}
             action_events = [event for event in all_events if
                              str(event.get('kind') or '').endswith('_act') or
                              str(event.get('kind') or '').startswith('tool_') or

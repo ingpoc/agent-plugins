@@ -551,6 +551,8 @@ class PR96Tests(unittest.TestCase):
             {'run_id': failed_run, 'call_id': 'call-fail', 'kind': 'tool_error', 'tool': 'cua_act',
              'app': 'Calendar', 'error_type': 'TargetNotFound', 'error': 'target missed',
              'hint': 'check the visible page', 'ts': NOW + 1.5},
+            {'run_id': failed_run, 'call_id': 'call-ledger', 'kind': 'tool_start', 'tool': 'ledger_task',
+             'ledger_operation': 'lookup', 'query_terms': ['a query'], 'ts': NOW + 1.9},
             {'run_id': failed_run, 'kind': 'ledger_select', 'ledger_operation': 'lookup',
              'ledger_result_status': 'invalid_query_terms', 'ledger_decision_count': 0,
              'query_terms': ['a query'], 'invalid_query_terms': ['bad'], 'ts': NOW + 2},
@@ -570,7 +572,8 @@ class PR96Tests(unittest.TestCase):
         self.assertEqual(task['build']['id'], 'build-abc')
         self.assertEqual(task['ledger']['lookup_status'], 'invalid_query_terms')
         self.assertEqual(task['ledger']['decision_count'], 0)
-        self.assertEqual(len(task['steps']), 2)
+        self.assertEqual(task['ledger']['decision_count'], 0)
+        self.assertEqual(len(task['steps']), 3)
         success_step = next(step for step in task['steps'] if '250ms' in step['line'])
         self.assertEqual(success_step.get('status', 'success'), 'success')
         failed_step = task['first_failure']
