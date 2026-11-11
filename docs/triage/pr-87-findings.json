@@ -2468,7 +2468,7 @@
       "id": "OBS-14",
       "title": "Link voice, model, Ledger, browser and native timing to one task",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "Stage timings and a compact session summary exist, but a single task-level timeline across Samantha, Ledger, Comet, native actions and playback is not established.",
       "recommendation": "Join attributable stage durations, errors and outcomes to the task, preserve unknown stages and make slow-step evidence available on demand.",
       "verification": "Fresh 0.2.98 spoken Calculator events have no task run reference; voice-to-action/playback attribution remains incomplete.",
@@ -2494,7 +2494,19 @@
           "session": "Samantha live written tasks",
           "timestamp": "2026-11-07T05:53:18.990819Z",
           "reference": "Developer Observability session sref_fbd480014624294ffb618c36401d7b2d; run_refs 329eb6c5f021378d1e5ac9e8, 831e0b9d435886335b14699a and d8b635e77157b63feff5459d."
+        },
+        {
+          "check": "OBS-14 one linked task",
+          "outcome": "Run b0dd7eda (Calculator 11x12): 6 steps, gaps [] (no step_ref_missing), build 0.2.125 attributed, outcome verified_success. Run f02f2d30 (Ledger + Calculator 7x6): 9 steps linked from user_request through ledger lookup to task_outcome; only gap is ledger_decision_id_missing, tracked under OBS-12.",
+          "build": "ACU 0.2.125 (5ac2452) + developer-observability 0.1.29 (af3e8c9)",
+          "session": "f02f2d30e68e20347400bedb",
+          "timestamp": "2026-11-11T06:57:07Z",
+          "reference": "observability_task via ~/code/acu-release/livecheck.py; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1226.png"
         }
+      ],
+      "verification_refs": [
+        "Developer Observability observability_task, project samantha, runs f02f2d30e68e20347400bedb and b0dd7edae9409c06aa2fa1e8 on ACU 0.2.125.",
+        "Screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1226.png"
       ]
     },
     {
@@ -2533,7 +2545,7 @@
       "id": "OBS-16",
       "title": "Show a concise task summary and collapse mirrored events",
       "source": "User requested",
-      "status": "in_progress",
+      "status": "verified_fixed",
       "observed": "A compact session summary exists, but it is not a single attributable task summary. Mirrored or repeated rows can obscure the action sequence.",
       "recommendation": "Show task, build, outcome, duration, failed step and evidence completeness first; collapse genuine mirrored events while retaining occurrence counts and expandable source evidence.",
       "verification": "A concise installed session summary is available, but this check did not establish a single task-linked summary or exercise a known mirrored event pair.",
@@ -2551,7 +2563,19 @@
           "session": "installed-package-tests-20261106",
           "timestamp": "2026-11-06T16:28:55.246756+00:00",
           "reference": "Installed tests/test_session_timeline.py unittest discovery"
+        },
+        {
+          "check": "OBS-16 concise task summary",
+          "outcome": "observability_task returns one view per run: request, expected vs observed outcome, first_failure null, ledger summary (lookup_status, query_terms), gaps list and a compact step list (6 and 9 steps for 2 and 3 model responses); no mirrored events.",
+          "build": "ACU 0.2.125 (5ac2452) + developer-observability 0.1.29 (af3e8c9)",
+          "session": "b0dd7edae9409c06aa2fa1e8",
+          "timestamp": "2026-11-11T06:57:07Z",
+          "reference": "observability_task via ~/code/acu-release/livecheck.py; screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1226.png"
         }
+      ],
+      "verification_refs": [
+        "Developer Observability observability_task, project samantha, runs f02f2d30e68e20347400bedb and b0dd7edae9409c06aa2fa1e8 on ACU 0.2.125.",
+        "Screenshot /Users/gurusharan/code/acu-release/pr96/captures/livecheck-1226.png"
       ]
     },
     {
