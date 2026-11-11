@@ -670,6 +670,12 @@ final class IslandPluginMarksTests: XCTestCase {
         XCTAssertEqual(IslandSourceGroups.leftIdentity(IslandSourceGroup(id: "Codex", app: "Codex")), .app("Codex"))
     }
 
+    func testLeftCircleInitiatorBadgeRequiresOneSharedInitiator() {
+        XCTAssertEqual(IslandSourceGroups.initiatorBadge(["Grok Bot"]), "Grok Bot")
+        XCTAssertNil(IslandSourceGroups.initiatorBadge(["Grok Bot", "Codex"]))
+        XCTAssertNil(IslandSourceGroups.initiatorBadge(["Grok Bot", nil]))
+    }
+
     func testIconChangesUseTheSpringAndNearWhiteIconsUseTheTile() {
         let model = IslandModel()
         model.idleActivity = "duo"

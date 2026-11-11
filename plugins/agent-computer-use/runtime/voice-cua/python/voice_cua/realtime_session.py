@@ -285,6 +285,9 @@ class RealtimeSession:
         self._task_started_at: dict[str, float] = {}
         self._cancel_requested_by_run: dict[str, str] = {}
         self._cancel_requested_at_by_run: dict[str, float] = {}
+        self._dispatching_calls: set[str] = set()
+        self._counted_skipped_calls: set[str] = set()
+        self._skipped_calls_by_run: dict[str, int] = {}
         self._active_task_run_id = ""
         self._last_task_run_id = ""
         self._response_transcripts: dict[str, str] = {}
@@ -881,6 +884,11 @@ class RealtimeSession:
                 return
             heard = str(event.get("transcript") or "").strip()
             if heard:
+                if self._spoken_task_cancel(heard):
+                    self._last_user_text = heard
+                    self.island_control("cancel")
+                    print(f"You: {heard}", flush=True)
+                    return
                 self._last_user_text = heard
                 self._note_user_turn(heard, defer_response=True, source="microphone_transcription",
                                      item_id=str(event.get("item_id") or ""))
@@ -1284,6 +1292,22 @@ class RealtimeSession:
 
         def work() -> None:
             try:
+                with self._response_lock:
+                    cancelled = bool(task_run_id and task_run_id in self._cancel_requested_by_run)
+                    if cancelled:
+                        if call_id not in self._counted_skipped_calls:
+                            self._counted_skipped_calls.add(call_id)
+                            self._skipped_calls_by_run[task_run_id] = self._skipped_calls_by_run.get(task_run_id, 0) + 1
+                        skipped = self._skipped_calls_by_run[task_run_id]
+                if cancelled:
+                    log_event("task_data", run_id=task_run_id,
+                              task_data={"cancellation": {"state": "requested", "skipped_calls": skipped,
+                                                          "in_flight_outcome": "unknown"}})
+                    result = {"ok": False, "cancelled": True, "outcome": "not_started",
+                              "error": "Task cancelled before this tool started", "retryable": False}
+                    self._record_task_result(task_run_id, name, result)
+                    self._deliver_tool_result(call_id, name, result, epoch=epoch, arguments=arguments)
+                    return
                 kind, title, detail, app = describe_tool(name, arguments)
                 app = plugin_island.island_app(name, app)
                 # Plugin use first: the hub row (ring + app inside) must exist before the acting post, or
@@ -1295,7 +1319,20 @@ class RealtimeSession:
                                   step_ref=tool_step_ref, caused_by=caused_by,
                                   cancellation_state="requested_before_tool_start" if cancellation_step_ref else ""):
                     try:
-                        result = dispatch(name, arguments)
+                        with self._response_lock:
+                            cancelled = bool(task_run_id and task_run_id in self._cancel_requested_by_run)
+                            if not cancelled:
+                                self._dispatching_calls.add(call_id)
+                        dispatch_started = not cancelled
+                        if cancelled:
+                            result = {"ok": False, "cancelled": True, "outcome": "not_started",
+                                      "error": "Task cancelled before this tool started", "retryable": False}
+                            with self._response_lock:
+                                if call_id not in self._counted_skipped_calls:
+                                    self._counted_skipped_calls.add(call_id)
+                                    self._skipped_calls_by_run[task_run_id] = self._skipped_calls_by_run.get(task_run_id, 0) + 1
+                        else:
+                            result = dispatch(name, arguments)
                     except Exception as exc:  # noqa: BLE001 — always answer the tool call
                         result = {"ok": False, "error": str(exc)[:200]}
                         _log_exception(name, exc)
@@ -1303,6 +1340,13 @@ class RealtimeSession:
                         plugin_island.tool_finished(name, arguments)
                 if not isinstance(result, dict):
                     result = {"ok": False, "error": "non-dict tool result"}
+                with self._response_lock:
+                    cancelled_inflight = bool(dispatch_started and task_run_id
+                                              and task_run_id in self._cancel_requested_by_run)
+                if cancelled_inflight:
+                    result = {"ok": False, "cancelled": True, "outcome": "unknown",
+                              "error": "Task cancelled while this tool was in flight; outcome unknown. Do not retry.",
+                              "error_type": "cancelled_outcome_unknown", "retryable": False}
                 if task_run_id:
                     with self._response_lock:
                         self._task_last_step_refs[task_run_id] = tool_step_ref
@@ -1315,6 +1359,8 @@ class RealtimeSession:
                 stale = self._deliver_tool_result(
                     call_id, name, result, epoch=epoch, arguments=arguments
                 )
+                if cancelled_inflight or result.get("cancelled"):
+                    return
                 self._sync_tool_groups(name, result)
                 if name.startswith("comet_"):
                     self._on_comet_change(comet_is_active())
@@ -1334,7 +1380,9 @@ class RealtimeSession:
                         error_type="response_busy",
                     )
             finally:
-                self._pending_calls.pop(call_id, None)
+                with self._response_lock:
+                    self._dispatching_calls.discard(call_id)
+                    self._pending_calls.pop(call_id, None)
                 self._inflight_tools = max(0, self._inflight_tools - 1)
 
         threading.Thread(target=work, daemon=True).start()
@@ -1883,6 +1931,8 @@ class RealtimeSession:
                 response_step_ref = self._response_step_refs.get(active, "")
                 inflight = [row for row in self._pending_calls.values() if row.get("run_id") == run_id]
                 inflight_refs = [row.get("step_ref") for row in inflight if row.get("step_ref")]
+                dispatching = {call_id for call_id in self._dispatching_calls
+                               if self._pending_calls.get(call_id, {}).get("run_id") == run_id}
             cancel_step_ref = new_step_ref()
             task_cancel = action in ("cancel", "stopTask")
             caused_by = [ref for ref in [response_step_ref, *inflight_refs] if ref]
@@ -1890,8 +1940,16 @@ class RealtimeSession:
                 with self._response_lock:
                     self._cancel_requested_by_run[run_id] = cancel_step_ref
                     self._cancel_requested_at_by_run[run_id] = time.monotonic()
+                    queued_ids = {call_id for call_id, row in self._pending_calls.items()
+                                  if row.get("run_id") == run_id} - dispatching
+                    self._counted_skipped_calls.update(queued_ids)
+                    skipped_calls = len(queued_ids)
+                    self._skipped_calls_by_run[run_id] = skipped_calls
                     if active:
                         self._response_cancellation_step_refs[active] = cancel_step_ref
+                log_event("task_data", run_id=run_id,
+                          task_data={"cancellation": {"state": "requested", "skipped_calls": skipped_calls,
+                                                      "in_flight_outcome": "unknown" if dispatching else "none"}})
                 caused_by.append(self._task_request_step_refs.get(run_id, ""))
                 caused_by = [ref for ref in caused_by if ref]
             provider_manages = getattr(getattr(self, "provider", None), "manages_barge_in", False)
@@ -1986,8 +2044,24 @@ class RealtimeSession:
         self._turn_recovered = False
         return task_request_id
 
+    @staticmethod
+    def _spoken_task_cancel(text: str) -> bool:
+        return bool(re.fullmatch(
+            r"\s*(?:(?:please\s+)?(?:cancel|stop)(?:\s+(?:the\s+)?(?:task|it|this|that))?|"
+            r"leave\s+(?:it|that|this|the\s+task)|never\s+mind|forget\s+(?:it|that|this))[.!?\s]*",
+            text, re.IGNORECASE,
+        ))
+
     def _plan_drop_recovery(self) -> dict[str, Any] | None:
         """At an unrequested drop: what the next session must redeliver or replay (once)."""
+        with self._response_lock:
+            cancelled_run = self._active_task_run_id
+            cancelled = bool(cancelled_run and cancelled_run in self._cancel_requested_by_run)
+        if cancelled:
+            log_event("live_drop_recovery", mode="cancelled", action="suppressed", run_id=cancelled_run)
+            self._unacked.clear()
+            self._late_results = None
+            return None
         if self._recovery_active:
             # Dropped again while a recovery waits for its tool: that recovery still delivers
             # (on whichever session is up then); just keep its text waiter alive.

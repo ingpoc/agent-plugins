@@ -156,6 +156,93 @@ class TaskOutcomeTests(unittest.TestCase):
         self.assertEqual(ack["queued_action_suppressed"], "unknown")
         self.assertEqual(outcome.call_args.kwargs["outcome"], "unknown")
 
+    def test_spoken_cancel_skips_queued_tool_and_logs_count(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        run_id = "f" * 32
+        session._active_task_run_id = run_id
+        session._task_runs[run_id] = []
+        session._task_request_step_refs[run_id] = "request-step"
+        session._current_response_id = "response-1"
+        session._active_response_ids.add("response-1")
+        session._response_task_run_ids["response-1"] = run_id
+        describing = threading.Event()
+        release = threading.Event()
+        delivered = []
+        events = []
+
+        def describe(*_args):
+            describing.set()
+            self.assertTrue(release.wait(2))
+            return ("working", "Calculator", "", "Calculator")
+
+        with patch("voice_cua.realtime_session.describe_tool", side_effect=describe), \
+             patch("voice_cua.realtime_session.dispatch") as dispatch, \
+             patch("voice_cua.realtime_session.log_event", lambda kind, **kw: events.append((kind, kw))), \
+             patch("voice_cua.realtime_session.island_publish"), \
+             patch("voice_cua.realtime_session.plugin_island.tool_started"), \
+             patch("voice_cua.realtime_session.plugin_island.tool_finished"), \
+             patch.object(session, "_send", return_value=True), \
+             patch.object(session, "_deliver_tool_result", side_effect=lambda _cid, _name, result, **_kw:
+                          delivered.append(result) or "delivered"):
+            session._run_tool("call-queued", "cua_act", "{}", request_id=run_id, response_id="response-1")
+            self.assertTrue(describing.wait(2))
+            self.assertTrue(session.island_control("cancel"))
+            release.set()
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline and not delivered:
+                time.sleep(0.01)
+
+        dispatch.assert_not_called()
+        self.assertEqual(delivered[0]["outcome"], "not_started")
+        row = next(fields for kind, fields in events if kind == "task_data")
+        self.assertEqual(row["task_data"]["cancellation"]["skipped_calls"], 1)
+        self.assertTrue(session._spoken_task_cancel("Leave it."))
+        self.assertTrue(session._spoken_task_cancel("Stop the task"))
+        self.assertFalse(session._spoken_task_cancel("Stop the music"))
+        self.assertIsNone(session._plan_drop_recovery())
+
+    def test_spoken_cancel_transcript_routes_to_task_cancel(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        with patch.object(session, "island_control", return_value=True) as cancel, \
+             patch.object(session, "_note_user_turn") as note:
+            session._dispatch_event({"type": "conversation.item.input_audio_transcription.completed",
+                                     "transcript": "Leave the task."})
+        cancel.assert_called_once_with("cancel")
+        note.assert_not_called()
+
+    def test_cancel_during_tool_reports_unknown_and_never_replays(self) -> None:
+        session = RealtimeSession(api_key="test", enable_audio=False)
+        run_id = "d" * 32
+        session._active_task_run_id = run_id
+        session._task_runs[run_id] = []
+        session._current_response_id = "response-1"
+        session._active_response_ids.add("response-1")
+        session._response_task_run_ids["response-1"] = run_id
+        started = threading.Event()
+        release = threading.Event()
+        delivered = []
+        with patch("voice_cua.realtime_session.describe_tool", return_value=("working", "Calculator", "", "Calculator")), \
+             patch("voice_cua.realtime_session.dispatch", side_effect=lambda *_: (started.set(), release.wait(2),
+                                                                                  {"ok": True, "verified": True})[2]) as dispatch, \
+             patch("voice_cua.realtime_session.log_event"), \
+             patch("voice_cua.realtime_session.island_publish"), \
+             patch("voice_cua.realtime_session.plugin_island.tool_started"), \
+             patch("voice_cua.realtime_session.plugin_island.tool_finished"), \
+             patch.object(session, "_send", return_value=True), \
+             patch.object(session, "_deliver_tool_result", side_effect=lambda _cid, _name, result, **_kw:
+                          delivered.append(result) or "delivered"):
+            session._run_tool("call-running", "cua_act", "{}", request_id=run_id, response_id="response-1")
+            self.assertTrue(started.wait(2))
+            session.island_control("cancel")
+            release.set()
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline and not delivered:
+                time.sleep(0.01)
+            self.assertIsNone(session._plan_drop_recovery())
+        dispatch.assert_called_once()
+        self.assertEqual(delivered[0]["error_type"], "cancelled_outcome_unknown")
+        self.assertEqual(delivered[0]["outcome"], "unknown")
+
     def test_duplicate_tool_delivery_emits_mirror_reference_without_dispatch(self) -> None:
         session = RealtimeSession(api_key="test", enable_audio=False)
         with tempfile.TemporaryDirectory() as tmp:

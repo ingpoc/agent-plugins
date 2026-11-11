@@ -47,6 +47,9 @@ def _session() -> RealtimeSession:
     s._response_cancellation_step_refs = {}
     s._task_request_step_refs = {}
     s._cancel_requested_by_run = {}
+    s._dispatching_calls = set()
+    s._counted_skipped_calls = set()
+    s._skipped_calls_by_run = {}
     s._pending_calls = {}
     s._active_task_run_id = ""
     s._last_task_run_id = ""

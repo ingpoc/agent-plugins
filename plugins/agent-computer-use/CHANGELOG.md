@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.126
+
+- Show the initiator badge on the Dynamic Island left Codex circle when one initiator owns it; skip queued tool calls after a spoken cancel and report in-flight ones as unknown; block Ledger recall retries after a rejected query in the same turn.
+
 ## 0.2.125
 
 - Fail fast with `screen_locked` or `display_asleep` and a plain hint instead of "App has no open window"; add `step_ref` to usage rows.

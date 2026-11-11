@@ -640,6 +640,13 @@ struct SamanthaSourceCircle: View {
             Circle().strokeBorder(IslandPalette.keyLine, lineWidth: 1)
         }
         .frame(width: IslandBarLayout.circleDiameter, height: IslandBarLayout.circleDiameter)
+        .overlay(alignment: .bottomTrailing) {
+            if let initiator = IslandSourceGroups.initiatorBadge(group.initiatorBadges) {
+                SamanthaAppIcon(appName: initiator, size: 12, radius: 3)
+                    .clipShape(Circle()).overlay(Circle().stroke(Color.black, lineWidth: 1.5))
+                    .offset(x: 3, y: 3).accessibilityHidden(true)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             // One 12 pt badge (Guru 19:30 IST): red cross failed > amber "!" needs you > green check done.
             if let badge = IslandAgentBadge.badge(for: group) {

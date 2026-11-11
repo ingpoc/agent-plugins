@@ -98,7 +98,8 @@ class LedgerHelperTests(unittest.TestCase):
             {'ok': True, 'data': {'matches': []}},
             {'ok': True, 'data': {'matches': [self.match]}},
         ]
-        result = self.helper.run(operation='recall', scope='tool:example', rule='profile', need='profile')
+        result = self.helper.run(operation='recall', scope='tool:example', rule='profile', need='profile',
+                                 situation='choose a saved profile')
         self.assertEqual(result['status'], 'needs_disambiguation')
         self.assertEqual(result['data']['matches'], [self.match])
         self.assertNotIn('rule', self.transport.call.call_args.args[1])
@@ -109,6 +110,23 @@ class LedgerHelperTests(unittest.TestCase):
         self.assertFalse(result['ok'])
         self.assertEqual(result['error_type'], 'ledger_invalid_argument')
         self.transport.call.assert_not_called()
+
+    def test_rejected_recall_is_not_retried_with_reworded_arguments(self):
+        self.transport.call.side_effect = LedgerInvalidArgument(message='query has no searchable terms')
+        first = self.helper.run(operation='recall', scope='tool:calculator', need='calculator preference',
+                                situation='choose calculation app', rule='calculation_app')
+        second = self.helper.run(operation='recall', scope='tool:calculator', need='arithmetic app',
+                                 situation='perform a calculation', rule='arithmetic_app')
+        self.assertIn('no searchable terms', first['error'])
+        self.assertFalse(first['retryable'])
+        self.assertIn('already rejected', second['error'])
+        self.assertNotIn('no searchable terms', second['error'])
+        self.transport.call.assert_called_once()
+        self.helper.note_user('New task')
+        self.transport.call.side_effect = None
+        self.transport.call.return_value = {'ok': True, 'data': {'matches': []}}
+        self.assertTrue(self.helper.run(operation='recall', scope='tool:calculator', need='calculator preference',
+                                        situation='choose calculation app')['ok'])
 
     def test_invalid_ledger_find_is_not_retryable(self):
         self.transport.call.side_effect = LedgerInvalidArgument(message='stop-words alone match nothing')
