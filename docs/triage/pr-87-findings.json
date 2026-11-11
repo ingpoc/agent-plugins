@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "verify",
-      "updated_at": "2026-11-11T04:00:41Z",
-      "now": "2026-11-11T04:00:41Z — Live run 7bc9cf38 shows request, build, failing-step target and causal links; run d707afcc (ledger_task+ledger_select logged) is missing from observability_tasks after collect; outcome stays unverified; mic check not run (Mini has no input)"
+      "updated_at": "2026-11-11T04:39:51Z",
+      "now": "2026-11-11T04:39:51Z — 0.2.124 live: emitter now logs ledger_result_status=none (count 0), task_outcome=verified_success with expected_outcome, step_ref on all new events (runs ef9a20d5, cc4f5c67). Devobs task view still shows lookup_status unknown: analyze.py:691-692 picks the row that has query_terms (the tool_start) instead of the result row; handed to Observability."
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",
