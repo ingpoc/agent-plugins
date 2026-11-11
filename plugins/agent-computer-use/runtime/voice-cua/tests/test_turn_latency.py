@@ -44,5 +44,11 @@ class TurnLatencyTests(unittest.TestCase):
         self.assertFalse(fields["over_budget"])
 
 
+class FirstResponseTests(unittest.TestCase):
+    def test_phase_never_negative_when_later_response_created_after_tool(self) -> None:
+        turn = {"response_created": 10.0, "first_tool_start": 12.0, "tool_count": 1, "tool_time_total_ms": 500}
+        self.assertEqual(_turn_latency_fields(turn, None)["response_created_to_first_tool_start"], 2000)
+
+
 if __name__ == "__main__":
     unittest.main()

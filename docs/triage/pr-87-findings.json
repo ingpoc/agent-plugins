@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-11T14:22:27Z",
-      "now": "2026-11-11T14:22:27Z — Releasing 0.2.135 with turn_latency and mic_preflight events; then one combined live check"
+      "updated_at": "2026-11-11T14:30:25Z",
+      "now": "2026-11-11T14:30:25Z — Releasing 0.2.136: fixes a negative phase in turn_latency; mic_preflight log already shows the cause (only a Loom virtual input present)"
     },
     "rollover": {
       "source_pr": 96,

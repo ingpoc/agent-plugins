@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.136
+
+- Samantha: `turn_latency` keeps the first response's start time, so response_created_to_first_tool_start is never negative.
+
 ## 0.2.135
 
 - Samantha observability: a `turn_latency` event per turn (phase milliseconds, dominant phase, over-budget flag) and a `mic_preflight` event per preflight (error text, failure class, devices seen, recovery), with up to two retries for transient preflight failures.

@@ -1001,7 +1001,7 @@ class RealtimeSession:
                             turn = {"run_id": request_id, "step_ref": step_ref,
                                     "tool_time_total_ms": 0, "tool_count": 0}
                             self._turn_latency = turn
-                        turn["response_created"] = self._response_started[response_id]
+                        turn.setdefault("response_created", self._response_started[response_id])
                         turn["step_ref"] = step_ref
                     self._response_step_refs[response_id] = step_ref
                     self._active_response_ids.add(response_id)
