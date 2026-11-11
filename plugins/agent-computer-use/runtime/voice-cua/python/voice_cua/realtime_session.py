@@ -1779,6 +1779,10 @@ class RealtimeSession:
 
     def send_text_and_wait(self, text: str, *, timeout: float = 90.0) -> dict[str, Any]:
         started = time.monotonic()
+        if self._spoken_task_cancel(text):
+            # A stop must not queue behind the request it is stopping.
+            self.send_text(text)
+            return {"ok": True, "reply": "", "stopped": True}
         if not self._text_request_lock.acquire(timeout=timeout):
             return {"ok": False, "error": "timeout waiting for another text request"}
         request_id = uuid.uuid4().hex

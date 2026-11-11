@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.134
+
+- Samantha: a typed stop no longer waits behind the running request, so it can arrive mid-task.
+
 ## 0.2.133
 
 - Samantha: a typed stop ("stop", "uh, stop") now takes the same cancel path as a spoken one, so stop behavior can be tested without a microphone. The log marks it source=typed.

@@ -1923,8 +1923,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-11T13:24:04Z",
-      "now": "2026-11-11T13:24:04Z — Releasing 0.2.133: typed stop uses the spoken cancel path so I can test the race myself"
+      "updated_at": "2026-11-11T13:31:34Z",
+      "now": "2026-11-11T13:31:34Z — Releasing 0.2.134: typed stop bypasses the request lock so the mid-task stop can be tested"
     },
     "rollover": {
       "source_pr": 96,
