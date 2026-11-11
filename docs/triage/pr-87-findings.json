@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "install",
-      "updated_at": "2026-11-11T12:07:44Z",
-      "now": "2026-11-11T12:07:44Z — Building and installing ACU 0.2.131 with spoken-stop cancel"
+      "stage": "verify",
+      "updated_at": "2026-11-11T12:13:17Z",
+      "now": "2026-11-11T12:13:17Z — 0.2.131 installed; waiting for Guru to repeat the long Calculator task and say stop"
     },
     "rollover": {
       "source_pr": 96,
