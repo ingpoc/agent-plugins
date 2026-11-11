@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.129
+
+- Treat numbers with grouping separators (9,801) as equal to plain digits in `expect` checks; report the label of the step that actually failed in `target_missing`.
+
 ## 0.2.128
 
 - Offer `comet_act` and `comet_end` together with `comet_begin` from the start: the live model ignored the mid-turn tool-list update and said it could not read or close the page.

@@ -435,6 +435,14 @@ class CompactMcpDispatchTests(unittest.TestCase):
         self.assertTrue(compact_mcp.expectation_is_new(expects, before, after, None, state))
         self.assertFalse(compact_mcp.expectation_is_new(expects, before, after, None, None))
 
+    def test_value_expect_matches_grouped_number(self):
+        state = {"elements": [
+            {"role": "AXTextField", "label": "Edit field", "value": "9,801"},
+        ]}
+        self.assertTrue(compact_mcp.expectation_is_new(
+            {"value": {"label": "Edit field", "equals": "9801"}}, "", "", None, state
+        ))
+
     def test_focus_checkbox_and_wait_reresolve_stay_pinned(self):
         clicks = []
         fills = []

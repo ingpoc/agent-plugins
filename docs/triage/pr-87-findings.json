@@ -1922,9 +1922,9 @@
       }
     },
     "workflow": {
-      "stage": "plan_fix",
-      "updated_at": "2026-11-11T08:44:39Z",
-      "now": "2026-11-11T08:44:39Z — Luna N: Calculator expect compares 9,801 vs 9801 and target_missing names the wrong label"
+      "stage": "install",
+      "updated_at": "2026-11-11T08:50:43Z",
+      "now": "2026-11-11T08:50:43Z — Installing 0.2.129 (numeric expect with grouping, failed-step label)"
     },
     "rollover": {
       "source_pr": "https://cursor.com/codebase/gurusharan/agent-plugins/pull/94",

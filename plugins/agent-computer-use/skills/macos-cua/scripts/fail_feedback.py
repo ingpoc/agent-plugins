@@ -208,9 +208,15 @@ def _nearby_lines(tree: str, arguments: dict[str, Any], *, limit: int = 4) -> li
 
 def _failure_facts(
     *, arguments: dict[str, Any], before_text: str, after_text: str,
-    results: list[dict[str, Any]], error: str | None,
+    results: list[dict[str, Any]], error: str | None, reported_failed_step: Any = None,
 ) -> dict[str, Any]:
-    failed_step = next((i for i, item in enumerate(results) if item.get("ok") is not True), None)
+    failed_result_index = next((i for i, item in enumerate(results) if item.get("ok") is not True), None)
+    reported_step = reported_failed_step
+    if not isinstance(reported_step, int):
+        reported_step = next((item.get("failed_step") for item in results
+                              if isinstance(item.get("failed_step"), int)), None)
+    failed_step = (reported_step - 1 if isinstance(reported_step, int) and reported_step > 0
+                   else failed_result_index)
     steps = arguments.get("steps")
     expected_step = (steps[failed_step] if failed_step is not None and isinstance(steps, list)
                      and failed_step < len(steps) and isinstance(steps[failed_step], dict) else arguments)
@@ -223,7 +229,7 @@ def _failure_facts(
         for key in ("text", "value", "expect"):
             if key in expected_target:
                 expected_target[key] = "[redacted]"
-    failed_result = results[failed_step] if failed_step is not None else {}
+    failed_result = results[failed_result_index] if failed_result_index is not None else {}
     found_keys = ("element_index", "role", "label", "value", "method", "error_type", "error")
     found_target = {key: failed_result[key] for key in found_keys if key in failed_result}
     if credential_target and "value" in found_target:
@@ -333,6 +339,7 @@ def apply_failure_feedback(
     payload["failure"] = _failure_facts(
         arguments=arguments, before_text=before_text, after_text=after_text,
         results=results, error=str(payload.get("error") or "") or None,
+        reported_failed_step=payload.get("failed_step"),
     )
     payload["text"] = format_failure_text(
         reason=reason,

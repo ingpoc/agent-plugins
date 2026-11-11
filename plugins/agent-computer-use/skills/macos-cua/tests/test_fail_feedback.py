@@ -111,6 +111,20 @@ class FailFeedbackTests(unittest.TestCase):
         self.assertNotIn('AXButton "Cancel"', out["text"])
         self.assertIn("AX target lookup failed", failure["error"])
 
+    def test_failure_target_uses_reported_failed_step(self):
+        out = ff.apply_failure_feedback(
+            {"ok": False, "dispatched": False, "verified": False,
+             "error": "Label not found: Multiply",
+             "results": [{"ok": True}, {"ok": False, "failed_step": 1,
+                        "error": "Label not found"}]},
+            arguments={"app": "Calculator", "steps": [
+                {"op": "click", "label": "Multiply"},
+                {"op": "click", "label": "9"},
+            ]},
+            before_text='[0] AXWindow "Calculator"', after_text='[0] AXWindow "Calculator"',
+        )
+        self.assertEqual(out["failure"]["expected_target"]["label"], "Multiply")
+
     def test_credential_target_redacts_typed_and_observed_values(self):
         sentinel = "password-observation-sentinel-987654321"
         tree = f'[0] AXWindow "Login"\n[1] AXTextField "Password" value="{sentinel}"'
