@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.30
+
+- Count child agent spawns in captured Codex runs, accept a task only from a passing separate verifier receipt (the verifier must be a different file), report a task complete only when nothing is missing, and leave incomplete tasks out of token and duration totals while counting them as excluded.
+
 ## 0.1.29
 
 - Treat sources read in the current collect as collected, scope coverage by project, and group retired legacy snapshot gaps.

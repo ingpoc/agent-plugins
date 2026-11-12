@@ -11,6 +11,10 @@ path = Path(__file__).resolve().parents[1] / 'runtime/collector/codex_usage.py'
 spec = importlib.util.spec_from_file_location('codex_usage', path)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
+verify_path = path.with_name('codex_verify.py')
+verify_spec = importlib.util.spec_from_file_location('codex_verify', verify_path)
+verify_module = importlib.util.module_from_spec(verify_spec)
+verify_spec.loader.exec_module(verify_module)
 
 
 class CodexUsageTests(unittest.TestCase):
@@ -55,11 +59,63 @@ class CodexUsageTests(unittest.TestCase):
             self.assertEqual(detail['thread_id'], task)
             self.assertTrue(detail['direct_measurement_eligible'])
             self.assertEqual(detail['verification']['result'], 'pass')
-            self.assertEqual(detail['acceptance'], 'unknown')
-            self.assertIn('child_coverage_unknown', detail['reasons'])
+            self.assertEqual(detail['verification']['independence'], 'separate_process')
+            self.assertEqual(detail['acceptance'], 'pass')
+            self.assertEqual(detail['child_coverage'], 'none_spawned')
+            self.assertEqual(detail['status'], 'complete')
+            self.assertEqual(detail['reasons'], [])
             artifact.write_text('changed')
             self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
             self.assertEqual(module.task_detail(db, task)['verification']['result'], 'pass')
+
+    def test_child_spawn_items_are_counted_once_and_require_attribution(self):
+        spawn = {'id': 'spawn-1', 'type': 'collab_tool_call', 'tool': 'spawn_agent'}
+        summary = module.summarize([json.dumps({'type': 'item.started', 'item': spawn}),
+                                    json.dumps({'type': 'item.completed', 'item': spawn}),
+                                    json.dumps({'type': 'turn.completed', 'turn_id': 't1',
+                                                'usage': {'input_tokens': 3, 'cached_input_tokens': 1,
+                                                          'output_tokens': 2}})])
+        self.assertEqual(summary['child_spawns'], 1)
+        summary.update(thread_id='12345678-1234-4234-8234-123456789012', process_exit_code=0)
+        with tempfile.TemporaryDirectory() as directory:
+            db = Path(directory) / 'usage.sqlite3'
+            module.record(db, summary['thread_id'], 'coding', summary)
+            detail = module.task_detail(db, summary['thread_id'])
+            self.assertEqual(detail['child_coverage'], 'children_unattributed')
+            self.assertIn('child_coverage_unknown', detail['reasons'])
+
+    def test_equal_verifier_digest_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            db = root / 'usage.sqlite3'
+            task = '12345678-1234-4234-8234-123456789012'
+            module.record(db, task, 'coding', {'usage': {}})
+            scenario, skill, artifact = [root / name for name in ('scenario', 'skill', 'artifact')]
+            scenario.write_text('scenario')
+            skill.write_text('skill')
+            artifact.write_text('#!/bin/sh\nexit 0\n')
+            artifact.chmod(0o755)
+            with self.assertRaisesRegex(ValueError, 'separate file'):
+                verify_module.verify(db, task, scenario, skill, artifact, artifact)
+
+    def test_failing_receipt_keeps_task_incomplete(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            db = root / 'usage.sqlite3'
+            task = '12345678-1234-4234-8234-123456789012'
+            summary = module.summarize([json.dumps({'type': 'thread.started', 'thread_id': task}),
+                                        json.dumps({'type': 'turn.completed', 'turn_id': 't1',
+                                            'usage': {'input_tokens': 3, 'cached_input_tokens': 1, 'output_tokens': 2}})])
+            summary['process_exit_code'] = 0
+            module.record(db, task, 'coding', summary)
+            with sqlite3.connect(db) as connection:
+                connection.execute('CREATE TABLE task_verification (task_id TEXT PRIMARY KEY, receipt TEXT NOT NULL)')
+                connection.execute('INSERT INTO task_verification VALUES (?, ?)',
+                                   (task, json.dumps({'result': 'fail'})))
+            detail = module.task_detail(db, task)
+            self.assertEqual(detail['acceptance'], 'fail')
+            self.assertEqual(detail['status'], 'incomplete')
+            self.assertIn('acceptance_unverified', detail['reasons'])
 
     def test_counts_only_usage_without_content(self):
         lines = [json.dumps({'type': 'thread.started', 'thread_id': '12345678-1234-4234-8234-123456789012'}),
@@ -114,8 +170,9 @@ class CodexUsageTests(unittest.TestCase):
             module.record(db, task, 'coding', summary)
             module.record(db, task, 'coding', summary)
             self.assertEqual(module.task_overview(db)['tasks'], 1)
-            self.assertEqual(module.task_overview(db)['categories'][0]['input_tokens'], 10)
+            self.assertEqual(module.task_overview(db)['categories'][0]['input_tokens'], 0)
             self.assertEqual(module.task_overview(db)['categories'][0]['known_output_tasks'], 0)
+            self.assertEqual(module.task_overview(db)['categories'][0]['excluded_incomplete'], 1)
             with self.assertRaises(ValueError):
                 module.record(db, task, 'research', summary)
 
@@ -129,14 +186,19 @@ class CodexUsageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / 'usage.sqlite3'
             base = {'model': 'gpt-6-luna', 'effort': 'low', 'check_status': 'passed',
-                    'usage': {'input_tokens': 100, 'output_tokens': 50}}
+                    'thread_id': '12345678-1234-4234-8234-123456789012', 'process_exit_code': 0,
+                    'completed_turns': 1, 'failed_turns': 0, 'invalid_events': 0,
+                    'usage': {'input_tokens': 100, 'cached_input_tokens': 10, 'output_tokens': 50}}
             first = {**base, 'elapsed_seconds': 2.5}
-            second = {**base, 'usage': {'input_tokens': 120, 'output_tokens': None}, 'elapsed_seconds': None}
+            second = {**base, 'thread_id': None,
+                      'usage': {'input_tokens': 120, 'cached_input_tokens': 10, 'output_tokens': 60},
+                      'elapsed_seconds': 9.0}
             module.record(db, '12345678-1234-4234-8234-123456789012', 'coding', first)
             module.record(db, '22345678-1234-4234-8234-123456789012', 'coding', second)
             group = module.task_overview(db)['effective_configurations'][0]
             self.assertEqual((group['tasks'], group['output_tokens'], group['known_output_tasks']), (2, 50, 1))
             self.assertEqual((group['elapsed_seconds'], group['known_duration_tasks']), (2.5, 1))
+            self.assertEqual(group['excluded_incomplete'], 1)
 
     def test_launcher_preserves_exit_and_stores_only_usage(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -159,7 +221,7 @@ class CodexUsageTests(unittest.TestCase):
             self.assertEqual(json.loads(row)['requested_model'], 'gpt-6-luna')
             self.assertEqual(json.loads(row)['requested_effort'], 'low')
             self.assertIsNone(json.loads(row)['model'])
-            self.assertEqual(module.task_overview(db)['categories'][0]['input_tokens'], 17)
+            self.assertEqual(module.task_overview(db)['categories'][0]['input_tokens'], 0)
 
     def test_quiet_capture_does_not_emit_task_content(self):
         with tempfile.TemporaryDirectory() as directory:
