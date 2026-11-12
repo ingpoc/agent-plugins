@@ -1929,8 +1929,8 @@
     },
     "workflow": {
       "stage": "install",
-      "updated_at": "2026-11-12T04:40:32Z",
-      "now": "2026-11-12T04:40:32Z — 10:30 IST Re-releasing 0.2.138 with the OBS-22 and AGENT-13 fixes (first run stopped: tree changed mid-release)"
+      "updated_at": "2026-11-12T04:55:44Z",
+      "now": "2026-11-12T04:55:44Z — 10:45 IST 0.2.139 ready (screen_locked mapping); install waits for the Mini to be unlocked"
     },
     "rollover": {
       "source_pr": 96,
@@ -3069,7 +3069,7 @@
       "id": "OBS-21",
       "title": "ACU reports 'App has no open window' when the real cause is a locked screen",
       "source": "Agent reported",
-      "status": "awaiting_verification",
+      "status": "in_progress",
       "observed": "2026-11-11 03:00 IST: installed 0.2.123 Calculator probe failed with observation_incomplete 'Pinned AX window 224142 not found' and hint 'App has no open window'. CGSSessionScreenIsLocked was true (locked since 00:46 IST); Calculator AX window count 0.",
       "details": {
         "Why it matters": "The failure hint points agents at opening the app, which cannot help. Root cause is session lock, readable from CGSessionCopyCurrentDictionary."

@@ -1,5 +1,9 @@
 # Changelog: agent-computer-use
 
+## 0.2.139
+
+- macos-cua: a locked Mac is reported as `screen_locked` (hint: ask the user to unlock) instead of `observation_incomplete`, and Samantha stops retrying until it is unlocked.
+
 ## 0.2.138
 
 - Samantha: spoken turns log a full `turn_latency` timeline (speech, transcript, first reply, tool, final reply) built from the GPT-Live events Samantha actually receives.
